@@ -1,7 +1,7 @@
 /* sbt -- Simple Build Tool
  * Copyright 2009  Mark Harrah
  */
-package sbt
+package sbt.util.internal
 
 import java.io.IOException
 
