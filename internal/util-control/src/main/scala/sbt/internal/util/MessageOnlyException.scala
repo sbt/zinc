@@ -1,7 +1,7 @@
 /* sbt -- Simple Build Tool
  * Copyright 2011 Mark Harrah
  */
-package sbt.util.internal
+package sbt.internal.util
 
 final class MessageOnlyException(override val toString: String) extends RuntimeException(toString)
 

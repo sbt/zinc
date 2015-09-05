@@ -1,7 +1,7 @@
 /* sbt -- Simple Build Tool
  * Copyright 2009, 2010  Mark Harrah
  */
-package sbt.util.internal
+package sbt.internal.util
 
 /** Defines a function to call as sbt exits.*/
 trait ExitHook {
