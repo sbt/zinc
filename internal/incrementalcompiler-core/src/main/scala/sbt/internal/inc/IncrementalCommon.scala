@@ -3,7 +3,7 @@ package internal
 package inc
 
 import scala.annotation.tailrec
-import xsbti.compile.DependencyChanges
+import xsbti.compile.{ ClassfileManager, DependencyChanges }
 import xsbti.api.{ Compilation, Source }
 import java.io.File
 
@@ -28,7 +28,7 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
       debug("********* Pruned: \n" + pruned.relations + "\n*********")
 
       val fresh = doCompile(invalidated, binaryChanges)
-      classfileManager.generated(fresh.relations.allProducts)
+      classfileManager.generated(fresh.relations.allProducts.toArray)
       debug("********* Fresh: \n" + fresh.relations + "\n*********")
       val merged = pruned ++ fresh //.copy(relations = pruned.relations ++ fresh.relations, apis = pruned.apis ++ fresh.apis)
       debug("********* Merged: \n" + merged.relations + "\n*********")

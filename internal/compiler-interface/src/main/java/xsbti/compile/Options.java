@@ -24,4 +24,7 @@ public interface Options
 
 	/** Controls the order in which Java and Scala sources are compiled.*/
 	CompileOrder order();
+
+	/** Configures the classfile manager. */
+	ClassfileManager classFileManager();
 }

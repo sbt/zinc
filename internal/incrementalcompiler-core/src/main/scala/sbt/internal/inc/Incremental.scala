@@ -8,7 +8,7 @@ package inc
 import xsbt.api.{ NameChanges, SameAPI, TopLevel }
 import annotation.tailrec
 import xsbti.api.{ Compilation, Source }
-import xsbti.compile.DependencyChanges
+import xsbti.compile.{ ClassfileManager, DependencyChanges }
 import java.io.File
 
 /**
@@ -78,11 +78,11 @@ object Incremental {
   private[inc] def apiDebug(options: IncOptions): Boolean = options.apiDebug || java.lang.Boolean.getBoolean(apiDebugProp)
 
   private[sbt] def prune(invalidatedSrcs: Set[File], previous: Analysis): Analysis =
-    prune(invalidatedSrcs, previous, ClassfileManager.deleteImmediately())
+    prune(invalidatedSrcs, previous, DefaultClassfileManager.deleteImmediately())
 
   private[sbt] def prune(invalidatedSrcs: Set[File], previous: Analysis, classfileManager: ClassfileManager): Analysis =
     {
-      classfileManager.delete(invalidatedSrcs.flatMap(previous.relations.products))
+      classfileManager.delete(invalidatedSrcs.flatMap(previous.relations.products).toArray)
       previous -- invalidatedSrcs
     }
 
@@ -91,10 +91,10 @@ object Incremental {
       val classfileManager = options.newClassfileManager()
       val result = try run(classfileManager) catch {
         case e: Exception =>
-          classfileManager.complete(success = false)
+          classfileManager.complete( /*success = */ false)
           throw e
       }
-      classfileManager.complete(success = true)
+      classfileManager.complete( /*success = */ true)
       result
     }
 

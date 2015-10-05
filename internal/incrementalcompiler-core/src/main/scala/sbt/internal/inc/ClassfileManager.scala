@@ -6,30 +6,13 @@ import sbt.io.IO
 import java.io.File
 import collection.mutable
 
-/**
- * During an incremental compilation run, a ClassfileManager deletes class files and is notified of generated class files.
- * A ClassfileManager can be used only once.
- */
-trait ClassfileManager {
-  /**
-   * Called once per compilation step with the class files to delete prior to that step's compilation.
-   * The files in `classes` must not exist if this method returns normally.
-   * Any empty ancestor directories of deleted files must not exist either.
-   */
-  def delete(classes: Iterable[File]): Unit
+import xsbti.compile.ClassfileManager
 
-  /** Called once per compilation step with the class files generated during that step.*/
-  def generated(classes: Iterable[File]): Unit
-
-  /** Called once at the end of the whole compilation run, with `success` indicating whether compilation succeeded (true) or not (false).*/
-  def complete(success: Boolean): Unit
-}
-
-object ClassfileManager {
+object DefaultClassfileManager {
   /** Constructs a minimal ClassfileManager implementation that immediately deletes class files when requested. */
   val deleteImmediately: () => ClassfileManager = () => new ClassfileManager {
-    def delete(classes: Iterable[File]): Unit = IO.deleteFilesEmptyDirs(classes)
-    def generated(classes: Iterable[File]): Unit = ()
+    def delete(classes: Array[File]): Unit = IO.deleteFilesEmptyDirs(classes)
+    def generated(classes: Array[File]): Unit = ()
     def complete(success: Boolean): Unit = ()
   }
   @deprecated("Use overloaded variant that takes additional logger argument, instead.", "0.13.5")
@@ -46,7 +29,7 @@ object ClassfileManager {
     private[this] val movedClasses = new mutable.HashMap[File, File]
 
     private def showFiles(files: Iterable[File]): String = files.map(f => s"\t$f").mkString("\n")
-    def delete(classes: Iterable[File]): Unit = {
+    def delete(classes: Array[File]): Unit = {
       logger.debug(s"About to delete class files:\n${showFiles(classes)}")
       val toBeBackedUp = classes.filter(c => c.exists && !movedClasses.contains(c) && !generatedClasses(c))
       logger.debug(s"We backup classs files:\n${showFiles(toBeBackedUp)}")
@@ -55,7 +38,7 @@ object ClassfileManager {
       }
       IO.deleteFilesEmptyDirs(classes)
     }
-    def generated(classes: Iterable[File]): Unit = {
+    def generated(classes: Array[File]): Unit = {
       logger.debug(s"Registering generated classes:\n${showFiles(classes)}")
       generatedClasses ++= classes
       ()
