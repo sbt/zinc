@@ -33,7 +33,7 @@ object IC extends IncrementalCompiler[Analysis, AnalyzingCompiler] {
       val compilers = in.compilers; import compilers._
       val aMap = (f: File) => m2o(analysisMap(f))
       val defClass = (f: File) => { val dc = definesClass(f); (name: String) => dc.apply(name) }
-      val incOptions = IncOptions.fromStringMap(incrementalCompilerOptions)
+      val incOptions = IncOptions.fromStringMap(incrementalCompilerOptions).withNewClassfileManager(newClassfileManager.apply _)
       val (previousAnalysis, previousSetup) = {
         MixedAnalyzingCompiler.staticCachedStore(setup.cacheFile()).get().map {
           case (a, s) => (a, Some(s))

@@ -1,6 +1,7 @@
 package xsbti.compile;
 
 import java.io.File;
+import xsbti.F0;
 
 /** Standard compilation options.*/
 public interface Options
@@ -26,5 +27,5 @@ public interface Options
 	CompileOrder order();
 
 	/** Configures the classfile manager. */
-	ClassfileManager classFileManager();
+	F0<ClassfileManager> newClassfileManager();
 }
