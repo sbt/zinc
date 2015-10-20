@@ -4,6 +4,8 @@ package inc
 
 import java.io.File
 
+import xsbti.compile.ClassfileManager
+
 /**
  * Represents all configuration options for the incremental compiler itself and
  * not the underlying Java/Scala compiler.
@@ -206,7 +208,7 @@ object IncOptions extends Serializable {
     apiDebug = false,
     apiDiffContextSize = 5,
     apiDumpDirectory = None,
-    newClassfileManager = ClassfileManager.deleteImmediately,
+    newClassfileManager = DefaultClassfileManager.deleteImmediately,
     recompileOnMacroDef = recompileOnMacroDefDefault,
     nameHashing = nameHashingDefault
   )
@@ -277,7 +279,7 @@ object IncOptions extends Serializable {
     }
 
     new IncOptions(getTransitiveStep, getRecompileAllFraction, getRelationsDebug, getApiDebug, getApiDiffContextSize,
-      getApiDumpDirectory, ClassfileManager.deleteImmediately, getRecompileOnMacroDef, getNameHashing, getAntStyle)
+      getApiDumpDirectory, DefaultClassfileManager.deleteImmediately, getRecompileOnMacroDef, getNameHashing, getAntStyle)
   }
 
   def toStringMap(o: IncOptions): java.util.Map[String, String] = {

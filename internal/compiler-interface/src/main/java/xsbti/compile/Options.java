@@ -1,6 +1,7 @@
 package xsbti.compile;
 
 import java.io.File;
+import xsbti.F0;
 
 /** Standard compilation options.*/
 public interface Options
@@ -24,4 +25,7 @@ public interface Options
 
 	/** Controls the order in which Java and Scala sources are compiled.*/
 	CompileOrder order();
+
+	/** Configures the classfile manager. */
+	F0<ClassfileManager> newClassfileManager();
 }
