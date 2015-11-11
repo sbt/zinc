@@ -47,7 +47,7 @@ final class MixedAnalyzingCompiler(
     def compileScala(): Unit =
       if (scalaSrcs.nonEmpty) {
         val sources = if (order == Mixed) incSrc else scalaSrcs
-        val arguments = cArgs(Nil, absClasspath, None, options.options)
+        val arguments = cArgs(Nil, absClasspath, None, options.scalacOptions)
         timed("Scala compilation", log) {
           compiler.compile(sources, changes, arguments, output, callback, reporter, config.cache, log, progress)
         }
@@ -119,7 +119,7 @@ object MixedAnalyzingCompiler {
     incrementalCompilerOptions: IncOptions
   ): CompileConfiguration =
     {
-      val compileSetup = new CompileSetup(output, new CompileOptions(options.toArray, javacOptions.toArray),
+      val compileSetup = new CompileSetup(output, new MiniOptions(options.toArray, javacOptions.toArray),
         scalac.scalaInstance.actualVersion, compileOrder, incrementalCompilerOptions.nameHashing)
       config(
         sources,
@@ -167,7 +167,7 @@ object MixedAnalyzingCompiler {
     val absClasspath = classpath.map(_.getAbsoluteFile)
     val apiOption = (api: Either[Boolean, Source]) => api.right.toOption
     val cArgs = new CompilerArguments(compiler.scalaInstance, compiler.cp)
-    val searchClasspath = explicitBootClasspath(options.options) ++ withBootclasspath(cArgs, absClasspath)
+    val searchClasspath = explicitBootClasspath(options.scalacOptions) ++ withBootclasspath(cArgs, absClasspath)
     (searchClasspath, Locate.entry(searchClasspath, definesClass))
   }
 

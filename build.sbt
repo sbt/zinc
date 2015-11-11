@@ -146,6 +146,7 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface").
     minimalSettings,
     // javaOnlySettings,
     name := "Compiler Interface",
+    libraryDependencies ++= Seq(utilInterface),
     exportJars := true,
     watchSources <++= apiDefinitions,
     resourceGenerators in Compile <+= (version, resourceManaged, streams, compile in Compile) map generateVersionFile,

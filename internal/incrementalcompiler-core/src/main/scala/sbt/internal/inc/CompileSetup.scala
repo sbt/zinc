@@ -5,12 +5,12 @@ package sbt
 package internal
 package inc
 
-import xsbti.compile.{ CompileSetup, CompileOrder, Output => APIOutput, SingleOutput, MultipleOutput, CompileOptions }
+import xsbti.compile.{ CompileSetup, CompileOrder, Output => APIOutput, SingleOutput, MultipleOutput, MiniOptions }
 import java.io.File
 
 object CompileSetupUtil {
   // Equiv[CompileOrder.Value] dominates Equiv[CompileSetup]
-  implicit def equivCompileSetup(implicit equivOutput: Equiv[APIOutput], equivOpts: Equiv[CompileOptions], equivComp: Equiv[String] /*, equivOrder: Equiv[CompileOrder]*/ ): Equiv[CompileSetup] = new Equiv[CompileSetup] {
+  implicit def equivCompileSetup(implicit equivOutput: Equiv[APIOutput], equivOpts: Equiv[MiniOptions], equivComp: Equiv[String] /*, equivOrder: Equiv[CompileOrder]*/ ): Equiv[CompileSetup] = new Equiv[CompileSetup] {
     def equiv(a: CompileSetup, b: CompileSetup) = {
       // For some reason, an Equiv[Nothing] or some such is getting injected into here now, and borking all our results.
       // We hardcode these to use the Equiv defined in this class.
@@ -44,9 +44,9 @@ object CompileSetupUtil {
         false
     }
   }
-  implicit val equivOpts: Equiv[CompileOptions] = new Equiv[CompileOptions] {
-    def equiv(a: CompileOptions, b: CompileOptions) = {
-      (a.options sameElements b.options) &&
+  implicit val equivOpts: Equiv[MiniOptions] = new Equiv[MiniOptions] {
+    def equiv(a: MiniOptions, b: MiniOptions) = {
+      (a.scalacOptions sameElements b.scalacOptions) &&
         (a.javacOptions sameElements b.javacOptions)
     }
   }

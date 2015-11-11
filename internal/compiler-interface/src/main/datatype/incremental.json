@@ -145,20 +145,82 @@
       "target": "Java",
       "type": "record",
       "doc": [
-        "This is used as part of CompileSetup.",
-        "This class exists because of Scala's restriction on implicit parameter search.",
-        "We cannot require an implicit parameter Equiv[Seq[String]] to construct Equiv[CompileSetup]",
-        "  because complexity(Equiv[Seq[String]]) > complexity(Equiv[CompileSetup])",
-        "    (6 > 4)"
+        "Compilation options."
       ],
       "fields": [
         {
-          "name": "options",
-          "type": "String []"
+          "name": "classpath",
+          "type": "java.io.File []",
+          "doc": [
+            "The classpath to use for compilation.",
+            "This will be modified according to the ClasspathOptions used to configure the ScalaCompiler."
+          ]
+        },
+        {
+          "name": "sources",
+          "type": "java.io.File []",
+          "doc": [
+            "All sources that should be recompiled.",
+            "This should include Scala and Java sources, which are identified by their extension."
+          ]
+        },
+        {
+          "name": "classesDirectory",
+          "type": "java.io.File"
+        },
+        {
+          "name": "scalacOptions",
+          "type": "String []",
+          "doc": [
+            "The options to pass to the Scala compiler other than the sources and classpath to use."
+          ]
         },
         {
           "name": "javacOptions",
-          "type": "String []"
+          "type": "String []",
+          "doc": [
+            "The options to pass to the Java compiler other than the sources and classpath to use."
+          ]
+        },
+        {
+          "name": "maxErrors",
+          "type": "int"
+        },
+        {
+          "name": "sourcePositionMapper",
+          "type": "xsbti.compile.F1<xsbti.Position, xsbti.Position>"
+        },
+        {
+          "name": "order",
+          "type": "xsbti.compile.CompileOrder",
+          "doc": [
+            "Controls the order in which Java and Scala sources are compiled."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "MiniOptions",
+      "namespace": "xsbti.compile",
+      "target": "Java",
+      "type": "record",
+      "doc": [
+        "Compilation options. This is used as part of CompileSetup."
+      ],
+      "fields": [
+        {
+          "name": "scalacOptions",
+          "type": "String []",
+          "doc": [
+            "The options to pass to the Scala compiler other than the sources and classpath to use."
+          ]
+        },
+        {
+          "name": "javacOptions",
+          "type": "String []",
+          "doc": [
+            "The options to pass to the Java compiler other than the sources and classpath to use."
+          ]
         }
       ]
     },
@@ -177,7 +239,7 @@
         },
         {
           "name": "options",
-          "type": "xsbti.compile.CompileOptions"
+          "type": "xsbti.compile.MiniOptions"
         },
         {
           "name": "compilerVersion",
@@ -241,6 +303,99 @@
         {
           "name": "setup",
           "type": "xsbti.Maybe<xsbti.compile.CompileSetup>"
+        }
+      ]
+    },
+    {
+      "name": "Setup",
+      "namespace": "xsbti.compile",
+      "target": "Java",
+      "type": "record",
+      "doc": [
+        "Configures incremental recompilation."
+      ],
+      "fields": [
+        {
+          "name": "analysisMap",
+          "type": "xsbti.compile.F1<java.io.File,xsbti.Maybe<xsbti.compile.CompileAnalysis>>",
+          "doc": [
+            "Provides the Analysis for the given classpath entry."
+          ]
+        },
+        {
+          "name": "definesClass",
+          "type": "xsbti.compile.F1<java.io.File,xsbti.compile.DefinesClass>",
+          "doc": [
+            "Provides a function to determine if classpath entry `file` contains a given class.",
+            "The returned function should generally cache information about `file`, such as the list of entries in a jar."
+          ]
+        },
+        {
+          "name": "skip",
+          "type": "boolean",
+          "doc": [
+            "If true, no sources are actually compiled and the Analysis from the previous compilation is returned."
+          ]
+        },
+        {
+          "name": "cacheFile",
+          "type": "java.io.File",
+          "doc": [
+            "The file used to cache information across compilations.",
+            "This file can be removed to force a full recompilation.",
+            "The file should be unique and not shared between compilations."
+          ]
+        },
+        {
+          "name": "cache",
+          "type": "xsbti.compile.GlobalsCache"
+        },
+        {
+          "name": "incrementalCompilerOptions",
+          "type": "xsbti.compile.IncOptions"
+        },
+        {
+          "name": "reporter",
+          "type": "xsbti.Reporter",
+          "doc": [
+            "The reporter that should be used to report scala compilation to."
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Inputs",
+      "namespace": "xsbti.compile",
+      "target": "Java",
+      "type": "record",
+      "doc": [
+        "Configures a single compilation of a single set of sources."
+      ],
+      "fields": [
+        {
+          "name": "compilers",
+          "type": "xsbti.compile.Compilers",
+          "doc": [
+            "The Scala and Java compilers to use for compilation."
+          ]
+        },
+        {
+          "name": "options",
+          "type": "xsbti.compile.CompileOptions",
+          "doc": [
+            "Standard compilation options, such as the sources and classpath to use."
+          ]
+        },
+        {
+          "name": "setup",
+          "type": "xsbti.compile.Setup",
+          "doc": [
+            "Configures incremental compilation."
+          ]
+        },
+        {
+          "name": "previousResult",
+          "type": "xsbti.compile.PreviousResult"
         }
       ]
     }
