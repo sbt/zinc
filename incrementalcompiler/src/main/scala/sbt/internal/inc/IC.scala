@@ -7,7 +7,7 @@ import sbt.internal.inc.javac.AnalyzingJavaCompiler
 import Locate._
 import xsbti.Logger
 import xsbti.api.Source
-import xsbti.compile.{ ClasspathOptions => XClasspathOptions, ScalaInstance => XScalaInstance }
+import xsbti.compile.{ ClasspathOptions => XClasspathOptions, ScalaInstance => XScalaInstance, CompileResult }
 import xsbti.compile.CompileOrder._
 import xsbti.compile.DefinesClass
 import xsbti.{ Reporter, Logger, Maybe }
@@ -24,9 +24,9 @@ import sbt.internal.io.Using
 /**
  * An implementation of the incremental compiler that can compile inputs and dump out source dependency analysis.
  */
-object IC extends IncrementalCompiler[Analysis, AnalyzingCompiler] {
+object IC extends IncrementalCompiler[CompileAnalysis, AnalyzingCompiler] {
 
-  override def compile(in: Inputs[Analysis, AnalyzingCompiler], log: Logger): Analysis =
+  override def compile(in: Inputs[CompileAnalysis, AnalyzingCompiler], log: Logger): CompileAnalysis =
     {
       val setup = in.setup; import setup._
       val options = in.options; import options.{ options => scalacOptions, _ }
@@ -58,19 +58,15 @@ object IC extends IncrementalCompiler[Analysis, AnalyzingCompiler] {
     AnalyzingCompiler.compileSources(sourceJar :: Nil, targetJar, interfaceJar :: Nil, label, raw, log)
   }
 
-  def readCache(file: File): Maybe[(Analysis, CompileSetup)] =
+  def readCache(file: File): Maybe[(CompileAnalysis, CompileSetup)] =
     try { Maybe.just(readCacheUncaught(file)) } catch { case _: Exception => Maybe.nothing() }
 
-  @deprecated("Use overloaded variant which takes `IncOptions` as parameter.", "0.13.2")
-  def readAnalysis(file: File): Analysis =
-    try { readCacheUncaught(file)._1 } catch { case _: Exception => Analysis.Empty }
-
-  def readAnalysis(file: File, incOptions: IncOptions): Analysis =
+  def readAnalysis(file: File, incOptions: IncOptions): CompileAnalysis =
     try { readCacheUncaught(file)._1 } catch {
       case _: Exception => Analysis.empty(nameHashing = incOptions.nameHashing)
     }
 
-  def readCacheUncaught(file: File): (Analysis, CompileSetup) =
+  def readCacheUncaught(file: File): (CompileAnalysis, CompileSetup) =
     Using.fileReader(IO.utf8)(file) { reader =>
       try {
         TextAnalysisFormat.read(reader)
@@ -79,9 +75,6 @@ object IC extends IncrementalCompiler[Analysis, AnalyzingCompiler] {
           throw new java.io.IOException(s"Error while reading $file", ex)
       }
     }
-
-  /** The result of running the compilation. */
-  final case class Result(analysis: Analysis, setup: CompileSetup, hasModified: Boolean)
 
   /**
    * This will run a mixed-compilation of Java/Scala sources
@@ -120,24 +113,24 @@ object IC extends IncrementalCompiler[Analysis, AnalyzingCompiler] {
     progress: Option[CompileProgress] = None,
     options: Seq[String] = Nil,
     javacOptions: Seq[String] = Nil,
-    previousAnalysis: Analysis,
+    previousAnalysis: CompileAnalysis,
     previousSetup: Option[CompileSetup],
-    analysisMap: File => Option[Analysis] = { _ => None },
+    analysisMap: File => Option[CompileAnalysis] = { _ => None },
     definesClass: Locate.DefinesClass = Locate.definesClass _,
     reporter: Reporter,
     compileOrder: CompileOrder = Mixed,
     skip: Boolean = false,
     incrementalCompilerOptions: IncOptions
-  )(implicit log: Logger): Result = {
+  )(implicit log: Logger): CompileResult = {
     val config = MixedAnalyzingCompiler.makeConfig(scalac, javac, sources, classpath, output, cache,
       progress, options, javacOptions, previousAnalysis, previousSetup, analysisMap, definesClass, reporter,
       compileOrder, skip, incrementalCompilerOptions)
     import config.{ currentSetup => setup }
 
-    if (skip) Result(previousAnalysis, setup, false)
+    if (skip) new CompileResult(previousAnalysis, setup, false)
     else {
       val (analysis, changed) = compileInternal(MixedAnalyzingCompiler(config)(log))
-      Result(analysis, setup, changed)
+      new CompileResult(analysis, setup, changed)
     }
   }
 

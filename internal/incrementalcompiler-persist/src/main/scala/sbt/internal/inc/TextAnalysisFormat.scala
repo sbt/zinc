@@ -5,7 +5,7 @@ package inc
 import java.io._
 import sbt.internal.util.Relation
 import xsbti.api.{ Compilation, Source }
-import xsbti.compile.{ MultipleOutput, SingleOutput }
+import xsbti.compile.{ MultipleOutput, SingleOutput, CompileOptions, CompileSetup }
 import javax.xml.bind.DatatypeConverter
 
 // Very simple timer for timing repeated code sections.
@@ -333,7 +333,7 @@ object TextAnalysisFormat {
         case None => throw new ReadException("No output mode specified")
       }
 
-      new CompileSetup(output, new CompileOptions(compileOptions, javacOptions), compilerVersion,
+      new CompileSetup(output, new CompileOptions(compileOptions.toArray, javacOptions.toArray), compilerVersion,
         xsbti.compile.CompileOrder.valueOf(compileOrder), nameHashing)
     }
   }

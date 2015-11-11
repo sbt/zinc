@@ -138,6 +138,111 @@
           "doc": "Extra options"
         }
       ]
+    },
+    {
+      "name": "CompileOptions",
+      "namespace": "xsbti.compile",
+      "target": "Java",
+      "type": "record",
+      "doc": [
+        "This is used as part of CompileSetup.",
+        "This class exists because of Scala's restriction on implicit parameter search.",
+        "We cannot require an implicit parameter Equiv[Seq[String]] to construct Equiv[CompileSetup]",
+        "  because complexity(Equiv[Seq[String]]) > complexity(Equiv[CompileSetup])",
+        "    (6 > 4)"
+      ],
+      "fields": [
+        {
+          "name": "options",
+          "type": "String []"
+        },
+        {
+          "name": "javacOptions",
+          "type": "String []"
+        }
+      ]
+    },
+    {
+      "name": "CompileSetup",
+      "namespace": "xsbti.compile",
+      "target": "Java",
+      "type": "record",
+      "doc": [
+        "This is used as part of CompileResult."
+      ],
+      "fields": [
+        {
+          "name": "output",
+          "type": "xsbti.compile.Output"
+        },
+        {
+          "name": "options",
+          "type": "xsbti.compile.CompileOptions"
+        },
+        {
+          "name": "compilerVersion",
+          "type": "String"
+        },
+        {
+          "name": "order",
+          "type": "xsbti.compile.CompileOrder"
+        },
+        {
+          "name": "nameHashing",
+          "type": "boolean"
+        }
+      ]
+    },
+    {
+      "name": "CompileAnalysis",
+      "namespace": "xsbti.compile",
+      "target": "Java",
+      "type": "protocol",
+      "doc": [
+        "Represents the analysis of an incremental compilation."
+      ]
+    },
+    {
+      "name": "CompileResult",
+      "namespace": "xsbti.compile",
+      "target": "Java",
+      "type": "record",
+      "doc": [
+        "The result of running the incremental compilation."
+      ],
+      "fields": [
+        {
+          "name": "analysis",
+          "type": "xsbti.compile.CompileAnalysis"
+        },
+        {
+          "name": "setup",
+          "type": "xsbti.compile.CompileSetup"
+        },
+        {
+          "name": "hasModified",
+          "type": "boolean"
+        }
+      ]
+    },
+    {
+      "name": "PreviousResult",
+      "namespace": "xsbti.compile",
+      "target": "Java",
+      "type": "record",
+      "doc": [
+        "The previous source dependency analysis result from compilation."
+      ],
+      "fields": [
+        {
+          "name": "analysis",
+          "type": "xsbti.compile.CompileAnalysis"
+        },
+        {
+          "name": "setup",
+          "type": "xsbti.Maybe<xsbti.compile.CompileSetup>"
+        }
+      ]
     }
   ]
 }

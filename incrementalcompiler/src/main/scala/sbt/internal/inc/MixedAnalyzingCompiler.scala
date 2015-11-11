@@ -109,9 +109,9 @@ object MixedAnalyzingCompiler {
     progress: Option[CompileProgress] = None,
     options: Seq[String] = Nil,
     javacOptions: Seq[String] = Nil,
-    previousAnalysis: Analysis,
+    previousAnalysis: CompileAnalysis,
     previousSetup: Option[CompileSetup],
-    analysisMap: File => Option[Analysis] = { _ => None },
+    analysisMap: File => Option[CompileAnalysis] = { _ => None },
     definesClass: DefinesClass = Locate.definesClass _,
     reporter: Reporter,
     compileOrder: CompileOrder = Mixed,
@@ -119,7 +119,7 @@ object MixedAnalyzingCompiler {
     incrementalCompilerOptions: IncOptions
   ): CompileConfiguration =
     {
-      val compileSetup = new CompileSetup(output, new CompileOptions(options, javacOptions),
+      val compileSetup = new CompileSetup(output, new CompileOptions(options.toArray, javacOptions.toArray),
         scalac.scalaInstance.actualVersion, compileOrder, incrementalCompilerOptions.nameHashing)
       config(
         sources,
@@ -144,9 +144,9 @@ object MixedAnalyzingCompiler {
     classpath: Seq[File],
     setup: CompileSetup,
     progress: Option[CompileProgress],
-    previousAnalysis: Analysis,
+    previousAnalysis: CompileAnalysis,
     previousSetup: Option[CompileSetup],
-    analysis: File => Option[Analysis],
+    analysis: File => Option[CompileAnalysis],
     definesClass: DefinesClass,
     compiler: AnalyzingCompiler,
     javac: xsbti.compile.JavaCompiler,

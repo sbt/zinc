@@ -5,6 +5,8 @@ package sbt
 package internal
 package inc
 
+import xsbti.compile.CompileSetup
+
 trait AnalysisStore {
   def set(analysis: Analysis, setup: CompileSetup): Unit
   def get(): Option[(Analysis, CompileSetup)]
