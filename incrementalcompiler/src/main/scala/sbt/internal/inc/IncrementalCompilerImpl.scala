@@ -52,6 +52,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         foldMappers(sourcePositionMappers), order),
       compilers, setup, previousResult
     )
+  def emptyPreviousResult: PreviousResult = new PreviousResult(Maybe.nothing[CompileAnalysis], Maybe.nothing[MiniSetup])
   private[sbt] def f1[A](f: A => A): F1[A, A] =
     new F1[A, A] {
       def apply(a: A): A = f(a)

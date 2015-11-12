@@ -7,11 +7,13 @@ import sbt.io.IO
 import sbt.util.Logger
 import sbt.internal.util.UnitSpec
 import sbt.internal.inc.{ AnalyzingCompiler, IncrementalCompilerImpl, ScalaInstance, RawCompiler, ClasspathOptions, ComponentCompiler }
-import sbt.internal.inc.{ CompilerInterfaceProvider }
+import sbt.internal.inc.{ CompilerInterfaceProvider, CompilerCache, LoggerReporter }
 import sbt.internal.librarymanagement.{ BaseIvySpecification, IvySbt, InlineIvyConfiguration }
 import sbt.librarymanagement.{ ModuleID, UpdateOptions, Resolver }
 import java.net.URLClassLoader
 import sbt.internal.inc.classpath.ClasspathUtilities
+import xsbti.Maybe
+import xsbti.compile.{ F1, CompileAnalysis, DefinesClass, IncOptionsUtil, PreviousResult, MiniSetup, CompileOrder }
 import sbt.io.Path._
 
 class IncrementalCompilerSpec extends BaseIvySpecification {
@@ -24,16 +26,30 @@ class IncrementalCompilerSpec extends BaseIvySpecification {
   val compiler = new IncrementalCompilerImpl // IncrementalCompilerUtil.defaultIncrementalCompiler
   val CompilerBridgeId = "compiler-bridge_2.11"
   val JavaClassVersion = System.getProperty("java.class.version")
-  val target = new File("target")
+  val maxErrors = 100
+  val knownSampleGoodFile =
+    new File(classOf[IncrementalCompilerSpec].getResource("Good.scala").toURI)
 
   "incremental compiler" should "compile" in {
-    val scala211 = scalaCompiler(scala2117Instance, compilerBridge(scala2117Instance, target, log))
-    val cs = compiler.compilers(scala2117Instance, ClasspathOptions.boot, None, scala211)
-    // val setup = ???
-    // val prev = ???
-    // val in = compiler.inputs(Array(), Array(), target, Array(), Array(), 100, Array(), CompileOrder.Mixed,
-    //  cs, setup, prev)
-    assert(true)
+    IO.withTemporaryDirectory { tempDir =>
+      val scala211 = scalaCompiler(scala2117Instance, compilerBridge(scala2117Instance, tempDir, log))
+      val cs = compiler.compilers(scala2117Instance, ClasspathOptions.boot, None, scala211)
+      val analysisMap = f1[File, Maybe[CompileAnalysis]](f => Maybe.nothing[CompileAnalysis])
+      val dc = f1[File, DefinesClass](f => new DefinesClass {
+        override def apply(className: String): Boolean = false
+      })
+      val incOptions = IncOptionsUtil.defaultIncOptions()
+      val reporter = new LoggerReporter(maxErrors, log, identity)
+      val setup = compiler.setup(analysisMap, dc, false, tempDir / "inc_compile", CompilerCache.fresh,
+        incOptions, reporter)
+      val prev = compiler.emptyPreviousResult
+      val classesDir = tempDir / "classes"
+      val in = compiler.inputs(scala2117Instance.allJars, Array(knownSampleGoodFile), classesDir, Array(), Array(), 100, Array(), CompileOrder.Mixed,
+        cs, setup, prev)
+      compiler.compile(in, log)
+      val expectedOuts = List(classesDir / "test" / "pkg" / "Good$.class")
+      expectedOuts foreach { f => assert(f.exists) }
+    }
   }
 
   def scalaCompiler(instance: ScalaInstance, bridgeJar: File): AnalyzingCompiler =
@@ -109,4 +125,8 @@ class IncrementalCompilerSpec extends BaseIvySpecification {
     finally { if (stream ne null) stream.close }
     props
   }
+  def f1[A, B](f: A => B): F1[A, B] =
+    new F1[A, B] {
+      def apply(a: A): B = f(a)
+    }
 }
