@@ -22,9 +22,14 @@ class IncrementalCompilerSpec extends BaseIvySpecification {
   val ivySbt = new IvySbt(ivyConfiguration)
 
   val home = new File(sys.props("user.home"))
+  val scalaVersion = scala.util.Properties.versionNumberString
   val ivyCache = home / ".ivy2" / "cache"
   val compiler = new IncrementalCompilerImpl // IncrementalCompilerUtil.defaultIncrementalCompiler
-  val CompilerBridgeId = "compiler-bridge_2.11"
+  val CompilerBridgeId =
+    scalaVersion match {
+      case sc if sc startsWith "2.11" => "compiler-bridge_2.11"
+      case sc if sc startsWith "2.10" => "compiler-bridge_2.10"
+    }
   val JavaClassVersion = System.getProperty("java.class.version")
   val maxErrors = 100
   val knownSampleGoodFile =
@@ -32,8 +37,9 @@ class IncrementalCompilerSpec extends BaseIvySpecification {
 
   "incremental compiler" should "compile" in {
     IO.withTemporaryDirectory { tempDir =>
-      val scala211 = scalaCompiler(scala2117Instance, compilerBridge(scala2117Instance, tempDir, log))
-      val cs = compiler.compilers(scala2117Instance, ClasspathOptions.boot, None, scala211)
+      val si = scalaInstanceFromFile(scalaVersion)
+      val sc = scalaCompiler(si, compilerBridge(si, tempDir, log))
+      val cs = compiler.compilers(si, ClasspathOptions.boot, None, sc)
       val analysisMap = f1[File, Maybe[CompileAnalysis]](f => Maybe.nothing[CompileAnalysis])
       val dc = f1[File, DefinesClass](f => new DefinesClass {
         override def apply(className: String): Boolean = false
@@ -44,7 +50,7 @@ class IncrementalCompilerSpec extends BaseIvySpecification {
         incOptions, reporter)
       val prev = compiler.emptyPreviousResult
       val classesDir = tempDir / "classes"
-      val in = compiler.inputs(scala2117Instance.allJars, Array(knownSampleGoodFile), classesDir, Array(), Array(), 100, Array(), CompileOrder.Mixed,
+      val in = compiler.inputs(si.allJars, Array(knownSampleGoodFile), classesDir, Array(), Array(), 100, Array(), CompileOrder.Mixed,
         cs, setup, prev)
       compiler.compile(in, log)
       val expectedOuts = List(classesDir / "test" / "pkg" / "Good$.class")
@@ -90,11 +96,11 @@ class IncrementalCompilerSpec extends BaseIvySpecification {
     AnalyzingCompiler.compileSources(sourceJar :: Nil, targetJar, xsbtiJars, label, raw, log)
   }
 
-  val scala2117Instance: ScalaInstance =
+  def scalaInstanceFromFile(v: String): ScalaInstance =
     scalaInstance(
-      ivyCache / "org.scala-lang" / "scala-compiler" / "jars" / "scala-compiler-2.11.7.jar",
-      ivyCache / "org.scala-lang" / "scala-library" / "jars" / "scala-library-2.11.7.jar",
-      Seq(ivyCache / "org.scala-lang" / "scala-reflect" / "jars" / "scala-reflect-2.11.7.jar")
+      ivyCache / "org.scala-lang" / "scala-compiler" / "jars" / s"scala-compiler-$v.jar",
+      ivyCache / "org.scala-lang" / "scala-library" / "jars" / s"scala-library-$v.jar",
+      Seq(ivyCache / "org.scala-lang" / "scala-reflect" / "jars" / s"scala-reflect-$v.jar")
     )
   def scalaInstance(scalaCompiler: File, scalaLibrary: File, scalaExtra: Seq[File]): ScalaInstance =
     {
