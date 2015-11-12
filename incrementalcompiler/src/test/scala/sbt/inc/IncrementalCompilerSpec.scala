@@ -6,24 +6,24 @@ import java.io.File
 import sbt.io.IO
 import sbt.util.Logger
 import sbt.internal.util.UnitSpec
-import sbt.internal.inc.{ AnalyzingCompiler, IncrementalCompilerImpl, ScalaInstance, RawCompiler, ClasspathOptions }
+import sbt.internal.inc.{ AnalyzingCompiler, IncrementalCompilerImpl, ScalaInstance, RawCompiler, ClasspathOptions, ComponentCompiler }
 import sbt.internal.inc.{ CompilerInterfaceProvider }
+import sbt.internal.librarymanagement.{ BaseIvySpecification, IvySbt, InlineIvyConfiguration }
+import sbt.librarymanagement.{ ModuleID, UpdateOptions, Resolver }
 import java.net.URLClassLoader
 import sbt.internal.inc.classpath.ClasspathUtilities
 import sbt.io.Path._
 
-class IncrementalCompilerSpec extends UnitSpec {
+class IncrementalCompilerSpec extends BaseIvySpecification {
+  override def resolvers: Seq[Resolver] = super.resolvers ++ Seq(Resolver.mavenLocal)
+  val ivyConfiguration = mkIvyConfiguration(UpdateOptions())
+  val ivySbt = new IvySbt(ivyConfiguration)
+
   val home = new File(sys.props("user.home"))
-  val internal = new File("internal")
   val ivyCache = home / ".ivy2" / "cache"
   val compiler = new IncrementalCompilerImpl // IncrementalCompilerUtil.defaultIncrementalCompiler
-  val CompilerBridgeId = "compiler-bridge"
+  val CompilerBridgeId = "compiler-bridge_2.11"
   val JavaClassVersion = System.getProperty("java.class.version")
-  val compilerBridgeSource = (internal / "compiler-bridge" / "target" / "scala-2.11" * "compiler-bridge*-sources.jar").get.head
-  val utilInterfaceJar = ivyCache / "org.scala-sbt" / "util-interface" / "jars" / "util-interface-0.1.0-M4.jar"
-  val compilerInterfaceJar = ((internal / "compiler-interface" / "target" * "compiler-interface*.jar").get filterNot { f =>
-    f.getName endsWith "-tests.jar"
-  }).head
   val target = new File("target")
 
   "incremental compiler" should "compile" in {
@@ -40,18 +40,38 @@ class IncrementalCompilerSpec extends UnitSpec {
     new AnalyzingCompiler(instance, CompilerInterfaceProvider.constant(bridgeJar), ClasspathOptions.boot)
 
   def compilerBridge(scalaInstance: ScalaInstance, cacheDir: File, log: Logger): File = {
+
     val dir = cacheDir / bridgeId(scalaInstance.actualVersion)
     val bridgeJar = dir / (CompilerBridgeId + ".jar")
+
     if (!bridgeJar.exists) {
       dir.mkdirs()
-      compileBridgeJar(CompilerBridgeId, compilerBridgeSource, bridgeJar, compilerInterfaceJar, scalaInstance, log)
+
+      val sourceModule = {
+        val dummyModule = ModuleID(xsbti.ArtifactInfo.SbtOrganization + "-tmp", "tmp-module", ComponentCompiler.incrementalVersion, Some("compile"))
+        val source = ModuleID(xsbti.ArtifactInfo.SbtOrganization, CompilerBridgeId, ComponentCompiler.incrementalVersion, Some("compile")).sources()
+        module(dummyModule, Seq(source), None)
+      }
+
+      val compilerBridgeArtifacts =
+        for {
+          conf <- ivyUpdate(sourceModule).configurations
+          m <- conf.modules
+          (_, f) <- m.artifacts
+        } yield f
+
+      val compilerBridgeSource = compilerBridgeArtifacts find (_.getName endsWith "-sources.jar") getOrElse ???
+      val compilerInterfaceJar = compilerBridgeArtifacts find (_.getName startsWith "compiler-interface") getOrElse ???
+      val utilInterfaceJar = compilerBridgeArtifacts find (_.getName startsWith "util-interface") getOrElse ???
+
+      compileBridgeJar(CompilerBridgeId, compilerBridgeSource, bridgeJar, compilerInterfaceJar :: utilInterfaceJar :: Nil, scalaInstance, log)
     }
     bridgeJar
   }
   def bridgeId(scalaVersion: String) = CompilerBridgeId + "-" + scalaVersion + "-" + JavaClassVersion
-  def compileBridgeJar(label: String, sourceJar: File, targetJar: File, interfaceJar: File, instance: ScalaInstance, log: Logger): Unit = {
+  def compileBridgeJar(label: String, sourceJar: File, targetJar: File, xsbtiJars: Iterable[File], instance: ScalaInstance, log: Logger): Unit = {
     val raw = new RawCompiler(instance, ClasspathOptions.auto, log)
-    AnalyzingCompiler.compileSources(sourceJar :: Nil, targetJar, utilInterfaceJar :: interfaceJar :: Nil, label, raw, log)
+    AnalyzingCompiler.compileSources(sourceJar :: Nil, targetJar, xsbtiJars, label, raw, log)
   }
 
   val scala2117Instance: ScalaInstance =
@@ -89,5 +109,4 @@ class IncrementalCompilerSpec extends UnitSpec {
     finally { if (stream ne null) stream.close }
     props
   }
-  lazy val log = Logger.Null
 }
