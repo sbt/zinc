@@ -110,7 +110,7 @@ object MixedAnalyzingCompiler {
     options: Seq[String] = Nil,
     javacOptions: Seq[String] = Nil,
     previousAnalysis: CompileAnalysis,
-    previousSetup: Option[CompileSetup],
+    previousSetup: Option[MiniSetup],
     analysisMap: File => Option[CompileAnalysis] = { _ => None },
     definesClass: DefinesClass = Locate.definesClass _,
     reporter: Reporter,
@@ -119,7 +119,7 @@ object MixedAnalyzingCompiler {
     incrementalCompilerOptions: IncOptions
   ): CompileConfiguration =
     {
-      val compileSetup = new CompileSetup(output, new MiniOptions(options.toArray, javacOptions.toArray),
+      val compileSetup = new MiniSetup(output, new MiniOptions(options.toArray, javacOptions.toArray),
         scalac.scalaInstance.actualVersion, compileOrder, incrementalCompilerOptions.nameHashing)
       config(
         sources,
@@ -142,10 +142,10 @@ object MixedAnalyzingCompiler {
   def config(
     sources: Seq[File],
     classpath: Seq[File],
-    setup: CompileSetup,
+    setup: MiniSetup,
     progress: Option[CompileProgress],
     previousAnalysis: CompileAnalysis,
-    previousSetup: Option[CompileSetup],
+    previousSetup: Option[MiniSetup],
     analysis: File => Option[CompileAnalysis],
     definesClass: DefinesClass,
     compiler: AnalyzingCompiler,
@@ -155,7 +155,7 @@ object MixedAnalyzingCompiler {
     cache: GlobalsCache,
     incrementalCompilerOptions: IncOptions
   ): CompileConfiguration = {
-    import CompileSetup._
+    import MiniSetupUtil._
     new CompileConfiguration(sources, classpath, previousAnalysis, previousSetup, setup,
       progress, analysis, definesClass, reporter, compiler, javac, cache, incrementalCompilerOptions)
   }

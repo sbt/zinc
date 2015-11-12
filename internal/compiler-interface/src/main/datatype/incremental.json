@@ -225,7 +225,7 @@
       ]
     },
     {
-      "name": "CompileSetup",
+      "name": "MiniSetup",
       "namespace": "xsbti.compile",
       "target": "Java",
       "type": "record",
@@ -279,7 +279,7 @@
         },
         {
           "name": "setup",
-          "type": "xsbti.compile.CompileSetup"
+          "type": "xsbti.compile.MiniSetup"
         },
         {
           "name": "hasModified",
@@ -298,11 +298,11 @@
       "fields": [
         {
           "name": "analysis",
-          "type": "xsbti.compile.CompileAnalysis"
+          "type": "xsbti.Maybe<xsbti.compile.CompileAnalysis>"
         },
         {
           "name": "setup",
-          "type": "xsbti.Maybe<xsbti.compile.CompileSetup>"
+          "type": "xsbti.Maybe<xsbti.compile.MiniSetup>"
         }
       ]
     },

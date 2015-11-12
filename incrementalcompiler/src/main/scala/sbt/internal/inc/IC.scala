@@ -62,8 +62,8 @@ private[sbt] object IC {
     progress: Option[CompileProgress] = None,
     options: Seq[String] = Nil,
     javacOptions: Seq[String] = Nil,
-    previousAnalysis: CompileAnalysis,
-    previousSetup: Option[CompileSetup],
+    previousAnalysis: Option[CompileAnalysis],
+    previousSetup: Option[MiniSetup],
     analysisMap: File => Option[CompileAnalysis] = { _ => None },
     definesClass: Locate.DefinesClass = Locate.definesClass _,
     reporter: Reporter,
@@ -71,20 +71,24 @@ private[sbt] object IC {
     skip: Boolean = false,
     incrementalCompilerOptions: IncOptions
   )(implicit log: Logger): CompileResult = {
+    val prev = previousAnalysis match {
+      case Some(previous) => previous
+      case None           => Analysis.empty(incrementalCompilerOptions.nameHashing)
+    }
     val config = MixedAnalyzingCompiler.makeConfig(scalac, javac, sources, classpath, output, cache,
-      progress, options, javacOptions, previousAnalysis, previousSetup, analysisMap, definesClass, reporter,
+      progress, options, javacOptions, prev, previousSetup, analysisMap, definesClass, reporter,
       compileOrder, skip, incrementalCompilerOptions)
     import config.{ currentSetup => setup }
 
-    if (skip) new CompileResult(previousAnalysis, setup, false)
+    if (skip) new CompileResult(prev, setup, false)
     else {
       val (analysis, changed) = compileInternal(MixedAnalyzingCompiler(config)(log))
       new CompileResult(analysis, setup, changed)
     }
   }
 
-  /** Actually runs the incremental compiler using the given mixed compiler.  This will prune the inputs based on the CompileSetup. */
-  private def compileInternal(mixedCompiler: MixedAnalyzingCompiler)(implicit log: Logger, equiv: Equiv[CompileSetup]): (Analysis, Boolean) = {
+  /** Actually runs the incremental compiler using the given mixed compiler.  This will prune the inputs based on the MiniSetup. */
+  private def compileInternal(mixedCompiler: MixedAnalyzingCompiler)(implicit log: Logger, equiv: Equiv[MiniSetup]): (Analysis, Boolean) = {
     val entry = MixedAnalyzingCompiler.classPathLookup(mixedCompiler.config)
     import mixedCompiler.config._
     import mixedCompiler.config.currentSetup.output

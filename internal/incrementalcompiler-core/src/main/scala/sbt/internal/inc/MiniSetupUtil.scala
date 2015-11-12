@@ -5,17 +5,17 @@ package sbt
 package internal
 package inc
 
-import xsbti.compile.{ CompileSetup, CompileOrder, Output => APIOutput, SingleOutput, MultipleOutput, MiniOptions }
+import xsbti.compile.{ MiniSetup, CompileOrder, Output => APIOutput, SingleOutput, MultipleOutput, MiniOptions }
 import java.io.File
 
-object CompileSetupUtil {
-  // Equiv[CompileOrder.Value] dominates Equiv[CompileSetup]
-  implicit def equivCompileSetup(implicit equivOutput: Equiv[APIOutput], equivOpts: Equiv[MiniOptions], equivComp: Equiv[String] /*, equivOrder: Equiv[CompileOrder]*/ ): Equiv[CompileSetup] = new Equiv[CompileSetup] {
-    def equiv(a: CompileSetup, b: CompileSetup) = {
+object MiniSetupUtil {
+  // Equiv[CompileOrder.Value] dominates Equiv[MiniSetup]
+  implicit def equivCompileSetup(implicit equivOutput: Equiv[APIOutput], equivOpts: Equiv[MiniOptions], equivComp: Equiv[String] /*, equivOrder: Equiv[CompileOrder]*/ ): Equiv[MiniSetup] = new Equiv[MiniSetup] {
+    def equiv(a: MiniSetup, b: MiniSetup) = {
       // For some reason, an Equiv[Nothing] or some such is getting injected into here now, and borking all our results.
       // We hardcode these to use the Equiv defined in this class.
-      def sameOutput = CompileSetupUtil.equivOutput.equiv(a.output, b.output)
-      def sameOptions = CompileSetupUtil.equivOpts.equiv(a.options, b.options)
+      def sameOutput = MiniSetupUtil.equivOutput.equiv(a.output, b.output)
+      def sameOptions = MiniSetupUtil.equivOpts.equiv(a.options, b.options)
       def sameCompiler = equivComp.equiv(a.compilerVersion, b.compilerVersion)
       def sameOrder = a.order == b.order
       def sameNameHasher = a.nameHashing == b.nameHashing

@@ -6,7 +6,7 @@ import java.io.File
 
 import inc.Locate._
 import xsbti.Reporter
-import xsbti.compile.{ GlobalsCache, CompileProgress, IncOptions, CompileSetup, CompileAnalysis }
+import xsbti.compile.{ GlobalsCache, CompileProgress, IncOptions, MiniSetup, CompileAnalysis }
 
 /**
  * Configuration used for running an analyzing compiler (a compiler which can extract dependencies between source files and JARs).
@@ -29,8 +29,8 @@ final class CompileConfiguration(
   val sources: Seq[File],
   val classpath: Seq[File],
   val previousAnalysis: CompileAnalysis,
-  val previousSetup: Option[CompileSetup],
-  val currentSetup: CompileSetup,
+  val previousSetup: Option[MiniSetup],
+  val currentSetup: MiniSetup,
   val progress: Option[CompileProgress],
   val getAnalysis: File => Option[CompileAnalysis],
   val definesClass: DefinesClass,
