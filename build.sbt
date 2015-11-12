@@ -84,7 +84,8 @@ lazy val incrementalcompiler = (project in file("incrementalcompiler")).
   settings(
     testedBaseSettings,
     name := "incrementalcompiler",
-    libraryDependencies ++= Seq(utilLogging % "test" classifier "tests")
+    libraryDependencies ++= Seq(utilLogging % "test" classifier "tests", libraryManagement % "test", libraryManagement % "test" classifier "tests"),
+    test <<= (test in Test) dependsOn (publishM2 in compilerBridge) dependsOn (publishM2 in compilerInterface)
   )
 
 lazy val incrementalcompilerCompile = (project in file("incrementalcompiler-compile")).
