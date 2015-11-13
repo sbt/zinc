@@ -149,12 +149,14 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface").
     minimalSettings,
     // javaOnlySettings,
     name := "Compiler Interface",
+    crossScalaVersions := Seq(scala211),
     libraryDependencies ++= Seq(utilInterface),
     exportJars := true,
     watchSources <++= apiDefinitions,
     resourceGenerators in Compile <+= (version, resourceManaged, streams, compile in Compile) map generateVersionFile,
     apiDefinitions <<= baseDirectory map { base => (base / "definition") :: (base / "other") :: (base / "type") :: Nil },
-    crossPaths := false
+    crossPaths := false,
+    autoScalaLibrary := false
   )
 
 // Compiler-side interface to compiler that is compiled against the compiler being used either in advance or on the fly.
