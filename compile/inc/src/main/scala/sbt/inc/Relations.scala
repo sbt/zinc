@@ -340,10 +340,10 @@ object Relations {
     if (nameHashing)
       new MRelationsNameHashing(e, e, InternalDependencies.empty, ExternalDependencies.empty, estr, estr)
     else
-      new MRelationsDefaultImpl(e, e, es, es, estr)
+      throw new UnsupportedOperationException("Turning off name hashing is not supported in class-based dependency tracking")
 
   def make(srcProd: Relation[File, File], binaryDep: Relation[File, File], direct: Source, publicInherited: Source, classes: Relation[File, String]): Relations =
-    new MRelationsDefaultImpl(srcProd, binaryDep, direct = direct, publicInherited = publicInherited, classes)
+    throw new UnsupportedOperationException("Turning off name hashing is not supported in class-based dependency tracking")
 
   private[inc] def make(srcProd: Relation[File, File], binaryDep: Relation[File, File],
     internalDependencies: InternalDependencies, externalDependencies: ExternalDependencies,
@@ -466,165 +466,6 @@ private abstract class MRelationsCommon(val srcProd: Relation[File, File], val b
   protected def relation_s(r: Relation[_, _]) = (
     if (r.forwardMap.isEmpty) "Relation [ ]"
     else (r.all.toSeq map line_s sorted) mkString ("Relation [\n", "", "]")
-  )
-}
-
-/**
- * This class implements Relations trait with support for tracking of `direct` and `publicInherited` source
- * dependencies. Therefore this class preserves the "old" (from sbt 0.13.0) dependency tracking logic and it's
- * a default implementation.
- *
- * `direct` defines relations for dependencies between internal and external source dependencies.  It includes all types of
- *    dependencies, including inheritance.
- *
- * `publicInherited` defines relations for internal and external source dependencies, only including dependencies
- *    introduced by inheritance.
- *
- */
-private class MRelationsDefaultImpl(srcProd: Relation[File, File], binaryDep: Relation[File, File],
-    // direct should include everything in inherited
-    val direct: Source, val publicInherited: Source,
-    classes: Relation[File, String]) extends MRelationsCommon(srcProd, binaryDep, classes) {
-  def internalSrcDep: Relation[File, File] = direct.internal
-  def externalDep: Relation[File, String] = direct.external
-
-  def nameHashing: Boolean = false
-
-  def memberRef: SourceDependencies =
-    throw new UnsupportedOperationException("The `memberRef` source dependencies relation is not supported " +
-      "when `nameHashing` flag is disabled.")
-  def inheritance: SourceDependencies =
-    throw new UnsupportedOperationException("The `memberRef` source dependencies relation is not supported " +
-      "when `nameHashing` flag is disabled.")
-
-  def addProduct(src: File, prod: File, name: String): Relations =
-    new MRelationsDefaultImpl(srcProd + (src, prod), binaryDep, direct = direct,
-      publicInherited = publicInherited, classes + (src, name))
-
-  def addProducts(src: File, products: Iterable[(File, String)]): Relations =
-    new MRelationsDefaultImpl(srcProd ++ products.map(p => (src, p._1)), binaryDep, direct = direct,
-      publicInherited = publicInherited, classes ++ products.map(p => (src, p._2)))
-
-  def addInternalSrcDeps(src: File, deps: Iterable[InternalDependency]) = {
-    val depsByInheritance = deps.collect { case InternalDependency(_, targetFile, DependencyByInheritance) => targetFile }
-
-    val newD = direct.addInternal(src, deps.map(_.targetFile))
-    val newI = publicInherited.addInternal(src, depsByInheritance)
-
-    new MRelationsDefaultImpl(srcProd, binaryDep, direct = newD, publicInherited = newI, classes)
-  }
-
-  def addInternalSrcDeps(src: File, directDependsOn: Iterable[File], inheritedDependsOn: Iterable[File]): Relations = {
-    val directDeps = directDependsOn.map(d => InternalDependency(src, d, DependencyByMemberRef))
-    val inheritedDeps = inheritedDependsOn.map(d => InternalDependency(src, d, DependencyByInheritance))
-    addInternalSrcDeps(src, directDeps ++ inheritedDeps)
-  }
-
-  def addExternalDeps(src: File, deps: Iterable[ExternalDependency]) = {
-    val depsByInheritance = deps.collect { case ExternalDependency(_, targetClassName, _, DependencyByInheritance) => targetClassName }
-
-    val newD = direct.addExternal(src, deps.map(_.targetClassName))
-    val newI = publicInherited.addExternal(src, depsByInheritance)
-
-    new MRelationsDefaultImpl(srcProd, binaryDep, direct = newD, publicInherited = newI, classes)
-  }
-
-  def addExternalDep(src: File, dependsOn: String, inherited: Boolean): Relations = {
-    val newI = if (inherited) publicInherited.addExternal(src, dependsOn :: Nil) else publicInherited
-    val newD = direct.addExternal(src, dependsOn :: Nil)
-    new MRelationsDefaultImpl(srcProd, binaryDep, direct = newD, publicInherited = newI, classes)
-  }
-
-  def addBinaryDeps(src: File, deps: Iterable[(File, String, Stamp)]) =
-    new MRelationsDefaultImpl(srcProd, binaryDep + (src, deps.map(_._1)), direct, publicInherited, classes)
-
-  def addBinaryDep(src: File, dependsOn: File): Relations =
-    new MRelationsDefaultImpl(srcProd, binaryDep + (src, dependsOn), direct = direct,
-      publicInherited = publicInherited, classes)
-
-  def names: Relation[File, String] =
-    throw new UnsupportedOperationException("Tracking of used names is not supported " +
-      "when `nameHashing` is disabled.")
-
-  def addUsedName(src: File, name: String): Relations =
-    throw new UnsupportedOperationException("Tracking of used names is not supported " +
-      "when `nameHashing` is disabled.")
-
-  override def externalDependencies: ExternalDependencies = ExternalDependencies(Map(DependencyByMemberRef -> direct.external, DependencyByInheritance -> publicInherited.external))
-  override def internalDependencies: InternalDependencies = InternalDependencies(Map(DependencyByMemberRef -> direct.internal, DependencyByInheritance -> publicInherited.internal))
-
-  def ++(o: Relations): Relations = {
-    if (nameHashing != o.nameHashing)
-      throw new UnsupportedOperationException("The `++` operation is not supported for relations " +
-        "with different values of `nameHashing` flag.")
-    new MRelationsDefaultImpl(srcProd ++ o.srcProd, binaryDep ++ o.binaryDep, direct ++ o.direct,
-      publicInherited ++ o.publicInherited, classes ++ o.classes)
-  }
-  def --(sources: Iterable[File]) =
-    new MRelationsDefaultImpl(srcProd -- sources, binaryDep -- sources, direct = direct -- sources,
-      publicInherited = publicInherited -- sources, classes -- sources)
-
-  @deprecated("Broken implementation. OK to remove in 0.14", "0.13.1")
-  def groupBy[K](f: File => K): Map[K, Relations] =
-    {
-      type MapRel[T] = Map[K, Relation[File, T]]
-      def outerJoin(srcProdMap: MapRel[File], binaryDepMap: MapRel[File], direct: Map[K, Source],
-        inherited: Map[K, Source], classesMap: MapRel[String],
-        namesMap: MapRel[String]): Map[K, Relations] =
-        {
-          def kRelations(k: K): Relations = {
-            def get[T](m: Map[K, Relation[File, T]]) = Relations.getOrEmpty(m, k)
-            def getSrc(m: Map[K, Source]): Source = m.getOrElse(k, Relations.emptySource)
-            def getSrcDeps(m: Map[K, SourceDependencies]): SourceDependencies =
-              m.getOrElse(k, Relations.emptySourceDependencies)
-            new MRelationsDefaultImpl(get(srcProdMap), get(binaryDepMap), getSrc(direct), getSrc(inherited),
-              get(classesMap))
-          }
-          val keys = (srcProdMap.keySet ++ binaryDepMap.keySet ++ direct.keySet ++ inherited.keySet ++ classesMap.keySet).toList
-          Map(keys.map((k: K) => (k, kRelations(k))): _*)
-        }
-
-      def f1[B](item: (File, B)): K = f(item._1)
-
-      outerJoin(srcProd.groupBy(f1), binaryDep.groupBy(f1), direct.groupBySource(f),
-        publicInherited.groupBySource(f), classes.groupBy(f1), names.groupBy(f1))
-    }
-
-  override def equals(other: Any) = other match {
-    case o: MRelationsDefaultImpl =>
-      srcProd == o.srcProd && binaryDep == o.binaryDep && direct == o.direct &&
-        publicInherited == o.publicInherited && classes == o.classes
-    case _ => false
-  }
-
-  def allRelations = {
-    val rels = List(
-      srcProd,
-      binaryDep,
-      direct.internal,
-      direct.external,
-      publicInherited.internal,
-      publicInherited.external,
-      Relations.emptySourceDependencies.internal, // Default implementation doesn't provide memberRef source deps
-      Relations.emptySourceDependencies.external, // Default implementation doesn't provide memberRef source deps
-      Relations.emptySourceDependencies.internal, // Default implementation doesn't provide inheritance source deps
-      Relations.emptySourceDependencies.external, // Default implementation doesn't provide inheritance source deps
-      classes,
-      Relation.empty[File, String]) // Default implementation doesn't provide used names relation
-    Relations.existingRelations map (_._1) zip rels
-  }
-
-  override def hashCode = (srcProd :: binaryDep :: direct :: publicInherited :: classes :: Nil).hashCode
-
-  override def toString = (
-    """
-	  |Relations:
-	  |  products: %s
-	  |  bin deps: %s
-	  |  src deps: %s
-	  |  ext deps: %s
-	  |  class names: %s
-	  """.trim.stripMargin.format(List(srcProd, binaryDep, internalSrcDep, externalDep, classes) map relation_s: _*)
   )
 }
 
