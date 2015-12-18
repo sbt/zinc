@@ -718,8 +718,8 @@ private class MRelationsNameHashing(srcProd: Relation[File, File], binaryDep: Re
     case _ => false
   }
 
-  def allRelations = {
-    val rels = List(
+  def allRelations: List[(String, Relation[File, _])] = {
+    val rels: List[Relation[File, _]] = List(
       srcProd,
       binaryDep,
       Relations.emptySource.internal, // NameHashing doesn't provide direct dependencies
