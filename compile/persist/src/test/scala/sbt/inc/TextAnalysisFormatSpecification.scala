@@ -2,6 +2,8 @@ package sbt
 package inc
 
 import java.io.{ BufferedReader, File, StringReader, StringWriter }
+import xsbti.DependencyContext
+
 import scala.math.abs
 import org.scalacheck._
 import Gen._
@@ -64,11 +66,10 @@ object TextAnalysisFormatTest extends Properties("TextAnalysisFormat") {
     val sourceInfos = SourceInfos.makeInfo(Nil, Nil)
 
     var analysis = Analysis.empty(nameHashing)
-    analysis = analysis.addProduct(aScala, f("A.class"), exists, "A")
-    analysis = analysis.addProduct(aScala, f("A$.class"), exists, "A$")
-    analysis = analysis.addSource(aScala, aSource, exists, Nil, Nil, sourceInfos)
-    analysis = analysis.addBinaryDep(aScala, f("x.jar"), "x", exists)
-    analysis = analysis.addExternalDep(aScala, "C", cSource, inherited = false)
+    val products = (f("A.class"), "A", exists) :: (f("A$.class"), "A$", exists) :: Nil
+    val binaryDeps = (f("x.jar"), "x", exists) :: Nil
+    val externalDeps = ExternalDependency(aScala, "C", cSource, DependencyContext.DependencyByMemberRef) :: Nil
+    analysis = analysis.addSource(aScala, aSource, exists, sourceInfos, products, Nil, externalDeps, binaryDeps)
 
     val writer = new StringWriter
 
@@ -85,20 +86,21 @@ object TextAnalysisFormatTest extends Properties("TextAnalysisFormat") {
 
   }
 
-  property("Write and read complex Analysis") = forAllNoShrink(TestCaseGenerators.genAnalysis(nameHashing)) { analysis: Analysis =>
-    val writer = new StringWriter
+  property("Write and read complex Analysis") =
+    forAllNoShrink(TestCaseGenerators.genAnalysis(nameHashing)) { analysis: Analysis =>
+      val writer = new StringWriter
 
-    TextAnalysisFormat.write(writer, analysis, commonSetup)
+      TextAnalysisFormat.write(writer, analysis, commonSetup)
 
-    val result = writer.toString
+      val result = writer.toString
 
-    result.startsWith(commonHeader)
-    val reader = new BufferedReader(new StringReader(result))
+      result.startsWith(commonHeader)
+      val reader = new BufferedReader(new StringReader(result))
 
-    val (readAnalysis, readSetup) = TextAnalysisFormat.read(reader)
+      val (readAnalysis, readSetup) = TextAnalysisFormat.read(reader)
 
-    compare(analysis, readAnalysis)
-  }
+      compare(analysis, readAnalysis)
+    }
 
   // Compare two analyses with useful labelling when they aren't equal.
   private[this] def compare(left: Analysis, right: Analysis): Prop =

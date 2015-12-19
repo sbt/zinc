@@ -72,59 +72,6 @@ object AnalysisFormats {
   implicit def setupFormat(implicit outputF: Format[APIOutput], optionF: Format[CompileOptions], compilerVersion: Format[String], orderF: Format[CompileOrder], nameHashingF: Format[Boolean]): Format[CompileSetup] =
     asProduct5[CompileSetup, APIOutput, CompileOptions, String, CompileOrder, Boolean]((a, b, c, d, e) => new CompileSetup(a, b, c, d, e))(s => (s.output, s.options, s.compilerVersion, s.order, s.nameHashing))(outputF, optionF, compilerVersion, orderF, nameHashingF)
 
-  implicit val outputGroupFormat: Format[OutputGroup] =
-    asProduct2((a: File, b: File) => new OutputGroup { def sourceDirectory = a; def outputDirectory = b }) { out => (out.sourceDirectory, out.outputDirectory) }(fileFormat, fileFormat)
-  implicit val multipleOutputFormat: Format[MultipleOutput] =
-    wrap[MultipleOutput, Array[OutputGroup]](
-      (_.outputGroups),
-      {
-        groups =>
-          new MultipleOutput {
-            def outputGroups = groups
-            override def toString = s"MultipleOutput($outputGroups)"
-          }
-      }
-    )
-  implicit val singleOutputFormat: Format[SingleOutput] =
-    wrap[SingleOutput, File](
-      (_.outputDirectory),
-      { out => new SingleOutput { def outputDirectory = out } }
-    )(fileFormat)
-  implicit val outputFormat: Format[APIOutput] = asUnion(singleOutputFormat, multipleOutputFormat)
-
-  implicit def stampsFormat(implicit prodF: Format[Map[File, Stamp]], srcF: Format[Map[File, Stamp]], binF: Format[Map[File, Stamp]], nameF: Format[Map[File, String]]): Format[Stamps] =
-    asProduct4(Stamps.apply _)(s => (s.products, s.sources, s.binaries, s.classNames))(prodF, srcF, binF, nameF)
-
-  implicit def stampFormat(implicit hashF: Format[Hash], modF: Format[LastModified], existsF: Format[Exists]): Format[Stamp] =
-    asUnion(hashF, modF, existsF)
-
-  implicit def apisFormat(implicit internalF: Format[Map[File, Source]], externalF: Format[Map[String, Source]]): Format[APIs] =
-    asProduct2(APIs.apply _)(as => (as.internal, as.external))(internalF, externalF)
-
-  implicit def relationsFormat(implicit prodF: Format[RFF], binF: Format[RFF], directF: Format[RSource], inheritedF: Format[RSource], memberRefF: Format[SourceDependencies], inheritanceF: Format[SourceDependencies], csF: Format[RFS], namesF: Format[RFS]): Format[Relations] =
-    {
-      def makeRelation(srcProd: RFF, binaryDep: RFF, direct: RSource, publicInherited: RSource,
-        memberRef: SourceDependencies, inheritance: SourceDependencies, classes: RFS,
-        nameHashing: Boolean, names: RFS): Relations = if (nameHashing) {
-        def isEmpty(sourceDependencies: RSource): Boolean =
-          sourceDependencies.internal.all.isEmpty && sourceDependencies.external.all.isEmpty
-        // we check direct dependencies only because publicInherited dependencies are subset of direct
-        assert(isEmpty(direct), "Direct dependencies are not empty but `nameHashing` flag is enabled.")
-        val internalDependencies = InternalDependencies(Map(DependencyByMemberRef -> memberRef.internal, DependencyByInheritance -> inheritance.internal))
-        val externalDependencies = ExternalDependencies(Map(DependencyByMemberRef -> memberRef.external, DependencyByInheritance -> inheritance.external))
-        Relations.make(srcProd, binaryDep, internalDependencies, externalDependencies, classes, names)
-      } else {
-        def isEmpty(sourceDependencies: SourceDependencies): Boolean =
-          sourceDependencies.internal.all.isEmpty && sourceDependencies.external.all.isEmpty
-        // we check memberRef dependencies only because inheritance dependencies are subset of memberRef
-        assert(isEmpty(memberRef), "Direct dependencies are not empty but `nameHashing` flag is enabled.")
-        Relations.make(srcProd, binaryDep, direct, publicInherited, classes)
-      }
-      asProduct9[Relations, RFF, RFF, RSource, RSource, SourceDependencies, SourceDependencies, RFS, Boolean, RFS]((a, b, c, d, e, f, g, h, i) => makeRelation(a, b, c, d, e, f, g, h, i))(
-        rs => (rs.srcProd, rs.binaryDep, rs.direct, rs.publicInherited, rs.memberRef, rs.inheritance, rs.classes, rs.nameHashing, rs.names))(
-          prodF, binF, directF, inheritedF, memberRefF, inheritanceF, csF, implicitly[Format[Boolean]], namesF)
-    }
-
   implicit def relationsSourceFormat(implicit internalFormat: Format[Relation[File, File]], externalFormat: Format[Relation[File, String]]): Format[RSource] =
     asProduct2[RSource, RFF, RFS]((a, b) => Relations.makeSource(a, b))(rs => (rs.internal, rs.external))
 
