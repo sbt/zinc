@@ -176,9 +176,10 @@ object TestCaseGenerators {
     inheritance <- genSubRSourceDependencies(memberRef)
     classes <- genStringRelation(srcs)
     names <- genStringRelation(srcs)
+    declaredClasses <- genStringRelation(srcs)
     internal <- InternalDependencies(Map(DependencyByMemberRef -> memberRef.internal, DependencyByInheritance -> inheritance.internal))
     external <- ExternalDependencies(Map(DependencyByMemberRef -> memberRef.external, DependencyByInheritance -> inheritance.external))
-  } yield Relations.make(srcProd, binaryDep, internal, external, classes, names)
+  } yield Relations.make(srcProd, binaryDep, internal, external, classes, names, declaredClasses)
 
   def genAnalysis(nameHashing: Boolean): Gen[Analysis] = for {
     rels <- if (nameHashing) genRelationsNameHashing else genRelations

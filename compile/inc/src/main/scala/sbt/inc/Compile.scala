@@ -95,6 +95,7 @@ private final class AnalysisCallback(internalMap: File => Option[File], external
 
   private[this] val apis = new HashMap[File, (Int, SourceAPI)]
   private[this] val usedNames = new HashMap[File, Set[String]]
+  private[this] val declaredClasses = new HashMap[File, Set[String]]
   private[this] val publicNameHashes = new HashMap[File, _internalOnly_NameHashes]
   private[this] val unreporteds = new HashMap[File, ListBuffer[Problem]]
   private[this] val reporteds = new HashMap[File, ListBuffer[Problem]]
@@ -200,15 +201,23 @@ private final class AnalysisCallback(internalMap: File => Option[File], external
 
   def usedName(sourceFile: File, name: String) = add(usedNames, sourceFile, name)
 
+  def declaredClass(sourceFile: File, className: String) = add(declaredClasses, sourceFile, className)
+
   def nameHashing: Boolean = options.nameHashing
 
-  def get: Analysis = addUsedNames(addCompilation(addProductsAndDeps(Analysis.empty(nameHashing = nameHashing))))
+  def get: Analysis =
+    addDeclaredClasses(addUsedNames(addCompilation(addProductsAndDeps(Analysis.empty(nameHashing = nameHashing)))))
 
   def getOrNil[A, B](m: collection.Map[A, Seq[B]], a: A): Seq[B] = m.get(a).toList.flatten
   def addCompilation(base: Analysis): Analysis = base.copy(compilations = base.compilations.add(compilation))
   def addUsedNames(base: Analysis): Analysis = (base /: usedNames) {
     case (a, (src, names)) =>
       (a /: names) { case (a, name) => a.copy(relations = a.relations.addUsedName(src, name)) }
+  }
+
+  def addDeclaredClasses(base: Analysis): Analysis = (base /: declaredClasses) {
+    case (a, (src, names)) =>
+      (a /: names) { case (a, name) => a.copy(relations = a.relations.addDeclaredClass(src, name)) }
   }
 
   def addProductsAndDeps(base: Analysis): Analysis =

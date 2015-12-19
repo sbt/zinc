@@ -60,9 +60,12 @@ private[sbt] object Analyze {
       }
       def processDependencies(tpes: Iterable[String], context: DependencyContext): Unit = tpes.foreach(tpe => processDependency(tpe, context))
 
+      def declaredClass(className: String): Unit = analysis.declaredClass(source, className)
+      val typesInSource = classFiles.flatMap(_.types).toSet
       val notInherited = classFiles.flatMap(_.types).toSet -- publicInherited
       processDependencies(notInherited, DependencyByMemberRef)
       processDependencies(publicInherited, DependencyByInheritance)
+      typesInSource.foreach(declaredClass)
     }
 
     for (source <- sources filterNot sourceToClassFiles.keySet) {
