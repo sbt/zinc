@@ -126,10 +126,12 @@ class AggressiveCompile(cacheFile: File) {
               }
             }
 
-            def readAPI(source: File, classes: Seq[Class[_]]): Set[String] = {
+            def readAPI(source: File, classes: Seq[Class[_]]): Set[(String, String)] = {
               val (api, inherits) = ClassToAPI.process(classes)
               callback.api(source, api)
-              inherits.map(_.getName)
+              inherits.map {
+                case (from: Class[_], to: Class[_]) => (from.getName, to.getName)
+              }
             }
 
             timed("Java analysis", log) {

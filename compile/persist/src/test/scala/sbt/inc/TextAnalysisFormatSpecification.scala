@@ -68,7 +68,7 @@ object TextAnalysisFormatTest extends Properties("TextAnalysisFormat") {
     var analysis = Analysis.empty(nameHashing)
     val products = (f("A.class"), "A", exists) :: (f("A$.class"), "A$", exists) :: Nil
     val binaryDeps = (f("x.jar"), "x", exists) :: Nil
-    val externalDeps = ExternalDependency(aScala, "C", cSource, DependencyContext.DependencyByMemberRef) :: Nil
+    val externalDeps = ExternalDependency("A", "C", cSource, DependencyContext.DependencyByMemberRef) :: Nil
     analysis = analysis.addSource(aScala, aSource, exists, sourceInfos, products, Nil, externalDeps, binaryDeps)
 
     val writer = new StringWriter

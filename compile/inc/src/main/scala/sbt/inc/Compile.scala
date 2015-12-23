@@ -49,9 +49,12 @@ object IncrementalCompile {
     {
       val current = Stamps.initial(Stamp.lastModified, Stamp.hash, Stamp.lastModified)
       val internalMap = (f: File) => previous.relations.produced(f).headOption
+      val internalSourceToClassNamesMap: File => Set[String] = (f: File) => previous.relations.declaredClassNames(f)
       val externalAPI = getExternalAPI(entry, forEntry)
       try {
-        Incremental.compile(sources, entry, previous, current, forEntry, doCompile(compile, internalMap, externalAPI, current, output, options), log, options)
+        Incremental.compile(sources, entry, previous, current, forEntry,
+          doCompile(compile, internalMap, internalSourceToClassNamesMap, externalAPI, current, output, options),
+          log, options)
       } catch {
         case e: xsbti.CompileCancelled =>
           log.info("Compilation has been cancelled")
@@ -60,9 +63,11 @@ object IncrementalCompile {
           (false, previous)
       }
     }
-  def doCompile(compile: (Set[File], DependencyChanges, xsbti.AnalysisCallback) => Unit, internalMap: File => Option[File], externalAPI: (File, String) => Option[Source], current: ReadStamps, output: Output, options: IncOptions) =
+  def doCompile(compile: (Set[File], DependencyChanges, xsbti.AnalysisCallback) => Unit, internalMap: File => Option[File],
+    internalSourceToClassNamesMap: File => Set[String],
+    externalAPI: (File, String) => Option[Source], current: ReadStamps, output: Output, options: IncOptions) =
     (srcs: Set[File], changes: DependencyChanges) => {
-      val callback = new AnalysisCallback(internalMap, externalAPI, current, output, options)
+      val callback = new AnalysisCallback(internalMap, internalSourceToClassNamesMap, externalAPI, current, output, options)
       compile(srcs, changes, callback)
       callback.get
     }
@@ -79,7 +84,9 @@ object IncrementalCompile {
           }
       }
 }
-private final class AnalysisCallback(internalMap: File => Option[File], externalAPI: (File, String) => Option[Source], current: ReadStamps, output: Output, options: IncOptions) extends xsbti.AnalysisCallback {
+private final class AnalysisCallback(internalMap: File => Option[File],
+    internalSourceToClassNamesMap: File => Set[String],
+    externalAPI: (File, String) => Option[Source], current: ReadStamps, output: Output, options: IncOptions) extends xsbti.AnalysisCallback {
   val compilation = {
     val outputSettings = output match {
       case single: SingleOutput => Array(new OutputSetting("/", single.outputDirectory.getAbsolutePath))
@@ -105,9 +112,9 @@ private final class AnalysisCallback(internalMap: File => Option[File], external
   // generated class file to its source file
   private[this] val classToSource = new HashMap[File, File]
   // internal source dependencies
-  private[this] val intSrcDeps = new HashMap[File, Set[InternalDependency]]
+  private[this] val intSrcDeps = new HashMap[String, Set[InternalDependency]]
   // external source dependencies
-  private[this] val extSrcDeps = new HashMap[File, Set[ExternalDependency]]
+  private[this] val extSrcDeps = new HashMap[String, Set[ExternalDependency]]
   private[this] val binaryClassName = new HashMap[File, String]
   // source files containing a macro def.
   private[this] val macroSources = Set[File]()
@@ -123,57 +130,52 @@ private final class AnalysisCallback(internalMap: File => Option[File], external
       }
     }
 
-  def sourceDependency(dependsOn: File, source: File, context: DependencyContext) = {
-    add(intSrcDeps, source, InternalDependency(source, dependsOn, context))
+  def classDependency(dependsOn: String, sourceClassName: String, context: DependencyContext) = {
+    add(intSrcDeps, sourceClassName, InternalDependency(sourceClassName, dependsOn, context))
   }
-
-  @deprecated("Use `sourceDependency(File, File, DependencyContext)`.", "0.13.8")
-  def sourceDependency(dependsOn: File, source: File, inherited: Boolean) =
-    {
-      val context = if (inherited) DependencyByInheritance else DependencyByMemberRef
-      sourceDependency(dependsOn, source, context)
-    }
 
   private[this] def externalBinaryDependency(binary: File, className: String, source: File, context: DependencyContext) = {
     binaryClassName.put(binary, className)
     add(binaryDeps, source, binary)
   }
 
-  private[this] def externalSourceDependency(sourceFile: File, dependsOn: String, source: Source, context: DependencyContext) = {
-    val dependency = ExternalDependency(sourceFile, dependsOn, source, context)
-    add(extSrcDeps, sourceFile, dependency)
+  private[this] def externalSourceDependency(sourceClassName: String, targetClassName: String, source: Source, context: DependencyContext) = {
+    val dependency = ExternalDependency(sourceClassName, targetClassName, source, context)
+    add(extSrcDeps, sourceClassName, dependency)
   }
 
-  def binaryDependency(classFile: File, name: String, source: File, context: DependencyContext) =
+  private[this] def dependencyOnSourceAsClassNameDepedency(targetFile: File, sourceClassName: String,
+    context: DependencyContext) = {
+    val classNames = internalSourceToClassNamesMap(targetFile)
+    classNames foreach { targetClassName =>
+      classDependency(targetClassName, sourceClassName, context)
+    }
+  }
+
+  def binaryDependency(classFile: File, targetProductName: String, sourceClassName: String, sourceFile: File, context: DependencyContext) =
     internalMap(classFile) match {
-      case Some(dependsOn) =>
+      case Some(dependsOn) => // dependsOn is source
         // dependency is a product of a source not included in this compilation
-        sourceDependency(dependsOn, source, context)
+        dependencyOnSourceAsClassNameDepedency(dependsOn, sourceClassName, context)
       case None =>
         classToSource.get(classFile) match {
           case Some(dependsOn) =>
             // dependency is a product of a source in this compilation step,
             //  but not in the same compiler run (as in javac v. scalac)
-            sourceDependency(dependsOn, source, context)
+            dependencyOnSourceAsClassNameDepedency(dependsOn, sourceClassName, context)
           case None =>
-            externalDependency(classFile, name, source, context)
+            externalDependency(classFile, targetProductName, sourceClassName, sourceFile, context)
         }
     }
 
-  @deprecated("Use `binaryDependency(File, String, File, DependencyContext)`.", "0.13.8")
-  def binaryDependency(classFile: File, name: String, source: File, inherited: Boolean) = {
-    val context = if (inherited) DependencyByInheritance else DependencyByMemberRef
-    binaryDependency(classFile, name, source, context)
-  }
-
-  private[this] def externalDependency(classFile: File, name: String, source: File, context: DependencyContext): Unit =
+  private[this] def externalDependency(classFile: File, name: String, sourceClassName: String, sourceFile: File, context: DependencyContext): Unit =
     externalAPI(classFile, name) match {
       case Some(api) =>
         // dependency is a product of a source in another project
-        externalSourceDependency(source, name, api, context)
+        externalSourceDependency(sourceClassName, name, api, context)
       case None =>
         // dependency is some other binary on the classpath
-        externalBinaryDependency(classFile, name, source, context)
+        externalBinaryDependency(classFile, name, sourceFile, context)
     }
 
   def generatedClass(source: File, module: File, name: String) =
@@ -233,8 +235,9 @@ private final class AnalysisCallback(internalMap: File => Option[File], external
         val prods = classes.getOrElse(src, Nil: Iterable[(File, String)])
 
         val products = prods.map { case (prod, name) => (prod, name, current product prod) }
-        val internalDeps = intSrcDeps.getOrElse(src, Set.empty)
-        val externalDeps = extSrcDeps.getOrElse(src, Set.empty)
+        val declaredClassesInSrc = declaredClasses(src)
+        val internalDeps = declaredClassesInSrc.flatMap(declaredClass => intSrcDeps.getOrElse(declaredClass, Set.empty))
+        val externalDeps = declaredClassesInSrc.flatMap(declaredClass => extSrcDeps.getOrElse(declaredClass, Set.empty))
         val binDeps = binaries.map(d => (d, binaryClassName(d), current binary d))
 
         a.addSource(src, s, stamp, info, products, internalDeps, externalDeps, binDeps)

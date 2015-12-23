@@ -7,23 +7,19 @@ import xsbti.DependencyContext._
 
 class TestCallback(override val nameHashing: Boolean = false) extends AnalysisCallback
 {
-	val sourceDependencies = new ArrayBuffer[(File, File, DependencyContext)]
-	val binaryDependencies = new ArrayBuffer[(File, String, File, DependencyContext)]
+	val sourceDependencies = new ArrayBuffer[(String, String, DependencyContext)]
+	val binaryDependencies = new ArrayBuffer[(File, String, String, DependencyContext)]
 	val products = new ArrayBuffer[(File, File, String)]
 	val usedNames = scala.collection.mutable.Map.empty[File, Set[String]].withDefaultValue(Set.empty)
 	val declaredClasses = scala.collection.mutable.Map.empty[File, Set[String]].withDefaultValue(Set.empty)
 	val apis: scala.collection.mutable.Map[File, SourceAPI] = scala.collection.mutable.Map.empty
 
-	def sourceDependency(dependsOn: File, source: File, inherited: Boolean): Unit = {
-		val context = if(inherited) DependencyByInheritance else DependencyByMemberRef
-		sourceDependency(dependsOn, source, context)
+	def classDependency(dependsOn: String, sourceClassName: String, context: DependencyContext): Unit = {
+		sourceDependencies += ((dependsOn, sourceClassName, context))
 	}
-	def sourceDependency(dependsOn: File, source: File, context: DependencyContext): Unit = { sourceDependencies += ((dependsOn, source, context)) }
-	def binaryDependency(binary: File, name: String, source: File, inherited: Boolean): Unit = {
-		val context = if(inherited) DependencyByInheritance else DependencyByMemberRef
-		binaryDependency(binary, name, source, context)
+	def binaryDependency(targetBinary: File, targetProductName: String, sourceClassName: String, sourceFile: File, context: DependencyContext): Unit = {
+		binaryDependencies += ((targetBinary, targetProductName, sourceClassName, context))
 	}
-	def binaryDependency(binary: File, name: String, source: File, context: DependencyContext): Unit = { binaryDependencies += ((binary, name, source, context)) }
 	def generatedClass(source: File, module: File, name: String): Unit = { products += ((source, module, name)) }
 
 	def usedName(source: File, name: String): Unit = { usedNames(source) += name }

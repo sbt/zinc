@@ -17,8 +17,13 @@ private final class IncrementalNameHashing(log: Logger, options: IncOptions) ext
 
   // Package objects are fragile: if they inherit from an invalidated source, get "class file needed by package is missing" error
   //  This might be too conservative: we probably only need package objects for packages of invalidated sources.
-  override protected def invalidatedPackageObjects(invalidated: Set[File], relations: Relations): Set[File] =
-    invalidated flatMap relations.inheritance.internal.reverse filter { _.getName == "package.scala" }
+  override protected def invalidatedPackageObjects(invalidated: Set[File], relations: Relations): Set[File] = {
+    invalidated flatMap { src =>
+      val classes = relations.declaredClassNames(src)
+      val dependentClasses = classes.flatMap(relations.inheritance.internal.reverse)
+      dependentClasses.flatMap(relations.declaredClasses.reverse)
+    } filter { _.getName == "package.scala" }
+  }
 
   override protected def sameAPI[T](src: T, a: Source, b: Source): Option[APIChange[T]] = {
     if (SameAPI(a, b))
@@ -32,6 +37,24 @@ private final class IncrementalNameHashing(log: Logger, options: IncOptions) ext
     }
   }
 
+  private def toSrcFile(className: String, relations: Relations): File = {
+    val srcs = relations.definesClass(className)
+    if (srcs.size == 1)
+      srcs.head
+    else if (srcs.size == 0)
+      sys.error(s"Class $className is marked as declared in more than one file: $srcs")
+    else
+      sys.error(s"No entry for class $className in declaredClasses relation.")
+  }
+
+  private def convertToSrcDependency(relations: Relations, classDependency: Relation[String, String]): Relation[File, File] = {
+    def convertRelationMap(m: Map[String, Set[String]]): Map[File, Set[File]] =
+      m.map { case (key, values) => toSrcFile(key, relations) -> values.map(toSrcFile(_, relations)) }
+    val forwardMap = convertRelationMap(classDependency.forwardMap)
+    val reverseMap = convertRelationMap(classDependency.reverseMap)
+    Relation.make(forwardMap, reverseMap)
+  }
+
   /** Invalidates sources based on initially detected 'changes' to the sources, products, and dependencies.*/
   override protected def invalidateByExternal(relations: Relations, externalAPIChange: APIChange[String]): Set[File] = {
     val modified = externalAPIChange.modified
@@ -42,12 +65,14 @@ private final class IncrementalNameHashing(log: Logger, options: IncOptions) ext
     val externalInheritanceR = relations.inheritance.external
     val byExternalInheritance = externalInheritanceR.reverse(modified)
     log.debug(s"Files invalidated by inheriting from (external) $modified: $byExternalInheritance; now invalidating by inheritance (internally).")
-    val transitiveInheritance = byExternalInheritance flatMap { file =>
-      invalidateByInheritance(relations, file)
+    val transitiveInheritance = byExternalInheritance flatMap { className =>
+      invalidateByInheritance(relations, toSrcFile(className, relations))
     }
-    val memberRefInvalidationInternal = memberRefInvalidator.get(relations.memberRef.internal,
+    val memberRefInvalidationInternal = memberRefInvalidator.get(
+      convertToSrcDependency(relations, relations.memberRef.internal),
       relations.names, externalAPIChange)
-    val memberRefInvalidationExternal = memberRefInvalidator.get(relations.memberRef.external,
+    val memberRefInvalidationExternal = memberRefInvalidator.get(
+      convertToSrcDependency(relations, relations.memberRef.external),
       relations.names, externalAPIChange)
 
     // Get the member reference dependencies of all sources transitively invalidated by inheritance
@@ -56,12 +81,12 @@ private final class IncrementalNameHashing(log: Logger, options: IncOptions) ext
     // Get the sources that depend on externals by member reference.
     // This includes non-inheritance dependencies and is not transitive.
     log.debug(s"Getting sources that directly depend on (external) $modified.")
-    val memberRefB = memberRefInvalidationExternal(modified)
+    val memberRefB = memberRefInvalidationExternal(toSrcFile(modified, relations))
     transitiveInheritance ++ memberRefA ++ memberRefB
   }
 
   private def invalidateByInheritance(relations: Relations, modified: File): Set[File] = {
-    val inheritanceDeps = relations.inheritance.internal.reverse _
+    val inheritanceDeps = convertToSrcDependency(relations, relations.inheritance.internal).reverse _
     log.debug(s"Invalidating (transitively) by inheritance from $modified...")
     val transitiveInheritance = transitiveDeps(Set(modified))(inheritanceDeps)
     log.debug("Invalidated by transitive inheritance dependency: " + transitiveInheritance)
@@ -73,7 +98,7 @@ private final class IncrementalNameHashing(log: Logger, options: IncOptions) ext
     val transitiveInheritance = invalidateByInheritance(relations, change.modified)
     val reasonForInvalidation = memberRefInvalidator.invalidationReason(change)
     log.debug(s"$reasonForInvalidation\nAll member reference dependencies will be considered within this context.")
-    val memberRefInvalidation = memberRefInvalidator.get(relations.memberRef.internal,
+    val memberRefInvalidation = memberRefInvalidator.get(convertToSrcDependency(relations, relations.memberRef.internal),
       relations.names, change)
     val memberRef = transitiveInheritance flatMap memberRefInvalidation
     val all = transitiveInheritance ++ memberRef
@@ -81,6 +106,6 @@ private final class IncrementalNameHashing(log: Logger, options: IncOptions) ext
   }
 
   override protected def allDeps(relations: Relations): File => Set[File] =
-    f => relations.memberRef.internal.reverse(f)
+    f => relations.declaredClassNames(f).flatMap(relations.memberRef.internal.reverse).flatMap(relations.declaredClasses.reverse)
 
 }

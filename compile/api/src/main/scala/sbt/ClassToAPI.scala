@@ -13,7 +13,7 @@ object ClassToAPI {
   def apply(c: Seq[Class[_]]): api.SourceAPI = process(c)._1
 
   // (api, public inherited classes)
-  def process(c: Seq[Class[_]]): (api.SourceAPI, Set[Class[_]]) =
+  def process(c: Seq[Class[_]]): (api.SourceAPI, Set[(Class[_], Class[_])]) =
     {
       val pkgs = packages(c).map(p => new api.Package(p))
       val cmap = emptyClassMap
@@ -43,7 +43,9 @@ object ClassToAPI {
   def isTopLevel(c: Class[_]): Boolean =
     c.getEnclosingClass eq null
 
-  final class ClassMap private[sbt] (private[sbt] val memo: mutable.Map[String, Seq[api.ClassLike]], private[sbt] val inherited: mutable.Set[Class[_]], private[sbt] val lz: mutable.Buffer[xsbti.api.Lazy[_]]) {
+  final class ClassMap private[sbt] (private[sbt] val memo: mutable.Map[String, Seq[api.ClassLike]],
+                                     private[sbt] val inherited: mutable.Set[(Class[_], Class[_])],
+                                     private[sbt] val lz: mutable.Buffer[xsbti.api.Lazy[_]]) {
     def clear(): Unit = {
       memo.clear()
       inherited.clear()
@@ -81,7 +83,7 @@ object ClassToAPI {
     val all = methods ++ fields ++ constructors ++ classes
     val parentJavaTypes = allSuperTypes(c)
     if (!Modifier.isPrivate(c.getModifiers))
-      cmap.inherited ++= parentJavaTypes.collect { case c: Class[_] => c }
+      cmap.inherited ++= parentJavaTypes.collect { case parent: Class[_] => c -> parent }
     val parentTypes = types(parentJavaTypes)
     val instanceStructure = new api.Structure(lzyS(parentTypes.toArray), lzyS(all.declared.toArray), lzyS(all.inherited.toArray))
     val staticStructure = new api.Structure(lzyEmptyTpeArray, lzyS(all.staticDeclared.toArray), lzyS(all.staticInherited.toArray))

@@ -72,10 +72,12 @@ final class AnalyzingJavaCompiler private[sbt] (
       // TODO - Perhaps we just record task 1/2 here
 
       /** Reads the API information directly from the Class[_] object. Used when Analyzing dependencies. */
-      def readAPI(source: File, classes: Seq[Class[_]]): Set[String] = {
+      def readAPI(source: File, classes: Seq[Class[_]]): Set[(String, String)] = {
         val (api, inherits) = ClassToAPI.process(classes)
         callback.api(source, api)
-        inherits.map(_.getName)
+        inherits.map {
+          case (from: Class[_], to: Class[_]) => (from.getName, to.getName)
+        }
       }
       // Runs the analysis portion of Javac.
       timed("Java analysis", log) {

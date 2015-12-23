@@ -16,7 +16,7 @@ import xsbti.DependencyContext
 import xsbti.DependencyContext._
 
 private[sbt] object Analyze {
-  def apply[T](newClasses: Seq[File], sources: Seq[File], log: Logger)(analysis: xsbti.AnalysisCallback, loader: ClassLoader, readAPI: (File, Seq[Class[_]]) => Set[String]) {
+  def apply[T](newClasses: Seq[File], sources: Seq[File], log: Logger)(analysis: xsbti.AnalysisCallback, loader: ClassLoader, readAPI: (File, Seq[Class[_]]) => Set[(String, String)]) {
     val sourceMap = sources.toSet[File].groupBy(_.getName)
 
     def load(tpe: String, errMsg: => Option[String]): Option[Class[_]] =
@@ -41,31 +41,36 @@ private[sbt] object Analyze {
 
     // get class to class dependencies and map back to source to class dependencies
     for ((source, classFiles) <- sourceToClassFiles) {
-      val publicInherited = readAPI(source, classFiles.toSeq.flatMap(c => load(c.className, Some("Error reading API from class file"))))
+      val publicInherited: Map[String, Set[String]] =
+        readAPI(source, classFiles.toSeq.flatMap(c => load(c.className, Some("Error reading API from class file")))).groupBy(_._1).mapValues(_.map(_._2))
 
-      def processDependency(tpe: String, context: DependencyContext): Unit = {
+      def processDependency(tpe: String, context: DependencyContext, from: String): Unit = {
         trapAndLog(log) {
           for (url <- Option(loader.getResource(tpe.replace('.', '/') + ClassExt)); file <- urlAsFile(url, log)) {
             if (url.getProtocol == "jar")
-              analysis.binaryDependency(file, tpe, source, context)
+              analysis.binaryDependency(file, tpe, from, source, context)
             else {
               assume(url.getProtocol == "file")
               productToSource.get(file) match {
-                case Some(dependsOn) => analysis.sourceDependency(dependsOn, source, context)
-                case None            => analysis.binaryDependency(file, tpe, source, context)
+                case Some(dependsOn) => analysis.classDependency(tpe, from, context)
+                case None            => analysis.binaryDependency(file, tpe, from, source, context)
               }
             }
           }
         }
       }
-      def processDependencies(tpes: Iterable[String], context: DependencyContext): Unit = tpes.foreach(tpe => processDependency(tpe, context))
+      def processDependencies(tpes: Iterable[String], context: DependencyContext, from: String): Unit =
+        tpes.foreach(tpe => processDependency(tpe, context, from))
 
       def declaredClass(className: String): Unit = analysis.declaredClass(source, className)
-      val typesInSource = classFiles.flatMap(_.types).toSet
-      val notInherited = classFiles.flatMap(_.types).toSet -- publicInherited
-      processDependencies(notInherited, DependencyByMemberRef)
-      processDependencies(publicInherited, DependencyByInheritance)
-      typesInSource.foreach(declaredClass)
+      val typesInSource = classFiles.map(cf => cf.className -> cf.types).toMap
+      typesInSource foreach {
+        case (className, deps) => processDependencies(deps, DependencyByMemberRef, className)
+      }
+      publicInherited foreach {
+        case (className, inheritanceDeps) => processDependencies(inheritanceDeps, DependencyByInheritance, className)
+      }
+      classFiles.map(_.className).toSet.foreach(declaredClass)
     }
 
     for (source <- sources filterNot sourceToClassFiles.keySet) {

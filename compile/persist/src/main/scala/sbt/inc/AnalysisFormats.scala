@@ -14,7 +14,7 @@ import sbinary._
 import DefaultProtocol._
 import DefaultProtocol.tuple2Format
 import Logger.{ m2o, position, problem }
-import Relations.{ Source => RSource, SourceDependencies }
+import Relations.{ Source => RSource, ClassDependencies }
 
 @deprecated("Replaced by TextAnalysisFormat. OK to remove in 0.14.", since = "0.13.1")
 object AnalysisFormats {
@@ -74,9 +74,6 @@ object AnalysisFormats {
 
   implicit def relationsSourceFormat(implicit internalFormat: Format[Relation[File, File]], externalFormat: Format[Relation[File, String]]): Format[RSource] =
     asProduct2[RSource, RFF, RFS]((a, b) => Relations.makeSource(a, b))(rs => (rs.internal, rs.external))
-
-  implicit def relationsSourceDependenciesFormat(implicit internalFormat: Format[Relation[File, File]], externalFormat: Format[Relation[File, String]]): Format[SourceDependencies] =
-    asProduct2[SourceDependencies, RFF, RFS]((a, b) => Relations.makeSourceDependencies(a, b))(rs => (rs.internal, rs.external))
 
   implicit def relationFormat[A, B](implicit af: Format[Map[A, Set[B]]], bf: Format[Map[B, Set[A]]]): Format[Relation[A, B]] =
     asProduct2[Relation[A, B], Map[A, Set[B]], Map[B, Set[A]]](Relation.make _)(r => (r.forwardMap, r.reverseMap))(af, bf)

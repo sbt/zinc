@@ -122,54 +122,58 @@ object TextAnalysisFormat {
     }
 
     def write(out: Writer, relations: Relations): Unit = {
-      // This ordering is used to persist all values in order. Since all values will be
-      // persisted using their string representation, it makes sense to sort them using
-      // their string representation.
-      val toStringOrd = new Ordering[Any] {
-        def compare(a: Any, b: Any) = a.toString compare b.toString
-      }
-      def writeRelation[T](header: String, rel: Relation[File, T]): Unit = {
+      def writeRelation[A, B](relDesc: RelationDescriptor[A, B], relations: Relations): Unit = {
+        // This ordering is used to persist all values in order. Since all values will be
+        // persisted using their string representation, it makes sense to sort them using
+        // their string representation.
+        val toStringOrdA = new Ordering[A] {
+          def compare(a: A, b: A) = relDesc.firstWrite(a) compare relDesc.firstWrite(b)
+        }
+        val toStringOrdB = new Ordering[B] {
+          def compare(a: B, b: B) = relDesc.secondWrite(a) compare relDesc.secondWrite(b)
+        }
+        val header = relDesc.header
+        val rel = relDesc.selectCorresponding(relations)
         writeHeader(out, header)
         writeSize(out, rel.size)
         // We sort for ease of debugging and for more efficient reconstruction when reading.
         // Note that we don't share code with writeMap. Each is implemented more efficiently
         // than the shared code would be, and the difference is measurable on large analyses.
-        rel.forwardMap.toSeq.sortBy(_._1).foreach {
+        rel.forwardMap.toSeq.sortBy(_._1)(toStringOrdA).foreach {
           case (k, vs) =>
-            val kStr = k.toString
-            vs.toSeq.sorted(toStringOrd) foreach { v =>
-              out.write(kStr); out.write(" -> "); out.write(v.toString); out.write("\n")
+            val kStr = relDesc.firstWrite(k)
+            vs.toSeq.sorted(toStringOrdB) foreach { v =>
+              out.write(kStr); out.write(" -> "); out.write(relDesc.secondWrite(v)); out.write("\n")
             }
         }
       }
 
-      relations.allRelations.foreach {
-        case (header, rel) => writeRelation(header, rel)
-      }
+      Relations.allRelations.foreach { relDesc => writeRelation(relDesc, relations) }
     }
 
     def read(in: BufferedReader, nameHashing: Boolean): Relations = {
-      def readRelation[T](expectedHeader: String, s2t: String => T): Relation[File, T] = {
-        val items = readPairs(in)(expectedHeader, new File(_), s2t).toIterator
+      def readRelation[A, B](relDesc: RelationDescriptor[A, B]): Relation[A, B] = {
+        val expectedHeader = relDesc.header
+        val items = readPairs(in)(expectedHeader, relDesc.firstRead, relDesc.secondRead).toIterator
         // Reconstruct the forward map. This is more efficient than Relation.empty ++ items.
-        var forward: List[(File, Set[T])] = Nil
-        var currentItem: (File, T) = null
-        var currentFile: File = null
-        var currentVals: List[T] = Nil
+        var forward: List[(A, Set[B])] = Nil
+        var currentItem: (A, B) = null
+        var currentKey: A = null.asInstanceOf[A]
+        var currentVals: List[B] = Nil
         def closeEntry(): Unit = {
-          if (currentFile != null) forward = (currentFile, currentVals.toSet) :: forward
-          currentFile = currentItem._1
+          if (currentKey != null) forward = (currentKey, currentVals.toSet) :: forward
+          currentKey = currentItem._1
           currentVals = currentItem._2 :: Nil
         }
         while (items.hasNext) {
           currentItem = items.next()
-          if (currentItem._1 == currentFile) currentVals = currentItem._2 :: currentVals else closeEntry()
+          if (currentItem._1 == currentKey) currentVals = currentItem._2 :: currentVals else closeEntry()
         }
         if (currentItem != null) closeEntry()
         Relation.reconstruct(forward.toMap)
       }
 
-      val relations = Relations.existingRelations map { case (header, fun) => readRelation(header, fun) }
+      val relations = Relations.allRelations.map(rd => readRelation(rd))
 
       Relations.construct(nameHashing, relations)
     }

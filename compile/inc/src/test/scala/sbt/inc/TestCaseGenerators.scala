@@ -144,17 +144,20 @@ object TestCaseGenerators {
     external <- someOf(src.external.all.toList)
   } yield Relations.makeSource(Relation.empty ++ internal, Relation.empty ++ external)
 
-  def genRSourceDependencies(srcs: List[File]): Gen[Relations.SourceDependencies] = for {
-    internal <- listOfN(srcs.length, someOf(srcs))
-    external <- genStringRelation(srcs)
-  } yield Relations.makeSourceDependencies(
-    Relation.reconstruct((srcs zip (internal map { _.toSet }) map { case (a, b) => (a, b - a) }).toMap),
-    external)
+  def genRClassDependencies(classNames: List[String]): Gen[Relations.ClassDependencies] = for {
+    internal <- listOfN(classNames.length, someOf(classNames))
+    external <- listOfN(classNames.length, someOf(classNames))
+  } yield {
+    def toForwardMap(targets: Seq[Seq[String]]): Map[String, Set[String]] =
+      (classNames zip (targets map {_.toSet }) map { case (a, b) => (a, b - a) }).toMap
+    Relations.makeClassDependencies(Relation.reconstruct(toForwardMap(internal)),
+      Relation.reconstruct(toForwardMap(external)))
+  }
 
-  def genSubRSourceDependencies(src: Relations.SourceDependencies): Gen[Relations.SourceDependencies] = for {
+  def genSubRClassDependencies(src: Relations.ClassDependencies): Gen[Relations.ClassDependencies] = for {
     internal <- someOf(src.internal.all.toList)
     external <- someOf(src.external.all.toList)
-  } yield Relations.makeSourceDependencies(Relation.empty ++ internal, Relation.empty ++ external)
+  } yield Relations.makeClassDependencies(Relation.empty ++ internal, Relation.empty ++ external)
 
   def genRelations: Gen[Relations] = for {
     numSrcs <- choose(0, maxSources)
@@ -172,8 +175,9 @@ object TestCaseGenerators {
     srcs <- listOfN(numSrcs, genFile)
     srcProd <- genFileRelation(srcs)
     binaryDep <- genFileRelation(srcs)
-    memberRef <- genRSourceDependencies(srcs)
-    inheritance <- genSubRSourceDependencies(memberRef)
+    classNames <- listOfN(numSrcs, unique(identifier))
+    memberRef <- genRClassDependencies(classNames)
+    inheritance <- genSubRClassDependencies(memberRef)
     classes <- genStringRelation(srcs)
     names <- genStringRelation(srcs)
     declaredClasses <- genStringRelation(srcs)
