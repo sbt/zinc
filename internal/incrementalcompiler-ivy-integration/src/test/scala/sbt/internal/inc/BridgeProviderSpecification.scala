@@ -19,13 +19,13 @@ import xsbti.{ ComponentProvider, GlobalLock }
 abstract class BridgeProviderSpecification extends BaseIvySpecification {
   log.setLevel(Level.Warn)
 
-  override def resolvers: Seq[Resolver] = super.resolvers ++ Seq(Resolver.mavenLocal, Resolver.jcenterRepo)
+  override def resolvers: Seq[Resolver] = Seq(Resolver.defaultLocal, Resolver.jcenterRepo)
   private val ivyConfiguration = mkIvyConfiguration(UpdateOptions())
 
   def getCompilerBridge(targetDir: File, log: Logger, scalaVersion: String): File = {
     val instance = scalaInstance(scalaVersion)
     val bridgeId = compilerBridgeId(scalaVersion)
-    val sourceModule = ModuleID(xsbti.ArtifactInfo.SbtOrganization, bridgeId, ComponentCompiler.incrementalVersion, Some("component")).sources()
+    val sourceModule = ModuleID(xsbti.ArtifactInfo.SbtOrganization, bridgeId, ComponentCompiler.incrementalVersion, Some("component"))
 
     val raw = new RawCompiler(instance, ClasspathOptions.auto, log)
     val manager = new ComponentManager(lock, provider(targetDir), None, log)
