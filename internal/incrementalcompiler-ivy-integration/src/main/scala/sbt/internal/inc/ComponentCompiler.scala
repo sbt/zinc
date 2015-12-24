@@ -9,7 +9,7 @@ import java.io.File
 import scala.util.Try
 import sbt.io.{ Hash, IO }
 import sbt.internal.librarymanagement._
-import sbt.librarymanagement.{ Configurations, ModuleID, ModuleInfo, Resolver, UpdateOptions, VersionNumber }
+import sbt.librarymanagement.{ Configurations, ModuleID, ModuleInfo, Resolver, UpdateOptions, VersionNumber, Artifact }
 import sbt.util.Logger
 import sbt.internal.util.{ BufferedLogger, FullLogger }
 
@@ -74,7 +74,7 @@ private[inc] class IvyComponentCompiler(compiler: RawCompiler, manager: Componen
 
         IO.withTemporaryDirectory { retrieveDirectory =>
 
-          update(getModule(sourcesModule), retrieveDirectory) match {
+          updateClassifiers(getModule(sourcesModule), retrieveDirectory) match {
             case Seq() =>
               throw new InvalidComponent(s"Couldn't retrieve source module: $sourcesModule")
 
@@ -124,8 +124,7 @@ private[inc] class IvyComponentCompiler(compiler: RawCompiler, manager: Componen
       s"unknown"
   }
 
-  private def update(module: ivySbt.Module, retrieveDirectory: File): Seq[File] = {
-
+  private def updateClassifiers(module: ivySbt.Module, retrieveDirectory: File): Seq[File] = {
     val retrieveConfiguration = new RetrieveConfiguration(retrieveDirectory, Resolver.defaultRetrievePattern, false)
     val updateConfiguration = new UpdateConfiguration(Some(retrieveConfiguration), true, UpdateLogging.DownloadOnly)
 
@@ -134,8 +133,16 @@ private[inc] class IvyComponentCompiler(compiler: RawCompiler, manager: Componen
       case Left(unresolvedWarning) =>
         buffered.debug(s"Couldn't retrieve module ${dependenciesNames(module)}.")
         Nil
-
-      case Right(updateReport) =>
+      case Right(ur) =>
+        val artifacts = (new RichUpdateReport(ur)).toSeq.toVector
+        val ic = module.moduleSettings match {
+          case ic: InlineConfiguration => ic
+          case x                       => sys.error(s"unexpected configuration $x")
+        }
+        // println(ur.toString)
+        val mod = GetClassifiersModule(ic.module, ic.dependencies, ic.configurations, List(Artifact.SourceClassifier))
+        val config = GetClassifiersConfiguration(mod, Map(), updateConfiguration, None)
+        val updateReport = IvyActions.updateClassifiers(ivySbt, config, UnresolvedWarningConfiguration(), LogicalClock.unknown, None, artifacts, buffered)
         val allFiles =
           for {
             conf <- updateReport.configurations
@@ -147,7 +154,6 @@ private[inc] class IvyComponentCompiler(compiler: RawCompiler, manager: Componen
         buffered.debug(allFiles mkString ", ")
 
         allFiles
-
     }
   }
 }

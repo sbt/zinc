@@ -9,7 +9,7 @@ import sbt.internal.inc.classpath.ClasspathUtilities
 import sbt.internal.librarymanagement.{ JsonUtil, ComponentManager, BaseIvySpecification }
 import sbt.io.IO
 import sbt.io.Path._
-import sbt.librarymanagement.{ ModuleID, UpdateOptions, Resolver }
+import sbt.librarymanagement.{ ModuleID, UpdateOptions, Resolver, Patterns, FileRepository }
 import sbt.util.{ Logger, Level }
 import xsbti.{ ComponentProvider, GlobalLock }
 
@@ -19,13 +19,18 @@ import xsbti.{ ComponentProvider, GlobalLock }
 abstract class BridgeProviderSpecification extends BaseIvySpecification {
   log.setLevel(Level.Warn)
 
-  override def resolvers: Seq[Resolver] = super.resolvers ++ Seq(Resolver.mavenLocal, Resolver.jcenterRepo)
+  def realLocal: Resolver =
+    {
+      val pList = s"$${user.home}/.ivy2/local/${Resolver.localBasePattern}" :: Nil
+      FileRepository("local", Resolver.defaultFileConfiguration, Patterns(pList, pList, false))
+    }
+  override def resolvers: Seq[Resolver] = Seq(realLocal, Resolver.jcenterRepo)
   private val ivyConfiguration = mkIvyConfiguration(UpdateOptions())
 
   def getCompilerBridge(targetDir: File, log: Logger, scalaVersion: String): File = {
     val instance = scalaInstance(scalaVersion)
     val bridgeId = compilerBridgeId(scalaVersion)
-    val sourceModule = ModuleID(xsbti.ArtifactInfo.SbtOrganization, bridgeId, ComponentCompiler.incrementalVersion, Some("component")).sources()
+    val sourceModule = ModuleID(xsbti.ArtifactInfo.SbtOrganization, bridgeId, ComponentCompiler.incrementalVersion, Some("component"))
 
     val raw = new RawCompiler(instance, ClasspathOptions.auto, log)
     val manager = new ComponentManager(lock, provider(targetDir), None, log)
