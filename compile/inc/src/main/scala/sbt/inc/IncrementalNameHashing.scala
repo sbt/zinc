@@ -38,13 +38,13 @@ private final class IncrementalNameHashing(log: Logger, options: IncOptions) ext
   }
 
   private def toSrcFile(className: String, relations: Relations): File = {
-    val srcs = relations.definesClass(className)
+    val srcs = relations.declaredClasses.reverse(className)
     if (srcs.size == 1)
       srcs.head
     else if (srcs.size == 0)
-      sys.error(s"Class $className is marked as declared in more than one file: $srcs")
-    else
       sys.error(s"No entry for class $className in declaredClasses relation.")
+    else
+      sys.error(s"Class $className is marked as declared in more than one file: $srcs")
   }
 
   private def convertToSrcDependency(relations: Relations, classDependency: Relation[String, String]): Relation[File, File] = {
