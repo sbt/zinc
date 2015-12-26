@@ -235,7 +235,7 @@ private final class AnalysisCallback(internalMap: File => Option[File],
         val prods = classes.getOrElse(src, Nil: Iterable[(File, String)])
 
         val products = prods.map { case (prod, name) => (prod, name, current product prod) }
-        val declaredClassesInSrc = declaredClasses(src)
+        val declaredClassesInSrc = declaredClasses.getOrElse(src, Set.empty)
         val internalDeps = declaredClassesInSrc.flatMap(declaredClass => intSrcDeps.getOrElse(declaredClass, Set.empty))
         val externalDeps = declaredClassesInSrc.flatMap(declaredClass => extSrcDeps.getOrElse(declaredClass, Set.empty))
         val binDeps = binaries.map(d => (d, binaryClassName(d), current binary d))
