@@ -37,7 +37,9 @@ private[inc] abstract class IncrementalCommon(log: Logger, options: IncOptions) 
       val incChanges = changedIncremental(invalidated, previous.apis.internalAPI _, merged.apis.internalAPI _)
       debug("\nChanges:\n" + incChanges)
       val transitiveStep = options.transitiveStep
-      val incInv = invalidateIncremental(merged.relations, merged.apis, incChanges, invalidated, cycleNum >= transitiveStep)
+      val classToSourceMapper = new ClassToSourceMapper(previous.relations, merged.relations)
+      val incInv = invalidateIncremental(merged.relations, merged.apis, incChanges, invalidated, cycleNum >= transitiveStep,
+        classToSourceMapper)
       cycle(incInv, allSources, emptyChanges, merged, doCompile, classfileManager, cycleNum + 1)
     }
   private[this] def emptyChanges: DependencyChanges = new DependencyChanges {
@@ -146,14 +148,14 @@ private[inc] abstract class IncrementalCommon(log: Logger, options: IncOptions) 
       val (changed, unmodified) = inBoth.partition(existingModified)
     }
 
-  def invalidateIncremental(previous: Relations, apis: APIs, changes: APIChanges[File], recompiledSources: Set[File], transitive: Boolean): Set[File] =
+  def invalidateIncremental(previous: Relations, apis: APIs, changes: APIChanges[File], recompiledSources: Set[File], transitive: Boolean, classToSourceMapper: ClassToSourceMapper): Set[File] =
     {
       val dependsOnSrc = previous.usesInternalSrc _
       val propagated =
         if (transitive)
           transitiveDependencies(dependsOnSrc, changes.allModified.toSet)
         else
-          invalidateIntermediate(previous, changes)
+          invalidateIntermediate(previous, changes, classToSourceMapper)
 
       val dups = invalidateDuplicates(previous)
       if (dups.nonEmpty)
@@ -192,7 +194,8 @@ private[inc] abstract class IncrementalCommon(log: Logger, options: IncOptions) 
       val srcDirect = srcChanges.removed ++ srcChanges.removed.flatMap(previous.usesInternalSrc) ++ srcChanges.added ++ srcChanges.changed
       val byProduct = changes.removedProducts.flatMap(previous.produced)
       val byBinaryDep = changes.binaryDeps.flatMap(previous.usesBinary)
-      val byExtSrcDep = invalidateByAllExternal(previous, changes.external) //changes.external.modified.flatMap(previous.usesExternal) // ++ scopeInvalidations
+      val classToSrc = new ClassToSourceMapper(previous, previous)
+      val byExtSrcDep = invalidateByAllExternal(previous, changes.external, classToSrc) //changes.external.modified.flatMap(previous.usesExternal) // ++ scopeInvalidations
       checkAbsolute(srcChanges.added.toList)
       log.debug(
         "\nInitial source changes: \n\tremoved:" + srcChanges.removed + "\n\tadded: " + srcChanges.added + "\n\tmodified: " + srcChanges.changed +
@@ -222,36 +225,37 @@ private[inc] abstract class IncrementalCommon(log: Logger, options: IncOptions) 
       }
     }
 
-  def invalidateByAllExternal(relations: Relations, externalAPIChanges: APIChanges[String]): Set[File] = {
+  def invalidateByAllExternal(relations: Relations, externalAPIChanges: APIChanges[String], classToSrcMapper: ClassToSourceMapper): Set[File] = {
     (externalAPIChanges.apiChanges.flatMap { externalAPIChange =>
-      invalidateByExternal(relations, externalAPIChange)
+      invalidateByExternal(relations, externalAPIChange, classToSrcMapper)
     }).toSet
   }
 
   /** Sources invalidated by `external` sources in other projects according to the previous `relations`. */
-  protected def invalidateByExternal(relations: Relations, externalAPIChange: APIChange[String]): Set[File]
+  protected def invalidateByExternal(relations: Relations, externalAPIChange: APIChange[String], classToSrcMapper: ClassToSourceMapper): Set[File]
 
   /** Intermediate invalidation step: steps after the initial invalidation, but before the final transitive invalidation. */
-  def invalidateIntermediate(relations: Relations, changes: APIChanges[File]): Set[File] =
+  def invalidateIntermediate(relations: Relations, changes: APIChanges[File], classToSourceMapper: ClassToSourceMapper): Set[File] =
     {
-      invalidateSources(relations, changes)
+      invalidateSources(relations, changes, classToSourceMapper)
     }
   /**
    * Invalidates inheritance dependencies, transitively.  Then, invalidates direct dependencies.  Finally, excludes initial dependencies not
    * included in a cycle with newly invalidated sources.
    */
-  private[this] def invalidateSources(relations: Relations, changes: APIChanges[File]): Set[File] =
+  private[this] def invalidateSources(relations: Relations, changes: APIChanges[File],
+    classToSourceMapper: ClassToSourceMapper): Set[File] =
     {
       val initial = changes.allModified.toSet
       val all = (changes.apiChanges flatMap { change =>
-        invalidateSource(relations, change)
+        invalidateSource(relations, change, classToSourceMapper)
       }).toSet
       includeInitialCond(initial, all, allDeps(relations))
     }
 
   protected def allDeps(relations: Relations): File => Set[File]
 
-  protected def invalidateSource(relations: Relations, change: APIChange[File]): Set[File]
+  protected def invalidateSource(relations: Relations, change: APIChange[File], classToSourceMapper: ClassToSourceMapper): Set[File]
 
   /**
    * Conditionally include initial sources that are dependencies of newly invalidated sources.

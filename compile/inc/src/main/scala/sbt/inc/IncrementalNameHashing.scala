@@ -37,26 +37,8 @@ private final class IncrementalNameHashing(log: Logger, options: IncOptions) ext
     }
   }
 
-  private def toSrcFile(className: String, relations: Relations): File = {
-    val srcs = relations.declaredClasses.reverse(className)
-    if (srcs.size == 1)
-      srcs.head
-    else if (srcs.size == 0)
-      sys.error(s"No entry for class $className in declaredClasses relation.")
-    else
-      sys.error(s"Class $className is marked as declared in more than one file: $srcs")
-  }
-
-  private def convertToSrcDependency(relations: Relations, classDependency: Relation[String, String]): Relation[File, File] = {
-    def convertRelationMap(m: Map[String, Set[String]]): Map[File, Set[File]] =
-      m.map { case (key, values) => toSrcFile(key, relations) -> values.map(toSrcFile(_, relations)) }
-    val forwardMap = convertRelationMap(classDependency.forwardMap)
-    val reverseMap = convertRelationMap(classDependency.reverseMap)
-    Relation.make(forwardMap, reverseMap)
-  }
-
   /** Invalidates sources based on initially detected 'changes' to the sources, products, and dependencies.*/
-  override protected def invalidateByExternal(relations: Relations, externalAPIChange: APIChange[String]): Set[File] = {
+  override protected def invalidateByExternal(relations: Relations, externalAPIChange: APIChange[String], classToSrcMapper: ClassToSourceMapper): Set[File] = {
     val modified = externalAPIChange.modified
     val invalidationReason = memberRefInvalidator.invalidationReason(externalAPIChange)
     log.debug(s"$invalidationReason\nAll member reference dependencies will be considered within this context.")
@@ -66,13 +48,14 @@ private final class IncrementalNameHashing(log: Logger, options: IncOptions) ext
     val byExternalInheritance = externalInheritanceR.reverse(modified)
     log.debug(s"Files invalidated by inheriting from (external) $modified: $byExternalInheritance; now invalidating by inheritance (internally).")
     val transitiveInheritance = byExternalInheritance flatMap { className =>
-      invalidateByInheritance(relations, toSrcFile(className, relations))
+      val srcsForClassName = classToSrcMapper.toSrcFile(className)
+      srcsForClassName.flatMap(src => invalidateByInheritance(relations, src, classToSrcMapper))
     }
     val memberRefInvalidationInternal = memberRefInvalidator.get(
-      convertToSrcDependency(relations, relations.memberRef.internal),
+      classToSrcMapper.convertToSrcDependency(relations.memberRef.internal),
       relations.names, externalAPIChange)
     val memberRefInvalidationExternal = memberRefInvalidator.get(
-      convertToSrcDependency(relations, relations.memberRef.external),
+      classToSrcMapper.convertToSrcDependency(relations.memberRef.external),
       relations.names, externalAPIChange)
 
     // Get the member reference dependencies of all sources transitively invalidated by inheritance
@@ -81,25 +64,25 @@ private final class IncrementalNameHashing(log: Logger, options: IncOptions) ext
     // Get the sources that depend on externals by member reference.
     // This includes non-inheritance dependencies and is not transitive.
     log.debug(s"Getting sources that directly depend on (external) $modified.")
-    val memberRefB = memberRefInvalidationExternal(toSrcFile(modified, relations))
+    val memberRefB = classToSrcMapper.toSrcFile(modified).flatMap(memberRefInvalidationExternal)
     transitiveInheritance ++ memberRefA ++ memberRefB
   }
 
-  private def invalidateByInheritance(relations: Relations, modified: File): Set[File] = {
-    val inheritanceDeps = convertToSrcDependency(relations, relations.inheritance.internal).reverse _
+  private def invalidateByInheritance(relations: Relations, modified: File, classToSourceMapper: ClassToSourceMapper): Set[File] = {
+    val inheritanceDeps = classToSourceMapper.convertToSrcDependency(relations.inheritance.internal).reverse _
     log.debug(s"Invalidating (transitively) by inheritance from $modified...")
     val transitiveInheritance = transitiveDeps(Set(modified))(inheritanceDeps)
     log.debug("Invalidated by transitive inheritance dependency: " + transitiveInheritance)
     transitiveInheritance
   }
 
-  override protected def invalidateSource(relations: Relations, change: APIChange[File]): Set[File] = {
+  override protected def invalidateSource(relations: Relations, change: APIChange[File], classToSourceMapper: ClassToSourceMapper): Set[File] = {
     log.debug(s"Invalidating ${change.modified}...")
-    val transitiveInheritance = invalidateByInheritance(relations, change.modified)
+    val transitiveInheritance = invalidateByInheritance(relations, change.modified, classToSourceMapper)
     val reasonForInvalidation = memberRefInvalidator.invalidationReason(change)
     log.debug(s"$reasonForInvalidation\nAll member reference dependencies will be considered within this context.")
-    val memberRefInvalidation = memberRefInvalidator.get(convertToSrcDependency(relations, relations.memberRef.internal),
-      relations.names, change)
+    val memberRefSrcDeps = classToSourceMapper.convertToSrcDependency(relations.memberRef.internal)
+    val memberRefInvalidation = memberRefInvalidator.get(memberRefSrcDeps, relations.names, change)
     val memberRef = transitiveInheritance flatMap memberRefInvalidation
     val all = transitiveInheritance ++ memberRef
     all
