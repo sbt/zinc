@@ -146,7 +146,7 @@ private final class AnalysisCallback(internalMap: File => Option[File],
 
   private[this] def dependencyOnSourceAsClassNameDepedency(targetFile: File, sourceClassName: String,
     context: DependencyContext) = {
-    val classNames = internalSourceToClassNamesMap(targetFile)
+    val classNames = internalSourceToClassNamesMap(targetFile) ++ declaredClasses.getOrElse(targetFile, Set.empty)
     classNames foreach { targetClassName =>
       classDependency(targetClassName, sourceClassName, context)
     }
