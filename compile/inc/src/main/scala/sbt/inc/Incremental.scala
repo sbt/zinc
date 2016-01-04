@@ -49,7 +49,7 @@ object Incremental {
         else if (options.antStyle)
           new IncrementalAntStyle(log, options)
         else
-          new IncrementalDefaultImpl(log, options)
+          throw new UnsupportedOperationException("Turning off name hashing is not supported in class-based dependency tracking")
       val initialChanges = incremental.changedInitial(entry, sources, previous, current, forEntry)
       val binaryChanges = new DependencyChanges {
         val modifiedBinaries = initialChanges.binaryDeps.toArray
