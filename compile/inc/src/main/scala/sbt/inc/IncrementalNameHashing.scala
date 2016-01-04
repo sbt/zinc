@@ -55,7 +55,7 @@ private final class IncrementalNameHashing(log: Logger, options: IncOptions) ext
       classToSrcMapper.convertToSrcDependency(relations.memberRef.internal),
       relations.names, externalAPIChange)
     val memberRefInvalidationExternal = memberRefInvalidator.get(
-      classToSrcMapper.convertToSrcDependency(relations.memberRef.external),
+      classToSrcMapper.convertToExternalSrcDependency(relations.memberRef.external),
       relations.names, externalAPIChange)
 
     // Get the member reference dependencies of all sources transitively invalidated by inheritance
@@ -64,7 +64,7 @@ private final class IncrementalNameHashing(log: Logger, options: IncOptions) ext
     // Get the sources that depend on externals by member reference.
     // This includes non-inheritance dependencies and is not transitive.
     log.debug(s"Getting sources that directly depend on (external) $modified.")
-    val memberRefB = classToSrcMapper.toSrcFile(modified).flatMap(memberRefInvalidationExternal)
+    val memberRefB = memberRefInvalidationExternal(modified)
     transitiveInheritance ++ memberRefA ++ memberRefB
   }
 
