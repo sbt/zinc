@@ -19,6 +19,12 @@ object HashAPI {
     hashApi.finalizeHash
   }
 
+  def apply(x: Definition): Hash = {
+    val hashApi = new HashAPI(false, true, true)
+    hashApi.hashDefinition(x)
+    hashApi.finalizeHash
+  }
+
   def hashDefinitionsWithExtraHashes(ds: Seq[(Definition, Hash)]): Hash = {
     val hashAPI = new HashAPI(false, true, false)
     hashAPI.hashDefinitionsWithExtraHashes(ds)

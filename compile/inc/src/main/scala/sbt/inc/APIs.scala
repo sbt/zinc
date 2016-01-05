@@ -46,7 +46,8 @@ object APIs {
   val emptyAPI = new xsbti.api.SourceAPI(Array(), Array())
   val emptyCompilation = new xsbti.api.Compilation(-1, Array())
   val emptyNameHashes = new xsbti.api._internalOnly_NameHashes(Array.empty, Array.empty)
-  val emptySource = new xsbti.api.Source(emptyCompilation, Array(), emptyAPI, 0, emptyNameHashes, false)
+  val emptyApiHashes = Array.empty[xsbti.api.ToplevelApiHash]
+  val emptySource = new xsbti.api.Source(emptyCompilation, Array(), emptyAPI, emptyApiHashes, emptyNameHashes, false)
   def getAPI[T](map: Map[T, Source], src: T): Source = map.getOrElse(src, emptySource)
 }
 
@@ -82,7 +83,8 @@ private class MAPIs(val internal: Map[File, Source], val external: Map[String, S
   }
 
   override lazy val hashCode: Int = {
-    def hash[T](m: Map[T, Source])(implicit ord: math.Ordering[T]) = sorted(m).map(x => (x._1, x._2.apiHash).hashCode).hashCode
+    def hash[T](m: Map[T, Source])(implicit ord: math.Ordering[T]) =
+      sorted(m).map(x => (x._1, x._2.toplevelApiHashes().toSet).hashCode).hashCode
     (hash(internal), hash(external)).hashCode
   }
 

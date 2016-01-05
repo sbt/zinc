@@ -80,6 +80,9 @@ object TestCaseGenerators {
 
   private[this] def lzy[T <: AnyRef](x: T) = SafeLazy.strict(x)
 
+  def genTopLevelApiHash(defn: String): Gen[xsbti.api.ToplevelApiHash] =
+    for (hash <- arbitrary[Int]) yield new ToplevelApiHash(defn, hash)
+
   def genNameHash(defn: String): Gen[xsbti.api._internalOnly_NameHash] =
     value(new xsbti.api._internalOnly_NameHash(defn, defn.hashCode()))
 
@@ -108,10 +111,10 @@ object TestCaseGenerators {
     startTime <- arbitrary[Long]
     hashLen <- choose(10, 20) // Requred by SameAPI to be > 0.
     hash <- Gen.containerOfN[Array, Byte](hashLen, arbitrary[Byte])
-    apiHash <- arbitrary[Int]
+    topLevelHashes <- Gen.sequence[Array, ToplevelApiHash](defns.map(genTopLevelApiHash))
     hasMacro <- arbitrary[Boolean]
     nameHashes <- genNameHashes(defns)
-  } yield new Source(new Compilation(startTime, Array()), hash, new SourceAPI(Array(), Array(defns map makeDefinition: _*)), apiHash, nameHashes, hasMacro)
+  } yield new Source(new Compilation(startTime, Array()), hash, new SourceAPI(Array(), Array(defns map makeDefinition: _*)), topLevelHashes, nameHashes, hasMacro)
 
   def genSources(all_defns: Seq[Seq[String]]): Gen[Seq[Source]] = Gen.sequence[List, Source](all_defns.map(genSource))
 

@@ -44,7 +44,8 @@ object TopLevel {
 /** Checks the API of two source files for equality.*/
 object SameAPI {
   def apply(a: Source, b: Source): Boolean =
-    a.apiHash == b.apiHash && (a.hash.nonEmpty && b.hash.nonEmpty) && apply(a.api, b.api)
+    a.toplevelApiHashes().toSet == b.toplevelApiHashes().toSet &&
+      (a.hash.nonEmpty && b.hash.nonEmpty) && apply(a.api, b.api)
 
   def apply(a: Def, b: Def): Boolean =
     (new SameAPI(false, true)).sameDefinitions(List(a), List(b), true)

@@ -2,7 +2,7 @@ Source
 	compilation: Compilation
 	hash: Byte*
 	api: SourceAPI
-	apiHash: Int
+	toplevelApiHashes: ToplevelApiHash*
 	_internalOnly_nameHashes: _internalOnly_NameHashes
 	hasMacro: Boolean
 
@@ -11,6 +11,10 @@ _internalOnly_NameHashes
 	implicitMembers: _internalOnly_NameHash*
 
 _internalOnly_NameHash
+	name: String
+	hash: Int
+
+ToplevelApiHash
 	name: String
 	hash: Int
 

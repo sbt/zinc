@@ -4,12 +4,11 @@
 package sbt
 package inc
 
-import xsbti.api.{ Source, SourceAPI, Compilation, OutputSetting, _internalOnly_NameHashes }
+import xsbti.api._
 import xsbti.compile.{ DependencyChanges, Output, SingleOutput, MultipleOutput }
 import xsbti.{ Position, Problem, Severity }
 import Logger.{ m2o, problem }
 import java.io.File
-import xsbti.api.Definition
 import xsbti.DependencyContext
 import xsbti.DependencyContext.{ DependencyByInheritance, DependencyByMemberRef }
 
@@ -100,7 +99,7 @@ private final class AnalysisCallback(internalMap: File => Option[File],
 
   import collection.mutable.{ HashMap, HashSet, ListBuffer, Map, Set }
 
-  private[this] val apis = new HashMap[File, (Int, SourceAPI)]
+  private[this] val apis = new HashMap[File, (Seq[ToplevelApiHash], SourceAPI)]
   private[this] val usedNames = new HashMap[File, Set[String]]
   private[this] val declaredClasses = new HashMap[File, Set[String]]
   private[this] val publicNameHashes = new HashMap[File, _internalOnly_NameHashes]
@@ -198,7 +197,8 @@ private final class AnalysisCallback(internalMap: File => Option[File],
     }
     val shouldMinimize = !Incremental.apiDebug(options)
     val savedSource = if (shouldMinimize) APIUtil.minimize(source) else source
-    apis(sourceFile) = (HashAPI(source), savedSource)
+    val toplevelApiHashes = source.definitions.map(d => new ToplevelApiHash(d.name, HashAPI.apply(d)))
+    apis(sourceFile) = (toplevelApiHashes, savedSource)
   }
 
   def usedName(sourceFile: File, name: String) = add(usedNames, sourceFile, name)
@@ -229,7 +229,7 @@ private final class AnalysisCallback(internalMap: File => Option[File],
         val hash = stamp match { case h: Hash => h.value; case _ => new Array[Byte](0) }
         // TODO store this in Relations, rather than Source.
         val hasMacro: Boolean = macroSources.contains(src)
-        val s = new xsbti.api.Source(compilation, hash, api._2, api._1, publicNameHashes(src), hasMacro)
+        val s = new xsbti.api.Source(compilation, hash, api._2, api._1.toArray, publicNameHashes(src), hasMacro)
         val info = SourceInfos.makeInfo(getOrNil(reporteds, src), getOrNil(unreporteds, src))
         val binaries = binaryDeps.getOrElse(src, Nil: Iterable[File])
         val prods = classes.getOrElse(src, Nil: Iterable[(File, String)])
