@@ -19,9 +19,9 @@ private final class IncrementalNameHashing(log: Logger, options: IncOptions) ext
   //  This might be too conservative: we probably only need package objects for packages of invalidated sources.
   override protected def invalidatedPackageObjects(invalidated: Set[File], relations: Relations): Set[File] = {
     invalidated flatMap { src =>
-      val classes = relations.declaredClassNames(src)
+      val classes = relations.classNames(src)
       val dependentClasses = classes.flatMap(relations.inheritance.internal.reverse)
-      dependentClasses.flatMap(relations.declaredClasses.reverse)
+      dependentClasses.flatMap(relations.classes.reverse)
     } filter { _.getName == "package.scala" }
   }
 
@@ -89,6 +89,6 @@ private final class IncrementalNameHashing(log: Logger, options: IncOptions) ext
   }
 
   override protected def allDeps(relations: Relations): File => Set[File] =
-    f => relations.declaredClassNames(f).flatMap(relations.memberRef.internal.reverse).flatMap(relations.declaredClasses.reverse)
+    f => relations.classNames(f).flatMap(relations.memberRef.internal.reverse).flatMap(relations.classes.reverse)
 
 }

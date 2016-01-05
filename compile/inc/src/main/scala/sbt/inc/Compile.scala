@@ -146,7 +146,7 @@ private final class AnalysisCallback(internalMap: File => Option[File],
 
   private[this] def dependencyOnSourceAsClassNameDepedency(targetFile: File, sourceClassName: String,
     context: DependencyContext) = {
-    val classNames = internalSourceToClassNamesMap(targetFile) ++ declaredClasses.getOrElse(targetFile, Set.empty)
+    val classNames = internalSourceToClassNamesMap(targetFile) ++ classes.getOrElse(targetFile, Set.empty).map(_._2)
     classNames foreach { targetClassName =>
       classDependency(targetClassName, sourceClassName, context)
     }
@@ -235,9 +235,9 @@ private final class AnalysisCallback(internalMap: File => Option[File],
         val prods = classes.getOrElse(src, Nil: Iterable[(File, String)])
 
         val products = prods.map { case (prod, name) => (prod, name, current product prod) }
-        val declaredClassesInSrc = declaredClasses.getOrElse(src, Set.empty)
-        val internalDeps = declaredClassesInSrc.flatMap(declaredClass => intSrcDeps.getOrElse(declaredClass, Set.empty))
-        val externalDeps = declaredClassesInSrc.flatMap(declaredClass => extSrcDeps.getOrElse(declaredClass, Set.empty))
+        val classesInSrc = classes.getOrElse(src, Set.empty).map(_._2)
+        val internalDeps = classesInSrc.flatMap(cls => intSrcDeps.getOrElse(cls, Set.empty))
+        val externalDeps = classesInSrc.flatMap(cls => extSrcDeps.getOrElse(cls, Set.empty))
         val binDeps = binaries.map(d => (d, binaryClassName(d), current binary d))
 
         a.addSource(src, s, stamp, info, products, internalDeps, externalDeps, binDeps)

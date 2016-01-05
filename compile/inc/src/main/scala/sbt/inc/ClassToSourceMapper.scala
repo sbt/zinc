@@ -5,7 +5,7 @@ import java.io.File
 import sbt.Relation
 
 /**
- * Maps class-based dependencies to source dependencies using `declaredClasses` relation.
+ * Maps class-based dependencies to source dependencies using `classes` relation.
  *
  * The mapping is performed using two relations that track declared classes before
  * and after recompilation of sources. This way, we can properly map dependencies
@@ -15,10 +15,10 @@ import sbt.Relation
 class ClassToSourceMapper(previousRelations: Relations, recompiledRelations: Relations) {
 
   def toSrcFile(className: String): Set[File] = {
-    val srcs = previousRelations.declaredClasses.reverse(className) ++
-      recompiledRelations.declaredClasses.reverse(className)
+    val srcs = previousRelations.classes.reverse(className) ++
+      recompiledRelations.classes.reverse(className)
     if (srcs.isEmpty == 0)
-      sys.error(s"No entry for class $className in declaredClasses relation.")
+      sys.error(s"No entry for class $className in classes relation.")
     else
       srcs
   }
