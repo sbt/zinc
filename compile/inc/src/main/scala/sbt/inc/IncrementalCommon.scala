@@ -195,7 +195,10 @@ private[inc] abstract class IncrementalCommon(log: Logger, options: IncOptions) 
       val byProduct = changes.removedProducts.flatMap(previous.produced)
       val byBinaryDep = changes.binaryDeps.flatMap(previous.usesBinary)
       val classToSrc = new ClassToSourceMapper(previous, previous)
-      val byExtSrcDep = invalidateByAllExternal(previous, changes.external, classToSrc) //changes.external.modified.flatMap(previous.usesExternal) // ++ scopeInvalidations
+      val byExtSrcDep = {
+        val classNames = invalidateByAllExternal(previous, changes.external, classToSrc) //changes.external.modified.flatMap(previous.usesExternal) // ++ scopeInvalidations
+        classNames.flatMap(classToSrc.toSrcFile)
+      }
       checkAbsolute(srcChanges.added.toList)
       log.debug(
         "\nInitial source changes: \n\tremoved:" + srcChanges.removed + "\n\tadded: " + srcChanges.added + "\n\tmodified: " + srcChanges.changed +
@@ -225,14 +228,14 @@ private[inc] abstract class IncrementalCommon(log: Logger, options: IncOptions) 
       }
     }
 
-  def invalidateByAllExternal(relations: Relations, externalAPIChanges: APIChanges[String], classToSrcMapper: ClassToSourceMapper): Set[File] = {
+  def invalidateByAllExternal(relations: Relations, externalAPIChanges: APIChanges[String], classToSrcMapper: ClassToSourceMapper): Set[String] = {
     (externalAPIChanges.apiChanges.flatMap { externalAPIChange =>
       invalidateByExternal(relations, externalAPIChange, classToSrcMapper)
     }).toSet
   }
 
   /** Sources invalidated by `external` sources in other projects according to the previous `relations`. */
-  protected def invalidateByExternal(relations: Relations, externalAPIChange: APIChange[String], classToSrcMapper: ClassToSourceMapper): Set[File]
+  protected def invalidateByExternal(relations: Relations, externalAPIChange: APIChange[String], classToSrcMapper: ClassToSourceMapper): Set[String]
 
   /** Intermediate invalidation step: steps after the initial invalidation, but before the final transitive invalidation. */
   def invalidateIntermediate(relations: Relations, changes: APIChanges[File], classToSourceMapper: ClassToSourceMapper): Set[File] =

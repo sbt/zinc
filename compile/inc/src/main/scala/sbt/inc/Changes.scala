@@ -28,7 +28,8 @@ final case class SourceAPIChange[T](modified0: T) extends APIChange(modified0)
  *
  * This class is used only when name hashing algorithm is enabled.
  */
-final case class NamesChange[T](modified0: T, modifiedNames: ModifiedNames) extends APIChange(modified0)
+final case class NamesChange[T](modified0: T, modifiedToplevelClasses: Set[String],
+  modifiedNames: ModifiedNames) extends APIChange(modified0)
 
 /**
  * ModifiedNames are determined by comparing name hashes in two versions of an API representation.
