@@ -53,7 +53,8 @@ trait Analysis {
     compilations: Compilations = compilations): Analysis
 
   def addSource(src: File, api: Source, stamp: Stamp, info: SourceInfo,
-    products: Iterable[(File, String, Stamp)],
+    products: Iterable[(File, Stamp)],
+    classes: Iterable[(String, String)],
     internalDeps: Iterable[InternalDependency],
     externalDeps: Iterable[ExternalDependency],
     binaryDeps: Iterable[(File, String, Stamp)]): Analysis
@@ -158,14 +159,15 @@ private class MAnalysis(val stamps: Stamps, val apis: APIs, val relations: Relat
     new MAnalysis(stamps, apis, relations, infos, compilations)
 
   def addSource(src: File, api: Source, stamp: Stamp, info: SourceInfo,
-    products: Iterable[(File, String, Stamp)],
+    products: Iterable[(File, Stamp)],
+    classes: Iterable[(String, String)],
     internalDeps: Iterable[InternalDependency],
     externalDeps: Iterable[ExternalDependency],
     binaryDeps: Iterable[(File, String, Stamp)]): Analysis = {
 
     val newStamps = {
       val productStamps = products.foldLeft(stamps.markInternalSource(src, stamp)) {
-        case (tmpStamps, (toProduct, _, prodStamp)) => tmpStamps.markProduct(toProduct, prodStamp)
+        case (tmpStamps, (toProduct, prodStamp)) => tmpStamps.markProduct(toProduct, prodStamp)
       }
 
       binaryDeps.foldLeft(productStamps) {
@@ -177,7 +179,7 @@ private class MAnalysis(val stamps: Stamps, val apis: APIs, val relations: Relat
       case (tmpApis, ExternalDependency(_, toClassName, classApi, _)) => tmpApis.markExternalAPI(toClassName, classApi)
     }
 
-    val newRelations = relations.addSource(src, products map (p => (p._1, p._2)), internalDeps, externalDeps, binaryDeps)
+    val newRelations = relations.addSource(src, products.map(_._1), classes, internalDeps, externalDeps, binaryDeps)
 
     copy(newStamps, newAPIs, newRelations, infos.add(src, info))
   }

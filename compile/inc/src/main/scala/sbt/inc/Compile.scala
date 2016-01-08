@@ -95,7 +95,7 @@ private final class AnalysisCallback(internalMap: File => Option[File],
     new Compilation(System.currentTimeMillis, outputSettings)
   }
 
-  override def toString = (List("APIs", "Binary deps", "Products", "Source deps") zip List(apis, binaryDeps, classes, intSrcDeps)).map { case (label, map) => label + "\n\t" + map.mkString("\n\t") }.mkString("\n")
+  override def toString = (List("APIs", "Binary deps", "Products", "Source deps") zip List(apis, binaryDeps, nonLocalClasses, intSrcDeps)).map { case (label, map) => label + "\n\t" + map.mkString("\n\t") }.mkString("\n")
 
   import collection.mutable.{ HashMap, HashSet, ListBuffer, Map, Set }
 
@@ -106,8 +106,11 @@ private final class AnalysisCallback(internalMap: File => Option[File],
   private[this] val unreporteds = new HashMap[File, ListBuffer[Problem]]
   private[this] val reporteds = new HashMap[File, ListBuffer[Problem]]
   private[this] val binaryDeps = new HashMap[File, Set[File]]
-  // source file to set of generated (class file, class name)
-  private[this] val classes = new HashMap[File, Set[(File, String)]]
+  // source file to set of generated (class file, binary class name); only non local classes are stored here
+  private[this] val nonLocalClasses = new HashMap[File, Set[(File, String)]]
+  private[this] val localClasses = new HashMap[File, Set[File]]
+  // mapping between src class name and binary (flat) class name for classes generated from src file
+  private[this] val classNames = new HashMap[File, Set[(String, String)]]
   // generated class file to its source file
   private[this] val classToSource = new HashMap[File, File]
   // internal source dependencies
@@ -129,8 +132,9 @@ private final class AnalysisCallback(internalMap: File => Option[File],
       }
     }
 
-  def classDependency(dependsOn: String, sourceClassName: String, context: DependencyContext) = {
-    add(intSrcDeps, sourceClassName, InternalDependency(sourceClassName, dependsOn, context))
+  def classDependency(onClassName: String, sourceClassName: String, context: DependencyContext) = {
+    if (onClassName != sourceClassName)
+      add(intSrcDeps, sourceClassName, InternalDependency(sourceClassName, onClassName, context))
   }
 
   private[this] def externalBinaryDependency(binary: File, className: String, source: File, context: DependencyContext) = {
@@ -145,43 +149,48 @@ private final class AnalysisCallback(internalMap: File => Option[File],
 
   private[this] def dependencyOnSourceAsClassNameDepedency(targetFile: File, sourceClassName: String,
     context: DependencyContext) = {
-    val classNames = internalSourceToClassNamesMap(targetFile) ++ classes.getOrElse(targetFile, Set.empty).map(_._2)
+    val classNames = internalSourceToClassNamesMap(targetFile) ++ nonLocalClasses.getOrElse(targetFile, Set.empty).map(_._2)
     classNames foreach { targetClassName =>
       classDependency(targetClassName, sourceClassName, context)
     }
   }
 
-  def binaryDependency(classFile: File, targetProductName: String, sourceClassName: String, sourceFile: File, context: DependencyContext) =
+  def binaryDependency(classFile: File, onBinaryClassName: String, fromClassName: String, fromSourceFile: File, context: DependencyContext) =
     internalMap(classFile) match {
       case Some(dependsOn) => // dependsOn is source
         // dependency is a product of a source not included in this compilation
-        dependencyOnSourceAsClassNameDepedency(dependsOn, sourceClassName, context)
+        dependencyOnSourceAsClassNameDepedency(dependsOn, fromClassName, context)
       case None =>
         classToSource.get(classFile) match {
           case Some(dependsOn) =>
             // dependency is a product of a source in this compilation step,
             //  but not in the same compiler run (as in javac v. scalac)
-            dependencyOnSourceAsClassNameDepedency(dependsOn, sourceClassName, context)
+            dependencyOnSourceAsClassNameDepedency(dependsOn, fromClassName, context)
           case None =>
-            externalDependency(classFile, targetProductName, sourceClassName, sourceFile, context)
+            externalDependency(classFile, onBinaryClassName, fromClassName, fromSourceFile, context)
         }
     }
 
-  private[this] def externalDependency(classFile: File, name: String, sourceClassName: String, sourceFile: File, context: DependencyContext): Unit =
-    externalAPI(classFile, name) match {
+  private[this] def externalDependency(classFile: File, onBinaryName: String, sourceClassName: String,
+    sourceFile: File, context: DependencyContext): Unit =
+    externalAPI(classFile, onBinaryName) match {
       case Some(api) =>
         // dependency is a product of a source in another project
-        externalSourceDependency(sourceClassName, name, api, context)
+        externalSourceDependency(sourceClassName, onBinaryName, api, context)
       case None =>
         // dependency is some other binary on the classpath
-        externalBinaryDependency(classFile, name, sourceFile, context)
+        externalBinaryDependency(classFile, onBinaryName, sourceFile, context)
     }
 
-  def generatedClass(source: File, module: File, name: String) =
-    {
-      add(classes, source, (module, name))
-      classToSource.put(module, source)
-    }
+  def generatedNonLocalClass(source: File, classFile: File, binaryClassName: String, srcClassName: String) = {
+    add(nonLocalClasses, source, (classFile, binaryClassName))
+    add(classNames, source, (srcClassName, binaryClassName))
+    classToSource.put(classFile, source)
+  }
+
+  def generatedLocalClass(source: File, classFile: File) = {
+    add(localClasses, source, classFile)
+  }
 
   // empty value used when name hashing algorithm is disabled
   private val emptyNameHashes = new xsbti.api._internalOnly_NameHashes(Array.empty, Array.empty)
@@ -232,15 +241,18 @@ private final class AnalysisCallback(internalMap: File => Option[File],
         val s = new xsbti.api.Source(compilation, hash, api._2, api._1.toArray, publicNameHashes(src), hasMacro)
         val info = SourceInfos.makeInfo(getOrNil(reporteds, src), getOrNil(unreporteds, src))
         val binaries = binaryDeps.getOrElse(src, Nil: Iterable[File])
-        val prods = classes.getOrElse(src, Nil: Iterable[(File, String)])
+        val nonLocalProds = nonLocalClasses.getOrElse(src, Nil: Iterable[(File, String)]).map(_._1)
+        val prods = nonLocalProds ++ localClasses.getOrElse(src, Nil: Iterable[File])
 
-        val products = prods.map { case (prod, name) => (prod, name, current product prod) }
-        val classesInSrc = classes.getOrElse(src, Set.empty).map(_._2)
+        val products = prods.map { prod => (prod, current product prod) }
+        val classesInSrc = classNames.getOrElse(src, Set.empty).map(_._1)
         val internalDeps = classesInSrc.flatMap(cls => intSrcDeps.getOrElse(cls, Set.empty))
         val externalDeps = classesInSrc.flatMap(cls => extSrcDeps.getOrElse(cls, Set.empty))
         val binDeps = binaries.map(d => (d, binaryClassName(d), current binary d))
 
-        a.addSource(src, s, stamp, info, products, internalDeps, externalDeps, binDeps)
+        // TODO: turn into (src class name, binary class name)
+        val classes = classNames.getOrElse(src, Iterable.empty)
+        a.addSource(src, s, stamp, info, products, classes, internalDeps, externalDeps, binDeps)
 
     }
 }

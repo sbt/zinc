@@ -3,32 +3,60 @@ package xsbti
 import java.io.File
 import scala.collection.mutable.ArrayBuffer
 import xsbti.api.SourceAPI
-import xsbti.DependencyContext._
 
-class TestCallback(override val nameHashing: Boolean = false) extends AnalysisCallback
-{
-	val sourceDependencies = new ArrayBuffer[(String, String, DependencyContext)]
-	val binaryDependencies = new ArrayBuffer[(File, String, String, DependencyContext)]
-	val products = new ArrayBuffer[(File, File, String)]
-	val usedNames = scala.collection.mutable.Map.empty[File, Set[String]].withDefaultValue(Set.empty)
-	val declaredClasses = scala.collection.mutable.Map.empty[File, Set[String]].withDefaultValue(Set.empty)
-	val apis: scala.collection.mutable.Map[File, SourceAPI] = scala.collection.mutable.Map.empty
+class TestCallback(override val nameHashing: Boolean = false) extends AnalysisCallback {
+  val classDependencies = new ArrayBuffer[(String, String, DependencyContext)]
+  val binaryDependencies = new ArrayBuffer[(File, String, String, DependencyContext)]
+  val products = new ArrayBuffer[(File, File)]
+  val usedNames = scala.collection.mutable.Map.empty[File, Set[String]].withDefaultValue(Set.empty)
+  val declaredClasses = scala.collection.mutable.Map.empty[File, Set[String]].withDefaultValue(Set.empty)
+  val classNames = scala.collection.mutable.Map.empty[File, Set[(String, String)]].withDefaultValue(Set.empty)
+  val apis: scala.collection.mutable.Map[File, SourceAPI] = scala.collection.mutable.Map.empty
 
-	def classDependency(dependsOn: String, sourceClassName: String, context: DependencyContext): Unit = {
-		sourceDependencies += ((dependsOn, sourceClassName, context))
-	}
-	def binaryDependency(targetBinary: File, targetProductName: String, sourceClassName: String, sourceFile: File, context: DependencyContext): Unit = {
-		binaryDependencies += ((targetBinary, targetProductName, sourceClassName, context))
-	}
-	def generatedClass(source: File, module: File, name: String): Unit = { products += ((source, module, name)) }
+  def classDependency(onClassName: String, sourceClassName: String, context: DependencyContext): Unit = {
+    if (onClassName != sourceClassName)
+      classDependencies += ((onClassName, sourceClassName, context))
+  }
+  def binaryDependency(onBinary: File, onBinaryClassName: String, fromClassName: String, fromSourceFile: File, context: DependencyContext): Unit = {
+    binaryDependencies += ((onBinary, onBinaryClassName, fromClassName, context))
+  }
+  def generatedNonLocalClass(source: File, module: File, binaryClassName: String, srcClassName: String): Unit = {
+    products += ((source, module))
+    classNames(source) += ((srcClassName, binaryClassName))
+  }
 
-	def usedName(source: File, name: String): Unit = { usedNames(source) += name }
-	override def declaredClass(sourceFile: File, className: String): Unit =
-		declaredClasses(sourceFile) += className
+  def generatedLocalClass(source: File, module: File): Unit = {
+    products += ((source, module))
+  }
 
-	def api(source: File, sourceAPI: SourceAPI): Unit = {
-		assert(!apis.contains(source), s"The `api` method should be called once per source file: $source")
-		apis(source) = sourceAPI
-	}
-	def problem(category: String, pos: xsbti.Position, message: String, severity: xsbti.Severity, reported: Boolean): Unit = ()
+  def usedName(source: File, name: String): Unit = { usedNames(source) += name }
+  override def declaredClass(sourceFile: File, className: String): Unit =
+    declaredClasses(sourceFile) += className
+
+  def api(source: File, sourceAPI: SourceAPI): Unit = {
+    assert(!apis.contains(source), s"The `api` method should be called once per source file: $source")
+    apis(source) = sourceAPI
+  }
+  def problem(category: String, pos: xsbti.Position, message: String, severity: xsbti.Severity, reported: Boolean): Unit = ()
+}
+
+object TestCallback {
+  case class ExtractedClassDependencies(memberRef: Map[String, Set[String]], inheritance: Map[String, Set[String]])
+  object ExtractedClassDependencies {
+    def fromPairs(memberRefPairs: Seq[(String, String)],
+                  inheritancePairs: Seq[(String, String)]): ExtractedClassDependencies = {
+      ExtractedClassDependencies(pairsToMultiMap(memberRefPairs), pairsToMultiMap(inheritancePairs))
+    }
+
+    private def pairsToMultiMap[A, B](pairs: Seq[(A, B)]): Map[A, Set[B]] = {
+      import scala.collection.mutable.{ HashMap, MultiMap }
+      val emptyMultiMap = new HashMap[A, scala.collection.mutable.Set[B]] with MultiMap[A, B]
+      val multiMap = pairs.foldLeft(emptyMultiMap) {
+        case (acc, (key, value)) =>
+          acc.addBinding(key, value)
+      }
+      // convert all collections to immutable variants
+      multiMap.toMap.mapValues(_.toSet).withDefaultValue(Set.empty)
+    }
+  }
 }

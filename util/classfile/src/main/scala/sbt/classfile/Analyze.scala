@@ -34,7 +34,9 @@ private[sbt] object Analyze {
       sourceFile <- classFile.sourceFile orElse guessSourceName(newClass.getName);
       source <- guessSourcePath(sourceMap, classFile, log)
     ) {
-      analysis.generatedClass(source, newClass, classFile.className)
+      val binaryClassName = classFile.className
+      val srcClassName = binaryToSourceName(binaryClassName)
+      analysis.generatedNonLocalClass(source, newClass, binaryClassName, srcClassName)
       productToSource(newClass) = source
       sourceToClassFiles.getOrElseUpdate(source, new ArrayBuffer[ClassFile]) += classFile
     }
@@ -44,16 +46,17 @@ private[sbt] object Analyze {
       val publicInherited: Map[String, Set[String]] =
         readAPI(source, classFiles.toSeq.flatMap(c => load(c.className, Some("Error reading API from class file")))).groupBy(_._1).mapValues(_.map(_._2))
 
-      def processDependency(tpe: String, context: DependencyContext, from: String): Unit = {
+      def processDependency(onBinaryName: String, context: DependencyContext, fromBinaryName: String): Unit = {
+        val fromClassName = binaryToSourceName(fromBinaryName)
         trapAndLog(log) {
-          for (url <- Option(loader.getResource(tpe.replace('.', '/') + ClassExt)); file <- urlAsFile(url, log)) {
+          for (url <- Option(loader.getResource(onBinaryName.replace('.', '/') + ClassExt)); file <- urlAsFile(url, log)) {
             if (url.getProtocol == "jar")
-              analysis.binaryDependency(file, tpe, from, source, context)
+              analysis.binaryDependency(file, onBinaryName, fromClassName, source, context)
             else {
               assume(url.getProtocol == "file")
               productToSource.get(file) match {
-                case Some(dependsOn) => analysis.classDependency(tpe, from, context)
-                case None            => analysis.binaryDependency(file, tpe, from, source, context)
+                case Some(dependsOn) => analysis.classDependency(binaryToSourceName(onBinaryName), fromClassName, context)
+                case None            => analysis.binaryDependency(file, onBinaryName, fromClassName, source, context)
               }
             }
           }
@@ -70,7 +73,7 @@ private[sbt] object Analyze {
       publicInherited foreach {
         case (className, inheritanceDeps) => processDependencies(inheritanceDeps, DependencyByInheritance, className)
       }
-      classFiles.map(_.className).toSet.foreach(declaredClass)
+      classFiles.map(cls => binaryToSourceName(cls.className)).toSet.foreach(declaredClass)
     }
 
     for (source <- sources filterNot sourceToClassFiles.keySet) {
@@ -96,6 +99,7 @@ private[sbt] object Analyze {
     }
   private final val ClassExt = ".class"
   private def trimClassExt(name: String) = if (name.endsWith(ClassExt)) name.substring(0, name.length - ClassExt.length) else name
+  private def binaryToSourceName(binaryClassName: String): String = binaryClassName.replace('$', '.')
   private def guessSourcePath(sourceNameMap: Map[String, Set[File]], classFile: ClassFile, log: Logger) =
     {
       val classNameParts = classFile.className.split("""\.""")
