@@ -1,25 +1,51 @@
+> print-all-files 1
 > compile
+> print-all-files 2
 
 $ copy-file changes/A2.scala src/main/scala/A.scala
+> print-all-files 3
+
 -> compile
+> print-all-files 4
 
 $ copy-file changes/B3.scala src/main/scala/B.scala
+> print-all-files 5
+
 > compile
+> print-all-files 6
 
 $ delete src/main/scala/B.scala
+> print-all-files 7
+
 -> compile
+> print-all-files 8
 
 $ copy-file changes/B3.scala src/main/scala/B.scala
+> print-all-files 9
+
 > compile
+> print-all-files 10
 
 $ copy-file changes/B4.scala src/main/scala/B.scala
+> print-all-files 11
+
 -> compile
+> print-all-files 12
 
 $ copy-file changes/B3.scala src/main/scala/B.scala
+> print-all-files 13
+
 > compile
+> print-all-files 14
 
 $ copy-file changes/B5.scala src/main/scala/B.scala
+> print-all-files 15
+
 -> compile
+> print-all-files 16
 
 $ copy-file changes/B3.scala src/main/scala/B.scala
+> print-all-files 17
+
 > compile
+> print-all-files 18
