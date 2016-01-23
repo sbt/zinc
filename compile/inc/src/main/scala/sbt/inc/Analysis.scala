@@ -4,6 +4,7 @@
 package sbt
 package inc
 
+import sbt.inc.Analysis.{ LocalProduct, NonLocalProduct }
 import xsbti.api.Source
 import xsbti.DependencyContext._
 import java.io.File
@@ -53,8 +54,8 @@ trait Analysis {
     compilations: Compilations = compilations): Analysis
 
   def addSource(src: File, api: Source, stamp: Stamp, info: SourceInfo,
-    products: Iterable[(File, Stamp)],
-    classes: Iterable[(String, String)],
+    nonLocalProducts: Iterable[NonLocalProduct],
+    localProducts: Iterable[LocalProduct],
     internalDeps: Iterable[InternalDependency],
     externalDeps: Iterable[ExternalDependency],
     binaryDeps: Iterable[(File, String, Stamp)]): Analysis
@@ -66,6 +67,8 @@ trait Analysis {
 }
 
 object Analysis {
+  case class NonLocalProduct(className: String, binaryClassName: String, classFile: File, classFileStamp: Stamp)
+  case class LocalProduct(classFile: File, classFileStamp: Stamp)
   lazy val Empty: Analysis = new MAnalysis(Stamps.empty, APIs.empty, Relations.empty, SourceInfos.empty, Compilations.empty)
   private[sbt] def empty(nameHashing: Boolean): Analysis = new MAnalysis(Stamps.empty, APIs.empty,
     Relations.empty(nameHashing = nameHashing), SourceInfos.empty, Compilations.empty)
@@ -159,18 +162,24 @@ private class MAnalysis(val stamps: Stamps, val apis: APIs, val relations: Relat
     new MAnalysis(stamps, apis, relations, infos, compilations)
 
   def addSource(src: File, api: Source, stamp: Stamp, info: SourceInfo,
-    products: Iterable[(File, Stamp)],
-    classes: Iterable[(String, String)],
+    nonLocalProducts: Iterable[NonLocalProduct],
+    localProducts: Iterable[LocalProduct],
     internalDeps: Iterable[InternalDependency],
     externalDeps: Iterable[ExternalDependency],
     binaryDeps: Iterable[(File, String, Stamp)]): Analysis = {
 
     val newStamps = {
-      val productStamps = products.foldLeft(stamps.markInternalSource(src, stamp)) {
-        case (tmpStamps, (toProduct, prodStamp)) => tmpStamps.markProduct(toProduct, prodStamp)
+      val nonLocalProductStamps = nonLocalProducts.foldLeft(stamps.markInternalSource(src, stamp)) {
+        case (tmpStamps, nonLocalProduct) =>
+          tmpStamps.markProduct(nonLocalProduct.classFile, nonLocalProduct.classFileStamp)
       }
 
-      binaryDeps.foldLeft(productStamps) {
+      val allProductStamps = localProducts.foldLeft(nonLocalProductStamps) {
+        case (tmpStamps, localProduct) =>
+          tmpStamps.markProduct(localProduct.classFile, localProduct.classFileStamp)
+      }
+
+      binaryDeps.foldLeft(allProductStamps) {
         case (tmpStamps, (toBinary, className, binStamp)) => tmpStamps.markBinary(toBinary, className, binStamp)
       }
     }
@@ -179,7 +188,10 @@ private class MAnalysis(val stamps: Stamps, val apis: APIs, val relations: Relat
       case (tmpApis, ExternalDependency(_, toClassName, classApi, _)) => tmpApis.markExternalAPI(toClassName, classApi)
     }
 
-    val newRelations = relations.addSource(src, products.map(_._1), classes, internalDeps, externalDeps, binaryDeps)
+    val allProducts = nonLocalProducts.map(_.classFile) ++ localProducts.map(_.classFile)
+    val classes = nonLocalProducts.map(p => p.className -> p.binaryClassName)
+
+    val newRelations = relations.addSource(src, allProducts, classes, internalDeps, externalDeps, binaryDeps)
 
     copy(newStamps, newAPIs, newRelations, infos.add(src, info))
   }

@@ -2,6 +2,7 @@ package sbt
 package inc
 
 import java.io.{ BufferedReader, File, StringReader, StringWriter }
+import sbt.inc.Analysis.NonLocalProduct
 import xsbti.DependencyContext
 
 import scala.math.abs
@@ -66,11 +67,12 @@ object TextAnalysisFormatTest extends Properties("TextAnalysisFormat") {
     val sourceInfos = SourceInfos.makeInfo(Nil, Nil)
 
     var analysis = Analysis.empty(nameHashing)
-    val products = (f("A.class"), exists) :: (f("A$.class"), exists) :: Nil
+    val products = NonLocalProduct("A", "A", f("A.class"), exists) ::
+      NonLocalProduct("A$", "A$", f("A$.class"), exists) :: Nil
     val classes = ("A" -> "A") :: ("A$" -> "A$") :: Nil
     val binaryDeps = (f("x.jar"), "x", exists) :: Nil
     val externalDeps = ExternalDependency("A", "C", cSource, DependencyContext.DependencyByMemberRef) :: Nil
-    analysis = analysis.addSource(aScala, aSource, exists, sourceInfos, products, classes, Nil, externalDeps, binaryDeps)
+    analysis = analysis.addSource(aScala, aSource, exists, sourceInfos, products, Nil, Nil, externalDeps, binaryDeps)
 
     val writer = new StringWriter
 

@@ -135,6 +135,12 @@ object TestCaseGenerators {
   val genFileRelation = genRelation[File](unique(genFile)) _
   val genStringRelation = genRelation[String](unique(identifier)) _
 
+  val genStringStringRelation: Gen[Relation[String, String]] = for {
+    n <- choose(1, maxRelatives)
+    fwd <- listOfN(n, unique(identifier))
+    prv <- listOfN(n, unique(identifier))
+  } yield Relation.reconstruct(zipMap(fwd, prv).mapValues(x => Set(x)))
+
   def genRSource(srcs: List[File]): Gen[Relations.Source] = for {
     internal <- listOfN(srcs.length, someOf(srcs)) // Internal dep targets must come from list of sources.
     external <- genStringRelation(srcs)
@@ -184,9 +190,10 @@ object TestCaseGenerators {
     classes <- genStringRelation(srcs)
     names <- genStringRelation(srcs)
     declaredClasses <- genStringRelation(srcs)
+    binaryClassName <- genStringStringRelation
     internal <- InternalDependencies(Map(DependencyByMemberRef -> memberRef.internal, DependencyByInheritance -> inheritance.internal))
     external <- ExternalDependencies(Map(DependencyByMemberRef -> memberRef.external, DependencyByInheritance -> inheritance.external))
-  } yield Relations.make(srcProd, binaryDep, internal, external, classes, names, declaredClasses)
+  } yield Relations.make(srcProd, binaryDep, internal, external, classes, names, declaredClasses, binaryClassName)
 
   def genAnalysis(nameHashing: Boolean): Gen[Analysis] = for {
     rels <- if (nameHashing) genRelationsNameHashing else genRelations
