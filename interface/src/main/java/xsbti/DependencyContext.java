@@ -6,17 +6,17 @@ package xsbti;
  * can exist between symbols.
  */
 public enum DependencyContext {
-	/**
-	 * Represents a direct dependency between two symbols :
-	 * object Foo
-	 * object Bar { def foo = Foo }
-	 */
-	DependencyByMemberRef,
+    /**
+     * Represents a direct dependency between two symbols :
+     * object Foo
+     * object Bar { def foo = Foo }
+     */
+    DependencyByMemberRef,
 
-	/**
-	 * Represents an inheritance dependency between two symbols :
-	 * class A
-	 * class B extends A
-	 */
-	DependencyByInheritance
+    /**
+     * Represents an inheritance dependency between two symbols :
+     * class A
+     * class B extends A
+     */
+    DependencyByInheritance
 }
