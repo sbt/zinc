@@ -63,11 +63,14 @@ object ClassToAPI {
       val mods = modifiers(c.getModifiers)
       val acc = access(c.getModifiers, enclPkg)
       val annots = annotations(c.getAnnotations)
+      val children = childrenOfSealedClass(c)
       val name = c.getName
       val tpe = if (Modifier.isInterface(c.getModifiers)) Trait else ClassDef
       lazy val (static, instance) = structure(c, enclPkg, cmap)
-      val cls = new api.ClassLike(tpe, strict(Empty), lzy(instance, cmap), emptyStringArray, typeParameters(typeParameterTypes(c)), name, acc, mods, annots)
-      val stat = new api.ClassLike(Module, strict(Empty), lzy(static, cmap), emptyStringArray, emptyTypeParameterArray, name, acc, mods, annots)
+      val cls = new api.ClassLike(tpe, strict(Empty), lzy(instance, cmap), emptyStringArray, children.toArray,
+        typeParameters(typeParameterTypes(c)), name, acc, mods, annots)
+      val stat = new api.ClassLike(Module, strict(Empty), lzy(static, cmap), emptyStringArray, emptyTypeArray,
+        emptyTypeParameterArray, name, acc, mods, annots)
       val defs = cls :: stat :: Nil
       cmap.memo(c.getName) = defs
       defs
@@ -276,6 +279,18 @@ object ClassToAPI {
   def annotations(a: Array[Annotation]): Array[api.Annotation] = if (a.length == 0) emptyAnnotationArray else arrayMap(a)(annotation)
   def annotation(a: Annotation): api.Annotation =
     new api.Annotation(reference(a.annotationType), Array(javaAnnotation(a.toString)))
+
+  /**
+    * This method mimics Scala compiler's behavior of `Symbol.children` method when Symbol corresponds to
+    * a Java-defined enum class. Java's enum is modelled as a sealed class and enum's constants are modelled as
+    * children.
+    *
+    * We need this logic to trigger recompilation due to changes to pattern exhaustivity checking results.
+    */
+  private def childrenOfSealedClass(c: Class[_]): Seq[api.SimpleType] = if (!c.isEnum) emptySimpleTypeArray else {
+    // instead of constants we need classes that back them in a stable order
+    c.getEnumConstants.map(_.getClass).sortBy(_.getCanonicalName).map(reference)
+  }
 
   // full information not available from reflection
   def javaAnnotation(s: String): api.AnnotationArgument =

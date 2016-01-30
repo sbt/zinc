@@ -53,7 +53,7 @@ object APIUtil {
     {
       val savedAnnotations = Discovery.defAnnotations(c.structure, (_: Any) => true).toArray[String]
       val struct = minimizeStructure(c.structure, c.definitionType == DefinitionType.Module)
-      new ClassLike(c.definitionType, lzy(emptyType), lzy(struct), savedAnnotations, c.typeParameters, c.name, c.access, c.modifiers, c.annotations)
+      new ClassLike(c.definitionType, lzy(emptyType), lzy(struct), savedAnnotations, c.childrenOfSealedClass, c.typeParameters, c.name, c.access, c.modifiers, c.annotations)
     }
 
   def minimizeStructure(s: Structure, isModule: Boolean): Structure =

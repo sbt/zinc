@@ -324,7 +324,11 @@ class NameHashingSpecification extends Specification {
   }
 
   private def simpleClass(name: String, structure: Structure): ClassLike = {
-    new ClassLike(DefinitionType.ClassDef, lzy(emptyType), lzy(structure), Array.empty, Array.empty, name, publicAccess, defaultModifiers, Array.empty)
+    new ClassLike(DefinitionType.ClassDef, lzy(emptyType), lzy(structure), Array.empty, Array.empty, Array.empty, name, publicAccess, defaultModifiers, Array.empty)
+  }
+
+  private def simpleTrait(name: String, structure: Structure, access: Access): ClassLike = {
+    new ClassLike(DefinitionType.Trait, lzy(emptyType), lzy(structure), Array.empty, Array.empty, Array.empty, name, access, defaultModifiers, Array.empty)
   }
 
   private val emptyType = new EmptyType

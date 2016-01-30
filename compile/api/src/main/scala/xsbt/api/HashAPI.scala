@@ -190,7 +190,8 @@ final class HashAPI(includePrivate: Boolean, includeParamNames: Boolean, include
     extend(ClassHash)
     hashParameterizedDefinition(c)
     hashType(c.selfType)
-    hashStructure(c.structure, includeDefinitions)
+    hashTypes(c.childrenOfSealedClass, includeDefinitions)
+    hashStructure(c.structure, includeDefinitions, isTrait(c))
   }
   def hashField(f: FieldLike): Unit = {
     f match {

@@ -17,6 +17,7 @@ Definition
 			selfType: ~Type
 			structure: ~Structure
 			savedAnnotations: String*
+			childrenOfSealedClass: Type*
 		TypeMember
 			TypeAlias
 				tpe: Type

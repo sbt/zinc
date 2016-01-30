@@ -47,7 +47,7 @@ object SameAPI {
     a.toplevelApiHashes().toSet == b.toplevelApiHashes().toSet &&
       (a.hash.nonEmpty && b.hash.nonEmpty) && apply(a.api, b.api)
 
-  def apply(a: Def, b: Def): Boolean =
+  def apply(a: Definition, b: Definition): Boolean =
     (new SameAPI(false, true)).sameDefinitions(List(a), List(b), true)
 
   def apply(a: SourceAPI, b: SourceAPI): Boolean =
@@ -264,6 +264,7 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
   def sameClassLikeSpecificAPI(a: ClassLike, b: ClassLike): Boolean =
     sameDefinitionType(a.definitionType, b.definitionType) &&
       sameType(a.selfType, b.selfType) &&
+      sameSeq(a.childrenOfSealedClass, b.childrenOfSealedClass)(sameType) &&
       sameStructure(a.structure, b.structure)
 
   def sameValueParameters(a: Seq[ParameterList], b: Seq[ParameterList]): Boolean =
