@@ -18,5 +18,19 @@ public enum DependencyContext {
      * class A
      * class B extends A
      */
-    DependencyByInheritance
+    DependencyByInheritance,
+    /**
+     * Represents an inheritance dependency between a local class
+     * and a non local class:
+     *
+     *   // A.scala
+     *   class A
+     *   // B.scala
+     *   class B {
+     *     def foo = {
+     *       class Local extends A
+     *     }
+     *   }
+     */
+    LocalDependencyByInheritance
 }

@@ -41,11 +41,14 @@ class TestCallback(override val nameHashing: Boolean = false) extends AnalysisCa
 }
 
 object TestCallback {
-  case class ExtractedClassDependencies(memberRef: Map[String, Set[String]], inheritance: Map[String, Set[String]])
+  case class ExtractedClassDependencies(memberRef: Map[String, Set[String]], inheritance: Map[String, Set[String]],
+                                        localInheritance: Map[String, Set[String]])
   object ExtractedClassDependencies {
     def fromPairs(memberRefPairs: Seq[(String, String)],
-                  inheritancePairs: Seq[(String, String)]): ExtractedClassDependencies = {
-      ExtractedClassDependencies(pairsToMultiMap(memberRefPairs), pairsToMultiMap(inheritancePairs))
+                  inheritancePairs: Seq[(String, String)],
+                  localInheritancePairs: Seq[(String, String)]): ExtractedClassDependencies = {
+      ExtractedClassDependencies(pairsToMultiMap(memberRefPairs), pairsToMultiMap(inheritancePairs),
+        pairsToMultiMap(localInheritancePairs))
     }
 
     private def pairsToMultiMap[A, B](pairs: Seq[(A, B)]): Map[A, Set[B]] = {

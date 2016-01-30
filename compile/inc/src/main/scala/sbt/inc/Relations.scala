@@ -198,6 +198,40 @@ trait Relations {
    */
   private[inc] def inheritance: ClassDependencies
 
+  /**
+   * The class dependency introduced by a local class but accounted for an outer, non local class.
+   *
+   * This type of a dependency arises when a triple of classes is involved. Let's consider an
+   * example:
+   *
+   *   // A.scala
+   *   class A
+   *
+   *   // B.scala
+   *   class Outer {
+   *     def foo: Unit = {
+   *       class Foo extends A
+   *     }
+   *   }
+   *
+   * The `Foo` class introduced dependency on `A` by inheritance. However, only non local classes
+   * are tracked in dependency graph so dependency from `Foo` is mapped to `Outer` (which is non
+   * local class that contains `Foo`).
+   *
+   * Why don't we just express this situation as `Outer` depending on `A` by regular inheritance
+   * dependency? Because inheritance dependencies are invalidated transitively. It would mean that
+   * in case `A` is changed, all classes inheriting from `Outer` would be invalidated too. This
+   * suboptimal because classes inheriting from `Outer` cannot be affected by changes to `A`.
+   *
+   * Why not map it to `memberRef` relation that is not invalidated transitively? Because `memberRef`
+   * dependencies are subject to name hashing pruning but this is incorrect for inheritance dependencies.
+   * Hence we need a special relation that expresses dependencies introduced by inheritance but is not
+   * invalidated transitively.
+   *
+   * See https://github.com/sbt/sbt/issues/1104#issuecomment-169146039 for more details.
+   */
+  private[inc] def localInheritance: ClassDependencies
+
   /** The dependency relations between sources.  These include both direct and inherited dependencies.*/
   def direct: Source
 
@@ -599,6 +633,9 @@ private class MRelationsNameHashing(srcProd: Relation[File, File], binaryDep: Re
 
   override def inheritance: ClassDependencies =
     new ClassDependencies(internalDependencies.dependencies.getOrElse(DependencyByInheritance, Relation.empty), externalDependencies.dependencies.getOrElse(DependencyByInheritance, Relation.empty))
+  override def localInheritance: ClassDependencies =
+    new ClassDependencies(internalDependencies.dependencies.getOrElse(LocalDependencyByInheritance, Relation.empty),
+      externalDependencies.dependencies.getOrElse(LocalDependencyByInheritance, Relation.empty))
   override def memberRef: ClassDependencies =
     new ClassDependencies(internalDependencies.dependencies.getOrElse(DependencyByMemberRef, Relation.empty), externalDependencies.dependencies.getOrElse(DependencyByMemberRef, Relation.empty))
 
