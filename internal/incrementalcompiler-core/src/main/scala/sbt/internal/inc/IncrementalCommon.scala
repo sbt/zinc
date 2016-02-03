@@ -22,7 +22,7 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
       previous
     else {
       def debug(s: => String) = if (options.relationsDebug) log.debug(s) else ()
-      val withPackageObjects = invalidatedRaw ++ invalidatedPackageObjects(invalidatedRaw, previous.relations)
+      val withPackageObjects = invalidatedRaw ++ invalidatedPackageObjects(invalidatedRaw, previous.relations, previous.apis)
       val invalidated = expand(withPackageObjects, allSources)
       val pruned = Incremental.prune(invalidated, previous, classfileManager)
       debug("********* Pruned: \n" + pruned.relations + "\n*********")
@@ -52,7 +52,7 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
     } else invalidated
   }
 
-  protected def invalidatedPackageObjects(invalidated: Set[File], relations: Relations): Set[File]
+  protected def invalidatedPackageObjects(invalidated: Set[File], relations: Relations, apis: APIs): Set[File]
 
   /**
    * Logs API changes using debug-level logging. The API are obtained using the APIDiff class.
