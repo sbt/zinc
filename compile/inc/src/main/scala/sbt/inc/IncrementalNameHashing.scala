@@ -82,7 +82,8 @@ private final class IncrementalNameHashing(log: Logger, options: IncOptions) ext
 
   private def invalidateByLocalInheritance(relations: Relations, modified: String): Set[String] = {
     val localInheritanceDeps = relations.localInheritance.internal.reverse(modified)
-    log.debug("Invalidated by local inheritance dependency: " + localInheritanceDeps)
+    if (!localInheritanceDeps.isEmpty)
+      log.debug("Invalidated by local inheritance dependency: " + localInheritanceDeps)
     localInheritanceDeps
   }
 
