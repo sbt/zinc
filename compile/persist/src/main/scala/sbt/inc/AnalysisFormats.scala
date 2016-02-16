@@ -7,8 +7,6 @@ package inc
 import xsbti.api.{ Source, Compilation }
 import xsbti.{ Position, Problem, Severity }
 import xsbti.compile.{ CompileOrder, Output => APIOutput, SingleOutput, MultipleOutput }
-import xsbti.DependencyContext._
-import MultipleOutput.OutputGroup
 import java.io.File
 import sbinary._
 import DefaultProtocol._

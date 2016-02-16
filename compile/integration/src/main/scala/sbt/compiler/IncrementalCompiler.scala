@@ -1,15 +1,10 @@
 package sbt.compiler
 
 import java.io.File
-import sbt.compiler.javac.AnalyzingJavaCompiler
-import sbt.inc.Locate._
 import sbt._
 import sbt.inc._
-import xsbti.Logger
-import xsbti.api.Source
 import xsbti.compile.ClasspathOptions
 import xsbti.compile.CompileOrder._
-import xsbti.compile.DefinesClass
 import xsbti.compile.ScalaInstance
 import xsbti.{ Reporter, Logger, Maybe }
 import xsbti.compile._

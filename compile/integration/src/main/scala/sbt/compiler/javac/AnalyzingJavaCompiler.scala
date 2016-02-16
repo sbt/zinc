@@ -5,9 +5,6 @@ import java.io.File
 import sbt._
 import sbt.classfile.Analyze
 import sbt.classpath.ClasspathUtilities
-import sbt.compiler.CompilerArguments
-import sbt.inc.Locate
-import xsbti.api.Source
 import xsbti.compile._
 import xsbti.{ AnalysisCallback, Reporter }
 

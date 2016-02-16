@@ -16,7 +16,6 @@ import CompileSetup._
 import sbinary.DefaultProtocol.{ immutableMapFormat, immutableSetFormat, StringFormat }
 
 import xsbti.{ Reporter, AnalysisCallback }
-import xsbti.api.Source
 import xsbti.compile.{ CompileOrder, DependencyChanges, GlobalsCache, Output, SingleOutput, MultipleOutput, CompileProgress }
 import CompileOrder.{ JavaThenScala, Mixed, ScalaThenJava }
 
@@ -76,7 +75,6 @@ class AggressiveCompile(cacheFile: File) {
       import config._
       import currentSetup._
       val absClasspath = classpath.map(_.getAbsoluteFile)
-      val apiOption = (api: Either[Boolean, Source]) => api.right.toOption
       val cArgs = new CompilerArguments(compiler.scalaInstance, compiler.cp)
       val searchClasspath = explicitBootClasspath(options.options) ++ withBootclasspath(cArgs, absClasspath)
       val entry = Locate.entry(searchClasspath, definesClass)
