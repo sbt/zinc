@@ -8,26 +8,25 @@ import java.io.File
 import xsbti.api.NameHashes
 import xsbti.api.NameHash
 
-final case class InitialChanges(internalSrc: Changes[File], removedProducts: Set[File], binaryDeps: Set[File], external: APIChanges[String])
-final class APIChanges[T](val apiChanges: Iterable[APIChange[T]]) {
+final case class InitialChanges(internalSrc: Changes[File], removedProducts: Set[File], binaryDeps: Set[File], external: APIChanges)
+final class APIChanges(val apiChanges: Iterable[APIChange]) {
   override def toString = "API Changes: " + apiChanges
-  def allModified: Iterable[T] = apiChanges.map(_.modified)
+  def allModified: Iterable[String] = apiChanges.map(_.modifiedClass)
 }
 
-sealed abstract class APIChange[T](val modified: T)
+sealed abstract class APIChange(val modifiedClass: String)
 /**
  * If we recompile a source file that contains a macro definition then we always assume that it's
  * api has changed. The reason is that there's no way to determine if changes to macros implementation
  * are affecting its users or not. Therefore we err on the side of caution.
  */
-final case class APIChangeDueToMacroDefinition[T](modified0: T) extends APIChange(modified0)
-final case class SourceAPIChange[T](modified0: T) extends APIChange(modified0)
+final case class APIChangeDueToMacroDefinition(modified0: String) extends APIChange(modified0)
 /**
  * An APIChange that carries information about modified names.
  *
  * This class is used only when name hashing algorithm is enabled.
  */
-final case class NamesChange[T](modified0: T, modifiedNames: ModifiedNames) extends APIChange(modified0) {
+final case class NamesChange(modified0: String, modifiedNames: ModifiedNames) extends APIChange(modified0) {
   assert(modifiedNames.regularNames.nonEmpty || modifiedNames.implicitNames.nonEmpty,
     s"Modified names for $modified0 is empty")
 }

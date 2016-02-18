@@ -51,19 +51,17 @@ import xsbt.api.APIUtil
  * of regular members then we'll invalidate sources that use those names.
  */
 private[inc] class MemberRefInvalidator(log: Logger) {
-  def get[T](memberRef: Relation[String, T], usedNames: Relation[File, String], apiChange: APIChange[_],
-    classToSourceMapper: ClassToSourceMapper): T => Set[String] = apiChange match {
-    case _: APIChangeDueToMacroDefinition[_] =>
+  def get(memberRef: Relation[String, String], usedNames: Relation[File, String], apiChange: APIChange,
+    classToSourceMapper: ClassToSourceMapper): String => Set[String] = apiChange match {
+    case _: APIChangeDueToMacroDefinition =>
       new InvalidateUnconditionally(memberRef)
     case NamesChange(_, modifiedNames) if modifiedNames.implicitNames.nonEmpty =>
       new InvalidateUnconditionally(memberRef)
     case NamesChange(modifiedClass, modifiedNames) =>
-      new NameHashFilteredInvalidator[T](usedNames, memberRef, modifiedNames.regularNames, classToSourceMapper)
-    case _: SourceAPIChange[_] =>
-      sys.error(wrongAPIChangeMsg)
+      new NameHashFilteredInvalidator(usedNames, memberRef, modifiedNames.regularNames, classToSourceMapper)
   }
 
-  def invalidationReason(apiChange: APIChange[_]): String = apiChange match {
+  def invalidationReason(apiChange: APIChange): String = apiChange match {
     case APIChangeDueToMacroDefinition(modifiedSrcFile) =>
       s"The $modifiedSrcFile source file declares a macro."
     case NamesChange(modifiedClass, modifiedNames) if modifiedNames.implicitNames.nonEmpty =>
@@ -72,16 +70,10 @@ private[inc] class MemberRefInvalidator(log: Logger) {
     case NamesChange(modifiedClass, modifiedNames) =>
       s"""|The $modifiedClass has the following regular definitions changed:
 				|\t${modifiedNames.regularNames.mkString(", ")}.""".stripMargin
-    case _: SourceAPIChange[_] =>
-      sys.error(wrongAPIChangeMsg)
   }
 
-  private val wrongAPIChangeMsg =
-    "MemberReferenceInvalidator.get should be called when name hashing is enabled " +
-      "and in that case we shouldn't have SourceAPIChange as an api change."
-
-  private class InvalidateUnconditionally[T](memberRef: Relation[String, T]) extends (T => Set[String]) {
-    def apply(from: T): Set[String] = {
+  private class InvalidateUnconditionally(memberRef: Relation[String, String]) extends (String => Set[String]) {
+    def apply(from: String): Set[String] = {
       val invalidated = memberRef.reverse(from)
       if (invalidated.nonEmpty)
         log.debug(s"The following member ref dependencies of $from are invalidated:\n" +
@@ -94,13 +86,13 @@ private[inc] class MemberRefInvalidator(log: Logger) {
     }
   }
 
-  private class NameHashFilteredInvalidator[T](
+  private class NameHashFilteredInvalidator(
       usedNames: Relation[File, String],
-      memberRef: Relation[String, T],
+      memberRef: Relation[String, String],
       modifiedNames: Set[String],
-      classToSourceMapper: ClassToSourceMapper) extends (T => Set[String]) {
+      classToSourceMapper: ClassToSourceMapper) extends (String => Set[String]) {
 
-    def apply(to: T): Set[String] = {
+    def apply(to: String): Set[String] = {
       val dependent = memberRef.reverse(to)
       filteredDependencies(dependent)
     }

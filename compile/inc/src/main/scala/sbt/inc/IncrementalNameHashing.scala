@@ -2,8 +2,7 @@ package sbt
 package inc
 
 import xsbti.api.AnalyzedClass
-import xsbt.api.SameAPI
-import java.io.File
+import xsbt.api.{ APIUtil, SameAPI }
 
 /**
  * Implementation of incremental algorithm known as "name hashing". It differs from the default implementation
@@ -27,21 +26,21 @@ private final class IncrementalNameHashing(log: Logger, options: IncOptions) ext
     }
   }
 
-  override protected def sameAPI[T](cls: T, a: AnalyzedClass, b: AnalyzedClass): Option[APIChange[T]] = {
+  override protected def sameAPI(className: String, a: AnalyzedClass, b: AnalyzedClass): Option[APIChange] = {
     if (SameAPI(a, b))
       None
     else {
       val aNameHashes = a.nameHashes
       val bNameHashes = b.nameHashes
       val modifiedNames = ModifiedNames.compareTwoNameHashes(aNameHashes, bNameHashes)
-      val apiChange = NamesChange(cls, modifiedNames)
+      val apiChange = NamesChange(className, modifiedNames)
       Some(apiChange)
     }
   }
 
   /** Invalidates sources based on initially detected 'changes' to the sources, products, and dependencies.*/
-  override protected def invalidateByExternal(relations: Relations, externalAPIChange: APIChange[String], classToSrcMapper: ClassToSourceMapper): Set[String] = {
-    val modified = externalAPIChange.modified
+  override protected def invalidateByExternal(relations: Relations, externalAPIChange: APIChange, classToSrcMapper: ClassToSourceMapper): Set[String] = {
+    val modified = externalAPIChange.modifiedClass
     val invalidationReason = memberRefInvalidator.invalidationReason(externalAPIChange)
     log.debug(s"$invalidationReason\nAll member reference dependencies will be considered within this context.")
     // Propagate inheritance dependencies transitively.
@@ -83,9 +82,9 @@ private final class IncrementalNameHashing(log: Logger, options: IncOptions) ext
     localInheritanceDeps
   }
 
-  override protected def invalidateClass(relations: Relations, change: APIChange[String], classToSourceMapper: ClassToSourceMapper): Set[String] = {
-    log.debug(s"Invalidating ${change.modified}...")
-    val modifiedClass = change.modified
+  override protected def invalidateClass(relations: Relations, change: APIChange, classToSourceMapper: ClassToSourceMapper): Set[String] = {
+    log.debug(s"Invalidating ${change.modifiedClass}...")
+    val modifiedClass = change.modifiedClass
     val transitiveInheritance = invalidateByInheritance(relations, modifiedClass)
     val localInheritance = invalidateByLocalInheritance(relations, modifiedClass)
     val reasonForInvalidation = memberRefInvalidator.invalidationReason(change)
