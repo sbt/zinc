@@ -18,6 +18,7 @@ Definition
 			structure: ~Structure
 			savedAnnotations: String*
 			childrenOfSealedClass: Type*
+			topLevel: Boolean
 		TypeMember
 			TypeAlias
 				tpe: Type

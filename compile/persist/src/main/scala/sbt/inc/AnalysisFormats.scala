@@ -4,7 +4,7 @@
 package sbt
 package inc
 
-import xsbti.api.{ Source, Compilation }
+import xsbti.api.{ AnalyzedClass, Compilation }
 import xsbti.{ Position, Problem, Severity }
 import xsbti.compile.{ CompileOrder, Output => APIOutput, SingleOutput, MultipleOutput }
 import java.io.File
@@ -76,7 +76,7 @@ object AnalysisFormats {
   implicit def relationFormat[A, B](implicit af: Format[Map[A, Set[B]]], bf: Format[Map[B, Set[A]]]): Format[Relation[A, B]] =
     asProduct2[Relation[A, B], Map[A, Set[B]], Map[B, Set[A]]](Relation.make _)(r => (r.forwardMap, r.reverseMap))(af, bf)
 
-  implicit val sourceFormat: Format[Source] = xsbt.api.SourceFormat
+  implicit val analyzedClassFormat: Format[AnalyzedClass] = xsbt.api.AnalyzedClassFormat
 
   implicit def fileFormat: Format[File] = wrap[File, String](_.getAbsolutePath, s => new File(s))
   // can't require Format[Seq[String]] because its complexity is higher than Format[CompileOptions]

@@ -4,9 +4,6 @@
 package sbt
 package inc
 
-import xsbt.api.{ NameChanges, SameAPI, TopLevel }
-import annotation.tailrec
-import xsbti.api.{ Compilation, Source }
 import xsbti.compile.DependencyChanges
 import java.io.File
 
@@ -56,12 +53,14 @@ object Incremental {
         val modifiedClasses = initialChanges.external.allModified.toArray
         def isEmpty = modifiedBinaries.isEmpty && modifiedClasses.isEmpty
       }
-      val initialInv = incremental.invalidateInitial(previous.relations, initialChanges)
-      log.debug("All initially invalidated sources: " + initialInv + "\n")
+      val (initialInvClasses, initialInvSources) = incremental.invalidateInitial(previous.relations, initialChanges)
+      log.debug("All initially invalidated classes: " + initialInvClasses + "\n" +
+        "All initially invalidated sources:" + initialInvSources + "\n")
       val analysis = manageClassfiles(options) { classfileManager =>
-        incremental.cycle(initialInv, sources, binaryChanges, previous, doCompile, classfileManager, 1)
+
+        incremental.cycle(initialInvClasses, initialInvSources, sources, binaryChanges, previous, doCompile, classfileManager, 1)
       }
-      (initialInv.nonEmpty, analysis)
+      (initialInvClasses.nonEmpty || initialInvSources.nonEmpty, analysis)
     }
 
   // the name of system property that was meant to enable debugging mode of incremental compiler but

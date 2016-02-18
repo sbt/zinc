@@ -5,6 +5,7 @@ package sbt
 package compiler
 
 import inc._
+import xsbti.api.AnalyzedClass
 
 import scala.annotation.tailrec
 import java.io.File
@@ -125,8 +126,8 @@ class AggressiveCompile(cacheFile: File) {
             }
 
             def readAPI(source: File, classes: Seq[Class[_]]): Set[(String, String)] = {
-              val (api, inherits) = ClassToAPI.process(classes)
-              callback.api(source, api)
+              val (apis, inherits) = ClassToAPI.process(classes)
+              apis.foreach(callback.api(source, _))
               inherits.map {
                 case (from: Class[_], to: Class[_]) => (from.getName, to.getName)
               }

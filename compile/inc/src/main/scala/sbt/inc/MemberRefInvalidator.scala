@@ -55,9 +55,9 @@ private[inc] class MemberRefInvalidator(log: Logger) {
     classToSourceMapper: ClassToSourceMapper): T => Set[String] = apiChange match {
     case _: APIChangeDueToMacroDefinition[_] =>
       new InvalidateUnconditionally(memberRef)
-    case NamesChange(_, _, modifiedNames) if modifiedNames.implicitNames.nonEmpty =>
+    case NamesChange(_, modifiedNames) if modifiedNames.implicitNames.nonEmpty =>
       new InvalidateUnconditionally(memberRef)
-    case NamesChange(modifiedSrcFile, _, modifiedNames) =>
+    case NamesChange(modifiedClass, modifiedNames) =>
       new NameHashFilteredInvalidator[T](usedNames, memberRef, modifiedNames.regularNames, classToSourceMapper)
     case _: SourceAPIChange[_] =>
       sys.error(wrongAPIChangeMsg)
@@ -66,11 +66,11 @@ private[inc] class MemberRefInvalidator(log: Logger) {
   def invalidationReason(apiChange: APIChange[_]): String = apiChange match {
     case APIChangeDueToMacroDefinition(modifiedSrcFile) =>
       s"The $modifiedSrcFile source file declares a macro."
-    case NamesChange(modifiedSrcFile, _, modifiedNames) if modifiedNames.implicitNames.nonEmpty =>
-      s"""|The $modifiedSrcFile source file has the following implicit definitions changed:
+    case NamesChange(modifiedClass, modifiedNames) if modifiedNames.implicitNames.nonEmpty =>
+      s"""|The $modifiedClass has the following implicit definitions changed:
 				|\t${modifiedNames.implicitNames.mkString(", ")}.""".stripMargin
-    case NamesChange(modifiedSrcFile, _, modifiedNames) =>
-      s"""|The $modifiedSrcFile source file has the following regular definitions changed:
+    case NamesChange(modifiedClass, modifiedNames) =>
+      s"""|The $modifiedClass has the following regular definitions changed:
 				|\t${modifiedNames.regularNames.mkString(", ")}.""".stripMargin
     case _: SourceAPIChange[_] =>
       sys.error(wrongAPIChangeMsg)

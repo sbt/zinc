@@ -31,11 +31,9 @@ object ShowAPI {
       case ByName   => "=> " + base
     }
 
-  def concat[A](list: Seq[A], as: Show[A], sep: String): String = mapSeq(list, as).mkString(sep)
-  def commas[A](list: Seq[A], as: Show[A]): String = concat(list, as, ", ")
-  def spaced[A](list: Seq[A], as: Show[A]): String = concat(list, as, " ")
-  def lines[A](list: Seq[A], as: Show[A]): String = mapSeq(list, as).mkString("\n")
-  def mapSeq[A](list: Seq[A], as: Show[A]): Seq[String] = list.map(as.show)
+  def apply(d: Definition) = ShowAPI.showDefinition(d)(defaultNesting)
+  def apply(d: Type) = ShowAPI.showType(d)(defaultNesting)
+  def apply(a: ClassLike) = ShowAPI.showApi(a)(defaultNesting)
 }
 
 trait ShowBase {
@@ -49,8 +47,8 @@ trait ShowBase {
   implicit def showVariance: Show[Variance] =
     new Show[Variance] { def show(v: Variance) = v match { case Invariant => ""; case Covariant => "+"; case Contravariant => "-" } }
 
-  implicit def showSource(implicit ps: Show[Package], ds: Show[Definition]): Show[SourceAPI] =
-    new Show[SourceAPI] { def show(a: SourceAPI) = lines(a.packages, ps) + "\n" + lines(a.definitions, ds) }
+  def showApi(c: ClassLike)(implicit nesting: Int) =
+    showDefinition(c)
 
   implicit def showPackage: Show[Package] =
     new Show[Package] { def show(pkg: Package) = "package " + pkg.name }

@@ -5,9 +5,10 @@ package sbt
 package inc
 
 import sbt.inc.Analysis.{ LocalProduct, NonLocalProduct }
-import xsbti.api.Source
 import xsbti.DependencyContext._
 import java.io.File
+
+import xsbti.api.AnalyzedClass
 
 /**
  * The merge/groupBy functionality requires understanding of the concepts of internalizing/externalizing dependencies:
@@ -53,7 +54,7 @@ trait Analysis {
   def copy(stamps: Stamps = stamps, apis: APIs = apis, relations: Relations = relations, infos: SourceInfos = infos,
     compilations: Compilations = compilations): Analysis
 
-  def addSource(src: File, api: Source, stamp: Stamp, info: SourceInfo,
+  def addSource(src: File, apis: Iterable[AnalyzedClass], stamp: Stamp, info: SourceInfo,
     nonLocalProducts: Iterable[NonLocalProduct],
     localProducts: Iterable[LocalProduct],
     internalDeps: Iterable[InternalDependency],
@@ -105,11 +106,10 @@ object Analysis {
     // Merge the APIs, internalizing APIs for targets of dependencies we internalized above.
     val concatenatedAPIs = (APIs.empty /: (analyses map { _.apis }))(_ ++ _)
     val stillInternalAPIs = concatenatedAPIs.internal
-    val (internalizedAPIs, stillExternalAPIs) = concatenatedAPIs.external partition { x: (String, Source) => internalized._2s.contains(x._1) }
-    val internalizedFilesAPIs = internalizedAPIs flatMap {
-      case (cls: String, source: Source) => mergedRelations.definesClass(cls) map { file: File => (file, concatenatedAPIs.internalAPI(file)) }
+    val (internalizedAPIs, stillExternalAPIs) = concatenatedAPIs.external partition { x: (String, AnalyzedClass) =>
+      internalized._2s.contains(x._1)
     }
-    val mergedAPIs = APIs(stillInternalAPIs ++ internalizedFilesAPIs, stillExternalAPIs)
+    val mergedAPIs = APIs(stillInternalAPIs ++ internalizedAPIs, stillExternalAPIs)
 
     val mergedStamps = Stamps.merge(analyses map { _.stamps })
     val mergedInfos = SourceInfos.merge(analyses map { _.infos })
@@ -120,7 +120,13 @@ object Analysis {
 
   def summary(a: Analysis): String =
     {
-      val (j, s) = a.apis.allInternalSources.partition(_.getName.endsWith(".java"))
+      def sourceFileForClass(className: String): File =
+        a.relations.definesClass(className).headOption.getOrElse {
+          sys.error(s"Can't find source file for $className")
+        }
+      def isJavaClass(className: String): Boolean =
+        sourceFileForClass(className).getName.endsWith(".java")
+      val (j, s) = a.apis.allInternalClasses.partition(isJavaClass)
       val c = a.stamps.allProducts
       val ext = a.apis.allExternals
       val jars = a.relations.allBinaryDeps.filter(_.getName.endsWith(".jar"))
@@ -152,7 +158,8 @@ private class MAnalysis(val stamps: Stamps, val apis: APIs, val relations: Relat
       val newRelations = relations -- sources
       def keep[T](f: (Relations, T) => Set[_]): T => Boolean = f(newRelations, _).nonEmpty
 
-      val newAPIs = apis.removeInternal(sources).filterExt(keep(_ usesExternal _))
+      val classesInSrcs = sources.flatMap(relations.classNames)
+      val newAPIs = apis.removeInternal(classesInSrcs).filterExt(keep(_ usesExternal _))
       val newStamps = stamps.filter(keep(_ produced _), sources, keep(_ usesBinary _))
       val newInfos = infos -- sources
       new MAnalysis(newStamps, newAPIs, newRelations, newInfos, compilations)
@@ -161,7 +168,7 @@ private class MAnalysis(val stamps: Stamps, val apis: APIs, val relations: Relat
   def copy(stamps: Stamps, apis: APIs, relations: Relations, infos: SourceInfos, compilations: Compilations = compilations): Analysis =
     new MAnalysis(stamps, apis, relations, infos, compilations)
 
-  def addSource(src: File, api: Source, stamp: Stamp, info: SourceInfo,
+  def addSource(src: File, apis: Iterable[AnalyzedClass], stamp: Stamp, info: SourceInfo,
     nonLocalProducts: Iterable[NonLocalProduct],
     localProducts: Iterable[LocalProduct],
     internalDeps: Iterable[InternalDependency],
@@ -184,7 +191,11 @@ private class MAnalysis(val stamps: Stamps, val apis: APIs, val relations: Relat
       }
     }
 
-    val newAPIs = externalDeps.foldLeft(apis.markInternalSource(src, api)) {
+    val newInternalAPIs = apis.foldLeft(this.apis) {
+      case (tmpApis, analyzedClass) => tmpApis.markInternalAPI(analyzedClass.name, analyzedClass)
+    }
+
+    val newAPIs = externalDeps.foldLeft(newInternalAPIs) {
       case (tmpApis, ExternalDependency(_, toClassName, classApi, _)) => tmpApis.markExternalAPI(toClassName, classApi)
     }
 
@@ -222,7 +233,8 @@ private class MAnalysis(val stamps: Stamps, val apis: APIs, val relations: Relat
     // and a change to any of them will act like a change to all of them.
     // We don't use all the top-level classes in source.api.definitions, even though that's more intuitively
     // correct, because this can cause huge bloat of the analysis file.
-    def getRepresentativeClass(file: File): Option[String] = apis.internalAPI(file).api.definitions.headOption map { _.name }
+    def getRepresentativeClass(file: File): Option[String] =
+      relations.classNames(file).headOption
 
     // Create an Analysis for each group.
     (for (k <- allKeys) yield {
@@ -259,14 +271,13 @@ private class MAnalysis(val stamps: Stamps, val apis: APIs, val relations: Relat
       )
 
       // Compute new API mappings.
-      def apisFor[T](m: Map[T, Source], x: Traversable[T]): Map[T, Source] =
+      def apisFor[T](m: Map[T, AnalyzedClass], x: Traversable[T]): Map[T, AnalyzedClass] =
         (x map { e: T => (e, m.get(e)) } collect { case (t, Some(source)) => (t, source) }).toMap
-      val stillInternalAPIs = apisFor(apis.internal, srcProd._1s)
-      val stillExternalAPIs = apisFor(apis.external, stillExternal._2s)
-      val externalizedAPIs = apisFor(apis.internal, externalized._2s)
-      val externalizedClassesAPIs = externalizedAPIs flatMap {
-        case (file: File, source: Source) => getRepresentativeClass(file) map { cls: String => (cls, source) }
-      }
+      // TODO: figure out what this code does and how to fix source file-class name mismatch
+      val stillInternalAPIs = apisFor[String](apis.internal, ??? /*srcProd._1s*/ )
+      val stillExternalAPIs = apisFor[String](apis.external, stillExternal._2s)
+      val externalizedAPIs = apisFor[String](apis.internal, ??? /*externalized._2s*/ )
+      val externalizedClassesAPIs = externalizedAPIs
       val newAPIs = APIs(stillInternalAPIs, stillExternalAPIs ++ externalizedClassesAPIs)
 
       // New stamps.

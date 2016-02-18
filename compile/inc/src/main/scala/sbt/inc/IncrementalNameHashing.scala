@@ -1,7 +1,7 @@
 package sbt
 package inc
 
-import xsbti.api.{ ToplevelApiHash, Source }
+import xsbti.api.AnalyzedClass
 import xsbt.api.SameAPI
 import java.io.File
 
@@ -17,30 +17,26 @@ private final class IncrementalNameHashing(log: Logger, options: IncOptions) ext
 
   // Package objects are fragile: if they inherit from an invalidated source, get "class file needed by package is missing" error
   //  This might be too conservative: we probably only need package objects for packages of invalidated sources.
-  override protected def invalidatedPackageObjects(invalidated: Set[File], relations: Relations): Set[File] = {
-    invalidated flatMap { src =>
-      val classes = relations.classNames(src)
-      val dependentClasses = classes.flatMap(relations.inheritance.internal.reverse)
-      dependentClasses.flatMap(relations.classes.reverse)
-    } filter { _.getName == "package.scala" }
-  }
-
-  override protected def sameAPI[T](src: T, a: Source, b: Source): Option[APIChange[T]] = {
-    if (SameAPI(a, b))
-      None
-    else {
-      val aNameHashes = a._internalOnly_nameHashes
-      val bNameHashes = b._internalOnly_nameHashes
-      val modifiedNames = ModifiedNames.compareTwoNameHashes(aNameHashes, bNameHashes)
-      val modifiedToplevelClasses = compareToplevelHashes(a.toplevelApiHashes.toSet, b.toplevelApiHashes.toSet)
-      val apiChange = NamesChange(src, modifiedToplevelClasses, modifiedNames)
-      Some(apiChange)
+  override protected def invalidatedPackageObjects(invalidatedClasses: Set[String], relations: Relations): Set[String] = {
+    invalidatedClasses flatMap { cls =>
+      val dependentClasses = relations.inheritance.internal.reverse(cls)
+      dependentClasses
+    } filter { (cls: String) =>
+      val srcFile: File = relations.classes.reverse(cls).head
+      srcFile.getName == "package.scala"
     }
   }
 
-  private def compareToplevelHashes(xs: Set[ToplevelApiHash], ys: Set[ToplevelApiHash]): Set[String] = {
-    val differentHashes = (xs union ys) diff (xs intersect ys)
-    differentHashes.map(_.name)
+  override protected def sameAPI[T](cls: T, a: AnalyzedClass, b: AnalyzedClass): Option[APIChange[T]] = {
+    if (SameAPI(a, b))
+      None
+    else {
+      val aNameHashes = a.nameHashes
+      val bNameHashes = b.nameHashes
+      val modifiedNames = ModifiedNames.compareTwoNameHashes(aNameHashes, bNameHashes)
+      val apiChange = NamesChange(cls, modifiedNames)
+      Some(apiChange)
+    }
   }
 
   /** Invalidates sources based on initially detected 'changes' to the sources, products, and dependencies.*/
@@ -87,27 +83,21 @@ private final class IncrementalNameHashing(log: Logger, options: IncOptions) ext
     localInheritanceDeps
   }
 
-  override protected def invalidateSource(relations: Relations, change: APIChange[File], classToSourceMapper: ClassToSourceMapper): Set[File] = {
+  override protected def invalidateClass(relations: Relations, change: APIChange[String], classToSourceMapper: ClassToSourceMapper): Set[String] = {
     log.debug(s"Invalidating ${change.modified}...")
-    val modifiedClassesInSrc = changedClassNames(change, relations)
-    val transitiveInheritance = modifiedClassesInSrc.flatMap(invalidateByInheritance(relations, _))
-    val localInheritance = modifiedClassesInSrc.flatMap(invalidateByLocalInheritance(relations, _))
+    val modifiedClass = change.modified
+    val transitiveInheritance = invalidateByInheritance(relations, modifiedClass)
+    val localInheritance = invalidateByLocalInheritance(relations, modifiedClass)
     val reasonForInvalidation = memberRefInvalidator.invalidationReason(change)
     log.debug(s"$reasonForInvalidation\nAll member reference dependencies will be considered within this context.")
     val memberRefSrcDeps = relations.memberRef.internal
     val memberRefInvalidation = memberRefInvalidator.get(memberRefSrcDeps, relations.names, change, classToSourceMapper)
     val memberRef = transitiveInheritance flatMap memberRefInvalidation
     val all = transitiveInheritance ++ localInheritance ++ memberRef
-    val allSrcs = all.flatMap(classToSourceMapper.toSrcFile)
-    allSrcs
+    all
   }
 
-  private def changedClassNames(change: APIChange[File], relations: Relations): Set[String] = change match {
-    case _: APIChangeDueToMacroDefinition[_] | _: SourceAPIChange[_] => relations.classNames(change.modified)
-    case NamesChange(_, modifiedToplevelClasses, _)                  => modifiedToplevelClasses
-  }
-
-  override protected def allDeps(relations: Relations): File => Set[File] =
-    f => relations.classNames(f).flatMap(relations.memberRef.internal.reverse).flatMap(relations.classes.reverse)
+  override protected def allDeps(relations: Relations): (String) => Set[String] =
+    cls => relations.memberRef.internal.reverse(cls)
 
 }

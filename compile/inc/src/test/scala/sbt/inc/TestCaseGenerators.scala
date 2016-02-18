@@ -72,21 +72,23 @@ object TestCaseGenerators {
     } yield Stamps(zipMap(prod, prodStamps), zipMap(src, srcStamps), zipMap(bin, binStamps), zipMap(bin, binClassNames))
   }
 
+  private[this] val emptyStructure = new Structure(lzy(Array()), lzy(Array()), lzy(Array()))
+
+
   // We need "proper" definitions with specific class names, as groupBy use these to pick a representative top-level class when splitting.
-  private[this] def makeDefinition(name: String): Definition =
-    new ClassLike(DefinitionType.ClassDef, lzy(new EmptyType()),
-      lzy(new Structure(lzy(Array()), lzy(Array()), lzy(Array()))), Array(), Array(),
-      name, new Public(), new Modifiers(false, false, false, false, false, false, false), Array())
+  private[this] def makeClassLike(name: String, definitionType: DefinitionType): ClassLike =
+    new ClassLike(definitionType, lzy(new EmptyType()), lzy(emptyStructure), Array(), Array(), true, Array(),
+      name, new Public(), APIs.emptyModifiers, Array())
+
+  private[this] def makeCompanions(name: String): Companions =
+    new Companions(makeClassLike(name, DefinitionType.ClassDef), makeClassLike(name, DefinitionType.Module))
 
   private[this] def lzy[T <: AnyRef](x: T) = SafeLazy.strict(x)
 
-  def genTopLevelApiHash(defn: String): Gen[xsbti.api.ToplevelApiHash] =
-    for (hash <- arbitrary[Int]) yield new ToplevelApiHash(defn, hash)
+  def genNameHash(defn: String): Gen[xsbti.api.NameHash] =
+    const(new xsbti.api.NameHash(defn, defn.hashCode()))
 
-  def genNameHash(defn: String): Gen[xsbti.api._internalOnly_NameHash] =
-    value(new xsbti.api._internalOnly_NameHash(defn, defn.hashCode()))
-
-  def genNameHashes(defns: Seq[String]): Gen[xsbti.api._internalOnly_NameHashes] = {
+  def genNameHashes(defns: Seq[String]): Gen[xsbti.api.NameHashes] = {
     def partitionAccordingToMask[T](mask: List[Boolean], xs: List[T]): (List[T], List[T]) = {
       val (p1, p2) = (mask zip xs).partition(_._1)
       (p1.map(_._2), p2.map(_._2))
@@ -97,33 +99,33 @@ object TestCaseGenerators {
         nameHash <- genNameHash(defn)
       } yield (isRegularMember, nameHash)
     }
-    val genNameHashesList = Gen.sequence[List, xsbti.api._internalOnly_NameHash](defns.map(genNameHash))
+    val genNameHashesList = Gen.sequence[List, xsbti.api.NameHash](defns.map(genNameHash))
     val genTwoListOfNameHashes = for {
       nameHashesList <- genNameHashesList
       isRegularMemberList <- listOfN(nameHashesList.length, arbitrary[Boolean])
     } yield partitionAccordingToMask(isRegularMemberList, nameHashesList)
     for {
       (regularMemberNameHashes, implicitMemberNameHashes) <- genTwoListOfNameHashes
-    } yield new xsbti.api._internalOnly_NameHashes(regularMemberNameHashes.toArray, implicitMemberNameHashes.toArray)
+    } yield new xsbti.api.NameHashes(regularMemberNameHashes.toArray, implicitMemberNameHashes.toArray)
   }
 
-  def genSource(defns: Seq[String]): Gen[Source] = for {
+  def genClass(name: String): Gen[AnalyzedClass] = for {
     startTime <- arbitrary[Long]
-    hashLen <- choose(10, 20) // Requred by SameAPI to be > 0.
-    hash <- Gen.containerOfN[Array, Byte](hashLen, arbitrary[Byte])
-    topLevelHashes <- Gen.sequence[Array, ToplevelApiHash](defns.map(genTopLevelApiHash))
+    apiHash <- arbitrary[Int]
     hasMacro <- arbitrary[Boolean]
-    nameHashes <- genNameHashes(defns)
-  } yield new Source(new Compilation(startTime, Array()), hash, new SourceAPI(Array(), Array(defns map makeDefinition: _*)), topLevelHashes, nameHashes, hasMacro)
+    nameHashes <- genNameHashes(Seq(name))
+  } yield new
+      AnalyzedClass(new Compilation(startTime, Array()), name, makeCompanions(name), apiHash, nameHashes, hasMacro)
 
-  def genSources(all_defns: Seq[Seq[String]]): Gen[Seq[Source]] = Gen.sequence[List, Source](all_defns.map(genSource))
+  def genClasses(all_defns: Seq[String]): Gen[Seq[AnalyzedClass]] =
+    Gen.sequence[List, AnalyzedClass](all_defns.map(genClass))
 
   def genAPIs(rel: Relations): Gen[APIs] = {
-    val internal = rel.allInternalSrcDeps.toList.sorted
+    val internal = rel.internalClassDep._1s.toList.sorted ++ rel.internalClassDep._2s.toList.sorted
     val external = rel.allExternalDeps.toList.sorted
     for {
-      internalSources <- genSources(internal map { f: File => rel.classNames(f).toList.sorted })
-      externalSources <- genSources(external map { s: String => s :: Nil })
+      internalSources <- genClasses(internal)
+      externalSources <- genClasses(external)
     } yield APIs(zipMap(internal, internalSources), zipMap(external, externalSources))
   }
 
@@ -135,8 +137,8 @@ object TestCaseGenerators {
   val genFileRelation = genRelation[File](unique(genFile)) _
   val genStringRelation = genRelation[String](unique(identifier)) _
 
-  val genStringStringRelation: Gen[Relation[String, String]] = for {
-    n <- choose(1, maxRelatives)
+  def genStringStringRelation(num: Int): Gen[Relation[String, String]] = for {
+    n <- choose(1, num)
     fwd <- listOfN(n, unique(identifier))
     prv <- listOfN(n, unique(identifier))
   } yield Relation.reconstruct(zipMap(fwd, prv).mapValues(x => Set(x)))
@@ -182,15 +184,15 @@ object TestCaseGenerators {
   def genRelationsNameHashing: Gen[Relations] = for {
     numSrcs <- choose(0, maxSources)
     srcs <- listOfN(numSrcs, genFile)
+    binaryClassName <- genStringStringRelation(numSrcs)
     srcProd <- genFileRelation(srcs)
     binaryDep <- genFileRelation(srcs)
-    classNames <- listOfN(numSrcs, unique(identifier))
+    classNames = binaryClassName._1s.toList
     memberRef <- genRClassDependencies(classNames)
     inheritance <- genSubRClassDependencies(memberRef)
-    classes <- genStringRelation(srcs)
+    classes = Relation.reconstruct(zipMap(srcs, classNames).mapValues(x => Set(x)))
     names <- genStringRelation(srcs)
-    declaredClasses <- genStringRelation(srcs)
-    binaryClassName <- genStringStringRelation
+    declaredClasses = classes
     internal <- InternalDependencies(Map(DependencyByMemberRef -> memberRef.internal, DependencyByInheritance -> inheritance.internal))
     external <- ExternalDependencies(Map(DependencyByMemberRef -> memberRef.external, DependencyByInheritance -> inheritance.external))
   } yield Relations.make(srcProd, binaryDep, internal, external, classes, names, declaredClasses, binaryClassName)

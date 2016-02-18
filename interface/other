@@ -1,26 +1,22 @@
-Source
+AnalyzedClass
 	compilation: Compilation
-	hash: Byte*
-	api: SourceAPI
-	toplevelApiHashes: ToplevelApiHash*
-	_internalOnly_nameHashes: _internalOnly_NameHashes
+	name: String
+	api: Companions
+	apiHash: Int
+	nameHashes: NameHashes
 	hasMacro: Boolean
 
-_internalOnly_NameHashes
-	regularMembers: _internalOnly_NameHash*
-	implicitMembers: _internalOnly_NameHash*
+Companions
+	classApi: ClassLike
+	objectApi: ClassLike
 
-_internalOnly_NameHash
+NameHashes
+	regularMembers: NameHash*
+	implicitMembers: NameHash*
+
+NameHash
 	name: String
 	hash: Int
-
-ToplevelApiHash
-	name: String
-	hash: Int
-
-SourceAPI
-	packages : Package*
-	definitions: Definition*
 
 OutputSetting
 	sourceDirectory: String

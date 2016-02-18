@@ -4,10 +4,9 @@
 package sbt
 package inc
 
-import xsbt.api.NameChanges
 import java.io.File
-import xsbti.api.{ _internalOnly_NameHashes => NameHashes }
-import xsbti.api.{ _internalOnly_NameHash => NameHash }
+import xsbti.api.NameHashes
+import xsbti.api.NameHash
 
 final case class InitialChanges(internalSrc: Changes[File], removedProducts: Set[File], binaryDeps: Set[File], external: APIChanges[String])
 final class APIChanges[T](val apiChanges: Iterable[APIChange[T]]) {
@@ -28,8 +27,10 @@ final case class SourceAPIChange[T](modified0: T) extends APIChange(modified0)
  *
  * This class is used only when name hashing algorithm is enabled.
  */
-final case class NamesChange[T](modified0: T, modifiedToplevelClasses: Set[String],
-  modifiedNames: ModifiedNames) extends APIChange(modified0)
+final case class NamesChange[T](modified0: T, modifiedNames: ModifiedNames) extends APIChange(modified0) {
+  assert(modifiedNames.regularNames.nonEmpty || modifiedNames.implicitNames.nonEmpty,
+    s"Modified names for $modified0 is empty")
+}
 
 /**
  * ModifiedNames are determined by comparing name hashes in two versions of an API representation.

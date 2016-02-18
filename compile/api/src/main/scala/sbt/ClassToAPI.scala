@@ -10,19 +10,19 @@ import SafeLazy.strict
 import collection.mutable
 
 object ClassToAPI {
-  def apply(c: Seq[Class[_]]): api.SourceAPI = process(c)._1
+  def apply(c: Seq[Class[_]]): Seq[api.ClassLike] = process(c)._1
 
   // (api, public inherited classes)
-  def process(c: Seq[Class[_]]): (api.SourceAPI, Set[(Class[_], Class[_])]) =
+  def process(c: Seq[Class[_]]): (Seq[api.ClassLike], Set[(Class[_], Class[_])]) =
     {
       val pkgs = packages(c).map(p => new api.Package(p))
       val cmap = emptyClassMap
       val defs = c.filter(isTopLevel).flatMap(toDefinitions(cmap))
-      val source = new api.SourceAPI(pkgs.toArray, defs.toArray)
+      val classApis = defs.toArray[api.ClassLike]
       cmap.lz.foreach(_.get()) // force thunks to ensure all inherited dependencies are recorded
       val inDeps = cmap.inherited.toSet
       cmap.clear()
-      (source, inDeps)
+      (classApis, inDeps)
     }
 
   // Avoiding implicit allocation.
@@ -64,13 +64,14 @@ object ClassToAPI {
       val acc = access(c.getModifiers, enclPkg)
       val annots = annotations(c.getAnnotations)
       val children = childrenOfSealedClass(c)
+      val topLevel = c.getEnclosingClass == null
       val name = c.getName
       val tpe = if (Modifier.isInterface(c.getModifiers)) Trait else ClassDef
       lazy val (static, instance) = structure(c, enclPkg, cmap)
       val cls = new api.ClassLike(tpe, strict(Empty), lzy(instance, cmap), emptyStringArray, children.toArray,
-        typeParameters(typeParameterTypes(c)), name, acc, mods, annots)
+        topLevel, typeParameters(typeParameterTypes(c)), name, acc, mods, annots)
       val stat = new api.ClassLike(Module, strict(Empty), lzy(static, cmap), emptyStringArray, emptyTypeArray,
-        emptyTypeParameterArray, name, acc, mods, annots)
+        topLevel, emptyTypeParameterArray, name, acc, mods, annots)
       val defs = cls :: stat :: Nil
       cmap.memo(c.getName) = defs
       defs

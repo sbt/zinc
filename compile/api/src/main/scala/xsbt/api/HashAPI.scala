@@ -10,7 +10,7 @@ import HashAPI.Hash
 
 object HashAPI {
   type Hash = Int
-  def apply(a: SourceAPI): Hash =
+  def apply(a: ClassLike): Hash =
     (new HashAPI(false, true, true)).hashAPI(a)
 
   def apply(x: Def): Hash = {
@@ -139,11 +139,10 @@ final class HashAPI(includePrivate: Boolean, includeParamNames: Boolean, include
 
   def hashModifiers(m: Modifiers) = extend(m.raw)
 
-  def hashAPI(s: SourceAPI): Hash =
+  def hashAPI(c: ClassLike): Hash =
     {
       hash = startHash(0)
-      hashSymmetric(s.packages, hashPackage)
-      hashDefinitions(s.definitions, true)
+      hashDefinitions(Seq(c), c.topLevel)
       finalizeHash
     }
 

@@ -2,23 +2,23 @@ package sbt
 package inc
 
 import java.io.File
-import xsbti.api.Source
+import xsbti.api.AnalyzedClass
 
 private final class IncrementalAntStyle(log: Logger, options: IncOptions) extends IncrementalCommon(log, options) {
 
   /** Ant-style mode doesn't do anything special with package objects */
-  override protected def invalidatedPackageObjects(invalidated: Set[File], relations: Relations): Set[File] = Set.empty
+  override protected def invalidatedPackageObjects(invalidatedClasses: Set[String], relations: Relations): Set[String] = Set.empty
 
   /** In Ant-style mode we don't need to compare APIs because we don't perform any invalidation */
-  override protected def sameAPI[T](src: T, a: Source, b: Source): Option[APIChange[T]] = None
+  override protected def sameAPI[T](src: T, a: AnalyzedClass, b: AnalyzedClass): Option[APIChange[T]] = None
 
   /** In Ant-style mode we don't perform any invalidation */
   override protected def invalidateByExternal(relations: Relations, externalAPIChange: APIChange[String], classToSrcMapper: ClassToSourceMapper): Set[String] = Set.empty
 
   /** In Ant-style mode we don't perform any invalidation */
-  override protected def invalidateSource(relations: Relations, change: APIChange[File], classToSourceMapper: ClassToSourceMapper): Set[File] = Set.empty
+  override protected def invalidateClass(relations: Relations, change: APIChange[String], classToSourceMapper: ClassToSourceMapper): Set[String] = Set.empty
 
   /** In Ant-style mode we don't need to perform any dependency analysis hence we can always return an empty set. */
-  override protected def allDeps(relations: Relations): File => Set[File] = _ => Set.empty
+  override protected def allDeps(relations: Relations): (String) => Set[String] = _ => Set.empty
 
 }

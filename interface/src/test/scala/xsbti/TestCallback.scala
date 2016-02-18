@@ -1,8 +1,9 @@
 package xsbti
 
 import java.io.File
+import xsbti.api.ClassLike
+
 import scala.collection.mutable.ArrayBuffer
-import xsbti.api.SourceAPI
 
 class TestCallback(override val nameHashing: Boolean = false) extends AnalysisCallback {
   val classDependencies = new ArrayBuffer[(String, String, DependencyContext)]
@@ -11,7 +12,12 @@ class TestCallback(override val nameHashing: Boolean = false) extends AnalysisCa
   val usedNames = scala.collection.mutable.Map.empty[File, Set[String]].withDefaultValue(Set.empty)
   val declaredClasses = scala.collection.mutable.Map.empty[File, Set[String]].withDefaultValue(Set.empty)
   val classNames = scala.collection.mutable.Map.empty[File, Set[(String, String)]].withDefaultValue(Set.empty)
-  val apis: scala.collection.mutable.Map[File, SourceAPI] = scala.collection.mutable.Map.empty
+  val apis: scala.collection.mutable.Map[File, Set[ClassLike]] = scala.collection.mutable.Map.empty
+
+  def startSource(source: File): Unit = {
+    assert(!apis.contains(source), s"The startSource can be called only once per source file: $source")
+    apis(source) = Set.empty
+  }
 
   def classDependency(onClassName: String, sourceClassName: String, context: DependencyContext): Unit = {
     if (onClassName != sourceClassName)
@@ -33,9 +39,8 @@ class TestCallback(override val nameHashing: Boolean = false) extends AnalysisCa
   override def declaredClass(sourceFile: File, className: String): Unit =
     declaredClasses(sourceFile) += className
 
-  def api(source: File, sourceAPI: SourceAPI): Unit = {
-    assert(!apis.contains(source), s"The `api` method should be called once per source file: $source")
-    apis(source) = sourceAPI
+  def api(source: File, api: ClassLike): Unit = {
+    apis(source) += api
   }
   def problem(category: String, pos: xsbti.Position, message: String, severity: xsbti.Severity, reported: Boolean): Unit = ()
 }

@@ -17,10 +17,10 @@ object APIUtil {
 
   def isScalaSourceName(name: String): Boolean = name.endsWith(".scala")
 
-  def hasMacro(s: SourceAPI): Boolean =
+  def hasMacro(c: ClassLike): Boolean =
     {
       val check = new HasMacro
-      check.visitAPI(s)
+      check.visitDefinition(c)
       check.hasMacro
     }
 
@@ -40,8 +40,8 @@ object APIUtil {
     }
   }
 
-  def minimize(api: SourceAPI): SourceAPI =
-    new SourceAPI(api.packages, minimizeDefinitions(api.definitions))
+  def minimize(api: ClassLike): ClassLike =
+    minimizeClass(api)
   def minimizeDefinitions(ds: Array[Definition]): Array[Definition] =
     ds flatMap minimizeDefinition
   def minimizeDefinition(d: Definition): Array[Definition] =
@@ -53,13 +53,20 @@ object APIUtil {
     {
       val savedAnnotations = Discovery.defAnnotations(c.structure, (_: Any) => true).toArray[String]
       val struct = minimizeStructure(c.structure, c.definitionType == DefinitionType.Module)
-      new ClassLike(c.definitionType, lzy(emptyType), lzy(struct), savedAnnotations, c.childrenOfSealedClass, c.typeParameters, c.name, c.access, c.modifiers, c.annotations)
+      new ClassLike(c.definitionType, lzy(emptyType), lzy(struct), savedAnnotations, c.childrenOfSealedClass,
+        c.topLevel, c.typeParameters, c.name, c.access, c.modifiers, c.annotations)
     }
 
   def minimizeStructure(s: Structure, isModule: Boolean): Structure =
     new Structure(lzy(s.parents), filterDefinitions(s.declared, isModule), filterDefinitions(s.inherited, isModule))
   def filterDefinitions(ds: Array[Definition], isModule: Boolean): Lazy[Array[Definition]] =
     lzy(if (isModule) ds filter Discovery.isMainMethod else Array())
+  private val emptyModifiers = new Modifiers(false, false, false, false, false, false, false)
+  private val emptyStructure = new Structure(lzy(Array.empty), lzy(Array.empty), lzy(Array.empty))
+  def emptyClassLike(name: String, definitionType: DefinitionType): ClassLike =
+    new xsbti.api.ClassLike(definitionType, lzy(emptyType), lzy(emptyStructure), Array.empty, Array.empty, true,
+      Array.empty, name, new Public, emptyModifiers, Array.empty)
+
   private[this] def lzy[T <: AnyRef](t: T): Lazy[T] = SafeLazy.strict(t)
 
   private[this] val emptyType = new EmptyType

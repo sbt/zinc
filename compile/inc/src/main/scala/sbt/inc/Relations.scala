@@ -7,7 +7,6 @@ package inc
 import java.io.File
 import Relations.Source
 import Relations.ClassDependencies
-import xsbti.api.{ Source => APISource }
 import xsbti.DependencyContext
 import xsbti.DependencyContext._
 
@@ -53,14 +52,14 @@ trait Relations {
   def usesBinary(dep: File): Set[File]
 
   /** Internal source dependencies for `src`.  This includes both direct and inherited dependencies.  */
-  def internalSrcDeps(src: File): Set[File]
+  def internalClassDeps(className: String): Set[String]
   /** Internal source files that depend on internal source `dep`.  This includes both direct and inherited dependencies.  */
-  def usesInternalSrc(dep: File): Set[File]
+  def usesInternalClass(className: String): Set[String]
 
   /** External source dependencies that internal source file `src` depends on.  This includes both direct and inherited dependencies.  */
-  def externalDeps(src: File): Set[String]
+  def externalDeps(className: String): Set[String]
   /** Internal source dependencies that depend on external source file `dep`.  This includes both direct and inherited dependencies.  */
-  def usesExternal(dep: String): Set[File]
+  def usesExternal(className: String): Set[String]
 
   private[inc] def usedNames(src: File): Set[String]
 
@@ -543,13 +542,13 @@ private abstract class MRelationsCommon(val srcProd: Relation[File, File], val b
   def binaryDeps(src: File): Set[File] = binaryDep.forward(src)
   def usesBinary(dep: File): Set[File] = binaryDep.reverse(dep)
 
-  def internalSrcDeps(src: File): Set[File] =
-    classes.forward(src).flatMap(internalClassDep.forward).flatMap(classes.reverse)
-  def usesInternalSrc(dep: File): Set[File] =
-    classes.forward(dep).flatMap(internalClassDep.reverse).flatMap(classes.reverse)
+  def internalClassDeps(className: String): Set[String] =
+    internalClassDep.forward(className)
+  def usesInternalClass(className: String): Set[String] =
+    internalClassDep.reverse(className)
 
-  def externalDeps(src: File): Set[String] = classes.forward(src).flatMap(externalClassDep.forward)
-  def usesExternal(dep: String): Set[File] = externalClassDep.reverse(dep).flatMap(classes.reverse)
+  def externalDeps(className: String): Set[String] = externalClassDep.forward(className)
+  def usesExternal(className: String): Set[String] = externalClassDep.reverse(className)
 
   def usedNames(src: File): Set[String] = names.forward(src)
 

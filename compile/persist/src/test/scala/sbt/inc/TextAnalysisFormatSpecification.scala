@@ -60,9 +60,8 @@ object TextAnalysisFormatTest extends Properties("TextAnalysisFormat") {
     def f(s: String) = new File(s)
     val aScala = f("A.scala")
     val bScala = f("B.scala")
-    val aSource = genSource("A" :: "A$" :: Nil).sample.get
-    val bSource = genSource("B" :: "B$" :: Nil).sample.get
-    val cSource = genSource("C" :: Nil).sample.get
+    val aClass = genClass("A").sample.get
+    val cClass = genClass("C").sample.get
     val exists = new Exists(true)
     val sourceInfos = SourceInfos.makeInfo(Nil, Nil)
 
@@ -71,8 +70,8 @@ object TextAnalysisFormatTest extends Properties("TextAnalysisFormat") {
       NonLocalProduct("A$", "A$", f("A$.class"), exists) :: Nil
     val classes = ("A" -> "A") :: ("A$" -> "A$") :: Nil
     val binaryDeps = (f("x.jar"), "x", exists) :: Nil
-    val externalDeps = ExternalDependency("A", "C", cSource, DependencyContext.DependencyByMemberRef) :: Nil
-    analysis = analysis.addSource(aScala, aSource, exists, sourceInfos, products, Nil, Nil, externalDeps, binaryDeps)
+    val externalDeps = ExternalDependency("A", "C", cClass, DependencyContext.DependencyByMemberRef) :: Nil
+    analysis = analysis.addSource(aScala, Seq(aClass), exists, sourceInfos, products, Nil, Nil, externalDeps, binaryDeps)
 
     val writer = new StringWriter
 

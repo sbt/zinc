@@ -70,8 +70,8 @@ final class AnalyzingJavaCompiler private[sbt] (
 
       /** Reads the API information directly from the Class[_] object. Used when Analyzing dependencies. */
       def readAPI(source: File, classes: Seq[Class[_]]): Set[(String, String)] = {
-        val (api, inherits) = ClassToAPI.process(classes)
-        callback.api(source, api)
+        val (apis, inherits) = ClassToAPI.process(classes)
+        apis.foreach(callback.api(source, _))
         inherits.map {
           case (from: Class[_], to: Class[_]) => (from.getName, to.getName)
         }

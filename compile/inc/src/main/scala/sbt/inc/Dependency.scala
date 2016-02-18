@@ -1,7 +1,6 @@
 package sbt.inc
 
-import java.io.File
-import xsbti.api.Source
+import xsbti.api.AnalyzedClass
 import xsbti.DependencyContext
 
 /**
@@ -12,4 +11,5 @@ import xsbti.DependencyContext
  * while `ExternalDependency` represent cross-project dependencies.
  */
 private[inc] final case class InternalDependency(sourceClassName: String, targetClassName: String, context: DependencyContext)
-private[inc] final case class ExternalDependency(sourceClassName: String, targetClassName: String, targetSource: Source, context: DependencyContext)
+private[inc] final case class ExternalDependency(sourceClassName: String, targetClassName: String,
+  targetClass: AnalyzedClass, context: DependencyContext)

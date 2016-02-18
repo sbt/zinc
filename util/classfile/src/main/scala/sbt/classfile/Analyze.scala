@@ -24,7 +24,8 @@ private[sbt] object Analyze {
       catch { case e: Throwable => errMsg.foreach(msg => log.warn(msg + " : " + e.toString)); None }
 
     val productToSource = new mutable.HashMap[File, File]
-    val sourceToClassFiles = new mutable.HashMap[File, Buffer[ClassFile]]
+    val sourceToClassFiles = mutable.HashMap[File, Buffer[ClassFile]](
+      sources zip Seq.fill(sources.size)(new ArrayBuffer[ClassFile]): _*)
 
     // parse class files and assign classes to sources.  This must be done before dependencies, since the information comes
     // as class->class dependencies that must be mapped back to source->class dependencies using the source+class assignment
@@ -38,11 +39,12 @@ private[sbt] object Analyze {
       val srcClassName = binaryToSourceName(binaryClassName)
       analysis.generatedNonLocalClass(source, newClass, binaryClassName, srcClassName)
       productToSource(newClass) = source
-      sourceToClassFiles.getOrElseUpdate(source, new ArrayBuffer[ClassFile]) += classFile
+      sourceToClassFiles(source) += classFile
     }
 
     // get class to class dependencies and map back to source to class dependencies
     for ((source, classFiles) <- sourceToClassFiles) {
+      analysis.startSource(source)
       val publicInherited: Map[String, Set[String]] =
         readAPI(source, classFiles.toSeq.flatMap(c => load(c.className, Some("Error reading API from class file")))).groupBy(_._1).mapValues(_.map(_._2))
 
@@ -74,10 +76,6 @@ private[sbt] object Analyze {
         case (className, inheritanceDeps) => processDependencies(inheritanceDeps, DependencyByInheritance, className)
       }
       classFiles.map(cls => binaryToSourceName(cls.className)).toSet.foreach(declaredClass)
-    }
-
-    for (source <- sources filterNot sourceToClassFiles.keySet) {
-      analysis.api(source, new xsbti.api.SourceAPI(Array(), Array()))
     }
   }
   private[this] def urlAsFile(url: URL, log: Logger): Option[File] =

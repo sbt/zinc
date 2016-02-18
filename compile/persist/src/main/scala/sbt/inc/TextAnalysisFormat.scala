@@ -2,8 +2,7 @@ package sbt
 package inc
 
 import java.io._
-import sbt.{ CompileSetup, Relation }
-import xsbti.api.{ Compilation, Source }
+import xsbti.api.{ AnalyzedClass, Compilation }
 import xsbti.compile.{ MultipleOutput, SingleOutput }
 import javax.xml.bind.DatatypeConverter
 
@@ -80,7 +79,7 @@ object TextAnalysisFormat {
   }
 
   private[this] object VersionF {
-    val currentVersion = "5"
+    val currentVersion = "6"
 
     def write(out: Writer): Unit = {
       out.write("format version: %s\n".format(currentVersion))
@@ -213,20 +212,20 @@ object TextAnalysisFormat {
       val external = "external apis"
     }
 
-    val stringToSource = ObjectStringifier.stringToObj[Source] _
-    val sourceToString = ObjectStringifier.objToString[Source] _
+    val stringToAnalyzedClass = ObjectStringifier.stringToObj[AnalyzedClass] _
+    val analyzedClassToString = ObjectStringifier.objToString[AnalyzedClass] _
 
     def write(out: Writer, apis: APIs): Unit = {
-      writeMap(out)(Headers.internal, apis.internal, sourceToString, inlineVals = false)
-      writeMap(out)(Headers.external, apis.external, sourceToString, inlineVals = false)
+      writeMap(out)(Headers.internal, apis.internal, analyzedClassToString, inlineVals = false)
+      writeMap(out)(Headers.external, apis.external, analyzedClassToString, inlineVals = false)
       FormatTimer.close("bytes -> base64")
       FormatTimer.close("byte copy")
       FormatTimer.close("sbinary write")
     }
 
     def read(in: BufferedReader): APIs = {
-      val internal = readMap(in)(Headers.internal, new File(_), stringToSource)
-      val external = readMap(in)(Headers.external, identity[String], stringToSource)
+      val internal = readMap(in)(Headers.internal, identity[String], stringToAnalyzedClass)
+      val external = readMap(in)(Headers.external, identity[String], stringToAnalyzedClass)
       FormatTimer.close("base64 -> bytes")
       FormatTimer.close("sbinary read")
       APIs(internal, external)
