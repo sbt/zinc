@@ -7,7 +7,6 @@ import sbt._
 import org.specs2.Specification
 import org.specs2.matcher.MatchResult
 import xsbt.api.{ SameAPI, DefaultShowAPI }
-import xsbti.api.SourceAPI
 import xsbti.{ Severity, Problem }
 
 object JavaCompilerSpec extends Specification {
@@ -103,9 +102,10 @@ object JavaCompilerSpec extends Specification {
     // values match
     val (leftCompiled, leftAPI) = compileWithPrimitive(leftType, left)
     val (rightCompiled, rightAPI) = compileWithPrimitive(rightType, right)
-    val apisExpectedMatch = SameAPI(leftAPI, rightAPI) must beEqualTo(left == right)
+    val apisNumber = (leftAPI.size == rightAPI.size) must beTrue
+    val apisExpectedMatch = ((leftAPI, rightAPI).zipped forall SameAPI.apply) must beEqualTo(left == right)
 
-    leftCompiled and rightCompiled and apisExpectedMatch
+    apisNumber and leftCompiled and rightCompiled and apisExpectedMatch
   }
 
   def lineMatches(p: Problem, lineno: Int, lineContent: Option[String] = None): Boolean = {
