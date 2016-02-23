@@ -51,7 +51,7 @@ import xsbt.api.APIUtil
  * of regular members then we'll invalidate sources that use those names.
  */
 private[inc] class MemberRefInvalidator(log: Logger) {
-  def get(memberRef: Relation[String, String], usedNames: Relation[File, String], apiChange: APIChange,
+  def get(memberRef: Relation[String, String], usedNames: Relation[String, String], apiChange: APIChange,
     classToSourceMapper: ClassToSourceMapper): String => Set[String] = apiChange match {
     case _: APIChangeDueToMacroDefinition =>
       new InvalidateUnconditionally(memberRef)
@@ -87,7 +87,7 @@ private[inc] class MemberRefInvalidator(log: Logger) {
   }
 
   private class NameHashFilteredInvalidator(
-      usedNames: Relation[File, String],
+      usedNames: Relation[String, String],
       memberRef: Relation[String, String],
       modifiedNames: Set[String],
       classToSourceMapper: ClassToSourceMapper) extends (String => Set[String]) {
@@ -99,7 +99,7 @@ private[inc] class MemberRefInvalidator(log: Logger) {
     private def filteredDependencies(dependent: Set[String]): Set[String] = {
       dependent.filter {
         case from if isScalaClass(from) =>
-          val usedNamesInDependent = usedNames.forward(classNameToSrcFile(from))
+          val usedNamesInDependent = usedNames.forward(from)
           val modifiedAndUsedNames = modifiedNames intersect usedNamesInDependent
           if (modifiedAndUsedNames.isEmpty) {
             log.debug(s"None of the modified names appears in source file of $from. This dependency is not being considered for invalidation.")

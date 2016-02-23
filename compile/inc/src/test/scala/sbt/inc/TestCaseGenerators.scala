@@ -170,6 +170,11 @@ object TestCaseGenerators {
     external <- someOf(src.external.all.toList)
   } yield Relations.makeClassDependencies(Relation.empty ++ internal, Relation.empty ++ external)
 
+  def genUsedNames(classNames: Seq[String]): Gen[Relation[String, String]] = for {
+    allNames <- listOfN(classNames.length, containerOf[Set, String](identifier))
+  } yield Relation.reconstruct(zipMap(classNames, allNames))
+
+
   def genRelations: Gen[Relations] = for {
     numSrcs <- choose(0, maxSources)
     srcs <- listOfN(numSrcs, genFile)
@@ -191,7 +196,7 @@ object TestCaseGenerators {
     memberRef <- genRClassDependencies(classNames)
     inheritance <- genSubRClassDependencies(memberRef)
     classes = Relation.reconstruct(zipMap(srcs, classNames).mapValues(x => Set(x)))
-    names <- genStringRelation(srcs)
+    names <- genUsedNames(classNames)
     declaredClasses = classes
     internal <- InternalDependencies(Map(DependencyByMemberRef -> memberRef.internal, DependencyByInheritance -> inheritance.internal))
     external <- ExternalDependencies(Map(DependencyByMemberRef -> memberRef.external, DependencyByInheritance -> inheritance.external))

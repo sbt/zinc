@@ -61,7 +61,7 @@ trait Relations {
   /** Internal source dependencies that depend on external source file `dep`.  This includes both direct and inherited dependencies.  */
   def usesExternal(className: String): Set[String]
 
-  private[inc] def usedNames(src: File): Set[String]
+  private[inc] def usedNames(className: String): Set[String]
 
   /**
    * Names (fully qualified, at pickler phase) of classes defined in source
@@ -111,7 +111,7 @@ trait Relations {
    */
   private[inc] def addBinaryDeps(src: File, deps: Iterable[(File, String, Stamp)]): Relations
 
-  private[inc] def addUsedName(src: File, name: String): Relations
+  private[inc] def addUsedName(className: String, name: String): Relations
 
   private[inc] def addDeclaredClass(src: File, className: String): Relations
 
@@ -260,7 +260,7 @@ trait Relations {
   /**
    * Relation between source files and _unqualified_ term and type names used in given source file.
    */
-  private[inc] def names: Relation[File, String]
+  private[inc] def names: Relation[String, String]
 
   /**
    * The relation between a source file and names of classes declared in it.
@@ -289,7 +289,7 @@ object Relations {
       SSRelationDescriptor("inheritance internal dependencies", _.inheritance.internal),
       SSRelationDescriptor("inheritance external dependencies", _.inheritance.external),
       FSRelationDescriptor("class names", _.classes),
-      FSRelationDescriptor("used names", _.names),
+      SSRelationDescriptor("used names", _.names),
       FSRelationDescriptor("declared classes", _.declaredClasses),
       SSRelationDescriptor("binary class names", _.binaryClassName)
     )
@@ -307,7 +307,7 @@ object Relations {
         val publicInheritedSrcDeps = makeSource(pii.asInstanceOf[Relation[File, File]], pie.asInstanceOf[Relation[File, String]])
         val memberRefSrcDeps = makeClassDependencies(mri.asInstanceOf[Relation[String, String]], mre.asInstanceOf[Relation[String, String]])
         val classes = cn.asInstanceOf[Relation[File, String]]
-        val names = un.asInstanceOf[Relation[File, String]]
+        val names = un.asInstanceOf[Relation[String, String]]
         val declaredClasses = dc.asInstanceOf[Relation[File, String]]
         val binaryClassName = bcn.asInstanceOf[Relation[String, String]]
 
@@ -376,7 +376,7 @@ object Relations {
   def empty: Relations = empty(nameHashing = IncOptions.nameHashingDefault)
   private[inc] def empty(nameHashing: Boolean): Relations =
     if (nameHashing)
-      new MRelationsNameHashing(e, e, InternalDependencies.empty, ExternalDependencies.empty, estr, estr, estr, estrstr)
+      new MRelationsNameHashing(e, e, InternalDependencies.empty, ExternalDependencies.empty, estr, estrstr, estr, estrstr)
     else
       throw new UnsupportedOperationException("Turning off name hashing is not supported in class-based dependency tracking")
 
@@ -385,7 +385,7 @@ object Relations {
 
   private[inc] def make(srcProd: Relation[File, File], binaryDep: Relation[File, File],
     internalDependencies: InternalDependencies, externalDependencies: ExternalDependencies,
-    classes: Relation[File, String], names: Relation[File, String],
+    classes: Relation[File, String], names: Relation[String, String],
     declaredClasses: Relation[File, String], binaryClassName: Relation[String, String]): Relations =
     new MRelationsNameHashing(srcProd, binaryDep, internalDependencies = internalDependencies,
       externalDependencies = externalDependencies, classes, names, declaredClasses, binaryClassName)
@@ -550,7 +550,7 @@ private abstract class MRelationsCommon(val srcProd: Relation[File, File], val b
   def externalDeps(className: String): Set[String] = externalClassDep.forward(className)
   def usesExternal(className: String): Set[String] = externalClassDep.reverse(className)
 
-  def usedNames(src: File): Set[String] = names.forward(src)
+  private[inc] def usedNames(className: String): Set[String] = names.forward(className)
 
   /** Making large Relations a little readable. */
   private val userDir = sys.props("user.dir").stripSuffix("/") + "/"
@@ -571,7 +571,7 @@ private class MRelationsNameHashing(srcProd: Relation[File, File], binaryDep: Re
   val internalDependencies: InternalDependencies,
   val externalDependencies: ExternalDependencies,
   classes: Relation[File, String],
-  val names: Relation[File, String],
+  val names: Relation[String, String],
   declaredClasses: Relation[File, String],
   binaryClassName: Relation[String, String]) extends MRelationsCommon(srcProd, binaryDep, classes, declaredClasses,
   binaryClassName) {
@@ -613,9 +613,9 @@ private class MRelationsNameHashing(srcProd: Relation[File, File], binaryDep: Re
       externalDependencies = externalDependencies, classes, names, declaredClasses = declaredClasses,
       binaryClassName = binaryClassName)
 
-  def addUsedName(src: File, name: String): Relations =
+  override private[inc] def addUsedName(className: String, name: String): Relations =
     new MRelationsNameHashing(srcProd, binaryDep, internalDependencies = internalDependencies,
-      externalDependencies = externalDependencies, classes, names = names + (src, name),
+      externalDependencies = externalDependencies, classes, names = names + (className, name),
       declaredClasses = declaredClasses, binaryClassName = binaryClassName)
 
   override private[inc] def addDeclaredClass(src: File, className: String): Relations =
@@ -652,7 +652,7 @@ private class MRelationsNameHashing(srcProd: Relation[File, File], binaryDep: Re
     new MRelationsNameHashing(srcProd -- sources, binaryDep -- sources,
       internalDependencies = internalDependencies -- classesInSources,
       externalDependencies = externalDependencies -- classesInSources, classes -- sources,
-      names = names -- sources, declaredClasses = declaredClasses -- sources,
+      names = names -- classesInSources, declaredClasses = declaredClasses -- sources,
       binaryClassName = binaryClassName -- classesInSources)
   }
 

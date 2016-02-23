@@ -113,7 +113,7 @@ private final class AnalysisCallback(internalBinaryToSourceClassName: String => 
   private[this] val objectPublicNameHashes = new HashMap[String, NameHashes]
   // TODO: remove once we track APIs for all classes
   private[this] val topLevelClassesInSrc = new HashMap[File, Set[String]].withDefaultValue(Set.empty)
-  private[this] val usedNames = new HashMap[File, Set[String]]
+  private[this] val usedNames = new HashMap[String, Set[String]]
   private[this] val declaredClasses = new HashMap[File, Set[String]]
   private[this] val unreporteds = new HashMap[File, ListBuffer[Problem]]
   private[this] val reporteds = new HashMap[File, ListBuffer[Problem]]
@@ -224,7 +224,7 @@ private final class AnalysisCallback(internalBinaryToSourceClassName: String => 
     }
   }
 
-  def usedName(sourceFile: File, name: String) = add(usedNames, sourceFile, name)
+  def usedName(className: String, name: String) = add(usedNames, className, name)
 
   def declaredClass(sourceFile: File, className: String) = add(declaredClasses, sourceFile, className)
 
@@ -236,8 +236,8 @@ private final class AnalysisCallback(internalBinaryToSourceClassName: String => 
   def getOrNil[A, B](m: collection.Map[A, Seq[B]], a: A): Seq[B] = m.get(a).toList.flatten
   def addCompilation(base: Analysis): Analysis = base.copy(compilations = base.compilations.add(compilation))
   def addUsedNames(base: Analysis): Analysis = (base /: usedNames) {
-    case (a, (src, names)) =>
-      (a /: names) { case (a, name) => a.copy(relations = a.relations.addUsedName(src, name)) }
+    case (a, (className, names)) =>
+      (a /: names) { case (a, name) => a.copy(relations = a.relations.addUsedName(className, name)) }
   }
 
   def addDeclaredClasses(base: Analysis): Analysis = (base /: declaredClasses) {

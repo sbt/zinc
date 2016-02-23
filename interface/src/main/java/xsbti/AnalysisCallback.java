@@ -27,7 +27,7 @@ public interface AnalysisCallback {
     void generatedLocalClass(File source, File classFile);
     /** Called when the public API of a source file is extracted. */
     void api(File sourceFile, xsbti.api.ClassLike classApi);
-    void usedName(File sourceFile, String names);
+    void usedName(String className, String name);
     void declaredClass(File sourceFile, String className);
     /** Provides problems discovered during compilation.  These may be reported (logged) or unreported.
      * Unreported problems are usually unreported because reporting was not enabled via a command line switch. */
