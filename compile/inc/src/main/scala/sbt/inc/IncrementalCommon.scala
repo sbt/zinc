@@ -44,7 +44,7 @@ private[inc] abstract class IncrementalCommon(log: Logger, options: IncOptions) 
       val transitiveStep = options.transitiveStep
       val classToSourceMapper = new ClassToSourceMapper(previous.relations, current.relations)
       val incInv = invalidateIncremental(current.relations, current.apis, incChanges, recompiledClasses,
-        cycleNum >= transitiveStep, classToSourceMapper)
+        cycleNum >= transitiveStep, classToSourceMapper.isDefinedInScalaSrc)
       cycle(incInv, Set.empty, allSources, emptyChanges, current, doCompile, classfileManager, cycleNum + 1)
     }
 
@@ -176,15 +176,14 @@ private[inc] abstract class IncrementalCommon(log: Logger, options: IncOptions) 
     }
 
   def invalidateIncremental(previous: Relations, apis: APIs, changes: APIChanges,
-    recompiledClasses: Set[String], transitive: Boolean,
-    classToSourceMapper: ClassToSourceMapper): Set[String] =
+    recompiledClasses: Set[String], transitive: Boolean, isScalaClass: String => Boolean): Set[String] =
     {
       val dependsOnClass = previous.memberRef.internal.reverse _
       val propagated: Set[String] =
         if (transitive)
           transitiveDependencies(dependsOnClass, changes.allModified.toSet)
         else
-          invalidateIntermediate(previous, changes, classToSourceMapper)
+          invalidateIntermediate(previous, changes, isScalaClass)
 
       val dups = invalidateDuplicates(previous)
       if (dups.nonEmpty)
@@ -232,7 +231,7 @@ private[inc] abstract class IncrementalCommon(log: Logger, options: IncOptions) 
       val byBinaryDep = changes.binaryDeps.flatMap(previous.usesBinary)
       val classToSrc = new ClassToSourceMapper(previous, previous)
       val byExtSrcDep = {
-        val classNames = invalidateByAllExternal(previous, changes.external, classToSrc) //changes.external.modified.flatMap(previous.usesExternal) // ++ scopeInvalidations
+        val classNames = invalidateByAllExternal(previous, changes.external, classToSrc.isDefinedInScalaSrc) //changes.external.modified.flatMap(previous.usesExternal) // ++ scopeInvalidations
         classNames
       }
       checkAbsolute(srcChanges.added.toList)
@@ -264,36 +263,36 @@ private[inc] abstract class IncrementalCommon(log: Logger, options: IncOptions) 
       }
     }
 
-  def invalidateByAllExternal(relations: Relations, externalAPIChanges: APIChanges, classToSrcMapper: ClassToSourceMapper): Set[String] = {
+  def invalidateByAllExternal(relations: Relations, externalAPIChanges: APIChanges, isScalaClass: String => Boolean): Set[String] = {
     (externalAPIChanges.apiChanges.flatMap { externalAPIChange =>
-      invalidateByExternal(relations, externalAPIChange, classToSrcMapper)
+      invalidateByExternal(relations, externalAPIChange, isScalaClass)
     }).toSet
   }
 
   /** Sources invalidated by `external` sources in other projects according to the previous `relations`. */
-  protected def invalidateByExternal(relations: Relations, externalAPIChange: APIChange, classToSrcMapper: ClassToSourceMapper): Set[String]
+  protected def invalidateByExternal(relations: Relations, externalAPIChange: APIChange, isScalaClass: String => Boolean): Set[String]
 
   /** Intermediate invalidation step: steps after the initial invalidation, but before the final transitive invalidation. */
-  def invalidateIntermediate(relations: Relations, changes: APIChanges, classToSourceMapper: ClassToSourceMapper): Set[String] =
+  def invalidateIntermediate(relations: Relations, changes: APIChanges, isScalaClass: String => Boolean): Set[String] =
     {
-      invalidateClasses(relations, changes, classToSourceMapper)
+      invalidateClasses(relations, changes, isScalaClass)
     }
   /**
    * Invalidates inheritance dependencies, transitively.  Then, invalidates direct dependencies.  Finally, excludes initial dependencies not
    * included in a cycle with newly invalidated sources.
    */
-  private def invalidateClasses(relations: Relations, changes: APIChanges, classToSourceMapper: ClassToSourceMapper): Set[String] =
+  private def invalidateClasses(relations: Relations, changes: APIChanges, isScalaClass: String => Boolean): Set[String] =
     {
       val initial = changes.allModified.toSet
       val all = (changes.apiChanges flatMap { change =>
-        invalidateClass(relations, change, classToSourceMapper)
+        invalidateClass(relations, change, isScalaClass)
       }).toSet
       includeInitialCond(initial, all, allDeps(relations))
     }
 
   protected def allDeps(relations: Relations): (String) => Set[String]
 
-  protected def invalidateClass(relations: Relations, change: APIChange, classToSourceMapper: ClassToSourceMapper): Set[String]
+  protected def invalidateClass(relations: Relations, change: APIChange, isScalaClass: String => Boolean): Set[String]
 
   /**
    * Conditionally include initial sources that are dependencies of newly invalidated sources.

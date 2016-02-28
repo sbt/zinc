@@ -13,10 +13,12 @@ private final class IncrementalAntStyle(log: Logger, options: IncOptions) extend
   override protected def sameAPI(className: String, a: AnalyzedClass, b: AnalyzedClass): Option[APIChange] = None
 
   /** In Ant-style mode we don't perform any invalidation */
-  override protected def invalidateByExternal(relations: Relations, externalAPIChange: APIChange, classToSrcMapper: ClassToSourceMapper): Set[String] = Set.empty
+  override protected def invalidateByExternal(relations: Relations, externalAPIChange: APIChange,
+    isScalaClass: String => Boolean): Set[String] = Set.empty
 
   /** In Ant-style mode we don't perform any invalidation */
-  override protected def invalidateClass(relations: Relations, change: APIChange, classToSourceMapper: ClassToSourceMapper): Set[String] = Set.empty
+  override protected def invalidateClass(relations: Relations, change: APIChange,
+    isScalaClass: String => Boolean): Set[String] = Set.empty
 
   /** In Ant-style mode we don't need to perform any dependency analysis hence we can always return an empty set. */
   override protected def allDeps(relations: Relations): (String) => Set[String] = _ => Set.empty

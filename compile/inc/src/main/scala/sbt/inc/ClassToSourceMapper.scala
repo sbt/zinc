@@ -3,6 +3,7 @@ package sbt.inc
 import java.io.File
 
 import sbt.Relation
+import xsbt.api.APIUtil
 
 /**
  * Maps class-based dependencies to source dependencies using `classes` relation.
@@ -17,10 +18,14 @@ class ClassToSourceMapper(previousRelations: Relations, recompiledRelations: Rel
   def toSrcFile(className: String): Set[File] = {
     val srcs = previousRelations.classes.reverse(className) ++
       recompiledRelations.classes.reverse(className)
-    if (srcs.isEmpty == 0)
+    if (srcs.isEmpty)
       sys.error(s"No entry for class $className in classes relation.")
     else
       srcs
+  }
+
+  def isDefinedInScalaSrc(className: String): Boolean = {
+    toSrcFile(className).forall(srcFile => APIUtil.isScalaSourceName(srcFile.getName))
   }
 
   /**

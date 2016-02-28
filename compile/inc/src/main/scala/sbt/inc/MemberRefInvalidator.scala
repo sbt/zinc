@@ -52,13 +52,13 @@ import xsbt.api.APIUtil
  */
 private[inc] class MemberRefInvalidator(log: Logger) {
   def get(memberRef: Relation[String, String], usedNames: Relation[String, String], apiChange: APIChange,
-    classToSourceMapper: ClassToSourceMapper): String => Set[String] = apiChange match {
+    isScalaClass: String => Boolean): String => Set[String] = apiChange match {
     case _: APIChangeDueToMacroDefinition =>
       new InvalidateUnconditionally(memberRef)
     case NamesChange(_, modifiedNames) if modifiedNames.implicitNames.nonEmpty =>
       new InvalidateUnconditionally(memberRef)
     case NamesChange(modifiedClass, modifiedNames) =>
-      new NameHashFilteredInvalidator(usedNames, memberRef, modifiedNames.regularNames, classToSourceMapper)
+      new NameHashFilteredInvalidator(usedNames, memberRef, modifiedNames.regularNames, isScalaClass)
   }
 
   def invalidationReason(apiChange: APIChange): String = apiChange match {
@@ -90,7 +90,7 @@ private[inc] class MemberRefInvalidator(log: Logger) {
       usedNames: Relation[String, String],
       memberRef: Relation[String, String],
       modifiedNames: Set[String],
-      classToSourceMapper: ClassToSourceMapper) extends (String => Set[String]) {
+      isScalaClass: String => Boolean) extends (String => Set[String]) {
 
     def apply(to: String): Set[String] = {
       val dependent = memberRef.reverse(to)
@@ -112,20 +112,6 @@ private[inc] class MemberRefInvalidator(log: Logger) {
           log.debug(s"Name hashing optimization doesn't apply to non-Scala dependency: $from")
           true
       }
-    }
-    private def isScalaClass(className: String): Boolean = {
-      val srcFiles = classToSourceMapper.toSrcFile(className)
-      srcFiles.forall(srcFile => APIUtil.isScalaSourceName(srcFile.getName))
-    }
-
-    private def classNameToSrcFile(className: String): File = {
-      val allSrcs = classToSourceMapper.toSrcFile(className)
-      if (allSrcs.isEmpty)
-        sys.error(s"Can't find corresponding source file for $className")
-      else if (allSrcs.size > 1)
-        sys.error(s"Multiple sources found corresponding to the same class $className: $allSrcs")
-      else
-        allSrcs.head
     }
   }
 }
