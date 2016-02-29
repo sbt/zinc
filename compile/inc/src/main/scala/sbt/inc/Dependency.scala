@@ -11,5 +11,5 @@ import xsbti.DependencyContext
  * while `ExternalDependency` represent cross-project dependencies.
  */
 private[inc] final case class InternalDependency(sourceClassName: String, targetClassName: String, context: DependencyContext)
-private[inc] final case class ExternalDependency(sourceClassName: String, targetClassName: String,
+private[inc] final case class ExternalDependency(sourceClassName: String, targetBinaryClassName: String,
   targetClass: AnalyzedClass, context: DependencyContext)

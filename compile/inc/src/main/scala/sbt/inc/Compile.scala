@@ -76,13 +76,14 @@ object IncrementalCompile {
       callback.get
     }
   def getExternalAPI(entry: String => Option[File], forEntry: File => Option[Analysis]): (File, String) => Option[AnalyzedClass] =
-    (file: File, className: String) =>
-      entry(className) flatMap { defines =>
-        if (file != Locate.resolve(defines, className))
+    (file: File, binaryClassName: String) =>
+      entry(binaryClassName) flatMap { defines =>
+        if (file != Locate.resolve(defines, binaryClassName))
           None
         else
           forEntry(defines) flatMap { analysis =>
-            analysis.apis.internal get className
+            val sourceClassName = analysis.relations.binaryClassName.reverse(binaryClassName).headOption
+            sourceClassName flatMap analysis.apis.internal.get
           }
       }
 }
@@ -157,8 +158,8 @@ private final class AnalysisCallback(internalBinaryToSourceClassName: String => 
     add(binaryDeps, source, binary)
   }
 
-  private[this] def externalSourceDependency(sourceClassName: String, targetClassName: String, targetClass: AnalyzedClass, context: DependencyContext) = {
-    val dependency = ExternalDependency(sourceClassName, targetClassName, targetClass, context)
+  private[this] def externalSourceDependency(sourceClassName: String, targetBinaryClassName: String, targetClass: AnalyzedClass, context: DependencyContext) = {
+    val dependency = ExternalDependency(sourceClassName, targetBinaryClassName, targetClass, context)
     add(extSrcDeps, sourceClassName, dependency)
   }
 
@@ -183,7 +184,8 @@ private final class AnalysisCallback(internalBinaryToSourceClassName: String => 
     externalAPI(classFile, onBinaryName) match {
       case Some(api) =>
         // dependency is a product of a source in another project
-        externalSourceDependency(sourceClassName, onBinaryName, api, context)
+        val targetBinaryClassName = onBinaryName
+        externalSourceDependency(sourceClassName, targetBinaryClassName, api, context)
       case None =>
         // dependency is some other binary on the classpath
         externalBinaryDependency(classFile, onBinaryName, sourceFile, context)

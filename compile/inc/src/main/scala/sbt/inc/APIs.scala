@@ -26,7 +26,7 @@ trait APIs {
   def ++(o: APIs): APIs
 
   def markInternalAPI(className: String, api: AnalyzedClass): APIs
-  def markExternalAPI(ext: String, api: AnalyzedClass): APIs
+  def markExternalAPI(binaryClassName: String, api: AnalyzedClass): APIs
 
   def removeInternal(removeClasses: Iterable[String]): APIs
   def filterExt(keep: String => Boolean): APIs
@@ -60,8 +60,8 @@ private class MAPIs(val internal: Map[String, AnalyzedClass], val external: Map[
   def markInternalAPI(className: String, api: AnalyzedClass): APIs =
     new MAPIs(internal.updated(className, api), external)
 
-  def markExternalAPI(ext: String, api: AnalyzedClass): APIs =
-    new MAPIs(internal, external.updated(ext, api))
+  def markExternalAPI(binaryClassName: String, api: AnalyzedClass): APIs =
+    new MAPIs(internal, external.updated(binaryClassName, api))
 
   def removeInternal(removeClasses: Iterable[String]): APIs =
     new MAPIs(internal -- removeClasses, external)

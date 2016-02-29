@@ -446,7 +446,7 @@ private case class ExternalDependencies(dependencies: Map[DependencyContext, Rel
    */
   def +(dep: ExternalDependency): ExternalDependencies =
     ExternalDependencies(dependencies.updated(dep.context,
-      dependencies.getOrElse(dep.context, Relation.empty) + (dep.sourceClassName, dep.targetClassName))
+      dependencies.getOrElse(dep.context, Relation.empty) + (dep.sourceClassName, dep.targetBinaryClassName))
     )
 
   /**

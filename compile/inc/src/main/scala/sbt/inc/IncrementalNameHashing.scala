@@ -41,18 +41,18 @@ private final class IncrementalNameHashing(log: Logger, options: IncOptions) ext
   /** Invalidates sources based on initially detected 'changes' to the sources, products, and dependencies.*/
   override protected def invalidateByExternal(relations: Relations, externalAPIChange: APIChange,
     isScalaClass: String => Boolean): Set[String] = {
-    val modified = externalAPIChange.modifiedClass
+    val modifiedBinaryClassName = externalAPIChange.modifiedClass
     val invalidationReason = memberRefInvalidator.invalidationReason(externalAPIChange)
     log.debug(s"$invalidationReason\nAll member reference dependencies will be considered within this context.")
     // Propagate inheritance dependencies transitively.
     // This differs from normal because we need the initial crossing from externals to sources in this project.
     val externalInheritanceR = relations.inheritance.external
-    val byExternalInheritance = externalInheritanceR.reverse(modified)
-    log.debug(s"Files invalidated by inheriting from (external) $modified: $byExternalInheritance; now invalidating by inheritance (internally).")
+    val byExternalInheritance = externalInheritanceR.reverse(modifiedBinaryClassName)
+    log.debug(s"Files invalidated by inheriting from (external) $modifiedBinaryClassName: $byExternalInheritance; now invalidating by inheritance (internally).")
     val transitiveInheritance = byExternalInheritance flatMap { className =>
       invalidateByInheritance(relations, className)
     }
-    val localInheritance = relations.localInheritance.external.reverse(modified)
+    val localInheritance = relations.localInheritance.external.reverse(modifiedBinaryClassName)
     val memberRefInvalidationInternal = memberRefInvalidator.get(relations.memberRef.internal,
       relations.names, externalAPIChange, isScalaClass)
     val memberRefInvalidationExternal = memberRefInvalidator.get(relations.memberRef.external,
@@ -63,8 +63,8 @@ private final class IncrementalNameHashing(log: Logger, options: IncOptions) ext
     val memberRefA = transitiveInheritance flatMap memberRefInvalidationInternal
     // Get the sources that depend on externals by member reference.
     // This includes non-inheritance dependencies and is not transitive.
-    log.debug(s"Getting sources that directly depend on (external) $modified.")
-    val memberRefB = memberRefInvalidationExternal(modified)
+    log.debug(s"Getting sources that directly depend on (external) $modifiedBinaryClassName.")
+    val memberRefB = memberRefInvalidationExternal(modifiedBinaryClassName)
     transitiveInheritance ++ localInheritance ++ memberRefA ++ memberRefB
   }
 

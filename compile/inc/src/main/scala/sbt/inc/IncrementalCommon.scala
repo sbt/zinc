@@ -347,14 +347,19 @@ private[inc] abstract class IncrementalCommon(log: Logger, options: IncOptions) 
 
       }
 
-  def currentExternalAPI(entry: String => Option[File], forEntry: File => Option[Analysis]): String => AnalyzedClass =
-    className =>
-      orEmpty(
-        for {
-          e <- entry(className)
-          analysis <- forEntry(e)
-        } yield analysis.apis.internalAPI(className)
-      )
+  def currentExternalAPI(entry: String => Option[File],
+    forEntry: File => Option[Analysis]): String => AnalyzedClass = {
+    binaryClassName =>
+      {
+        orEmpty(
+          for {
+            e <- entry(binaryClassName)
+            analysis <- forEntry(e)
+            className <- analysis.relations.binaryClassName.reverse(binaryClassName).headOption
+          } yield analysis.apis.internalAPI(className)
+        )
+      }
+  }
 
   def orEmpty(o: Option[AnalyzedClass]): AnalyzedClass = o getOrElse APIs.emptyAnalyzedClass
   def orTrue(o: Option[Boolean]): Boolean = o getOrElse true
