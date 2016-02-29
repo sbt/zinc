@@ -95,7 +95,7 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
     }
 
   def sameTopLevel(a: ClassLike, b: ClassLike): Boolean =
-    a.topLevel && b.topLevel
+    a.topLevel == b.topLevel
 
   def sameDefinitions(a: Seq[Definition], b: Seq[Definition], topLevel: Boolean): Boolean =
     {
