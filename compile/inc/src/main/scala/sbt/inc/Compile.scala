@@ -111,8 +111,6 @@ private final class AnalysisCallback(internalBinaryToSourceClassName: String => 
   private[this] val objectApis = new HashMap[String, (HashAPI.Hash, ClassLike)]
   private[this] val classPublicNameHashes = new HashMap[String, NameHashes]
   private[this] val objectPublicNameHashes = new HashMap[String, NameHashes]
-  // TODO: remove once we track APIs for all classes
-  private[this] val topLevelClassesInSrc = new HashMap[File, Set[String]].withDefaultValue(Set.empty)
   private[this] val usedNames = new HashMap[String, Set[String]]
   private[this] val declaredClasses = new HashMap[File, Set[String]]
   private[this] val unreporteds = new HashMap[File, ListBuffer[Problem]]
@@ -212,8 +210,6 @@ private final class AnalysisCallback(internalBinaryToSourceClassName: String => 
     val savedClassApi = if (shouldMinimize) APIUtil.minimize(classApi) else classApi
     val apiHash: HashAPI.Hash = HashAPI(classApi)
     val nameHashes = (new xsbt.api.NameHashing).nameHashes(classApi)
-    if (classApi.topLevel)
-      topLevelClassesInSrc(sourceFile) += className
     classApi.definitionType match {
       case DefinitionType.ClassDef | DefinitionType.Trait =>
         classApis(className) = apiHash -> savedClassApi
@@ -281,9 +277,7 @@ private final class AnalysisCallback(internalBinaryToSourceClassName: String => 
       case (a, src) =>
         val stamp = current.internalSource(src)
         val classesInSrc = classNames.getOrElse(src, Set.empty).map(_._1)
-        val topLevelClasses = topLevelClassesInSrc(src)
-        // TODO: switch to classesInSrc once we start tracking all APIs (including nested classes)
-        val analyzedApis = topLevelClasses.map(analyzeClass)
+        val analyzedApis = classesInSrc.map(analyzeClass)
         val info = SourceInfos.makeInfo(getOrNil(reporteds, src), getOrNil(unreporteds, src))
         val binaries = binaryDeps.getOrElse(src, Nil: Iterable[File])
         val localProds = localClasses.getOrElse(src, Nil: Iterable[File]) map {
