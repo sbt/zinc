@@ -18,8 +18,8 @@ object ClassToAPI {
       val pkgs = packages(c).map(p => new api.Package(p))
       val cmap = emptyClassMap
       val defs = c.filter(isTopLevel).flatMap(toDefinitions(cmap))
-      val classApis = defs.toArray[api.ClassLike]
       cmap.lz.foreach(_.get()) // force thunks to ensure all inherited dependencies are recorded
+      val classApis = cmap.allNonLocalClasses.toSeq
       val inDeps = cmap.inherited.toSet
       cmap.clear()
       (classApis, inDeps)
@@ -45,17 +45,19 @@ object ClassToAPI {
 
   final class ClassMap private[sbt] (private[sbt] val memo: mutable.Map[String, Seq[api.ClassLike]],
                                      private[sbt] val inherited: mutable.Set[(Class[_], Class[_])],
-                                     private[sbt] val lz: mutable.Buffer[xsbti.api.Lazy[_]]) {
+                                     private[sbt] val lz: mutable.Buffer[xsbti.api.Lazy[_]],
+                                     private[sbt] val allNonLocalClasses: mutable.Set[api.ClassLike]) {
     def clear(): Unit = {
       memo.clear()
       inherited.clear()
       lz.clear()
     }
   }
-  def emptyClassMap: ClassMap = new ClassMap(new mutable.HashMap, new mutable.HashSet, new mutable.ListBuffer)
+  def emptyClassMap: ClassMap = new ClassMap(new mutable.HashMap, new mutable.HashSet, new mutable.ListBuffer,
+    new mutable.HashSet)
 
   def toDefinitions(cmap: ClassMap)(c: Class[_]): Seq[api.ClassLike] =
-    cmap.memo.getOrElseUpdate(c.getName, toDefinitions0(c, cmap))
+    cmap.memo.getOrElseUpdate(c.getCanonicalName, toDefinitions0(c, cmap))
   def toDefinitions0(c: Class[_], cmap: ClassMap): Seq[api.ClassLike] =
     {
       import api.DefinitionType.{ ClassDef, Module, Trait }
@@ -65,16 +67,22 @@ object ClassToAPI {
       val annots = annotations(c.getAnnotations)
       val children = childrenOfSealedClass(c)
       val topLevel = c.getEnclosingClass == null
-      val name = c.getName
+      val name = c.getCanonicalName
       val tpe = if (Modifier.isInterface(c.getModifiers)) Trait else ClassDef
       lazy val (static, instance) = structure(c, enclPkg, cmap)
       val cls = new api.ClassLike(tpe, strict(Empty), lzy(instance, cmap), emptyStringArray, children.toArray,
         topLevel, typeParameters(typeParameterTypes(c)), name, acc, mods, annots)
+      val clsEmptyMembers = new api.ClassLike(tpe, strict(Empty), lzyEmptyStructure, emptyStringArray, children.toArray,
+        topLevel, typeParameters(typeParameterTypes(c)), name, acc, mods, annots)
       val stat = new api.ClassLike(Module, strict(Empty), lzy(static, cmap), emptyStringArray, emptyTypeArray,
         topLevel, emptyTypeParameterArray, name, acc, mods, annots)
+      val statEmptyMembers = new api.ClassLike(Module, strict(Empty), lzyEmptyStructure, emptyStringArray, emptyTypeArray,
+        topLevel, emptyTypeParameterArray, name, acc, mods, annots)
       val defs = cls :: stat :: Nil
-      cmap.memo(c.getName) = defs
-      defs
+      val defsEmptyMembers = clsEmptyMembers :: statEmptyMembers :: Nil
+      cmap.memo(name) = defsEmptyMembers
+      cmap.allNonLocalClasses ++= defs
+      defsEmptyMembers
     }
 
   /** Returns the (static structure, instance structure, inherited classes) for `c`. */
@@ -115,6 +123,7 @@ object ClassToAPI {
   private val emptySimpleTypeArray = new Array[xsbti.api.SimpleType](0)
   private val lzyEmptyTpeArray = lzyS(emptyTypeArray)
   private val lzyEmptyDefArray = lzyS(new Array[xsbti.api.Definition](0))
+  private val lzyEmptyStructure = strict(new xsbti.api.Structure(lzyEmptyTpeArray, lzyEmptyDefArray, lzyEmptyDefArray))
 
   private def allSuperTypes(t: Type): Seq[Type] =
     {
@@ -261,7 +270,7 @@ object ClassToAPI {
 
   def name(gd: GenericDeclaration): String =
     gd match {
-      case c: Class[_]       => c.getName
+      case c: Class[_]       => c.getCanonicalName
       case m: Method         => m.getName
       case c: Constructor[_] => c.getName
     }
@@ -299,7 +308,7 @@ object ClassToAPI {
 
   def array(tpe: api.Type): api.SimpleType = new api.Parameterized(ArrayRef, Array(tpe))
   def reference(c: Class[_]): api.SimpleType =
-    if (c.isArray) array(reference(c.getComponentType)) else if (c.isPrimitive) primitive(c.getName) else reference(c.getName)
+    if (c.isArray) array(reference(c.getComponentType)) else if (c.isPrimitive) primitive(c.getName) else reference(c.getCanonicalName)
 
   // does not handle primitives
   def reference(s: String): api.SimpleType =

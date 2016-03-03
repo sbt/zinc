@@ -7,7 +7,7 @@ import javax.tools.{ StandardLocation, ToolProvider }
 import sbt.IO._
 import sbt.{ ConsoleLogger, PathFinder }
 import xsbti.DependencyContext._
-import xsbti.TestCallback
+import xsbti.{ AnalysisCallback, TestCallback }
 import xsbti.TestCallback.ExtractedClassDependencies
 
 import scala.collection.JavaConverters._
@@ -15,7 +15,7 @@ import scala.collection.JavaConverters._
 object JavaCompilerForUnitTesting {
 
   def extractDependenciesFromSrcs(srcs: (String, String)*): ExtractedClassDependencies = {
-    val testCallback = compileJavaSrcs(srcs: _*)
+    val (_, testCallback) = compileJavaSrcs(srcs: _*)((_, _, classes) => extractParents(classes))
 
     val memberRefDeps = testCallback.classDependencies collect {
       case (target, src, DependencyByMemberRef) => (src, target)
@@ -29,7 +29,7 @@ object JavaCompilerForUnitTesting {
     ExtractedClassDependencies.fromPairs(memberRefDeps, inheritanceDeps, localInheritanceDeps)
   }
 
-  private def compileJavaSrcs(srcs: (String, String)*): TestCallback = {
+  def compileJavaSrcs(srcs: (String, String)*)(readAPI: (AnalysisCallback, File, Seq[Class[_]]) => Set[(String, String)]): (Seq[File], TestCallback) = {
     withTemporaryDirectory { temp =>
       val srcFiles = srcs.map {
         case (fileName, src) => prepareSrcFile(temp, fileName, src)
@@ -56,8 +56,8 @@ object JavaCompilerForUnitTesting {
       // - extract api representation out of Class (and saved it via a side effect)
       // - extract all base classes.
       // we extract just parents as this is enough for testing
-      Analyze(classFiles, srcFiles, logger)(analysisCallback, classloader, readAPI = extractParents)
-      analysisCallback
+      Analyze(classFiles, srcFiles, logger)(analysisCallback, classloader, readAPI(analysisCallback, _, _))
+      (srcFiles, analysisCallback)
     }
   }
 
@@ -67,12 +67,11 @@ object JavaCompilerForUnitTesting {
     srcFile
   }
 
-  private val extractParents: (File, Seq[Class[_]]) => Set[(String, String)] = {
-    case (_, classes) =>
-      def canonicalNames(p: (Class[_], Class[_])): (String, String) =
-        p._1.getCanonicalName -> p._2.getCanonicalName
-      val parents = classes.map(c => c -> c.getSuperclass)
-      val parentInterfaces = classes.flatMap(c => c.getInterfaces.map(i => c -> i))
-      (parents ++ parentInterfaces).map(canonicalNames).toSet
+  private val extractParents: Seq[Class[_]] => Set[(String, String)] = { classes =>
+    def canonicalNames(p: (Class[_], Class[_])): (String, String) =
+      p._1.getCanonicalName -> p._2.getCanonicalName
+    val parents = classes.map(c => c -> c.getSuperclass)
+    val parentInterfaces = classes.flatMap(c => c.getInterfaces.map(i => c -> i))
+    (parents ++ parentInterfaces).map(canonicalNames).toSet
   }
 }
