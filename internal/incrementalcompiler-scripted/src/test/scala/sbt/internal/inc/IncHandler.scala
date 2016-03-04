@@ -2,18 +2,19 @@ package sbt
 package internal
 package inc
 
-import java.io.File
+import java.io.{ File, FileInputStream }
 import sbt.util.Logger
 import sbt.internal.scripted.StatementHandler
 import sbt.util.InterfaceUtil._
 import xsbt.api.Discovery
 import xsbti.{ F1, Maybe }
-import xsbti.compile.{ CompileAnalysis, CompileOrder, DefinesClass, IncOptionsUtil, PreviousResult, Compilers => XCompilers }
+import xsbti.compile.{ CompileAnalysis, CompileOrder, DefinesClass, IncOptionsUtil, PreviousResult, Compilers => XCompilers, IncOptions }
 import sbt.io.IO
 import sbt.io.Path._
 
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier.{ isPublic, isStatic }
+import java.util.Properties
 import sbt.internal.inc.classpath.ClasspathUtilities
 
 import sbt.internal.scripted.{ StatementHandler, TestFailed }
@@ -165,7 +166,7 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
         case _            => compiler.emptyPreviousResult
       }
       val analysisMap = f1((f: File) => prev.analysis)
-      val incOptions = IncOptionsUtil.defaultIncOptions()
+      val incOptions = loadIncOptions(directory / "incOptions.properties")
       val reporter = new LoggerReporter(maxErrors, scriptedLog, identity)
       val extra = Array(t2(("key", "value")))
       val setup = compiler.setup(analysisMap, dc, skip = false, cacheFile, CompilerCache.fresh, incOptions, reporter, extra)
@@ -246,4 +247,16 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
     try { main.invoke(null, options.toArray[String]); () }
     finally { currentThread.setContextClassLoader(oldLoader) }
   }
+
+  private def loadIncOptions(src: File): IncOptions = {
+    if (src.exists) {
+      import collection.JavaConversions._
+      val properties = new Properties()
+      properties.load(new FileInputStream(src))
+      val map = new java.util.HashMap[String, String]
+      properties foreach { case (k: String, v: String) => map.put(k, v) }
+      IncOptionsUtil.fromStringMap(map)
+    } else IncOptionsUtil.defaultIncOptions
+  }
+
 }
