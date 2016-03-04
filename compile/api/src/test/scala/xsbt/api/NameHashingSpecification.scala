@@ -183,6 +183,18 @@ class NameHashingSpecification extends Specification {
     assertNameHashNotEqualForRegularName("Bar", nameHashes2, merged)
   }
 
+  /**
+   * Checks that name hashes are being calculated for top level private classes.
+   * A class cannot be top level and private in Java but it can be in Scala (it's package private).
+   */
+  "private top level class" in {
+    /* class Foo { def foo: String } */
+    val fooDef = new Def(Array.empty, strTpe, Array.empty, "foo", publicAccess, defaultModifiers, Array.empty)
+    val classFoo = simpleClassLike("Foo", simpleStructure(fooDef), access = privateAccess, topLevel = true)
+    val nameHashes = nameHashesForClass(classFoo)
+    Seq("Foo", "foo") === nameHashes.regularMembers.map(_.name).toSeq
+  }
+
   private def assertNameHashEqualForRegularName(name: String, nameHashes1: NameHashes,
     nameHashes2: NameHashes) = {
     val nameHash1 = nameHashForRegularName(nameHashes1, name)
@@ -224,8 +236,8 @@ class NameHashingSpecification extends Specification {
   }
 
   private def simpleClassLike(name: String, structure: Structure,
-    dt: DefinitionType = DefinitionType.ClassDef): ClassLike = {
-    new ClassLike(dt, lzy(emptyType), lzy(structure), Array.empty, Array.empty, false, Array.empty, name, publicAccess,
+    dt: DefinitionType = DefinitionType.ClassDef, topLevel: Boolean = true, access: Access = publicAccess): ClassLike = {
+    new ClassLike(dt, lzy(emptyType), lzy(structure), Array.empty, Array.empty, topLevel, Array.empty, name, access,
       defaultModifiers, Array.empty)
   }
 

@@ -35,6 +35,16 @@ class ClassToAPISpecification extends Specification {
     companionsB.classApi.structure.declared.isEmpty === false
   }
 
+  "private inner class" in {
+    val src =
+      """|class A {
+        |  private class B {}
+        |}
+      """.stripMargin
+    val apis = extractApisFromSrc("A.java" -> src).map(c => c.name -> c).toMap
+    apis.keySet === Set("A", "A.B")
+  }
+
   /**
    * Compiles given source code using Java compiler and returns API representation
    * extracted by ClassToAPI class.
