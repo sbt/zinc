@@ -60,6 +60,11 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
         checkNumberOfCompilerIterations(i, x.toInt)
       case (xs, _) => wrongArguments("checkIterations", xs)
     },
+    "checkRecompilations" -> {
+      case (Nil, _) => wrongArguments("checkRecompilations", Nil)
+      case (step :: files, i) =>
+        checkRecompilations(i, step.toInt, files)
+    },
     "checkSame" -> {
       case (Nil, i) =>
         checkSame(i)
@@ -100,6 +105,25 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
         (analysis.compilations.allCompilations.size: Int) == expected,
         "analysis.compilations.allCompilations.size = %d (expected %d)".format(analysis.compilations.allCompilations.size, expected)
       )
+    }
+
+  def checkRecompilations(i: IncInstance, step: Int, expected: List[String]): Unit =
+    {
+      val analysis = compile(i)
+      val allCompilations = analysis.compilations.allCompilations
+      val recompiledFiles: Seq[Set[String]] = allCompilations map { c =>
+        val recompiledFiles = analysis.apis.internal.collect {
+          case (file, api) if api.compilation.startTime.toLong == c.startTime.toLong => file.getName
+        }
+        recompiledFiles.toSet
+      }
+      def recompiledFilesInIteration(iteration: Int, classFiles: Set[String]) = {
+        assert(recompiledFiles(iteration) == classFiles, "%s != %s".format(recompiledFiles(iteration), classFiles))
+      }
+
+      assert(step < allCompilations.size.toInt)
+      recompiledFilesInIteration(step, expected.toSet)
+
     }
 
   def compile(i: IncInstance): Analysis =
