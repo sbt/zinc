@@ -47,29 +47,35 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
       case (Nil, i) =>
         compile(i)
         ()
-      case (xs, _) => wrongArguments("compile", xs)
+      case (xs, _) => acceptsNoArguments("compile", xs)
     },
     "clean" -> {
       case (Nil, i) =>
         clean(i)
         ()
-      case (xs, _) => wrongArguments("clean", xs)
+      case (xs, _) => acceptsNoArguments("clean", xs)
     },
     "checkIterations" -> {
       case (x :: Nil, i) =>
         checkNumberOfCompilerIterations(i, x.toInt)
-      case (xs, _) => wrongArguments("checkIterations", xs)
+      case (xs, _) => unrecognizedArguments("checkIterations", xs)
     },
     "checkRecompilations" -> {
-      case (Nil, _) => wrongArguments("checkRecompilations", Nil)
+      case (Nil, _) => unrecognizedArguments("checkRecompilations", Nil)
       case (step :: files, i) =>
         checkRecompilations(i, step.toInt, files)
+    },
+    "checkProducts" -> {
+      case (src :: products, i) =>
+        val srcFile = if (src endsWith ":") src dropRight 1 else src
+        checkProducts(i, srcFile, products)
+      case (other, _) => unrecognizedArguments("checkProducts", other)
     },
     "checkSame" -> {
       case (Nil, i) =>
         checkSame(i)
         ()
-      case (xs, _) => wrongArguments("checkSame", xs)
+      case (xs, _) => acceptsNoArguments("checkSame", xs)
     },
     "run" -> {
       case (params, i) =>
@@ -126,6 +132,15 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
 
     }
 
+  def checkProducts(i: IncInstance, src: String, expected: List[String]): Unit = {
+    val analysis = compile(i)
+    def classes(src: String): Set[String] = analysis.relations.classNames(directory / src)
+    def assertClasses(expected: Set[String], actual: Set[String]) =
+      assert(expected == actual, s"Expected $expected products, got $actual")
+
+    assertClasses(expected.toSet, classes(src))
+  }
+
   def compile(i: IncInstance): Analysis =
     {
       import i._
@@ -179,7 +194,10 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
 
   def finish(state: Option[IncInstance]): Unit = ()
 
-  def wrongArguments(commandName: String, args: List[String]): Unit =
+  def unrecognizedArguments(commandName: String, args: List[String]): Unit =
+    scriptError("Unrecognized arguments for '" + commandName + "': '" + spaced(args) + "'.")
+
+  def acceptsNoArguments(commandName: String, args: List[String]): Unit =
     scriptError("Command '" + commandName + "' does not accept arguments (found '" + spaced(args) + "').")
 
   def spaced[T](l: Seq[T]): String = l.mkString(" ")
