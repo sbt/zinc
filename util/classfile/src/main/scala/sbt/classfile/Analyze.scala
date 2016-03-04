@@ -23,9 +23,11 @@ private[sbt] object Analyze {
       try { Some(Class.forName(tpe, false, loader)) }
       catch { case e: Throwable => errMsg.foreach(msg => log.warn(msg + " : " + e.toString)); None }
 
-    val productToSource = new mutable.HashMap[File, File]
+    val productToClassName = new mutable.HashMap[File, String]
     val sourceToClassFiles = mutable.HashMap[File, Buffer[ClassFile]](
       sources zip Seq.fill(sources.size)(new ArrayBuffer[ClassFile]): _*)
+
+    val binaryClassNameToLoadedClass = new mutable.HashMap[String, Class[_]]
 
     // parse class files and assign classes to sources.  This must be done before dependencies, since the information comes
     // as class->class dependencies that must be mapped back to source->class dependencies using the source+class assignment
@@ -33,49 +35,70 @@ private[sbt] object Analyze {
       newClass <- newClasses;
       classFile = Parser(newClass);
       sourceFile <- classFile.sourceFile orElse guessSourceName(newClass.getName);
-      source <- guessSourcePath(sourceMap, classFile, log)
+      source <- guessSourcePath(sourceMap, classFile, log);
+      binaryClassName = classFile.className;
+      loadedClass <- load(binaryClassName, Some("Error reading API from class file"))
     ) {
-      val binaryClassName = classFile.className
-      val srcClassName = binaryToSourceName(binaryClassName)
-      analysis.generatedNonLocalClass(source, newClass, binaryClassName, srcClassName)
-      productToSource(newClass) = source
+      binaryClassNameToLoadedClass.update(binaryClassName, loadedClass)
+      val srcClassName = binaryToSourceName(loadedClass)
+      srcClassName match {
+        case Some(srcClassName) =>
+          analysis.generatedNonLocalClass(source, newClass, binaryClassName, srcClassName)
+          productToClassName(newClass) = srcClassName
+        case None => analysis.generatedLocalClass(source, newClass)
+      }
+
       sourceToClassFiles(source) += classFile
     }
 
     // get class to class dependencies and map back to source to class dependencies
     for ((source, classFiles) <- sourceToClassFiles) {
       analysis.startSource(source)
+      val loadedNonLocalClasses =
+        classFiles.map(c => binaryClassNameToLoadedClass(c.className)).filter(_.getCanonicalName != null)
       val publicInherited: Map[String, Set[String]] =
-        readAPI(source, classFiles.toSeq.flatMap(c => load(c.className, Some("Error reading API from class file")))).groupBy(_._1).mapValues(_.map(_._2))
+        readAPI(source, loadedNonLocalClasses).groupBy(_._1).mapValues(_.map(_._2))
 
       def processDependency(onBinaryName: String, context: DependencyContext, fromBinaryName: String): Unit = {
-        val fromClassName = binaryToSourceName(fromBinaryName)
+        val fromClassName = {
+          val clsName = for {
+            loadedClass <- binaryClassNameToLoadedClass.get(fromBinaryName)
+            sourceName <- binaryToSourceName(loadedClass)
+          } yield sourceName
+          clsName match {
+            case Some(resolvedClassName) => resolvedClassName
+            // TODO: handle dependencies coming from local classes the same way as it's done for Scala
+            // classes, see: https://github.com/sbt/sbt/issues/1104#issuecomment-169146039
+            case None                    => return
+          }
+        }
         trapAndLog(log) {
           for (url <- Option(loader.getResource(onBinaryName.replace('.', '/') + ClassExt)); file <- urlAsFile(url, log)) {
             if (url.getProtocol == "jar")
               analysis.binaryDependency(file, onBinaryName, fromClassName, source, context)
             else {
               assume(url.getProtocol == "file")
-              productToSource.get(file) match {
-                case Some(dependsOn) => analysis.classDependency(binaryToSourceName(onBinaryName), fromClassName, context)
+              productToClassName.get(file) match {
+                case Some(dependsOn) => analysis.classDependency(dependsOn, fromClassName, context)
                 case None            => analysis.binaryDependency(file, onBinaryName, fromClassName, source, context)
               }
             }
           }
         }
       }
-      def processDependencies(tpes: Iterable[String], context: DependencyContext, from: String): Unit =
-        tpes.foreach(tpe => processDependency(tpe, context, from))
+      def processDependencies(binaryClassNames: Iterable[String], context: DependencyContext, fromBinaryClassName: String): Unit =
+        binaryClassNames.foreach(binaryClassName => processDependency(binaryClassName, context, fromBinaryClassName))
 
       def declaredClass(className: String): Unit = analysis.declaredClass(source, className)
       val typesInSource = classFiles.map(cf => cf.className -> cf.types).toMap
       typesInSource foreach {
-        case (className, deps) => processDependencies(deps, DependencyByMemberRef, className)
+        case (binaryClassName, binaryClassNameDeps) =>
+          processDependencies(binaryClassNameDeps, DependencyByMemberRef, binaryClassName)
       }
       publicInherited foreach {
         case (className, inheritanceDeps) => processDependencies(inheritanceDeps, DependencyByInheritance, className)
       }
-      classFiles.map(cls => binaryToSourceName(cls.className)).toSet.foreach(declaredClass)
+      loadedNonLocalClasses.map(_.getCanonicalName).toSet.foreach(declaredClass)
     }
   }
   private[this] def urlAsFile(url: URL, log: Logger): Option[File] =
@@ -97,7 +120,7 @@ private[sbt] object Analyze {
     }
   private final val ClassExt = ".class"
   private def trimClassExt(name: String) = if (name.endsWith(ClassExt)) name.substring(0, name.length - ClassExt.length) else name
-  private def binaryToSourceName(binaryClassName: String): String = binaryClassName.replace('$', '.')
+  private def binaryToSourceName(loadedClass: Class[_]): Option[String] = Option(loadedClass.getCanonicalName)
   private def guessSourcePath(sourceNameMap: Map[String, Set[File]], classFile: ClassFile, log: Logger) =
     {
       val classNameParts = classFile.className.split("""\.""")
