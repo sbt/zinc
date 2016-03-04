@@ -71,6 +71,12 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
         checkProducts(i, srcFile, products)
       case (other, _) => unrecognizedArguments("checkProducts", other)
     },
+    "checkDependencies" -> {
+      case (src :: dependencies, i) =>
+        val srcFile = if (src endsWith ":") src dropRight 1 else src
+        checkDependencies(i, srcFile, dependencies)
+      case (other, _) => unrecognizedArguments("checkDependencies", other)
+    },
     "checkSame" -> {
       case (Nil, i) =>
         checkSame(i)
@@ -139,6 +145,15 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
       assert(expected == actual, s"Expected $expected products, got $actual")
 
     assertClasses(expected.toSet, classes(src))
+  }
+
+  def checkDependencies(i: IncInstance, src: String, expected: List[String]): Unit = {
+    val analysis = compile(i)
+    def srcDeps(src: String): Set[File] = analysis.relations.internalSrcDeps(directory / src)
+    def assertDependencies(expected: Set[File], actual: Set[File]) =
+      assert(expected == actual, s"Expected $expected dependencies, got $actual")
+
+    assertDependencies(expected.map(directory / _).toSet, srcDeps(src))
   }
 
   def compile(i: IncInstance): Analysis =
