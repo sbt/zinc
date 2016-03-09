@@ -27,8 +27,11 @@ private[inc] abstract class IncrementalCommon(log: Logger, options: IncOptions) 
     if (invalidatedRaw.isEmpty && modifiedSrcs.isEmpty)
       previous
     else {
-
-      val withPackageObjects = invalidatedRaw ++ invalidatedPackageObjects(invalidatedRaw, previous.relations)
+      val invalidatedPackageObjects = this.invalidatedPackageObjects(invalidatedRaw, previous.relations,
+        previous.apis)
+      if (invalidatedPackageObjects.nonEmpty)
+        log.debug(s"Invalidated package objects: ${invalidatedPackageObjects}")
+      val withPackageObjects = invalidatedRaw ++ invalidatedPackageObjects
       val invalidatedClasses = withPackageObjects
 
       val current = recompileClasses(invalidatedClasses, modifiedSrcs, allSources, binaryChanges, previous, doCompile,
@@ -364,17 +367,19 @@ private[inc] abstract class IncrementalCommon(log: Logger, options: IncOptions) 
   def orEmpty(o: Option[AnalyzedClass]): AnalyzedClass = o getOrElse APIs.emptyAnalyzedClass
   def orTrue(o: Option[Boolean]): Boolean = o getOrElse true
 
-  protected def transitiveDeps[T](nodes: Iterable[T])(dependencies: T => Iterable[T]): Set[T] =
+  protected def transitiveDeps[T](nodes: Iterable[T], logging: Boolean = true)(dependencies: T => Iterable[T]): Set[T] =
     {
       val xs = new collection.mutable.HashSet[T]
       def all(from: T, tos: Iterable[T]): Unit = tos.foreach(to => visit(from, to))
       def visit(from: T, to: T): Unit =
         if (!xs.contains(to)) {
-          log.debug(s"Including $to by $from")
+          if (logging)
+            log.debug(s"Including $to by $from")
           xs += to
           all(to, dependencies(to))
         }
-      log.debug("Initial set of included nodes: " + nodes)
+      if (logging)
+        log.debug("Initial set of included nodes: " + nodes)
       nodes foreach { start =>
         xs += start
         all(start, dependencies(start))
