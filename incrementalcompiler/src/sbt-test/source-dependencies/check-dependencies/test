@@ -1,3 +1,3 @@
 > compile
 
-> checkDependencies A.scala: B.scala C.scala
+> checkDependencies A: B C
