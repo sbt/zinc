@@ -66,6 +66,12 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
       case (step :: classNames, i) =>
         checkRecompilations(i, step.toInt, classNames)
     },
+    "checkClasses" -> {
+      case (src :: products, i) =>
+        val srcFile = if (src endsWith ":") src dropRight 1 else src
+        checkClasses(i, srcFile, products)
+      case (other, _) => unrecognizedArguments("checkClasses", other)
+    },
     "checkProducts" -> {
       case (src :: products, i) =>
         val srcFile = if (src endsWith ":") src dropRight 1 else src
@@ -139,13 +145,26 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
 
     }
 
-  def checkProducts(i: IncInstance, src: String, expected: List[String]): Unit = {
+  def checkClasses(i: IncInstance, src: String, expected: List[String]): Unit = {
     val analysis = compile(i)
     def classes(src: String): Set[String] = analysis.relations.classNames(directory / src)
     def assertClasses(expected: Set[String], actual: Set[String]) =
-      assert(expected == actual, s"Expected $expected products, got $actual")
+      assert(expected == actual, s"Expected $expected classes, got $actual")
 
     assertClasses(expected.toSet, classes(src))
+  }
+
+  def checkProducts(i: IncInstance, src: String, expected: List[String]): Unit = {
+    val analysis = compile(i)
+    def relativeClassDir(f: File): File = f.relativeTo(classesDir) getOrElse f
+    def products(srcFile: String): Set[String] = {
+      val productFiles = analysis.relations.products(directory / srcFile)
+      productFiles.map(relativeClassDir).map(_.getPath)
+    }
+    def assertClasses(expected: Set[String], actual: Set[String]) =
+      assert(expected == actual, s"Expected $expected products, got $actual")
+
+    assertClasses(expected.toSet, products(src))
   }
 
   def checkDependencies(i: IncInstance, className: String, expected: List[String]): Unit = {
