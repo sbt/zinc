@@ -389,14 +389,46 @@
 		},
 		{
 			"name": "DependencyContext",
+			"doc": [
+			"Enumeration of existing dependency contexts.",
+			"Dependency contexts represent the various kind of dependencies that",
+			"can exist between symbols."
+			],
 			"namespace": "xsbti.api",
 			"target": "Java",
 			"type": "enumeration",
-			"doc": "Foo\nasdasd",
 			"types": [
-				"DependencyByMemberRef",
-				"DependencyByInheritance",
-				"LocalDependencyByInheritance"
+				{
+					"name": "DependencyByMemberRef",
+					"doc": [
+					"Represents a direct dependency between two symbols :",
+					"object Foo",
+					"object Bar { def foo = Foo }"
+					]
+				},
+				{
+					"name": "DependencyByInheritance",
+					"doc": [
+					"Represents an inheritance dependency between two symbols :",
+					"class A",
+					"class B extends A"
+					]
+				},
+				{
+					"name": "LocalDependencyByInheritance",
+					"doc": [
+					"Represents an inheritance dependency between a local class",
+					"and a non local class:",
+					"  // A.scala",
+					"  class A",
+					"  // B.scala",
+					"  class B {",
+					"    def foo = {",
+					"      class Local extends A",
+					"    }",
+					"  }"
+					]
+				}
 			]
 		},
 		{
