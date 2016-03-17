@@ -2,18 +2,19 @@ package sbt
 package internal
 package inc
 
-import java.io.File
+import java.io.{ File, FileInputStream }
 import sbt.util.Logger
 import sbt.internal.scripted.StatementHandler
 import sbt.util.InterfaceUtil._
 import xsbt.api.Discovery
 import xsbti.{ F1, Maybe }
-import xsbti.compile.{ CompileAnalysis, CompileOrder, DefinesClass, IncOptionsUtil, PreviousResult, Compilers => XCompilers }
+import xsbti.compile.{ CompileAnalysis, CompileOrder, DefinesClass, IncOptionsUtil, PreviousResult, Compilers => XCompilers, IncOptions }
 import sbt.io.IO
 import sbt.io.Path._
 
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier.{ isPublic, isStatic }
+import java.util.Properties
 import sbt.internal.inc.classpath.ClasspathUtilities
 
 import sbt.internal.scripted.{ StatementHandler, TestFailed }
@@ -47,24 +48,41 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
       case (Nil, i) =>
         compile(i)
         ()
-      case (xs, _) => wrongArguments("compile", xs)
+      case (xs, _) => acceptsNoArguments("compile", xs)
     },
     "clean" -> {
       case (Nil, i) =>
         clean(i)
         ()
-      case (xs, _) => wrongArguments("clean", xs)
+      case (xs, _) => acceptsNoArguments("clean", xs)
     },
     "checkIterations" -> {
       case (x :: Nil, i) =>
         checkNumberOfCompilerIterations(i, x.toInt)
-      case (xs, _) => wrongArguments("checkIterations", xs)
+      case (xs, _) => unrecognizedArguments("checkIterations", xs)
+    },
+    "checkRecompilations" -> {
+      case (Nil, _) => unrecognizedArguments("checkRecompilations", Nil)
+      case (step :: files, i) =>
+        checkRecompilations(i, step.toInt, files)
+    },
+    "checkProducts" -> {
+      case (src :: products, i) =>
+        val srcFile = if (src endsWith ":") src dropRight 1 else src
+        checkProducts(i, srcFile, products)
+      case (other, _) => unrecognizedArguments("checkProducts", other)
+    },
+    "checkDependencies" -> {
+      case (src :: dependencies, i) =>
+        val srcFile = if (src endsWith ":") src dropRight 1 else src
+        checkDependencies(i, srcFile, dependencies)
+      case (other, _) => unrecognizedArguments("checkDependencies", other)
     },
     "checkSame" -> {
       case (Nil, i) =>
         checkSame(i)
         ()
-      case (xs, _) => wrongArguments("checkSame", xs)
+      case (xs, _) => acceptsNoArguments("checkSame", xs)
     },
     "run" -> {
       case (params, i) =>
@@ -102,6 +120,43 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
       )
     }
 
+  def checkRecompilations(i: IncInstance, step: Int, expected: List[String]): Unit =
+    {
+      val analysis = compile(i)
+      val allCompilations = analysis.compilations.allCompilations
+      val recompiledFiles: Seq[Set[String]] = allCompilations map { c =>
+        val recompiledFiles = analysis.apis.internal.collect {
+          case (file, api) if api.compilation.startTime.toLong == c.startTime.toLong => file.getName
+        }
+        recompiledFiles.toSet
+      }
+      def recompiledFilesInIteration(iteration: Int, classFiles: Set[String]) = {
+        assert(recompiledFiles(iteration) == classFiles, "%s != %s".format(recompiledFiles(iteration), classFiles))
+      }
+
+      assert(step < allCompilations.size.toInt)
+      recompiledFilesInIteration(step, expected.toSet)
+
+    }
+
+  def checkProducts(i: IncInstance, src: String, expected: List[String]): Unit = {
+    val analysis = compile(i)
+    def classes(src: String): Set[String] = analysis.relations.classNames(directory / src)
+    def assertClasses(expected: Set[String], actual: Set[String]) =
+      assert(expected == actual, s"Expected $expected products, got $actual")
+
+    assertClasses(expected.toSet, classes(src))
+  }
+
+  def checkDependencies(i: IncInstance, src: String, expected: List[String]): Unit = {
+    val analysis = compile(i)
+    def srcDeps(src: String): Set[File] = analysis.relations.internalSrcDeps(directory / src)
+    def assertDependencies(expected: Set[File], actual: Set[File]) =
+      assert(expected == actual, s"Expected $expected dependencies, got $actual")
+
+    assertDependencies(expected.map(directory / _).toSet, srcDeps(src))
+  }
+
   def compile(i: IncInstance): Analysis =
     {
       import i._
@@ -111,7 +166,7 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
         case _            => compiler.emptyPreviousResult
       }
       val analysisMap = f1((f: File) => prev.analysis)
-      val incOptions = IncOptionsUtil.defaultIncOptions()
+      val incOptions = loadIncOptions(directory / "incOptions.properties")
       val reporter = new LoggerReporter(maxErrors, scriptedLog, identity)
       val extra = Array(t2(("key", "value")))
       val setup = compiler.setup(analysisMap, dc, skip = false, cacheFile, CompilerCache.fresh, incOptions, reporter, extra)
@@ -155,7 +210,10 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
 
   def finish(state: Option[IncInstance]): Unit = ()
 
-  def wrongArguments(commandName: String, args: List[String]): Unit =
+  def unrecognizedArguments(commandName: String, args: List[String]): Unit =
+    scriptError("Unrecognized arguments for '" + commandName + "': '" + spaced(args) + "'.")
+
+  def acceptsNoArguments(commandName: String, args: List[String]): Unit =
     scriptError("Command '" + commandName + "' does not accept arguments (found '" + spaced(args) + "').")
 
   def spaced[T](l: Seq[T]): String = l.mkString(" ")
@@ -191,4 +249,16 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
     try { main.invoke(null, options.toArray[String]); () }
     finally { currentThread.setContextClassLoader(oldLoader) }
   }
+
+  private def loadIncOptions(src: File): IncOptions = {
+    if (src.exists) {
+      import collection.JavaConversions._
+      val properties = new Properties()
+      properties.load(new FileInputStream(src))
+      val map = new java.util.HashMap[String, String]
+      properties foreach { case (k: String, v: String) => map.put(k, v) }
+      IncOptionsUtil.fromStringMap(map)
+    } else IncOptionsUtil.defaultIncOptions
+  }
+
 }
