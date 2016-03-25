@@ -293,6 +293,8 @@ object Relations {
       SSRelationDescriptor("member reference external dependencies", _.memberRef.external),
       SSRelationDescriptor("inheritance internal dependencies", _.inheritance.internal),
       SSRelationDescriptor("inheritance external dependencies", _.inheritance.external),
+      SSRelationDescriptor("local internal inheritance dependencies", _.localInheritance.internal),
+      SSRelationDescriptor("local external inheritance dependencies", _.localInheritance.external),
       FSRelationDescriptor("class names", _.classes),
       SSRelationDescriptor("used names", _.names),
       FSRelationDescriptor("declared classes", _.declaredClasses),
@@ -305,7 +307,7 @@ object Relations {
    */
   def construct(nameHashing: Boolean, relations: List[Relation[_, _]]) =
     relations match {
-      case p :: bin :: di :: de :: pii :: pie :: mri :: mre :: ii :: ie :: cn :: un :: dc :: bcn :: Nil =>
+      case p :: bin :: di :: de :: pii :: pie :: mri :: mre :: ii :: ie :: lii :: lie :: cn :: un :: dc :: bcn :: Nil =>
         val srcProd = p.asInstanceOf[Relation[File, File]]
         val binaryDep = bin.asInstanceOf[Relation[File, File]]
         val directSrcDeps = makeSource(di.asInstanceOf[Relation[File, File]], de.asInstanceOf[Relation[File, String]])
@@ -324,11 +326,13 @@ object Relations {
         if (nameHashing) {
           val internal = InternalDependencies(Map(
             DependencyByMemberRef -> mri.asInstanceOf[Relation[String, String]],
-            DependencyByInheritance -> ii.asInstanceOf[Relation[String, String]]
+            DependencyByInheritance -> ii.asInstanceOf[Relation[String, String]],
+            LocalDependencyByInheritance -> lii.asInstanceOf[Relation[String, String]]
           ))
           val external = ExternalDependencies(Map(
             DependencyByMemberRef -> mre.asInstanceOf[Relation[String, String]],
-            DependencyByInheritance -> ie.asInstanceOf[Relation[String, String]]
+            DependencyByInheritance -> ie.asInstanceOf[Relation[String, String]],
+            LocalDependencyByInheritance -> lie.asInstanceOf[Relation[String, String]]
           ))
           Relations.make(srcProd, binaryDep, internal, external, classes, names, declaredClasses, binaryClassName)
         } else {

@@ -196,11 +196,20 @@ object TestCaseGenerators {
     classNames = binaryClassName._1s.toList
     memberRef <- genRClassDependencies(classNames)
     inheritance <- genSubRClassDependencies(memberRef)
+    localInheritance <- genSubRClassDependencies(memberRef)
     classes = Relation.reconstruct(zipMap(srcs, classNames).mapValues(x => Set(x)))
     names <- genUsedNames(classNames)
     declaredClasses = classes
-    internal <- InternalDependencies(Map(DependencyByMemberRef -> memberRef.internal, DependencyByInheritance -> inheritance.internal))
-    external <- ExternalDependencies(Map(DependencyByMemberRef -> memberRef.external, DependencyByInheritance -> inheritance.external))
+    internal <- InternalDependencies(Map(
+      DependencyByMemberRef -> memberRef.internal,
+      DependencyByInheritance -> inheritance.internal,
+      LocalDependencyByInheritance -> localInheritance.internal
+    ))
+    external <- ExternalDependencies(Map(
+      DependencyByMemberRef -> memberRef.external,
+      DependencyByInheritance -> inheritance.external,
+      LocalDependencyByInheritance -> localInheritance.external
+    ))
   } yield Relations.make(srcProd, binaryDep, internal, external, classes, names, declaredClasses, binaryClassName)
 
   def genAnalysis(nameHashing: Boolean): Gen[Analysis] = for {
