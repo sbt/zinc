@@ -118,9 +118,9 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
   }
 
   /**
-   * Accepts the sources that were recompiled during the last step and functions
+   * Accepts the classes that were recompiled during the last step and functions
    * providing the API before and after the last step.  The functions should return
-   * an empty API if the file did not/does not exist.
+   * an empty API if the class did not/does not exist.
    */
   def changedIncremental(lastClasses: collection.Set[String], oldAPI: String => AnalyzedClass,
     newAPI: String => AnalyzedClass): APIChanges =
@@ -138,7 +138,7 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
       new APIChanges(apiChanges)
     }
   def sameClass(className: String, a: AnalyzedClass, b: AnalyzedClass): Option[APIChange] = {
-    // Clients of a modified source file (ie, one that doesn't satisfy `shortcutSameSource`) containing macros must be recompiled.
+    // Clients of a modified class (ie, one that doesn't satisfy `shortcutSameClass`) containing macros must be recompiled.
     val hasMacro = a.hasMacro || b.hasMacro
     if (shortcutSameClass(a, b)) {
       None
@@ -196,11 +196,11 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
 
       val inv: Set[String] = propagated ++ dups
       val newlyInvalidated = (inv -- recompiledClasses) ++ dups
-      log.debug("All newly invalidated sources after taking into account (previously) recompiled sources:" + newlyInvalidated)
+      log.debug("All newly invalidated classes after taking into account (previously) recompiled classes:" + newlyInvalidated)
       if (newlyInvalidated.isEmpty) Set.empty else inv
     }
 
-  /** Invalidate all sources that claim to produce the same class file as another source file. */
+  /** Invalidate all classes that claim to produce the same class file as another class. */
   def invalidateDuplicates(merged: Relations): Set[String] =
     merged.srcProd.reverseMap.flatMap {
       case (classFile, sources) =>
@@ -208,9 +208,9 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
     }.toSet
 
   /**
-   * Returns the transitive source dependencies of `initial`.
-   * Because the intermediate steps do not pull in cycles, this result includes the initial files
-   * if they are part of a cycle containing newly invalidated files .
+   * Returns the transitive class dependencies of `initial`.
+   * Because the intermediate steps do not pull in cycles, this result includes the initial classes
+   * if they are part of a cycle containing newly invalidated classes.
    */
   def transitiveDependencies(dependsOnClass: String => Set[String], initial: Set[String]): Set[String] =
     {
@@ -220,7 +220,7 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
       transitivePartial
     }
 
-  /** Invalidates sources based on initially detected 'changes' to the sources, products, and dependencies.*/
+  /** Invalidates classes and sources based on initially detected 'changes' to the sources, products, and dependencies.*/
   def invalidateInitial(previous: Relations, changes: InitialChanges): (Set[String], Set[File]) =
     {
       def classNames(srcs: Set[File]): Set[String] =
@@ -274,7 +274,7 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
     }).toSet
   }
 
-  /** Sources invalidated by `external` sources in other projects according to the previous `relations`. */
+  /** Classes invalidated by `external` classes in other projects according to the previous `relations`. */
   protected def invalidateByExternal(relations: Relations, externalAPIChange: APIChange, isScalaClass: String => Boolean): Set[String]
 
   /** Intermediate invalidation step: steps after the initial invalidation, but before the final transitive invalidation. */
@@ -284,7 +284,7 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
     }
   /**
    * Invalidates inheritance dependencies, transitively.  Then, invalidates direct dependencies.  Finally, excludes initial dependencies not
-   * included in a cycle with newly invalidated sources.
+   * included in a cycle with newly invalidated classes.
    */
   private def invalidateClasses(relations: Relations, changes: APIChanges, isScalaClass: String => Boolean): Set[String] =
     {
@@ -300,8 +300,8 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
   protected def invalidateClass(relations: Relations, change: APIChange, isScalaClass: String => Boolean): Set[String]
 
   /**
-   * Conditionally include initial sources that are dependencies of newly invalidated sources.
-   * * Initial sources included in this step can be because of a cycle, but not always.
+   * Conditionally include initial classes that are dependencies of newly invalidated classes.
+   * Initial classes included in this step can be because of a cycle, but not always.
    */
   private[this] def includeInitialCond(initial: Set[String], currentInvalidations: Set[String],
     allDeps: String => Set[String]): Set[String] =

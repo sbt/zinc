@@ -16,8 +16,8 @@ private final class IncrementalNameHashing(log: sbt.util.Logger, options: IncOpt
 
   private val memberRefInvalidator = new MemberRefInvalidator(log)
 
-  // Package objects are fragile: if they inherit from an invalidated source, get "class file needed by package is missing" error
-  //  This might be too conservative: we probably only need package objects for packages of invalidated sources.
+  // Package objects are fragile: if they inherit from an invalidated class, get "class file needed by package is missing" error
+  //  This might be too conservative: we probably only need package objects for packages of invalidated classes.
   protected def invalidatedPackageObjects(invalidatedClasses: Set[String], relations: Relations,
     apis: APIs): Set[String] = {
     transitiveDeps(invalidatedClasses, logging = false)(relations.inheritance.internal.reverse) filter {
@@ -37,14 +37,14 @@ private final class IncrementalNameHashing(log: sbt.util.Logger, options: IncOpt
     }
   }
 
-  /** Invalidates sources based on initially detected 'changes' to the sources, products, and dependencies.*/
+  /** Invalidates classes based on initially detected 'changes' to the sources, products, and dependencies.*/
   override protected def invalidateByExternal(relations: Relations, externalAPIChange: APIChange,
     isScalaClass: String => Boolean): Set[String] = {
     val modifiedBinaryClassName = externalAPIChange.modifiedClass
     val invalidationReason = memberRefInvalidator.invalidationReason(externalAPIChange)
     log.debug(s"$invalidationReason\nAll member reference dependencies will be considered within this context.")
     // Propagate inheritance dependencies transitively.
-    // This differs from normal because we need the initial crossing from externals to sources in this project.
+    // This differs from normal because we need the initial crossing from externals to classes in this project.
     val externalInheritanceR = relations.inheritance.external
     val byExternalInheritance = externalInheritanceR.reverse(modifiedBinaryClassName)
     log.debug(s"Files invalidated by inheriting from (external) $modifiedBinaryClassName: $byExternalInheritance; now invalidating by inheritance (internally).")
@@ -61,12 +61,12 @@ private final class IncrementalNameHashing(log: sbt.util.Logger, options: IncOpt
       relations.names, externalAPIChange, isScalaClass
     )
 
-    // Get the member reference dependencies of all sources transitively invalidated by inheritance
-    log.debug("Getting direct dependencies of all sources transitively invalidated by inheritance.")
+    // Get the member reference dependencies of all classes transitively invalidated by inheritance
+    log.debug("Getting direct dependencies of all classes transitively invalidated by inheritance.")
     val memberRefA = transitiveInheritance flatMap memberRefInvalidationInternal
-    // Get the sources that depend on externals by member reference.
+    // Get the classes that depend on externals by member reference.
     // This includes non-inheritance dependencies and is not transitive.
-    log.debug(s"Getting sources that directly depend on (external) $modifiedBinaryClassName.")
+    log.debug(s"Getting classes that directly depend on (external) $modifiedBinaryClassName.")
     val memberRefB = memberRefInvalidationExternal(modifiedBinaryClassName)
     transitiveInheritance ++ localInheritance ++ memberRefA ++ memberRefB
   }
