@@ -12,7 +12,6 @@ $ copy-file changes/A2.scala A.scala
 # A is explicitly changed
 > checkRecompilations 1 A
 # B is recompiled because it depends by inheritance on A
-> checkRecompilations 2 B
-# C is recompiled because it depends by local inheritance on B
-# it should have been included in the second iteration together with A
-> checkRecompilations 3 C
+# C is recompiled because it depends by local inheritance on B but its
+# dependencies (D) are not recompiled
+> checkRecompilations 2 B C
