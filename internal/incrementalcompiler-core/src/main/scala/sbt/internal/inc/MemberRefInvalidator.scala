@@ -10,43 +10,35 @@ import xsbt.api.APIUtil
 /**
  * Implements various strategies for invalidating dependencies introduced by member reference.
  *
- * The strategy is represented as function T => Set[File] where T is a source file that other
- * source files depend on. When you apply that function to given element `src` you get set of
- * files that depend on `src` by member reference and should be invalidated due to api change
- * that was passed to a method constructing that function. There are two questions that arise:
+ * The strategy is represented as a function String => Set[String] where the lambda's parameter is
+ * a name of a class that other classes depend on. When you apply that function to a given
+ * `className` you get a set of classes that depend on `className` by member reference and should
+ * be invalidated due to the APIChange that was passed to a method constructing that function.
+ * The center of design of this class is a question:
  *
- *    1. Why is signature T => Set[File] and not T => Set[T] or File => Set[File]?
- *    2. Why would we apply that function to any other `src` that then one that got modified
- *       and the modification is described by APIChange?
+ *    Why would we apply the function to any other `className` that the one that got modified
+ *    and the modification is described by the APIChange?
  *
- * Let's address the second question with the following example of source code structure:
+ * Let's address this question with the following example of code structure:
  *
- * // A.scala
  * class A
  *
- * // B.scala
  * class B extends A
  *
- * // C.scala
  * class C { def foo(a: A) = ??? }
  *
- * // D.scala
  * class D { def bar(b: B) = ??? }
  *
- * Member reference dependencies on A.scala are B.scala, C.scala. When the api of A changes
- * then we would consider B and C for invalidation. However, B is also a dependency by inheritance
- * so we always invalidate it. The api change to A is relevant when B is considered (because
- * of how inheritance works) so we would invalidate B by inheritance and then we would like to
- * invalidate member reference dependencies of B as well. In other words, we have a function
- * because we want to apply it (with the same api change in mind) to all src files invalidated
- * by inheritance of the originally modified file.
+ * Member reference dependencies on A are B, C. When the api of A changes we consider B and C for
+ * invalidation. However, B is also a dependency by inheritance on A so we always invalidate it.
+ * The api change to A is relevant when B is considered (inheritance propagates changes to
+ * members down the inheritance chain) so we would invalidate B by inheritance and then we would
+ * like to invalidate member reference dependencies of B as well. In other words, we have a
+ * function because we want to apply it (with the same api change in mind) to all classes
+ * invalidated by inheritance of the originally modified class.
  *
- * The first question is a bit more straightforward to answer. We always invalidate internal
- * source files (in given project) that are represented as File but they might depend either on
- * internal source files (then T=File) or they can depend on external class name (then T=String).
- *
- * The specific invalidation strategy is determined based on APIChange that describes a change to api
- * of a single source file.
+ * The specific invalidation strategy is determined based on APIChange that describes a change to
+ * the api of a single class.
  *
  * For example, if we get APIChangeDueToMacroDefinition then we invalidate all member reference
  * dependencies unconditionally. On the other hand, if api change is due to modified name hashes
