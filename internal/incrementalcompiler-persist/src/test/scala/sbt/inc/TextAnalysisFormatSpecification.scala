@@ -95,7 +95,7 @@ object TextAnalysisFormatTest extends Properties("TextAnalysisFormat") {
   }
 
   property("Write and read complex Analysis") =
-    forAllNoShrink(TestCaseGenerators.genAnalysis(nameHashing)) { analysis: Analysis =>
+    forAllNoShrink(TestCaseGenerators.genAnalysis) { analysis: Analysis =>
       val writer = new StringWriter
 
       TextAnalysisFormat.write(writer, analysis, commonSetup)

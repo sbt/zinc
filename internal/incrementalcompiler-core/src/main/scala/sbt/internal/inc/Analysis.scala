@@ -58,50 +58,6 @@ object Analysis {
   def empty(nameHashing: Boolean): Analysis = new MAnalysis(Stamps.empty, APIs.empty,
     Relations.empty(nameHashing = nameHashing), SourceInfos.empty, Compilations.empty)
 
-  /** Merge multiple analysis objects into one. Deps will be internalized as needed. */
-  def merge(analyses: Traversable[Analysis]): Analysis = {
-    if (analyses.exists(_.relations.nameHashing))
-      throw new IllegalArgumentException("Merging of Analyses that have" +
-        "`relations.memberRefAndInheritanceDeps` set to `true` is not supported.")
-
-    // Merge the Relations, internalizing deps as needed.
-    val mergedSrcProd = Relation.merge(analyses map { _.relations.srcProd })
-    val mergedBinaryDep = Relation.merge(analyses map { _.relations.binaryDep })
-    val mergedClasses = Relation.merge(analyses map { _.relations.classes })
-
-    val stillInternal = Relation.merge(analyses map { _.relations.direct.internal })
-    val (internalized, stillExternal) = Relation.merge(analyses map { _.relations.direct.external }) partition { case (a, b) => mergedClasses._2s.contains(b) }
-    val internalizedFiles = Relation.reconstruct(internalized.forwardMap mapValues { _ flatMap mergedClasses.reverse })
-    val mergedInternal = stillInternal ++ internalizedFiles
-
-    val stillInternalPI = Relation.merge(analyses map { _.relations.publicInherited.internal })
-    val (internalizedPI, stillExternalPI) = Relation.merge(analyses map { _.relations.publicInherited.external }) partition { case (a, b) => mergedClasses._2s.contains(b) }
-    val internalizedFilesPI = Relation.reconstruct(internalizedPI.forwardMap mapValues { _ flatMap mergedClasses.reverse })
-    val mergedInternalPI = stillInternalPI ++ internalizedFilesPI
-
-    val mergedRelations = Relations.make(
-      mergedSrcProd,
-      mergedBinaryDep,
-      Relations.makeSource(mergedInternal, stillExternal),
-      Relations.makeSource(mergedInternalPI, stillExternalPI),
-      mergedClasses
-    )
-
-    // Merge the APIs, internalizing APIs for targets of dependencies we internalized above.
-    val concatenatedAPIs = (APIs.empty /: (analyses map { _.apis }))(_ ++ _)
-    val stillInternalAPIs = concatenatedAPIs.internal
-    val (internalizedAPIs, stillExternalAPIs) = concatenatedAPIs.external partition { x: (String, AnalyzedClass) =>
-      internalized._2s.contains(x._1)
-    }
-    val mergedAPIs = APIs(stillInternalAPIs ++ internalizedAPIs, stillExternalAPIs)
-
-    val mergedStamps = Stamps.merge(analyses map { _.stamps })
-    val mergedInfos = SourceInfos.merge(analyses map { _.infos })
-    val mergedCompilations = Compilations.merge(analyses map { _.compilations })
-
-    new MAnalysis(mergedStamps, mergedAPIs, mergedRelations, mergedInfos, mergedCompilations)
-  }
-
   def summary(a: Analysis): String =
     {
       def sourceFileForClass(className: String): File =

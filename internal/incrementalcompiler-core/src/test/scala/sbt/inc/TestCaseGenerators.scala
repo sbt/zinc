@@ -142,19 +142,6 @@ object TestCaseGenerators {
     prv <- listOfN(n, unique(identifier))
   } yield Relation.reconstruct(zipMap(fwd, prv).mapValues(x => Set(x)))
 
-  def genRSource(srcs: List[File]): Gen[Relations.Source] = for {
-    internal <- listOfN(srcs.length, someOf(srcs)) // Internal dep targets must come from list of sources.
-    external <- genStringRelation(srcs)
-  } yield Relations.makeSource( // Ensure that we don't generate a dep of some file on itself.
-    Relation.reconstruct((srcs zip (internal map { _.toSet }) map { case (a, b) => (a, b - a) }).toMap),
-    external
-  )
-
-  def genSubRSource(src: Relations.Source): Gen[Relations.Source] = for {
-    internal <- someOf(src.internal.all.toList)
-    external <- someOf(src.external.all.toList)
-  } yield Relations.makeSource(Relation.empty ++ internal, Relation.empty ++ external)
-
   def genRClassDependencies(classNames: List[String]): Gen[Relations.ClassDependencies] = for {
     internal <- listOfN(classNames.length, someOf(classNames))
     external <- listOfN(classNames.length, someOf(classNames))
@@ -175,17 +162,6 @@ object TestCaseGenerators {
   def genUsedNames(classNames: Seq[String]): Gen[Relation[String, String]] = for {
     allNames <- listOfN(classNames.length, containerOf[Set, String](identifier))
   } yield Relation.reconstruct(zipMap(classNames, allNames))
-
-  def genRelations: Gen[Relations] = for {
-    numSrcs <- choose(0, maxSources)
-    srcs <- listOfN(numSrcs, genFile)
-    srcProd <- genFileRelation(srcs)
-    binaryDep <- genFileRelation(srcs)
-    direct <- genRSource(srcs)
-    publicInherited <- genSubRSource(direct)
-    classes <- genStringRelation(srcs)
-
-  } yield Relations.make(srcProd, binaryDep, direct, publicInherited, classes)
 
   def genRelationsNameHashing: Gen[Relations] = for {
     numSrcs <- choose(0, maxSources)
@@ -211,8 +187,8 @@ object TestCaseGenerators {
     ))
   } yield Relations.make(srcProd, binaryDep, internal, external, classes, names, binaryClassName)
 
-  def genAnalysis(nameHashing: Boolean): Gen[Analysis] = for {
-    rels <- if (nameHashing) genRelationsNameHashing else genRelations
+  def genAnalysis: Gen[Analysis] = for {
+    rels <- genRelationsNameHashing
     stamps <- genStamps(rels)
     apis <- genAPIs(rels)
   } yield new MAnalysis(stamps, apis, rels, SourceInfos.empty, Compilations.empty)
