@@ -1,12 +1,15 @@
-package sbt.classfile
+package sbt
+package internal
+package inc
+package classfile
 
 import java.io.File
 import java.net.URLClassLoader
 import javax.tools.{ StandardLocation, ToolProvider }
 
-import sbt.IO._
-import sbt.{ ConsoleLogger, PathFinder }
-import xsbti.DependencyContext._
+import sbt.io.IO
+import sbt.internal.util.ConsoleLogger
+import xsbti.api.DependencyContext._
 import xsbti.{ AnalysisCallback, TestCallback }
 import xsbti.TestCallback.ExtractedClassDependencies
 
@@ -30,7 +33,7 @@ object JavaCompilerForUnitTesting {
   }
 
   def compileJavaSrcs(srcs: (String, String)*)(readAPI: (AnalysisCallback, File, Seq[Class[_]]) => Set[(String, String)]): (Seq[File], TestCallback) = {
-    withTemporaryDirectory { temp =>
+    IO.withTemporaryDirectory { temp =>
       val srcFiles = srcs.map {
         case (fileName, src) => prepareSrcFile(temp, fileName, src)
       }
@@ -45,7 +48,7 @@ object JavaCompilerForUnitTesting {
       compiler.getTask(null, fileManager, null, null, null, compilationUnits).call()
       fileManager.close()
 
-      val classesFinder = PathFinder(classesDir) ** "*.class"
+      val classesFinder = sbt.io.PathFinder(classesDir) ** "*.class"
       val classFiles = classesFinder.get
 
       val classloader = new URLClassLoader(Array(classesDir.toURI.toURL))
@@ -63,7 +66,7 @@ object JavaCompilerForUnitTesting {
 
   private def prepareSrcFile(baseDir: File, fileName: String, src: String): File = {
     val srcFile = new File(baseDir, fileName)
-    sbt.IO.write(srcFile, src)
+    IO.write(srcFile, src)
     srcFile
   }
 

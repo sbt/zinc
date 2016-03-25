@@ -1,13 +1,13 @@
-package sbt.classfile
+package sbt
+package internal
+package inc
+package classfile
 
-import org.junit.runner.RunWith
-import org.specs2.mutable.Specification
-import org.specs2.runner.JUnitRunner
+import sbt.internal.util.UnitSpec
 
-@RunWith(classOf[JUnitRunner])
-class AnalyzeSpecification extends Specification {
+class AnalyzeSpecification extends UnitSpec {
 
-  "dependencies of inner classes" in {
+  "Analyze" should "extract dependencies of inner classes" in {
     val srcA =
       """class A {
         |  class B {
@@ -28,10 +28,10 @@ class AnalyzeSpecification extends Specification {
     val deps = JavaCompilerForUnitTesting.
       extractDependenciesFromSrcs("A.java" -> srcA, "C.java" -> srcC, "D.java" -> srcD)
 
-    deps.memberRef("A") === Set("A.B")
-    deps.memberRef("A.B") === Set("A", "D")
-    deps.memberRef("C") === Set("A", "A.B")
-    deps.memberRef("D") === Set.empty
+    assert(deps.memberRef("A") === Set("A.B"))
+    assert(deps.memberRef("A.B") === Set("A", "D"))
+    assert(deps.memberRef("C") === Set("A", "A.B"))
+    assert(deps.memberRef("D") === Set.empty)
   }
 
 }
