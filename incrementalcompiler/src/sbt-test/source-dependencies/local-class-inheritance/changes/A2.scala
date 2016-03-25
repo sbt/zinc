@@ -1,3 +1,3 @@
-abstract class A {
-  def abc: Int
+class A {
+  def abc: Int = 124
 }

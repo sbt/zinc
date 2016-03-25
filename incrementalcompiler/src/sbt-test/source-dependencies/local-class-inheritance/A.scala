@@ -1,1 +1,1 @@
-abstract class A
+class A
