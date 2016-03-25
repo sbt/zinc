@@ -94,7 +94,6 @@ private[sbt] object Analyze {
       def processDependencies(binaryClassNames: Iterable[String], context: DependencyContext, fromBinaryClassName: String): Unit =
         binaryClassNames.foreach(binaryClassName => processDependency(binaryClassName, context, fromBinaryClassName))
 
-      def declaredClass(className: String): Unit = analysis.declaredClass(source, className)
       val typesInSource = classFiles.map(cf => cf.className -> cf.types).toMap
       typesInSource foreach {
         case (binaryClassName, binaryClassNameDeps) =>
@@ -103,7 +102,6 @@ private[sbt] object Analyze {
       publicInherited foreach {
         case (className, inheritanceDeps) => processDependencies(inheritanceDeps, DependencyByInheritance, className)
       }
-      loadedNonLocalClasses.map(_.getCanonicalName).toSet.foreach(declaredClass)
     }
   }
   private[this] def urlAsFile(url: URL, log: Logger): Option[File] =

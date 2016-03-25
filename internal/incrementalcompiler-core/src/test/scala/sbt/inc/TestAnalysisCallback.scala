@@ -45,7 +45,6 @@ class TestAnalysisCallback(
   val binaryDependencies = new ArrayBuffer[(File, String, String, DependencyContext)]
   val products = new ArrayBuffer[(File, File)]
   val usedNames = scala.collection.mutable.Map.empty[String, Set[String]].withDefaultValue(Set.empty)
-  val declaredClasses = scala.collection.mutable.Map.empty[File, Set[String]].withDefaultValue(Set.empty)
   val classNames = scala.collection.mutable.Map.empty[File, Set[(String, String)]].withDefaultValue(Set.empty)
   val macroClasses = scala.collection.mutable.Set[String]()
   val classApis = new HashMap[String, (HashAPI.Hash, ClassLike)]
@@ -159,8 +158,6 @@ class TestAnalysisCallback(
   }
 
   def usedName(className: String, name: String): Unit = { usedNames(className) += name }
-  override def declaredClass(sourceFile: File, className: String): Unit =
-    declaredClasses(sourceFile) += className
 
   def api(source: File, api: ClassLike): Unit = {
     val className = api.name

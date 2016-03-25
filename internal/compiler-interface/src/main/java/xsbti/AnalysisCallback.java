@@ -29,7 +29,6 @@ public interface AnalysisCallback {
     /** Called when the public API of a source file is extracted. */
     void api(File sourceFile, xsbti.api.ClassLike classApi);
     void usedName(String className, String name);
-    void declaredClass(File sourceFile, String className);
     /** Provides problems discovered during compilation.  These may be reported (logged) or unreported.
      * Unreported problems are usually unreported because reporting was not enabled via a command line switch. */
     void problem(String what, Position pos, String msg, Severity severity, boolean reported);

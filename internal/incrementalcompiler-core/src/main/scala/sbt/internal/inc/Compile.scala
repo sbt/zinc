@@ -55,7 +55,7 @@ object IncrementalCompile {
       val current = Stamps.initial(Stamp.lastModified, Stamp.hash, Stamp.lastModified)
       val internalBinaryToSourceClassName = (binaryClassName: String) =>
         previous.relations.binaryClassName.reverse(binaryClassName).headOption
-      val internalSourceToClassNamesMap: File => Set[String] = (f: File) => previous.relations.declaredClassNames(f)
+      val internalSourceToClassNamesMap: File => Set[String] = (f: File) => previous.relations.classNames(f)
       val externalAPI = getExternalAPI(entry, forEntry)
       try {
         Incremental.compile(sources, entry, previous, current, forEntry,
@@ -121,7 +121,6 @@ private final class AnalysisCallback(
   private[this] val classPublicNameHashes = new HashMap[String, NameHashes]
   private[this] val objectPublicNameHashes = new HashMap[String, NameHashes]
   private[this] val usedNames = new HashMap[String, Set[String]]
-  private[this] val declaredClasses = new HashMap[File, Set[String]]
   private[this] val unreporteds = new HashMap[File, ListBuffer[Problem]]
   private[this] val reporteds = new HashMap[File, ListBuffer[Problem]]
   private[this] val binaryDeps = new HashMap[File, Set[File]]
@@ -237,23 +236,16 @@ private final class AnalysisCallback(
 
   def usedName(className: String, name: String) = add(usedNames, className, name)
 
-  def declaredClass(sourceFile: File, className: String) = add(declaredClasses, sourceFile, className)
-
   def nameHashing: Boolean = options.nameHashing
 
   def get: Analysis =
-    addDeclaredClasses(addUsedNames(addCompilation(addProductsAndDeps(Analysis.empty(nameHashing = nameHashing)))))
+    addUsedNames(addCompilation(addProductsAndDeps(Analysis.empty(nameHashing = nameHashing))))
 
   def getOrNil[A, B](m: collection.Map[A, Seq[B]], a: A): Seq[B] = m.get(a).toList.flatten
   def addCompilation(base: Analysis): Analysis = base.copy(compilations = base.compilations.add(compilation))
   def addUsedNames(base: Analysis): Analysis = (base /: usedNames) {
     case (a, (className, names)) =>
       (a /: names) { case (a, name) => a.copy(relations = a.relations.addUsedName(className, name)) }
-  }
-
-  def addDeclaredClasses(base: Analysis): Analysis = (base /: declaredClasses) {
-    case (a, (src, names)) =>
-      (a /: names) { case (a, name) => a.copy(relations = a.relations.addDeclaredClass(src, name)) }
   }
 
   private def companionsWithHash(className: String): (Companions, HashAPI.Hash) = {
