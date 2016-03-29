@@ -26,14 +26,13 @@ object IncrementalCompile {
    *
    * @param sources
    *              The full set of input sources
-   * @param entry
-   *              A className -> source file lookup function.
+   * @param lookup
+   *              An instance of the `Lookup` that implements looking up both classpath elements
+   *              and Analysis object instances by a binary class name.
    * @param compile
    *                The mechanism to run a single 'step' of compile, for ALL source files involved.
    * @param previous
    *                 The previous dependency Analysis (or an empty one).
-   * @param forEntry
-   *                 The dependency Analysis associated with a given file
    * @param output
    *               The configured output directory/directory mapping for source files.
    * @param log
@@ -44,10 +43,9 @@ object IncrementalCompile {
    *         A flag of whether or not compilation completed succesfully, and the resulting dependency analysis object.
    *
    */
-  def apply(sources: Set[File], entry: String => Option[File],
+  def apply(sources: Set[File], lookup: Lookup,
     compile: (Set[File], DependencyChanges, xsbti.AnalysisCallback) => Unit,
     previous0: CompileAnalysis,
-    forEntry: File => Option[CompileAnalysis],
     output: Output, log: Logger,
     options: IncOptions): (Boolean, Analysis) =
     {
@@ -56,9 +54,9 @@ object IncrementalCompile {
       val internalBinaryToSourceClassName = (binaryClassName: String) =>
         previous.relations.binaryClassName.reverse(binaryClassName).headOption
       val internalSourceToClassNamesMap: File => Set[String] = (f: File) => previous.relations.classNames(f)
-      val externalAPI = getExternalAPI(entry, forEntry)
+      val externalAPI = getExternalAPI(lookup)
       try {
-        Incremental.compile(sources, entry, previous, current, forEntry,
+        Incremental.compile(sources, lookup, previous, current,
           doCompile(compile, internalBinaryToSourceClassName, internalSourceToClassNamesMap, externalAPI, current, output, options),
           log, options)
       } catch {
@@ -80,17 +78,12 @@ object IncrementalCompile {
       compile(srcs, changes, callback)
       callback.get
     }
-  def getExternalAPI(entry: String => Option[File], forEntry: File => Option[CompileAnalysis]): (File, String) => Option[AnalyzedClass] =
+  def getExternalAPI(lookup: Lookup): (File, String) => Option[AnalyzedClass] =
     (file: File, binaryClassName: String) =>
-      entry(binaryClassName) flatMap { defines =>
-        if (file != Locate.resolve(defines, binaryClassName))
-          None
-        else
-          forEntry(defines) flatMap {
-            case (analysis: Analysis) =>
-              val sourceClassName = analysis.relations.binaryClassName.reverse(binaryClassName).headOption
-              sourceClassName flatMap analysis.apis.internal.get
-          }
+      lookup.lookupAnalysis(file, binaryClassName) flatMap {
+        case (analysis: Analysis) =>
+          val sourceClassName = analysis.relations.binaryClassName.reverse(binaryClassName).headOption
+          sourceClassName flatMap analysis.apis.internal.get
       }
 }
 private final class AnalysisCallback(

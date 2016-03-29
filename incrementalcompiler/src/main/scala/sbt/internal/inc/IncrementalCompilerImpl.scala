@@ -110,6 +110,27 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
     }
   }
 
+  private class LookupImpl(compileConfiguration: CompileConfiguration) extends Lookup {
+    private val entry = MixedAnalyzingCompiler.classPathLookup(compileConfiguration)
+
+    override def lookupOnClasspath(binaryClassName: String): Option[File] =
+      entry(binaryClassName)
+    override def lookupAnalysis(classFile: File): Option[CompileAnalysis] =
+      compileConfiguration.getAnalysis(classFile)
+
+    override def lookupAnalysis(binaryDependency: File, binaryClassName: String): Option[CompileAnalysis] = {
+      lookupOnClasspath(binaryClassName) flatMap { defines =>
+        if (binaryDependency != Locate.resolve(defines, binaryClassName))
+          None
+        else
+          lookupAnalysis(defines)
+      }
+    }
+
+    override def lookupAnalysis(binaryClassName: String): Option[CompileAnalysis] =
+      lookupOnClasspath(binaryClassName).flatMap(lookupAnalysis)
+  }
+
   /** Actually runs the incremental compiler using the given mixed compiler.  This will prune the inputs based on the MiniSetup. */
   private def compileInternal(
     mixedCompiler: MixedAnalyzingCompiler,
@@ -117,7 +138,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
     equivPairs: Equiv[Array[T2[String, String]]],
     log: Logger
   ): (Analysis, Boolean) = {
-    val entry = MixedAnalyzingCompiler.classPathLookup(mixedCompiler.config)
+    val lookup = new LookupImpl(mixedCompiler.config)
     import mixedCompiler.config._
     import mixedCompiler.config.currentSetup.output
     val sourcesSet = sources.toSet
@@ -136,7 +157,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       case _ => Incremental.prune(sourcesSet, previousAnalysis)
     }
     // Run the incremental compiler using the mixed compiler we've defined.
-    IncrementalCompile(sourcesSet, entry, mixedCompiler.compile, analysis, getAnalysis, output, log, incOptions).swap
+    IncrementalCompile(sourcesSet, lookup, mixedCompiler.compile, analysis, output, log, incOptions).swap
   }
 
   def setup(analysisMap: F1[File, Maybe[CompileAnalysis]], definesClass: F1[File, DefinesClass], skip: Boolean, cacheFile: File, cache: GlobalsCache,

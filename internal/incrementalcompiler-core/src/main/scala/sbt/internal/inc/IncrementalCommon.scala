@@ -157,8 +157,8 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
     case (co1, co2) => co1.sourceDirectory == co2.sourceDirectory && co1.outputDirectory == co2.outputDirectory
   }
 
-  def changedInitial(entry: String => Option[File], sources: Set[File], previousAnalysis0: CompileAnalysis, current: ReadStamps,
-    forEntry: File => Option[CompileAnalysis])(implicit equivS: Equiv[Stamp]): InitialChanges =
+  def changedInitial(sources: Set[File], previousAnalysis0: CompileAnalysis, current: ReadStamps,
+    lookup: Lookup)(implicit equivS: Equiv[Stamp]): InitialChanges =
     {
       val previousAnalysis = previousAnalysis0 match { case a: Analysis => a }
       val previous = previousAnalysis.stamps
@@ -166,8 +166,8 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
 
       val srcChanges = changes(previous.allInternalSources.toSet, sources, f => !equivS.equiv(previous.internalSource(f), current.internalSource(f)))
       val removedProducts = previous.allProducts.filter(p => !equivS.equiv(previous.product(p), current.product(p))).toSet
-      val binaryDepChanges = previous.allBinaries.filter(externalBinaryModified(entry, forEntry, previous, current)).toSet
-      val extChanges = changedIncremental(previousAPIs.allExternals, previousAPIs.externalAPI _, currentExternalAPI(entry, forEntry))
+      val binaryDepChanges = previous.allBinaries.filter(externalBinaryModified(lookup, previous, current)).toSet
+      val extChanges = changedIncremental(previousAPIs.allExternals, previousAPIs.externalAPI _, currentExternalAPI(lookup))
 
       InitialChanges(srcChanges, removedProducts, binaryDepChanges, extChanges)
     }
@@ -314,7 +314,7 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
       newInv ++ initialDependsOnNew
     }
 
-  def externalBinaryModified(entry: String => Option[File], analysis: File => Option[CompileAnalysis], previous: Stamps, current: ReadStamps)(implicit equivS: Equiv[Stamp]): File => Boolean =
+  def externalBinaryModified(lookup: Lookup, previous: Stamps, current: ReadStamps)(implicit equivS: Equiv[Stamp]): File => Boolean =
     dependsOn =>
       {
         def inv(reason: String): Boolean = {
@@ -341,27 +341,23 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
         def dependencyModified(file: File): Boolean =
           previous.className(file) match {
             case None => inv("no class name was mapped for it.")
-            case Some(name) => entry(name) match {
+            case Some(name) => lookup.lookupOnClasspath(name) match {
               case None    => inv("could not find class " + name + " on the classpath.")
               case Some(e) => entryModified(name, e)
             }
           }
 
-        analysis(dependsOn).isEmpty &&
+        lookup.lookupAnalysis(dependsOn).isEmpty &&
           (if (skipClasspathLookup) fileModified(dependsOn, dependsOn) else dependencyModified(dependsOn))
 
       }
 
-  def currentExternalAPI(
-    entry: String => Option[File],
-    forEntry: File => Option[CompileAnalysis]
-  ): String => AnalyzedClass = {
+  def currentExternalAPI(lookup: Lookup): String => AnalyzedClass = {
     binaryClassName =>
       {
         orEmpty(
           for {
-            e <- entry(binaryClassName)
-            analysis0 <- forEntry(e)
+            analysis0 <- lookup.lookupAnalysis(binaryClassName)
             analysis = analysis0 match { case a: Analysis => a }
             className <- analysis.relations.binaryClassName.reverse(binaryClassName).headOption
           } yield analysis.apis.internalAPI(className)
