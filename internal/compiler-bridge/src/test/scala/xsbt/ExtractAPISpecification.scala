@@ -1,12 +1,12 @@
 package xsbt
 
-import xsbti.api.{ DefinitionType, ClassLike, Def }
+import xsbti.api._
 import xsbt.api.SameAPI
 import sbt.internal.util.UnitSpec
 
 class ExtractAPISpecification extends UnitSpec {
 
-  "Existential types in method signatures" should "have stable names" in stableExistentialNames()
+  "ExtractAPI" should "give stable names to members of existential types in method signatures" in stableExistentialNames()
 
   it should "extract children of a sealed class" in {
     def compileAndGetFooClassApi(src: String): ClassLike = {
@@ -114,5 +114,66 @@ class ExtractAPISpecification extends UnitSpec {
 				}""".stripMargin
     val fooMethodApi2 = compileAndGetFooMethodApi(src2)
     assert(SameAPI.apply(fooMethodApi1, fooMethodApi2), "APIs are not the same.")
+  }
+
+  /**
+   * Checks if representation of the inherited Namer class (with a declared self variable) in Global.Foo
+   * is stable between compiling from source and unpickling. We compare extracted APIs of Global when Global
+   * is compiled together with Namers or Namers is compiled first and then Global refers
+   * to Namers by unpickling types from class files.
+   */
+  it should "make a stable representation of a self variable that has no self type" in {
+    def selectNamer(apis: Set[ClassLike]): ClassLike = {
+      def selectClass(defs: Iterable[Definition], name: String): ClassLike = defs.collectFirst {
+        case cls: ClassLike if cls.name == name => cls
+      }.get
+      val global = apis.find(_.name == "Global").get
+      //val foo = selectClass(global.structure.declared, "Global.Foo")
+      val foo = apis.find(_.name == "Global.Foo").get
+      selectClass(foo.structure.inherited, "Namers.Namer")
+    }
+    val src1 =
+      """|class Namers {
+        |  class Namer { thisNamer => }
+        |}
+        |""".stripMargin
+    val src2 =
+      """|class Global {
+        |  class Foo extends Namers
+        |}
+        |""".stripMargin
+    val compilerForTesting = new ScalaCompilerForUnitTesting
+    val apis = compilerForTesting.extractApisFromSrcs(reuseCompilerInstance = false)(List(src1, src2), List(src2))
+    val _ :: src2Api1 :: src2Api2 :: Nil = apis.toList
+    val namerApi1 = selectNamer(src2Api1)
+    val namerApi2 = selectNamer(src2Api2)
+    assert(SameAPI(namerApi1, namerApi2))
+  }
+
+  /**
+   * Checks if self type is properly extracted in various cases of declaring a self type
+   * with our without a self variable.
+   */
+  it should "represent a self type correctly" in {
+    val srcX = "trait X"
+    val srcY = "trait Y"
+    val srcC1 = "class C1 { this: C1 => }"
+    val srcC2 = "class C2 { thisC: C2 => }"
+    val srcC3 = "class C3 { this: X => }"
+    val srcC4 = "class C4 { thisC: X => }"
+    val srcC5 = "class C5 extends AnyRef with X with Y { self: X with Y => }"
+    val srcC6 = "class C6 extends AnyRef with X { self: X with Y => }"
+    val srcC7 = "class C7 { _ => }"
+    val srcC8 = "class C8 { self => }"
+    val compilerForTesting = new ScalaCompilerForUnitTesting
+    val apis = compilerForTesting.extractApisFromSrcs(reuseCompilerInstance = true)(
+      List(srcX, srcY, srcC1, srcC2, srcC3, srcC4, srcC5, srcC6, srcC7, srcC8)
+    ).map(_.head)
+    val emptyType = new EmptyType
+    def hasSelfType(c: ClassLike): Boolean =
+      c.selfType != emptyType
+    val (withSelfType, withoutSelfType) = apis.partition(hasSelfType)
+    assert(withSelfType.map(_.name).toSet === Set("C3", "C4", "C5", "C6"))
+    assert(withoutSelfType.map(_.name).toSet === Set("X", "Y", "C1", "C2", "C7", "C8"))
   }
 }
