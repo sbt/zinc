@@ -2,12 +2,9 @@ package sbt
 package internal
 package inc
 
-import java.io.File
-
 import xsbti.Logger
-import xsbti.api.Source
+import xsbti.api.AnalyzedClass
 import xsbti.compile.IncOptions
-import xsbt.TestAnalyzingCompiler
 
 final class TestIncremental(log: Logger, options: IncOptions) {
 
@@ -17,12 +14,14 @@ final class TestIncremental(log: Logger, options: IncOptions) {
     else if (options.antStyle)
       new IncrementalAntStyle(log, options)
     else
-      new IncrementalDefaultImpl(log, options)
+      sys.error("Turning off name hashing is not supported")
 
-  def changedIncremental[T](lastSources: collection.Set[T], oldAPI: T => Source, newAPI: T => Source): APIChanges[T] =
-    incremental.changedIncremental(lastSources, oldAPI, newAPI)
+  def changedIncremental(lastClassNames: collection.Set[String], oldAPI: String => AnalyzedClass,
+    newAPI: String => AnalyzedClass): APIChanges =
+    incremental.changedIncremental(lastClassNames, oldAPI, newAPI)
 
-  def invalidateIncremental(previous: Relations, apis: APIs, changes: APIChanges[File], recompiledSources: Set[File], transitive: Boolean): Set[File] =
-    incremental.invalidateIncremental(previous, apis, changes, recompiledSources, transitive)
+  def invalidateIncremental(previous: Relations, apis: APIs, changes: APIChanges, recompiledClasses: Set[String],
+    transitive: Boolean, isScalaClass: String => Boolean): Set[String] =
+    incremental.invalidateIncremental(previous, apis, changes, recompiledClasses, transitive, isScalaClass)
 
 }

@@ -63,8 +63,14 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
     },
     "checkRecompilations" -> {
       case (Nil, _) => unrecognizedArguments("checkRecompilations", Nil)
-      case (step :: files, i) =>
-        checkRecompilations(i, step.toInt, files)
+      case (step :: classNames, i) =>
+        checkRecompilations(i, step.toInt, classNames)
+    },
+    "checkClasses" -> {
+      case (src :: products, i) =>
+        val srcFile = if (src endsWith ":") src dropRight 1 else src
+        checkClasses(i, srcFile, products)
+      case (other, _) => unrecognizedArguments("checkClasses", other)
     },
     "checkProducts" -> {
       case (src :: products, i) =>
@@ -73,9 +79,9 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
       case (other, _) => unrecognizedArguments("checkProducts", other)
     },
     "checkDependencies" -> {
-      case (src :: dependencies, i) =>
-        val srcFile = if (src endsWith ":") src dropRight 1 else src
-        checkDependencies(i, srcFile, dependencies)
+      case (cls :: dependencies, i) =>
+        val className = if (cls endsWith ":") cls dropRight 1 else cls
+        checkDependencies(i, className, dependencies)
       case (other, _) => unrecognizedArguments("checkDependencies", other)
     },
     "checkSame" -> {
@@ -124,37 +130,50 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
     {
       val analysis = compile(i)
       val allCompilations = analysis.compilations.allCompilations
-      val recompiledFiles: Seq[Set[String]] = allCompilations map { c =>
-        val recompiledFiles = analysis.apis.internal.collect {
-          case (file, api) if api.compilation.startTime.toLong == c.startTime.toLong => file.getName
+      val recompiledClasses: Seq[Set[String]] = allCompilations map { c =>
+        val recompiledClasses = analysis.apis.internal.collect {
+          case (className, api) if api.compilation.startTime == c.startTime => className
         }
-        recompiledFiles.toSet
+        recompiledClasses.toSet
       }
-      def recompiledFilesInIteration(iteration: Int, classFiles: Set[String]) = {
-        assert(recompiledFiles(iteration) == classFiles, "%s != %s".format(recompiledFiles(iteration), classFiles))
+      def recompiledClassesInIteration(iteration: Int, classNames: Set[String]) = {
+        assert(recompiledClasses(iteration) == classNames, "%s != %s".format(recompiledClasses(iteration), classNames))
       }
 
       assert(step < allCompilations.size.toInt)
-      recompiledFilesInIteration(step, expected.toSet)
+      recompiledClassesInIteration(step, expected.toSet)
 
     }
 
-  def checkProducts(i: IncInstance, src: String, expected: List[String]): Unit = {
+  def checkClasses(i: IncInstance, src: String, expected: List[String]): Unit = {
     val analysis = compile(i)
     def classes(src: String): Set[String] = analysis.relations.classNames(directory / src)
     def assertClasses(expected: Set[String], actual: Set[String]) =
-      assert(expected == actual, s"Expected $expected products, got $actual")
+      assert(expected == actual, s"Expected $expected classes, got $actual")
 
     assertClasses(expected.toSet, classes(src))
   }
 
-  def checkDependencies(i: IncInstance, src: String, expected: List[String]): Unit = {
+  def checkProducts(i: IncInstance, src: String, expected: List[String]): Unit = {
     val analysis = compile(i)
-    def srcDeps(src: String): Set[File] = analysis.relations.internalSrcDeps(directory / src)
-    def assertDependencies(expected: Set[File], actual: Set[File]) =
+    def relativeClassDir(f: File): File = f.relativeTo(classesDir) getOrElse f
+    def products(srcFile: String): Set[String] = {
+      val productFiles = analysis.relations.products(directory / srcFile)
+      productFiles.map(relativeClassDir).map(_.getPath)
+    }
+    def assertClasses(expected: Set[String], actual: Set[String]) =
+      assert(expected == actual, s"Expected $expected products, got $actual")
+
+    assertClasses(expected.toSet, products(src))
+  }
+
+  def checkDependencies(i: IncInstance, className: String, expected: List[String]): Unit = {
+    val analysis = compile(i)
+    def classDeps(cls: String): Set[String] = analysis.relations.internalClassDep.forward(cls)
+    def assertDependencies(expected: Set[String], actual: Set[String]) =
       assert(expected == actual, s"Expected $expected dependencies, got $actual")
 
-    assertDependencies(expected.map(directory / _).toSet, srcDeps(src))
+    assertDependencies(expected.toSet, classDeps(className))
   }
 
   def compile(i: IncInstance): Analysis =
@@ -222,7 +241,9 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
 
   // Taken from Defaults.scala in sbt/sbt
   private def discoverMainClasses(analysis: inc.Analysis): Seq[String] = {
-    val allDefs = analysis.apis.internal.values.flatMap(_.api.definitions).toSeq
+    def companionsApis(c: xsbti.api.Companions): Seq[xsbti.api.ClassLike] =
+      Seq(c.classApi, c.objectApi)
+    val allDefs = analysis.apis.internal.values.flatMap(x => companionsApis(x.api)).toSeq
     Discovery.applications(allDefs).collect({ case (definition, discovered) if discovered.hasMain => definition.name }).sorted
   }
 

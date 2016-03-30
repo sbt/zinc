@@ -16,10 +16,8 @@ class NameHashingSpecification extends UnitSpec {
     val def2 = new Def(Array.empty, intTpe, Array.empty, "bar", publicAccess, defaultModifiers, Array.empty)
     val classBar1 = simpleClass("Bar", def1)
     val classBar2 = simpleClass("Bar", def1, def2)
-    val api1 = new SourceAPI(Array.empty, Array(classBar1))
-    val api2 = new SourceAPI(Array.empty, Array(classBar2))
-    val nameHashes1 = nameHashing.nameHashes(api1)
-    val nameHashes2 = nameHashing.nameHashes(api2)
+    val nameHashes1 = nameHashing.nameHashes(classBar1)
+    val nameHashes2 = nameHashing.nameHashes(classBar2)
     assertNameHashEqualForRegularName("Bar", nameHashes1, nameHashes2)
     assertNameHashEqualForRegularName("foo", nameHashes1, nameHashes2)
     nameHashes1.regularMembers.map(_.name).toSeq should not contain ("bar")
@@ -38,10 +36,8 @@ class NameHashingSpecification extends UnitSpec {
     val nestedBar2 = simpleClass("Bar2", def2)
     val classA = simpleClass("Foo", nestedBar1, nestedBar2)
     val classB = simpleClass("Foo", nestedBar2, nestedBar1)
-    val api1 = new SourceAPI(Array.empty, Array(classA))
-    val api2 = new SourceAPI(Array.empty, Array(classB))
-    val nameHashes1 = nameHashing.nameHashes(api1)
-    val nameHashes2 = nameHashing.nameHashes(api2)
+    val nameHashes1 = nameHashing.nameHashes(classA)
+    val nameHashes2 = nameHashing.nameHashes(classB)
     val def1Hash = HashAPI(def1)
     val def2Hash = HashAPI(def2)
     assert(def1Hash !== def2Hash)
@@ -78,10 +74,8 @@ class NameHashingSpecification extends UnitSpec {
       val nestedBar2 = simpleClass("Bar2", deff)
       simpleClass("Foo", nestedBar1, nestedBar2)
     }
-    val api1 = new SourceAPI(Array.empty, Array(classA))
-    val api2 = new SourceAPI(Array.empty, Array(classB))
-    val nameHashes1 = nameHashing.nameHashes(api1)
-    val nameHashes2 = nameHashing.nameHashes(api2)
+    val nameHashes1 = nameHashing.nameHashes(classA)
+    val nameHashes2 = nameHashing.nameHashes(classB)
     assert(nameHashes1 !== nameHashes2)
     ()
   }
@@ -109,16 +103,16 @@ class NameHashingSpecification extends UnitSpec {
     val parentB = simpleClass("Parent", barMethod)
     val childA = {
       val structure = new Structure(lzy(Array[Type](parentA.structure)), lzy(Array.empty[Definition]), lzy(Array.empty[Definition]))
-      simpleClass("Child", structure)
+      simpleClassLike("Child", structure)
     }
     val childB = {
       val structure = new Structure(lzy(Array[Type](parentB.structure)), lzy(Array.empty[Definition]), lzy(Array[Definition](barMethod)))
-      simpleClass("Child", structure)
+      simpleClassLike("Child", structure)
     }
     val parentANameHashes = nameHashesForClass(parentA)
     val parentBNameHashes = nameHashesForClass(parentB)
-    assert(Seq("Parent") === parentANameHashes.regularMembers.map(_.name).toSeq)
-    assert(Seq("Parent", "bar") === parentBNameHashes.regularMembers.map(_.name).toSeq)
+    Seq("Parent") === parentANameHashes.regularMembers.map(_.name).toSeq
+    Seq("Parent", "bar") === parentBNameHashes.regularMembers.map(_.name).toSeq
     assert(parentANameHashes !== parentBNameHashes)
     val childANameHashes = nameHashesForClass(childA)
     val childBNameHashes = nameHashesForClass(childB)
@@ -166,299 +160,65 @@ class NameHashingSpecification extends UnitSpec {
   }
 
   /**
-   * Checks that private vars are included in the hash of the public API of traits.
-   * Including the private vars of traits is required because classes that implement a trait
-   * have to define getters and setters for these vars.
-   * For instance, if trait Foo is initially defined as:
-   *     trait Foo { private var x = new A }
-   * changing it to
-   *     trait Foo { private var x = new B }
-   * requires us to recompile all implementors of trait Foo, because scalac generates setters and getters
-   * for the private vars of trait Foo in its implementor. If the clients of trait Foo are not recompiled,
-   * we get abstract method errors at runtime, because the types expected by the setter (for instance) does not
-   * match.
+   * Checks properties of merge operation on name hashes:
+   *
+   *   - names in the result is union of names of arguments
+   *   - non-conflicting names have their hashes preserved
+   *   - conflicting names have their hashes combined
    */
-  it should "include private vars in traits in API hash" in {
-    /* trait Foo { private var x } */
-    val fooTrait1 =
-      simpleTrait(
-        "Foo",
-        simpleStructure(new Var(emptyType, "x", privateAccess, defaultModifiers, Array.empty)),
-        publicAccess
-      )
-
-    /* trait Foo */
-    val fooTrait2 =
-      simpleTrait(
-        "Foo",
-        simpleStructure(),
-        publicAccess
-      )
-
-    val api1 = new SourceAPI(Array.empty, Array(fooTrait1))
-    val api2 = new SourceAPI(Array.empty, Array(fooTrait2))
-
-    assert(HashAPI(api1) !== HashAPI(api2))
-
-  }
-
-  it should "include private vals in traits in API hash" in {
-    /* trait Foo { private val x } */
-    val fooTrait1 =
-      simpleTrait(
-        "Foo",
-        simpleStructure(new Val(emptyType, "x", privateAccess, defaultModifiers, Array.empty)),
-        publicAccess
-      )
-
-    /* trait Foo */
-    val fooTrait2 =
-      simpleTrait(
-        "Foo",
-        simpleStructure(),
-        publicAccess
-      )
-
-    val api1 = new SourceAPI(Array.empty, Array(fooTrait1))
-    val api2 = new SourceAPI(Array.empty, Array(fooTrait2))
-
-    assert(HashAPI(api1) !== HashAPI(api2))
-
-  }
-
-  it should "include private objects in traits in API hash" in {
-    /* trait Foo { private object x } */
-    val fooTrait1 =
-      simpleTrait(
-        "Foo",
-        simpleStructure(
-          new ClassLike(DefinitionType.Module, lzy(emptyType), lzy(simpleStructure()), Array.empty, Array.empty, "x", privateAccess, defaultModifiers, Array.empty)
-        ),
-        publicAccess
-      )
-
-    /* trait Foo */
-    val fooTrait2 =
-      simpleTrait(
-        "Foo",
-        simpleStructure(),
-        publicAccess
-      )
-
-    val api1 = new SourceAPI(Array.empty, Array(fooTrait1))
-    val api2 = new SourceAPI(Array.empty, Array(fooTrait2))
-
-    assert(HashAPI(api1) !== HashAPI(api2))
-
-  }
-
-  it should "NOT include private non-synthetic def in traits in API hash" in {
-    /* trait Foo { private def x } */
-    val fooTrait1 =
-      simpleTrait(
-        "Foo",
-        simpleStructure(new Def(Array.empty, emptyType, Array.empty, "x", privateAccess, defaultModifiers, Array.empty)),
-        publicAccess
-      )
-
-    /* trait Foo */
-    val fooTrait2 =
-      simpleTrait(
-        "Foo",
-        simpleStructure(),
-        publicAccess
-      )
-
-    val api1 = new SourceAPI(Array.empty, Array(fooTrait1))
-    val api2 = new SourceAPI(Array.empty, Array(fooTrait2))
-
-    assert(HashAPI(api1) === HashAPI(api2))
-
-  }
-
-  it should "include private synthetic def in traits in API hash" in {
-    /* trait Foo { private <superaccessor> def x } */
-    val modifiers = new xsbti.api.Modifiers(false, false, false, false, false, false, false, true)
-    val fooTrait1 =
-      simpleTrait(
-        "Foo",
-        simpleStructure(new Def(Array.empty, emptyType, Array.empty, "x", privateAccess, modifiers, Array.empty)),
-        publicAccess
-      )
-
-    /* trait Foo */
-    val fooTrait2 =
-      simpleTrait(
-        "Foo",
-        simpleStructure(),
-        publicAccess
-      )
-
-    val api1 = new SourceAPI(Array.empty, Array(fooTrait1))
-    val api2 = new SourceAPI(Array.empty, Array(fooTrait2))
-
-    assert(HashAPI(api1) !== HashAPI(api2))
-
-  }
-
-  it should "NOT include private types in traits in API hash" in {
-    /* trait Foo { private type x } */
-    val fooTrait1 =
-      simpleTrait(
-        "Foo",
-        simpleStructure(new TypeAlias(emptyType, Array.empty, "x", privateAccess, defaultModifiers, Array.empty)),
-        publicAccess
-      )
-
-    /* trait Foo */
-    val fooTrait2 =
-      simpleTrait(
-        "Foo",
-        simpleStructure(),
-        publicAccess
-      )
-
-    val api1 = new SourceAPI(Array.empty, Array(fooTrait1))
-    val api2 = new SourceAPI(Array.empty, Array(fooTrait2))
-
-    assert(HashAPI(api1) === HashAPI(api2))
-
+  it should "merge name hashes" in {
+    val nameHashing = new NameHashing
+    val def1 = new Def(Array.empty, strTpe, Array.empty, "foo", publicAccess, defaultModifiers, Array.empty)
+    val def2 = new Def(Array.empty, intTpe, Array.empty, "bar", publicAccess, defaultModifiers, Array.empty)
+    val classBar = simpleClass("Bar", def1)
+    val objectBar = simpleObject("Bar", def2)
+    val nameHashes1 = nameHashing.nameHashes(classBar)
+    val nameHashes2 = nameHashing.nameHashes(objectBar)
+    val merged = NameHashing.merge(nameHashes1, nameHashes2)
+    assert(nameHashes1.regularMembers.map(_.name).toSet === Set("Bar", "foo"))
+    assert(nameHashes2.regularMembers.map(_.name).toSet === Set("Bar", "bar"))
+    assert(merged.regularMembers.map(_.name).toSet === Set("Bar", "foo", "bar"))
+    assertNameHashEqualForRegularName("foo", nameHashes1, merged)
+    assertNameHashEqualForRegularName("bar", nameHashes2, merged)
+    assertNameHashNotEqualForRegularName("Bar", nameHashes1, merged)
+    assertNameHashNotEqualForRegularName("Bar", nameHashes2, merged)
   }
 
   /**
-   * Checks that private vars in non-top-level traits are included as well.
+   * Checks that name hashes are being calculated for top level private classes.
+   * A class cannot be top level and private in Java but it can be in Scala (it's package private).
    */
-  it should "include private vars in nested traits in API hash" in {
-    /* class A { trait Foo { private var x } } */
-    val classA1 =
-      simpleClass(
-        "A",
-        simpleTrait(
-          "Foo",
-          simpleStructure(new Var(emptyType, "x", privateAccess, defaultModifiers, Array.empty)),
-          publicAccess
-        )
-      )
-
-    /* class A { trait Foo } */
-    val classA2 =
-      simpleClass(
-        "A",
-        simpleTrait(
-          "Foo",
-          simpleStructure(),
-          publicAccess
-        )
-      )
-
-    val api1 = new SourceAPI(Array.empty, Array(classA1))
-    val api2 = new SourceAPI(Array.empty, Array(classA2))
-
-    assert(HashAPI(api1) !== HashAPI(api2))
-  }
-
-  /**
-   * Checks that private traits are NOT included in the hash.
-   */
-  it should "NOT include private traits in traits in API hash" in {
-    /* class Foo { private trait T { private var x } } */
-    val classFoo1 =
-      simpleClass(
-        "Foo",
-        simpleTrait(
-          "T",
-          simpleStructure(new Var(emptyType, "x", privateAccess, defaultModifiers, Array.empty)),
-          privateAccess
-        )
-      )
-
-    /** class Foo { private trait T } */
-    val classFoo2 =
-      simpleClass(
-        "Foo",
-        simpleTrait(
-          "T",
-          simpleStructure(),
-          privateAccess
-        )
-      )
-
-    /** class Foo */
-    val classFoo3 =
-      simpleClass("Foo")
-
-    val api1 = new SourceAPI(Array.empty, Array(classFoo1))
-    val api2 = new SourceAPI(Array.empty, Array(classFoo2))
-    val api3 = new SourceAPI(Array.empty, Array(classFoo3))
-
-    assert(HashAPI(api1) === HashAPI(api2) && HashAPI(api2) === HashAPI(api3))
-  }
-
-  /**
-   * Checks that private members are NOT included in the hash of the public API of classes.
-   */
-  it should "NOT include private members in classes are in API hash" in {
-    /* class Foo { private var x } */
-    val classFoo1 =
-      simpleClass(
-        "Foo",
-        simpleStructure(new Var(emptyType, "x", privateAccess, defaultModifiers, Array.empty))
-      )
-
-    /* class Foo */
-    val classFoo2 =
-      simpleClass(
-        "Foo",
-        simpleStructure()
-      )
-
-    val api1 = new SourceAPI(Array.empty, Array(classFoo1))
-    val api2 = new SourceAPI(Array.empty, Array(classFoo2))
-
-    assert(HashAPI(api1) === HashAPI(api2))
-  }
-
-  /**
-   * Checks that private members do NOT contribute to name hashes.
-   * Test for https://github.com/sbt/sbt/issues/2324
-   */
-  it should "private members in classes do not contribute to name hashes" in {
-    /* class Foo { private val x } */
-    val classFoo =
-      simpleClass(
-        "Foo",
-        simpleStructure(new Val(emptyType, "x", privateAccess, defaultModifiers, Array.empty))
-      )
+  it should "calcualte name hashes for private top level class" in {
+    /* class Foo { def foo: String } */
+    val fooDef = new Def(Array.empty, strTpe, Array.empty, "foo", publicAccess, defaultModifiers, Array.empty)
+    val classFoo = simpleClassLike("Foo", simpleStructure(fooDef), access = privateAccess, topLevel = true)
     val nameHashes = nameHashesForClass(classFoo)
-    // make sure there's no name hash for the private member "x"
-    assert(Seq("Foo") === nameHashes.regularMembers.map(_.name).toSeq)
+    assert(Seq("Foo", "foo") === nameHashes.regularMembers.map(_.name).toSeq)
   }
 
-  private def assertNameHashEqualForRegularName(name: String, nameHashes1: _internalOnly_NameHashes,
-    nameHashes2: _internalOnly_NameHashes): Unit = {
+  private def assertNameHashEqualForRegularName(name: String, nameHashes1: NameHashes,
+    nameHashes2: NameHashes) = {
     val nameHash1 = nameHashForRegularName(nameHashes1, name)
     val nameHash2 = nameHashForRegularName(nameHashes1, name)
     assert(nameHash1 === nameHash2)
   }
 
-  private def assertNameHashNotEqualForRegularName(name: String, nameHashes1: _internalOnly_NameHashes,
-    nameHashes2: _internalOnly_NameHashes): Unit = {
+  private def assertNameHashNotEqualForRegularName(name: String, nameHashes1: NameHashes, nameHashes2: NameHashes) = {
     val nameHash1 = nameHashForRegularName(nameHashes1, name)
     val nameHash2 = nameHashForRegularName(nameHashes2, name)
     assert(nameHash1 !== nameHash2)
   }
 
-  private def nameHashForRegularName(nameHashes: _internalOnly_NameHashes, name: String): _internalOnly_NameHash =
+  private def nameHashForRegularName(nameHashes: NameHashes, name: String): NameHash =
     try {
       nameHashes.regularMembers.find(_.name == name).get
     } catch {
       case e: NoSuchElementException => throw new RuntimeException(s"Couldn't find $name in $nameHashes", e)
     }
 
-  private def nameHashesForClass(cl: ClassLike): _internalOnly_NameHashes = {
-    val sourceAPI = new SourceAPI(Array.empty, Array(cl))
+  private def nameHashesForClass(cl: ClassLike): NameHashes = {
     val nameHashing = new NameHashing
-    nameHashing.nameHashes(sourceAPI)
+    nameHashing.nameHashes(cl)
   }
 
   private def lzy[T](x: T): Lazy[T] = new Lazy[T] { def get: T = x }
@@ -467,15 +227,18 @@ class NameHashingSpecification extends UnitSpec {
 
   private def simpleClass(name: String, defs: Definition*): ClassLike = {
     val structure = simpleStructure(defs: _*)
-    simpleClass(name, structure)
+    simpleClassLike(name, structure)
   }
 
-  private def simpleClass(name: String, structure: Structure): ClassLike = {
-    new ClassLike(DefinitionType.ClassDef, lzy(emptyType), lzy(structure), Array.empty, Array.empty, name, publicAccess, defaultModifiers, Array.empty)
+  private def simpleObject(name: String, defs: Definition*): ClassLike = {
+    val structure = simpleStructure(defs: _*)
+    simpleClassLike(name, structure, dt = DefinitionType.Module)
   }
 
-  private def simpleTrait(name: String, structure: Structure, access: Access): ClassLike = {
-    new ClassLike(DefinitionType.Trait, lzy(emptyType), lzy(structure), Array.empty, Array.empty, name, access, defaultModifiers, Array.empty)
+  private def simpleClassLike(name: String, structure: Structure,
+    dt: DefinitionType = DefinitionType.ClassDef, topLevel: Boolean = true, access: Access = publicAccess): ClassLike = {
+    new ClassLike(dt, lzy(emptyType), lzy(structure), Array.empty, Array.empty, topLevel, Array.empty, name, access,
+      defaultModifiers, Array.empty)
   }
 
   private val emptyType = new EmptyType

@@ -11,7 +11,7 @@ import java.io.File
 /**
  * Contains utility methods for looking up class files corresponding to Symbols.
  */
-abstract class LocateClassFile extends Compat {
+abstract class LocateClassFile extends Compat with ClassName {
   val global: CallbackGlobal
   import global._
 
@@ -21,8 +21,8 @@ abstract class LocateClassFile extends Compat {
     // catch package objects (that do not have this flag set)
     if (sym hasFlag scala.tools.nsc.symtab.Flags.PACKAGE) None else {
       import scala.tools.nsc.symtab.Flags
-      val name = flatname(sym, classSeparator) + moduleSuffix(sym)
-      findClass(name).map { case (file, inOut) => (file, name, inOut) } orElse {
+      val binaryClassName = flatname(sym, classSeparator) + moduleSuffix(sym)
+      findClass(binaryClassName).map { case (file, inOut) => (file, binaryClassName, inOut) } orElse {
         if (isTopLevelModule(sym)) {
           val linked = sym.companionClass
           if (linked == NoSymbol)
@@ -33,15 +33,7 @@ abstract class LocateClassFile extends Compat {
           None
       }
     }
-  private def flatname(s: Symbol, separator: Char) =
-    atPhase(currentRun.flattenPhase.next) { s fullName separator }
 
-  protected def isTopLevelModule(sym: Symbol): Boolean =
-    atPhase(currentRun.picklerPhase.next) {
-      sym.isModuleClass && !sym.isImplClass && !sym.isNestedClass
-    }
-  protected def className(s: Symbol, sep: Char, dollarRequired: Boolean): String =
-    flatname(s, sep) + (if (dollarRequired) "$" else "")
   protected def fileForClass(outputDirectory: File, s: Symbol, separatorRequired: Boolean): File =
-    new File(outputDirectory, className(s, File.separatorChar, separatorRequired) + ".class")
+    new File(outputDirectory, flatclassName(s, File.separatorChar, separatorRequired) + ".class")
 }

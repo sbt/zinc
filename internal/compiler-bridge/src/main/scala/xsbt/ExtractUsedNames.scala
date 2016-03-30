@@ -1,7 +1,5 @@
 package xsbt
 
-import scala.tools.nsc._
-
 /**
  * Extracts simple names used in given compilation unit.
  *
@@ -38,17 +36,46 @@ import scala.tools.nsc._
  * The tree walking algorithm walks into TypeTree.original explicitly.
  *
  */
-class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) extends GlobalHelpers {
+class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) extends ClassName with GlobalHelpers {
   import global._
 
-  def extract(unit: CompilationUnit): Set[String] = {
+  def extract(unit: CompilationUnit): Map[String, Set[String]] = {
     val tree = unit.body
-    val extractedByTreeWalk = extractByTreeWalk(tree)
-    extractedByTreeWalk
+    val traverser = new ExtractUsedNamesTraverser
+    traverser.traverse(tree)
+    val namesUsedAtTopLevel = traverser.namesUsedAtTopLevel
+    if (namesUsedAtTopLevel.nonEmpty) {
+      val classOrModuleDef = firstClassOrModuleDef(tree)
+      classOrModuleDef match {
+        case Some(classOrModuleDef) =>
+          val sym = classOrModuleDef.symbol
+          val firstClassSymbol = if (sym.isModule) sym.moduleClass else sym
+          val firstClassName = className(firstClassSymbol)
+          traverser.namesUsedInClasses(firstClassName) ++= namesUsedAtTopLevel
+        case None =>
+          reporter.warning(
+            unit.position(0),
+            """|Found names used at the top level but no class, trait or object is defined in the compilation unit.
+              |The incremental compiler cannot record used names in such case.
+              |Some errors like unused import referring to a non-existent class might not be reported.""".stripMargin
+          )
+      }
+    }
+
+    traverser.namesUsedInClasses.toMap
   }
 
-  private def extractByTreeWalk(tree: Tree): Set[String] = {
-    val namesBuffer = collection.mutable.ListBuffer.empty[String]
+  private def firstClassOrModuleDef(tree: Tree): Option[Tree] = {
+    tree foreach {
+      case t @ ((_: ClassDef) | (_: ModuleDef)) => return Some(t)
+      case _                                    => ()
+    }
+    None
+  }
+
+  private class ExtractUsedNamesTraverser extends Traverser {
+    val namesUsedInClasses = collection.mutable.Map.empty[String, Set[String]].withDefaultValue(Set.empty)
+    val namesUsedAtTopLevel = collection.mutable.Set.empty[String]
 
     /*
      * Some macros appear to contain themselves as original tree.
@@ -57,57 +84,83 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
      *     https://github.com/sbt/sbt/issues/1237
      *     https://github.com/sbt/sbt/issues/1544
      */
-    val inspectedOriginalTrees = collection.mutable.Set.empty[Tree]
+    private val inspectedOriginalTrees = collection.mutable.Set.empty[Tree]
 
-    def addSymbol(symbol: Symbol): Unit = {
-      val symbolNameAsString = symbol.name.decode.trim
-      namesBuffer += symbolNameAsString
-      ()
+    override def traverse(tree: Tree): Unit = tree match {
+      case MacroExpansionOf(original) if inspectedOriginalTrees.add(original) =>
+        handleClassicTreeNode(tree)
+        handleMacroExpansion(original)
+        super.traverse(tree)
+      case _ =>
+        handleClassicTreeNode(tree)
+        super.traverse(tree)
     }
 
-    def handleTreeNode(node: Tree): Unit = {
-      def handleMacroExpansion(original: Tree): Unit = {
-        original.foreach(handleTreeNode)
-      }
+    private def addSymbol(symbol: Symbol): Unit = {
+      addName(symbol.name)
+    }
 
-      def handleClassicTreeNode(node: Tree): Unit = node match {
-        case _: DefTree | _: Template => ()
-        // turns out that Import node has a TermSymbol associated with it
-        // I (Grzegorz) tried to understand why it's there and what does it represent but
-        // that logic was introduced in 2005 without any justification I'll just ignore the
-        // import node altogether and just process the selectors in the import node
-        case Import(_, selectors: List[ImportSelector]) =>
-          def usedNameInImportSelector(name: Name): Unit = {
-            if ((name != null) && (name != nme.WILDCARD)) namesBuffer += name.toString
-            ()
-          }
-          selectors foreach { selector =>
-            usedNameInImportSelector(selector.name)
-            usedNameInImportSelector(selector.rename)
-          }
-        // TODO: figure out whether we should process the original tree or walk the type
-        // the argument for processing the original tree: we process what user wrote
-        // the argument for processing the type: we catch all transformations that typer applies
-        // to types but that might be a bad thing because it might expand aliases eagerly which
-        // not what we need
-        case t: TypeTree if t.original != null =>
-          t.original.foreach(handleTreeNode)
-        case t if t.hasSymbolField && eligibleAsUsedName(t.symbol) =>
-          addSymbol(t.symbol)
-        case _ => ()
-      }
-
-      node match {
-        case MacroExpansionOf(original) if inspectedOriginalTrees.add(original) =>
-          handleClassicTreeNode(node)
-          handleMacroExpansion(original)
-        case _ =>
-          handleClassicTreeNode(node)
+    private def addName(name: Name, enclosingNonLocalClass: Symbol = resolveEnclosingNonLocalClass): Unit = {
+      val nameAsString = name.decode.trim
+      if (enclosingNonLocalClass == NoSymbol || enclosingNonLocalClass.hasPackageFlag) {
+        namesUsedAtTopLevel += nameAsString
+        ()
+      } else {
+        val className = ExtractUsedNames.this.className(enclosingNonLocalClass)
+        namesUsedInClasses(className) += nameAsString
+        ()
       }
     }
 
-    tree.foreach(handleTreeNode)
-    namesBuffer.toSet
+    private def handleMacroExpansion(original: Tree): Unit = {
+      original.foreach(traverse)
+    }
+
+    private def handleClassicTreeNode(tree: Tree): Unit = tree match {
+      case _: DefTree | _: Template => ()
+      // turns out that Import node has a TermSymbol associated with it
+      // I (Grzegorz) tried to understand why it's there and what does it represent but
+      // that logic was introduced in 2005 without any justification I'll just ignore the
+      // import node altogether and just process the selectors in the import node
+      case Import(_, selectors: List[ImportSelector]) =>
+        val enclosingNonLocalClass = resolveEnclosingNonLocalClass
+        def usedNameInImportSelector(name: Name): Unit =
+          if ((name != null) && (name != nme.WILDCARD)) addName(name, enclosingNonLocalClass)
+        selectors foreach { selector =>
+          usedNameInImportSelector(selector.name)
+          usedNameInImportSelector(selector.rename)
+        }
+      // TODO: figure out whether we should process the original tree or walk the type
+      // the argument for processing the original tree: we process what user wrote
+      // the argument for processing the type: we catch all transformations that typer applies
+      // to types but that might be a bad thing because it might expand aliases eagerly which
+      // not what we need
+      case t: TypeTree if t.original != null =>
+        t.original.foreach(traverse)
+      case t if t.hasSymbolField && eligibleAsUsedName(t.symbol) =>
+        addSymbol(t.symbol)
+      case _ =>
+    }
+
+    /**
+     * Resolves a class to which we attribute a used name by getting the enclosing class
+     * for `currentOwner` and then looking up the most inner enclosing class that is non local.
+     * The second returned value indicates if the enclosing class for `currentOwner`
+     * is a local class.
+     */
+    private def resolveEnclosingNonLocalClass: Symbol = {
+      val fromClass = enclOrModuleClass(currentOwner)
+      if (fromClass == NoSymbol || fromClass.hasPackageFlag)
+        fromClass
+      else {
+        val fromNonLocalClass = localToNonLocalClass.resolveNonLocal(fromClass)
+        assert(!(fromClass == NoSymbol || fromClass.hasPackageFlag))
+        fromNonLocalClass
+      }
+    }
+
+    private def enclOrModuleClass(s: Symbol): Symbol =
+      if (s.isModule) s.moduleClass else s.enclClass
   }
 
   /**

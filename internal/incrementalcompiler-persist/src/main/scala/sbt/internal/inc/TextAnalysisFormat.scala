@@ -5,7 +5,7 @@ package inc
 import java.io._
 import sbt.internal.util.Relation
 import xsbti.T2
-import xsbti.api.{ Compilation, Source }
+import xsbti.api.{ AnalyzedClass, Compilation }
 import xsbti.compile.{ CompileAnalysis, MultipleOutput, SingleOutput, MiniOptions, MiniSetup }
 import javax.xml.bind.DatatypeConverter
 import java.net.URI
@@ -57,8 +57,8 @@ object TextAnalysisFormat {
   import xsbti.{ Position, Problem, Severity }
   import sbt.util.Logger.{ m2o, position, problem }
 
-  private implicit val sourceFormat: Format[Source] = xsbt.api.SourceFormat
   private implicit val compilationF: Format[Compilation] = xsbt.api.CompilationFormat
+  private implicit val analyzedClassFormat: Format[AnalyzedClass] = xsbt.api.AnalyzedClassFormat
   private implicit def problemFormat: Format[Problem] = asProduct4(problem _)(p => (p.category, p.position, p.message, p.severity))
   private implicit def positionFormat: Format[Position] =
     asProduct7(position _)(p => (m2o(p.line), p.lineContent, m2o(p.offset), m2o(p.pointer), m2o(p.pointerSpace), m2o(p.sourcePath), m2o(p.sourceFile)))
@@ -155,63 +155,58 @@ object TextAnalysisFormat {
     }
 
     def write(out: Writer, relations: Relations): Unit = {
-
-      def writeRelation[T](header: String, rel: Relation[File, T], t2s: T => String): Unit = {
+      def writeRelation[A, B](relDesc: RelationDescriptor[A, B], relations: Relations): Unit = {
+        // This ordering is used to persist all values in order. Since all values will be
+        // persisted using their string representation, it makes sense to sort them using
+        // their string representation.
+        val toStringOrdA = new Ordering[A] {
+          def compare(a: A, b: A) = relDesc.firstWrite(a) compare relDesc.firstWrite(b)
+        }
+        val toStringOrdB = new Ordering[B] {
+          def compare(a: B, b: B) = relDesc.secondWrite(a) compare relDesc.secondWrite(b)
+        }
+        val header = relDesc.header
+        val rel = relDesc.selectCorresponding(relations)
         writeHeader(out, header)
         writeSize(out, rel.size)
         // We sort for ease of debugging and for more efficient reconstruction when reading.
         // Note that we don't share code with writeMap. Each is implemented more efficiently
         // than the shared code would be, and the difference is measurable on large analyses.
-        rel.forwardMap.toSeq.sortBy(_._1).foreach {
+        rel.forwardMap.toSeq.sortBy(_._1)(toStringOrdA).foreach {
           case (k, vs) =>
-            val kStr = fileToString(k)
-            // This ordering is used to persist all values in order. Since all values will be
-            // persisted using their string representation, it makes sense to sort them using
-            // their string representation.
-            vs.toSeq.sorted(new Ordering[T] {
-              def compare(a: T, b: T) = t2s(a) compare t2s(b)
-            }) foreach { v =>
-              out.write(kStr)
-              out.write(" -> ")
-              out.write(t2s(v))
-              out.write("\n")
+            val kStr = relDesc.firstWrite(k)
+            vs.toSeq.sorted(toStringOrdB) foreach { v =>
+              out.write(kStr); out.write(" -> "); out.write(relDesc.secondWrite(v)); out.write("\n")
             }
         }
       }
 
-      ((relations.allRelations: List[(String, Relation[File, _])]) zip (Relations.existingRelations: List[(String, String)])) foreach {
-        case ((header, rel), (x, "File:File")) =>
-          writeRelation[File](header, rel.asInstanceOf[Relation[File, File]], fileToString)
-        case ((header, rel), (x, "File:String")) =>
-          writeRelation[String](header, rel.asInstanceOf[Relation[File, String]], identity[String] _)
-      }
+      Relations.allRelations.foreach { relDesc => writeRelation(relDesc, relations) }
     }
 
     def read(in: BufferedReader, nameHashing: Boolean): Relations = {
-      def readRelation[T](expectedHeader: String, s2t: String => T): Relation[File, T] = {
-        val items = readPairs(in)(expectedHeader, stringToFile, s2t).toIterator
+      def readRelation[A, B](relDesc: RelationDescriptor[A, B]): Relation[A, B] = {
+        val expectedHeader = relDesc.header
+        val items = readPairs(in)(expectedHeader, relDesc.firstRead, relDesc.secondRead).toIterator
         // Reconstruct the forward map. This is more efficient than Relation.empty ++ items.
-        var forward: List[(File, Set[T])] = Nil
-        var currentItem: (File, T) = null
-        var currentFile: File = null
-        var currentVals: List[T] = Nil
+        var forward: List[(A, Set[B])] = Nil
+        var currentItem: (A, B) = null
+        var currentKey: A = null.asInstanceOf[A]
+        var currentVals: List[B] = Nil
         def closeEntry(): Unit = {
-          if (currentFile != null) forward = (currentFile, currentVals.toSet) :: forward
-          currentFile = currentItem._1
+          if (currentKey != null) forward = (currentKey, currentVals.toSet) :: forward
+          currentKey = currentItem._1
           currentVals = currentItem._2 :: Nil
         }
         while (items.hasNext) {
           currentItem = items.next()
-          if (currentItem._1 == currentFile) currentVals = currentItem._2 :: currentVals else closeEntry()
+          if (currentItem._1 == currentKey) currentVals = currentItem._2 :: currentVals else closeEntry()
         }
         if (currentItem != null) closeEntry()
         Relation.reconstruct(forward.toMap)
       }
 
-      val relations = Relations.existingRelations map {
-        case (header, "File:File")   => readRelation[File](header, stringToFile)
-        case (header, "File:String") => readRelation[String](header, identity[String] _)
-      }
+      val relations = Relations.allRelations.map(rd => readRelation(rd))
 
       Relations.construct(nameHashing, relations)
     }
@@ -251,20 +246,20 @@ object TextAnalysisFormat {
       val external = "external apis"
     }
 
-    val stringToSource = ObjectStringifier.stringToObj[Source] _
-    val sourceToString = ObjectStringifier.objToString[Source] _
+    val stringToAnalyzedClass = ObjectStringifier.stringToObj[AnalyzedClass] _
+    val analyzedClassToString = ObjectStringifier.objToString[AnalyzedClass] _
 
     def write(out: Writer, apis: APIs): Unit = {
-      writeMap(out)(Headers.internal, apis.internal, fileToString, sourceToString, inlineVals = false)
-      writeMap(out)(Headers.external, apis.external, identity[String] _, sourceToString, inlineVals = false)
+      writeMap(out)(Headers.internal, apis.internal, identity[String], analyzedClassToString, inlineVals = false)
+      writeMap(out)(Headers.external, apis.external, identity[String], analyzedClassToString, inlineVals = false)
       FormatTimer.close("bytes -> base64")
       FormatTimer.close("byte copy")
       FormatTimer.close("sbinary write")
     }
 
     def read(in: BufferedReader): APIs = {
-      val internal = readMap(in)(Headers.internal, stringToFile, stringToSource)
-      val external = readMap(in)(Headers.external, identity[String], stringToSource)
+      val internal = readMap(in)(Headers.internal, identity[String], stringToAnalyzedClass)
+      val external = readMap(in)(Headers.external, identity[String], stringToAnalyzedClass)
       FormatTimer.close("base64 -> bytes")
       FormatTimer.close("sbinary read")
       APIs(internal, external)

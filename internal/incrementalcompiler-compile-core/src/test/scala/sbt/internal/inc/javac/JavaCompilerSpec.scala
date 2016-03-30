@@ -8,7 +8,6 @@ import java.net.URLClassLoader
 
 import sbt._
 import xsbt.api.{ SameAPI, DefaultShowAPI }
-import xsbti.api.SourceAPI
 import xsbti.{ Severity, Problem }
 import sbt.io.IO
 import sbt.util.Logger
@@ -98,8 +97,8 @@ class JavaCompilerSpec extends UnitSpec {
     // values match
     val leftAPI = compileWithPrimitive(leftType, left)
     val rightAPI = compileWithPrimitive(rightType, right)
-    SameAPI(leftAPI, rightAPI) shouldBe left == right
-
+    leftAPI.size shouldBe rightAPI.size
+    ((leftAPI, rightAPI).zipped forall SameAPI.apply) shouldBe (left == right)
   }
 
   def lineMatches(p: Problem, lineno: Int, lineContent: Option[String] = None): Boolean = {

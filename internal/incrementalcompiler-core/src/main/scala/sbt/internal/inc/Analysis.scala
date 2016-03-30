@@ -5,27 +5,13 @@ package sbt
 package internal
 package inc
 
-import xsbti.api.{ ExternalDependency, InternalDependency, Source }
-import xsbti.api.DependencyContext._
-import xsbti.compile.CompileAnalysis
+import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
 import java.io.File
 import sbt.internal.util.Relation
 
-/**
- * The merge/groupBy functionality requires understanding of the concepts of internalizing/externalizing dependencies:
- *
- * Say we have source files X, Y. And say we have some analysis A_X containing X as a source, and likewise for A_Y and Y.
- * If X depends on Y then A_X contains an external dependency X -> Y.
- *
- * However if we merge A_X and A_Y into a combined analysis A_XY, then A_XY contains X and Y as sources, and therefore
- * X -> Y must be converted to an internal dependency in A_XY. We refer to this as "internalizing" the dependency.
- *
- * The reverse transformation must occur if we group an analysis A_XY into A_X and A_Y, so that the dependency X->Y
- * crosses the boundary. We refer to this as "externalizing" the dependency.
- *
- * These transformations are complicated by the fact that internal dependencies are expressed as source file -> source file,
- * but external dependencies are expressed as source file -> fully-qualified class name.
- */
+import xsbti.api.{ AnalyzedClass, InternalDependency, ExternalDependency }
+import xsbti.compile.CompileAnalysis
+
 trait Analysis extends CompileAnalysis {
   val stamps: Stamps
   val apis: APIs
@@ -55,71 +41,32 @@ trait Analysis extends CompileAnalysis {
   def copy(stamps: Stamps = stamps, apis: APIs = apis, relations: Relations = relations, infos: SourceInfos = infos,
     compilations: Compilations = compilations): Analysis
 
-  def addSource(src: File, api: Source, stamp: Stamp, info: SourceInfo,
-    products: Iterable[(File, String, Stamp)],
+  def addSource(src: File, apis: Iterable[AnalyzedClass], stamp: Stamp, info: SourceInfo,
+    nonLocalProducts: Iterable[NonLocalProduct],
+    localProducts: Iterable[LocalProduct],
     internalDeps: Iterable[InternalDependency],
     externalDeps: Iterable[ExternalDependency],
     binaryDeps: Iterable[(File, String, Stamp)]): Analysis
-
-  /** Partitions this Analysis using the discriminator function. Externalizes internal deps that cross partitions. */
-  def groupBy[K](discriminator: (File => K)): Map[K, Analysis]
 
   override lazy val toString = Analysis.summary(this)
 }
 
 object Analysis {
+  case class NonLocalProduct(className: String, binaryClassName: String, classFile: File, classFileStamp: Stamp)
+  case class LocalProduct(classFile: File, classFileStamp: Stamp)
   lazy val Empty: Analysis = new MAnalysis(Stamps.empty, APIs.empty, Relations.empty, SourceInfos.empty, Compilations.empty)
   def empty(nameHashing: Boolean): Analysis = new MAnalysis(Stamps.empty, APIs.empty,
     Relations.empty(nameHashing = nameHashing), SourceInfos.empty, Compilations.empty)
 
-  /** Merge multiple analysis objects into one. Deps will be internalized as needed. */
-  def merge(analyses: Traversable[Analysis]): Analysis = {
-    if (analyses.exists(_.relations.nameHashing))
-      throw new IllegalArgumentException("Merging of Analyses that have" +
-        "`relations.memberRefAndInheritanceDeps` set to `true` is not supported.")
-
-    // Merge the Relations, internalizing deps as needed.
-    val mergedSrcProd = Relation.merge(analyses map { _.relations.srcProd })
-    val mergedBinaryDep = Relation.merge(analyses map { _.relations.binaryDep })
-    val mergedClasses = Relation.merge(analyses map { _.relations.classes })
-
-    val stillInternal = Relation.merge(analyses map { _.relations.direct.internal })
-    val (internalized, stillExternal) = Relation.merge(analyses map { _.relations.direct.external }) partition { case (a, b) => mergedClasses._2s.contains(b) }
-    val internalizedFiles = Relation.reconstruct(internalized.forwardMap mapValues { _ flatMap mergedClasses.reverse })
-    val mergedInternal = stillInternal ++ internalizedFiles
-
-    val stillInternalPI = Relation.merge(analyses map { _.relations.publicInherited.internal })
-    val (internalizedPI, stillExternalPI) = Relation.merge(analyses map { _.relations.publicInherited.external }) partition { case (a, b) => mergedClasses._2s.contains(b) }
-    val internalizedFilesPI = Relation.reconstruct(internalizedPI.forwardMap mapValues { _ flatMap mergedClasses.reverse })
-    val mergedInternalPI = stillInternalPI ++ internalizedFilesPI
-
-    val mergedRelations = Relations.make(
-      mergedSrcProd,
-      mergedBinaryDep,
-      Relations.makeSource(mergedInternal, stillExternal),
-      Relations.makeSource(mergedInternalPI, stillExternalPI),
-      mergedClasses
-    )
-
-    // Merge the APIs, internalizing APIs for targets of dependencies we internalized above.
-    val concatenatedAPIs = (APIs.empty /: (analyses map { _.apis }))(_ ++ _)
-    val stillInternalAPIs = concatenatedAPIs.internal
-    val (internalizedAPIs, stillExternalAPIs) = concatenatedAPIs.external partition { x: (String, Source) => internalized._2s.contains(x._1) }
-    val internalizedFilesAPIs = internalizedAPIs flatMap {
-      case (cls: String, source: Source) => mergedRelations.definesClass(cls) map { file: File => (file, concatenatedAPIs.internalAPI(file)) }
-    }
-    val mergedAPIs = APIs(stillInternalAPIs ++ internalizedFilesAPIs, stillExternalAPIs)
-
-    val mergedStamps = Stamps.merge(analyses map { _.stamps })
-    val mergedInfos = SourceInfos.merge(analyses map { _.infos })
-    val mergedCompilations = Compilations.merge(analyses map { _.compilations })
-
-    new MAnalysis(mergedStamps, mergedAPIs, mergedRelations, mergedInfos, mergedCompilations)
-  }
-
   def summary(a: Analysis): String =
     {
-      val (j, s) = a.apis.allInternalSources.partition(_.getName.endsWith(".java"))
+      def sourceFileForClass(className: String): File =
+        a.relations.definesClass(className).headOption.getOrElse {
+          sys.error(s"Can't find source file for $className")
+        }
+      def isJavaClass(className: String): Boolean =
+        sourceFileForClass(className).getName.endsWith(".java")
+      val (j, s) = a.apis.allInternalClasses.partition(isJavaClass)
       val c = a.stamps.allProducts
       val ext = a.apis.allExternals
       val jars = a.relations.allBinaryDeps.filter(_.getName.endsWith(".jar"))
@@ -151,7 +98,8 @@ private class MAnalysis(val stamps: Stamps, val apis: APIs, val relations: Relat
       val newRelations = relations -- sources
       def keep[T](f: (Relations, T) => Set[_]): T => Boolean = f(newRelations, _).nonEmpty
 
-      val newAPIs = apis.removeInternal(sources).filterExt(keep(_ usesExternal _))
+      val classesInSrcs = sources.flatMap(relations.classNames)
+      val newAPIs = apis.removeInternal(classesInSrcs).filterExt(keep(_ usesExternal _))
       val newStamps = stamps.filter(keep(_ produced _), sources, keep(_ usesBinary _))
       val newInfos = infos -- sources
       new MAnalysis(newStamps, newAPIs, newRelations, newInfos, compilations)
@@ -160,117 +108,43 @@ private class MAnalysis(val stamps: Stamps, val apis: APIs, val relations: Relat
   def copy(stamps: Stamps, apis: APIs, relations: Relations, infos: SourceInfos, compilations: Compilations = compilations): Analysis =
     new MAnalysis(stamps, apis, relations, infos, compilations)
 
-  def addSource(src: File, api: Source, stamp: Stamp, info: SourceInfo,
-    products: Iterable[(File, String, Stamp)],
+  def addSource(src: File, apis: Iterable[AnalyzedClass], stamp: Stamp, info: SourceInfo,
+    nonLocalProducts: Iterable[NonLocalProduct],
+    localProducts: Iterable[LocalProduct],
     internalDeps: Iterable[InternalDependency],
     externalDeps: Iterable[ExternalDependency],
     binaryDeps: Iterable[(File, String, Stamp)]): Analysis = {
 
     val newStamps = {
-      val productStamps = products.foldLeft(stamps.markInternalSource(src, stamp)) {
-        case (tmpStamps, (toProduct, _, prodStamp)) => tmpStamps.markProduct(toProduct, prodStamp)
+      val nonLocalProductStamps = nonLocalProducts.foldLeft(stamps.markInternalSource(src, stamp)) {
+        case (tmpStamps, nonLocalProduct) =>
+          tmpStamps.markProduct(nonLocalProduct.classFile, nonLocalProduct.classFileStamp)
       }
 
-      binaryDeps.foldLeft(productStamps) {
+      val allProductStamps = localProducts.foldLeft(nonLocalProductStamps) {
+        case (tmpStamps, localProduct) =>
+          tmpStamps.markProduct(localProduct.classFile, localProduct.classFileStamp)
+      }
+
+      binaryDeps.foldLeft(allProductStamps) {
         case (tmpStamps, (toBinary, className, binStamp)) => tmpStamps.markBinary(toBinary, className, binStamp)
       }
     }
 
-    val newAPIs = externalDeps.foldLeft(apis.markInternalSource(src, api)) {
-      case (tmpApis, e: ExternalDependency) => tmpApis.markExternalAPI(e.targetClassName, e.targetSource)
+    val newInternalAPIs = apis.foldLeft(this.apis) {
+      case (tmpApis, analyzedClass) => tmpApis.markInternalAPI(analyzedClass.name, analyzedClass)
     }
 
-    val newRelations = relations.addSource(src, products map (p => (p._1, p._2)), internalDeps, externalDeps, binaryDeps)
+    val newAPIs = externalDeps.foldLeft(newInternalAPIs) {
+      case (tmpApis, ed: ExternalDependency) => tmpApis.markExternalAPI(ed.targetBinaryClassName, ed.targetClass)
+    }
+
+    val allProducts = nonLocalProducts.map(_.classFile) ++ localProducts.map(_.classFile)
+    val classes = nonLocalProducts.map(p => p.className -> p.binaryClassName)
+
+    val newRelations = relations.addSource(src, allProducts, classes, internalDeps, externalDeps, binaryDeps)
 
     copy(newStamps, newAPIs, newRelations, infos.add(src, info))
-  }
-
-  def groupBy[K](discriminator: File => K): Map[K, Analysis] = {
-    if (relations.nameHashing)
-      throw new UnsupportedOperationException("Grouping of Analyses that have" +
-        "`relations.memberRefAndInheritanceDeps` set to `true` is not supported.")
-
-    def discriminator1(x: (File, _)) = discriminator(x._1) // Apply the discriminator to the first coordinate.
-
-    val kSrcProd = relations.srcProd.groupBy(discriminator1)
-    val kBinaryDep = relations.binaryDep.groupBy(discriminator1)
-    val kClasses = relations.classes.groupBy(discriminator1)
-    val kSourceInfos = infos.allInfos.groupBy(discriminator1)
-
-    val (kStillInternal, kExternalized) = relations.direct.internal partition { case (a, b) => discriminator(a) == discriminator(b) } match {
-      case (i, e) => (i.groupBy(discriminator1), e.groupBy(discriminator1))
-    }
-    val kStillExternal = relations.direct.external.groupBy(discriminator1)
-
-    // Find all possible groups.
-    val allMaps = kSrcProd :: kBinaryDep :: kStillInternal :: kExternalized :: kStillExternal :: kClasses :: kSourceInfos :: Nil
-    val allKeys: Set[K] = (Set.empty[K] /: (allMaps map { _.keySet }))(_ ++ _)
-
-    // Map from file to a single representative class defined in that file.
-    // This is correct (for now): currently all classes in an external dep share the same Source object,
-    // and a change to any of them will act like a change to all of them.
-    // We don't use all the top-level classes in source.api.definitions, even though that's more intuitively
-    // correct, because this can cause huge bloat of the analysis file.
-    def getRepresentativeClass(file: File): Option[String] = apis.internalAPI(file).api.definitions.headOption map { _.name }
-
-    // Create an Analysis for each group.
-    (for (k <- allKeys) yield {
-      def getFrom[A, B](m: Map[K, Relation[A, B]]): Relation[A, B] = m.getOrElse(k, Relation.empty)
-
-      // Products and binary deps.
-      val srcProd = getFrom(kSrcProd)
-      val binaryDep = getFrom(kBinaryDep)
-
-      // Direct Sources.
-      val stillInternal = getFrom(kStillInternal)
-      val stillExternal = getFrom(kStillExternal)
-      val externalized = getFrom(kExternalized)
-      val externalizedClasses = Relation.reconstruct(externalized.forwardMap mapValues { _ flatMap getRepresentativeClass })
-      val newExternal = stillExternal ++ externalizedClasses
-
-      // Public inherited sources.
-      val stillInternalPI = stillInternal filter relations.publicInherited.internal.contains
-      val stillExternalPI = stillExternal filter relations.publicInherited.external.contains
-      val externalizedPI = externalized filter relations.publicInherited.internal.contains
-      val externalizedClassesPI = Relation.reconstruct(externalizedPI.forwardMap mapValues { _ flatMap getRepresentativeClass })
-      val newExternalPI = stillExternalPI ++ externalizedClassesPI
-
-      // Class names.
-      val classes = getFrom(kClasses)
-
-      // Create new relations for this group.
-      val newRelations = Relations.make(
-        srcProd,
-        binaryDep,
-        Relations.makeSource(stillInternal, newExternal),
-        Relations.makeSource(stillInternalPI, newExternalPI),
-        classes
-      )
-
-      // Compute new API mappings.
-      def apisFor[T](m: Map[T, Source], x: Traversable[T]): Map[T, Source] =
-        (x map { e: T => (e, m.get(e)) } collect { case (t, Some(source)) => (t, source) }).toMap
-      val stillInternalAPIs = apisFor(apis.internal, srcProd._1s)
-      val stillExternalAPIs = apisFor(apis.external, stillExternal._2s)
-      val externalizedAPIs = apisFor(apis.internal, externalized._2s)
-      val externalizedClassesAPIs = externalizedAPIs flatMap {
-        case (file: File, source: Source) => getRepresentativeClass(file) map { cls: String => (cls, source) }
-      }
-      val newAPIs = APIs(stillInternalAPIs, stillExternalAPIs ++ externalizedClassesAPIs)
-
-      // New stamps.
-      val newStamps = Stamps(
-        stamps.products.filterKeys(srcProd._2s.contains),
-        stamps.sources.filterKeys({ discriminator(_) == k }),
-        stamps.binaries.filterKeys(binaryDep._2s.contains),
-        stamps.classNames.filterKeys(binaryDep._2s.contains)
-      )
-
-      // New infos.
-      val newSourceInfos = SourceInfos.make(kSourceInfos.getOrElse(k, Map.empty))
-
-      (k, new MAnalysis(newStamps, newAPIs, newRelations, newSourceInfos, compilations))
-    }).toMap
   }
 
   override def equals(other: Any) = other match {

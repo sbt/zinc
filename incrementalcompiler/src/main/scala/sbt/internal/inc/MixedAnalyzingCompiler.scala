@@ -5,12 +5,9 @@ package inc
 import java.io.File
 import java.lang.ref.{ SoftReference, Reference }
 
-import sbt.internal.inc.classfile.Analyze
-import sbt.internal.inc.classpath.ClasspathUtilities
 import inc.javac.AnalyzingJavaCompiler
 import Locate.DefinesClass
 import xsbti.{ AnalysisCallback => XAnalysisCallback, Reporter }
-import xsbti.api.Source
 import xsbti.compile.CompileOrder._
 import xsbti.compile._
 import sbt.io.IO
@@ -167,7 +164,6 @@ object MixedAnalyzingCompiler {
     import config._
     import currentSetup._
     val absClasspath = classpath.map(_.getAbsoluteFile)
-    val apiOption = (api: Either[Boolean, Source]) => api.right.toOption
     val cArgs = new CompilerArguments(compiler.scalaInstance, compiler.cp)
     val searchClasspath = explicitBootClasspath(options.scalacOptions) ++ withBootclasspath(cArgs, absClasspath)
     (searchClasspath, Locate.entry(searchClasspath, definesClass))

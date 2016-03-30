@@ -1,15 +1,10 @@
 package xsbt.api
 
-import xsbti.api.SourceAPI
 import xsbti.api.Definition
 import xsbti.api.DefinitionType
 import xsbti.api.ClassLike
-import xsbti.api._internalOnly_NameHash
-import xsbti.api._internalOnly_NameHashes
-import xsbti.api.DefinitionType.ClassDef
-import xsbti.api.DefinitionType.Module
-import xsbti.api.DefinitionType.PackageModule
-import xsbti.api.DefinitionType.Trait
+import xsbti.api.NameHash
+import xsbti.api.NameHashes
 
 /**
  * A class that computes hashes for each group of definitions grouped by a simple name.
@@ -29,18 +24,18 @@ class NameHashing {
    * NOTE: The hashing sum used for hashing a group of definition is insensitive
    * to order of definitions.
    */
-  def nameHashes(source: SourceAPI): _internalOnly_NameHashes = {
-    val apiPublicDefs = publicDefs(source)
+  def nameHashes(classApi: ClassLike): NameHashes = {
+    val apiPublicDefs = publicDefs(classApi)
     val (regularDefs, implicitDefs) = apiPublicDefs.partition(locDef => !locDef.definition.modifiers.isImplicit)
     val regularNameHashes = nameHashesForLocatedDefinitions(regularDefs)
     val implicitNameHashes = nameHashesForLocatedDefinitions(implicitDefs)
-    new _internalOnly_NameHashes(regularNameHashes.toArray, implicitNameHashes.toArray)
+    new NameHashes(regularNameHashes.toArray, implicitNameHashes.toArray)
   }
 
-  private def nameHashesForLocatedDefinitions(locatedDefs: Iterable[LocatedDefinition]): Iterable[_internalOnly_NameHash] = {
+  private def nameHashesForLocatedDefinitions(locatedDefs: Iterable[LocatedDefinition]): Iterable[NameHash] = {
     val groupedBySimpleName = locatedDefs.groupBy(locatedDef => localName(locatedDef.definition.name))
     val hashes = groupedBySimpleName.mapValues(hashLocatedDefinitions)
-    hashes.toIterable.map({ case (name: String, hash: Int) => new _internalOnly_NameHash(name, hash) })
+    hashes.toIterable.map({ case (name: String, hash: Int) => new NameHash(name, hash) })
   }
 
   private def hashLocatedDefinitions(locatedDefs: Iterable[LocatedDefinition]): Int = {
@@ -65,22 +60,18 @@ class NameHashing {
   private class ExtractPublicDefinitions extends Visit {
     val locatedDefs = scala.collection.mutable.Buffer[LocatedDefinition]()
     private var currentLocation: Location = Location()
-    override def visitAPI(s: SourceAPI): Unit = {
-      s.packages foreach visitPackage
-      s.definitions foreach {
-        case topLevelDef: ClassLike =>
-          val packageName = {
-            val fullName = topLevelDef.name()
-            val lastDotIndex = fullName.lastIndexOf('.')
-            if (lastDotIndex <= 0) "" else fullName.substring(0, lastDotIndex - 1)
-          }
-          currentLocation = packageAsLocation(packageName)
-          visitDefinition(topLevelDef)
+    override def visitAPI(c: ClassLike): Unit = {
+      val packageName = {
+        val fullName = c.name()
+        val lastDotIndex = fullName.lastIndexOf('.')
+        if (lastDotIndex <= 0) "" else fullName.substring(0, lastDotIndex - 1)
       }
+      currentLocation = packageAsLocation(packageName)
+      visitDefinition(c)
     }
     // if the definition is private, we do not visit because we do
     // not want to include any private members or its children
-    override def visitDefinition(d: Definition): Unit = if (APIUtil.isNonPrivate(d)) {
+    override def visitDefinition(d: Definition): Unit = if (d.isInstanceOf[ClassLike] || APIUtil.isNonPrivate(d)) {
       val locatedDef = LocatedDefinition(currentLocation, d)
       locatedDefs += locatedDef
       d match {
@@ -95,7 +86,7 @@ class NameHashing {
     }
   }
 
-  private def publicDefs(source: SourceAPI): Iterable[LocatedDefinition] = {
+  private def publicDefs(source: ClassLike): Iterable[LocatedDefinition] = {
     val visitor = new ExtractPublicDefinitions
     visitor.visitAPI(source)
     visitor.locatedDefs
@@ -123,6 +114,28 @@ class NameHashing {
 }
 
 object NameHashing {
+  def merge(nm1: NameHashes, nm2: NameHashes): NameHashes = {
+    val regularMembers = merge(nm1.regularMembers, nm2.regularMembers)
+    val implicitMembers = merge(nm1.implicitMembers, nm2.implicitMembers)
+    new NameHashes(regularMembers, implicitMembers)
+  }
+
+  private def merge(nm1: Array[NameHash], nm2: Array[NameHash]): Array[NameHash] = {
+    import scala.collection.mutable.Map
+    val m: Map[String, Int] = Map(nm1.map(nh => nh.name -> nh.hash): _*)
+    for (nh <- nm2) {
+      val name = nh.name
+      if (!m.contains(name))
+        m(name) = nh.hash
+      else {
+        val existingHash = m(name)
+        // combine hashes without taking an order into account
+        m(name) = Set(existingHash, nh.hash).hashCode()
+      }
+    }
+    m.map { case (name, hash) => new NameHash(name, hash) }(collection.breakOut)
+  }
+
   private case class LocatedDefinition(location: Location, definition: Definition)
   /**
    * Location is expressed as sequence of annotated names. The annotation denotes

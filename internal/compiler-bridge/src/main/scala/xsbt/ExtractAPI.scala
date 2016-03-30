@@ -2,29 +2,49 @@ package xsbt
 
 import java.io.File
 import java.util.{ Arrays, Comparator }
-import scala.tools.nsc.{ io, plugins, symtab, Global, Phase }
-import io.{ AbstractFile, PlainFile, ZipArchive }
-import plugins.{ Plugin, PluginComponent }
-import symtab.Flags
-import scala.collection.mutable.{ HashMap, HashSet, ListBuffer }
-import xsbti.api.{ ClassLike, DefinitionType, PathComponent, SimpleType }
+import scala.tools.nsc.symtab.Flags
+import scala.collection.mutable.{ HashMap, HashSet }
+import xsbti.api._
+
+import scala.tools.nsc.Global
 
 /**
- * Extracts API representation out of Symbols and Types.
+ * Extracts full (including private members) API representation out of Symbols and Types.
+ *
+ * API for each class is extracted separately. Inner classes are represented as an empty (without members)
+ * member of the outer class and as a separate class with full API representation. For example:
+ *
+ * class A {
+ *   class B {
+ *     def foo: Int = 123
+ *   }
+ * }
+ *
+ * Is represented as:
+ *
+ * // className = A
+ * class A {
+ *   class B
+ * }
+ * // className = A.B
+ * class A.B {
+ *   def foo: Int
+ * }
  *
  * Each compilation unit should be processed by a fresh instance of this class.
  *
- * This class depends on instance of CallbackGlobal instead of regular Global because
- * it has a call to `addInheritedDependencies` method defined in CallbackGlobal. In the future
- * we should refactor this code so inherited dependencies are just accumulated in a buffer and
- * exposed to a client that can pass them to an instance of CallbackGlobal it holds.
+ * NOTE: This class extract *full* API representation. In most of other places in the incremental compiler,
+ * only non-private (accessible from other compilation units) members are relevant. Other parts of the
+ * incremental compiler filter out private definitions before processing API structures. Check SameAPI for
+ * an example.
+ *
  */
-class ExtractAPI[GlobalType <: CallbackGlobal](
+class ExtractAPI[GlobalType <: Global](
   val global: GlobalType,
   // Tracks the source file associated with the CompilationUnit currently being processed by the API phase.
   // This is used when recording inheritance dependencies.
   sourceFile: File
-) {
+) extends ClassName with GlobalHelpers {
 
   import global._
 
@@ -40,6 +60,8 @@ class ExtractAPI[GlobalType <: CallbackGlobal](
   private[this] val pending = new HashSet[xsbti.api.Lazy[_]]
 
   private[this] val emptyStringArray = new Array[String](0)
+
+  private[this] val allNonLocalClassesInSrc = new HashSet[xsbti.api.ClassLike]
 
   /**
    * Implements a work-around for https://github.com/sbt/sbt/issues/823
@@ -162,7 +184,7 @@ class ExtractAPI[GlobalType <: CallbackGlobal](
         else {
           // this appears to come from an existential type in an inherited member- not sure why isExistential is false here
           /*println("Warning: Unknown prefixless type: " + sym + " in " + sym.owner + " in " + sym.enclClass)
-        println("\tFlags: " + sym.flags + ", istype: " + sym.isType + ", absT: " + sym.isAbstractType + ", alias: " + sym.isAliasType + ", nonclass: " + isNonClassType(sym))*/
+      println("\tFlags: " + sym.flags + ", istype: " + sym.isType + ", absT: " + sym.isAbstractType + ", alias: " + sym.isAliasType + ", nonclass: " + isNonClassType(sym))*/
           reference(sym)
         }
       } else if (sym.isRoot || sym.isRootPackage) Constants.emptyType
@@ -183,24 +205,24 @@ class ExtractAPI[GlobalType <: CallbackGlobal](
     }
 
   private def annotations(in: Symbol, s: Symbol): Array[xsbti.api.Annotation] =
-    enteringPhase(currentRun.typerPhase) {
+    enteringPhase(currentRun.typerPhase.next) {
       val base = if (s.hasFlag(Flags.ACCESSOR)) s.accessed else NoSymbol
       val b = if (base == NoSymbol) s else base
       // annotations from bean methods are not handled because:
       //  a) they are recorded as normal source methods anyway
       //  b) there is no way to distinguish them from user-defined methods
       val associated = List(b, b.getterIn(b.enclClass), b.setterIn(b.enclClass)).filter(_ != NoSymbol)
-      associated.flatMap(ss => mkAnnotations(in, ss.annotations)).distinct.toArray;
+      associated.flatMap(ss => mkAnnotations(in, ss.annotations)).distinct.toArray
     }
 
   private def viewer(s: Symbol) = (if (s.isModule) s.moduleClass else s).thisType
   private def printMember(label: String, in: Symbol, t: Type) = println(label + " in " + in + " : " + t + " (debug: " + debugString(t) + " )")
-
   private def defDef(in: Symbol, s: Symbol): List[xsbti.api.Def] =
     {
 
-      val hasValueClassAsParameter: Boolean =
+      val hasValueClassAsParameter: Boolean = {
         s.asMethod.paramss.flatten map (_.info) exists (_.typeSymbol.isDerivedValueClass)
+      }
 
       def hasValueClassAsReturnType(tpe: Type): Boolean = tpe match {
         case PolyType(_, base)             => hasValueClassAsReturnType(base)
@@ -346,12 +368,9 @@ class ExtractAPI[GlobalType <: CallbackGlobal](
    */
   private def mkStructure(info: Type, s: Symbol): xsbti.api.Structure = {
     // We're not interested in the full linearization, so we can just use `parents`,
-    // which side steps issues with baseType when f-bounded existential types and refined types mix 
+    // which side steps issues with baseType when f-bounded existential types and refined types mix
     // (and we get cyclic types which cause a stack overflow in showAPI).
-    //
-    // The old algorithm's semantics for inherited dependencies include all types occurring as a parent anywhere in a type,
-    // so that, in `class C { def foo: A  }; class A extends B`, C is considered to have an "inherited dependency" on `A` and `B`!!!
-    val parentTypes = if (global.callback.nameHashing()) info.parents else linearizedAncestorTypes(info)
+    val parentTypes = info.parents
     val decls = info.decls.toList
     val declsNoModuleCtor = if (s.isModuleClass) removeConstructors(decls) else decls
     mkStructure(s, parentTypes, declsNoModuleCtor, Nil)
@@ -379,16 +398,19 @@ class ExtractAPI[GlobalType <: CallbackGlobal](
   // but that does not take linearization into account.
   def linearizedAncestorTypes(info: Type): List[Type] = info.baseClasses.tail.map(info.baseType)
 
-  // If true, this template is publicly visible and should be processed as a public inheritance dependency.
-  // Local classes and local refinements will never be traversed by the api phase, so we don't need to check for that.
-  private[this] def isPublicStructure(s: Symbol): Boolean =
-    s.isStructuralRefinement ||
-      // do not consider templates that are private[this] or private
-      !(s.isPrivate && (s.privateWithin == NoSymbol || s.isLocalToBlock))
+  /*
+  * Create structure without any members. This is used to declare an inner class as a member of other class
+  * but to not include its full api. Class signature is enough.
+  */
+  private def mkStructureWithEmptyMembers(info: Type, s: Symbol): xsbti.api.Structure = {
+    // We're not interested in the full linearization, so we can just use `parents`,
+    // which side steps issues with baseType when f-bounded existential types and refined types mix
+    // (and we get cyclic types which cause a stack overflow in showAPI).
+    val parentTypes = info.parents
+    mkStructure(s, parentTypes, Nil, Nil)
+  }
 
   private def mkStructure(s: Symbol, bases: List[Type], declared: List[Symbol], inherited: List[Symbol]): xsbti.api.Structure = {
-    if (isPublicStructure(s))
-      addInheritedDependencies(sourceFile, bases.map(_.dealias.typeSymbol))
     new xsbti.api.Structure(lzy(types(s, bases)), lzy(processDefinitions(s, declared)), lzy(processDefinitions(s, inherited)))
   }
   private def processDefinitions(in: Symbol, defs: List[Symbol]): Array[xsbti.api.Definition] =
@@ -476,20 +498,20 @@ class ExtractAPI[GlobalType <: CallbackGlobal](
         case ConstantType(constant) => new xsbti.api.Constant(processType(in, constant.tpe), constant.stringValue)
 
         /* explaining the special-casing of references to refinement classes (https://support.typesafe.com/tickets/1882)
-       *
-       * goal: a representation of type references to refinement classes that's stable across compilation runs
-       *       (and thus insensitive to typing from source or unpickling from bytecode)
-       *
-       * problem: the current representation, which corresponds to the owner chain of the refinement:
-       *   1. is affected by pickling, so typing from source or using unpickled symbols give different results (because the unpickler "localizes" owners -- this could be fixed in the compiler)
-       *   2. can't distinguish multiple refinements in the same owner (this is a limitation of SBT's internal representation and cannot be fixed in the compiler)
-       *
-       * potential solutions:
-       *   - simply drop the reference: won't work as collapsing all refinement types will cause recompilation to be skipped when a refinement is changed to another refinement
-       *   - represent the symbol in the api: can't think of a stable way of referring to an anonymous symbol whose owner changes when pickled
-       *   + expand the reference to the corresponding refinement type: doing that recursively may not terminate, but we can deal with that by approximating recursive references
-       *     (all we care about is being sound for recompilation: recompile iff a dependency changes, and this will happen as long as we have one unrolling of the reference to the refinement)
-       */
+     *
+     * goal: a representation of type references to refinement classes that's stable across compilation runs
+     *       (and thus insensitive to typing from source or unpickling from bytecode)
+     *
+     * problem: the current representation, which corresponds to the owner chain of the refinement:
+     *   1. is affected by pickling, so typing from source or using unpickled symbols give different results (because the unpickler "localizes" owners -- this could be fixed in the compiler)
+     *   2. can't distinguish multiple refinements in the same owner (this is a limitation of SBT's internal representation and cannot be fixed in the compiler)
+     *
+     * potential solutions:
+     *   - simply drop the reference: won't work as collapsing all refinement types will cause recompilation to be skipped when a refinement is changed to another refinement
+     *   - represent the symbol in the api: can't think of a stable way of referring to an anonymous symbol whose owner changes when pickled
+     *   + expand the reference to the corresponding refinement type: doing that recursively may not terminate, but we can deal with that by approximating recursive references
+     *     (all we care about is being sound for recompilation: recompile iff a dependency changes, and this will happen as long as we have one unrolling of the reference to the refinement)
+     */
         case TypeRef(pre, sym, Nil) if sym.isRefinementClass =>
           // Since we only care about detecting changes reliably, we unroll a reference to a refinement class once.
           // Recursive references are simply replaced by NoType -- changes to the type will be seen in the first unrolling.
@@ -573,8 +595,17 @@ class ExtractAPI[GlobalType <: CallbackGlobal](
     // Technically, we could even ignore a self type that's a supertype of the class's type,
     // as it does not contribute any information relevant outside of the class definition.
     if ((s.thisSym eq s) || s.typeOfThis == s.info) Constants.emptyType else processType(in, s.typeOfThis)
+  def extractAllClassesOf(in: Symbol, c: Symbol): Unit = {
+    classLike(in, c)
+    ()
+  }
 
-  def classLike(in: Symbol, c: Symbol): ClassLike = classLikeCache.getOrElseUpdate((in, c), mkClassLike(in, c))
+  def allExtractedNonLocalClasses: Set[ClassLike] = {
+    forceStructures()
+    allNonLocalClassesInSrc.toSet
+  }
+
+  private def classLike(in: Symbol, c: Symbol): ClassLike = classLikeCache.getOrElseUpdate((in, c), mkClassLike(in, c))
   private def mkClassLike(in: Symbol, c: Symbol): ClassLike = {
     // Normalize to a class symbol, and initialize it.
     // (An object -- aka module -- also has a term symbol,
@@ -583,14 +614,28 @@ class ExtractAPI[GlobalType <: CallbackGlobal](
     val defType =
       if (sym.isTrait) DefinitionType.Trait
       else if (sym.isModuleClass) {
-        if (sym.isPackageClass) DefinitionType.PackageModule
+        if (sym.isPackageObjectClass) DefinitionType.PackageModule
         else DefinitionType.Module
       } else DefinitionType.ClassDef
+    val childrenOfSealedClass = sort(sym.children.toArray).map(c => processType(c, c.tpe))
+    val topLevel = sym.owner.isPackageClass
+    def constructClass(structure: xsbti.api.Lazy[Structure]): ClassLike = {
+      new xsbti.api.ClassLike(
+        defType, lzy(selfType(in, sym)), structure, emptyStringArray,
+        childrenOfSealedClass, topLevel, typeParameters(in, sym), // look at class symbol
+        className(c), getAccess(c), getModifiers(c), annotations(in, c)
+      ) // use original symbol (which is a term symbol when `c.isModule`) for `name` and other non-classy stuff
+    }
 
-    new xsbti.api.ClassLike(
-      defType, lzy(selfType(in, sym)), lzy(structureWithInherited(viewer(in).memberInfo(sym), sym)), emptyStringArray, typeParameters(in, sym), // look at class symbol
-      c.fullName, getAccess(c), getModifiers(c), annotations(in, c) // use original symbol (which is a term symbol when `c.isModule`) for `name` and other non-classy stuff
-    )
+    val info = viewer(in).memberInfo(sym)
+    val structure = lzy(structureWithInherited(info, sym))
+    val classWithMembers = constructClass(structure)
+    val structureWithoutMembers = lzy(mkStructureWithEmptyMembers(info, sym))
+    val classWithoutMembers = constructClass(structureWithoutMembers)
+
+    allNonLocalClassesInSrc += classWithMembers
+
+    classWithoutMembers
   }
 
   // TODO: could we restrict ourselves to classes, ignoring the term symbol for modules,
@@ -643,7 +688,4 @@ class ExtractAPI[GlobalType <: CallbackGlobal](
     implicit def compat(ann: AnnotationInfo): IsStatic = new IsStatic(ann)
     annotations.filter(_.isStatic)
   }
-
-  private lazy val AnyValClass = global.rootMirror.getClassIfDefined("scala.AnyVal")
-  private def isAnyValSubtype(sym: Symbol): Boolean = sym.isNonBottomSubClass(AnyValClass)
 }

@@ -3,14 +3,9 @@
  */
 package xsbt
 
-import java.io.File
-import java.util.{ Arrays, Comparator }
-import scala.tools.nsc.{ io, plugins, symtab, Global, Phase }
-import io.{ AbstractFile, PlainFile, ZipArchive }
-import plugins.{ Plugin, PluginComponent }
-import symtab.Flags
-import scala.collection.mutable.{ HashMap, HashSet, ListBuffer }
-import xsbti.api.{ ClassLike, DefinitionType, PathComponent, SimpleType }
+import scala.tools.nsc.Phase
+import scala.tools.nsc.symtab.Flags
+import xsbti.api._
 
 object API {
   val name = "xsbt-api"
@@ -39,48 +34,43 @@ final class API(val global: CallbackGlobal) {
     def processScalaUnit(unit: CompilationUnit): Unit = {
       val sourceFile = unit.source.file.file
       debug("Traversing " + sourceFile)
+      callback.startSource(sourceFile)
       val extractApi = new ExtractAPI[global.type](global, sourceFile)
       val traverser = new TopLevelHandler(extractApi)
       traverser.apply(unit.body)
       if (global.callback.nameHashing) {
         val extractUsedNames = new ExtractUsedNames[global.type](global)
-        val names = extractUsedNames.extract(unit)
-        debug("The " + sourceFile + " contains the following used names " + names)
-        names foreach { (name: String) => callback.usedName(sourceFile, name) }
+        val allUsedNames = extractUsedNames.extract(unit)
+        def showUsedNames(className: String, names: Set[String]): String =
+          s"$className:\n\t${names.mkString(", ")}"
+        debug("The " + sourceFile + " contains the following used names:\n" +
+          allUsedNames.map((showUsedNames _).tupled).mkString("\n"))
+        allUsedNames foreach {
+          case (className: String, names: Set[String]) =>
+            names foreach { (name: String) => callback.usedName(className, name) }
+        }
       }
-      val packages = traverser.packages.toArray[String].map(p => new xsbti.api.Package(p))
-      val source = new xsbti.api.SourceAPI(packages, traverser.definitions.toArray[xsbti.api.Definition])
-      extractApi.forceStructures()
-      callback.api(sourceFile, source)
+      val classApis = traverser.allNonLocalClasses
+
+      classApis.foreach(callback.api(sourceFile, _))
     }
   }
 
   private final class TopLevelHandler(extractApi: ExtractAPI[global.type]) extends TopLevelTraverser {
-    val packages = new HashSet[String]
-    val definitions = new ListBuffer[xsbti.api.Definition]
-    def `class`(c: Symbol): Unit = {
-      definitions += extractApi.classLike(c.owner, c)
-      ()
+    def allNonLocalClasses: Set[ClassLike] = {
+      extractApi.allExtractedNonLocalClasses
     }
-    /** Record packages declared in the source file*/
-    def `package`(p: Symbol): Unit = {
-      if ((p eq null) || p == NoSymbol || p.isRoot || p.isRootPackage || p.isEmptyPackageClass || p.isEmptyPackage)
-        ()
-      else {
-        packages += p.fullName
-        `package`(p.enclosingPackage)
-      }
+    def `class`(c: Symbol): Unit = {
+      extractApi.extractAllClassesOf(c.owner, c)
     }
   }
 
   private abstract class TopLevelTraverser extends Traverser {
     def `class`(s: Symbol): Unit
-    def `package`(s: Symbol): Unit
     override def traverse(tree: Tree): Unit = {
       tree match {
         case (_: ClassDef | _: ModuleDef) if isTopLevel(tree.symbol) => `class`(tree.symbol)
-        case p: PackageDef =>
-          `package`(p.symbol)
+        case _: PackageDef =>
           super.traverse(tree)
         case _ =>
       }

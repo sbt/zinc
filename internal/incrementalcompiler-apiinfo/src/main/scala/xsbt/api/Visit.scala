@@ -10,11 +10,9 @@ class Visit {
   private[this] val visitedStructures = new mutable.HashSet[Structure]
   private[this] val visitedClassLike = new mutable.HashSet[ClassLike]
 
-  def visit(s: Source): Unit = visitAPI(s.api)
-  def visitAPI(s: SourceAPI): Unit =
+  def visitAPI(c: ClassLike): Unit =
     {
-      s.packages foreach visitPackage
-      s.definitions foreach visitDefinition
+      visitDefinition(c)
     }
 
   def visitPackage(p: Package): Unit = {

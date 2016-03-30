@@ -3,54 +3,67 @@ package internal
 package inc
 
 import java.io.File
-import scala.collection.mutable.ArrayBuffer
-import xsbti.api.{ Compilation, DependencyContext, Source, SourceAPI }
-import xsbti._
+
+import scala.collection.mutable.{ ArrayBuffer, HashMap }
+import xsbti.api._
 import xsbti.api.DependencyContext._
-import xsbt.api.{ APIUtil, HashAPI }
+import xsbt.api.{ HashAPI, NameHashing, APIUtil }
 import sbt.internal.util.Relation
 
 case class TestAnalysis(
   relations: inc.Relations,
-  sourceDependencies: Set[(File, File, DependencyContext)],
-  binaryDependencies: Set[(File, String, File, DependencyContext)],
-  products: Set[(File, File, String)],
-  usedNames: Map[File, Set[String]],
+  classDependencies: Set[(String, String, DependencyContext)],
+  binaryDependencies: Set[(File, String, String, DependencyContext)],
+  products: Set[(File, File)],
+  binaryClassNames: Set[(String, String)],
+  usedNames: Map[String, Set[String]],
   apis: APIs
 ) {
 
   def merge(o: TestAnalysis, deletedFiles: Seq[File]): TestAnalysis = {
+    val deletedClasses = deletedFiles.flatMap(o.relations.classNames).toSet
     TestAnalysis(
       o.relations ++ relations -- deletedFiles,
-      o.sourceDependencies ++ sourceDependencies filterNot (f => deletedFiles contains f._2),
-      o.binaryDependencies ++ binaryDependencies filterNot (f => deletedFiles contains f._3),
+      o.classDependencies ++ classDependencies filterNot (f => deletedClasses contains f._2),
+      o.binaryDependencies ++ binaryDependencies filterNot (f => deletedClasses contains f._3),
       o.products ++ products filterNot (f => deletedFiles contains f._1),
-      o.usedNames ++ usedNames filterKeys (k => !(deletedFiles contains k)),
-      o.apis ++ apis removeInternal deletedFiles
+      o.binaryClassNames ++ binaryClassNames filterNot (bc => deletedClasses contains bc._1),
+      o.usedNames ++ usedNames filterKeys (k => !(deletedClasses contains k)),
+      o.apis ++ apis removeInternal deletedClasses
     )
   }
 }
 object TestAnalysis {
-  val Empty = TestAnalysis(Relations.empty, Set.empty, Set.empty, Set.empty, Map.empty, APIs.empty)
+  val Empty = TestAnalysis(Relations.empty, Set.empty, Set.empty, Set.empty, Set.empty, Map.empty, APIs.empty)
 }
 
-class TestAnalysisCallback(internalMap: Map[File, File], override val nameHashing: Boolean = false) extends xsbti.AnalysisCallback {
-  val sourceDependencies = new ArrayBuffer[(File, File, DependencyContext)]
-  val binaryDependencies = new ArrayBuffer[(File, String, File, DependencyContext)]
-  val products = new ArrayBuffer[(File, File, String)]
-  val usedNames = scala.collection.mutable.Map.empty[File, Set[String]].withDefaultValue(Set.empty)
-  val apis: scala.collection.mutable.Map[File, Source] = scala.collection.mutable.Map.empty
+class TestAnalysisCallback(
+  internalBinaryToSourceClassName: Map[String, String],
+  override val nameHashing: Boolean = false
+) extends xsbti.AnalysisCallback {
+  val classDependencies = new ArrayBuffer[(String, String, DependencyContext)]
+  val binaryDependencies = new ArrayBuffer[(File, String, String, DependencyContext)]
+  val products = new ArrayBuffer[(File, File)]
+  val usedNames = scala.collection.mutable.Map.empty[String, Set[String]].withDefaultValue(Set.empty)
+  val classNames = scala.collection.mutable.Map.empty[File, Set[(String, String)]].withDefaultValue(Set.empty)
+  val macroClasses = scala.collection.mutable.Set[String]()
+  val classApis = new HashMap[String, (HashAPI.Hash, ClassLike)]
+  val objectApis = new HashMap[String, (HashAPI.Hash, ClassLike)]
+  val classPublicNameHashes = new HashMap[String, NameHashes]
+  val objectPublicNameHashes = new HashMap[String, NameHashes]
+
+  private val compilation = new Compilation(System.currentTimeMillis, Array.empty)
 
   def hashFile(f: File): Array[Byte] = Stamp.hash(f).asInstanceOf[Hash].value
 
   def get: TestAnalysis = {
 
     val p = (products foldLeft Relation.empty[File, File]) {
-      case (rel, (source, module, _)) => rel + (source -> module)
+      case (rel, (source, module)) => rel + (source -> module)
     }
 
-    val bin = (binaryDependencies foldLeft Relation.empty[File, File]) {
-      case (rel, (binary, _, source, _)) => rel + (source -> binary)
+    val bin = (binaryDependencies foldLeft Relation.empty[String, File]) {
+      case (rel, (binary, _, sourceClassName, _)) => rel + (sourceClassName -> binary)
     }
 
     val di = Relation.empty[File, File]
@@ -59,53 +72,107 @@ class TestAnalysisCallback(internalMap: Map[File, File], override val nameHashin
     val pii = Relation.empty[File, File]
     val pie = Relation.empty[File, String]
 
-    val mri = (sourceDependencies.filter(_._3 == DependencyByMemberRef) foldLeft Relation.empty[File, File]) {
-      case (rel, (dependsOn, source, _)) => rel + (source -> dependsOn)
+    val mri = (classDependencies.filter(_._3 == DependencyByMemberRef) foldLeft Relation.empty[String, String]) {
+      case (rel, (dependsOnClassName, sourceClassName, _)) => rel + (sourceClassName -> dependsOnClassName)
     }
     val mre = Relation.empty[File, String]
 
-    val ii = (sourceDependencies.filter(_._3 == DependencyByInheritance) foldLeft Relation.empty[File, File]) {
-      case (rel, (dependsOn, source, _)) => rel + (source -> dependsOn)
+    val ii = (classDependencies.filter(_._3 == DependencyByInheritance) foldLeft Relation.empty[String, String]) {
+      case (rel, (dependsOnClassName, sourceClassName, _)) => rel + (sourceClassName -> dependsOnClassName)
     }
     val ie = Relation.empty[File, String]
 
     val cn = Relation.empty[File, String]
 
-    val un = (usedNames foldLeft Relation.empty[File, String]) {
-      case (rel, (source, names)) => rel ++ (names map (n => (source, n)))
+    val bcn = Relation.empty[String, String] ++ classNames.values.flatten
+
+    val un = (usedNames foldLeft Relation.empty[String, String]) {
+      case (rel, (sourceClassName, names)) => rel ++ (names map (n => (sourceClassName, n)))
     }
 
-    val relations = Relations.construct(true, p :: bin :: di :: de :: pii :: pie :: mri :: mre :: ii :: ie :: cn :: un :: Nil)
+    val relations = Relations.construct(true, p :: bin :: di :: de :: pii :: pie :: mri :: mre :: ii :: ie :: cn :: un :: bcn :: Nil)
 
-    TestAnalysis(relations, sourceDependencies.toSet, binaryDependencies.toSet, products.toSet, usedNames.toMap, APIs(apis.toMap, Map.empty))
+    val analyzedApis = classNames.values.flatMap(_.map(_._1)).map(analyzeClass)
+
+    val apisByClassName = analyzedApis.map(a => a.name -> a)
+
+    TestAnalysis(relations, classDependencies.toSet, binaryDependencies.toSet, products.toSet,
+      classNames.values.flatten.toSet, usedNames.toMap, APIs(apisByClassName.toMap, Map.empty))
   }
 
-  def sourceDependency(dependsOn: File, source: File, inherited: Boolean): Unit = {
-    val context = if (inherited) DependencyByInheritance else DependencyByMemberRef
-    sourceDependency(dependsOn, source, context)
+  private def analyzeClass(name: String): AnalyzedClass = {
+    val hasMacro: Boolean = macroClasses.contains(name)
+    val (companions, apiHash) = companionsWithHash(name)
+    val nameHashes = nameHashesForCompanions(name)
+    val ac = new AnalyzedClass(compilation, name, companions, apiHash, nameHashes, hasMacro)
+    ac
   }
-  def sourceDependency(dependsOn: File, source: File, context: DependencyContext): Unit = { sourceDependencies += ((dependsOn, source, context)); () }
-  def binaryDependency(binary: File, name: String, source: File, inherited: Boolean): Unit = {
-    val context = if (inherited) DependencyByInheritance else DependencyByMemberRef
-    binaryDependency(binary, name, source, context)
+
+  private def companionsWithHash(className: String): (Companions, HashAPI.Hash) = {
+    val emptyHash = -1
+    lazy val emptyClass = emptyHash -> APIUtil.emptyClassLike(className, DefinitionType.ClassDef)
+    lazy val emptyObject = emptyHash -> APIUtil.emptyClassLike(className, DefinitionType.Module)
+    val (classApiHash, classApi) = classApis.getOrElse(className, emptyClass)
+    val (objectApiHash, objectApi) = objectApis.getOrElse(className, emptyObject)
+    val companions = new Companions(classApi, objectApi)
+    val apiHash = (classApiHash, objectApiHash).hashCode
+    (companions, apiHash)
   }
-  def binaryDependency(binary: File, name: String, source: File, context: DependencyContext): Unit = {
-    internalMap get binary match {
-      case Some(internal) => sourceDependency(internal, source, context)
-      case None           => binaryDependencies += ((binary, name, source, context)); ()
+
+  private def nameHashesForCompanions(className: String): NameHashes = {
+    val classNameHashes = classPublicNameHashes.get(className)
+    val objectNameHashes = objectPublicNameHashes.get(className)
+    (classNameHashes, objectNameHashes) match {
+      case (Some(nm1), Some(nm2)) =>
+        NameHashing.merge(nm1, nm2)
+      case (Some(nm), None) => nm
+      case (None, Some(nm)) => nm
+      case (None, None)     => sys.error("Failed to find name hashes for " + className)
     }
   }
-  def generatedClass(source: File, module: File, name: String): Unit = { products += ((source, module, name)); () }
 
-  def usedName(source: File, name: String): Unit = { usedNames(source) += name }
-  def api(source: File, sourceAPI: SourceAPI): Unit = {
-    assert(!apis.contains(source), s"The `api` method should be called once per source file: $source")
-    val hasMacro = APIUtil.hasMacro(sourceAPI)
-    val hasPackageObject = APIUtil.hasPackageObject(sourceAPI)
-    val nameHashes = new xsbt.api.NameHashing().nameHashes(sourceAPI)
-    val sourceHash = hashFile(source)
-    val src = new Source(new Compilation(System.currentTimeMillis, Array.empty), sourceHash, sourceAPI, HashAPI(sourceAPI), nameHashes, hasMacro, hasPackageObject)
-    apis(source) = src
+  def startSource(source: File): Unit = {
   }
+
+  def classDependency(onClassName: String, sourceClassName: String, context: DependencyContext): Unit = {
+    if (onClassName != sourceClassName)
+      classDependencies += ((onClassName, sourceClassName, context))
+    ()
+  }
+
+  def binaryDependency(onBinary: File, onBinaryClassName: String, fromClassName: String, fromSourceFile: File, context: DependencyContext): Unit = {
+    internalBinaryToSourceClassName get onBinaryClassName match {
+      case Some(internal) => classDependency(internal, fromClassName, context)
+      case None           => binaryDependencies += ((onBinary, onBinaryClassName, fromClassName, context)); ()
+    }
+  }
+
+  def generatedNonLocalClass(source: File, module: File, binaryClassName: String, srcClassName: String): Unit = {
+    products += ((source, module))
+    classNames(source) += ((srcClassName, binaryClassName))
+  }
+
+  def generatedLocalClass(source: File, module: File): Unit = {
+    products += ((source, module))
+    ()
+  }
+
+  def usedName(className: String, name: String): Unit = { usedNames(className) += name }
+
+  def api(source: File, api: ClassLike): Unit = {
+    val className = api.name
+    if (APIUtil.hasMacro(api)) macroClasses += className
+    val apiHash: HashAPI.Hash = HashAPI(api)
+    val nameHashes = (new xsbt.api.NameHashing).nameHashes(api)
+    api.definitionType match {
+      case DefinitionType.ClassDef | DefinitionType.Trait =>
+        classApis(className) = apiHash -> api
+        classPublicNameHashes(className) = nameHashes
+      case DefinitionType.Module | DefinitionType.PackageModule =>
+        objectApis(className) = apiHash -> api
+        objectPublicNameHashes(className) = nameHashes
+    }
+  }
+
   def problem(category: String, pos: xsbti.Position, message: String, severity: xsbti.Severity, reported: Boolean): Unit = ()
 }

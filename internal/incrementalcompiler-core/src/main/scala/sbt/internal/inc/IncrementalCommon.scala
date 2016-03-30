@@ -5,7 +5,7 @@ package inc
 import java.io.File
 import sbt.util.Logger
 import scala.annotation.tailrec
-import xsbti.api.{ Compilation, Source }
+import xsbti.api.{ AnalyzedClass, Compilation }
 import xsbti.compile.{ DependencyChanges, IncOptions, IncOptionsUtil, CompileAnalysis }
 
 private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: IncOptions) {
@@ -15,32 +15,59 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
   // such as the currently problematic -javabootclasspath.  This is subject to removal at any time.
   private[this] def skipClasspathLookup = java.lang.Boolean.getBoolean("xsbt.skip.cp.lookup")
 
+  val wrappedLog = new Incremental.PrefixingLogger("[inv] ")(log)
+  def debug(s: => String) = if (options.relationsDebug) wrappedLog.debug(s) else ()
+
   // TODO: the Analysis for the last successful compilation should get returned + Boolean indicating success
   // TODO: full external name changes, scopeInvalidations
-  @tailrec final def cycle(invalidatedRaw: Set[File], allSources: Set[File], binaryChanges: DependencyChanges, previous: Analysis,
-    doCompile: (Set[File], DependencyChanges) => Analysis, classfileManager: ClassfileManager, cycleNum: Int): Analysis =
-    if (invalidatedRaw.isEmpty)
+  @tailrec final def cycle(invalidatedRaw: Set[String], modifiedSrcs: Set[File], allSources: Set[File],
+    binaryChanges: DependencyChanges, previous: Analysis,
+    doCompile: (Set[File], DependencyChanges) => Analysis, classfileManager: ClassfileManager,
+    cycleNum: Int): Analysis =
+    if (invalidatedRaw.isEmpty && modifiedSrcs.isEmpty)
       previous
     else {
-      val wrappedLog = new Incremental.PrefixingLogger("[inv] ")(log)
-      def debug(s: => String) = if (options.relationsDebug) wrappedLog.debug(s) else ()
-      val withPackageObjects = invalidatedRaw ++ invalidatedPackageObjects(invalidatedRaw, previous.relations, previous.apis)
-      val invalidated = expand(withPackageObjects, allSources)
-      val pruned = Incremental.prune(invalidated, previous, classfileManager)
-      debug("********* Pruned: \n" + pruned.relations + "\n*********")
+      val invalidatedPackageObjects = this.invalidatedPackageObjects(invalidatedRaw, previous.relations,
+        previous.apis)
+      if (invalidatedPackageObjects.nonEmpty)
+        log.debug(s"Invalidated package objects: ${invalidatedPackageObjects}")
+      val withPackageObjects = invalidatedRaw ++ invalidatedPackageObjects
+      val invalidatedClasses = withPackageObjects
 
-      val fresh = doCompile(invalidated, binaryChanges)
-      classfileManager.generated(fresh.relations.allProducts)
-      debug("********* Fresh: \n" + fresh.relations + "\n*********")
-      val merged = pruned ++ fresh //.copy(relations = pruned.relations ++ fresh.relations, apis = pruned.apis ++ fresh.apis)
-      debug("********* Merged: \n" + merged.relations + "\n*********")
+      val current = recompileClasses(invalidatedClasses, modifiedSrcs, allSources, binaryChanges, previous, doCompile,
+        classfileManager)
 
-      val incChanges = changedIncremental(invalidated, previous.apis.internalAPI _, merged.apis.internalAPI _)
+      // modifiedSrc have to be mapped to class names both of previous and current analysis because classes might be
+      // removed (it's handled by `previous`) or added (it's handled by `current`) or renamed (it's handled by both)
+      val recompiledClasses = invalidatedClasses ++
+        modifiedSrcs.flatMap(previous.relations.classNames) ++ modifiedSrcs.flatMap(current.relations.classNames)
+
+      val incChanges = changedIncremental(recompiledClasses, previous.apis.internalAPI _, current.apis.internalAPI _)
       debug("\nChanges:\n" + incChanges)
       val transitiveStep = options.transitiveStep
-      val incInv = invalidateIncremental(merged.relations, merged.apis, incChanges, invalidated, cycleNum >= transitiveStep)
-      cycle(incInv, allSources, emptyChanges, merged, doCompile, classfileManager, cycleNum + 1)
+      val classToSourceMapper = new ClassToSourceMapper(previous.relations, current.relations)
+      val incInv = invalidateIncremental(current.relations, current.apis, incChanges, recompiledClasses,
+        cycleNum >= transitiveStep, classToSourceMapper.isDefinedInScalaSrc)
+      cycle(incInv, Set.empty, allSources, emptyChanges, current, doCompile, classfileManager, cycleNum + 1)
     }
+
+  private[this] def recompileClasses(classes: Set[String], modifiedSrcs: Set[File], allSources: Set[File],
+    binaryChanges: DependencyChanges, previous: Analysis,
+    doCompile: (Set[File], DependencyChanges) => Analysis,
+    classfileManager: ClassfileManager): Analysis = {
+    val invalidatedSources = classes.flatMap(previous.relations.definesClass) ++ modifiedSrcs
+    val invalidatedSourcesForCompilation = expand(invalidatedSources, allSources)
+    val pruned = Incremental.prune(invalidatedSourcesForCompilation, previous, classfileManager)
+    debug("********* Pruned: \n" + pruned.relations + "\n*********")
+
+    val fresh = doCompile(invalidatedSourcesForCompilation, binaryChanges)
+    classfileManager.generated(fresh.relations.allProducts)
+    debug("********* Fresh: \n" + fresh.relations + "\n*********")
+    val merged = pruned ++ fresh //.copy(relations = pruned.relations ++ fresh.relations, apis = pruned.apis ++ fresh.apis)
+    debug("********* Merged: \n" + merged.relations + "\n*********")
+    merged
+  }
+
   private[this] def emptyChanges: DependencyChanges = new DependencyChanges {
     val modifiedBinaries = new Array[File](0)
     val modifiedClasses = new Array[String](0)
@@ -54,15 +81,16 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
     } else invalidated
   }
 
-  protected def invalidatedPackageObjects(invalidated: Set[File], relations: Relations, apis: APIs): Set[File]
+  protected def invalidatedPackageObjects(invalidatedClasses: Set[String], relations: Relations,
+    apis: APIs): Set[String]
 
   /**
    * Logs API changes using debug-level logging. The API are obtained using the APIDiff class.
    *
    * NOTE: This method creates a new APIDiff instance on every invocation.
    */
-  private def logApiChanges[T](apiChanges: Iterable[APIChange[T]], oldAPIMapping: T => Source,
-    newAPIMapping: T => Source): Unit = {
+  private def logApiChanges(apiChanges: Iterable[APIChange], oldAPIMapping: String => AnalyzedClass,
+    newAPIMapping: String => AnalyzedClass): Unit = {
     val contextSize = options.apiDiffContextSize
     try {
       val wrappedLog = new Incremental.PrefixingLogger("[diff] ")(log)
@@ -70,8 +98,8 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
       apiChanges foreach {
         case APIChangeDueToMacroDefinition(src) =>
           wrappedLog.debug(s"Public API is considered to be changed because $src contains a macro definition.")
-        case apiChange @ (_: SourceAPIChange[T] | _: NamesChange[T]) =>
-          val src = apiChange.modified
+        case apiChange: NamesChange =>
+          val src = apiChange.modifiedClass
           val oldApi = oldAPIMapping(src)
           val newApi = newAPIMapping(src)
           val apiUnifiedPatch = apiDiff.generateApiDiff(src.toString, oldApi.api, newApi.api, contextSize)
@@ -90,15 +118,18 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
   }
 
   /**
-   * Accepts the sources that were recompiled during the last step and functions
+   * Accepts the classes that were recompiled during the last step and functions
    * providing the API before and after the last step.  The functions should return
-   * an empty API if the file did not/does not exist.
+   * an empty API if the class did not/does not exist.
    */
-  def changedIncremental[T](lastSources: collection.Set[T], oldAPI: T => Source, newAPI: T => Source): APIChanges[T] =
+  def changedIncremental(lastClasses: collection.Set[String], oldAPI: String => AnalyzedClass,
+    newAPI: String => AnalyzedClass): APIChanges =
     {
-      val oldApis = lastSources.toSeq map oldAPI
-      val newApis = lastSources.toSeq map newAPI
-      val apiChanges = (lastSources, oldApis, newApis).zipped.flatMap { (src, oldApi, newApi) => sameSource(src, oldApi, newApi) }
+      val oldApis = lastClasses.toSeq map oldAPI
+      val newApis = lastClasses.toSeq map newAPI
+      val apiChanges = (lastClasses, oldApis, newApis).zipped.flatMap {
+        (className, oldApi, newApi) => sameClass(className, oldApi, newApi)
+      }
 
       if (Incremental.apiDebug(options) && apiChanges.nonEmpty) {
         logApiChanges(apiChanges, oldAPI, newAPI)
@@ -106,27 +137,28 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
 
       new APIChanges(apiChanges)
     }
-  def sameSource[T](src: T, a: Source, b: Source): Option[APIChange[T]] = {
-    // Clients of a modified source file (ie, one that doesn't satisfy `shortcutSameSource`) containing macros must be recompiled.
+  def sameClass(className: String, a: AnalyzedClass, b: AnalyzedClass): Option[APIChange] = {
+    // Clients of a modified class (ie, one that doesn't satisfy `shortcutSameClass`) containing macros must be recompiled.
     val hasMacro = a.hasMacro || b.hasMacro
-    if (shortcutSameSource(a, b)) {
+    if (shortcutSameClass(a, b)) {
       None
     } else {
       if (hasMacro && IncOptionsUtil.getRecompileOnMacroDef(options)) {
-        Some(APIChangeDueToMacroDefinition(src))
-      } else sameAPI(src, a, b)
+        Some(APIChangeDueToMacroDefinition(className))
+      } else sameAPI(className, a, b)
     }
   }
 
-  protected def sameAPI[T](src: T, a: Source, b: Source): Option[APIChange[T]]
+  protected def sameAPI(className: String, a: AnalyzedClass, b: AnalyzedClass): Option[APIChange]
 
-  def shortcutSameSource(a: Source, b: Source): Boolean = a.hash.nonEmpty && b.hash.nonEmpty && sameCompilation(a.compilation, b.compilation) && (a.hash.deep equals b.hash.deep)
+  def shortcutSameClass(a: AnalyzedClass, b: AnalyzedClass): Boolean =
+    sameCompilation(a.compilation, b.compilation) && (a.apiHash == b.apiHash)
   def sameCompilation(a: Compilation, b: Compilation): Boolean = a.startTime == b.startTime && a.outputs.corresponds(b.outputs) {
     case (co1, co2) => co1.sourceDirectory == co2.sourceDirectory && co1.outputDirectory == co2.outputDirectory
   }
 
-  def changedInitial(entry: String => Option[File], sources: Set[File], previousAnalysis0: CompileAnalysis, current: ReadStamps,
-    forEntry: File => Option[CompileAnalysis])(implicit equivS: Equiv[Stamp]): InitialChanges =
+  def changedInitial(sources: Set[File], previousAnalysis0: CompileAnalysis, current: ReadStamps,
+    lookup: Lookup)(implicit equivS: Equiv[Stamp]): InitialChanges =
     {
       val previousAnalysis = previousAnalysis0 match { case a: Analysis => a }
       val previous = previousAnalysis.stamps
@@ -134,8 +166,8 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
 
       val srcChanges = changes(previous.allInternalSources.toSet, sources, f => !equivS.equiv(previous.internalSource(f), current.internalSource(f)))
       val removedProducts = previous.allProducts.filter(p => !equivS.equiv(previous.product(p), current.product(p))).toSet
-      val binaryDepChanges = previous.allBinaries.filter(externalBinaryModified(entry, forEntry, previous, current)).toSet
-      val extChanges = changedIncremental(previousAPIs.allExternals, previousAPIs.externalAPI _, currentExternalAPI(entry, forEntry))
+      val binaryDepChanges = previous.allBinaries.filter(externalBinaryModified(lookup, previous, current)).toSet
+      val extChanges = changedIncremental(previousAPIs.allExternals, previousAPIs.externalAPI _, currentExternalAPI(lookup))
 
       InitialChanges(srcChanges, removedProducts, binaryDepChanges, extChanges)
     }
@@ -148,67 +180,79 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
       val (changed, unmodified) = inBoth.partition(existingModified)
     }
 
-  def invalidateIncremental(previous: Relations, apis: APIs, changes: APIChanges[File], recompiledSources: Set[File], transitive: Boolean): Set[File] =
+  def invalidateIncremental(previous: Relations, apis: APIs, changes: APIChanges,
+    recompiledClasses: Set[String], transitive: Boolean, isScalaClass: String => Boolean): Set[String] =
     {
-      val dependsOnSrc = previous.usesInternalSrc _
-      val propagated =
+      val dependsOnClass = previous.memberRef.internal.reverse _
+      val propagated: Set[String] =
         if (transitive)
-          transitiveDependencies(dependsOnSrc, changes.allModified.toSet)
+          transitiveDependencies(dependsOnClass, changes.allModified.toSet)
         else
-          invalidateIntermediate(previous, changes)
+          invalidateIntermediate(previous, changes, isScalaClass)
 
       val dups = invalidateDuplicates(previous)
       if (dups.nonEmpty)
         log.debug("Invalidated due to generated class file collision: " + dups)
 
-      val inv = propagated ++ dups // ++ scopeInvalidations(previous.extAPI _, changes.modified, changes.names)
-      val newlyInvalidated = inv -- recompiledSources
-      log.debug("All newly invalidated sources after taking into account (previously) recompiled sources:" + newlyInvalidated)
+      val inv: Set[String] = propagated ++ dups
+      val newlyInvalidated = (inv -- recompiledClasses) ++ dups
+      log.debug("All newly invalidated classes after taking into account (previously) recompiled classes:" + newlyInvalidated)
       if (newlyInvalidated.isEmpty) Set.empty else inv
     }
 
-  /** Invalidate all sources that claim to produce the same class file as another source file. */
-  def invalidateDuplicates(merged: Relations): Set[File] =
+  /** Invalidate all classes that claim to produce the same class file as another class. */
+  def invalidateDuplicates(merged: Relations): Set[String] =
     merged.srcProd.reverseMap.flatMap {
       case (classFile, sources) =>
-        if (sources.size > 1) sources else Nil
+        if (sources.size > 1) sources.flatMap(merged.classNames) else Nil
     }.toSet
 
   /**
-   * Returns the transitive source dependencies of `initial`.
-   * Because the intermediate steps do not pull in cycles, this result includes the initial files
-   * if they are part of a cycle containing newly invalidated files .
+   * Returns the transitive class dependencies of `initial`.
+   * Because the intermediate steps do not pull in cycles, this result includes the initial classes
+   * if they are part of a cycle containing newly invalidated classes.
    */
-  def transitiveDependencies(dependsOnSrc: File => Set[File], initial: Set[File]): Set[File] =
+  def transitiveDependencies(dependsOnClass: String => Set[String], initial: Set[String]): Set[String] =
     {
-      val transitiveWithInitial = transitiveDeps(initial)(dependsOnSrc)
-      val transitivePartial = includeInitialCond(initial, transitiveWithInitial, dependsOnSrc)
+      val transitiveWithInitial = transitiveDeps(initial)(dependsOnClass)
+      val transitivePartial = includeInitialCond(initial, transitiveWithInitial, dependsOnClass)
       log.debug("Final step, transitive dependencies:\n\t" + transitivePartial)
       transitivePartial
     }
 
-  /** Invalidates sources based on initially detected 'changes' to the sources, products, and dependencies.*/
-  def invalidateInitial(previous: Relations, changes: InitialChanges): Set[File] =
+  /** Invalidates classes and sources based on initially detected 'changes' to the sources, products, and dependencies.*/
+  def invalidateInitial(previous: Relations, changes: InitialChanges): (Set[String], Set[File]) =
     {
+      def classNames(srcs: Set[File]): Set[String] =
+        srcs.flatMap(previous.classNames)
       val srcChanges = changes.internalSrc
-      val srcDirect = srcChanges.removed ++ srcChanges.removed.flatMap(previous.usesInternalSrc) ++ srcChanges.added ++ srcChanges.changed
+      val modifiedSrcs = srcChanges.changed
+      val addedSrcs = srcChanges.added
+      val removedClasses = classNames(srcChanges.removed)
+      val dependentOnRemovedClasses = removedClasses.flatMap(previous.memberRef.internal.reverse)
+      val modifiedClasses = classNames(modifiedSrcs)
+      val invalidatedClasses = removedClasses ++ dependentOnRemovedClasses ++ modifiedClasses
       val byProduct = changes.removedProducts.flatMap(previous.produced)
       val byBinaryDep = changes.binaryDeps.flatMap(previous.usesBinary)
-      val byExtSrcDep = invalidateByAllExternal(previous, changes.external) //changes.external.modified.flatMap(previous.usesExternal) // ++ scopeInvalidations
+      val classToSrc = new ClassToSourceMapper(previous, previous)
+      val byExtSrcDep = {
+        val classNames = invalidateByAllExternal(previous, changes.external, classToSrc.isDefinedInScalaSrc) //changes.external.modified.flatMap(previous.usesExternal) // ++ scopeInvalidations
+        classNames
+      }
       checkAbsolute(srcChanges.added.toList)
       log.debug(
         "\nInitial source changes: \n\tremoved:" + srcChanges.removed + "\n\tadded: " + srcChanges.added + "\n\tmodified: " + srcChanges.changed +
           "\nInvalidated products: " + changes.removedProducts +
           "\nExternal API changes: " + changes.external +
           "\nModified binary dependencies: " + changes.binaryDeps +
-          "\nInitial directly invalidated sources: " + srcDirect +
+          "\nInitial directly invalidated classes: " + invalidatedClasses +
           "\n\nSources indirectly invalidated by:" +
           "\n\tproduct: " + byProduct +
           "\n\tbinary dep: " + byBinaryDep +
           "\n\texternal source: " + byExtSrcDep
       )
 
-      srcDirect ++ byProduct ++ byBinaryDep ++ byExtSrcDep
+      (invalidatedClasses ++ byExtSrcDep, addedSrcs ++ modifiedSrcs ++ byProduct ++ byBinaryDep)
     }
   private[this] def checkAbsolute(addedSources: List[File]): Unit =
     if (addedSources.nonEmpty) {
@@ -224,42 +268,43 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
       }
     }
 
-  def invalidateByAllExternal(relations: Relations, externalAPIChanges: APIChanges[String]): Set[File] = {
+  def invalidateByAllExternal(relations: Relations, externalAPIChanges: APIChanges, isScalaClass: String => Boolean): Set[String] = {
     (externalAPIChanges.apiChanges.flatMap { externalAPIChange =>
-      invalidateByExternal(relations, externalAPIChange)
+      invalidateByExternal(relations, externalAPIChange, isScalaClass)
     }).toSet
   }
 
-  /** Sources invalidated by `external` sources in other projects according to the previous `relations`. */
-  protected def invalidateByExternal(relations: Relations, externalAPIChange: APIChange[String]): Set[File]
+  /** Classes invalidated by `external` classes in other projects according to the previous `relations`. */
+  protected def invalidateByExternal(relations: Relations, externalAPIChange: APIChange, isScalaClass: String => Boolean): Set[String]
 
   /** Intermediate invalidation step: steps after the initial invalidation, but before the final transitive invalidation. */
-  def invalidateIntermediate(relations: Relations, changes: APIChanges[File]): Set[File] =
+  def invalidateIntermediate(relations: Relations, changes: APIChanges, isScalaClass: String => Boolean): Set[String] =
     {
-      invalidateSources(relations, changes)
+      invalidateClasses(relations, changes, isScalaClass)
     }
   /**
    * Invalidates inheritance dependencies, transitively.  Then, invalidates direct dependencies.  Finally, excludes initial dependencies not
-   * included in a cycle with newly invalidated sources.
+   * included in a cycle with newly invalidated classes.
    */
-  private[this] def invalidateSources(relations: Relations, changes: APIChanges[File]): Set[File] =
+  private def invalidateClasses(relations: Relations, changes: APIChanges, isScalaClass: String => Boolean): Set[String] =
     {
       val initial = changes.allModified.toSet
       val all = (changes.apiChanges flatMap { change =>
-        invalidateSource(relations, change)
+        invalidateClass(relations, change, isScalaClass)
       }).toSet
       includeInitialCond(initial, all, allDeps(relations))
     }
 
-  protected def allDeps(relations: Relations): File => Set[File]
+  protected def allDeps(relations: Relations): (String) => Set[String]
 
-  protected def invalidateSource(relations: Relations, change: APIChange[File]): Set[File]
+  protected def invalidateClass(relations: Relations, change: APIChange, isScalaClass: String => Boolean): Set[String]
 
   /**
-   * Conditionally include initial sources that are dependencies of newly invalidated sources.
-   * * Initial sources included in this step can be because of a cycle, but not always.
+   * Conditionally include initial classes that are dependencies of newly invalidated classes.
+   * Initial classes included in this step can be because of a cycle, but not always.
    */
-  private[this] def includeInitialCond(initial: Set[File], currentInvalidations: Set[File], allDeps: File => Set[File]): Set[File] =
+  private[this] def includeInitialCond(initial: Set[String], currentInvalidations: Set[String],
+    allDeps: String => Set[String]): Set[String] =
     {
       val newInv = currentInvalidations -- initial
       log.debug("New invalidations:\n\t" + newInv)
@@ -269,7 +314,7 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
       newInv ++ initialDependsOnNew
     }
 
-  def externalBinaryModified(entry: String => Option[File], analysis: File => Option[CompileAnalysis], previous: Stamps, current: ReadStamps)(implicit equivS: Equiv[Stamp]): File => Boolean =
+  def externalBinaryModified(lookup: Lookup, previous: Stamps, current: ReadStamps)(implicit equivS: Equiv[Stamp]): File => Boolean =
     dependsOn =>
       {
         def inv(reason: String): Boolean = {
@@ -296,42 +341,46 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
         def dependencyModified(file: File): Boolean =
           previous.className(file) match {
             case None => inv("no class name was mapped for it.")
-            case Some(name) => entry(name) match {
+            case Some(name) => lookup.lookupOnClasspath(name) match {
               case None    => inv("could not find class " + name + " on the classpath.")
               case Some(e) => entryModified(name, e)
             }
           }
 
-        analysis(dependsOn).isEmpty &&
+        lookup.lookupAnalysis(dependsOn).isEmpty &&
           (if (skipClasspathLookup) fileModified(dependsOn, dependsOn) else dependencyModified(dependsOn))
 
       }
 
-  def currentExternalAPI(entry: String => Option[File], forEntry: File => Option[CompileAnalysis]): String => Source =
-    className =>
-      orEmpty(
-        for {
-          e <- entry(className)
-          analysis0 <- forEntry(e)
-          analysis = analysis0 match { case a: Analysis => a }
-          src <- analysis.relations.definesClass(className).headOption
-        } yield analysis.apis.internalAPI(src)
-      )
+  def currentExternalAPI(lookup: Lookup): String => AnalyzedClass = {
+    binaryClassName =>
+      {
+        orEmpty(
+          for {
+            analysis0 <- lookup.lookupAnalysis(binaryClassName)
+            analysis = analysis0 match { case a: Analysis => a }
+            className <- analysis.relations.binaryClassName.reverse(binaryClassName).headOption
+          } yield analysis.apis.internalAPI(className)
+        )
+      }
+  }
 
-  def orEmpty(o: Option[Source]): Source = o getOrElse APIs.emptySource
+  def orEmpty(o: Option[AnalyzedClass]): AnalyzedClass = o getOrElse APIs.emptyAnalyzedClass
   def orTrue(o: Option[Boolean]): Boolean = o getOrElse true
 
-  protected def transitiveDeps[T](nodes: Iterable[T])(dependencies: T => Iterable[T]): Set[T] =
+  protected def transitiveDeps[T](nodes: Iterable[T], logging: Boolean = true)(dependencies: T => Iterable[T]): Set[T] =
     {
       val xs = new collection.mutable.HashSet[T]
       def all(from: T, tos: Iterable[T]): Unit = tos.foreach(to => visit(from, to))
       def visit(from: T, to: T): Unit =
         if (!xs.contains(to)) {
-          log.debug(s"Including $to by $from")
+          if (logging)
+            log.debug(s"Including $to by $from")
           xs += to
           all(to, dependencies(to))
         }
-      log.debug("Initial set of included nodes: " + nodes)
+      if (logging)
+        log.debug("Initial set of included nodes: " + nodes)
       nodes foreach { start =>
         xs += start
         all(start, dependencies(start))

@@ -246,7 +246,9 @@ object IncrementalCompilerTest {
       new IncrementalStep(fileChanges: _*) {
         override def execute(state: ScenarioState): ScenarioState = {
           val stateAfterCompilation = parent.execute(state)
-          val invalidatedFiles = stateAfterCompilation.compiler.computeInvalidations(stateAfterCompilation) map (_.getName)
+          val invalidatedClasses = stateAfterCompilation.compiler.computeInvalidations(stateAfterCompilation)
+          val analysisAfterCompilation = stateAfterCompilation.compiler.getAnalyses.head
+          val invalidatedFiles = invalidatedClasses.flatMap(analysisAfterCompilation.relations.definesClass) map (_.getName)
 
           if (invalidatedFiles != invalidated.toSet) {
             val message = s"""Invalidated files didn't match expected invalidations.

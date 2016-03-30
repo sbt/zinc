@@ -102,6 +102,14 @@
 								{
 									"name": "savedAnnotations",
 									"type": "String*"
+								},
+								{
+									"name": "childrenOfSealedClass",
+									"type": "Type*"
+								},
+								{
+									"name": "topLevel",
+									"type": "Boolean"
 								}
 							]
 						},

@@ -158,7 +158,7 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface").
     // javaOnlySettings,
     name := "Compiler Interface",
     crossScalaVersions := Seq(scala211),
-    libraryDependencies ++= Seq(utilInterface),
+    libraryDependencies ++= Seq(utilInterface, scalaLibrary.value % Test),
     exportJars := true,
     watchSources <++= apiDefinitions,
     resourceGenerators in Compile <+= (version, resourceManaged, streams, compile in Compile) map generateVersionFile,
@@ -203,7 +203,7 @@ lazy val compilerBridge: Project = (project in internalPath / "compiler-bridge")
 // defines operations on the API of a source, including determining whether it has changed and converting it to a string
 //   and discovery of Projclasses and annotations
 lazy val incrementalcompilerApiInfo = (project in internalPath / "incrementalcompiler-apiinfo").
-  dependsOn(compilerInterface, incrementalcompilerClassfile).
+  dependsOn(compilerInterface, incrementalcompilerClassfile % "compile;test->test").
   settings(
     testedBaseSettings,
     name := "Incrementalcompiler ApiInfo"
@@ -222,7 +222,7 @@ lazy val incrementalcompilerClasspath = (project in internalPath / "incrementalc
 
 // class file reader and analyzer
 lazy val incrementalcompilerClassfile = (project in internalPath / "incrementalcompiler-classfile").
-  dependsOn(compilerInterface).
+  dependsOn(compilerInterface % "compile;test->test").
   settings(
     testedBaseSettings,
     libraryDependencies ++= Seq(sbtIO, utilLogging),

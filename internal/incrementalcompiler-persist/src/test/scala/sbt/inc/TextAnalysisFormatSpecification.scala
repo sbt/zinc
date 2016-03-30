@@ -1,14 +1,15 @@
 package sbt
 package inc
 
-import xsbti.api.DependencyContext.DependencyByMemberRef
 import xsbti.api.ExternalDependency
 import xsbti.compile.{ MiniSetup, MiniOptions }
 import sbt.internal.inc.{ Analysis, Exists, SourceInfos, TestCaseGenerators, TextAnalysisFormat }
 import sbt.util.InterfaceUtil._
 
 import java.io.{ BufferedReader, File, StringReader, StringWriter }
-import scala.math.abs
+import Analysis.NonLocalProduct
+import xsbti.api.DependencyContext
+
 import org.scalacheck._
 import Gen._
 import Prop._
@@ -66,18 +67,18 @@ object TextAnalysisFormatTest extends Properties("TextAnalysisFormat") {
     def f(s: String) = new File("/temp/" + s)
     val aScala = f("A.scala")
     val bScala = f("B.scala")
-    val aSource = genSource("A" :: "A$" :: Nil).sample.get
-    val bSource = genSource("B" :: "B$" :: Nil).sample.get
-    val cSource = genSource("C" :: Nil).sample.get
+    val aClass = genClass("A").sample.get
+    val cClass = genClass("C").sample.get
     val exists = new Exists(true)
     val sourceInfos = SourceInfos.makeInfo(Nil, Nil)
 
     var analysis = Analysis.empty(nameHashing)
-    analysis = analysis.addSource(aScala, aSource, exists, sourceInfos,
-      products = List((f("A.class"), "A", exists), (f("A$.class"), "A$", exists)),
-      internalDeps = Nil,
-      externalDeps = List(new ExternalDependency(aScala, "C", cSource, DependencyByMemberRef)),
-      binaryDeps = List((f("x.jar"), "x", exists)))
+    val products = NonLocalProduct("A", "A", f("A.class"), exists) ::
+      NonLocalProduct("A$", "A$", f("A$.class"), exists) :: Nil
+    val classes = ("A" -> "A") :: ("A$" -> "A$") :: Nil
+    val binaryDeps = (f("x.jar"), "x", exists) :: Nil
+    val externalDeps = new ExternalDependency("A", "C", cClass, DependencyContext.DependencyByMemberRef) :: Nil
+    analysis = analysis.addSource(aScala, Seq(aClass), exists, sourceInfos, products, Nil, Nil, externalDeps, binaryDeps)
 
     val writer = new StringWriter
 
@@ -93,19 +94,21 @@ object TextAnalysisFormatTest extends Properties("TextAnalysisFormat") {
     compare(analysis, readAnalysis) && result.startsWith(commonHeader)
   }
 
-  property("Write and read complex Analysis") = forAllNoShrink(TestCaseGenerators.genAnalysis(nameHashing)) { analysis: Analysis =>
-    val writer = new StringWriter
+  property("Write and read complex Analysis") =
+    forAllNoShrink(TestCaseGenerators.genAnalysis) { analysis: Analysis =>
+      val writer = new StringWriter
 
-    TextAnalysisFormat.write(writer, analysis, commonSetup)
+      TextAnalysisFormat.write(writer, analysis, commonSetup)
 
-    val result = writer.toString
+      val result = writer.toString
 
-    val reader = new BufferedReader(new StringReader(result))
+      result.startsWith(commonHeader)
+      val reader = new BufferedReader(new StringReader(result))
 
-    val (readAnalysis: Analysis, readSetup) = TextAnalysisFormat.read(reader)
+      val (readAnalysis: Analysis, readSetup) = TextAnalysisFormat.read(reader)
 
-    compare(analysis, readAnalysis) && result.startsWith(commonHeader)
-  }
+      compare(analysis, readAnalysis) && result.startsWith(commonHeader)
+    }
 
   // Compare two analyses with useful labelling when they aren't equal.
   private[this] def compare(left: Analysis, right: Analysis): Prop = {

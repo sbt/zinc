@@ -5,6 +5,6 @@ $ copy-file changes/A.scala A.scala
 > compile
 
 > checkRecompilations 0
-> checkRecompilations 1 A.scala
-> checkRecompilations 2 B.scala C.scala
-> checkRecompilations 3 D.scala
+> checkRecompilations 1 A
+> checkRecompilations 2 B C
+> checkRecompilations 3 D

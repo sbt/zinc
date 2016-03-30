@@ -8,48 +8,21 @@ import xsbti.api._
 import Function.tupled
 import scala.collection.{ immutable, mutable }
 
-@deprecated("This class is not used in incremental compiler and will be removed in next major version.", "0.13.2")
-class NameChanges(val newTypes: Set[String], val removedTypes: Set[String], val newTerms: Set[String], val removedTerms: Set[String]) {
-  override def toString =
-    (("New types", newTypes) :: ("Removed types", removedTypes) :: ("New terms", newTerms) :: ("Removed terms", removedTerms) :: Nil).map {
-      case (label, set) => label + ":\n\t" + set.mkString("\n\t")
-    }.mkString("Name changes:\n  ", "\n  ", "\n")
-
-}
-
-object TopLevel {
-  @deprecated("The NameChanges class is deprecated and will be removed in next major version.", "0.13.2")
-  def nameChanges(a: Iterable[Source], b: Iterable[Source]): NameChanges = {
-    val api = (_: Source).api
-    apiNameChanges(a map api, b map api)
-  }
-  /** Identifies removed and new top-level definitions by name. */
-  @deprecated("The NameChanges class is deprecated and will be removed in next major version.", "0.13.2")
-  def apiNameChanges(a: Iterable[SourceAPI], b: Iterable[SourceAPI]): NameChanges =
-    {
-      def changes(s: Set[String], t: Set[String]) = (s -- t, t -- s)
-
-      val (avalues, atypes) = definitions(a)
-      val (bvalues, btypes) = definitions(b)
-
-      val (newTypes, removedTypes) = changes(names(atypes), names(btypes))
-      val (newTerms, removedTerms) = changes(names(avalues), names(bvalues))
-
-      new NameChanges(newTypes, removedTypes, newTerms, removedTerms)
-    }
-  def definitions(i: Iterable[SourceAPI]) = SameAPI.separateDefinitions(i.toSeq.flatMap(_.definitions))
-  def names(s: Iterable[Definition]): Set[String] = Set() ++ s.map(_.name)
-}
-
 /** Checks the API of two source files for equality.*/
 object SameAPI {
-  def apply(a: Source, b: Source): Boolean =
-    a.apiHash == b.apiHash && (a.hash.nonEmpty && b.hash.nonEmpty) && apply(a.api, b.api)
+  def apply(a: AnalyzedClass, b: AnalyzedClass): Boolean =
+    (a.apiHash == b.apiHash) && apply(a.api, b.api)
 
-  def apply(a: Def, b: Def): Boolean =
+  def apply(a: Definition, b: Definition): Boolean =
     (new SameAPI(false, true)).sameDefinitions(List(a), List(b), true)
 
-  def apply(a: SourceAPI, b: SourceAPI): Boolean =
+  def apply(a: Companions, b: Companions): Boolean = {
+    val sameClasses = apply(a.classApi, b.classApi)
+    val sameObjects = apply(a.objectApi, b.objectApi)
+    sameClasses && sameObjects
+  }
+
+  def apply(a: ClassLike, b: ClassLike): Boolean =
     {
       val start = System.currentTimeMillis
 
@@ -110,19 +83,15 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
     }
 
   /** Returns true if source `a` has the same API as source `b`.*/
-  def check(a: SourceAPI, b: SourceAPI): Boolean =
+  def check(a: ClassLike, b: ClassLike): Boolean =
     {
-      samePackages(a, b) &&
-        debug(sameDefinitions(a, b), "Definitions differed")
+      debug(sameTopLevel(a, b), "Top level flag differs") &&
+        debug(sameDefinitions(Seq(a), Seq(b), a.topLevel), "Classes differed")
     }
 
-  def samePackages(a: SourceAPI, b: SourceAPI): Boolean =
-    sameStrings(packages(a), packages(b))
-  def packages(s: SourceAPI): Set[String] =
-    Set() ++ s.packages.map(_.name)
+  def sameTopLevel(a: ClassLike, b: ClassLike): Boolean =
+    a.topLevel == b.topLevel
 
-  def sameDefinitions(a: SourceAPI, b: SourceAPI): Boolean =
-    sameDefinitions(a.definitions, b.definitions, true)
   def sameDefinitions(a: Seq[Definition], b: Seq[Definition], topLevel: Boolean): Boolean =
     {
       val (avalues, atypes) = separateDefinitions(filterDefinitions(a, topLevel, includePrivate))
@@ -253,6 +222,7 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
   def sameClassLikeSpecificAPI(a: ClassLike, b: ClassLike): Boolean =
     sameDefinitionType(a.definitionType, b.definitionType) &&
       sameType(a.selfType, b.selfType) &&
+      sameSeq(a.childrenOfSealedClass, b.childrenOfSealedClass)(sameType) &&
       sameStructure(a.structure, b.structure)
 
   def sameValueParameters(a: Seq[ParameterList], b: Seq[ParameterList]): Boolean =

@@ -2,10 +2,11 @@ package sbt
 package internal
 package inc
 
-import xsbti.api.SourceAPI
 import xsbt.api.DefaultShowAPI
 import java.lang.reflect.Method
 import java.util.{ List => JList }
+
+import xsbti.api.{ Companions, AnalyzedClass, ClassLike }
 
 /**
  * A class which computes diffs (unified diffs) between two textual representations of an API.
@@ -39,9 +40,9 @@ private[inc] class APIDiff {
   /**
    * Generates an unified diff between textual representations of `api1` and `api2`.
    */
-  def generateApiDiff(fileName: String, api1: SourceAPI, api2: SourceAPI, contextSize: Int): String = {
-    val api1Str = DefaultShowAPI(api1)
-    val api2Str = DefaultShowAPI(api2)
+  def generateApiDiff(fileName: String, api1: Companions, api2: Companions, contextSize: Int): String = {
+    val api1Str = DefaultShowAPI(api1.classApi) + "\n" + DefaultShowAPI(api1.objectApi)
+    val api2Str = DefaultShowAPI(api2.classApi) + "\n" + DefaultShowAPI(api2.objectApi)
     generateApiDiff(fileName, api1Str, api2Str, contextSize)
   }
 

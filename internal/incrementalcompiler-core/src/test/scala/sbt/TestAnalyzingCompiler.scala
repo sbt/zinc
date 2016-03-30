@@ -3,8 +3,8 @@ package xsbt
 import java.io.File
 
 import xsbti._
+import xsbti.api.AnalyzedClass
 import xsbti.compile.{ IncOptions, SingleOutput }
-import xsbti.api.Source
 import sbt.internal.inc.IncrementalCompilerTest
 import sbt.internal.inc.IncrementalCompilerTest._
 import sbt.internal.inc.{ TestIncremental, TestAnalysis, TestAnalysisCallback, APIs }
@@ -34,7 +34,7 @@ class TestAnalyzingCompiler(incOptions: IncOptions) {
 
     changedFiles foreach deleteProducts
 
-    val internalMap = analyses.headOption map (_.products.map(p => (p._2, p._1)).toMap) getOrElse Map.empty
+    val internalMap = analyses.headOption map (_.relations.binaryClassName.reverseMap.mapValues(_.head)) getOrElse Map.empty
     val analysisCallback = new TestAnalysisCallback(internalMap, incOptions.nameHashing)
     val classesDir = state.directory / "classes"
     classesDir.mkdir()
@@ -57,24 +57,28 @@ class TestAnalyzingCompiler(incOptions: IncOptions) {
       case x :: xs => (analysisCallback.get.merge(x, deletedFiles)) :: x :: xs
     }
 
-    computeInvalidations(state)
+    val analysis = analyses.head
 
+    computeInvalidations(state).flatMap(analysis.relations.definesClass)
   }
 
   /**
    * Return the set of files that have been invalidated by the last incremental
    * compilation step.
    */
-  def computeInvalidations(state: ScenarioState): Set[File] = {
-    def apiFrom(a: Option[TestAnalysis]): File => Source =
-      (f: File) => (a map (_.apis) getOrElse APIs.empty) internalAPI f
+  def computeInvalidations(state: ScenarioState): Set[String] = {
+    def apiFrom(a: Option[TestAnalysis]): String => AnalyzedClass =
+      (className: String) => (a map (_.apis) getOrElse APIs.empty) internalAPI className
+
+    val analysis = analyses.head
 
     val freshlyRecompiled =
-      state.lastChanges.map(x => state.directory / x._1).toSet
+      state.lastChanges.map(x => state.directory / x._1).flatMap(analysis.relations.classNames).toSet
 
     val apiChanges = incremental.changedIncremental(freshlyRecompiled, apiFrom(analyses lift 1), apiFrom(analyses.headOption))
 
-    incremental.invalidateIncremental(analyses.head.relations, analyses.head.apis, apiChanges, freshlyRecompiled, false)
+    incremental.invalidateIncremental(analyses.head.relations, analyses.head.apis, apiChanges, freshlyRecompiled, false,
+      (className: String) => true)
 
   }
 
@@ -99,7 +103,7 @@ class TestAnalyzingCompiler(incOptions: IncOptions) {
   private def deleteProducts(file: File): Unit = {
     analyses.headOption foreach { a =>
       val products = a.products filter (_._1 == file)
-      products foreach { case (_, classFile, _) => IO delete classFile }
+      products foreach { case (_, classFile) => IO delete classFile }
     }
   }
 
