@@ -54,32 +54,32 @@ def baseSettings: Seq[Setting[_]] =
 def testedBaseSettings: Seq[Setting[_]] =
   baseSettings ++ testDependencies
 
-lazy val incrementalcompilerRoot: Project = (project in file(".")).
+lazy val zincRoot: Project = (project in file(".")).
   // configs(Sxr.sxrConf).
   aggregate(
-    incrementalcompiler,
-    incrementalcompilerPersist,
-    incrementalcompilerCore,
-    incrementalcompilerIvyIntegration,
-    incrementalcompilerCompile,
-    incrementalcompilerCompileCore,
+    zinc,
+    zincPersist,
+    zincCore,
+    zincIvyIntegration,
+    zincCompile,
+    zincCompileCore,
     compilerInterface,
     compilerBridge,
-    incrementalcompilerApiInfo,
-    incrementalcompilerClasspath,
-    incrementalcompilerClassfile,
-    incrementalcompilerScripted).
+    zincApiInfo,
+    zincClasspath,
+    zincClassfile,
+    zincScripted).
   settings(
     inThisBuild(Seq(
       git.baseVersion := baseVersion,
-      bintrayPackage := "incrementalcompiler",
-      scmInfo := Some(ScmInfo(url("https://github.com/sbt/incrementalcompiler"), "git@github.com:sbt/incrementalcompiler.git")),
+      bintrayPackage := "zinc",
+      scmInfo := Some(ScmInfo(url("https://github.com/sbt/zinc"), "git@github.com:sbt/zinc.git")),
       description := "Incremental compiler of Scala",
-      homepage := Some(url("https://github.com/sbt/incrementalcompiler"))
+      homepage := Some(url("https://github.com/sbt/zinc"))
     )),
     minimalSettings,
     otherRootSettings,
-    name := "Incrementalcompiler Root",
+    name := "zinc Root",
     publish := {},
     publishLocal := {},
     publishArtifact in Compile := false,
@@ -87,36 +87,36 @@ lazy val incrementalcompilerRoot: Project = (project in file(".")).
     publishArtifact := false
   )
 
-lazy val incrementalcompiler = (project in file("incrementalcompiler")).
-  dependsOn(incrementalcompilerCore, incrementalcompilerPersist, incrementalcompilerCompileCore,
-    incrementalcompilerClassfile, incrementalcompilerIvyIntegration % "compile->compile;test->test").
+lazy val zinc = (project in file("zinc")).
+  dependsOn(zincCore, zincPersist, zincCompileCore,
+    zincClassfile, zincIvyIntegration % "compile->compile;test->test").
   settings(
     testedBaseSettings,
-    name := "incrementalcompiler",
+    name := "zinc",
     libraryDependencies ++= Seq(utilLogging % "test" classifier "tests", libraryManagement % "test", libraryManagement % "test" classifier "tests")
   )
 
-lazy val incrementalcompilerCompile = (project in file("incrementalcompiler-compile")).
-  dependsOn(incrementalcompilerCompileCore, incrementalcompilerCompileCore % "test->test").
+lazy val zincCompile = (project in file("zinc-compile")).
+  dependsOn(zincCompileCore, zincCompileCore % "test->test").
   settings(
     testedBaseSettings,
-    name := "Incrementalcompiler Compile",
+    name := "zinc Compile",
     libraryDependencies ++= Seq(utilTracking)
   )
 
 // Persists the incremental data structures using SBinary
-lazy val incrementalcompilerPersist = (project in internalPath / "incrementalcompiler-persist").
-  dependsOn(incrementalcompilerCore, incrementalcompilerCore % "test->test").
+lazy val zincPersist = (project in internalPath / "zinc-persist").
+  dependsOn(zincCore, zincCore % "test->test").
   settings(
     testedBaseSettings,
-    name := "Incrementalcompiler Persist",
+    name := "zinc Persist",
     libraryDependencies += sbinary
   )
 
 // Implements the core functionality of detecting and propagating changes incrementally.
 //   Defines the data structures for representing file fingerprints and relationships and the overall source analysis
-lazy val incrementalcompilerCore = (project in internalPath / "incrementalcompiler-core").
-  dependsOn(incrementalcompilerApiInfo, incrementalcompilerClasspath, compilerBridge % Test).
+lazy val zincCore = (project in internalPath / "zinc-core").
+  dependsOn(zincApiInfo, zincClasspath, compilerBridge % Test).
   settings(
     testedBaseSettings,
     libraryDependencies ++= Seq(sbtIO, utilLogging, utilRelation),
@@ -127,23 +127,23 @@ lazy val incrementalcompilerCore = (project in internalPath / "incrementalcompil
     // needed because we fork tests and tests are ran in parallel so we have multiple Scala
     // compiler instances that are memory hungry
     javaOptions in Test += "-Xmx1G",
-    name := "Incrementalcompiler Core"
+    name := "zinc Core"
   )
 
-lazy val incrementalcompilerIvyIntegration = (project in internalPath / "incrementalcompiler-ivy-integration").
-  dependsOn(incrementalcompilerCompileCore).
+lazy val zincIvyIntegration = (project in internalPath / "zinc-ivy-integration").
+  dependsOn(zincCompileCore).
   settings(
     baseSettings,
     libraryDependencies ++= Seq(libraryManagement, libraryManagement % Test classifier "tests", utilTesting % Test),
-    name := "Incrementalcompiler Ivy Integration"
+    name := "zinc Ivy Integration"
   )
 
 // sbt-side interface to compiler.  Calls compiler-side interface reflectively
-lazy val incrementalcompilerCompileCore = (project in internalPath / "incrementalcompiler-compile-core").
-  dependsOn(compilerInterface % "compile;test->test", incrementalcompilerClasspath, incrementalcompilerApiInfo, incrementalcompilerClassfile).
+lazy val zincCompileCore = (project in internalPath / "zinc-compile-core").
+  dependsOn(compilerInterface % "compile;test->test", zincClasspath, zincApiInfo, zincClassfile).
   settings(
     testedBaseSettings,
-    name := "Incrementalcompiler Compile Core",
+    name := "zinc Compile Core",
     libraryDependencies ++= Seq(scalaCompiler.value % Test, launcherInterface,
       utilLogging, sbtIO, utilLogging % "test" classifier "tests", utilControl),
     unmanagedJars in Test <<= (packageSrc in compilerBridge in Compile).map(x => Seq(x).classpath)
@@ -170,7 +170,7 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface").
 // Compiler-side interface to compiler that is compiled against the compiler being used either in advance or on the fly.
 //   Includes API and Analyzer phases that extract source API and relationships.
 lazy val compilerBridge: Project = (project in internalPath / "compiler-bridge").
-  dependsOn(compilerInterface % "compile;test->test", /*launchProj % "test->test",*/ incrementalcompilerApiInfo % "test->test").
+  dependsOn(compilerInterface % "compile;test->test", /*launchProj % "test->test",*/ zincApiInfo % "test->test").
   settings(
     baseSettings,
     libraryDependencies += scalaCompiler.value % "provided",
@@ -202,39 +202,39 @@ lazy val compilerBridge: Project = (project in internalPath / "compiler-bridge")
 
 // defines operations on the API of a source, including determining whether it has changed and converting it to a string
 //   and discovery of Projclasses and annotations
-lazy val incrementalcompilerApiInfo = (project in internalPath / "incrementalcompiler-apiinfo").
-  dependsOn(compilerInterface, incrementalcompilerClassfile % "compile;test->test").
+lazy val zincApiInfo = (project in internalPath / "zinc-apiinfo").
+  dependsOn(compilerInterface, zincClassfile % "compile;test->test").
   settings(
     testedBaseSettings,
-    name := "Incrementalcompiler ApiInfo"
+    name := "zinc ApiInfo"
   )
 
 // Utilities related to reflection, managing Scala versions, and custom class loaders
-lazy val incrementalcompilerClasspath = (project in internalPath / "incrementalcompiler-classpath").
+lazy val zincClasspath = (project in internalPath / "zinc-classpath").
   dependsOn(compilerInterface).
   settings(
     testedBaseSettings,
-    name := "Incrementalcompiler Classpath",
+    name := "zinc Classpath",
     libraryDependencies ++= Seq(scalaCompiler.value,
       Dependencies.launcherInterface,
       sbtIO)
   )
 
 // class file reader and analyzer
-lazy val incrementalcompilerClassfile = (project in internalPath / "incrementalcompiler-classfile").
+lazy val zincClassfile = (project in internalPath / "zinc-classfile").
   dependsOn(compilerInterface % "compile;test->test").
   settings(
     testedBaseSettings,
     libraryDependencies ++= Seq(sbtIO, utilLogging),
-    name := "Incrementalcompiler Classfile"
+    name := "zinc Classfile"
   )
 
 // re-implementation of scripted engine
-lazy val incrementalcompilerScripted = (project in internalPath / "incrementalcompiler-scripted").
-  dependsOn(incrementalcompiler, incrementalcompilerIvyIntegration % "test->test").
+lazy val zincScripted = (project in internalPath / "zinc-scripted").
+  dependsOn(zinc, zincIvyIntegration % "test->test").
   settings(
     minimalSettings,
-    name := "Incrementalcompiler Scripted",
+    name := "zinc Scripted",
     publish := (),
     publishLocal := (),
     libraryDependencies += utilScripted % "test"
@@ -244,7 +244,7 @@ lazy val publishBridgesAndTest = Command.args("publishBridgesAndTest", "<version
   val version = args mkString ""
   val compilerInterfaceID = compilerInterface.id
   val compilerBridgeID = compilerBridge.id
-  val test = s"$compilerInterfaceID/publishLocal" :: s"plz $version incrementalcompilerRoot/test" :: s"plz $version incrementalcompilerRoot/scripted" :: state
+  val test = s"$compilerInterfaceID/publishLocal" :: s"plz $version zincRoot/test" :: s"plz $version zincRoot/scripted" :: state
   (scalaVersions map (v => s"plz $v $compilerBridgeID/publishLocal") foldRight test) { _ :: _ }
 }
 
@@ -252,7 +252,7 @@ lazy val otherRootSettings = Seq(
   Scripted.scriptedPrescripted := { _ => },
   Scripted.scripted <<= scriptedTask,
   Scripted.scriptedUnpublished <<= scriptedUnpublishedTask,
-  Scripted.scriptedSource := (sourceDirectory in incrementalcompiler).value / "sbt-test",
+  Scripted.scriptedSource := (sourceDirectory in zinc).value / "sbt-test",
   publishAll := {
     val _ = (publishLocal).all(ScopeFilter(inAnyProject)).value
   }
@@ -261,14 +261,14 @@ lazy val otherRootSettings = Seq(
 def scriptedTask: Def.Initialize[InputTask[Unit]] = Def.inputTask {
   val result = scriptedSource(dir => (s: State) => scriptedParser(dir)).parsed
   publishAll.value
-  doScripted((fullClasspath in incrementalcompilerScripted in Test).value,
-    (scalaInstance in incrementalcompilerScripted).value, scriptedSource.value, result, scriptedPrescripted.value)
+  doScripted((fullClasspath in zincScripted in Test).value,
+    (scalaInstance in zincScripted).value, scriptedSource.value, result, scriptedPrescripted.value)
 }
 
 def scriptedUnpublishedTask: Def.Initialize[InputTask[Unit]] = Def.inputTask {
   val result = scriptedSource(dir => (s: State) => scriptedParser(dir)).parsed
-  doScripted((fullClasspath in incrementalcompilerScripted in Test).value,
-    (scalaInstance in incrementalcompilerScripted).value, scriptedSource.value, result, scriptedPrescripted.value)
+  doScripted((fullClasspath in zincScripted in Test).value,
+    (scalaInstance in zincScripted).value, scriptedSource.value, result, scriptedPrescripted.value)
 }
 
 lazy val publishAll = TaskKey[Unit]("publish-all")
