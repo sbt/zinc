@@ -192,7 +192,7 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
       val classpath = (i.si.allJars.toList ++ unmanagedJars :+ classesDir).toArray
       val in = compiler.inputs(classpath, sources.toArray, classesDir, Array(), Array(), maxErrors, Array(),
         CompileOrder.Mixed, cs, setup, prev)
-      val result = compiler.compile(in, log)
+      val result = compiler.compile(in, scriptedLog)
       val analysis = result.analysis match { case a: Analysis => a }
       fileStore.set(analysis, result.setup)
       analysis
