@@ -53,7 +53,7 @@ object Incremental {
     log: sbt.util.Logger,
     options: IncOptions
   )(implicit equivS: Equiv[Stamp]): (Boolean, Analysis) =
-    {
+    ClassfileManager.manageClassfiles(output, options) {
       val previous = previous0 match { case a: Analysis => a }
       val incremental: IncrementalCommon =
         if (options.nameHashing)
@@ -71,9 +71,7 @@ object Incremental {
       val (initialInvClasses, initialInvSources) = incremental.invalidateInitial(previous.relations, initialChanges)
       log.debug("All initially invalidated classes: " + initialInvClasses + "\n" +
         "All initially invalidated sources:" + initialInvSources + "\n")
-      val analysis = ClassfileManager.manageClassfiles(output, options) {
-        incremental.cycle(initialInvClasses, initialInvSources, sources, binaryChanges, previous, doCompile, 1)
-      }
+      val analysis = incremental.cycle(initialInvClasses, initialInvSources, sources, binaryChanges, previous, doCompile, 1)
       (initialInvClasses.nonEmpty || initialInvSources.nonEmpty, analysis)
     }
 
