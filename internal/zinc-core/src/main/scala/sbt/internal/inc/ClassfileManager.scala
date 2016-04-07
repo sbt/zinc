@@ -3,89 +3,118 @@ package internal
 package inc
 
 import sbt.io.IO
+import sbt.io.Path._
+
 import java.io.File
 import collection.mutable
-import xsbti.compile.{ IncOptions, DeleteImmediatelyManagerType, TransactionalManagerType }
+import xsbti.compile.{ IncOptions, DeleteImmediatelyManagerType, Output, SingleOutput, MultipleOutput, TransactionalManagerType }
 
 /**
- * During an incremental compilation run, a ClassfileManager deletes class files and is notified of generated class files.
+ * During an incremental compilation run, a ClassfileManager backs up classfiles, and
+ * can restore them in case of failure.
+ *
  * A ClassfileManager can be used only once.
  */
 trait ClassfileManager {
   /**
-   * Called once per compilation step with the class files to delete prior to that step's compilation.
-   * The files in `classes` must not exist if this method returns normally.
-   * Any empty ancestor directories of deleted files must not exist either.
+   * Called before any changes to classfiles have been made.
    */
-  def delete(classes: Iterable[File]): Unit
+  def begin(): Unit
 
-  /** Called once per compilation step with the class files generated during that step.*/
-  def generated(classes: Iterable[File]): Unit
+  /**
+   * Called if changes to classfiles in the monitored location were successful.
+   */
+  def commit(): Unit
 
-  /** Called once at the end of the whole compilation run, with `success` indicating whether compilation succeeded (true) or not (false).*/
-  def complete(success: Boolean): Unit
+  /**
+   * Called if changes to classfiles in the monitored location were unsuccessful and should
+   * be rolled back.
+   */
+  def rollback(): Unit
 }
 
 object ClassfileManager {
-  def getClassfileManager(options: IncOptions): ClassfileManager =
+
+  def manageClassfiles[T](output: Output, options: IncOptions)(run: => T): T =
+    {
+      val cfm = ClassfileManager.getClassfileManager(output, options)
+      cfm.begin()
+      val result =
+        try {
+          run
+        } catch {
+          case e: Exception =>
+            cfm.rollback()
+            throw e
+        }
+      cfm.commit()
+      result
+    }
+
+  private def getClassfileManager(output: Output, options: IncOptions): ClassfileManager =
     if (options.classfileManagerType.isDefined)
       options.classfileManagerType.get match {
-        case _: DeleteImmediatelyManagerType => deleteImmediately()
-        case m: TransactionalManagerType     => transactional(m.backupDirectory, m.logger)()
+        case _: DeleteImmediatelyManagerType => Noop
+        case m: TransactionalManagerType     => Transactional(output, m.backupDirectory, m.logger)
       }
-    else deleteImmediately()
+    else Noop
 
-  /** Constructs a minimal ClassfileManager implementation that immediately deletes class files when requested. */
-  val deleteImmediately: () => ClassfileManager = () => new ClassfileManager {
-    def delete(classes: Iterable[File]): Unit = IO.deleteFilesEmptyDirs(classes)
-    def generated(classes: Iterable[File]): Unit = ()
-    def complete(success: Boolean): Unit = ()
+  /** Constructs a noop ClassfileManager which does not back up classfiles before execution. */
+  private object Noop extends ClassfileManager {
+    def begin(): Unit = ()
+    def commit(): Unit = ()
+    def rollback(): Unit = ()
   }
-  @deprecated("Use overloaded variant that takes additional logger argument, instead.", "0.13.5")
-  def transactional(tempDir0: File): () => ClassfileManager =
-    transactional(tempDir0, sbt.util.Logger.Null)
-  /** When compilation fails, this ClassfileManager restores class files to the way they were before compilation.*/
-  def transactional(tempDir0: File, logger: sbt.util.Logger): () => ClassfileManager = () => new ClassfileManager {
+
+  /**
+   * When compilation fails, this ClassfileManager restores classfiles to the way they were
+   * before compilation.
+   */
+  private case class Transactional(output: Output, tempDir0: File, logger: sbt.util.Logger) extends ClassfileManager {
     val tempDir = tempDir0.getCanonicalFile
-    IO.delete(tempDir)
-    IO.createDirectory(tempDir)
-    logger.debug(s"Created transactional ClassfileManager with tempDir = $tempDir")
 
-    private[this] val generatedClasses = new mutable.HashSet[File]
-    private[this] val movedClasses = new mutable.HashMap[File, File]
+    // Flatten to a list to guard against non-determinism.
+    private val outputDirs: List[(File, File)] = {
+      val items = output match {
+        case single: SingleOutput  => Seq(single.outputDirectory)
+        case multi: MultipleOutput => multi.outputGroups.map(_.outputDirectory).toSeq
+      }
+      items.zipWithIndex.map {
+        case (outputDir, idx) => (outputDir, tempDir / idx.toString)
+      }.toList
+    }
 
-    private def showFiles(files: Iterable[File]): String = files.map(f => s"\t$f").mkString("\n")
-    def delete(classes: Iterable[File]): Unit = {
-      logger.debug(s"About to delete class files:\n${showFiles(classes)}")
-      val toBeBackedUp = classes.filter(c => c.exists && !movedClasses.contains(c) && !generatedClasses(c))
-      logger.debug(s"We backup classs files:\n${showFiles(toBeBackedUp)}")
-      for (c <- toBeBackedUp) {
-        movedClasses.put(c, move(c))
-      }
-      IO.deleteFilesEmptyDirs(classes)
-    }
-    def generated(classes: Iterable[File]): Unit = {
-      logger.debug(s"Registering generated classes:\n${showFiles(classes)}")
-      generatedClasses ++= classes
-      ()
-    }
-    def complete(success: Boolean): Unit = {
-      if (!success) {
-        logger.debug("Rolling back changes to class files.")
-        logger.debug(s"Removing generated classes:\n${showFiles(generatedClasses)}")
-        IO.deleteFilesEmptyDirs(generatedClasses)
-        logger.debug(s"Restoring class files: \n${showFiles(movedClasses.keys)}")
-        for ((orig, tmp) <- movedClasses) IO.move(tmp, orig)
-      }
-      logger.debug(s"Removing the temporary directory used for backing up class files: $tempDir")
+    def begin(): Unit = {
+      logger.debug(s"Beginning ClassfileManager transaction with tempDir $tempDir")
       IO.delete(tempDir)
+      outputDirs.foreach {
+        case (outputDir, tempOutputDir) =>
+          IO.copyDirectory(outputDir, tempOutputDir, preserveLastModified = true)
+      }
     }
 
-    def move(c: File): File =
-      {
-        val target = File.createTempFile("sbt", ".class", tempDir)
-        IO.move(c, target)
-        target
+    def commit(): Unit = {
+      try {
+        logger.debug("Committing changes to classfiles.")
+        IO.delete(tempDir)
+      } catch {
+        case e: Throwable =>
+          logger.debug(s"Failed to clean up temporary directory $tempDir: $e")
       }
+    }
+
+    def rollback(): Unit = {
+      try {
+        logger.debug("Rolling back changes to classfiles.")
+        outputDirs.foreach {
+          case (outputDir, tempOutputDir) =>
+            IO.delete(outputDir)
+            IO.copyDirectory(tempOutputDir, outputDir, preserveLastModified = true)
+        }
+      } catch {
+        case e: Throwable =>
+          logger.error(s"Failed to rollback previous classfiles from $tempDir: $e")
+      }
+    }
   }
 }

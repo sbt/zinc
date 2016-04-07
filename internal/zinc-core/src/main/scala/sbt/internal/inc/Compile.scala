@@ -58,7 +58,7 @@ object IncrementalCompile {
       try {
         Incremental.compile(sources, lookup, previous, current,
           doCompile(compile, internalBinaryToSourceClassName, internalSourceToClassNamesMap, externalAPI, current, output, options),
-          log, options)
+          output, log, options)
       } catch {
         case e: xsbti.CompileCancelled =>
           log.info("Compilation has been cancelled")
