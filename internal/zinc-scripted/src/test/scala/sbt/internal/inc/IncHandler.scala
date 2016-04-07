@@ -35,10 +35,14 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
     }
   }
   val classesDir = directory / "target" / "classes"
-  val sourceDirectory = directory / "src" / "main" / "scala"
+  val scalaSourceDirectory = directory / "src" / "main" / "scala"
+  val javaSourceDirectory = directory / "src" / "main" / "java"
   def scalaSources: List[File] =
-    (sourceDirectory ** "*.scala").get.toList ++
+    (scalaSourceDirectory ** "*.scala").get.toList ++
       (directory * "*.scala").get.toList
+  def javaSources: List[File] =
+    (javaSourceDirectory ** "*.java").get.toList ++
+      (directory * "*.java").get.toList
   val cacheFile = directory / "target" / "inc_compile"
   val fileStore = AnalysisStore.cached(FileBasedStore(cacheFile))
   def unmanagedJars: List[File] = (directory / "lib" ** "*.jar").get.toList
@@ -179,7 +183,7 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
   def compile(i: IncInstance): Analysis =
     {
       import i._
-      val sources = scalaSources
+      val sources = scalaSources ++ javaSources
       val prev = fileStore.get match {
         case Some((a, s)) => new PreviousResult(Maybe.just(a), Maybe.just(s))
         case _            => compiler.emptyPreviousResult
