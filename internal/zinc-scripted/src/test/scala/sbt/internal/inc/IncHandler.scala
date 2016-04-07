@@ -34,7 +34,8 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
       override def apply(className: String): Boolean = x(className)
     }
   }
-  val classesDir = directory / "target" / "classes"
+  val targetDir = directory / "target"
+  val classesDir = targetDir / "classes"
   val scalaSourceDirectory = directory / "src" / "main" / "scala"
   val javaSourceDirectory = directory / "src" / "main" / "java"
   def scalaSources: List[File] =
@@ -189,7 +190,11 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
         case _            => compiler.emptyPreviousResult
       }
       val analysisMap = f1((f: File) => prev.analysis)
-      val incOptions = loadIncOptions(directory / "incOptions.properties")
+      val transactional: xsbti.Maybe[xsbti.compile.ClassfileManagerType] =
+        Maybe.just(new xsbti.compile.TransactionalManagerType(targetDir / "classes.bak", sbt.util.Logger.Null))
+      // you can't specify class file manager in the properties files so let's overwrite it to be the transactional
+      // one (that's the default for sbt)
+      val incOptions = loadIncOptions(directory / "incOptions.properties").withClassfileManagerType(transactional)
       val reporter = new LoggerReporter(maxErrors, scriptedLog, identity)
       val extra = Array(t2(("key", "value")))
       val setup = compiler.setup(analysisMap, dc, skip = false, cacheFile, CompilerCache.fresh, incOptions, reporter, extra)
