@@ -26,6 +26,7 @@ class Visit {
     visitModifiers(d.modifiers)
     visitAccess(d.access)
     d match {
+      case c: ClassLikeDef    => visitClassDef(c)
       case c: ClassLike       => visitClass(c)
       case f: FieldLike       => visitField(f)
       case d: Def             => visitDef(d)
@@ -33,9 +34,12 @@ class Visit {
       case t: TypeAlias       => visitTypeAlias(t)
     }
   }
+  final def visitClassDef(c: ClassLikeDef): Unit = {
+    visitTypeParameters(c.typeParameters)
+  }
   final def visitClass(c: ClassLike): Unit = if (visitedClassLike add c) visitClass0(c)
   def visitClass0(c: ClassLike): Unit = {
-    visitParameterizedDefinition(c)
+    visitTypeParameters(c.typeParameters)
     visitType(c.selfType)
     visitStructure(c.structure)
   }

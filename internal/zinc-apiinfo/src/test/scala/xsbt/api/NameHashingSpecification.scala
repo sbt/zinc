@@ -28,14 +28,12 @@ class NameHashingSpecification extends UnitSpec {
    * Very basic test which checks whether a name hash is insensitive to
    * definition order (across the whole compilation unit).
    */
-  it should "generates hashes that are insensitive to the definition order" in {
+  it should "generate hashes that are insensitive to the definition order" in {
     val nameHashing = new NameHashing
     val def1 = new Def(Array.empty, intTpe, Array.empty, "bar", publicAccess, defaultModifiers, Array.empty)
     val def2 = new Def(Array.empty, strTpe, Array.empty, "bar", publicAccess, defaultModifiers, Array.empty)
-    val nestedBar1 = simpleClass("Bar1", def1)
-    val nestedBar2 = simpleClass("Bar2", def2)
-    val classA = simpleClass("Foo", nestedBar1, nestedBar2)
-    val classB = simpleClass("Foo", nestedBar2, nestedBar1)
+    val classA = simpleClass("Foo", def1, def2)
+    val classB = simpleClass("Foo", def2, def1)
     val nameHashes1 = nameHashing.nameHashes(classA)
     val nameHashes2 = nameHashing.nameHashes(classB)
     val def1Hash = HashAPI(def1)
@@ -64,20 +62,11 @@ class NameHashingSpecification extends UnitSpec {
   it should "generate hashes that are sensitive to the definition location" in {
     val nameHashing = new NameHashing
     val deff = new Def(Array.empty, intTpe, Array.empty, "bar", publicAccess, defaultModifiers, Array.empty)
-    val classA = {
-      val nestedBar1 = simpleClass("Bar1", deff)
-      val nestedBar2 = simpleClass("Bar2")
-      simpleClass("Foo", nestedBar1, nestedBar2)
-    }
-    val classB = {
-      val nestedBar1 = simpleClass("Bar1")
-      val nestedBar2 = simpleClass("Bar2", deff)
-      simpleClass("Foo", nestedBar1, nestedBar2)
-    }
-    val nameHashes1 = nameHashing.nameHashes(classA)
-    val nameHashes2 = nameHashing.nameHashes(classB)
-    assert(nameHashes1 !== nameHashes2)
-    ()
+    val classFoo = simpleClassLike(name = "Foo", dt = DefinitionType.ClassDef, structure = simpleStructure(deff))
+    val objectFoo = simpleClassLike(name = "Foo", dt = DefinitionType.Module, structure = simpleStructure(deff))
+    val nameHashes1 = nameHashing.nameHashes(classFoo)
+    val nameHashes2 = nameHashing.nameHashes(objectFoo)
+    assertNameHashNotEqualForRegularName("bar", nameHashes1, nameHashes2)
   }
 
   /**
@@ -97,16 +86,16 @@ class NameHashingSpecification extends UnitSpec {
    * then hash for `Child` name should be the same in both
    * cases.
    */
-  it should "generates hashes that account for definitions in parent class" in {
+  it should "generate hashes that account for definitions in parent class" in {
     val parentA = simpleClass("Parent")
     val barMethod = new Def(Array.empty, intTpe, Array.empty, "bar", publicAccess, defaultModifiers, Array.empty)
     val parentB = simpleClass("Parent", barMethod)
     val childA = {
-      val structure = new Structure(lzy(Array[Type](parentA.structure)), lzy(Array.empty[Definition]), lzy(Array.empty[Definition]))
+      val structure = new Structure(lzy(Array[Type](parentA.structure)), emptyMembers, emptyMembers)
       simpleClassLike("Child", structure)
     }
     val childB = {
-      val structure = new Structure(lzy(Array[Type](parentB.structure)), lzy(Array.empty[Definition]), lzy(Array[Definition](barMethod)))
+      val structure = new Structure(lzy(Array[Type](parentB.structure)), emptyMembers, lzy(Array[ClassDefinition](barMethod)))
       simpleClassLike("Child", structure)
     }
     val parentANameHashes = nameHashesForClass(parentA)
@@ -136,7 +125,7 @@ class NameHashingSpecification extends UnitSpec {
    *
    * then name hash for "foo" should be different in those two cases.
    */
-  it should "generates hashes that account for structural types in definition" in {
+  it should "generate hashes that account for structural types in definition" in {
     /** def foo: { bar: Int } */
     val fooMethod1 = {
       val barMethod1 = new Def(Array.empty, intTpe, Array.empty, "bar", publicAccess, defaultModifiers, Array.empty)
@@ -223,14 +212,20 @@ class NameHashingSpecification extends UnitSpec {
 
   private def lzy[T](x: T): Lazy[T] = new Lazy[T] { def get: T = x }
 
-  private def simpleStructure(defs: Definition*) = new Structure(lzy(Array.empty[Type]), lzy(defs.toArray), lzy(Array.empty[Definition]))
+  private def simpleStructure(defs: ClassDefinition*) =
+    new Structure(lzy(Array.empty[Type]), lzy(defs.toArray), emptyMembers)
 
-  private def simpleClass(name: String, defs: Definition*): ClassLike = {
+  private def simpleClass(name: String, defs: ClassDefinition*): ClassLike = {
     val structure = simpleStructure(defs: _*)
     simpleClassLike(name, structure)
   }
 
-  private def simpleObject(name: String, defs: Definition*): ClassLike = {
+  private def simpleClassDef(name: String, dt: DefinitionType = DefinitionType.ClassDef,
+    access: Access = publicAccess): ClassLikeDef = {
+    new ClassLikeDef(dt, Array.empty, name, access, defaultModifiers, Array.empty)
+  }
+
+  private def simpleObject(name: String, defs: ClassDefinition*): ClassLike = {
     val structure = simpleStructure(defs: _*)
     simpleClassLike(name, structure, dt = DefinitionType.Module)
   }
@@ -247,5 +242,6 @@ class NameHashingSpecification extends UnitSpec {
   private val publicAccess = new Public
   private val privateAccess = new Private(new Unqualified)
   private val defaultModifiers = new Modifiers(false, false, false, false, false, false, false, false)
+  private val emptyMembers = lzy(Array.empty[ClassDefinition])
 
 }

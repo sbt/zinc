@@ -69,7 +69,7 @@ final class HashAPI(includePrivate: Boolean, includeParamNames: Boolean, include
   private[this] final val ValHash = 1
   private[this] final val VarHash = 2
   private[this] final val DefHash = 3
-  private[this] final val ClassHash = 4
+  private[this] final val ClassDefHash = 4
   private[this] final val TypeDeclHash = 5
   private[this] final val TypeAliasHash = 6
 
@@ -98,6 +98,8 @@ final class HashAPI(includePrivate: Boolean, includeParamNames: Boolean, include
   private[this] final val ConstantHash = 58
   private[this] final val ExistentialHash = 59
   private[this] final val StructureHash = 60
+
+  private[this] val ClassHash = 70
 
   private[this] final val TrueHash = 97
   private[this] final val FalseHash = 98
@@ -133,7 +135,7 @@ final class HashAPI(includePrivate: Boolean, includeParamNames: Boolean, include
   def hashAPI(c: ClassLike): Hash =
     {
       hash = 1
-      hashDefinitions(Seq(c), c.topLevel)
+      hashClass(c)
       finalizeHash
     }
 
@@ -168,6 +170,7 @@ final class HashAPI(includePrivate: Boolean, includeParamNames: Boolean, include
     hashModifiers(d.modifiers)
     hashAccess(d.access)
     d match {
+      case c: ClassLikeDef    => hashClassDef(c)
       case c: ClassLike       => hashClass(c)
       case f: FieldLike       => hashField(f)
       case d: Def             => hashDef(d)
@@ -175,10 +178,14 @@ final class HashAPI(includePrivate: Boolean, includeParamNames: Boolean, include
       case t: TypeAlias       => hashTypeAlias(t)
     }
   }
+  final def hashClassDef(c: ClassLikeDef): Unit = {
+    extend(ClassDefHash)
+    hashParameterizedDefinition(c)
+  }
   final def hashClass(c: ClassLike): Unit = visit(visitedClassLike, c)(hashClass0)
   def hashClass0(c: ClassLike): Unit = {
     extend(ClassHash)
-    hashParameterizedDefinition(c)
+    hashTypeParameters(c.typeParameters)
     hashType(c.selfType)
     hashTypes(c.childrenOfSealedClass, includeDefinitions)
     hashStructure(c.structure, includeDefinitions)

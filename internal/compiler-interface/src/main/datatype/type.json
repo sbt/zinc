@@ -124,11 +124,11 @@
 						},
 						{
 							"name": "declared",
-							"type": "lazy Definition*"
+							"type": "lazy ClassDefinition*"
 						},
 						{
 							"name": "inherited",
-							"type": "lazy Definition*"
+							"type": "lazy ClassDefinition*"
 						}
 					]
 				},
