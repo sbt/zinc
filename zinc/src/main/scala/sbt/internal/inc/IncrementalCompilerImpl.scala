@@ -44,7 +44,10 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         m2o(in.previousResult.analysis),
         m2o(in.previousResult.setup),
         { f => m2o(analysisMap()(f)) },
-        { f => { s => definesClass()(f)(s) } },
+        { f =>
+          val dc = definesClass()(f)
+          s => dc(s)
+        },
         reporter, order, skip, incrementalCompilerOptions,
         extra.toList map { x => (x.get1, x.get2) })(log)
     }
