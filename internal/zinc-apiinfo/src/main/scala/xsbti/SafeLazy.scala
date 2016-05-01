@@ -6,7 +6,7 @@ object SafeLazy {
   def apply[T <: AnyRef](eval: xsbti.F0[T]): xsbti.api.Lazy[T] =
     apply(eval())
   def apply[T <: AnyRef](eval: => T): xsbti.api.Lazy[T] =
-    fromFunction0(eval _)
+    fromFunction0(() => eval)
   def fromFunction0[T <: AnyRef](eval: () => T): xsbti.api.Lazy[T] =
     new Impl(eval)
 
