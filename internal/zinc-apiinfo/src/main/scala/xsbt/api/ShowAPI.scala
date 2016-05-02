@@ -12,7 +12,7 @@ object DefaultShowAPI {
 
   def apply(d: Definition) = ShowAPI.showDefinition(d)(defaultNesting)
   def apply(d: Type) = ShowAPI.showType(d)(defaultNesting)
-  def apply(a: ClassLike) = ShowAPI.showApi(a)(defaultNesting)
+  def apply(a: SourceAPI) = ShowAPI.showApi(a)(defaultNesting)
 }
 
 object ShowAPI {
@@ -21,8 +21,8 @@ object ShowAPI {
   private def truncateDecls(decls: Array[Definition]): Array[Definition] = if (numDecls <= 0) decls else decls.take(numDecls)
   private def lines(ls: Seq[String]): String = ls.mkString("\n", "\n", "\n")
 
-  def showApi(c: ClassLike)(implicit nesting: Int) =
-    showDefinition(c)
+  def showApi(a: SourceAPI)(implicit nesting: Int) =
+    lines(truncateDecls(a.definitions).map(showDefinition))
 
   def showDefinition(d: Definition)(implicit nesting: Int): String = d match {
     case v: Val              => showMonoDef(v, "val") + ": " + showType(v.tpe)
