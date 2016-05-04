@@ -18,7 +18,7 @@ object DefaultShowAPI {
 object ShowAPI {
   private lazy val numDecls = Try { java.lang.Integer.parseInt(sys.props.get("sbt.inc.apidiff.decls").get) } getOrElse 0
 
-  private def truncateDecls(decls: Array[Definition]): Array[Definition] = if (numDecls <= 0) decls else decls.take(numDecls)
+  private def truncateDecls(decls: Array[ClassDefinition]): Array[ClassDefinition] = if (numDecls <= 0) decls else decls.take(numDecls)
   private def lines(ls: Seq[String]): String = ls.mkString("\n", "\n", "\n")
 
   def showApi(c: ClassLike)(implicit nesting: Int) =
@@ -30,7 +30,9 @@ object ShowAPI {
     case d: Def              => showPolyDef(d, "def") + showValueParams(d.valueParameters) + ": " + showType(d.returnType)
     case ta: TypeAlias       => showPolyDef(ta, "type") + " = " + showType(ta.tpe)
     case td: TypeDeclaration => showPolyDef(td, "type") + showBounds(td.lowerBound, td.upperBound)
-    case cl: ClassLike       => showPolyDef(cl, showDefinitionType(cl.definitionType)) + " extends " + showTemplate(cl)
+    case cl: ClassLike => showMonoDef(d, showDefinitionType(cl.definitionType)) +
+      showTypeParameters(cl.typeParameters) + " extends " + showTemplate(cl)
+    case cl: ClassLikeDef => showPolyDef(cl, showDefinitionType(cl.definitionType))
   }
 
   private def showTemplate(cl: ClassLike)(implicit nesting: Int) =

@@ -7,7 +7,7 @@ import java.io.File
 import sbt.internal.inc.classfile.JavaCompilerForUnitTesting
 import sbt.internal.util.UnitSpec
 import xsbti.AnalysisCallback
-import xsbti.api.{ ClassLike, DefinitionType }
+import xsbti.api.{ ClassLike, DefinitionType, ClassLikeDef }
 
 class ClassToAPISpecification extends UnitSpec {
 
@@ -24,9 +24,8 @@ class ClassToAPISpecification extends UnitSpec {
     assert(companionsA.classApi.topLevel === true)
     assert(companionsA.objectApi.topLevel === true)
 
-    val innerClassApiB = findDeclaredInnerClass(companionsA.classApi, "A.B", DefinitionType.ClassDef).get
-    assert(innerClassApiB.structure.declared === Array.empty)
-    assert(innerClassApiB.structure.inherited === Array.empty)
+    val innerClassDefB = findDeclaredInnerClass(companionsA.classApi, "A.B", DefinitionType.ClassDef)
+    assert(innerClassDefB.isDefined)
 
     val companionsB = apis("A.B")
     assert(companionsB.classApi.topLevel === false)
@@ -69,9 +68,9 @@ class ClassToAPISpecification extends UnitSpec {
   private case class Companions(name: String, classApi: ClassLike, objectApi: ClassLike)
 
   private def findDeclaredInnerClass(classApi: ClassLike, innerClassName: String,
-    defType: DefinitionType): Option[ClassLike] = {
+    defType: DefinitionType): Option[ClassLikeDef] = {
     classApi.structure.declared.collectFirst({
-      case c: ClassLike if c.name == innerClassName && c.definitionType == defType => c
+      case c: ClassLikeDef if c.name == innerClassName && c.definitionType == defType => c
     })
   }
 

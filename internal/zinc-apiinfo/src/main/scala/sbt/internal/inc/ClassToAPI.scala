@@ -47,7 +47,7 @@ object ClassToAPI {
     c.getEnclosingClass eq null
 
   final class ClassMap private[sbt] (
-    private[sbt] val memo: mutable.Map[String, Seq[api.ClassLike]],
+    private[sbt] val memo: mutable.Map[String, Seq[api.ClassLikeDef]],
     private[sbt] val inherited: mutable.Set[(Class[_], Class[_])],
     private[sbt] val lz: mutable.Buffer[xsbti.api.Lazy[_]],
     private[sbt] val allNonLocalClasses: mutable.Set[api.ClassLike]
@@ -61,9 +61,9 @@ object ClassToAPI {
   def emptyClassMap: ClassMap = new ClassMap(new mutable.HashMap, new mutable.HashSet, new mutable.ListBuffer,
     new mutable.HashSet)
 
-  def toDefinitions(cmap: ClassMap)(c: Class[_]): Seq[api.ClassLike] =
+  def toDefinitions(cmap: ClassMap)(c: Class[_]): Seq[api.ClassLikeDef] =
     cmap.memo.getOrElseUpdate(c.getCanonicalName, toDefinitions0(c, cmap))
-  def toDefinitions0(c: Class[_], cmap: ClassMap): Seq[api.ClassLike] =
+  def toDefinitions0(c: Class[_], cmap: ClassMap): Seq[api.ClassLikeDef] =
     {
       import api.DefinitionType.{ ClassDef, Module, Trait }
       val enclPkg = packageName(c)
@@ -77,14 +77,12 @@ object ClassToAPI {
       lazy val (static, instance) = structure(c, enclPkg, cmap)
       val cls = new api.ClassLike(tpe, strict(Empty), lzy(instance, cmap), emptyStringArray, children.toArray,
         topLevel, typeParameters(typeParameterTypes(c)), name, acc, mods, annots)
-      val clsEmptyMembers = new api.ClassLike(tpe, strict(Empty), lzyEmptyStructure, emptyStringArray, children.toArray,
-        topLevel, typeParameters(typeParameterTypes(c)), name, acc, mods, annots)
+      val clsDef = new api.ClassLikeDef(tpe, typeParameters(typeParameterTypes(c)), name, acc, mods, annots)
       val stat = new api.ClassLike(Module, strict(Empty), lzy(static, cmap), emptyStringArray, emptyTypeArray,
         topLevel, emptyTypeParameterArray, name, acc, mods, annots)
-      val statEmptyMembers = new api.ClassLike(Module, strict(Empty), lzyEmptyStructure, emptyStringArray, emptyTypeArray,
-        topLevel, emptyTypeParameterArray, name, acc, mods, annots)
+      val statDef = new api.ClassLikeDef(Module, emptyTypeParameterArray, name, acc, mods, annots)
       val defs = cls :: stat :: Nil
-      val defsEmptyMembers = clsEmptyMembers :: statEmptyMembers :: Nil
+      val defsEmptyMembers = clsDef :: statDef :: Nil
       cmap.memo(name) = defsEmptyMembers
       cmap.allNonLocalClasses ++= defs
       defsEmptyMembers
@@ -127,7 +125,7 @@ object ClassToAPI {
   private val emptyTypeParameterArray = new Array[xsbti.api.TypeParameter](0)
   private val emptySimpleTypeArray = new Array[xsbti.api.SimpleType](0)
   private val lzyEmptyTpeArray = lzyS(emptyTypeArray)
-  private val lzyEmptyDefArray = lzyS(new Array[xsbti.api.Definition](0))
+  private val lzyEmptyDefArray = lzyS(new Array[xsbti.api.ClassDefinition](0))
   private val lzyEmptyStructure = strict(new xsbti.api.Structure(lzyEmptyTpeArray, lzyEmptyDefArray, lzyEmptyDefArray))
 
   private def allSuperTypes(t: Type): Seq[Type] =
@@ -240,13 +238,13 @@ object ClassToAPI {
     else new api.Annotated(t, annotations(annots))
   )
 
-  case class Defs(declared: Seq[api.Definition], inherited: Seq[api.Definition], staticDeclared: Seq[api.Definition], staticInherited: Seq[api.Definition]) {
+  case class Defs(declared: Seq[api.ClassDefinition], inherited: Seq[api.ClassDefinition], staticDeclared: Seq[api.ClassDefinition], staticInherited: Seq[api.ClassDefinition]) {
     def ++(o: Defs) = Defs(declared ++ o.declared, inherited ++ o.inherited, staticDeclared ++ o.staticDeclared, staticInherited ++ o.staticInherited)
   }
-  def mergeMap[T <: Member](of: Class[_], self: Seq[T], public: Seq[T], f: T => api.Definition): Defs =
+  def mergeMap[T <: Member](of: Class[_], self: Seq[T], public: Seq[T], f: T => api.ClassDefinition): Defs =
     merge[T](of, self, public, x => f(x) :: Nil, splitStatic _, _.getDeclaringClass != of)
 
-  def merge[T](of: Class[_], self: Seq[T], public: Seq[T], f: T => Seq[api.Definition], splitStatic: Seq[T] => (Seq[T], Seq[T]), isInherited: T => Boolean): Defs =
+  def merge[T](of: Class[_], self: Seq[T], public: Seq[T], f: T => Seq[api.ClassDefinition], splitStatic: Seq[T] => (Seq[T], Seq[T]), isInherited: T => Boolean): Defs =
     {
       val (selfStatic, selfInstance) = splitStatic(self)
       val (inheritedStatic, inheritedInstance) = splitStatic(public filter isInherited)

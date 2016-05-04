@@ -43,7 +43,7 @@ object SameAPI {
   def isValueDefinition(d: Definition): Boolean =
     d match {
       case _: FieldLike | _: Def => true
-      case c: ClassLike          => isValue(c.definitionType)
+      case c: ClassLikeDef       => isValue(c.definitionType)
       case _                     => false
     }
   def isValue(d: DefinitionType): Boolean =
@@ -85,8 +85,8 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
   /** Returns true if source `a` has the same API as source `b`.*/
   def check(a: ClassLike, b: ClassLike): Boolean =
     {
-      debug(sameTopLevel(a, b), "Top level flag differs") &&
-        debug(sameDefinitions(Seq(a), Seq(b), a.topLevel), "Classes differed")
+      debug(a.name == b.name, "Class names differed") &&
+        debug(sameDefinitionContent(a, b), "Classes differed")
     }
 
   def sameTopLevel(a: ClassLike, b: ClassLike): Boolean =
@@ -184,6 +184,7 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
     (a, b) match {
       case (fa: FieldLike, fb: FieldLike) => sameFieldSpecificAPI(fa, fb)
       case (pa: ParameterizedDefinition, pb: ParameterizedDefinition) => sameParameterizedDefinition(pa, pb)
+      case (ca: ClassLike, cb: ClassLike) => sameClassLikeSpecificAPI(ca, cb)
       case _ => false
     }
 
@@ -194,7 +195,7 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
   def sameParameterizedSpecificAPI(a: ParameterizedDefinition, b: ParameterizedDefinition): Boolean =
     (a, b) match {
       case (da: Def, db: Def) => sameDefSpecificAPI(da, db)
-      case (ca: ClassLike, cb: ClassLike) => sameClassLikeSpecificAPI(ca, cb)
+      case (ca: ClassLikeDef, cb: ClassLikeDef) => sameClassLikeDefSpecificAPI(ca, cb)
       case (ta: TypeAlias, tb: TypeAlias) => sameAliasSpecificAPI(ta, tb)
       case (ta: TypeDeclaration, tb: TypeDeclaration) => sameDeclarationSpecificAPI(ta, tb)
       case _ => false
@@ -219,11 +220,16 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
       case _                => false
     }
 
-  def sameClassLikeSpecificAPI(a: ClassLike, b: ClassLike): Boolean =
-    sameDefinitionType(a.definitionType, b.definitionType) &&
+  def sameClassLikeSpecificAPI(a: ClassLike, b: ClassLike): Boolean = {
+    debug(sameTopLevel(a, b), "Top level flag differs") &&
+      sameDefinitionType(a.definitionType, b.definitionType) &&
       sameType(a.selfType, b.selfType) &&
       sameSeq(a.childrenOfSealedClass, b.childrenOfSealedClass)(sameType) &&
       sameStructure(a.structure, b.structure)
+  }
+
+  def sameClassLikeDefSpecificAPI(a: ClassLikeDef, b: ClassLikeDef): Boolean =
+    sameDefinitionType(a.definitionType, b.definitionType)
 
   def sameValueParameters(a: Seq[ParameterList], b: Seq[ParameterList]): Boolean =
     sameSeq(a, b)(sameParameterList)
