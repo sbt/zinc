@@ -22,7 +22,7 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
   // TODO: full external name changes, scopeInvalidations
   @tailrec final def cycle(invalidatedRaw: Set[String], modifiedSrcs: Set[File], allSources: Set[File],
     binaryChanges: DependencyChanges, previous: Analysis,
-    doCompile: (Set[File], DependencyChanges) => Analysis, classfileManager: ClassfileManager,
+    doCompile: (Set[File], DependencyChanges) => Analysis,
     cycleNum: Int): Analysis =
     if (invalidatedRaw.isEmpty && modifiedSrcs.isEmpty)
       previous
@@ -34,8 +34,7 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
       val withPackageObjects = invalidatedRaw ++ invalidatedPackageObjects
       val invalidatedClasses = withPackageObjects
 
-      val current = recompileClasses(invalidatedClasses, modifiedSrcs, allSources, binaryChanges, previous, doCompile,
-        classfileManager)
+      val current = recompileClasses(invalidatedClasses, modifiedSrcs, allSources, binaryChanges, previous, doCompile)
 
       // modifiedSrc have to be mapped to class names both of previous and current analysis because classes might be
       // removed (it's handled by `previous`) or added (it's handled by `current`) or renamed (it's handled by both)
@@ -48,20 +47,18 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
       val classToSourceMapper = new ClassToSourceMapper(previous.relations, current.relations)
       val incInv = invalidateIncremental(current.relations, current.apis, incChanges, recompiledClasses,
         cycleNum >= transitiveStep, classToSourceMapper.isDefinedInScalaSrc)
-      cycle(incInv, Set.empty, allSources, emptyChanges, current, doCompile, classfileManager, cycleNum + 1)
+      cycle(incInv, Set.empty, allSources, emptyChanges, current, doCompile, cycleNum + 1)
     }
 
   private[this] def recompileClasses(classes: Set[String], modifiedSrcs: Set[File], allSources: Set[File],
     binaryChanges: DependencyChanges, previous: Analysis,
-    doCompile: (Set[File], DependencyChanges) => Analysis,
-    classfileManager: ClassfileManager): Analysis = {
+    doCompile: (Set[File], DependencyChanges) => Analysis): Analysis = {
     val invalidatedSources = classes.flatMap(previous.relations.definesClass) ++ modifiedSrcs
     val invalidatedSourcesForCompilation = expand(invalidatedSources, allSources)
-    val pruned = Incremental.prune(invalidatedSourcesForCompilation, previous, classfileManager)
+    val pruned = Incremental.prune(invalidatedSourcesForCompilation, previous)
     debug("********* Pruned: \n" + pruned.relations + "\n*********")
 
     val fresh = doCompile(invalidatedSourcesForCompilation, binaryChanges)
-    classfileManager.generated(fresh.relations.allProducts)
     debug("********* Fresh: \n" + fresh.relations + "\n*********")
     val merged = pruned ++ fresh //.copy(relations = pruned.relations ++ fresh.relations, apis = pruned.apis ++ fresh.apis)
     debug("********* Merged: \n" + merged.relations + "\n*********")

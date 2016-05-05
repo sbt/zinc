@@ -6,9 +6,10 @@ package internal
 package inc
 
 import java.io.File
+import sbt.io.IO
 import sbt.util.Logger
 import scala.annotation.tailrec
-import xsbti.compile.{ DependencyChanges, IncOptions, CompileAnalysis }
+import xsbti.compile.{ DependencyChanges, IncOptions, CompileAnalysis, Output }
 
 /**
  * Helper class to run incremental compilation algorithm.
@@ -37,6 +38,7 @@ object Incremental {
    * @param doCompile  The function which can run one level of compile.
    * @param log  The log where we write debugging information
    * @param options  Incremental compilation options
+   * @param output  The final output location for the compile.
    * @param equivS  The means of testing whether two "Stamps" are the same.
    * @return
    *         A flag of whether or not compilation completed succesfully, and the resulting dependency analysis object.
@@ -47,10 +49,11 @@ object Incremental {
     previous0: CompileAnalysis,
     current: ReadStamps,
     doCompile: (Set[File], DependencyChanges) => Analysis,
+    output: Output,
     log: sbt.util.Logger,
     options: IncOptions
   )(implicit equivS: Equiv[Stamp]): (Boolean, Analysis) =
-    {
+    ClassfileManager.manageClassfiles(output, options) {
       val previous = previous0 match { case a: Analysis => a }
       val incremental: IncrementalCommon =
         if (options.nameHashing)
@@ -68,10 +71,7 @@ object Incremental {
       val (initialInvClasses, initialInvSources) = incremental.invalidateInitial(previous.relations, initialChanges)
       log.debug("All initially invalidated classes: " + initialInvClasses + "\n" +
         "All initially invalidated sources:" + initialInvSources + "\n")
-      val analysis = manageClassfiles(options) { classfileManager =>
-
-        incremental.cycle(initialInvClasses, initialInvSources, sources, binaryChanges, previous, doCompile, classfileManager, 1)
-      }
+      val analysis = incremental.cycle(initialInvClasses, initialInvSources, sources, binaryChanges, previous, doCompile, 1)
       (initialInvClasses.nonEmpty || initialInvSources.nonEmpty, analysis)
     }
 
@@ -85,26 +85,9 @@ object Incremental {
   private[inc] val apiDebugProp = "xsbt.api.debug"
   private[inc] def apiDebug(options: IncOptions): Boolean = options.apiDebug || java.lang.Boolean.getBoolean(apiDebugProp)
 
-  private[sbt] def prune(invalidatedSrcs: Set[File], previous: CompileAnalysis): Analysis =
-    prune(invalidatedSrcs, previous, ClassfileManager.deleteImmediately())
-
-  private[sbt] def prune(invalidatedSrcs: Set[File], previous0: CompileAnalysis, classfileManager: ClassfileManager): Analysis =
-    {
-      val previous = previous0 match { case a: Analysis => a }
-      classfileManager.delete(invalidatedSrcs.flatMap(previous.relations.products))
-      previous -- invalidatedSrcs
-    }
-
-  private[this] def manageClassfiles[T](options: IncOptions)(run: ClassfileManager => T): T =
-    {
-      val classfileManager = ClassfileManager.getClassfileManager(options)
-      val result = try run(classfileManager) catch {
-        case e: Exception =>
-          classfileManager.complete(success = false)
-          throw e
-      }
-      classfileManager.complete(success = true)
-      result
-    }
-
+  private[sbt] def prune(invalidatedSrcs: Set[File], previous0: CompileAnalysis): Analysis = {
+    val previous = previous0 match { case a: Analysis => a }
+    IO.deleteFilesEmptyDirs(invalidatedSrcs.flatMap(previous.relations.products))
+    previous -- invalidatedSrcs
+  }
 }
