@@ -10,7 +10,7 @@ import sbt.internal.inc.IncrementalCompilerTest._
 import sbt.internal.inc.{ TestIncremental, TestAnalysis, TestAnalysisCallback, APIs }
 import sbt.internal.util.ConsoleLogger
 import sbt.io.IO
-import sbt.io.Path._
+import sbt.io.syntax._
 
 import scala.tools.nsc.reporters.ConsoleReporter
 

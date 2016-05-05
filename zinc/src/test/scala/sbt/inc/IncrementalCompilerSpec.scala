@@ -5,7 +5,7 @@ import java.io.File
 
 import sbt.internal.inc._
 import sbt.io.IO
-import sbt.io.Path._
+import sbt.io.syntax._
 import sbt.util.{ Logger, InterfaceUtil, Level }
 import sbt.util.InterfaceUtil.f1
 import sbt.internal.util.ConsoleLogger
