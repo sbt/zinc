@@ -10,6 +10,7 @@ import xsbti.compile.{ CachedCompiler, CachedCompilerProvider, DependencyChanges
 import java.io.File
 import java.net.{ URL, URLClassLoader }
 import sbt.util.Logger
+import sbt.io.syntax._
 
 /**
  * Interface to the Scala compiler that uses the dependency analysis plugin.  This class uses the Scala library and compiler

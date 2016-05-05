@@ -13,8 +13,7 @@ import java.util.Collections
 import scala.collection.{ mutable, JavaConversions, Set }
 import mutable.{ HashSet, ListBuffer }
 import sbt.io.IO.{ createTemporaryDirectory, write }
-import sbt.io.{ IO, Path, PathFinder }
-import sbt.internal.io.Using
+import sbt.io.{ IO, Path, PathFinder, Using }
 
 object ClasspathUtilities {
   def toLoader(finder: PathFinder): ClassLoader = toLoader(finder, rootLoader)

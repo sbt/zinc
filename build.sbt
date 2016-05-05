@@ -11,7 +11,7 @@ def internalPath   = file("internal")
 lazy val scalaVersions = Seq(scala210, scala211)
 
 def commonSettings: Seq[Setting[_]] = Seq(
-  scalaVersion := "2.11.7",
+  scalaVersion := scala211,
   // publishArtifact in packageDoc := false,
   resolvers += Resolver.typesafeIvyRepo("releases"),
   resolvers += Resolver.sonatypeRepo("snapshots"),

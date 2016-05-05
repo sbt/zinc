@@ -10,6 +10,7 @@ import scala.util
 import java.io.File
 import CompilerArguments.{ abs, absString, BootClasspathOption }
 import sbt.io.IO
+import sbt.io.syntax._
 
 /**
  * Forms the list of options that is passed to the compiler from the required inputs and other options.

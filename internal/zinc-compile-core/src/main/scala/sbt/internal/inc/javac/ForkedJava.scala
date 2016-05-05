@@ -6,7 +6,7 @@ package javac
 
 import java.io.File
 
-import sbt.io.IO._
+import sbt.io.syntax._
 import sbt.io.IO
 import sbt.util.Logger
 import xsbti.Reporter

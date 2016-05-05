@@ -2,7 +2,7 @@ package sbt
 package inc
 
 import java.io.{ File, PrintWriter }
-import sbt.io.Path._
+import sbt.io.syntax._
 import sbt.io.IO
 import sbt.util.Logger
 import xsbti.Reporter

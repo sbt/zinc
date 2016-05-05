@@ -10,7 +10,7 @@ import xsbt.api.Discovery
 import xsbti.{ F1, Maybe }
 import xsbti.compile.{ CompileAnalysis, CompileOrder, DefinesClass, IncOptionsUtil, PreviousResult, Compilers => XCompilers, IncOptions }
 import sbt.io.IO
-import sbt.io.Path._
+import sbt.io.syntax._
 
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier.{ isPublic, isStatic }

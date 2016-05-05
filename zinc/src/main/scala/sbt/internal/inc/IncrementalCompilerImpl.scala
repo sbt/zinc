@@ -9,8 +9,7 @@ import xsbti.compile.{ PreviousResult, Setup, Inputs, IncrementalCompiler, Defin
 import xsbti.compile.{ Compilers => XCompilers, CompileProgress, Output }
 import java.io.File
 import sbt.util.Logger.m2o
-import sbt.io.IO
-import sbt.internal.io.Using
+import sbt.io.{ IO, Using }
 import xsbti.compile.CompileOrder.Mixed
 
 // TODO -
