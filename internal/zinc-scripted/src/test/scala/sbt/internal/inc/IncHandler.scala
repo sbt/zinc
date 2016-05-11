@@ -4,11 +4,11 @@ package inc
 
 import java.io.{ File, FileInputStream }
 import sbt.util.Logger
-import sbt.internal.scripted.StatementHandler
 import sbt.util.InterfaceUtil._
 import xsbt.api.Discovery
-import xsbti.{ F1, Maybe }
+import xsbti.Maybe
 import xsbti.compile.{ CompileAnalysis, CompileOrder, DefinesClass, IncOptionsUtil, PreviousResult, Compilers => XCompilers, IncOptions }
+import xsbti.compile.PerClasspathEntryLookup
 import sbt.io.IO
 import sbt.io.syntax._
 
@@ -28,11 +28,12 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
   val scalaVersion = scala.util.Properties.versionNumberString
   val si = scalaInstance(scalaVersion)
   val maxErrors = 100
-  val dc = f1[File, DefinesClass] { f =>
-    val x = Locate.definesClass(f)
-    new DefinesClass {
-      override def apply(className: String): Boolean = x(className)
-    }
+  class Lookup(am: File => Maybe[CompileAnalysis]) extends PerClasspathEntryLookup {
+    override def analysis(classpathEntry: File): Maybe[CompileAnalysis] =
+      am(classpathEntry)
+
+    override def definesClass(classpathEntry: File): DefinesClass =
+      Locate.definesClass(classpathEntry)
   }
   val targetDir = directory / "target"
   val classesDir = targetDir / "classes"
@@ -189,7 +190,7 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
         case Some((a, s)) => new PreviousResult(Maybe.just(a), Maybe.just(s))
         case _            => compiler.emptyPreviousResult
       }
-      val analysisMap = f1((f: File) => prev.analysis)
+      val lookup = new Lookup(_ => prev.analysis)
       val transactional: xsbti.Maybe[xsbti.compile.ClassfileManagerType] =
         Maybe.just(new xsbti.compile.TransactionalManagerType(targetDir / "classes.bak", sbt.util.Logger.Null))
       // you can't specify class file manager in the properties files so let's overwrite it to be the transactional
@@ -197,7 +198,7 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
       val incOptions = loadIncOptions(directory / "incOptions.properties").withClassfileManagerType(transactional)
       val reporter = new LoggerReporter(maxErrors, scriptedLog, identity)
       val extra = Array(t2(("key", "value")))
-      val setup = compiler.setup(analysisMap, dc, skip = false, cacheFile, CompilerCache.fresh, incOptions, reporter, extra)
+      val setup = compiler.setup(lookup, skip = false, cacheFile, CompilerCache.fresh, incOptions, reporter, extra)
       val classpath = (i.si.allJars.toList ++ unmanagedJars :+ classesDir).toArray
       val in = compiler.inputs(classpath, sources.toArray, classesDir, Array(), Array(), maxErrors, Array(),
         CompileOrder.Mixed, cs, setup, prev)

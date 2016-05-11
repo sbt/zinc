@@ -7,11 +7,12 @@ package inc
 
 import java.io.File
 import java.util.zip.{ ZipException, ZipFile }
+
+import xsbti.compile.{ DefinesClass, PerClasspathEntryLookup }
+
 import Function.const
 
 object Locate {
-  type DefinesClass = File => String => Boolean
-
   /**
    * Right(src) provides the value for the found class
    * Left(true) means that the class was found, but it had no associated value
@@ -36,9 +37,9 @@ object Locate {
    * Returns a function that searches the provided class path for
    * a class name and returns the entry that defines that class.
    */
-  def entry(classpath: Seq[File], f: DefinesClass): String => Option[File] =
+  def entry(classpath: Seq[File], lookup: PerClasspathEntryLookup): String => Option[File] =
     {
-      val entries = classpath.toStream.map { entry => (entry, f(entry)) }
+      val entries = classpath.toStream.map { entry => (entry, lookup.definesClass(entry)) }
       className => entries.collect { case (entry, defines) if defines(className) => entry }.headOption
     }
   def resolve(f: File, className: String): File = if (f.isDirectory) classFile(f, className) else f
@@ -50,32 +51,38 @@ object Locate {
       className => if (defClass(className)) getF(className).toRight(true) else Left(false)
     }
 
-  def definesClass(entry: File): String => Boolean =
+  def definesClass(entry: File): DefinesClass =
     if (entry.isDirectory)
-      directoryDefinesClass(entry)
+      new DirectoryDefinesClass(entry)
     else if (entry.exists && classpath.ClasspathUtilities.isArchive(entry, contentFallback = true))
-      jarDefinesClass(entry)
+      new JarDefinesClass(entry)
     else
-      const(false)
+      FalseDefinesClass
 
-  def jarDefinesClass(entry: File): String => Boolean =
-    {
-      import collection.JavaConversions._
-      val jar = try { new ZipFile(entry, ZipFile.OPEN_READ) } catch {
-        // ZipException doesn't include the file name :(
-        case e: ZipException => throw new RuntimeException("Error opening zip file: " + entry.getName, e)
-      }
-      val entries = try { jar.entries.map(e => toClassName(e.getName)).toSet } finally { jar.close() }
-      entries.contains _
+  private object FalseDefinesClass extends DefinesClass {
+    override def apply(binaryClassName: String): Boolean = false
+  }
+
+  private class JarDefinesClass(entry: File) extends DefinesClass {
+    import collection.JavaConversions._
+    private val jar = try { new ZipFile(entry, ZipFile.OPEN_READ) } catch {
+      // ZipException doesn't include the file name :(
+      case e: ZipException => throw new RuntimeException("Error opening zip file: " + entry.getName, e)
     }
+    private val entries = try { jar.entries.map(e => toClassName(e.getName)).toSet } finally { jar.close() }
+
+    override def apply(binaryClassName: String): Boolean =
+      entries.contains(binaryClassName)
+  }
 
   def toClassName(entry: String): String =
     entry.stripSuffix(ClassExt).replace('/', '.')
 
   val ClassExt = ".class"
 
-  def directoryDefinesClass(entry: File): String => Boolean =
-    className => classFile(entry, className).isFile
+  private class DirectoryDefinesClass(entry: File) extends DefinesClass {
+    override def apply(binaryClassName: String): Boolean = classFile(entry, binaryClassName).isFile
+  }
 
   def classFile(baseDir: File, className: String): File =
     {
