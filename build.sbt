@@ -38,6 +38,7 @@ def commonSettings: Seq[Setting[_]] = Seq(
     "-Ywarn-numeric-widen",
     "-Ywarn-value-discard"),
   previousArtifact := None, // Some(organization.value %% moduleName.value % "1.0.0"),
+  publishArtifact in Test := false,
   commands += publishBridgesAndTest
 )
 
@@ -82,6 +83,7 @@ lazy val zincRoot: Project = (project in file(".")).
   // configs(Sxr.sxrConf).
   aggregate(
     zinc,
+    zincTesting,
     zincPersist,
     zincCore,
     zincIvyIntegration,
@@ -113,11 +115,23 @@ lazy val zincRoot: Project = (project in file(".")).
 
 lazy val zinc = (project in file("zinc")).
   dependsOn(zincCore, zincPersist, zincCompileCore,
-    zincClassfile, zincIvyIntegration % "compile->compile;test->test").
+    zincClassfile, zincIvyIntegration % "compile->compile;test->test",
+    zincTesting % Test).
   settings(
     testedBaseSettings,
-    name := "zinc",
-    libraryDependencies ++= Seq(utilLogging % "test" classifier "tests", libraryManagement % "test", libraryManagement % "test" classifier "tests")
+    name := "zinc"
+  )
+
+lazy val zincTesting = (project in internalPath / "zinc-testing").
+  settings(
+    minimalSettings,
+    name := "zinc Testing",
+    publish := {},
+    publishArtifact in Compile := false,
+    publishArtifact in Test := false,
+    publishArtifact := false,
+    libraryDependencies ++= Seq(libraryManagement, utilTesting,
+      scalaCheck, scalatest, junit)
   )
 
 lazy val zincCompile = (project in file("zinc-compile")).
@@ -155,21 +169,21 @@ lazy val zincCore = (project in internalPath / "zinc-core").
   )
 
 lazy val zincIvyIntegration = (project in internalPath / "zinc-ivy-integration").
-  dependsOn(zincCompileCore).
+  dependsOn(zincCompileCore, zincTesting % Test).
   settings(
     baseSettings,
-    libraryDependencies ++= Seq(libraryManagement, libraryManagement % Test classifier "tests", utilTesting % Test),
+    libraryDependencies ++= Seq(libraryManagement),
     name := "zinc Ivy Integration"
   )
 
 // sbt-side interface to compiler.  Calls compiler-side interface reflectively
 lazy val zincCompileCore = (project in internalPath / "zinc-compile-core").
-  dependsOn(compilerInterface % "compile;test->test", zincClasspath, zincApiInfo, zincClassfile).
+  dependsOn(compilerInterface % "compile;test->test", zincClasspath, zincApiInfo, zincClassfile, zincTesting % Test).
   settings(
     testedBaseSettings,
     name := "zinc Compile Core",
     libraryDependencies ++= Seq(scalaCompiler.value % Test, launcherInterface,
-      utilLogging, sbtIO, utilLogging % "test" classifier "tests", utilControl),
+      utilLogging, sbtIO, utilControl),
     unmanagedJars in Test <<= (packageSrc in compilerBridge in Compile).map(x => Seq(x).classpath)
   )
 
