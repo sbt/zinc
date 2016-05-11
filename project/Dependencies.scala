@@ -9,9 +9,9 @@ object Dependencies {
   val scala211 = "2.11.8"
 
   val bootstrapSbtVersion = "0.13.8"
-  val ioVersion = "1.0.0-M5"
-  val utilVersion = "0.1.0-M12"
-  val lmVersion = "0.1.0-M8"
+  val ioVersion = "1.0.0-M6"
+  val utilVersion = "0.1.0-M13"
+  val lmVersion = "0.1.0-M11"
   lazy val sbtIO = "org.scala-sbt" %% "io" % ioVersion
   lazy val utilLogging = "org.scala-sbt" %% "util-logging" % utilVersion
   lazy val utilControl = "org.scala-sbt" %% "util-control" % utilVersion
