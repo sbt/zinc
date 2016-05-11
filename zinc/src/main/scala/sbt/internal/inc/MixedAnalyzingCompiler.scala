@@ -6,7 +6,6 @@ import java.io.File
 import java.lang.ref.{ SoftReference, Reference }
 
 import inc.javac.AnalyzingJavaCompiler
-import Locate.DefinesClass
 import xsbti.{ AnalysisCallback => XAnalysisCallback, Reporter }
 import xsbti.compile.CompileOrder._
 import xsbti.compile._
@@ -108,8 +107,7 @@ object MixedAnalyzingCompiler {
     javacOptions: Seq[String] = Nil,
     previousAnalysis: CompileAnalysis,
     previousSetup: Option[MiniSetup],
-    analysisMap: File => Option[CompileAnalysis] = { _ => None },
-    definesClass: DefinesClass = Locate.definesClass _,
+    perClasspathEntryLookup: PerClasspathEntryLookup,
     reporter: Reporter,
     compileOrder: CompileOrder = Mixed,
     skip: Boolean = false,
@@ -127,8 +125,7 @@ object MixedAnalyzingCompiler {
         progress,
         previousAnalysis,
         previousSetup,
-        analysisMap,
-        definesClass,
+        perClasspathEntryLookup,
         scalac,
         javac,
         reporter,
@@ -145,8 +142,7 @@ object MixedAnalyzingCompiler {
     progress: Option[CompileProgress],
     previousAnalysis: CompileAnalysis,
     previousSetup: Option[MiniSetup],
-    analysis: File => Option[CompileAnalysis],
-    definesClass: DefinesClass,
+    perClasspathEntryLookup: PerClasspathEntryLookup,
     compiler: xsbti.compile.ScalaCompiler,
     javac: xsbti.compile.JavaCompiler,
     reporter: Reporter,
@@ -156,7 +152,7 @@ object MixedAnalyzingCompiler {
   ): CompileConfiguration = {
     import MiniSetupUtil._
     new CompileConfiguration(sources, classpath, previousAnalysis, previousSetup, setup,
-      progress, analysis, definesClass, reporter, compiler, javac, cache, incrementalCompilerOptions)
+      progress, perClasspathEntryLookup: PerClasspathEntryLookup, reporter, compiler, javac, cache, incrementalCompilerOptions)
   }
 
   /** Returns the search classpath (for dependencies) and a function which can also do so. */
@@ -166,7 +162,7 @@ object MixedAnalyzingCompiler {
     val absClasspath = classpath.map(_.getAbsoluteFile)
     val cArgs = new CompilerArguments(compiler.scalaInstance, compiler.classpathOptions)
     val searchClasspath = explicitBootClasspath(options.scalacOptions) ++ withBootclasspath(cArgs, absClasspath)
-    (searchClasspath, Locate.entry(searchClasspath, definesClass))
+    (searchClasspath, Locate.entry(searchClasspath, perClasspathEntryLookup))
   }
 
   /** Returns a "lookup file for a given class name" function. */

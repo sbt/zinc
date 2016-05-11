@@ -6,11 +6,10 @@ import java.io.File
 import sbt.internal.inc._
 import sbt.io.IO
 import sbt.io.syntax._
-import sbt.util.{ Logger, InterfaceUtil, Level }
-import sbt.util.InterfaceUtil.f1
+import sbt.util.{ Logger, InterfaceUtil }
 import sbt.internal.util.ConsoleLogger
-import xsbti.{ F1, Maybe }
-import xsbti.compile.{ CompileAnalysis, CompileOrder, DefinesClass, IncOptionsUtil, PreviousResult }
+import xsbti.Maybe
+import xsbti.compile.{ CompileAnalysis, CompileOrder, DefinesClass, IncOptionsUtil, PreviousResult, PerClasspathEntryLookup }
 
 class IncrementalCompilerSpec extends BridgeProviderSpecification {
 
@@ -21,11 +20,13 @@ class IncrementalCompilerSpec extends BridgeProviderSpecification {
     new File(classOf[IncrementalCompilerSpec].getResource("Good.scala").toURI)
   val fooSampleFile0 =
     new File(classOf[IncrementalCompilerSpec].getResource("Foo.scala").toURI)
-  val dc = f1[File, DefinesClass] { f =>
-    val x = Locate.definesClass(f)
-    new DefinesClass {
-      override def apply(className: String): Boolean = x(className)
-    }
+
+  class Lookup(am: File => Maybe[CompileAnalysis]) extends PerClasspathEntryLookup {
+    override def analysis(classpathEntry: File): Maybe[CompileAnalysis] =
+      am(classpathEntry)
+
+    override def definesClass(classpathEntry: File): DefinesClass =
+      Locate.definesClass(classpathEntry)
   }
 
   "incremental compiler" should "compile" in {
@@ -36,11 +37,11 @@ class IncrementalCompilerSpec extends BridgeProviderSpecification {
       val si = scalaInstance(scalaVersion)
       val sc = scalaCompiler(si, compilerBridge)
       val cs = compiler.compilers(si, ClasspathOptionsUtil.boot, None, sc)
-      val analysisMap = f1((f: File) => Maybe.nothing[CompileAnalysis])
+      val lookup = new Lookup(Function.const(Maybe.nothing[CompileAnalysis]))
       val incOptions = IncOptionsUtil.defaultIncOptions()
       val reporter = new LoggerReporter(maxErrors, log, identity)
       val extra = Array(InterfaceUtil.t2(("key", "value")))
-      val setup = compiler.setup(analysisMap, dc, skip = false, tempDir / "inc_compile", CompilerCache.fresh, incOptions, reporter, extra)
+      val setup = compiler.setup(lookup, skip = false, tempDir / "inc_compile", CompilerCache.fresh, incOptions, reporter, extra)
       val prev = compiler.emptyPreviousResult
       val classesDir = tempDir / "classes"
       val in = compiler.inputs(si.allJars, Array(knownSampleGoodFile), classesDir, Array(), Array(), maxErrors, Array(),
@@ -68,18 +69,18 @@ class IncrementalCompilerSpec extends BridgeProviderSpecification {
       val sc = scalaCompiler(si, compilerBridge)
       val cs = compiler.compilers(si, ClasspathOptionsUtil.boot, None, sc)
       val prev0 = compiler.emptyPreviousResult
-      val analysisMap = f1((f: File) => prev0.analysis)
+      val lookup = new Lookup(_ => prev0.analysis)
       val incOptions = IncOptionsUtil.defaultIncOptions()
       val reporter = new LoggerReporter(maxErrors, log, identity)
       val extra = Array(InterfaceUtil.t2(("key", "value")))
-      val setup = compiler.setup(analysisMap, dc, skip = false, tempDir / "inc_compile", CompilerCache.fresh, incOptions, reporter, extra)
+      val setup = compiler.setup(lookup, skip = false, tempDir / "inc_compile", CompilerCache.fresh, incOptions, reporter, extra)
       val classesDir = tempDir / "classes"
       val in = compiler.inputs(si.allJars, sources, classesDir, Array(), Array(), maxErrors, Array(),
         CompileOrder.Mixed, cs, setup, prev0)
       val result = compiler.compile(in, log)
       val prev = compiler.previousResult(result)
-      val analysisMap2 = f1((f: File) => prev.analysis)
-      val setup2 = compiler.setup(analysisMap2, dc, skip = false, tempDir / "inc_compile", CompilerCache.fresh, incOptions, reporter, extra)
+      val lookup2 = new Lookup(_ => prev.analysis)
+      val setup2 = compiler.setup(lookup2, skip = false, tempDir / "inc_compile", CompilerCache.fresh, incOptions, reporter, extra)
       val in2 = compiler.inputs(si.allJars, sources, classesDir, Array(), Array(), maxErrors, Array(),
         CompileOrder.Mixed, cs, setup2, prev)
       val result2 = compiler.compile(in2, log)
@@ -105,11 +106,11 @@ class IncrementalCompilerSpec extends BridgeProviderSpecification {
       val sc = scalaCompiler(si, compilerBridge)
       val cs = compiler.compilers(si, ClasspathOptionsUtil.boot, None, sc)
       val prev0 = compiler.emptyPreviousResult
-      val analysisMap = f1((f: File) => prev0.analysis)
+      val lookup = new Lookup(_ => prev0.analysis)
       val incOptions = IncOptionsUtil.defaultIncOptions()
       val reporter = new LoggerReporter(maxErrors, log, identity)
       val extra = Array(InterfaceUtil.t2(("key", "value")))
-      val setup = compiler.setup(analysisMap, dc, skip = false, tempDir / "inc_compile", CompilerCache.fresh, incOptions, reporter, extra)
+      val setup = compiler.setup(lookup, skip = false, tempDir / "inc_compile", CompilerCache.fresh, incOptions, reporter, extra)
       val classesDir = tempDir / "classes"
       val in = compiler.inputs(si.allJars, sources, classesDir, Array(), Array(), maxErrors, Array(),
         CompileOrder.Mixed, cs, setup, prev0)
@@ -120,9 +121,9 @@ class IncrementalCompilerSpec extends BridgeProviderSpecification {
         case Some((a, s)) => new PreviousResult(Maybe.just(a), Maybe.just(s))
         case _            => sys.error("previous is not found")
       }
-      val analysisMap2 = f1((f: File) => prev.analysis)
+      val lookup2 = new Lookup(_ => prev.analysis)
       val extra2 = Array(InterfaceUtil.t2(("key", "value2")))
-      val setup2 = compiler.setup(analysisMap2, dc, skip = false, tempDir / "inc_compile", CompilerCache.fresh, incOptions, reporter, extra2)
+      val setup2 = compiler.setup(lookup2, skip = false, tempDir / "inc_compile", CompilerCache.fresh, incOptions, reporter, extra2)
       val in2 = compiler.inputs(si.allJars, sources, classesDir, Array(), Array(), maxErrors, Array(),
         CompileOrder.Mixed, cs, setup2, prev)
       val result2 = compiler.compile(in2, log)
@@ -132,9 +133,4 @@ class IncrementalCompilerSpec extends BridgeProviderSpecification {
 
   def scalaCompiler(instance: ScalaInstance, bridgeJar: File): AnalyzingCompiler =
     new AnalyzingCompiler(instance, CompilerInterfaceProvider.constant(bridgeJar), ClasspathOptionsUtil.boot)
-
-  def f1[A, B](f: A => B): F1[A, B] =
-    new F1[A, B] {
-      def apply(a: A): B = f(a)
-    }
 }

@@ -5,7 +5,7 @@ package inc
 import sbt.internal.inc.javac.{ IncrementalCompilerJavaTools, JavaTools }
 import xsbti.{ Position, Logger, Maybe, Reporter, F1, T2 }
 import xsbti.compile.{ CompileOrder, GlobalsCache, IncOptions, MiniSetup, CompileAnalysis, CompileResult, CompileOptions }
-import xsbti.compile.{ PreviousResult, Setup, Inputs, IncrementalCompiler, DefinesClass }
+import xsbti.compile.{ PreviousResult, Setup, Inputs, IncrementalCompiler, PerClasspathEntryLookup }
 import xsbti.compile.{ Compilers, CompileProgress, JavaCompiler, Output, ScalaCompiler, ClasspathOptions => XClasspathOptions }
 import java.io.File
 import sbt.util.Logger.m2o
@@ -32,11 +32,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       incrementalCompile(scalac, javacChosen, sources, classpath, CompileOutput(classesDirectory), cache, None, scalacOptions, javacOptions,
         m2o(in.previousResult.analysis),
         m2o(in.previousResult.setup),
-        { f => m2o(analysisMap()(f)) },
-        { f =>
-          val dc = definesClass()(f)
-          s => dc(s)
-        },
+        perClasspathEntryLookup,
         reporter, order, skip, incrementalCompilerOptions,
         extra.toList map { x => (x.get1, x.get2) })(log)
     }
@@ -55,8 +51,6 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
    * @param javacOptions  Options for the Java compiler
    * @param previousAnalysis  The previous dependency Analysis object/
    * @param previousSetup  The previous compilation setup (if any)
-   * @param analysisMap   A map of file to the dependency analysis of that file.
-   * @param definesClass  A mehcnaism of looking up whether or not a JAR defines a particular Class.
    * @param reporter  Where we sent all compilation error/warning events
    * @param compileOrder  The order we'd like to mix compilation.  JavaThenScala, ScalaThenJava or Mixed.
    * @param skip  IF true, we skip compilation and just return the previous analysis file.
@@ -77,8 +71,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
     javacOptions: Seq[String] = Nil,
     previousAnalysis: Option[CompileAnalysis],
     previousSetup: Option[MiniSetup],
-    analysisMap: File => Option[CompileAnalysis] = { _ => None },
-    definesClass: Locate.DefinesClass = Locate.definesClass _,
+    perClasspathEntryLookup: PerClasspathEntryLookup,
     reporter: Reporter,
     compileOrder: CompileOrder = Mixed,
     skip: Boolean = false,
@@ -90,7 +83,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       case None           => Analysis.empty(incrementalCompilerOptions.nameHashing)
     }
     val config = MixedAnalyzingCompiler.makeConfig(scalac, javac, sources, classpath, output, cache,
-      progress, options, javacOptions, prev, previousSetup, analysisMap, definesClass, reporter,
+      progress, options, javacOptions, prev, previousSetup, perClasspathEntryLookup, reporter,
       compileOrder, skip, incrementalCompilerOptions, extra)
     if (skip) new CompileResult(prev, config.currentSetup, false)
     else {
@@ -108,7 +101,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
     override def lookupOnClasspath(binaryClassName: String): Option[File] =
       entry(binaryClassName)
     override def lookupAnalysis(classFile: File): Option[CompileAnalysis] =
-      compileConfiguration.getAnalysis(classFile)
+      m2o(compileConfiguration.perClasspathEntryLookup.analysis(classFile))
 
     override def lookupAnalysis(binaryDependency: File, binaryClassName: String): Option[CompileAnalysis] = {
       lookupOnClasspath(binaryClassName) flatMap { defines =>
@@ -152,9 +145,9 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
     IncrementalCompile(sourcesSet, lookup, mixedCompiler.compile, analysis, output, log, incOptions).swap
   }
 
-  def setup(analysisMap: F1[File, Maybe[CompileAnalysis]], definesClass: F1[File, DefinesClass], skip: Boolean, cacheFile: File, cache: GlobalsCache,
+  def setup(perClasspathEntryLookup: PerClasspathEntryLookup, skip: Boolean, cacheFile: File, cache: GlobalsCache,
     incrementalCompilerOptions: IncOptions, reporter: Reporter, extra: Array[T2[String, String]]): Setup =
-    new Setup(analysisMap, definesClass, skip, cacheFile, cache, incrementalCompilerOptions, reporter, extra)
+    new Setup(perClasspathEntryLookup, skip, cacheFile, cache, incrementalCompilerOptions, reporter, extra)
   def inputs(options: CompileOptions, compilers: Compilers, setup: Setup, pr: PreviousResult): Inputs =
     new Inputs(compilers, options, setup, pr)
   def inputs(classpath: Array[File], sources: Array[File], classesDirectory: File, scalacOptions: Array[String],

@@ -320,18 +320,10 @@
       ],
       "fields": [
         {
-          "name": "analysisMap",
-          "type": "xsbti.F1<java.io.File,xsbti.Maybe<xsbti.compile.CompileAnalysis>>",
+          "name": "perClasspathEntryLookup",
+          "type": "xsbti.compile.PerClasspathEntryLookup",
           "doc": [
-            "Provides the Analysis for the given classpath entry."
-          ]
-        },
-        {
-          "name": "definesClass",
-          "type": "xsbti.F1<java.io.File,xsbti.compile.DefinesClass>",
-          "doc": [
-            "Provides a function to determine if classpath entry `file` contains a given class.",
-            "The returned function should generally cache information about `file`, such as the list of entries in a jar."
+            "Provides a lookup of data structures and operations associated with a single classpath entry."
           ]
         },
         {
