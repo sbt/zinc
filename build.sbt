@@ -5,7 +5,7 @@ import Scripted._
 // import StringUtilities.normalize
 import com.typesafe.tools.mima.core._, ProblemFilters._
 
-def baseVersion = "1.0.0-M2"
+def baseVersion = "1.0.0-M3"
 def internalPath   = file("internal")
 
 lazy val scalaVersions = Seq(scala210, scala211)
@@ -110,7 +110,8 @@ lazy val zincRoot: Project = (project in file(".")).
     publishLocal := {},
     publishArtifact in Compile := false,
     publishArtifact in Test := false,
-    publishArtifact := false
+    publishArtifact := false,
+    customCommands
   )
 
 lazy val zinc = (project in file("zinc")).
@@ -335,3 +336,14 @@ def scriptedUnpublishedTask: Def.Initialize[InputTask[Unit]] = Def.inputTask {
 
 lazy val publishAll = TaskKey[Unit]("publish-all")
 lazy val publishLauncher = TaskKey[Unit]("publish-launcher")
+
+def customCommands: Seq[Setting[_]] = Seq(
+  commands += Command.command("release") { state =>
+    "clean" :: // This is required since version number is generated in properties file.
+    "so compile" ::
+    "so publishSigned" ::
+    "reload" ::
+    state
+  }
+)
+
