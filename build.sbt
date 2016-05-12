@@ -98,6 +98,8 @@ lazy val zincRoot: Project = (project in file(".")).
   settings(
     inThisBuild(Seq(
       git.baseVersion := baseVersion,
+      // https://github.com/sbt/sbt-git/issues/109
+      git.uncommittedSignifier := None,
       bintrayPackage := "zinc",
       scmInfo := Some(ScmInfo(url("https://github.com/sbt/zinc"), "git@github.com:sbt/zinc.git")),
       description := "Incremental compiler of Scala",
