@@ -406,6 +406,32 @@
           "type": "xsbti.compile.PreviousResult"
         }
       ]
+    },
+    {
+      "name": "Compilers",
+      "namespace": "xsbti.compile",
+      "target": "Java",
+      "type": "record",
+      "doc": [
+        "The instances of Scalac/Javac used to compile the current project."
+      ],
+      "fields": [
+        {
+          "name": "scalac",
+          "type": "xsbti.compile.ScalaCompiler",
+          "doc": [
+            "A `ScalaCompiler`.",
+            "It should be cached by the client if desired."
+          ]
+        },
+        {
+          "name": "javac",
+          "type": "xsbti.compile.JavaCompiler",
+          "doc": [
+            "A `JavaCompiler`."
+          ]
+        }
+      ]
     }
   ]
 }

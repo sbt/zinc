@@ -6,7 +6,7 @@ import sbt.internal.inc.javac.{ IncrementalCompilerJavaTools, JavaTools }
 import xsbti.{ Position, Logger, Maybe, Reporter, F1, T2 }
 import xsbti.compile.{ CompileOrder, GlobalsCache, IncOptions, MiniSetup, CompileAnalysis, CompileResult, CompileOptions }
 import xsbti.compile.{ PreviousResult, Setup, Inputs, IncrementalCompiler, DefinesClass }
-import xsbti.compile.{ Compilers => XCompilers, CompileProgress, Output }
+import xsbti.compile.{ Compilers, CompileProgress, JavaCompiler, Output, ScalaCompiler }
 import java.io.File
 import sbt.util.Logger.m2o
 import sbt.io.{ IO, Using }
@@ -19,8 +19,6 @@ import xsbti.compile.CompileOrder.Mixed
 //     by this class.
 
 class IncrementalCompilerImpl extends IncrementalCompiler {
-  import IncrementalCompilerImpl._
-
   override def compile(in: Inputs, log: Logger): CompileResult =
     {
       val cs = in.compilers()
@@ -157,12 +155,12 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
   def setup(analysisMap: F1[File, Maybe[CompileAnalysis]], definesClass: F1[File, DefinesClass], skip: Boolean, cacheFile: File, cache: GlobalsCache,
     incrementalCompilerOptions: IncOptions, reporter: Reporter, extra: Array[T2[String, String]]): Setup =
     new Setup(analysisMap, definesClass, skip, cacheFile, cache, incrementalCompilerOptions, reporter, extra)
-  def inputs(options: CompileOptions, compilers: XCompilers, setup: Setup, pr: PreviousResult): Inputs =
+  def inputs(options: CompileOptions, compilers: Compilers, setup: Setup, pr: PreviousResult): Inputs =
     new Inputs(compilers, options, setup, pr)
   def inputs(classpath: Array[File], sources: Array[File], classesDirectory: File, scalacOptions: Array[String],
     javacOptions: Array[String], maxErrors: Int, sourcePositionMappers: Array[F1[Position, Maybe[Position]]],
     order: CompileOrder,
-    compilers: XCompilers, setup: Setup, pr: PreviousResult): Inputs =
+    compilers: Compilers, setup: Setup, pr: PreviousResult): Inputs =
     inputs(
       new CompileOptions(classpath, sources, classesDirectory, scalacOptions, javacOptions, maxErrors,
         foldMappers(sourcePositionMappers), order),
@@ -184,16 +182,11 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       })
     }
   def compilers(instance: ScalaInstance, cpOptions: ClasspathOptions, javaHome: Option[File],
-    scalac: AnalyzingCompiler): XCompilers =
+    scalac: ScalaCompiler): Compilers =
     {
       val javac = JavaTools.directOrFork(instance, cpOptions, javaHome)
-      Compilers(scalac, javac)
+      new Compilers(scalac, javac)
     }
-  def compilers(javac: IncrementalCompilerJavaTools, scalac: AnalyzingCompiler): XCompilers =
-    Compilers(scalac, javac)
-}
-
-private[sbt] object IncrementalCompilerImpl {
-  /** The instances of Scalac/Javac used to compile the current project. */
-  final case class Compilers(scalac: AnalyzingCompiler, javac: IncrementalCompilerJavaTools) extends XCompilers
+  def compilers(javac: JavaCompiler, scalac: ScalaCompiler): Compilers =
+    new Compilers(scalac, javac)
 }
