@@ -35,7 +35,7 @@ class IncrementalCompilerSpec extends BridgeProviderSpecification {
       val compilerBridge = getCompilerBridge(tempDir, Logger.Null, scalaVersion)
       val si = scalaInstance(scalaVersion)
       val sc = scalaCompiler(si, compilerBridge)
-      val cs = compiler.compilers(si, ClasspathOptions.boot, None, sc)
+      val cs = compiler.compilers(si, ClasspathOptionsUtil.boot, None, sc)
       val analysisMap = f1((f: File) => Maybe.nothing[CompileAnalysis])
       val incOptions = IncOptionsUtil.defaultIncOptions()
       val reporter = new LoggerReporter(maxErrors, log, identity)
@@ -66,7 +66,7 @@ class IncrementalCompilerSpec extends BridgeProviderSpecification {
       val compilerBridge = getCompilerBridge(tempDir, Logger.Null, scalaVersion)
       val si = scalaInstance(scalaVersion)
       val sc = scalaCompiler(si, compilerBridge)
-      val cs = compiler.compilers(si, ClasspathOptions.boot, None, sc)
+      val cs = compiler.compilers(si, ClasspathOptionsUtil.boot, None, sc)
       val prev0 = compiler.emptyPreviousResult
       val analysisMap = f1((f: File) => prev0.analysis)
       val incOptions = IncOptionsUtil.defaultIncOptions()
@@ -103,7 +103,7 @@ class IncrementalCompilerSpec extends BridgeProviderSpecification {
       val compilerBridge = getCompilerBridge(tempDir, Logger.Null, scalaVersion)
       val si = scalaInstance(scalaVersion)
       val sc = scalaCompiler(si, compilerBridge)
-      val cs = compiler.compilers(si, ClasspathOptions.boot, None, sc)
+      val cs = compiler.compilers(si, ClasspathOptionsUtil.boot, None, sc)
       val prev0 = compiler.emptyPreviousResult
       val analysisMap = f1((f: File) => prev0.analysis)
       val incOptions = IncOptionsUtil.defaultIncOptions()
@@ -131,7 +131,7 @@ class IncrementalCompilerSpec extends BridgeProviderSpecification {
   }
 
   def scalaCompiler(instance: ScalaInstance, bridgeJar: File): AnalyzingCompiler =
-    new AnalyzingCompiler(instance, CompilerInterfaceProvider.constant(bridgeJar), ClasspathOptions.boot)
+    new AnalyzingCompiler(instance, CompilerInterfaceProvider.constant(bridgeJar), ClasspathOptionsUtil.boot)
 
   def f1[A, B](f: A => B): F1[A, B] =
     new F1[A, B] {

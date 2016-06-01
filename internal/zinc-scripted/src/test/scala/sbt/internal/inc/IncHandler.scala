@@ -227,14 +227,14 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
     {
       val compilerBridge = getCompilerBridge(directory, Logger.Null, scalaVersion)
       val sc = scalaCompiler(si, compilerBridge)
-      val cs = compiler.compilers(si, ClasspathOptions.boot, None, sc)
+      val cs = compiler.compilers(si, ClasspathOptionsUtil.boot, None, sc)
       val i = IncInstance(si, cs)
       f(i)
       Some(i)
     }
 
   def scalaCompiler(instance: ScalaInstance, bridgeJar: File): AnalyzingCompiler =
-    new AnalyzingCompiler(instance, CompilerInterfaceProvider.constant(bridgeJar), ClasspathOptions.boot)
+    new AnalyzingCompiler(instance, CompilerInterfaceProvider.constant(bridgeJar), ClasspathOptionsUtil.boot)
 
   def finish(state: Option[IncInstance]): Unit = ()
 

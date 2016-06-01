@@ -6,7 +6,7 @@ import sbt.internal.inc.javac.{ IncrementalCompilerJavaTools, JavaTools }
 import xsbti.{ Position, Logger, Maybe, Reporter, F1, T2 }
 import xsbti.compile.{ CompileOrder, GlobalsCache, IncOptions, MiniSetup, CompileAnalysis, CompileResult, CompileOptions }
 import xsbti.compile.{ PreviousResult, Setup, Inputs, IncrementalCompiler, DefinesClass }
-import xsbti.compile.{ Compilers, CompileProgress, JavaCompiler, Output, ScalaCompiler }
+import xsbti.compile.{ Compilers, CompileProgress, JavaCompiler, Output, ScalaCompiler, ClasspathOptions => XClasspathOptions }
 import java.io.File
 import sbt.util.Logger.m2o
 import sbt.io.{ IO, Using }
@@ -181,7 +181,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         m2o(mapper(p)).getOrElse(mappers(p))
       })
     }
-  def compilers(instance: ScalaInstance, cpOptions: ClasspathOptions, javaHome: Option[File],
+  def compilers(instance: ScalaInstance, cpOptions: XClasspathOptions, javaHome: Option[File],
     scalac: ScalaCompiler): Compilers =
     {
       val javac = JavaTools.directOrFork(instance, cpOptions, javaHome)

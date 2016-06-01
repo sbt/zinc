@@ -6,7 +6,7 @@ package internal
 package inc
 
 import xsbti.{ AnalysisCallback, Logger => xLogger, Maybe, Reporter }
-import xsbti.compile.{ CachedCompiler, CachedCompilerProvider, DependencyChanges, GlobalsCache, CompileProgress, Output, ScalaCompiler }
+import xsbti.compile.{ CachedCompiler, CachedCompilerProvider, ClasspathOptions, DependencyChanges, GlobalsCache, CompileProgress, Output, ScalaCompiler, ScalaInstance => XScalaInstance }
 import java.io.File
 import java.net.{ URL, URLClassLoader }
 import sbt.util.Logger
@@ -18,16 +18,10 @@ import sbt.io.syntax._
  * the analysis plugin.  Because these call Scala code for a different Scala version than the one used for this class, they must
  * be compiled for the version of Scala being used.
  */
-final class AnalyzingCompiler private (val scalaInstance: xsbti.compile.ScalaInstance, val provider: CompilerInterfaceProvider, override val classpathOptions: xsbti.compile.ClasspathOptions, onArgsF: Seq[String] => Unit) extends CachedCompilerProvider with ScalaCompiler {
-  def this(scalaInstance: xsbti.compile.ScalaInstance, provider: CompilerInterfaceProvider, cp: xsbti.compile.ClasspathOptions) =
+final class AnalyzingCompiler private (val scalaInstance: XScalaInstance, val provider: CompilerInterfaceProvider, override val classpathOptions: ClasspathOptions, onArgsF: Seq[String] => Unit) extends CachedCompilerProvider with ScalaCompiler {
+  def this(scalaInstance: XScalaInstance, provider: CompilerInterfaceProvider, cp: ClasspathOptions) =
     this(scalaInstance, provider, cp, _ => ())
-  def this(scalaInstance: ScalaInstance, provider: CompilerInterfaceProvider) = this(scalaInstance, provider, ClasspathOptions.auto)
-
-  @deprecated("A Logger is no longer needed.", "0.13.0")
-  def this(scalaInstance: ScalaInstance, provider: CompilerInterfaceProvider, log: Logger) = this(scalaInstance, provider)
-
-  @deprecated("A Logger is no longer needed.", "0.13.0")
-  def this(scalaInstance: xsbti.compile.ScalaInstance, provider: CompilerInterfaceProvider, cp: xsbti.compile.ClasspathOptions, log: Logger) = this(scalaInstance, provider, cp)
+  def this(scalaInstance: XScalaInstance, provider: CompilerInterfaceProvider) = this(scalaInstance, provider, ClasspathOptionsUtil.auto)
 
   @deprecated("Renamed to `classpathOptions`", "1.0.0")
   val cp = classpathOptions

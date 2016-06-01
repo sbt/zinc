@@ -7,7 +7,7 @@ package javac
 import java.io.File
 import sbt.util.Logger
 import xsbti.Reporter
-import xsbti.compile.{ MultipleOutput, SingleOutput, Output }
+import xsbti.compile.{ ClasspathOptions, MultipleOutput, ScalaInstance => XScalaInstance, SingleOutput, Output }
 
 /**
  * This class adapts the new java compiler with the classpath/argument option hackery needed to handle scala.
@@ -16,7 +16,7 @@ import xsbti.compile.{ MultipleOutput, SingleOutput, Output }
  * wrapper around running Javac (forked or direct) into the interfaces used by incremental compiler.
  *
  */
-class JavaCompilerAdapter(delegate: JavaTool, scalaInstance: xsbti.compile.ScalaInstance, cpOptions: xsbti.compile.ClasspathOptions) extends xsbti.compile.JavaCompiler {
+class JavaCompilerAdapter(delegate: JavaTool, scalaInstance: XScalaInstance, cpOptions: ClasspathOptions) extends xsbti.compile.JavaCompiler {
   override final def compileWithReporter(sources: Array[File], classpath: Array[File], output: Output, options: Array[String], reporter: Reporter, log: xsbti.Logger): Unit = {
     val target = output match {
       case so: SingleOutput   => so.outputDirectory
@@ -34,7 +34,7 @@ class JavaCompilerAdapter(delegate: JavaTool, scalaInstance: xsbti.compile.Scala
   private[this] def commandArguments(sources: Seq[File], classpath: Seq[File], outputDirectory: File, options: Seq[String], log: Logger): Seq[String] =
     {
       val augmentedClasspath = if (cpOptions.autoBoot) classpath ++ Seq(scalaInstance.libraryJar) else classpath
-      val javaCp = ClasspathOptions.javac(cpOptions.compiler)
+      val javaCp = ClasspathOptionsUtil.javac(cpOptions.compiler)
       (new CompilerArguments(scalaInstance, javaCp))(sources, augmentedClasspath, Some(outputDirectory), options)
     }
 }
