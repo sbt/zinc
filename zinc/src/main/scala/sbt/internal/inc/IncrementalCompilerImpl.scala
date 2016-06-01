@@ -29,16 +29,8 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       import cs._
       import config._
       import setup._
-      // Here is some trickery to choose the more recent (reporter-using) java compiler rather
-      // than the previously defined versions.
-      // TODO - Remove this hackery in sbt 1.0.
-      val javacChosen: xsbti.compile.JavaCompiler =
-        in.compilers match {
-          case Compilers(_, javac) => javac.xsbtiCompiler
-        } // ).getOrElse(in.inputs.compilers.javac)
-      val scalac = in.compilers match {
-        case Compilers(scalac, _) => scalac
-      }
+      val javacChosen = in.compilers.javac
+      val scalac = in.compilers.scalac
       incrementalCompile(scalac, javacChosen, sources, classpath, CompileOutput(classesDirectory), cache, None, scalacOptions, javacOptions,
         m2o(in.previousResult.analysis),
         m2o(in.previousResult.setup),
@@ -76,7 +68,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
    *          whether or not any file were modified.
    */
   def incrementalCompile(
-    scalac: AnalyzingCompiler,
+    scalac: xsbti.compile.ScalaCompiler,
     javac: xsbti.compile.JavaCompiler,
     sources: Seq[File],
     classpath: Seq[File],

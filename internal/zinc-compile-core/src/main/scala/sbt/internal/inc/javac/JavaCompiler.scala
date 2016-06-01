@@ -47,7 +47,10 @@ sealed trait JavaTools {
  * An extension of the JavaTools trait that also includes interfaces specific to running
  * the java compiler inside of the incremental comppiler.
  */
-sealed trait IncrementalCompilerJavaTools extends JavaTools {
+sealed trait IncrementalCompilerJavaTools extends JavaTools with xsbti.compile.JavaCompiler {
+  override def compileWithReporter(sources: Array[File], classpath: Array[File], output: Output, options: Array[String], reporter: Reporter, log: xsbti.Logger) =
+    xsbtiCompiler.compileWithReporter(sources, classpath, output, options, reporter, log)
+
   /** An instance of the java Compiler for use with incremental compilation. */
   def xsbtiCompiler: xsbti.compile.JavaCompiler
 }
