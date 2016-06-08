@@ -65,12 +65,17 @@ object Locate {
 
   private class JarDefinesClass(entry: File) extends DefinesClass {
     import collection.JavaConversions._
-    private val jar = try { new ZipFile(entry, ZipFile.OPEN_READ) } catch {
-      // ZipException doesn't include the file name :(
-      case e: ZipException => throw new RuntimeException("Error opening zip file: " + entry.getName, e)
+    private val entries = {
+      val jar = try { new ZipFile(entry, ZipFile.OPEN_READ) } catch {
+        // ZipException doesn't include the file name :(
+        case e: ZipException => throw new RuntimeException("Error opening zip file: " + entry.getName, e)
+      }
+      try {
+        jar.entries.map(e => toClassName(e.getName)).toSet
+      } finally {
+        jar.close()
+      }
     }
-    private val entries = try { jar.entries.map(e => toClassName(e.getName)).toSet } finally { jar.close() }
-
     override def apply(binaryClassName: String): Boolean =
       entries.contains(binaryClassName)
   }
