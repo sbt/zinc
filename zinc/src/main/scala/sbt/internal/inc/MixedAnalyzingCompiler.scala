@@ -15,7 +15,7 @@ import sbt.util.{ Logger, InterfaceUtil }
 
 /** An instance of an analyzing compiler that can run both javac + scalac. */
 final class MixedAnalyzingCompiler(
-  val scalac: AnalyzingCompiler,
+  val scalac: xsbti.compile.ScalaCompiler,
   val javac: AnalyzingJavaCompiler,
   val config: CompileConfiguration,
   val log: Logger
@@ -25,7 +25,7 @@ final class MixedAnalyzingCompiler(
 
   private[this] val absClasspath = classpath.map(_.getAbsoluteFile)
   /** Mechanism to work with compiler arguments. */
-  private[this] val cArgs = new CompilerArguments(compiler.scalaInstance, compiler.cp)
+  private[this] val cArgs = new CompilerArguments(compiler.scalaInstance, compiler.classpathOptions)
 
   /**
    * Compiles the given Java/Scala files.
@@ -46,7 +46,7 @@ final class MixedAnalyzingCompiler(
         val sources = if (order == Mixed) incSrc else scalaSrcs
         val arguments = cArgs(Nil, absClasspath, None, options.scalacOptions)
         timed("Scala compilation", log) {
-          compiler.compile(sources, changes, arguments, output, callback, reporter, config.cache, log, progress)
+          compiler.compile(sources.toArray, changes, arguments.toArray, output, callback, reporter, config.cache, log, InterfaceUtil.o2m(progress))
         }
       }
     // Compiles the Java code necessary.  All analysis code is included in this method.
@@ -97,7 +97,7 @@ final class MixedAnalyzingCompiler(
 object MixedAnalyzingCompiler {
 
   def makeConfig(
-    scalac: AnalyzingCompiler,
+    scalac: xsbti.compile.ScalaCompiler,
     javac: xsbti.compile.JavaCompiler,
     sources: Seq[File],
     classpath: Seq[File],
@@ -147,7 +147,7 @@ object MixedAnalyzingCompiler {
     previousSetup: Option[MiniSetup],
     analysis: File => Option[CompileAnalysis],
     definesClass: DefinesClass,
-    compiler: AnalyzingCompiler,
+    compiler: xsbti.compile.ScalaCompiler,
     javac: xsbti.compile.JavaCompiler,
     reporter: Reporter,
     skip: Boolean,
@@ -164,7 +164,7 @@ object MixedAnalyzingCompiler {
     import config._
     import currentSetup._
     val absClasspath = classpath.map(_.getAbsoluteFile)
-    val cArgs = new CompilerArguments(compiler.scalaInstance, compiler.cp)
+    val cArgs = new CompilerArguments(compiler.scalaInstance, compiler.classpathOptions)
     val searchClasspath = explicitBootClasspath(options.scalacOptions) ++ withBootclasspath(cArgs, absClasspath)
     (searchClasspath, Locate.entry(searchClasspath, definesClass))
   }
