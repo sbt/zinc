@@ -37,7 +37,7 @@ class WatcherSpec extends BridgeProviderSpecification {
       // log.setLevel(Level.Debug)
       val sourceDirectory = tempDir / "src"
       IO.createDirectory(sourceDirectory)
-      val fileWatch = IncrementalCompilerUtil.barbaryFileWatch(List(sourceDirectory), log)
+      val fileWatch = IncrementalCompilerUtil.fileWatch(List(sourceDirectory), log)
       Thread.sleep(100)
       val fooSampleFile = tempDir / "src" / "Foo.scala"
       IO.copyFile(fooSampleFile0, fooSampleFile, false)
