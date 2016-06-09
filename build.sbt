@@ -160,7 +160,7 @@ lazy val zincCore = (project in internalPath / "zinc-core").
   dependsOn(zincApiInfo, zincClasspath, compilerBridge % Test).
   settings(
     testedBaseSettings,
-    libraryDependencies ++= Seq(sbtIO, utilLogging, utilRelation),
+    libraryDependencies ++= Seq(sbtIO, utilLogging, utilRelation, barbaryWatchService),
     // we need to fork because in unit tests we set usejavacp = true which means
     // we are expecting all of our dependencies to be on classpath so Scala compiler
     // can use them while constructing its own classpath for compilation

@@ -9,7 +9,8 @@ import java.io.File
 import xsbti.api.NameHashes
 import xsbti.api.NameHash
 
-final case class InitialChanges(internalSrc: Changes[File], removedProducts: Set[File], binaryDeps: Set[File], external: APIChanges)
+final case class InitialChanges(changeBeginTime: Option[Long], changeEndTime: Option[Long],
+  internalSrc: Changes[File], removedProducts: Set[File], binaryDeps: Set[File], external: APIChanges)
 final class APIChanges(val apiChanges: Iterable[APIChange]) {
   override def toString = "API Changes: " + apiChanges
   def allModified: Iterable[String] = apiChanges.map(_.modifiedClass)

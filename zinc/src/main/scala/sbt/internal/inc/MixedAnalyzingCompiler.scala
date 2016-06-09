@@ -108,6 +108,7 @@ object MixedAnalyzingCompiler {
     previousAnalysis: CompileAnalysis,
     previousSetup: Option[MiniSetup],
     perClasspathEntryLookup: PerClasspathEntryLookup,
+    fileWatch: FileWatch,
     reporter: Reporter,
     compileOrder: CompileOrder = Mixed,
     skip: Boolean = false,
@@ -126,6 +127,7 @@ object MixedAnalyzingCompiler {
         previousAnalysis,
         previousSetup,
         perClasspathEntryLookup,
+        fileWatch,
         scalac,
         javac,
         reporter,
@@ -143,6 +145,7 @@ object MixedAnalyzingCompiler {
     previousAnalysis: CompileAnalysis,
     previousSetup: Option[MiniSetup],
     perClasspathEntryLookup: PerClasspathEntryLookup,
+    fileWatch: FileWatch,
     compiler: xsbti.compile.ScalaCompiler,
     javac: xsbti.compile.JavaCompiler,
     reporter: Reporter,
@@ -152,7 +155,7 @@ object MixedAnalyzingCompiler {
   ): CompileConfiguration = {
     import MiniSetupUtil._
     new CompileConfiguration(sources, classpath, previousAnalysis, previousSetup, setup,
-      progress, perClasspathEntryLookup: PerClasspathEntryLookup, reporter, compiler, javac, cache, incrementalCompilerOptions)
+      progress, perClasspathEntryLookup: PerClasspathEntryLookup, fileWatch, reporter, compiler, javac, cache, incrementalCompilerOptions)
   }
 
   /** Returns the search classpath (for dependencies) and a function which can also do so. */

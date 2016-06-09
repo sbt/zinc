@@ -29,6 +29,7 @@ object Dependencies {
   lazy val scalaReflect = Def.setting { "org.scala-lang" % "scala-reflect" % scalaVersion.value }
 
   lazy val sbinary = "org.scala-sbt" %% "sbinary" % "0.4.3"
+  lazy val barbaryWatchService = "net.incongru.watchservice" % "barbary-watchservice" % "1.0"
   lazy val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.13.1"
   lazy val scalatest = "org.scalatest" %% "scalatest" % "2.2.6"
   lazy val junit = "junit" % "junit" % "4.11"
