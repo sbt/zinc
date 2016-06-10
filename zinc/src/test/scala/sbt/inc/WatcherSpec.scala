@@ -34,7 +34,7 @@ class WatcherSpec extends BridgeProviderSpecification {
     IO.withTemporaryDirectory { tempDir =>
       val log = ConsoleLogger()
       // uncomment this to see the debug log
-      // log.setLevel(Level.Debug)
+      log.setLevel(Level.Debug)
       val sourceDirectory = tempDir / "src"
       IO.createDirectory(sourceDirectory)
       val fileWatch = IncrementalCompilerUtil.fileWatch(List(sourceDirectory), log)
@@ -74,7 +74,7 @@ class WatcherSpec extends BridgeProviderSpecification {
         skip = false, tempDir / "inc_compile", CompilerCache.fresh, incOptions, reporter, extra)
       val in2 = compiler.inputs(si.allJars, sources2, classesDir, Array(), Array(), maxErrors, Array(),
         CompileOrder.Mixed, cs, setup2, prev2)
-      Thread.sleep(100)
+      Thread.sleep(1000)
       log.info("---- compile 2 ----")
       val result2 = compiler.compile(in2, log)
       assert(result2.hasModified)
