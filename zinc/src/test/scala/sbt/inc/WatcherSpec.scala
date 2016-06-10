@@ -6,7 +6,7 @@ import java.io.File
 import sbt.internal.inc._
 import sbt.io.IO
 import sbt.io.syntax._
-import sbt.util.{ Logger, InterfaceUtil }
+import sbt.util.{ Logger, InterfaceUtil, Level }
 import sbt.internal.util.ConsoleLogger
 import xsbti.Maybe
 import xsbti.compile.{ CompileAnalysis, CompileOrder, DefinesClass, IncOptionsUtil, PreviousResult, PerClasspathEntryLookup }
