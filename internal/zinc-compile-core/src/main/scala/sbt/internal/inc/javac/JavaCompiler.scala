@@ -69,9 +69,6 @@ object JavaCompiler {
     }
 }
 
-/** Interface we use to document java code. This is a tag over the raw JavaTool interface. */
-// trait Javadoc extends JavaTool {}
-
 /** Factory methods for constructing a javadoc. */
 object Javadoc {
   /** Returns a local compiler, if the current runtime supports it. */
