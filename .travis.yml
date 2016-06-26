@@ -1,8 +1,7 @@
 language: scala
 jdk:
-   - openjdk6
+  - openjdk7
 scala:
-   - 2.10.5
    - 2.11.7
 
 script:
