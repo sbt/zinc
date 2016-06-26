@@ -15,6 +15,7 @@ class JavaErrorParserSpec extends UnitSpec {
   it should "be able to parse windows errors" in parseSampleWindows()
   it should "be able to parse javac errors" in parseSampleJavac()
   it should "register the position of errors" in parseErrorPosition()
+  it should "be able to parse multiple errors" in parseMultipleErrors()
 
   def parseSampleLinux() = {
     val parser = new JavaErrorParser()
@@ -62,6 +63,13 @@ class JavaErrorParserSpec extends UnitSpec {
     problems(0).position.offset.get shouldBe 23
   }
 
+  def parseMultipleErrors() = {
+    val parser = new JavaErrorParser()
+    val logger = Logger.Null
+    val problems = parser.parseProblems(sampleMultipleErrors, logger)
+    problems should have size (5)
+  }
+
   def sampleLinuxMessage =
     """
       |/home/me/projects/sample/src/main/Test.java:4: cannot find symbol
@@ -91,4 +99,24 @@ class JavaErrorParserSpec extends UnitSpec {
       |    System.out.println(foobar);
       |                       ^
     """.stripMargin
+
+  def sampleMultipleErrors =
+    """/home/foo/sbt/internal/inc/javac/test1.java:3: error: class Test is public, should be declared in a file named Test.java
+       |public class Test {
+       |       ^
+       |/home/foo/sbt/internal/inc/javac/test1.java:1: warning: [deprecation] RMISecurityException in java.rmi has been deprecated
+       |import java.rmi.RMISecurityException;
+       |               ^
+       |/home/foo/sbt/internal/inc/javac/test1.java:4: error: cannot find symbol
+       |    public NotFound foo() { return 5; }
+       |           ^
+       |  symbol:   class NotFound
+       |  location: class Test
+       |/home/foo/sbt/internal/inc/javac/test1.java:7: warning: [deprecation] RMISecurityException in java.rmi has been deprecated
+       |        throw new RMISecurityException("O NOES");
+       |                  ^
+       |/home/foo/sbt/internal/inc/javac/test1.java:7: warning: [deprecation] RMISecurityException(String) in RMISecurityException has been deprecated
+       |        throw new RMISecurityException("O NOES");
+       |              ^
+       |""".stripMargin
 }

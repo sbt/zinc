@@ -49,7 +49,6 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
   override val skipWhitespace = false
 
   val JAVAC: Parser[String] = literal("javac")
-  val CHARAT: Parser[String] = literal("^")
   val SEMICOLON: Parser[String] = literal(":") | literal("\uff1a")
   val SYMBOL: Parser[String] = allUntilChar(':') // We ignore whether it actually says "symbol" for i18n
   val LOCATION: Parser[String] = allUntilChar(':') // We ignore whether it actually says "location" for i18n.
@@ -59,12 +58,18 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
   // Parses the rest of an input line.
   val restOfLine: Parser[String] =
     // TODO - Can we use END_OF_LINE here without issues?
-    allUntilChars(Array('\n', '\r')) ~ "[\r]?[\n]?".r ^^ {
+    allUntilChars(Array('\n', '\r')) ~ """[\r]?[\n]?""".r ^^ {
       case msg ~ _ => msg
     }
   val NOTE: Parser[String] = restOfLine ^? {
     case x if NOTE_LINE_PREFIXES exists x.startsWith => x
   }
+  val allIndented: Parser[String] =
+    rep("""\s+""".r ~ restOfLine ^^ {
+      case x ~ msg => x + msg
+    }) ^^ {
+      case xs => xs.mkString("\n")
+    }
 
   // Parses ALL characters until an expected character is met.
   def allUntilChar(c: Char): Parser[String] = allUntilChars(Array(c))
@@ -108,7 +113,7 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
     (linuxOption | windowsOption)
   }
 
-  val allUntilCharat: Parser[String] = allUntilChar('^')
+  val allUntilCaret: Parser[String] = allUntilChar('^')
 
   // Helper method to try to handle relative vs. absolute file pathing....
   // NOTE - this is probably wrong...
@@ -126,13 +131,13 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
     val fileLineMessage = fileAndLineNo ~ SEMICOLON ~ restOfLine ^^ {
       case (file, line) ~ _ ~ msg => (file, line, msg)
     }
-    fileLineMessage ~ allUntilCharat ~ restOfLine ^^ {
-      case (file, line, msg) ~ contents ~ _ =>
+    fileLineMessage ~ allUntilCaret ~ restOfLine ~ (allIndented.?) ^^ {
+      case (file, line, msg) ~ contents ~ r ~ ind =>
         new JavaProblem(
           new JavaPosition(
             findFileSource(file),
             line,
-            contents + '^', // TODO - Actually parse charat position out of here.
+            contents + '^' + r + ind.getOrElse(""), // TODO - Actually parse caret position out of here.
             getOffset(contents)
           ),
           Severity.Error,
@@ -146,13 +151,13 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
     val fileLineMessage = fileAndLineNo ~ SEMICOLON ~ WARNING ~ SEMICOLON ~ restOfLine ^^ {
       case (file, line) ~ _ ~ _ ~ _ ~ msg => (file, line, msg)
     }
-    fileLineMessage ~ allUntilCharat ~ restOfLine ^^ {
-      case (file, line, msg) ~ contents ~ _ =>
+    fileLineMessage ~ allUntilCaret ~ restOfLine ~ (allIndented.?) ^^ {
+      case (file, line, msg) ~ contents ~ r ~ ind =>
         new JavaProblem(
           new JavaPosition(
             findFileSource(file),
             line,
-            contents + "^",
+            contents + "^" + r + ind.getOrElse(""),
             getOffset(contents)
           ),
           Severity.Warn,
@@ -199,10 +204,10 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
     parse(javacOutput, in) match {
       case Success(result, _) => result
       case Failure(msg, n) =>
-        logger.warn(s"Unexpected javac output at:${n.pos.longString}.  Please report to sbt-dev@googlegroups.com.")
+        logger.warn(s"Unexpected javac output at:${n.pos.longString}.")
         Seq.empty
       case Error(msg, n) =>
-        logger.warn(s"Unexpected javac output at:${n.pos.longString}.  Please report to sbt-dev@googlegroups.com.")
+        logger.warn(s"Unexpected javac output at:${n.pos.longString}.")
         Seq.empty
     }
 
