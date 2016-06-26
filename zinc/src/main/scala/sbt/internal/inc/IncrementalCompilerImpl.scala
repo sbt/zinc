@@ -2,11 +2,11 @@ package sbt
 package internal
 package inc
 
-import sbt.internal.inc.javac.{ IncrementalCompilerJavaTools, JavaTools }
+import sbt.internal.inc.javac.JavaTools
 import xsbti.{ Position, Logger, Maybe, Reporter, F1, T2 }
 import xsbti.compile.{ CompileOrder, GlobalsCache, IncOptions, MiniSetup, CompileAnalysis, CompileResult, CompileOptions }
 import xsbti.compile.{ PreviousResult, Setup, Inputs, IncrementalCompiler, PerClasspathEntryLookup }
-import xsbti.compile.{ Compilers, CompileProgress, JavaCompiler, Output, ScalaCompiler, ClasspathOptions => XClasspathOptions }
+import xsbti.compile.{ Compilers, CompileProgress, JavaCompiler, JavaTools => XJavaTools, Output, ScalaCompiler, ClasspathOptions => XClasspathOptions }
 import java.io.File
 import sbt.util.Logger.m2o
 import sbt.io.{ IO, Using }
@@ -27,7 +27,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       import cs._
       import config._
       import setup._
-      val javacChosen = in.compilers.javac
+      val javacChosen = in.compilers.javaTools.javac
       val scalac = in.compilers.scalac
       incrementalCompile(scalac, javacChosen, sources, classpath, CompileOutput(classesDirectory), cache, None, scalacOptions, javacOptions,
         m2o(in.previousResult.analysis),
@@ -180,6 +180,6 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       val javac = JavaTools.directOrFork(instance, cpOptions, javaHome)
       new Compilers(scalac, javac)
     }
-  def compilers(javac: JavaCompiler, scalac: ScalaCompiler): Compilers =
-    new Compilers(scalac, javac)
+  def compilers(javaTools: XJavaTools, scalac: ScalaCompiler): Compilers =
+    new Compilers(scalac, javaTools)
 }

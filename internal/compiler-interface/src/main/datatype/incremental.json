@@ -417,10 +417,10 @@
           ]
         },
         {
-          "name": "javac",
-          "type": "xsbti.compile.JavaCompiler",
+          "name": "javaTools",
+          "type": "xsbti.compile.JavaTools",
           "doc": [
-            "A `JavaCompiler`."
+            "Tool chain of Java."
           ]
         }
       ]

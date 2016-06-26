@@ -24,6 +24,7 @@ final class AnalyzingJavaCompiler private[sbt] (
   val javac: xsbti.compile.JavaCompiler,
   val classpath: Seq[File],
   val scalaInstance: xsbti.compile.ScalaInstance,
+  val classpathOptions: ClasspathOptions,
   val classLookup: (String => Option[File]),
   val searchClasspath: Seq[File]
 ) {
@@ -65,7 +66,13 @@ final class AnalyzingJavaCompiler private[sbt] (
       val loader = ClasspathUtilities.toLoader(searchClasspath)
       // TODO - Perhaps we just record task 0/2 here
       timed("Java compilation", log) {
-        javac.compileWithReporter(sources.toArray, absClasspath.toArray, output, options.toArray, reporter, log)
+        val args = JavaCompiler.commandArguments(absClasspath, output, options, scalaInstance, classpathOptions)
+        val success = javac.run({ sources sortBy { _.getAbsolutePath } }.toArray, args.toArray, reporter, log)
+        if (!success) {
+          // TODO - Will the reporter have problems from Scalac?  It appears like it does not, only from the most recent run.
+          // This is because the incremental compiler will not run javac if scalac fails.
+          throw new CompileFailed(args.toArray, "javac returned nonzero exit code", reporter.problems())
+        }
       }
       // TODO - Perhaps we just record task 1/2 here
 
