@@ -8,8 +8,8 @@ import java.io.{ File, PrintWriter }
 
 import sbt.internal.util.LoggerWriter
 import sbt.util.{ Level, Logger }
-import xsbti.Reporter
-import xsbti.compile.{ ScalaInstance, ClasspathOptions }
+import xsbti.{ Reporter, Logger => XLogger }
+import xsbti.compile.{ ScalaInstance, ClasspathOptions, JavaCompiler => XJavaCompiler, Javadoc => XJavadoc }
 
 /**
  * Helper methods for trying to run the java toolchain out of our own classloaders.
@@ -40,8 +40,8 @@ object LocalJava {
   }
 }
 /** Implementation of javadoc tool which attempts to run it locally (in-class). */
-final class LocalJavadoc() extends Javadoc {
-  override def run(sources: Seq[File], options: Seq[String])(implicit log: Logger, reporter: Reporter): Boolean = {
+final class LocalJavadoc() extends XJavadoc {
+  override def run(sources: Array[File], options: Array[String], reporter: Reporter, log: XLogger): Boolean = {
     val cwd = new File(new File(".").getAbsolutePath).getCanonicalFile
     val (jArgs, nonJArgs) = options.partition(_.startsWith("-J"))
     val allArguments = nonJArgs ++ sources.map(_.getAbsolutePath)
@@ -62,15 +62,16 @@ final class LocalJavadoc() extends Javadoc {
 }
 
 /** An implementation of compiling java which delegates to the JVM resident java compiler. */
-final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends JavaCompiler {
-  override def run(sources: Seq[File], options: Seq[String])(implicit log: Logger, reporter: Reporter): Boolean = {
+final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaCompiler {
+  override def run(sources: Array[File], options: Array[String], reporter: Reporter, log0: XLogger): Boolean = {
+    val log: Logger = log0
     import collection.JavaConverters._
     val logger = new LoggerWriter(log)
     val logWriter = new PrintWriter(logger)
     log.debug("Attempting to call " + compiler + " directly...")
     val diagnostics = new DiagnosticsReporter(reporter)
     val fileManager = compiler.getStandardFileManager(diagnostics, null, null)
-    val jfiles = fileManager.getJavaFileObjectsFromFiles(sources.asJava)
+    val jfiles = fileManager.getJavaFileObjectsFromFiles(sources.toList.asJava)
 
     // Local Java compiler doesn't accept `-J<flag>` options. We emit a warning if we find
     // such options and don't pass them to the compiler.
@@ -79,7 +80,7 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends JavaCo
       log.warn("Javac is running in 'local' mode. These flags have been removed:")
       log.warn(invalidOptions.mkString("\t", ", ", ""))
     }
-    val success = compiler.getTask(logWriter, fileManager, diagnostics, cleanedOptions.asJava, null, jfiles).call()
+    val success = compiler.getTask(logWriter, fileManager, diagnostics, cleanedOptions.toList.asJava, null, jfiles).call()
 
     // The local compiler may report a successful compilation even though there are errors (e.g. encoding problems in the
     // source files). In a similar situation, command line javac reports a failed compilation. To have the local java compiler

@@ -176,7 +176,7 @@ object MixedAnalyzingCompiler {
     new MixedAnalyzingCompiler(
       compiler,
       // TODO - Construction of analyzing Java compiler MAYBE should be earlier...
-      new AnalyzingJavaCompiler(javac, classpath, compiler.scalaInstance, entry, searchClasspath),
+      new AnalyzingJavaCompiler(javac, classpath, compiler.scalaInstance, compiler.classpathOptions, entry, searchClasspath),
       config,
       log
     )

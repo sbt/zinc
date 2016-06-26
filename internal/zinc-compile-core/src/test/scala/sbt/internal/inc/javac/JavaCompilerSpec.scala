@@ -9,6 +9,7 @@ import java.net.URLClassLoader
 import sbt._
 import xsbt.api.{ SameAPI, DefaultShowAPI }
 import xsbti.{ Severity, Problem }
+import xsbti.compile.{ JavaTools => XJavaTools }
 import sbt.io.IO
 import sbt.util.Logger
 import sbt.internal.util.UnitSpec
@@ -31,14 +32,14 @@ class JavaCompilerSpec extends UnitSpec {
   it should "different APIs for static-final fields with changed types" in analyzeStaticDifference("String", "\"1\"", "int", "1")
   it should "\"safe\" singleton type names " in analyzeStaticDifference("float", "0.123456789f", "0.123456789f")
 
-  def docWorks(compiler: JavaTools) = IO.withTemporaryDirectory { out =>
+  def docWorks(compiler: XJavaTools) = IO.withTemporaryDirectory { out =>
     val (result, problems) = doc(compiler, Seq(knownSampleGoodFile), Seq("-d", out.getAbsolutePath))
     result shouldBe true
     (new File(out, "index.html")).exists shouldBe true
     (new File(out, "good.html")).exists shouldBe true
   }
 
-  def works(compiler: JavaTools) = IO.withTemporaryDirectory { out =>
+  def works(compiler: XJavaTools) = IO.withTemporaryDirectory { out =>
     val (result, problems) = compile(compiler, Seq(knownSampleGoodFile), Seq("-deprecation", "-d", out.getAbsolutePath))
 
     result shouldBe true
@@ -50,7 +51,7 @@ class JavaCompilerSpec extends UnitSpec {
     mthd.invoke(null) shouldBe "Hello"
   }
 
-  def findsErrors(compiler: JavaTools) = {
+  def findsErrors(compiler: XJavaTools) = {
     val (result, problems) = compile(compiler, Seq(knownSampleErrorFile), Seq("-deprecation"))
     result shouldBe false
     problems should have size (5)
@@ -59,7 +60,7 @@ class JavaCompilerSpec extends UnitSpec {
     problems foreach (_ should beAnExpectedError)
   }
 
-  def findsDocErrors(compiler: JavaTools) = IO.withTemporaryDirectory { out =>
+  def findsDocErrors(compiler: XJavaTools) = IO.withTemporaryDirectory { out =>
     val (result, problems) = doc(compiler, Seq(knownSampleErrorFile), Seq("-d", out.getAbsolutePath))
     result shouldBe true
     problems should have size (2)
@@ -149,17 +150,17 @@ class JavaCompilerSpec extends UnitSpec {
     }
   }
 
-  def compile(c: JavaTools, sources: Seq[File], args: Seq[String]): (Boolean, Array[Problem]) = {
+  def compile(c: XJavaTools, sources: Seq[File], args: Seq[String]): (Boolean, Array[Problem]) = {
     val log = Logger.Null
     val reporter = new LoggerReporter(10, log)
-    val result = c.compile(sources, args)(log, reporter)
+    val result = c.javac.run(sources.toArray, args.toArray, reporter, log)
     (result, reporter.problems)
   }
 
-  def doc(c: JavaTools, sources: Seq[File], args: Seq[String]): (Boolean, Array[Problem]) = {
+  def doc(c: XJavaTools, sources: Seq[File], args: Seq[String]): (Boolean, Array[Problem]) = {
     val log = Logger.Null
     val reporter = new LoggerReporter(10, log)
-    val result = c.doc(sources, args)(log, reporter)
+    val result = c.javadoc.run(sources.toArray, args.toArray, reporter, log)
     (result, reporter.problems)
   }
 

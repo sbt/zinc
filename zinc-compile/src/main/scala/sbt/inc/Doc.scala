@@ -6,6 +6,7 @@ import sbt.io.syntax._
 import sbt.io.IO
 import sbt.util.Logger
 import xsbti.Reporter
+import xsbti.compile.JavaTools
 import sbt.internal.inc.javac.{ JavaTools, JavaCompilerArguments }
 import sbt.internal.util.Tracked.{ inputChangedWithJson, outputChangedWithJson }
 import sbt.internal.util.{ FileInfo, FilesInfo, HashFileInfo, HNil, ModifiedFileInfo, PlainFileInfo }
@@ -20,7 +21,11 @@ object Doc {
   def cachedJavadoc(label: String, cache: File, doc: JavaTools): JavaDoc =
     cached(cache, prepare(label + " Java API documentation", new JavaDoc {
       def run(sources: List[File], classpath: List[File], outputDirectory: File, options: List[String], log: Logger, reporter: Reporter): Unit = {
-        doc.doc(sources filter javaSourcesOnly, JavaCompilerArguments(sources, classpath, Some(outputDirectory), options))(log, reporter)
+        doc.javadoc.run(
+          (sources filter javaSourcesOnly).toArray,
+          JavaCompilerArguments(sources, classpath, Some(outputDirectory), options).toArray,
+          reporter, log
+        )
         ()
       }
     }))

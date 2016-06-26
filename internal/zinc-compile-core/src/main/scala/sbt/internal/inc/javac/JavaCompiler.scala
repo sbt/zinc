@@ -9,61 +9,15 @@ import java.io.{ PrintWriter, File }
 import javax.tools.{ DiagnosticListener, Diagnostic, JavaFileObject, DiagnosticCollector }
 import xsbti.compile.ScalaInstance
 import xsbti.compile._
-import xsbti.{ Severity, Reporter }
+import xsbti.{ Severity, Reporter, Logger => XLogger }
 
-/**
- * An interface to the toolchain of Java.
- *
- * Specifically, access to run javadoc + javac.
- */
-sealed trait JavaTools {
-  /** The raw interface of the java compiler for direct access. */
-  def compiler: JavaTool
-  /**
-   * This will run a java compiler.
-   *
-   *
-   * @param sources  The list of java source files to compile.
-   * @param options  The set of options to pass to the java compiler (includes the classpath).
-   * @param log      The logger to dump output into.
-   * @param reporter The reporter for semantic error messages.
-   * @return true if no errors, false otherwise.
-   */
-  def compile(sources: Seq[File], options: Seq[String])(implicit log: Logger, reporter: Reporter): Boolean
-  /**
-   * This will run a java compiler.
-   *
-   *
-   * @param sources  The list of java source files to compile.
-   * @param options  The set of options to pass to the java compiler (includes the classpath).
-   * @param log      The logger to dump output into.
-   * @param reporter The reporter for semantic error messages.
-   * @return true if no errors, false otherwise.
-   */
-  def doc(sources: Seq[File], options: Seq[String])(implicit log: Logger, reporter: Reporter): Boolean
-}
-
-/**
- * An extension of the JavaTools trait that also includes interfaces specific to running
- * the java compiler inside of the incremental comppiler.
- */
-sealed trait IncrementalCompilerJavaTools extends JavaTools with xsbti.compile.JavaCompiler {
-  override def compileWithReporter(sources: Array[File], classpath: Array[File], output: Output, options: Array[String], reporter: Reporter, log: xsbti.Logger) =
-    xsbtiCompiler.compileWithReporter(sources, classpath, output, options, reporter, log)
-
-  /** An instance of the java Compiler for use with incremental compilation. */
-  def xsbtiCompiler: xsbti.compile.JavaCompiler
-}
 /** Factory methods for getting a java toolchain. */
 object JavaTools {
   /** Create a new aggregate tool from existing tools. */
   def apply(c: JavaCompiler, docgen: Javadoc): JavaTools =
     new JavaTools {
-      override def compiler = c
-      def compile(sources: Seq[File], options: Seq[String])(implicit log: Logger, reporter: Reporter): Boolean =
-        c.run(sources, options)
-      def doc(sources: Seq[File], options: Seq[String])(implicit log: Logger, reporter: Reporter): Boolean =
-        docgen.run(sources, options)
+      override val javac = c
+      override val javadoc = docgen
     }
 
   /**
@@ -79,7 +33,7 @@ object JavaTools {
    * @return
    *            A new set of the Java toolchain that also includes and instance of xsbti.compile.JavaCompiler
    */
-  def directOrFork(instance: xsbti.compile.ScalaInstance, cpOptions: xsbti.compile.ClasspathOptions, javaHome: Option[File]): IncrementalCompilerJavaTools = {
+  def directOrFork(instance: ScalaInstance, cpOptions: ClasspathOptions, javaHome: Option[File]): JavaTools = {
     val (compiler, doc) = javaHome match {
       case Some(_) => (JavaCompiler.fork(javaHome), Javadoc.fork(javaHome))
       case _ =>
@@ -87,41 +41,10 @@ object JavaTools {
         val d = Javadoc.local.getOrElse(Javadoc.fork())
         (c, d)
     }
-    val delegate = apply(compiler, doc)
-    new IncrementalCompilerJavaTools {
-      val xsbtiCompiler = new JavaCompilerAdapter(delegate.compiler, instance, cpOptions)
-      def compiler = delegate.compiler
-      def compile(sources: Seq[File], options: Seq[String])(implicit log: Logger, reporter: Reporter): Boolean =
-        delegate.compile(sources, options)
-      def doc(sources: Seq[File], options: Seq[String])(implicit log: Logger, reporter: Reporter): Boolean =
-        delegate.doc(sources, options)
-    }
+    apply(compiler, doc)
   }
 }
 
-/**
- * An interface for on of the tools in the java tool chain.
- *
- * We assume the following is true of tools:
- * - The all take sources and options and log error messages
- * - They return success or failure.
- */
-sealed trait JavaTool {
-  /**
-   * This will run a java compiler / or other like tool (e.g. javadoc).
-   *
-   *
-   * @param sources  The list of java source files to compile.
-   * @param options  The set of options to pass to the java compiler (includes the classpath).
-   * @param log      The logger to dump output into.
-   * @param reporter The reporter for semantic error messages.
-   * @return true if no errors, false otherwise.
-   */
-  def run(sources: Seq[File], options: Seq[String])(implicit log: Logger, reporter: Reporter): Boolean
-}
-
-/** Interface we use to compile java code. This is mostly a tag over the raw JavaTool interface. */
-trait JavaCompiler extends JavaTool {}
 /** Factory methods for constructing a java compiler. */
 object JavaCompiler {
   /** Returns a local compiler, if the current runtime supports it. */
@@ -134,10 +57,21 @@ object JavaCompiler {
   def fork(javaHome: Option[File] = None): JavaCompiler =
     new ForkedJavaCompiler(javaHome)
 
+  def commandArguments(classpath: Seq[File], output: Output, options: Seq[String], scalaInstance: ScalaInstance, cpOptions: ClasspathOptions): Seq[String] =
+    {
+      val target = output match {
+        case so: SingleOutput   => so.outputDirectory
+        case mo: MultipleOutput => throw new RuntimeException("Javac doesn't support multiple output directories")
+      }
+      val augmentedClasspath = if (cpOptions.autoBoot) classpath ++ Seq(scalaInstance.libraryJar) else classpath
+      val javaCp = ClasspathOptionsUtil.javac(cpOptions.compiler)
+      (new CompilerArguments(scalaInstance, javaCp))(Array[File](), augmentedClasspath, Some(target), options)
+    }
 }
 
 /** Interface we use to document java code. This is a tag over the raw JavaTool interface. */
-trait Javadoc extends JavaTool {}
+// trait Javadoc extends JavaTool {}
+
 /** Factory methods for constructing a javadoc. */
 object Javadoc {
   /** Returns a local compiler, if the current runtime supports it. */
