@@ -61,8 +61,10 @@ object ClassToAPI {
   def emptyClassMap: ClassMap = new ClassMap(new mutable.HashMap, new mutable.HashSet, new mutable.ListBuffer,
     new mutable.HashSet)
 
+  def classCanonicalName(c: Class[_]): String =
+    Option(c.getCanonicalName) getOrElse { c.getName }
   def toDefinitions(cmap: ClassMap)(c: Class[_]): Seq[api.ClassLikeDef] =
-    cmap.memo.getOrElseUpdate(c.getCanonicalName, toDefinitions0(c, cmap))
+    cmap.memo.getOrElseUpdate(classCanonicalName(c), toDefinitions0(c, cmap))
   def toDefinitions0(c: Class[_], cmap: ClassMap): Seq[api.ClassLikeDef] =
     {
       import api.DefinitionType.{ ClassDef, Module, Trait }
@@ -72,7 +74,7 @@ object ClassToAPI {
       val annots = annotations(c.getAnnotations)
       val children = childrenOfSealedClass(c)
       val topLevel = c.getEnclosingClass == null
-      val name = c.getCanonicalName
+      val name = classCanonicalName(c)
       val tpe = if (Modifier.isInterface(c.getModifiers)) Trait else ClassDef
       lazy val (static, instance) = structure(c, enclPkg, cmap)
       val cls = new api.ClassLike(tpe, strict(Empty), lzy(instance, cmap), emptyStringArray, children.toArray,
@@ -106,10 +108,8 @@ object ClassToAPI {
   }
 
   /** TODO: over time, ClassToAPI should switch the majority of access to the classfile parser */
-  private[this] def classFileForClass(c: Class[_]): ClassFile = {
-    val file = new java.io.File(IO.classLocationFile(c), s"${c.getName.replace('.', '/')}.class")
-    classfile.Parser.apply(file)
-  }
+  private[this] def classFileForClass(c: Class[_]): ClassFile =
+    classfile.Parser.apply(IO.classfileLocation(c))
 
   private[this] def lzyS[T <: AnyRef](t: T): xsbti.api.Lazy[T] = lzy(t)
   def lzy[T <: AnyRef](t: => T): xsbti.api.Lazy[T] = xsbti.SafeLazy(t)
@@ -273,7 +273,7 @@ object ClassToAPI {
 
   def name(gd: GenericDeclaration): String =
     gd match {
-      case c: Class[_]       => c.getCanonicalName
+      case c: Class[_]       => classCanonicalName(c)
       case m: Method         => m.getName
       case c: Constructor[_] => c.getName
     }
@@ -311,7 +311,9 @@ object ClassToAPI {
 
   def array(tpe: api.Type): api.SimpleType = new api.Parameterized(ArrayRef, Array(tpe))
   def reference(c: Class[_]): api.SimpleType =
-    if (c.isArray) array(reference(c.getComponentType)) else if (c.isPrimitive) primitive(c.getName) else reference(c.getCanonicalName)
+    if (c.isArray) array(reference(c.getComponentType))
+    else if (c.isPrimitive) primitive(c.getName)
+    else reference(classCanonicalName(c))
 
   // does not handle primitives
   def reference(s: String): api.SimpleType =
