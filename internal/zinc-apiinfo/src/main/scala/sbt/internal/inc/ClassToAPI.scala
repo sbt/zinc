@@ -63,6 +63,7 @@ object ClassToAPI {
 
   def classCanonicalName(c: Class[_]): String =
     Option(c.getCanonicalName) getOrElse { c.getName }
+
   def toDefinitions(cmap: ClassMap)(c: Class[_]): Seq[api.ClassLikeDef] =
     cmap.memo.getOrElseUpdate(classCanonicalName(c), toDefinitions0(c, cmap))
   def toDefinitions0(c: Class[_], cmap: ClassMap): Seq[api.ClassLikeDef] =
@@ -302,7 +303,7 @@ object ClassToAPI {
    */
   private def childrenOfSealedClass(c: Class[_]): Seq[api.SimpleType] = if (!c.isEnum) emptySimpleTypeArray else {
     // instead of constants we need classes that back them in a stable order
-    c.getEnumConstants.map(_.getClass).sortBy(_.getCanonicalName).map(reference)
+    c.getEnumConstants.map(_.getClass).sortBy(classCanonicalName).map(reference)
   }
 
   // full information not available from reflection
