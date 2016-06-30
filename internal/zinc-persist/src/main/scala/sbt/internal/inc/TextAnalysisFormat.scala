@@ -308,11 +308,13 @@ object TextAnalysisFormat {
 
     private[this] val singleOutputMode = "single"
     private[this] val multipleOutputMode = "multiple"
-    private[this] val singleOutputKey = new File("/output_dir")
 
     def write(out: Writer, setup: MiniSetup): Unit = {
       val (mode, outputAsMap) = setup.output match {
-        case s: SingleOutput   => (singleOutputMode, Map(singleOutputKey -> s.outputDirectory))
+        case s: SingleOutput =>
+          // just to be compatible with multipleOutputMode
+          val ignored = s.outputDirectory
+          (singleOutputMode, Map(ignored -> s.outputDirectory))
         case m: MultipleOutput => (multipleOutputMode, m.outputGroups.map(x => x.sourceDirectory -> x.outputDirectory).toMap)
       }
 
@@ -340,7 +342,7 @@ object TextAnalysisFormat {
       val output = outputDirMode match {
         case Some(s) => s match {
           case `singleOutputMode` => new SingleOutput {
-            val outputDirectory = outputAsMap(singleOutputKey)
+            val outputDirectory = outputAsMap.values.head
           }
           case `multipleOutputMode` => new MultipleOutput {
             val outputGroups: Array[MultipleOutput.OutputGroup] = outputAsMap.toArray.map {
