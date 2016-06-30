@@ -65,11 +65,14 @@ final class DiagnosticsReporter(reporter: Reporter) extends DiagnosticListener[J
     val pos: xsbti.Position =
       new xsbti.Position {
         // https://docs.oracle.com/javase/7/docs/api/javax/tools/Diagnostic.html
-        // Negative values (except NOPOS) and 0 are not valid line or column numbers.
+        // Negative values (except NOPOS) and 0 are not valid line or column numbers,
+        // except that you can cause this number to occur by putting "abc {}" in A.java.
+        // This will cause Invalid position: 0 masking the actual error message
+        //     a/A.java:1: class, interface, or enum expected
         private[this] def checkNoPos(n: Long): Option[Long] =
           n match {
             case NOPOS       => None
-            case x if x <= 0 => sys.error(s"Invalid position: $x")
+            case x if x <= 0 => None
             case x           => Option(x)
           }
 
