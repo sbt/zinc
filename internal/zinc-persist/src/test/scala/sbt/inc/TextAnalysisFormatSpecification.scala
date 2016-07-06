@@ -26,7 +26,7 @@ object TextAnalysisFormatTest extends Properties("TextAnalysisFormat") {
                     |0 -> single
                     |output directories:
                     |1 items
-                    |file:/output_dir -> file:/dummy
+                    |file:/dummy -> file:/dummy
                     |compile options:
                     |0 items
                     |javac options:
