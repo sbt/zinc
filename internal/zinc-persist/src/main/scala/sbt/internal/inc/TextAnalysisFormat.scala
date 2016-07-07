@@ -214,6 +214,8 @@ object TextAnalysisFormat {
 
   private[this] object StampsF {
     object Headers {
+      val changeBeginTime = "change begin time"
+      val changeEndTime = "change end time"
       val products = "product stamps"
       val sources = "source stamps"
       val binaries = "binary stamps"
@@ -223,6 +225,8 @@ object TextAnalysisFormat {
     def write(out: Writer, stamps: Stamps): Unit = {
       def doWriteMap[V](header: String, m: Map[File, V]) = writeMap(out)(header, m, fileToString, { v: V => v.toString })
 
+      writeSeq(out)(Headers.changeBeginTime, stamps.changeBeginTime.toList, (_: Long).toString)
+      writeSeq(out)(Headers.changeEndTime, stamps.changeEndTime.toList, (_: Long).toString)
       doWriteMap(Headers.products, stamps.products)
       doWriteMap(Headers.sources, stamps.sources)
       doWriteMap(Headers.binaries, stamps.binaries)
@@ -231,12 +235,15 @@ object TextAnalysisFormat {
 
     def read(in: BufferedReader): Stamps = {
       def doReadMap[V](expectedHeader: String, s2v: String => V) = readMap(in)(expectedHeader, stringToFile, s2v)
+
+      val changeBeginTime = readSeq(in)(Headers.changeBeginTime, _.toLong).headOption
+      val changeEndTime = readSeq(in)(Headers.changeEndTime, _.toLong).headOption
       val products = doReadMap(Headers.products, Stamp.fromString)
       val sources = doReadMap(Headers.sources, Stamp.fromString)
       val binaries = doReadMap(Headers.binaries, Stamp.fromString)
       val classNames = doReadMap(Headers.classNames, identity[String])
 
-      Stamps(products, sources, binaries, classNames)
+      Stamps(changeBeginTime, changeEndTime, products, sources, binaries, classNames)
     }
   }
 

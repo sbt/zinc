@@ -8,7 +8,7 @@ package inc
 import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
 import xsbt.api.{ NameHashing, APIUtil, HashAPI }
 import xsbti.api._
-import xsbti.compile.{ DependencyChanges, Output, SingleOutput, MultipleOutput, CompileAnalysis, IncOptions }
+import xsbti.compile.{ DependencyChanges, Output, SingleOutput, MultipleOutput, CompileAnalysis, IncOptions, FileWatch }
 import xsbti.{ Position, Problem, Severity }
 import sbt.util.Logger
 import sbt.util.Logger.{ m2o, problem }
@@ -43,20 +43,21 @@ object IncrementalCompile {
    *         A flag of whether or not compilation completed succesfully, and the resulting dependency analysis object.
    *
    */
-  def apply(sources: Set[File], lookup: Lookup,
+  def apply(sources: Set[File], lookup: Lookup, fileWatch: FileWatch,
     compile: (Set[File], DependencyChanges, xsbti.AnalysisCallback) => Unit,
     previous0: CompileAnalysis,
     output: Output, log: Logger,
     options: IncOptions): (Boolean, Analysis) =
     {
       val previous = previous0 match { case a: Analysis => a }
-      val current = Stamps.initial(Stamp.lastModified, Stamp.hash, Stamp.lastModified)
+      val trackEndTime = System.currentTimeMillis
+      val current = Stamps.initial(previous.stamps.changeEndTime, Some(trackEndTime), Stamp.lastModified, Stamp.hash, Stamp.lastModified)
       val internalBinaryToSourceClassName = (binaryClassName: String) =>
         previous.relations.binaryClassName.reverse(binaryClassName).headOption
       val internalSourceToClassNamesMap: File => Set[String] = (f: File) => previous.relations.classNames(f)
       val externalAPI = getExternalAPI(lookup)
       try {
-        Incremental.compile(sources, lookup, previous, current,
+        Incremental.compile(sources, lookup, fileWatch, previous, current,
           doCompile(compile, internalBinaryToSourceClassName, internalSourceToClassNamesMap, externalAPI, current, output, options),
           log, options)
       } catch {

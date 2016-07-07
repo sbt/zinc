@@ -5,7 +5,7 @@ package inc
 import java.io.File
 
 import xsbti.Reporter
-import xsbti.compile.{ GlobalsCache, CompileProgress, IncOptions, MiniSetup, CompileAnalysis, PerClasspathEntryLookup }
+import xsbti.compile.{ GlobalsCache, CompileProgress, IncOptions, MiniSetup, CompileAnalysis, PerClasspathEntryLookup, FileWatch }
 
 /**
  * Configuration used for running an analyzing compiler (a compiler which can extract dependencies between source files and JARs).
@@ -31,6 +31,7 @@ final class CompileConfiguration(
   val currentSetup: MiniSetup,
   val progress: Option[CompileProgress],
   val perClasspathEntryLookup: PerClasspathEntryLookup,
+  val fileWatch: FileWatch,
   val reporter: Reporter,
   val compiler: xsbti.compile.ScalaCompiler,
   val javac: xsbti.compile.JavaCompiler,

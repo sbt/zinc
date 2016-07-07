@@ -11,12 +11,11 @@ import xsbti.compile.{ CompileAnalysis, CompileOrder, DefinesClass, IncOptionsUt
 import xsbti.compile.PerClasspathEntryLookup
 import sbt.io.IO
 import sbt.io.syntax._
-
+import sbt.inc.IncrementalCompilerUtil
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier.{ isPublic, isStatic }
 import java.util.Properties
 import sbt.internal.inc.classpath.ClasspathUtilities
-
 import sbt.internal.scripted.{ StatementHandler, TestFailed }
 
 final case class IncInstance(si: ScalaInstance, cs: XCompilers)
@@ -198,7 +197,8 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
       val incOptions = loadIncOptions(directory / "incOptions.properties").withClassfileManagerType(transactional)
       val reporter = new LoggerReporter(maxErrors, scriptedLog, identity)
       val extra = Array(t2(("key", "value")))
-      val setup = compiler.setup(lookup, skip = false, cacheFile, CompilerCache.fresh, incOptions, reporter, extra)
+      val setup = compiler.setup(lookup, IncrementalCompilerUtil.noFileWatch,
+        skip = false, cacheFile, CompilerCache.fresh, incOptions, reporter, extra)
       val classpath = (i.si.allJars.toList ++ unmanagedJars :+ classesDir).toArray
       val in = compiler.inputs(classpath, sources.toArray, classesDir, Array(), Array(), maxErrors, Array(),
         CompileOrder.Mixed, cs, setup, prev)

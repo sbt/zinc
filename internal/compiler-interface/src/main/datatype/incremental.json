@@ -327,6 +327,13 @@
           ]
         },
         {
+          "name": "fileWatch",
+          "type": "xsbti.compile.FileWatch",
+          "doc": [
+            "Detects change in file system."
+          ]
+        },
+        {
           "name": "skip",
           "type": "boolean",
           "doc": [
@@ -396,6 +403,52 @@
         {
           "name": "previousResult",
           "type": "xsbti.compile.PreviousResult"
+        }
+      ]
+    },
+    {
+      "name": "FileChanges",
+      "namespace": "xsbti.compile",
+      "target": "Java",
+      "type": "record",
+      "doc": [
+        "Changes detected to the file system since a given time."
+      ],
+      "fields": [
+        {
+          "name": "beginTime",
+          "type": "Long",
+          "doc": [
+            "The begin time for the range monitoring the change, given in millisecond."
+          ]
+        },
+        {
+          "name": "endTime",
+          "type": "Long",
+          "doc": [
+            "The end time for the range monitoring the change, given in millisecond."
+          ]
+        },
+        {
+          "name": "added",
+          "type": "java.util.Set<java.io.File>",
+          "doc": [
+            "Added files."
+          ]
+        },
+        {
+          "name": "removed",
+          "type": "java.util.Set<java.io.File>",
+          "doc": [
+            "Removed files."
+          ]
+        },
+        {
+          "name": "changed",
+          "type": "java.util.Set<java.io.File>",
+          "doc": [
+            "Files that were modified."
+          ]
         }
       ]
     },

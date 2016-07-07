@@ -11,6 +11,11 @@ import scala.util.matching.Regex
 import sbt.io.{ Hash => IOHash }
 
 trait ReadStamps {
+  /** The beginning of the time range used for incremental compilation. */
+  def changeBeginTime: Option[Long]
+  /** The end of the time range used for incremental compilation. */
+  def changeEndTime: Option[Long]
+
   /** The Stamp for the given product at the time represented by this Stamps instance.*/
   def product(prod: File): Stamp
   /** The Stamp for the given source file at the time represented by this Stamps instance.*/
@@ -40,6 +45,7 @@ trait Stamps extends ReadStamps {
 
   def ++(o: Stamps): Stamps
   def groupBy[K](prod: Map[K, File => Boolean], sourcesGrouping: File => K, bin: Map[K, File => Boolean]): Map[K, Stamps]
+  def changeTime(begin: Option[Long], end: Option[Long]): Stamps
 }
 
 sealed trait Stamp {
@@ -115,38 +121,53 @@ object Stamps {
    * stamp is calculated separately on demand.
    * The stamp for a product is always recalculated.
    */
-  def initial(prodStamp: File => Stamp, srcStamp: File => Stamp, binStamp: File => Stamp): ReadStamps = new InitialStamps(prodStamp, srcStamp, binStamp)
+  def initial(changeBeginTime: Option[Long], changeEndTime: Option[Long],
+    prodStamp: File => Stamp, srcStamp: File => Stamp, binStamp: File => Stamp): ReadStamps =
+    new InitialStamps(changeBeginTime, changeEndTime, prodStamp, srcStamp, binStamp)
 
   def empty: Stamps =
     {
       val eSt = Map.empty[File, Stamp]
-      apply(eSt, eSt, eSt, Map.empty[File, String])
+      apply(None, None, eSt, eSt, eSt, Map.empty[File, String])
     }
-  def apply(products: Map[File, Stamp], sources: Map[File, Stamp], binaries: Map[File, Stamp], binaryClassNames: Map[File, String]): Stamps =
-    new MStamps(products, sources, binaries, binaryClassNames)
+  def apply(changeBeginTime: Option[Long], changeEndTime: Option[Long], products: Map[File, Stamp], sources: Map[File, Stamp], binaries: Map[File, Stamp], binaryClassNames: Map[File, String]): Stamps =
+    new MStamps(changeBeginTime, changeEndTime, products, sources, binaries, binaryClassNames)
 
   def merge(stamps: Traversable[Stamps]): Stamps = (Stamps.empty /: stamps)(_ ++ _)
 }
 
-private class MStamps(val products: Map[File, Stamp], val sources: Map[File, Stamp], val binaries: Map[File, Stamp], val classNames: Map[File, String]) extends Stamps {
+private class MStamps(val changeBeginTime: Option[Long], val changeEndTime: Option[Long],
+  val products: Map[File, Stamp], val sources: Map[File, Stamp], val binaries: Map[File, Stamp], val classNames: Map[File, String]) extends Stamps {
   def allInternalSources: collection.Set[File] = sources.keySet
   def allBinaries: collection.Set[File] = binaries.keySet
   def allProducts: collection.Set[File] = products.keySet
 
-  def ++(o: Stamps): Stamps =
-    new MStamps(products ++ o.products, sources ++ o.sources, binaries ++ o.binaries, classNames ++ o.classNames)
+  def ++(o: Stamps): Stamps = {
+    def mergeTime(o1: Option[Long], o2: Option[Long], f: (Long, Long) => Long): Option[Long] =
+      (o1, o2) match {
+        case (None, None)       => None
+        case (None, Some(y))    => Some(y)
+        case (Some(x), None)    => Some(x)
+        case (Some(x), Some(y)) => Some(f(x, y))
+      }
+    new MStamps(
+      mergeTime(changeBeginTime, o.changeBeginTime, Math.min),
+      mergeTime(changeEndTime, o.changeEndTime, Math.max),
+      products ++ o.products, sources ++ o.sources, binaries ++ o.binaries, classNames ++ o.classNames
+    )
+  }
 
   def markInternalSource(src: File, s: Stamp): Stamps =
-    new MStamps(products, sources.updated(src, s), binaries, classNames)
+    new MStamps(changeBeginTime, changeEndTime, products, sources.updated(src, s), binaries, classNames)
 
   def markBinary(bin: File, className: String, s: Stamp): Stamps =
-    new MStamps(products, sources, binaries.updated(bin, s), classNames.updated(bin, className))
+    new MStamps(changeBeginTime, changeEndTime, products, sources, binaries.updated(bin, s), classNames.updated(bin, className))
 
   def markProduct(prod: File, s: Stamp): Stamps =
-    new MStamps(products.updated(prod, s), sources, binaries, classNames)
+    new MStamps(changeBeginTime, changeEndTime, products.updated(prod, s), sources, binaries, classNames)
 
   def filter(prod: File => Boolean, removeSources: Iterable[File], bin: File => Boolean): Stamps =
-    new MStamps(products.filterKeys(prod), sources -- removeSources, binaries.filterKeys(bin), classNames.filterKeys(bin))
+    new MStamps(changeBeginTime, changeEndTime, products.filterKeys(prod), sources -- removeSources, binaries.filterKeys(bin), classNames.filterKeys(bin))
 
   def groupBy[K](prod: Map[K, File => Boolean], f: File => K, bin: Map[K, File => Boolean]): Map[K, Stamps] =
     {
@@ -154,6 +175,7 @@ private class MStamps(val products: Map[File, Stamp], val sources: Map[File, Sta
 
       val constFalse = (f: File) => false
       def kStamps(k: K): Stamps = new MStamps(
+        changeBeginTime, changeEndTime,
         products.filterKeys(prod.getOrElse(k, constFalse)),
         sourcesMap.getOrElse(k, Map.empty[File, Stamp]),
         binaries.filterKeys(bin.getOrElse(k, constFalse)),
@@ -168,23 +190,27 @@ private class MStamps(val products: Map[File, Stamp], val sources: Map[File, Sta
   def binary(bin: File) = getStamp(binaries, bin)
   def className(bin: File) = classNames get bin
 
+  def changeTime(begin: Option[Long], end: Option[Long]): Stamps =
+    new MStamps(begin, end, products, sources, binaries, classNames)
+
   override def equals(other: Any): Boolean = other match {
-    case o: MStamps => products == o.products && sources == o.sources && binaries == o.binaries && classNames == o.classNames
-    case _          => false
+    case o: MStamps => changeBeginTime == o.changeBeginTime && changeEndTime == o.changeEndTime &&
+      products == o.products && sources == o.sources && binaries == o.binaries && classNames == o.classNames
+    case _ => false
   }
 
-  override lazy val hashCode: Int = (products :: sources :: binaries :: classNames :: Nil).hashCode
+  override lazy val hashCode: Int = (changeBeginTime :: changeEndTime :: products :: sources :: binaries :: classNames :: Nil).hashCode
 
   override def toString: String =
     "Stamps for: %d products, %d sources, %d binaries, %d classNames".format(products.size, sources.size, binaries.size, classNames.size)
 }
 
-private class InitialStamps(prodStamp: File => Stamp, srcStamp: File => Stamp, binStamp: File => Stamp) extends ReadStamps {
+private class InitialStamps(val changeBeginTime: Option[Long], val changeEndTime: Option[Long],
+  prodStamp: File => Stamp, srcStamp: File => Stamp, binStamp: File => Stamp) extends ReadStamps {
   import collection.mutable.{ HashMap, Map }
   // cached stamps for files that do not change during compilation
   private val sources: Map[File, Stamp] = new HashMap
   private val binaries: Map[File, Stamp] = new HashMap
-
   def product(prod: File): Stamp = prodStamp(prod)
   def internalSource(src: File): Stamp = synchronized { sources.getOrElseUpdate(src, srcStamp(src)) }
   def binary(bin: File): Stamp = synchronized { binaries.getOrElseUpdate(bin, binStamp(bin)) }

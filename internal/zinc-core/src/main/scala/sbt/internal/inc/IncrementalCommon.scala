@@ -4,9 +4,12 @@ package inc
 
 import java.io.File
 import sbt.util.Logger
+import Logger.m2o
 import scala.annotation.tailrec
+import scala.collection.mutable
+import xsbti.Maybe
 import xsbti.api.{ AnalyzedClass, Compilation }
-import xsbti.compile.{ DependencyChanges, IncOptions, IncOptionsUtil, CompileAnalysis }
+import xsbti.compile.{ DependencyChanges, IncOptions, IncOptionsUtil, CompileAnalysis, FileWatch, FileChanges }
 
 private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: IncOptions) {
 
@@ -21,7 +24,7 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
   // TODO: the Analysis for the last successful compilation should get returned + Boolean indicating success
   // TODO: full external name changes, scopeInvalidations
   @tailrec final def cycle(invalidatedRaw: Set[String], modifiedSrcs: Set[File], allSources: Set[File],
-    binaryChanges: DependencyChanges, previous: Analysis,
+    binaryChanges: DependencyChanges, previous: Analysis, trackEndTime: Option[Long],
     doCompile: (Set[File], DependencyChanges) => Analysis, classfileManager: ClassfileManager,
     cycleNum: Int): Analysis =
     if (invalidatedRaw.isEmpty && modifiedSrcs.isEmpty)
@@ -34,7 +37,7 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
       val withPackageObjects = invalidatedRaw ++ invalidatedPackageObjects
       val invalidatedClasses = withPackageObjects
 
-      val current = recompileClasses(invalidatedClasses, modifiedSrcs, allSources, binaryChanges, previous, doCompile,
+      val current = recompileClasses(invalidatedClasses, modifiedSrcs, allSources, binaryChanges, previous, trackEndTime, doCompile,
         classfileManager)
 
       // modifiedSrc have to be mapped to class names both of previous and current analysis because classes might be
@@ -48,11 +51,11 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
       val classToSourceMapper = new ClassToSourceMapper(previous.relations, current.relations)
       val incInv = invalidateIncremental(current.relations, current.apis, incChanges, recompiledClasses,
         cycleNum >= transitiveStep, classToSourceMapper.isDefinedInScalaSrc)
-      cycle(incInv, Set.empty, allSources, emptyChanges, current, doCompile, classfileManager, cycleNum + 1)
+      cycle(incInv, Set.empty, allSources, emptyChanges, current, trackEndTime, doCompile, classfileManager, cycleNum + 1)
     }
 
   private[this] def recompileClasses(classes: Set[String], modifiedSrcs: Set[File], allSources: Set[File],
-    binaryChanges: DependencyChanges, previous: Analysis,
+    binaryChanges: DependencyChanges, previous: Analysis, trackEndTime: Option[Long],
     doCompile: (Set[File], DependencyChanges) => Analysis,
     classfileManager: ClassfileManager): Analysis = {
     val invalidatedSources = classes.flatMap(previous.relations.definesClass) ++ modifiedSrcs
@@ -63,9 +66,13 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
     val fresh = doCompile(invalidatedSourcesForCompilation, binaryChanges)
     classfileManager.generated(fresh.relations.allProducts)
     debug("********* Fresh: \n" + fresh.relations + "\n*********")
-    val merged = pruned ++ fresh //.copy(relations = pruned.relations ++ fresh.relations, apis = pruned.apis ++ fresh.apis)
-    debug("********* Merged: \n" + merged.relations + "\n*********")
-    merged
+    val merged0 = pruned ++ fresh
+    //.copy(relations = pruned.relations ++ fresh.relations, apis = pruned.apis ++ fresh.apis)
+    debug("********* Merged: \n" + merged0.relations + "\n*********")
+    trackEndTime match {
+      case Some(x) => merged0.copy(stamps = merged0.stamps.changeTime(previous.stamps.changeEndTime, trackEndTime))
+      case _       => merged0
+    }
   }
 
   private[this] def emptyChanges: DependencyChanges = new DependencyChanges {
@@ -158,26 +165,50 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
   }
 
   def changedInitial(sources: Set[File], previousAnalysis0: CompileAnalysis, current: ReadStamps,
-    lookup: Lookup)(implicit equivS: Equiv[Stamp]): InitialChanges =
+    lookup: Lookup, fileWatch: FileWatch)(implicit equivS: Equiv[Stamp]): InitialChanges =
     {
       val previousAnalysis = previousAnalysis0 match { case a: Analysis => a }
       val previous = previousAnalysis.stamps
+      val startTime = previous.changeEndTime
+      val endTime = current.changeEndTime
       val previousAPIs = previousAnalysis.apis
-
-      val srcChanges = changes(previous.allInternalSources.toSet, sources, f => !equivS.equiv(previous.internalSource(f), current.internalSource(f)))
+      val srcChanges = changes(previous.allInternalSources.toSet, sources, f => !equivS.equiv(previous.internalSource(f), current.internalSource(f)),
+        fileWatch.sourceChanges, startTime)
       val removedProducts = previous.allProducts.filter(p => !equivS.equiv(previous.product(p), current.product(p))).toSet
       val binaryDepChanges = previous.allBinaries.filter(externalBinaryModified(lookup, previous, current)).toSet
       val extChanges = changedIncremental(previousAPIs.allExternals, previousAPIs.externalAPI _, currentExternalAPI(lookup))
 
-      InitialChanges(srcChanges, removedProducts, binaryDepChanges, extChanges)
+      InitialChanges(startTime, endTime, srcChanges, removedProducts, binaryDepChanges, extChanges)
     }
 
-  def changes(previous: Set[File], current: Set[File], existingModified: File => Boolean): Changes[File] =
-    new Changes[File] {
-      private val inBoth = previous & current
-      val removed = previous -- inBoth
-      val added = current -- inBoth
-      val (changed, unmodified) = inBoth.partition(existingModified)
+  def changes(previous: Set[File], current: Set[File], existingModified: File => Boolean,
+    fileWatch: Long => Maybe[FileChanges], since: Option[Long]): Changes[File] =
+    {
+      def changes0 = new Changes[File] {
+        private val inBoth = previous & current
+        val removed = previous -- inBoth
+        val added = current -- inBoth
+        val (changed, unmodified) = inBoth.partition(existingModified)
+      }
+      // Changes using the File Watcher API
+      def fromFileChanges(fc: FileChanges) = new Changes[File] {
+        import scala.collection.JavaConverters._
+        private val inBoth = previous & current
+        private val reportedChanges: Set[File] = fc.changed.asScala.toSet
+        val removed = previous -- inBoth
+        val added = current -- inBoth
+        val changed = inBoth & reportedChanges
+        val unmodified = inBoth -- changed
+        override def toString: String =
+          s"""Changes($removed,$added, changed = $changed, unmodified = $unmodified)"""
+      }
+      val fileChanges = since flatMap { t => m2o(fileWatch(t)) }
+      val result = fileChanges match {
+        case Some(c) => fromFileChanges(c)
+        case None    => changes0
+      }
+      log.debug(s"changes - since: $since result: $result")
+      result
     }
 
   def invalidateIncremental(previous: Relations, apis: APIs, changes: APIChanges,

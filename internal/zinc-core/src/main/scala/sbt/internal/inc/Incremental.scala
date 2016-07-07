@@ -8,7 +8,7 @@ package inc
 import java.io.File
 import sbt.util.Logger
 import scala.annotation.tailrec
-import xsbti.compile.{ DependencyChanges, IncOptions, CompileAnalysis }
+import xsbti.compile.{ DependencyChanges, IncOptions, CompileAnalysis, FileWatch }
 
 /**
  * Helper class to run incremental compilation algorithm.
@@ -44,6 +44,7 @@ object Incremental {
   def compile(
     sources: Set[File],
     lookup: Lookup,
+    fileWatch: FileWatch,
     previous0: CompileAnalysis,
     current: ReadStamps,
     doCompile: (Set[File], DependencyChanges) => Analysis,
@@ -59,7 +60,11 @@ object Incremental {
           new IncrementalAntStyle(log, options)
         else
           throw new UnsupportedOperationException("Turning off name hashing is not supported in class-based dependency tracking")
-      val initialChanges = incremental.changedInitial(sources, previous, current, lookup)
+      val trackEndTime = current.changeEndTime match {
+        case Some(x) => Some(x)
+        case None    => sys.error("Expected changeEndTime")
+      }
+      val initialChanges = incremental.changedInitial(sources, previous, current, lookup, fileWatch)
       val binaryChanges = new DependencyChanges {
         val modifiedBinaries = initialChanges.binaryDeps.toArray
         val modifiedClasses = initialChanges.external.allModified.toArray
@@ -70,7 +75,7 @@ object Incremental {
         "All initially invalidated sources:" + initialInvSources + "\n")
       val analysis = manageClassfiles(options) { classfileManager =>
 
-        incremental.cycle(initialInvClasses, initialInvSources, sources, binaryChanges, previous, doCompile, classfileManager, 1)
+        incremental.cycle(initialInvClasses, initialInvSources, sources, binaryChanges, previous, trackEndTime, doCompile, classfileManager, 1)
       }
       (initialInvClasses.nonEmpty || initialInvSources.nonEmpty, analysis)
     }
