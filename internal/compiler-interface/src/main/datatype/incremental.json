@@ -136,6 +136,11 @@
           "name": "extra",
           "type": "java.util.Map<String,String>",
           "doc": "Extra options"
+        },
+        {
+          "name": "logRecompileOnMacro",
+          "type": "boolean",
+          "doc": "Determines whether to log information on file recompiled due to a transitive macro change"
         }
       ]
     },

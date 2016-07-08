@@ -14,7 +14,7 @@ import xsbt.api.{ APIUtil, SameAPI }
  */
 private final class IncrementalNameHashing(log: sbt.util.Logger, options: IncOptions) extends IncrementalCommon(log, options) {
 
-  private val memberRefInvalidator = new MemberRefInvalidator(log)
+  private val memberRefInvalidator = new MemberRefInvalidator(log, options.logRecompileOnMacro())
 
   // Package objects are fragile: if they inherit from an invalidated class, get "class file needed by package is missing" error
   //  This might be too conservative: we probably only need package objects for packages of invalidated classes.

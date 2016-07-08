@@ -26,6 +26,7 @@ public class IncOptionsUtil {
   public static final String RECOMPILE_ON_MACRO_DEF_KEY = "recompileOnMacroDef";
   public static final String NAME_HASHING_KEY = "nameHashing";
   public static final String ANT_STYLE_KEY = "antStyle";
+  public static final String LOG_RECOMPILE_ON_MACRO = "logRecompileOnMacro";
   private static final String XSBTI_NOTHING = "NOTHING";
 
   public static int defaultTransitiveStep() {
@@ -84,6 +85,10 @@ public class IncOptionsUtil {
     return new HashMap<String, String>();
   }
 
+  public static boolean defaultLogRecompileOnMacro() {
+    return true;
+  }
+
   public static IncOptions defaultIncOptions() {
     IncOptions retval = new IncOptions(
       defaultTransitiveStep(), defaultRecompileAllFraction(),
@@ -91,7 +96,7 @@ public class IncOptionsUtil {
       defaultApiDiffContextSize(), defaultApiDumpDirectory(),
       defaultClassfileManagerType(), defaultRecompileOnMacroDef(),
       defaultNameHashing(), defaultAntStyle(),
-      defaultExtra());
+      defaultExtra(), defaultLogRecompileOnMacro());
     return retval;
   }
 
@@ -149,6 +154,10 @@ public class IncOptionsUtil {
 
     if (values.containsKey(ANT_STYLE_KEY)) {
       base = base.withAntStyle(Boolean.parseBoolean(values.get(ANT_STYLE_KEY)));
+    }
+
+    if (values.containsKey(LOG_RECOMPILE_ON_MACRO)) {
+      base = base.withLogRecompileOnMacro(Boolean.parseBoolean(values.get(LOG_RECOMPILE_ON_MACRO)));
     }
 
     return base;
