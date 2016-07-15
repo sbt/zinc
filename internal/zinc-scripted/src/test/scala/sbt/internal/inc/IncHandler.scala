@@ -6,7 +6,7 @@ import java.io.{ File, FileInputStream }
 import sbt.util.Logger
 import sbt.util.InterfaceUtil._
 import xsbt.api.Discovery
-import xsbti.Maybe
+import xsbti.{ Maybe, Problem, Severity }
 import xsbti.compile.{ CompileAnalysis, CompileOrder, DefinesClass, IncOptionsUtil, PreviousResult, Compilers => XCompilers, IncOptions }
 import xsbti.compile.PerClasspathEntryLookup
 import sbt.io.IO
@@ -108,6 +108,30 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
           case _ =>
             throw new TestFailed("Found more than one main class.")
         }
+    },
+    "checkWarnings" -> {
+      case (count :: Nil, _) =>
+        checkMessages(count.toInt, Severity.Warn)
+      case (other, _) =>
+        unrecognizedArguments("checkWarnings", other)
+    },
+    "checkWarning" -> {
+      case (index :: expected :: Nil, _) =>
+        checkMessage(index.toInt, expected, Severity.Warn)
+      case (other, _) =>
+        unrecognizedArguments("checkWarning", other)
+    },
+    "checkErrors" -> {
+      case (count :: Nil, _) =>
+        checkMessages(count.toInt, Severity.Error)
+      case (other, _) =>
+        unrecognizedArguments("checkErrors", other)
+    },
+    "checkError" -> {
+      case (index :: expected :: Nil, _) =>
+        checkMessage(index.toInt, expected, Severity.Error)
+      case (other, _) =>
+        unrecognizedArguments("checkError", other)
     }
   )
 
@@ -288,6 +312,32 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
       properties foreach { case (k: String, v: String) => map.put(k, v) }
       IncOptionsUtil.fromStringMap(map)
     } else IncOptionsUtil.defaultIncOptions
+  }
+
+  private def getProblems(): Seq[Problem] =
+    fileStore.get() match {
+      case Some((analysis: Analysis, _)) =>
+        val allInfos = analysis.infos.allInfos.values.toSeq
+        allInfos flatMap (i => i.reportedProblems ++ i.unreportedProblems)
+      case _ =>
+        Nil
+    }
+
+  private def checkMessages(expected: Int, severity: Severity): Unit = {
+    val messages = getProblems() filter (_.severity == severity)
+    assert(messages.length == expected, s"""Expected $expected messages with severity $severity but ${messages.length} found:
+                                           |${messages mkString "\n"}""".stripMargin)
+  }
+
+  private def checkMessage(index: Int, expected: String, severity: Severity): Unit = {
+    val problems = getProblems() filter (_.severity == severity)
+    problems lift index match {
+      case Some(problem) =>
+        assert(problem.message contains expected, s"""'${problem.message}' doesn't contain '$expected'.""")
+      case None =>
+        throw new TestFailed(s"Problem not found: $index (there are ${problems.length} problem with severity $severity).")
+    }
+
   }
 
 }
