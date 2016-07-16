@@ -128,7 +128,7 @@
 			"name": "Access",
 			"namespace": "xsbti.api",
 			"target": "Java",
-			"type": "protocol",
+			"type": "interface",
 
 			"types": [
 				{
@@ -141,7 +141,7 @@
 					"name": "Qualified",
 					"namespace": "xsbti.api",
 					"target": "Java",
-					"type": "protocol",
+					"type": "interface",
 					"fields": [
 						{
 							"name": "qualifier",
@@ -170,7 +170,7 @@
 			"name": "Qualifier",
 			"namespace": "xsbti.api",
 			"target": "Java",
-			"type": "protocol",
+			"type": "interface",
 			"types": [
 				{
 					"name": "Unqualified",
@@ -306,8 +306,8 @@
 			"name": "Variance",
 			"namespace": "xsbti.api",
 			"target": "Java",
-			"type": "enumeration",
-			"types": [
+			"type": "enum",
+			"symbols": [
 				"Contravariant",
 				"Covariant",
 				"Invariant"
@@ -317,8 +317,8 @@
 			"name": "ParameterModifier",
 			"namespace": "xsbti.api",
 			"target": "Java",
-			"type": "enumeration",
-			"types": [
+			"type": "enum",
+			"symbols": [
 				"Repeated",
 				"Plain",
 				"ByName"
@@ -328,8 +328,8 @@
 			"name": "DefinitionType",
 			"namespace": "xsbti.api",
 			"target": "Java",
-			"type": "enumeration",
-			"types": [
+			"type": "enum",
+			"symbols": [
 				"Trait",
 				"ClassDef",
 				"Module",
@@ -352,7 +352,7 @@
 			"name": "PathComponent",
 			"namespace": "xsbti.api",
 			"target": "Java",
-			"type": "protocol",
+			"type": "interface",
 
 			"types": [
 				{
@@ -396,8 +396,8 @@
 			],
 			"namespace": "xsbti.api",
 			"target": "Java",
-			"type": "enumeration",
-			"types": [
+			"type": "enum",
+			"symbols": [
 				{
 					"name": "DependencyByMemberRef",
 					"doc": [

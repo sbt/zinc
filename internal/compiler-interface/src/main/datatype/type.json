@@ -6,14 +6,14 @@
 			"name": "Type",
 			"namespace": "xsbti.api",
 			"target": "Java",
-			"type": "protocol",
+			"type": "interface",
 
 			"types": [
 				{
 					"name": "SimpleType",
 					"namespace": "xsbti.api",
 					"target": "Java",
-					"type": "protocol",
+					"type": "interface",
 
 					"types": [
 						{

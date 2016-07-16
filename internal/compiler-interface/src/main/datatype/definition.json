@@ -4,7 +4,7 @@
 			"name": "Definition",
 			"namespace": "xsbti.api",
 			"target": "Java",
-			"type": "protocol",
+			"type": "interface",
 			"fields": [
 				{
 					"name": "name",
@@ -29,13 +29,13 @@
 					"name": "ClassDefinition",
 					"namespace": "xsbti.api",
 					"target": "Java",
-					"type": "protocol",
+					"type": "interface",
 					"types": [
 						{
 							"name": "FieldLike",
 							"namespace": "xsbti.api",
 							"target": "Java",
-							"type": "protocol",
+							"type": "interface",
 							"fields": [
 								{
 									"name": "tpe",
@@ -62,7 +62,7 @@
 							"name": "ParameterizedDefinition",
 							"namespace": "xsbti.api",
 							"target": "Java",
-							"type": "protocol",
+							"type": "interface",
 							"fields": [
 								{
 									"name": "typeParameters",
@@ -103,7 +103,7 @@
 									"name": "TypeMember",
 									"namespace": "xsbti.api",
 									"target": "Java",
-									"type": "protocol",
+									"type": "interface",
 
 									"types": [
 										{

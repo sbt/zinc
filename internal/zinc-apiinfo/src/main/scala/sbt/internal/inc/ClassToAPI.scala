@@ -78,12 +78,12 @@ object ClassToAPI {
       val name = classCanonicalName(c)
       val tpe = if (Modifier.isInterface(c.getModifiers)) Trait else ClassDef
       lazy val (static, instance) = structure(c, enclPkg, cmap)
-      val cls = new api.ClassLike(tpe, strict(Empty), lzy(instance, cmap), emptyStringArray, children.toArray,
-        topLevel, typeParameters(typeParameterTypes(c)), name, acc, mods, annots)
-      val clsDef = new api.ClassLikeDef(tpe, typeParameters(typeParameterTypes(c)), name, acc, mods, annots)
-      val stat = new api.ClassLike(Module, strict(Empty), lzy(static, cmap), emptyStringArray, emptyTypeArray,
-        topLevel, emptyTypeParameterArray, name, acc, mods, annots)
-      val statDef = new api.ClassLikeDef(Module, emptyTypeParameterArray, name, acc, mods, annots)
+      val cls = new api.ClassLike(name, acc, mods, annots, tpe, strict(Empty), lzy(instance, cmap), emptyStringArray, children.toArray,
+        topLevel, typeParameters(typeParameterTypes(c)))
+      val clsDef = new api.ClassLikeDef(name, acc, mods, annots, typeParameters(typeParameterTypes(c)), tpe)
+      val stat = new api.ClassLike(name, acc, mods, annots, Module, strict(Empty), lzy(static, cmap), emptyStringArray, emptyTypeArray,
+        topLevel, emptyTypeParameterArray)
+      val statDef = new api.ClassLikeDef(name, acc, mods, annots, emptyTypeParameterArray, Module)
       val defs = cls :: stat :: Nil
       val defsEmptyMembers = clsDef :: statDef :: Nil
       cmap.memo(name) = defsEmptyMembers
@@ -188,9 +188,9 @@ object ClassToAPI {
         }
       val tpe = specificTpe.getOrElse(fieldTpe)
       if (mods.isFinal) {
-        new api.Val(tpe, name, accs, mods, annots)
+        new api.Val(name, accs, mods, annots, tpe)
       } else {
-        new api.Var(tpe, name, accs, mods, annots)
+        new api.Var(name, accs, mods, annots, tpe)
       }
     }
 
@@ -224,7 +224,7 @@ object ClassToAPI {
       val pa = (paramAnnots, paramTypes, isVarArg).zipped map { case (a, p, v) => parameter(a, p, v) }
       val params = new api.ParameterList(pa, false)
       val ret = retType match { case Some(rt) => reference(rt); case None => Empty }
-      new api.Def(Array(params), ret, typeParameters(tps), name, access(mods, enclPkg), modifiers(mods), annotations(annots) ++ exceptionAnnotations(exceptions))
+      new api.Def(name, access(mods, enclPkg), modifiers(mods), annotations(annots) ++ exceptionAnnotations(exceptions), typeParameters(tps), Array(params), ret)
     }
 
   def exceptionAnnotations(exceptions: Array[Type]): Array[api.Annotation] =
