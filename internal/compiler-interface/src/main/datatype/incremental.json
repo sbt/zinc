@@ -4,7 +4,7 @@
       "name": "ClassfileManagerType",
       "namespace": "xsbti.compile",
       "target": "Java",
-      "type": "protocol",
+      "type": "interface",
       "types": [
         {
           "name": "DeleteImmediatelyManagerType",
@@ -268,7 +268,7 @@
       "name": "CompileAnalysis",
       "namespace": "xsbti.compile",
       "target": "Java",
-      "type": "protocol",
+      "type": "interface",
       "doc": [
         "Represents the analysis of an incremental compilation."
       ]

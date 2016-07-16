@@ -77,8 +77,8 @@ object TestCaseGenerators {
 
   // We need "proper" definitions with specific class names, as groupBy use these to pick a representative top-level class when splitting.
   private[this] def makeClassLike(name: String, definitionType: DefinitionType): ClassLike =
-    new ClassLike(definitionType, lzy(new EmptyType()), lzy(emptyStructure), Array(), Array(), true, Array(),
-      name, new Public(), APIs.emptyModifiers, Array())
+    new ClassLike(name, new Public(), APIs.emptyModifiers, Array(),
+      definitionType, lzy(new EmptyType()), lzy(emptyStructure), Array(), Array(), true, Array())
 
   private[this] def makeCompanions(name: String): Companions =
     new Companions(makeClassLike(name, DefinitionType.ClassDef), makeClassLike(name, DefinitionType.Module))
