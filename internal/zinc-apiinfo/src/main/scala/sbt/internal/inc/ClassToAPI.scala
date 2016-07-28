@@ -302,8 +302,9 @@ object ClassToAPI {
    * We need this logic to trigger recompilation due to changes to pattern exhaustivity checking results.
    */
   private def childrenOfSealedClass(c: Class[_]): Seq[api.SimpleType] = if (!c.isEnum) emptySimpleTypeArray else {
-    // instead of constants we need classes that back them in a stable order
-    c.getEnumConstants.map(_.getClass).sortBy(classCanonicalName).map(reference)
+    // Calling getCanonicalName() on classes from enum constants yields same string as enumClazz.getCanonicalName
+    // Moreover old behaviour create new instance of enum - what may fail (e.g. in static block )
+    Array(reference(c))
   }
 
   // full information not available from reflection
