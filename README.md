@@ -10,6 +10,12 @@ $ git filter-branch --index-filter 'git rm --cached -qr -- . && git reset -q $GI
 ```
 
 Status
-======
+------
 
 The zinc project that lives under "sbt" organization is a successor to [`typesafehub/zinc`](https://github.com/typesafehub/zinc). The intent is to polish this project and retire zinc living under typesafehub. Check [#80](https://github.com/sbt/zinc/issues/80) for more information.
+
+
+License
+-------
+
+See [LICENSE].
