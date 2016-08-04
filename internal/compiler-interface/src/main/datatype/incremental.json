@@ -141,6 +141,11 @@
           "name": "logRecompileOnMacro",
           "type": "boolean",
           "doc": "Determines whether to log information on file recompiled due to a transitive macro change"
+        },
+        {
+          "name": "externalHooks",
+          "type": "xsbti.compile.ExternalHooks",
+          "doc": "External hooks that allows clients e.g. IDEs to interacts with compilation internals"
         }
       ]
     },
@@ -360,6 +365,13 @@
           "type": "xsbti.Reporter",
           "doc": [
             "The reporter that should be used to report scala compilation to."
+          ]
+        },
+        {
+          "name": "progress",
+          "type": "xsbti.Maybe<xsbti.compile.CompileProgress>",
+          "doc": [
+            "Optionally provide progress indication."
           ]
         },
         {

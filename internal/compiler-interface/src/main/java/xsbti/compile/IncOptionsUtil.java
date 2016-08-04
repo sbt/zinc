@@ -4,7 +4,6 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 import xsbti.Maybe;
-import xsbti.Reporter;
 
 /**
  * Helper object for xsbti.compile.IncOptions
@@ -85,6 +84,20 @@ public class IncOptionsUtil {
     return new HashMap<String, String>();
   }
 
+  public static ExternalHooks defaultExternal(){
+    return new ExternalHooks() {
+      @Override
+      public Lookup externalLookup() {
+        return null;
+      }
+
+      @Override
+      public ClassFileManager externalClassFileManager() {
+        return null;
+      }
+    };
+  }
+
   public static boolean defaultLogRecompileOnMacro() {
     return true;
   }
@@ -96,7 +109,8 @@ public class IncOptionsUtil {
       defaultApiDiffContextSize(), defaultApiDumpDirectory(),
       defaultClassfileManagerType(), defaultRecompileOnMacroDef(),
       defaultNameHashing(), defaultAntStyle(),
-      defaultExtra(), defaultLogRecompileOnMacro());
+      defaultExtra(), defaultLogRecompileOnMacro(),
+      defaultExternal());
     return retval;
   }
 

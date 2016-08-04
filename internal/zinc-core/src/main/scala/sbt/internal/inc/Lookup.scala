@@ -2,7 +2,7 @@ package sbt.internal.inc
 
 import java.io.File
 
-import xsbti.compile.CompileAnalysis
+import xsbti.compile.{ ExternalHooks, CompileAnalysis }
 
 /**
  * A trait that encapsulates looking up elements on a classpath and looking up
@@ -14,10 +14,11 @@ import xsbti.compile.CompileAnalysis
  * variant can be implemented without an expensive classpath lookup.
  * See https://github.com/sbt/sbt/issues/2525
  */
-trait Lookup {
+trait Lookup extends ExternalLookup {
   /**
    * Lookup an element on the classpath corresponding to a given binary class name.
    * If found class file is stored in a jar file, the jar file is returned.
+   *
    * @param binaryClassName
    * @return
    */
@@ -26,6 +27,7 @@ trait Lookup {
   /**
    * Return an Analysis instance that has the given class file registered as a product.
    * as a product.
+   *
    * @param classFile
    * @return
    */
@@ -34,6 +36,7 @@ trait Lookup {
   /**
    * Return an Analysis instance that has the given class file registered as a product.
    * The class file has to correspond to the given binary class name.
+   *
    * @param binaryDependency
    * @param binaryClassName
    * @return
@@ -42,8 +45,35 @@ trait Lookup {
 
   /**
    * Return an Analysis instance that has the given binary class name registered as a product.
+   *
    * @param binaryClassName
    * @return
    */
   def lookupAnalysis(binaryClassName: String): Option[CompileAnalysis]
+}
+
+trait ExternalLookup extends ExternalHooks.Lookup {
+  /**
+   * Method use to provide information from external tools into sbt (e.g. IDEs)
+   *
+   * @param previousAnalysis
+   * @return None if is unable to determine what was changed, changes elsewere
+   */
+  def changedSources(previousAnalysis: Analysis): Option[Changes[File]]
+
+  /**
+   * Method use to provide information from external tools into sbt (e.g. IDEs)
+   *
+   * @param previousAnalysis
+   * @return None if is unable to determine what was changed, changes elsewere
+   */
+  def changedBinaries(previousAnalysis: Analysis): Option[Set[File]]
+
+  /**
+   * Method use to provide information from external tools into sbt (e.g. IDEs)
+   *
+   * @param previousAnalysis
+   * @return None if is unable to determine what was changed, changes elsewere
+   */
+  def removedProducts(previousAnalysis: Analysis): Option[Set[File]]
 }

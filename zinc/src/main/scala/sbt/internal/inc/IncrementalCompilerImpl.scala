@@ -8,7 +8,7 @@ import xsbti.compile.{ CompileOrder, GlobalsCache, IncOptions, MiniSetup, Compil
 import xsbti.compile.{ PreviousResult, Setup, Inputs, IncrementalCompiler, PerClasspathEntryLookup }
 import xsbti.compile.{ Compilers, CompileProgress, JavaCompiler, JavaTools => XJavaTools, Output, ScalaCompiler, ClasspathOptions => XClasspathOptions }
 import java.io.File
-import sbt.util.Logger.m2o
+import sbt.util.Logger.{ m2o, f0, o2m }
 import sbt.io.{ IO, Using }
 import xsbti.compile.CompileOrder.Mixed
 
@@ -29,7 +29,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       import setup._
       val javacChosen = in.compilers.javaTools.javac
       val scalac = in.compilers.scalac
-      incrementalCompile(scalac, javacChosen, sources, classpath, CompileOutput(classesDirectory), cache, None, scalacOptions, javacOptions,
+      incrementalCompile(scalac, javacChosen, sources, classpath, CompileOutput(classesDirectory), cache, m2o(progress()), scalacOptions, javacOptions,
         m2o(in.previousResult.analysis),
         m2o(in.previousResult.setup),
         perClasspathEntryLookup,
@@ -77,7 +77,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
     skip: Boolean = false,
     incrementalCompilerOptions: IncOptions,
     extra: List[(String, String)]
-  )(implicit log: Logger): CompileResult = {
+  )(implicit log: Logger): CompileResult = try {
     val prev = previousAnalysis match {
       case Some(previous) => previous
       case None           => Analysis.empty(incrementalCompilerOptions.nameHashing)
@@ -93,6 +93,17 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       )
       new CompileResult(analysis, config.currentSetup, changed)
     }
+  } catch {
+    case e: CompileFailed => throw e // just ignore
+    case e: Throwable =>
+      val ex = e // For Intellij debugging purpose
+      log.error(f0(
+        s"""## Exception when compiling ${sources.head} and others...
+           |${e.getMessage}
+           |${ex.getStackTrace.mkString("\n")}
+         """.stripMargin
+      ))
+      throw ex
   }
 
   private class LookupImpl(compileConfiguration: CompileConfiguration) extends Lookup {
@@ -112,8 +123,23 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       }
     }
 
+    lazy val externalLookup = Option(compileConfiguration.incOptions.externalHooks())
+      .flatMap(ext => Option(ext.externalLookup()))
+      .collect {
+        case externalLookup: ExternalLookup => externalLookup
+      }
+
     override def lookupAnalysis(binaryClassName: String): Option[CompileAnalysis] =
       lookupOnClasspath(binaryClassName).flatMap(lookupAnalysis)
+
+    override def changedSources(previousAnalysis: Analysis): Option[Changes[File]] =
+      externalLookup.flatMap(_.changedSources(previousAnalysis))
+
+    override def changedBinaries(previousAnalysis: Analysis): Option[Set[File]] =
+      externalLookup.flatMap(_.changedBinaries(previousAnalysis))
+
+    override def removedProducts(previousAnalysis: Analysis): Option[Set[File]] =
+      externalLookup.flatMap(_.removedProducts(previousAnalysis))
   }
 
   /** Actually runs the incremental compiler using the given mixed compiler.  This will prune the inputs based on the MiniSetup. */
@@ -146,8 +172,8 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
   }
 
   def setup(perClasspathEntryLookup: PerClasspathEntryLookup, skip: Boolean, cacheFile: File, cache: GlobalsCache,
-    incrementalCompilerOptions: IncOptions, reporter: Reporter, extra: Array[T2[String, String]]): Setup =
-    new Setup(perClasspathEntryLookup, skip, cacheFile, cache, incrementalCompilerOptions, reporter, extra)
+    incrementalCompilerOptions: IncOptions, reporter: Reporter, progress: Option[CompileProgress], extra: Array[T2[String, String]]): Setup =
+    new Setup(perClasspathEntryLookup, skip, cacheFile, cache, incrementalCompilerOptions, reporter, o2m(progress), extra)
   def inputs(options: CompileOptions, compilers: Compilers, setup: Setup, pr: PreviousResult): Inputs =
     new Inputs(compilers, options, setup, pr)
   def inputs(classpath: Array[File], sources: Array[File], classesDirectory: File, scalacOptions: Array[String],

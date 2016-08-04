@@ -41,7 +41,7 @@ class IncrementalCompilerSpec extends BridgeProviderSpecification {
       val incOptions = IncOptionsUtil.defaultIncOptions()
       val reporter = new LoggerReporter(maxErrors, log, identity)
       val extra = Array(InterfaceUtil.t2(("key", "value")))
-      val setup = compiler.setup(lookup, skip = false, tempDir / "inc_compile", CompilerCache.fresh, incOptions, reporter, extra)
+      val setup = compiler.setup(lookup, skip = false, tempDir / "inc_compile", CompilerCache.fresh, incOptions, reporter, None, extra)
       val prev = compiler.emptyPreviousResult
       val classesDir = tempDir / "classes"
       val in = compiler.inputs(si.allJars, Array(knownSampleGoodFile), classesDir, Array(), Array(), maxErrors, Array(),
@@ -73,14 +73,14 @@ class IncrementalCompilerSpec extends BridgeProviderSpecification {
       val incOptions = IncOptionsUtil.defaultIncOptions()
       val reporter = new LoggerReporter(maxErrors, log, identity)
       val extra = Array(InterfaceUtil.t2(("key", "value")))
-      val setup = compiler.setup(lookup, skip = false, tempDir / "inc_compile", CompilerCache.fresh, incOptions, reporter, extra)
+      val setup = compiler.setup(lookup, skip = false, tempDir / "inc_compile", CompilerCache.fresh, incOptions, reporter, None, extra)
       val classesDir = tempDir / "classes"
       val in = compiler.inputs(si.allJars, sources, classesDir, Array(), Array(), maxErrors, Array(),
         CompileOrder.Mixed, cs, setup, prev0)
       val result = compiler.compile(in, log)
       val prev = compiler.previousResult(result)
       val lookup2 = new Lookup(_ => prev.analysis)
-      val setup2 = compiler.setup(lookup2, skip = false, tempDir / "inc_compile", CompilerCache.fresh, incOptions, reporter, extra)
+      val setup2 = compiler.setup(lookup2, skip = false, tempDir / "inc_compile", CompilerCache.fresh, incOptions, reporter, None, extra)
       val in2 = compiler.inputs(si.allJars, sources, classesDir, Array(), Array(), maxErrors, Array(),
         CompileOrder.Mixed, cs, setup2, prev)
       val result2 = compiler.compile(in2, log)
@@ -110,7 +110,7 @@ class IncrementalCompilerSpec extends BridgeProviderSpecification {
       val incOptions = IncOptionsUtil.defaultIncOptions()
       val reporter = new LoggerReporter(maxErrors, log, identity)
       val extra = Array(InterfaceUtil.t2(("key", "value")))
-      val setup = compiler.setup(lookup, skip = false, tempDir / "inc_compile", CompilerCache.fresh, incOptions, reporter, extra)
+      val setup = compiler.setup(lookup, skip = false, tempDir / "inc_compile", CompilerCache.fresh, incOptions, reporter, None, extra)
       val classesDir = tempDir / "classes"
       val in = compiler.inputs(si.allJars, sources, classesDir, Array(), Array(), maxErrors, Array(),
         CompileOrder.Mixed, cs, setup, prev0)
@@ -123,7 +123,7 @@ class IncrementalCompilerSpec extends BridgeProviderSpecification {
       }
       val lookup2 = new Lookup(_ => prev.analysis)
       val extra2 = Array(InterfaceUtil.t2(("key", "value2")))
-      val setup2 = compiler.setup(lookup2, skip = false, tempDir / "inc_compile", CompilerCache.fresh, incOptions, reporter, extra2)
+      val setup2 = compiler.setup(lookup2, skip = false, tempDir / "inc_compile", CompilerCache.fresh, incOptions, reporter, None, extra2)
       val in2 = compiler.inputs(si.allJars, sources, classesDir, Array(), Array(), maxErrors, Array(),
         CompileOrder.Mixed, cs, setup2, prev)
       val result2 = compiler.compile(in2, log)
