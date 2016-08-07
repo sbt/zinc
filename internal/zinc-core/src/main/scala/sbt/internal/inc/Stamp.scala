@@ -66,7 +66,8 @@ object Stamp {
     def equiv(a: Stamp, b: Stamp) = (a, b) match {
       case (h1: Hash, h2: Hash)                   => h1.value sameElements h2.value
       case (e1: Exists, e2: Exists)               => e1.value == e2.value
-      case (lm1: LastModified, lm2: LastModified) => lm1.value == lm2.value
+      // Windows is handling this differently sometimes...
+      case (lm1: LastModified, lm2: LastModified) => lm1.value == lm2.value || Math.abs(lm1.value - lm2.value) < 2
       case _                                      => false
     }
   }

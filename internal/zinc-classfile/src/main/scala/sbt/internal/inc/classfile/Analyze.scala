@@ -46,6 +46,8 @@ private[sbt] object Analyze {
     ) {
       binaryClassNameToLoadedClass.update(binaryClassName, loadedClass)
       val srcClassName = binaryToSourceName(loadedClass)
+        .orElse(Option(loadedClass.getEnclosingClass).flatMap(binaryToSourceName))
+
       srcClassName match {
         case Some(srcClassName) =>
           analysis.generatedNonLocalClass(source, newClass, binaryClassName, srcClassName)
