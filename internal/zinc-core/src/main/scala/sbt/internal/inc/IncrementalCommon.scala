@@ -164,9 +164,17 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
       val previous = previousAnalysis.stamps
       val previousAPIs = previousAnalysis.apis
 
-      val srcChanges = changes(previous.allInternalSources.toSet, sources, f => !equivS.equiv(previous.internalSource(f), current.internalSource(f)))
-      val removedProducts = previous.allProducts.filter(p => !equivS.equiv(previous.product(p), current.product(p))).toSet
-      val binaryDepChanges = previous.allBinaries.filter(externalBinaryModified(lookup, previous, current)).toSet
+      val srcChanges = lookup.changedSources(previousAnalysis).getOrElse {
+        def sourceModified(f: File): Boolean = !equivS.equiv(previous.internalSource(f), current.internalSource(f))
+        changes(previous.allInternalSources.toSet, sources, sourceModified _)
+      }
+      val removedProducts = lookup.removedProducts(previousAnalysis).getOrElse {
+        previous.allProducts.filter(p => !equivS.equiv(previous.product(p), current.product(p))).toSet
+      }
+
+      val binaryDepChanges = lookup.changedBinaries(previousAnalysis).getOrElse {
+        previous.allBinaries.filter(externalBinaryModified(lookup, previous, current)).toSet
+      }
       val extChanges = changedIncremental(previousAPIs.allExternals, previousAPIs.externalAPI _, currentExternalAPI(lookup))
 
       InitialChanges(srcChanges, removedProducts, binaryDepChanges, extChanges)
