@@ -3,10 +3,11 @@ package internal
 package inc
 
 import java.io.File
-import sbt.util.Logger
-import scala.annotation.tailrec
+
 import xsbti.api.{ AnalyzedClass, Compilation }
-import xsbti.compile.{ DependencyChanges, IncOptions, IncOptionsUtil, CompileAnalysis }
+import xsbti.compile.{ CompileAnalysis, DependencyChanges, IncOptions, IncOptionsUtil }
+
+import scala.annotation.tailrec
 
 private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: IncOptions) {
 
@@ -21,7 +22,7 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
   // TODO: the Analysis for the last successful compilation should get returned + Boolean indicating success
   // TODO: full external name changes, scopeInvalidations
   @tailrec final def cycle(invalidatedRaw: Set[String], modifiedSrcs: Set[File], allSources: Set[File],
-    binaryChanges: DependencyChanges, previous: Analysis,
+    binaryChanges: DependencyChanges, lookup: ExternalLookup, previous: Analysis,
     doCompile: (Set[File], DependencyChanges) => Analysis, classfileManager: ClassfileManager,
     cycleNum: Int): Analysis =
     if (invalidatedRaw.isEmpty && modifiedSrcs.isEmpty)
@@ -30,7 +31,7 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
       val invalidatedPackageObjects = this.invalidatedPackageObjects(invalidatedRaw, previous.relations,
         previous.apis)
       if (invalidatedPackageObjects.nonEmpty)
-        log.debug(s"Invalidated package objects: ${invalidatedPackageObjects}")
+        log.debug(s"Invalidated package objects: $invalidatedPackageObjects")
       val withPackageObjects = invalidatedRaw ++ invalidatedPackageObjects
       val invalidatedClasses = withPackageObjects
 
@@ -42,13 +43,18 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
       val recompiledClasses = invalidatedClasses ++
         modifiedSrcs.flatMap(previous.relations.classNames) ++ modifiedSrcs.flatMap(current.relations.classNames)
 
-      val incChanges = changedIncremental(recompiledClasses, previous.apis.internalAPI _, current.apis.internalAPI _)
+      val incChanges = changedIncremental(recompiledClasses, previous.apis.internalAPI, current.apis.internalAPI)
+
       debug("\nChanges:\n" + incChanges)
       val transitiveStep = options.transitiveStep
       val classToSourceMapper = new ClassToSourceMapper(previous.relations, current.relations)
-      val incInv = invalidateIncremental(current.relations, current.apis, incChanges, recompiledClasses,
+      val incrementallyInvalidated = invalidateIncremental(current.relations, current.apis, incChanges, recompiledClasses,
         cycleNum >= transitiveStep, classToSourceMapper.isDefinedInScalaSrc)
-      cycle(incInv, Set.empty, allSources, emptyChanges, current, doCompile, classfileManager, cycleNum + 1)
+      val allInvalidated =
+        if (lookup.shouldDoIncrementalCompilation(incrementallyInvalidated, current)) incrementallyInvalidated
+        else Set.empty[String]
+
+      cycle(allInvalidated, Set.empty, allSources, emptyChanges, lookup, current, doCompile, classfileManager, cycleNum + 1)
     }
 
   private[this] def recompileClasses(classes: Set[String], modifiedSrcs: Set[File], allSources: Set[File],
@@ -168,6 +174,7 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
         def sourceModified(f: File): Boolean = !equivS.equiv(previous.internalSource(f), current.internalSource(f))
         changes(previous.allInternalSources.toSet, sources, sourceModified _)
       }
+
       val removedProducts = lookup.removedProducts(previousAnalysis).getOrElse {
         previous.allProducts.filter(p => !equivS.equiv(previous.product(p), current.product(p))).toSet
       }
@@ -175,9 +182,13 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
       val binaryDepChanges = lookup.changedBinaries(previousAnalysis).getOrElse {
         previous.allBinaries.filter(externalBinaryModified(lookup, previous, current)).toSet
       }
-      val extChanges = changedIncremental(previousAPIs.allExternals, previousAPIs.externalAPI _, currentExternalAPI(lookup))
 
-      InitialChanges(srcChanges, removedProducts, binaryDepChanges, extChanges)
+      val incrementalExtApiChanges = changedIncremental(previousAPIs.allExternals, previousAPIs.externalAPI, currentExternalAPI(lookup))
+      val extApiChanges =
+        if (lookup.shouldDoIncrementalCompilation(incrementalExtApiChanges.allModified.toSet, previousAnalysis)) incrementalExtApiChanges
+        else new APIChanges(Nil)
+
+      InitialChanges(srcChanges, removedProducts, binaryDepChanges, extApiChanges)
     }
 
   def changes(previous: Set[File], current: Set[File], existingModified: File => Boolean): Changes[File] =
