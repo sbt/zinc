@@ -74,8 +74,7 @@ object Incremental {
       log.debug("All initially invalidated classes: " + initialInvClasses + "\n" +
         "All initially invalidated sources:" + initialInvSources + "\n")
       val analysis = manageClassfiles(options) { classfileManager =>
-
-        incremental.cycle(initialInvClasses, initialInvSources, sources, binaryChanges, previous, doCompile, classfileManager, 1)
+        incremental.cycle(initialInvClasses, initialInvSources, sources, binaryChanges, lookup, previous, doCompile, classfileManager, 1)
       }
       (initialInvClasses.nonEmpty || initialInvSources.nonEmpty, analysis)
     }
