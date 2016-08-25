@@ -32,11 +32,13 @@ object Dependencies {
   lazy val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.13.1"
   lazy val scalatest = "org.scalatest" %% "scalatest" % "2.2.6"
   lazy val junit = "junit" % "junit" % "4.11"
+  lazy val diffUtils = "com.googlecode.java-diff-utils" % "diffutils" % "1.3.0"
   def testDependencies = Seq(libraryDependencies ++=
     Seq(
       utilTesting % Test,
       scalaCheck % Test,
       scalatest % Test,
-      junit % Test
+      junit % Test,
+      diffUtils % Test
     ))
 }

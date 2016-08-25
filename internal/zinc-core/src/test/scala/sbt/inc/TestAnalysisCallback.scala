@@ -5,6 +5,7 @@ package inc
 import java.io.File
 
 import scala.collection.mutable.{ ArrayBuffer, HashMap }
+import xsbti.SafeLazy
 import xsbti.api._
 import xsbti.api.DependencyContext._
 import xsbt.api.{ HashAPI, NameHashing, APIUtil }
@@ -104,7 +105,7 @@ class TestAnalysisCallback(
     val hasMacro: Boolean = macroClasses.contains(name)
     val (companions, apiHash) = companionsWithHash(name)
     val nameHashes = nameHashesForCompanions(name)
-    val ac = new AnalyzedClass(compilation, name, companions, apiHash, nameHashes, hasMacro)
+    val ac = new AnalyzedClass(compilation, name, SafeLazy(companions), apiHash, nameHashes, hasMacro)
     ac
   }
 

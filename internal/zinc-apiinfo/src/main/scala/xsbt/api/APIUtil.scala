@@ -17,9 +17,6 @@ object APIUtil {
 
   def isScalaSourceName(name: String): Boolean = name.endsWith(".scala")
 
-  def hasPackageObject(analyzedClass: AnalyzedClass): Boolean =
-    analyzedClass.api.objectApi.definitionType == DefinitionType.PackageModule
-
   def hasMacro(c: ClassLike): Boolean =
     {
       val check = new HasMacro

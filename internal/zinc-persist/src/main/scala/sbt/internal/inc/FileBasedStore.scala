@@ -6,48 +6,67 @@ package internal
 package inc
 
 import java.io._
-import java.util.zip.ZipEntry
+import java.util.zip.{ ZipInputStream, ZipEntry }
 import sbt.io.{ IO, Using }
+import xsbti.SafeLazy
 import xsbti.compile.{ CompileAnalysis, MiniSetup }
+import xsbti.api.Companions
+import scala.util.control.Exception.allCatch
 
 object FileBasedStore {
-  def apply(file: File): AnalysisStore = new AnalysisStore {
+  private val analysisFileName = "inc_compile.txt"
+  private val companionsFileName = "api_companions.txt"
 
-    private val entryFileName = "cache.txt"
+  def apply(file: File): AnalysisStore = new FileBasedStore0(file)
+
+  private final class FileBasedStore0(file: File) extends AnalysisStore {
+    val companionsStore = new FileBasedCompanionsMapStore(file)
 
     def set(analysis: CompileAnalysis, setup: MiniSetup): Unit = {
       if (!file.getParentFile.exists()) file.getParentFile.mkdirs()
       Using.zipOutputStream(new FileOutputStream(file)) {
         outputStream =>
-          val reader = new BufferedWriter(new OutputStreamWriter(outputStream, IO.utf8))
-          outputStream.putNextEntry(new ZipEntry(entryFileName))
-          TextAnalysisFormat.write(reader, analysis, setup)
+          val writer = new BufferedWriter(new OutputStreamWriter(outputStream, IO.utf8))
+          outputStream.putNextEntry(new ZipEntry(analysisFileName))
+          TextAnalysisFormat.write(writer, analysis, setup)
+          outputStream.closeEntry()
+          val apis = analysis match { case a: Analysis => a.apis }
+          val internal = apis.internal map { case (k, v) => k -> v.api }
+          val external = apis.external map { case (k, v) => k -> v.api }
+          outputStream.putNextEntry(new ZipEntry(companionsFileName))
+          TextAnalysisFormat.writeCompanionMap(writer, internal, external)
           outputStream.closeEntry()
       }
     }
 
     def get(): Option[(CompileAnalysis, MiniSetup)] =
-      try {
-        Some(getUncaught())
-      } catch {
-        case _: IOException =>
-          readOldFormat()
-        case _: Exception => None
-      }
+      allCatch.opt(getUncaught())
 
     def getUncaught(): (CompileAnalysis, MiniSetup) =
       Using.zipInputStream(new FileInputStream(file)) {
         inputStream =>
-          inputStream.getNextEntry()
+          lookupEntry(inputStream, analysisFileName)
           val writer = new BufferedReader(new InputStreamReader(inputStream, IO.utf8))
-          TextAnalysisFormat.read(writer)
+          TextAnalysisFormat.read(writer, companionsStore)
       }
+  }
 
-    def readOldFormat(): Option[(CompileAnalysis, MiniSetup)] = try
-      Some(Using.fileReader(IO.utf8)(file) { reader => TextAnalysisFormat.read(reader) })
-    catch {
-      case _: Throwable => None
+  private def lookupEntry(in: ZipInputStream, name: String): Unit =
+    Option(in.getNextEntry) match {
+      case Some(entry) if entry.getName == name => ()
+      case Some(entry)                          => lookupEntry(in, name)
+      case None                                 => sys.error(s"$name not found in the zip file")
     }
 
+  private final class FileBasedCompanionsMapStore(file: File) extends CompanionsStore {
+    def get(): Option[(Map[String, Companions], Map[String, Companions])] =
+      allCatch.opt(getUncaught())
+    def getUncaught(): (Map[String, Companions], Map[String, Companions]) =
+      Using.zipInputStream(new FileInputStream(file)) {
+        inputStream =>
+          lookupEntry(inputStream, analysisFileName)
+          val reader = new BufferedReader(new InputStreamReader(inputStream, IO.utf8))
+          TextAnalysisFormat.readCompanionMap(reader)
+      }
   }
 }
