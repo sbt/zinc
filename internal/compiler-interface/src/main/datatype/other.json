@@ -16,7 +16,7 @@
 				},
 				{
 					"name": "api",
-					"type": "Companions"
+					"type": "lazy Companions"
 				},
 				{
 					"name": "apiHash",

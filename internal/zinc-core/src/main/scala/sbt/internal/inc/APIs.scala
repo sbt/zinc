@@ -6,6 +6,7 @@ package internal
 package inc
 
 import xsbti.api._
+import xsbti.SafeLazy
 import APIs.getAPI
 import xsbt.api.{ APIUtil, SameAPI }
 
@@ -47,7 +48,7 @@ object APIs {
   val emptyCompilation = new xsbti.api.Compilation(-1, Array())
   val emptyNameHashes = new xsbti.api.NameHashes(Array.empty, Array.empty)
   val emptyCompanions = new xsbti.api.Companions(emptyAPI, emptyAPI)
-  val emptyAnalyzedClass = new xsbti.api.AnalyzedClass(emptyCompilation, emptyName, emptyCompanions, emptyAPIHash,
+  val emptyAnalyzedClass = new xsbti.api.AnalyzedClass(emptyCompilation, emptyName, SafeLazy(emptyCompanions), emptyAPIHash,
     emptyNameHashes, false)
   def getAPI[T](map: Map[T, AnalyzedClass], className: T): AnalyzedClass = map.getOrElse(className, emptyAnalyzedClass)
 }

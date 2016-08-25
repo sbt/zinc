@@ -21,7 +21,7 @@ private final class IncrementalNameHashing(log: sbt.util.Logger, options: IncOpt
   protected def invalidatedPackageObjects(invalidatedClasses: Set[String], relations: Relations,
     apis: APIs): Set[String] = {
     transitiveDeps(invalidatedClasses, logging = false)(relations.inheritance.internal.reverse) filter {
-      className => APIUtil.hasPackageObject(apis.internalAPI(className))
+      _.endsWith(".package")
     }
   }
 

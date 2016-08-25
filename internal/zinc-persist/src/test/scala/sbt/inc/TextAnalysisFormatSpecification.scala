@@ -1,9 +1,9 @@
 package sbt
 package inc
 
-import xsbti.api.ExternalDependency
+import xsbti.api.{ ExternalDependency, Companions }
 import xsbti.compile.{ MiniSetup, MiniOptions }
-import sbt.internal.inc.{ Analysis, Exists, SourceInfos, TestCaseGenerators, TextAnalysisFormat }
+import sbt.internal.inc.{ Analysis, Exists, SourceInfos, TestCaseGenerators, TextAnalysisFormat, CompanionsStore }
 import sbt.util.InterfaceUtil._
 
 import java.io.{ BufferedReader, File, StringReader, StringWriter }
@@ -43,6 +43,9 @@ object TextAnalysisFormatTest extends Properties("TextAnalysisFormat") {
                     |extra:
                     |1 items
                     |key -> value""".stripMargin
+  val companionStore = new CompanionsStore {
+    def get(): Option[(Map[String, Companions], Map[String, Companions])] = None
+  }
 
   property("Write and read empty Analysis") = {
 
@@ -55,7 +58,7 @@ object TextAnalysisFormatTest extends Properties("TextAnalysisFormat") {
 
     val reader = new BufferedReader(new StringReader(result))
 
-    val (readAnalysis: Analysis, readSetup) = TextAnalysisFormat.read(reader)
+    val (readAnalysis: Analysis, readSetup) = TextAnalysisFormat.read(reader, companionStore)
 
     compare(analysis, readAnalysis) && result.startsWith(commonHeader)
   }
@@ -89,7 +92,7 @@ object TextAnalysisFormatTest extends Properties("TextAnalysisFormat") {
 
     val reader = new BufferedReader(new StringReader(result))
 
-    val (readAnalysis: Analysis, readSetup) = TextAnalysisFormat.read(reader)
+    val (readAnalysis: Analysis, readSetup) = TextAnalysisFormat.read(reader, companionStore)
 
     compare(analysis, readAnalysis) && result.startsWith(commonHeader)
   }
@@ -105,7 +108,7 @@ object TextAnalysisFormatTest extends Properties("TextAnalysisFormat") {
       result.startsWith(commonHeader)
       val reader = new BufferedReader(new StringReader(result))
 
-      val (readAnalysis: Analysis, readSetup) = TextAnalysisFormat.read(reader)
+      val (readAnalysis: Analysis, readSetup) = TextAnalysisFormat.read(reader, companionStore)
 
       compare(analysis, readAnalysis) && result.startsWith(commonHeader)
     }

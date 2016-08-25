@@ -90,7 +90,7 @@ class IncrementalCompilerSpec extends BridgeProviderSpecification {
 
   it should "trigger full compilation if extra changes" in {
     IO.withTemporaryDirectory { tempDir =>
-      val cacheFile = tempDir / "target" / "inc_compile"
+      val cacheFile = tempDir / "target" / "inc_compile.zip"
       val fileStore = AnalysisStore.cached(FileBasedStore(cacheFile))
 
       val knownSampleGoodFile = tempDir / "src" / "Good.scala"
@@ -107,7 +107,7 @@ class IncrementalCompilerSpec extends BridgeProviderSpecification {
       val cs = compiler.compilers(si, ClasspathOptionsUtil.boot, None, sc)
       val prev0 = compiler.emptyPreviousResult
       val lookup = new Lookup(_ => prev0.analysis)
-      val incOptions = IncOptionsUtil.defaultIncOptions()
+      val incOptions = IncOptionsUtil.defaultIncOptions().withApiDebug(true)
       val reporter = new LoggerReporter(maxErrors, log, identity)
       val extra = Array(InterfaceUtil.t2(("key", "value")))
       val setup = compiler.setup(lookup, skip = false, tempDir / "inc_compile", CompilerCache.fresh, incOptions, reporter, None, extra)
@@ -115,7 +115,6 @@ class IncrementalCompilerSpec extends BridgeProviderSpecification {
       val in = compiler.inputs(si.allJars, sources, classesDir, Array(), Array(), maxErrors, Array(),
         CompileOrder.Mixed, cs, setup, prev0)
       val result = compiler.compile(in, log)
-      //val prev = compiler.previousResult(result)
       fileStore.set(result.analysis match { case a: Analysis => a }, result.setup)
       val prev = fileStore.get match {
         case Some((a, s)) => new PreviousResult(Maybe.just(a), Maybe.just(s))

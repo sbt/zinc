@@ -9,7 +9,7 @@ import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
 import xsbt.api.{ NameHashing, APIUtil, HashAPI }
 import xsbti.api._
 import xsbti.compile.{ DependencyChanges, Output, SingleOutput, MultipleOutput, CompileAnalysis, IncOptions }
-import xsbti.{ Position, Problem, Severity }
+import xsbti.{ Position, Problem, Severity, SafeLazy }
 import sbt.util.Logger
 import sbt.util.Logger.{ m2o, problem }
 import java.io.File
@@ -268,7 +268,7 @@ private final class AnalysisCallback(
     val hasMacro: Boolean = macroClasses.contains(name)
     val (companions, apiHash) = companionsWithHash(name)
     val nameHashes = nameHashesForCompanions(name)
-    val ac = new AnalyzedClass(compilation, name, companions, apiHash, nameHashes, hasMacro)
+    val ac = new AnalyzedClass(compilation, name, SafeLazy(companions), apiHash, nameHashes, hasMacro)
     ac
   }
 
