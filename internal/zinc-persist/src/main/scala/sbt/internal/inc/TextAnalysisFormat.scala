@@ -94,9 +94,9 @@ object TextAnalysisFormat {
   }
 
   // Writes the "api" portion of xsbti.api.AnalyzedClass.
-  def writeCompanionMap(out: Writer, internal: Map[String, Companions], external: Map[String, Companions]): Unit = {
+  def writeCompanionMap(out: Writer, apis: APIs): Unit = {
     VersionF.write(out)
-    CompanionsF.write(out, internal, external)
+    CompanionsF.write(out, apis)
     out.flush()
   }
 
@@ -294,6 +294,12 @@ object TextAnalysisFormat {
 
     val stringToCompanions = ObjectStringifier.stringToObj[Companions] _
     val companionsToString = ObjectStringifier.objToString[Companions] _
+
+    def write(out: Writer, apis: APIs): Unit = {
+      val internal = apis.internal map { case (k, v) => k -> v.api }
+      val external = apis.external map { case (k, v) => k -> v.api }
+      write(out, internal, external)
+    }
 
     def write(out: Writer, internal: Map[String, Companions], external: Map[String, Companions]): Unit = {
       writeMap(out)(Headers.internal, internal, identity[String], companionsToString, inlineVals = false)
