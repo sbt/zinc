@@ -59,13 +59,15 @@ object JavaCompiler {
 
   def commandArguments(classpath: Seq[File], output: Output, options: Seq[String], scalaInstance: ScalaInstance, cpOptions: ClasspathOptions): Seq[String] =
     {
+      // Oracle Javac doesn't support multiple output directories, but Eclipse provides their own compiler, which can call with MultipleOutput.
+      // https://github.com/sbt/zinc/issues/163
       val target = output match {
-        case so: SingleOutput   => so.outputDirectory
-        case mo: MultipleOutput => throw new RuntimeException("Javac doesn't support multiple output directories")
+        case so: SingleOutput   => Some(so.outputDirectory)
+        case mo: MultipleOutput => None
       }
       val augmentedClasspath = if (cpOptions.autoBoot) classpath ++ Seq(scalaInstance.libraryJar) else classpath
       val javaCp = ClasspathOptionsUtil.javac(cpOptions.compiler)
-      (new CompilerArguments(scalaInstance, javaCp))(Array[File](), augmentedClasspath, Some(target), options)
+      (new CompilerArguments(scalaInstance, javaCp))(Array[File](), augmentedClasspath, target, options)
     }
 }
 
