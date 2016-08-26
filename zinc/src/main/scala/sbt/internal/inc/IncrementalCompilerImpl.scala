@@ -2,15 +2,13 @@ package sbt
 package internal
 package inc
 
-import sbt.internal.inc.javac.JavaTools
-import xsbti.{ Position, Logger, Maybe, Reporter, F1, T2 }
-import xsbti.compile.{ CompileOrder, GlobalsCache, IncOptions, MiniSetup, CompileAnalysis, CompileResult, CompileOptions }
-import xsbti.compile.{ PreviousResult, Setup, Inputs, IncrementalCompiler, PerClasspathEntryLookup }
-import xsbti.compile.{ Compilers, CompileProgress, JavaCompiler, JavaTools => XJavaTools, Output, ScalaCompiler, ClasspathOptions => XClasspathOptions }
 import java.io.File
-import sbt.util.Logger.{ m2o, f0, o2m }
-import sbt.io.{ IO, Using }
+
+import sbt.internal.inc.javac.JavaTools
+import sbt.util.Logger.{ f0, m2o, o2m }
 import xsbti.compile.CompileOrder.Mixed
+import xsbti.compile.{ ClasspathOptions => XClasspathOptions, JavaTools => XJavaTools, _ }
+import xsbti._
 
 // TODO -
 //  1. Move analyzingCompile from MixedAnalyzingCompiler into here
@@ -24,7 +22,6 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       val cs = in.compilers()
       val config = in.options()
       val setup = in.setup()
-      import cs._
       import config._
       import setup._
       val javacChosen = in.compilers.javaTools.javac
@@ -111,6 +108,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
 
     override def lookupOnClasspath(binaryClassName: String): Option[File] =
       entry(binaryClassName)
+
     override def lookupAnalysis(classFile: File): Option[CompileAnalysis] =
       m2o(compileConfiguration.perClasspathEntryLookup.analysis(classFile))
 
@@ -140,6 +138,9 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
 
     override def removedProducts(previousAnalysis: Analysis): Option[Set[File]] =
       externalLookup.flatMap(_.removedProducts(previousAnalysis))
+
+    override def shouldDoIncrementalCompilation(changedClasses: Set[String], analysis: Analysis): Boolean =
+      externalLookup.forall(_.shouldDoIncrementalCompilation(changedClasses, analysis))
   }
 
   /** Actually runs the incremental compiler using the given mixed compiler.  This will prune the inputs based on the MiniSetup. */

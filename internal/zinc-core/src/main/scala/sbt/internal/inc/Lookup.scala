@@ -2,7 +2,7 @@ package sbt.internal.inc
 
 import java.io.File
 
-import xsbti.compile.{ ExternalHooks, CompileAnalysis }
+import xsbti.compile.{ CompileAnalysis, ExternalHooks }
 
 /**
  * A trait that encapsulates looking up elements on a classpath and looking up
@@ -54,26 +54,32 @@ trait Lookup extends ExternalLookup {
 
 trait ExternalLookup extends ExternalHooks.Lookup {
   /**
-   * Method use to provide information from external tools into sbt (e.g. IDEs)
+   * Used to provide information from external tools into sbt (e.g. IDEs)
    *
    * @param previousAnalysis
-   * @return None if is unable to determine what was changed, changes elsewere
+   * @return None if is unable to determine what was changed, changes otherwise
    */
   def changedSources(previousAnalysis: Analysis): Option[Changes[File]]
 
   /**
-   * Method use to provide information from external tools into sbt (e.g. IDEs)
+   * Used to provide information from external tools into sbt (e.g. IDEs)
    *
    * @param previousAnalysis
-   * @return None if is unable to determine what was changed, changes elsewere
+   * @return None if is unable to determine what was changed, changes otherwise
    */
   def changedBinaries(previousAnalysis: Analysis): Option[Set[File]]
 
   /**
-   * Method use to provide information from external tools into sbt (e.g. IDEs)
+   * Used to provide information from external tools into sbt (e.g. IDEs)
    *
    * @param previousAnalysis
-   * @return None if is unable to determine what was changed, changes elsewere
+   * @return None if is unable to determine what was changed, changes otherwise
    */
   def removedProducts(previousAnalysis: Analysis): Option[Set[File]]
+
+  /**
+   * Used to provide information from external tools into sbt (e.g. IDEs)
+   * @return API changes
+   */
+  def shouldDoIncrementalCompilation(changedClasses: Set[String], analysis: Analysis): Boolean
 }
