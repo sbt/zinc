@@ -45,7 +45,7 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
   def javaSources: List[File] =
     (javaSourceDirectory ** "*.java").get.toList ++
       (directory * "*.java").get.toList
-  val cacheFile = directory / "target" / "inc_compile"
+  val cacheFile = directory / "target" / "inc_compile.zip"
   val fileStore = AnalysisStore.cached(FileBasedStore(cacheFile))
   def unmanagedJars: List[File] = (directory / "lib" ** "*.jar").get.toList
 
@@ -99,7 +99,7 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
     "run" -> {
       case (params, i) =>
         val analysis = compile(i)
-        discoverMainClasses(analysis) match {
+        discoverMainClasses(Some(analysis.apis)) match {
           case Seq(mainClassName) =>
             val classpath = i.si.allJars :+ classesDir
             val loader = ClasspathUtilities.makeLoader(classpath, i.si, directory)
@@ -136,12 +136,14 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
   )
 
   def checkSame(i: IncInstance): Unit =
-    {
-      val analysis = compile(i)
-      analysis.apis.internal foreach {
-        case (_, api) =>
-          assert(xsbt.api.SameAPI(api.api, api.api))
-      }
+    fileStore.get match {
+      case Some((prevAnalysis: Analysis, _)) =>
+        val analysis = compile(i)
+        analysis.apis.internal foreach {
+          case (k, api) =>
+            assert(api.apiHash == prevAnalysis.apis.internalAPI(k).apiHash)
+        }
+      case _ => ()
     }
 
   def clean(i: IncInstance): Unit =
@@ -273,13 +275,16 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
 
   def scriptError(message: String): Unit = sys.error("Test script error: " + message)
 
-  // Taken from Defaults.scala in sbt/sbt
-  private def discoverMainClasses(analysis: inc.Analysis): Seq[String] = {
-    def companionsApis(c: xsbti.api.Companions): Seq[xsbti.api.ClassLike] =
-      Seq(c.classApi, c.objectApi)
-    val allDefs = analysis.apis.internal.values.flatMap(x => companionsApis(x.api)).toSeq
-    Discovery.applications(allDefs).collect({ case (definition, discovered) if discovered.hasMain => definition.name }).sorted
-  }
+  private def discoverMainClasses(apisOpt: Option[APIs]): Seq[String] =
+    apisOpt match {
+      case Some(apis) =>
+        def companionsApis(c: xsbti.api.Companions): Seq[xsbti.api.ClassLike] =
+          Seq(c.classApi, c.objectApi)
+        val allDefs = apis.internal.values.flatMap(x =>
+          companionsApis(x.api)).toSeq
+        Discovery.applications(allDefs).collect({ case (definition, discovered) if discovered.hasMain => definition.name }).sorted
+      case None => Nil
+    }
 
   // Taken from Run.scala in sbt/sbt
   private def getMainMethod(mainClassName: String, loader: ClassLoader) =
@@ -315,7 +320,7 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
   }
 
   private def getProblems(): Seq[Problem] =
-    fileStore.get() match {
+    fileStore.get match {
       case Some((analysis: Analysis, _)) =>
         val allInfos = analysis.infos.allInfos.values.toSeq
         allInfos flatMap (i => i.reportedProblems ++ i.unreportedProblems)

@@ -4,8 +4,8 @@ package inc
 
 import java.io._
 import sbt.internal.util.Relation
-import xsbti.T2
-import xsbti.api.{ AnalyzedClass, Compilation }
+import xsbti.{ T2, SafeLazy }
+import xsbti.api.{ AnalyzedClass, Compilation, Companions, NameHashes, Lazy }
 import xsbti.compile.{ CompileAnalysis, MultipleOutput, SingleOutput, MiniOptions, MiniSetup }
 import javax.xml.bind.DatatypeConverter
 import java.net.URI
@@ -58,13 +58,15 @@ object TextAnalysisFormat {
   import sbt.util.Logger.{ m2o, position, problem }
 
   private implicit val compilationF: Format[Compilation] = xsbt.api.CompilationFormat
-  private implicit val analyzedClassFormat: Format[AnalyzedClass] = xsbt.api.AnalyzedClassFormat
+  private implicit val nameHashesFormat: Format[NameHashes] = xsbt.api.NameHashesFormat
+  private implicit val companionsFomrat: Format[Companions] = xsbt.api.CompanionsFormat
   private implicit def problemFormat: Format[Problem] = asProduct4(problem _)(p => (p.category, p.position, p.message, p.severity))
   private implicit def positionFormat: Format[Position] =
     asProduct7(position _)(p => (m2o(p.line), p.lineContent, m2o(p.offset), m2o(p.pointer), m2o(p.pointerSpace), m2o(p.sourcePath), m2o(p.sourceFile)))
   private implicit val severityFormat: Format[Severity] =
     wrap[Severity, Byte](_.ordinal.toByte, b => Severity.values.apply(b.toInt))
   private implicit val integerFormat: Format[Integer] = wrap[Integer, Int](_.toInt, Integer.valueOf)
+  private implicit val analyzedClassFormat: Format[AnalyzedClass] = xsbt.api.AnalyzedClassFormats.analyzedClassFormat
   private implicit def infoFormat: Format[SourceInfo] =
     wrap[SourceInfo, (Seq[Problem], Seq[Problem])](si => (si.reportedProblems, si.unreportedProblems), { case (a, b) => SourceInfos.makeInfo(a, b) })
   private implicit def seqFormat[T](implicit optionFormat: Format[T]): Format[Seq[T]] = viaSeq[Seq[T], T](x => x)
@@ -74,6 +76,7 @@ object TextAnalysisFormat {
       val get2: A2 = a2
     }
 
+  // Companions portion of the API info is written in a separate entry later.
   def write(out: Writer, analysis: CompileAnalysis, setup: MiniSetup): Unit = {
     val analysis0 = analysis match { case analysis: Analysis => analysis }
     VersionF.write(out)
@@ -90,16 +93,29 @@ object TextAnalysisFormat {
     out.flush()
   }
 
-  def read(in: BufferedReader): (CompileAnalysis, MiniSetup) = {
+  // Writes the "api" portion of xsbti.api.AnalyzedClass.
+  def writeCompanionMap(out: Writer, apis: APIs): Unit = {
+    VersionF.write(out)
+    CompanionsF.write(out, apis)
+    out.flush()
+  }
+
+  // Companions portion of the API info is read from a separate file lazily.
+  def read(in: BufferedReader, companionsStore: CompanionsStore): (CompileAnalysis, MiniSetup) = {
     VersionF.read(in)
     val setup = FormatTimer.time("read setup") { MiniSetupF.read(in) }
     val relations = FormatTimer.time("read relations") { RelationsF.read(in, setup.nameHashing) }
     val stamps = FormatTimer.time("read stamps") { StampsF.read(in) }
-    val apis = FormatTimer.time("read apis") { APIsF.read(in) }
+    val apis = FormatTimer.time("read apis") { APIsF.read(in, companionsStore) }
     val infos = FormatTimer.time("read sourceinfos") { SourceInfosF.read(in) }
     val compilations = FormatTimer.time("read compilations") { CompilationsF.read(in) }
 
     (Analysis.Empty.copy(stamps, apis, relations, infos, compilations), setup)
+  }
+
+  def readCompanionMap(in: BufferedReader): (Map[String, Companions], Map[String, Companions]) = {
+    VersionF.read(in)
+    CompanionsF.read(in)
   }
 
   private[this] object VersionF {
@@ -257,12 +273,43 @@ object TextAnalysisFormat {
       FormatTimer.close("sbinary write")
     }
 
-    def read(in: BufferedReader): APIs = {
+    def read(in: BufferedReader, companionsStore: CompanionsStore): APIs = {
+      val companions: Lazy[(Map[String, Companions], Map[String, Companions])] = SafeLazy(companionsStore.get().get)
       val internal = readMap(in)(Headers.internal, identity[String], stringToAnalyzedClass)
       val external = readMap(in)(Headers.external, identity[String], stringToAnalyzedClass)
       FormatTimer.close("base64 -> bytes")
       FormatTimer.close("sbinary read")
-      APIs(internal, external)
+      APIs(
+        internal map { case (k, v) => k -> v.withApi(SafeLazy(companions.get._1(k))) },
+        external map { case (k, v) => k -> v.withApi(SafeLazy(companions.get._2(k))) }
+      )
+    }
+  }
+
+  private[this] object CompanionsF {
+    object Headers {
+      val internal = "internal comanions"
+      val external = "external comanions"
+    }
+
+    val stringToCompanions = ObjectStringifier.stringToObj[Companions] _
+    val companionsToString = ObjectStringifier.objToString[Companions] _
+
+    def write(out: Writer, apis: APIs): Unit = {
+      val internal = apis.internal map { case (k, v) => k -> v.api }
+      val external = apis.external map { case (k, v) => k -> v.api }
+      write(out, internal, external)
+    }
+
+    def write(out: Writer, internal: Map[String, Companions], external: Map[String, Companions]): Unit = {
+      writeMap(out)(Headers.internal, internal, identity[String], companionsToString, inlineVals = false)
+      writeMap(out)(Headers.external, external, identity[String], companionsToString, inlineVals = false)
+    }
+
+    def read(in: BufferedReader): (Map[String, Companions], Map[String, Companions]) = {
+      val internal = readMap(in)(Headers.internal, identity[String], stringToCompanions)
+      val external = readMap(in)(Headers.external, identity[String], stringToCompanions)
+      (internal, external)
     }
   }
 

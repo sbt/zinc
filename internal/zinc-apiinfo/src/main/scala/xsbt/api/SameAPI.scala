@@ -11,7 +11,7 @@ import scala.collection.{ immutable, mutable }
 /** Checks the API of two source files for equality.*/
 object SameAPI {
   def apply(a: AnalyzedClass, b: AnalyzedClass): Boolean =
-    (a.apiHash == b.apiHash) && apply(a.api, b.api)
+    (a.apiHash == b.apiHash)
 
   def apply(a: Definition, b: Definition): Boolean =
     (new SameAPI(false, true)).sameDefinitions(List(a), List(b), true)

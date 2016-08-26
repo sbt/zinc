@@ -198,6 +198,6 @@ object MixedAnalyzingCompiler {
     }
 
   /** Create a an analysis store cache at the desired location. */
-  def staticCachedStore(cacheFile: File) = staticCache(cacheFile, AnalysisStore.sync(AnalysisStore.cached(FileBasedStore(cacheFile))))
-
+  def staticCachedStore(analysisFile: File): AnalysisStore =
+    staticCache(analysisFile, AnalysisStore.sync(AnalysisStore.cached(FileBasedStore(analysisFile))))
 }
