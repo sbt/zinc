@@ -18,7 +18,12 @@ import sbt.io.syntax._
  * the analysis plugin.  Because these call Scala code for a different Scala version than the one used for this class, they must
  * be compiled for the version of Scala being used.
  */
-final class AnalyzingCompiler private (val scalaInstance: XScalaInstance, val provider: CompilerInterfaceProvider, override val classpathOptions: ClasspathOptions, onArgsF: Seq[String] => Unit) extends CachedCompilerProvider with ScalaCompiler {
+final class AnalyzingCompiler private (
+  val scalaInstance: XScalaInstance,
+  val provider: CompilerInterfaceProvider,
+  override val classpathOptions: ClasspathOptions,
+  onArgsF: Seq[String] => Unit
+) extends CachedCompilerProvider with ScalaCompiler {
   def this(scalaInstance: XScalaInstance, provider: CompilerInterfaceProvider, cp: ClasspathOptions) =
     this(scalaInstance, provider, cp, _ => ())
   def this(scalaInstance: XScalaInstance, provider: CompilerInterfaceProvider) = this(scalaInstance, provider, ClasspathOptionsUtil.auto)
