@@ -102,6 +102,10 @@ public class IncOptionsUtil {
     return true;
   }
 
+  public static boolean defaultAnalysisOnlyExtDepLookup() {
+    return false;
+  }
+
   public static IncOptions defaultIncOptions() {
     IncOptions retval = new IncOptions(
       defaultTransitiveStep(), defaultRecompileAllFraction(),
@@ -110,7 +114,7 @@ public class IncOptionsUtil {
       defaultClassfileManagerType(), defaultRecompileOnMacroDef(),
       defaultNameHashing(), defaultAntStyle(),
       defaultExtra(), defaultLogRecompileOnMacro(),
-      defaultExternal());
+      defaultExternal(), defaultAnalysisOnlyExtDepLookup());
     return retval;
   }
 
