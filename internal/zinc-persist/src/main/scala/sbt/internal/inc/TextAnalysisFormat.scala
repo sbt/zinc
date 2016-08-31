@@ -274,7 +274,7 @@ object TextAnalysisFormat {
     }
 
     def read(in: BufferedReader, companionsStore: CompanionsStore): APIs = {
-      val companions: Lazy[(Map[String, Companions], Map[String, Companions])] = SafeLazy(companionsStore.get().get)
+      val companions: Lazy[(Map[String, Companions], Map[String, Companions])] = SafeLazy(companionsStore.getUncaught)
       val internal = readMap(in)(Headers.internal, identity[String], stringToAnalyzedClass)
       val external = readMap(in)(Headers.external, identity[String], stringToAnalyzedClass)
       FormatTimer.close("base64 -> bytes")
@@ -288,8 +288,8 @@ object TextAnalysisFormat {
 
   private[this] object CompanionsF {
     object Headers {
-      val internal = "internal comanions"
-      val external = "external comanions"
+      val internal = "internal companions"
+      val external = "external companions"
     }
 
     val stringToCompanions = ObjectStringifier.stringToObj[Companions] _

@@ -44,7 +44,8 @@ object TextAnalysisFormatTest extends Properties("TextAnalysisFormat") {
                     |1 items
                     |key -> value""".stripMargin
   val companionStore = new CompanionsStore {
-    def get(): Option[(Map[String, Companions], Map[String, Companions])] = None
+    def getUncaught(): (Map[String, Companions], Map[String, Companions]) = (Map(), Map())
+    def get(): Option[(Map[String, Companions], Map[String, Companions])] = Some(getUncaught())
   }
 
   property("Write and read empty Analysis") = {
