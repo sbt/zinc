@@ -8,4 +8,5 @@ import xsbti.api._
 // the zip file created for Analysis store.
 trait CompanionsStore {
   def get(): Option[(Map[String, Companions], Map[String, Companions])]
+  def getUncaught(): (Map[String, Companions], Map[String, Companions])
 }
