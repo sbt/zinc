@@ -61,7 +61,7 @@ object FileBasedStore {
     def getUncaught(): (Map[String, Companions], Map[String, Companions]) =
       Using.zipInputStream(new FileInputStream(file)) {
         inputStream =>
-          lookupEntry(inputStream, analysisFileName)
+          lookupEntry(inputStream, companionsFileName)
           val reader = new BufferedReader(new InputStreamReader(inputStream, IO.utf8))
           TextAnalysisFormat.readCompanionMap(reader)
       }

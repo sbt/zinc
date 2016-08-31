@@ -288,8 +288,8 @@ object TextAnalysisFormat {
 
   private[this] object CompanionsF {
     object Headers {
-      val internal = "internal comanions"
-      val external = "external comanions"
+      val internal = "internal companions"
+      val external = "external companions"
     }
 
     val stringToCompanions = ObjectStringifier.stringToObj[Companions] _
