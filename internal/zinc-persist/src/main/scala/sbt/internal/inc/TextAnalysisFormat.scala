@@ -106,7 +106,9 @@ object TextAnalysisFormat {
     val setup = FormatTimer.time("read setup") { MiniSetupF.read(in) }
     val relations = FormatTimer.time("read relations") { RelationsF.read(in, setup.nameHashing) }
     val stamps = FormatTimer.time("read stamps") { StampsF.read(in) }
-    val apis = FormatTimer.time("read apis") { APIsF.read(in, companionsStore) }
+    val apis = FormatTimer.time("read apis") {
+      APIsF.read(in, if (setup.storeApis) Some(companionsStore) else None)
+    }
     val infos = FormatTimer.time("read sourceinfos") { SourceInfosF.read(in) }
     val compilations = FormatTimer.time("read compilations") { CompilationsF.read(in) }
 
@@ -273,16 +275,23 @@ object TextAnalysisFormat {
       FormatTimer.close("sbinary write")
     }
 
-    def read(in: BufferedReader, companionsStore: CompanionsStore): APIs = {
-      val companions: Lazy[(Map[String, Companions], Map[String, Companions])] = SafeLazy(companionsStore.getUncaught)
+    def read(in: BufferedReader, companionsStore: Option[CompanionsStore]): APIs = {
       val internal = readMap(in)(Headers.internal, identity[String], stringToAnalyzedClass)
       val external = readMap(in)(Headers.external, identity[String], stringToAnalyzedClass)
       FormatTimer.close("base64 -> bytes")
       FormatTimer.close("sbinary read")
-      APIs(
-        internal map { case (k, v) => k -> v.withApi(SafeLazy(companions.get._1(k))) },
-        external map { case (k, v) => k -> v.withApi(SafeLazy(companions.get._2(k))) }
-      )
+      companionsStore match {
+        case Some(companionsStore) =>
+          val companions: Lazy[(Map[String, Companions], Map[String, Companions])] =
+            SafeLazy(companionsStore.getUncaught())
+
+          APIs(
+            internal map { case (k, v) => k -> v.withApi(SafeLazy(companions.get._1(k))) },
+            external map { case (k, v) => k -> v.withApi(SafeLazy(companions.get._2(k))) }
+          )
+        case _ => APIs(internal, external)
+      }
+
     }
   }
 
@@ -350,6 +359,7 @@ object TextAnalysisFormat {
       val compilerVersion = "compiler version"
       val compileOrder = "compile order"
       val nameHashing = "name hashing"
+      val skipApiStoring = "skip Api storing"
       val extra = "extra"
     }
 
@@ -372,6 +382,7 @@ object TextAnalysisFormat {
       writeSeq(out)(Headers.compilerVersion, setup.compilerVersion :: Nil, identity[String])
       writeSeq(out)(Headers.compileOrder, setup.order.name :: Nil, identity[String])
       writeSeq(out)(Headers.nameHashing, setup.nameHashing :: Nil, (b: Boolean) => b.toString)
+      writeSeq(out)(Headers.skipApiStoring, setup.storeApis() :: Nil, (b: Boolean) => b.toString)
       writePairs[String, String](out)(Headers.extra, setup.extra.toList map { x => (x.get1, x.get2) }, identity[String], identity[String])
     }
 
@@ -384,6 +395,7 @@ object TextAnalysisFormat {
       val compilerVersion = readSeq(in)(Headers.compilerVersion, identity[String]).head
       val compileOrder = readSeq(in)(Headers.compileOrder, identity[String]).head
       val nameHashing = readSeq(in)(Headers.nameHashing, s2b).head
+      val skipApiStoring = readSeq(in)(Headers.skipApiStoring, s2b).head
       val extra = readPairs(in)(Headers.extra, identity[String], identity[String]) map { case (a, b) => t2[String, String](a, b) }
 
       val output = outputDirMode match {
@@ -407,7 +419,7 @@ object TextAnalysisFormat {
       }
 
       new MiniSetup(output, new MiniOptions(compileOptions.toArray, javacOptions.toArray), compilerVersion,
-        xsbti.compile.CompileOrder.valueOf(compileOrder), nameHashing, extra.toArray)
+        xsbti.compile.CompileOrder.valueOf(compileOrder), nameHashing, skipApiStoring, extra.toArray)
     }
   }
 

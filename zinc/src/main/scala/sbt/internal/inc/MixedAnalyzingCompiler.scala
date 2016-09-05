@@ -116,7 +116,8 @@ object MixedAnalyzingCompiler {
   ): CompileConfiguration =
     {
       val compileSetup = new MiniSetup(output, new MiniOptions(options.toArray, javacOptions.toArray),
-        scalac.scalaInstance.actualVersion, compileOrder, incrementalCompilerOptions.nameHashing,
+        scalac.scalaInstance.actualVersion, compileOrder,
+        incrementalCompilerOptions.nameHashing, incrementalCompilerOptions.storeApis(),
         (extra map InterfaceUtil.t2).toArray)
       config(
         sources,
