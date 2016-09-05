@@ -267,51 +267,6 @@ trait Relations {
 }
 
 object Relations {
-  private[inc] val allRelations: List[RelationDescriptor[_, _]] = {
-    List(
-      FFRelationDescriptor("products", _.srcProd),
-      FFRelationDescriptor("library dependencies", _.libraryDep),
-      FSRelationDescriptor("library class names", _.libraryClassName),
-      SSRelationDescriptor("member reference internal dependencies", _.memberRef.internal),
-      SSRelationDescriptor("member reference external dependencies", _.memberRef.external),
-      SSRelationDescriptor("inheritance internal dependencies", _.inheritance.internal),
-      SSRelationDescriptor("inheritance external dependencies", _.inheritance.external),
-      SSRelationDescriptor("local internal inheritance dependencies", _.localInheritance.internal),
-      SSRelationDescriptor("local external inheritance dependencies", _.localInheritance.external),
-      FSRelationDescriptor("class names", _.classes),
-      SSRelationDescriptor("used names", _.names),
-      SSRelationDescriptor("product class names", _.productClassName)
-    )
-  }
-  /**
-   * Reconstructs a Relations from a list of Relation
-   * The order in which the relations are read matters and is defined by `existingRelations`.
-   */
-  def construct(nameHashing: Boolean, relations: List[Relation[_, _]]) =
-    relations match {
-      case p :: bin :: lcn :: mri :: mre :: ii :: ie :: lii :: lie :: cn :: un :: pcn :: Nil =>
-        val srcProd = p.asInstanceOf[Relation[File, File]]
-        val libraryDep = bin.asInstanceOf[Relation[File, File]]
-        val libraryClassName = lcn.asInstanceOf[Relation[File, String]]
-        val classes = cn.asInstanceOf[Relation[File, String]]
-        val names = un.asInstanceOf[Relation[String, String]]
-        val productClassName = pcn.asInstanceOf[Relation[String, String]]
-
-        assert(nameHashing, "Turning off name hashing is not supported anymore.")
-
-        val internal = InternalDependencies(Map(
-          DependencyByMemberRef -> mri.asInstanceOf[Relation[String, String]],
-          DependencyByInheritance -> ii.asInstanceOf[Relation[String, String]],
-          LocalDependencyByInheritance -> lii.asInstanceOf[Relation[String, String]]
-        ))
-        val external = ExternalDependencies(Map(
-          DependencyByMemberRef -> mre.asInstanceOf[Relation[String, String]],
-          DependencyByInheritance -> ie.asInstanceOf[Relation[String, String]],
-          LocalDependencyByInheritance -> lie.asInstanceOf[Relation[String, String]]
-        ))
-        Relations.make(srcProd, libraryDep, libraryClassName, internal, external, classes, names, productClassName)
-      case _ => throw new java.io.IOException(s"Expected to read ${allRelations.length} relations but read ${relations.length}.")
-    }
 
   /** Tracks internal and external source dependencies for a specific dependency type, such as direct or inherited.*/
   private[inc] final class ClassDependencies(val internal: Relation[String, String], val external: Relation[String, String]) {

@@ -10,52 +10,21 @@ package internal
 package inc
 
 import java.io._
+
 import sbt.internal.util.Relation
 import xsbti.T2
-import xsbti.api.{ AnalyzedClass, Compilation, Companions, NameHashes, Lazy, SafeLazyProxy }
-import xsbti.compile.{ CompileAnalysis, MultipleOutput, SingleOutput, MiniOptions, MiniSetup, FileHash }
+import xsbti.api._
+import xsbti.compile._
 import javax.xml.bind.DatatypeConverter
-import java.net.URI
 
-// Very simple timer for timing repeated code sections.
-// TODO: Temporary. Remove once we've milked all available performance gains.
-private[inc] object FormatTimer {
-  private val timers = scala.collection.mutable.Map[String, Long]()
-  private val printTimings = "true" == System.getProperty("sbt.analysis.debug.timing")
-
-  def aggregate[T](key: String)(f: => T) = {
-    val start = System.nanoTime()
-    val ret = f
-    val elapsed = System.nanoTime() - start
-    timers.update(key, timers.getOrElseUpdate(key, 0) + elapsed)
-    ret
-  }
-
-  def time[T](key: String)(f: => T) = {
-    val ret = aggregate(key)(f)
-    close(key)
-    ret
-  }
-
-  def close(key: String): Unit = {
-    if (printTimings) {
-      println("[%s] %dms".format(key, timers.getOrElse(key, 0L) / 1000000))
-    }
-    timers.remove(key)
-    ()
-  }
-}
-
-class ReadException(s: String) extends Exception(s) {
-  def this(expected: String, found: String) = this("Expected: %s. Found: %s.".format(expected, found))
-}
-
-class EOFException extends ReadException("Unexpected EOF.")
+import sbt.util.InterfaceUtil
 
 // A text-based serialization format for Analysis objects.
 // This code has been tuned for high performance, and therefore has non-idiomatic areas.
 // Please refrain from making changes that significantly degrade read/write performance on large analysis files.
-object TextAnalysisFormat {
+object TextAnalysisFormat extends TextAnalysisFormat(AnalysisMappers.default)
+
+class TextAnalysisFormat(override val mappers: AnalysisMappers) extends FormatCommons with RelationsTextFormat {
   // Some types are not required for external inspection/manipulation of the analysis file,
   // and are complex to serialize as text. So we serialize them as base64-encoded sbinary-serialized blobs.
   // TODO: This is a big performance hit. Figure out a more efficient way to serialize API objects?
@@ -78,11 +47,7 @@ object TextAnalysisFormat {
     wrap[SourceInfo, (Seq[Problem], Seq[Problem])](si => (si.reportedProblems, si.unreportedProblems), { case (a, b) => SourceInfos.makeInfo(a, b) })
   private implicit def fileHashFormat: Format[FileHash] = asProduct2((file: File, hash: Int) => new FileHash(file, hash))(h => (h.file, h.hash))
   private implicit def seqFormat[T](implicit optionFormat: Format[T]): Format[Seq[T]] = viaSeq[Seq[T], T](x => x)
-  private def t2[A1, A2](a1: A1, a2: A2): T2[A1, A2] =
-    new T2[A1, A2] {
-      val get1: A1 = a1
-      val get2: A2 = a2
-    }
+  private def t2[A1, A2](a1: A1, a2: A2): T2[A1, A2] = InterfaceUtil.t2(a1 -> a2)
 
   // Companions portion of the API info is written in a separate entry later.
   def write(out: Writer, analysis: CompileAnalysis, setup: MiniSetup): Unit = {
@@ -152,92 +117,6 @@ object TextAnalysisFormat {
     }
   }
 
-  private[sbt] val fileToString: File => String =
-    { f: File => f.toURI.toString }
-  private[sbt] val stringToFile: String => File =
-    { s: String =>
-      try {
-        new File(new URI(s))
-      } catch {
-        case e: Exception => sys.error(e.getMessage + ": " + s)
-      }
-    }
-  private[this] object RelationsF {
-    object Headers {
-      val srcProd = "products"
-      val binaryDep = "binary dependencies"
-      val directSrcDep = "direct source dependencies"
-      val directExternalDep = "direct external dependencies"
-      val internalSrcDepPI = "public inherited source dependencies"
-      val externalDepPI = "public inherited external dependencies"
-      val classes = "class names"
-
-      val memberRefInternalDep = "member reference internal dependencies"
-      val memberRefExternalDep = "member reference external dependencies"
-      val inheritanceInternalDep = "inheritance internal dependencies"
-      val inheritanceExternalDep = "inheritance external dependencies"
-
-      val usedNames = "used names"
-    }
-
-    def write(out: Writer, relations: Relations): Unit = {
-      def writeRelation[A, B](relDesc: RelationDescriptor[A, B], relations: Relations): Unit = {
-        // This ordering is used to persist all values in order. Since all values will be
-        // persisted using their string representation, it makes sense to sort them using
-        // their string representation.
-        val toStringOrdA = new Ordering[A] {
-          def compare(a: A, b: A) = relDesc.firstWrite(a) compare relDesc.firstWrite(b)
-        }
-        val toStringOrdB = new Ordering[B] {
-          def compare(a: B, b: B) = relDesc.secondWrite(a) compare relDesc.secondWrite(b)
-        }
-        val header = relDesc.header
-        val rel = relDesc.selectCorresponding(relations)
-        writeHeader(out, header)
-        writeSize(out, rel.size)
-        // We sort for ease of debugging and for more efficient reconstruction when reading.
-        // Note that we don't share code with writeMap. Each is implemented more efficiently
-        // than the shared code would be, and the difference is measurable on large analyses.
-        rel.forwardMap.toSeq.sortBy(_._1)(toStringOrdA).foreach {
-          case (k, vs) =>
-            val kStr = relDesc.firstWrite(k)
-            vs.toSeq.sorted(toStringOrdB) foreach { v =>
-              out.write(kStr); out.write(" -> "); out.write(relDesc.secondWrite(v)); out.write("\n")
-            }
-        }
-      }
-
-      Relations.allRelations.foreach { relDesc => writeRelation(relDesc, relations) }
-    }
-
-    def read(in: BufferedReader, nameHashing: Boolean): Relations = {
-      def readRelation[A, B](relDesc: RelationDescriptor[A, B]): Relation[A, B] = {
-        val expectedHeader = relDesc.header
-        val items = readPairs(in)(expectedHeader, relDesc.firstRead, relDesc.secondRead).toIterator
-        // Reconstruct the forward map. This is more efficient than Relation.empty ++ items.
-        var forward: List[(A, Set[B])] = Nil
-        var currentItem: (A, B) = null
-        var currentKey: A = null.asInstanceOf[A]
-        var currentVals: List[B] = Nil
-        def closeEntry(): Unit = {
-          if (currentKey != null) forward = (currentKey, currentVals.toSet) :: forward
-          currentKey = currentItem._1
-          currentVals = currentItem._2 :: Nil
-        }
-        while (items.hasNext) {
-          currentItem = items.next()
-          if (currentItem._1 == currentKey) currentVals = currentItem._2 :: currentVals else closeEntry()
-        }
-        if (currentItem != null) closeEntry()
-        Relation.reconstruct(forward.toMap)
-      }
-
-      val relations = Relations.allRelations.map(rd => readRelation(rd))
-
-      Relations.construct(nameHashing, relations)
-    }
-  }
-
   private[this] object StampsF {
     object Headers {
       val products = "product stamps"
@@ -246,18 +125,20 @@ object TextAnalysisFormat {
     }
 
     def write(out: Writer, stamps: Stamps): Unit = {
-      def doWriteMap[V](header: String, m: Map[File, V]) = writeMap(out)(header, m, fileToString, { v: V => v.toString })
-
-      doWriteMap(Headers.products, stamps.products)
-      doWriteMap(Headers.sources, stamps.sources)
-      doWriteMap(Headers.binaries, stamps.binaries)
+      def doWriteMap[V](header: String, m: Map[File, V], keyMapper: Mapper[File], valueMapper: Mapper[V]) =
+        writeMap(out)(header, m, keyMapper.write, valueMapper.write)
+      doWriteMap(Headers.products, stamps.products, mappers.productMapper, mappers.productStampMapper)
+      doWriteMap(Headers.sources, stamps.sources, mappers.sourceMapper, mappers.sourceStampMapper)
+      doWriteMap(Headers.binaries, stamps.binaries, mappers.binaryMapper, mappers.binaryStampMapper)
     }
 
     def read(in: BufferedReader): Stamps = {
-      def doReadMap[V](expectedHeader: String, s2v: String => V) = readMap(in)(expectedHeader, stringToFile, s2v)
-      val products = doReadMap(Headers.products, Stamp.fromString)
-      val sources = doReadMap(Headers.sources, Stamp.fromString)
-      val binaries = doReadMap(Headers.binaries, Stamp.fromString)
+      def doReadMap[V](expectedHeader: String, keyMapper: Mapper[File], valueMapper: Mapper[V]) =
+        readMap(in)(expectedHeader, keyMapper.read, valueMapper.read)
+
+      val products = doReadMap(Headers.products, mappers.productMapper, mappers.productStampMapper)
+      val sources = doReadMap(Headers.sources, mappers.sourceMapper, mappers.sourceStampMapper)
+      val binaries = doReadMap(Headers.binaries, mappers.binaryMapper, mappers.binaryStampMapper)
 
       Stamps(products, sources, binaries)
     }
@@ -336,8 +217,10 @@ object TextAnalysisFormat {
     val stringToSourceInfo = ObjectStringifier.stringToObj[SourceInfo] _
     val sourceInfoToString = ObjectStringifier.objToString[SourceInfo] _
 
-    def write(out: Writer, infos: SourceInfos): Unit = writeMap(out)(Headers.infos, infos.allInfos, fileToString, sourceInfoToString, inlineVals = false)
-    def read(in: BufferedReader): SourceInfos = SourceInfos.make(readMap(in)(Headers.infos, stringToFile, stringToSourceInfo))
+    def write(out: Writer, infos: SourceInfos): Unit =
+      writeMap(out)(Headers.infos, infos.allInfos, mappers.sourceMapper.write, sourceInfoToString, inlineVals = false)
+    def read(in: BufferedReader): SourceInfos =
+      SourceInfos.make(readMap(in)(Headers.infos, mappers.sourceMapper.read, stringToSourceInfo))
   }
 
   private[this] object CompilationsF {
@@ -387,7 +270,7 @@ object TextAnalysisFormat {
 
       writeSeq(out)(Headers.outputMode, mode :: Nil, identity[String])
       writeMap(out)(Headers.outputDir, outputAsMap, fileToString, fileToString)
-      writeSeq(out)(Headers.classpathHash, setup.options.classpathHash, fileHashToString)
+      writeSeq(out)(Headers.classpathHash, setup.options.classpathHash, fileHashToString) // TODO!
       writeSeq(out)(Headers.compileOptions, setup.options.scalacOptions, identity[String])
       writeSeq(out)(Headers.javacOptions, setup.options.javacOptions, identity[String])
       writeSeq(out)(Headers.compilerVersion, setup.compilerVersion :: Nil, identity[String])
@@ -401,8 +284,8 @@ object TextAnalysisFormat {
       def s2b(s: String): Boolean = s.toBoolean
       val outputDirMode = readSeq(in)(Headers.outputMode, identity[String]).headOption
       val outputAsMap = readMap(in)(Headers.outputDir, stringToFile, stringToFile)
-      val classpathHash = readSeq(in)(Headers.classpathHash, stringToFileHash)
-      val compileOptions = readSeq(in)(Headers.compileOptions, identity[String])
+      val classpathHash = readSeq(in)(Headers.classpathHash, stringToFileHash) // TODO
+      val compileOptions = readSeq(in)(Headers.compileOptions, mappers.scalacOptions.read)
       val javacOptions = readSeq(in)(Headers.javacOptions, identity[String])
       val compilerVersion = readSeq(in)(Headers.compilerVersion, identity[String]).head
       val compileOrder = readSeq(in)(Headers.compileOrder, identity[String]).head
@@ -451,70 +334,4 @@ object TextAnalysisFormat {
     }
   }
 
-  // Various helper functions.
-
-  private[this] def writeHeader(out: Writer, header: String): Unit = out.write(header + ":\n")
-
-  private[this] def expectHeader(in: BufferedReader, expectedHeader: String): Unit = {
-    val header = in.readLine()
-    if (header != expectedHeader + ":") throw new ReadException(expectedHeader, if (header == null) "EOF" else header)
-  }
-
-  private[this] def writeSize(out: Writer, n: Int): Unit = out.write("%d items\n".format(n))
-
-  private val itemsPattern = """(\d+) items""".r
-  private[this] def readSize(in: BufferedReader): Int = {
-    in.readLine() match {
-      case itemsPattern(nStr) => Integer.parseInt(nStr)
-      case s: String          => throw new ReadException("\"<n> items\"", s)
-      case null               => throw new EOFException
-    }
-  }
-
-  private[this] def writeSeq[T](out: Writer)(header: String, s: Seq[T], t2s: T => String): Unit = {
-    // We write sequences as idx -> element maps, for uniformity with maps/relations.
-    def n = s.length
-    val numDigits = if (n < 2) 1 else math.log10(n.toDouble - 1).toInt + 1
-    val fmtStr = "%%0%dd".format(numDigits)
-    // We only use this for relatively short seqs, so creating this extra map won't be a performance hit.
-    val m: Map[String, T] = s.zipWithIndex.map(x => fmtStr.format(x._2) -> x._1).toMap
-    writeMap(out)(header, m, identity[String] _, t2s)
-  }
-
-  private[this] def readSeq[T](in: BufferedReader)(expectedHeader: String, s2t: String => T): Seq[T] =
-    (readPairs(in)(expectedHeader, identity[String], s2t).toSeq.sortBy(_._1) map (_._2))
-
-  private[this] def writeMap[K, V](out: Writer)(header: String, m: Map[K, V], k2s: K => String, v2s: V => String, inlineVals: Boolean = true)(implicit ord: Ordering[K]): Unit =
-    writePairs(out)(header, m.keys.toSeq.sorted map { k => (k, (m(k))) }, k2s, v2s, inlineVals)
-
-  private[this] def readMap[K, V](in: BufferedReader)(expectedHeader: String, s2k: String => K, s2v: String => V): Map[K, V] = {
-    readPairs(in)(expectedHeader, s2k, s2v).toMap
-  }
-
-  private[this] def writePairs[K, V](out: Writer)(header: String, s: Seq[(K, V)], k2s: K => String, v2s: V => String, inlineVals: Boolean = true): Unit = {
-    writeHeader(out, header)
-    writeSize(out, s.size)
-    s foreach {
-      case (k, v) =>
-        out.write(k2s(k))
-        out.write(" -> ")
-        if (!inlineVals) out.write("\n") // Put large vals on their own line, to save string munging on read.
-        out.write(v2s(v))
-        out.write("\n")
-    }
-  }
-
-  private[this] def readPairs[K, V](in: BufferedReader)(expectedHeader: String, s2k: String => K, s2v: String => V): Traversable[(K, V)] = {
-    def toPair(s: String): (K, V) = {
-      if (s == null) throw new EOFException
-      val p = s.indexOf(" -> ")
-      val k = s2k(s.substring(0, p))
-      // Pair is either "a -> b" or "a -> \nb". This saves us a lot of substring munging when b is a large blob.
-      val v = s2v(if (p == s.length - 4) in.readLine() else s.substring(p + 4))
-      (k, v)
-    }
-    expectHeader(in, expectedHeader)
-    val n = readSize(in)
-    for (i <- 0 until n) yield toPair(in.readLine())
-  }
 }

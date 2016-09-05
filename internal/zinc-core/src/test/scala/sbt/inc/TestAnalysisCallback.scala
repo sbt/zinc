@@ -90,7 +90,7 @@ class TestAnalysisCallback(
       case (rel, (sourceClassName, names)) => rel ++ (names map (n => (sourceClassName, n)))
     }
 
-    val relations = Relations.construct(true, p :: bin :: di :: de :: pii :: pie :: mri :: mre :: ii :: ie :: cn :: un :: bcn :: Nil)
+    val relations = Relations.empty
 
     val analyzedApis = classNames.values.flatMap(_.map(_._1)).map(analyzeClass)
 
