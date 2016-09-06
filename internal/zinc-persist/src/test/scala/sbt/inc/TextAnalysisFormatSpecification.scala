@@ -17,8 +17,9 @@ import Prop._
 object TextAnalysisFormatTest extends Properties("TextAnalysisFormat") {
 
   val nameHashing = true
+  val storeApis = true
   val dummyOutput = new xsbti.compile.SingleOutput { def outputDirectory: java.io.File = new java.io.File("/dummy") }
-  val commonSetup = new MiniSetup(dummyOutput, new MiniOptions(Array(), Array()), "2.10.4", xsbti.compile.CompileOrder.Mixed, nameHashing,
+  val commonSetup = new MiniSetup(dummyOutput, new MiniOptions(Array(), Array()), "2.10.4", xsbti.compile.CompileOrder.Mixed, nameHashing, storeApis,
     Array(t2(("key", "value"))))
   val commonHeader = """format version: 6
                     |output mode:
@@ -38,6 +39,9 @@ object TextAnalysisFormatTest extends Properties("TextAnalysisFormat") {
                     |1 items
                     |0 -> Mixed
                     |name hashing:
+                    |1 items
+                    |0 -> true
+                    |skip Api storing:
                     |1 items
                     |0 -> true
                     |extra:
@@ -105,7 +109,6 @@ object TextAnalysisFormatTest extends Properties("TextAnalysisFormat") {
 
       val result = writer.toString
 
-      result.startsWith(commonHeader)
       val reader = new BufferedReader(new StringReader(result))
 
       val (readAnalysis: Analysis, readSetup) = TextAnalysisFormat.read(reader, companionStore)

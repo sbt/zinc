@@ -28,6 +28,7 @@ class BaseIncCompilerSpec extends BridgeProviderSpecification {
     scala.util.Properties.versionNumberString,
     CompileOrder.Mixed,
     /*_nameHashing*/ true,
+    /*_storeApis*/ true,
     Array.empty
   )
 

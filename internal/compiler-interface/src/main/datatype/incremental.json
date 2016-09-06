@@ -110,6 +110,13 @@
           ]
         },
         {
+          "name": "storeApis",
+          "type": "boolean",
+          "doc": [
+            "Determines whether incremental compiler stores apis alongside analysis."
+          ]
+        },
+        {
           "name": "antStyle",
           "type": "boolean",
           "doc": [
@@ -269,6 +276,10 @@
         },
         {
           "name": "nameHashing",
+          "type": "boolean"
+        },
+        {
+          "name": "storeApis",
           "type": "boolean"
         },
         {

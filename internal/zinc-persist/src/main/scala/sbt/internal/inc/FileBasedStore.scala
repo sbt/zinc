@@ -30,9 +30,11 @@ object FileBasedStore {
           outputStream.putNextEntry(new ZipEntry(analysisFileName))
           TextAnalysisFormat.write(writer, analysis, setup)
           outputStream.closeEntry()
-          outputStream.putNextEntry(new ZipEntry(companionsFileName))
-          TextAnalysisFormat.writeCompanionMap(writer, analysis match { case a: Analysis => a.apis })
-          outputStream.closeEntry()
+          if (setup.storeApis()) {
+            outputStream.putNextEntry(new ZipEntry(companionsFileName))
+            TextAnalysisFormat.writeCompanionMap(writer, analysis match { case a: Analysis => a.apis })
+            outputStream.closeEntry()
+          }
       }
     }
 
