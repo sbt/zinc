@@ -112,7 +112,7 @@ object TestCaseGenerators {
     apiHash <- arbitrary[Int]
     hasMacro <- arbitrary[Boolean]
     nameHashes <- genNameHashes(Seq(name))
-  } yield new AnalyzedClass(new Compilation(startTime, Array()), name, SafeLazyProxy(makeCompanions(name)), apiHash, nameHashes, hasMacro)
+  } yield new AnalyzedClass(startTime, name, SafeLazyProxy(makeCompanions(name)), apiHash, nameHashes, hasMacro)
 
   def genClasses(all_defns: Seq[String]): Gen[Seq[AnalyzedClass]] =
     Gen.sequence[List[AnalyzedClass], AnalyzedClass](all_defns.map(genClass))

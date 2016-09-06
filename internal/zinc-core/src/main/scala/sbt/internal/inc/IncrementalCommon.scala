@@ -172,10 +172,7 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
   protected def sameAPI(className: String, a: AnalyzedClass, b: AnalyzedClass): Option[APIChange]
 
   def shortcutSameClass(a: AnalyzedClass, b: AnalyzedClass): Boolean =
-    sameCompilation(a.compilation, b.compilation) && (a.apiHash == b.apiHash)
-  def sameCompilation(a: Compilation, b: Compilation): Boolean = a.startTime == b.startTime && a.outputs.corresponds(b.outputs) {
-    case (co1, co2) => co1.sourceDirectory == co2.sourceDirectory && co1.outputDirectory == co2.outputDirectory
-  }
+    a.compilationTimestamp() == b.compilationTimestamp() && (a.apiHash == b.apiHash)
 
   def changedInitial(sources: Set[File], previousAnalysis0: CompileAnalysis, current: ReadStamps,
     lookup: Lookup)(implicit equivS: Equiv[Stamp]): InitialChanges =

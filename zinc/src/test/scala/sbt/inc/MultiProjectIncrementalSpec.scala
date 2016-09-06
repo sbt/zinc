@@ -134,7 +134,7 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       val allCompilations = a3.compilations.allCompilations
       val recompiledClasses: Seq[Set[String]] = allCompilations map { c =>
         val recompiledClasses = a3.apis.internal.collect {
-          case (className, api) if api.compilation.startTime == c.startTime => className
+          case (className, api) if api.compilationTimestamp() == c.startTime => className
         }
         recompiledClasses.toSet
       }
