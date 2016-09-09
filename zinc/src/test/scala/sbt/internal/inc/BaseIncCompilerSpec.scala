@@ -1,18 +1,20 @@
-package sbt.inc
+package sbt.internal.inc
 
 import java.io.File
 
 import sbt.internal.inc.Analysis.NonLocalProduct
-import sbt.internal.inc._
 import sbt.io.IO
 import sbt.util.InterfaceUtil._
 import sbt.util.Logger
 import xsbti.Maybe
+import xsbti.api.{ExternalDependency, NameHash}
 import xsbti.compile._
 
+import scala.util.Random
+
 /**
- * Author: Krzysztof Romanowski
- */
+  * Author: Krzysztof Romanowski
+  */
 class BaseIncCompilerSpec extends BridgeProviderSpecification {
 
   def mockedCompiler(in: File): ScalaCompiler = {
@@ -81,17 +83,25 @@ case class VirtualProject(name: String, in: DirectorySetup) extends ClasspathEnt
   private var _analysis: Analysis = Analysis.Empty
 
   def newSource(v: VirtualSource): Analysis = {
+    val nameHashesArray = Array(new NameHash(v.name, Random.nextInt()))
+    val nameHashes = APIs.emptyNameHashes.withRegularMembers(nameHashesArray)
     val newAnalysis = Analysis.empty(true)
       .addSource(
         v.sourceFile,
-        Seq(APIs.emptyAnalyzedClass.withName(v.name)),
+        Seq(APIs.emptyAnalyzedClass.withName(v.name)
+          .withApiHash(v.sourceFile.getAbsolutePath.hashCode)
+          .withNameHashes(nameHashes)),
         Stamp.hash(v.sourceFile),
         SourceInfos.emptyInfo,
         Seq(NonLocalProduct(v.name, v.name, v.classFile, Stamp.lastModified(v.classFile))),
-        Nil, Nil, Nil, Nil
+        Nil, Nil, v.extDependencies, v.binaryDependencies
       )
-    _analysis ++= newAnalysis
-    newAnalysis
+    val relations = v.extDependencies.foldLeft(newAnalysis.relations) { (relations, analysis) =>
+      relations.addUsedName(v.name, analysis.targetBinaryClassName())
+    }
+    val updatedAnalysis = newAnalysis.copy(relations = relations)
+    _analysis ++= updatedAnalysis
+    updatedAnalysis
   }
 
   val baseDir = new File(in.baseDir, name)
@@ -108,7 +118,12 @@ case class VirtualProject(name: String, in: DirectorySetup) extends ClasspathEnt
   override def analysis: Option[Analysis] = Some(_analysis)
 }
 
-case class VirtualSource(name: String, in: VirtualProject) {
+case class VirtualSource(
+  name: String,
+  in: VirtualProject,
+  extDependencies: Seq[ExternalDependency] = Seq.empty,
+  binaryDependencies: Seq[(File, String, Stamp)] = Seq.empty
+) {
   val sourceFile = new File(in.src, s"$name.scala")
   val classFile = new File(in.out, s"$name.class")
 

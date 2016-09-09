@@ -1,14 +1,8 @@
-package sbt.inc
+package sbt.internal.inc
 
 import java.io.File
 
-import sbt.internal.inc.Analysis.LocalProduct
-import sbt.internal.inc.{ CompilerClasspathConfig, _ }
 import sbt.io.IO
-import sbt.util.{ InterfaceUtil, Logger }
-import xsbti.Maybe
-import xsbti.compile._
-import InterfaceUtil.o2m
 
 class LookupSpec extends BaseIncCompilerSpec {
   behavior of "LookupImpl"

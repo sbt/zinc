@@ -118,6 +118,8 @@ object Stamps {
    */
   def initial(prodStamp: File => Stamp, srcStamp: File => Stamp, binStamp: File => Stamp): ReadStamps = new InitialStamps(prodStamp, srcStamp, binStamp)
 
+  def defaultInitial = Stamps.initial(Stamp.lastModified, Stamp.hash, Stamp.lastModified)
+
   def empty: Stamps =
     {
       val eSt = Map.empty[File, Stamp]
