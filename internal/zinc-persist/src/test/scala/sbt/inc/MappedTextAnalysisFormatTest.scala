@@ -19,24 +19,44 @@ object MappedTextAnalysisFormatTest extends Properties("MappedTextAnalysisFormat
     override val sourceMapper: Mapper[File] = mapped(Mapper.forFile)
     override val productMapper: Mapper[File] = mapped(Mapper.forFile)
     override val binaryMapper: Mapper[File] = mapped(Mapper.forFile)
-    override val binaryStampMapper: Mapper[Stamp] = mapped(Mapper.forStamp)
-    override val productStampMapper: Mapper[Stamp] = mapped(Mapper.forStamp)
-    override val sourceStampMapper: Mapper[Stamp] = mapped(Mapper.forStamp)
+    override val binaryStampMapper: ContextAwareMapper[File, Stamp] = contextedMapped(Mapper.forStamp)
+    override val productStampMapper: ContextAwareMapper[File, Stamp] = contextedMapped(Mapper.forStamp)
+    override val sourceStampMapper: ContextAwareMapper[File, Stamp] = contextedMapped(Mapper.forStamp)
 
-    private def mapped[V](mapper: Mapper[V]): Mapper[V] = {
+    private class TestRandomizer[V] {
       val HEADER = Random.nextInt(20000).toString
       val Regexp = s"#(\\d+)#(.+)".r
+
+      def read(v: String): String = v match {
+        case Regexp(HEADER, original) => original
+        case Regexp(badHeader, original) =>
+          throw new RuntimeException(s"Headers don't match expected: '$HEADER' got '$badHeader'")
+        case Regexp(list @ _*) =>
+          throw new RuntimeException(s"Value '$v' cannot be used. Matched: $list")
+        case _ =>
+          throw new RuntimeException(s"Value '$v' cannot be used. Does not match ${Regexp.pattern.pattern()}")
+      }
+
+      def write(v: String) = s"#$HEADER#${v}"
+    }
+
+    private def mapped[V](mapper: Mapper[V]): Mapper[V] = {
+      val randomizer = new TestRandomizer[V]
       Mapper(
-        v => mapper.read(v match {
-          case Regexp(HEADER, original) => original
-          case Regexp(badHeader, original) =>
-            throw new RuntimeException(s"Headers don't match expected: '$HEADER' got '$badHeader'")
-          case _ =>
-            throw new RuntimeException(s"Value '$v' cannot is used")
-        }),
-        v => s"#$HEADER#${mapper.write(v)}"
+        v => mapper.read(randomizer.read(v)),
+        v => randomizer.write(mapper.write(v))
       )
     }
+
+    private def contextedMapped[C, V](mapper: ContextAwareMapper[C, V]): ContextAwareMapper[C, V] = {
+      val valueRanomizer = new TestRandomizer[V]
+
+      ContextAwareMapper(
+        (c, s) => mapper.read(c, valueRanomizer.read(s).drop(c.toString.length + 1)),
+        (c, v) => valueRanomizer.write(s"$c#${mapper.write(c, v)}")
+      )
+    }
+
   }
 
   override def format = new TextAnalysisFormat(TestMapper)

@@ -20,9 +20,10 @@ object FileBasedStore {
   private val analysisFileName = "inc_compile.txt"
   private val companionsFileName = "api_companions.txt"
 
-  def apply(file: File): AnalysisStore = new FileBasedStoreImpl(file)
+  def apply(file: File): AnalysisStore = new FileBasedStoreImpl(file, TextAnalysisFormat)
+  def apply(file: File, format: TextAnalysisFormat): AnalysisStore = new FileBasedStoreImpl(file, format)
 
-  private final class FileBasedStoreImpl(file: File) extends AnalysisStore {
+  private final class FileBasedStoreImpl(file: File, format: TextAnalysisFormat) extends AnalysisStore {
     val companionsStore = new FileBasedCompanionsMapStore(file)
 
     def set(analysis: CompileAnalysis, setup: MiniSetup): Unit = {
@@ -31,11 +32,11 @@ object FileBasedStore {
         outputStream =>
           val writer = new BufferedWriter(new OutputStreamWriter(outputStream, IO.utf8))
           outputStream.putNextEntry(new ZipEntry(analysisFileName))
-          TextAnalysisFormat.write(writer, analysis, setup)
+          format.write(writer, analysis, setup)
           outputStream.closeEntry()
           if (setup.storeApis()) {
             outputStream.putNextEntry(new ZipEntry(companionsFileName))
-            TextAnalysisFormat.writeCompanionMap(writer, analysis match { case a: Analysis => a.apis })
+            format.writeCompanionMap(writer, analysis match { case a: Analysis => a.apis })
             outputStream.closeEntry()
           }
       }
@@ -49,7 +50,7 @@ object FileBasedStore {
         inputStream =>
           lookupEntry(inputStream, analysisFileName)
           val writer = new BufferedReader(new InputStreamReader(inputStream, IO.utf8))
-          TextAnalysisFormat.read(writer, companionsStore)
+          format.read(writer, companionsStore)
       }
   }
 

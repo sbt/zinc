@@ -125,16 +125,19 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers) extends FormatCo
     }
 
     def write(out: Writer, stamps: Stamps): Unit = {
-      def doWriteMap[V](header: String, m: Map[File, V], keyMapper: Mapper[File], valueMapper: Mapper[V]) =
-        writeMap(out)(header, m, keyMapper.write, valueMapper.write)
+      def doWriteMap[V](header: String, m: Map[File, V], keyMapper: Mapper[File], valueMapper: ContextAwareMapper[File, V]) = {
+        val pairsToWrite = m.keys.toSeq.sorted map (k => (k, valueMapper.write(k, m(k))))
+        writePairs(out)(header, pairsToWrite, keyMapper.write, identity[String])
+      }
+
       doWriteMap(Headers.products, stamps.products, mappers.productMapper, mappers.productStampMapper)
       doWriteMap(Headers.sources, stamps.sources, mappers.sourceMapper, mappers.sourceStampMapper)
       doWriteMap(Headers.binaries, stamps.binaries, mappers.binaryMapper, mappers.binaryStampMapper)
     }
 
     def read(in: BufferedReader): Stamps = {
-      def doReadMap[V](expectedHeader: String, keyMapper: Mapper[File], valueMapper: Mapper[V]) =
-        readMap(in)(expectedHeader, keyMapper.read, valueMapper.read)
+      def doReadMap[V](expectedHeader: String, keyMapper: Mapper[File], valueMapper: ContextAwareMapper[File, V]) =
+        readMappedPairs(in)(expectedHeader, keyMapper.read, valueMapper.read).toMap
 
       val products = doReadMap(Headers.products, mappers.productMapper, mappers.productStampMapper)
       val sources = doReadMap(Headers.sources, mappers.sourceMapper, mappers.sourceStampMapper)

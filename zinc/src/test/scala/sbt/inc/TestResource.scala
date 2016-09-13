@@ -4,7 +4,7 @@ import java.io.File
 
 object TestResource {
   def knownSampleGoodFile0 =
-    new File(classOf[TestResource].getResource("Good.scala").toURI)
+    new File(getClass.getClassLoader.getResource("sources/Good.scala").toURI)
   def fooSampleFile0 =
     new File(classOf[TestResource].getResource("Foo.scala").toURI)
   def binarySampleFile0 =

@@ -7,8 +7,8 @@
 
 package sbt.internal.inc
 
-import java.io.{ File, BufferedReader, Writer }
-import java.net.URI
+import java.io.{ BufferedReader, File, Writer }
+import java.nio.file.Paths
 
 // Very simple timer for timing repeated code sections.
 // TODO: Temporary. Remove once we've milked all available performance gains.
@@ -51,11 +51,11 @@ object FormatCommons extends FormatCommons
 trait FormatCommons {
 
   val fileToString: File => String =
-    { f: File => f.toURI.toString }
+    { f: File => f.toPath.toString }
   val stringToFile: String => File =
     { s: String =>
       try {
-        new File(new URI(s))
+        Paths.get(s).toFile
       } catch {
         case e: Exception => sys.error(e.getMessage + ": " + s)
       }
@@ -89,15 +89,11 @@ trait FormatCommons {
     writeMap(out)(header, m, identity[String] _, t2s)
   }
 
-  protected def readSeq[T](in: BufferedReader)(expectedHeader: String, s2t: String => T): Seq[T] =
-    (readPairs(in)(expectedHeader, identity[String], s2t).toSeq.sortBy(_._1) map (_._2))
-
-  protected def writeMap[K, V](out: Writer)(header: String, m: Map[K, V], k2s: K => String, v2s: V => String, inlineVals: Boolean = true)(implicit ord: Ordering[K]): Unit =
+  protected def writeMap[K, V](out: Writer)(header: String, m: Map[K, V],
+    k2s: K => String,
+    v2s: V => String,
+    inlineVals: Boolean = true)(implicit ord: Ordering[K]): Unit =
     writePairs(out)(header, m.keys.toSeq.sorted map { k => (k, (m(k))) }, k2s, v2s, inlineVals)
-
-  protected def readMap[K, V](in: BufferedReader)(expectedHeader: String, s2k: String => K, s2v: String => V): Map[K, V] = {
-    readPairs(in)(expectedHeader, s2k, s2v).toMap
-  }
 
   protected def writePairs[K, V](out: Writer)(header: String, s: Seq[(K, V)], k2s: K => String, v2s: V => String, inlineVals: Boolean = true): Unit = {
     writeHeader(out, header)
@@ -112,13 +108,23 @@ trait FormatCommons {
     }
   }
 
-  protected def readPairs[K, V](in: BufferedReader)(expectedHeader: String, s2k: String => K, s2v: String => V): Traversable[(K, V)] = {
+  protected def readMap[K, V](in: BufferedReader)(expectedHeader: String, s2k: String => K, s2v: String => V): Map[K, V] = {
+    readPairs(in)(expectedHeader, s2k, s2v).toMap
+  }
+
+  protected def readSeq[T](in: BufferedReader)(expectedHeader: String, s2t: String => T): Seq[T] =
+    (readPairs(in)(expectedHeader, identity[String], s2t).toSeq.sortBy(_._1) map (_._2))
+
+  protected def readPairs[K, V](in: BufferedReader)(expectedHeader: String, s2k: String => K, s2v: String => V) =
+    readMappedPairs(in)(expectedHeader, s2k, (_: K, s) => s2v(s))
+
+  protected def readMappedPairs[K, V](in: BufferedReader)(expectedHeader: String, s2k: String => K, s2v: (K, String) => V): Traversable[(K, V)] = {
     def toPair(s: String): (K, V) = {
       if (s == null) throw new EOFException
       val p = s.indexOf(" -> ")
       val k = s2k(s.substring(0, p))
       // Pair is either "a -> b" or "a -> \nb". This saves us a lot of substring munging when b is a large blob.
-      val v = s2v(if (p == s.length - 4) in.readLine() else s.substring(p + 4))
+      val v = s2v(k, if (p == s.length - 4) in.readLine() else s.substring(p + 4))
       (k, v)
     }
     expectHeader(in, expectedHeader)
