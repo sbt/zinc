@@ -48,6 +48,7 @@ abstract class ClasspathEntry(in: DirectorySetup) {
   def classpathEntry: File
 
   def analysis: Option[Analysis]
+  def definesClass(className: String): Boolean
 
   in.register(this)
 }
@@ -64,6 +65,8 @@ class VirtualDir(val name: String, val classes: Seq[String], val in: DirectorySe
   override def analysis: Option[Analysis] = None
 
   def classFile(binaryName: String) = new File(dir, s"$binaryName.class")
+
+  override def definesClass(className: String): Boolean = classes.contains(className)
 }
 
 case class VirtualJar(override val name: String, override val classes: Seq[String], override val in: DirectorySetup)
@@ -75,6 +78,8 @@ case class VirtualJar(override val name: String, override val classes: Seq[Strin
   override def classpathEntry: File = location
 
   override def analysis: Option[Analysis] = None
+
+  override def definesClass(className: String): Boolean = classes.contains(className)
 }
 
 case class VirtualProject(name: String, in: DirectorySetup) extends ClasspathEntry(in) {
@@ -106,6 +111,9 @@ case class VirtualProject(name: String, in: DirectorySetup) extends ClasspathEnt
   override def classpathEntry: File = out
 
   override def analysis: Option[Analysis] = Some(_analysis)
+
+  override def definesClass(className: String): Boolean =
+    _analysis.relations.definesClass(className).nonEmpty
 }
 
 case class VirtualSource(name: String, in: VirtualProject) {
@@ -123,17 +131,35 @@ class DirectorySetup(val baseDir: File) {
 
   def register(entry: ClasspathEntry) = myEntries :+= entry
 
-  def classpath = myEntries.map(_.classpathEntry)
+  def classpath: Seq[File] = myEntries.map(_.classpathEntry)
 
   def analysisMap = myEntries.map(e => e.classpathEntry -> e.analysis).toMap
   def analyses = myEntries flatMap { _.analysis.toSeq }
 
+  def lookupOnClasspath(binaryClassName: String): Option[File] =
+    (myEntries collect {
+      case x: ClasspathEntry if x.definesClass(binaryClassName) => x.classpathEntry
+    }).headOption
+
   def entryLookup = new PerClasspathEntryLookup() {
-    override def analysis(classpathEntry: File): Maybe[CompileAnalysis] =
+    override def lookupAnalysis(classpathEntry: File): Maybe[CompileAnalysis] =
       o2m(analysisMap.get(classpathEntry).flatten orElse
         (analyses collectFirst {
           case (a: Analysis) if a.relations.allProducts contains classpathEntry => a
         }))
+    override def lookupAnalysis(binaryDependency: File, binaryClassName: String): Maybe[CompileAnalysis] =
+      lookupOnClasspath(binaryClassName) match {
+        case Some(defines) =>
+          if (binaryDependency != Locate.resolve(defines, binaryClassName)) Maybe.nothing()
+          else lookupAnalysis(defines)
+        case None => Maybe.nothing()
+      }
+    override def lookupAnalysis(binaryClassName: String): Maybe[CompileAnalysis] =
+      lookupOnClasspath(binaryClassName) match {
+        case Some(defines) =>
+          lookupAnalysis(defines)
+        case None => Maybe.nothing()
+      }
     override def definesClass(classpathEntry: File): DefinesClass = Locate.definesClass(classpathEntry)
   }
 }

@@ -29,9 +29,12 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
   val si = scalaInstance(scalaVersion)
   val maxErrors = 100
   class Lookup(am: File => Maybe[CompileAnalysis]) extends PerClasspathEntryLookup {
-    override def analysis(classpathEntry: File): Maybe[CompileAnalysis] =
+    override def lookupAnalysis(classpathEntry: File): Maybe[CompileAnalysis] =
       am(classpathEntry)
-
+    override def lookupAnalysis(binaryDependency: File, binaryClassName: String): Maybe[CompileAnalysis] =
+      Maybe.nothing()
+    override def lookupAnalysis(binaryClassName: String): Maybe[CompileAnalysis] =
+      Maybe.nothing()
     override def definesClass(classpathEntry: File): DefinesClass =
       Locate.definesClass(classpathEntry)
   }
