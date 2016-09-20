@@ -40,7 +40,7 @@ object Locate {
   def entry(classpath: Seq[File], lookup: PerClasspathEntryLookup): String => Option[File] =
     {
       val entries = classpath.toStream.map { entry => (entry, lookup.definesClass(entry)) }
-      className => entries.collectFirst { case (entry, defines) if defines(className) => entry }
+      className => entries.collect { case (entry, defines) if defines(className) => entry }.headOption
     }
   def resolve(f: File, className: String): File = if (f.isDirectory) classFile(f, className) else f
 

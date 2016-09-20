@@ -153,14 +153,6 @@
           "name": "externalHooks",
           "type": "xsbti.compile.ExternalHooks",
           "doc": "External hooks that allows clients e.g. IDEs to interacts with compilation internals"
-        },
-        {
-          "name": "analysisOnlyExtDepLookup",
-          "type": "boolean",
-          "doc": [
-            "Ignore classpath entries without Analysis when searching for external dependencies.",
-            "It might miss changes in classes from jars external class directories."
-          ]
         }
       ]
     },

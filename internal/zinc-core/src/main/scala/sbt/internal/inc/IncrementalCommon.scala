@@ -128,22 +128,21 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
    * providing the API before and after the last step.  The functions should return
    * an empty API if the class did not/does not exist.
    */
-  def changedIncremental(
-    lastClasses: collection.Set[String],
-    oldAPI: String => AnalyzedClass,
-    newAPI: String => AnalyzedClass
-  ): APIChanges = {
-    val apiChanges = lastClasses.flatMap { className =>
-      sameClass(className, oldAPI(className), newAPI(className))
+  def changedIncremental(lastClasses: collection.Set[String], oldAPI: String => AnalyzedClass,
+    newAPI: String => AnalyzedClass): APIChanges =
+    {
+      val oldApis = lastClasses.toSeq map oldAPI
+      val newApis = lastClasses.toSeq map newAPI
+      val apiChanges = (lastClasses, oldApis, newApis).zipped.flatMap {
+        (className, oldApi, newApi) => sameClass(className, oldApi, newApi)
+      }
+
+      if (Incremental.apiDebug(options) && apiChanges.nonEmpty) {
+        logApiChanges(apiChanges, oldAPI, newAPI)
+      }
+
+      new APIChanges(apiChanges)
     }
-
-    if (Incremental.apiDebug(options) && apiChanges.nonEmpty) {
-      logApiChanges(apiChanges, oldAPI, newAPI)
-    }
-
-    new APIChanges(apiChanges)
-  }
-
   def sameClass(className: String, a: AnalyzedClass, b: AnalyzedClass): Option[APIChange] = {
     // Clients of a modified class (ie, one that doesn't satisfy `shortcutSameClass`) containing macros must be recompiled.
     val hasMacro = a.hasMacro || b.hasMacro

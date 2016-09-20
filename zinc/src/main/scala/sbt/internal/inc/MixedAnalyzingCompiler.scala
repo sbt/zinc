@@ -157,7 +157,7 @@ object MixedAnalyzingCompiler {
   }
 
   /** Returns the search classpath (for dependencies) and a function which can also do so. */
-  def searchClasspathAndLookup(config: CompilerClasspathConfig): (Seq[File], String => Option[File]) = {
+  def searchClasspathAndLookup(config: CompileConfiguration): (Seq[File], String => Option[File]) = {
     import config._
     import currentSetup._
     val absClasspath = classpath.map(_.getAbsoluteFile)

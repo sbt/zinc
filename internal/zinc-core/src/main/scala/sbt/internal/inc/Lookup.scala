@@ -26,6 +26,7 @@ trait Lookup extends ExternalLookup {
 
   /**
    * Return an Analysis instance that has the given class file registered as a product.
+   * as a product.
    *
    * @param classFile
    * @return
