@@ -6,7 +6,7 @@ import sbt.util.Logger._
 import xsbti.Maybe
 import xsbti.compile.CompileAnalysis
 
-class LookupImpl(compileConfiguration: CompileConfiguration) extends Lookup {
+class LookupImpl(compileConfiguration: CompilerClasspathConfig) extends Lookup {
   private val entry = MixedAnalyzingCompiler.classPathLookup(compileConfiguration)
 
   override def lookupOnClasspath(binaryClassName: String): Option[File] =
