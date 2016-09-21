@@ -167,7 +167,7 @@ object MixedAnalyzingCompiler {
   }
 
   /** Returns a "lookup file for a given class name" function. */
-  def classPathLookup(config: CompileConfiguration): String => Option[File] =
+  def classPathLookup(config: CompilerClasspathConfig): String => Option[File] =
     searchClasspathAndLookup(config)._2
 
   def apply(config: CompileConfiguration)(implicit log: Logger): MixedAnalyzingCompiler = {

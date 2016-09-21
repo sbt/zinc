@@ -45,36 +45,10 @@ class LookupSpec extends BaseIncCompilerSpec {
 
   private def mockedProjectContext(op: ProjectSetup => Unit) = IO.withTemporaryDirectory(tempDir => op(new ProjectSetup(tempDir)))
 
-  private def withAnalysisOnlyExtDepLookup(value: Boolean, from: ProjectSetup): LookupImpl = {
-    import from._
-    new LookupImpl(config.copy(incOptions = config.incOptions.withAnalysisOnlyExtDepLookup(value)))
-  }
-
-  it should "find correct analysis for binary name - fast lookup on" in mockedProjectContext { setup =>
-    import setup._
-
-    val lookup = withAnalysisOnlyExtDepLookup(true, setup)
-
-    lookup.lookupAnalysis("P1P2") shouldEqual project1.analysis
-    lookup.lookupAnalysis("P1J2") shouldEqual project1.analysis
-    lookup.lookupAnalysis("P1C2") shouldEqual project1.analysis
-    lookup.lookupAnalysis("J1P1") shouldEqual project1.analysis
-    lookup.lookupAnalysis("C1P1") shouldEqual project1.analysis
-
-    lookup.lookupAnalysis("P2") shouldEqual project2.analysis
-
-    lookup.lookupAnalysis("J1J2") shouldEqual None
-    lookup.lookupAnalysis("C1C2") shouldEqual None
-
-    lookup.lookupAnalysis("P1.P2") shouldEqual None
-    lookup.lookupAnalysis("P1P2$") shouldEqual None
-    lookup.lookupAnalysis("P1$P2") shouldEqual None
-  }
-
   it should "find correct analysis for binary name - fast lookup off" in mockedProjectContext { setup =>
     import setup._
 
-    val lookup = withAnalysisOnlyExtDepLookup(false, setup)
+    val lookup = new LookupImpl(config)
 
     lookup.lookupAnalysis("P1P2") shouldEqual project1.analysis
     lookup.lookupAnalysis("P1J2") shouldEqual project1.analysis
@@ -95,6 +69,8 @@ class LookupSpec extends BaseIncCompilerSpec {
 
   it should "find correct analysis for class file" in mockedProjectContext { setup =>
     import setup._
+
+    val lookup = new LookupImpl(config)
 
     lookup.lookupAnalysis(project1.P1P2.classFile) shouldEqual project1.analysis
     lookup.lookupAnalysis(project2.P1P2.classFile) shouldEqual project2.analysis
