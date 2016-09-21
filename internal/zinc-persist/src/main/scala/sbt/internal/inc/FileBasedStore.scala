@@ -22,6 +22,8 @@ object FileBasedStore {
 
   def apply(file: File): AnalysisStore = new FileBasedStoreImpl(file, TextAnalysisFormat)
   def apply(file: File, format: TextAnalysisFormat): AnalysisStore = new FileBasedStoreImpl(file, format)
+  def apply(file: File, format: AnalysisMappers): AnalysisStore =
+    new FileBasedStoreImpl(file, new TextAnalysisFormat(format))
 
   private final class FileBasedStoreImpl(file: File, format: TextAnalysisFormat) extends AnalysisStore {
     val companionsStore = new FileBasedCompanionsMapStore(file)

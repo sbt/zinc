@@ -10,6 +10,8 @@ package sbt.internal.inc
 import java.io.File
 import java.nio.file.Path
 
+import scala.util.Try
+
 case class Mapper[V](read: String => V, write: V => String)
 case class ContextAwareMapper[C, V](read: (C, String) => V, write: (C, V) => String)
 
@@ -25,10 +27,31 @@ object Mapper {
   def rebaseFile(from: Path, to: Path): Mapper[File] = {
     def rebaseFile(from: Path, to: Path): File => File =
       f =>
-        to.resolve(from.relativize(f.toPath)).toFile
+        Try { to.resolve(from.relativize(f.toPath)).toFile }.getOrElse(f)
 
     forFile.map(rebaseFile(from, to), rebaseFile(to, from))
   }
+
+  def relativizeFile(root: Path): Mapper[File] = {
+    val header = "##"
+    def write(f: File): String =
+      Try {
+        val relativePath = root.relativize(f.toPath).toString
+        s"$header$relativePath"
+      }.getOrElse(FormatCommons.fileToString(f))
+
+    def read(string: String): File =
+      if (string.startsWith(header)) root.resolve(string.drop(header.length)).toFile
+      else FormatCommons.stringToFile(string)
+
+    Mapper[File](read, write)
+  }
+
+  def updateModificationDateFileMapper(from: Mapper[File]): ContextAwareMapper[File, Stamp] =
+    ContextAwareMapper(
+      (binaryFile, _) => Stamp.lastModified(from.read(binaryFile.toString)),
+      (_, stamp) => stamp.toString
+    )
 }
 
 trait AnalysisMappers {

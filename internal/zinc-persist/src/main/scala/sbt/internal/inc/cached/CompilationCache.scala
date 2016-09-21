@@ -11,10 +11,10 @@ trait CompilationCache {
   def loadCache(projectLocation: File): Option[(CompileAnalysis, MiniSetup)]
 }
 
-case class ProjectBasedCache(remoteRoot: Path, cacheLocation: Path) extends CompilationCache {
+case class ProjectRebasedCache(remoteRoot: Path, cacheLocation: Path) extends CompilationCache {
   override def loadCache(projectLocation: File): Option[(CompileAnalysis, MiniSetup)] = {
     val mapper = createMapper(remoteRoot, projectLocation.toPath)
-    FileBasedStore(cacheLocation.toFile, new TextAnalysisFormat(mapper)).get match {
+    FileBasedStore(cacheLocation.toFile, mapper).get() match {
       case Some((originalAnalysis: Analysis, originalSetup)) =>
         originalAnalysis.stamps.products.keySet.foreach { originalFile =>
           val targetFile = new File(mapper.productMapper.write(originalFile))
@@ -36,9 +36,6 @@ case class ProjectBasedCache(remoteRoot: Path, cacheLocation: Path) extends Comp
     override val binaryMapper: Mapper[File] = justRebase
 
     override val binaryStampMapper: ContextAwareMapper[File, Stamp] =
-      ContextAwareMapper(
-        (binaryFile, _) => Stamp.lastModified(binaryMapper.read(binaryFile.toString)),
-        (_, stamp) => stamp.toString
-      )
+      Mapper.updateModificationDateFileMapper(binaryMapper)
   }
 }

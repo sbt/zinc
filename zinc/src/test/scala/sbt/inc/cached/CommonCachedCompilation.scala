@@ -3,16 +3,15 @@ package sbt.inc.cached
 import java.io.File
 import java.nio.file.{ Files, Path, Paths }
 
-import org.scalatest.{ BeforeAndAfter, BeforeAndAfterAll }
+import org.scalatest.BeforeAndAfterAll
 import sbt.inc.BaseCompilerSpec
-import sbt.internal.inc.cached.{ CacheAwareStore, CacheProvider, CompilationCache, ProjectBasedCache }
-import sbt.internal.inc.{ Analysis, AnalysisStore, BridgeProviderSpecification, FileBasedStore }
+import sbt.internal.inc.cached.{ CacheAwareStore, CacheProvider }
+import sbt.internal.inc.{ Analysis, AnalysisStore, FileBasedStore }
 import sbt.io.IO
-import xsbti.compile.{ CompileAnalysis, MiniSetup }
 
-class CachedCompilationSpec extends BaseCompilerSpec with BeforeAndAfterAll {
+abstract class CommonCachedCompilation(name: String) extends BaseCompilerSpec with BeforeAndAfterAll {
 
-  behavior of "cached compilation"
+  behavior of name
 
   object SetupCommons {
     val sourceDir1 = Paths.get("src/main/scala")
@@ -47,10 +46,7 @@ class CachedCompilationSpec extends BaseCompilerSpec with BeforeAndAfterAll {
   var remoteCompilerSetup: CompilerSetup = _
   var remoteAnalysisStore: AnalysisStore = _
 
-  def remoteCacheProvider() = new CacheProvider {
-    override def findCache(previous: Option[(CompileAnalysis, MiniSetup)]): Option[CompilationCache] =
-      Some(ProjectBasedCache(remoteProject.baseLocation, remoteProject.defaultStoreLocation.toPath))
-  }
+  def remoteCacheProvider(): CacheProvider
 
   override protected def beforeAll(): Unit = {
     val basePath = IO.createTemporaryDirectory.toPath.resolve("remote")
@@ -64,10 +60,8 @@ class CachedCompilationSpec extends BaseCompilerSpec with BeforeAndAfterAll {
     assert(result.hasModified)
   }
 
-  override protected def afterAll(): Unit = {
+  override protected def afterAll(): Unit =
     IO.delete(remoteProject.baseLocation.toFile.getParentFile)
-    assert(!Files.exists(remoteProject.baseLocation))
-  }
 
   it should "provide correct analysis for empty project" in IO.withTemporaryDirectory {
     tempDir =>
@@ -85,7 +79,11 @@ class CachedCompilationSpec extends BaseCompilerSpec with BeforeAndAfterAll {
       val allFilesToMigrate = analysis.stamps.sources.keySet ++
         analysis.stamps.products.keySet ++ analysis.stamps.binaries.keySet
 
-      allFilesToMigrate.foreach {
+      val globalTmpPrefix = tempDir.getParentFile.toPath.toString
+      def isGlobal(f: File): Boolean =
+        !f.toPath.toString.startsWith(globalTmpPrefix)
+
+      allFilesToMigrate.filterNot(isGlobal).foreach {
         source => source.toString should startWith(prefix)
       }
   }
