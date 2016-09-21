@@ -67,19 +67,19 @@ class LookupSpec extends BaseIncCompilerSpec {
     lookup.lookupAnalysis("P1$P2") shouldEqual None
   }
 
-  // it should "find correct analysis for class file" in mockedProjectContext { setup =>
-  //   import setup._
+  it should "find correct analysis for class file" in mockedProjectContext { setup =>
+    import setup._
 
-  //   val lookup = new LookupImpl(config)
+    val lookup = new LookupImpl(config)
 
-  //   lookup.lookupAnalysis(project1.P1P2.classFile) shouldEqual project1.analysis
-  //   lookup.lookupAnalysis(project2.P1P2.classFile) shouldEqual project2.analysis
-  //   lookup.lookupAnalysis(project2.P2.classFile) shouldEqual project2.analysis
-  //   lookup.lookupAnalysis(project1.P1J2.classFile) shouldEqual project1.analysis
-  //   lookup.lookupAnalysis(project1.P1C2.classFile) shouldEqual project1.analysis
+    lookup.lookupAnalysis(project1.P1P2.classFile) shouldEqual project1.analysis
+    lookup.lookupAnalysis(project2.P1P2.classFile) shouldEqual project2.analysis
+    lookup.lookupAnalysis(project2.P2.classFile) shouldEqual project2.analysis
+    lookup.lookupAnalysis(project1.P1J2.classFile) shouldEqual project1.analysis
+    lookup.lookupAnalysis(project1.P1C2.classFile) shouldEqual project1.analysis
 
-  //   lookup.lookupAnalysis(classesDir1.classFile("C1C2")) shouldEqual None
-  // }
+    lookup.lookupAnalysis(classesDir1.classFile("C1C2")) shouldEqual None
+  }
 
   it should "find correct analysis for class file and binary name" in mockedProjectContext { setup =>
     import setup._

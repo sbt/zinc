@@ -126,11 +126,14 @@ class DirectorySetup(val baseDir: File) {
   def classpath = myEntries.map(_.classpathEntry)
 
   def analysisMap = myEntries.map(e => e.classpathEntry -> e.analysis).toMap
+  def analyses = myEntries flatMap { _.analysis.toSeq }
 
   def entryLookup = new PerClasspathEntryLookup() {
     override def analysis(classpathEntry: File): Maybe[CompileAnalysis] =
-      o2m(analysisMap.get(classpathEntry).flatten)
-
+      o2m(analysisMap.get(classpathEntry).flatten orElse
+        (analyses collectFirst {
+          case (a: Analysis) if a.relations.allProducts contains classpathEntry => a
+        }))
     override def definesClass(classpathEntry: File): DefinesClass = Locate.definesClass(classpathEntry)
   }
 }
