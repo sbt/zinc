@@ -80,7 +80,7 @@ object IncrementalCompile {
     }
   def getExternalAPI(lookup: Lookup): (File, String) => Option[AnalyzedClass] =
     (file: File, binaryClassName: String) =>
-      lookup.lookupAnalysis(file, binaryClassName) flatMap {
+      lookup.lookupAnalysis(binaryClassName) flatMap {
         case (analysis: Analysis) =>
           val sourceClassName = analysis.relations.binaryClassName.reverse(binaryClassName).headOption
           sourceClassName flatMap analysis.apis.internal.get

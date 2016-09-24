@@ -367,8 +367,8 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
             }
           }
 
-        lookup.lookupAnalysis(dependsOn).isEmpty &&
-          (if (skipClasspathLookup) fileModified(dependsOn, dependsOn) else dependencyModified(dependsOn))
+        // lookup.lookupAnalysis(dependsOn).isEmpty &&
+        (if (skipClasspathLookup) fileModified(dependsOn, dependsOn) else dependencyModified(dependsOn))
 
       }
 
