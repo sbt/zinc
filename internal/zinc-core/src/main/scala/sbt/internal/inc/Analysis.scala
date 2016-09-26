@@ -69,7 +69,7 @@ object Analysis {
       val (j, s) = a.apis.allInternalClasses.partition(isJavaClass)
       val c = a.stamps.allProducts
       val ext = a.apis.allExternals
-      val jars = a.relations.allBinaryDeps.filter(_.getName.endsWith(".jar"))
+      val jars = a.relations.allLibraryDeps.filter(_.getName.endsWith(".jar"))
       val unreportedCount = a.infos.allInfos.values.map(_.unreportedProblems.size).sum
       val sections =
         counted("Scala source", "", "s", s.size) ++
@@ -100,7 +100,7 @@ private class MAnalysis(val stamps: Stamps, val apis: APIs, val relations: Relat
 
       val classesInSrcs = sources.flatMap(relations.classNames)
       val newAPIs = apis.removeInternal(classesInSrcs).filterExt(keep(_ usesExternal _))
-      val newStamps = stamps.filter(keep(_ produced _), sources, keep(_ usesBinary _))
+      val newStamps = stamps.filter(keep(_ produced _), sources, keep(_ usesLibrary _))
       val newInfos = infos -- sources
       new MAnalysis(newStamps, newAPIs, newRelations, newInfos, compilations)
     }

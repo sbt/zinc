@@ -253,7 +253,7 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
       val modifiedClasses = classNames(modifiedSrcs)
       val invalidatedClasses = removedClasses ++ dependentOnRemovedClasses ++ modifiedClasses
       val byProduct = changes.removedProducts.flatMap(previous.produced)
-      val byBinaryDep = changes.binaryDeps.flatMap(previous.usesBinary)
+      val byBinaryDep = changes.binaryDeps.flatMap(previous.usesLibrary)
       val classToSrc = new ClassToSourceMapper(previous, previous)
       val byExtSrcDep = {
         val classNames = invalidateByAllExternal(previous, changes.external, classToSrc.isDefinedInScalaSrc) //changes.external.modified.flatMap(previous.usesExternal) // ++ scopeInvalidations
