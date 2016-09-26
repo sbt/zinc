@@ -64,7 +64,7 @@ object TestCaseGenerators {
   def genStamps(rel: Relations): Gen[Stamps] = {
     val prod = rel.allProducts.toList
     val src = rel.allSources.toList
-    val bin = rel.allBinaryDeps.toList
+    val bin = rel.allLibraryDeps.toList
     for {
       prodStamps <- listOfN(prod.length, genStamp)
       srcStamps <- listOfN(src.length, genStamp)
