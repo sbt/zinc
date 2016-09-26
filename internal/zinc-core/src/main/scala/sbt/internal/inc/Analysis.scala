@@ -136,7 +136,7 @@ private class MAnalysis(val stamps: Stamps, val apis: APIs, val relations: Relat
     }
 
     val newAPIs = externalDeps.foldLeft(newInternalAPIs) {
-      case (tmpApis, ed: ExternalDependency) => tmpApis.markExternalAPI(ed.targetBinaryClassName, ed.targetClass)
+      case (tmpApis, ed: ExternalDependency) => tmpApis.markExternalAPI(ed.targetProductClassName, ed.targetClass)
     }
 
     val allProducts = nonLocalProducts.map(_.classFile) ++ localProducts.map(_.classFile)

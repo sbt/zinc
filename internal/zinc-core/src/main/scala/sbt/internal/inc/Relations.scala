@@ -126,7 +126,7 @@ trait Relations {
   def libraryDep: Relation[File, File]
 
   /**
-   * The relation between source and binary class names.
+   * The relation between source and product class names.
    *
    * Only non-local classes, objects and traits are tracked by this relation.
    * For classes, nested objects and traits it's 1-1 relation. For top level objects it's 1-2 relation. E.g., for
@@ -139,7 +139,7 @@ trait Relations {
    *
    * This reflects Scala's compiler behavior of generating two class files per top level object declaration.
    */
-  def binaryClassName: Relation[String, String]
+  def productClassName: Relation[String, String]
 
   /** The dependency relation between internal classes.*/
   def internalClassDep: Relation[String, String]
@@ -268,7 +268,7 @@ object Relations {
       SSRelationDescriptor("local external inheritance dependencies", _.localInheritance.external),
       FSRelationDescriptor("class names", _.classes),
       SSRelationDescriptor("used names", _.names),
-      SSRelationDescriptor("binary class names", _.binaryClassName)
+      SSRelationDescriptor("product class names", _.productClassName)
     )
   }
   /**
@@ -277,12 +277,12 @@ object Relations {
    */
   def construct(nameHashing: Boolean, relations: List[Relation[_, _]]) =
     relations match {
-      case p :: bin :: mri :: mre :: ii :: ie :: lii :: lie :: cn :: un :: bcn :: Nil =>
+      case p :: bin :: mri :: mre :: ii :: ie :: lii :: lie :: cn :: un :: pcn :: Nil =>
         val srcProd = p.asInstanceOf[Relation[File, File]]
         val libraryDep = bin.asInstanceOf[Relation[File, File]]
         val classes = cn.asInstanceOf[Relation[File, String]]
         val names = un.asInstanceOf[Relation[String, String]]
-        val binaryClassName = bcn.asInstanceOf[Relation[String, String]]
+        val productClassName = pcn.asInstanceOf[Relation[String, String]]
 
         assert(nameHashing, "Turning off name hashing is not supported anymore.")
 
@@ -296,7 +296,7 @@ object Relations {
           DependencyByInheritance -> ie.asInstanceOf[Relation[String, String]],
           LocalDependencyByInheritance -> lie.asInstanceOf[Relation[String, String]]
         ))
-        Relations.make(srcProd, libraryDep, internal, external, classes, names, binaryClassName)
+        Relations.make(srcProd, libraryDep, internal, external, classes, names, productClassName)
       case _ => throw new java.io.IOException(s"Expected to read ${allRelations.length} relations but read ${relations.length}.")
     }
 
@@ -336,9 +336,9 @@ object Relations {
   private[inc] def make(srcProd: Relation[File, File], libraryDep: Relation[File, File],
     internalDependencies: InternalDependencies, externalDependencies: ExternalDependencies,
     classes: Relation[File, String], names: Relation[String, String],
-    binaryClassName: Relation[String, String]): Relations =
+    productClassName: Relation[String, String]): Relations =
     new MRelationsNameHashing(srcProd, libraryDep, internalDependencies = internalDependencies,
-      externalDependencies = externalDependencies, classes, names, binaryClassName)
+      externalDependencies = externalDependencies, classes, names, productClassName)
   private[inc] def makeClassDependencies(internal: Relation[String, String], external: Relation[String, String]): ClassDependencies =
     new ClassDependencies(internal, external)
 }
@@ -398,7 +398,7 @@ private case class ExternalDependencies(dependencies: Map[DependencyContext, Rel
   def +(dep: ExternalDependency): ExternalDependencies =
     ExternalDependencies(dependencies.updated(
       dep.context,
-      dependencies.getOrElse(dep.context, Relation.empty) + (dep.sourceClassName, dep.targetBinaryClassName)
+      dependencies.getOrElse(dep.context, Relation.empty) + (dep.sourceClassName, dep.targetProductClassName)
     ))
 
   /**
@@ -476,7 +476,7 @@ private[inc] case class SSRelationDescriptor(header: String, selectCorresponding
  * `classes` is a relation between a source file and its generated fully-qualified class names.
  */
 private abstract class MRelationsCommon(val srcProd: Relation[File, File], val libraryDep: Relation[File, File],
-  val classes: Relation[File, String], val binaryClassName: Relation[String, String]) extends Relations {
+  val classes: Relation[File, String], val productClassName: Relation[String, String]) extends Relations {
   def allSources: collection.Set[File] = srcProd._1s
 
   def allProducts: collection.Set[File] = srcProd._2s
@@ -525,8 +525,8 @@ private class MRelationsNameHashing(
   val externalDependencies: ExternalDependencies,
   classes: Relation[File, String],
   val names: Relation[String, String],
-  binaryClassName: Relation[String, String]
-) extends MRelationsCommon(srcProd, libraryDep, classes, binaryClassName) {
+  productClassName: Relation[String, String]
+) extends MRelationsCommon(srcProd, libraryDep, classes, productClassName) {
 
   val nameHashing: Boolean = true
 
@@ -536,33 +536,33 @@ private class MRelationsNameHashing(
   def addProducts(src: File, products: Iterable[File]): Relations =
     new MRelationsNameHashing(srcProd ++ products.map(p => (src, p)), libraryDep,
       internalDependencies = internalDependencies, externalDependencies = externalDependencies,
-      classes = classes, names = names, binaryClassName = binaryClassName)
+      classes = classes, names = names, productClassName = productClassName)
 
   private[inc] def addClasses(src: File, classes: Iterable[(String, String)]): Relations =
     new MRelationsNameHashing(srcProd = srcProd, libraryDep,
       internalDependencies = internalDependencies, externalDependencies = externalDependencies,
       this.classes ++ classes.map(c => (src, c._1)), names = names,
-      binaryClassName = this.binaryClassName ++ classes)
+      productClassName = this.productClassName ++ classes)
 
   def addInternalSrcDeps(src: File, deps: Iterable[InternalDependency]) =
     new MRelationsNameHashing(srcProd, libraryDep, internalDependencies = internalDependencies ++ deps,
       externalDependencies = externalDependencies, classes, names,
-      binaryClassName = binaryClassName)
+      productClassName = productClassName)
 
   def addExternalDeps(src: File, deps: Iterable[ExternalDependency]) =
     new MRelationsNameHashing(srcProd, libraryDep, internalDependencies = internalDependencies,
       externalDependencies = externalDependencies ++ deps, classes, names,
-      binaryClassName = binaryClassName)
+      productClassName = productClassName)
 
   def addLibraryDeps(src: File, deps: Iterable[(File, String, Stamp)]) =
     new MRelationsNameHashing(srcProd, libraryDep + (src, deps.map(_._1)), internalDependencies = internalDependencies,
       externalDependencies = externalDependencies, classes, names,
-      binaryClassName = binaryClassName)
+      productClassName = productClassName)
 
   override private[inc] def addUsedName(className: String, name: String): Relations =
     new MRelationsNameHashing(srcProd, libraryDep, internalDependencies = internalDependencies,
       externalDependencies = externalDependencies, classes, names = names + (className, name),
-      binaryClassName = binaryClassName)
+      productClassName = productClassName)
 
   override def inheritance: ClassDependencies =
     new ClassDependencies(internalDependencies.dependencies.getOrElse(DependencyByInheritance, Relation.empty), externalDependencies.dependencies.getOrElse(DependencyByInheritance, Relation.empty))
@@ -580,7 +580,7 @@ private class MRelationsNameHashing(
         "with different values of `nameHashing` flag.")
     new MRelationsNameHashing(srcProd ++ o.srcProd, libraryDep ++ o.libraryDep,
       internalDependencies = internalDependencies ++ o.internalDependencies, externalDependencies = externalDependencies ++ o.externalDependencies,
-      classes ++ o.classes, names = names ++ o.names, binaryClassName = binaryClassName ++ o.binaryClassName)
+      classes ++ o.classes, names = names ++ o.names, productClassName = productClassName ++ o.productClassName)
   }
   def --(sources: Iterable[File]) = {
     val classesInSources = sources.flatMap(classNames)
@@ -588,7 +588,7 @@ private class MRelationsNameHashing(
       internalDependencies = internalDependencies -- classesInSources,
       externalDependencies = externalDependencies -- classesInSources, classes -- sources,
       names = names -- classesInSources,
-      binaryClassName = binaryClassName -- classesInSources)
+      productClassName = productClassName -- classesInSources)
   }
 
   override def equals(other: Any) = other match {
@@ -609,8 +609,8 @@ private class MRelationsNameHashing(
 	  |  ext deps: %s
 	  |  class names: %s
 	  |  used names: %s
-    |  binary class names: %s
-	  """.trim.stripMargin.format(List(srcProd, libraryDep, internalClassDep, externalClassDep, classes, names, binaryClassName) map relation_s: _*)
+    |  product class names: %s
+	  """.trim.stripMargin.format(List(srcProd, libraryDep, internalClassDep, externalClassDep, classes, names, productClassName) map relation_s: _*)
   )
 
 }
