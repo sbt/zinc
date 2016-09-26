@@ -53,7 +53,7 @@ object IncrementalCompile {
       val previous = previous0 match { case a: Analysis => a }
       val current = Stamps.initial(Stamp.lastModified, Stamp.hash, Stamp.lastModified)
       val internalBinaryToSourceClassName = (binaryClassName: String) =>
-        previous.relations.binaryClassName.reverse(binaryClassName).headOption
+        previous.relations.productClassName.reverse(binaryClassName).headOption
       val internalSourceToClassNamesMap: File => Set[String] = (f: File) => previous.relations.classNames(f)
       val externalAPI = getExternalAPI(lookup)
       try {
@@ -72,7 +72,7 @@ object IncrementalCompile {
     (file: File, binaryClassName: String) =>
       lookup.lookupAnalysis(binaryClassName) flatMap {
         case (analysis: Analysis) =>
-          val sourceClassName = analysis.relations.binaryClassName.reverse(binaryClassName).headOption
+          val sourceClassName = analysis.relations.productClassName.reverse(binaryClassName).headOption
           sourceClassName flatMap analysis.apis.internal.get
       }
 }

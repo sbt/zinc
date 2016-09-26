@@ -17,7 +17,7 @@ class LookupImpl(compileConfiguration: CompileConfiguration) extends Lookup {
 
   override def lookupAnalysis(binaryClassName: String): Option[CompileAnalysis] =
     analyses collectFirst {
-      case a if a.relations.binaryClassName._2s contains binaryClassName => a
+      case a if a.relations.productClassName._2s contains binaryClassName => a
     }
   override def lookupOnClasspath(binaryClassName: String): Option[File] =
     entry(binaryClassName)

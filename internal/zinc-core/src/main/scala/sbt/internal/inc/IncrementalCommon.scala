@@ -382,7 +382,7 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
           for {
             analysis0 <- lookup.lookupAnalysis(binaryClassName)
             analysis = analysis0 match { case a: Analysis => a }
-            className <- analysis.relations.binaryClassName.reverse(binaryClassName).headOption
+            className <- analysis.relations.productClassName.reverse(binaryClassName).headOption
           } yield analysis.apis.internalAPI(className)
         )
       }
