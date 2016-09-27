@@ -48,14 +48,6 @@ object ClassfileManager {
     WrappedClassfileManager(internal, external)
   }
 
-  val noop: () => ClassFileManager = () => new ClassFileManager {
-    def delete(classes: Array[File]): Unit = ()
-
-    def generated(classes: Array[File]): Unit = ()
-
-    def complete(success: Boolean): Unit = ()
-  }
-
   /** Constructs a minimal ClassfileManager implementation that immediately deletes class files when requested. */
   val deleteImmediately: () => ClassFileManager = () => new ClassFileManager {
     def delete(classes: Array[File]): Unit = IO.deleteFilesEmptyDirs(classes)
