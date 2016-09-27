@@ -93,10 +93,6 @@ final class AnalyzingJavaCompiler private[sbt] (
           case (from: Class[_], to: Class[_]) => (from.getName, to.getName)
         }
       }
-      // peiyu test code
-      if (Random.nextDouble() < 1.0) {
-        throw new RuntimeException("Inject exception to simulate java analysis error")
-      }
       // Runs the analysis portion of Javac.
       timed("Java analysis", log) {
         for ((classesFinder, oldClasses, srcs) <- memo) {
