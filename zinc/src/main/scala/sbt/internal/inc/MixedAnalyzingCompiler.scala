@@ -3,14 +3,15 @@ package internal
 package inc
 
 import java.io.File
-import java.lang.ref.{ SoftReference, Reference }
+import java.lang.ref.{ Reference, SoftReference }
 
 import inc.javac.AnalyzingJavaCompiler
-import xsbti.{ AnalysisCallback => XAnalysisCallback, Reporter }
+import xsbti.{ Reporter, AnalysisCallback => XAnalysisCallback }
 import xsbti.compile.CompileOrder._
 import xsbti.compile._
 import sbt.io.IO
-import sbt.util.{ Logger, InterfaceUtil }
+import sbt.util.{ InterfaceUtil, Logger }
+import xsbti.compile.ExternalHooks.ClassFileManager
 
 /** An instance of an analyzing compiler that can run both javac + scalac. */
 final class MixedAnalyzingCompiler(
@@ -33,7 +34,7 @@ final class MixedAnalyzingCompiler(
    * @param changes  A list of dependency changes.
    * @param callback  The callback where we report dependency issues.
    */
-  def compile(include: Set[File], changes: DependencyChanges, callback: XAnalysisCallback): Unit = {
+  def compile(include: Set[File], changes: DependencyChanges, callback: XAnalysisCallback, classfileManager: ClassFileManager): Unit = {
     val outputDirs = outputDirectories(output)
     outputDirs foreach (d => if (!d.getPath.endsWith(".jar")) IO.createDirectory(d))
     val incSrc = sources.filter(include)
@@ -53,7 +54,8 @@ final class MixedAnalyzingCompiler(
       if (javaSrcs.nonEmpty) {
         // Runs the analysis portion of Javac.
         timed("Java compile + analysis", log) {
-          javac.compile(javaSrcs, options.javacOptions.toArray[String], output, callback, reporter, log, progress)
+          javac.compile(javaSrcs, options.javacOptions.toArray[String], output, callback,
+            classfileManager, reporter, log, progress)
         }
       }
     // TODO - Maybe on "Mixed" we should try to compile both Scala + Java.

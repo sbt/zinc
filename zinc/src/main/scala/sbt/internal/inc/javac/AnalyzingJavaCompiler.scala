@@ -11,7 +11,10 @@ import sbt.internal.inc.classpath.ClasspathUtilities
 import xsbti.compile._
 import xsbti.{ AnalysisCallback, Reporter }
 import sbt.io.PathFinder
+
+import scala.util.Random
 import sbt.util.Logger
+import xsbti.compile.ExternalHooks.ClassFileManager
 
 /**
  * This is a java compiler which will also report any discovered source dependencies/apis out via
@@ -39,7 +42,8 @@ final class AnalyzingJavaCompiler private[sbt] (
    * @param log       A place where we can log debugging/error messages.
    * @param progressOpt An optional compilation progress reporter.  Where we can report back what files we're currently compiling.
    */
-  def compile(sources: Seq[File], options: Seq[String], output: Output, callback: AnalysisCallback, reporter: Reporter, log: Logger, progressOpt: Option[CompileProgress]): Unit = {
+  def compile(sources: Seq[File], options: Seq[String], output: Output, callback: AnalysisCallback,
+    classfileManager: ClassFileManager, reporter: Reporter, log: Logger, progressOpt: Option[CompileProgress]): Unit = {
     if (sources.nonEmpty) {
       val absClasspath = classpath.map(_.getAbsoluteFile)
       @annotation.tailrec def ancestor(f1: File, f2: File): Boolean =
@@ -67,7 +71,11 @@ final class AnalyzingJavaCompiler private[sbt] (
       // TODO - Perhaps we just record task 0/2 here
       timed("Java compilation", log) {
         val args = JavaCompiler.commandArguments(absClasspath, output, options, scalaInstance, classpathOptions)
-        val success = javac.run({ sources sortBy { _.getAbsolutePath } }.toArray, args.toArray, reporter, log)
+        val success = javac.run({
+          sources sortBy {
+            _.getAbsolutePath
+          }
+        }.toArray, args.toArray, classfileManager, reporter, log)
         if (!success) {
           // TODO - Will the reporter have problems from Scalac?  It appears like it does not, only from the most recent run.
           // This is because the incremental compiler will not run javac if scalac fails.
@@ -83,6 +91,10 @@ final class AnalyzingJavaCompiler private[sbt] (
         inherits.map {
           case (from: Class[_], to: Class[_]) => (from.getName, to.getName)
         }
+      }
+      // peiyu test code
+      if (Random.nextDouble() < 1.0) {
+        throw new RuntimeException("Inject exception to simulate java analysis error")
       }
       // Runs the analysis portion of Javac.
       timed("Java analysis", log) {

@@ -4,7 +4,9 @@ package inc
 
 import java.io.File
 
+import scala.collection.JavaConversions._
 import xsbti.api.{ AnalyzedClass, Compilation }
+import xsbti.compile.ExternalHooks.ClassFileManager
 import xsbti.compile.{ CompileAnalysis, DependencyChanges, IncOptions, IncOptionsUtil }
 
 import scala.annotation.tailrec
@@ -23,7 +25,7 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
   // TODO: full external name changes, scopeInvalidations
   @tailrec final def cycle(invalidatedRaw: Set[String], modifiedSrcs: Set[File], allSources: Set[File],
     binaryChanges: DependencyChanges, lookup: ExternalLookup, previous: Analysis,
-    doCompile: (Set[File], DependencyChanges) => Analysis, classfileManager: ClassfileManager,
+    doCompile: (Set[File], DependencyChanges) => Analysis, classfileManager: ClassFileManager,
     cycleNum: Int): Analysis =
     if (invalidatedRaw.isEmpty && modifiedSrcs.isEmpty)
       previous
@@ -60,14 +62,14 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
   private[this] def recompileClasses(classes: Set[String], modifiedSrcs: Set[File], allSources: Set[File],
     binaryChanges: DependencyChanges, previous: Analysis,
     doCompile: (Set[File], DependencyChanges) => Analysis,
-    classfileManager: ClassfileManager): Analysis = {
+    classfileManager: ClassFileManager): Analysis = {
     val invalidatedSources = classes.flatMap(previous.relations.definesClass) ++ modifiedSrcs
     val invalidatedSourcesForCompilation = expand(invalidatedSources, allSources)
     val pruned = Incremental.prune(invalidatedSourcesForCompilation, previous, classfileManager)
     debug("********* Pruned: \n" + pruned.relations + "\n*********")
 
     val fresh = doCompile(invalidatedSourcesForCompilation, binaryChanges)
-    classfileManager.generated(fresh.relations.allProducts)
+    classfileManager.generated(fresh.relations.allProducts.toArray)
     debug("********* Fresh: \n" + fresh.relations + "\n*********")
     val merged = pruned ++ fresh //.copy(relations = pruned.relations ++ fresh.relations, apis = pruned.apis ++ fresh.apis)
     debug("********* Merged: \n" + merged.relations + "\n*********")

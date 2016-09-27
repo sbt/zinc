@@ -6,15 +6,17 @@ package internal
 package inc
 
 import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
-import xsbt.api.{ NameHashing, APIUtil, HashAPI }
+import xsbt.api.{ APIUtil, HashAPI, NameHashing }
 import xsbti.api._
-import xsbti.compile.{ DependencyChanges, Output, SingleOutput, MultipleOutput, CompileAnalysis, IncOptions }
-import xsbti.{ Position, Problem, Severity, SafeLazy }
+import xsbti.compile.{ CompileAnalysis, DependencyChanges, IncOptions, MultipleOutput, Output, SingleOutput }
+import xsbti.{ Position, Problem, SafeLazy, Severity }
 import sbt.util.Logger
 import sbt.util.Logger.{ m2o, problem }
 import java.io.File
+
 import xsbti.api.DependencyContext
 import xsbti.api.DependencyContext.{ DependencyByInheritance, DependencyByMemberRef }
+import xsbti.compile.ExternalHooks.ClassFileManager
 
 /**
  * Helper methods for running incremental compilation.  All this is responsible for is
@@ -44,7 +46,7 @@ object IncrementalCompile {
    *
    */
   def apply(sources: Set[File], lookup: Lookup,
-    compile: (Set[File], DependencyChanges, xsbti.AnalysisCallback) => Unit,
+    compile: (Set[File], DependencyChanges, xsbti.AnalysisCallback, ClassFileManager) => Unit,
     previous0: CompileAnalysis,
     output: Output, log: Logger,
     options: IncOptions): (Boolean, Analysis) =
@@ -56,8 +58,8 @@ object IncrementalCompile {
       val internalSourceToClassNamesMap: File => Set[String] = (f: File) => previous.relations.classNames(f)
       val externalAPI = getExternalAPI(lookup)
       try {
-        Incremental.compile(sources, lookup, previous, current,
-          doCompile(compile, internalBinaryToSourceClassName, internalSourceToClassNamesMap, externalAPI, current, output, options),
+        Incremental.compile(sources, lookup, previous, current, compile,
+          new AnalysisCallback(internalBinaryToSourceClassName, internalSourceToClassNamesMap, externalAPI, current, output, options),
           log, options)
       } catch {
         case e: xsbti.CompileCancelled =>
@@ -66,17 +68,6 @@ object IncrementalCompile {
           // and we can report back as there was no change (false) and return a previous Analysis which is still up-to-date
           (false, previous)
       }
-    }
-  def doCompile(
-    compile: (Set[File], DependencyChanges, xsbti.AnalysisCallback) => Unit,
-    internalBinaryToSourceClassName: String => Option[String],
-    internalSourceToClassNamesMap: File => Set[String],
-    externalAPI: (File, String) => Option[AnalyzedClass], current: ReadStamps, output: Output, options: IncOptions
-  ) =
-    (srcs: Set[File], changes: DependencyChanges) => {
-      val callback = new AnalysisCallback(internalBinaryToSourceClassName, internalSourceToClassNamesMap, externalAPI, current, output, options)
-      compile(srcs, changes, callback)
-      callback.get
     }
   def getExternalAPI(lookup: Lookup): (File, String) => Option[AnalyzedClass] =
     (file: File, binaryClassName: String) =>

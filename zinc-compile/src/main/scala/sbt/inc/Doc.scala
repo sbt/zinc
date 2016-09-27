@@ -2,16 +2,18 @@ package sbt
 package inc
 
 import java.io.{ File, PrintWriter }
+
 import sbt.io.syntax._
 import sbt.io.IO
 import sbt.util.Logger
 import xsbti.Reporter
 import xsbti.compile.JavaTools
-import sbt.internal.inc.javac.{ JavaTools, JavaCompilerArguments }
+import sbt.internal.inc.javac.{ JavaCompilerArguments, JavaTools }
 import sbt.internal.util.Tracked.{ inputChangedWithJson, outputChangedWithJson }
-import sbt.internal.util.{ FileInfo, FilesInfo, HashFileInfo, HNil, ModifiedFileInfo, PlainFileInfo }
+import sbt.internal.util.{ FileInfo, FilesInfo, HNil, HashFileInfo, ModifiedFileInfo, PlainFileInfo }
 import sbt.internal.util.FilesInfo.{ exists, hash, lastModified }
 import sbt.serialization._
+import xsbti.compile.ExternalHooks.ClassFileManager
 
 object Doc {
   // def scaladoc(label: String, cache: File, compiler: AnalyzingCompiler): RawCompileLike.Gen =
@@ -20,28 +22,31 @@ object Doc {
   //   RawCompileLike.cached(cache, fileInputOptions, RawCompileLike.prepare(label + " Scala API documentation", compiler.doc))
   def cachedJavadoc(label: String, cache: File, doc: JavaTools): JavaDoc =
     cached(cache, prepare(label + " Java API documentation", new JavaDoc {
-      def run(sources: List[File], classpath: List[File], outputDirectory: File, options: List[String], log: Logger, reporter: Reporter): Unit = {
+      def run(sources: List[File], classpath: List[File], outputDirectory: File, options: List[String],
+        classFileManager: ClassFileManager, log: Logger, reporter: Reporter): Unit = {
         doc.javadoc.run(
           (sources filter javaSourcesOnly).toArray,
           JavaCompilerArguments(sources, classpath, Some(outputDirectory), options).toArray,
-          reporter, log
+          classFileManager, reporter, log
         )
         ()
       }
     }))
   private[sbt] def prepare(description: String, doDoc: JavaDoc): JavaDoc =
     new JavaDoc {
-      def run(sources: List[File], classpath: List[File], outputDirectory: File, options: List[String], log: Logger, reporter: Reporter): Unit =
+      def run(sources: List[File], classpath: List[File], outputDirectory: File, options: List[String],
+        classFileManager: ClassFileManager, log: Logger, reporter: Reporter): Unit =
         if (sources.isEmpty) log.info("No sources available, skipping " + description + "...")
         else {
           log.info(description.capitalize + " to " + outputDirectory.absolutePath + "...")
-          doDoc.run(sources, classpath, outputDirectory, options, log, reporter)
+          doDoc.run(sources, classpath, outputDirectory, options, null, log, reporter)
           log.info(description.capitalize + " successful.")
         }
     }
   private[sbt] def cached(cache: File, doDoc: JavaDoc): JavaDoc =
     new JavaDoc {
-      def run(sources: List[File], classpath: List[File], outputDirectory: File, options: List[String], log: Logger, reporter: Reporter): Unit =
+      def run(sources: List[File], classpath: List[File], outputDirectory: File, options: List[String],
+        classFileManager: ClassFileManager, log: Logger, reporter: Reporter): Unit =
         {
           val inputs = Inputs(filesInfoToList(hash(sources.toSet)), filesInfoToList(lastModified(classpath.toSet)), classpath, outputDirectory, options)
           val cachedDoc = inputChangedWithJson(cache / "inputs") { (inChanged, in: Inputs) =>
@@ -49,7 +54,7 @@ object Doc {
               if (inChanged || outChanged) {
                 IO.delete(outputDirectory)
                 IO.createDirectory(outputDirectory)
-                doDoc.run(sources, classpath, outputDirectory, options, log, reporter)
+                doDoc.run(sources, classpath, outputDirectory, options, null, log, reporter)
               } else log.debug("Doc uptodate: " + outputDirectory.getAbsolutePath)
             }
           }
@@ -66,6 +71,7 @@ object Doc {
   private[sbt] val javaSourcesOnly: File => Boolean = _.getName.endsWith(".java")
 
   trait JavaDoc {
-    def run(sources: List[File], classpath: List[File], outputDirectory: File, options: List[String], log: Logger, reporter: Reporter): Unit
+    def run(sources: List[File], classpath: List[File], outputDirectory: File, options: List[String],
+      classFileManager: ClassFileManager, log: Logger, reporter: Reporter): Unit
   }
 }

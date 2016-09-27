@@ -7,8 +7,8 @@ import java.io.File
 import java.net.URLClassLoader
 
 import sbt._
-import xsbt.api.{ SameAPI, DefaultShowAPI }
-import xsbti.{ Severity, Problem }
+import xsbt.api.{ DefaultShowAPI, SameAPI }
+import xsbti.{ Problem, Severity }
 import xsbti.compile.{ JavaTools => XJavaTools }
 import sbt.io.IO
 import sbt.util.Logger
@@ -153,14 +153,14 @@ class JavaCompilerSpec extends UnitSpec {
   def compile(c: XJavaTools, sources: Seq[File], args: Seq[String]): (Boolean, Array[Problem]) = {
     val log = Logger.Null
     val reporter = new LoggerReporter(10, log)
-    val result = c.javac.run(sources.toArray, args.toArray, reporter, log)
+    val result = c.javac.run(sources.toArray, args.toArray, null, reporter, log)
     (result, reporter.problems)
   }
 
   def doc(c: XJavaTools, sources: Seq[File], args: Seq[String]): (Boolean, Array[Problem]) = {
     val log = Logger.Null
     val reporter = new LoggerReporter(10, log)
-    val result = c.javadoc.run(sources.toArray, args.toArray, reporter, log)
+    val result = c.javadoc.run(sources.toArray, args.toArray, null, reporter, log)
     (result, reporter.problems)
   }
 
