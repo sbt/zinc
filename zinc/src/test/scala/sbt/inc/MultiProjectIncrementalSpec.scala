@@ -81,7 +81,7 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       // Actual test
       val knownSampleGoodFile = sub1Directory / "src" / "Good.scala"
       IO.copyFile(knownSampleGoodFile0, knownSampleGoodFile, false)
-      val sources3 = Array(knownSampleGoodFile)
+      val sources3 = Array(knownSampleGoodFile, dependerFile)
       val prev = fileStore.get match {
         case Some((a, s)) => new PreviousResult(Maybe.just(a), Maybe.just(s))
         case _            => sys.error("previous is not found")
