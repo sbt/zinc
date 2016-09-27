@@ -4,7 +4,6 @@ package inc
 
 import java.io.File
 
-import scala.collection.JavaConversions._
 import xsbti.api.{ AnalyzedClass, Compilation }
 import xsbti.compile.ExternalHooks.ClassFileManager
 import xsbti.compile.{ CompileAnalysis, DependencyChanges, IncOptions, IncOptionsUtil }

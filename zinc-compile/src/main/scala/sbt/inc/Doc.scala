@@ -8,7 +8,7 @@ import sbt.io.IO
 import sbt.util.Logger
 import xsbti.Reporter
 import xsbti.compile.JavaTools
-import sbt.internal.inc.javac.{ JavaCompilerArguments, JavaTools }
+import sbt.internal.inc.javac.JavaCompilerArguments
 import sbt.internal.util.Tracked.{ inputChangedWithJson, outputChangedWithJson }
 import sbt.internal.util.{ FileInfo, FilesInfo, HNil, HashFileInfo, ModifiedFileInfo, PlainFileInfo }
 import sbt.internal.util.FilesInfo.{ exists, hash, lastModified }

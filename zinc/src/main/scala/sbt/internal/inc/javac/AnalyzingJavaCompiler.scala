@@ -38,6 +38,7 @@ final class AnalyzingJavaCompiler private[sbt] (
    * @param options  The options for the Java compiler
    * @param output   The output configuration for this compiler
    * @param callback  A callback to report discovered source/binary dependencies on.
+   * @param classfileManager The component that manages generated class files.
    * @param reporter  A reporter where semantic compiler failures can be reported.
    * @param log       A place where we can log debugging/error messages.
    * @param progressOpt An optional compilation progress reporter.  Where we can report back what files we're currently compiling.

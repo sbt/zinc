@@ -13,7 +13,7 @@ import sbt.internal.util.LoggerWriter
 import sbt.util.{ Level, Logger }
 import xsbti.compile.ExternalHooks.ClassFileManager
 import xsbti.{ Reporter, Logger => XLogger }
-import xsbti.compile.{ ClasspathOptions, ScalaInstance, JavaCompiler => XJavaCompiler, Javadoc => XJavadoc }
+import xsbti.compile.{ JavaCompiler => XJavaCompiler, Javadoc => XJavadoc }
 
 /**
  * Helper methods for trying to run the java toolchain out of our own classloaders.

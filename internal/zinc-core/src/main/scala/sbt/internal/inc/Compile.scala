@@ -33,7 +33,7 @@ object IncrementalCompile {
    *              and Analysis object instances by a binary class name.
    * @param compile
    *                The mechanism to run a single 'step' of compile, for ALL source files involved.
-   * @param previous
+   * @param previous0
    *                 The previous dependency Analysis (or an empty one).
    * @param output
    *               The configured output directory/directory mapping for source files.

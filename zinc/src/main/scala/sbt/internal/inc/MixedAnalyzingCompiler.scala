@@ -33,6 +33,7 @@ final class MixedAnalyzingCompiler(
    * @param include  The files to compile right now
    * @param changes  A list of dependency changes.
    * @param callback  The callback where we report dependency issues.
+   * @param classfileManager The component that manages generated class files.
    */
   def compile(include: Set[File], changes: DependencyChanges, callback: XAnalysisCallback, classfileManager: ClassFileManager): Unit = {
     val outputDirs = outputDirectories(output)

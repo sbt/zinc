@@ -7,7 +7,7 @@ import java.io.File
 import java.net.URLClassLoader
 
 import sbt._
-import xsbt.api.{ DefaultShowAPI, SameAPI }
+import xsbt.api.{ SameAPI }
 import xsbti.{ Problem, Severity }
 import xsbti.compile.{ JavaTools => XJavaTools }
 import sbt.io.IO

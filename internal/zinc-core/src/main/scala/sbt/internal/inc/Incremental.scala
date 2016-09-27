@@ -7,12 +7,9 @@ package inc
 
 import java.io.File
 
-import scala.annotation.tailrec
-import scala.collection.JavaConversions._
 import sbt.util.{ Level, Logger }
-import xsbti.api.AnalyzedClass
 import xsbti.compile.ExternalHooks.ClassFileManager
-import xsbti.compile.{ CompileAnalysis, DependencyChanges, IncOptions, Output }
+import xsbti.compile.{ CompileAnalysis, DependencyChanges, IncOptions }
 
 /**
  * Helper class to run incremental compilation algorithm.
@@ -40,8 +37,10 @@ object Incremental {
    * @param lookup
    *              An instance of the `Lookup` that implements looking up both classpath elements
    *              and Analysis object instances by a binary class name.
+   * @param previous0 The previous dependency Analysis (or an empty one).
    * @param current  A mechanism for generating stamps (timestamps, hashes, etc).
-   * @param doCompile  The function which can run one level of compile.
+   * @param compile  The function which can run one level of compile.
+   * @param callback The callback where we report dependency issues.
    * @param log  The log where we write debugging information
    * @param options  Incremental compilation options
    * @param equivS  The means of testing whether two "Stamps" are the same.
