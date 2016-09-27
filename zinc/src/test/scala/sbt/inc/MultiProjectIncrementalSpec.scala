@@ -52,13 +52,37 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
           case _ => None
         }, Locate.definesClass
       )
+      val skipBinaryChangeDetection = false
       val incOptions = IncOptionsUtil.defaultIncOptions().withApiDebug(true)
+        .withExternalHooks(new ExternalHooks() {
+          def externalLookup(): ExternalHooks.Lookup = new ExternalLookup {
+            override def changedSources(previousAnalysis: Analysis): Option[Changes[File]] = None
+            override def changedBinaries(previousAnalysis: Analysis): Option[Set[File]] =
+              if (skipBinaryChangeDetection) Some(Set.empty)
+              else None
+            override def removedProducts(previousAnalysis: Analysis): Option[Set[File]] = None
+            override def shouldDoIncrementalCompilation(changedClasses: Set[String], analysis: Analysis): Boolean = true
+          }
+          def externalClassFileManager(): ExternalHooks.ClassFileManager = {
+            null
+          }
+        })
+
       val reporter = new LoggerReporter(maxErrors, log, identity)
       val setup = compiler.setup(lookup, skip = false, cacheFile, CompilerCache.fresh, incOptions, reporter, None, Array())
       val in = compiler.inputs(cp, sources, targetDir, Array(), Array(), maxErrors, Array(),
         CompileOrder.Mixed, cs, setup, prev0)
-      val result = compiler.compile(in, log)
+      val result0 = compiler.compile(in, log)
+      fileStore.set(result0.analysis match { case a: Analysis => a }, result0.setup)
+      val prev1 = fileStore.get match {
+        case Some((a, s)) => new PreviousResult(Maybe.just(a), Maybe.just(s))
+        case _            => sys.error("previous is not found")
+      }
+      val in1 = compiler.inputs(cp, sources, targetDir, Array(), Array(), maxErrors, Array(),
+        CompileOrder.Mixed, cs, setup, prev1)
+      val result = compiler.compile(in1, log)
       fileStore.set(result.analysis match { case a: Analysis => a }, result.setup)
+      assert(!result.hasModified)
 
       // Second subproject
       val ext1File = sub2Directory / "src" / "Ext1.scala"
