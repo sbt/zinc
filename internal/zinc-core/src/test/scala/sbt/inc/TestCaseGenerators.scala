@@ -166,10 +166,11 @@ object TestCaseGenerators {
   def genRelationsNameHashing: Gen[Relations] = for {
     numSrcs <- choose(0, maxSources)
     srcs <- listOfN(numSrcs, genFile)
-    binaryClassName <- genStringStringRelation(numSrcs)
+    productClassName <- genStringStringRelation(numSrcs)
+    libraryClassName <- genStringRelation(srcs)
     srcProd <- genFileRelation(srcs)
-    binaryDep <- genFileRelation(srcs)
-    classNames = binaryClassName._1s.toList
+    libraryDep <- genFileRelation(srcs)
+    classNames = productClassName._1s.toList
     memberRef <- genRClassDependencies(classNames)
     inheritance <- genSubRClassDependencies(memberRef)
     localInheritance <- genSubRClassDependencies(memberRef)
@@ -185,7 +186,7 @@ object TestCaseGenerators {
       DependencyByInheritance -> inheritance.external,
       LocalDependencyByInheritance -> localInheritance.external
     ))
-  } yield Relations.make(srcProd, binaryDep, internal, external, classes, names, binaryClassName)
+  } yield Relations.make(srcProd, libraryDep, libraryClassName, internal, external, classes, names, productClassName)
 
   def genAnalysis: Gen[Analysis] = for {
     rels <- genRelationsNameHashing
