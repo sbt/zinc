@@ -169,6 +169,7 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
     {
       val previousAnalysis = previousAnalysis0 match { case a: Analysis => a }
       val previous = previousAnalysis.stamps
+      val previousRelations = previousAnalysis.relations
       val previousAPIs = previousAnalysis.apis
 
       val srcChanges = lookup.changedSources(previousAnalysis).getOrElse {
@@ -181,7 +182,7 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
       }
 
       val binaryDepChanges = lookup.changedBinaries(previousAnalysis).getOrElse {
-        previous.allBinaries.filter(externalBinaryModified(lookup, previous, current)).toSet
+        previous.allBinaries.filter(externalBinaryModified(lookup, previous, current, previousRelations)).toSet
       }
 
       val incrementalExtApiChanges = changedIncremental(previousAPIs.allExternals, previousAPIs.externalAPI, currentExternalAPI(lookup))
@@ -334,7 +335,7 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
       newInv ++ initialDependsOnNew
     }
 
-  def externalBinaryModified(lookup: Lookup, previous: Stamps, current: ReadStamps)(implicit equivS: Equiv[Stamp]): File => Boolean =
+  def externalBinaryModified(lookup: Lookup, previous: Stamps, current: ReadStamps, previousRelations: Relations)(implicit equivS: Equiv[Stamp]): File => Boolean =
     dependsOn =>
       {
         def inv(reason: String): Boolean = {
@@ -359,16 +360,18 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
               inv("stamp changed from " + previousStamp + " to " + currentStamp)
           }
         def dependencyModified(file: File): Boolean =
-          previous.className(file) match {
-            case None => inv("no class name was mapped for it.")
-            case Some(name) => lookup.lookupOnClasspath(name) match {
-              case None    => inv("could not find class " + name + " on the classpath.")
-              case Some(e) => entryModified(name, e)
+          {
+            val classNames = previousRelations.libraryClassNames(file)
+            if (classNames.isEmpty) inv("no class name was mapped for it.")
+            else classNames exists { name =>
+              lookup.lookupOnClasspath(name) match {
+                case None    => inv("could not find class " + name + " on the classpath.")
+                case Some(e) => entryModified(name, e)
+              }
             }
           }
-
-        // lookup.lookupAnalysis(dependsOn).isEmpty &&
-        (if (skipClasspathLookup) fileModified(dependsOn, dependsOn) else dependencyModified(dependsOn))
+        (if (skipClasspathLookup) fileModified(dependsOn, dependsOn)
+        else dependencyModified(dependsOn))
 
       }
 
