@@ -34,6 +34,8 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       val fileStore = AnalysisStore.cached(FileBasedStore(cacheFile))
       val dependerFile = sub1Directory / "src" / "Depender.scala"
       IO.copyFile(dependerFile0, dependerFile, false)
+      val depender2File = sub1Directory / "src" / "Depender2.scala"
+      IO.copyFile(depender2File0, depender2File, false)
       val binarySampleFile = sub1Directory / "lib" / "sample-binary_2.11-0.1.jar"
       IO.copyFile(binarySampleFile0, binarySampleFile)
       val sources = Array(dependerFile)
@@ -72,17 +74,20 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       val setup = compiler.setup(lookup, skip = false, cacheFile, CompilerCache.fresh, incOptions, reporter, None, Array())
       val in = compiler.inputs(cp, sources, targetDir, Array(), Array(), maxErrors, Array(),
         CompileOrder.Mixed, cs, setup, prev0)
+      // This registers `test.pkg.Ext1` as the class name on the binary stamp
       val result0 = compiler.compile(in, log)
       fileStore.set(result0.analysis match { case a: Analysis => a }, result0.setup)
       val prev1 = fileStore.get match {
         case Some((a, s)) => new PreviousResult(Maybe.just(a), Maybe.just(s))
         case _            => sys.error("previous is not found")
       }
-      val in1 = compiler.inputs(cp, sources, targetDir, Array(), Array(), maxErrors, Array(),
+      val sources1 = Array(dependerFile, depender2File)
+      val in1 = compiler.inputs(cp, sources1, targetDir, Array(), Array(), maxErrors, Array(),
         CompileOrder.Mixed, cs, setup, prev1)
-      val result = compiler.compile(in1, log)
-      fileStore.set(result.analysis match { case a: Analysis => a }, result.setup)
-      assert(!result.hasModified)
+      // This registers `test.pkg.Ext2` as the class name on the binary stamp,
+      // which means `test.pkg.Ext1` is no longer in the stamp.
+      val result1 = compiler.compile(in1, log)
+      fileStore.set(result1.analysis match { case a: Analysis => a }, result1.setup)
 
       // Second subproject
       val ext1File = sub2Directory / "src" / "Ext1.scala"
@@ -105,7 +110,7 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       // Actual test
       val knownSampleGoodFile = sub1Directory / "src" / "Good.scala"
       IO.copyFile(knownSampleGoodFile0, knownSampleGoodFile, false)
-      val sources3 = Array(knownSampleGoodFile, dependerFile)
+      val sources3 = Array(knownSampleGoodFile, dependerFile, depender2File)
       val prev = fileStore.get match {
         case Some((a, s)) => new PreviousResult(Maybe.just(a), Maybe.just(s))
         case _            => sys.error("previous is not found")
