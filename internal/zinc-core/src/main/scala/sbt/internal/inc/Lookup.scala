@@ -9,6 +9,8 @@ import xsbti.compile.{ CompileAnalysis, ExternalHooks }
  * an external (for another subproject) Analysis instance.
  */
 trait Lookup extends ExternalLookup {
+  def analyses: Vector[CompileAnalysis]
+
   /**
    * Lookup an element on the classpath corresponding to a given binary class name.
    * If found class file is stored in a jar file, the jar file is returned.

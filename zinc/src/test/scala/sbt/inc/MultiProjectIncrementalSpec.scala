@@ -138,7 +138,6 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       }
       val lastClasses = recompiledClasses.last
 
-      pending
       // Depender.scala should be invalidated since it depends on test.pkg.Ext1 from the JAR file,
       // but the class is now shadowed by sub2/target.
       assert(lastClasses contains "test.pkg.Depender")

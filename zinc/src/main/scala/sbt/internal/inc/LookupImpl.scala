@@ -8,7 +8,7 @@ import xsbti.compile.CompileAnalysis
 
 class LookupImpl(compileConfiguration: CompileConfiguration) extends Lookup {
   private val classpath: Vector[File] = compileConfiguration.classpath.toVector
-  private lazy val analyses: Vector[Analysis] =
+  lazy val analyses: Vector[Analysis] =
     classpath flatMap { entry =>
       m2o(compileConfiguration.perClasspathEntryLookup.analysis(entry)) map
         { case a: Analysis => a }
