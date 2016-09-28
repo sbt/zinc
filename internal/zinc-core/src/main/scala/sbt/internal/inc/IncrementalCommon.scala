@@ -5,7 +5,7 @@ package inc
 import java.io.File
 
 import xsbti.api.{ AnalyzedClass, Compilation }
-import xsbti.compile.ExternalHooks.ClassFileManager
+import xsbti.compile.ClassFileManager
 import xsbti.compile.{ CompileAnalysis, DependencyChanges, IncOptions, IncOptionsUtil }
 
 import scala.annotation.tailrec

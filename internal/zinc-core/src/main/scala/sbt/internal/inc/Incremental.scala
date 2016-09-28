@@ -6,10 +6,9 @@ package internal
 package inc
 
 import java.io.File
-
 import sbt.util.{ Level, Logger }
-import xsbti.compile.ExternalHooks.ClassFileManager
-import xsbti.compile.{ CompileAnalysis, DependencyChanges, IncOptions }
+import xsbti.compile.ClassFileManager
+import xsbti.compile.{ CompileAnalysis, DependencyChanges, IncOptions, Output }
 
 /**
  * Helper class to run incremental compilation algorithm.
@@ -40,7 +39,7 @@ object Incremental {
    * @param previous0 The previous dependency Analysis (or an empty one).
    * @param current  A mechanism for generating stamps (timestamps, hashes, etc).
    * @param compile  The function which can run one level of compile.
-   * @param callback The callback where we report dependency issues.
+   * @param callbackBuilder The builder that builds callback where we report dependency issues.
    * @param log  The log where we write debugging information
    * @param options  Incremental compilation options
    * @param equivS  The means of testing whether two "Stamps" are the same.
@@ -53,7 +52,7 @@ object Incremental {
     previous0: CompileAnalysis,
     current: ReadStamps,
     compile: (Set[File], DependencyChanges, xsbti.AnalysisCallback, ClassFileManager) => Unit,
-    callback: AnalysisCallback,
+    callbackBuilder: AnalysisCallback.Builder,
     log: sbt.util.Logger,
     options: IncOptions
   )(implicit equivS: Equiv[Stamp]): (Boolean, Analysis) =
@@ -77,17 +76,24 @@ object Incremental {
         "All initially invalidated sources:" + initialInvSources + "\n")
       val analysis = manageClassfiles(options) { classfileManager =>
         incremental.cycle(initialInvClasses, initialInvSources, sources, binaryChanges, lookup, previous,
-          doCompile(compile, callback, classfileManager), classfileManager, 1)
+          doCompile(compile, callbackBuilder, classfileManager), classfileManager, 1)
       }
       (initialInvClasses.nonEmpty || initialInvSources.nonEmpty, analysis)
     }
 
+  /**
+   * Compilation unit in each compile cycle.
+   */
   def doCompile(
     compile: (Set[File], DependencyChanges, xsbti.AnalysisCallback, ClassFileManager) => Unit,
-    analysisCallback: AnalysisCallback, classFileManager: ClassFileManager
+    callbackBuilder: AnalysisCallback.Builder, classFileManager: ClassFileManager
   )(srcs: Set[File], changes: DependencyChanges): Analysis = {
-    compile(srcs, changes, analysisCallback, classFileManager)
-    analysisCallback.get
+    // Note `ClassFileManager` is shared among multiple cycles in the same incremental compile run,
+    // in order to rollback entirely if transaction fails. `AnalysisCallback` is used by each cycle
+    // to report its own analysis individually.
+    val callback = callbackBuilder.build()
+    compile(srcs, changes, callback, classFileManager)
+    callback.get
   }
 
   // the name of system property that was meant to enable debugging mode of incremental compiler but

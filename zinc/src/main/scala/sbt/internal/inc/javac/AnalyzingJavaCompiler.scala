@@ -12,9 +12,8 @@ import xsbti.compile._
 import xsbti.{ AnalysisCallback, Reporter }
 import sbt.io.PathFinder
 
-import scala.util.Random
 import sbt.util.Logger
-import xsbti.compile.ExternalHooks.ClassFileManager
+import xsbti.compile.ClassFileManager
 
 /**
  * This is a java compiler which will also report any discovered source dependencies/apis out via

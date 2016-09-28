@@ -11,9 +11,8 @@ import javax.tools.{ FileObject, ForwardingFileObject, ForwardingJavaFileManager
 
 import sbt.internal.util.LoggerWriter
 import sbt.util.{ Level, Logger }
-import xsbti.compile.ExternalHooks.ClassFileManager
 import xsbti.{ Reporter, Logger => XLogger }
-import xsbti.compile.{ JavaCompiler => XJavaCompiler, Javadoc => XJavadoc }
+import xsbti.compile.{ ClassFileManager, JavaCompiler => XJavaCompiler, Javadoc => XJavadoc }
 
 /**
  * Helper methods for trying to run the java toolchain out of our own classloaders.
@@ -86,8 +85,7 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
       log.warn("Javac is running in 'local' mode. These flags have been removed:")
       log.warn(invalidOptions.mkString("\t", ", ", ""))
     }
-    val writeReportingFileManager = if (classFileManager == null) fileManager
-    else new WriteReportingFileManager(fileManager, classFileManager)
+    val writeReportingFileManager = new WriteReportingFileManager(fileManager, classFileManager)
     val success = compiler.getTask(logWriter, writeReportingFileManager,
       diagnostics, cleanedOptions.toList.asJava, null, jfiles).call()
 

@@ -13,10 +13,9 @@ import xsbti.{ Position, Problem, SafeLazy, Severity }
 import sbt.util.Logger
 import sbt.util.Logger.{ m2o, problem }
 import java.io.File
-
 import xsbti.api.DependencyContext
 import xsbti.api.DependencyContext.{ DependencyByInheritance, DependencyByMemberRef }
-import xsbti.compile.ExternalHooks.ClassFileManager
+import xsbti.compile.ClassFileManager
 
 /**
  * Helper methods for running incremental compilation.  All this is responsible for is
@@ -59,7 +58,7 @@ object IncrementalCompile {
       val externalAPI = getExternalAPI(lookup)
       try {
         Incremental.compile(sources, lookup, previous, current, compile,
-          new AnalysisCallback(internalBinaryToSourceClassName, internalSourceToClassNamesMap, externalAPI, current, output, options),
+          new AnalysisCallback.Builder(internalBinaryToSourceClassName, internalSourceToClassNamesMap, externalAPI, current, output, options),
           log, options)
       } catch {
         case e: xsbti.CompileCancelled =>
@@ -77,12 +76,28 @@ object IncrementalCompile {
           sourceClassName flatMap analysis.apis.internal.get
       }
 }
+
+private object AnalysisCallback {
+  /** Allow creating new callback instance to be used in each compile iteration */
+  class Builder(
+    internalBinaryToSourceClassName: String => Option[String],
+    internalSourceToClassNamesMap: File => Set[String],
+    externalAPI: (File, String) => Option[AnalyzedClass], current: ReadStamps,
+    output: Output, options: IncOptions
+  ) {
+    def build(): AnalysisCallback = new AnalysisCallback(
+      internalBinaryToSourceClassName,
+      internalSourceToClassNamesMap, externalAPI, current, output, options
+    )
+  }
+}
 private final class AnalysisCallback(
   internalBinaryToSourceClassName: String => Option[String],
   internalSourceToClassNamesMap: File => Set[String],
   externalAPI: (File, String) => Option[AnalyzedClass], current: ReadStamps,
   output: Output, options: IncOptions
 ) extends xsbti.AnalysisCallback {
+
   val compilation = {
     val outputSettings = output match {
       case single: SingleOutput => Array(new OutputSetting("/", single.outputDirectory.getAbsolutePath))

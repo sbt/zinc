@@ -7,7 +7,7 @@ import java.io.File
 
 import collection.mutable
 import xsbti.compile.{ DeleteImmediatelyManagerType, IncOptions, TransactionalManagerType }
-import xsbti.compile.ExternalHooks.ClassFileManager
+import xsbti.compile.ClassFileManager
 
 object ClassfileManager {
 

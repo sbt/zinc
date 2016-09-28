@@ -11,8 +11,7 @@ import sbt.io.IO
 import sbt.util.Logger
 import xsbti.{ Logger => XLogger }
 import xsbti.Reporter
-import xsbti.compile.ExternalHooks.ClassFileManager
-import xsbti.compile.{ JavaCompiler => XJavaCompiler, Javadoc => XJavadoc }
+import xsbti.compile.{ ClassFileManager, JavaCompiler => XJavaCompiler, Javadoc => XJavadoc }
 
 import scala.sys.process.Process
 

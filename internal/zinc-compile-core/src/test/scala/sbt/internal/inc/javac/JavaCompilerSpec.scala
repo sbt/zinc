@@ -7,9 +7,9 @@ import java.io.File
 import java.net.URLClassLoader
 
 import sbt._
-import xsbt.api.{ SameAPI }
+import xsbt.api.SameAPI
 import xsbti.{ Problem, Severity }
-import xsbti.compile.{ JavaTools => XJavaTools }
+import xsbti.compile.{ ClassFileManager, JavaTools => XJavaTools }
 import sbt.io.IO
 import sbt.util.Logger
 import sbt.internal.util.UnitSpec
@@ -20,7 +20,7 @@ class JavaCompilerSpec extends UnitSpec {
   "Compiling a java file with local javac" should "compile a java file" in works(local)
   it should "issue errors and warnings" in findsErrors(local)
 
-  "Compiling a file with forked javac" should "compile a java file" in works(forked)
+  "Compiling a file with forked javac" should "compile a java file" in works(forked, forked=false)
   it should "issue errors and warnings" in findsErrors(forked)
   it should "yield the same errors as local javac" in forkSameAsLocal()
 
@@ -39,11 +39,15 @@ class JavaCompilerSpec extends UnitSpec {
     (new File(out, "good.html")).exists shouldBe true
   }
 
-  def works(compiler: XJavaTools) = IO.withTemporaryDirectory { out =>
-    val (result, problems) = compile(compiler, Seq(knownSampleGoodFile), Seq("-deprecation", "-d", out.getAbsolutePath))
+  def works(compiler: XJavaTools, forked: Boolean = false) = IO.withTemporaryDirectory { out =>
+    val classfileManager = new CollectingClassFileManager()
+    val (result, problems) = compile(compiler, Seq(knownSampleGoodFile), Seq("-deprecation", "-d", out.getAbsolutePath),
+      classfileManager = classfileManager)
 
     result shouldBe true
-    (new File(out, "good.class")).exists shouldBe true
+    val classfile = new File(out, "good.class")
+    classfile.exists shouldBe true
+    classfileManager.generatedClasses shouldEqual (if (forked) Set() else Set(classfile))
 
     val cl = new URLClassLoader(Array(out.toURI.toURL))
     val clazzz = cl.loadClass("good")
@@ -150,17 +154,18 @@ class JavaCompilerSpec extends UnitSpec {
     }
   }
 
-  def compile(c: XJavaTools, sources: Seq[File], args: Seq[String]): (Boolean, Array[Problem]) = {
+  def compile(c: XJavaTools, sources: Seq[File], args: Seq[String],
+    classfileManager: ClassFileManager = new NoopClassFileManager): (Boolean, Array[Problem]) = {
     val log = Logger.Null
     val reporter = new LoggerReporter(10, log)
-    val result = c.javac.run(sources.toArray, args.toArray, null, reporter, log)
+    val result = c.javac.run(sources.toArray, args.toArray, classfileManager, reporter, log)
     (result, reporter.problems)
   }
 
   def doc(c: XJavaTools, sources: Seq[File], args: Seq[String]): (Boolean, Array[Problem]) = {
     val log = Logger.Null
     val reporter = new LoggerReporter(10, log)
-    val result = c.javadoc.run(sources.toArray, args.toArray, null, reporter, log)
+    val result = c.javadoc.run(sources.toArray, args.toArray, new NoopClassFileManager(), reporter, log)
     (result, reporter.problems)
   }
 

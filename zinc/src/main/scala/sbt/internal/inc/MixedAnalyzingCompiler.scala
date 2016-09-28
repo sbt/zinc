@@ -11,7 +11,7 @@ import xsbti.compile.CompileOrder._
 import xsbti.compile._
 import sbt.io.IO
 import sbt.util.{ InterfaceUtil, Logger }
-import xsbti.compile.ExternalHooks.ClassFileManager
+import xsbti.compile.ClassFileManager
 
 /** An instance of an analyzing compiler that can run both javac + scalac. */
 final class MixedAnalyzingCompiler(

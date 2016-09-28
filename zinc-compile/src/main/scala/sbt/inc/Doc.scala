@@ -13,7 +13,7 @@ import sbt.internal.util.Tracked.{ inputChangedWithJson, outputChangedWithJson }
 import sbt.internal.util.{ FileInfo, FilesInfo, HNil, HashFileInfo, ModifiedFileInfo, PlainFileInfo }
 import sbt.internal.util.FilesInfo.{ exists, hash, lastModified }
 import sbt.serialization._
-import xsbti.compile.ExternalHooks.ClassFileManager
+import xsbti.compile.ClassFileManager
 
 object Doc {
   // def scaladoc(label: String, cache: File, compiler: AnalyzingCompiler): RawCompileLike.Gen =
