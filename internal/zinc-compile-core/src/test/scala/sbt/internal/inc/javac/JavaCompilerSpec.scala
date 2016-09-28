@@ -20,7 +20,7 @@ class JavaCompilerSpec extends UnitSpec {
   "Compiling a java file with local javac" should "compile a java file" in works(local)
   it should "issue errors and warnings" in findsErrors(local)
 
-  "Compiling a file with forked javac" should "compile a java file" in works(forked, forked=false)
+  "Compiling a file with forked javac" should "compile a java file" in works(forked, forked = true)
   it should "issue errors and warnings" in findsErrors(forked)
   it should "yield the same errors as local javac" in forkSameAsLocal()
 
