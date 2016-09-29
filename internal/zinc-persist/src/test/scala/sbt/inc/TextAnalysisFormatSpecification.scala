@@ -59,6 +59,7 @@ object TextAnalysisFormatTest extends Properties("TextAnalysisFormat") {
     TextAnalysisFormat.write(writer, analysis, commonSetup)
 
     val result = writer.toString
+    // println(result)
 
     val reader = new BufferedReader(new StringReader(result))
 
