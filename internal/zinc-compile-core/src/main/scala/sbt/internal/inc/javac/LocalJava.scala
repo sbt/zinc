@@ -96,27 +96,19 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
   }
 }
 
+/**
+ * Track write calls through customized file manager.
+ *
+ * NB: overriding `getJavaFileForOutput` takes care of `.class` file generation, which is the most part.
+ * `getFileForOutput` used by annotation processor for writing resources, however, cannot be overridden because
+ * of a javac sdk limitation. In jdk8 it has a hard coded check of
+ * `com.sun.tools.javac.file.RegularFileObject instanceof com.sun.tools.javac.file.BaseFileObject`
+ * so if we wrap `RegularFileObject` with `ForwardingFileObject` would fail the check.
+ */
 final class WriteReportingFileManager(fileManager: JavaFileManager, var classFileManager: ClassFileManager)
   extends ForwardingJavaFileManager[JavaFileManager](fileManager) {
-  override def getFileForOutput(location: Location, packageName: String, relativeName: String, sibling: FileObject): FileObject = {
-    new WriteReportingFileObject(super.getFileForOutput(location, packageName, relativeName, sibling), classFileManager)
-  }
-
   override def getJavaFileForOutput(location: Location, className: String, kind: Kind, sibling: FileObject): JavaFileObject = {
     new WriteReportingJavaFileObject(super.getJavaFileForOutput(location, className, kind, sibling), classFileManager)
-  }
-}
-
-final class WriteReportingFileObject(fileObject: FileObject, var classFileManager: ClassFileManager)
-  extends ForwardingFileObject[FileObject](fileObject) {
-  override def openWriter(): Writer = {
-    classFileManager.generated(Array(new File(fileObject.toUri)))
-    super.openWriter()
-  }
-
-  override def openOutputStream(): OutputStream = {
-    classFileManager.generated(Array(new File(fileObject.toUri)))
-    super.openOutputStream()
   }
 }
 
