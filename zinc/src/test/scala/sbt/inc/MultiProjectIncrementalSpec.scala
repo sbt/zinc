@@ -65,7 +65,7 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
             override def removedProducts(previousAnalysis: Analysis): Option[Set[File]] = None
             override def shouldDoIncrementalCompilation(changedClasses: Set[String], analysis: Analysis): Boolean = true
           }
-          def externalClassFileManager(): ExternalHooks.ClassFileManager = {
+          def externalClassFileManager(): ClassFileManager = {
             null
           }
         })
