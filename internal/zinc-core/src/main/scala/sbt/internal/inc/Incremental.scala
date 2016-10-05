@@ -120,7 +120,7 @@ object Incremental {
     {
       val classfileManager = ClassfileManager.getClassfileManager(options)
       val result = try run(classfileManager) catch {
-        case e: Exception =>
+        case e: Throwable =>
           classfileManager.complete(false)
           throw e
       }
