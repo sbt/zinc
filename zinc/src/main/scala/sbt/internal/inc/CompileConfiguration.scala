@@ -25,27 +25,15 @@ import xsbti.compile.{ GlobalsCache, CompileProgress, IncOptions, MiniSetup, Com
  */
 final class CompileConfiguration(
   val sources: Seq[File],
-  override val classpath: Seq[File],
+  val classpath: Seq[File],
   val previousAnalysis: CompileAnalysis,
   val previousSetup: Option[MiniSetup],
-  override val currentSetup: MiniSetup,
+  val currentSetup: MiniSetup,
   val progress: Option[CompileProgress],
-  override val perClasspathEntryLookup: PerClasspathEntryLookup,
+  val perClasspathEntryLookup: PerClasspathEntryLookup,
   val reporter: Reporter,
-  override val compiler: xsbti.compile.ScalaCompiler,
+  val compiler: xsbti.compile.ScalaCompiler,
   val javac: xsbti.compile.JavaCompiler,
   val cache: GlobalsCache,
-  override val incOptions: IncOptions
-) extends CompilerClasspathConfig
-
-trait CompilerClasspathConfig {
-  val currentSetup: MiniSetup
-
-  def classpath: Seq[File]
-
-  def perClasspathEntryLookup: PerClasspathEntryLookup
-
-  def compiler: xsbti.compile.ScalaCompiler
-
-  def incOptions: IncOptions
-}
+  val incOptions: IncOptions
+)
