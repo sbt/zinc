@@ -11,7 +11,9 @@ import sbt.internal.inc.classpath.ClasspathUtilities
 import xsbti.compile._
 import xsbti.{ AnalysisCallback, Reporter }
 import sbt.io.PathFinder
+
 import sbt.util.Logger
+import xsbti.compile.ClassFileManager
 
 /**
  * This is a java compiler which will also report any discovered source dependencies/apis out via
@@ -35,11 +37,13 @@ final class AnalyzingJavaCompiler private[sbt] (
    * @param options  The options for the Java compiler
    * @param output   The output configuration for this compiler
    * @param callback  A callback to report discovered source/binary dependencies on.
+   * @param classfileManager The component that manages generated class files.
    * @param reporter  A reporter where semantic compiler failures can be reported.
    * @param log       A place where we can log debugging/error messages.
    * @param progressOpt An optional compilation progress reporter.  Where we can report back what files we're currently compiling.
    */
-  def compile(sources: Seq[File], options: Seq[String], output: Output, callback: AnalysisCallback, reporter: Reporter, log: Logger, progressOpt: Option[CompileProgress]): Unit = {
+  def compile(sources: Seq[File], options: Seq[String], output: Output, callback: AnalysisCallback,
+    classfileManager: ClassFileManager, reporter: Reporter, log: Logger, progressOpt: Option[CompileProgress]): Unit = {
     if (sources.nonEmpty) {
       val absClasspath = classpath.map(_.getAbsoluteFile)
       @annotation.tailrec def ancestor(f1: File, f2: File): Boolean =
@@ -67,7 +71,11 @@ final class AnalyzingJavaCompiler private[sbt] (
       // TODO - Perhaps we just record task 0/2 here
       timed("Java compilation", log) {
         val args = JavaCompiler.commandArguments(absClasspath, output, options, scalaInstance, classpathOptions)
-        val success = javac.run({ sources sortBy { _.getAbsolutePath } }.toArray, args.toArray, reporter, log)
+        val success = javac.run({
+          sources sortBy {
+            _.getAbsolutePath
+          }
+        }.toArray, args.toArray, classfileManager, reporter, log)
         if (!success) {
           // TODO - Will the reporter have problems from Scalac?  It appears like it does not, only from the most recent run.
           // This is because the incremental compiler will not run javac if scalac fails.

@@ -6,11 +6,9 @@ package internal
 package inc
 
 import java.io.File
-
-import scala.annotation.tailrec
-
 import sbt.util.{ Level, Logger }
-import xsbti.compile.{ CompileAnalysis, DependencyChanges, IncOptions }
+import xsbti.compile.ClassFileManager
+import xsbti.compile.{ CompileAnalysis, DependencyChanges, IncOptions, Output }
 
 /**
  * Helper class to run incremental compilation algorithm.
@@ -38,8 +36,10 @@ object Incremental {
    * @param lookup
    *              An instance of the `Lookup` that implements looking up both classpath elements
    *              and Analysis object instances by a binary class name.
+   * @param previous0 The previous dependency Analysis (or an empty one).
    * @param current  A mechanism for generating stamps (timestamps, hashes, etc).
-   * @param doCompile  The function which can run one level of compile.
+   * @param compile  The function which can run one level of compile.
+   * @param callbackBuilder The builder that builds callback where we report dependency issues.
    * @param log  The log where we write debugging information
    * @param options  Incremental compilation options
    * @param equivS  The means of testing whether two "Stamps" are the same.
@@ -51,7 +51,8 @@ object Incremental {
     lookup: Lookup,
     previous0: CompileAnalysis,
     current: ReadStamps,
-    doCompile: (Set[File], DependencyChanges) => Analysis,
+    compile: (Set[File], DependencyChanges, xsbti.AnalysisCallback, ClassFileManager) => Unit,
+    callbackBuilder: AnalysisCallback.Builder,
     log: sbt.util.Logger,
     options: IncOptions
   )(implicit equivS: Equiv[Stamp]): (Boolean, Analysis) =
@@ -74,10 +75,26 @@ object Incremental {
       log.debug("All initially invalidated classes: " + initialInvClasses + "\n" +
         "All initially invalidated sources:" + initialInvSources + "\n")
       val analysis = manageClassfiles(options) { classfileManager =>
-        incremental.cycle(initialInvClasses, initialInvSources, sources, binaryChanges, lookup, previous, doCompile, classfileManager, 1)
+        incremental.cycle(initialInvClasses, initialInvSources, sources, binaryChanges, lookup, previous,
+          doCompile(compile, callbackBuilder, classfileManager), classfileManager, 1)
       }
       (initialInvClasses.nonEmpty || initialInvSources.nonEmpty, analysis)
     }
+
+  /**
+   * Compilation unit in each compile cycle.
+   */
+  def doCompile(
+    compile: (Set[File], DependencyChanges, xsbti.AnalysisCallback, ClassFileManager) => Unit,
+    callbackBuilder: AnalysisCallback.Builder, classFileManager: ClassFileManager
+  )(srcs: Set[File], changes: DependencyChanges): Analysis = {
+    // Note `ClassFileManager` is shared among multiple cycles in the same incremental compile run,
+    // in order to rollback entirely if transaction fails. `AnalysisCallback` is used by each cycle
+    // to report its own analysis individually.
+    val callback = callbackBuilder.build()
+    compile(srcs, changes, callback, classFileManager)
+    callback.get
+  }
 
   // the name of system property that was meant to enable debugging mode of incremental compiler but
   // it ended up being used just to enable debugging of relations. That's why if you migrate to new
@@ -92,22 +109,22 @@ object Incremental {
   private[sbt] def prune(invalidatedSrcs: Set[File], previous: CompileAnalysis): Analysis =
     prune(invalidatedSrcs, previous, ClassfileManager.deleteImmediately())
 
-  private[sbt] def prune(invalidatedSrcs: Set[File], previous0: CompileAnalysis, classfileManager: ClassfileManager): Analysis =
+  private[sbt] def prune(invalidatedSrcs: Set[File], previous0: CompileAnalysis, classfileManager: ClassFileManager): Analysis =
     {
       val previous = previous0 match { case a: Analysis => a }
-      classfileManager.delete(invalidatedSrcs.flatMap(previous.relations.products))
+      classfileManager.delete(invalidatedSrcs.flatMap(previous.relations.products).toArray)
       previous -- invalidatedSrcs
     }
 
-  private[this] def manageClassfiles[T](options: IncOptions)(run: ClassfileManager => T): T =
+  private[this] def manageClassfiles[T](options: IncOptions)(run: ClassFileManager => T): T =
     {
       val classfileManager = ClassfileManager.getClassfileManager(options)
       val result = try run(classfileManager) catch {
-        case e: Exception =>
-          classfileManager.complete(success = false)
+        case e: Throwable =>
+          classfileManager.complete(false)
           throw e
       }
-      classfileManager.complete(success = true)
+      classfileManager.complete(true)
       result
     }
 

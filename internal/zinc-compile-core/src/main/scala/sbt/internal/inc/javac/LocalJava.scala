@@ -4,12 +4,15 @@ package internal
 package inc
 package javac
 
-import java.io.{ File, PrintWriter }
+import java.io.{ File, OutputStream, PrintWriter, Writer }
+import javax.tools.JavaFileManager.Location
+import javax.tools.JavaFileObject.Kind
+import javax.tools.{ FileObject, ForwardingFileObject, ForwardingJavaFileManager, ForwardingJavaFileObject, JavaFileManager, JavaFileObject }
 
 import sbt.internal.util.LoggerWriter
 import sbt.util.{ Level, Logger }
 import xsbti.{ Reporter, Logger => XLogger }
-import xsbti.compile.{ ScalaInstance, ClasspathOptions, JavaCompiler => XJavaCompiler, Javadoc => XJavadoc }
+import xsbti.compile.{ ClassFileManager, JavaCompiler => XJavaCompiler, Javadoc => XJavadoc }
 
 /**
  * Helper methods for trying to run the java toolchain out of our own classloaders.
@@ -41,7 +44,8 @@ object LocalJava {
 }
 /** Implementation of javadoc tool which attempts to run it locally (in-class). */
 final class LocalJavadoc() extends XJavadoc {
-  override def run(sources: Array[File], options: Array[String], reporter: Reporter, log: XLogger): Boolean = {
+  override def run(sources: Array[File], options: Array[String], classFileManager: ClassFileManager,
+    reporter: Reporter, log: XLogger): Boolean = {
     val cwd = new File(new File(".").getAbsolutePath).getCanonicalFile
     val (jArgs, nonJArgs) = options.partition(_.startsWith("-J"))
     val allArguments = nonJArgs ++ sources.map(_.getAbsolutePath)
@@ -63,7 +67,8 @@ final class LocalJavadoc() extends XJavadoc {
 
 /** An implementation of compiling java which delegates to the JVM resident java compiler. */
 final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaCompiler {
-  override def run(sources: Array[File], options: Array[String], reporter: Reporter, log0: XLogger): Boolean = {
+  override def run(sources: Array[File], options: Array[String], classFileManager: ClassFileManager,
+    reporter: Reporter, log0: XLogger): Boolean = {
     val log: Logger = log0
     import collection.JavaConverters._
     val logger = new LoggerWriter(log)
@@ -80,11 +85,42 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
       log.warn("Javac is running in 'local' mode. These flags have been removed:")
       log.warn(invalidOptions.mkString("\t", ", ", ""))
     }
-    val success = compiler.getTask(logWriter, fileManager, diagnostics, cleanedOptions.toList.asJava, null, jfiles).call()
+    val writeReportingFileManager = new WriteReportingFileManager(fileManager, classFileManager)
+    val success = compiler.getTask(logWriter, writeReportingFileManager,
+      diagnostics, cleanedOptions.toList.asJava, null, jfiles).call()
 
     // The local compiler may report a successful compilation even though there are errors (e.g. encoding problems in the
     // source files). In a similar situation, command line javac reports a failed compilation. To have the local java compiler
     // stick to javac's behavior, we report a failed compilation if there have been errors.
     success && !diagnostics.hasErrors
+  }
+}
+
+/**
+ * Track write calls through customized file manager.
+ *
+ * NB: overriding `getJavaFileForOutput` takes care of `.class` file generation, which is the most part.
+ * `getFileForOutput` used by annotation processor for writing resources, however, cannot be overridden because
+ * of a javac sdk limitation. In jdk8 it has a hard coded check of
+ * `com.sun.tools.javac.file.RegularFileObject instanceof com.sun.tools.javac.file.BaseFileObject`
+ * so if we wrap `RegularFileObject` with `ForwardingFileObject` would fail the check.
+ */
+final class WriteReportingFileManager(fileManager: JavaFileManager, var classFileManager: ClassFileManager)
+  extends ForwardingJavaFileManager[JavaFileManager](fileManager) {
+  override def getJavaFileForOutput(location: Location, className: String, kind: Kind, sibling: FileObject): JavaFileObject = {
+    new WriteReportingJavaFileObject(super.getJavaFileForOutput(location, className, kind, sibling), classFileManager)
+  }
+}
+
+final class WriteReportingJavaFileObject(javaFileObject: JavaFileObject, var classFileManager: ClassFileManager)
+  extends ForwardingJavaFileObject[JavaFileObject](javaFileObject) {
+  override def openWriter(): Writer = {
+    classFileManager.generated(Array(new File(javaFileObject.toUri)))
+    super.openWriter()
+  }
+
+  override def openOutputStream(): OutputStream = {
+    classFileManager.generated(Array(new File(javaFileObject.toUri)))
+    super.openOutputStream()
   }
 }

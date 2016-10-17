@@ -11,7 +11,8 @@ import sbt.io.IO
 import sbt.util.Logger
 import xsbti.{ Logger => XLogger }
 import xsbti.Reporter
-import xsbti.compile.{ ClasspathOptions, ScalaInstance, JavaCompiler => XJavaCompiler, Javadoc => XJavadoc }
+import xsbti.compile.{ ClassFileManager, JavaCompiler => XJavaCompiler, Javadoc => XJavadoc }
+
 import scala.sys.process.Process
 
 /** Helper methods for running the java toolchain by forking. */
@@ -71,10 +72,12 @@ object ForkedJava {
 
 /** An implementation of compiling java which forks a Javac instance. */
 final class ForkedJavaCompiler(javaHome: Option[File]) extends XJavaCompiler {
-  def run(sources: Array[File], options: Array[String], reporter: Reporter, log: XLogger): Boolean =
+  def run(sources: Array[File], options: Array[String], classFileManager: ClassFileManager,
+    reporter: Reporter, log: XLogger): Boolean =
     ForkedJava.launch(javaHome, "javac", sources, options, log, reporter)
 }
 final class ForkedJavadoc(javaHome: Option[File]) extends XJavadoc {
-  def run(sources: Array[File], options: Array[String], reporter: Reporter, log: XLogger): Boolean =
+  def run(sources: Array[File], options: Array[String], classFileManager: ClassFileManager,
+    reporter: Reporter, log: XLogger): Boolean =
     ForkedJava.launch(javaHome, "javadoc", sources, options, log, reporter)
 }

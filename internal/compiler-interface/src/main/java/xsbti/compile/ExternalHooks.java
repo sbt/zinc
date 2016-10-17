@@ -6,8 +6,6 @@ package xsbti.compile;
 public interface ExternalHooks {
     public static interface Lookup {}
 
-    public static interface ClassFileManager{}
-
     Lookup externalLookup();
 
     ClassFileManager externalClassFileManager();
