@@ -110,9 +110,9 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
     equivPairs: Equiv[Array[T2[String, String]]],
     log: Logger
   ): (Analysis, Boolean) = {
-    val lookup = new LookupImpl(mixedCompiler.config)
     import mixedCompiler.config._
     import mixedCompiler.config.currentSetup.output
+    val lookup = new LookupImpl(mixedCompiler.config, previousSetup)
     val sourcesSet = sources.toSet
     val analysis = previousSetup match {
       case Some(previous) if !equivPairs.equiv(previous.extra, currentSetup.extra) =>

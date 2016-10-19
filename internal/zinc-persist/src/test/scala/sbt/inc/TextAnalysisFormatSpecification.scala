@@ -19,7 +19,7 @@ object TextAnalysisFormatTest extends Properties("TextAnalysisFormat") {
   val nameHashing = true
   val storeApis = true
   val dummyOutput = new xsbti.compile.SingleOutput { def outputDirectory: java.io.File = new java.io.File("/dummy") }
-  val commonSetup = new MiniSetup(dummyOutput, new MiniOptions(Array(), Array()), "2.10.4", xsbti.compile.CompileOrder.Mixed, nameHashing, storeApis,
+  val commonSetup = new MiniSetup(dummyOutput, new MiniOptions(Array(), Array(), Array()), "2.10.4", xsbti.compile.CompileOrder.Mixed, nameHashing, storeApis,
     Array(t2(("key", "value"))))
   val commonHeader = """format version: 6
                     |output mode:

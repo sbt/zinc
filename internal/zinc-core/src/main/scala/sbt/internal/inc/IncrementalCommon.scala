@@ -345,6 +345,14 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
           log.debug("Invalidating " + dependsOn + ": " + reason)
           true
         }
+        def entryModified(className: String, classpathEntry: File): Boolean =
+          {
+            val resolved = Locate.resolve(classpathEntry, className)
+            if (resolved.getCanonicalPath != dependsOn.getCanonicalPath)
+              inv("class " + className + " now provided by " + resolved.getCanonicalPath)
+            else
+              fileModified(dependsOn, resolved)
+          }
         def fileModified(previousFile: File, currentFile: File): Boolean =
           {
             val previousStamp = previous.binary(previousFile)
@@ -359,10 +367,17 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
             val classNames = previousRelations.libraryClassNames(file)
             if (classNames.isEmpty) false
             else classNames exists { binaryClassName =>
-              lookup.lookupAnalysis(binaryClassName) match {
-                case None    => false
-                case Some(e) => inv(s"shadowing is detected for class $binaryClassName")
-              }
+              // classpath has not changed since the last compilation, so use the faster detection.
+              if (lookup.changedClasspath.isEmpty)
+                lookup.lookupAnalysis(binaryClassName) match {
+                  case None    => false
+                  case Some(e) => inv(s"shadowing is detected for class $binaryClassName")
+                }
+              else
+                lookup.lookupOnClasspath(binaryClassName) match {
+                  case None    => inv(s"could not find class $binaryClassName on the classpath.")
+                  case Some(e) => entryModified(binaryClassName, e)
+                }
             }
           }
         (if (skipClasspathLookup) fileModified(dependsOn, dependsOn)

@@ -226,6 +226,14 @@
       ],
       "fields": [
         {
+          "name": "classpath",
+          "type": "java.io.File*",
+          "doc": [
+            "The classpath to use for compilation.",
+            "This will be modified according to the ClasspathOptions used to configure the ScalaCompiler."
+          ]
+        },
+        {
           "name": "scalacOptions",
           "type": "String*",
           "doc": [

@@ -4,15 +4,24 @@ import java.io.File
 
 import sbt.util.Logger._
 import xsbti.Maybe
-import xsbti.compile.CompileAnalysis
+import xsbti.compile.{ CompileAnalysis, MiniSetup }
 
-class LookupImpl(compileConfiguration: CompileConfiguration) extends Lookup {
+class LookupImpl(compileConfiguration: CompileConfiguration, previousSetup: Option[MiniSetup]) extends Lookup {
   private val classpath: Vector[File] = compileConfiguration.classpath.toVector
   lazy val analyses: Vector[Analysis] =
     classpath flatMap { entry =>
       m2o(compileConfiguration.perClasspathEntryLookup.analysis(entry)) map
         { case a: Analysis => a }
     }
+  lazy val previousClasspath: Vector[File] =
+    previousSetup match {
+      case Some(x) => x.options.classpath.toVector
+      case _       => Vector()
+    }
+  def changedClasspath: Option[Vector[File]] =
+    if (classpath == previousClasspath) None
+    else Some(classpath)
+
   private val entry = MixedAnalyzingCompiler.classPathLookup(compileConfiguration)
 
   override def lookupAnalysis(binaryClassName: String): Option[CompileAnalysis] =
