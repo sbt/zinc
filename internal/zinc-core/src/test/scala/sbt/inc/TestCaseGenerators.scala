@@ -69,8 +69,7 @@ object TestCaseGenerators {
       prodStamps <- listOfN(prod.length, genStamp)
       srcStamps <- listOfN(src.length, genStamp)
       binStamps <- listOfN(bin.length, genStamp)
-      binClassNames <- listOfN(bin.length, unique(identifier))
-    } yield Stamps(zipMap(prod, prodStamps), zipMap(src, srcStamps), zipMap(bin, binStamps), zipMap(bin, binClassNames))
+    } yield Stamps(zipMap(prod, prodStamps), zipMap(src, srcStamps), zipMap(bin, binStamps))
   }
 
   private[this] val emptyStructure = new Structure(lzy(Array()), lzy(Array()), lzy(Array()))

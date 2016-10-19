@@ -235,7 +235,6 @@ object TextAnalysisFormat {
       val products = "product stamps"
       val sources = "source stamps"
       val binaries = "binary stamps"
-      val classNames = "class names"
     }
 
     def write(out: Writer, stamps: Stamps): Unit = {
@@ -244,7 +243,6 @@ object TextAnalysisFormat {
       doWriteMap(Headers.products, stamps.products)
       doWriteMap(Headers.sources, stamps.sources)
       doWriteMap(Headers.binaries, stamps.binaries)
-      doWriteMap(Headers.classNames, stamps.classNames)
     }
 
     def read(in: BufferedReader): Stamps = {
@@ -252,9 +250,8 @@ object TextAnalysisFormat {
       val products = doReadMap(Headers.products, Stamp.fromString)
       val sources = doReadMap(Headers.sources, Stamp.fromString)
       val binaries = doReadMap(Headers.binaries, Stamp.fromString)
-      val classNames = doReadMap(Headers.classNames, identity[String])
 
-      Stamps(products, sources, binaries, classNames)
+      Stamps(products, sources, binaries)
     }
   }
 
