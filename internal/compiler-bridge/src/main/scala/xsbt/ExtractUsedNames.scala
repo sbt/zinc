@@ -86,16 +86,14 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
      *     https://github.com/sbt/sbt/issues/1237
      *     https://github.com/sbt/sbt/issues/1544
      */
-    private val inspectedOriginalTrees = collection.mutable.Set.empty[Tree]
+    private val inspectedTrees = collection.mutable.Set.empty[Tree]
 
-    override def traverse(tree: Tree): Unit = tree match {
-      case MacroExpansionOf(original) if inspectedOriginalTrees.add(original) =>
-        handleClassicTreeNode(tree)
-        handleMacroExpansion(original)
+    override def traverse(tree: Tree): Unit = {
+      if (!inspectedTrees.contains(tree)) {
+        if (handleTree(tree))
+          inspectedTrees += tree
         super.traverse(tree)
-      case _ =>
-        handleClassicTreeNode(tree)
-        super.traverse(tree)
+      }
     }
 
     private def addSymbol(symbol: Symbol): Unit =
@@ -114,16 +112,23 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
       }
     }
 
-    private def handleMacroExpansion(original: Tree): Unit = {
-      original.foreach(traverse)
+    type Tagged[T] = { type Tag = T }
+    type @@[T, U] = T with Tagged[U]
+    type Store
+    private type StoreInspectedTree = PartialFunction[Tree, Boolean @@ Store]
+    private val Store = true.asInstanceOf[Boolean @@ Store]
+    private val NotStore = false.asInstanceOf[Boolean @@ Store]
+
+    private val handleDefTreeAndTemplate: StoreInspectedTree = {
+      case _: DefTree | _: Template =>
+        // turns out that Import node has a TermSymbol associated with it
+        // I (Grzegorz) tried to understand why it's there and what does it represent but
+        // that logic was introduced in 2005 without any justification I'll just ignore the
+        // import node altogether and just process the selectors in the import node
+        Store
     }
 
-    private def handleClassicTreeNode(tree: Tree): Unit = tree match {
-      case _: DefTree | _: Template => ()
-      // turns out that Import node has a TermSymbol associated with it
-      // I (Grzegorz) tried to understand why it's there and what does it represent but
-      // that logic was introduced in 2005 without any justification I'll just ignore the
-      // import node altogether and just process the selectors in the import node
+    private val handleImport: StoreInspectedTree = {
       case Import(_, selectors: List[ImportSelector]) =>
         val enclosingNonLocalClass = resolveEnclosingNonLocalClass
         def usedNameInImportSelector(name: Name): Unit =
@@ -132,6 +137,10 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
           usedNameInImportSelector(selector.name)
           usedNameInImportSelector(selector.rename)
         }
+        Store
+    }
+
+    private val handleTypeTree: StoreInspectedTree = {
       // TODO: figure out whether we should process the original tree or walk the type
       // the argument for processing the original tree: we process what user wrote
       // the argument for processing the type: we catch all transformations that typer applies
@@ -139,12 +148,29 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
       // not what we need
       case t: TypeTree if t.original != null =>
         t.original.foreach(traverse)
+        Store
+    }
+
+    private val handleTreeWithSymbol: StoreInspectedTree = {
+      // Reference of this type of handled tree can be used in many subtrees,
+      // so do not store it in inspected trees.
       case t if t.hasSymbolField =>
         addSymbol(t.symbol)
         if (t.tpe != null)
           symbolsInType(t.tpe).foreach(addSymbol)
-      case _ =>
+        NotStore
     }
+
+    private val handleDefault: StoreInspectedTree = {
+      case _ => Store
+    }
+
+    private def handleTree(tree: Tree): Boolean @@ Store =
+      handleDefTreeAndTemplate
+        .orElse { handleImport }
+        .orElse { handleTypeTree }
+        .orElse { handleTreeWithSymbol }
+        .orElse { handleDefault }(tree)
 
     /**
      * Resolves a class to which we attribute a used name by getting the enclosing class
