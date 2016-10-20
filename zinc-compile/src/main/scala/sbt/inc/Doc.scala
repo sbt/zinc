@@ -3,6 +3,7 @@ package inc
 
 import java.io.{ File, PrintWriter }
 
+import sbt.internal.inc.NoopClassFileManager
 import sbt.io.syntax._
 import sbt.io.IO
 import sbt.util.Logger
@@ -39,7 +40,7 @@ object Doc {
         if (sources.isEmpty) log.info("No sources available, skipping " + description + "...")
         else {
           log.info(description.capitalize + " to " + outputDirectory.absolutePath + "...")
-          doDoc.run(sources, classpath, outputDirectory, options, null, log, reporter)
+          doDoc.run(sources, classpath, outputDirectory, options, new NoopClassFileManager(), log, reporter)
           log.info(description.capitalize + " successful.")
         }
     }
@@ -54,7 +55,7 @@ object Doc {
               if (inChanged || outChanged) {
                 IO.delete(outputDirectory)
                 IO.createDirectory(outputDirectory)
-                doDoc.run(sources, classpath, outputDirectory, options, null, log, reporter)
+                doDoc.run(sources, classpath, outputDirectory, options, new NoopClassFileManager(), log, reporter)
               } else log.debug("Doc uptodate: " + outputDirectory.getAbsolutePath)
             }
           }
