@@ -365,8 +365,7 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
         def dependencyModified(file: File): Boolean =
           {
             val classNames = previousRelations.libraryClassNames(file)
-            if (classNames.isEmpty) false
-            else classNames exists { binaryClassName =>
+            classNames exists { binaryClassName =>
               // classpath has not changed since the last compilation, so use the faster detection.
               if (lookup.changedClasspath.isEmpty)
                 lookup.lookupAnalysis(binaryClassName) match {
