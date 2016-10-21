@@ -117,6 +117,13 @@
           ]
         },
         {
+          "name": "enabled",
+          "type": "boolean",
+          "doc": [
+            "Determines whether incremental compilation is enabled."
+          ]
+        },
+        {
           "name": "antStyle",
           "type": "boolean",
           "doc": [

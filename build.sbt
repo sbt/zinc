@@ -311,7 +311,7 @@ lazy val zincScripted = (project in internalPath / "zinc-scripted").
   configure(addSbtUtilScripted)
 
 lazy val publishBridgesAndTest = Command.args("publishBridgesAndTest", "<version>") { (state, args) =>
-  require(args.nonEmpty)
+  require(args.nonEmpty, "Missing arguments to publishBridgesAndTest. Maybe quotes are missing around command?")
   val version = args mkString ""
     s"${compilerInterface.id}/publishLocal" ::
     // using plz here causes: java.lang.OutOfMemoryError: GC overhead limit exceeded

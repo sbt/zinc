@@ -84,6 +84,10 @@ public class IncOptionsUtil {
     return true;
   }
 
+  public static boolean defaultEnabled() {
+    return true;
+  }
+
   public static boolean defaultAntStyle() {
     return false;
   }
@@ -117,7 +121,7 @@ public class IncOptionsUtil {
       defaultApiDiffContextSize(), defaultApiDumpDirectory(),
       defaultClassfileManagerType(), defaultUseCustomizedFileManager(),
       defaultRecompileOnMacroDef(), defaultNameHashing(),
-      defaultStoreApis(), defaultAntStyle(),
+      defaultStoreApis(), defaultEnabled(), defaultAntStyle(),
       defaultExtra(), defaultLogRecompileOnMacro(),
       defaultExternal());
     return retval;
