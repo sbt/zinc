@@ -28,10 +28,6 @@ trait Stamps extends ReadStamps {
   def sources: Map[File, Stamp]
   def binaries: Map[File, Stamp]
   def products: Map[File, Stamp]
-  def classNames: Map[File, String]
-
-  def className(bin: File): Option[String]
-
   def markInternalSource(src: File, s: Stamp): Stamps
   def markBinary(bin: File, className: String, s: Stamp): Stamps
   def markProduct(prod: File, s: Stamp): Stamps
@@ -121,33 +117,33 @@ object Stamps {
   def empty: Stamps =
     {
       val eSt = Map.empty[File, Stamp]
-      apply(eSt, eSt, eSt, Map.empty[File, String])
+      apply(eSt, eSt, eSt)
     }
-  def apply(products: Map[File, Stamp], sources: Map[File, Stamp], binaries: Map[File, Stamp], binaryClassNames: Map[File, String]): Stamps =
-    new MStamps(products, sources, binaries, binaryClassNames)
+  def apply(products: Map[File, Stamp], sources: Map[File, Stamp], binaries: Map[File, Stamp]): Stamps =
+    new MStamps(products, sources, binaries)
 
   def merge(stamps: Traversable[Stamps]): Stamps = (Stamps.empty /: stamps)(_ ++ _)
 }
 
-private class MStamps(val products: Map[File, Stamp], val sources: Map[File, Stamp], val binaries: Map[File, Stamp], val classNames: Map[File, String]) extends Stamps {
+private class MStamps(val products: Map[File, Stamp], val sources: Map[File, Stamp], val binaries: Map[File, Stamp]) extends Stamps {
   def allInternalSources: collection.Set[File] = sources.keySet
   def allBinaries: collection.Set[File] = binaries.keySet
   def allProducts: collection.Set[File] = products.keySet
 
   def ++(o: Stamps): Stamps =
-    new MStamps(products ++ o.products, sources ++ o.sources, binaries ++ o.binaries, classNames ++ o.classNames)
+    new MStamps(products ++ o.products, sources ++ o.sources, binaries ++ o.binaries)
 
   def markInternalSource(src: File, s: Stamp): Stamps =
-    new MStamps(products, sources.updated(src, s), binaries, classNames)
+    new MStamps(products, sources.updated(src, s), binaries)
 
   def markBinary(bin: File, className: String, s: Stamp): Stamps =
-    new MStamps(products, sources, binaries.updated(bin, s), classNames.updated(bin, className))
+    new MStamps(products, sources, binaries.updated(bin, s))
 
   def markProduct(prod: File, s: Stamp): Stamps =
-    new MStamps(products.updated(prod, s), sources, binaries, classNames)
+    new MStamps(products.updated(prod, s), sources, binaries)
 
   def filter(prod: File => Boolean, removeSources: Iterable[File], bin: File => Boolean): Stamps =
-    new MStamps(products.filterKeys(prod), sources -- removeSources, binaries.filterKeys(bin), classNames.filterKeys(bin))
+    new MStamps(products.filterKeys(prod), sources -- removeSources, binaries.filterKeys(bin))
 
   def groupBy[K](prod: Map[K, File => Boolean], f: File => K, bin: Map[K, File => Boolean]): Map[K, Stamps] =
     {
@@ -157,8 +153,7 @@ private class MStamps(val products: Map[File, Stamp], val sources: Map[File, Sta
       def kStamps(k: K): Stamps = new MStamps(
         products.filterKeys(prod.getOrElse(k, constFalse)),
         sourcesMap.getOrElse(k, Map.empty[File, Stamp]),
-        binaries.filterKeys(bin.getOrElse(k, constFalse)),
-        classNames.filterKeys(bin.getOrElse(k, constFalse))
+        binaries.filterKeys(bin.getOrElse(k, constFalse))
       )
 
       (for (k <- prod.keySet ++ sourcesMap.keySet ++ bin.keySet) yield (k, kStamps(k))).toMap
@@ -167,17 +162,16 @@ private class MStamps(val products: Map[File, Stamp], val sources: Map[File, Sta
   def product(prod: File) = getStamp(products, prod)
   def internalSource(src: File) = getStamp(sources, src)
   def binary(bin: File) = getStamp(binaries, bin)
-  def className(bin: File) = classNames get bin
 
   override def equals(other: Any): Boolean = other match {
-    case o: MStamps => products == o.products && sources == o.sources && binaries == o.binaries && classNames == o.classNames
+    case o: MStamps => products == o.products && sources == o.sources && binaries == o.binaries
     case _          => false
   }
 
-  override lazy val hashCode: Int = (products :: sources :: binaries :: classNames :: Nil).hashCode
+  override lazy val hashCode: Int = (products :: sources :: binaries :: Nil).hashCode
 
   override def toString: String =
-    "Stamps for: %d products, %d sources, %d binaries, %d classNames".format(products.size, sources.size, binaries.size, classNames.size)
+    "Stamps for: %d products, %d sources, %d binaries".format(products.size, sources.size, binaries.size)
 }
 
 private class InitialStamps(prodStamp: File => Stamp, srcStamp: File => Stamp, binStamp: File => Stamp) extends ReadStamps {

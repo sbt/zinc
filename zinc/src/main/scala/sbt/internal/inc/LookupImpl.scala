@@ -4,34 +4,38 @@ import java.io.File
 
 import sbt.util.Logger._
 import xsbti.Maybe
-import xsbti.compile.CompileAnalysis
+import xsbti.compile.{ CompileAnalysis, MiniSetup }
 
-class LookupImpl(compileConfiguration: CompileConfiguration) extends Lookup {
+class LookupImpl(compileConfiguration: CompileConfiguration, previousSetup: Option[MiniSetup]) extends Lookup {
+  private val classpath: Vector[File] = compileConfiguration.classpath.toVector
+  lazy val analyses: Vector[Analysis] =
+    classpath flatMap { entry =>
+      m2o(compileConfiguration.perClasspathEntryLookup.analysis(entry)) map
+        { case a: Analysis => a }
+    }
+  lazy val previousClasspath: Vector[File] =
+    previousSetup match {
+      case Some(x) => x.options.classpath.toVector
+      case _       => Vector()
+    }
+  def changedClasspath: Option[Vector[File]] =
+    if (classpath == previousClasspath) None
+    else Some(classpath)
+
   private val entry = MixedAnalyzingCompiler.classPathLookup(compileConfiguration)
 
+  override def lookupAnalysis(binaryClassName: String): Option[CompileAnalysis] =
+    analyses collectFirst {
+      case a if a.relations.productClassName._2s contains binaryClassName => a
+    }
   override def lookupOnClasspath(binaryClassName: String): Option[File] =
     entry(binaryClassName)
-
-  override def lookupAnalysis(classFile: File): Option[CompileAnalysis] =
-    m2o(compileConfiguration.perClasspathEntryLookup.analysis(classFile))
-
-  override def lookupAnalysis(binaryDependency: File, binaryClassName: String): Option[CompileAnalysis] = {
-    lookupOnClasspath(binaryClassName) flatMap { defines =>
-      if (binaryDependency != Locate.resolve(defines, binaryClassName))
-        None
-      else
-        lookupAnalysis(defines)
-    }
-  }
 
   lazy val externalLookup = Option(compileConfiguration.incOptions.externalHooks())
     .flatMap(ext => Option(ext.externalLookup()))
     .collect {
       case externalLookup: ExternalLookup => externalLookup
     }
-
-  override def lookupAnalysis(binaryClassName: String): Option[CompileAnalysis] =
-    lookupOnClasspath(binaryClassName).flatMap(lookupAnalysis)
 
   override def changedSources(previousAnalysis: Analysis): Option[Changes[File]] =
     externalLookup.flatMap(_.changedSources(previousAnalysis))

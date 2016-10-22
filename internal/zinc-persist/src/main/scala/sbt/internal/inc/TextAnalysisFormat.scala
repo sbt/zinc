@@ -235,7 +235,6 @@ object TextAnalysisFormat {
       val products = "product stamps"
       val sources = "source stamps"
       val binaries = "binary stamps"
-      val classNames = "class names"
     }
 
     def write(out: Writer, stamps: Stamps): Unit = {
@@ -244,7 +243,6 @@ object TextAnalysisFormat {
       doWriteMap(Headers.products, stamps.products)
       doWriteMap(Headers.sources, stamps.sources)
       doWriteMap(Headers.binaries, stamps.binaries)
-      doWriteMap(Headers.classNames, stamps.classNames)
     }
 
     def read(in: BufferedReader): Stamps = {
@@ -252,9 +250,8 @@ object TextAnalysisFormat {
       val products = doReadMap(Headers.products, Stamp.fromString)
       val sources = doReadMap(Headers.sources, Stamp.fromString)
       val binaries = doReadMap(Headers.binaries, Stamp.fromString)
-      val classNames = doReadMap(Headers.classNames, identity[String])
 
-      Stamps(products, sources, binaries, classNames)
+      Stamps(products, sources, binaries)
     }
   }
 
@@ -354,6 +351,7 @@ object TextAnalysisFormat {
     object Headers {
       val outputMode = "output mode"
       val outputDir = "output directories"
+      val classpathOptions = "classpath options"
       val compileOptions = "compile options"
       val javacOptions = "javac options"
       val compilerVersion = "compiler version"
@@ -377,6 +375,7 @@ object TextAnalysisFormat {
 
       writeSeq(out)(Headers.outputMode, mode :: Nil, identity[String])
       writeMap(out)(Headers.outputDir, outputAsMap, fileToString, fileToString)
+      writeSeq(out)(Headers.classpathOptions, setup.options.classpath, fileToString)
       writeSeq(out)(Headers.compileOptions, setup.options.scalacOptions, identity[String])
       writeSeq(out)(Headers.javacOptions, setup.options.javacOptions, identity[String])
       writeSeq(out)(Headers.compilerVersion, setup.compilerVersion :: Nil, identity[String])
@@ -390,6 +389,7 @@ object TextAnalysisFormat {
       def s2b(s: String): Boolean = s.toBoolean
       val outputDirMode = readSeq(in)(Headers.outputMode, identity[String]).headOption
       val outputAsMap = readMap(in)(Headers.outputDir, stringToFile, stringToFile)
+      val classpathOptions = readSeq(in)(Headers.classpathOptions, stringToFile)
       val compileOptions = readSeq(in)(Headers.compileOptions, identity[String])
       val javacOptions = readSeq(in)(Headers.javacOptions, identity[String])
       val compilerVersion = readSeq(in)(Headers.compilerVersion, identity[String]).head
@@ -418,7 +418,7 @@ object TextAnalysisFormat {
         case None => throw new ReadException("No output mode specified")
       }
 
-      new MiniSetup(output, new MiniOptions(compileOptions.toArray, javacOptions.toArray), compilerVersion,
+      new MiniSetup(output, new MiniOptions(classpathOptions.toArray, compileOptions.toArray, javacOptions.toArray), compilerVersion,
         xsbti.compile.CompileOrder.valueOf(compileOrder), nameHashing, skipApiStoring, extra.toArray)
     }
   }

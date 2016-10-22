@@ -462,7 +462,7 @@
 					"type": "String"
 				},
 				{
-					"name": "targetBinaryClassName",
+					"name": "targetProductClassName",
 					"type": "String"
 				},
 				{
