@@ -27,7 +27,7 @@ class ExtractUsedNamesPerformanceSpecification extends UnitSpec {
     var zipfs: Option[FileSystem] = None
     val src = try {
       val fileUri = getClass.getResource(TestResource).toURI
-      val zipfs = Option(initFileSystem(fileUri))
+      zipfs = Option(initFileSystem(fileUri))
       new String(Files.readAllBytes(Paths.get(fileUri)))
     } finally
       zipfs.foreach { _.close }
@@ -53,7 +53,7 @@ class ExtractUsedNamesPerformanceSpecification extends UnitSpec {
     assert(usedNames("acme.HList") === expectedNamesForHList)
   }
 
-  it should "correctly find TypeDef" in {
+  it should "correctly find Out0 (not stored in inspected tree) both in TuplerInstances and TuplerInstances.<refinement>" in {
     val src = """|sealed trait HList extends Product with Serializable
                  |trait DepFn1[T] {
                  |  type Out
@@ -66,6 +66,8 @@ class ExtractUsedNamesPerformanceSpecification extends UnitSpec {
     val compilerForTesting = new ScalaCompilerForUnitTesting(nameHashing = true)
     val usedNames = compilerForTesting.extractUsedNamesFromSrc(src)
     val expectedNamesForTuplerInstances = Set("Tupler", "AnyRef", "L", "Out0", "scala", "HList")
+    val expectedNamesForTuplerInstancesRefinement = Set("Out0")
     assert(usedNames("TuplerInstances") === expectedNamesForTuplerInstances)
+    assert(usedNames("TuplerInstances.<refinement>") === expectedNamesForTuplerInstancesRefinement)
   }
 }
