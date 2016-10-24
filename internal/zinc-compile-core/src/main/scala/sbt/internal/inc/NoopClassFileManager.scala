@@ -10,5 +10,6 @@ import xsbti.compile.ClassFileManager
 class NoopClassFileManager extends ClassFileManager {
   override def delete(classes: Array[File]): Unit = ()
   override def generated(classes: Array[File]): Unit = ()
+  override def useCustomizedFileManager(): Boolean = false
   override def complete(success: Boolean): Unit = ()
 }

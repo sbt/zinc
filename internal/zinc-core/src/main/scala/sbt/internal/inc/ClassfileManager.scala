@@ -28,6 +28,8 @@ object ClassfileManager {
       external.foreach(_.generated(classes))
       internal.generated(classes)
     }
+
+    override def useCustomizedFileManager(): Boolean = internal.useCustomizedFileManager()
   }
 
   def getClassfileManager(options: IncOptions): ClassFileManager = {
@@ -35,7 +37,7 @@ object ClassfileManager {
       if (options.classfileManagerType.isDefined)
         options.classfileManagerType.get match {
           case _: DeleteImmediatelyManagerType => deleteImmediately()
-          case m: TransactionalManagerType     => transactional(m.backupDirectory, m.logger)()
+          case m: TransactionalManagerType     => transactional(m.backupDirectory, options.useCustomizedFileManager(), m.logger)()
         }
       else deleteImmediately()
 
@@ -50,19 +52,18 @@ object ClassfileManager {
 
   /** Constructs a minimal ClassfileManager implementation that immediately deletes class files when requested. */
   val deleteImmediately: () => ClassFileManager = () => new ClassFileManager {
-    def delete(classes: Array[File]): Unit = IO.deleteFilesEmptyDirs(classes)
-
-    def generated(classes: Array[File]): Unit = ()
-
-    def complete(success: Boolean): Unit = ()
+    override def delete(classes: Array[File]): Unit = IO.deleteFilesEmptyDirs(classes)
+    override def generated(classes: Array[File]): Unit = ()
+    override def useCustomizedFileManager(): Boolean = false
+    override def complete(success: Boolean): Unit = ()
   }
 
   @deprecated("Use overloaded variant that takes additional logger argument, instead.", "0.13.5")
   def transactional(tempDir0: File): () => ClassFileManager =
-    transactional(tempDir0, sbt.util.Logger.Null)
+    transactional(tempDir0, useCustomizedFileManager = false, sbt.util.Logger.Null)
 
   /** When compilation fails, this ClassfileManager restores class files to the way they were before compilation. */
-  def transactional(tempDir0: File, logger: sbt.util.Logger): () => ClassFileManager = () => new ClassFileManager {
+  def transactional(tempDir0: File, useCustomizedFileManager: Boolean, logger: sbt.util.Logger): () => ClassFileManager = () => new ClassFileManager {
     val tempDir = tempDir0.getCanonicalFile
     IO.delete(tempDir)
     IO.createDirectory(tempDir)
@@ -88,6 +89,8 @@ object ClassfileManager {
       generatedClasses ++= classes
       ()
     }
+
+    override def useCustomizedFileManager(): Boolean = useCustomizedFileManager
 
     override def complete(success: Boolean): Unit = {
       if (!success) {

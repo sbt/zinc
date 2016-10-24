@@ -95,6 +95,15 @@
           "doc": "ClassfileManager that will handle class file deletion and addition during a single incremental compilation run."
         },
         {
+          "name": "useCustomizedFileManager",
+          "type": "boolean",
+          "doc": [
+            "Option to turn on customized file manager that tracks generated class files",
+            "for transactional rollbacks. May conflict with some user libraries, therefore it's",
+            "up to the user to determine whether to use customized file manager."
+          ]
+        },
+        {
           "name": "recompileOnMacroDef",
           "type": "xsbti.Maybe<Boolean>",
           "doc": [

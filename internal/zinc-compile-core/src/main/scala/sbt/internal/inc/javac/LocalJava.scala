@@ -85,8 +85,9 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
       log.warn("Javac is running in 'local' mode. These flags have been removed:")
       log.warn(invalidOptions.mkString("\t", ", ", ""))
     }
-    val writeReportingFileManager = new WriteReportingFileManager(fileManager, classFileManager)
-    val success = compiler.getTask(logWriter, writeReportingFileManager,
+    val customizedFileManager = if (classFileManager.useCustomizedFileManager())
+      new WriteReportingFileManager(fileManager, classFileManager) else fileManager
+    val success = compiler.getTask(logWriter, customizedFileManager,
       diagnostics, cleanedOptions.toList.asJava, null, jfiles).call()
 
     // The local compiler may report a successful compilation even though there are errors (e.g. encoding problems in the
