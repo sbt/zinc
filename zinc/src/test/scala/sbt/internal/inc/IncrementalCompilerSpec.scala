@@ -1,15 +1,13 @@
-package sbt
-package inc
+package sbt.internal.inc
 
 import java.io.File
 
-import sbt.internal.inc._
+import sbt.internal.util.ConsoleLogger
 import sbt.io.IO
 import sbt.io.syntax._
-import sbt.util.{ Logger, InterfaceUtil }
-import sbt.internal.util.ConsoleLogger
+import sbt.util.{ InterfaceUtil, Logger }
 import xsbti.Maybe
-import xsbti.compile.{ CompileAnalysis, CompileOrder, DefinesClass, IncOptionsUtil, PreviousResult, PerClasspathEntryLookup }
+import xsbti.compile._
 
 class IncrementalCompilerSpec extends BridgeProviderSpecification {
 
