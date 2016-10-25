@@ -98,9 +98,9 @@
           "name": "useCustomizedFileManager",
           "type": "boolean",
           "doc": [
-            "Option to turn on customized file manager that tracks generated class files",
-            "for transactional rollbacks. May conflict with some user libraries, therefore it's",
-            "up to the user to determine whether to use customized file manager."
+            "Option to turn on customized file manager that tracks generated class files for transactional rollbacks.",
+            "Using customized file manager may conflict with some libraries, this option allows user to decide",
+            "whether to use."
           ]
         },
         {
@@ -270,7 +270,7 @@
       "fields": [
         {
           "name": "classFileManager",
-          "type": "xsbti.compile.ClassFileManager"
+          "type": "xsbti.Maybe<xsbti.compile.ClassFileManager>"
         },
         {
           "name": "useCustomizedFileManager",

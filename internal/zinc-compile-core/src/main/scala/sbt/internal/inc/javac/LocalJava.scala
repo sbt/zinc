@@ -86,8 +86,8 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
       log.warn(invalidOptions.mkString("\t", ", ", ""))
     }
 
-    val customizedFileManager = if (incToolOptions.useCustomizedFileManager)
-      new WriteReportingFileManager(fileManager, incToolOptions.classFileManager()) else fileManager
+    val customizedFileManager = if (incToolOptions.useCustomizedFileManager && incToolOptions.classFileManager().isDefined)
+      new WriteReportingFileManager(fileManager, incToolOptions.classFileManager().get) else fileManager
     val success = compiler.getTask(logWriter, customizedFileManager,
       diagnostics, cleanedOptions.toList.asJava, null, jfiles).call()
 

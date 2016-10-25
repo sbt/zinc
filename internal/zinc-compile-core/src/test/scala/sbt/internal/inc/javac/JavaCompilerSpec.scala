@@ -8,7 +8,7 @@ import java.net.URLClassLoader
 
 import sbt._
 import xsbt.api.SameAPI
-import xsbti.{ Problem, Severity }
+import xsbti.{ Maybe, Problem, Severity }
 import xsbti.compile.{ IncToolOptions, IncToolOptionsUtil, JavaTools => XJavaTools }
 import sbt.io.IO
 import sbt.util.Logger
@@ -43,7 +43,7 @@ class JavaCompilerSpec extends UnitSpec {
     val classfileManager = new CollectingClassFileManager()
     val (result, problems) = compile(compiler, Seq(knownSampleGoodFile), Seq("-deprecation", "-d", out.getAbsolutePath),
       incToolOptions = IncToolOptionsUtil.defaultIncToolOptions()
-        .withClassFileManager(classfileManager).withUseCustomizedFileManager(true))
+        .withClassFileManager(Maybe.just(classfileManager)).withUseCustomizedFileManager(true))
 
     result shouldBe true
     val classfile = new File(out, "good.class")

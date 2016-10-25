@@ -19,5 +19,4 @@ public interface ClassFileManager {
 
     /** Called once at the end of the whole compilation run, with `success` indicating whether compilation succeeded (true) or not (false). */
     void complete(boolean success);
-
 }

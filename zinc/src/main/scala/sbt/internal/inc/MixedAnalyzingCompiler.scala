@@ -6,7 +6,7 @@ import java.io.File
 import java.lang.ref.{ Reference, SoftReference }
 
 import inc.javac.AnalyzingJavaCompiler
-import xsbti.{ Reporter, AnalysisCallback => XAnalysisCallback }
+import xsbti.{ Maybe, Reporter, AnalysisCallback => XAnalysisCallback }
 import xsbti.compile.CompileOrder._
 import xsbti.compile._
 import sbt.io.IO
@@ -55,7 +55,7 @@ final class MixedAnalyzingCompiler(
       if (javaSrcs.nonEmpty) {
         // Runs the analysis portion of Javac.
         timed("Java compile + analysis", log) {
-          val incToolOptions = new IncToolOptions(classfileManager, incOptions.useCustomizedFileManager())
+          val incToolOptions = new IncToolOptions(Maybe.just(classfileManager), incOptions.useCustomizedFileManager())
           javac.compile(javaSrcs, options.javacOptions.toArray[String], output, callback,
             incToolOptions, reporter, log, progress)
         }
