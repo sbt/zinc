@@ -172,6 +172,7 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
     {
       val previousAnalysis = previousAnalysis0 match { case a: Analysis => a }
       val previous = previousAnalysis.stamps
+      val previousRelations = previousAnalysis.relations
       val previousAPIs = previousAnalysis.apis
 
       val srcChanges = lookup.changedSources(previousAnalysis).getOrElse {
@@ -184,7 +185,7 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
       }
 
       val binaryDepChanges = lookup.changedBinaries(previousAnalysis).getOrElse {
-        previous.allBinaries.filter(externalBinaryModified(lookup, previous, current)).toSet
+        previous.allBinaries.filter(externalBinaryModified(lookup, previous, current, previousRelations)).toSet
       }
 
       val incrementalExtApiChanges = changedIncremental(previousAPIs.allExternals, previousAPIs.externalAPI, currentExternalAPI(lookup))
@@ -256,7 +257,7 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
       val modifiedClasses = classNames(modifiedSrcs)
       val invalidatedClasses = removedClasses ++ dependentOnRemovedClasses ++ modifiedClasses
       val byProduct = changes.removedProducts.flatMap(previous.produced)
-      val byBinaryDep = changes.binaryDeps.flatMap(previous.usesBinary)
+      val byBinaryDep = changes.binaryDeps.flatMap(previous.usesLibrary)
       val classToSrc = new ClassToSourceMapper(previous, previous)
       val byExtSrcDep = {
         val classNames = invalidateByAllExternal(previous, changes.external, classToSrc.isDefinedInScalaSrc) //changes.external.modified.flatMap(previous.usesExternal) // ++ scopeInvalidations
@@ -337,7 +338,7 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
       newInv ++ initialDependsOnNew
     }
 
-  def externalBinaryModified(lookup: Lookup, previous: Stamps, current: ReadStamps)(implicit equivS: Equiv[Stamp]): File => Boolean =
+  def externalBinaryModified(lookup: Lookup, previous: Stamps, current: ReadStamps, previousRelations: Relations)(implicit equivS: Equiv[Stamp]): File => Boolean =
     dependsOn =>
       {
         def inv(reason: String): Boolean = {
@@ -362,17 +363,24 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
               inv("stamp changed from " + previousStamp + " to " + currentStamp)
           }
         def dependencyModified(file: File): Boolean =
-          previous.className(file) match {
-            case None => inv("no class name was mapped for it.")
-            case Some(name) => lookup.lookupOnClasspath(name) match {
-              case None    => inv("could not find class " + name + " on the classpath.")
-              case Some(e) => entryModified(name, e)
+          {
+            val classNames = previousRelations.libraryClassNames(file)
+            classNames exists { binaryClassName =>
+              // classpath has not changed since the last compilation, so use the faster detection.
+              if (lookup.changedClasspath.isEmpty)
+                lookup.lookupAnalysis(binaryClassName) match {
+                  case None    => false
+                  case Some(e) => inv(s"shadowing is detected for class $binaryClassName")
+                }
+              else
+                lookup.lookupOnClasspath(binaryClassName) match {
+                  case None    => inv(s"could not find class $binaryClassName on the classpath.")
+                  case Some(e) => entryModified(binaryClassName, e)
+                }
             }
           }
-
-        lookup.lookupAnalysis(dependsOn).isEmpty &&
-          (if (skipClasspathLookup) fileModified(dependsOn, dependsOn) else dependencyModified(dependsOn))
-
+        (if (skipClasspathLookup) fileModified(dependsOn, dependsOn)
+        else dependencyModified(dependsOn))
       }
 
   def currentExternalAPI(lookup: Lookup): String => AnalyzedClass = {
@@ -382,7 +390,7 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
           for {
             analysis0 <- lookup.lookupAnalysis(binaryClassName)
             analysis = analysis0 match { case a: Analysis => a }
-            className <- analysis.relations.binaryClassName.reverse(binaryClassName).headOption
+            className <- analysis.relations.productClassName.reverse(binaryClassName).headOption
           } yield analysis.apis.internalAPI(className)
         )
       }

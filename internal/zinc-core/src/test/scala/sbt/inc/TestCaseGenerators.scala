@@ -64,13 +64,12 @@ object TestCaseGenerators {
   def genStamps(rel: Relations): Gen[Stamps] = {
     val prod = rel.allProducts.toList
     val src = rel.allSources.toList
-    val bin = rel.allBinaryDeps.toList
+    val bin = rel.allLibraryDeps.toList
     for {
       prodStamps <- listOfN(prod.length, genStamp)
       srcStamps <- listOfN(src.length, genStamp)
       binStamps <- listOfN(bin.length, genStamp)
-      binClassNames <- listOfN(bin.length, unique(identifier))
-    } yield Stamps(zipMap(prod, prodStamps), zipMap(src, srcStamps), zipMap(bin, binStamps), zipMap(bin, binClassNames))
+    } yield Stamps(zipMap(prod, prodStamps), zipMap(src, srcStamps), zipMap(bin, binStamps))
   }
 
   private[this] val emptyStructure = new Structure(lzy(Array()), lzy(Array()), lzy(Array()))
@@ -166,10 +165,11 @@ object TestCaseGenerators {
   def genRelationsNameHashing: Gen[Relations] = for {
     numSrcs <- choose(0, maxSources)
     srcs <- listOfN(numSrcs, genFile)
-    binaryClassName <- genStringStringRelation(numSrcs)
+    productClassName <- genStringStringRelation(numSrcs)
+    libraryClassName <- genStringRelation(srcs)
     srcProd <- genFileRelation(srcs)
-    binaryDep <- genFileRelation(srcs)
-    classNames = binaryClassName._1s.toList
+    libraryDep <- genFileRelation(srcs)
+    classNames = productClassName._1s.toList
     memberRef <- genRClassDependencies(classNames)
     inheritance <- genSubRClassDependencies(memberRef)
     localInheritance <- genSubRClassDependencies(memberRef)
@@ -185,7 +185,7 @@ object TestCaseGenerators {
       DependencyByInheritance -> inheritance.external,
       LocalDependencyByInheritance -> localInheritance.external
     ))
-  } yield Relations.make(srcProd, binaryDep, internal, external, classes, names, binaryClassName)
+  } yield Relations.make(srcProd, libraryDep, libraryClassName, internal, external, classes, names, productClassName)
 
   def genAnalysis: Gen[Analysis] = for {
     rels <- genRelationsNameHashing
