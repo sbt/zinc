@@ -10,14 +10,16 @@ import java.nio.file.Paths
 import sbt.internal.util.UnitSpec
 
 class ExtractUsedNamesPerformanceSpecification extends UnitSpec {
-  private def initFileSystem(uri: URI): FileSystem = {
+  private def initFileSystem(uri: URI): Option[FileSystem] = {
     try
-      FileSystems.getFileSystem(uri)
+      Option(FileSystems.getFileSystem(uri))
     catch {
       case _: FileSystemNotFoundException =>
         val env = Map("create" -> "true")
         import scala.collection.JavaConverters._
-        FileSystems.newFileSystem(uri, env.asJava)
+        Option(FileSystems.newFileSystem(uri, env.asJava))
+      case _: IllegalArgumentException =>
+        Option(FileSystems.getDefault)
     }
   }
 
@@ -27,10 +29,10 @@ class ExtractUsedNamesPerformanceSpecification extends UnitSpec {
     var zipfs: Option[FileSystem] = None
     val src = try {
       val fileUri = getClass.getResource(TestResource).toURI
-      zipfs = Option(initFileSystem(fileUri))
+      zipfs = initFileSystem(fileUri)
       new String(Files.readAllBytes(Paths.get(fileUri)))
     } finally
-      zipfs.foreach { _.close }
+      zipfs.foreach { fs => try fs.close catch { case _: Throwable => /*ignore*/ } }
     import org.scalatest.concurrent.Timeouts._
     import org.scalatest.time.SpanSugar._
     val usedNames = failAfter(30 seconds) {
