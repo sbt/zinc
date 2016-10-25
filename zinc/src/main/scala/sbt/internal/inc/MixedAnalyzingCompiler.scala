@@ -55,8 +55,9 @@ final class MixedAnalyzingCompiler(
       if (javaSrcs.nonEmpty) {
         // Runs the analysis portion of Javac.
         timed("Java compile + analysis", log) {
+          val incToolOptions = new IncToolOptions(classfileManager, incOptions.useCustomizedFileManager())
           javac.compile(javaSrcs, options.javacOptions.toArray[String], output, callback,
-            classfileManager, reporter, log, progress)
+            incToolOptions, reporter, log, progress)
         }
       }
     // TODO - Maybe on "Mixed" we should try to compile both Scala + Java.

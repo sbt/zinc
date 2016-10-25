@@ -259,6 +259,26 @@
       ]
     },
     {
+      "name": "IncToolOptions",
+      "namespace": "xsbti.compile",
+      "target": "Java",
+      "type": "record",
+      "doc": [
+        "Configuration options derived from `IncOptions` for incremental compiler that",
+        "are used by `JavaTools`."
+      ],
+      "fields": [
+        {
+          "name": "classFileManager",
+          "type": "xsbti.compile.ClassFileManager"
+        },
+        {
+          "name": "useCustomizedFileManager",
+          "type": "boolean"
+        }
+      ]
+    },
+    {
       "name": "MiniSetup",
       "namespace": "xsbti.compile",
       "target": "Java",

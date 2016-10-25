@@ -8,7 +8,8 @@ import sbt.util.Logger
 import sbt.internal.util.UnitSpec
 import sbt.internal.inc.javac.{ JavaCompiler, JavaTools, Javadoc }
 import sbt.internal.inc.javac.JavaCompilerSpec
-import sbt.internal.inc.{ LoggerReporter, NoopClassFileManager }
+import sbt.internal.inc.LoggerReporter
+import xsbti.compile.IncToolOptionsUtil
 // import org.scalatest.matchers._
 
 class DocSpec extends UnitSpec {
@@ -16,7 +17,7 @@ class DocSpec extends UnitSpec {
     IO.withTemporaryDirectory { cacheDir =>
       IO.withTemporaryDirectory { out =>
         val javadoc = Doc.cachedJavadoc("Foo", cacheDir, local)
-        javadoc.run(List(knownSampleGoodFile), Nil, out, Nil, new NoopClassFileManager(), log, reporter)
+        javadoc.run(List(knownSampleGoodFile), Nil, out, Nil, IncToolOptionsUtil.defaultIncToolOptions(), log, reporter)
         assert((new File(out, "index.html")).exists)
         assert((new File(out, "good.html")).exists)
       }
@@ -26,7 +27,7 @@ class DocSpec extends UnitSpec {
     IO.withTemporaryDirectory { cacheDir =>
       IO.withTemporaryDirectory { out =>
         val javadoc = Doc.cachedJavadoc("Foo", cacheDir, local)
-        javadoc.run(List(knownSampleGoodFile), Nil, out, Nil, new NoopClassFileManager(), log, reporter)
+        javadoc.run(List(knownSampleGoodFile), Nil, out, Nil, IncToolOptionsUtil.defaultIncToolOptions(), log, reporter)
         assert((new File(cacheDir, "inputs")).exists)
       }
     }
