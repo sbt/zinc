@@ -52,8 +52,8 @@ def baseSettings: Seq[Setting[_]] =
   minimalSettings
 //   minimalSettings ++ baseScalacOptions ++ Licensed.settings ++ Formatting.settings
 
-def testedBaseSettings: Seq[Setting[_]] =
-  baseSettings ++ testDependencies
+def addBaseSettingsAndTestDeps(p: Project): Project =
+  p.settings(baseSettings).configure(addTestDependencies)
 
 val altLocalRepoName = "alternative-local"
 val altLocalRepoPath = sys.props("user.home") + "/.ivy2/sbt-alternative"
@@ -120,8 +120,8 @@ lazy val zinc = (project in file("zinc")).
   dependsOn(zincCore, zincPersist, zincCompileCore,
     zincClassfile, zincIvyIntegration % "compile->compile;test->test",
     zincTesting % Test).
+  configure(addBaseSettingsAndTestDeps).
   settings(
-    testedBaseSettings,
     name := "zinc"
   )
 
@@ -133,23 +133,24 @@ lazy val zincTesting = (project in internalPath / "zinc-testing").
     publishArtifact in Compile := false,
     publishArtifact in Test := false,
     publishArtifact := false,
-    libraryDependencies ++= Seq(libraryManagement, utilTesting,
+    libraryDependencies ++= Seq(
       scalaCheck, scalatest, junit)
-  )
+  ).
+  configure(addSbtLm, addSbtUtilTesting)
 
 lazy val zincCompile = (project in file("zinc-compile")).
   dependsOn(zincCompileCore, zincCompileCore % "test->test").
+  configure(addBaseSettingsAndTestDeps).
   settings(
-    testedBaseSettings,
-    name := "zinc Compile",
-    libraryDependencies ++= Seq(utilTracking)
-  )
+    name := "zinc Compile"
+  ).
+  configure(addSbtUtilTracking)
 
 // Persists the incremental data structures using SBinary
 lazy val zincPersist = (project in internalPath / "zinc-persist").
   dependsOn(zincCore, zincCore % "test->test").
+  configure(addBaseSettingsAndTestDeps).
   settings(
-    testedBaseSettings,
     name := "zinc Persist",
     libraryDependencies += sbinary
   )
@@ -158,9 +159,8 @@ lazy val zincPersist = (project in internalPath / "zinc-persist").
 //   Defines the data structures for representing file fingerprints and relationships and the overall source analysis
 lazy val zincCore = (project in internalPath / "zinc-core").
   dependsOn(zincApiInfo, zincClasspath, compilerBridge % Test).
+  configure(addBaseSettingsAndTestDeps).
   settings(
-    testedBaseSettings,
-    libraryDependencies ++= Seq(sbtIO, utilLogging, utilRelation),
     // we need to fork because in unit tests we set usejavacp = true which means
     // we are expecting all of our dependencies to be on classpath so Scala compiler
     // can use them while constructing its own classpath for compilation
@@ -169,26 +169,27 @@ lazy val zincCore = (project in internalPath / "zinc-core").
     // compiler instances that are memory hungry
     javaOptions in Test += "-Xmx1G",
     name := "zinc Core"
-  )
+  ).
+  configure(addSbtIO, addSbtUtilLogging, addSbtUtilRelation)
 
 lazy val zincIvyIntegration = (project in internalPath / "zinc-ivy-integration").
   dependsOn(zincCompileCore, zincTesting % Test).
   settings(
     baseSettings,
-    libraryDependencies ++= Seq(libraryManagement),
     name := "zinc Ivy Integration"
-  )
+  ).
+  configure(addSbtLm)
 
 // sbt-side interface to compiler.  Calls compiler-side interface reflectively
 lazy val zincCompileCore = (project in internalPath / "zinc-compile-core").
   dependsOn(compilerInterface % "compile;test->test", zincClasspath, zincApiInfo, zincClassfile, zincTesting % Test).
+  configure(addBaseSettingsAndTestDeps).
   settings(
-    testedBaseSettings,
     name := "zinc Compile Core",
-    libraryDependencies ++= Seq(scalaCompiler.value % Test, launcherInterface,
-      utilLogging, sbtIO, utilControl),
+    libraryDependencies ++= Seq(scalaCompiler.value % Test, launcherInterface),
     unmanagedJars in Test <<= (packageSrc in compilerBridge in Compile).map(x => Seq(x).classpath)
-  )
+  ).
+  configure(addSbtUtilLogging, addSbtIO, addSbtUtilControl)
 
 // defines Java structures used across Scala versions, such as the API structures and relationships extracted by
 //   the analysis compiler phases and passed back to sbt.  The API structures are defined in a simple
@@ -200,7 +201,7 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface").
     // javaOnlySettings,
     name := "Compiler Interface",
     crossScalaVersions := Seq(scala211),
-    libraryDependencies ++= Seq(utilInterface, scalaLibrary.value % Test),
+    libraryDependencies ++= Seq(scalaLibrary.value % Test),
     exportJars := true,
     watchSources <++= apiDefinitions,
     resourceGenerators in Compile <+= (version, resourceManaged, streams, compile in Compile) map generateVersionFile,
@@ -208,7 +209,8 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface").
     crossPaths := false,
     autoScalaLibrary := false,
     altPublishSettings
-  )
+  ).
+  configure(addSbtUtilInterface)
 
 // Compiler-side interface to compiler that is compiled against the compiler being used either in advance or on the fly.
 //   Includes API and Analyzer phases that extract source API and relationships.
@@ -228,7 +230,6 @@ lazy val compilerBridge: Project = (project in internalPath / "compiler-bridge")
     // needed because we fork tests and tests are ran in parallel so we have multiple Scala
     // compiler instances that are memory hungry
     javaOptions in Test += "-Xmx1G",
-    libraryDependencies ++= Seq(sbtIO, utilLogging),
     scalaSource in Compile := {
       scalaVersion.value match {
         case v if v startsWith "2.11" => baseDirectory.value / "src" / "main" / "scala"
@@ -242,36 +243,37 @@ lazy val compilerBridge: Project = (project in internalPath / "compiler-bridge")
       }
     },
     altPublishSettings
-  )
+  ).
+  configure(addSbtIO, addSbtUtilLogging)
 
 // defines operations on the API of a source, including determining whether it has changed and converting it to a string
 //   and discovery of Projclasses and annotations
 lazy val zincApiInfo = (project in internalPath / "zinc-apiinfo").
   dependsOn(compilerInterface, zincClassfile % "compile;test->test").
+  configure(addBaseSettingsAndTestDeps).
   settings(
-    testedBaseSettings,
     name := "zinc ApiInfo"
   )
 
 // Utilities related to reflection, managing Scala versions, and custom class loaders
 lazy val zincClasspath = (project in internalPath / "zinc-classpath").
   dependsOn(compilerInterface).
+  configure(addBaseSettingsAndTestDeps).
   settings(
-    testedBaseSettings,
     name := "zinc Classpath",
     libraryDependencies ++= Seq(scalaCompiler.value,
-      Dependencies.launcherInterface,
-      sbtIO)
-  )
+      launcherInterface)
+  ).
+  configure(addSbtIO)
 
 // class file reader and analyzer
 lazy val zincClassfile = (project in internalPath / "zinc-classfile").
   dependsOn(compilerInterface % "compile;test->test").
+  configure(addBaseSettingsAndTestDeps).
   settings(
-    testedBaseSettings,
-    libraryDependencies ++= Seq(sbtIO, utilLogging),
     name := "zinc Classfile"
-  )
+  ).
+  configure(addSbtIO, addSbtUtilLogging)
 
 // re-implementation of scripted engine
 lazy val zincScripted = (project in internalPath / "zinc-scripted").
@@ -280,9 +282,9 @@ lazy val zincScripted = (project in internalPath / "zinc-scripted").
     minimalSettings,
     name := "zinc Scripted",
     publish := (),
-    publishLocal := (),
-    libraryDependencies += utilScripted % "test"
-  )
+    publishLocal := ()
+  ).
+  configure(addSbtUtilScripted)
 
 lazy val publishBridgesAndTest = Command.args("publishBridgesAndTest", "<version>") { (state, args) =>
   val version = args mkString ""
@@ -349,4 +351,3 @@ def customCommands: Seq[Setting[_]] = Seq(
     state
   }
 )
-
