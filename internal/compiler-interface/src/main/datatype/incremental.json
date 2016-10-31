@@ -95,6 +95,15 @@
           "doc": "ClassfileManager that will handle class file deletion and addition during a single incremental compilation run."
         },
         {
+          "name": "useCustomizedFileManager",
+          "type": "boolean",
+          "doc": [
+            "Option to turn on customized file manager that tracks generated class files for transactional rollbacks.",
+            "Using customized file manager may conflict with some libraries, this option allows user to decide",
+            "whether to use."
+          ]
+        },
+        {
           "name": "recompileOnMacroDef",
           "type": "xsbti.Maybe<Boolean>",
           "doc": [
@@ -246,6 +255,26 @@
           "doc": [
             "The options to pass to the Java compiler other than the sources and classpath to use."
           ]
+        }
+      ]
+    },
+    {
+      "name": "IncToolOptions",
+      "namespace": "xsbti.compile",
+      "target": "Java",
+      "type": "record",
+      "doc": [
+        "Configuration options derived from `IncOptions` for incremental compiler that",
+        "are used by `JavaTools`."
+      ],
+      "fields": [
+        {
+          "name": "classFileManager",
+          "type": "xsbti.Maybe<xsbti.compile.ClassFileManager>"
+        },
+        {
+          "name": "useCustomizedFileManager",
+          "type": "boolean"
         }
       ]
     },

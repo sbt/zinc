@@ -21,11 +21,11 @@ public interface JavaTool {
    *
    * @param sources  The list of java source files to compile.
    * @param options  The set of options to pass to the java compiler (includes the classpath).
-   * @param classFileManager The component that manages generated class files.
+   * @param incToolOptions The set of options to pass to the java compiler for incremental compile purpose.
    * @param reporter The reporter for semantic error messages.
    * @param log      The logger to dump output into.
    * @return true if no errors, false otherwise.
    */
-  boolean run(File[] sources, String[] options, ClassFileManager classFileManager,
+  boolean run(File[] sources, String[] options, IncToolOptions incToolOptions,
               Reporter reporter, Logger log);
 }

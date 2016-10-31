@@ -1,20 +1,18 @@
 package sbt
 package inc
 
-import java.io.{ File, PrintWriter }
+import java.io.File
 
-import sbt.internal.inc.NoopClassFileManager
 import sbt.io.syntax._
 import sbt.io.IO
 import sbt.util.Logger
 import xsbti.Reporter
-import xsbti.compile.JavaTools
+import xsbti.compile.{ IncToolOptions, JavaTools }
 import sbt.internal.inc.javac.JavaCompilerArguments
 import sbt.internal.util.Tracked.{ inputChangedWithJson, outputChangedWithJson }
-import sbt.internal.util.{ FileInfo, FilesInfo, HNil, HashFileInfo, ModifiedFileInfo, PlainFileInfo }
+import sbt.internal.util.{ FileInfo, FilesInfo, HashFileInfo, ModifiedFileInfo, PlainFileInfo }
 import sbt.internal.util.FilesInfo.{ exists, hash, lastModified }
 import sbt.serialization._
-import xsbti.compile.ClassFileManager
 
 object Doc {
   // def scaladoc(label: String, cache: File, compiler: AnalyzingCompiler): RawCompileLike.Gen =
@@ -24,11 +22,11 @@ object Doc {
   def cachedJavadoc(label: String, cache: File, doc: JavaTools): JavaDoc =
     cached(cache, prepare(label + " Java API documentation", new JavaDoc {
       def run(sources: List[File], classpath: List[File], outputDirectory: File, options: List[String],
-        classFileManager: ClassFileManager, log: Logger, reporter: Reporter): Unit = {
+        incToolOptions: IncToolOptions, log: Logger, reporter: Reporter): Unit = {
         doc.javadoc.run(
           (sources filter javaSourcesOnly).toArray,
           JavaCompilerArguments(sources, classpath, Some(outputDirectory), options).toArray,
-          classFileManager, reporter, log
+          incToolOptions, reporter, log
         )
         ()
       }
@@ -36,18 +34,18 @@ object Doc {
   private[sbt] def prepare(description: String, doDoc: JavaDoc): JavaDoc =
     new JavaDoc {
       def run(sources: List[File], classpath: List[File], outputDirectory: File, options: List[String],
-        classFileManager: ClassFileManager, log: Logger, reporter: Reporter): Unit =
+        incToolOptions: IncToolOptions, log: Logger, reporter: Reporter): Unit =
         if (sources.isEmpty) log.info("No sources available, skipping " + description + "...")
         else {
           log.info(description.capitalize + " to " + outputDirectory.absolutePath + "...")
-          doDoc.run(sources, classpath, outputDirectory, options, new NoopClassFileManager(), log, reporter)
+          doDoc.run(sources, classpath, outputDirectory, options, incToolOptions, log, reporter)
           log.info(description.capitalize + " successful.")
         }
     }
   private[sbt] def cached(cache: File, doDoc: JavaDoc): JavaDoc =
     new JavaDoc {
       def run(sources: List[File], classpath: List[File], outputDirectory: File, options: List[String],
-        classFileManager: ClassFileManager, log: Logger, reporter: Reporter): Unit =
+        incToolOptions: IncToolOptions, log: Logger, reporter: Reporter): Unit =
         {
           val inputs = Inputs(filesInfoToList(hash(sources.toSet)), filesInfoToList(lastModified(classpath.toSet)), classpath, outputDirectory, options)
           val cachedDoc = inputChangedWithJson(cache / "inputs") { (inChanged, in: Inputs) =>
@@ -55,7 +53,7 @@ object Doc {
               if (inChanged || outChanged) {
                 IO.delete(outputDirectory)
                 IO.createDirectory(outputDirectory)
-                doDoc.run(sources, classpath, outputDirectory, options, new NoopClassFileManager(), log, reporter)
+                doDoc.run(sources, classpath, outputDirectory, options, incToolOptions, log, reporter)
               } else log.debug("Doc uptodate: " + outputDirectory.getAbsolutePath)
             }
           }
@@ -73,6 +71,6 @@ object Doc {
 
   trait JavaDoc {
     def run(sources: List[File], classpath: List[File], outputDirectory: File, options: List[String],
-      classFileManager: ClassFileManager, log: Logger, reporter: Reporter): Unit
+      incToolOptions: IncToolOptions, log: Logger, reporter: Reporter): Unit
   }
 }

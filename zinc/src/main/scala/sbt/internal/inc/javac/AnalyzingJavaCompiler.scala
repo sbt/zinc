@@ -43,7 +43,7 @@ final class AnalyzingJavaCompiler private[sbt] (
    * @param progressOpt An optional compilation progress reporter.  Where we can report back what files we're currently compiling.
    */
   def compile(sources: Seq[File], options: Seq[String], output: Output, callback: AnalysisCallback,
-    classfileManager: ClassFileManager, reporter: Reporter, log: Logger, progressOpt: Option[CompileProgress]): Unit = {
+    incToolOptions: IncToolOptions, reporter: Reporter, log: Logger, progressOpt: Option[CompileProgress]): Unit = {
     if (sources.nonEmpty) {
       val absClasspath = classpath.map(_.getAbsoluteFile)
       @annotation.tailrec def ancestor(f1: File, f2: File): Boolean =
@@ -75,7 +75,7 @@ final class AnalyzingJavaCompiler private[sbt] (
           sources sortBy {
             _.getAbsolutePath
           }
-        }.toArray, args.toArray, classfileManager, reporter, log)
+        }.toArray, args.toArray, incToolOptions, reporter, log)
         if (!success) {
           // TODO - Will the reporter have problems from Scalac?  It appears like it does not, only from the most recent run.
           // This is because the incremental compiler will not run javac if scalac fails.

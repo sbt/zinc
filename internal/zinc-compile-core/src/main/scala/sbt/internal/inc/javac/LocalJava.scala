@@ -12,7 +12,7 @@ import javax.tools.{ FileObject, ForwardingFileObject, ForwardingJavaFileManager
 import sbt.internal.util.LoggerWriter
 import sbt.util.{ Level, Logger }
 import xsbti.{ Reporter, Logger => XLogger }
-import xsbti.compile.{ ClassFileManager, JavaCompiler => XJavaCompiler, Javadoc => XJavadoc }
+import xsbti.compile.{ ClassFileManager, IncToolOptions, JavaCompiler => XJavaCompiler, Javadoc => XJavadoc }
 
 /**
  * Helper methods for trying to run the java toolchain out of our own classloaders.
@@ -44,7 +44,7 @@ object LocalJava {
 }
 /** Implementation of javadoc tool which attempts to run it locally (in-class). */
 final class LocalJavadoc() extends XJavadoc {
-  override def run(sources: Array[File], options: Array[String], classFileManager: ClassFileManager,
+  override def run(sources: Array[File], options: Array[String], incToolOptions: IncToolOptions,
     reporter: Reporter, log: XLogger): Boolean = {
     val cwd = new File(new File(".").getAbsolutePath).getCanonicalFile
     val (jArgs, nonJArgs) = options.partition(_.startsWith("-J"))
@@ -67,7 +67,7 @@ final class LocalJavadoc() extends XJavadoc {
 
 /** An implementation of compiling java which delegates to the JVM resident java compiler. */
 final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaCompiler {
-  override def run(sources: Array[File], options: Array[String], classFileManager: ClassFileManager,
+  override def run(sources: Array[File], options: Array[String], incToolOptions: IncToolOptions,
     reporter: Reporter, log0: XLogger): Boolean = {
     val log: Logger = log0
     import collection.JavaConverters._
@@ -85,8 +85,10 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
       log.warn("Javac is running in 'local' mode. These flags have been removed:")
       log.warn(invalidOptions.mkString("\t", ", ", ""))
     }
-    val writeReportingFileManager = new WriteReportingFileManager(fileManager, classFileManager)
-    val success = compiler.getTask(logWriter, writeReportingFileManager,
+
+    val customizedFileManager = if (incToolOptions.useCustomizedFileManager && incToolOptions.classFileManager().isDefined)
+      new WriteReportingFileManager(fileManager, incToolOptions.classFileManager().get) else fileManager
+    val success = compiler.getTask(logWriter, customizedFileManager,
       diagnostics, cleanedOptions.toList.asJava, null, jfiles).call()
 
     // The local compiler may report a successful compilation even though there are errors (e.g. encoding problems in the

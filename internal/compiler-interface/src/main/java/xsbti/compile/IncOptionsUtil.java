@@ -76,6 +76,10 @@ public class IncOptionsUtil {
     return true;
   }
 
+  public static boolean defaultUseCustomizedFileManager() {
+    return false;
+  }
+
   public static boolean defaultStoreApis() {
     return true;
   }
@@ -111,8 +115,9 @@ public class IncOptionsUtil {
       defaultTransitiveStep(), defaultRecompileAllFraction(),
       defaultRelationsDebug(), defaultApiDebug(),
       defaultApiDiffContextSize(), defaultApiDumpDirectory(),
-      defaultClassfileManagerType(), defaultRecompileOnMacroDef(),
-      defaultNameHashing(), defaultStoreApis(), defaultAntStyle(),
+      defaultClassfileManagerType(), defaultUseCustomizedFileManager(),
+      defaultRecompileOnMacroDef(), defaultNameHashing(),
+      defaultStoreApis(), defaultAntStyle(),
       defaultExtra(), defaultLogRecompileOnMacro(),
       defaultExternal());
     return retval;

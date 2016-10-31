@@ -8,8 +8,8 @@ import java.net.URLClassLoader
 
 import sbt._
 import xsbt.api.SameAPI
-import xsbti.{ Problem, Severity }
-import xsbti.compile.{ ClassFileManager, JavaTools => XJavaTools }
+import xsbti.{ Maybe, Problem, Severity }
+import xsbti.compile.{ IncToolOptions, IncToolOptionsUtil, JavaTools => XJavaTools }
 import sbt.io.IO
 import sbt.util.Logger
 import sbt.internal.util.UnitSpec
@@ -42,7 +42,8 @@ class JavaCompilerSpec extends UnitSpec {
   def works(compiler: XJavaTools, forked: Boolean = false) = IO.withTemporaryDirectory { out =>
     val classfileManager = new CollectingClassFileManager()
     val (result, problems) = compile(compiler, Seq(knownSampleGoodFile), Seq("-deprecation", "-d", out.getAbsolutePath),
-      classfileManager = classfileManager)
+      incToolOptions = IncToolOptionsUtil.defaultIncToolOptions()
+        .withClassFileManager(Maybe.just(classfileManager)).withUseCustomizedFileManager(true))
 
     result shouldBe true
     val classfile = new File(out, "good.class")
@@ -155,17 +156,18 @@ class JavaCompilerSpec extends UnitSpec {
   }
 
   def compile(c: XJavaTools, sources: Seq[File], args: Seq[String],
-    classfileManager: ClassFileManager = new NoopClassFileManager): (Boolean, Array[Problem]) = {
+    incToolOptions: IncToolOptions = IncToolOptionsUtil.defaultIncToolOptions()): (Boolean, Array[Problem]) = {
     val log = Logger.Null
     val reporter = new LoggerReporter(10, log)
-    val result = c.javac.run(sources.toArray, args.toArray, classfileManager, reporter, log)
+    val result = c.javac.run(sources.toArray, args.toArray, incToolOptions, reporter, log)
     (result, reporter.problems)
   }
 
-  def doc(c: XJavaTools, sources: Seq[File], args: Seq[String]): (Boolean, Array[Problem]) = {
+  def doc(c: XJavaTools, sources: Seq[File], args: Seq[String],
+    incToolOptions: IncToolOptions = IncToolOptionsUtil.defaultIncToolOptions()): (Boolean, Array[Problem]) = {
     val log = Logger.Null
     val reporter = new LoggerReporter(10, log)
-    val result = c.javadoc.run(sources.toArray, args.toArray, new NoopClassFileManager(), reporter, log)
+    val result = c.javadoc.run(sources.toArray, args.toArray, incToolOptions, reporter, log)
     (result, reporter.problems)
   }
 

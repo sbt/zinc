@@ -50,11 +50,9 @@ object ClassfileManager {
 
   /** Constructs a minimal ClassfileManager implementation that immediately deletes class files when requested. */
   val deleteImmediately: () => ClassFileManager = () => new ClassFileManager {
-    def delete(classes: Array[File]): Unit = IO.deleteFilesEmptyDirs(classes)
-
-    def generated(classes: Array[File]): Unit = ()
-
-    def complete(success: Boolean): Unit = ()
+    override def delete(classes: Array[File]): Unit = IO.deleteFilesEmptyDirs(classes)
+    override def generated(classes: Array[File]): Unit = ()
+    override def complete(success: Boolean): Unit = ()
   }
 
   @deprecated("Use overloaded variant that takes additional logger argument, instead.", "0.13.5")
