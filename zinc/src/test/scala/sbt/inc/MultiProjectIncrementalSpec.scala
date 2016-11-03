@@ -145,7 +145,7 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
   }
 
   def scalaCompiler(instance: ScalaInstance, bridgeJar: File): AnalyzingCompiler =
-    new AnalyzingCompiler(instance, CompilerInterfaceProvider.constant(bridgeJar), ClasspathOptionsUtil.boot)
+    new AnalyzingCompiler(instance, CompilerBridgeProvider.constant(bridgeJar), ClasspathOptionsUtil.boot)
 }
 
 class PerClasspathEntryLookupImpl(

@@ -5,11 +5,11 @@ package inc
 import java.io.File
 import sbt.util.Logger
 
-trait CompilerInterfaceProvider {
+trait CompilerBridgeProvider {
   def apply(scalaInstance: xsbti.compile.ScalaInstance, log: Logger): File
 }
-object CompilerInterfaceProvider {
-  def constant(file: File): CompilerInterfaceProvider = new CompilerInterfaceProvider {
+object CompilerBridgeProvider {
+  def constant(file: File): CompilerBridgeProvider = new CompilerBridgeProvider {
     def apply(scalaInstance: xsbti.compile.ScalaInstance, log: Logger): File = file
   }
 }

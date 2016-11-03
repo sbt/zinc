@@ -261,7 +261,7 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
     }
 
   def scalaCompiler(instance: ScalaInstance, bridgeJar: File): AnalyzingCompiler =
-    new AnalyzingCompiler(instance, CompilerInterfaceProvider.constant(bridgeJar), ClasspathOptionsUtil.boot)
+    new AnalyzingCompiler(instance, CompilerBridgeProvider.constant(bridgeJar), ClasspathOptionsUtil.boot)
 
   def finish(state: Option[IncInstance]): Unit = ()
 
