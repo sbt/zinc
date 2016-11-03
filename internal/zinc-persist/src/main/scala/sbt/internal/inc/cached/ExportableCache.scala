@@ -59,9 +59,29 @@ class ExportableCache(val cacheLocation: Path, cleanOutputMode: CleanOutputMode 
         } else throw new IllegalStateException(s"Output file: $output is not a directory")
       }
 
-      IO.unzip(classesZipFile.toFile, output, preserveLastModified = true)
-      (newAnalysis, newSetup)
+      val importedClassfiles = IO.unzip(classesZipFile.toFile, output, preserveLastModified = true)
+      val analysisForLocalProducts = updateStampsForImportedProducts(newAnalysis, importedClassfiles)
+
+      (analysisForLocalProducts, newSetup)
     }
+  }
+
+  private def updateStampsForImportedProducts(analysis: Analysis, importedFiles: Set[File]): Analysis = {
+    val oldStamps = analysis.stamps
+
+    val updatedProducts = oldStamps.products.map {
+      case (file, stamp) if importedFiles.contains(file) =>
+        (file, Stamp.lastModified(file))
+      case other => other
+    }
+
+    val newStamps = Stamps(
+      products = updatedProducts,
+      sources = oldStamps.sources,
+      binaries = oldStamps.binaries
+    )
+
+    analysis.copy(stamps = newStamps)
   }
 
   def exportCache(projectLocation: File, currentAnalysisStore: AnalysisStore): Unit = {
