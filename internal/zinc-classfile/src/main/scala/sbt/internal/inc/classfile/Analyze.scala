@@ -27,12 +27,14 @@ private[sbt] object Analyze {
       try { Some(Class.forName(tpe, false, loader)) }
       catch { case e: Throwable => errMsg.foreach(msg => log.warn(msg + " : " + e.toString)); None }
 
-    val productToClassName = new mutable.HashMap[File, String]
+    val productToClassName = mutable.Set.empty[String]
     val sourceToClassFiles = mutable.HashMap[File, Buffer[ClassFile]](
       sources zip Seq.fill(sources.size)(new ArrayBuffer[ClassFile]): _*
     )
 
     val binaryClassNameToLoadedClass = new mutable.HashMap[String, Class[_]]
+
+    val classfilesCache = mutable.Map.empty[String, File]
 
     // parse class files and assign classes to sources.  This must be done before dependencies, since the information comes
     // as class->class dependencies that must be mapped back to source->class dependencies using the source+class assignment
@@ -51,7 +53,7 @@ private[sbt] object Analyze {
       srcClassName match {
         case Some(srcClassName) =>
           analysis.generatedNonLocalClass(source, newClass, binaryClassName, srcClassName)
-          productToClassName(newClass) = srcClassName
+          productToClassName += srcClassName
         case None => analysis.generatedLocalClass(source, newClass)
       }
 
@@ -79,18 +81,23 @@ private[sbt] object Analyze {
             case None                    => return
           }
         }
+
+        def loadFromClassloader(): Option[File] = for {
+          url <- Option(loader.getResource(onBinaryName.replace('.', '/') + ClassExt))
+          file <- urlAsFile(url, log)
+        } yield {
+          classfilesCache(onBinaryName) = file
+          file
+        }
+
         trapAndLog(log) {
-          for (url <- Option(loader.getResource(onBinaryName.replace('.', '/') + ClassExt)); file <- urlAsFile(url, log)) {
-            if (url.getProtocol == "jar")
+          val scalaLikeTypeName = onBinaryName.replace('$', '.')
+
+          if (productToClassName.contains(scalaLikeTypeName))
+            analysis.classDependency(scalaLikeTypeName, fromClassName, context)
+          else
+            for (file <- classfilesCache.get(onBinaryName).orElse(loadFromClassloader()))
               analysis.binaryDependency(file, onBinaryName, fromClassName, source, context)
-            else {
-              assume(url.getProtocol == "file")
-              productToClassName.get(file) match {
-                case Some(dependsOn) => analysis.classDependency(dependsOn, fromClassName, context)
-                case None            => analysis.binaryDependency(file, onBinaryName, fromClassName, source, context)
-              }
-            }
-          }
         }
       }
       def processDependencies(binaryClassNames: Iterable[String], context: DependencyContext, fromBinaryClassName: String): Unit =
