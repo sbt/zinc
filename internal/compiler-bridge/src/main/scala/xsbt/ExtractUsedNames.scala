@@ -165,11 +165,19 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
       case _ => Store
     }
 
+    private val handleExpansions: StoreInspectedTree = {
+      case MacroExpansionOf(original) =>
+        inspectedTrees += original
+        original.foreach(traverse)
+        NotStore
+    }
+
     private def handleTree(tree: Tree): Boolean @@ Store =
       handleDefTreeAndTemplate
         .orElse { handleImport }
         .orElse { handleTypeTree }
         .orElse { handleTreeWithSymbol }
+        .orElse { handleExpansions }
         .orElse { handleDefault }(tree)
 
     /**

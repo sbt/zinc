@@ -55,7 +55,7 @@ class ExtractUsedNamesPerformanceSpecification extends UnitSpec {
     assert(usedNames("acme.HList") === expectedNamesForHList)
   }
 
-  it should "correctly find Out0 (not stored in inspected tree) both in TuplerInstances and TuplerInstances.<refinement>" in {
+  it should "correctly find Out0 (not stored in inspected trees) both in TuplerInstances and TuplerInstances.<refinement>" in {
     val src = """|sealed trait HList extends Product with Serializable
                  |trait DepFn1[T] {
                  |  type Out
@@ -71,5 +71,31 @@ class ExtractUsedNamesPerformanceSpecification extends UnitSpec {
     val expectedNamesForTuplerInstancesRefinement = Set("Out0")
     assert(usedNames("TuplerInstances") === expectedNamesForTuplerInstances)
     assert(usedNames("TuplerInstances.<refinement>") === expectedNamesForTuplerInstancesRefinement)
+  }
+
+  it should "correctly collect used names from macro extension" in {
+    val ext = """|package acme
+                 |import scala.reflect.macros.blackbox.Context
+                 |
+                 |object Foo {
+                 |  def foo_impl[A](c: Context)(implicit atag: c.WeakTypeTag[A]): c.Expr[List[A]] = {
+                 |    import c.universe._
+                 |    reify { List.empty[A] }
+                 |  }
+                 |}""".stripMargin
+    val cod = """|package acme
+                 |import scala.language.experimental.macros
+                 |
+                 |class Bar {
+                 |  def bar[Out] = macro Foo.foo_impl[Out]
+                 |}""".stripMargin
+    val compilerForTesting = new ScalaCompilerForUnitTesting(nameHashing = true)
+    val (_, analysis) = compilerForTesting.compileSrcs(List(List(ext), List(cod)), true)
+    val usedNames = analysis.usedNames.toMap
+
+    val expectedNamesForFoo = Set("TypeApplyExtractor", "mkIdent", "package", "<repeated>", "tpe", "in", "$u", "internal", "reify", "WeakTypeTag", "Name", "empty", "collection", "ThisType", "staticModule", "staticPackage", "Singleton", "T", "asInstanceOf", "ReificationSupportApi", "U", "Expr", "Universe", "TypeApply", "A", "Tree", "Nothing", "acme", "ClassSymbol", "blackbox", "AnyRef", "Context", "mkTypeTree", "immutable", "SelectExtractor", "<init>", "$treecreator1", "apply", "Object", "macros", "moduleClass", "Foo", "T0", "Symbol", "Predef", "scala", "asModule", "Internal", "$m", "TypeCreator", "TermNameExtractor", "ModuleSymbol", "staticClass", "universe", "c", "<refinement>", "TypeTree", "List", "Select", "TermName", "Mirror", "atag", "reificationSupport", "rootMirror", "reflect", "TypeRef", "Ident", "Any", "TreeCreator", "$typecreator2", "$m$untyped", "String", "Type")
+    val expectedNamesForBar = Set("experimental", "package", "WeakTypeTag", "Out", "foo_impl", "Expr", "A", "Nothing", "acme", "AnyRef", "Context", "<init>", "language", "Object", "macros", "Bar", "Foo", "scala", "List", "Any")
+    assert(usedNames("acme.Foo") === expectedNamesForFoo)
+    assert(usedNames("acme.Bar") === expectedNamesForBar)
   }
 }
