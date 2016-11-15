@@ -11,6 +11,7 @@ import java.io.File
 import java.net.{ URL, URLClassLoader }
 import sbt.util.Logger
 import sbt.io.syntax._
+import sbt.internal.inc.classpath.ClassLoaderCache
 
 /**
  * Interface to the Scala compiler that uses the dependency analysis plugin.  This class uses the Scala library and compiler
@@ -18,15 +19,25 @@ import sbt.io.syntax._
  * the analysis plugin.  Because these call Scala code for a different Scala version than the one used for this class, they must
  * be compiled for the version of Scala being used.
  */
-final class AnalyzingCompiler private (val scalaInstance: XScalaInstance, val provider: CompilerBridgeProvider, override val classpathOptions: ClasspathOptions, onArgsF: Seq[String] => Unit) extends CachedCompilerProvider with ScalaCompiler {
-  def this(scalaInstance: XScalaInstance, provider: CompilerBridgeProvider, cp: ClasspathOptions) =
-    this(scalaInstance, provider, cp, _ => ())
-  def this(scalaInstance: XScalaInstance, provider: CompilerBridgeProvider) = this(scalaInstance, provider, ClasspathOptionsUtil.auto)
+final class AnalyzingCompiler(
+  val scalaInstance: xsbti.compile.ScalaInstance,
+  val provider: CompilerBridgeProvider,
+  override val classpathOptions: xsbti.compile.ClasspathOptions,
+  onArgsF: Seq[String] => Unit,
+  val classLoaderCache: Option[ClassLoaderCache]
+) extends CachedCompilerProvider with ScalaCompiler {
+  def onArgs(f: Seq[String] => Unit): AnalyzingCompiler =
+    new AnalyzingCompiler(scalaInstance, provider, classpathOptions, f, classLoaderCache)
 
-  @deprecated("Renamed to `classpathOptions`", "1.0.0")
-  val cp = classpathOptions
+  def withClassLoaderCache(classLoaderCache: ClassLoaderCache) =
+    new AnalyzingCompiler(scalaInstance, provider, classpathOptions, onArgsF, Some(classLoaderCache))
 
-  def onArgs(f: Seq[String] => Unit): AnalyzingCompiler = new AnalyzingCompiler(scalaInstance, provider, classpathOptions, f)
+  def apply(sources: Array[File], changes: DependencyChanges, classpath: Array[File], singleOutput: File, options: Array[String], callback: AnalysisCallback, maximumErrors: Int, cache: GlobalsCache, log: Logger): Unit =
+    {
+      val arguments = (new CompilerArguments(scalaInstance, classpathOptions))(Nil, classpath, None, options)
+      val output = CompileOutput(singleOutput)
+      compile(sources, changes, arguments.toArray, output, callback, new LoggerReporter(maximumErrors, log, p => p), cache, log, Maybe.nothing[CompileProgress])
+    }
 
   def compile(sources: Array[File], changes: DependencyChanges, options: Array[String], output: Output, callback: AnalysisCallback, reporter: Reporter, cache: GlobalsCache, log: xLogger, progressOpt: Maybe[CompileProgress]): Unit =
     {
@@ -116,17 +127,24 @@ final class AnalyzingCompiler private (val scalaInstance: XScalaInstance, val pr
   private[this] def loader(log: Logger) =
     {
       val interfaceJar = provider(scalaInstance, log)
-      // this goes to scalaInstance.loader for scala classes and the loader of this class for xsbti classes
-      val dual = createDualLoader(scalaInstance.loader, getClass.getClassLoader)
-      new URLClassLoader(Array(interfaceJar.toURI.toURL), dual)
+      def createInterfaceLoader =
+        new URLClassLoader(Array(interfaceJar.toURI.toURL), createDualLoader(scalaInstance.loader(), getClass.getClassLoader))
+
+      classLoaderCache match {
+        case Some(cache) => cache.cachedCustomClassloader(interfaceJar :: scalaInstance.allJars().toList, () => createInterfaceLoader)
+        case None        => createInterfaceLoader
+      }
     }
+
   private[this] def getInterfaceClass(name: String, log: Logger) = Class.forName(name, true, loader(log))
+
   protected def createDualLoader(scalaLoader: ClassLoader, sbtLoader: ClassLoader): ClassLoader =
     {
       val xsbtiFilter = (name: String) => name.startsWith("xsbti.")
       val notXsbtiFilter = (name: String) => !xsbtiFilter(name)
       new classpath.DualLoader(scalaLoader, notXsbtiFilter, x => true, sbtLoader, xsbtiFilter, x => false)
     }
+
   override def toString = "Analyzing compiler (Scala " + scalaInstance.actualVersion + ")"
 }
 object AnalyzingCompiler {

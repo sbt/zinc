@@ -3,6 +3,7 @@ package internal
 package inc
 
 import java.io.{ File, FileInputStream }
+import java.net.URLClassLoader
 import sbt.util.Logger
 import sbt.util.InterfaceUtil._
 import xsbt.api.Discovery
@@ -15,8 +16,7 @@ import sbt.io.syntax._
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier.{ isPublic, isStatic }
 import java.util.Properties
-import sbt.internal.inc.classpath.ClasspathUtilities
-
+import sbt.internal.inc.classpath.{ ClasspathUtilities, ClassLoaderCache }
 import sbt.internal.scripted.{ StatementHandler, TestFailed }
 
 final case class IncInstance(si: ScalaInstance, cs: XCompilers)
@@ -261,7 +261,8 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
     }
 
   def scalaCompiler(instance: ScalaInstance, bridgeJar: File): AnalyzingCompiler =
-    new AnalyzingCompiler(instance, CompilerBridgeProvider.constant(bridgeJar), ClasspathOptionsUtil.boot)
+    new AnalyzingCompiler(instance, CompilerBridgeProvider.constant(bridgeJar), ClasspathOptionsUtil.boot,
+      _ => (), Some(new ClassLoaderCache(new URLClassLoader(Array()))))
 
   def finish(state: Option[IncInstance]): Unit = ()
 
