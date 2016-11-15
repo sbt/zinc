@@ -19,18 +19,13 @@ import sbt.internal.inc.classpath.ClassLoaderCache
  * the analysis plugin.  Because these call Scala code for a different Scala version than the one used for this class, they must
  * be compiled for the version of Scala being used.
  */
-final class AnalyzingCompiler private (
+final class AnalyzingCompiler(
   val scalaInstance: xsbti.compile.ScalaInstance,
   val provider: CompilerBridgeProvider,
   override val classpathOptions: xsbti.compile.ClasspathOptions,
   onArgsF: Seq[String] => Unit,
   val classLoaderCache: Option[ClassLoaderCache]
 ) extends CachedCompilerProvider with ScalaCompiler {
-  def this(scalaInstance: xsbti.compile.ScalaInstance, provider: CompilerBridgeProvider, classpathOptions: xsbti.compile.ClasspathOptions) =
-    this(scalaInstance, provider, classpathOptions, _ => (), None)
-  def this(scalaInstance: ScalaInstance, provider: CompilerBridgeProvider) =
-    this(scalaInstance, provider, ClasspathOptionsUtil.auto, _ => (), None)
-
   def onArgs(f: Seq[String] => Unit): AnalyzingCompiler =
     new AnalyzingCompiler(scalaInstance, provider, classpathOptions, f, classLoaderCache)
 

@@ -2,6 +2,7 @@ package sbt
 package inc
 
 import java.io.File
+import java.net.URLClassLoader
 
 import sbt.internal.inc._
 import sbt.io.IO
@@ -10,6 +11,7 @@ import sbt.util.{ Logger, InterfaceUtil }
 import sbt.internal.util.ConsoleLogger
 import xsbti.Maybe
 import xsbti.compile.{ CompileAnalysis, CompileOrder, DefinesClass, IncOptionsUtil, PreviousResult, PerClasspathEntryLookup }
+import sbt.internal.inc.classpath.ClassLoaderCache
 
 class IncrementalCompilerSpec extends BridgeProviderSpecification {
 
@@ -131,5 +133,6 @@ class IncrementalCompilerSpec extends BridgeProviderSpecification {
   }
 
   def scalaCompiler(instance: ScalaInstance, bridgeJar: File): AnalyzingCompiler =
-    new AnalyzingCompiler(instance, CompilerBridgeProvider.constant(bridgeJar), ClasspathOptionsUtil.boot)
+    new AnalyzingCompiler(instance, CompilerBridgeProvider.constant(bridgeJar), ClasspathOptionsUtil.boot,
+      _ => (), Some(new ClassLoaderCache(new URLClassLoader(Array()))))
 }

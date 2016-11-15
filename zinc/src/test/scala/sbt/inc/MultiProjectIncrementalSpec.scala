@@ -1,6 +1,7 @@
 package sbt.inc
 
 import java.io.File
+import java.net.URLClassLoader
 
 import sbt.internal.inc.{ ScalaInstance => _, _ }
 import sbt.internal.util.ConsoleLogger
@@ -11,6 +12,7 @@ import InterfaceUtil.{ m2o, o2m }
 import xsbti.Maybe
 import xsbti.compile._
 import TestResource._
+import sbt.internal.inc.classpath.ClassLoaderCache
 
 class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
   val scalaVersion = "2.11.8"
@@ -145,7 +147,8 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
   }
 
   def scalaCompiler(instance: ScalaInstance, bridgeJar: File): AnalyzingCompiler =
-    new AnalyzingCompiler(instance, CompilerBridgeProvider.constant(bridgeJar), ClasspathOptionsUtil.boot)
+    new AnalyzingCompiler(instance, CompilerBridgeProvider.constant(bridgeJar), ClasspathOptionsUtil.boot,
+      _ => (), Some(new ClassLoaderCache(new URLClassLoader(Array()))))
 }
 
 class PerClasspathEntryLookupImpl(
