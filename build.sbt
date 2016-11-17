@@ -287,11 +287,13 @@ lazy val zincScripted = (project in internalPath / "zinc-scripted").
   configure(addSbtUtilScripted)
 
 lazy val publishBridgesAndTest = Command.args("publishBridgesAndTest", "<version>") { (state, args) =>
+  require(args.nonEmpty)
   val version = args mkString ""
-  val compilerInterfaceID = compilerInterface.id
-  val compilerBridgeID = compilerBridge.id
-  val test = s"$compilerInterfaceID/publishLocal" :: s"plz $version zincRoot/test" :: s"plz $version zincRoot/scripted" :: state
-  (scalaVersions map (v => s"plz $v $compilerBridgeID/publishLocal") foldRight test) { _ :: _ }
+    s"${compilerInterface.id}/publishLocal" ::
+    (scalaVersions map (v => s"plz $v ${compilerBridge.id}/publishLocal")) :::
+    s"plz $version zincRoot/test" ::
+    s"plz $version zincRoot/scripted" ::
+    state
 }
 
 lazy val otherRootSettings = Seq(
