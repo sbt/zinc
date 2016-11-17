@@ -134,7 +134,7 @@ lazy val zincTesting = (project in internalPath / "zinc-testing").
     publishArtifact in Test := false,
     publishArtifact := false,
     libraryDependencies ++= Seq(
-      scalaCheck, scalatest, junit)
+      scalaCheck, scalatest, junit, sjsonnewScalaJson)
   ).
   configure(addSbtLm, addSbtUtilTesting)
 
