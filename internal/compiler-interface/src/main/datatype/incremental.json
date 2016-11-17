@@ -19,17 +19,10 @@
           "target": "Java",
           "type": "record",
           "fields": [
-            {
-              "name": "backupDirectory",
-              "type": "java.io.File"
-            },
-            {
-              "name": "logger",
-              "type": "xsbti.Logger"
-            }
+            { "name": "backupDirectory", "type": "java.io.File" },
+            { "name": "logger",          "type": "xsbti.Logger" }
           ]
         }
-
       ]
     },
     {
@@ -66,9 +59,7 @@
         {
           "name": "apiDebug",
           "type": "boolean",
-          "doc": [
-            "Enable tools for debugging API changes."
-          ]
+          "doc": "Enable tools for debugging API changes."
         },
         {
           "name": "apiDiffContextSize",
@@ -170,9 +161,7 @@
       "namespace": "xsbti.compile",
       "target": "Java",
       "type": "record",
-      "doc": [
-        "Compilation options."
-      ],
+      "doc": "Compilation options",
       "fields": [
         {
           "name": "classpath",
@@ -190,28 +179,18 @@
             "This should include Scala and Java sources, which are identified by their extension."
           ]
         },
-        {
-          "name": "classesDirectory",
-          "type": "java.io.File"
-        },
+        { "name": "classesDirectory", "type": "java.io.File" },
         {
           "name": "scalacOptions",
           "type": "String*",
-          "doc": [
-            "The options to pass to the Scala compiler other than the sources and classpath to use."
-          ]
+          "doc": "The options to pass to the Scala compiler other than the sources and classpath to use."
         },
         {
           "name": "javacOptions",
           "type": "String*",
-          "doc": [
-            "The options to pass to the Java compiler other than the sources and classpath to use."
-          ]
+          "doc": "The options to pass to the Java compiler other than the sources and classpath to use."
         },
-        {
-          "name": "maxErrors",
-          "type": "int"
-        },
+        { "name": "maxErrors", "type": "int" },
         {
           "name": "sourcePositionMapper",
           "type": "xsbti.F1<xsbti.Position, xsbti.Position>"
@@ -219,9 +198,7 @@
         {
           "name": "order",
           "type": "xsbti.compile.CompileOrder",
-          "doc": [
-            "Controls the order in which Java and Scala sources are compiled."
-          ]
+          "doc": "Controls the order in which Java and Scala sources are compiled."
         }
       ]
     },
@@ -230,9 +207,7 @@
       "namespace": "xsbti.compile",
       "target": "Java",
       "type": "record",
-      "doc": [
-        "Compilation options. This is used as part of CompileSetup."
-      ],
+      "doc": "Compilation options. This is used as part of CompileSetup.",
       "fields": [
         {
           "name": "classpath",
@@ -245,16 +220,12 @@
         {
           "name": "scalacOptions",
           "type": "String*",
-          "doc": [
-            "The options to pass to the Scala compiler other than the sources and classpath to use."
-          ]
+          "doc": "The options to pass to the Scala compiler other than the sources and classpath to use."
         },
         {
           "name": "javacOptions",
           "type": "String*",
-          "doc": [
-            "The options to pass to the Java compiler other than the sources and classpath to use."
-          ]
+          "doc": "The options to pass to the Java compiler other than the sources and classpath to use."
         }
       ]
     },
@@ -268,14 +239,8 @@
         "are used by `JavaTools`."
       ],
       "fields": [
-        {
-          "name": "classFileManager",
-          "type": "xsbti.Maybe<xsbti.compile.ClassFileManager>"
-        },
-        {
-          "name": "useCustomizedFileManager",
-          "type": "boolean"
-        }
+        { "name": "classFileManager",         "type": "xsbti.Maybe<xsbti.compile.ClassFileManager>" },
+        { "name": "useCustomizedFileManager", "type": "boolean"                                     }
       ]
     },
     {
@@ -283,38 +248,15 @@
       "namespace": "xsbti.compile",
       "target": "Java",
       "type": "record",
-      "doc": [
-        "This is used as part of CompileResult."
-      ],
+      "doc": "This is used as part of CompileResult.",
       "fields": [
-        {
-          "name": "output",
-          "type": "xsbti.compile.Output"
-        },
-        {
-          "name": "options",
-          "type": "xsbti.compile.MiniOptions"
-        },
-        {
-          "name": "compilerVersion",
-          "type": "String"
-        },
-        {
-          "name": "order",
-          "type": "xsbti.compile.CompileOrder"
-        },
-        {
-          "name": "nameHashing",
-          "type": "boolean"
-        },
-        {
-          "name": "storeApis",
-          "type": "boolean"
-        },
-        {
-          "name": "extra",
-          "type": "xsbti.T2<String, String>*"
-        }
+        { "name": "output",          "type": "xsbti.compile.Output"       },
+        { "name": "options",         "type": "xsbti.compile.MiniOptions"  },
+        { "name": "compilerVersion", "type": "String"                     },
+        { "name": "order",           "type": "xsbti.compile.CompileOrder" },
+        { "name": "nameHashing",     "type": "boolean"                    },
+        { "name": "storeApis",       "type": "boolean"                    },
+        { "name": "extra",           "type": "xsbti.T2<String, String>*"  }
       ]
     },
     {
@@ -322,31 +264,18 @@
       "namespace": "xsbti.compile",
       "target": "Java",
       "type": "interface",
-      "doc": [
-        "Represents the analysis of an incremental compilation."
-      ]
+      "doc": "Represents the analysis of an incremental compilation."
     },
     {
       "name": "CompileResult",
       "namespace": "xsbti.compile",
       "target": "Java",
       "type": "record",
-      "doc": [
-        "The result of running the incremental compilation."
-      ],
+      "doc": "The result of running the incremental compilation.",
       "fields": [
-        {
-          "name": "analysis",
-          "type": "xsbti.compile.CompileAnalysis"
-        },
-        {
-          "name": "setup",
-          "type": "xsbti.compile.MiniSetup"
-        },
-        {
-          "name": "hasModified",
-          "type": "boolean"
-        }
+        { "name": "analysis",    "type": "xsbti.compile.CompileAnalysis" },
+        { "name": "setup",       "type": "xsbti.compile.MiniSetup"       },
+        { "name": "hasModified", "type": "boolean"                       }
       ]
     },
     {
@@ -354,18 +283,10 @@
       "namespace": "xsbti.compile",
       "target": "Java",
       "type": "record",
-      "doc": [
-        "The previous source dependency analysis result from compilation."
-      ],
+      "doc": "The previous source dependency analysis result from compilation.",
       "fields": [
-        {
-          "name": "analysis",
-          "type": "xsbti.Maybe<xsbti.compile.CompileAnalysis>"
-        },
-        {
-          "name": "setup",
-          "type": "xsbti.Maybe<xsbti.compile.MiniSetup>"
-        }
+        { "name": "analysis", "type": "xsbti.Maybe<xsbti.compile.CompileAnalysis>" },
+        { "name": "setup",    "type": "xsbti.Maybe<xsbti.compile.MiniSetup>"       }
       ]
     },
     {
@@ -373,23 +294,17 @@
       "namespace": "xsbti.compile",
       "target": "Java",
       "type": "record",
-      "doc": [
-        "Configures incremental recompilation."
-      ],
+      "doc": "Configures incremental recompilation.",
       "fields": [
         {
           "name": "perClasspathEntryLookup",
           "type": "xsbti.compile.PerClasspathEntryLookup",
-          "doc": [
-            "Provides a lookup of data structures and operations associated with a single classpath entry."
-          ]
+          "doc": "Provides a lookup of data structures and operations associated with a single classpath entry."
         },
         {
           "name": "skip",
           "type": "boolean",
-          "doc": [
-            "If true, no sources are actually compiled and the Analysis from the previous compilation is returned."
-          ]
+          "doc": "If true, no sources are actually compiled and the Analysis from the previous compilation is returned."
         },
         {
           "name": "cacheFile",
@@ -400,32 +315,19 @@
             "The file should be unique and not shared between compilations."
           ]
         },
-        {
-          "name": "cache",
-          "type": "xsbti.compile.GlobalsCache"
-        },
-        {
-          "name": "incrementalCompilerOptions",
-          "type": "xsbti.compile.IncOptions"
-        },
+        { "name": "cache",                      "type": "xsbti.compile.GlobalsCache" },
+        { "name": "incrementalCompilerOptions", "type": "xsbti.compile.IncOptions"   },
         {
           "name": "reporter",
           "type": "xsbti.Reporter",
-          "doc": [
-            "The reporter that should be used to report scala compilation to."
-          ]
+          "doc": "The reporter that should be used to report scala compilation to."
         },
         {
           "name": "progress",
           "type": "xsbti.Maybe<xsbti.compile.CompileProgress>",
-          "doc": [
-            "Optionally provide progress indication."
-          ]
+          "doc": "Optionally provide progress indication."
         },
-        {
-          "name": "extra",
-          "type": "xsbti.T2<String, String>*"
-        }
+        { "name": "extra", "type": "xsbti.T2<String, String>*" }
       ]
     },
     {
@@ -433,35 +335,24 @@
       "namespace": "xsbti.compile",
       "target": "Java",
       "type": "record",
-      "doc": [
-        "Configures a single compilation of a single set of sources."
-      ],
+      "doc": "Configures a single compilation of a single set of sources.",
       "fields": [
         {
           "name": "compilers",
           "type": "xsbti.compile.Compilers",
-          "doc": [
-            "The Scala and Java compilers to use for compilation."
-          ]
+          "doc": "The Scala and Java compilers to use for compilation."
         },
         {
           "name": "options",
           "type": "xsbti.compile.CompileOptions",
-          "doc": [
-            "Standard compilation options, such as the sources and classpath to use."
-          ]
+          "doc": "Standard compilation options, such as the sources and classpath to use."
         },
         {
           "name": "setup",
           "type": "xsbti.compile.Setup",
-          "doc": [
-            "Configures incremental compilation."
-          ]
+          "doc":   "Configures incremental compilation."
         },
-        {
-          "name": "previousResult",
-          "type": "xsbti.compile.PreviousResult"
-        }
+        { "name": "previousResult", "type": "xsbti.compile.PreviousResult" }
       ]
     },
     {
@@ -469,9 +360,7 @@
       "namespace": "xsbti.compile",
       "target": "Java",
       "type": "record",
-      "doc": [
-        "The instances of Scalac/Javac used to compile the current project."
-      ],
+      "doc": "The instances of Scalac/Javac used to compile the current project.",
       "fields": [
         {
           "name": "scalac",
@@ -484,9 +373,7 @@
         {
           "name": "javaTools",
           "type": "xsbti.compile.JavaTools",
-          "doc": [
-            "Tool chain of Java."
-          ]
+          "doc": "Tool chain of Java."
         }
       ]
     },
