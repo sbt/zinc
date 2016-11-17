@@ -1,182 +1,115 @@
 {
-	"types": [
-		{
-			"name": "Definition",
-			"namespace": "xsbti.api",
-			"target": "Java",
-			"type": "interface",
-			"fields": [
-				{
-					"name": "name",
-					"type": "String"
-				},
-				{
-					"name": "access",
-					"type": "Access"
-				},
-				{
-					"name": "modifiers",
-					"type": "Modifiers"
-				},
-				{
-					"name": "annotations",
-					"type": "Annotation*"
-				}
-			],
+  "types": [
+    {
+      "name": "Definition",
+      "namespace": "xsbti.api",
+      "target": "Java",
+      "type": "interface",
+      "fields": [
+        { "name": "name",        "type": "String"      },
+        { "name": "access",      "type": "Access"      },
+        { "name": "modifiers",   "type": "Modifiers"   },
+        { "name": "annotations", "type": "Annotation*" }
+      ],
 
-			"types": [
-				{
-					"name": "ClassDefinition",
-					"namespace": "xsbti.api",
-					"target": "Java",
-					"type": "interface",
-					"types": [
-						{
-							"name": "FieldLike",
-							"namespace": "xsbti.api",
-							"target": "Java",
-							"type": "interface",
-							"fields": [
-								{
-									"name": "tpe",
-									"type": "Type"
-								}
-							],
+      "types": [
+        {
+          "name": "ClassDefinition",
+          "namespace": "xsbti.api",
+          "target": "Java",
+          "type": "interface",
+          "types": [
+            {
+              "name": "FieldLike",
+              "namespace": "xsbti.api",
+              "target": "Java",
+              "type": "interface",
+              "fields": [
+                { "name": "tpe", "type": "Type" }
+              ],
 
-							"types": [
-								{
-									"name": "Val",
-									"namespace": "xsbti.api",
-									"target": "Java",
-									"type": "record"
-								},
-								{
-									"name": "Var",
-									"namespace": "xsbti.api",
-									"target": "Java",
-									"type": "record"
-								}
-							]
-						},
-						{
-							"name": "ParameterizedDefinition",
-							"namespace": "xsbti.api",
-							"target": "Java",
-							"type": "interface",
-							"fields": [
-								{
-									"name": "typeParameters",
-									"type": "TypeParameter*"
-								}
-							],
+              "types": [
+                { "name": "Val", "namespace": "xsbti.api", "target": "Java", "type": "record" },
+                { "name": "Var", "namespace": "xsbti.api", "target": "Java", "type": "record" }
+              ]
+            },
+            {
+              "name": "ParameterizedDefinition",
+              "namespace": "xsbti.api",
+              "target": "Java",
+              "type": "interface",
+              "fields": [
+                { "name": "typeParameters", "type": "TypeParameter*" }
+              ],
 
-							"types": [
-								{
-									"name": "Def",
-									"namespace": "xsbti.api",
-									"target": "Java",
-									"type": "record",
-									"fields": [
-										{
-											"name": "valueParameters",
-											"type": "ParameterList*"
-										},
-										{
-											"name": "returnType",
-											"type": "Type"
-										}
-									]
-								},
-								{
-									"name": "ClassLikeDef",
-									"namespace": "xsbti.api",
-									"target": "Java",
-									"type": "record",
-									"fields": [
-										{
-											"name": "definitionType",
-											"type": "DefinitionType"
-										}
-									]
-								},
-								{
-									"name": "TypeMember",
-									"namespace": "xsbti.api",
-									"target": "Java",
-									"type": "interface",
+              "types": [
+                {
+                  "name": "Def",
+                  "namespace": "xsbti.api",
+                  "target": "Java",
+                  "type": "record",
+                  "fields": [
+                    { "name": "valueParameters", "type": "ParameterList*" },
+                    { "name": "returnType",      "type": "Type"           }
+                  ]
+                },
+                {
+                  "name": "ClassLikeDef",
+                  "namespace": "xsbti.api",
+                  "target": "Java",
+                  "type": "record",
+                  "fields": [
+                    { "name": "definitionType", "type": "DefinitionType" }
+                  ]
+                },
+                {
+                  "name": "TypeMember",
+                  "namespace": "xsbti.api",
+                  "target": "Java",
+                  "type": "interface",
 
-									"types": [
-										{
-											"name": "TypeAlias",
-											"namespace": "xsbti.api",
-											"target": "Java",
-											"type": "record",
-											"fields": [
-												{
-													"name": "tpe",
-													"type": "Type"
-												}
-											]
-										},
-										{
-											"name": "TypeDeclaration",
-											"namespace": "xsbti.api",
-											"target": "Java",
-											"type": "record",
-											"fields": [
-												{
-													"name": "lowerBound",
-													"type": "Type"
-												},
-												{
-													"name": "upperBound",
-													"type": "Type"
-												}
-											]
-										}
-									]
-								}
-							]
-						}
-					]
-				},
-				{
-					"name": "ClassLike",
-					"namespace": "xsbti.api",
-					"target": "Java",
-					"type": "record",
-					"fields": [
-						{
-							"name": "definitionType",
-							"type": "DefinitionType"
-						},
-						{
-							"name": "selfType",
-							"type": "lazy Type"
-						},
-						{
-							"name": "structure",
-							"type": "lazy Structure"
-						},
-						{
-							"name": "savedAnnotations",
-							"type": "String*"
-						},
-						{
-							"name": "childrenOfSealedClass",
-							"type": "Type*"
-						},
-						{
-							"name": "topLevel",
-							"type": "Boolean"
-						},
-						{
-							"name": "typeParameters",
-							"type": "TypeParameter*"
-						}
-					]
-				}
-			]
-		}
-	]
+                  "types": [
+                    {
+                      "name": "TypeAlias",
+                      "namespace": "xsbti.api",
+                      "target": "Java",
+                      "type": "record",
+                      "fields": [
+                        { "name": "tpe", "type": "Type" }
+                      ]
+                    },
+                    {
+                      "name": "TypeDeclaration",
+                      "namespace": "xsbti.api",
+                      "target": "Java",
+                      "type": "record",
+                      "fields": [
+                        { "name": "lowerBound", "type": "Type" },
+                        { "name": "upperBound", "type": "Type" }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "ClassLike",
+          "namespace": "xsbti.api",
+          "target": "Java",
+          "type": "record",
+          "fields": [
+            { "name": "definitionType",        "type": "DefinitionType" },
+            { "name": "selfType",              "type": "lazy Type"      },
+            { "name": "structure",             "type": "lazy Structure" },
+            { "name": "savedAnnotations",      "type": "String*"        },
+            { "name": "childrenOfSealedClass", "type": "Type*"          },
+            { "name": "topLevel",              "type": "Boolean"        },
+            { "name": "typeParameters",        "type": "TypeParameter*" }
+          ]
+        }
+      ]
+    }
+  ]
 }
