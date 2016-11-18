@@ -1,8 +1,5 @@
 language: scala
-jdk:
-  - openjdk7
-scala:
-   - 2.11.7
+jdk: openjdk7
+scala: 2.11.8
 
-script:
-   - sbt -J-XX:ReservedCodeCacheSize=128m "publishBridgesAndTest $TRAVIS_SCALA_VERSION"
+script: sbt "publishBridgesAndTest $TRAVIS_SCALA_VERSION"

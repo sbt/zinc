@@ -8,7 +8,7 @@ import com.typesafe.tools.mima.core._, ProblemFilters._
 def baseVersion = "1.0.0-X2-SNAPSHOT"
 def internalPath   = file("internal")
 
-lazy val scalaVersions = Seq(scala210, scala211)
+lazy val scalaVersions = Seq(scala211)
 
 def commonSettings: Seq[Setting[_]] = Seq(
   scalaVersion := scala211,
@@ -134,7 +134,7 @@ lazy val zincTesting = (project in internalPath / "zinc-testing").
     publishArtifact in Test := false,
     publishArtifact := false,
     libraryDependencies ++= Seq(
-      scalaCheck, scalatest, junit)
+      scalaCheck, scalatest, junit, sjsonnewScalaJson)
   ).
   configure(addSbtLm, addSbtUtilTesting)
 
@@ -230,18 +230,6 @@ lazy val compilerBridge: Project = (project in internalPath / "compiler-bridge")
     // needed because we fork tests and tests are ran in parallel so we have multiple Scala
     // compiler instances that are memory hungry
     javaOptions in Test += "-Xmx1G",
-    scalaSource in Compile := {
-      scalaVersion.value match {
-        case v if v startsWith "2.11" => baseDirectory.value / "src" / "main" / "scala"
-        case _                        => baseDirectory.value / "src-2.10" / "main" / "scala"
-      }
-    },
-    scalacOptions := {
-      scalaVersion.value match {
-        case v if v startsWith "2.11" => scalacOptions.value
-        case _                        => scalacOptions.value filterNot (Set("-Xfatal-warnings", "-deprecation") contains _)
-      }
-    },
     altPublishSettings
   ).
   configure(addSbtIO, addSbtUtilLogging)
@@ -287,11 +275,13 @@ lazy val zincScripted = (project in internalPath / "zinc-scripted").
   configure(addSbtUtilScripted)
 
 lazy val publishBridgesAndTest = Command.args("publishBridgesAndTest", "<version>") { (state, args) =>
+  require(args.nonEmpty)
   val version = args mkString ""
-  val compilerInterfaceID = compilerInterface.id
-  val compilerBridgeID = compilerBridge.id
-  val test = s"$compilerInterfaceID/publishLocal" :: s"plz $version zincRoot/test" :: s"plz $version zincRoot/scripted" :: state
-  (scalaVersions map (v => s"plz $v $compilerBridgeID/publishLocal") foldRight test) { _ :: _ }
+    s"${compilerInterface.id}/publishLocal" ::
+    (scalaVersions map (v => s"plz $v ${compilerBridge.id}/publishLocal")) :::
+    s"plz $version zincRoot/test" ::
+    s"plz $version zincRoot/scripted" ::
+    state
 }
 
 lazy val otherRootSettings = Seq(
