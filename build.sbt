@@ -8,7 +8,7 @@ import com.typesafe.tools.mima.core._, ProblemFilters._
 def baseVersion = "1.0.0-X2-SNAPSHOT"
 def internalPath   = file("internal")
 
-lazy val scalaVersions = Seq(scala210, scala211)
+lazy val compilerBridgeScalaVersions = Seq(scala210, scala211)
 
 def commonSettings: Seq[Setting[_]] = Seq(
   scalaVersion := scala211,
@@ -21,7 +21,7 @@ def commonSettings: Seq[Setting[_]] = Seq(
   testOptions += Tests.Argument(TestFrameworks.ScalaCheck, "-w", "1"),
   javacOptions in compile ++= Seq("-target", "7", "-source", "7", "-Xlint", "-Xlint:-serial"),
   incOptions := incOptions.value.withNameHashing(true),
-  crossScalaVersions := scalaVersions,
+  crossScalaVersions := Seq(scala211),
   scalacOptions ++= Seq(
     "-encoding", "utf8",
     "-deprecation",
@@ -100,6 +100,11 @@ lazy val zincRoot: Project = (project in file(".")).
       git.baseVersion := baseVersion,
       // https://github.com/sbt/sbt-git/issues/109
       git.uncommittedSignifier := None,
+      version := {
+        val v = version.value
+        if (v contains "SNAPSHOT") git.baseVersion.value
+        else v
+      },
       bintrayPackage := "zinc",
       scmInfo := Some(ScmInfo(url("https://github.com/sbt/zinc"), "git@github.com:sbt/zinc.git")),
       description := "Incremental compiler of Scala",
@@ -218,6 +223,7 @@ lazy val compilerBridge: Project = (project in internalPath / "compiler-bridge")
   dependsOn(compilerInterface % "compile;test->test", /*launchProj % "test->test",*/ zincApiInfo % "test->test").
   settings(
     baseSettings,
+    crossScalaVersions := compilerBridgeScalaVersions,
     libraryDependencies += scalaCompiler.value % "provided",
     autoScalaLibrary := false,
     // precompiledSettings,
@@ -252,7 +258,8 @@ lazy val zincApiInfo = (project in internalPath / "zinc-apiinfo").
   dependsOn(compilerInterface, zincClassfile % "compile;test->test").
   configure(addBaseSettingsAndTestDeps).
   settings(
-    name := "zinc ApiInfo"
+    name := "zinc ApiInfo",
+    crossScalaVersions := compilerBridgeScalaVersions
   )
 
 // Utilities related to reflection, managing Scala versions, and custom class loaders
@@ -261,6 +268,7 @@ lazy val zincClasspath = (project in internalPath / "zinc-classpath").
   configure(addBaseSettingsAndTestDeps).
   settings(
     name := "zinc Classpath",
+    crossScalaVersions := compilerBridgeScalaVersions,
     libraryDependencies ++= Seq(scalaCompiler.value,
       launcherInterface)
   ).
@@ -271,7 +279,8 @@ lazy val zincClassfile = (project in internalPath / "zinc-classfile").
   dependsOn(compilerInterface % "compile;test->test").
   configure(addBaseSettingsAndTestDeps).
   settings(
-    name := "zinc Classfile"
+    name := "zinc Classfile",
+    crossScalaVersions := compilerBridgeScalaVersions
   ).
   configure(addSbtIO, addSbtUtilLogging)
 
@@ -290,7 +299,9 @@ lazy val publishBridgesAndTest = Command.args("publishBridgesAndTest", "<version
   require(args.nonEmpty)
   val version = args mkString ""
     s"${compilerInterface.id}/publishLocal" ::
-    (scalaVersions map (v => s"plz $v ${compilerBridge.id}/publishLocal")) :::
+    (compilerBridgeScalaVersions map (v => s"plz $v ${zincApiInfo.id}/publishLocal")) :::
+    // (compilerBridgeScalaVersions map (v => s"plz $v ${compilerBridge.id}/test")) :::
+    (compilerBridgeScalaVersions map (v => s"plz $v ${compilerBridge.id}/publishLocal")) :::
     s"plz $version zincRoot/test" ::
     s"plz $version zincRoot/scripted" ::
     state
