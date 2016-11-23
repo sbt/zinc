@@ -9,18 +9,25 @@ import sbt.util.Logger
 import xsbti.Reporter
 import xsbti.compile.{ IncToolOptions, JavaTools }
 import sbt.internal.inc.javac.JavaCompilerArguments
-import sbt.internal.util.Tracked.{ inputChangedWithJson, outputChangedWithJson }
-import sbt.internal.util.{ FileInfo, FilesInfo, HashFileInfo, ModifiedFileInfo, PlainFileInfo }
-import sbt.internal.util.FilesInfo.{ exists, hash, lastModified }
-import sbt.serialization._
+import sbt.internal.util.Tracked.inputChanged
+import sbt.internal.util.{ CacheStoreFactory, FileInfo, FilesInfo, HashFileInfo, ModifiedFileInfo, PlainFileInfo }
+import sbt.internal.util.CacheImplicits._
+import sbt.internal.util.FileInfo.{ exists, hash, lastModified }, exists._
+
+import sjsonnew._, LList.:*:
 
 object Doc {
+  private[this] implicit val IsoInputs = LList.iso(
+    { in: Inputs => ("outputDirectory", in.outputDirectory) :*: LNil },
+    { in: File :*: LNil => Inputs(Nil, Nil, Nil, in.head, Nil) }
+  )
+
   // def scaladoc(label: String, cache: File, compiler: AnalyzingCompiler): RawCompileLike.Gen =
   //   scaladoc(label, cache, compiler, Seq())
   // def scaladoc(label: String, cache: File, compiler: AnalyzingCompiler, fileInputOptions: Seq[String]): RawCompileLike.Gen =
   //   RawCompileLike.cached(cache, fileInputOptions, RawCompileLike.prepare(label + " Scala API documentation", compiler.doc))
-  def cachedJavadoc(label: String, cache: File, doc: JavaTools): JavaDoc =
-    cached(cache, prepare(label + " Java API documentation", new JavaDoc {
+  def cachedJavadoc(label: String, storeFactory: CacheStoreFactory, doc: JavaTools): JavaDoc =
+    cached(storeFactory, prepare(label + " Java API documentation", new JavaDoc {
       def run(sources: List[File], classpath: List[File], outputDirectory: File, options: List[String],
         incToolOptions: IncToolOptions, log: Logger, reporter: Reporter): Unit = {
         doc.javadoc.run(
@@ -42,14 +49,14 @@ object Doc {
           log.info(description.capitalize + " successful.")
         }
     }
-  private[sbt] def cached(cache: File, doDoc: JavaDoc): JavaDoc =
+  private[sbt] def cached(storeFactory: CacheStoreFactory, doDoc: JavaDoc): JavaDoc =
     new JavaDoc {
       def run(sources: List[File], classpath: List[File], outputDirectory: File, options: List[String],
         incToolOptions: IncToolOptions, log: Logger, reporter: Reporter): Unit =
         {
           val inputs = Inputs(filesInfoToList(hash(sources.toSet)), filesInfoToList(lastModified(classpath.toSet)), classpath, outputDirectory, options)
-          val cachedDoc = inputChangedWithJson(cache / "inputs") { (inChanged, in: Inputs) =>
-            outputChangedWithJson(cache / "output") { (outChanged, outputs: List[PlainFileInfo]) =>
+          val cachedDoc = inputChanged(storeFactory derive "inputs") { (inChanged, in: Inputs) =>
+            inputChanged(storeFactory derive "output") { (outChanged, outputs: List[PlainFileInfo]) =>
               if (inChanged || outChanged) {
                 IO.delete(outputDirectory)
                 IO.createDirectory(outputDirectory)
@@ -57,14 +64,11 @@ object Doc {
               } else log.debug("Doc uptodate: " + outputDirectory.getAbsolutePath)
             }
           }
-          cachedDoc(inputs)(() => filesInfoToList(exists(outputDirectory.allPaths.get.toSet)))
+          cachedDoc(inputs)(filesInfoToList(exists(outputDirectory.allPaths.get.toSet)))
         }
     }
   private[this] final case class Inputs(hfi: List[HashFileInfo], mfi: List[ModifiedFileInfo],
     classpaths: List[File], outputDirectory: File, options: List[String])
-  private[this] object Inputs {
-    implicit val pickler: Pickler[Inputs] with Unpickler[Inputs] = PicklerUnpickler.generate[Inputs]
-  }
   private[sbt] def filesInfoToList[A <: FileInfo](info: FilesInfo[A]): List[A] =
     info.files.toList sortBy { x => x.file.getAbsolutePath }
   private[sbt] val javaSourcesOnly: File => Boolean = _.getName.endsWith(".java")
