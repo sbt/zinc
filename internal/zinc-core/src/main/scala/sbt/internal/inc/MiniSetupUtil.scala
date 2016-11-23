@@ -26,7 +26,7 @@ object MiniSetupUtil {
       def sameNameHasher = a.nameHashing == b.nameHashing
       def sameExtra = equivPairs.equiv(a.extra, b.extra)
       sameOutput &&
-        sameOptions &&
+        // sameOptions &&
         sameCompiler &&
         sameOrder && // equivOrder.equiv(a.order, b.order)
         sameNameHasher &&

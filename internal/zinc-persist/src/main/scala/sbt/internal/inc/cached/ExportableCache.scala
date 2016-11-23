@@ -1,7 +1,7 @@
 package sbt.internal.inc.cached
 
 import java.io.File
-import java.nio.file.{ Files, Path }
+import java.nio.file.Path
 
 import sbt.internal.inc._
 import sbt.io.{ PathFinder, IO }
@@ -87,10 +87,11 @@ class ExportableCache(val cacheLocation: Path, cleanOutputMode: CleanOutputMode 
   def exportCache(projectLocation: File, currentAnalysisStore: AnalysisStore): Unit = {
     for ((currentAnalysis: Analysis, currentSetup) <- currentAnalysisStore.get()) {
       val remoteStore = FileBasedStore(analysisFile.toFile, createMapper(projectLocation))
-
       val out = outputDir(currentSetup).toPath
 
-      val entries = currentAnalysis.stamps.allProducts.map {
+      def files(f: File): List[File] = f :: (if (f.isDirectory) IO.listFiles(f).toList.flatMap(files(_)) else Nil)
+
+      val entries = files(out.toFile).map {
         classFile =>
           val mapping = out.relativize(classFile.toPath).toString
           classFile -> mapping
