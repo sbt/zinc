@@ -300,7 +300,7 @@ lazy val publishBridgesAndTest = Command.args("publishBridgesAndTest", "<version
   val version = args mkString ""
     s"${compilerInterface.id}/publishLocal" ::
     (compilerBridgeScalaVersions map (v => s"plz $v ${zincApiInfo.id}/publishLocal")) :::
-    // (compilerBridgeScalaVersions map (v => s"plz $v ${compilerBridge.id}/test")) :::
+    (compilerBridgeScalaVersions map (v => s"plz $v ${compilerBridge.id}/test")) :::
     (compilerBridgeScalaVersions map (v => s"plz $v ${compilerBridge.id}/publishLocal")) :::
     s"plz $version zincRoot/test" ::
     s"plz $version zincRoot/scripted" ::
