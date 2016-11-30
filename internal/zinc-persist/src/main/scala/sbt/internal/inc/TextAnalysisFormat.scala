@@ -272,10 +272,10 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers) extends FormatCo
       }
 
       writeSeq(out)(Headers.outputMode, mode :: Nil, identity[String])
-      writeMap(out)(Headers.outputDir, outputAsMap, fileToString, fileToString)
+      writeMap(out)(Headers.outputDir, outputAsMap, mappers.sourceDirMapper.write, mappers.outputDirMapper.write)
       writeSeq(out)(Headers.classpathHash, setup.options.classpathHash, fileHashToString) // TODO!
-      writeSeq(out)(Headers.compileOptions, setup.options.scalacOptions, identity[String])
-      writeSeq(out)(Headers.javacOptions, setup.options.javacOptions, identity[String])
+      writeSeq(out)(Headers.compileOptions, setup.options.scalacOptions, mappers.scalacOptions.write)
+      writeSeq(out)(Headers.javacOptions, setup.options.javacOptions, mappers.javacOptions.write)
       writeSeq(out)(Headers.compilerVersion, setup.compilerVersion :: Nil, identity[String])
       writeSeq(out)(Headers.compileOrder, setup.order.name :: Nil, identity[String])
       writeSeq(out)(Headers.nameHashing, setup.nameHashing :: Nil, (b: Boolean) => b.toString)
@@ -286,10 +286,10 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers) extends FormatCo
     def read(in: BufferedReader): MiniSetup = {
       def s2b(s: String): Boolean = s.toBoolean
       val outputDirMode = readSeq(in)(Headers.outputMode, identity[String]).headOption
-      val outputAsMap = readMap(in)(Headers.outputDir, stringToFile, stringToFile)
+      val outputAsMap = readMap(in)(Headers.outputDir, mappers.sourceDirMapper.read, mappers.outputDirMapper.read)
       val classpathHash = readSeq(in)(Headers.classpathHash, stringToFileHash) // TODO
       val compileOptions = readSeq(in)(Headers.compileOptions, mappers.scalacOptions.read)
-      val javacOptions = readSeq(in)(Headers.javacOptions, identity[String])
+      val javacOptions = readSeq(in)(Headers.javacOptions, mappers.javacOptions.read)
       val compilerVersion = readSeq(in)(Headers.compilerVersion, identity[String]).head
       val compileOrder = readSeq(in)(Headers.compileOrder, identity[String]).head
       val nameHashing = readSeq(in)(Headers.nameHashing, s2b).head

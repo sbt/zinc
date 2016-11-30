@@ -58,6 +58,7 @@ trait AnalysisMappers {
   val outputDirMapper: Mapper[File] = Mapper.forFile
   val sourceDirMapper: Mapper[File] = Mapper.forFile
   val scalacOptions: Mapper[String] = Mapper.forString
+  val javacOptions: Mapper[String] = Mapper.forString
 
   val sourceMapper: Mapper[File] = Mapper.forFile
   val productMapper: Mapper[File] = Mapper.forFile
