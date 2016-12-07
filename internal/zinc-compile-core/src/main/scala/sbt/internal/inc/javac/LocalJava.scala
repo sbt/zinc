@@ -7,7 +7,7 @@ package javac
 import java.io.{ File, OutputStream, PrintWriter, Writer }
 import javax.tools.JavaFileManager.Location
 import javax.tools.JavaFileObject.Kind
-import javax.tools.{ FileObject, ForwardingFileObject, ForwardingJavaFileManager, ForwardingJavaFileObject, JavaFileManager, JavaFileObject }
+import javax.tools.{ FileObject, ForwardingJavaFileManager, ForwardingJavaFileObject, JavaFileManager, JavaFileObject }
 
 import sbt.internal.util.LoggerWriter
 import sbt.util.{ Level, Logger }
@@ -88,13 +88,20 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
 
     val customizedFileManager = if (incToolOptions.useCustomizedFileManager && incToolOptions.classFileManager().isDefined)
       new WriteReportingFileManager(fileManager, incToolOptions.classFileManager().get) else fileManager
-    val success = compiler.getTask(logWriter, customizedFileManager,
-      diagnostics, cleanedOptions.toList.asJava, null, jfiles).call()
 
-    // The local compiler may report a successful compilation even though there are errors (e.g. encoding problems in the
-    // source files). In a similar situation, command line javac reports a failed compilation. To have the local java compiler
-    // stick to javac's behavior, we report a failed compilation if there have been errors.
-    success && !diagnostics.hasErrors
+    var compileSuccess = false
+    try {
+      val success = compiler.getTask(logWriter, customizedFileManager,
+        diagnostics, cleanedOptions.toList.asJava, null, jfiles).call()
+
+      // The local compiler may report a successful compilation even though there are errors (e.g. encoding problems in the
+      // source files). In a similar situation, command line javac reports a failed compilation. To have the local java compiler
+      // stick to javac's behavior, we report a failed compilation if there have been errors.
+      compileSuccess = success && !diagnostics.hasErrors
+    } finally {
+      logger.flushLines(if (compileSuccess) Level.Warn else Level.Error)
+    }
+    compileSuccess
   }
 }
 
