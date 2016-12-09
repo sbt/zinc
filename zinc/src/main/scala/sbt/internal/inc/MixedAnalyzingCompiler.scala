@@ -62,6 +62,8 @@ final class MixedAnalyzingCompiler(
       }
     // TODO - Maybe on "Mixed" we should try to compile both Scala + Java.
     if (order == JavaThenScala) { compileJava(); compileScala() } else { compileScala(); compileJava() }
+    if (javaSrcs.size + scalaSrcs.size > 0)
+      log.info("Done compiling.")
   }
 
   private[this] def outputDirectories(output: Output): Seq[File] = output match {
