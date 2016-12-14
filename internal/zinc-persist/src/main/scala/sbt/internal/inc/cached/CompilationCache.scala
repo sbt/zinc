@@ -26,7 +26,7 @@ case class ProjectRebasedCache(remoteRoot: Path, cacheLocation: Path) extends Co
     }
   }
 
-  private def createMapper(from: Path, to: Path): AnalysisMappers = new AnalysisMappers {
+  private def createMapper(from: Path, to: Path): AnalysisMappers = new AnalysisMappersAdapter {
     private def justRebase = Mapper.rebaseFile(from, to)
 
     override val outputDirMapper: Mapper[File] = justRebase

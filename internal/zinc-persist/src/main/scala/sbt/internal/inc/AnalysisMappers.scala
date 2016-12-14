@@ -10,6 +10,8 @@ package sbt.internal.inc
 import java.io.File
 import java.nio.file.Path
 
+import xsbti.compile.{ MiniOptions, MiniSetup }
+
 import scala.util.Try
 
 case class Mapper[V](read: String => V, write: V => String)
@@ -54,21 +56,46 @@ object Mapper {
     )
 }
 
+/** Maps Analysis and Minisetup on read/write to store. Used for caching purposes */
 trait AnalysisMappers {
-  val outputDirMapper: Mapper[File] = Mapper.forFile
-  val sourceDirMapper: Mapper[File] = Mapper.forFile
-  val scalacOptions: Mapper[String] = Mapper.forString
-  val javacOptions: Mapper[String] = Mapper.forString
+  val outputDirMapper: Mapper[File]
+  val sourceDirMapper: Mapper[File]
+  val scalacOptions: Mapper[String]
+  val javacOptions: Mapper[String]
 
-  val sourceMapper: Mapper[File] = Mapper.forFile
-  val productMapper: Mapper[File] = Mapper.forFile
-  val binaryMapper: Mapper[File] = Mapper.forFile
+  val sourceMapper: Mapper[File]
+  val productMapper: Mapper[File]
+  val binaryMapper: Mapper[File]
 
-  val binaryStampMapper: ContextAwareMapper[File, Stamp] = Mapper.forStamp
-  val productStampMapper: ContextAwareMapper[File, Stamp] = Mapper.forStamp
-  val sourceStampMapper: ContextAwareMapper[File, Stamp] = Mapper.forStamp
+  val binaryStampMapper: ContextAwareMapper[File, Stamp]
+  val productStampMapper: ContextAwareMapper[File, Stamp]
+  val sourceStampMapper: ContextAwareMapper[File, Stamp]
+
+  val classpathMapper: Mapper[File]
+
+  /** Function is called on to map MiniSetup that is imported from cache */
+  def mapOptionsFromCache(fromCache: MiniSetup): MiniSetup
+}
+
+trait AnalysisMappersAdapter extends AnalysisMappers {
+  override val outputDirMapper: Mapper[File] = Mapper.forFile
+  override val sourceDirMapper: Mapper[File] = Mapper.forFile
+  override val scalacOptions: Mapper[String] = Mapper.forString
+  override val javacOptions: Mapper[String] = Mapper.forString
+
+  override val sourceMapper: Mapper[File] = Mapper.forFile
+  override val productMapper: Mapper[File] = Mapper.forFile
+  override val binaryMapper: Mapper[File] = Mapper.forFile
+
+  override val binaryStampMapper: ContextAwareMapper[File, Stamp] = Mapper.forStamp
+  override val productStampMapper: ContextAwareMapper[File, Stamp] = Mapper.forStamp
+  override val sourceStampMapper: ContextAwareMapper[File, Stamp] = Mapper.forStamp
+
+  override val classpathMapper: Mapper[File] = Mapper.forFile
+
+  override def mapOptionsFromCache(fromCache: MiniSetup): MiniSetup = fromCache
 }
 
 object AnalysisMappers {
-  val default = new AnalysisMappers {}
+  val default: AnalysisMappers = new AnalysisMappersAdapter {}
 }

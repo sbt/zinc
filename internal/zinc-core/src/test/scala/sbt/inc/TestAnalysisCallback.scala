@@ -57,39 +57,6 @@ class TestAnalysisCallback(
   def hashFile(f: File): Array[Byte] = Stamp.hash(f).asInstanceOf[Hash].value
 
   def get: TestAnalysis = {
-
-    val p = (products foldLeft Relation.empty[File, File]) {
-      case (rel, (source, module)) => rel + (source -> module)
-    }
-
-    val bin = (binaryDependencies foldLeft Relation.empty[String, File]) {
-      case (rel, (binary, _, sourceClassName, _)) => rel + (sourceClassName -> binary)
-    }
-
-    val di = Relation.empty[File, File]
-    val de = Relation.empty[File, String]
-
-    val pii = Relation.empty[File, File]
-    val pie = Relation.empty[File, String]
-
-    val mri = (classDependencies.filter(_._3 == DependencyByMemberRef) foldLeft Relation.empty[String, String]) {
-      case (rel, (dependsOnClassName, sourceClassName, _)) => rel + (sourceClassName -> dependsOnClassName)
-    }
-    val mre = Relation.empty[File, String]
-
-    val ii = (classDependencies.filter(_._3 == DependencyByInheritance) foldLeft Relation.empty[String, String]) {
-      case (rel, (dependsOnClassName, sourceClassName, _)) => rel + (sourceClassName -> dependsOnClassName)
-    }
-    val ie = Relation.empty[File, String]
-
-    val cn = Relation.empty[File, String]
-
-    val bcn = Relation.empty[String, String] ++ classNames.values.flatten
-
-    val un = (usedNames foldLeft Relation.empty[String, String]) {
-      case (rel, (sourceClassName, names)) => rel ++ (names map (n => (sourceClassName, n)))
-    }
-
     val relations = Relations.empty
 
     val analyzedApis = classNames.values.flatMap(_.map(_._1)).map(analyzeClass)

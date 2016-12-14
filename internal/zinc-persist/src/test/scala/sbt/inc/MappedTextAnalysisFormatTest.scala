@@ -15,7 +15,7 @@ import sbt.internal.inc._
 import scala.util.{ Random, Try }
 
 object MappedTextAnalysisFormatTest extends Properties("MappedTextAnalysisFormat") with BaseTextAnalysisFormatTest {
-  object TestMapper extends AnalysisMappers {
+  object TestMapper extends AnalysisMappersAdapter {
     override val sourceMapper: Mapper[File] = mapped(Mapper.forFile)
     override val productMapper: Mapper[File] = mapped(Mapper.forFile)
     override val binaryMapper: Mapper[File] = mapped(Mapper.forFile)

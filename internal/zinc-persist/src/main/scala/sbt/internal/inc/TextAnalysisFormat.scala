@@ -316,8 +316,10 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers) extends FormatCo
         case None => throw new ReadException("No output mode specified")
       }
 
-      new MiniSetup(output, new MiniOptions(classpathHash.toArray, compileOptions.toArray, javacOptions.toArray), compilerVersion,
+      val original = new MiniSetup(output, new MiniOptions(classpathHash.toArray, compileOptions.toArray, javacOptions.toArray), compilerVersion,
         xsbti.compile.CompileOrder.valueOf(compileOrder), nameHashing, skipApiStoring, extra.toArray)
+
+      mappers.mapOptionsFromCache(original)
     }
   }
 

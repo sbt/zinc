@@ -36,7 +36,7 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
     private val sourcesPrefix = Paths.get("sources")
     private val binPrefix = Paths.get("bin")
 
-    val allSources = for {
+    val allSources: Iterable[File] = for {
       (sourcePath, sourceFiles) <- sources
       sourceRoot = baseLocation.resolve(sourcePath)
       sourceFile <- sourceFiles

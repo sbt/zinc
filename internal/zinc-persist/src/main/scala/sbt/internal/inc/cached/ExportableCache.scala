@@ -7,7 +7,7 @@ import sbt.internal.inc._
 import sbt.io.{ PathFinder, IO }
 import xsbti.compile.{ CompileAnalysis, MiniSetup, SingleOutput }
 
-class ExportableCacheMapper(root: Path) extends AnalysisMappers {
+class ExportableCacheMapper(root: Path) extends AnalysisMappersAdapter {
   private def justRelativize = Mapper.relativizeFile(root)
 
   override val outputDirMapper: Mapper[File] = justRelativize
@@ -15,6 +15,7 @@ class ExportableCacheMapper(root: Path) extends AnalysisMappers {
   override val sourceMapper: Mapper[File] = justRelativize
   override val productMapper: Mapper[File] = justRelativize
   override val binaryMapper: Mapper[File] = justRelativize
+  override val classpathMapper: Mapper[File] = justRelativize
 
   override val binaryStampMapper: ContextAwareMapper[File, Stamp] =
     Mapper.updateModificationDateFileMapper(binaryMapper)
@@ -31,6 +32,8 @@ class ExportableCache(val cacheLocation: Path, cleanOutputMode: CleanOutputMode 
   val classesZipFile: Path = cacheLocation.resolve("classes.zip")
 
   protected def createMapper(projectLocation: File) = new ExportableCacheMapper(projectLocation.toPath)
+
+  protected def cacheVerifier(): CacheVerifier = NoopVerifier
 
   private def outputDir(setup: MiniSetup): File = setup.output() match {
     case single: SingleOutput =>
@@ -84,9 +87,11 @@ class ExportableCache(val cacheLocation: Path, cleanOutputMode: CleanOutputMode 
     analysis.copy(stamps = newStamps)
   }
 
-  def exportCache(projectLocation: File, currentAnalysisStore: AnalysisStore): Unit = {
-    for ((currentAnalysis: Analysis, currentSetup) <- currentAnalysisStore.get()) {
-      val remoteStore = FileBasedStore(analysisFile.toFile, createMapper(projectLocation))
+  def exportCache(projectLocation: File, currentAnalysisStore: AnalysisStore): Option[VerficationResults] = {
+    for ((currentAnalysis: Analysis, currentSetup) <- currentAnalysisStore.get()) yield {
+      val verifier = cacheVerifier()
+      val mapper = verifier.verifingMappers(createMapper(projectLocation))
+      val remoteStore = FileBasedStore(analysisFile.toFile, mapper)
       val out = outputDir(currentSetup).toPath
 
       def files(f: File): List[File] = f :: (if (f.isDirectory) IO.listFiles(f).toList.flatMap(files(_)) else Nil)
@@ -100,6 +105,7 @@ class ExportableCache(val cacheLocation: Path, cleanOutputMode: CleanOutputMode 
       IO.zip(entries, classesZipFile.toFile)
 
       remoteStore.set(currentAnalysis, currentSetup)
+      verifier.results
     }
   }
 }
