@@ -1,5 +1,5 @@
 language: scala
-jdk: openjdk7
+jdk: oraclejdk8
 scala: 2.11.8
 
 script: sbt "publishBridgesAndTest $TRAVIS_SCALA_VERSION"
