@@ -35,7 +35,7 @@ final class ScalaInstance(val version: String, val loader: ClassLoader,
   require(version.indexOf(' ') < 0, "Version cannot contain spaces (was '" + version + "')")
   /** Gets the version of Scala in the compiler.properties file from the loader.  This version may be different than that given by 'version'*/
   lazy val actualVersion = explicitActual getOrElse ScalaInstance.actualVersion(loader)("\n    version " + version + ", " + jarStrings)
-  def jarStrings = "library jar: " + libraryJar + ", compiler jar: " + compilerJar
+  def jarStrings = s"""library jar: $libraryJar, compiler jar: $compilerJar, other jars: ${otherJars.toList.mkString(", ")}"""
   override def toString = "Scala instance{version label " + version + ", actual version " + actualVersion + ", " + jarStrings + "}"
 }
 object ScalaInstance {
