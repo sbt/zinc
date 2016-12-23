@@ -247,6 +247,7 @@ case class ProjectStructure(name: String, dependsOn: Vector[String], baseDirecto
         (analysis.compilations.allCompilations.size: Int) == expected,
         "analysis.compilations.allCompilations.size = %d (expected %d)".format(analysis.compilations.allCompilations.size, expected)
       )
+      ()
     }
 
   def checkRecompilations(i: IncInstance, step: Int, expected: List[String]): Unit =
@@ -265,7 +266,7 @@ case class ProjectStructure(name: String, dependsOn: Vector[String], baseDirecto
 
       assert(step < allCompilations.size.toInt)
       recompiledClassesInIteration(step, expected.toSet)
-
+      ()
     }
 
   def checkClasses(i: IncInstance, src: String, expected: List[String]): Unit = {
@@ -275,6 +276,7 @@ case class ProjectStructure(name: String, dependsOn: Vector[String], baseDirecto
       assert(expected == actual, s"Expected $expected classes, got $actual")
 
     assertClasses(expected.toSet, classes(src))
+    ()
   }
 
   def checkProducts(i: IncInstance, src: String, expected: List[String]): Unit = {
@@ -288,6 +290,7 @@ case class ProjectStructure(name: String, dependsOn: Vector[String], baseDirecto
       assert(expected == actual, s"Expected $expected products, got $actual")
 
     assertClasses(expected.toSet, products(src))
+    ()
   }
 
   def checkDependencies(i: IncInstance, className: String, expected: List[String]): Unit = {
@@ -297,6 +300,7 @@ case class ProjectStructure(name: String, dependsOn: Vector[String], baseDirecto
       assert(expected == actual, s"Expected $expected dependencies, got $actual")
 
     assertDependencies(expected.toSet, classDeps(className))
+    ()
   }
 
   def compile(i: IncInstance): Analysis =
@@ -365,6 +369,7 @@ case class ProjectStructure(name: String, dependsOn: Vector[String], baseDirecto
     currentThread.setContextClassLoader(loader)
     try { main.invoke(null, options.toArray[String]); () }
     finally { currentThread.setContextClassLoader(oldLoader) }
+    ()
   }
 
   def loadIncOptions(src: File): IncOptions = {
@@ -391,6 +396,7 @@ case class ProjectStructure(name: String, dependsOn: Vector[String], baseDirecto
     val messages = getProblems() filter (_.severity == severity)
     assert(messages.length == expected, s"""Expected $expected messages with severity $severity but ${messages.length} found:
                                            |${messages mkString "\n"}""".stripMargin)
+    ()
   }
 
   def checkMessage(index: Int, expected: String, severity: Severity): Unit = {
@@ -401,6 +407,6 @@ case class ProjectStructure(name: String, dependsOn: Vector[String], baseDirecto
       case None =>
         throw new TestFailed(s"Problem not found: $index (there are ${problems.length} problem with severity $severity).")
     }
-
+    ()
   }
 }
