@@ -136,7 +136,7 @@ object TestCaseGenerators {
   val genStringRelation = genRelation[String](unique(identifier)) _
 
   def genStringStringRelation(num: Int): Gen[Relation[String, String]] = for {
-    n <- choose(1, num)
+    n <- choose(1, if (num == 0) 1 else num)
     fwd <- listOfN(n, unique(identifier))
     prv <- listOfN(n, unique(identifier))
   } yield Relation.reconstruct(zipMap(fwd, prv).mapValues(x => Set(x)))
