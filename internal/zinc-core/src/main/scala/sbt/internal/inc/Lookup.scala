@@ -2,7 +2,7 @@ package sbt.internal.inc
 
 import java.io.File
 
-import xsbti.compile.{ CompileAnalysis, ExternalHooks }
+import xsbti.compile.{ CompileAnalysis, ExternalHooks, FileHash }
 
 /**
  * A trait that encapsulates looking up elements on a classpath and looking up
@@ -12,7 +12,7 @@ trait Lookup extends ExternalLookup {
   /**
    * Returns the current classpath if the classpath has changed from the last compilation.
    */
-  def changedClasspath: Option[Vector[File]]
+  def changedClasspathHash: Option[Vector[FileHash]]
 
   def analyses: Vector[CompileAnalysis]
 

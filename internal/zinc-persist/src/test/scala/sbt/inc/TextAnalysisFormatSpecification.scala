@@ -28,7 +28,7 @@ object TextAnalysisFormatTest extends Properties("TextAnalysisFormat") {
                     |output directories:
                     |1 items
                     |file:/dummy -> file:/dummy
-                    |classpath options:
+                    |classpath hash:
                     |0 items
                     |compile options:
                     |0 items
