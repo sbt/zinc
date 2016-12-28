@@ -105,6 +105,7 @@ class JavaCompilerSpec extends UnitSpec {
     val rightAPI = compileWithPrimitive(rightType, right)
     leftAPI.size shouldBe rightAPI.size
     ((leftAPI, rightAPI).zipped forall SameAPI.apply) shouldBe (left == right)
+    ()
   }
 
   def lineMatches(p: Problem, lineno: Int, lineContent: Option[String] = None): Boolean = {

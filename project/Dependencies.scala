@@ -9,8 +9,8 @@ object Dependencies {
   val scala211 = "2.11.8"
 
   val bootstrapSbtVersion = "0.13.8"
-  val ioVersion = "1.0.0-M6"
-  val utilVersion = "0.1.0-M15"
+  val ioVersion = "1.0.0-M8"
+  val utilVersion = "0.1.0-M16"
   val lmVersion = "0.1.0-X2"
 
   private lazy val sbtIO = "org.scala-sbt" %% "io" % ioVersion
@@ -62,11 +62,11 @@ object Dependencies {
   lazy val scalaReflect = Def.setting { "org.scala-lang" % "scala-reflect" % scalaVersion.value }
 
   lazy val sbinary = "org.scala-sbt" %% "sbinary" % "0.4.3"
-  lazy val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.13.1"
-  lazy val scalatest = "org.scalatest" %% "scalatest" % "2.2.6"
+  lazy val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.13.4"
+  lazy val scalatest = "org.scalatest" %% "scalatest" % "3.0.1"
   lazy val junit = "junit" % "junit" % "4.11"
   lazy val diffUtils = "com.googlecode.java-diff-utils" % "diffutils" % "1.3.0"
-  lazy val sjsonnewScalaJson = "com.eed3si9n" %% "sjson-new-scalajson" % "0.4.1"
+  lazy val sjsonnewScalaJson = "com.eed3si9n" %% "sjson-new-scalajson" % "0.7.0"
 
   def addTestDependencies(p: Project): Project = p.settings(libraryDependencies ++=
     Seq(
