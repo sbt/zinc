@@ -367,7 +367,7 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
             val classNames = previousRelations.libraryClassNames(file)
             classNames exists { binaryClassName =>
               // classpath has not changed since the last compilation, so use the faster detection.
-              if (lookup.changedClasspath.isEmpty)
+              if (lookup.changedClasspathHash.isEmpty)
                 lookup.lookupAnalysis(binaryClassName) match {
                   case None    => false
                   case Some(e) => inv(s"shadowing is detected for class $binaryClassName")

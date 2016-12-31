@@ -4,6 +4,7 @@ package inc
 
 import java.io.{ File, FileInputStream }
 import java.net.URLClassLoader
+import java.util.jar.Manifest
 import sbt.util.Logger
 import sbt.util.InterfaceUtil._
 import xsbt.api.Discovery
@@ -12,6 +13,7 @@ import xsbti.compile.{ CompileAnalysis, CompileOrder, DefinesClass, IncOptionsUt
 import xsbti.compile.PerClasspathEntryLookup
 import sbt.io.IO
 import sbt.io.syntax._
+import sbt.io.DirectoryFilter
 
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier.{ isPublic, isStatic }
@@ -154,6 +156,12 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
           case _ =>
             throw new TestFailed("Found more than one main class.")
         }
+    },
+    "package" -> {
+      case (p, Nil, i) =>
+        p.packageBin(i)
+      case (p, other, _) =>
+        p.unrecognizedArguments("package", other)
     },
     "checkWarnings" -> {
       case (p, count :: Nil, _) =>
@@ -326,6 +334,22 @@ case class ProjectStructure(name: String, dependsOn: Vector[String], baseDirecto
       fileStore.set(analysis, result.setup)
       scriptedLog.info(s"""Compilation done: ${sources.toList.mkString(", ")}""")
       analysis
+    }
+
+  def packageBin(i: IncInstance): Unit =
+    {
+      compile(i)
+      val jar = targetDir / s"$name.jar"
+      val manifest = new Manifest
+      val sources =
+        (classesDir ** -DirectoryFilter).get flatMap {
+          case x =>
+            IO.relativize(classesDir, x) match {
+              case Some(path) => List((x, path))
+              case _          => Nil
+            }
+        }
+      IO.jar(sources, jar, manifest)
     }
 
   def unrecognizedArguments(commandName: String, args: List[String]): Unit =

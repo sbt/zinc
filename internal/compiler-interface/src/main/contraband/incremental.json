@@ -203,6 +203,16 @@
       ]
     },
     {
+      "name": "FileHash",
+      "namespace": "xsbti.compile",
+      "target": "Java",
+      "type": "record",
+      "fields": [
+        { "name": "file", "type": "java.io.File" },
+        { "name": "hash", "type": "int"    }
+      ]
+    },
+    {
       "name": "MiniOptions",
       "namespace": "xsbti.compile",
       "target": "Java",
@@ -210,8 +220,8 @@
       "doc": "Compilation options. This is used as part of CompileSetup.",
       "fields": [
         {
-          "name": "classpath",
-          "type": "java.io.File*",
+          "name": "classpathHash",
+          "type": "FileHash*",
           "doc": [
             "The classpath to use for compilation.",
             "This will be modified according to the ClasspathOptions used to configure the ScalaCompiler."

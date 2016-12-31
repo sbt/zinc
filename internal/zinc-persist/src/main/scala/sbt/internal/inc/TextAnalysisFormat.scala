@@ -6,7 +6,7 @@ import java.io._
 import sbt.internal.util.Relation
 import xsbti.{ T2, SafeLazy }
 import xsbti.api.{ AnalyzedClass, Compilation, Companions, NameHashes, Lazy }
-import xsbti.compile.{ CompileAnalysis, MultipleOutput, SingleOutput, MiniOptions, MiniSetup }
+import xsbti.compile.{ CompileAnalysis, MultipleOutput, SingleOutput, MiniOptions, MiniSetup, FileHash }
 import javax.xml.bind.DatatypeConverter
 import java.net.URI
 
@@ -69,6 +69,7 @@ object TextAnalysisFormat {
   private implicit val analyzedClassFormat: Format[AnalyzedClass] = xsbt.api.AnalyzedClassFormats.analyzedClassFormat
   private implicit def infoFormat: Format[SourceInfo] =
     wrap[SourceInfo, (Seq[Problem], Seq[Problem])](si => (si.reportedProblems, si.unreportedProblems), { case (a, b) => SourceInfos.makeInfo(a, b) })
+  private implicit def fileHashFormat: Format[FileHash] = asProduct2((file: File, hash: Int) => new FileHash(file, hash))(h => (h.file, h.hash))
   private implicit def seqFormat[T](implicit optionFormat: Format[T]): Format[Seq[T]] = viaSeq[Seq[T], T](x => x)
   private def t2[A1, A2](a1: A1, a2: A2): T2[A1, A2] =
     new T2[A1, A2] {
@@ -351,7 +352,7 @@ object TextAnalysisFormat {
     object Headers {
       val outputMode = "output mode"
       val outputDir = "output directories"
-      val classpathOptions = "classpath options"
+      val classpathHash = "classpath hash"
       val compileOptions = "compile options"
       val javacOptions = "javac options"
       val compilerVersion = "compiler version"
@@ -364,6 +365,9 @@ object TextAnalysisFormat {
     private[this] val singleOutputMode = "single"
     private[this] val multipleOutputMode = "multiple"
 
+    val stringToFileHash = ObjectStringifier.stringToObj[FileHash] _
+    val fileHashToString = ObjectStringifier.objToString[FileHash] _
+
     def write(out: Writer, setup: MiniSetup): Unit = {
       val (mode, outputAsMap) = setup.output match {
         case s: SingleOutput =>
@@ -375,7 +379,7 @@ object TextAnalysisFormat {
 
       writeSeq(out)(Headers.outputMode, mode :: Nil, identity[String])
       writeMap(out)(Headers.outputDir, outputAsMap, fileToString, fileToString)
-      writeSeq(out)(Headers.classpathOptions, setup.options.classpath, fileToString)
+      writeSeq(out)(Headers.classpathHash, setup.options.classpathHash, fileHashToString)
       writeSeq(out)(Headers.compileOptions, setup.options.scalacOptions, identity[String])
       writeSeq(out)(Headers.javacOptions, setup.options.javacOptions, identity[String])
       writeSeq(out)(Headers.compilerVersion, setup.compilerVersion :: Nil, identity[String])
@@ -389,7 +393,7 @@ object TextAnalysisFormat {
       def s2b(s: String): Boolean = s.toBoolean
       val outputDirMode = readSeq(in)(Headers.outputMode, identity[String]).headOption
       val outputAsMap = readMap(in)(Headers.outputDir, stringToFile, stringToFile)
-      val classpathOptions = readSeq(in)(Headers.classpathOptions, stringToFile)
+      val classpathHash = readSeq(in)(Headers.classpathHash, stringToFileHash)
       val compileOptions = readSeq(in)(Headers.compileOptions, identity[String])
       val javacOptions = readSeq(in)(Headers.javacOptions, identity[String])
       val compilerVersion = readSeq(in)(Headers.compilerVersion, identity[String]).head
@@ -418,7 +422,7 @@ object TextAnalysisFormat {
         case None => throw new ReadException("No output mode specified")
       }
 
-      new MiniSetup(output, new MiniOptions(classpathOptions.toArray, compileOptions.toArray, javacOptions.toArray), compilerVersion,
+      new MiniSetup(output, new MiniOptions(classpathHash.toArray, compileOptions.toArray, javacOptions.toArray), compilerVersion,
         xsbti.compile.CompileOrder.valueOf(compileOrder), nameHashing, skipApiStoring, extra.toArray)
     }
   }
