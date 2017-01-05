@@ -9,23 +9,23 @@ object Dependencies {
   val scala211 = "2.11.8"
 
   val bootstrapSbtVersion = "0.13.8"
-  val ioVersion = "1.0.0-M8"
-  val utilVersion = "0.1.0-M16"
-  val lmVersion = "0.1.0-X2"
+  private val ioVersion = "1.0.0-M8"
+  private val utilVersion = "0.1.0-M16"
+  private val lmVersion = "0.1.0-X2"
 
-  private lazy val sbtIO = "org.scala-sbt" %% "io" % ioVersion
+  private val sbtIO = "org.scala-sbt" %% "io" % ioVersion
 
-  private lazy val utilLogging   = "org.scala-sbt" %% "util-logging"   % utilVersion
-  private lazy val utilControl   = "org.scala-sbt" %% "util-control"   % utilVersion
-  private lazy val utilRelation  = "org.scala-sbt" %% "util-relation"  % utilVersion
-  private lazy val utilTesting   = "org.scala-sbt" %% "util-testing"   % utilVersion
-  private lazy val utilTracking  = "org.scala-sbt" %% "util-tracking"  % utilVersion
-  private lazy val utilInterface = "org.scala-sbt"  % "util-interface" % utilVersion
-  private lazy val utilScripted  = "org.scala-sbt" %% "util-scripted"  % utilVersion
+  private val utilLogging   = "org.scala-sbt" %% "util-logging"   % utilVersion
+  private val utilControl   = "org.scala-sbt" %% "util-control"   % utilVersion
+  private val utilRelation  = "org.scala-sbt" %% "util-relation"  % utilVersion
+  private val utilTesting   = "org.scala-sbt" %% "util-testing"   % utilVersion
+  private val utilTracking  = "org.scala-sbt" %% "util-tracking"  % utilVersion
+  private val utilInterface = "org.scala-sbt"  % "util-interface" % utilVersion
+  private val utilScripted  = "org.scala-sbt" %% "util-scripted"  % utilVersion
 
-  private lazy val libraryManagement = "org.scala-sbt" %% "librarymanagement" % lmVersion
+  private val libraryManagement = "org.scala-sbt" %% "librarymanagement" % lmVersion
 
-  lazy val launcherInterface = "org.scala-sbt" % "launcher-interface" % "1.0.0"
+  val launcherInterface = "org.scala-sbt" % "launcher-interface" % "1.0.0"
 
   def getSbtModulePath(key: String, name: String) = {
     val localProps = new java.util.Properties()
@@ -45,7 +45,7 @@ object Dependencies {
       case None    => p settings (libraryDependencies += c.fold(m)(m % _))
     }
 
-  def addSbtIO(p: Project): Project            = addSbtModule(p, sbtIoPath, "io", sbtIO)
+  def addSbtIO(p: Project): Project = addSbtModule(p, sbtIoPath, "io", sbtIO)
 
   def addSbtUtilControl(p: Project): Project   = addSbtModule(p, sbtUtilPath, "utilControl",   utilControl)
   def addSbtUtilInterface(p: Project): Project = addSbtModule(p, sbtUtilPath, "utilInterface", utilInterface)
@@ -57,16 +57,16 @@ object Dependencies {
 
   def addSbtLm(p: Project): Project = addSbtModule(p, sbtLmPath, "lm", libraryManagement)
 
-  lazy val scalaLibrary = Def.setting { "org.scala-lang" % "scala-compiler" % scalaVersion.value }
-  lazy val scalaCompiler = Def.setting { "org.scala-lang" % "scala-compiler" % scalaVersion.value }
-  lazy val scalaReflect = Def.setting { "org.scala-lang" % "scala-reflect" % scalaVersion.value }
+  val scalaLibrary = Def.setting { "org.scala-lang" % "scala-compiler" % scalaVersion.value }
+  val scalaCompiler = Def.setting { "org.scala-lang" % "scala-compiler" % scalaVersion.value }
+  val scalaReflect = Def.setting { "org.scala-lang" % "scala-reflect" % scalaVersion.value }
 
-  lazy val sbinary = "org.scala-sbt" %% "sbinary" % "0.4.3"
-  lazy val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.13.4"
-  lazy val scalatest = "org.scalatest" %% "scalatest" % "3.0.1"
-  lazy val junit = "junit" % "junit" % "4.11"
-  lazy val diffUtils = "com.googlecode.java-diff-utils" % "diffutils" % "1.3.0"
-  lazy val sjsonnewScalaJson = "com.eed3si9n" %% "sjson-new-scalajson" % "0.7.0"
+  val sbinary = "org.scala-sbt" %% "sbinary" % "0.4.3"
+  val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.13.4"
+  val scalatest = "org.scalatest" %% "scalatest" % "3.0.1"
+  val junit = "junit" % "junit" % "4.11"
+  val diffUtils = "com.googlecode.java-diff-utils" % "diffutils" % "1.3.0"
+  val sjsonnewScalaJson = "com.eed3si9n" %% "sjson-new-scalajson" % "0.7.0"
 
   def addTestDependencies(p: Project): Project = p.settings(libraryDependencies ++=
     Seq(
