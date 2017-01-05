@@ -98,13 +98,32 @@ lazy val zincRoot: Project = (project in file(".")).
   settings(
     inThisBuild(Seq(
       git.baseVersion := baseVersion,
+
       // https://github.com/sbt/sbt-git/issues/109
-      git.uncommittedSignifier := None,
+      // Workaround from https://github.com/sbt/sbt-git/issues/92#issuecomment-161853239
+      git.gitUncommittedChanges := {
+        val statusCommands = Seq(
+          Seq("diff-index", "--cached", "HEAD"),
+          Seq("diff-index", "HEAD"),
+          Seq("diff-files"),
+          Seq("ls-files", "--exclude-standard", "--others")
+        )
+        // can't use git.runner.value because it's a task
+        val runner = com.typesafe.sbt.git.ConsoleGitRunner
+        val dir = baseDirectory.value
+        val uncommittedChanges = statusCommands.map { c =>
+          runner(c: _*)(dir, com.typesafe.sbt.git.NullLogger)
+        }
+
+        uncommittedChanges.exists(_.nonEmpty)
+      },
+
       version := {
         val v = version.value
         if (v contains "SNAPSHOT") git.baseVersion.value
         else v
       },
+
       bintrayPackage := "zinc",
       scmInfo := Some(ScmInfo(url("https://github.com/sbt/zinc"), "git@github.com:sbt/zinc.git")),
       description := "Incremental compiler of Scala",
