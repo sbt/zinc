@@ -8,7 +8,7 @@ import com.typesafe.tools.mima.core._, ProblemFilters._
 def baseVersion = "1.0.0-X6"
 def internalPath   = file("internal")
 
-lazy val compilerBridgeScalaVersions = Seq(scala210, scala211, scala212)
+lazy val compilerBridgeScalaVersions = Seq(scala212, scala211, scala210)
 
 def commonSettings: Seq[Setting[_]] = Seq(
   scalaVersion := scala212,
@@ -312,9 +312,12 @@ lazy val publishBridgesAndTest = Command.args("publishBridgesAndTest", "<version
   require(args.nonEmpty)
   val version = args mkString ""
     s"${compilerInterface.id}/publishLocal" ::
-    (compilerBridgeScalaVersions map (v => s"plz $v ${zincApiInfo.id}/publishLocal")) :::
-    (compilerBridgeScalaVersions map (v => s"plz $v ${compilerBridge.id}/test")) :::
-    (compilerBridgeScalaVersions map (v => s"plz $v ${compilerBridge.id}/publishLocal")) :::
+    // using plz here causes: java.lang.OutOfMemoryError: GC overhead limit exceeded
+    (compilerBridgeScalaVersions flatMap { v =>
+      s"wow $v" ::
+      s";${zincApiInfo.id}/publishLocal;${compilerBridge.id}/test;${compilerBridge.id}/publishLocal" ::
+      Nil
+    }) :::
     s"plz $version zincRoot/test" ::
     s"plz $version zincRoot/scripted" ::
     state
