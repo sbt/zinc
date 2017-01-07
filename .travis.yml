@@ -1,7 +1,11 @@
 language: scala
 
-scala: 2.11.8
+scala:
+  - 2.11.8
+  - 2.12.1
 
-jdk: oraclejdk8
+script:
+  - sbt -Dfile.encoding=UTF8 -J-XX:ReservedCodeCacheSize=256M "publishBridgesAndTest $TRAVIS_SCALA_VERSION"
 
-script: sbt -J-XX:ReservedCodeCacheSize=128m "publishBridgesAndTest $TRAVIS_SCALA_VERSION"
+jdk:
+  - oraclejdk8

@@ -5,13 +5,13 @@ import Scripted._
 // import StringUtilities.normalize
 import com.typesafe.tools.mima.core._, ProblemFilters._
 
-def baseVersion = "1.0.0-X6"
+def baseVersion = "1.0.0-X6-SNAPSHOT"
 def internalPath   = file("internal")
 
-lazy val compilerBridgeScalaVersions = Seq(scala210, scala211)
+lazy val compilerBridgeScalaVersions = Seq(scala212, scala211, scala210)
 
 def commonSettings: Seq[Setting[_]] = Seq(
-  scalaVersion := scala211,
+  scalaVersion := scala212,
   // publishArtifact in packageDoc := false,
   resolvers += Resolver.typesafeIvyRepo("releases"),
   resolvers += Resolver.sonatypeRepo("snapshots"),
@@ -19,28 +19,23 @@ def commonSettings: Seq[Setting[_]] = Seq(
   resolvers += Resolver.url("bintray-sbt-ivy-snapshots", new URL("https://dl.bintray.com/sbt/ivy-snapshots/"))(Resolver.ivyStylePatterns),
   // concurrentRestrictions in Global += Util.testExclusiveRestriction,
   testOptions += Tests.Argument(TestFrameworks.ScalaCheck, "-w", "1"),
-  javacOptions in compile ++= Seq("-target", "7", "-source", "7", "-Xlint", "-Xlint:-serial"),
+  javacOptions in compile ++= Seq("-Xlint", "-Xlint:-serial"),
   incOptions := incOptions.value.withNameHashing(true),
-  crossScalaVersions := Seq(scala211),
-  scalacOptions ++= Seq(
-    "-encoding", "utf8",
-    "-deprecation",
-    "-feature",
-    "-unchecked",
-    "-Xlint",
-    "-language:higherKinds",
-    "-language:implicitConversions",
-    "-Xfuture",
-    "-Yinline-warnings",
-    "-Xfatal-warnings",
-    "-Yno-adapted-args",
-    "-Ywarn-dead-code",
-    "-Ywarn-numeric-widen",
-    "-Ywarn-value-discard"),
-  previousArtifact := None, // Some(organization.value %% moduleName.value % "1.0.0"),
+  crossScalaVersions := Seq(scala211, scala212),
+  mimaPreviousArtifacts := Set(), // Some(organization.value %% moduleName.value % "1.0.0"),
   publishArtifact in Test := false,
   commands += publishBridgesAndTest
 )
+
+def relaxNon212: Seq[Setting[_]] = Seq(
+    scalacOptions := {
+      val old = scalacOptions.value
+      scalaBinaryVersion.value match {
+        case "2.12" => old
+        case _      => old filterNot Set("-Xfatal-warnings", "-deprecation", "-Ywarn-unused", "-Ywarn-unused-import")
+      }
+    }
+  )
 
 def minimalSettings: Seq[Setting[_]] = commonSettings
 
@@ -118,9 +113,11 @@ lazy val zincRoot: Project = (project in file(".")).
         uncommittedChanges.exists(_.nonEmpty)
       },
 
-      // Ignore "git.gitCurrentTags.value.isEmpty"
-      // i.e. allow not-on-tag commits to be considered isSnapshot := false
-      isSnapshot := git.gitUncommittedChanges.value,
+      version := {
+        val v = version.value
+        if (v contains "SNAPSHOT") git.baseVersion.value
+        else v
+      },
 
       bintrayPackage := "zinc",
       scmInfo := Some(ScmInfo(url("https://github.com/sbt/zinc"), "git@github.com:sbt/zinc.git")),
@@ -208,7 +205,7 @@ lazy val zincCompileCore = (project in internalPath / "zinc-compile-core").
   configure(addBaseSettingsAndTestDeps).
   settings(
     name := "zinc Compile Core",
-    libraryDependencies ++= Seq(scalaCompiler.value % Test, launcherInterface),
+    libraryDependencies ++= Seq(scalaCompiler.value % Test, launcherInterface, parserCombinator),
     unmanagedJars in Test <<= (packageSrc in compilerBridge in Compile).map(x => Seq(x).classpath)
   ).
   configure(addSbtUtilLogging, addSbtIO, addSbtUtilControl)
@@ -222,7 +219,8 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface").
     minimalSettings,
     // javaOnlySettings,
     name := "Compiler Interface",
-    crossScalaVersions := Seq(scala211),
+    crossScalaVersions := Seq(scala212),
+    relaxNon212,
     libraryDependencies ++= Seq(scalaLibrary.value % Test),
     exportJars := true,
     watchSources <++= apiDefinitions,
@@ -241,6 +239,7 @@ lazy val compilerBridge: Project = (project in internalPath / "compiler-bridge")
   settings(
     baseSettings,
     crossScalaVersions := compilerBridgeScalaVersions,
+    relaxNon212,
     libraryDependencies += scalaCompiler.value % "provided",
     autoScalaLibrary := false,
     // precompiledSettings,
@@ -255,14 +254,8 @@ lazy val compilerBridge: Project = (project in internalPath / "compiler-bridge")
     javaOptions in Test += "-Xmx1G",
     scalaSource in Compile := {
       scalaVersion.value match {
-        case v if v startsWith "2.11" => baseDirectory.value / "src" / "main" / "scala"
-        case _                        => baseDirectory.value / "src-2.10" / "main" / "scala"
-      }
-    },
-    scalacOptions := {
-      scalaVersion.value match {
-        case v if v startsWith "2.11" => scalacOptions.value
-        case _                        => scalacOptions.value filterNot (Set("-Xfatal-warnings", "-deprecation") contains _)
+        case v if v startsWith "2.10" => baseDirectory.value / "src-2.10" / "main" / "scala"
+        case _                        => baseDirectory.value / "src" / "main" / "scala"
       }
     },
     altPublishSettings
@@ -276,7 +269,8 @@ lazy val zincApiInfo = (project in internalPath / "zinc-apiinfo").
   configure(addBaseSettingsAndTestDeps).
   settings(
     name := "zinc ApiInfo",
-    crossScalaVersions := compilerBridgeScalaVersions
+    crossScalaVersions := compilerBridgeScalaVersions,
+    relaxNon212
   )
 
 // Utilities related to reflection, managing Scala versions, and custom class loaders
@@ -286,6 +280,7 @@ lazy val zincClasspath = (project in internalPath / "zinc-classpath").
   settings(
     name := "zinc Classpath",
     crossScalaVersions := compilerBridgeScalaVersions,
+    relaxNon212,
     libraryDependencies ++= Seq(scalaCompiler.value,
       launcherInterface)
   ).
@@ -297,7 +292,8 @@ lazy val zincClassfile = (project in internalPath / "zinc-classfile").
   configure(addBaseSettingsAndTestDeps).
   settings(
     name := "zinc Classfile",
-    crossScalaVersions := compilerBridgeScalaVersions
+    crossScalaVersions := compilerBridgeScalaVersions,
+    relaxNon212
   ).
   configure(addSbtIO, addSbtUtilLogging)
 
@@ -318,9 +314,12 @@ lazy val publishBridgesAndTest = Command.args("publishBridgesAndTest", "<version
   require(args.nonEmpty)
   val version = args mkString ""
     s"${compilerInterface.id}/publishLocal" ::
-    (compilerBridgeScalaVersions map (v => s"plz $v ${zincApiInfo.id}/publishLocal")) :::
-    (compilerBridgeScalaVersions map (v => s"plz $v ${compilerBridge.id}/test")) :::
-    (compilerBridgeScalaVersions map (v => s"plz $v ${compilerBridge.id}/publishLocal")) :::
+    // using plz here causes: java.lang.OutOfMemoryError: GC overhead limit exceeded
+    (compilerBridgeScalaVersions flatMap { v =>
+      s"wow $v" ::
+      s";${zincApiInfo.id}/publishLocal;${compilerBridge.id}/test;${compilerBridge.id}/publishLocal" ::
+      Nil
+    }) :::
     s"plz $version zincRoot/test" ::
     s"plz $version zincRoot/scripted" ::
     state
