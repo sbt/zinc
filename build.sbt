@@ -5,7 +5,7 @@ import Scripted._
 // import StringUtilities.normalize
 import com.typesafe.tools.mima.core._, ProblemFilters._
 
-def baseVersion = "1.0.0-X6"
+def baseVersion = "1.0.0-X6-SNAPSHOT"
 def internalPath   = file("internal")
 
 lazy val compilerBridgeScalaVersions = Seq(scala212, scala211, scala210)
@@ -113,9 +113,11 @@ lazy val zincRoot: Project = (project in file(".")).
         uncommittedChanges.exists(_.nonEmpty)
       },
 
-      // Ignore "git.gitCurrentTags.value.isEmpty"
-      // i.e. allow not-on-tag commits to be considered isSnapshot := false
-      isSnapshot := git.gitUncommittedChanges.value,
+      version := {
+        val v = version.value
+        if (v contains "SNAPSHOT") git.baseVersion.value
+        else v
+      },
 
       bintrayPackage := "zinc",
       scmInfo := Some(ScmInfo(url("https://github.com/sbt/zinc"), "git@github.com:sbt/zinc.git")),
