@@ -11,8 +11,8 @@ object Dependencies {
 
   val bootstrapSbtVersion = "0.13.8"
   private val ioVersion = "1.0.0-M9"
-  private val utilVersion = "1.0.0-M17"
-  private val lmVersion = "0.1.0-X3"
+  private val utilVersion = "1.0.0-M18"
+  private val lmVersion = "1.0.0-X4"
 
   private val sbtIO = "org.scala-sbt" %% "io" % ioVersion
 
