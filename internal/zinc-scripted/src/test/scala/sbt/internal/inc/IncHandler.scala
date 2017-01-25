@@ -5,7 +5,7 @@ package inc
 import java.io.{ File, FileInputStream }
 import java.net.URLClassLoader
 import java.util.jar.Manifest
-import sbt.util.Logger
+import sbt.util.{ Logger, LogExchange }
 import sbt.util.InterfaceUtil._
 import xsbt.api.Discovery
 import xsbti.{ Maybe, Problem, Severity }
@@ -21,12 +21,13 @@ import java.util.Properties
 import sbt.internal.inc.classpath.{ ClasspathUtilities, ClassLoaderCache }
 import sbt.internal.scripted.{ StatementHandler, TestFailed }
 import sbt.internal.inctest.{ Build, Project, JsonProtocol }
+import sbt.internal.util.ManagedLogger
 import sjsonnew.support.scalajson.unsafe.{ Converter, Parser => JsonParser }
 import scala.collection.mutable
 
 final case class IncInstance(si: ScalaInstance, cs: XCompilers)
 
-final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProviderSpecification with StatementHandler {
+final class IncHandler(directory: File, scriptedLog: ManagedLogger) extends BridgeProviderSpecification with StatementHandler {
   type State = Option[IncInstance]
   type IncCommand = (ProjectStructure, List[String], IncInstance) => Unit
   val scalaVersion = scala.util.Properties.versionNumberString
@@ -50,6 +51,7 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
       }
     }
   initBuildStructure()
+
   def initBuild: Build =
     if ((directory / "build.json").exists) {
       import JsonProtocol._
@@ -197,7 +199,7 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
 
 }
 
-case class ProjectStructure(name: String, dependsOn: Vector[String], baseDirectory: File, scriptedLog: Logger,
+case class ProjectStructure(name: String, dependsOn: Vector[String], baseDirectory: File, scriptedLog: ManagedLogger,
   lookupProject: String => ProjectStructure) extends BridgeProviderSpecification {
   val scalaVersion = scala.util.Properties.versionNumberString
   val compiler = new IncrementalCompilerImpl

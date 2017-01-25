@@ -16,6 +16,7 @@ import java.net.{ URL, URLClassLoader }
 import sbt.util.Logger
 import sbt.io.syntax._
 import sbt.internal.inc.classpath.ClassLoaderCache
+import sbt.internal.util.ManagedLogger
 
 /**
  * Interface to the Scala compiler that uses the dependency analysis plugin.  This class uses the Scala library and compiler
@@ -36,11 +37,12 @@ final class AnalyzingCompiler(
   def withClassLoaderCache(classLoaderCache: ClassLoaderCache) =
     new AnalyzingCompiler(scalaInstance, provider, classpathOptions, onArgsF, Some(classLoaderCache))
 
-  def apply(sources: Array[File], changes: DependencyChanges, classpath: Array[File], singleOutput: File, options: Array[String], callback: AnalysisCallback, maximumErrors: Int, cache: GlobalsCache, log: Logger): Unit =
+  def apply(sources: Array[File], changes: DependencyChanges, classpath: Array[File], singleOutput: File, options: Array[String], callback: AnalysisCallback, maximumErrors: Int, cache: GlobalsCache, log: ManagedLogger): Unit =
     {
       val arguments = (new CompilerArguments(scalaInstance, classpathOptions))(Nil, classpath, None, options)
       val output = CompileOutput(singleOutput)
-      compile(sources, changes, arguments.toArray, output, callback, new LoggerReporter(maximumErrors, log, p => p), cache, log, Maybe.nothing[CompileProgress])
+      val reporter = new LoggerReporter(maximumErrors, log, p => p)
+      compile(sources, changes, arguments.toArray, output, callback, reporter, cache, log, Maybe.nothing[CompileProgress])
     }
 
   def compile(sources: Array[File], changes: DependencyChanges, options: Array[String], output: Output, callback: AnalysisCallback, reporter: Reporter, cache: GlobalsCache, log: xLogger, progressOpt: Maybe[CompileProgress]): Unit =
@@ -72,8 +74,11 @@ final class AnalyzingCompiler(
         asInstanceOf[CachedCompiler]
     }
 
-  def doc(sources: Seq[File], classpath: Seq[File], outputDirectory: File, options: Seq[String], maximumErrors: Int, log: Logger): Unit =
-    doc(sources, classpath, outputDirectory, options, log, new LoggerReporter(maximumErrors, log))
+  def doc(sources: Seq[File], classpath: Seq[File], outputDirectory: File, options: Seq[String], maximumErrors: Int, log: ManagedLogger): Unit =
+    {
+      val reporter = new LoggerReporter(maximumErrors, log)
+      doc(sources, classpath, outputDirectory, options, log, reporter)
+    }
   def doc(sources: Seq[File], classpath: Seq[File], outputDirectory: File, options: Seq[String], log: Logger, reporter: Reporter): Unit =
     {
       val arguments = (new CompilerArguments(scalaInstance, classpathOptions))(sources, classpath, Some(outputDirectory), options)

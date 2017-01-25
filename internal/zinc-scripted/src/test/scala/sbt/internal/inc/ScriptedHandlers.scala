@@ -1,6 +1,7 @@
 package sbt.internal.inc
 
 import sbt.internal.scripted._
+import sbt.internal.util.ManagedLogger
 
 class SleepingHandler(val handler: StatementHandler, delay: Long) extends StatementHandler {
   type State = handler.State
@@ -17,6 +18,13 @@ class IncScriptedHandlers extends HandlersProvider {
   def getHandlers(config: ScriptConfig): Map[Char, StatementHandler] = Map(
     '$' -> new SleepingHandler(new FileCommands(config.testDirectory()), 500),
     '#' -> CommentHandler,
-    '>' -> new IncHandler(config.testDirectory(), config.logger())
+    '>' -> {
+      val logger: ManagedLogger =
+        config.logger() match {
+          case x: ManagedLogger => x
+          case _                => sys.error("Expected ManagedLogger")
+        }
+      new IncHandler(config.testDirectory(), logger)
+    }
   )
 }

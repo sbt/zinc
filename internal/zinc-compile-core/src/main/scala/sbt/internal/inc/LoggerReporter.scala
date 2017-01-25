@@ -20,6 +20,7 @@ import java.util.EnumMap
 import scala.collection.mutable
 import LoggerReporter._
 import sbt.util.Logger
+import sbt.internal.util.ManagedLogger
 import Logger.{ m2o, o2m, position, problem }
 import Severity.{ Error, Info => SInfo, Warn }
 
@@ -50,7 +51,7 @@ object LoggerReporter {
     }
 }
 
-class LoggerReporter(maximumErrors: Int, log: Logger, sourcePositionMapper: Position => Position = { p => p }) extends xsbti.Reporter {
+class LoggerReporter(maximumErrors: Int, log: ManagedLogger, sourcePositionMapper: Position => Position = { p => p }) extends xsbti.Reporter {
   val positions = new mutable.HashMap[PositionKey, Severity]
   val count = new EnumMap[Severity, Int](classOf[Severity])
   private[this] val allProblems = new mutable.ListBuffer[Problem]

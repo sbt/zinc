@@ -15,10 +15,8 @@ import sbt.io.syntax._
 import java.io.File
 import sbt.internal.librarymanagement._
 import sbt.internal.librarymanagement.cross.CrossVersionUtil
-import sbt.util.Logger
-import sbt.internal.util.{ ConsoleLogger, FileBasedStore }
+import sbt.internal.util.FileBasedStore
 import sbt.librarymanagement._
-import ivyint.SbtChainResolver
 import Configurations._
 
 import sjsonnew.IsoString
@@ -36,8 +34,6 @@ trait BaseIvySpecification extends UnitSpec {
 
   implicit val isoString: IsoString[JValue] = IsoString.iso(CompactPrinter.apply, FixedParser.parseUnsafe)
   val fileToStore = (f: File) => new FileBasedStore(f, Converter)
-  lazy val log = ConsoleLogger()
-
   def configurations = Vector(Compile, Test, Runtime)
   def module(moduleId: ModuleID, deps: Vector[ModuleID], scalaFullVersion: Option[String],
     uo: UpdateOptions = UpdateOptions(), overrideScalaVersion: Boolean = true): IvySbt#Module = {
