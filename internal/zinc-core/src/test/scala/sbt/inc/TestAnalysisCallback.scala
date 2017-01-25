@@ -176,4 +176,8 @@ class TestAnalysisCallback(
   }
 
   def problem(category: String, pos: xsbti.Position, message: String, severity: xsbti.Severity, reported: Boolean): Unit = ()
+
+  override def dependencyPhaseCompleted(): Unit = {}
+
+  override def apiPhaseCompleted(): Unit = {}
 }

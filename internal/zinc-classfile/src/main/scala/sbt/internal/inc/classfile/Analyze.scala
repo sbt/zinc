@@ -27,7 +27,7 @@ private[sbt] object Analyze {
       try { Some(Class.forName(tpe, false, loader)) }
       catch { case e: Throwable => errMsg.foreach(msg => log.warn(msg + " : " + e.toString)); None }
 
-    val productToClassName = mutable.Set.empty[String]
+    val classNames = mutable.Set.empty[String]
     val sourceToClassFiles = mutable.HashMap[File, Buffer[ClassFile]](
       sources zip Seq.fill(sources.size)(new ArrayBuffer[ClassFile]): _*
     )
@@ -53,7 +53,7 @@ private[sbt] object Analyze {
       srcClassName match {
         case Some(srcClassName) =>
           analysis.generatedNonLocalClass(source, newClass, binaryClassName, srcClassName)
-          productToClassName += srcClassName
+          classNames += srcClassName
         case None => analysis.generatedLocalClass(source, newClass)
       }
 
@@ -93,7 +93,7 @@ private[sbt] object Analyze {
         trapAndLog(log) {
           val scalaLikeTypeName = onBinaryName.replace('$', '.')
 
-          if (productToClassName.contains(scalaLikeTypeName))
+          if (classNames.contains(scalaLikeTypeName))
             analysis.classDependency(scalaLikeTypeName, fromClassName, context)
           else
             for (file <- classfilesCache.get(onBinaryName).orElse(loadFromClassloader()))

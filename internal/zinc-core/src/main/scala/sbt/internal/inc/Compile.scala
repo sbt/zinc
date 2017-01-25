@@ -304,4 +304,8 @@ private final class AnalysisCallback(
 
         a.addSource(src, analyzedApis, stamp, info, nonLocalProds, localProds, internalDeps, externalDeps, binDeps)
     }
+
+  override def dependencyPhaseCompleted(): Unit = {}
+
+  override def apiPhaseCompleted(): Unit = {}
 }
