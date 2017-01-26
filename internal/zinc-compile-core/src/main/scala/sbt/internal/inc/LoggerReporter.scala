@@ -14,14 +14,12 @@ package inc
 // see licenses/LICENSE_Scala
 // Original author: Martin Odersky
 
-import xsbti.{ Maybe, Position, Problem, Reporter, Severity }
-import java.io.File
+import xsbti.{ Position, Problem, Severity }
 import java.util.EnumMap
 import scala.collection.mutable
 import LoggerReporter._
-import sbt.util.Logger
 import sbt.internal.util.ManagedLogger
-import Logger.{ m2o, o2m, position, problem }
+import sbt.util.InterfaceUtil.{ jo2o, problem }
 import Severity.{ Error, Info => SInfo, Warn }
 
 object LoggerReporter {
@@ -33,11 +31,11 @@ object LoggerReporter {
       o match { case pk: PositionKey => equalsKey(pk); case _ => false }
 
     def equalsKey(o: PositionKey) =
-      m2o(pos.offset) == m2o(o.offset) &&
-        m2o(pos.sourceFile) == m2o(o.sourceFile)
+      jo2o(pos.offset) == jo2o(o.offset) &&
+        jo2o(pos.sourceFile) == jo2o(o.sourceFile)
     override def hashCode =
-      m2o(pos.offset).hashCode * 31
-    m2o(pos.sourceFile).hashCode
+      jo2o(pos.offset).hashCode * 31
+    jo2o(pos.sourceFile).hashCode
   }
 
   def countElementsAsString(n: Int, elements: String): String =
@@ -81,11 +79,13 @@ class LoggerReporter(maximumErrors: Int, log: ManagedLogger, sourcePositionMappe
 
   def inc(sev: Severity) = count.put(sev, count.get(sev) + 1)
 
-  def display(pos: Position, msg: String, severity: Severity): Unit = {
-    inc(severity)
-    if (severity != Error || maximumErrors <= 0 || count.get(severity) <= maximumErrors)
-      print(severityLogger(severity), pos, msg)
-  }
+  def display(pos: Position, msg: String, severity: Severity): Unit =
+    {
+      inc(severity)
+      if (severity != Error || maximumErrors <= 0 || count.get(severity) <= maximumErrors) {
+        print(severityLogger(severity), pos, msg)
+      }
+    }
   def severityLogger(severity: Severity): (=> String) => Unit =
     m =>
       {
@@ -97,23 +97,23 @@ class LoggerReporter(maximumErrors: Int, log: ManagedLogger, sourcePositionMappe
       }
 
   def print(log: (=> String) => Unit, pos: Position, msg: String): Unit = {
-    if (pos.sourcePath.isEmpty && pos.line.isEmpty)
+    if (!pos.sourcePath.isPresent && !pos.line.isPresent)
       log(msg)
     else {
-      val sourcePrefix = m2o(pos.sourcePath).getOrElse("")
-      val columnNumber = m2o(pos.pointer).map(_.toInt + 1).getOrElse(1)
-      val lineNumberString = m2o(pos.line).map(":" + _ + ":" + columnNumber + ":").getOrElse(":") + " "
+      val sourcePrefix = jo2o(pos.sourcePath).getOrElse("")
+      val columnNumber = jo2o(pos.pointer).map(_.toInt + 1).getOrElse(1)
+      val lineNumberString = jo2o(pos.line).map(":" + _ + ":" + columnNumber + ":").getOrElse(":") + " "
       log(sourcePrefix + lineNumberString + msg)
       val lineContent = pos.lineContent
       if (!lineContent.isEmpty) {
         log(lineContent)
-        for (space <- m2o(pos.pointerSpace))
+        for (space <- jo2o(pos.pointerSpace))
           log(space + "^") // pointer to the column position of the error/warning
       }
     }
   }
 
-  def log(pos: Position, msg: String, severity: Severity): Unit =
+  override def log(pos: Position, msg: String, severity: Severity): Unit =
     {
       val mappedPos = sourcePositionMapper(pos)
       allProblems += problem("", mappedPos, msg, severity)
@@ -129,7 +129,7 @@ class LoggerReporter(maximumErrors: Int, log: ManagedLogger, sourcePositionMappe
 
   def testAndLog(pos: Position, severity: Severity): Boolean =
     {
-      if (pos.offset.isEmpty || pos.sourceFile.isEmpty)
+      if (!pos.offset.isPresent || !pos.sourceFile.isPresent)
         false
       else {
         val key = new PositionKey(pos)

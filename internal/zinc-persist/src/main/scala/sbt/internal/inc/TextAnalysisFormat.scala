@@ -16,7 +16,6 @@ import xsbti.T2
 import xsbti.api._
 import xsbti.compile._
 import javax.xml.bind.DatatypeConverter
-
 import sbt.util.InterfaceUtil
 
 // A text-based serialization format for Analysis objects.
@@ -31,14 +30,13 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers) extends FormatCo
   import sbinary.DefaultProtocol._
   import sbinary.Format
   import xsbti.{ Position, Problem, Severity }
-  import sbt.util.Logger.{ m2o, position, problem }
 
   private implicit val compilationF: Format[Compilation] = xsbt.api.CompilationFormat
   private implicit val nameHashesFormat: Format[NameHashes] = xsbt.api.NameHashesFormat
   private implicit val companionsFomrat: Format[Companions] = xsbt.api.CompanionsFormat
   private implicit def problemFormat: Format[Problem] = asProduct4(problem _)(p => (p.category, p.position, p.message, p.severity))
   private implicit def positionFormat: Format[Position] =
-    asProduct7(position _)(p => (m2o(p.line), p.lineContent, m2o(p.offset), m2o(p.pointer), m2o(p.pointerSpace), m2o(p.sourcePath), m2o(p.sourceFile)))
+    asProduct7(position _)(p => (jo2o(p.line), p.lineContent, jo2o(p.offset), jo2o(p.pointer), jo2o(p.pointerSpace), jo2o(p.sourcePath), jo2o(p.sourceFile)))
   private implicit val severityFormat: Format[Severity] =
     wrap[Severity, Byte](_.ordinal.toByte, b => Severity.values.apply(b.toInt))
   private implicit val integerFormat: Format[Integer] = wrap[Integer, Int](_.toInt, Integer.valueOf)

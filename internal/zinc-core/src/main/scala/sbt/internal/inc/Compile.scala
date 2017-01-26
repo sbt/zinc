@@ -15,10 +15,9 @@ import xsbti.api._
 import xsbti.compile.{ CompileAnalysis, DependencyChanges, IncOptions, MultipleOutput, Output, SingleOutput }
 import xsbti.{ Position, Problem, Severity }
 import sbt.util.Logger
-import sbt.util.Logger.{ m2o, problem }
+import sbt.util.InterfaceUtil.{ o2jo, jo2o }
 import java.io.File
 import xsbti.api.DependencyContext
-import xsbti.api.DependencyContext.{ DependencyByInheritance, DependencyByMemberRef }
 import xsbti.compile.ClassFileManager
 
 /**
@@ -155,7 +154,7 @@ private final class AnalysisCallback(
 
   def problem(category: String, pos: Position, msg: String, severity: Severity, reported: Boolean): Unit =
     {
-      for (source <- m2o(pos.sourceFile)) {
+      for (source <- jo2o(pos.sourceFile)) {
         val map = if (reported) reporteds else unreporteds
         map.getOrElseUpdate(source, ListBuffer.empty) += Logger.problem(category, pos, msg, severity)
       }
