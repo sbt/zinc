@@ -21,7 +21,8 @@ final class API(val global: CallbackGlobal) {
     override def run(): Unit =
       {
         val start = System.currentTimeMillis
-        super.run
+        super.run()
+        callback.apiPhaseCompleted()
         val stop = System.currentTimeMillis
         debuglog("API phase took : " + ((stop - start) / 1000.0) + " s")
       }
@@ -39,12 +40,12 @@ final class API(val global: CallbackGlobal) {
       if (global.callback.nameHashing) {
         val extractUsedNames = new ExtractUsedNames[global.type](global)
         val allUsedNames = extractUsedNames.extract(unit)
-        def showUsedNames(className: String, names: Set[String]): String =
+        def showUsedNames(className: String, names: Iterable[String]): String =
           s"$className:\n\t${names.mkString(", ")}"
         debuglog("The " + sourceFile + " contains the following used names:\n" +
           allUsedNames.map((showUsedNames _).tupled).mkString("\n"))
         allUsedNames foreach {
-          case (className: String, names: Set[String]) =>
+          case (className: String, names: Iterable[String]) =>
             names foreach { (name: String) => callback.usedName(className, name) }
         }
       }

@@ -36,6 +36,15 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
   private class DependencyPhase(prev: Phase) extends GlobalPhase(prev) {
     override def description = "Extracts dependency information"
     def name = Dependency.name
+
+    override def run(): Unit = {
+      val start = System.currentTimeMillis
+      super.run()
+      callback.dependencyPhaseCompleted()
+      val stop = System.currentTimeMillis
+      debuglog("Dependency phase took : " + ((stop - start) / 1000.0) + " s")
+    }
+
     def apply(unit: CompilationUnit): Unit = {
       if (!unit.isJava) {
         // build dependencies structure
@@ -87,8 +96,7 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
           val onSource = dep.to.sourceFile
           if (onSource == null) {
             classFile(dep.to) match {
-              case Some((f, binaryClassName, inOutDir)) =>
-                if (inOutDir && dep.to.isJavaDefined) registerTopLevelSym(dep.to)
+              case Some((f, binaryClassName)) =>
                 f match {
                   case ze: ZipArchive#Entry =>
                     for (zip <- ze.underlyingSource; zipFile <- Option(zip.file)) binaryDependency(zipFile, binaryClassName)
@@ -120,20 +128,38 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
     private def enclOrModuleClass(s: Symbol): Symbol =
       if (s.isModule) s.moduleClass else s.enclClass
 
+    case class DependencySource(owner: Symbol) {
+      val (fromClass: Symbol, isLocal: Boolean) = {
+        val fromClass = enclOrModuleClass(owner)
+        if (fromClass == NoSymbol || fromClass.hasPackageFlag)
+          (fromClass, false)
+        else {
+          val fromNonLocalClass = localToNonLocalClass.resolveNonLocal(fromClass)
+          assert(!(fromClass == NoSymbol || fromClass.hasPackageFlag))
+          (fromNonLocalClass, fromClass != fromNonLocalClass)
+        }
+      }
+    }
+
+    private var _currentDependencySource: DependencySource = null
+
     /**
      * Resolves dependency source by getting the enclosing class for `currentOwner`
      * and then looking up the most inner enclosing class that is non local.
      * The second returned value indicates if the enclosing class for `currentOwner`
      * is a local class.
      */
-    private def resolveDependencySource: (Symbol, Boolean) = {
-      val fromClass = enclOrModuleClass(currentOwner)
-      if (fromClass == NoSymbol || fromClass.hasPackageFlag)
-        (fromClass, false)
-      else {
-        val fromNonLocalClass = localToNonLocalClass.resolveNonLocal(fromClass)
-        assert(!(fromClass == NoSymbol || fromClass.hasPackageFlag))
-        (fromNonLocalClass, fromClass != fromNonLocalClass)
+    private def resolveDependencySource(): DependencySource = {
+      def newOne(): DependencySource = {
+        val fresh = DependencySource(currentOwner)
+        _currentDependencySource = fresh
+        _currentDependencySource
+      }
+      _currentDependencySource match {
+        case null => newOne()
+        case cached if currentOwner == cached.owner =>
+          cached
+        case _ => newOne()
       }
     }
     private def addClassDependency(deps: HashSet[ClassDependency], fromClass: Symbol, dep: Symbol): Unit = {
@@ -159,11 +185,11 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
     private def addTreeDependency(tree: Tree): Unit = {
       addDependency(tree.symbol)
       if (tree.tpe != null)
-        symbolsInType(tree.tpe).foreach(addDependency)
+        foreachSymbolInType(tree.tpe)(addDependency)
       ()
     }
     private def addDependency(dep: Symbol): Unit = {
-      val (fromClass, _) = resolveDependencySource
+      val fromClass = resolveDependencySource().fromClass
       if (fromClass == NoSymbol || fromClass.hasPackageFlag) {
         if (inImportNode) addTopLevelImportDependency(dep)
         else
@@ -173,11 +199,11 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
       }
     }
     private def addInheritanceDependency(dep: Symbol): Unit = {
-      val (fromClass, isLocal) = resolveDependencySource
-      if (isLocal)
-        addClassDependency(_localInheritanceDependencies, fromClass, dep)
+      val dependencySource = resolveDependencySource()
+      if (dependencySource.isLocal)
+        addClassDependency(_localInheritanceDependencies, dependencySource.fromClass, dep)
       else
-        addClassDependency(_inheritanceDependencies, fromClass, dep)
+        addClassDependency(_inheritanceDependencies, dependencySource.fromClass, dep)
     }
     def memberRefDependencies: Iterator[ClassDependency] = _memberRefDependencies.iterator
     def inheritanceDependencies: Iterator[ClassDependency] = _inheritanceDependencies.iterator
@@ -236,10 +262,10 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
 
         debuglog("Parent types for " + tree.symbol + " (self: " + self.tpt.tpe + "): " + inheritanceTypes + " with symbols " + inheritanceSymbols.map(_.fullName))
 
-        inheritanceSymbols.foreach(addInheritanceDependency)
+        inheritanceSymbols.foreach(addSymbolFromParent)
+        inheritanceTypes.foreach(addSymbolsFromType)
+        addSymbolsFromType(self.tpt.tpe)
 
-        val allSymbols = (inheritanceTypes + self.tpt.tpe).flatMap(symbolsInType)
-        (allSymbols ++ inheritanceSymbols).foreach(addDependency)
         traverseTrees(body)
 
       // In some cases (eg. macro annotations), `typeTree.tpe` may be null. See sbt/sbt#1593 and sbt/sbt#1655.
@@ -255,6 +281,14 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
         localToNonLocalClass.resolveNonLocal(sym)
         super.traverse(tree)
       case other => super.traverse(other)
+    }
+
+    val addSymbolFromParent: Symbol => Unit = { symbol =>
+      addInheritanceDependency(symbol)
+      addDependency(symbol)
+    }
+    val addSymbolsFromType: Type => Unit = { tpe =>
+      foreachSymbolInType(tpe)(addDependency)
     }
   }
 

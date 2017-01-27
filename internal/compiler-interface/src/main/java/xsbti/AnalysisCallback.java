@@ -47,4 +47,10 @@ public interface AnalysisCallback {
      *       Do not depend on it, please.
      */
     boolean nameHashing();
+
+    /** Called at the end of dependency phase. Can be used e.g. to wait on asynchronous tasks. */
+    void dependencyPhaseCompleted();
+
+    /** Called at the end of dependency phase. Can be used e.g. to wait on asynchronous tasks. */
+    void apiPhaseCompleted();
 }
