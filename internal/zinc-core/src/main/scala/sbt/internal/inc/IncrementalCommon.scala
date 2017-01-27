@@ -10,7 +10,7 @@ import xsbti.compile.{ CompileAnalysis, DependencyChanges, IncOptions, IncOption
 
 import scala.annotation.tailrec
 
-private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: IncOptions) {
+private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options: IncOptions) {
 
   // setting the related system property to true will skip checking that the class name
   // still comes from the same classpath entry.  This can workaround bugs in classpath construction,
@@ -36,32 +36,35 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
       val withPackageObjects = invalidatedRaw ++ invalidatedPackageObjects
       val invalidatedClasses = withPackageObjects
 
-      val current = recompileClasses(invalidatedClasses, modifiedSrcs, allSources, binaryChanges, previous, doCompile,
-        classfileManager)
+      val (current, recompiledRecently) = recompileClasses(invalidatedClasses, modifiedSrcs, allSources,
+        binaryChanges, previous, doCompile, classfileManager)
 
-      // modifiedSrc have to be mapped to class names both of previous and current analysis because classes might be
-      // removed (it's handled by `previous`) or added (it's handled by `current`) or renamed (it's handled by both)
-      val recompiledClasses = invalidatedClasses ++
-        modifiedSrcs.flatMap(previous.relations.classNames) ++ modifiedSrcs.flatMap(current.relations.classNames)
+      // If we recompiled all sources no need to check what is changed since there is nothing more to recompile
+      if (recompiledRecently == allSources) current else {
+        // modifiedSrc have to be mapped to class names both of previous and current analysis because classes might be
+        // removed (it's handled by `previous`) or added (it's handled by `current`) or renamed (it's handled by both)
+        val recompiledClasses = invalidatedClasses ++
+          modifiedSrcs.flatMap(previous.relations.classNames) ++ modifiedSrcs.flatMap(current.relations.classNames)
 
-      val incChanges = changedIncremental(recompiledClasses, previous.apis.internalAPI, current.apis.internalAPI)
+        val incChanges = changedIncremental(recompiledClasses, previous.apis.internalAPI, current.apis.internalAPI)
 
-      debug("\nChanges:\n" + incChanges)
-      val transitiveStep = options.transitiveStep
-      val classToSourceMapper = new ClassToSourceMapper(previous.relations, current.relations)
-      val incrementallyInvalidated = invalidateIncremental(current.relations, current.apis, incChanges, recompiledClasses,
-        cycleNum >= transitiveStep, classToSourceMapper.isDefinedInScalaSrc)
-      val allInvalidated =
-        if (lookup.shouldDoIncrementalCompilation(incrementallyInvalidated, current)) incrementallyInvalidated
-        else Set.empty[String]
+        debug("\nChanges:\n" + incChanges)
+        val transitiveStep = options.transitiveStep
+        val classToSourceMapper = new ClassToSourceMapper(previous.relations, current.relations)
+        val incrementallyInvalidated = invalidateIncremental(current.relations, current.apis, incChanges, recompiledClasses,
+          cycleNum >= transitiveStep, classToSourceMapper.isDefinedInScalaSrc)
+        val allInvalidated =
+          if (lookup.shouldDoIncrementalCompilation(incrementallyInvalidated, current)) incrementallyInvalidated
+          else Set.empty[String]
 
-      cycle(allInvalidated, Set.empty, allSources, emptyChanges, lookup, current, doCompile, classfileManager, cycleNum + 1)
+        cycle(allInvalidated, Set.empty, allSources, emptyChanges, lookup, current, doCompile, classfileManager, cycleNum + 1)
+      }
     }
 
   private[this] def recompileClasses(classes: Set[String], modifiedSrcs: Set[File], allSources: Set[File],
     binaryChanges: DependencyChanges, previous: Analysis,
     doCompile: (Set[File], DependencyChanges) => Analysis,
-    classfileManager: ClassFileManager): Analysis = {
+    classfileManager: ClassFileManager): (Analysis, Set[File]) = {
     val invalidatedSources = classes.flatMap(previous.relations.definesClass) ++ modifiedSrcs
     val invalidatedSourcesForCompilation = expand(invalidatedSources, allSources)
     val pruned = Incremental.prune(invalidatedSourcesForCompilation, previous, classfileManager)
@@ -74,7 +77,7 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
     debug("********* Fresh: \n" + fresh.relations + "\n*********")
     val merged = pruned ++ fresh //.copy(relations = pruned.relations ++ fresh.relations, apis = pruned.apis ++ fresh.apis)
     debug("********* Merged: \n" + merged.relations + "\n*********")
-    merged
+    (merged, invalidatedSourcesForCompilation)
   }
 
   private[this] def emptyChanges: DependencyChanges = new DependencyChanges {
@@ -264,7 +267,13 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
         classNames
       }
       checkAbsolute(srcChanges.added.toList)
-      log.debug(
+
+      val allInvalidatedClasses = invalidatedClasses ++ byExtSrcDep
+      val allInvalidatedSourcefiles = addedSrcs ++ modifiedSrcs ++ byProduct ++ byBinaryDep
+
+      if (previous.allSources.isEmpty) log.debug("Full compilation, no sources in previous analysis.")
+      else if (allInvalidatedClasses.isEmpty && allInvalidatedSourcefiles.isEmpty) log.debug("No changes")
+      else log.debug(
         "\nInitial source changes: \n\tremoved:" + srcChanges.removed + "\n\tadded: " + srcChanges.added + "\n\tmodified: " + srcChanges.changed +
           "\nInvalidated products: " + changes.removedProducts +
           "\nExternal API changes: " + changes.external +
@@ -276,7 +285,7 @@ private[inc] abstract class IncrementalCommon(log: sbt.util.Logger, options: Inc
           "\n\texternal source: " + byExtSrcDep
       )
 
-      (invalidatedClasses ++ byExtSrcDep, addedSrcs ++ modifiedSrcs ++ byProduct ++ byBinaryDep)
+      (allInvalidatedClasses, allInvalidatedSourcefiles)
     }
   private[this] def checkAbsolute(addedSources: List[File]): Unit =
     if (addedSources.nonEmpty) {
