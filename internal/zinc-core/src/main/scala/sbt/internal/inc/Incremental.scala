@@ -102,7 +102,7 @@ object Incremental {
   private[inc] def apiDebug(options: IncOptions): Boolean = options.apiDebug || java.lang.Boolean.getBoolean(apiDebugProp)
 
   private[sbt] def prune(invalidatedSrcs: Set[File], previous: CompileAnalysis): Analysis =
-    prune(invalidatedSrcs, previous, ClassFileManager.deleteImmediately())
+    prune(invalidatedSrcs, previous, ClassFileManagers.deleteImmediately())
 
   private[sbt] def prune(invalidatedSrcs: Set[File], previous0: CompileAnalysis, classfileManager: ClassFileManager): Analysis =
     {
@@ -113,7 +113,7 @@ object Incremental {
 
   private[this] def manageClassfiles[T](options: IncOptions)(run: ClassFileManager => T): T =
     {
-      val classfileManager = ClassFileManager.getClassFileManager(options)
+      val classfileManager = ClassFileManagers.getClassFileManager(options)
       val result = try run(classfileManager) catch {
         case e: Throwable =>
           classfileManager.complete(false)

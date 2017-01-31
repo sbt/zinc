@@ -10,7 +10,9 @@ package internal
 package inc
 
 import java.io.File
-import xsbti.api.NameHashes
+import java.util
+
+import xsbti.UseScope
 import xsbti.api.NameHash
 
 final case class InitialChanges(
@@ -44,10 +46,7 @@ final case class APIChangeDueToMacroDefinition(modified0: String) extends APICha
  * This class is used only when name hashing algorithm is enabled.
  */
 final case class NamesChange(modified0: String, modifiedNames: ModifiedNames) extends APIChange(modified0) {
-  assert(
-    modifiedNames.regularNames.nonEmpty || modifiedNames.implicitNames.nonEmpty,
-    s"Modified names for $modified0 is empty"
-  )
+  assert(modifiedNames.names.nonEmpty, s"Modified names for $modified0 is empty")
 }
 
 /**
@@ -58,19 +57,31 @@ final case class NamesChange(modified0: String, modifiedNames: ModifiedNames) ex
  * on whether modified name is implicit or not. Implicit names are much more difficult to handle
  * due to difficulty of reasoning about the implicit scope.
  */
-final case class ModifiedNames(regularNames: Set[String], implicitNames: Set[String]) {
+final case class ModifiedNames(names: Set[UsedName]) {
+  def in(scope: UseScope) = names.filter(_.scopes.contains(scope))
+
+  import collection.JavaConverters._
+  private lazy val lookupMap: Set[(String, UseScope)] = names.flatMap(n => n.scopes.asScala.map(n.name -> _))
+
+  def isModified(usedName: UsedName): Boolean =
+    usedName.scopes.asScala.exists(scope => lookupMap.contains(usedName.name -> scope))
+
   override def toString: String =
-    s"ModifiedNames(regularNames = ${regularNames mkString ", "}, implicitNames = ${implicitNames mkString ", "})"
+    s"ModifiedNames(changes = $names)"
 }
 object ModifiedNames {
-  def compareTwoNameHashes(a: NameHashes, b: NameHashes): ModifiedNames = {
-    val modifiedRegularNames = calculateModifiedNames(a.regularMembers.toSet, b.regularMembers.toSet)
-    val modifiedImplicitNames = calculateModifiedNames(a.implicitMembers.toSet, b.implicitMembers.toSet)
-    ModifiedNames(modifiedRegularNames, modifiedImplicitNames)
-  }
-  private def calculateModifiedNames(xs: Set[NameHash], ys: Set[NameHash]): Set[String] = {
-    val differentNameHashes = (xs union ys) diff (xs intersect ys)
-    differentNameHashes.map(_.name)
+  def compareTwoNameHashes(a: Array[NameHash], b: Array[NameHash]): ModifiedNames = {
+    val xs = a.toSet
+    val ys = b.toSet
+    val changed = (xs union ys) diff (xs intersect ys)
+    val modifiedNames: Set[UsedName] = changed.groupBy(_.name).map {
+      case (name, nameHashes) =>
+        val empty = util.EnumSet.noneOf(classOf[UseScope])
+        nameHashes.foreach(nh => empty.add(nh.scope()))
+        UsedName(name, nameHashes.map(_.scope()))
+    }(collection.breakOut)
+
+    ModifiedNames(modifiedNames)
   }
 }
 

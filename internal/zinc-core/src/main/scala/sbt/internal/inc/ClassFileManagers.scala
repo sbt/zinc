@@ -16,7 +16,7 @@ import collection.mutable
 import xsbti.compile.{ DeleteImmediatelyManagerType, IncOptions, TransactionalManagerType }
 import xsbti.compile.ClassFileManager
 
-object ClassFileManager {
+object ClassFileManagers {
 
   private case class WrappedClassFileManager(internal: ClassFileManager, external: Option[ClassFileManager])
     extends ClassFileManager {

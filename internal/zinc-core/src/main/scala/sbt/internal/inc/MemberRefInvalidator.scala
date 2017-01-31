@@ -11,6 +11,7 @@ package inc
 
 import sbt.internal.util.Relation
 import sbt.util.Logger
+import xsbti.UseScope
 
 /**
  * Implements various strategies for invalidating dependencies introduced by member reference.
@@ -50,25 +51,28 @@ import sbt.util.Logger
  * of regular members then we'll invalidate sources that use those names.
  */
 private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolean) {
-  def get(memberRef: Relation[String, String], usedNames: Relation[String, String], apiChange: APIChange,
+  def get(memberRef: Relation[String, String], usedNames: Relation[String, UsedName], apiChange: APIChange,
     isScalaClass: String => Boolean): String => Set[String] = apiChange match {
     case _: APIChangeDueToMacroDefinition =>
       new InvalidateUnconditionally(memberRef)
-    case NamesChange(_, modifiedNames) if modifiedNames.implicitNames.nonEmpty =>
+    case NamesChange(_, modifiedNames) if modifiedNames.in(UseScope.Implicit).nonEmpty =>
       new InvalidateUnconditionally(memberRef)
     case NamesChange(modifiedClass, modifiedNames) =>
-      new NameHashFilteredInvalidator(usedNames, memberRef, modifiedNames.regularNames, isScalaClass)
+      new NameHashFilteredInvalidator(usedNames, memberRef, modifiedNames, isScalaClass)
   }
 
   def invalidationReason(apiChange: APIChange): String = apiChange match {
     case APIChangeDueToMacroDefinition(modifiedSrcFile) =>
       s"The $modifiedSrcFile source file declares a macro."
-    case NamesChange(modifiedClass, modifiedNames) if modifiedNames.implicitNames.nonEmpty =>
-      s"""|The $modifiedClass has the following implicit definitions changed:
-				|\t${modifiedNames.implicitNames.mkString(", ")}.""".stripMargin
     case NamesChange(modifiedClass, modifiedNames) =>
-      s"""|The $modifiedClass has the following regular definitions changed:
-				|\t${modifiedNames.regularNames.mkString(", ")}.""".stripMargin
+      modifiedNames.in(UseScope.Implicit) match {
+        case changedImplicits if changedImplicits.isEmpty =>
+          s"""|The $modifiedClass has the following regular definitions changed:
+              |\t${modifiedNames.names.mkString(", ")}.""".stripMargin
+        case changedImplicits =>
+          s"""|The $modifiedClass has the following implicit definitions changed:
+              |\t${changedImplicits.mkString(", ")}.""".stripMargin
+      }
   }
 
   private class InvalidateDueToMacroDefinition(memberRef: Relation[String, String]) extends (String => Set[String]) {
@@ -98,9 +102,9 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
   }
 
   private class NameHashFilteredInvalidator(
-    usedNames: Relation[String, String],
+    usedNames: Relation[String, UsedName],
     memberRef: Relation[String, String],
-    modifiedNames: Set[String],
+    modifiedNames: ModifiedNames,
     isScalaClass: String => Boolean
   ) extends (String => Set[String]) {
 
@@ -111,13 +115,12 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
     private def filteredDependencies(dependent: Set[String]): Set[String] = {
       dependent.filter {
         case from if isScalaClass(from) =>
-          val usedNamesInDependent = usedNames.forward(from)
-          val modifiedAndUsedNames = modifiedNames intersect usedNamesInDependent
-          if (modifiedAndUsedNames.isEmpty) {
+          val affectedNames = usedNames.forward(from).filter(modifiedNames.isModified)
+          if (affectedNames.isEmpty) {
             log.debug(s"None of the modified names appears in source file of $from. This dependency is not being considered for invalidation.")
             false
           } else {
-            log.debug(s"The following modified names cause invalidation of $from: $modifiedAndUsedNames")
+            log.debug(s"The following modified names cause invalidation of $from: $affectedNames")
             true
           }
         case from =>

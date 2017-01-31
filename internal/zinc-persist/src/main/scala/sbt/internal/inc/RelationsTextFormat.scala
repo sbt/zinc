@@ -38,7 +38,7 @@ trait RelationsTextFormat extends FormatCommons {
       stringsDescriptor("local internal inheritance dependencies", _.localInheritance.internal),
       stringsDescriptor("local external inheritance dependencies", _.localInheritance.external),
       Descriptor("class names", _.classes, mappers.sourceMapper, Mapper.forString),
-      stringsDescriptor("used names", _.names),
+      Descriptor("used names", _.names, Mapper.forString, Mapper.forUsedName),
       stringsDescriptor("product class names", _.productClassName)
     )
   }
@@ -114,7 +114,7 @@ trait RelationsTextFormat extends FormatCommons {
         val binaryDep = bin.asInstanceOf[Relation[File, File]]
         val libraryClassName = lcn.asInstanceOf[Relation[File, String]]
         val classes = cn.asInstanceOf[Relation[File, String]]
-        val names = un.asInstanceOf[Relation[String, String]]
+        val names = un.asInstanceOf[Relation[String, UsedName]]
         val binaryClassName = bcn.asInstanceOf[Relation[String, String]]
 
         val internal = InternalDependencies(Map(

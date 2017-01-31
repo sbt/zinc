@@ -178,7 +178,7 @@ lazy val zincPersist = (project in internalPath / "zinc-persist").
 // Implements the core functionality of detecting and propagating changes incrementally.
 //   Defines the data structures for representing file fingerprints and relationships and the overall source analysis
 lazy val zincCore = (project in internalPath / "zinc-core").
-  dependsOn(zincApiInfo, zincClasspath, compilerBridge % Test).
+  dependsOn(zincApiInfo, zincClasspath, compilerInterface, compilerBridge % Test).
   configure(addBaseSettingsAndTestDeps).
   settings(
     // we need to fork because in unit tests we set usejavacp = true which means

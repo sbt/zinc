@@ -7,9 +7,9 @@ import java.io.File
 import org.scalacheck._
 import Arbitrary._
 import Gen._
-
 import sbt.internal.util.Relation
 import xsbti.api._
+import xsbti.UseScope
 import xsbti.api.DependencyContext._
 
 /**
@@ -83,23 +83,12 @@ object TestCaseGenerators {
 
   private[this] def lzy[T <: AnyRef](x: T) = SafeLazyProxy.strict(x)
 
-  def genNameHash(defn: String): Gen[xsbti.api.NameHash] =
-    const(new xsbti.api.NameHash(defn, defn.hashCode()))
-
-  def genNameHashes(defns: Seq[String]): Gen[xsbti.api.NameHashes] = {
-    def partitionAccordingToMask[T](mask: List[Boolean], xs: List[T]): (List[T], List[T]) = {
-      val (p1, p2) = (mask zip xs).partition(_._1)
-      (p1.map(_._2), p2.map(_._2))
-    }
-    val genNameHashesList = Gen.sequence[List[NameHash], xsbti.api.NameHash](defns.map(genNameHash))
-    val genTwoListOfNameHashes = for {
-      nameHashesList <- genNameHashesList
-      isRegularMemberList <- listOfN(nameHashesList.length, arbitrary[Boolean])
-    } yield partitionAccordingToMask(isRegularMemberList, nameHashesList)
+  def genNameHashes(defns: Seq[String]): Gen[Array[NameHash]] =
     for {
-      (regularMemberNameHashes, implicitMemberNameHashes) <- genTwoListOfNameHashes
-    } yield new xsbti.api.NameHashes(regularMemberNameHashes.toArray, implicitMemberNameHashes.toArray)
-  }
+      names <- const(defns.toArray)
+      scopes <- listOfN(defns.size, oneOf(Seq(UseScope.Default, UseScope.Implicit, UseScope.PatMatTarget)))
+      (name, scope) <- names zip scopes
+    } yield new NameHash(name, scope, (name, scope).hashCode())
 
   def genClass(name: String): Gen[AnalyzedClass] = for {
     startTime <- arbitrary[Long]
@@ -151,8 +140,16 @@ object TestCaseGenerators {
     external <- someOf(src.external.all.toList)
   } yield Relations.makeClassDependencies(Relation.empty ++ internal, Relation.empty ++ external)
 
-  def genUsedNames(classNames: Seq[String]): Gen[Relation[String, String]] = for {
-    allNames <- listOfN(classNames.length, containerOf[Set, String](identifier))
+  def genScalaName: Gen[String] = Gen.listOf(Gen.choose(33.toChar, 90.toChar)).map(_.toString())
+
+  def genUsedName(namesGen: Gen[String] = genScalaName): Gen[UsedName] = for {
+    name <- namesGen
+    scopes <- Gen.someOf(UseScope.values())
+  } yield UsedName.withDefault(name, scopes)
+
+  def genUsedNames(classNames: Seq[String]): Gen[Relation[String, UsedName]] = for {
+    scopes <- Gen.someOf(UseScope.values())
+    allNames <- listOfN(classNames.length, containerOf[Set, UsedName](genUsedName()))
   } yield Relation.reconstruct(zipMap(classNames, allNames))
 
   def genRelationsNameHashing: Gen[Relations] = for {

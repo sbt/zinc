@@ -32,7 +32,7 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers) extends FormatCo
   import xsbti.{ Position, Problem, Severity }
 
   private implicit val compilationF: Format[Compilation] = xsbt.api.CompilationFormat
-  private implicit val nameHashesFormat: Format[NameHashes] = xsbt.api.NameHashesFormat
+  private implicit val nameHashesFormat: Format[NameHash] = xsbt.api.NameHashFormat
   private implicit val companionsFomrat: Format[Companions] = xsbt.api.CompanionsFormat
   private implicit def problemFormat: Format[Problem] = asProduct4(problem)(p => (p.category, p.position, p.message, p.severity))
   private implicit def positionFormat: Format[Position] =

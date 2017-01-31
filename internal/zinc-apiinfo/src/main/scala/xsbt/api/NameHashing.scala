@@ -7,11 +7,11 @@
 
 package xsbt.api
 
+import xsbti.UseScope
 import xsbti.api.Definition
 import xsbti.api.DefinitionType
 import xsbti.api.ClassLike
 import xsbti.api.NameHash
-import xsbti.api.NameHashes
 
 /**
  * A class that computes hashes for each group of definitions grouped by a simple name.
@@ -31,24 +31,39 @@ class NameHashing {
    * NOTE: The hashing sum used for hashing a group of definition is insensitive
    * to order of definitions.
    */
-  def nameHashes(classApi: ClassLike): NameHashes = {
+  def nameHashes(classApi: ClassLike): Array[NameHash] = {
     val apiPublicDefs = publicDefs(classApi)
     val (regularDefs, implicitDefs) = apiPublicDefs.partition(deff => !deff.modifiers.isImplicit)
     val location = Location(classApi.name, NameType(classApi.definitionType))
-    val regularNameHashes = nameHashesForDefinitions(regularDefs, location)
-    val implicitNameHashes = nameHashesForDefinitions(implicitDefs, location)
-    new NameHashes(regularNameHashes.toArray, implicitNameHashes.toArray)
+
+    val classDefs = apiPublicDefs.collect {
+      case classLike: ClassLike if classLike.modifiers().isSealed =>
+        classLike
+    }
+
+    nameHashesForDefinitions(regularDefs, location, UseScope.Default) ++
+      nameHashesForDefinitions(implicitDefs, location, UseScope.Implicit) ++
+      nameHashesForDefinitions(classDefs, location, UseScope.PatMatTarget)
+
   }
 
-  private def nameHashesForDefinitions(defs: Iterable[Definition], location: Location): Iterable[NameHash] = {
+  private def nameHashesForDefinitions(
+    defs: Iterable[Definition],
+    location: Location,
+    useScope: UseScope
+  ): Array[NameHash] = {
     val groupedBySimpleName = defs.groupBy(locatedDef => localName(locatedDef.name))
-    val hashes = groupedBySimpleName.mapValues(hashLocatedDefinitions(_, location))
-    hashes.toIterable.map({ case (name: String, hash: Int) => new NameHash(name, hash) })
+    val hashes = groupedBySimpleName.mapValues(hashLocatedDefinitions(_, location, useScope == UseScope.PatMatTarget))
+    hashes.toIterable.map({ case (name: String, hash: Int) => new NameHash(name, useScope, hash) })(collection.breakOut)
   }
 
-  private def hashLocatedDefinitions(defs: Iterable[Definition], location: Location): Int = {
+  private def hashLocatedDefinitions(defs: Iterable[Definition], location: Location, forPatMat: Boolean): Int = {
     val defsWithExtraHashes = defs.toSeq.map(_ -> location.hashCode)
-    xsbt.api.HashAPI.hashDefinitionsWithExtraHashes(defsWithExtraHashes)
+    HashAPI.apply(
+      _.hashDefinitionsWithExtraHashes(defsWithExtraHashes),
+      includeDefinitions = false,
+      includeSealedChildren = forPatMat
+    )
   }
 
   /**
@@ -91,26 +106,20 @@ class NameHashing {
 }
 
 object NameHashing {
-  def merge(nm1: NameHashes, nm2: NameHashes): NameHashes = {
-    val regularMembers = merge(nm1.regularMembers, nm2.regularMembers)
-    val implicitMembers = merge(nm1.implicitMembers, nm2.implicitMembers)
-    new NameHashes(regularMembers, implicitMembers)
-  }
-
-  private def merge(nm1: Array[NameHash], nm2: Array[NameHash]): Array[NameHash] = {
+  def merge(nm1: Array[NameHash], nm2: Array[NameHash]): Array[NameHash] = {
     import scala.collection.mutable.Map
-    val m: Map[String, Int] = Map(nm1.map(nh => nh.name -> nh.hash): _*)
+    val m: Map[(String, UseScope), Int] = Map(nm1.map(nh => (nh.name, nh.scope) -> nh.hash): _*)
     for (nh <- nm2) {
-      val name = nh.name
-      if (!m.contains(name))
-        m(name) = nh.hash
+      val key = (nh.name, nh.scope())
+      if (!m.contains(key))
+        m(key) = nh.hash
       else {
-        val existingHash = m(name)
+        val existingHash = m(key)
         // combine hashes without taking an order into account
-        m(name) = Set(existingHash, nh.hash).hashCode()
+        m(key) = Set(existingHash, nh.hash).hashCode()
       }
     }
-    m.map { case (name, hash) => new NameHash(name, hash) }(collection.breakOut)
+    m.map { case ((name, scope), hash) => new NameHash(name, scope, hash) }(collection.breakOut)
   }
 
   private case class LocatedDefinition(location: Location, definition: Definition)

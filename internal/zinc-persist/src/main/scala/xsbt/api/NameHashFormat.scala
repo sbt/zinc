@@ -10,14 +10,14 @@ package xsbt.api
 import xsbti.api._
 import sbinary._
 
-object NameHashesFormat extends Format[NameHashes] {
+object NameHashFormat extends Format[NameHash] {
   import java.io._
-  def reads(in: Input): NameHashes =
+  def reads(in: Input): NameHash =
     {
       val oin = new ObjectInputStream(new InputWrapperStream(in))
-      try { oin.readObject.asInstanceOf[NameHashes] } finally { oin.close() }
+      try { oin.readObject.asInstanceOf[NameHash] } finally { oin.close() }
     }
-  def writes(out: Output, src: NameHashes): Unit = {
+  def writes(out: Output, src: NameHash): Unit = {
     val oout = new ObjectOutputStream(new OutputWrapperStream(out))
     try { oout.writeObject(src) } finally { oout.close() }
   }

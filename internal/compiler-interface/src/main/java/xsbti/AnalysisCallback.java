@@ -9,6 +9,7 @@ package xsbti;
 
 import xsbti.api.DependencyContext;
 import java.io.File;
+import java.util.EnumSet;
 
 public interface AnalysisCallback {
     /**
@@ -114,8 +115,9 @@ public interface AnalysisCallback {
      *
      * @param className The source class name that uses <code>name</code>.
      * @param name The source name used in <code>className</code>.
+     * @param useScopes Scopes(e.g. patmat, implicit) where name is used <code>className</code>.
      */
-    void usedName(String className, String name);
+    void usedName(String className, String name, EnumSet<UseScope> useScopes);
 
     /**
      * Register a compilation problem.

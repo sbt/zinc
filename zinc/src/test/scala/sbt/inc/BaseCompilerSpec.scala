@@ -9,7 +9,7 @@ package sbt.inc
 
 import java.io.File
 import java.net.URLClassLoader
-import java.nio.file.{ Path, Paths }
+import java.nio.file.{ Files, Path, Paths }
 
 import sbt.internal.inc._
 import sbt.internal.inc.classpath.ClassLoaderCache
@@ -70,6 +70,13 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
     def defaultStoreLocation: File = baseLocation.resolve("inc_data.zip").toFile
 
     def createCompiler() = CompilerSetup(defaultClassesDir, baseLocation.toFile, allSources.toArray, allClasspath)
+
+    def update(source: Path)(change: String => String): Unit = {
+      import collection.JavaConverters._
+      val sourceFile = baseLocation.resolve(source)
+      val text = Files.readAllLines(sourceFile).asScala.mkString("\n")
+      Files.write(sourceFile, Seq(change(text)).asJava)
+    }
   }
 
   object ProjectSetup {
@@ -101,9 +108,9 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
       override def startUnit(phase: String, unitPath: String): Unit = lastCompiledUnits += unitPath
     }
 
-    val setup = compiler.setup(lookup, skip = false, tempDir / "inc_compile", CompilerCache.fresh, incOptions, reporter, None, extra)
+    val setup = compiler.setup(lookup, skip = false, tempDir / "inc_compile", CompilerCache.fresh, incOptions, reporter, Some(progress), extra)
     val prev = compiler.emptyPreviousResult
-    val in = compiler.inputs(si.allJars ++ classpath, sources, classesDir, Array(), Array(), maxErrors, Array(),
+    val in = compiler.inputs(Array(classesDir) ++ si.allJars ++ classpath, sources, classesDir, Array(), Array(), maxErrors, Array(),
       CompileOrder.Mixed, cs, setup, prev)
 
     def doCompile(newInputs: Inputs => Inputs = identity): CompileResult = {

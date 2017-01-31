@@ -36,8 +36,8 @@ private final class IncrementalNameHashing(log: sbt.util.Logger, options: IncOpt
     if (SameAPI(a, b))
       None
     else {
-      val aNameHashes = a.nameHashes
-      val bNameHashes = b.nameHashes
+      val aNameHashes = a.nameHashes()
+      val bNameHashes = b.nameHashes()
       val modifiedNames = ModifiedNames.compareTwoNameHashes(aNameHashes, bNameHashes)
       val apiChange = NamesChange(className, modifiedNames)
       Some(apiChange)

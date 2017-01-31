@@ -57,7 +57,8 @@ trait Analysis extends CompileAnalysis {
 object Analysis {
   case class NonLocalProduct(className: String, binaryClassName: String, classFile: File, classFileStamp: Stamp)
   case class LocalProduct(classFile: File, classFileStamp: Stamp)
-  lazy val Empty: Analysis = new MAnalysis(Stamps.empty, APIs.empty, Relations.empty, SourceInfos.empty, Compilations.empty)
+  lazy val Empty: Analysis =
+    new MAnalysis(Stamps.empty, APIs.empty, Relations.empty, SourceInfos.empty, Compilations.empty)
   def empty: Analysis = new MAnalysis(Stamps.empty, APIs.empty,
     Relations.empty, SourceInfos.empty, Compilations.empty)
 
