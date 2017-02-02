@@ -63,22 +63,36 @@ private[sbt] object Analyze {
     // get class to class dependencies and map back to source to class dependencies
     for ((source, classFiles) <- sourceToClassFiles) {
       analysis.startSource(source)
-      val loadedNonLocalClasses =
-        classFiles.map(c => binaryClassNameToLoadedClass(c.className)).filter(_.getCanonicalName != null)
-      val publicInherited: Map[String, Set[String]] =
-        readAPI(source, loadedNonLocalClasses).groupBy(_._1).mapValues(_.map(_._2))
+      val loadedClasses = classFiles.map(c => binaryClassNameToLoadedClass(c.className))
+      // Local classes are either anonymous or inner Java classes
+      val (nonLocalClasses, potentialLocalClasses) =
+        loadedClasses.partition(_.getCanonicalName != null)
+
+      // Map local classes to the sources of their enclosing classes
+      val localClassesToSources = potentialLocalClasses.flatMap { cls =>
+        val localClsName = cls.getName
+        val enclosingClassName = localClsName.takeWhile(_ != '$')
+        val enclosingLoadedCls = binaryClassNameToLoadedClass.get(enclosingClassName)
+        val sourceOfEnclosing = enclosingLoadedCls.map(binaryToSourceName(_)).flatten
+        sourceOfEnclosing.map(src => localClsName -> src).toList
+      }.toMap
+
+      /* Get the mapped source file from a given class name. */
+      def getMappedSource(className: String): Option[String] = {
+        val nonLocalSourceName: Option[String] = for {
+          loadedClass <- binaryClassNameToLoadedClass.get(className)
+          sourceName <- binaryToSourceName(loadedClass)
+        } yield sourceName
+
+        if (nonLocalSourceName.isDefined) nonLocalSourceName
+        else localClassesToSources.get(className)
+      }
 
       def processDependency(onBinaryName: String, context: DependencyContext, fromBinaryName: String): Unit = {
-        val fromClassName = {
-          val clsName = for {
-            loadedClass <- binaryClassNameToLoadedClass.get(fromBinaryName)
-            sourceName <- binaryToSourceName(loadedClass)
-          } yield sourceName
-          clsName match {
-            case Some(resolvedClassName) => resolvedClassName
-            // TODO: handle dependencies coming from local classes the same way as it's done for Scala
-            // classes, see: https://github.com/sbt/sbt/issues/1104#issuecomment-169146039
-            case None                    => return
+        val fromClassName: String = {
+          getMappedSource(fromBinaryName) match {
+            case Some(sourceName) => sourceName
+            case None             => return // It could be a stale class file
           }
         }
 
@@ -103,14 +117,30 @@ private[sbt] object Analyze {
       def processDependencies(binaryClassNames: Iterable[String], context: DependencyContext, fromBinaryClassName: String): Unit =
         binaryClassNames.foreach(binaryClassName => processDependency(binaryClassName, context, fromBinaryClassName))
 
+      // Get all references to types in a given class file (via constant pool)
       val typesInSource = classFiles.map(cf => cf.className -> cf.types).toMap
+
+      // Process dependencies by member references
       typesInSource foreach {
         case (binaryClassName, binaryClassNameDeps) =>
           processDependencies(binaryClassNameDeps, DependencyByMemberRef, binaryClassName)
       }
-      publicInherited foreach {
-        case (className, inheritanceDeps) => processDependencies(inheritanceDeps, DependencyByInheritance, className)
+
+      // Read the API from both local and non-local classes
+      val publicInherited: Map[String, Set[String]] = {
+        val localClasses = potentialLocalClasses.filter(cls =>
+          localClassesToSources.get(cls.getName).isDefined)
+        val api = readAPI(source, localClasses ++ nonLocalClasses)
+        api.groupBy(_._1).mapValues(_.map(_._2))
       }
+
+      // Process dependencies by inheritance
+      publicInherited foreach {
+        case (className, inheritanceDeps) =>
+          processDependencies(inheritanceDeps, DependencyByInheritance, className)
+      }
+
+      // TODO(jvican): Add local inheritance dependencies
     }
   }
   private[this] def urlAsFile(url: URL, log: Logger): Option[File] =
