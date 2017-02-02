@@ -69,11 +69,14 @@ private[sbt] object Analyze {
         loadedClasses.partition(_.getCanonicalName != null)
 
       // Map local classes to the sources of their enclosing classes
-      val localClassesToSources = localClassesOrStale.flatMap { cls =>
-        val enclosingLoadedCls = Option(cls.getEnclosingClass)
-        val sourceOfEnclosing = enclosingLoadedCls.map(binaryToSourceName(_))
-        sourceOfEnclosing.flatten.map(src => cls.getName -> src).toList
-      }.toMap
+      val localClassesToSources = {
+        val localToSourcesSeq = for {
+          cls <- localClassesOrStale
+          enclosingCls <- Option(cls.getEnclosingClass)
+          sourceOfEnclosing <- binaryToSourceName(enclosingCls)
+        } yield (cls.getName, sourceOfEnclosing)
+        localToSourcesSeq.toMap
+      }
 
       /* Get the mapped source file from a given class name. */
       def getMappedSource(className: String): Option[String] = {
@@ -81,35 +84,30 @@ private[sbt] object Analyze {
           loadedClass <- binaryClassNameToLoadedClass.get(className)
           sourceName <- binaryToSourceName(loadedClass)
         } yield sourceName
-
-        if (nonLocalSourceName.isDefined) nonLocalSourceName
-        else localClassesToSources.get(className)
+        nonLocalSourceName.orElse(localClassesToSources.get(className))
       }
 
       def processDependency(onBinaryName: String, context: DependencyContext, fromBinaryName: String): Unit = {
-        val fromClassName: String = {
-          getMappedSource(fromBinaryName) match {
-            case Some(sourceName) => sourceName
-            case None             => return // It could be a stale class file
-          }
+        def loadFromClassloader(): Option[File] = {
+          for {
+            url <- Option(loader.getResource(classNameToClassFile(onBinaryName)))
+            file <- urlAsFile(url, log)
+          } yield { classfilesCache(onBinaryName) = file; file }
         }
 
-        def loadFromClassloader(): Option[File] = for {
-          url <- Option(loader.getResource(onBinaryName.replace('.', '/') + ClassExt))
-          file <- urlAsFile(url, log)
-        } yield {
-          classfilesCache(onBinaryName) = file
-          file
-        }
-
-        trapAndLog(log) {
-          val scalaLikeTypeName = onBinaryName.replace('$', '.')
-
-          if (classNames.contains(scalaLikeTypeName))
-            analysis.classDependency(scalaLikeTypeName, fromClassName, context)
-          else
-            for (file <- classfilesCache.get(onBinaryName).orElse(loadFromClassloader()))
-              analysis.binaryDependency(file, onBinaryName, fromClassName, source, context)
+        getMappedSource(fromBinaryName) match {
+          case Some(fromClassName) =>
+            trapAndLog(log) {
+              val scalaLikeTypeName = onBinaryName.replace('$', '.')
+              if (classNames.contains(scalaLikeTypeName)) {
+                analysis.classDependency(scalaLikeTypeName, fromClassName, context)
+              } else {
+                val cachedOrigin = classfilesCache.get(onBinaryName)
+                for (file <- cachedOrigin.orElse(loadFromClassloader()))
+                  analysis.binaryDependency(file, onBinaryName, fromClassName, source, context)
+              }
+            }
+          case None => // It could be a stale class file, ignore
         }
       }
       def processDependencies(binaryClassNames: Iterable[String], context: DependencyContext, fromBinaryClassName: String): Unit =
@@ -167,6 +165,7 @@ private[sbt] object Analyze {
     }
   private final val ClassExt = ".class"
   private def trimClassExt(name: String) = if (name.endsWith(ClassExt)) name.substring(0, name.length - ClassExt.length) else name
+  private def classNameToClassFile(name: String) = name.replace('.', '/') + ClassExt
   private def binaryToSourceName(loadedClass: Class[_]): Option[String] = Option(loadedClass.getCanonicalName)
   private def guessSourcePath(sourceNameMap: Map[String, Set[File]], classFile: ClassFile, log: Logger) =
     {
