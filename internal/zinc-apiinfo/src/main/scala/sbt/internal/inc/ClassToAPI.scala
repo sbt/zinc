@@ -16,11 +16,11 @@ object ClassToAPI {
   def apply(c: Seq[Class[_]]): Seq[api.ClassLike] = process(c)._1
 
   // (api, public inherited classes)
-  def process(c: Seq[Class[_]]): (Seq[api.ClassLike], Set[(Class[_], Class[_])]) =
+  def process(classes: Seq[Class[_]]): (Seq[api.ClassLike], Set[(Class[_], Class[_])]) =
     {
-      val pkgs = packages(c).map(p => new api.Package(p))
+      val pkgs = packages(classes).map(p => new api.Package(p))
       val cmap = emptyClassMap
-      val defs = c.flatMap(toDefinitions(cmap))
+      val defs = classes.flatMap(toDefinitions(cmap))
       cmap.lz.foreach(_.get()) // force thunks to ensure all inherited dependencies are recorded
       val classApis = cmap.allNonLocalClasses.toSeq
       val inDeps = cmap.inherited.toSet
