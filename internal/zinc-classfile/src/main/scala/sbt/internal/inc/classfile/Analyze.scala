@@ -64,17 +64,15 @@ private[sbt] object Analyze {
     for ((source, classFiles) <- sourceToClassFiles) {
       analysis.startSource(source)
       val loadedClasses = classFiles.map(c => binaryClassNameToLoadedClass(c.className))
-      // Local classes are either anonymous or inner Java classes
-      val (nonLocalClasses, potentialLocalClasses) =
+      // Local classes are either local, anonymous or inner Java classes
+      val (nonLocalClasses, localClassesOrStale) =
         loadedClasses.partition(_.getCanonicalName != null)
 
       // Map local classes to the sources of their enclosing classes
-      val localClassesToSources = potentialLocalClasses.flatMap { cls =>
-        val localClsName = cls.getName
-        val enclosingClassName = localClsName.takeWhile(_ != '$')
-        val enclosingLoadedCls = binaryClassNameToLoadedClass.get(enclosingClassName)
-        val sourceOfEnclosing = enclosingLoadedCls.map(binaryToSourceName(_)).flatten
-        sourceOfEnclosing.map(src => localClsName -> src).toList
+      val localClassesToSources = localClassesOrStale.flatMap { cls =>
+        val enclosingLoadedCls = Option(cls.getEnclosingClass)
+        val sourceOfEnclosing = enclosingLoadedCls.map(binaryToSourceName(_))
+        sourceOfEnclosing.flatten.map(src => cls.getName -> src).toList
       }.toMap
 
       /* Get the mapped source file from a given class name. */
@@ -126,21 +124,28 @@ private[sbt] object Analyze {
           processDependencies(binaryClassNameDeps, DependencyByMemberRef, binaryClassName)
       }
 
-      // Read the API from both local and non-local classes
-      val publicInherited: Map[String, Set[String]] = {
-        val localClasses = potentialLocalClasses.filter(cls =>
-          localClassesToSources.get(cls.getName).isDefined)
-        val api = readAPI(source, localClasses ++ nonLocalClasses)
+      def readInheritanceDependencies(classes: Seq[Class[_]]) = {
+        val api = readAPI(source, classes)
         api.groupBy(_._1).mapValues(_.map(_._2))
       }
 
-      // Process dependencies by inheritance
-      publicInherited foreach {
+      // Read API of non-local classes and process dependencies by inheritance
+      val nonLocalInherited: Map[String, Set[String]] =
+        readInheritanceDependencies(nonLocalClasses)
+      nonLocalInherited foreach {
         case (className, inheritanceDeps) =>
           processDependencies(inheritanceDeps, DependencyByInheritance, className)
       }
 
-      // TODO(jvican): Add local inheritance dependencies
+      // Read API of local classes and process local dependencies by inheritance
+      val localClasses = localClassesOrStale.filter(cls =>
+        localClassesToSources.contains(cls.getName))
+      val localInherited: Map[String, Set[String]] =
+        readInheritanceDependencies(localClasses)
+      localInherited foreach {
+        case (className, inheritanceDeps) =>
+          processDependencies(inheritanceDeps, LocalDependencyByInheritance, className)
+      }
     }
   }
   private[this] def urlAsFile(url: URL, log: Logger): Option[File] =
