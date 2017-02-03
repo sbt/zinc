@@ -14,17 +14,17 @@ case class EnumSetSerializer[E <: Enum[E]: ClassTag](allValues: Array[E]) {
       v -> (1 << i)
   }
 
-  private val OffsetInASCI = '!'.toInt
+  private val OffsetInASCII = 33 // byte value of '!'
 
-  def write(set: util.EnumSet[E]): Char = {
+  def serialize(set: util.EnumSet[E]): Char = {
     var flags = 0
     for ((v, mask) <- masks if set.contains(v)) flags |= mask
-    (flags + OffsetInASCI).toChar
+    (flags + OffsetInASCII).toChar
   }
 
-  def read(c: Char): util.EnumSet[E] = {
+  def deserialize(c: Char): util.EnumSet[E] = {
     val set = util.EnumSet.noneOf(enumClass)
-    val bits = c.toInt - OffsetInASCI
+    val bits = c.toInt - OffsetInASCII
     for ((v, mask) <- masks if (bits & mask) != 0) set.add(v)
     set
   }

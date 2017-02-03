@@ -4,12 +4,9 @@ import java.nio.file.Paths
 
 import sbt.io.IO
 
-/**
- * Author: Krzysztof Romanowski
- */
 class NameHashingCompilerSpec extends BaseCompilerSpec {
 
-  def testCompilation(changes: Seq[(String, String => String)], transitiveChanges: Set[String]) = {
+  def testIncrementalCompilation(changes: Seq[(String, String => String)], transitiveChanges: Set[String]) = {
     val nahaPath = Paths.get("naha")
     IO.withTemporaryDirectory { tempDir =>
       val projectSetup = ProjectSetup(
@@ -50,45 +47,45 @@ class NameHashingCompilerSpec extends BaseCompilerSpec {
   import SourceFiles.Naha._
 
   "incremental compiler" should "not compile anything if sources has not changed" in {
-    testCompilation(changes = Seq(), transitiveChanges = Set())
+    testIncrementalCompilation(changes = Seq(), transitiveChanges = Set())
   }
 
   it should "recompile all usages of class on implicit name change" in {
-    testCompilation(
+    testIncrementalCompilation(
       changes = Seq(WithImplicits -> changeImplicitMemberType),
       transitiveChanges = Set(ClientWithImplicitUsed, ClientWithImplicitNotUsed, ClientWithoutImplicit)
     )
   }
 
   it should "not recompile all usages of class on non implicit name change" in {
-    testCompilation(
+    testIncrementalCompilation(
       changes = Seq(SourceFiles.Naha.WithImplicits -> changeStandardMemberType),
       transitiveChanges = Set(ClientWithImplicitUsed, ClientWithImplicitNotUsed, ClientWithoutImplicit)
     )
-    testCompilation(
+    testIncrementalCompilation(
       changes = Seq(SourceFiles.Naha.NormalDependecy -> changeStandardMemberType),
       transitiveChanges = Set(ClientWithImplicitUsed, ClientWithImplicitNotUsed, ClientWithoutImplicit)
     )
-    testCompilation(
+    testIncrementalCompilation(
       changes = Seq(SourceFiles.Naha.NormalDependecy -> changeImplicitMemberType),
       transitiveChanges = Set(ClientWithImplicitUsed, ClientWithImplicitNotUsed)
     )
-    testCompilation(
+    testIncrementalCompilation(
       changes = Seq(SourceFiles.Naha.Other -> changeImplicitMemberType),
       transitiveChanges = Set(ClientWithoutAnythingUsed)
     )
-    testCompilation(
+    testIncrementalCompilation(
       changes = Seq(SourceFiles.Naha.Other3 -> changeImplicitMemberType),
       transitiveChanges = Set()
     )
   }
 
   it should "recompile sealed classes correctly" in {
-    testCompilation(
+    testIncrementalCompilation(
       changes = Seq(Other -> changeOtherSealedType),
       transitiveChanges = Set(Other2, Other3)
     )
-    testCompilation(
+    testIncrementalCompilation(
       changes = Seq(Other -> addNewSealedChildren),
       transitiveChanges = Set(Other3)
     )

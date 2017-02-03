@@ -24,7 +24,7 @@ class MappersSpecification extends Properties("TextAnalysisFormat") {
     val gen = Gen.someOf(UseScope.values()).map(UsedName("a", _)).map(_.scopes)
     val serizlizer = EnumSetSerializer(UseScope.values())
 
-    def check(useScopes: util.EnumSet[UseScope]) = useScopes =? serizlizer.read(serizlizer.write(useScopes))
+    def check(useScopes: util.EnumSet[UseScope]) = useScopes =? serizlizer.deserialize(serizlizer.serialize(useScopes))
 
     forAll(gen)(check)
   }

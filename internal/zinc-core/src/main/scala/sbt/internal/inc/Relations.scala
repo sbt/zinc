@@ -271,20 +271,16 @@ object Relations {
 
   private[sbt] def getOrEmpty[A, B, K](m: Map[K, Relation[A, B]], k: K): Relation[A, B] = m.getOrElse(k, Relation.empty)
 
-  private[this] lazy val e = Relation.empty[File, File]
-  private[this] lazy val estr = Relation.empty[File, String]
-  private[this] lazy val estrstr = Relation.empty[String, String]
-  private[this] lazy val emptyUsedNames = Relation.empty[String, UsedName]
-
-  private[inc] lazy val emptyClassDependencies: ClassDependencies = new ClassDependencies(estrstr, estrstr)
-  def empty: Relations =
-    new MRelationsNameHashing(e, e, estr, InternalDependencies.empty, ExternalDependencies.empty, estr, emptyUsedNames, estrstr)
-
-  private[inc] def empty(nameHashing: Boolean): Relations =
-    if (nameHashing)
-      new MRelationsNameHashing(e, e, estr, InternalDependencies.empty, ExternalDependencies.empty, estr, emptyUsedNames, estrstr)
-    else
-      throw new UnsupportedOperationException("Turning off name hashing is not supported in class-based dependency tracking")
+  def empty: Relations = new MRelationsNameHashing(
+    srcProd = Relation.empty,
+    libraryDep = Relation.empty,
+    libraryClassName = Relation.empty,
+    internalDependencies = InternalDependencies.empty,
+    externalDependencies = ExternalDependencies.empty,
+    classes = Relation.empty,
+    names = Relation.empty,
+    productClassName = Relation.empty
+  )
 
   private[inc] def make(srcProd: Relation[File, File], libraryDep: Relation[File, File], libraryClassName: Relation[File, String],
     internalDependencies: InternalDependencies, externalDependencies: ExternalDependencies,

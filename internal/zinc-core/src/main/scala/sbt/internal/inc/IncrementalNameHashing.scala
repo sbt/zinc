@@ -44,7 +44,7 @@ private final class IncrementalNameHashing(log: sbt.util.Logger, options: IncOpt
     }
   }
 
-  /** Invalidates classes based on initially detected 'changes' to the sources, products, and dependencies.*/
+  /** Invalidates classes based on initially detected 'changes' to the sources, products, and dependencies. */
   override protected def invalidateByExternal(relations: Relations, externalAPIChange: APIChange,
     isScalaClass: String => Boolean): Set[String] = {
     val modifiedBinaryClassName = externalAPIChange.modifiedClass
@@ -94,20 +94,35 @@ private final class IncrementalNameHashing(log: sbt.util.Logger, options: IncOpt
   }
 
   override protected def invalidateClass(relations: Relations, change: APIChange, isScalaClass: String => Boolean): Set[String] = {
-    log.debug(s"Invalidating ${change.modifiedClass}...")
     val modifiedClass = change.modifiedClass
     val transitiveInheritance = invalidateByInheritance(relations, modifiedClass)
     val localInheritance = transitiveInheritance.flatMap(invalidateByLocalInheritance(relations, _))
-    val reasonForInvalidation = memberRefInvalidator.invalidationReason(change)
-    log.debug(s"$reasonForInvalidation\nAll member reference dependencies will be considered within this context.")
+
     val memberRefSrcDeps = relations.memberRef.internal
     val memberRefInvalidation = memberRefInvalidator.get(memberRefSrcDeps, relations.names, change, isScalaClass)
     val memberRef = transitiveInheritance flatMap memberRefInvalidation
     val all = transitiveInheritance ++ localInheritance ++ memberRef
+
+    def debugMessage: String = {
+      if (all.isEmpty) s"Change $change does not affect any class."
+      else {
+        val byTransitiveInheritance =
+          if (transitiveInheritance.nonEmpty) s"by transitiveInheritance: $transitiveInheritance" else ""
+        val byLocalInheritance =
+          if (localInheritance.nonEmpty) s"by localInheritance: $localInheritance" else ""
+        val byMemberRef =
+          if (memberRef.nonEmpty) s"by transitiveInheritance: $memberRef" else ""
+
+        s"""$change invalidates ${all.size} classes due to ${memberRefInvalidator.invalidationReason(change)}
+           |\t$byTransitiveInheritance $byLocalInheritance $byMemberRef
+        """.stripMargin
+      }
+    }
+
+    log.debug(debugMessage)
     all
   }
 
   override protected def allDeps(relations: Relations): (String) => Set[String] =
     cls => relations.memberRef.internal.reverse(cls)
-
 }

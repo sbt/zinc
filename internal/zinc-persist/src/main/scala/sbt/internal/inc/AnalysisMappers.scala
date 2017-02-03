@@ -25,12 +25,12 @@ object Mapper {
   val forStamp: ContextAwareMapper[File, Stamp] = ContextAwareMapper((_, v) => Stamp.fromString(v), (_, s) => s.toString)
   val forUsedName: Mapper[UsedName] = {
     val enumSetSerializer = EnumSetSerializer(UseScope.values())
-    def write(usedName: UsedName): String =
-      s"${enumSetSerializer.write(usedName.scopes)}${usedName.name}"
+    def serialize(usedName: UsedName): String =
+      s"${enumSetSerializer.serialize(usedName.scopes)}${usedName.name}"
 
-    def read(s: String) = UsedName(s.tail, enumSetSerializer.read(s.head))
+    def deserialize(s: String) = UsedName(s.tail, enumSetSerializer.deserialize(s.head))
 
-    Mapper(read, write)
+    Mapper(deserialize, serialize)
   }
 
   implicit class MapperOpts[V](mapper: Mapper[V]) {

@@ -17,7 +17,7 @@ class NameHashingSpecification extends UnitSpec {
           nameHash.name()
       }(collection.breakOut)
 
-    def forNameIn(s: UseScope, name: String) =
+    def forNameIn(s: UseScope, name: String): NameHash =
       nameHashes.find(nameHash => nameHash.scope() == s && nameHash.name() == name).get
   }
 

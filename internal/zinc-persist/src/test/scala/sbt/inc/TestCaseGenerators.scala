@@ -140,12 +140,12 @@ object TestCaseGenerators {
     external <- someOf(src.external.all.toList)
   } yield Relations.makeClassDependencies(Relation.empty ++ internal, Relation.empty ++ external)
 
-  def genScalaName: Gen[String] = Gen.listOf(Gen.choose(33.toChar, 90.toChar)).map(_.toString())
+  def genScalaName: Gen[String] = Gen.listOf(Gen.choose('!', 'Z')).map(_.toString())
 
   def genUsedName(namesGen: Gen[String] = genScalaName): Gen[UsedName] = for {
     name <- namesGen
     scopes <- Gen.someOf(UseScope.values())
-  } yield UsedName.withDefault(name, scopes)
+  } yield UsedName(name, UseScope.Default +: scopes)
 
   def genUsedNames(classNames: Seq[String]): Gen[Relation[String, UsedName]] = for {
     scopes <- Gen.someOf(UseScope.values())

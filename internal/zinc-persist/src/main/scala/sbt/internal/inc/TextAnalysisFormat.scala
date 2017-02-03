@@ -12,6 +12,7 @@ package inc
 import java.io._
 
 import xsbti.T2
+import xsbti.UseScope
 import xsbti.api._
 import xsbti.compile._
 import javax.xml.bind.DatatypeConverter
@@ -32,7 +33,10 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers) extends FormatCo
   import xsbti.{ Position, Problem, Severity }
 
   private implicit val compilationF: Format[Compilation] = xsbt.api.CompilationFormat
-  private implicit val nameHashesFormat: Format[NameHash] = xsbt.api.NameHashFormat
+  private implicit val nameHashesFormat: Format[NameHash] = {
+    def read(name: String, scopeName: String, hash: Int) = new NameHash(name, UseScope.valueOf(scopeName), hash)
+    asProduct3(read)(a => (a.name(), a.scope().name(), a.hash()))
+  }
   private implicit val companionsFomrat: Format[Companions] = xsbt.api.CompanionsFormat
   private implicit def problemFormat: Format[Problem] = asProduct4(problem)(p => (p.category, p.position, p.message, p.severity))
   private implicit def positionFormat: Format[Position] =

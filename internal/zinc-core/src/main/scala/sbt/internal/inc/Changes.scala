@@ -10,7 +10,6 @@ package internal
 package inc
 
 import java.io.File
-import java.util
 
 import xsbti.UseScope
 import xsbti.api.NameHash
@@ -58,7 +57,7 @@ final case class NamesChange(modified0: String, modifiedNames: ModifiedNames) ex
  * due to difficulty of reasoning about the implicit scope.
  */
 final case class ModifiedNames(names: Set[UsedName]) {
-  def in(scope: UseScope) = names.filter(_.scopes.contains(scope))
+  def in(scope: UseScope): Set[UsedName] = names.filter(_.scopes.contains(scope))
 
   import collection.JavaConverters._
   private lazy val lookupMap: Set[(String, UseScope)] = names.flatMap(n => n.scopes.asScala.map(n.name -> _))
@@ -67,7 +66,7 @@ final case class ModifiedNames(names: Set[UsedName]) {
     usedName.scopes.asScala.exists(scope => lookupMap.contains(usedName.name -> scope))
 
   override def toString: String =
-    s"ModifiedNames(changes = $names)"
+    s"ModifiedNames(changes = ${names.mkString(", ")})"
 }
 object ModifiedNames {
   def compareTwoNameHashes(a: Array[NameHash], b: Array[NameHash]): ModifiedNames = {
@@ -76,8 +75,6 @@ object ModifiedNames {
     val changed = (xs union ys) diff (xs intersect ys)
     val modifiedNames: Set[UsedName] = changed.groupBy(_.name).map {
       case (name, nameHashes) =>
-        val empty = util.EnumSet.noneOf(classOf[UseScope])
-        nameHashes.foreach(nh => empty.add(nh.scope()))
         UsedName(name, nameHashes.map(_.scope()))
     }(collection.breakOut)
 

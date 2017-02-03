@@ -35,23 +35,24 @@ object HashAPI {
 /**
  * Implements hashing of public API.
  *
- * @param includePrivate     should private definitions be included in a hash sum
- * @param includeParamNames  should parameter names for methods be included in a hash sum
- * @param includeDefinitions when hashing a structure (e.g. of a class) should hashes of definitions (members)
- *                           be included in a hash sum. Structure can appear as a type (in structural type) and in that case we
- *                           always include definitions in a hash sum.
+ * @param includePrivate        should private definitions be included in a hash sum
+ * @param includeParamNames     should parameter names for methods be included in a hash sum
+ * @param includeDefinitions    when hashing a structure (e.g. of a class) should hashes of definitions (members)
+ *                              be included in a hash sum. Structure can appear as a type (in structural type).
+ *                              In that case we always include definitions in a hash sum.
+ * @param includeSealedChildren Controls if types of children of sealed class should be included in hash.
  */
 final class HashAPI private (
   includePrivate: Boolean,
   includeParamNames: Boolean,
   includeDefinitions: Boolean,
-  includeSealedChildern: Boolean
+  includeSealedChildren: Boolean
 ) {
   // this constructor variant is for source and binary backwards compatibility with sbt 0.13.0
   def this(includePrivate: Boolean, includeParamNames: Boolean) {
     // in the old logic we used to always include definitions hence
     // includeDefinitions=true
-    this(includePrivate, includeParamNames, includeDefinitions = true, includeSealedChildern = true)
+    this(includePrivate, includeParamNames, includeDefinitions = true, includeSealedChildren = true)
   }
 
   import scala.collection.mutable
@@ -192,7 +193,7 @@ final class HashAPI private (
     extend(ClassHash)
     hashTypeParameters(c.typeParameters)
     hashType(c.selfType)
-    if (includeSealedChildern) hashTypes(c.childrenOfSealedClass, includeDefinitions)
+    if (includeSealedChildren) hashTypes(c.childrenOfSealedClass, includeDefinitions)
     hashStructure(c.structure, includeDefinitions)
   }
   def hashField(f: FieldLike): Unit = {
