@@ -66,16 +66,14 @@ final class AnalyzingJavaCompiler private[sbt] (
         val classesFinder = PathFinder(outputDirectory) ** "*.class"
         (classesFinder, classesFinder.get, srcs)
       }
-      // Here we construct a class-loader we'll use to load + analyze the
+      // Construct a class-loader we'll use to load + analyze
+      // dependencies from the Javac generated class files
       val loader = ClasspathUtilities.toLoader(searchClasspath)
       // TODO - Perhaps we just record task 0/2 here
       timed("Java compilation", log) {
         val args = JavaCompiler.commandArguments(absClasspath, output, options, scalaInstance, classpathOptions)
-        val success = javac.run({
-          sources sortBy {
-            _.getAbsolutePath
-          }
-        }.toArray, args.toArray, incToolOptions, reporter, log)
+        val javaSources = sources.sortBy(_.getAbsolutePath).toArray
+        val success = javac.run(javaSources, args.toArray, incToolOptions, reporter, log)
         if (!success) {
           // TODO - Will the reporter have problems from Scalac?  It appears like it does not, only from the most recent run.
           // This is because the incremental compiler will not run javac if scalac fails.
