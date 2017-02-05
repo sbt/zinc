@@ -108,7 +108,7 @@ final class CompilerArguments(
     bootClasspath(hasLibrary(classpath))
 
   def extClasspath: Seq[File] =
-    (IO.parseClasspath(System.getProperty("java.ext.dirs")) * "*.jar").get
+    (IO.parseClasspath(System.getProperty("java.ext.dirs", "")) * "*.jar").get
 
   private[this] def include(flag: Boolean, jars: File*) =
     if (flag || ScalaInstance.isDotty(scalaInstance.version)) jars
