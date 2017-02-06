@@ -186,6 +186,12 @@ final class IncHandler(directory: File, scriptedLog: Logger) extends BridgeProvi
         p.checkMessage(index.toInt, expected, Severity.Error)
       case (p, other, _) =>
         p.unrecognizedArguments("checkError", other)
+    },
+    "checkNoClassFiles" -> {
+      case (p, Nil, i) =>
+        p.checkNoGeneratedClassFiles()
+        ()
+      case (p, xs, _) => p.acceptsNoArguments("checkNoClassFiles", xs)
     }
   )
 
@@ -207,6 +213,7 @@ case class ProjectStructure(name: String, dependsOn: Vector[String], baseDirecto
   }
   val targetDir = baseDirectory / "target"
   val classesDir = targetDir / "classes"
+  val generatedClassFiles = classesDir ** "*.class"
   val scalaSourceDirectory = baseDirectory / "src" / "main" / "scala"
   val javaSourceDirectory = baseDirectory / "src" / "main" / "java"
   def scalaSources: List[File] =
@@ -299,6 +306,12 @@ case class ProjectStructure(name: String, dependsOn: Vector[String], baseDirecto
 
     assertClasses(expected.toSet, products(src))
     ()
+  }
+
+  def checkNoGeneratedClassFiles(): Unit = {
+    val allClassFiles = generatedClassFiles.get.mkString("\n\t")
+    if (!allClassFiles.isEmpty)
+      sys.error(s"Classes existed:\n\t$allClassFiles")
   }
 
   def checkDependencies(i: IncInstance, className: String, expected: List[String]): Unit = {
