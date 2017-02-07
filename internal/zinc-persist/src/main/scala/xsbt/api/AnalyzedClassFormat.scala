@@ -3,7 +3,6 @@
  */
 package xsbt.api
 
-import xsbti.SafeLazy
 import xsbti.api._
 import sbinary._
 import sbinary.DefaultProtocol._
@@ -16,7 +15,7 @@ object AnalyzedClassFormats {
       a => (a.compilation, a.name, a.apiHash, a.nameHashes, a.hasMacro),
       (x: (Compilation, String, Int, NameHashes, Boolean)) => x match {
         case (compilation: Compilation, name: String, apiHash: Int, nameHashes: NameHashes, hasMacro: Boolean) =>
-          new AnalyzedClass(compilation, name, SafeLazy(emptyCompanions), apiHash, nameHashes, hasMacro)
+          new AnalyzedClass(compilation, name, SafeLazyProxy(emptyCompanions), apiHash, nameHashes, hasMacro)
       }
     )
 }

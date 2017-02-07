@@ -10,7 +10,6 @@ import Gen._
 
 import sbt.internal.util.Relation
 import xsbti.api._
-import xsbti.SafeLazy
 import xsbti.api.DependencyContext._
 
 /**
@@ -82,7 +81,7 @@ object TestCaseGenerators {
   private[this] def makeCompanions(name: String): Companions =
     new Companions(makeClassLike(name, DefinitionType.ClassDef), makeClassLike(name, DefinitionType.Module))
 
-  private[this] def lzy[T <: AnyRef](x: T) = SafeLazy.strict(x)
+  private[this] def lzy[T <: AnyRef](x: T) = SafeLazyProxy.strict(x)
 
   def genNameHash(defn: String): Gen[xsbti.api.NameHash] =
     const(new xsbti.api.NameHash(defn, defn.hashCode()))
@@ -113,7 +112,7 @@ object TestCaseGenerators {
     apiHash <- arbitrary[Int]
     hasMacro <- arbitrary[Boolean]
     nameHashes <- genNameHashes(Seq(name))
-  } yield new AnalyzedClass(new Compilation(startTime, Array()), name, SafeLazy(makeCompanions(name)), apiHash, nameHashes, hasMacro)
+  } yield new AnalyzedClass(new Compilation(startTime, Array()), name, SafeLazyProxy(makeCompanions(name)), apiHash, nameHashes, hasMacro)
 
   def genClasses(all_defns: Seq[String]): Gen[Seq[AnalyzedClass]] =
     Gen.sequence[List[AnalyzedClass], AnalyzedClass](all_defns.map(genClass))
