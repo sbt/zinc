@@ -8,7 +8,6 @@ package inc
 import java.io._
 import java.util.zip.{ ZipInputStream, ZipEntry }
 import sbt.io.{ IO, Using }
-import xsbti.SafeLazy
 import xsbti.compile.{ CompileAnalysis, MiniSetup }
 import xsbti.api.Companions
 import scala.util.control.Exception.allCatch

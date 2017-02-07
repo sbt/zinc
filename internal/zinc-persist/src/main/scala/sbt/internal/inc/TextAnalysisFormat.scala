@@ -4,8 +4,8 @@ package inc
 
 import java.io._
 import sbt.internal.util.Relation
-import xsbti.{ T2, SafeLazy }
-import xsbti.api.{ AnalyzedClass, Compilation, Companions, NameHashes, Lazy }
+import xsbti.T2
+import xsbti.api.{ AnalyzedClass, Compilation, Companions, NameHashes, Lazy, SafeLazyProxy }
 import xsbti.compile.{ CompileAnalysis, MultipleOutput, SingleOutput, MiniOptions, MiniSetup, FileHash }
 import javax.xml.bind.DatatypeConverter
 import java.net.URI
@@ -273,6 +273,7 @@ object TextAnalysisFormat {
       FormatTimer.close("sbinary write")
     }
 
+    @inline final def lzy[T](t: => T) = SafeLazyProxy(t)
     def read(in: BufferedReader, companionsStore: Option[CompanionsStore]): APIs = {
       val internal = readMap(in)(Headers.internal, identity[String], stringToAnalyzedClass)
       val external = readMap(in)(Headers.external, identity[String], stringToAnalyzedClass)
@@ -281,11 +282,11 @@ object TextAnalysisFormat {
       companionsStore match {
         case Some(companionsStore) =>
           val companions: Lazy[(Map[String, Companions], Map[String, Companions])] =
-            SafeLazy(companionsStore.getUncaught())
+            lzy(companionsStore.getUncaught())
 
           APIs(
-            internal map { case (k, v) => k -> v.withApi(SafeLazy(companions.get._1(k))) },
-            external map { case (k, v) => k -> v.withApi(SafeLazy(companions.get._2(k))) }
+            internal map { case (k, v) => k -> v.withApi(lzy(companions.get._1(k))) },
+            external map { case (k, v) => k -> v.withApi(lzy(companions.get._2(k))) }
           )
         case _ => APIs(internal, external)
       }

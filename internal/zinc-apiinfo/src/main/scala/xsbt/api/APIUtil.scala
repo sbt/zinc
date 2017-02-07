@@ -1,6 +1,5 @@
 package xsbt.api
 
-import xsbti.SafeLazy
 import xsbti.api._
 import scala.collection.mutable.HashSet
 
@@ -76,7 +75,7 @@ object APIUtil {
     new xsbti.api.ClassLike(name, new Public, emptyModifiers, Array.empty,
       definitionType, lzy(emptyType), lzy(emptyStructure), Array.empty, Array.empty, true, Array.empty)
 
-  private[this] def lzy[T <: AnyRef](t: T): Lazy[T] = SafeLazy.strict(t)
+  private[this] def lzy[T <: AnyRef](t: T): Lazy[T] = SafeLazyProxy.strict(t)
 
   private[this] val emptyType = new EmptyType
 }

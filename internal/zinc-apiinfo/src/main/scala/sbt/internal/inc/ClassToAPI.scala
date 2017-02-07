@@ -7,8 +7,7 @@ import java.lang.annotation.Annotation
 import annotation.tailrec
 import inc.classfile.ClassFile
 import xsbti.api
-import xsbti.SafeLazy
-import SafeLazy.strict
+import xsbti.api.SafeLazyProxy
 import collection.mutable
 import sbt.io.IO
 
@@ -78,10 +77,10 @@ object ClassToAPI {
       val name = classCanonicalName(c)
       val tpe = if (Modifier.isInterface(c.getModifiers)) Trait else ClassDef
       lazy val (static, instance) = structure(c, enclPkg, cmap)
-      val cls = new api.ClassLike(name, acc, mods, annots, tpe, strict(Empty), lzy(instance, cmap), emptyStringArray, children.toArray,
+      val cls = new api.ClassLike(name, acc, mods, annots, tpe, lzyS(Empty), lzy(instance, cmap), emptyStringArray, children.toArray,
         topLevel, typeParameters(typeParameterTypes(c)))
       val clsDef = new api.ClassLikeDef(name, acc, mods, annots, typeParameters(typeParameterTypes(c)), tpe)
-      val stat = new api.ClassLike(name, acc, mods, annots, Module, strict(Empty), lzy(static, cmap), emptyStringArray, emptyTypeArray,
+      val stat = new api.ClassLike(name, acc, mods, annots, Module, lzyS(Empty), lzy(static, cmap), emptyStringArray, emptyTypeArray,
         topLevel, emptyTypeParameterArray)
       val statDef = new api.ClassLikeDef(name, acc, mods, annots, emptyTypeParameterArray, Module)
       val defs = cls :: stat :: Nil
@@ -112,8 +111,8 @@ object ClassToAPI {
   private[this] def classFileForClass(c: Class[_]): ClassFile =
     classfile.Parser.apply(IO.classfileLocation(c))
 
-  private[this] def lzyS[T <: AnyRef](t: T): xsbti.api.Lazy[T] = lzy(t)
-  def lzy[T <: AnyRef](t: => T): xsbti.api.Lazy[T] = xsbti.SafeLazy(t)
+  @inline private[this] def lzyS[T <: AnyRef](t: T): xsbti.api.Lazy[T] = SafeLazyProxy.strict(t)
+  @inline final def lzy[T <: AnyRef](t: => T): xsbti.api.Lazy[T] = SafeLazyProxy(t)
   private[this] def lzy[T <: AnyRef](t: => T, cmap: ClassMap): xsbti.api.Lazy[T] = {
     val s = lzy(t)
     cmap.lz += s
@@ -127,7 +126,7 @@ object ClassToAPI {
   private val emptySimpleTypeArray = new Array[xsbti.api.SimpleType](0)
   private val lzyEmptyTpeArray = lzyS(emptyTypeArray)
   private val lzyEmptyDefArray = lzyS(new Array[xsbti.api.ClassDefinition](0))
-  private val lzyEmptyStructure = strict(new xsbti.api.Structure(lzyEmptyTpeArray, lzyEmptyDefArray, lzyEmptyDefArray))
+  private val lzyEmptyStructure = lzyS(new xsbti.api.Structure(lzyEmptyTpeArray, lzyEmptyDefArray, lzyEmptyDefArray))
 
   private def allSuperTypes(t: Type): Seq[Type] =
     {
