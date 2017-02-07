@@ -8,7 +8,7 @@ package xsbti.api;
  * It needs to be defined in [[xsbti]] or a subpackage, see
  * [[xsbti.api.Lazy]] or [[xsbti.F0]] for similar definitions.
  */
-public class SafeLazy {
+public final class SafeLazy {
 
   /* We do not use conversions from and to Scala functions because [[xsbti]]
    * cannot hold any reference to Scala code nor the Scala library. */
