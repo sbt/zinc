@@ -27,7 +27,9 @@ object IncrementalCompilerTest {
                                                              |Mark this scenario as passing to clear this failure.""".stripMargin)
 
   /** Exception thrown when a step has failed. */
-  case class FailedStepException(state: ScenarioState, step: Step, cause: String) extends Exception {
+  case class FailedStepException(override val getMessage: String) extends Exception
+
+  object FailedStepException {
     private def show(pairs: Seq[(String, String)]): String = {
       pairs map {
         case (name, content) =>
@@ -41,25 +43,26 @@ object IncrementalCompilerTest {
       } mkString EOL
     }
 
-    private def showFiles: String = show(state.files.toSeq)
-    private def showChanges: String = {
+    private def showFiles(state: ScenarioState): String = show(state.files.toSeq)
+    private def showChanges(state: ScenarioState): String = {
       val changes = state.lastChanges map {
         case (name, `delete`) => (name, "deleted")
         case (name, content)  => (name, content.content)
       }
       show(changes)
     }
-    override def getMessage = {
+
+    def apply(state: ScenarioState, step: Step, cause: String): FailedStepException = FailedStepException(
       s"""Scenario failed at step '${step.description}':
-         |  $cause
-         |State at the time of failure:
-         |  Directory: ${state.directory.getAbsolutePath}
-         |  Files:
-         |$showFiles
-         |  lastChanges:
-         |$showChanges
-         """.stripMargin
-    }
+        |  $cause
+        |State at the time of failure:
+        |  Directory: ${state.directory.getAbsolutePath}
+        |  Files:
+        |${showFiles(state)}
+        |  lastChanges:
+        |${showChanges(state)}
+        """.stripMargin
+    )
   }
 
   /**
@@ -254,7 +257,7 @@ object IncrementalCompilerTest {
             val message = s"""Invalidated files didn't match expected invalidations.
                              |Expected:    ${invalidated.toSet mkString ", "}
                              |Invalidated: ${invalidatedFiles mkString ", "}""".stripMargin
-            throw new FailedStepException(stateAfterCompilation, this, message)
+            throw FailedStepException(stateAfterCompilation, this, message)
           } else {
             stateAfterCompilation
           }
@@ -279,7 +282,7 @@ object IncrementalCompilerTest {
 
       try {
         compileUntilFinished(newState)
-        throw new FailedStepException(newState, this, "Compilation succeeded, but failure was expected.")
+        throw FailedStepException(newState, this, "Compilation succeeded, but failure was expected.")
       } catch {
         case _: CompilationFailedException => newState.markFailing
       }

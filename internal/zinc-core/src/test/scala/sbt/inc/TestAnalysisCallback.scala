@@ -66,12 +66,6 @@ class TestAnalysisCallback(
       case (rel, (binary, _, sourceClassName, _)) => rel + (sourceClassName -> binary)
     }
 
-    val di = Relation.empty[File, File]
-    val de = Relation.empty[File, String]
-
-    val pii = Relation.empty[File, File]
-    val pie = Relation.empty[File, String]
-
     val mri = (classDependencies.filter(_._3 == DependencyByMemberRef) foldLeft Relation.empty[String, String]) {
       case (rel, (dependsOnClassName, sourceClassName, _)) => rel + (sourceClassName -> dependsOnClassName)
     }
@@ -82,6 +76,11 @@ class TestAnalysisCallback(
     }
     val ie = Relation.empty[File, String]
 
+    // TODO: These empty relations are out of sync with the actual implementation in
+    // sbt.internal.inc.AnalysisCallback: see https://github.com/sbt/zinc/issues/152
+    val lii = Relation.empty[File, String]
+    val lie = Relation.empty[File, String]
+
     val cn = Relation.empty[File, String]
 
     val bcn = Relation.empty[String, String] ++ classNames.values.flatten
@@ -90,7 +89,7 @@ class TestAnalysisCallback(
       case (rel, (sourceClassName, names)) => rel ++ (names map (n => (sourceClassName, n)))
     }
 
-    val relations = Relations.construct(true, p :: bin :: di :: de :: pii :: pie :: mri :: mre :: ii :: ie :: cn :: un :: bcn :: Nil)
+    val relations = Relations.construct(true, p :: bin :: mri :: mre :: ii :: ie :: lii :: lie :: cn :: un :: bcn :: Nil)
 
     val analyzedApis = classNames.values.flatMap(_.map(_._1)).map(analyzeClass)
 
