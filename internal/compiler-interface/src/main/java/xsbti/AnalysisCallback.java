@@ -57,4 +57,8 @@ public interface AnalysisCallback {
 
     /** Called at the end of dependency phase. Can be used e.g. to wait on asynchronous tasks. */
     void apiPhaseCompleted();
+
+    /** Determines if incremental compilation is enabled.
+     * If returns false, only xsbt-analyzer phase will be added (in order to report generated classes) */
+    boolean enabled();
 }

@@ -241,6 +241,8 @@ private final class AnalysisCallback(
 
   def nameHashing: Boolean = options.nameHashing
 
+  override def enabled(): Boolean = options.enabled
+
   def get: Analysis =
     addUsedNames(addCompilation(addProductsAndDeps(Analysis.empty(nameHashing = nameHashing))))
 
