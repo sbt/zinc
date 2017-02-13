@@ -80,6 +80,7 @@ lazy val zincRoot: Project = (project in file(".")).
     zinc,
     zincTesting,
     zincPersist,
+    zincBenchmarks,
     zincCore,
     zincIvyIntegration,
     zincCompile,
@@ -190,6 +191,17 @@ lazy val zincCore = (project in internalPath / "zinc-core").
     name := "zinc Core"
   ).
   configure(addSbtIO, addSbtUtilLogging, addSbtUtilRelation)
+
+lazy val zincBenchmarks = (project in internalPath / "zinc-benchmarks").
+  dependsOn(compilerInterface % "compile->compile;compile->test").
+  dependsOn(compilerBridge, zincCore, zincTesting % Test).
+  enablePlugins(JmhPlugin).
+  settings(
+    name := "Benchmarks of Zinc and the compiler bridge",
+    scalaVersion := "2.12.1",
+    libraryDependencies +=
+      "org.eclipse.jgit" % "org.eclipse.jgit" % "4.6.0.201612231935-r"
+  )
 
 lazy val zincIvyIntegration = (project in internalPath / "zinc-ivy-integration").
   dependsOn(zincCompileCore, zincTesting % Test).
