@@ -101,8 +101,18 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
     case e: CompileFailed => throw e // just ignore
     case e: Throwable =>
       val ex = e // For Intellij debugging purpose
+
+      val outputString = output match {
+        case singleOutput: SingleOutput =>
+          singleOutput.outputDirectory().toString
+        case multiOutput: MultipleOutput =>
+          multiOutput.outputGroups().map(_.outputDirectory().toString).mkString("[", ", ", "]")
+        case _ =>
+          s"other output ($output)"
+      }
+
       log.error(f0(
-        s"""## Exception when compiling ${sources.head} and others...
+        s"""## Exception when compiling ${sources.length} sources to $outputString
            |${e.getMessage}
            |${ex.getStackTrace.mkString("\n")}
          """.stripMargin

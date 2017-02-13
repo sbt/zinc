@@ -281,7 +281,7 @@ private final class AnalysisCallback(
     val (companions, apiHash) = companionsWithHash(name)
     val nameHashes = nameHashesForCompanions(name)
     val safeCompanions = SafeLazyProxy(companions)
-    val ac = new AnalyzedClass(compilation, name, safeCompanions, apiHash, nameHashes, hasMacro)
+    val ac = new AnalyzedClass(compilation.startTime(), name, safeCompanions, apiHash, nameHashes, hasMacro)
     ac
   }
 

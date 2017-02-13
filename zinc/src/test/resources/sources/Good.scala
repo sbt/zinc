@@ -1,4 +1,4 @@
-package test.pkg
+package pkg
 
 object Good extends App {
   println("hello, world")

@@ -1,73 +1,60 @@
 package sbt
 package inc
 
-import xsbti.api.{ ExternalDependency, Companions }
-import xsbti.compile.{ MiniSetup, MiniOptions }
-import sbt.internal.inc.{ Analysis, Exists, SourceInfos, TestCaseGenerators, TextAnalysisFormat, CompanionsStore }
+import xsbti.api._
+import xsbti.compile._
+import xsbti.{ Problem, T2 }
+import sbt.internal.inc._
 import sbt.util.InterfaceUtil._
-
 import java.io.{ BufferedReader, File, StringReader, StringWriter }
+
 import Analysis.NonLocalProduct
-import xsbti.api.DependencyContext
 
 import org.scalacheck._
 import Gen._
 import Prop._
 
-object TextAnalysisFormatTest extends Properties("TextAnalysisFormat") {
+object DefaultTextAnalysisFormatTest extends Properties("TextAnalysisFormat") with BaseTextAnalysisFormatTest {
+  override def format = TextAnalysisFormat
+}
+
+trait BaseTextAnalysisFormatTest {
+  self: Properties =>
+
+  def format: TextAnalysisFormat
 
   val nameHashing = true
   val storeApis = true
   val dummyOutput = new xsbti.compile.SingleOutput { def outputDirectory: java.io.File = new java.io.File("/dummy") }
   val commonSetup = new MiniSetup(dummyOutput, new MiniOptions(Array(), Array(), Array()), "2.10.4", xsbti.compile.CompileOrder.Mixed, nameHashing, storeApis,
     Array(t2(("key", "value"))))
-  val commonHeader = """format version: 6
-                    |output mode:
-                    |1 items
-                    |0 -> single
-                    |output directories:
-                    |1 items
-                    |file:/dummy -> file:/dummy
-                    |classpath hash:
-                    |0 items
-                    |compile options:
-                    |0 items
-                    |javac options:
-                    |0 items
-                    |compiler version:
-                    |1 items
-                    |0 -> 2.10.4
-                    |compile order:
-                    |1 items
-                    |0 -> Mixed
-                    |name hashing:
-                    |1 items
-                    |0 -> true
-                    |skip Api storing:
-                    |1 items
-                    |0 -> true
-                    |extra:
-                    |1 items
-                    |key -> value""".stripMargin
   val companionStore = new CompanionsStore {
     def getUncaught(): (Map[String, Companions], Map[String, Companions]) = (Map(), Map())
     def get(): Option[(Map[String, Companions], Map[String, Companions])] = Some(getUncaught())
   }
 
-  property("Write and read empty Analysis") = {
-
+  protected def serialize(analysis: Analysis, format: TextAnalysisFormat): String = {
     val writer = new StringWriter
-    val analysis = Analysis.empty(nameHashing)
-    TextAnalysisFormat.write(writer, analysis, commonSetup)
 
-    val result = writer.toString
-    // println(result)
+    format.write(writer, analysis, commonSetup)
+    writer.toString
+  }
 
-    val reader = new BufferedReader(new StringReader(result))
+  protected def deserialize(from: String, format: TextAnalysisFormat): (Analysis, MiniSetup) = {
+    val reader = new BufferedReader(new StringReader(from))
 
-    val (readAnalysis: Analysis, readSetup) = TextAnalysisFormat.read(reader, companionStore)
+    val (readAnalysis: Analysis, readSetup) = format.read(reader, companionStore)
+    (readAnalysis, readSetup)
+  }
 
-    compare(analysis, readAnalysis) && result.startsWith(commonHeader)
+  protected def checkAnalysis(analysis: Analysis) = {
+    val (readAnalysis, readSetup) = deserialize(serialize(analysis, format), format)
+
+    compare(analysis, readAnalysis) && compare(commonSetup, readSetup)
+  }
+
+  property("Write and read empty Analysis") = {
+    checkAnalysis(Analysis.empty(nameHashing))
   }
 
   property("Write and read simple Analysis") = {
@@ -90,43 +77,50 @@ object TextAnalysisFormatTest extends Properties("TextAnalysisFormat") {
     val externalDeps = new ExternalDependency("A", "C", cClass, DependencyContext.DependencyByMemberRef) :: Nil
     analysis = analysis.addSource(aScala, Seq(aClass), exists, sourceInfos, products, Nil, Nil, externalDeps, binaryDeps)
 
-    val writer = new StringWriter
-
-    TextAnalysisFormat.write(writer, analysis, commonSetup)
-
-    val result = writer.toString
-    // println(result)
-
-    val reader = new BufferedReader(new StringReader(result))
-
-    val (readAnalysis: Analysis, readSetup) = TextAnalysisFormat.read(reader, companionStore)
-
-    compare(analysis, readAnalysis) && result.startsWith(commonHeader)
+    checkAnalysis(analysis)
   }
 
   property("Write and read complex Analysis") =
-    forAllNoShrink(TestCaseGenerators.genAnalysis) { analysis: Analysis =>
-      val writer = new StringWriter
-
-      TextAnalysisFormat.write(writer, analysis, commonSetup)
-
-      val result = writer.toString
-
-      val reader = new BufferedReader(new StringReader(result))
-
-      val (readAnalysis: Analysis, readSetup) = TextAnalysisFormat.read(reader, companionStore)
-
-      compare(analysis, readAnalysis) && result.startsWith(commonHeader)
-    }
+    forAllNoShrink(TestCaseGenerators.genAnalysis)(checkAnalysis)
 
   // Compare two analyses with useful labelling when they aren't equal.
-  private[this] def compare(left: Analysis, right: Analysis): Prop = {
-    s" LEFT: $left" |:
-      s"RIGHT: $right" |:
-      s"STAMPS EQUAL: ${left.stamps == right.stamps}" |:
-      s"APIS EQUAL: ${left.apis == right.apis}" |:
-      s"RELATIONS EQUAL: ${left.relations == right.relations}" |:
-      "UNEQUAL" |:
-      (left == right)
+  protected def compare(left: Analysis, right: Analysis): Prop = {
+    ("STAMPS" |: left.stamps =? right.stamps) &&
+      ("APIS" |: left.apis =? right.apis) &&
+      ("RELATIONS" |: left.relations =? right.relations) &&
+      ("SourceInfos" |: mapInfos(left.infos) =? mapInfos(right.infos)) &&
+      ("Whole Analysis" |: left =? right)
   }
+
+  private def mapInfos(a: SourceInfos): Map[File, (Seq[Problem], Seq[Problem])] =
+    a.allInfos.map {
+      case (f, infos) =>
+        f -> (infos.reportedProblems -> infos.unreportedProblems)
+    }
+
+  private def compareOutputs(left: Output, right: Output): Prop = {
+    (left, right) match {
+      case (l: SingleOutput, r: SingleOutput) =>
+        "Single output dir" |: l.outputDirectory() =? r.outputDirectory()
+      case (l: MultipleOutput, r: MultipleOutput) =>
+        "Output group match" |: l.outputGroups() =? r.outputGroups()
+      case _ =>
+        s"Cannot compare $left with $right" |: left =? right
+    }
+  }
+
+  // Compare two analyses with useful labelling when they aren't equal.
+  protected def compare(left: MiniSetup, right: MiniSetup): Prop = {
+    ("OUTPUT EQUAL" |: compareOutputs(left.output(), right.output())) &&
+      ("OPTIONS EQUAL" |: left.options() =? right.options()) &&
+      ("COMPILER VERSION EQUAL" |: left.compilerVersion() == right.compilerVersion) &&
+      ("COMPILE ORDER EQUAL" |: left.order() =? right.order()) &&
+      ("NAMEHASHING EQUAL" |: left.nameHashing() =? right.nameHashing()) &&
+      ("STORE API EQUAL" |: left.storeApis() =? right.storeApis()) &&
+      ("EXTEA EQUAL" |: mapExtra(left.extra()) =? mapExtra(right.extra()))
+  }
+
+  private def mapExtra(extra: Array[T2[String, String]]): Seq[(String, String)] =
+    extra.toSeq.map(x => (x.get1(), x.get2()))
+
 }

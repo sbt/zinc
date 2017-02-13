@@ -271,7 +271,7 @@ case class ProjectStructure(name: String, dependsOn: Vector[String], baseDirecto
       val allCompilations = analysis.compilations.allCompilations
       val recompiledClasses: Seq[Set[String]] = allCompilations map { c =>
         val recompiledClasses = analysis.apis.internal.collect {
-          case (className, api) if api.compilation.startTime == c.startTime => className
+          case (className, api) if api.compilationTimestamp() == c.startTime => className
         }
         recompiledClasses.toSet
       }

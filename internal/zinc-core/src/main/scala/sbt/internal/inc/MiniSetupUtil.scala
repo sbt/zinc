@@ -34,9 +34,11 @@ object MiniSetupUtil {
     }
   }
   implicit val equivPairs: Equiv[Array[T2[String, String]]] = new Equiv[Array[T2[String, String]]] {
+    private def comparable(a: Array[T2[String, String]]): Set[(String, String)] =
+      a.filterNot(_.get1 startsWith "info.").map(v => v.get1() -> v.get2())(collection.breakOut)
+
     def equiv(a: Array[T2[String, String]], b: Array[T2[String, String]]): Boolean =
-      ((a.toList filter { x => !(x.get1 startsWith "info.") }) sameElements
-        (b.toList filter { x => !(x.get1 startsWith "info.") }))
+      comparable(a) == comparable(b)
   }
   implicit val equivFile: Equiv[File] = new Equiv[File] {
     def equiv(a: File, b: File) = a.getAbsoluteFile == b.getAbsoluteFile

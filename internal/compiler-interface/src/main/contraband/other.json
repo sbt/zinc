@@ -6,7 +6,7 @@
       "target": "Java",
       "type": "record",
       "fields": [
-        { "name": "compilation", "type": "Compilation"     },
+        { "name": "compilationTimestamp", "type": "long"   },
         { "name": "name",        "type": "String"          },
         { "name": "api",         "type": "lazy Companions" },
         { "name": "apiHash",     "type": "int"             },
