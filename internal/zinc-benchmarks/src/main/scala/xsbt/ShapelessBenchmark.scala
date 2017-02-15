@@ -17,7 +17,19 @@ class BenchmarkBase {
 
   protected def compile(): Unit = {
     // TODO: Tweak to benchmark the rest of the projects as well
-    _projectsSetup.head.compile
+    val firstProject = _projectsSetup.head
+    val info = firstProject.compilationInfo
+    println(
+      s"""Compiling with:
+        |
+        |> Classpath: ${info.classpath}
+        |
+        |> Scalac options: ${info.scalacOptions.mkString(" ")}
+        |
+        |> Scala sources: ${info.sources.mkString(" ")}
+      """.stripMargin
+    )
+    firstProject.compile()
   }
 }
 

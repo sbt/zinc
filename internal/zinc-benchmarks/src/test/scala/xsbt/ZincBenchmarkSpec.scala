@@ -29,7 +29,7 @@ class ZincBenchmarkSpec extends FunSuite {
       resultWithErrorMessage.foreach { setups =>
         assert(setups.nonEmpty)
         setups.foreach { setup =>
-          val sources = setup.srcs
+          val sources = setup.compilationInfo.sources
           assert(sources.nonEmpty)
           assert(sources.exists(_.contains("TomlParser")))
         }
@@ -37,9 +37,10 @@ class ZincBenchmarkSpec extends FunSuite {
 
       resultWithErrorMessage.foreach { setups =>
         setups.foreach { setup =>
-          println(s"Compiling ${setup.srcs}")
-          println(s"> Classpath: ${setup.classpath}")
-          setup.run.compile(setup.srcs)
+          val info = setup.compilationInfo
+          println(s"Compiling ${info.sources}")
+          println(s"> Classpath: ${info.classpath}")
+          setup.run.compile(info.sources)
         }
       }
     } catch {
