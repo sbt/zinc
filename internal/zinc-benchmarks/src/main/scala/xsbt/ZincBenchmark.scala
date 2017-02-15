@@ -208,6 +208,7 @@ case class BenchmarkProject(
   subprojects: Seq[String],
   useJavaCp: Boolean = true
 ) {
+  assert(subprojects.nonEmpty)
   import ZincBenchmark.{ Git, CompilationInfo, BuildInfo }
 
   def cloneRepo: Either[Throwable, RichFile] = {
