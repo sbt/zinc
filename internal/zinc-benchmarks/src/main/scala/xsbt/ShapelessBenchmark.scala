@@ -1,44 +1,43 @@
 package xsbt
 
 import java.util.concurrent.TimeUnit
-
 import org.openjdk.jmh.annotations._
 
-@State(Scope.Benchmark)
-class BenchmarkBase {
-  var _project: BenchmarkProject = _
-  var _projectsSetup: List[ProjectSetup] = _
-
-  @Setup(Level.Trial)
-  def setUpCompilerRuns(): Unit = {
-    val compiler = new ZincBenchmark(_project)
-    _projectsSetup = compiler.prepare.getOrCrash
-  }
-
-  protected def compile(): Unit = {
-    // TODO: Tweak to benchmark the rest of the projects as well
-    val firstProject = _projectsSetup.head
-    val info = firstProject.compilationInfo
-    println(
-      s"""Compiling with:
-        |
-        |> Classpath: ${info.classpath}
-        |
-        |> Scalac options: ${info.scalacOptions.mkString(" ")}
-        |
-        |> Scala sources: ${info.sources.mkString(" ")}
-      """.stripMargin
-    )
-    firstProject.compile()
-  }
+class ShapelessBenchmark extends BenchmarkBase {
+  _project = BenchmarkProjects.Shapeless
 }
 
 @State(Scope.Benchmark)
 @BenchmarkMode(Array(Mode.SingleShotTime))
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 @Fork(value = 16, jvmArgs = Array("-XX:CICompilerCount=2"))
-class ShapelessBenchmark extends BenchmarkBase {
-  _project = BenchmarkProjects.Shapeless
+class ColdShapelessBenchmark extends ShapelessBenchmark {
+  @Benchmark
+  override def compile(): Unit = {
+    super.compile()
+  }
+}
+
+@State(Scope.Benchmark)
+@BenchmarkMode(Array(Mode.SampleTime))
+@OutputTimeUnit(TimeUnit.MILLISECONDS)
+@Warmup(iterations = 0)
+@Measurement(iterations = 1, time = 30, timeUnit = TimeUnit.SECONDS)
+@Fork(value = 3)
+class WarmShapelessBenchmark extends ShapelessBenchmark {
+  @Benchmark
+  override def compile(): Unit = {
+    super.compile()
+  }
+}
+
+@State(Scope.Benchmark)
+@BenchmarkMode(Array(Mode.SampleTime))
+@OutputTimeUnit(TimeUnit.MILLISECONDS)
+@Warmup(iterations = 6, time = 10, timeUnit = TimeUnit.SECONDS)
+@Measurement(iterations = 12, time = 10, timeUnit = TimeUnit.SECONDS)
+@Fork(value = 3)
+class HotShapelessBenchmark extends ShapelessBenchmark {
   @Benchmark
   override def compile(): Unit = {
     super.compile()
