@@ -17,6 +17,7 @@ import xsbti.api._
 import xsbti.compile._
 import javax.xml.bind.DatatypeConverter
 import sbt.util.InterfaceUtil
+import sbt.util.InterfaceUtil.{ jo2o, problem, position }
 
 // A text-based serialization format for Analysis objects.
 // This code has been tuned for high performance, and therefore has non-idiomatic areas.
