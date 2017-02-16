@@ -11,13 +11,21 @@ import xsbti.compile.SingleOutput
 
 import scala.util.Try
 
-case class ProjectSetup(at: File, compilationInfo: CompilationInfo, run: ZincBenchmark.Run) {
-  def compile(): Unit = run.compile(compilationInfo.sources)
+/** Represent the setup for a concrete subproject of a `BenchmarkProject`. */
+case class ProjectSetup(
+  subproject: String,
+  at: File,
+  compilationInfo: CompilationInfo,
+  private val runGenerator: ZincBenchmark.Generator
+) {
+  def compile(): Unit = {
+    val run = runGenerator()
+    run.compile(compilationInfo.sources)
+  }
 }
 
-case class BenchmarkOptions(classpath: String, args: Array[String])
-
-case class ZincSetup(result: Either[Throwable, List[ProjectSetup]]) {
+/** Consist of the setups for every subproject of a `ProjectBenchmark`. */
+case class ZincSetup(result: ZincBenchmark.Result[List[ProjectSetup]]) {
   private def crash(throwable: Throwable) = {
     val message =
       s"""Unexpected error when setting up Zinc benchmarks:
@@ -31,40 +39,74 @@ case class ZincSetup(result: Either[Throwable, List[ProjectSetup]]) {
     result.fold(crash, identity)
 }
 
-/* Classes are defined `private[xsbt]` to avoid scoping issues w/ `Compiler0`. */
+/* Classes are defined `private[xsbt]` to avoid scoping issues w/ `CachedCompiler0`. */
 
 /** Instantiate a `ZincBenchmark` from a given project. */
 private[xsbt] class ZincBenchmark(toCompile: BenchmarkProject) {
+  import ZincBenchmark.WriteBuildInfo
+
+  def writeSetup(globalDir: File): WriteBuildInfo = {
+    // Destructive action, remove previous state and cloned projects
+    if (globalDir.exists()) IO.delete(globalDir)
+    toCompile.cloneRepo(globalDir).flatMap { projectDir =>
+      toCompile.writeBuildInfo(projectDir, globalDir)
+    }
+  }
+
   private val UseJavaCpArg = Array("-usejavacp")
-  def prepare: ZincSetup = ZincSetup {
-    toCompile.cloneRepo.flatMap { rootDir =>
-      toCompile.getClasspathAndSources(rootDir).map { buildInfos =>
-        buildInfos.map { buildInfo0 =>
-          val javaFile = rootDir.asFile
-          val buildInfo = {
-            if (!toCompile.useJavaCp) buildInfo0
-            else {
-              val currentOpts = buildInfo0.scalacOptions
-              buildInfo0.copy(scalacOptions = currentOpts ++ UseJavaCpArg)
-            }
-          }
-          // Set up the compiler and store the current setup
-          val run = ZincBenchmark.setUpCompiler(buildInfo, javaFile)
-          ProjectSetup(javaFile, buildInfo, run)
+  def readSetup(compilationDir: File): ZincSetup = {
+    def createSetup(subproject: String, compilationInfo: CompilationInfo) = {
+
+      val buildInfo = {
+        if (!toCompile.useJavaCp) compilationInfo
+        else {
+          val currentOpts = compilationInfo.scalacOptions
+          compilationInfo.copy(scalacOptions = currentOpts ++ UseJavaCpArg)
         }
       }
+
+      // Set up the compiler and store the current setup
+      val javaFile = new RichFile(compilationDir) / "benchmark-target"
+      val runGen = ZincBenchmark.setUpCompiler(buildInfo, javaFile)
+      ProjectSetup(subproject, javaFile, buildInfo, runGen)
     }
+
+    val targetProjects = toCompile.subprojects.map(
+      CompilationInfo.createIdentifierFor(_, toCompile)
+    )
+
+    import CompilationInfo.{ readBuildInfos, createStateFile }
+    val stateFile = createStateFile(compilationDir)
+    val targetSetup = readBuildInfos(stateFile).flatMap { builds =>
+      val collected = builds.collect {
+        case build if build.exists(t => targetProjects.contains(t._1)) =>
+          val (subproject, compilationInfo) = build.right.get
+          createSetup(subproject, compilationInfo)
+      }
+
+      if (collected.nonEmpty) Right(collected)
+      else
+        Left(new Exception(s"No build in $targetProjects found in $builds."))
+    }
+
+    ZincSetup(targetSetup)
   }
 }
 
 private[xsbt] object ZincBenchmark {
   type Sources = List[String]
-  type Run = CachedCompiler0#Compiler#Run
+  type Compiler = CachedCompiler0#Compiler
+  type Run = Compiler#Run
+  type Generator = () => Run
 
   /** Set up the compiler to compile `sources` with -cp `classpath` at `targetDir`. */
-  def setUpCompiler(compilationInfo: CompilationInfo, targetDir: File): Run = {
-    // Name hashing is true by default
-    val callback: AnalysisCallback = new xsbti.TestCallback(true)
+  def setUpCompiler(
+    compilationInfo: CompilationInfo,
+    targetDir: File
+  ): Generator = () => {
+    IO.delete(targetDir)
+    IO.createDirectory(targetDir)
+    val callback = new xsbti.TestCallback(true)
     val compiler = prepareCompiler(targetDir, callback, compilationInfo)
     new compiler.Run
   }
@@ -77,7 +119,7 @@ private[xsbt] object ZincBenchmark {
     outputDir: File,
     analysisCallback: AnalysisCallback,
     compilationInfo: CompilationInfo
-  ): CachedCompiler0#Compiler = {
+  ): Compiler = {
     object output extends SingleOutput {
       def outputDirectory: File = outputDir
       override def toString = s"SingleOutput($outputDirectory)"
@@ -109,17 +151,26 @@ private[xsbt] object ZincBenchmark {
   /* Utils to programmatically instantiate Compiler from sbt setup  */
   /* ************************************************************* */
 
+  /**
+   * Represent the build results for reading and writing build infos.
+   *
+   * In the future, `Throwable` can be lifted to another error repr.
+   */
+  type Result[T] = Either[Throwable, T]
+  type ReadBuildInfo = Result[(String, CompilationInfo)]
+  type WriteBuildInfo = Result[Unit]
+
   object Git {
 
     /** Clone a git repository using JGit. */
-    def clone(repo: String, at: File): Either[Throwable, Git] = {
+    def clone(repo: String, at: File): Result[Git] = {
       val cloneCommand =
         new CloneCommand().setURI(s"https://github.com/$repo").setDirectory(at)
       Try(cloneCommand.call()).toEither
     }
 
     /** Checkout a hash in a concrete repository and throw away Ref. */
-    def checkout(git: Git, hash: String): Either[Throwable, Git] =
+    def checkout(git: Git, hash: String): Result[Git] =
       Try(git.checkout().setName(hash).call()).toEither.map(_ => git)
   }
 
@@ -130,7 +181,7 @@ private[xsbt] object ZincBenchmark {
     scalacOptions: Array[String]
   )
 
-  /** Helper to get the classpath and the sources of a given sbt subproject. */
+  /** Helper to get the build info of a given sbt subproject. */
   object CompilationInfo {
 
     /** Generate class from output generated by `generateImpl`. */
@@ -144,11 +195,11 @@ private[xsbt] object ZincBenchmark {
       CompilationInfo(classpath, sourcesL, optionsL)
     }
 
-    private val TaskName = "getAllSourcesAndClasspath"
+    private val TaskNamePrefix = "getAllSourcesAndClasspath"
     private val ExpectedFileType = "out"
 
     private def generateTaskName(sbtProject: String) =
-      s"$TaskName-$sbtProject"
+      s"$TaskNamePrefix-$sbtProject"
 
     def generateOutputFile(sbtProject: String) =
       s"${generateTaskName(sbtProject)}.$ExpectedFileType"
@@ -171,34 +222,89 @@ private[xsbt] object ZincBenchmark {
       """.stripMargin
     }
 
-    /** Get sbt task command that has to be run along with sbt. */
-    def getClasspathAndSources(
-      sbtProject: String,
-      atDir: File,
-      outputFile: File
-    ): Either[Throwable, CompilationInfo] = {
+    /**
+     * Create identifier for subproject.
+     *
+     * Use of '#' as a delimiter because it is prohibited in GitHub repos.
+     */
+    def createIdentifierFor(subproject: String, project: BenchmarkProject) =
+      s"${project.repo}#$subproject"
 
-      import scala.sys.process._
-      val taskName = generateTaskName(sbtProject)
-      val sbt = Try(Process(s"sbt ++2.12.1 $taskName", atDir).!).toEither
-
-      sbt.flatMap { _ =>
-        // Sbt succeeded, parse the output file
+    /** Read all the compilation infos for all the benchmarks to be run. */
+    def readBuildInfos(stateFile: File): Result[List[ReadBuildInfo]] = {
+      def readCompilationFile(outputFile: File) = {
         val contents = IO.read(outputFile)
         val lines = contents.split("\n")
         lines match {
-          case Array(sourcesL, classpathL, optionsL) =>
-            Right(
-              CompilationInfo(classpathL.trim, sourcesL.trim, optionsL.trim)
-            )
-          case _ => Left(new Exception("Error when reading classpath output."))
+          case Array(sourcesL, classpathL, optsL) =>
+            Right(CompilationInfo(classpathL.trim, sourcesL.trim, optsL.trim))
+          case _ =>
+            Left(new Exception(s"Error when reading sbt output: $lines."))
+        }
+      }
+
+      def parseStateLine(line: String): ReadBuildInfo = {
+        line.split(UniqueDelimiter) match {
+          case Array(sbtProject, buildOutputFilepath) =>
+            val buildOutputFile = new File(buildOutputFilepath)
+            if (buildOutputFile.exists())
+              readCompilationFile(buildOutputFile).map(sbtProject -> _)
+            else Left(new Exception(s"$buildOutputFile doesn't exist."))
+          case _ =>
+            Left(new Exception(s"Unexpected format of line: $line."))
+        }
+      }
+
+      val readState = Try(IO.read(stateFile).lines.toList).toEither
+      readState.flatMap { stateLines =>
+        val init: Result[List[ReadBuildInfo]] = Right(Nil)
+        stateLines.foldLeft(init) { (acc, line) =>
+          acc.map(rs => parseStateLine(line) :: rs)
         }
       }
     }
-  }
 
-  /** Represent the build information. */
-  type BuildInfo = Either[Throwable, List[CompilationInfo]]
+    private val BenchmarkStateFilename = "benchmarks-info.out"
+
+    /**
+     * Create the file where the benchmark state is saved.
+     *
+     * State file holds the pair of projects to filepaths where the build
+     * information is found. This information has to be written into a
+     * file so that the reader and writer (that run in independent JVMs)
+     * can communicate between each other. The writer JVM is the one that
+     * sets up the benchmarks, the reader is the JMH-based benchmarks.
+     */
+    def createStateFile(atDir: File): File = {
+      new File(s"${atDir.getAbsolutePath}/$BenchmarkStateFilename")
+    }
+
+    private val UniqueDelimiter = "@@@"
+
+    /** Run sbt task command for a given project. */
+    def executeSbtTask(
+      sbtProject: String,
+      project: BenchmarkProject,
+      atDir: File,
+      buildOutputFile: File,
+      stateFile: File
+    ): Result[Unit] = {
+      import scala.sys.process._
+      val taskName = generateTaskName(sbtProject)
+      val sbt = Try(Process(s"sbt ++2.12.1 $taskName", atDir).!).toEither
+      sbt.flatMap { _ =>
+        val buildOutputFilepath = buildOutputFile.getAbsolutePath
+        Try {
+          val subprojectId = createIdentifierFor(sbtProject, project)
+          assert(!subprojectId.contains(UniqueDelimiter))
+          assert(!buildOutputFilepath.contains(UniqueDelimiter))
+          val projectLine =
+            s"$subprojectId$UniqueDelimiter$buildOutputFilepath\n"
+          IO.append(stateFile, projectLine)
+        }.toEither
+      }
+    }
+  }
 }
 
 /** Represent a project on which to run benchmarks. */
@@ -208,40 +314,48 @@ case class BenchmarkProject(
   subprojects: Seq[String],
   useJavaCp: Boolean = true
 ) {
+  assert(hash.nonEmpty)
   assert(subprojects.nonEmpty)
-  import ZincBenchmark.{ Git, CompilationInfo, BuildInfo }
+  assert(repo.contains("/"), "Repo has to follow the 'owner/repo' format")
 
-  def cloneRepo: Either[Throwable, RichFile] = {
-    val tempDir = sbt.io.IO.createTemporaryDirectory
+  import ZincBenchmark.{ Result, Git, CompilationInfo, WriteBuildInfo }
+
+  private[xsbt] def cloneRepo(at: File): Result[File] = {
+    val tempDir = new File(s"${at.getAbsolutePath}/$hash")
     val gitClient = Git.clone(repo, tempDir)
     gitClient
       .flatMap(Git.checkout(_, hash))
-      .map(_ => new RichFile(tempDir))
+      .map(_ => tempDir)
   }
 
-  def getClasspathAndSources(at: RichFile): BuildInfo = {
-    def getClasspathAndSources(
-      subproject: String
-    ): Either[Throwable, CompilationInfo] = {
+  def writeBuildInfo(projectDir: File, sharedDir: File): WriteBuildInfo = {
+    def persistBuildInfo(subproject: String, stateFile: File): Result[Unit] = {
       val filename = CompilationInfo.generateOutputFile(subproject)
-      val outputFile = at / filename
-      val taskImpl = CompilationInfo.generateImpl(subproject, outputFile)
-      // TODO: Remove assumption of build.sbt?
-      val buildFile = at / "build.sbt"
+      val clonedProjectDir = new RichFile(projectDir)
+      val subprojectOutput = clonedProjectDir / filename
+      val taskImpl = CompilationInfo.generateImpl(subproject, subprojectOutput)
+      val buildFile = clonedProjectDir / "build.sbt"
       val appendFile = Try(IO.append(buildFile, taskImpl)).toEither
+
       appendFile.flatMap { _ =>
-        CompilationInfo.getClasspathAndSources(
+        CompilationInfo.executeSbtTask(
           subproject,
-          at.asFile,
-          outputFile
+          this,
+          projectDir,
+          subprojectOutput,
+          stateFile
         )
       }
     }
 
-    val init: BuildInfo = Right(Nil)
+    // Empty state file if exists, otherwise create it
+    val stateFile = CompilationInfo.createStateFile(sharedDir)
+    IO.write(stateFile, "")
+
+    val init: WriteBuildInfo = Right(())
     subprojects.foldLeft(init) { (result, subproject) =>
-      result.flatMap { acc =>
-        getClasspathAndSources(subproject).map(_ :: acc)
+      result.flatMap { _ =>
+        persistBuildInfo(subproject, stateFile)
       }
     }
   }

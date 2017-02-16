@@ -337,6 +337,19 @@ lazy val publishBridgesAndTest = Command.args("publishBridgesAndTest", "<version
     state
 }
 
+val dir = IO.createTemporaryDirectory
+val dirPath = dir.getAbsolutePath
+lazy val tearDownBenchmarkResources = taskKey[Unit]("Remove benchmark resources.")
+tearDownBenchmarkResources in ThisBuild := { IO.delete(dir) }
+
+addCommandAlias(
+  "runBenchmarks",
+  s""";zincBenchmarks/run $dirPath
+     |;zincBenchmarks/jmh:run -p _tempDir=$dirPath
+     |;tearDownBenchmarkResources
+   """.stripMargin
+)
+
 lazy val otherRootSettings = Seq(
   Scripted.scriptedPrescripted := { addSbtAlternateResolver _ },
   Scripted.scripted <<= scriptedTask,

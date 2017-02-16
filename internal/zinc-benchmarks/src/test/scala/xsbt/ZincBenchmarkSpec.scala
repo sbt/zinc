@@ -1,10 +1,20 @@
 package xsbt
 
 import org.scalatest.FunSuite
+import sbt.io.IO
 
 import scala.util.control.NonFatal
 
 class ZincBenchmarkSpec extends FunSuite {
+  def enrichResult[T](result: Either[Throwable, T]) = {
+    result.left.map { throwable =>
+      s"""
+         |Result is not Right, got: ${throwable.getMessage}
+         |${throwable.getStackTrace.mkString("\n")}
+       """.stripMargin
+    }
+  }
+
   test("Check that setup for small project is successful and zinc compiles") {
     object Stoml
       extends BenchmarkProject(
@@ -15,18 +25,16 @@ class ZincBenchmarkSpec extends FunSuite {
       )
 
     val stoml = new ZincBenchmark(Stoml)
-    val result = stoml.prepare.result
-    val resultWithErrorMessage = result.left.map { throwable =>
-      s"""
-         |Result is not Right, got: ${throwable.getMessage}
-         |${throwable.getStackTrace.mkString("\n")}
-       """.stripMargin
-    }
+    val tempDir = IO.createTemporaryDirectory
 
-    // Delete cloned projects when tests fail
     try {
-      assert(resultWithErrorMessage.isRight, resultWithErrorMessage)
-      resultWithErrorMessage.foreach { setups =>
+      val writeResult = enrichResult(stoml.writeSetup(tempDir))
+      assert(writeResult.isRight, writeResult)
+
+      // Delete cloned projects when tests fail
+      val readResult = enrichResult(stoml.readSetup(tempDir).result)
+      assert(readResult.isRight, readResult)
+      readResult.foreach { setups =>
         assert(setups.nonEmpty)
         setups.foreach { setup =>
           val sources = setup.compilationInfo.sources
@@ -35,19 +43,21 @@ class ZincBenchmarkSpec extends FunSuite {
         }
       }
 
-      resultWithErrorMessage.foreach { setups =>
+      readResult.foreach { setups =>
         setups.foreach { setup =>
           val info = setup.compilationInfo
           println(s"Compiling ${info.sources}")
           println(s"> Classpath: ${info.classpath}")
-          setup.run.compile(info.sources)
+          setup.compile()
         }
       }
+
+      // Clean if successful
+      IO.delete(tempDir)
     } catch {
       case NonFatal(e) =>
-        resultWithErrorMessage.foreach { setups =>
-          sbt.io.IO.delete(setups.head.at)
-        }
+        // Clean if it fails
+        IO.delete(tempDir)
         throw e
     }
   }
