@@ -35,8 +35,7 @@ object LoggerReporter {
       jo2o(pos.offset) == jo2o(o.offset) &&
         jo2o(pos.sourceFile) == jo2o(o.sourceFile)
     override def hashCode =
-      jo2o(pos.offset).hashCode * 31
-    jo2o(pos.sourceFile).hashCode
+      jo2o(pos.offset).hashCode * 31 + jo2o(pos.sourceFile).hashCode
   }
 
   def countElementsAsString(n: Int, elements: String): String =
