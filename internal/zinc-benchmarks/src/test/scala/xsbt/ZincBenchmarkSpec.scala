@@ -34,7 +34,7 @@ class ZincBenchmarkSpec extends FunSuite {
       // Delete cloned projects when tests fail
       val readResult = enrichResult(stoml.readSetup(tempDir).result)
       assert(readResult.isRight, readResult)
-      readResult.foreach { setups =>
+      readResult.right.foreach { setups =>
         assert(setups.nonEmpty)
         setups.foreach { setup =>
           val sources = setup.compilationInfo.sources
@@ -43,7 +43,7 @@ class ZincBenchmarkSpec extends FunSuite {
         }
       }
 
-      readResult.foreach { setups =>
+      readResult.right.foreach { setups =>
         setups.foreach { setup =>
           val info = setup.compilationInfo
           println(s"Compiling ${info.sources}")

@@ -80,13 +80,13 @@ lazy val zincRoot: Project = (project in file(".")).
     zinc,
     zincTesting,
     zincPersist,
-    zincBenchmarks,
     zincCore,
     zincIvyIntegration,
     zincCompile,
     zincCompileCore,
     compilerInterface,
     compilerBridge,
+    zincBenchmarks,
     zincApiInfo,
     zincClasspath,
     zincClassfile,
@@ -198,7 +198,6 @@ lazy val zincBenchmarks = (project in internalPath / "zinc-benchmarks").
   enablePlugins(JmhPlugin).
   settings(
     name := "Benchmarks of Zinc and the compiler bridge",
-    scalaVersion := "2.12.1",
     libraryDependencies +=
       "org.eclipse.jgit" % "org.eclipse.jgit" % "4.6.0.201612231935-r"
   )

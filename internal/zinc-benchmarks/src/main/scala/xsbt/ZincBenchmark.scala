@@ -48,7 +48,7 @@ private[xsbt] class ZincBenchmark(toCompile: BenchmarkProject) {
   def writeSetup(globalDir: File): WriteBuildInfo = {
     // Destructive action, remove previous state and cloned projects
     if (globalDir.exists()) IO.delete(globalDir)
-    toCompile.cloneRepo(globalDir).flatMap { projectDir =>
+    toCompile.cloneRepo(globalDir).right.flatMap { projectDir =>
       toCompile.writeBuildInfo(projectDir, globalDir)
     }
   }
@@ -77,9 +77,9 @@ private[xsbt] class ZincBenchmark(toCompile: BenchmarkProject) {
 
     import CompilationInfo.{ readBuildInfos, createStateFile }
     val stateFile = createStateFile(compilationDir)
-    val targetSetup = readBuildInfos(stateFile).flatMap { builds =>
+    val targetSetup = readBuildInfos(stateFile).right.flatMap { builds =>
       val collected = builds.collect {
-        case build if build.exists(t => targetProjects.contains(t._1)) =>
+        case build if build.right.exists(t => targetProjects.contains(t._1)) =>
           val (subproject, compilationInfo) = build.right.get
           createSetup(subproject, compilationInfo)
       }
@@ -151,6 +151,16 @@ private[xsbt] object ZincBenchmark {
   /* Utils to programmatically instantiate Compiler from sbt setup  */
   /* ************************************************************* */
 
+  /** Pimp for < Scala 2.12.x compatibility. */
+  implicit class TryPimp[T](t: Try[T]) {
+    def toEither: Either[Throwable, T] = {
+      t match {
+        case scala.util.Success(value) => Right(value)
+        case scala.util.Failure(e)     => Left(e)
+      }
+    }
+  }
+
   /**
    * Represent the build results for reading and writing build infos.
    *
@@ -171,7 +181,7 @@ private[xsbt] object ZincBenchmark {
 
     /** Checkout a hash in a concrete repository and throw away Ref. */
     def checkout(git: Git, hash: String): Result[Git] =
-      Try(git.checkout().setName(hash).call()).toEither.map(_ => git)
+      Try(git.checkout().setName(hash).call()).toEither.right.map(_ => git)
   }
 
   /** Sbt classpath, scalac options and sources for a given subproject. */
@@ -248,7 +258,7 @@ private[xsbt] object ZincBenchmark {
           case Array(sbtProject, buildOutputFilepath) =>
             val buildOutputFile = new File(buildOutputFilepath)
             if (buildOutputFile.exists())
-              readCompilationFile(buildOutputFile).map(sbtProject -> _)
+              readCompilationFile(buildOutputFile).right.map(sbtProject -> _)
             else Left(new Exception(s"$buildOutputFile doesn't exist."))
           case _ =>
             Left(new Exception(s"Unexpected format of line: $line."))
@@ -256,10 +266,10 @@ private[xsbt] object ZincBenchmark {
       }
 
       val readState = Try(IO.read(stateFile).lines.toList).toEither
-      readState.flatMap { stateLines =>
+      readState.right.flatMap { stateLines =>
         val init: Result[List[ReadBuildInfo]] = Right(Nil)
         stateLines.foldLeft(init) { (acc, line) =>
-          acc.map(rs => parseStateLine(line) :: rs)
+          acc.right.map(rs => parseStateLine(line) :: rs)
         }
       }
     }
@@ -291,8 +301,9 @@ private[xsbt] object ZincBenchmark {
     ): Result[Unit] = {
       import scala.sys.process._
       val taskName = generateTaskName(sbtProject)
-      val sbt = Try(Process(s"sbt ++2.12.1 $taskName", atDir).!).toEither
-      sbt.flatMap { _ =>
+      val scalaVersion = scala.util.Properties.scalaPropOrElse("version.number", "2.12.1")
+      val sbt = Try(Process(s"sbt ++$scalaVersion $taskName", atDir).!).toEither
+      sbt.right.flatMap { _ =>
         val buildOutputFilepath = buildOutputFile.getAbsolutePath
         Try {
           val subprojectId = createIdentifierFor(sbtProject, project)
@@ -324,10 +335,11 @@ case class BenchmarkProject(
     val tempDir = new File(s"${at.getAbsolutePath}/$hash")
     val gitClient = Git.clone(repo, tempDir)
     gitClient
-      .flatMap(Git.checkout(_, hash))
-      .map(_ => tempDir)
+      .right.flatMap(Git.checkout(_, hash))
+      .right.map(_ => tempDir)
   }
 
+  import ZincBenchmark.TryPimp
   def writeBuildInfo(projectDir: File, sharedDir: File): WriteBuildInfo = {
     def persistBuildInfo(subproject: String, stateFile: File): Result[Unit] = {
       val filename = CompilationInfo.generateOutputFile(subproject)
@@ -337,7 +349,7 @@ case class BenchmarkProject(
       val buildFile = clonedProjectDir / "build.sbt"
       val appendFile = Try(IO.append(buildFile, taskImpl)).toEither
 
-      appendFile.flatMap { _ =>
+      appendFile.right.flatMap { _ =>
         CompilationInfo.executeSbtTask(
           subproject,
           this,
@@ -354,7 +366,7 @@ case class BenchmarkProject(
 
     val init: WriteBuildInfo = Right(())
     subprojects.foldLeft(init) { (result, subproject) =>
-      result.flatMap { _ =>
+      result.right.flatMap { _ =>
         persistBuildInfo(subproject, stateFile)
       }
     }
