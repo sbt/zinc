@@ -13,30 +13,31 @@ package javac
 
 import java.io.File
 
-import sbt.util.Logger.o2m
+import java.util.Optional
+import sbt.util.InterfaceUtil.o2jo
 import xsbti.{ Problem, Severity, Maybe, Position }
 
 /** A wrapper around xsbti.Position so we can pass in Java input. */
 final case class JavaPosition(_sourceFilePath: String, _line: Int, _contents: String, _offset: Int) extends Position {
-  def line: Maybe[Integer] = o2m(Some(_line))
+  def line: Optional[Integer] = o2jo(Some(_line))
   def lineContent: String = _contents
-  def offset: Maybe[Integer] = o2m(Some(_offset))
-  def pointer: Maybe[Integer] = o2m(None)
-  def pointerSpace: Maybe[String] = o2m(None)
-  def sourcePath: Maybe[String] = o2m(Option(_sourceFilePath))
-  def sourceFile: Maybe[File] = o2m(Option(new File(_sourceFilePath)))
+  def offset: Optional[Integer] = o2jo(Some(_offset))
+  def pointer: Optional[Integer] = o2jo(None)
+  def pointerSpace: Optional[String] = o2jo(None)
+  def sourcePath: Optional[String] = o2jo(Option(_sourceFilePath))
+  def sourceFile: Optional[File] = o2jo(Option(new File(_sourceFilePath)))
   override def toString = s"${_sourceFilePath}:${_line}:${_offset}"
 }
 
 /** A position which has no information, because there is none. */
 object JavaNoPosition extends Position {
-  def line: Maybe[Integer] = o2m(None)
+  def line: Optional[Integer] = o2jo(None)
   def lineContent: String = ""
-  def offset: Maybe[Integer] = o2m(None)
-  def pointer: Maybe[Integer] = o2m(None)
-  def pointerSpace: Maybe[String] = o2m(None)
-  def sourcePath: Maybe[String] = o2m(None)
-  def sourceFile: Maybe[File] = o2m(None)
+  def offset: Optional[Integer] = o2jo(None)
+  def pointer: Optional[Integer] = o2jo(None)
+  def pointerSpace: Optional[String] = o2jo(None)
+  def sourcePath: Optional[String] = o2jo(None)
+  def sourceFile: Optional[File] = o2jo(None)
   override def toString = "NoPosition"
 }
 

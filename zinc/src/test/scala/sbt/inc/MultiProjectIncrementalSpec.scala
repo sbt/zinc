@@ -4,7 +4,6 @@ import java.io.File
 import java.net.URLClassLoader
 
 import sbt.internal.inc.{ ScalaInstance => _, _ }
-import sbt.internal.util.ConsoleLogger
 import sbt.io.IO
 import sbt.io.syntax._
 import sbt.util.{ InterfaceUtil, Logger }
@@ -41,7 +40,6 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       val binarySampleFile = sub1Directory / "lib" / "sample-binary_2.11-0.1.jar"
       IO.copyFile(binarySampleFile0, binarySampleFile)
       val sources = Array(dependerFile)
-      val log = ConsoleLogger()
       // uncomment this to see the debug log
       // log.setLevel(Level.Debug)
       val compilerBridge = getCompilerBridge(sub1Directory, Logger.Null, scalaVersion)

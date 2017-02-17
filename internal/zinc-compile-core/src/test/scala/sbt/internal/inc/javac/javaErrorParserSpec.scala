@@ -59,7 +59,7 @@ class JavaErrorParserSpec extends UnitSpec {
     val logger = Logger.Null
     val problems = parser.parseProblems(sampleErrorPosition, logger)
     problems should have size (1)
-    problems(0).position.offset.isDefined shouldBe true
+    problems(0).position.offset.isPresent shouldBe true
     problems(0).position.offset.get shouldBe 23
   }
 

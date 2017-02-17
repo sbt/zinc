@@ -4,11 +4,9 @@ package inc
 import java.io.File
 
 import sbt.io.IO
-import sbt.util.Logger
-import sbt.internal.util.UnitSpec
 import sbt.internal.inc.javac.{ JavaCompiler, JavaTools, Javadoc }
 import sbt.internal.inc.javac.JavaCompilerSpec
-import sbt.internal.inc.LoggerReporter
+import sbt.internal.inc.{ LoggerReporter, UnitSpec }
 import xsbti.compile.IncToolOptionsUtil
 import sbt.internal.util.DirectoryStoreFactory
 import scala.json.ast.unsafe.JValue
@@ -46,7 +44,6 @@ class DocSpec extends UnitSpec {
       JavaCompiler.local.getOrElse(sys.error("This test cannot be run on a JRE, but only a JDK.")),
       Javadoc.local.getOrElse(Javadoc.fork())
     )
-  lazy val log = Logger.Null
   lazy val reporter = new LoggerReporter(10, log)
   def knownSampleGoodFile =
     new File(classOf[JavaCompilerSpec].getResource("good.java").toURI)

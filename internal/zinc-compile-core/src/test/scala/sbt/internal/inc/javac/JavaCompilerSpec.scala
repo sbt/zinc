@@ -11,7 +11,7 @@ import xsbt.api.SameAPI
 import xsbti.{ Maybe, Problem, Severity }
 import xsbti.compile.{ IncToolOptions, IncToolOptionsUtil, JavaTools => XJavaTools }
 import sbt.io.IO
-import sbt.util.Logger
+import sbt.util.{ Logger, LogExchange }
 import sbt.internal.util.UnitSpec
 import org.scalatest.matchers._
 
@@ -114,7 +114,7 @@ class JavaCompilerSpec extends UnitSpec {
         case Some(content) => p.position.lineContent contains content
         case _             => true
       }
-    def lineNumberCheck = p.position.line.isDefined && (p.position.line.get == lineno)
+    def lineNumberCheck = p.position.line.isPresent && (p.position.line.get == lineno)
     lineNumberCheck && lineContentCheck
   }
 
@@ -146,11 +146,11 @@ class JavaCompilerSpec extends UnitSpec {
     (fproblems zip lproblems) foreach {
       case (f, l) =>
         // TODO - We should check to see if the levenshtein distance of the messages is close...
-        if (f.position.sourcePath.isDefined) (f.position.sourcePath.get shouldBe l.position.sourcePath.get)
-        else l.position.sourcePath.isDefined shouldBe false
+        if (f.position.sourcePath.isPresent) (f.position.sourcePath.get shouldBe l.position.sourcePath.get)
+        else l.position.sourcePath.isPresent shouldBe false
 
-        if (f.position.line.isDefined) f.position.line.get shouldBe l.position.line.get
-        else l.position.line.isDefined shouldBe false
+        if (f.position.line.isPresent) f.position.line.get shouldBe l.position.line.get
+        else l.position.line.isPresent shouldBe false
 
         f.severity shouldBe l.severity
     }
@@ -158,7 +158,7 @@ class JavaCompilerSpec extends UnitSpec {
 
   def compile(c: XJavaTools, sources: Seq[File], args: Seq[String],
     incToolOptions: IncToolOptions = IncToolOptionsUtil.defaultIncToolOptions()): (Boolean, Array[Problem]) = {
-    val log = Logger.Null
+    val log = LogExchange.logger("JavaCompilerSpec")
     val reporter = new LoggerReporter(10, log)
     val result = c.javac.run(sources.toArray, args.toArray, incToolOptions, reporter, log)
     (result, reporter.problems)
@@ -166,7 +166,7 @@ class JavaCompilerSpec extends UnitSpec {
 
   def doc(c: XJavaTools, sources: Seq[File], args: Seq[String],
     incToolOptions: IncToolOptions = IncToolOptionsUtil.defaultIncToolOptions()): (Boolean, Array[Problem]) = {
-    val log = Logger.Null
+    val log = LogExchange.logger("JavaCompilerSpec")
     val reporter = new LoggerReporter(10, log)
     val result = c.javadoc.run(sources.toArray, args.toArray, incToolOptions, reporter, log)
     (result, reporter.problems)
