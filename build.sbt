@@ -86,6 +86,7 @@ lazy val zincRoot: Project = (project in file(".")).
     zincCompileCore,
     compilerInterface,
     compilerBridge,
+    zincBenchmarks,
     zincApiInfo,
     zincClasspath,
     zincClassfile,
@@ -190,6 +191,16 @@ lazy val zincCore = (project in internalPath / "zinc-core").
     name := "zinc Core"
   ).
   configure(addSbtIO, addSbtUtilLogging, addSbtUtilRelation)
+
+lazy val zincBenchmarks = (project in internalPath / "zinc-benchmarks").
+  dependsOn(compilerInterface % "compile->compile;compile->test").
+  dependsOn(compilerBridge, zincCore, zincTesting % Test).
+  enablePlugins(JmhPlugin).
+  settings(
+    name := "Benchmarks of Zinc and the compiler bridge",
+    libraryDependencies +=
+      "org.eclipse.jgit" % "org.eclipse.jgit" % "4.6.0.201612231935-r"
+  )
 
 lazy val zincIvyIntegration = (project in internalPath / "zinc-ivy-integration").
   dependsOn(zincCompileCore, zincTesting % Test).
@@ -324,6 +335,19 @@ lazy val publishBridgesAndTest = Command.args("publishBridgesAndTest", "<version
     s"plz $version zincRoot/scripted" ::
     state
 }
+
+val dir = IO.createTemporaryDirectory
+val dirPath = dir.getAbsolutePath
+lazy val tearDownBenchmarkResources = taskKey[Unit]("Remove benchmark resources.")
+tearDownBenchmarkResources in ThisBuild := { IO.delete(dir) }
+
+addCommandAlias(
+  "runBenchmarks",
+  s""";zincBenchmarks/run $dirPath
+     |;zincBenchmarks/jmh:run -p _tempDir=$dirPath
+     |;tearDownBenchmarkResources
+   """.stripMargin
+)
 
 lazy val otherRootSettings = Seq(
   Scripted.scriptedPrescripted := { addSbtAlternateResolver _ },
