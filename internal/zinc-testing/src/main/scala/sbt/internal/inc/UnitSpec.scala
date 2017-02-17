@@ -26,7 +26,7 @@ object UnitSpec {
     val loggerName = "test-" + generateId.incrementAndGet
     val x = LogExchange.logger(loggerName)
     LogExchange.unbindLoggerAppenders(loggerName)
-    LogExchange.bindLoggerAppenders(loggerName, (consoleAppender -> Level.Debug) :: Nil)
+    LogExchange.bindLoggerAppenders(loggerName, (consoleAppender -> Level.Warn) :: Nil)
     x
   }
 }
