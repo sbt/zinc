@@ -199,7 +199,11 @@ lazy val zincBenchmarks = (project in internalPath / "zinc-benchmarks").
   settings(
     name := "Benchmarks of Zinc and the compiler bridge",
     libraryDependencies +=
-      "org.eclipse.jgit" % "org.eclipse.jgit" % "4.6.0.201612231935-r"
+      "org.eclipse.jgit" % "org.eclipse.jgit" % "4.6.0.201612231935-r",
+    scalaVersion := scala212,
+    crossScalaVersions := Seq(scala211, scala212),
+    publish := {},
+    publishLocal := {}
   )
 
 lazy val zincIvyIntegration = (project in internalPath / "zinc-ivy-integration").
