@@ -348,7 +348,7 @@ tearDownBenchmarkResources in ThisBuild := { IO.delete(dir) }
 addCommandAlias(
   "runBenchmarks",
   s""";zincBenchmarks/run $dirPath
-     |;zincBenchmarks/jmh:run -p _tempDir=$dirPath
+     |;zincBenchmarks/jmh:run -p _tempDir=$dirPath -prof gc
      |;tearDownBenchmarkResources
    """.stripMargin
 )
