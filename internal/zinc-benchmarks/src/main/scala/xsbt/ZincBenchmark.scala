@@ -79,8 +79,8 @@ private[xsbt] class ZincBenchmark(toCompile: BenchmarkProject) {
     val stateFile = createStateFile(compilationDir)
     val targetSetup = readBuildInfos(stateFile).right.flatMap { builds =>
       val collected = builds.collect {
-        case build if build.right.exists(t => targetProjects.contains(t._1)) =>
-          val (subproject, compilationInfo) = build.right.get
+        case r @ Right(read) if r.right.exists(t => targetProjects.contains(t._1)) =>
+          val (subproject, compilationInfo) = read
           createSetup(subproject, compilationInfo)
       }
 
@@ -218,16 +218,22 @@ private[xsbt] object ZincBenchmark {
     def generateImpl(sbtProject: String, outputFile: File): String = {
       val taskName = generateTaskName(sbtProject)
       s"""
+         |// This task is instrumented by the benchmarks in the Zinc compiler
          |lazy val `$taskName` =
          |  taskKey[Unit]("Get source files and classpath of subprojects")
-         |`$taskName` in ThisBuild := {
-         |  val file = new File("${outputFile.getAbsolutePath}")
-         |  val rawSources = (sources in Compile in $sbtProject).value
-         |  val sourcesLine = rawSources.map(_.getAbsolutePath).mkString(" ")
-         |  val rawClasspath = (dependencyClasspath in Compile in $sbtProject).value
-         |  val classpathLine = rawClasspath.map(_.data.getAbsolutePath).mkString(":")
-         |  val optionsLine = (scalacOptions in Compile in $sbtProject).value.mkString(" ")
-         |  IO.writeLines(file, Seq(sourcesLine, classpathLine, optionsLine))
+         |`$taskName` in ThisBuild := `$taskName-impl`.value
+         |lazy val `$taskName-impl` = Def.taskDyn {
+         |  // Resolve project dynamically to avoid name clashes/overloading
+         |  val project = LocalProject("$sbtProject")
+         |  Def.task {
+         |    val file = new File("${outputFile.getAbsolutePath}")
+         |    val rawSources = (sources in Compile in project).value
+         |    val sourcesLine = rawSources.map(_.getAbsolutePath).mkString(" ")
+         |    val rawClasspath = (dependencyClasspath in Compile in project).value
+         |    val classpathLine = rawClasspath.map(_.data.getAbsolutePath).mkString(":")
+         |    val optionsLine = (scalacOptions in Compile in project).value.mkString(" ")
+         |    IO.writeLines(file, Seq(sourcesLine, classpathLine, optionsLine))
+         |  }
          |}
       """.stripMargin
     }
