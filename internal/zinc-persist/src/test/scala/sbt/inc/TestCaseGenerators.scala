@@ -91,12 +91,6 @@ object TestCaseGenerators {
       val (p1, p2) = (mask zip xs).partition(_._1)
       (p1.map(_._2), p2.map(_._2))
     }
-    val pairsOfGenerators = for (defn <- defns) yield {
-      for {
-        isRegularMember <- arbitrary[Boolean]
-        nameHash <- genNameHash(defn)
-      } yield (isRegularMember, nameHash)
-    }
     val genNameHashesList = Gen.sequence[List[NameHash], xsbti.api.NameHash](defns.map(genNameHash))
     val genTwoListOfNameHashes = for {
       nameHashesList <- genNameHashesList

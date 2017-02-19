@@ -11,7 +11,6 @@ import java.io.{ BufferedReader, File, StringReader, StringWriter }
 import Analysis.NonLocalProduct
 
 import org.scalacheck._
-import Gen._
 import Prop._
 
 object DefaultTextAnalysisFormatTest extends Properties("TextAnalysisFormat") with BaseTextAnalysisFormatTest {
@@ -63,7 +62,6 @@ trait BaseTextAnalysisFormatTest {
 
     def f(s: String) = new File("/temp/" + s)
     val aScala = f("A.scala")
-    val bScala = f("B.scala")
     val aClass = genClass("A").sample.get
     val cClass = genClass("C").sample.get
     val exists = new Exists(true)
@@ -72,7 +70,6 @@ trait BaseTextAnalysisFormatTest {
     var analysis = Analysis.empty(nameHashing)
     val products = NonLocalProduct("A", "A", f("A.class"), exists) ::
       NonLocalProduct("A$", "A$", f("A$.class"), exists) :: Nil
-    val classes = ("A" -> "A") :: ("A$" -> "A$") :: Nil
     val binaryDeps = (f("x.jar"), "x", exists) :: Nil
     val externalDeps = new ExternalDependency("A", "C", cClass, DependencyContext.DependencyByMemberRef) :: Nil
     analysis = analysis.addSource(aScala, Seq(aClass), exists, sourceInfos, products, Nil, Nil, externalDeps, binaryDeps)
