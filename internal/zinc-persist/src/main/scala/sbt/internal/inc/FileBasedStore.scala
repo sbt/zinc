@@ -28,9 +28,16 @@ object FileBasedStore {
   private final class FileBasedStoreImpl(file: File, format: TextAnalysisFormat) extends AnalysisStore {
     val companionsStore = new FileBasedCompanionsMapStore(file)
 
+    /**
+     * Write the zipped analysis contents into a temporary file before
+     * overwriting the old analysis file and avoiding data race conditions.
+     *
+     * See https://github.com/sbt/zinc/issues/220 for more details.
+     */
     def set(analysis: CompileAnalysis, setup: MiniSetup): Unit = {
+      val tmpAnalysisFile = File.createTempFile(file.getName, ".tmp")
       if (!file.getParentFile.exists()) file.getParentFile.mkdirs()
-      Using.zipOutputStream(new FileOutputStream(file)) {
+      Using.zipOutputStream(new FileOutputStream(tmpAnalysisFile)) {
         outputStream =>
           val writer = new BufferedWriter(new OutputStreamWriter(outputStream, IO.utf8))
           outputStream.putNextEntry(new ZipEntry(analysisFileName))
@@ -42,8 +49,10 @@ object FileBasedStore {
             outputStream.closeEntry()
           }
       }
+      IO.move(tmpAnalysisFile, file)
     }
 
+    /** Get `CompileAnalysis` and `MiniSetup` instances for current `Analysis`. */
     def get(): Option[(CompileAnalysis, MiniSetup)] =
       allCatch.opt(getUncaught())
 
