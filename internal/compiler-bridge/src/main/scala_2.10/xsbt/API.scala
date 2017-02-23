@@ -1,5 +1,8 @@
-/* sbt -- Simple Build Tool
- * Copyright 2008, 2009, 2010, 2011 Mark Harrah
+/*
+ * Zinc - The incremental compiler for Scala.
+ * Copyright 2011 - 2017, Lightbend, Inc.
+ * Copyright 2008 - 2010, Mark Harrah
+ * This software is released under the terms written in LICENSE.
  */
 
 package xsbt
@@ -22,7 +25,8 @@ final class API(val global: CallbackGlobal) extends Compat with GlobalHelpers {
     override def run(): Unit =
       {
         val start = System.currentTimeMillis
-        super.run
+        super.run()
+        callback.apiPhaseCompleted()
         val stop = System.currentTimeMillis
         debuglog("API phase took : " + ((stop - start) / 1000.0) + " s")
       }

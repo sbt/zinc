@@ -9,7 +9,7 @@ package xsbt
 
 import scala.tools.nsc.Global
 
-trait GlobalHelpers {
+trait GlobalHelpers { self: Compat =>
   val global: Global
   import global._
 

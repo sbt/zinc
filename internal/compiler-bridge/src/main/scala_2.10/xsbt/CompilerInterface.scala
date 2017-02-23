@@ -1,19 +1,17 @@
-/* sbt -- Simple Build Tool
- * Copyright 2008, 2009 Mark Harrah
+/*
+ * Zinc - The incremental compiler for Scala.
+ * Copyright 2011 - 2017, Lightbend, Inc.
+ * Copyright 2008 - 2010, Mark Harrah
+ * This software is released under the terms written in LICENSE.
  */
+
 package xsbt
 
 import xsbti.{ AnalysisCallback, Logger, Problem, Reporter, Severity }
 import xsbti.compile._
-import scala.tools.nsc.{ backend, io, reporters, symtab, util, Phase, Global, Settings, SubComponent }
+import scala.tools.nsc.{ io, reporters, Phase, Global, Settings, SubComponent }
 import scala.tools.nsc.interactive.RangePositions
-import backend.JavaPlatform
-import scala.tools.util.PathResolver
-import symtab.SymbolLoaders
-import util.{ ClassPath, DirectoryClassPath, MergedClassPath, JavaClassPath }
-import ClassPath.{ ClassPathContext, JavaContext }
 import io.AbstractFile
-import scala.annotation.tailrec
 import scala.collection.mutable
 import Log.debug
 import java.io.File
@@ -224,8 +222,7 @@ private final class CachedCompiler0(args: Array[String], output: Output, initial
         }
         superComputePhaseDescriptors
       }
-    // Required because computePhaseDescriptors is private in 2.8 (changed to protected sometime later).
-    private[this] def superComputePhaseDescriptors() = superCall("computePhaseDescriptors").asInstanceOf[List[SubComponent]]
+    private[this] def superComputePhaseDescriptors() = this.computePhaseDescriptors
     private[this] def superDropRun(): Unit =
       try { superCall("dropRun"); () } catch { case e: NoSuchMethodException => () } // dropRun not in 2.8.1
     private[this] def superCall(methodName: String): AnyRef =

@@ -45,7 +45,7 @@ import scala.collection.mutable
  * The tree walking algorithm walks into TypeTree.original explicitly.
  *
  */
-class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) extends ClassName with GlobalHelpers {
+class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) extends Compat with ClassName with GlobalHelpers {
   import global._
 
   def extract(unit: CompilationUnit): Iterable[(String, Iterable[String])] = {
