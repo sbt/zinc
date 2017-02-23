@@ -45,24 +45,6 @@ abstract class Compat {
   val Nullary = global.NullaryMethodType
   val ScalaObjectClass = definitions.ScalaObjectClass
 
-  private[this] final class MiscCompat {
-    // in 2.9, nme.LOCALCHILD was renamed to tpnme.LOCAL_CHILD
-    def tpnme = nme
-    def LOCAL_CHILD = nme.LOCALCHILD
-    def LOCALCHILD = sourceCompatibilityOnly
-
-    // in 2.10, ScalaObject was removed
-    def ScalaObjectClass = definitions.ObjectClass
-
-    def NullaryMethodType = NullaryMethodTpe
-
-    def MACRO = DummyValue
-
-    // in 2.10, sym.moduleSuffix exists, but genJVM.moduleSuffix(Symbol) does not
-    def moduleSuffix(sym: Symbol): String = sourceCompatibilityOnly
-    // in 2.11 genJVM does not exist
-    def genJVM = this
-  }
   // in 2.9, NullaryMethodType was added to Type
   object NullaryMethodTpe {
     def unapply(t: Type): Option[Type] = None
@@ -89,6 +71,24 @@ abstract class Compat {
   private[this] def sourceCompatibilityOnly: Nothing = throw new RuntimeException("For source compatibility only: should not get here.")
 
   private[this] final implicit def miscCompat(n: AnyRef): MiscCompat = new MiscCompat
+  private[this] final class MiscCompat {
+    // in 2.9, nme.LOCALCHILD was renamed to tpnme.LOCAL_CHILD
+    def tpnme = nme
+    def LOCAL_CHILD = nme.LOCALCHILD
+    def LOCALCHILD = sourceCompatibilityOnly
+
+    // in 2.10, ScalaObject was removed
+    def ScalaObjectClass = definitions.ObjectClass
+
+    def NullaryMethodType = NullaryMethodTpe
+
+    def MACRO = DummyValue
+
+    // in 2.10, sym.moduleSuffix exists, but genJVM.moduleSuffix(Symbol) does not
+    def moduleSuffix(sym: Symbol): String = sourceCompatibilityOnly
+    // in 2.11 genJVM does not exist
+    def genJVM = this
+  }
 
   object MirrorHelper {
 
