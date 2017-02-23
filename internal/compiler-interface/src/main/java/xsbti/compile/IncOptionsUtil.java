@@ -7,16 +7,17 @@
 
 package xsbti.compile;
 
+import xsbti.Maybe;
+
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
-import xsbti.Maybe;
 
 /**
- * Helper object for xsbti.compile.IncOptions
+ * Define a helper class to instantiate {@link IncOptions}.
  */
 public class IncOptionsUtil {
-  /**
+  /*
    * 1. recompile changed sources
    * 2. recompile direct dependencies and transitive public inheritance dependencies of sources with API changes in 1.
    * 3. further changes invalidate all dependencies transitively to avoid too many steps.

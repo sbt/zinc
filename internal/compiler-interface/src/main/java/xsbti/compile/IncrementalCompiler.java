@@ -7,7 +7,8 @@
 
 package xsbti.compile;
 
-import xsbti.Logger;
+import xsbti.*;
+
 import java.io.File;
 
 /*
@@ -37,32 +38,73 @@ import java.io.File;
 *    ii. Arrays are treated as immutable.
 *    iii. No value is ever null.
 */
-public interface IncrementalCompiler
-{
-	/**
-	* Performs an incremental compilation as configured by `in`.
-	* The returned Analysis should be provided to compilations depending on the classes from this compilation.
-	*/
-	CompileResult compile(Inputs in, Logger log);
+public interface IncrementalCompiler {
 
-  /**
-   * Creates a compiler instance that can be used by the `compile` method.
-   *
-   * @param instance The Scala version to use
-   * @param interfaceJar The compiler interface jar compiled for the Scala version being used
-   * @param options Configures how arguments to the underlying Scala compiler will be built.
-   */
-  // ScalaCompiler newScalaCompiler(ScalaInstance instance, File interfaceJar, ClasspathOptions options);
+    /**
+     * Performs an incremental compilation given an instance of {@link Inputs}.
+     *
+     * @param in An instance of {@link Inputs} that collect all the inputs
+     *           required to run the compiler (from sources and classpath, to
+     *           compilation order, previous results, current setup, etc).
+     * @param logger An instance of {@link Logger} that logs Zinc output.
+     *
+     * @see IncrementalCompiler#inputs(CompileOptions, Compilers, Setup, PreviousResult)
+     * @see IncrementalCompiler#setup(PerClasspathEntryLookup, boolean, File, GlobalsCache, IncOptions, Reporter, Maybe, T2[])
+     *
+     * @return An instance of {@link CompileResult} that holds information
+     * about the results of the compilation.
+     */
+    CompileResult compile(Inputs inputs, Logger logger);
 
- /**
-	* Compiles the source interface for a Scala version.  The resulting jar can then be used by the `newScalaCompiler` method
-	* to create a ScalaCompiler for incremental compilation.  It is the client's responsibility to manage compiled jars for
-	* different Scala versions.
-	*
-	* @param label A brief name describing the source component for use in error messages
-	* @param sourceJar The jar file containing the compiler interface sources.  These are published as sbt's compiler-interface-src module.
-	* @param targetJar Where to create the output jar file containing the compiled classes.
-	* @param instance The ScalaInstance to compile the compiler interface for.
-	* @param log The logger to use during compilation. */
-	// void compileInterfaceJar(String label, File sourceJar, File targetJar, File interfaceJar, ScalaInstance instance, Logger log);
+    /**
+     * Performs an incremental compilation given its configuration.
+     *
+     * @param scalaCompiler The Scala compiler to compile Scala sources.
+     * @param javaCompiler The Java compiler to compile Java sources.
+     * @param sources An array of Java and Scala source files to be compiled.
+     * @param classpath An array of files representing classpath entries.
+     * @param output An instance of {@link Output} to store the compiler outputs.
+     * @param globalsCache Directory where previous cached compilers are stored.
+     * @param scalacOptions An array of options/settings for the Scala compiler.
+     * @param javacOptions An array of options for the Java compiler.
+     * @param previousAnalysis Optional previous incremental compilation analysis.
+     * @param previousSetup Optional previous incremental compilation setup.
+     * @param perClasspathEntryLookup Lookup of data structures and operations
+     *                                for a given classpath entry.
+     * @param reporter An instance of {@link Reporter} to report compiler output.
+     * @param compileOrder The order in which Java and Scala sources should
+     *                     be compiled.
+     * @param skip Flag to ignore this compilation run and return previous one.
+     * @param progress An instance of {@link CompileProgress} to keep track of
+     *                 the current compilation progress.
+     * @param incrementalOptions An Instance of {@link IncOptions} that
+     *                           configures the incremental compiler behaviour.
+     * @param extra An array of sbt tuples with extra options.
+     * @param logger An instance of {@link Logger} that logs Zinc output.
+     *
+     *
+     * @return An instance of {@link CompileResult} that holds information
+     * about the results of the compilation.
+     */
+    CompileResult compile(ScalaCompiler scalaCompiler,
+                          JavaCompiler javaCompiler,
+                          File[] sources,
+                          File[] classpath,
+                          Output output,
+                          GlobalsCache globalsCache,
+                          String[] scalacOptions,
+                          String[] javacOptions,
+                          Maybe<CompileAnalysis> previousAnalysis,
+                          Maybe<MiniSetup> previousSetup,
+                          PerClasspathEntryLookup perClasspathEntryLookup,
+                          Reporter reporter,
+                          CompileOrder compileOrder,
+                          // Has to be boxed to override in Scala,
+                          // this is a bug of the Scala compiler 2.12
+                          java.lang.Boolean skip,
+                          Maybe<CompileProgress> progress,
+                          IncOptions incrementalOptions,
+                          T2<String, String>[] extra,
+                          Logger logger);
+
 }

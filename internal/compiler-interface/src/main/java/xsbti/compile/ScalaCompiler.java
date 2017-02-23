@@ -14,45 +14,66 @@ import xsbti.Reporter;
 import java.io.File;
 
 /**
-* Interface to a Scala compiler.
-*/
-public interface ScalaCompiler
-{
+ * Represent the interface of a Scala compiler.
+ */
+public interface ScalaCompiler {
 	/**
-	 * The `ScalaInstance` used by this compiler.
+	 * Return the {@link ScalaInstance} used by this instance of the compiler.
 	 */
 	ScalaInstance scalaInstance();
 
 	/**
-	 * The `ClasspathOptions` used by this compiler.
+	 * Return the {@link ClasspathOptions} used by this instance of the compiler.
 	 */
 	ClasspathOptions classpathOptions();
 
 	/**
-	 * Recompile the subset of `sources` impacted by `changes` and collect new APIs.
+	 * Recompile the subset of <code>sources</code> impacted by the
+	 * changes defined in <code>changes</code> and collect the new APIs.
 	 *
 	 * @param sources  All the sources of the project.
 	 * @param changes  The changes that have been detected at the previous step.
-	 * @param callback The callback to which the extracted information should be reported.
-	 * @param log      Logger to use for compilation.
-	 * @param reporter The reporter to which errors and warnings should be reported during compilation.
+	 * @param callback The callback to which the extracted information should be
+	 *                 reported.
+	 * @param log      The logger in which the Scala compiler will log info.
+	 * @param reporter The reporter to which errors and warnings should be
+	 *                 reported during compilation.
 	 * @param progress Where to report the file being currently compiled.
 	 * @param compiler The actual compiler that will perform the compilation step.
 	 */
-	void compile(File[] sources, DependencyChanges changes, AnalysisCallback callback, Logger log, Reporter reporter, CompileProgress progress, CachedCompiler compiler);
+	void compile(File[] sources,
+	             DependencyChanges changes,
+	             AnalysisCallback callback,
+	             Logger log,
+	             Reporter reporter,
+	             CompileProgress progress,
+	             CachedCompiler compiler);
 
 	/**
-	 * Recompile the subset of `sources` impacted by `changes` and collect new APIs.
+	 * Recompile the subset of <code>sources</code> impacted by the
+	 * changes defined in <code>changes</code> and collect the new APIs.
 	 *
 	 * @param sources     All the sources of the project.
 	 * @param changes     The changes that have been detected at the previous step.
-	 * @param options     Arguments to give to the compiler (-Xfatal-warnings, ...).
-	 * @param output      Location where generated class files should be put.
-	 * @param callback    The callback to which the extracted information should be reported.
-	 * @param reporter    The reporter to which errors and warnings should be reported during compilation.
+	 * @param options     The arguments to give to the Scala compiler.
+	 *                    For more information, run `scalac -help`.
+	 * @param output      The location where generated class files should be put.
+	 * @param callback    The callback to which the extracted information should
+	 *                    be reported.
+	 * @param reporter    The reporter to which errors and warnings should be
+	 *                    reported during compilation.
 	 * @param cache       The cache from where we retrieve the compiler to use.
-	 * @param log         Logger to use for compilation.
-	 * @param progressOpt The `CompileProgress` to use to report the file being compile.
+	 * @param log         The logger in which the Scala compiler will log info.
+	 * @param progressOpt The progress interface in which the Scala compiler
+	 *                    will report on the file being compiled.
 	 */
-	void compile(File[] sources, DependencyChanges changes, String[] options, Output output, AnalysisCallback callback, Reporter reporter, GlobalsCache cache, Logger log, Maybe<CompileProgress> progressOpt);
+	void compile(File[] sources,
+	             DependencyChanges changes,
+	             String[] options,
+	             Output output,
+	             AnalysisCallback callback,
+	             Reporter reporter,
+	             GlobalsCache cache,
+	             Logger log,
+	             Maybe<CompileProgress> progressOpt);
 }

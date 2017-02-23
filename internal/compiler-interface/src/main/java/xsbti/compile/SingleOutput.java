@@ -9,11 +9,19 @@ package xsbti.compile;
 
 import java.io.File;
 
+/**
+ * Represent a single output directory where the Zinc incremental compiler
+ * will store all the generated class files by Java and Scala sources.
+ */
 public interface SingleOutput extends Output {
-
-	/** The directory where class files should be generated.
-	* Incremental compilation will manage the class files in this directory.
-	* In particular, outdated class files will be deleted before compilation.
-	* It is important that this directory is exclusively used for one set of sources. */
+	/**
+	 * Return the directory where class files should be generated.
+	 *
+	 * Incremental compilation manages the class files in this directory, so
+	 * don't play with this directory out of the Zinc API. Zinc already takes
+	 * care of deleting classes before every compilation run.
+	 *
+	 * This directory must be exclusively used for one set of sources.
+	 */
 	File outputDirectory();
 }

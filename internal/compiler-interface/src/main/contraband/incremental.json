@@ -252,12 +252,21 @@
       "target": "Java",
       "type": "record",
       "doc": [
-        "Configuration options derived from `IncOptions` for incremental compiler that",
-        "are used by `JavaTools`."
+        "Define the component that manages the generated class files and defines the",
+        "configuration options for an incremental compiler. This component is used by",
+        "any Java compiler that implements {@link xsbti.compile.JavaTools}."
       ],
       "fields": [
-        { "name": "classFileManager",         "type": "xsbti.Maybe<xsbti.compile.ClassFileManager>" },
-        { "name": "useCustomizedFileManager", "type": "boolean"                                     }
+        {
+          "name": "classFileManager",
+          "type": "xsbti.Maybe<xsbti.compile.ClassFileManager>",
+          "doc": "Define a component that manages the generated class files in every compilation cycle."
+        },
+        {
+          "name": "useCustomizedFileManager",
+          "type": "boolean",
+          "doc": "Flag that enables use of a customized {@link xsbti.compile.ClassFileManager}."
+        }
       ]
     },
     {
@@ -369,7 +378,11 @@
           "type": "xsbti.compile.Setup",
           "doc":   "Configures incremental compilation."
         },
-        { "name": "previousResult", "type": "xsbti.compile.PreviousResult" }
+        {
+          "name": "previousResult",
+          "type": "xsbti.compile.PreviousResult",
+          "doc":   "Configures incremental compilation."
+        }
       ]
     },
     {
@@ -400,8 +413,9 @@
       "target": "Java",
       "type": "record",
       "doc": [
-        "Configures modifications to the classpath based on the Scala instance used for compilation.",
-        "This is typically used for the Scala compiler only and all values set to false for the Java compiler."
+        "Define modifications to classpaths based on the {@link ScalaInstance} used for",
+        "compilation. This class tells how to instrument the classpaths given certain Scala",
+        "compiler-related parameters. Usually, values are all false for Java compilation."
       ],
       "fields": [
         {
