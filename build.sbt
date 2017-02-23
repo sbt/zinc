@@ -267,15 +267,17 @@ lazy val compilerBridge: Project = (project in internalPath / "compiler-bridge")
     // needed because we fork tests and tests are ran in parallel so we have multiple Scala
     // compiler instances that are memory hungry
     javaOptions in Test += "-Xmx1G",
-    scalaSource in Compile := {
-      scalaVersion.value match {
-        case v if v startsWith "2.10" => baseDirectory.value / "src-2.10" / "main" / "scala"
-        case _                        => baseDirectory.value / "src" / "main" / "scala"
-      }
-    },
+    inBoth(unmanagedSourceDirectories ++= scalaPartialVersion.value.collect {
+      case (2, y) if y == 10 => new File(scalaSource.value.getPath + "_2.10")
+      case (2, y) if y >= 11 => new File(scalaSource.value.getPath + "_2.11+")
+    }.toList),
     altPublishSettings
   ).
   configure(addSbtIO, addSbtUtilLogging)
+
+val scalaPartialVersion = Def setting (CrossVersion partialVersion (scalaVersion in ThisBuild).value)
+
+def inBoth(ss: Setting[_]*): Seq[Setting[_]] = Seq(Compile, Test) flatMap (inConfig(_)(ss))
 
 // defines operations on the API of a source, including determining whether it has changed and converting it to a string
 //   and discovery of Projclasses and annotations
