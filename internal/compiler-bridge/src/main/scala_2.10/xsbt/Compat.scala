@@ -90,17 +90,6 @@ abstract class Compat {
     def genJVM = this
   }
 
-  object MirrorHelper {
-
-    private implicit def withRootMirror(x: Any): WithRootMirror = new WithRootMirror(x)
-    private class DummyMirror {
-      def getClassIfDefined(x: String): Symbol = NoSymbol
-    }
-    private class WithRootMirror(x: Any) {
-      def rootMirror: DummyMirror = new DummyMirror
-    }
-  }
-
   object MacroExpansionOf {
     def unapply(tree: Tree): Option[Tree] = {
 
