@@ -43,13 +43,10 @@ public interface IncrementalCompiler {
     /**
      * Performs an incremental compilation given an instance of {@link Inputs}.
      *
-     * @param in An instance of {@link Inputs} that collect all the inputs
-     *           required to run the compiler (from sources and classpath, to
-     *           compilation order, previous results, current setup, etc).
+     * @param inputs An instance of {@link Inputs} that collect all the inputs
+     *               required to run the compiler (from sources and classpath,
+     *               to compilation order, previous results, current setup, etc).
      * @param logger An instance of {@link Logger} that logs Zinc output.
-     *
-     * @see IncrementalCompiler#inputs(CompileOptions, Compilers, Setup, PreviousResult)
-     * @see IncrementalCompiler#setup(PerClasspathEntryLookup, boolean, File, GlobalsCache, IncOptions, Reporter, Maybe, T2[])
      *
      * @return An instance of {@link CompileResult} that holds information
      * about the results of the compilation.
@@ -106,5 +103,4 @@ public interface IncrementalCompiler {
                           IncOptions incrementalOptions,
                           T2<String, String>[] extra,
                           Logger logger);
-
 }

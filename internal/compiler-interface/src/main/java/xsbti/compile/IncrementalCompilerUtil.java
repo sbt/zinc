@@ -125,10 +125,10 @@ public interface IncrementalCompilerUtil {
      * @param instance The ScalaInstance to compile the compiler interface for.
      * @param log The logger to use during compilation.
      */
-    void compileScalaBridge(String label,
+    /*void compileScalaBridge(String label,
                             File sourceJar,
                             File targetJar,
                             File interfaceJar,
                             ScalaInstance instance,
-                            Logger log);
+                            Logger log);*/
 }
