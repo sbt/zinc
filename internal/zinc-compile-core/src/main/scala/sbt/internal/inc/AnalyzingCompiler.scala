@@ -243,16 +243,8 @@ final class AnalyzingCompiler(
   ): Seq[String] = {
     val (classpathString, bootClasspath) = consoleClasspaths(classpath)
     val argsObj = call("xsbt.ConsoleInterface", "commandArguments", log)(
-      classOf[Array[String]],
-      classOf[String],
-      classOf[String],
-      classOf[xLogger]
-    )(
-      options.toArray[String]: Array[String],
-      bootClasspath,
-      classpathString,
-      log
-    )
+      classOf[Array[String]], classOf[String], classOf[String], classOf[xLogger]
+    )(options.toArray[String], bootClasspath, classpathString, log)
     argsObj.asInstanceOf[Array[String]].toSeq
   }
   def force(log: Logger): Unit = { provider(scalaInstance, log); () }

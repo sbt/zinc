@@ -11,7 +11,7 @@ public interface IncrementalCompilerUtil {
 
 
     /**
-     * Create a Scala compiler from a {@link ScalaInstance}, the jar defining
+     * Create a Scala compiler from a {@link ScalaInstance}, the jar containing
      * the compiler interface to be used and {@link ClasspathOptions}.
      *
      * @param scalaInstance The Scala instance to be used.
@@ -26,8 +26,8 @@ public interface IncrementalCompilerUtil {
                                 ClasspathOptions classpathOptions);
 
     /**
-     * Create a Scala compiler from a {@link ScalaInstance} and the jar defining
-     * the compiler interface to be used.
+     * Create a Scala compiler from a {@link ScalaInstance} and the jar
+     * containing the compiler interface to be used.
      *
      * @param scalaInstance The Scala instance to be used.
      * @param compilerBridgeJar The jar file of the compiler bridge.
