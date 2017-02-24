@@ -20,7 +20,7 @@ trait ClassName {
    * Creates a flat (binary) name for a class symbol `s`.
    */
   protected def flatname(s: Symbol, separator: Char) =
-    atPhase(currentRun.flattenPhase.next) { s fullName separator }
+    enteringPhase(currentRun.flattenPhase.next) { s fullName separator }
 
   /**
    * Create a (source) name for a class symbol `s`.
@@ -38,7 +38,7 @@ trait ClassName {
    * If `s` represents a package object `pkg3`, then the returned name will be `pkg1.pkg2.pkg3.package`.
    * If `s` represents a class `Foo` nested in package object `pkg3` then the returned name is `pkg1.pkg2.pk3.Foo`.
    */
-  protected def classNameAsSeenIn(in: Symbol, s: Symbol): String = atPhase(currentRun.picklerPhase.next) {
+  protected def classNameAsSeenIn(in: Symbol, s: Symbol): String = enteringPhase(currentRun.picklerPhase.next) {
     if (in.isRoot || in.isRootPackage || in == NoSymbol || in.isEffectiveRoot)
       s.simpleName.toString
     else if (in.isPackageObjectOrClass)
@@ -48,13 +48,13 @@ trait ClassName {
   }
 
   private def pickledName(s: Symbol): Name =
-    atPhase(currentRun.picklerPhase.next) { s.fullNameAsName('.') }
+    enteringPhase(currentRun.picklerPhase.next) { s.fullNameAsName('.') }
 
   private def pickledNameAsString(s: Symbol): String =
-    atPhase(currentRun.picklerPhase.next) { s.fullName }
+    enteringPhase(currentRun.picklerPhase.next) { s.fullName }
 
   protected def isTopLevelModule(sym: Symbol): Boolean =
-    atPhase(currentRun.picklerPhase.next) {
+    enteringPhase(currentRun.picklerPhase.next) {
       sym.isModuleClass && !sym.isImplClass && !sym.isNestedClass
     }
 
