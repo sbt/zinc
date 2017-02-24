@@ -241,7 +241,7 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
       val fromClass = resolveDependencySource().fromClass
       if (ignoredSymbol(fromClass) || fromClass.hasPackageFlag) {
         if (inImportNode) addTopLevelImportDependency(dep)
-        else debugwarn(Feedback.missingEnclosingClass(dep, currentOwner))
+        else devWarning(Feedback.missingEnclosingClass(dep, currentOwner))
       } else {
         addClassDependency(_memberRefCache, processor.memberRef, fromClass, dep)
       }

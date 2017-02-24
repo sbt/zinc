@@ -73,6 +73,9 @@ abstract class Compat {
     }
   def moduleSuffix(s: Symbol): String = s.moduleSuffix
 
+  // Not present in 2.10
+  @inline final def devWarning(msg: => String): Unit = debugwarn(msg)
+
   private[this] def sourceCompatibilityOnly: Nothing = throw new RuntimeException("For source compatibility only: should not get here.")
 
   private[this] final implicit def miscCompat(n: AnyRef): MiscCompat = new MiscCompat
