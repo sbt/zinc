@@ -1,5 +1,6 @@
 package xsbt
 
+import scala.reflect.{ internal => sri }
 import scala.tools.nsc.Global
 import scala.tools.nsc.symtab.Flags
 
@@ -58,11 +59,6 @@ abstract class Compat {
     def enclosingTopLevelClass: Symbol = sym.toplevelClass
     def toplevelClass: Symbol = sourceCompatibilityOnly
     def asMethod: MethodSymbol = sym.asInstanceOf[MethodSymbol]
-  }
-
-  protected implicit final class TreeCompat(tree: Tree) {
-    // Introduced in 2.11
-    def hasSymbolField: Boolean = tree.hasSymbol
   }
 
   val DummyValue = 0
@@ -134,5 +130,12 @@ abstract class Compat {
         }
       }
     }
+  }
+}
+
+object Compat {
+  implicit final class TreeOps(val tree: sri.Trees#Tree) extends AnyVal {
+    // Introduced in 2.11
+    def hasSymbolField: Boolean = tree.hasSymbol
   }
 }

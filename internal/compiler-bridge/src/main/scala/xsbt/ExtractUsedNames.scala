@@ -8,6 +8,7 @@
 package xsbt
 
 import scala.collection.mutable
+import Compat._
 
 /**
  * Extracts simple names used in given compilation unit.
