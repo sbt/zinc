@@ -1,7 +1,7 @@
 package xsbt
 
 import scala.reflect.{ internal => sri }
-import scala.tools.nsc.Global
+import scala.tools.nsc.{ Global, Settings }
 import scala.tools.nsc.symtab.Flags
 
 /**
@@ -137,5 +137,10 @@ object Compat {
   implicit final class TreeOps(val tree: sri.Trees#Tree) extends AnyVal {
     // Introduced in 2.11
     def hasSymbolField: Boolean = tree.hasSymbol
+  }
+
+  implicit final class SettingsCompat(val settings: Settings) extends AnyVal {
+    // Introduced in 2.11
+    def fatalWarnings = settings.Xwarnfatal
   }
 }

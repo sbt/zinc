@@ -8,6 +8,7 @@
 package xsbt
 
 import scala.tools.nsc.{ CompilerCommand, Settings }
+import Compat._
 
 object Command {
   /**
@@ -25,7 +26,7 @@ object Command {
   }
 
   def getWarnFatal(settings: Settings): Boolean =
-    settings.Xwarnfatal.value
+    settings.fatalWarnings.value
 
   def getNoWarn(settings: Settings): Boolean =
     settings.nowarn.value
