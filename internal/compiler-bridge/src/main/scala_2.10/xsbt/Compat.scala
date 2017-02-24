@@ -60,6 +60,11 @@ abstract class Compat {
     def asMethod: MethodSymbol = sym.asInstanceOf[MethodSymbol]
   }
 
+  protected implicit final class TreeCompat(tree: Tree) {
+    // Introduced in 2.11
+    def hasSymbolField: Boolean = tree.hasSymbol
+  }
+
   val DummyValue = 0
   def hasMacro(s: Symbol): Boolean =
     {

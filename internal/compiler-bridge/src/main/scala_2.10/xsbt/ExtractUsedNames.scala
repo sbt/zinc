@@ -155,7 +155,7 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
           inspectedTypeTrees += original
           original.foreach(traverse)
         }
-      case t if t.hasSymbol =>
+      case t if t.hasSymbolField =>
         addSymbol(t.symbol)
         if (t.tpe != null)
           foreachNotPackageSymbolInType(t.tpe)(addSymbol)
