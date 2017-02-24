@@ -74,7 +74,9 @@ private final class WeakLog(private[this] var log: Logger, private[this] var del
   }
 }
 
-private final class CachedCompiler0(args: Array[String], output: Output, initialLog: WeakLog, resident: Boolean) extends CachedCompiler {
+private[xsbt] final class CachedCompiler0(args: Array[String], output: Output, initialLog: WeakLog, resident: Boolean)
+  extends CachedCompiler
+  with CachedCompilerCompat {
   val settings = new Settings(s => initialLog(s))
   output match {
     case multi: MultipleOutput =>
@@ -155,7 +157,7 @@ private final class CachedCompiler0(args: Array[String], output: Output, initial
       compiler.logUnreportedWarnings(warnings.map(cw => ("" /*cw.what*/ , cw.warnings.toList)))
   }
 
-  val compiler: Compiler = new Compiler()
+  val compiler: Compiler = newCompiler
   class Compiler extends CallbackGlobal(command.settings, dreporter, output) {
     object dummy // temporary fix for #4426
     object sbtAnalyzer extends {

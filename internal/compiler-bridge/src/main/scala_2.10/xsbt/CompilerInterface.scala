@@ -10,7 +10,6 @@ package xsbt
 import xsbti.{ AnalysisCallback, Logger, Problem, Reporter, Severity }
 import xsbti.compile._
 import scala.tools.nsc.{ io, reporters, Phase, Global, Settings, SubComponent }
-import scala.tools.nsc.interactive.RangePositions
 import io.AbstractFile
 import scala.collection.mutable
 import Log.debug
@@ -75,7 +74,9 @@ private final class WeakLog(private[this] var log: Logger, private[this] var del
   }
 }
 
-private final class CachedCompiler0(args: Array[String], output: Output, initialLog: WeakLog, resident: Boolean) extends CachedCompiler {
+private[xsbt] final class CachedCompiler0(args: Array[String], output: Output, initialLog: WeakLog, resident: Boolean)
+  extends CachedCompiler
+  with CachedCompilerCompat {
   val settings = new Settings(s => initialLog(s))
   output match {
     case multi: MultipleOutput =>
@@ -156,12 +157,7 @@ private final class CachedCompiler0(args: Array[String], output: Output, initial
       compiler.logUnreportedWarnings(warnings.map(cw => ("" /*cw.what*/ , cw.warnings.toList)))
   }
 
-  val compiler: Compiler = {
-    if (command.settings.Yrangepos.value)
-      new Compiler() with RangePositions // unnecessary in 2.11
-    else
-      new Compiler()
-  }
+  val compiler: Compiler = newCompiler
   class Compiler extends CallbackGlobal(command.settings, dreporter, output) {
     object dummy // temporary fix for #4426
     object sbtAnalyzer extends {

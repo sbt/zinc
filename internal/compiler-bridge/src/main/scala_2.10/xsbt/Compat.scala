@@ -2,6 +2,7 @@ package xsbt
 
 import scala.reflect.{ internal => sri }
 import scala.tools.nsc.{ Global, Settings }
+import scala.tools.nsc.interactive.RangePositions
 import scala.tools.nsc.symtab.Flags
 
 /**
@@ -143,4 +144,12 @@ object Compat {
     // Introduced in 2.11
     def fatalWarnings = settings.Xwarnfatal
   }
+}
+
+trait CachedCompilerCompat { self: CachedCompiler0 =>
+  def newCompiler: Compiler =
+    if (command.settings.Yrangepos.value)
+      new Compiler() with RangePositions // unnecessary in 2.11
+    else
+      new Compiler()
 }
