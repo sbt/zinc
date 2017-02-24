@@ -12,7 +12,6 @@ package inc
 import xsbti.{ Logger => xLogger, Reporter }
 import xsbti.compile.{ CachedCompiler, CachedCompilerProvider, GlobalsCache, Output }
 import sbt.util.Logger.f0
-import java.io.File
 import java.util.{ LinkedHashMap, Map }
 
 private final class CompilerCache(val maxInstances: Int) extends GlobalsCache {

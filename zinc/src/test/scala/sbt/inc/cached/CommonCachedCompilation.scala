@@ -11,10 +11,10 @@ import java.io.File
 import java.nio.file.{ Files, Path, Paths }
 
 import org.scalatest.BeforeAndAfterAll
-import sbt.inc.BaseCompilerSpec
 import sbt.internal.inc.cached.{ CacheAwareStore, CacheProvider }
 import sbt.internal.inc.{ Analysis, AnalysisStore, FileBasedStore }
 import sbt.io.IO
+import sbt.inc.BaseCompilerSpec
 
 abstract class CommonCachedCompilation(name: String) extends BaseCompilerSpec with BeforeAndAfterAll {
 

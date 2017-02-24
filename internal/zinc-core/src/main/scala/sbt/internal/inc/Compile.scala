@@ -15,7 +15,7 @@ import xsbti.api._
 import xsbti.compile.{ CompileAnalysis, DependencyChanges, IncOptions, MultipleOutput, Output, SingleOutput }
 import xsbti.{ Position, Problem, Severity }
 import sbt.util.Logger
-import sbt.util.InterfaceUtil.{ o2jo, jo2o }
+import sbt.util.InterfaceUtil.jo2o
 import java.io.File
 import xsbti.api.DependencyContext
 import xsbti.compile.ClassFileManager

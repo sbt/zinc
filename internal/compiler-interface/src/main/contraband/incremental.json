@@ -366,22 +366,22 @@
         {
           "name": "compilers",
           "type": "xsbti.compile.Compilers",
-          "doc": "The Scala and Java compilers to use for compilation."
+          "doc": "Return the Scala and Java compilers to use for compilation."
         },
         {
           "name": "options",
           "type": "xsbti.compile.CompileOptions",
-          "doc": "Standard compilation options, such as the sources and classpath to use."
+          "doc": "Return the compilation options, such as the sources and classpath to use."
         },
         {
           "name": "setup",
           "type": "xsbti.compile.Setup",
-          "doc":   "Configures incremental compilation."
+          "doc": "Represent the configuration of incremental compilation."
         },
         {
           "name": "previousResult",
           "type": "xsbti.compile.PreviousResult",
-          "doc":   "Configures incremental compilation."
+          "doc": "Represent tha latest result of incremental compilation."
         }
       ]
     },

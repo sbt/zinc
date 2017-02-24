@@ -16,8 +16,7 @@ import java.io.File
 import sbt.io.syntax._
 import sbt.io.IO
 import sbt.util.Logger
-import xsbti.{ Logger => XLogger }
-import xsbti.Reporter
+import xsbti.{ Reporter, Logger => XLogger }
 import xsbti.compile.{ ClassFileManager, IncToolOptions, JavaCompiler => XJavaCompiler, Javadoc => XJavadoc }
 
 import scala.sys.process.Process

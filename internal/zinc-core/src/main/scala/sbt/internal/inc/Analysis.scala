@@ -11,7 +11,6 @@ package inc
 
 import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
 import java.io.File
-import sbt.internal.util.Relation
 
 import xsbti.api.{ AnalyzedClass, InternalDependency, ExternalDependency }
 import xsbti.compile.CompileAnalysis

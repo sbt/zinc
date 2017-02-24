@@ -20,7 +20,8 @@ public interface CompileProgress {
 	 * compilation unit.
 	 *
 	 * @param phase The phase of the compiler being run.
-	 * @param unitPath The path of the compilation unit.
+	 * @param unitPath The path of the compilation unit. It will be empty
+	 *                 when a Java compiler is reporting the progress.
 	 */
 	void startUnit(String phase, String unitPath);
 
@@ -30,7 +31,7 @@ public interface CompileProgress {
 	 * @param current The current progress.
 	 * @param total The total of the progress that has to be achieved.
 	 *
-	 * @return Whether the progress has advanced or not since last report.
+	 * @return Whether the user has cancelled compilation or not.
 	 */
 	boolean advance(int current, int total);
 }
