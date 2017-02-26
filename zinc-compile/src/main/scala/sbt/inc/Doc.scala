@@ -5,23 +5,23 @@
  * This software is released under the terms written in LICENSE.
  */
 
-package sbt
-package inc
+package sbt.inc
 
 import java.io.File
 
 import sbt.io.syntax._
 import sbt.io.IO
 import sbt.util.Logger
-import xsbti.Reporter
 import xsbti.compile.{ IncToolOptions, JavaTools }
 import sbt.internal.inc.javac.JavaCompilerArguments
 import sbt.internal.util.Tracked.inputChanged
 import sbt.internal.util.{ CacheStoreFactory, FileInfo, FilesInfo, HashFileInfo, ModifiedFileInfo, PlainFileInfo }
 import sbt.internal.util.CacheImplicits._
-import sbt.internal.util.FileInfo.{ exists, hash, lastModified }, exists._
-
-import sjsonnew._, LList.:*:
+import sbt.internal.util.FileInfo.{ exists, hash, lastModified }
+import exists._
+import sjsonnew._
+import LList.:*:
+import xsbti.Reporter
 
 object Doc {
   private[this] implicit val IsoInputs = LList.iso(

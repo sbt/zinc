@@ -7,4 +7,5 @@
 
 package xsbti.compile;
 
+/** Represent the interface of a Javadoc generator. */
 public interface Javadoc extends JavaTool {}

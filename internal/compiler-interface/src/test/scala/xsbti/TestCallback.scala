@@ -5,7 +5,7 @@ import xsbti.api.{ DependencyContext, ClassLike }
 
 import scala.collection.mutable.ArrayBuffer
 
-class TestCallback(override val nameHashing: Boolean = false) extends AnalysisCallback {
+class TestCallback extends AnalysisCallback {
   val classDependencies = new ArrayBuffer[(String, String, DependencyContext)]
   val binaryDependencies = new ArrayBuffer[(File, String, String, DependencyContext)]
   val products = new ArrayBuffer[(File, File)]

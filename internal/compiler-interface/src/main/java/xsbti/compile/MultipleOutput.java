@@ -9,19 +9,31 @@ package xsbti.compile;
 
 import java.io.File;
 
+/** Define the interface for several kind of output directories. */
 public interface MultipleOutput extends Output {
 
-	interface OutputGroup	{
-		/** The directory where source files are stored for this group.
-		 * Source directories should uniquely identify the group for a source file. */
+	/** Define the interface of a group of outputs. */
+	interface OutputGroup {
+		/**
+		 * Return the directory where source files are stored for this group.
+         *
+		 * Note that source directories should uniquely identify the group
+		 * for a certain source file.
+         */
 		File sourceDirectory();
 
-		/** The directory where class files should be generated.
-		* Incremental compilation will manage the class files in this directory.
-		* In particular, outdated class files will be deleted before compilation.
-		* It is important that this directory is exclusively used for one set of sources. */
+		/**
+		 * Return the directory where class files should be generated.
+		 *
+		 * Incremental compilation manages the class files in this directory, so
+		 * don't play with this directory out of the Zinc API. Zinc already takes
+		 * care of deleting classes before every compilation run.
+		 *
+		 * This directory must be exclusively used for one set of sources.
+		 */
 		File outputDirectory();
 	}
 
+	/** Return an array of the existent output groups. */
 	OutputGroup[] outputGroups();
 }

@@ -10,16 +10,32 @@ package xsbti.compile;
 import java.io.File;
 
 /**
- * Defines lookup of data structures and operations zinc needs to perform on per classpath element basis.
+ * Define the interface to look up mapped data structures and query classpath
+ * entries This interface gives answers to classpath-related questions like:
+ *
+ * - Is this class defined in this classpath entry?
+ *
+ * This interface also allows you to get the relation between a given
+ * classpath entry and its existing {@link CompileAnalysis} instance.
+ *
+ * The classpath entry can be either a JAR file or a given directory,
+ * as per the Java Language Specification.
  */
 public interface PerClasspathEntryLookup {
 
-    /** Provides the Analysis for the given classpath entry. */
+    /**
+     * Provide the {@link CompileAnalysis} mapped to a given classpath entry.
+     *
+     * @return An optional instance of {@link CompileAnalysis}.
+     */
     xsbti.Maybe<CompileAnalysis> analysis(File classpathEntry);
 
     /**
-     * Provides a function to determine if classpath entry `file` contains a given class.
-     * The returned function should generally cache information about `file`, such as the list of entries in a jar.
+     * Provide an instance of {@link DefinesClass} that will allow you to
+     * check whether a given classpath entry contains a binary class name.
+     *
+     * @return Instance of {@link DefinesClass} that will allow you to query
+     *         information for a given classpath entry.
      */
     DefinesClass definesClass(File classpathEntry);
 }

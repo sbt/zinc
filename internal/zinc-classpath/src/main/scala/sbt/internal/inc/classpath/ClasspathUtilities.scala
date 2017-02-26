@@ -10,13 +10,8 @@ package internal
 package inc
 package classpath
 
-import java.lang.ref.{ Reference, SoftReference, WeakReference }
 import java.io.File
 import java.net.{ URI, URL, URLClassLoader }
-import java.util.Collections
-import scala.collection.{ mutable, JavaConversions, Set }
-import mutable.{ HashSet, ListBuffer }
-import sbt.io.IO.{ createTemporaryDirectory, write }
 import sbt.io.{ IO, Path, PathFinder, Using }
 
 object ClasspathUtilities {

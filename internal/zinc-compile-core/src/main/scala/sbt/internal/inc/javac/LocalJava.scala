@@ -22,33 +22,52 @@ import xsbti.{ Reporter, Logger => XLogger }
 import xsbti.compile.{ ClassFileManager, IncToolOptions, JavaCompiler => XJavaCompiler, Javadoc => XJavadoc }
 
 /**
- * Helper methods for trying to run the java toolchain out of our own classloaders.
+ * Define helper methods that will try to instantiate the Java toolchain
+ * in our current class loaders. This operation may fail because different
+ * JDK versions will include different Java tool chains.
  */
 object LocalJava {
-  private[this] val javadocClass = "com.sun.tools.javadoc.Main"
-
-  private[this] def javadocMethod =
-    try {
-      Option(Class.forName(javadocClass).getDeclaredMethod("execute", classOf[String], classOf[PrintWriter], classOf[PrintWriter], classOf[PrintWriter], classOf[String], classOf[Array[String]]))
-    } catch {
-      case e @ (_: ClassNotFoundException | _: NoSuchMethodException) => None
-    }
-
   /** True if we can call a forked Javadoc. */
   def hasLocalJavadoc: Boolean = javadocMethod.isDefined
 
+  private[this] val javadocClass = "com.sun.tools.javadoc.Main"
+  /** Get the javadoc execute method reflectively from current class loader. */
+  private[this] def javadocMethod = {
+    try {
+      // Get the class from current class loader
+      val javadocClz = Class.forName(javadocClass)
+      val (str, pw) = (classOf[String], classOf[PrintWriter])
+      val arrStr = classOf[Array[String]]
+      Option(
+        // Invoke the `execute` method to run Javadoc generation
+        javadocClz.getDeclaredMethod("execute", str, pw, pw, pw, str, arrStr)
+      )
+    } catch {
+      case _@ (_: ClassNotFoundException | _: NoSuchMethodException) => None
+    }
+  }
+
+  private val JavadocFailure: String =
+    "Unable to reflectively invoke javadoc, class not present on the current class loader."
   /** A mechanism to call the javadoc tool via reflection. */
-  private[javac] def unsafeJavadoc(args: Array[String], err: PrintWriter, warn: PrintWriter, notice: PrintWriter): Int = {
+  private[javac] def unsafeJavadoc(
+    args: Array[String],
+    err: PrintWriter,
+    warn: PrintWriter,
+    notice: PrintWriter
+  ): Int = {
     javadocMethod match {
       case Some(m) =>
-        System.err.println("Running javadoc tool!")
-        m.invoke(null, "javadoc", err, warn, notice, "com.sun.tools.doclets.standard.Standard", args).asInstanceOf[java.lang.Integer].intValue
+        val stdClass = "com.sun.tools.doclets.standard.Standard"
+        val run = m.invoke(null, "javadoc", err, warn, notice, stdClass, args)
+        run.asInstanceOf[java.lang.Integer].intValue
       case _ =>
-        System.err.println("Unable to reflectively invoke javadoc, cannot find it on the current classloader!")
+        System.err.println(JavadocFailure)
         -1
     }
   }
 }
+
 /** Implementation of javadoc tool which attempts to run it locally (in-class). */
 final class LocalJavadoc() extends XJavadoc {
   override def run(sources: Array[File], options: Array[String], incToolOptions: IncToolOptions,
@@ -72,7 +91,10 @@ final class LocalJavadoc() extends XJavadoc {
   }
 }
 
-/** An implementation of compiling java which delegates to the JVM resident java compiler. */
+/**
+ * Define the implementation of a Java compiler which delegates to the JVM
+ * resident Java compiler.
+ */
 final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaCompiler {
   override def run(sources: Array[File], options: Array[String], incToolOptions: IncToolOptions,
     reporter: Reporter, log0: XLogger): Boolean = {
@@ -85,25 +107,29 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
     val fileManager = compiler.getStandardFileManager(diagnostics, null, null)
     val jfiles = fileManager.getJavaFileObjectsFromFiles(sources.toList.asJava)
 
-    // Local Java compiler doesn't accept `-J<flag>` options. We emit a warning if we find
-    // such options and don't pass them to the compiler.
+    /* Local Java compiler doesn't accept `-J<flag>` options, strip them. */
     val (invalidOptions, cleanedOptions) = options partition (_ startsWith "-J")
     if (invalidOptions.nonEmpty) {
       log.warn("Javac is running in 'local' mode. These flags have been removed:")
       log.warn(invalidOptions.mkString("\t", ", ", ""))
     }
 
-    val customizedFileManager = if (incToolOptions.useCustomizedFileManager && incToolOptions.classFileManager().isDefined)
-      new WriteReportingFileManager(fileManager, incToolOptions.classFileManager().get) else fileManager
+    val customizedFileManager = {
+      val maybeClassFileManager = incToolOptions.classFileManager()
+      if (incToolOptions.useCustomizedFileManager && maybeClassFileManager.isDefined)
+        new WriteReportingFileManager(fileManager, maybeClassFileManager.get)
+      else fileManager
+    }
 
     var compileSuccess = false
     try {
       val success = compiler.getTask(logWriter, customizedFileManager,
         diagnostics, cleanedOptions.toList.asJava, null, jfiles).call()
 
-      // The local compiler may report a successful compilation even though there are errors (e.g. encoding problems in the
-      // source files). In a similar situation, command line javac reports a failed compilation. To have the local java compiler
-      // stick to javac's behavior, we report a failed compilation if there have been errors.
+      /* Double check success variables for the Java compiler.
+       * The local compiler may report successful compilations even though
+       * there have been errors (e.g. encoding problems in sources). To stick
+       * to javac's behaviour, we report fail compilation from diagnostics. */
       compileSuccess = success && !diagnostics.hasErrors
     } finally {
       logger.flushLines(if (compileSuccess) Level.Warn else Level.Error)
@@ -115,21 +141,39 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
 /**
  * Track write calls through customized file manager.
  *
- * NB: overriding `getJavaFileForOutput` takes care of `.class` file generation, which is the most part.
- * `getFileForOutput` used by annotation processor for writing resources, however, cannot be overridden because
- * of a javac sdk limitation. In jdk8 it has a hard coded check of
- * `com.sun.tools.javac.file.RegularFileObject instanceof com.sun.tools.javac.file.BaseFileObject`
- * so if we wrap `RegularFileObject` with `ForwardingFileObject` would fail the check.
+ * @param fileManager A manager for Java files.
+ * @param classFileManager The instance that manages generated class files.
+ *
+ * @note `getFileForOutput` used by the annotation process for writing
+ *       resources cannot be overridden because of a Javac SDK check.
+ *       JDK8 has a hard-coded check against it that impedes wrapping
+ *       `RegularFileObject` with other instances, e.g. `ForwardingFileObject`.
  */
-final class WriteReportingFileManager(fileManager: JavaFileManager, var classFileManager: ClassFileManager)
-  extends ForwardingJavaFileManager[JavaFileManager](fileManager) {
-  override def getJavaFileForOutput(location: Location, className: String, kind: Kind, sibling: FileObject): JavaFileObject = {
-    new WriteReportingJavaFileObject(super.getJavaFileForOutput(location, className, kind, sibling), classFileManager)
+final class WriteReportingFileManager(
+  fileManager: JavaFileManager,
+  var classFileManager: ClassFileManager
+) extends ForwardingJavaFileManager[JavaFileManager](fileManager) {
+  override def getJavaFileForOutput(
+    location: Location,
+    className: String,
+    kind: Kind,
+    sibling: FileObject
+  ): JavaFileObject = {
+    val output = super.getJavaFileForOutput(location, className, kind, sibling)
+    new WriteReportingJavaFileObject(output, classFileManager)
   }
 }
 
-final class WriteReportingJavaFileObject(javaFileObject: JavaFileObject, var classFileManager: ClassFileManager)
-  extends ForwardingJavaFileObject[JavaFileObject](javaFileObject) {
+/**
+ * Track write calls through customized file manager.
+ *
+ * @param javaFileObject The Java File object where output should be stored.
+ * @param classFileManager The instance that manages generated class files.
+ */
+final class WriteReportingJavaFileObject(
+  javaFileObject: JavaFileObject,
+  var classFileManager: ClassFileManager
+) extends ForwardingJavaFileObject[JavaFileObject](javaFileObject) {
   override def openWriter(): Writer = {
     classFileManager.generated(Array(new File(javaFileObject.toUri)))
     super.openWriter()

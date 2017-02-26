@@ -15,13 +15,7 @@ import xsbti.compile.ClassFileManager
 import xsbti.compile.{ CompileAnalysis, DependencyChanges, IncOptions, Output }
 
 /**
- * Helper class to run incremental compilation algorithm.
- *
- *
- * This class delegates down to
- * - IncrementalNameHashing
- * - IncrementalDefault
- * - IncrementalAnyStyle
+ * Define helpers to run incremental compilation algorithm with name hashing.
  */
 object Incremental {
   class PrefixingLogger(val prefix: String)(orig: Logger) extends Logger {
@@ -63,12 +57,7 @@ object Incremental {
     {
       val previous = previous0 match { case a: Analysis => a }
       val incremental: IncrementalCommon =
-        if (options.nameHashing)
-          new IncrementalNameHashing(new PrefixingLogger("[naha] ")(log), options)
-        else if (options.antStyle)
-          new IncrementalAntStyle(log, options)
-        else
-          throw new UnsupportedOperationException("Turning off name hashing is not supported in class-based dependency tracking")
+        new IncrementalNameHashing(log, options)
       val initialChanges = incremental.changedInitial(sources, previous, current, lookup)
       val binaryChanges = new DependencyChanges {
         val modifiedBinaries = initialChanges.binaryDeps.toArray

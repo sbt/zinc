@@ -244,23 +244,6 @@ trait Relations {
   def classes: Relation[File, String]
 
   /**
-   * Flag which indicates whether given Relations object supports operations needed by name hashing algorithm.
-   *
-   * At the moment the list includes the following operations:
-   *
-   *   - memberRef: ClassDependencies
-   *   - inheritance: ClassDependencies
-   *
-   * The `memberRef` and `inheritance` implement a new style class dependency tracking. When this flag is
-   * enabled access to `direct` and `publicInherited` relations is illegal and will cause runtime exception
-   * being thrown. That is done as an optimization that prevents from storing two overlapping sets of
-   * dependencies.
-   *
-   * Conversely, when `nameHashing` flag is disabled access to `memberRef` and `inheritance`
-   * relations is illegal and will cause runtime exception being thrown.
-   */
-  private[inc] def nameHashing: Boolean
-  /**
    * Relation between source files and _unqualified_ term and type names used in given source file.
    */
   private[inc] def names: Relation[String, String]
@@ -294,12 +277,8 @@ object Relations {
   private[this] lazy val estrstr = Relation.empty[String, String]
 
   private[inc] lazy val emptyClassDependencies: ClassDependencies = new ClassDependencies(estrstr, estrstr)
-  def empty: Relations = empty(nameHashing = IncOptionsUtil.defaultNameHashing)
-  private[inc] def empty(nameHashing: Boolean): Relations =
-    if (nameHashing)
-      new MRelationsNameHashing(e, e, estr, InternalDependencies.empty, ExternalDependencies.empty, estr, estrstr, estrstr)
-    else
-      throw new UnsupportedOperationException("Turning off name hashing is not supported in class-based dependency tracking")
+  def empty: Relations =
+    new MRelationsNameHashing(e, e, estr, InternalDependencies.empty, ExternalDependencies.empty, estr, estrstr, estrstr)
 
   private[inc] def make(srcProd: Relation[File, File], libraryDep: Relation[File, File], libraryClassName: Relation[File, String],
     internalDependencies: InternalDependencies, externalDependencies: ExternalDependencies,
@@ -503,8 +482,6 @@ private class MRelationsNameHashing(
   productClassName: Relation[String, String]
 ) extends MRelationsCommon(srcProd, libraryDep, libraryClassName, classes, productClassName) {
 
-  val nameHashing: Boolean = true
-
   def internalClassDep: Relation[String, String] = memberRef.internal
   def externalClassDep: Relation[String, String] = memberRef.external
 
@@ -555,9 +532,6 @@ private class MRelationsNameHashing(
     new ClassDependencies(internalDependencies.dependencies.getOrElse(DependencyByMemberRef, Relation.empty), externalDependencies.dependencies.getOrElse(DependencyByMemberRef, Relation.empty))
 
   def ++(o: Relations): Relations = {
-    if (!o.nameHashing)
-      throw new UnsupportedOperationException("The `++` operation is not supported for relations " +
-        "with different values of `nameHashing` flag.")
     new MRelationsNameHashing(srcProd ++ o.srcProd, libraryDep ++ o.libraryDep, libraryClassName ++ o.libraryClassName,
       internalDependencies = internalDependencies ++ o.internalDependencies, externalDependencies = externalDependencies ++ o.externalDependencies,
       classes ++ o.classes, names = names ++ o.names, productClassName = productClassName ++ o.productClassName)

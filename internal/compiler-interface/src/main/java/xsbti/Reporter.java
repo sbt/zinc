@@ -7,20 +7,32 @@
 
 package xsbti;
 
-public interface Reporter
-{
-	/** Resets logging, including any accumulated errors, warnings, messages, and counts.*/
+/**
+ * Define an interface for a reporter of the compiler.
+ *
+ * The reporter exposes compilation errors coming from either Scala or
+ * Java compilers. This includes messages with any level of severity:
+ * from error, to warnings and infos.
+ */
+public interface Reporter {
+	/** Reset logging and any accumulated error, warning, message or count. */
 	void reset();
-	/** Returns true if this logger has seen any errors since the last call to reset.*/
+
+	/** Check whether the logger has received any error since last reset. */
 	boolean hasErrors();
-	/** Returns true if this logger has seen any warnings since the last call to reset.*/
+
+	/** Check whether the logger has received any warning since last reset. */
 	boolean hasWarnings();
-	/** Logs a summary of logging since the last reset.*/
+
+	/** Log a summary of the received output since the last reset. */
 	void printSummary();
-	/** Returns a list of warnings and errors since the last reset.*/
+
+	/** Return a list of warnings and errors since the last reset. */
 	Problem[] problems();
-	/** Logs a message.*/
+
+	/** Log a message at a concrete position and with a concrete severity. */
 	void log(Position pos, String msg, Severity sev);
-	/** Reports a comment. */
+
+	/** Report a comment. */
 	void comment(Position pos, String msg);
 }

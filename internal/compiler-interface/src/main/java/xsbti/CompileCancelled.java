@@ -8,9 +8,10 @@
 package xsbti;
 
 /**
- * An exception thrown when compilation cancellation has been requested during
- * Scala compiler run.
+ * Represent the cancellation of a compilation run. This failure extends
+ * {@link RuntimeException} that you can catch at the use-site.
  */
 public abstract class CompileCancelled extends RuntimeException {
+    /** Return an array of the initial arguments of the compiler. */
 	public abstract String[] arguments();
 }

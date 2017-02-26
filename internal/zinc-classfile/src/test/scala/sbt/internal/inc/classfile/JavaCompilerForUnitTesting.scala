@@ -37,7 +37,7 @@ object JavaCompilerForUnitTesting {
       val srcFiles = srcs.map {
         case (fileName, src) => prepareSrcFile(temp, fileName, src)
       }
-      val analysisCallback = new TestCallback(nameHashing = true)
+      val analysisCallback = new TestCallback
       val classesDir = new File(temp, "classes")
       classesDir.mkdir()
 

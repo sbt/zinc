@@ -7,19 +7,14 @@
 
 package xsbti.compile;
 
-import java.io.File;
-import xsbti.Logger;
-import xsbti.Reporter;
-
 /**
- * An interface to the toolchain of Java.
- *
- * Specifically, access to run javadoc + javac.
+ * Represent an interface of the toolchain of Java compilation that gives
+ * access javadoc generation and Java compilation.
  */
 public interface JavaTools {
-  /** The raw interface of the java compiler for direct access. */
+  /** Return an implementation of the Java compiler (javac). */
   JavaCompiler javac();
 
-  /** The raw interface of the javadoc for direct access. */
+  /** Return an implementation of a Javadoc generator. */
   Javadoc javadoc();
 }
