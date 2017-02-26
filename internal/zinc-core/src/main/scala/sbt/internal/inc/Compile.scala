@@ -15,7 +15,7 @@ import xsbti.api._
 import xsbti.compile.{ CompileAnalysis, DependencyChanges, IncOptions, MultipleOutput, Output, SingleOutput }
 import xsbti.{ Position, Problem, Severity }
 import sbt.util.Logger
-import sbt.util.InterfaceUtil.{ o2jo, jo2o }
+import sbt.util.InterfaceUtil.jo2o
 import java.io.File
 import xsbti.api.DependencyContext
 import xsbti.compile.ClassFileManager
@@ -238,12 +238,10 @@ private final class AnalysisCallback(
 
   def usedName(className: String, name: String) = add(usedNames, className, name)
 
-  def nameHashing: Boolean = options.nameHashing
-
   override def enabled(): Boolean = options.enabled
 
   def get: Analysis =
-    addUsedNames(addCompilation(addProductsAndDeps(Analysis.empty(nameHashing = nameHashing))))
+    addUsedNames(addCompilation(addProductsAndDeps(Analysis.empty)))
 
   def getOrNil[A, B](m: collection.Map[A, Seq[B]], a: A): Seq[B] = m.get(a).toList.flatten
   def addCompilation(base: Analysis): Analysis = base.copy(compilations = base.compilations.add(compilation))

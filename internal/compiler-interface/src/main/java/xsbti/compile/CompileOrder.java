@@ -7,35 +7,55 @@
 
 package xsbti.compile;
 
-/** 
-* Defines the order in which Scala and Java sources are compiled when compiling a set of sources with both Java and Scala sources.
-* This setting has no effect if only Java sources or only Scala sources are being compiled.
-* It is generally more efficient to use JavaThenScala or ScalaThenJava when mixed compilation is not required.
-*/
-public enum CompileOrder
-{
+/**
+ * Define the order in which Scala and Java compilation should happen.
+ *
+ * This compilation order matters when the sources to be compiled are both
+ * Scala and Java sources, in which case the Zinc compiler needs a strategy
+ * to deal with the compilation order. Therefore, this setting has no effect
+ * if only Java or Scala sources are being compiled.
+ */
+public enum CompileOrder {
 	/**
-	* Allows Scala sources to depend on Java sources and allows Java sources to depend on Scala sources.
-	* 
-	* In this mode, both Java and Scala sources are passed to the Scala compiler, which generates class files for the Scala sources.
-	* Then, Java sources are passed to the Java compiler, which generates class files for the Java sources.
-	* The Scala classes compiled in the first step are included on the classpath to the Java compiler.
-	*/
+	 * Allow Scala sources to depend on Java sources and allow Java sources to
+	 * depend on Scala sources.
+     *
+	 * Under this mode, both Java and Scala sources can depend on each other.
+	 * Java sources are also passed to the Scala compiler, which parses them,
+	 * populates the symbol table and lifts them to Scala trees without
+	 * generating class files for the Java trees.
+	 *
+	 * Then, the incremental compiler will add the generated Scala class files
+	 * to the classpath of the Java compiler so that Java sources can depend
+	 * on Scala sources.
+     *
+	 * For more information on the way Mixed and ScalaThenJava mode behave,
+	 * see <a href="https://github.com/sbt/zinc/issues/235">this link</a>.
+	 */
 	Mixed,
+
 	/**
-	*  Allows Scala sources to depend on the Java sources in the compilation, but does not allow Java sources to depend on Scala sources.
-	*
-	* In this mode, both Java and Scala sources are passed to the Scala compiler, which generates class files for the Scala sources.
-	* Then, Java sources are passed to the Java compiler, which generates class files for the Java sources.
-	* The Scala classes compiled in the first step are included on the classpath to the Java compiler.
-	*/
+	 * Allow Scala sources to depend on the Java sources, but it does not allow
+	 * Java sources to depend on Scala sources.
+     *
+	 * When mixed compilation is not required, it's generally more efficient
+	 * {@link CompileOrder#JavaThenScala} than {@link CompileOrder#ScalaThenJava}
+	 * because the Scala compiler will not parse Java sources, it will just
+	 * unpickle the symbol information from class files.
+	 */
 	JavaThenScala,
+
 	/**
-	*  Allows Java sources to depend on the Scala sources in the compilation, but does not allow Scala sources to depend on Java sources.
-	*
-	* In this mode, both Java and Scala sources are passed to the Scala compiler, which generates class files for the Scala sources.
-	* Then, Java sources are passed to the Java compiler, which generates class files for the Java sources.
-	* The Scala classes compiled in the first step are included on the classpath to the Java compiler.
-	*/
+     * Allow Java sources to depend on Scala sources, but it does not allow Java
+	 * sources to depend on Scala sources.
+     *
+     * Because of the way the Scala compiler works with regard to Java sources,
+	 * Zinc has to enforce this mode by removing Java sources from the actual
+	 * source arguments that are passed to the Scala compiler, otherwise it'll
+	 * behave exactly as {@link CompileOrder#Mixed}.
+	 *
+	 * For more information on the way Mixed and ScalaThenJava mode behave,
+	 * see <a href="https://github.com/sbt/zinc/issues/235">this link</a>.
+	 */
 	ScalaThenJava
 }

@@ -52,8 +52,7 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers) extends FormatCo
   def write(out: Writer, analysis: CompileAnalysis, setup: MiniSetup): Unit = {
     val analysis0 = analysis match { case analysis: Analysis => analysis }
     VersionF.write(out)
-    // We start with writing compile setup which contains value of the `nameHashing`
-    // flag that is needed to properly deserialize relations
+    // We start with writing compile setup
     FormatTimer.time("write setup") { MiniSetupF.write(out, setup) }
     // Next we write relations because that's the part of greatest interest to external readers,
     // who can abort reading early once they're read them.
@@ -76,7 +75,7 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers) extends FormatCo
   def read(in: BufferedReader, companionsStore: CompanionsStore): (CompileAnalysis, MiniSetup) = {
     VersionF.read(in)
     val setup = FormatTimer.time("read setup") { MiniSetupF.read(in) }
-    val relations = FormatTimer.time("read relations") { RelationsF.read(in, setup.nameHashing) }
+    val relations = FormatTimer.time("read relations") { RelationsF.read(in) }
     val stamps = FormatTimer.time("read stamps") { StampsF.read(in) }
     val apis = FormatTimer.time("read apis") {
       APIsF.read(in, if (setup.storeApis) Some(companionsStore) else None)
@@ -250,7 +249,6 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers) extends FormatCo
       val javacOptions = "javac options"
       val compilerVersion = "compiler version"
       val compileOrder = "compile order"
-      val nameHashing = "name hashing"
       val skipApiStoring = "skip Api storing"
       val extra = "extra"
     }
@@ -277,7 +275,6 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers) extends FormatCo
       writeSeq(out)(Headers.javacOptions, setup.options.javacOptions, mappers.javacOptions.write)
       writeSeq(out)(Headers.compilerVersion, setup.compilerVersion :: Nil, identity[String])
       writeSeq(out)(Headers.compileOrder, setup.order.name :: Nil, identity[String])
-      writeSeq(out)(Headers.nameHashing, setup.nameHashing :: Nil, (b: Boolean) => b.toString)
       writeSeq(out)(Headers.skipApiStoring, setup.storeApis() :: Nil, (b: Boolean) => b.toString)
       writePairs[String, String](out)(Headers.extra, setup.extra.toList map { x => (x.get1, x.get2) }, identity[String], identity[String])
     }
@@ -291,7 +288,6 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers) extends FormatCo
       val javacOptions = readSeq(in)(Headers.javacOptions, mappers.javacOptions.read)
       val compilerVersion = readSeq(in)(Headers.compilerVersion, identity[String]).head
       val compileOrder = readSeq(in)(Headers.compileOrder, identity[String]).head
-      val nameHashing = readSeq(in)(Headers.nameHashing, s2b).head
       val skipApiStoring = readSeq(in)(Headers.skipApiStoring, s2b).head
       val extra = readPairs(in)(Headers.extra, identity[String], identity[String]) map { case (a, b) => t2[String, String](a, b) }
 
@@ -316,7 +312,7 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers) extends FormatCo
       }
 
       val original = new MiniSetup(output, new MiniOptions(classpathHash.toArray, compileOptions.toArray, javacOptions.toArray), compilerVersion,
-        xsbti.compile.CompileOrder.valueOf(compileOrder), nameHashing, skipApiStoring, extra.toArray)
+        xsbti.compile.CompileOrder.valueOf(compileOrder), skipApiStoring, extra.toArray)
 
       mappers.mapOptionsFromCache(original)
     }

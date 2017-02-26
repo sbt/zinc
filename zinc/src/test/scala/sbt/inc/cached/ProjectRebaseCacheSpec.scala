@@ -11,10 +11,10 @@ import java.io.File
 import java.nio.file.{ Files, Path, Paths }
 
 import org.scalatest.{ BeforeAndAfter, BeforeAndAfterAll }
-import sbt.inc.BaseCompilerSpec
 import sbt.internal.inc.cached.{ CacheAwareStore, CacheProvider, CompilationCache, ProjectRebasedCache }
 import sbt.internal.inc.{ Analysis, AnalysisStore, BridgeProviderSpecification, FileBasedStore }
 import sbt.io.IO
+import sbt.inc.BaseCompilerSpec
 import xsbti.compile.{ CompileAnalysis, MiniSetup }
 
 class ProjectRebaseCacheSpec extends CommonCachedCompilation("Project based cache") {

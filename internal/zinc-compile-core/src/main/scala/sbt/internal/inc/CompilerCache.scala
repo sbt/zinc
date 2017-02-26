@@ -9,49 +9,92 @@ package sbt
 package internal
 package inc
 
-import xsbti.{ Logger => xLogger, Reporter }
+import java.util
+
+import xsbti.{ Reporter, Logger => xLogger }
 import xsbti.compile.{ CachedCompiler, CachedCompilerProvider, GlobalsCache, Output }
 import sbt.util.Logger.f0
-import java.io.File
-import java.util.{ LinkedHashMap, Map }
 
-private final class CompilerCache(val maxInstances: Int) extends GlobalsCache {
+/**
+ * Manage a number of <code>maxInstance</code> of cached Scala compilers.
+ * @param maxInstances The maximum number to be cached.
+ */
+final class CompilerCache(val maxInstances: Int) extends GlobalsCache {
+  /** Define a least-recently used cache indexed by a generated key. */
   private[this] val cache = lru[CompilerKey, CachedCompiler](maxInstances)
-  private[this] def lru[A, B](max: Int) = new LinkedHashMap[A, B](8, 0.75f, true) {
-    override def removeEldestEntry(eldest: Map.Entry[A, B]): Boolean = size > max
+  private[this] def lru[A, B](max: Int) = {
+    new util.LinkedHashMap[A, B](8, 0.75f, true) {
+      override def removeEldestEntry(eldest: util.Map.Entry[A, B]): Boolean =
+        size > max
+    }
   }
-  def apply(args: Array[String], output: Output, forceNew: Boolean, c: CachedCompilerProvider, log: xLogger, reporter: Reporter): CachedCompiler = synchronized {
-    val key = CompilerKey(dropSources(args.toList), c.scalaInstance.actualVersion)
+
+  override def apply(
+    args: Array[String],
+    output: Output,
+    forceNew: Boolean,
+    c: CachedCompilerProvider,
+    log: xLogger,
+    reporter: Reporter
+  ): CachedCompiler = synchronized {
+    val scalaVersion = c.scalaInstance.actualVersion
+    val key = CompilerKey(dropSources(args.toList), scalaVersion)
     if (forceNew) cache.remove(key)
     cache.get(key) match {
       case null =>
-        log.debug(f0("Compiler cache miss.  " + key.toString))
-        put(key, c.newCachedCompiler(args, output, log, reporter, /* resident = */ !forceNew))
-      case cc =>
-        log.debug(f0("Compiler cache hit (" + cc.hashCode.toLong.toHexString + ").  " + key.toString))
-        cc
+        log.debug(f0(s"Compiler cache miss. $key "))
+        val newCompiler: CachedCompiler =
+          c.newCachedCompiler(args, output, log, reporter, !forceNew)
+        cache.put(key, newCompiler)
+        newCompiler
+      case cachedCompiler =>
+        val hexHashCode = cachedCompiler.hashCode.toLong.toHexString
+        log.debug(f0(s"Compiler cache hit ($hexHashCode). $key"))
+        cachedCompiler
     }
   }
-  def clear(): Unit = synchronized { cache.clear() }
+
+  override def clear(): Unit = synchronized { cache.clear() }
 
   private[this] def dropSources(args: Seq[String]): Seq[String] =
     args.filterNot(arg => arg.endsWith(".scala") || arg.endsWith(".java"))
 
-  private[this] def put(key: CompilerKey, cc: CachedCompiler): CachedCompiler =
-    {
-      cache.put(key, cc)
-      cc
-    }
-  private[this] final case class CompilerKey(args: Seq[String], scalaVersion: String) {
-    override def toString = "scala " + scalaVersion + ", args: " + args.mkString(" ")
+  private[this] case class CompilerKey(args: Seq[String], scalaVersion: String) {
+    override def toString: String =
+      s"scala $scalaVersion, args: ${args.mkString(" ")}"
   }
 }
-object CompilerCache {
-  def apply(maxInstances: Int): GlobalsCache = new CompilerCache(maxInstances)
 
+/** Define helpers to create compiler caches. */
+object CompilerCache {
+
+  /**
+   * Return a compiler cache that manages up until <b>5</b> cached
+   * Scala compilers, where 5 is the default number.
+   */
+  def default: GlobalsCache = new CompilerCache(5)
+
+  /**
+   * Return a compiler cache that manages up until <code>maxInstances</code>
+   * of cached Scala compilers.
+   *
+   * @param maxInstances Number of maximum Scala compilers cached.
+   */
+  def apply(maxInstances: Int): GlobalsCache =
+    new CompilerCache(maxInstances)
+
+  /**
+   * Return a cached compiler
+   */
   val fresh: GlobalsCache = new GlobalsCache {
     def clear(): Unit = ()
-    def apply(args: Array[String], output: Output, forceNew: Boolean, c: CachedCompilerProvider, log: xLogger, reporter: Reporter): CachedCompiler =
-      c.newCachedCompiler(args, output, log, reporter, /*resident = */ false)
+    def apply(
+      args: Array[String],
+      output: Output,
+      forceNew: Boolean,
+      c: CachedCompilerProvider,
+      log: xLogger,
+      reporter: Reporter
+    ): CachedCompiler = c.newCachedCompiler(args, output, log, reporter, false)
   }
 }

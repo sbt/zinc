@@ -14,14 +14,15 @@ package inc
 // see licenses/LICENSE_Scala
 // Original author: Martin Odersky
 
-import xsbti.{ Position, Problem, Severity }
+import xsbti.{ Position, Problem, Severity, Reporter }
 import java.util.EnumMap
+
 import scala.collection.mutable
 import LoggerReporter._
 import sbt.internal.util.ManagedLogger
 import sbt.internal.util.codec._
 import sbt.util.InterfaceUtil.{ jo2o, problem }
-import Severity.{ Error, Info => SInfo, Warn }
+import Severity.{ Error, Warn, Info => SInfo }
 
 object LoggerReporter {
   final class PositionKey(pos: Position) {
@@ -52,7 +53,7 @@ object LoggerReporter {
   lazy val problemStringFormats: ProblemStringFormats = new ProblemStringFormats {}
 }
 
-class LoggerReporter(maximumErrors: Int, logger: ManagedLogger, sourcePositionMapper: Position => Position = { p => p }) extends xsbti.Reporter {
+class LoggerReporter(maximumErrors: Int, logger: ManagedLogger, sourcePositionMapper: Position => Position = { p => p }) extends Reporter {
   val positions = new mutable.HashMap[PositionKey, Severity]
   val count = new EnumMap[Severity, Int](classOf[Severity])
   private[this] val allProblems = new mutable.ListBuffer[Problem]

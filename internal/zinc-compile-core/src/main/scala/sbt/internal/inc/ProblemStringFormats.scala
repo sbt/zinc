@@ -7,8 +7,8 @@ import sbt.util.ShowLines
 import sbt.util.InterfaceUtil.jo2o
 
 /**
- * The string representation of compiler warnings and error messages,
- * used by LoggerReporter and the logging system.
+ * Represent a string that contains the compiler output (warnings and error
+ * messages, etc) that have been reported by [[LoggerReporter]] and the logger.
  */
 trait ProblemStringFormats {
   implicit lazy val ProblemStringFormat: ShowLines[Problem] = new ShowLines[Problem] {

@@ -12,7 +12,7 @@ package inc
 import java.io.File
 
 import xsbti.Reporter
-import xsbti.compile.{ GlobalsCache, CompileProgress, IncOptions, MiniSetup, CompileAnalysis, PerClasspathEntryLookup }
+import xsbti.compile.{ CompileAnalysis, CompileProgress, GlobalsCache, IncOptions, MiniSetup, PerClasspathEntryLookup }
 
 /**
  * Configuration used for running an analyzing compiler (a compiler which can extract dependencies between source files and JARs).

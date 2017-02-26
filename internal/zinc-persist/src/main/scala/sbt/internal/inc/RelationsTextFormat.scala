@@ -75,7 +75,7 @@ trait RelationsTextFormat extends FormatCommons {
       allRelations.foreach { relDesc => writeRelation(relDesc, relations) }
     }
 
-    def read(in: BufferedReader, nameHashing: Boolean): Relations = {
+    def read(in: BufferedReader): Relations = {
       def readRelation[A, B](relDesc: Descriptor[A, B]): Relation[A, B] = {
         val expectedHeader = relDesc.header
         val items = readPairs(in)(expectedHeader, relDesc.keyMapper.read, relDesc.valueMapper.read).toIterator
@@ -99,7 +99,7 @@ trait RelationsTextFormat extends FormatCommons {
 
       val relations = allRelations.map(rd => readRelation(rd))
 
-      construct(nameHashing, relations)
+      construct(relations)
     }
   }
 
@@ -107,7 +107,7 @@ trait RelationsTextFormat extends FormatCommons {
    * Reconstructs a Relations from a list of Relation
    * The order in which the relations are read matters and is defined by `existingRelations`.
    */
-  private def construct(nameHashing: Boolean, relations: List[Relation[_, _]]) =
+  private def construct(relations: List[Relation[_, _]]) =
     relations match {
       case p :: bin :: lcn :: mri :: mre :: ii :: ie :: lii :: lie :: cn :: un :: bcn :: Nil =>
         val srcProd = p.asInstanceOf[Relation[File, File]]
@@ -116,8 +116,6 @@ trait RelationsTextFormat extends FormatCommons {
         val classes = cn.asInstanceOf[Relation[File, String]]
         val names = un.asInstanceOf[Relation[String, String]]
         val binaryClassName = bcn.asInstanceOf[Relation[String, String]]
-
-        assert(nameHashing, "Turning off name hashing is not supported anymore.")
 
         val internal = InternalDependencies(Map(
           DependencyByMemberRef -> mri.asInstanceOf[Relation[String, String]],

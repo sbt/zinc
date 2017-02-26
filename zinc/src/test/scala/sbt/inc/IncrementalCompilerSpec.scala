@@ -1,16 +1,8 @@
-package sbt
-package inc
-
-import java.io.File
-import java.net.URLClassLoader
+package sbt.inc
 
 import sbt.internal.inc._
 import sbt.io.IO
 import sbt.io.syntax._
-import sbt.util.{ Logger, InterfaceUtil }
-import xsbti.Maybe
-import xsbti.compile.{ CompileAnalysis, CompileOrder, DefinesClass, IncOptionsUtil, PreviousResult, PerClasspathEntryLookup }
-import sbt.internal.inc.classpath.ClassLoaderCache
 
 class IncrementalCompilerSpec extends BaseCompilerSpec {
 
