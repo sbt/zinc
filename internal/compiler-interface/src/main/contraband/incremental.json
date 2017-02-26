@@ -103,13 +103,6 @@
           ]
         },
         {
-          "name": "nameHashing",
-          "type": "boolean",
-          "doc": [
-            "Determines whether incremental compiler uses the new algorithm known as name hashing."
-          ]
-        },
-        {
           "name": "storeApis",
           "type": "boolean",
           "doc": [
@@ -121,29 +114,6 @@
           "type": "boolean",
           "doc": [
             "Determines whether incremental compilation is enabled."
-          ]
-        },
-        {
-          "name": "antStyle",
-          "type": "boolean",
-          "doc": [
-            "THE `antStyle` OPTION IS UNSUPPORTED, MAY GO AWAY AT ANY POINT.",
-            "",
-            "Enables \"ant-style\" mode of incremental compilation. This mode emulates what Ant's scalac command does.",
-            "The idea is to recompile just changed source files and not perform any invalidation of dependencies. This",
-            "is a very naive mode of incremental compilation that very often leads to broken binaries.",
-            "",
-            "The Ant-style mode has been introduced because Scala team might need it for migration of Scala compiler to sbt.",
-            "It was added as a defensive measure so that the SBT build would be at least no worse than Ant wrt",
-            "recompilation. When working on changes that are pathological for the normal inc compiler mode, one ",
-            "could switch in to this mode and use our old tricks of touching files we know need recompilation.",
-            "",
-            "The name hashing algorithm doesn't work well with Scala compiler sources due to deep inheritance chains.",
-            "There's a plan to refactor compiler's code to use more composition instead of inheritance.",
-            "",
-            "Once Scala compiler sources are refactored to work well with name hashing algorithm this option will be",
-            "deleted immediately.",
-            "See also https://github.com/sbt/incrementalcompiler/issues/22"
           ]
         },
         {
@@ -280,7 +250,6 @@
         { "name": "options",         "type": "xsbti.compile.MiniOptions"  },
         { "name": "compilerVersion", "type": "String"                     },
         { "name": "order",           "type": "xsbti.compile.CompileOrder" },
-        { "name": "nameHashing",     "type": "boolean"                    },
         { "name": "storeApis",       "type": "boolean"                    },
         { "name": "extra",           "type": "xsbti.T2<String, String>*"  }
       ]

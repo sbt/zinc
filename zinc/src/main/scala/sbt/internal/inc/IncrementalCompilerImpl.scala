@@ -235,7 +235,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
     handleCompilationError(sources, output, logger) {
       val prev = previousAnalysis match {
         case Some(previous) => previous
-        case None           => Analysis.empty(incrementalOptions.nameHashing)
+        case None           => Analysis.empty
       }
       val config = MixedAnalyzingCompiler.makeConfig(
         scalaCompiler, javaCompiler, sources, classpath, output, cache,
@@ -273,15 +273,11 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
     val srcsSet = sources.toSet
     val analysis = previousSetup match {
       case Some(previous) =>
-        /* Return an empty analysis if:
-         *   1. Values of extra have changed.
-         *   2. The value of `nameHashing` incremental option has changed. */
+        // Return an empty analysis if values of extra have changed
         if (equiv.equiv(previous, currentSetup))
           previousAnalysis
         else if (!equivPairs.equiv(previous.extra, currentSetup.extra))
-          Analysis.empty(currentSetup.nameHashing)
-        else if (previous.nameHashing != currentSetup.nameHashing)
-          Analysis.empty(currentSetup.nameHashing)
+          Analysis.empty
         else Incremental.prune(srcsSet, previousAnalysis)
       case None =>
         Incremental.prune(srcsSet, previousAnalysis)

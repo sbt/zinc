@@ -191,7 +191,6 @@ object MixedAnalyzingCompiler {
       ),
       scalac.scalaInstance.actualVersion,
       compileOrder,
-      incrementalCompilerOptions.nameHashing,
       incrementalCompilerOptions.storeApis(),
       (extra map InterfaceUtil.t2).toArray
     )

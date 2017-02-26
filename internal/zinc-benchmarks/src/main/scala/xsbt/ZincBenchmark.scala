@@ -106,7 +106,7 @@ private[xsbt] object ZincBenchmark {
   ): Generator = () => {
     IO.delete(targetDir)
     IO.createDirectory(targetDir)
-    val callback = new xsbti.TestCallback(true)
+    val callback = new xsbti.TestCallback
     val compiler = prepareCompiler(targetDir, callback, compilationInfo)
     new compiler.Run
   }

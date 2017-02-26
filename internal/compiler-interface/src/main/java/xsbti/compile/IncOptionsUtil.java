@@ -31,8 +31,6 @@ public class IncOptionsUtil {
   public static final String API_DUMP_DIRECTORY_KEY = "apiDumpDirectory";
   public static final String CLASSFILE_MANAGER_TYPE_KEY = "classfileManagerType";
   public static final String RECOMPILE_ON_MACRO_DEF_KEY = "recompileOnMacroDef";
-  public static final String NAME_HASHING_KEY = "nameHashing";
-  public static final String ANT_STYLE_KEY = "antStyle";
   public static final String LOG_RECOMPILE_ON_MACRO = "logRecompileOnMacro";
   private static final String XSBTI_NOTHING = "NOTHING";
 
@@ -80,10 +78,6 @@ public class IncOptionsUtil {
     }
   }
 
-  public static boolean defaultNameHashing() {
-    return true;
-  }
-
   public static boolean defaultUseCustomizedFileManager() {
     return false;
   }
@@ -128,10 +122,8 @@ public class IncOptionsUtil {
       defaultRelationsDebug(), defaultApiDebug(),
       defaultApiDiffContextSize(), defaultApiDumpDirectory(),
       defaultClassfileManagerType(), defaultUseCustomizedFileManager(),
-      defaultRecompileOnMacroDef(), defaultNameHashing(),
-      defaultStoreApis(), defaultEnabled(), defaultAntStyle(),
-      defaultExtra(), defaultLogRecompileOnMacro(),
-      defaultExternal());
+      defaultRecompileOnMacroDef(), defaultStoreApis(), defaultEnabled(),
+      defaultExtra(), defaultLogRecompileOnMacro(), defaultExternal());
     return retval;
   }
 
@@ -181,14 +173,6 @@ public class IncOptionsUtil {
       } else {
         base = base.withRecompileOnMacroDef(xsbti.Maybe.<Boolean>just(Boolean.parseBoolean(values.get(RECOMPILE_ON_MACRO_DEF_KEY))));
       }
-    }
-
-    if (values.containsKey(NAME_HASHING_KEY)) {
-      base = base.withNameHashing(Boolean.parseBoolean(values.get(NAME_HASHING_KEY)));
-    }
-
-    if (values.containsKey(ANT_STYLE_KEY)) {
-      base = base.withAntStyle(Boolean.parseBoolean(values.get(ANT_STYLE_KEY)));
     }
 
     if (values.containsKey(LOG_RECOMPILE_ON_MACRO)) {

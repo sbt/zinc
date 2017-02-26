@@ -50,14 +50,12 @@ object MiniSetupUtil {
         def sameOptions = MiniSetupUtil.equivOpts.equiv(a.options, b.options)
         def sameCompiler = equivComp.equiv(a.compilerVersion, b.compilerVersion)
         def sameOrder = a.order == b.order
-        def sameNameHasher = a.nameHashing == b.nameHashing
         def sameExtra = equivPairs.equiv(a.extra, b.extra)
 
         sameOutput &&
           sameOptions &&
           sameCompiler &&
           sameOrder &&
-          sameNameHasher &&
           sameExtra
       }
     }
