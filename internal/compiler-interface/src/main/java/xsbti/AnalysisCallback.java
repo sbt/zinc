@@ -39,14 +39,12 @@ public interface AnalysisCallback {
 
     /**
      * Indicate that the class <code>fromClassName</code> depends on a class
-     * named <code>onBinaryClassName</code> coming from class or jar file
-     * <code>binary</code>.
+     * named <code>onBinaryClassName</code> coming from class file or jar
+     * <code>onBinaryEntry</code>.
      *
-     * @param onBinary Binary name being depended on.
-     *                 Binary name with JVM-like representation. Inner classes
-     *                 are represented with '$'. For more information on the
-     *                 binary name format, check section 13.1 of the Java
-     *                 Language Specification.
+     * @param onBinaryEntry A binary entry represents either the jar or the
+     *                      concrete class file from which the Scala compiler
+     *                      knows that <code>onBinaryClassName</code> comes from.
      * @param onBinaryClassName Dependent binary name.
      *                 Binary name with JVM-like representation. Inner classes
      *                 are represented with '$'. For more information on the
@@ -65,7 +63,7 @@ public interface AnalysisCallback {
      *
      * @see xsbti.api.DependencyContext for more information on the context.
      */
-    void binaryDependency(File onBinary,
+    void binaryDependency(File onBinaryEntry,
                           String onBinaryClassName,
                           String fromClassName,
                           File fromSourceFile,
