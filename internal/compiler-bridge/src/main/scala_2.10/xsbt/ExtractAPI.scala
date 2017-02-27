@@ -215,7 +215,7 @@ class ExtractAPI[GlobalType <: Global](
       // annotations from bean methods are not handled because:
       //  a) they are recorded as normal source methods anyway
       //  b) there is no way to distinguish them from user-defined methods
-      val associated = List(b, b.getter(b.enclClass), b.setter(b.enclClass)).filter(_ != NoSymbol)
+      val associated = List(b, b.getterIn(b.enclClass), b.setterIn(b.enclClass)).filter(_ != NoSymbol)
       associated.flatMap(ss => mkAnnotations(in, ss.annotations)).distinct.toArray
     }
 
@@ -379,7 +379,7 @@ class ExtractAPI[GlobalType <: Global](
   //  The getter will be used for processing instead.
   private def isSourceField(sym: Symbol): Boolean =
     {
-      val getter = sym.getter(sym.enclClass)
+      val getter = sym.getterIn(sym.enclClass)
       // the check `getter eq sym` is a precaution against infinite recursion
       // `isParamAccessor` does not exist in all supported versions of Scala, so the flag check is done directly
       (getter == NoSymbol && !sym.hasFlag(Flags.PARAMACCESSOR)) || (getter eq sym)

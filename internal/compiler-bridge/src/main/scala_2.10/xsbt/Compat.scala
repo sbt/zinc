@@ -3,7 +3,7 @@ package xsbt
 import scala.reflect.{ internal => sri }
 import scala.tools.nsc.{ Global, Settings }
 import scala.tools.nsc.interactive.RangePositions
-import scala.tools.nsc.symtab.Flags
+import scala.tools.nsc.symtab.Flags, Flags._
 
 /**
  * Collection of hacks that make it possible for the compiler interface
@@ -60,6 +60,17 @@ abstract class Compat {
     def enclosingTopLevelClass: Symbol = sym.toplevelClass
     def toplevelClass: Symbol = sourceCompatibilityOnly
     def asMethod: MethodSymbol = sym.asInstanceOf[MethodSymbol]
+
+    // Not present in 2.10
+    final def getterIn(base: Symbol): Symbol = sym.getter(base)
+    final def setterIn(base: Symbol, hasExpandedName: Boolean = sym.needsExpandedSetterName): Symbol =
+      sym.setter(base, hasExpandedName)
+
+    // copied from 2.12.1 sources
+    def needsExpandedSetterName: Boolean = (
+      if (sym.isMethod) sym.hasStableFlag && !sym.isLazy
+      else sym.hasNoFlags(LAZY | MUTABLE)
+    )
   }
 
   val DummyValue = 0
