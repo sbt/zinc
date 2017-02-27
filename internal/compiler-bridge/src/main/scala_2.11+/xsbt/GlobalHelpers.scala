@@ -48,11 +48,12 @@ trait GlobalHelpers { self: Compat =>
 
   /** Returns true if given tree contains macro attchment. In such case calls func on tree from attachment. */
   def processMacroExpansion(in: Tree)(func: Tree => Unit): Boolean = {
+    import analyzer._ // this is where MEA lives in 2.11.x
     // Hotspot
     var seen = false
     in.attachments.all.foreach {
       case _ if seen =>
-      case macroAttachment: analyzer.MacroExpansionAttachment =>
+      case macroAttachment: MacroExpansionAttachment =>
         func(macroAttachment.expandee)
         seen = true
       case _ =>
