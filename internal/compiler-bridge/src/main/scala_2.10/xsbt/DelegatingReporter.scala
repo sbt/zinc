@@ -48,7 +48,7 @@ private object DelegatingReporter {
 // Copyright 2002-2009 LAMP/EPFL
 // Original author: Martin Odersky
 private final class DelegatingReporter(warnFatal: Boolean, noWarn: Boolean, private[this] var delegate: xsbti.Reporter) extends scala.tools.nsc.reporters.Reporter {
-  import scala.tools.nsc.util.{ FakePos, NoPosition, Position }
+  import scala.reflect.internal.util.{ FakePos, NoPosition, Position }
   import DelegatingReporter._
   def dropDelegate(): Unit = { delegate = null }
   def error(msg: String): Unit = error(FakePos("scalac"), msg)
