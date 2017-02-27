@@ -7,7 +7,6 @@
 
 package xsbt
 
-import xsbti.{ F0, Logger, Maybe }
 import java.io.File
 import java.util.Optional
 
