@@ -140,7 +140,7 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
 
   private case class ClassDependency(from: Symbol, to: Symbol)
 
-  private class DependencyTraverser(processor: DependencyProcessor) extends Traverser {
+  private final class DependencyTraverser(processor: DependencyProcessor) extends Traverser {
     // are we traversing an Import node at the moment?
     private var inImportNode = false
 
@@ -151,42 +151,59 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
     private val _localInheritanceCache = HashSet.empty[ClassDependency]
     private val _topLevelImportCache = HashSet.empty[Symbol]
 
-    /** Return the enclosing class or the module class if it's a module. */
-    private def enclOrModuleClass(s: Symbol): Symbol =
-      if (s.isModule) s.moduleClass else s.enclClass
+    private var _currentDependencySource: Symbol = _
+    private var _currentNonLocalClass: Symbol = _
+    private var _isLocalSource: Boolean = false
 
-    case class DependencySource(owner: Symbol) {
-      val (fromClass: Symbol, isLocal: Boolean) = {
-        val fromClass = enclOrModuleClass(owner)
-        if (fromClass == NoSymbol || fromClass.hasPackageFlag)
-          (fromClass, false)
-        else {
-          val fromNonLocalClass = localToNonLocalClass.resolveNonLocal(fromClass)
-          assert(!(fromClass == NoSymbol || fromClass.hasPackageFlag))
-          (fromNonLocalClass, fromClass != fromNonLocalClass)
-        }
+    @inline def resolveNonLocalClass(from: Symbol): (Symbol, Boolean) = {
+      val fromClass = enclOrModuleClass(from)
+      if (fromClass == NoSymbol || fromClass.hasPackageFlag) (fromClass, false)
+      else {
+        val nonLocal = localToNonLocalClass.resolveNonLocal(fromClass)
+        (nonLocal, fromClass != nonLocal)
       }
     }
 
-    private var _currentDependencySource: DependencySource = null
-
     /**
-     * Resolves dependency source by getting the enclosing class for `currentOwner`
-     * and then looking up the most inner enclosing class that is non local.
-     * The second returned value indicates if the enclosing class for `currentOwner`
-     * is a local class.
+     * Resolves dependency source (that is, the closest non-local enclosing
+     * class from a given `currentOwner` set by the `Traverser`).
+     *
+     * This method modifies the value of `_currentDependencySource`,
+     * `_currentNonLocalClass` and `_isLocalSource` and it is not modeled
+     * as a case class for performance reasons.
+     *
+     * The used caching strategy works as follows:
+     * 1. Return previous non-local class if owners are referentially equal.
+     * 2. Otherwise, check if they resolve to the same non-local class.
+     *   1. If they do, overwrite `_isLocalSource` and return
+     *        `_currentNonLocalClass`.
+     *   2. Otherwise, overwrite all the pertinent fields to be consistent.
      */
-    private def resolveDependencySource(): DependencySource = {
-      def newOne(): DependencySource = {
-        val fresh = DependencySource(currentOwner)
-        _currentDependencySource = fresh
-        _currentDependencySource
-      }
-      _currentDependencySource match {
-        case null => newOne()
-        case cached if currentOwner == cached.owner =>
-          cached
-        case _ => newOne()
+    private def resolveDependencySource: Symbol = {
+      if (_currentDependencySource == null) {
+        // First time we access it, initialize it
+        _currentDependencySource = currentOwner
+        val (nonLocalClass, isLocal) = resolveNonLocalClass(currentOwner)
+        _currentNonLocalClass = nonLocalClass
+        _isLocalSource = isLocal
+        nonLocalClass
+      } else {
+        // Check if cached is equally referential
+        if (_currentDependencySource == currentOwner) _currentNonLocalClass
+        else {
+          // Check they resolve to the same nonLocalClass. If so, spare writes.
+          val (nonLocalClass, isLocal) = resolveNonLocalClass(currentOwner)
+          if (_currentNonLocalClass == nonLocalClass) {
+            // Resolution can be the same, but the origin affects `isLocal`
+            _isLocalSource = isLocal
+            _currentNonLocalClass
+          } else {
+            _currentDependencySource = _currentDependencySource
+            _currentNonLocalClass = nonLocalClass
+            _isLocalSource = isLocal
+            _currentNonLocalClass
+          }
+        }
       }
     }
 
@@ -228,13 +245,14 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
     private def addTreeDependency(tree: Tree): Unit = {
       addDependency(tree.symbol)
       val tpe = tree.tpe
-      if (!ignoredType(tpe))
-        foreachNotPackageSymbolInType(tpe)(addDependency)
+      if (!ignoredType(tpe)) {
+        addTypeDependencies(tpe)
+      }
       ()
     }
 
     private def addDependency(dep: Symbol): Unit = {
-      val fromClass = resolveDependencySource().fromClass
+      val fromClass = resolveDependencySource
       if (ignoredSymbol(fromClass) || fromClass.hasPackageFlag) {
         if (inImportNode) addTopLevelImportDependency(dep)
         else devWarning(Feedback.missingEnclosingClass(dep, currentOwner))
@@ -243,10 +261,51 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
       }
     }
 
+    /** Define a type traverser to keep track of the type dependencies. */
+    object TypeDependencyTraverser extends TypeDependencyTraverser {
+      type Handler = Symbol => Unit
+      // Type dependencies are always added to member references
+      val memberRefHandler = processor.memberRef
+      def createHandler(fromClass: Symbol): Handler = { (dep: Symbol) =>
+        if (ignoredSymbol(fromClass) || fromClass.hasPackageFlag) {
+          if (inImportNode) addTopLevelImportDependency(dep)
+          else devWarning(Feedback.missingEnclosingClass(dep, currentOwner))
+        } else {
+          addClassDependency(_memberRefCache, memberRefHandler, fromClass, dep)
+        }
+      }
+
+      val cache = scala.collection.mutable.Map.empty[Symbol, (Handler, scala.collection.mutable.HashSet[Type])]
+      private var handler: Handler = _
+      private var visitedOwner: Symbol = _
+      def setOwner(owner: Symbol) = {
+        if (visitedOwner != owner) {
+          cache.get(owner) match {
+            case Some((h, ts)) =>
+              visited = ts
+              handler = h
+            case None =>
+              val newVisited = scala.collection.mutable.HashSet.empty[Type]
+              handler = createHandler(owner)
+              cache += owner -> (handler -> newVisited)
+              visited = newVisited
+              visitedOwner = owner
+          }
+        }
+      }
+
+      override def addDependency(symbol: global.Symbol) = handler(symbol)
+    }
+
+    def addTypeDependencies(tpe: Type): Unit = {
+      val fromClass = resolveDependencySource
+      TypeDependencyTraverser.setOwner(fromClass)
+      TypeDependencyTraverser.traverse(tpe)
+    }
+
     private def addInheritanceDependency(dep: Symbol): Unit = {
-      val dependencySource = resolveDependencySource()
-      val fromClass = dependencySource.fromClass
-      if (dependencySource.isLocal) {
+      val fromClass = resolveDependencySource
+      if (_isLocalSource) {
         addClassDependency(_localInheritanceCache, processor.localInheritance, fromClass, dep)
       } else {
         addClassDependency(_inheritanceCache, processor.inheritance, fromClass, dep)
@@ -305,15 +364,19 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
 
         debuglog("Parent types for " + tree.symbol + " (self: " + self.tpt.tpe + "): " + inheritanceTypes + " with symbols " + inheritanceSymbols.map(_.fullName))
 
-        inheritanceSymbols.foreach(addSymbolFromParent)
-        inheritanceTypes.foreach(addSymbolsFromType)
-        addSymbolsFromType(self.tpt.tpe)
+        inheritanceSymbols.foreach { symbol =>
+          addInheritanceDependency(symbol)
+          addDependency(symbol)
+        }
+
+        inheritanceTypes.foreach(addTypeDependencies)
+        addTypeDependencies(self.tpt.tpe)
 
         traverseTrees(body)
 
       // In some cases (eg. macro annotations), `typeTree.tpe` may be null. See sbt/sbt#1593 and sbt/sbt#1655.
       case typeTree: TypeTree if !ignoredType(typeTree.tpe) =>
-        foreachNotPackageSymbolInType(typeTree.tpe)(addDependency)
+        addTypeDependencies(typeTree.tpe)
       case m @ MacroExpansionOf(original) if inspectedOriginalTrees.add(original) =>
         traverse(original)
         super.traverse(m)
@@ -324,14 +387,6 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
         localToNonLocalClass.resolveNonLocal(sym)
         super.traverse(tree)
       case other => super.traverse(other)
-    }
-
-    val addSymbolFromParent: Symbol => Unit = { symbol =>
-      addInheritanceDependency(symbol)
-      addDependency(symbol)
-    }
-    val addSymbolsFromType: Type => Unit = { tpe =>
-      foreachNotPackageSymbolInType(tpe)(addDependency)
     }
   }
 }
