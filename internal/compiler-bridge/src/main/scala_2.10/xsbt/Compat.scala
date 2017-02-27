@@ -1,6 +1,7 @@
 package xsbt
 
 import scala.reflect.{ internal => sri }
+import scala.reflect.internal.{ util => sriu }
 import scala.tools.nsc.{ Global, Settings }
 import scala.tools.nsc.interactive.RangePositions
 import scala.tools.nsc.symtab.Flags, Flags._
@@ -160,6 +161,11 @@ object Compat {
   implicit final class SettingsCompat(val settings: Settings) extends AnyVal {
     // Introduced in 2.11
     def fatalWarnings = settings.Xwarnfatal
+  }
+
+  implicit final class PositionOps(val self: sriu.Position) extends AnyVal {
+    // Missing in 2.10
+    def finalPosition: sriu.Position = self.source positionInUltimateSource self
   }
 }
 

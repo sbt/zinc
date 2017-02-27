@@ -9,6 +9,7 @@ package xsbt
 
 import java.io.File
 import java.util.Optional
+import Compat._
 
 private object DelegatingReporter {
   def apply(settings: scala.tools.nsc.Settings, delegate: xsbti.Reporter): DelegatingReporter =
@@ -77,7 +78,7 @@ private final class DelegatingReporter(warnFatal: Boolean, noWarn: Boolean, priv
         Option(posIn) match {
           case None | Some(NoPosition) => None
           case Some(x: FakePos)        => None
-          case x                       => Option(posIn.inUltimateSource(posIn.source))
+          case x                       => Option(posIn.finalPosition)
         }
       posOpt match {
         case None      => new PositionImpl(None, None, None, "", None, None, None)
