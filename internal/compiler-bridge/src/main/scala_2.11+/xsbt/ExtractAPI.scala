@@ -51,7 +51,7 @@ class ExtractAPI[GlobalType <: Global](
   // Tracks the source file associated with the CompilationUnit currently being processed by the API phase.
   // This is used when recording inheritance dependencies.
   sourceFile: File
-) extends Compat with ClassName with GlobalHelpers {
+) extends Compat with ClassName {
 
   import global._
 
