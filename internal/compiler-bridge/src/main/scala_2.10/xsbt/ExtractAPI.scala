@@ -617,7 +617,7 @@ class ExtractAPI[GlobalType <: Global](
 
   private def simpleName(s: Symbol): String =
     {
-      val n = s.originalName
+      val n = s.unexpandedName
       val n2 = if (n.toString == "<init>") n else n.decode
       n2.toString.trim
     }

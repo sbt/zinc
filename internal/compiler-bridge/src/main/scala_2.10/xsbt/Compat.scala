@@ -71,6 +71,9 @@ abstract class Compat {
       if (sym.isMethod) sym.hasStableFlag && !sym.isLazy
       else sym.hasNoFlags(LAZY | MUTABLE)
     )
+
+    // unexpandedName replaces originalName in 2.11
+    def unexpandedName: Name = sym.originalName
   }
 
   val DummyValue = 0
