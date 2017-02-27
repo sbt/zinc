@@ -10,7 +10,7 @@ package xsbt
 import scala.tools.nsc.Global
 
 trait GlobalHelpers { self: Compat =>
-  val global: CallbackGlobal
+  val global: Global
   import global._
 
   /** Return true if type shall be ignored, false otherwise. */
