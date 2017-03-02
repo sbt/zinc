@@ -221,7 +221,7 @@ lazy val zincCompileCore = (project in internalPath / "zinc-compile-core").
   settings(
     name := "zinc Compile Core",
     libraryDependencies ++= Seq(scalaCompiler.value % Test, launcherInterface, parserCombinator),
-    unmanagedJars in Test <<= (packageSrc in compilerBridge in Compile).map(x => Seq(x).classpath)
+    unmanagedJars in Test := Seq(packageSrc in compilerBridge in Compile value).classpath
   ).
   configure(addSbtUtilLogging, addSbtIO, addSbtUtilControl)
 
@@ -238,9 +238,9 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface").
     relaxNon212,
     libraryDependencies ++= Seq(scalaLibrary.value % Test),
     exportJars := true,
-    watchSources <++= apiDefinitions,
-    resourceGenerators in Compile <+= (version, resourceManaged, streams, compile in Compile) map generateVersionFile,
-    apiDefinitions <<= baseDirectory map { base => (base / "definition") :: (base / "other") :: (base / "type") :: Nil },
+    watchSources ++= apiDefinitions.value,
+    resourceGenerators in Compile += Def.task(generateVersionFile(version.value, resourceManaged.value, streams.value, compile in Compile value)).taskValue,
+    apiDefinitions := List((baseDirectory.value / "definition"), (baseDirectory.value / "other"), (baseDirectory.value / "type")),
     crossPaths := false,
     autoScalaLibrary := false,
     altPublishSettings
@@ -355,8 +355,8 @@ addCommandAlias(
 
 lazy val otherRootSettings = Seq(
   Scripted.scriptedPrescripted := { addSbtAlternateResolver _ },
-  Scripted.scripted <<= scriptedTask,
-  Scripted.scriptedUnpublished <<= scriptedUnpublishedTask,
+  Scripted.scripted := scriptedTask.evaluated,
+  Scripted.scriptedUnpublished := scriptedUnpublishedTask.evaluated,
   Scripted.scriptedSource := (sourceDirectory in zinc).value / "sbt-test",
   publishAll := {
     val _ = (publishLocal).all(ScopeFilter(inAnyProject)).value
