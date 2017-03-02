@@ -6,13 +6,13 @@ and the Zinc team tries to make it a fun and motivating experience.
 
 ## Reading up
 
-If this is the first time you contribute to Zinc, get some time to get familiar
+If this is your first time contributing to Zinc, take some time to get familiar
 with Zinc. To get you started as soon as possible, we have written a series of
 guides that explain the underlying concepts of Zinc and how incremental
 compilation works in 1.0.
 
 Guides:
-  
+
 * [Understanding Incremental Recompilation](http://www.scala-sbt.org/0.13/docs/Understanding-Recompilation.html).
 * [Scala Lang blog post on Zinc release](https://www.scala-lang.org/blog/2017/01/03/zinc-blog-post.html).
 * All the issues and PRs labelled as `docs` will help you understand different
@@ -21,7 +21,7 @@ Guides:
 
 The Zinc team is actively updating this information and creating more guides
 to make it easier to hack on Zinc. if you find this information outdated,
-please let us know in our [Gitter channel](https://gitter.im/sbt/zinc-contrib).
+please let us know in our Gitter room [sbt/zinc-contrib][].
 
 ## Hacking on Zinc
 
@@ -36,28 +36,28 @@ a compiler, it defines the logic to analyse dependencies based on the compiler
 API and creates all the required infrastructure around it to let build tools
 use it.
 
-Zinc is split into different sbt subprojects. The compiler interface and
+Zinc is split into different subprojects. The compiler interface and
 implementation can be found in `internal/compiler-interface` and `internal/compiler-bridge`,
 while general infrastructure, sbt internal APIs and high-level compiler APIs for
 Zinc are available in the rest of projects inside `internal`.
 
-Zinc also counts with a JMH benchmark suite. This benchmark suite can benchmark
-any project in the community that runs on 2.12.x/2.11.x. The Zinc team uses it
+Zinc also has a JMH benchmark suite. This benchmark suite can benchmark
+any project that runs on 2.12.x/2.11.x. The Zinc team uses it
 to make sure that there's not a performance regression in the Zinc compiler phases.
 
 We encourage all the contributors hacking on the compiler bridge to run these
-benchmarks and include them *both* in the commit message and PR description.
-The richer the descriptions are, the better. If you're not changing the compiler
+benchmarks and include them in *both* the commit message and PR description.
+The richer the descriptions the better. If you're not changing the compiler
 bridge, you don't need to run these benchmarks.
 
 ### Reaching out for help
 
-If you need any help, the Zinc team hangs out in [this Gitter channel](https://gitter.im/sbt/zinc-contrib).
+If you need any help, the Zinc team hangs out in [sbt/zinc-contrib][].
 Feel free to ask any question.
 
 ### Benchmarking Zinc
 
-To run JMH benchmarks, execute `runBenchmarks` in the sbt shell. By default,
+To run JMH benchmarks, run the sbt task `runBenchmarks`. By default,
 it will run a benchmark for Shapeless, but all benchmarks are welcome to be run
 on the Scala standard library and other well-known projects in the community,
 like Akka.
@@ -82,6 +82,8 @@ $ sbt -Dsbtio.path=../io -Dsbtutil.path=../util -Dsbtlm.path=../librarymanagemen
 Contributing to Zinc requires you or your employer to sign the
 [Lightbend Contributor License Agreement](https://www.lightbend.com/contribute/cla).
 
-To make it easier to respect our license agreements, we have added a sbt task
-that takes care of adding LICENSE headers to new files. Run `createHeaders`
+To make it easier to respect our license agreements, we have added an sbt task
+that takes care of adding the LICENSE headers to new files. Run `createHeaders`
 and sbt will put a copyright notice into it.
+
+[sbt/zinc-contrib]: https://gitter.im/sbt/zinc-contrib
