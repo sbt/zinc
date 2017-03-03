@@ -80,7 +80,7 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
       val usedNameValues = usedName.getValue.iterator()
       val uses = new ArrayList[String]()
       while (usedNameValues.hasNext) {
-        uses + usedNameValues.next().decode.trim
+        uses.add(usedNameValues.next().decode.trim)
       }
       result.put(usedNameKey, uses)
     }
