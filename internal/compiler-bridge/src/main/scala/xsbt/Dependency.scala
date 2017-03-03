@@ -8,7 +8,6 @@
 package xsbt
 
 import java.io.File
-import java.util
 
 import xsbti.api.DependencyContext
 import DependencyContext._
@@ -146,10 +145,10 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
     private var inImportNode = false
 
     // Define caches for dependencies that have already been processed
-    private val _memberRefCache = new util.HashSet[ClassDependency]()
-    private val _inheritanceCache = new util.HashSet[ClassDependency]()
-    private val _localInheritanceCache = new util.HashSet[ClassDependency]()
-    private val _topLevelImportCache = new util.HashSet[Symbol]()
+    private val _memberRefCache = new java.util.HashSet[ClassDependency]()
+    private val _inheritanceCache = new java.util.HashSet[ClassDependency]()
+    private val _localInheritanceCache = new java.util.HashSet[ClassDependency]()
+    private val _topLevelImportCache = new java.util.HashSet[Symbol]()
 
     private var _currentDependencySource: Symbol = _
     private var _currentNonLocalClass: Symbol = _
@@ -216,7 +215,7 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
      *   3. Inheritance.
      */
     private def addClassDependency(
-      cache: util.HashSet[ClassDependency],
+      cache: java.util.HashSet[ClassDependency],
       process: ClassDependency => Unit,
       fromClass: Symbol,
       dep: Symbol
@@ -275,7 +274,7 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
         }
       }
 
-      val cache = new util.HashMap[Symbol, (Handler, util.HashSet[Type])]()
+      val cache = new java.util.HashMap[Symbol, (Handler, java.util.HashSet[Type])]()
       private var handler: Handler = _
       private var visitedOwner: Symbol = _
       def setOwner(owner: Symbol) = {
@@ -285,7 +284,7 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
             visited = ts
             handler = h
           } else {
-            val newVisited = new util.HashSet[Type]()
+            val newVisited = new java.util.HashSet[Type]()
             handler = createHandler(owner)
             cache.put(owner, handler -> newVisited)
             visited = newVisited
@@ -319,7 +318,7 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
      *     https://github.com/sbt/sbt/issues/1237
      *     https://github.com/sbt/sbt/issues/1544
      */
-    private val inspectedOriginalTrees = new util.HashSet[Tree]()
+    private val inspectedOriginalTrees = new java.util.HashSet[Tree]()
 
     override def traverse(tree: Tree): Unit = tree match {
       case Import(expr, selectors) =>

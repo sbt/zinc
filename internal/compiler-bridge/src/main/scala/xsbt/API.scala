@@ -35,6 +35,22 @@ final class API(val global: CallbackGlobal) extends Compat with GlobalHelpers {
 
     def processUnit(unit: CompilationUnit) = if (!unit.isJava) processScalaUnit(unit)
     def processScalaUnit(unit: CompilationUnit): Unit = {
+
+      def debugOutput(map: => java.util.HashMap[String, java.util.ArrayList[String]]): String = {
+        val stringBuffer = new StringBuffer()
+        val it = map.entrySet().iterator()
+
+        while (it.hasNext) {
+          val values = it.next()
+          stringBuffer.append(showUsedNames(values.getKey, values.getValue))
+        }
+
+        stringBuffer.toString
+      }
+
+      def showUsedNames(className: String, names: java.util.ArrayList[String]): String =
+        s"$className:\n\t${String.join(",", names)}"
+
       val sourceFile = unit.source.file.file
       debuglog("Traversing " + sourceFile)
       callback.startSource(sourceFile)
@@ -43,14 +59,14 @@ final class API(val global: CallbackGlobal) extends Compat with GlobalHelpers {
       traverser.apply(unit.body)
       val extractUsedNames = new ExtractUsedNames[global.type](global)
       val allUsedNames = extractUsedNames.extract(unit)
-      def showUsedNames(className: String, names: Iterable[String]): String =
-        s"$className:\n\t${names.mkString(", ")}"
-      debuglog("The " + sourceFile + " contains the following used names:\n" +
-        allUsedNames.map((showUsedNames _).tupled).mkString("\n"))
-      allUsedNames foreach {
-        case (className: String, names: Iterable[String]) =>
-          names foreach { (name: String) => callback.usedName(className, name) }
+
+      debuglog("The " + sourceFile + " contains the following used names:\n " + debugOutput(allUsedNames))
+
+      allUsedNames.forEach {
+        case (className: String, names: java.util.ArrayList[String]) =>
+          names.forEach { (name: String) => callback.usedName(className, name) }
       }
+
       val classApis = traverser.allNonLocalClasses
 
       classApis.foreach(callback.api(sourceFile, _))

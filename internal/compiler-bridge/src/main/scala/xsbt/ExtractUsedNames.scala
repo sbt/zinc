@@ -7,8 +7,6 @@
 
 package xsbt
 
-import java.util
-
 import Compat._
 
 /**
@@ -50,7 +48,7 @@ import Compat._
 class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) extends Compat with ClassName with GlobalHelpers {
   import global._
 
-  def extract(unit: CompilationUnit): Iterable[(String, Iterable[String])] = {
+  def extract(unit: CompilationUnit): java.util.HashMap[String, java.util.ArrayList[String]] = {
     val tree = unit.body
     val traverser = new ExtractUsedNamesTraverser
     traverser.traverse(tree)
@@ -69,12 +67,20 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
       }
     }
 
-    import scala.collection.JavaConverters._
-    traverser.usedNamesFromClasses.asScala.map { tpl =>
-      // NOTE: We don't decode the full class name, only dependent names.
-      tpl._1.toString.trim -> tpl._2.asScala.map(_.decode.trim)
-    }
+    val result = new java.util.HashMap[String, java.util.ArrayList[String]]()
 
+    val it = traverser.usedNamesFromClasses.entrySet().iterator()
+    while (it.hasNext) {
+      val usedName = it.next()
+      val usedNameKey = usedName.getKey.toString.trim
+      val usedNameValues = usedName.getValue.iterator()
+      val uses = new java.util.ArrayList[String]()
+      while (usedNameValues.hasNext) {
+        uses + usedNameValues.next().decode.trim
+      }
+      result.put(usedNameKey, uses)
+    }
+    result
   }
 
   private def firstClassOrModuleDef(tree: Tree): Option[Tree] = {
@@ -86,8 +92,8 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
   }
 
   private class ExtractUsedNamesTraverser extends Traverser {
-    val usedNamesFromClasses = new util.HashMap[Name, util.HashSet[Name]]()
-    val namesUsedAtTopLevel = new util.HashSet[Name]()
+    val usedNamesFromClasses = new java.util.HashMap[Name, java.util.HashSet[Name]]()
+    val namesUsedAtTopLevel = new java.util.HashSet[Name]()
 
     override def traverse(tree: Tree): Unit = {
       handleClassicTreeNode(tree)
@@ -96,7 +102,7 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
     }
 
     val addSymbol = {
-      (names: util.HashSet[Name], symbol: Symbol) =>
+      (names: java.util.HashSet[Name], symbol: Symbol) =>
         if (!ignoredSymbol(symbol)) {
           val name = symbol.name
           // Synthetic names are no longer included. See https://github.com/sbt/sbt/issues/2537
@@ -107,11 +113,11 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
     }
 
     /** Returns mutable set with all names from given class used in current context */
-    def usedNamesFromClass(className: Name): util.HashSet[Name] = {
+    def usedNamesFromClass(className: Name): java.util.HashSet[Name] = {
       if (usedNamesFromClasses.containsKey(className)) {
         usedNamesFromClasses.get(className)
       } else {
-        val emptySet = new util.HashSet[Name]()
+        val emptySet = new java.util.HashSet[Name]()
         usedNamesFromClasses.put(className, emptySet)
         emptySet
       }
@@ -124,8 +130,8 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
      *     https://github.com/sbt/sbt/issues/1237
      *     https://github.com/sbt/sbt/issues/1544
      */
-    private val inspectedOriginalTrees = new util.HashSet[Tree]()
-    private val inspectedTypeTrees = new util.HashSet[Tree]()
+    private val inspectedOriginalTrees = new java.util.HashSet[Tree]()
+    private val inspectedTypeTrees = new java.util.HashSet[Tree]()
 
     private val handleMacroExpansion: Tree => Unit = { original =>
       if (!inspectedOriginalTrees.contains(original)) {
@@ -135,17 +141,17 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
     }
 
     private object TypeDependencyTraverser extends TypeDependencyTraverser {
-      private var ownersCache = new util.HashMap[Symbol, util.HashSet[Type]]()
-      private var nameCache: util.HashSet[Name] = _
+      private var ownersCache = new java.util.HashMap[Symbol, java.util.HashSet[Type]]()
+      private var nameCache: java.util.HashSet[Name] = _
       private var ownerVisited: Symbol = _
 
-      def setCacheAndOwner(cache: util.HashSet[Name], owner: Symbol) = {
+      def setCacheAndOwner(cache: java.util.HashSet[Name], owner: Symbol) = {
         if (ownerVisited != owner) {
           if (ownersCache.containsKey(owner)) {
             val ts = ownersCache.get(owner)
             visited = ts
           } else {
-            val newVisited = new util.HashSet[Type]()
+            val newVisited = new java.util.HashSet[Type]()
             visited = newVisited
             ownersCache.put(owner, newVisited)
           }
@@ -199,7 +205,7 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
 
     private var _currentOwner: Symbol = _
     private var _currentNonLocalClass: Symbol = _
-    private var _currentNamesCache: util.HashSet[Name] = _
+    private var _currentNamesCache: java.util.HashSet[Name] = _
 
     @inline private def resolveNonLocal(from: Symbol): Symbol = {
       val fromClass = enclOrModuleClass(from)
@@ -207,7 +213,7 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
       else localToNonLocalClass.resolveNonLocal(fromClass)
     }
 
-    @inline private def getNames(nonLocalClass: Symbol): util.HashSet[Name] = {
+    @inline private def getNames(nonLocalClass: Symbol): java.util.HashSet[Name] = {
       if (nonLocalClass == NoSymbol) namesUsedAtTopLevel
       else usedNamesFromClass(ExtractUsedNames.this.className(nonLocalClass))
     }
@@ -227,7 +233,7 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
      *        `_currentNonLocalClass`.
      *   2. Otherwise, overwrite all the pertinent fields to be consistent.
      */
-    private def getNamesOfEnclosingScope: util.HashSet[Name] = {
+    private def getNamesOfEnclosingScope: java.util.HashSet[Name] = {
       if (_currentOwner == null) {
         // Set the first state for the enclosing non-local class
         _currentOwner = currentOwner
