@@ -8,6 +8,7 @@
 package xsbt
 
 import java.io.File
+import java.util
 
 import xsbti.api.DependencyContext
 import DependencyContext._
@@ -145,11 +146,10 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
     private var inImportNode = false
 
     // Define caches for dependencies that have already been processed
-    import scala.collection.mutable.HashSet
-    private val _memberRefCache = HashSet.empty[ClassDependency]
-    private val _inheritanceCache = HashSet.empty[ClassDependency]
-    private val _localInheritanceCache = HashSet.empty[ClassDependency]
-    private val _topLevelImportCache = HashSet.empty[Symbol]
+    private val _memberRefCache = new util.HashSet[ClassDependency]()
+    private val _inheritanceCache = new util.HashSet[ClassDependency]()
+    private val _localInheritanceCache = new util.HashSet[ClassDependency]()
+    private val _topLevelImportCache = new util.HashSet[Symbol]()
 
     private var _currentDependencySource: Symbol = _
     private var _currentNonLocalClass: Symbol = _
@@ -216,7 +216,7 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
      *   3. Inheritance.
      */
     private def addClassDependency(
-      cache: HashSet[ClassDependency],
+      cache: util.HashSet[ClassDependency],
       process: ClassDependency => Unit,
       fromClass: Symbol,
       dep: Symbol
@@ -228,7 +228,7 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
         fromClass.associatedFile != depClass.associatedFile &&
         !depClass.isRefinementClass) {
         process(dependency)
-        cache += dependency
+        cache.add(dependency)
         ()
       }
     }
@@ -237,7 +237,7 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
       val depClass = enclOrModuleClass(dep)
       if (!_topLevelImportCache.contains(depClass) && !dep.hasPackageFlag) {
         processor.processTopLevelImportDependency(depClass)
-        _topLevelImportCache += depClass
+        _topLevelImportCache.add(depClass)
         ()
       }
     }
@@ -275,21 +275,21 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
         }
       }
 
-      val cache = scala.collection.mutable.Map.empty[Symbol, (Handler, scala.collection.mutable.HashSet[Type])]
+      val cache = new util.HashMap[Symbol, (Handler, util.HashSet[Type])]()
       private var handler: Handler = _
       private var visitedOwner: Symbol = _
       def setOwner(owner: Symbol) = {
         if (visitedOwner != owner) {
-          cache.get(owner) match {
-            case Some((h, ts)) =>
-              visited = ts
-              handler = h
-            case None =>
-              val newVisited = scala.collection.mutable.HashSet.empty[Type]
-              handler = createHandler(owner)
-              cache += owner -> (handler -> newVisited)
-              visited = newVisited
-              visitedOwner = owner
+          if (cache.containsKey(owner)) {
+            val (h, ts) = cache.get(owner)
+            visited = ts
+            handler = h
+          } else {
+            val newVisited = new util.HashSet[Type]()
+            handler = createHandler(owner)
+            cache.put(owner, handler -> newVisited)
+            visited = newVisited
+            visitedOwner = owner
           }
         }
       }
@@ -319,7 +319,7 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
      *     https://github.com/sbt/sbt/issues/1237
      *     https://github.com/sbt/sbt/issues/1544
      */
-    private val inspectedOriginalTrees = collection.mutable.Set.empty[Tree]
+    private val inspectedOriginalTrees = new util.HashSet[Tree]()
 
     override def traverse(tree: Tree): Unit = tree match {
       case Import(expr, selectors) =>

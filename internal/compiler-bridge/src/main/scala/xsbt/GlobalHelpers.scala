@@ -7,6 +7,8 @@
 
 package xsbt
 
+import java.util
+
 import scala.tools.nsc.Global
 
 trait GlobalHelpers { self: Compat =>
@@ -57,7 +59,7 @@ trait GlobalHelpers { self: Compat =>
     }
 
     // Define cache and populate it with known types at initialization time
-    protected var visited = scala.collection.mutable.HashSet.empty[Type]
+    protected var visited = new util.HashSet[Type]()
 
     /** Clear the cache after every `traverse` invocation at the call-site. */
     protected def reinitializeVisited(): Unit = visited.clear()
@@ -70,7 +72,7 @@ trait GlobalHelpers { self: Compat =>
      */
     override def traverse(tpe: Type): Unit = {
       if ((tpe ne NoType) && !visited.contains(tpe)) {
-        visited += tpe
+        visited.add(tpe)
         tpe match {
           case singleRef: SingleType =>
             addTypeDependency(singleRef)

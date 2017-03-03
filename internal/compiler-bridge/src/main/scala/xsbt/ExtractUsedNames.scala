@@ -7,7 +7,8 @@
 
 package xsbt
 
-import scala.collection.mutable
+import java.util
+
 import Compat._
 
 /**
@@ -55,23 +56,25 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
     traverser.traverse(tree)
     val namesUsedAtTopLevel = traverser.namesUsedAtTopLevel
 
-    if (namesUsedAtTopLevel.nonEmpty) {
+    if (!namesUsedAtTopLevel.isEmpty) {
       val responsible = firstClassOrModuleDef(tree)
       responsible match {
         case Some(classOrModuleDef) =>
           val sym = classOrModuleDef.symbol
           val firstClassSymbol = if (sym.isModule) sym.moduleClass else sym
           val firstClassName = className(firstClassSymbol)
-          traverser.usedNamesFromClass(firstClassName) ++= namesUsedAtTopLevel
+          traverser.usedNamesFromClass(firstClassName).addAll(namesUsedAtTopLevel)
         case None =>
           reporter.warning(unit.position(0), Feedback.OrphanNames)
       }
     }
 
-    traverser.usedNamesFromClasses.map { tpl =>
+    import scala.collection.JavaConverters._
+    traverser.usedNamesFromClasses.asScala.map { tpl =>
       // NOTE: We don't decode the full class name, only dependent names.
-      tpl._1.toString.trim -> tpl._2.map(_.decode.trim)
+      tpl._1.toString.trim -> tpl._2.asScala.map(_.decode.trim)
     }
+
   }
 
   private def firstClassOrModuleDef(tree: Tree): Option[Tree] = {
@@ -83,8 +86,8 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
   }
 
   private class ExtractUsedNamesTraverser extends Traverser {
-    val usedNamesFromClasses = mutable.Map.empty[Name, mutable.Set[Name]]
-    val namesUsedAtTopLevel = mutable.Set.empty[Name]
+    val usedNamesFromClasses = new util.HashMap[Name, util.HashSet[Name]]()
+    val namesUsedAtTopLevel = new util.HashSet[Name]()
 
     override def traverse(tree: Tree): Unit = {
       handleClassicTreeNode(tree)
@@ -93,24 +96,24 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
     }
 
     val addSymbol = {
-      (names: mutable.Set[Name], symbol: Symbol) =>
+      (names: util.HashSet[Name], symbol: Symbol) =>
         if (!ignoredSymbol(symbol)) {
           val name = symbol.name
           // Synthetic names are no longer included. See https://github.com/sbt/sbt/issues/2537
           if (!isEmptyName(name) && !names.contains(name))
-            names += name
+            names.add(name)
           ()
         }
     }
 
     /** Returns mutable set with all names from given class used in current context */
-    def usedNamesFromClass(className: Name): collection.mutable.Set[Name] = {
-      usedNamesFromClasses.get(className) match {
-        case Some(setForClass) => setForClass
-        case None =>
-          val emptySet = scala.collection.mutable.Set.empty[Name]
-          usedNamesFromClasses.put(className, emptySet)
-          emptySet
+    def usedNamesFromClass(className: Name): util.HashSet[Name] = {
+      if (usedNamesFromClasses.containsKey(className)) {
+        usedNamesFromClasses.get(className)
+      } else {
+        val emptySet = new util.HashSet[Name]()
+        usedNamesFromClasses.put(className, emptySet)
+        emptySet
       }
     }
 
@@ -121,30 +124,30 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
      *     https://github.com/sbt/sbt/issues/1237
      *     https://github.com/sbt/sbt/issues/1544
      */
-    private val inspectedOriginalTrees = collection.mutable.Set.empty[Tree]
-    private val inspectedTypeTrees = collection.mutable.Set.empty[Tree]
+    private val inspectedOriginalTrees = new util.HashSet[Tree]()
+    private val inspectedTypeTrees = new util.HashSet[Tree]()
 
     private val handleMacroExpansion: Tree => Unit = { original =>
       if (!inspectedOriginalTrees.contains(original)) {
-        inspectedOriginalTrees += original
+        inspectedOriginalTrees.add(original)
         traverse(original)
       }
     }
 
     private object TypeDependencyTraverser extends TypeDependencyTraverser {
-      private var ownersCache = mutable.Map.empty[Symbol, mutable.HashSet[Type]]
-      private var nameCache: mutable.Set[Name] = _
+      private var ownersCache = new util.HashMap[Symbol, util.HashSet[Type]]()
+      private var nameCache: util.HashSet[Name] = _
       private var ownerVisited: Symbol = _
 
-      def setCacheAndOwner(cache: mutable.Set[Name], owner: Symbol) = {
+      def setCacheAndOwner(cache: util.HashSet[Name], owner: Symbol) = {
         if (ownerVisited != owner) {
-          ownersCache.get(owner) match {
-            case Some(ts) =>
-              visited = ts
-            case None =>
-              val newVisited = mutable.HashSet.empty[Type]
-              visited = newVisited
-              ownersCache += owner -> newVisited
+          if (ownersCache.containsKey(owner)) {
+            val ts = ownersCache.get(owner)
+            visited = ts
+          } else {
+            val newVisited = new util.HashSet[Type]()
+            visited = newVisited
+            ownersCache.put(owner, newVisited)
           }
           nameCache = cache
           ownerVisited = owner
@@ -161,7 +164,7 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
         val names = getNamesOfEnclosingScope
         def usedNameInImportSelector(name: Name): Unit = {
           if (!isEmptyName(name) && (name != nme.WILDCARD) && !names.contains(name)) {
-            names += name
+            names.add(name)
           }
         }
         selectors foreach { selector =>
@@ -176,7 +179,7 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
       case t: TypeTree if t.original != null =>
         val original = t.original
         if (!inspectedTypeTrees.contains(original)) {
-          inspectedTypeTrees += original
+          inspectedTypeTrees.add(original)
           original.foreach(traverse)
         }
       case t if t.hasSymbolField =>
@@ -194,10 +197,9 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
       case _ =>
     }
 
-    import scala.collection.mutable
     private var _currentOwner: Symbol = _
     private var _currentNonLocalClass: Symbol = _
-    private var _currentNamesCache: mutable.Set[Name] = _
+    private var _currentNamesCache: util.HashSet[Name] = _
 
     @inline private def resolveNonLocal(from: Symbol): Symbol = {
       val fromClass = enclOrModuleClass(from)
@@ -205,7 +207,7 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
       else localToNonLocalClass.resolveNonLocal(fromClass)
     }
 
-    @inline private def getNames(nonLocalClass: Symbol): mutable.Set[Name] = {
+    @inline private def getNames(nonLocalClass: Symbol): util.HashSet[Name] = {
       if (nonLocalClass == NoSymbol) namesUsedAtTopLevel
       else usedNamesFromClass(ExtractUsedNames.this.className(nonLocalClass))
     }
@@ -225,7 +227,7 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
      *        `_currentNonLocalClass`.
      *   2. Otherwise, overwrite all the pertinent fields to be consistent.
      */
-    private def getNamesOfEnclosingScope: mutable.Set[Name] = {
+    private def getNamesOfEnclosingScope: util.HashSet[Name] = {
       if (_currentOwner == null) {
         // Set the first state for the enclosing non-local class
         _currentOwner = currentOwner
