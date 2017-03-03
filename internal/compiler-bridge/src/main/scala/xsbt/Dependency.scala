@@ -282,16 +282,16 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
       private var visitedOwner: Symbol = _
       def setOwner(owner: Symbol) = {
         if (visitedOwner != owner) {
-          if (cache.containsKey(owner)) {
-            val (h, ts) = cache.get(owner)
-            visited = ts
-            handler = h
-          } else {
-            val newVisited = new HashSet[Type]()
-            handler = createHandler(owner)
-            cache.put(owner, handler -> newVisited)
-            visited = newVisited
-            visitedOwner = owner
+          cache.get(owner) match {
+            case null =>
+              val newVisited = new HashSet[Type]()
+              handler = createHandler(owner)
+              cache.put(owner, handler -> newVisited)
+              visited = newVisited
+              visitedOwner = owner
+            case (h, ts) =>
+              visited = ts
+              handler = h
           }
         }
       }

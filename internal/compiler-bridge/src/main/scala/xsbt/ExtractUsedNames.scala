@@ -118,12 +118,13 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
 
     /** Returns mutable set with all names from given class used in current context */
     def usedNamesFromClass(className: Name): HashSet[Name] = {
-      if (usedNamesFromClasses.containsKey(className)) {
-        usedNamesFromClasses.get(className)
-      } else {
+      val ts = usedNamesFromClasses.get(className)
+      if (ts == null) {
         val emptySet = new HashSet[Name]()
         usedNamesFromClasses.put(className, emptySet)
         emptySet
+      } else {
+        ts
       }
     }
 
@@ -151,14 +152,16 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
 
       def setCacheAndOwner(cache: HashSet[Name], owner: Symbol) = {
         if (ownerVisited != owner) {
-          if (ownersCache.containsKey(owner)) {
-            val ts = ownersCache.get(owner)
-            visited = ts
-          } else {
+          val ts = ownersCache.get(owner)
+
+          if (ts == null) {
             val newVisited = new HashSet[Type]()
             visited = newVisited
             ownersCache.put(owner, newVisited)
+          } else {
+            visited = ts
           }
+
           nameCache = cache
           ownerVisited = owner
         }
