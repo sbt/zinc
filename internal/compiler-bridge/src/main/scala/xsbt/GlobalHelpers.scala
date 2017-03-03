@@ -8,6 +8,7 @@
 package xsbt
 
 import scala.tools.nsc.Global
+import java.util.HashSet
 
 trait GlobalHelpers { self: Compat =>
   val global: Global
@@ -57,7 +58,7 @@ trait GlobalHelpers { self: Compat =>
     }
 
     // Define cache and populate it with known types at initialization time
-    protected var visited = new java.util.HashSet[Type]()
+    protected var visited = new HashSet[Type]()
 
     /** Clear the cache after every `traverse` invocation at the call-site. */
     protected def reinitializeVisited(): Unit = visited.clear()

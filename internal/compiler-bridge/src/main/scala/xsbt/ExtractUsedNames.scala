@@ -7,6 +7,10 @@
 
 package xsbt
 
+import java.util.ArrayList
+import java.util.HashMap
+import java.util.HashSet
+
 import Compat._
 
 /**
@@ -48,7 +52,7 @@ import Compat._
 class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) extends Compat with ClassName with GlobalHelpers {
   import global._
 
-  def extract(unit: CompilationUnit): java.util.HashMap[String, java.util.ArrayList[String]] = {
+  def extract(unit: CompilationUnit): HashMap[String, ArrayList[String]] = {
     val tree = unit.body
     val traverser = new ExtractUsedNamesTraverser
     traverser.traverse(tree)
@@ -67,14 +71,14 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
       }
     }
 
-    val result = new java.util.HashMap[String, java.util.ArrayList[String]]()
+    val result = new HashMap[String, ArrayList[String]]()
 
     val it = traverser.usedNamesFromClasses.entrySet().iterator()
     while (it.hasNext) {
       val usedName = it.next()
       val usedNameKey = usedName.getKey.toString.trim
       val usedNameValues = usedName.getValue.iterator()
-      val uses = new java.util.ArrayList[String]()
+      val uses = new ArrayList[String]()
       while (usedNameValues.hasNext) {
         uses + usedNameValues.next().decode.trim
       }
@@ -92,8 +96,8 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
   }
 
   private class ExtractUsedNamesTraverser extends Traverser {
-    val usedNamesFromClasses = new java.util.HashMap[Name, java.util.HashSet[Name]]()
-    val namesUsedAtTopLevel = new java.util.HashSet[Name]()
+    val usedNamesFromClasses = new HashMap[Name, HashSet[Name]]()
+    val namesUsedAtTopLevel = new HashSet[Name]()
 
     override def traverse(tree: Tree): Unit = {
       handleClassicTreeNode(tree)
@@ -102,7 +106,7 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
     }
 
     val addSymbol = {
-      (names: java.util.HashSet[Name], symbol: Symbol) =>
+      (names: HashSet[Name], symbol: Symbol) =>
         if (!ignoredSymbol(symbol)) {
           val name = symbol.name
           // Synthetic names are no longer included. See https://github.com/sbt/sbt/issues/2537
@@ -113,11 +117,11 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
     }
 
     /** Returns mutable set with all names from given class used in current context */
-    def usedNamesFromClass(className: Name): java.util.HashSet[Name] = {
+    def usedNamesFromClass(className: Name): HashSet[Name] = {
       if (usedNamesFromClasses.containsKey(className)) {
         usedNamesFromClasses.get(className)
       } else {
-        val emptySet = new java.util.HashSet[Name]()
+        val emptySet = new HashSet[Name]()
         usedNamesFromClasses.put(className, emptySet)
         emptySet
       }
@@ -130,8 +134,8 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
      *     https://github.com/sbt/sbt/issues/1237
      *     https://github.com/sbt/sbt/issues/1544
      */
-    private val inspectedOriginalTrees = new java.util.HashSet[Tree]()
-    private val inspectedTypeTrees = new java.util.HashSet[Tree]()
+    private val inspectedOriginalTrees = new HashSet[Tree]()
+    private val inspectedTypeTrees = new HashSet[Tree]()
 
     private val handleMacroExpansion: Tree => Unit = { original =>
       if (!inspectedOriginalTrees.contains(original)) {
@@ -141,17 +145,17 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
     }
 
     private object TypeDependencyTraverser extends TypeDependencyTraverser {
-      private var ownersCache = new java.util.HashMap[Symbol, java.util.HashSet[Type]]()
-      private var nameCache: java.util.HashSet[Name] = _
+      private var ownersCache = new HashMap[Symbol, HashSet[Type]]()
+      private var nameCache: HashSet[Name] = _
       private var ownerVisited: Symbol = _
 
-      def setCacheAndOwner(cache: java.util.HashSet[Name], owner: Symbol) = {
+      def setCacheAndOwner(cache: HashSet[Name], owner: Symbol) = {
         if (ownerVisited != owner) {
           if (ownersCache.containsKey(owner)) {
             val ts = ownersCache.get(owner)
             visited = ts
           } else {
-            val newVisited = new java.util.HashSet[Type]()
+            val newVisited = new HashSet[Type]()
             visited = newVisited
             ownersCache.put(owner, newVisited)
           }
@@ -205,7 +209,7 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
 
     private var _currentOwner: Symbol = _
     private var _currentNonLocalClass: Symbol = _
-    private var _currentNamesCache: java.util.HashSet[Name] = _
+    private var _currentNamesCache: HashSet[Name] = _
 
     @inline private def resolveNonLocal(from: Symbol): Symbol = {
       val fromClass = enclOrModuleClass(from)
@@ -213,7 +217,7 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
       else localToNonLocalClass.resolveNonLocal(fromClass)
     }
 
-    @inline private def getNames(nonLocalClass: Symbol): java.util.HashSet[Name] = {
+    @inline private def getNames(nonLocalClass: Symbol): HashSet[Name] = {
       if (nonLocalClass == NoSymbol) namesUsedAtTopLevel
       else usedNamesFromClass(ExtractUsedNames.this.className(nonLocalClass))
     }
@@ -233,7 +237,7 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
      *        `_currentNonLocalClass`.
      *   2. Otherwise, overwrite all the pertinent fields to be consistent.
      */
-    private def getNamesOfEnclosingScope: java.util.HashSet[Name] = {
+    private def getNamesOfEnclosingScope: HashSet[Name] = {
       if (_currentOwner == null) {
         // Set the first state for the enclosing non-local class
         _currentOwner = currentOwner
