@@ -8,6 +8,7 @@
 package xsbt
 
 import scala.collection.mutable
+import Compat._
 
 /**
  * Extracts simple names used in given compilation unit.
@@ -45,7 +46,7 @@ import scala.collection.mutable
  * The tree walking algorithm walks into TypeTree.original explicitly.
  *
  */
-class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) extends ClassName with GlobalHelpers {
+class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) extends Compat with ClassName with GlobalHelpers {
   import global._
 
   def extract(unit: CompilationUnit): Iterable[(String, Iterable[String])] = {
@@ -179,7 +180,10 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
           original.foreach(traverse)
         }
       case t if t.hasSymbolField =>
-        addSymbol(getNamesOfEnclosingScope, t.symbol)
+        val symbol = t.symbol
+        if (symbol != rootMirror.RootPackage)
+          addSymbol(getNamesOfEnclosingScope, t.symbol)
+
         val tpe = t.tpe
         if (!ignoredType(tpe)) {
           // Initialize _currentOwner if it's not
