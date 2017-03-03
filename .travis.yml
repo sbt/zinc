@@ -4,8 +4,14 @@ scala:
   - 2.11.8
   - 2.12.1
 
+env:
+  matrix:
+    - SBT_CMD="zincScripted/test zinc/test zincPersist/test zincIvyIntegration/test zincTesting/test"
+    - SBT_CMD="zincCompile/test zincCompileCore/test compilerInterface/test zincClasspath/test zincApiInfo/test zincClassfile/test"
+    - SBT_CMD="zincBenchmarks/test compilerBridge/test zincCore/test"
+
 script:
-  - sbt -Dfile.encoding=UTF8 -J-XX:ReservedCodeCacheSize=256M "publishBridgesAndTest $TRAVIS_SCALA_VERSION"
+  - sbt -Dfile.encoding=UTF8 -J-XX:ReservedCodeCacheSize=256M "publishBridgesAndTest $TRAVIS_SCALA_VERSION $SBT_CMD "
 
 jdk:
   - oraclejdk8

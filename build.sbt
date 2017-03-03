@@ -337,7 +337,7 @@ lazy val publishBridgesAndTest = Command.args("publishBridgesAndTest", "<version
       s";${zincApiInfo.id}/publishLocal;${compilerBridge.id}/test;${compilerBridge.id}/publishLocal" ::
       Nil
     }) :::
-    s"plz $version zincRoot/test" ::
+    //s"plz $version zincRoot/test" ::
     s"plz $version zincRoot/scripted" ::
     state
 }
