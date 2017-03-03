@@ -16,6 +16,10 @@ independent from the previous [sbt repo](https://github.com/sbt/sbt).
 Now, Zinc development lives in this repo and
 [`typesafehub/zinc`](https://github.com/typesafehub/zinc) has been deprecated.
 
+This new repository is an effort driven by Lightbend to allow any build tool
+use the Scala incremental compiler, as [sbt 1.0](https://github.com/sbt/sbt),
+[pants](https://github.com/pantsbuild/pants), and [CBT](https://github.com/cvogt/cbt).
+
 ## Current status
 
 The Zinc 1.0 incremental compiler implements significant improvements over
