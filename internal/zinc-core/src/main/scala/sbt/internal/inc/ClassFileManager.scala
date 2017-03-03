@@ -16,9 +16,9 @@ import collection.mutable
 import xsbti.compile.{ DeleteImmediatelyManagerType, IncOptions, TransactionalManagerType }
 import xsbti.compile.ClassFileManager
 
-object ClassfileManager {
+object ClassFileManager {
 
-  private case class WrappedClassfileManager(internal: ClassFileManager, external: Option[ClassFileManager])
+  private case class WrappedClassFileManager(internal: ClassFileManager, external: Option[ClassFileManager])
     extends ClassFileManager {
 
     override def delete(classes: Array[File]): Unit = {
@@ -37,7 +37,7 @@ object ClassfileManager {
     }
   }
 
-  def getClassfileManager(options: IncOptions): ClassFileManager = {
+  def getClassFileManager(options: IncOptions): ClassFileManager = {
     val internal =
       if (options.classfileManagerType.isDefined)
         options.classfileManagerType.get match {
@@ -52,10 +52,10 @@ object ClassfileManager {
         case manager: ClassFileManager => manager
       }
 
-    WrappedClassfileManager(internal, external)
+    WrappedClassFileManager(internal, external)
   }
 
-  /** Constructs a minimal ClassfileManager implementation that immediately deletes class files when requested. */
+  /** Constructs a minimal ClassFileManager implementation that immediately deletes class files when requested. */
   val deleteImmediately: () => ClassFileManager = () => new ClassFileManager {
     override def delete(classes: Array[File]): Unit = IO.deleteFilesEmptyDirs(classes)
     override def generated(classes: Array[File]): Unit = ()
@@ -66,12 +66,12 @@ object ClassfileManager {
   def transactional(tempDir0: File): () => ClassFileManager =
     transactional(tempDir0, sbt.util.Logger.Null)
 
-  /** When compilation fails, this ClassfileManager restores class files to the way they were before compilation. */
+  /** When compilation fails, this ClassFileManager restores class files to the way they were before compilation. */
   def transactional(tempDir0: File, logger: sbt.util.Logger): () => ClassFileManager = () => new ClassFileManager {
     val tempDir = tempDir0.getCanonicalFile
     IO.delete(tempDir)
     IO.createDirectory(tempDir)
-    logger.debug(s"Created transactional ClassfileManager with tempDir = $tempDir")
+    logger.debug(s"Created transactional ClassFileManager with tempDir = $tempDir")
 
     private[this] val generatedClasses = new mutable.HashSet[File]
     private[this] val movedClasses = new mutable.HashMap[File, File]
