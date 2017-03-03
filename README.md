@@ -16,6 +16,9 @@ change. The generated code should be identical to the output of a clean compile.
 [sbt/zinc]: https://github.com/sbt/zinc
 [pants]: https://github.com/pantsbuild/pants
 [CBT]: https://github.com/cvogt/cbt
+[Intellij]: https://github.com/Jetbrains/intellij-scala
+[Scala IDE]: https://github.com/scala-ide/scala-ide
+
 
 Originally this was project was part of [sbt][], referred to as the incremental compiler module of sbt.
 
@@ -26,7 +29,8 @@ With the effort for sbt 1, the sbt team extracted the incremental compiler from 
 [sbt/zinc][] repo, recycling the name "zinc".
 
 This new repository is an effort driven by Lightbend to allow any build tool
-use the Scala incremental compiler, as [sbt 1.0][sbt], [pants][], and [cbt][]
+use the Scala incremental compiler, as [sbt 1.0][sbt], [pants][], [cbt][],
+[Intellij][] and [Scala IDE][].
 
 ## Current status
 
