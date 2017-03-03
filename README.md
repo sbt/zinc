@@ -14,6 +14,8 @@ change. The generated code should be identical to the output of a clean compile.
 [sbt]: https://github.com/sbt/sbt
 [typesafehub/zinc]: https://github.com/typesafehub/zinc
 [sbt/zinc]: https://github.com/sbt/zinc
+[pants]: https://github.com/pantsbuild/pants
+[CBT]: https://github.com/cvogt/cbt
 
 Originally this was project was part of [sbt][], referred to as the incremental compiler module of sbt.
 
@@ -24,8 +26,7 @@ With the effort for sbt 1, the sbt team extracted the incremental compiler from 
 [sbt/zinc][] repo, recycling the name "zinc".
 
 This new repository is an effort driven by Lightbend to allow any build tool
-use the Scala incremental compiler, as [sbt 1.0](https://github.com/sbt/sbt),
-[pants](https://github.com/pantsbuild/pants), and [CBT](https://github.com/cvogt/cbt).
+use the Scala incremental compiler, as [sbt 1.0][sbt], [pants][], and [cbt][]
 
 ## Current status
 
