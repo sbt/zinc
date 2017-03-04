@@ -333,7 +333,7 @@ case class ProjectStructure(name: String, dependsOn: Vector[String], baseDirecto
       val sources = scalaSources ++ javaSources
       val prev0 = prev
       val lookup = new PerClasspathEntryLookupImpl(lookupAnalysis, Locate.definesClass)
-      val transactional: xsbti.Maybe[xsbti.compile.ClassfileManagerType] =
+      val transactional: xsbti.Maybe[xsbti.compile.ClassFileManagerType] =
         Maybe.just(new xsbti.compile.TransactionalManagerType(targetDir / "classes.bak", sbt.util.Logger.Null))
       // you can't specify class file manager in the properties files so let's overwrite it to be the transactional
       // one (that's the default for sbt)

@@ -58,8 +58,8 @@ public class IncOptionsUtil {
     return Maybe.<File>nothing();
   }
 
-  public static Maybe<ClassfileManagerType> defaultClassfileManagerType() {
-    return Maybe.<ClassfileManagerType>nothing();
+  public static Maybe<ClassFileManagerType> defaultClassFileManagerType() {
+    return Maybe.<ClassFileManagerType>nothing();
   }
 
   public static Maybe<Boolean> defaultRecompileOnMacroDef() {
@@ -121,7 +121,7 @@ public class IncOptionsUtil {
       defaultTransitiveStep(), defaultRecompileAllFraction(),
       defaultRelationsDebug(), defaultApiDebug(),
       defaultApiDiffContextSize(), defaultApiDumpDirectory(),
-      defaultClassfileManagerType(), defaultUseCustomizedFileManager(),
+      defaultClassFileManagerType(), defaultUseCustomizedFileManager(),
       defaultRecompileOnMacroDef(), defaultStoreApis(), defaultEnabled(),
       defaultExtra(), defaultLogRecompileOnMacro(), defaultExternal());
     return retval;
@@ -161,9 +161,9 @@ public class IncOptionsUtil {
     // TODO: Figure out how to specify the class file manager type.
     // if (values.containsKey(CLASSFILE_MANAGER_TYPE_KEY)) {
     //   if (values.get(CLASSFILE_MANAGER_TYPE_KEY).equals(XSBTI_NOTHING)) {
-    //     base = base.withClassfileManagerType(xsbti.Maybe.nothing<ClassfileManagerType>());
+    //     base = base.withClassFileManagerType(xsbti.Maybe.nothing<ClassfileManagerType>());
     //   } else {
-    //     base = base.withClassfileManagerType(???)
+    //     base = base.withClassFileManagerType(???)
     //   }
     // }
 

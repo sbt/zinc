@@ -1,7 +1,7 @@
 {
   "types": [
     {
-      "name": "ClassfileManagerType",
+      "name": "ClassFileManagerType",
       "namespace": "xsbti.compile",
       "target": "Java",
       "type": "interface",
@@ -82,7 +82,7 @@
         },
         {
           "name": "classfileManagerType",
-          "type": "xsbti.Maybe<ClassfileManagerType>",
+          "type": "xsbti.Maybe<ClassFileManagerType>",
           "doc": "ClassfileManager that will handle class file deletion and addition during a single incremental compilation run."
         },
         {
