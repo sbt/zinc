@@ -10,8 +10,8 @@ package xsbt
 import scala.tools.nsc.Phase
 import scala.tools.nsc.symtab.Flags
 import xsbti.api._
-import java.util.HashMap
-import java.util.ArrayList
+import java.util.{ArrayList, Map}
+import java.lang.Iterable
 
 object API {
   val name = "xsbt-api"
@@ -38,7 +38,7 @@ final class API(val global: CallbackGlobal) extends Compat with GlobalHelpers {
     def processUnit(unit: CompilationUnit) = if (!unit.isJava) processScalaUnit(unit)
     def processScalaUnit(unit: CompilationUnit): Unit = {
 
-      def debugOutput(map: HashMap[String, ArrayList[String]]): String = {
+      def debugOutput(map: Map[String, ArrayList[String]]): String = {
         val stringBuffer = new StringBuffer()
         val it = map.entrySet().iterator()
 
@@ -62,10 +62,10 @@ final class API(val global: CallbackGlobal) extends Compat with GlobalHelpers {
       val extractUsedNames = new ExtractUsedNames[global.type](global)
       val allUsedNames = extractUsedNames.extract(unit)
 
-      debuglog("The " + sourceFile + " contains the following used names:\n " + debugOutput(allUsedNames))
+      debuglog(s"The $sourceFile contains the following used names:\n ${debugOutput(allUsedNames)}")
 
       allUsedNames.forEach {
-        case (className: String, names: ArrayList[String]) =>
+        case (className: String, names: Iterable[String]) =>
           names.forEach { (name: String) => callback.usedName(className, name) }
       }
 

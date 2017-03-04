@@ -14,7 +14,6 @@ class ExtractUsedNamesSpecification extends UnitSpec {
     val expectedNames = standardNames ++ Set("a", "A", "A2", "b")
     // names used at top level are attributed to the first class defined in a compilation unit
 
-    println(usedNames)
     assert(usedNames("a.A") === expectedNames)
   }
 

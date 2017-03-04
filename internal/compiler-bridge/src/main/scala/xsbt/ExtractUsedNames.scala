@@ -8,6 +8,7 @@
 package xsbt
 
 import java.util.ArrayList
+import java.util.Map
 import java.util.HashMap
 import java.util.HashSet
 
@@ -52,7 +53,7 @@ import Compat._
 class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) extends Compat with ClassName with GlobalHelpers {
   import global._
 
-  def extract(unit: CompilationUnit): HashMap[String, ArrayList[String]] = {
+  def extract(unit: CompilationUnit): Map[String, ArrayList[String]] = {
     val tree = unit.body
     val traverser = new ExtractUsedNamesTraverser
     traverser.traverse(tree)
@@ -75,14 +76,14 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) ext
 
     val it = traverser.usedNamesFromClasses.entrySet().iterator()
     while (it.hasNext) {
-      val usedName = it.next()
-      val usedNameKey = usedName.getKey.toString.trim
-      val usedNameValues = usedName.getValue.iterator()
-      val uses = new ArrayList[String]()
+      val usedNamePair = it.next()
+      val usedName = usedNamePair.getKey.toString.trim
+      val usedNameValues = usedNamePair.getValue.iterator()
+      val usesForName = new ArrayList[String](usedNamePair.getValue.size)
       while (usedNameValues.hasNext) {
-        uses.add(usedNameValues.next().decode.trim)
+        usesForName.add(usedNameValues.next().decode.trim)
       }
-      result.put(usedNameKey, uses)
+      result.put(usedName, usesForName)
     }
     result
   }
