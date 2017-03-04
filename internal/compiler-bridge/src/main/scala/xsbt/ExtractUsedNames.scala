@@ -11,6 +11,7 @@ import java.util.ArrayList
 import java.util.Map
 import java.util.HashMap
 import java.util.HashSet
+import java.lang.Iterable
 
 import Compat._
 
@@ -53,7 +54,7 @@ import Compat._
 class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType) extends Compat with ClassName with GlobalHelpers {
   import global._
 
-  def extract(unit: CompilationUnit): Map[String, ArrayList[String]] = {
+  def extract(unit: CompilationUnit): Map[String, _ <: Iterable[String]] = {
     val tree = unit.body
     val traverser = new ExtractUsedNamesTraverser
     traverser.traverse(tree)

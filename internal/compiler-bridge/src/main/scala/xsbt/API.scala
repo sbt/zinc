@@ -10,8 +10,9 @@ package xsbt
 import scala.tools.nsc.Phase
 import scala.tools.nsc.symtab.Flags
 import xsbti.api._
-import java.util.{ArrayList, Map}
+import java.util.Map
 import java.lang.Iterable
+import scala.language.existentials
 
 object API {
   val name = "xsbt-api"
@@ -38,7 +39,7 @@ final class API(val global: CallbackGlobal) extends Compat with GlobalHelpers {
     def processUnit(unit: CompilationUnit) = if (!unit.isJava) processScalaUnit(unit)
     def processScalaUnit(unit: CompilationUnit): Unit = {
 
-      def debugOutput(map: Map[String, ArrayList[String]]): String = {
+      def debugOutput(map: Map[String, _ <: Iterable[String]]): String = {
         val stringBuffer = new StringBuffer()
         val it = map.entrySet().iterator()
 
@@ -50,7 +51,7 @@ final class API(val global: CallbackGlobal) extends Compat with GlobalHelpers {
         stringBuffer.toString
       }
 
-      def showUsedNames(className: String, names: ArrayList[String]): String =
+      def showUsedNames(className: String, names: Iterable[String]): String =
         s"$className:\n\t${String.join(",", names)}"
 
       val sourceFile = unit.source.file.file
@@ -66,7 +67,7 @@ final class API(val global: CallbackGlobal) extends Compat with GlobalHelpers {
 
       allUsedNames.forEach {
         case (className: String, names: Iterable[String]) =>
-          names.forEach { (name: String) => callback.usedName(className, name) }
+          names.forEach { case (name: String) => callback.usedName(className, name) }
       }
 
       val classApis = traverser.allNonLocalClasses
