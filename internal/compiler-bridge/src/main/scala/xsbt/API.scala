@@ -52,20 +52,9 @@ final class API(val global: CallbackGlobal) extends Compat with GlobalHelpers {
     private def showUsedNames(className: String, names: ArrayList[String]): String =
       s"$className:\n\t${String.join(",", names)}"
 
-    private def performCallbacks(allUsedNames: HashMap[String, ArrayList[String]]) = {
-      val mapConsumer = new java.util.function.BiConsumer[String, ArrayList[String]] {
-        override def accept(className: String, names: ArrayList[String]) = {
-          val namesConsumer = new java.util.function.Consumer[String] {
-            override def accept(name: String) =
-              callback.usedName(className, name)
-          }
-          names.forEach(namesConsumer)
-        }
-      }
-      allUsedNames.forEach(mapConsumer)
-    }
-
     private def processScalaUnit(unit: CompilationUnit): Unit = {
+      import scala.collection.JavaConverters._
+
       val sourceFile = unit.source.file.file
       debuglog("Traversing " + sourceFile)
       callback.startSource(sourceFile)
@@ -77,7 +66,10 @@ final class API(val global: CallbackGlobal) extends Compat with GlobalHelpers {
 
       debuglog(s"The $sourceFile contains the following used names:\n ${debugOutput(allUsedNames)}")
 
-      performCallbacks(allUsedNames)
+      allUsedNames.asScala.foreach {
+        case (className, names) =>
+          names.asScala.foreach { name => callback.usedName(className, name) }
+      }
 
       val classApis = traverser.allNonLocalClasses
 
