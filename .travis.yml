@@ -7,11 +7,11 @@ scala:
 env:
   matrix:
     - SBT_CMD="zincScripted/test zinc/test zincPersist/test zincIvyIntegration/test zincTesting/test"
-    - SBT_CMD="zincCompile/test zincCompileCore/test compilerInterface/test zincClasspath/test zincApiInfo/test zincClassfile/test"
-    - SBT_CMD="zincBenchmarks/test compilerBridge/test zincCore/test"
+    - SBT_CMD="compilerInterface/test zincCompile/test zincCompileCore/test zincClasspath/test zincApiInfo/test zincClassfile/test"
+    - SBT_CMD="compilerBridge/test zincCore/test zincBenchmarks/test"
 
 script:
-  - sbt -Dfile.encoding=UTF8 -J-XX:ReservedCodeCacheSize=256M "publishBridgesAndTest $TRAVIS_SCALA_VERSION" $SBT_CMD
+  - sbt -Dfile.encoding=UTF8 -J-XX:ReservedCodeCacheSize=256M "publishBridges $TRAVIS_SCALA_VERSION" $SBT_CMD
 
 jdk:
   - oraclejdk8

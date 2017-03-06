@@ -24,7 +24,7 @@ def commonSettings: Seq[Setting[_]] = Seq(
   crossScalaVersions := Seq(scala211, scala212),
   mimaPreviousArtifacts := Set(), // Some(organization.value %% moduleName.value % "1.0.0"),
   publishArtifact in Test := false,
-  commands += publishBridgesAndTest
+  commands ++= Seq(publishBridgesAndTest, publishBridges)
 )
 
 def relaxNon212: Seq[Setting[_]] = Seq(
@@ -327,6 +327,21 @@ lazy val zincScripted = (project in internalPath / "zinc-scripted").
   ).
   configure(addSbtUtilScripted)
 
+lazy val publishBridges = {
+  Command.args("publishBridges", "<version>") { (state, args) =>
+    require(args.nonEmpty, "Missing Scala version argument.")
+    val userScalaVersion = args.mkString("")
+    s"${compilerInterface.id}/publishLocal" ::
+      compilerBridgeScalaVersions.flatMap { (bridgeVersion: String) =>
+        s"wow $bridgeVersion" ::
+          s"${zincApiInfo.id}/publishLocal" ::
+          s"${compilerBridge.id}/publishLocal" :: Nil
+      } :::
+      s"wow $userScalaVersion" ::
+      state
+  }
+}
+
 lazy val publishBridgesAndTest = Command.args("publishBridgesAndTest", "<version>") { (state, args) =>
   require(args.nonEmpty, "Missing arguments to publishBridgesAndTest. Maybe quotes are missing around command?")
   val version = args mkString ""
@@ -337,7 +352,7 @@ lazy val publishBridgesAndTest = Command.args("publishBridgesAndTest", "<version
       s";${zincApiInfo.id}/publishLocal;${compilerBridge.id}/test;${compilerBridge.id}/publishLocal" ::
       Nil
     }) :::
-    //s"plz $version zincRoot/test" ::
+    s"plz $version zincRoot/test" ::
     s"plz $version zincRoot/scripted" ::
     state
 }
