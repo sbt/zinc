@@ -24,7 +24,7 @@ def commonSettings: Seq[Setting[_]] = Seq(
   crossScalaVersions := Seq(scala211, scala212),
   mimaPreviousArtifacts := Set(), // Some(organization.value %% moduleName.value % "1.0.0"),
   publishArtifact in Test := false,
-  commands ++= Seq(publishBridgesAndTest, publishBridges)
+  commands ++= Seq(publishBridgesAndTest, publishBridges, crossTestBridges)
 )
 
 def relaxNon212: Seq[Setting[_]] = Seq(
@@ -326,6 +326,14 @@ lazy val zincScripted = (project in internalPath / "zinc-scripted").
     sourceManaged in (Compile, generateContrabands) := baseDirectory.value / "src" / "main" / "contraband-scala"
   ).
   configure(addSbtUtilScripted)
+
+lazy val crossTestBridges = {
+  Command.command("crossTestBridges") { state =>
+    compilerBridgeScalaVersions.map { (bridgeVersion: String) =>
+      s"plz $bridgeVersion ${compilerBridge.id}/test"
+    } ::: state
+  }
+}
 
 lazy val publishBridges = {
   Command.args("publishBridges", "<version>") { (state, args) =>
