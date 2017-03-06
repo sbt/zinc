@@ -11,7 +11,7 @@ env:
     - SBT_CMD="zincBenchmarks/test compilerBridge/test zincCore/test"
 
 script:
-  - sbt -Dfile.encoding=UTF8 -J-XX:ReservedCodeCacheSize=256M $SBT_CMD "publishBridgesAndTest $TRAVIS_SCALA_VERSION"
+  - sbt -Dfile.encoding=UTF8 -J-XX:ReservedCodeCacheSize=256M "publishBridgesAndTest $TRAVIS_SCALA_VERSION" $SBT_CMD
 
 jdk:
   - oraclejdk8
