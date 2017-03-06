@@ -17,7 +17,7 @@ env:
   matrix:
     - SBT_CMD="zincScripted/test zinc/test zincPersist/test zincIvyIntegration/test zincTesting/test"
     - SBT_CMD="compilerInterface/test zincCompile/test zincCompileCore/test zincClasspath/test zincApiInfo/test zincClassfile/test"
-    - SBT_CMD="compilerBridge/test zincCore/test zincBenchmarks/test"
+    - SBT_CMD="compilerBridge/test zincRoot/scripted zincCore/test zincBenchmarks/test"
 
 script:
   - sbt -Dfile.encoding=UTF8 -J-XX:ReservedCodeCacheSize=256M "publishBridges $TRAVIS_SCALA_VERSION" $SBT_CMD
