@@ -4,6 +4,11 @@ scala:
   - 2.11.8
   - 2.12.1
 
+cache:
+  directories:
+    - $HOME/.ivy2/cache
+    - $HOME/.sbt/boot
+
 env:
   matrix:
     - SBT_CMD="zincScripted/test zinc/test zincPersist/test zincIvyIntegration/test zincTesting/test"
