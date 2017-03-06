@@ -1,11 +1,26 @@
 language: scala
 
+before_cache:
+  - find $HOME/.ivy2/cache -name "ivydata-*.properties" -print -delete
+  - find $HOME/.sbt        -name "*.lock"               -print -delete
+
 scala:
   - 2.11.8
   - 2.12.1
 
+cache:
+  directories:
+    - $HOME/.ivy2/cache
+    - $HOME/.sbt
+
+env:
+  matrix:
+    - SBT_CMD="zincScripted/test zinc/test zincPersist/test zincIvyIntegration/test zincTesting/test"
+    - SBT_CMD="compilerInterface/test zincCompile/test zincCompileCore/test zincClasspath/test zincApiInfo/test zincClassfile/test"
+    - SBT_CMD="compilerBridge/test zincRoot/scripted zincCore/test zincBenchmarks/test"
+
 script:
-  - sbt -Dfile.encoding=UTF8 -J-XX:ReservedCodeCacheSize=256M "publishBridgesAndTest $TRAVIS_SCALA_VERSION"
+  - sbt -Dfile.encoding=UTF8 -J-XX:ReservedCodeCacheSize=256M "publishBridges $TRAVIS_SCALA_VERSION" $SBT_CMD
 
 jdk:
   - oraclejdk8
