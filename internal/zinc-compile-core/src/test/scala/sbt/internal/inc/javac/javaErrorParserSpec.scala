@@ -3,8 +3,6 @@ package internal
 package inc
 package javac
 
-import java.io.File
-
 import sbt.util.Logger
 import sbt.internal.util.UnitSpec
 

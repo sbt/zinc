@@ -64,7 +64,7 @@ object IncrementalCompile {
           new AnalysisCallback.Builder(internalBinaryToSourceClassName, internalSourceToClassNamesMap, externalAPI, current, output, options),
           log, options)
       } catch {
-        case e: xsbti.CompileCancelled =>
+        case _: xsbti.CompileCancelled =>
           log.info("Compilation has been cancelled")
           // in case compilation got cancelled potential partial compilation results (e.g. produced classs files) got rolled back
           // and we can report back as there was no change (false) and return a previous Analysis which is still up-to-date
@@ -72,7 +72,7 @@ object IncrementalCompile {
       }
     }
   def getExternalAPI(lookup: Lookup): (File, String) => Option[AnalyzedClass] =
-    (file: File, binaryClassName: String) =>
+    (_: File, binaryClassName: String) =>
       lookup.lookupAnalysis(binaryClassName) flatMap {
         case (analysis: Analysis) =>
           val sourceClassName = analysis.relations.productClassName.reverse(binaryClassName).headOption
@@ -214,9 +214,6 @@ private final class AnalysisCallback(
     add(localClasses, source, classFile)
     ()
   }
-
-  // empty value used when name hashing algorithm is disabled
-  private val emptyNameHashes = new xsbti.api.NameHashes(Array.empty, Array.empty)
 
   def api(sourceFile: File, classApi: ClassLike): Unit = {
     import xsbt.api.{ APIUtil, HashAPI }

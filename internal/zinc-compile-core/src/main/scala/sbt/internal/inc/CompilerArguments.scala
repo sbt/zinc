@@ -12,7 +12,7 @@ package inc
 import xsbti.ArtifactInfo
 import scala.util
 import java.io.File
-import CompilerArguments.{ abs, absString, BootClasspathOption }
+import CompilerArguments.{ absString, BootClasspathOption }
 import sbt.io.IO
 import sbt.io.syntax._
 

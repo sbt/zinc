@@ -75,14 +75,14 @@ private[sbt] object Parser {
             else Some(toUTF8(index))
           }
         private def parseFieldOrMethodInfo() =
-          new FieldOrMethodInfo(in.readUnsignedShort(), toString(in.readUnsignedShort()), toString(in.readUnsignedShort()),
+          FieldOrMethodInfo(in.readUnsignedShort(), toString(in.readUnsignedShort()), toString(in.readUnsignedShort()),
             array(in.readUnsignedShort())(parseAttribute()))
         private def parseAttribute() =
           {
             val nameIndex = in.readUnsignedShort()
             val name = if (nameIndex == -1) None else Some(toUTF8(nameIndex))
             val value = array(in.readInt())(in.readByte())
-            new AttributeInfo(name, value)
+            AttributeInfo(name, value)
           }
 
         def types = (classConstantReferences ++ fieldTypes ++ methodTypes).toSet
@@ -143,7 +143,7 @@ private[sbt] object Parser {
       val tag = in.readByte()
 
       // No switch for byte scrutinees! Stupid compiler.
-      ((tag.toInt): @switch) match {
+      (tag.toInt: @switch) match {
         case ConstantClass | ConstantString => new Constant(tag, in.readUnsignedShort())
         case ConstantField | ConstantMethod | ConstantInterfaceMethod | ConstantNameAndType =>
           new Constant(tag, in.readUnsignedShort(), in.readUnsignedShort())
@@ -154,16 +154,16 @@ private[sbt] object Parser {
         case ConstantUTF8    => new Constant(tag, in.readUTF())
         // TODO: proper support
         case ConstantMethodHandle =>
-          val kind = in.readByte()
-          val ref = in.readUnsignedShort()
-          new Constant(tag, -1, -1, None)
+          in.readByte()
+          in.readUnsignedShort()
+          Constant(tag, -1, -1, None)
         case ConstantMethodType =>
-          val descriptorIndex = in.readUnsignedShort()
-          new Constant(tag, -1, -1, None)
+          in.readUnsignedShort()
+          Constant(tag, -1, -1, None)
         case ConstantInvokeDynamic =>
-          val bootstrapIndex = in.readUnsignedShort()
-          val nameAndTypeIndex = in.readUnsignedShort()
-          new Constant(tag, -1, -1, None)
+          in.readUnsignedShort()
+          in.readUnsignedShort()
+          Constant(tag, -1, -1, None)
         case _ => sys.error("Unknown constant: " + tag)
       }
     }

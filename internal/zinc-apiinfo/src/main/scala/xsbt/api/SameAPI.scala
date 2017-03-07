@@ -15,10 +15,10 @@ import scala.collection.{ immutable, mutable }
 /** Checks the API of two source files for equality.*/
 object SameAPI {
   def apply(a: AnalyzedClass, b: AnalyzedClass): Boolean =
-    (a.apiHash == b.apiHash)
+    a.apiHash == b.apiHash
 
   def apply(a: Definition, b: Definition): Boolean =
-    (new SameAPI(false, true)).sameDefinitions(List(a), List(b), true)
+    new SameAPI(false, true).sameDefinitions(List(a), List(b), topLevel = true)
 
   def apply(a: Companions, b: Companions): Boolean = {
     val sameClasses = apply(a.classApi, b.classApi)
@@ -26,21 +26,7 @@ object SameAPI {
     sameClasses && sameObjects
   }
 
-  def apply(a: ClassLike, b: ClassLike): Boolean =
-    {
-      val start = System.currentTimeMillis
-
-      /*println("\n=========== API #1 ================")
-		import DefaultShowAPI._
-		println(ShowAPI.show(a))
-		println("\n=========== API #2 ================")
-		println(ShowAPI.show(b))*/
-
-      val result = (new SameAPI(false, true)).check(a, b)
-      val end = System.currentTimeMillis
-      //println(" API comparison took: " + (end - start) / 1000.0 + " s")
-      result
-    }
+  def apply(a: ClassLike, b: ClassLike): Boolean = new SameAPI(false, true).check(a, b)
 
   def separateDefinitions(s: Seq[Definition]): (Seq[Definition], Seq[Definition]) =
     s.partition(isValueDefinition)
@@ -119,7 +105,7 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
             case adef :: atail =>
               def sameDef(seen: List[Definition], remaining: List[Definition]): Boolean =
                 remaining match {
-                  case Nil => debug(false, "Definition different in new API: \n" + adef.name)
+                  case Nil => debug(flag = false, "Definition different in new API: \n" + adef.name)
                   case bdef :: btail =>
                     val eq = sameDefinitionContent(adef, bdef)
                     if (eq) sameDefs(atail, seen ::: btail) else sameDef(bdef :: seen, btail)
@@ -128,7 +114,7 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
             case Nil => true
           }
         }
-      debug((a.length == b.length), "\t\tLength differed for " + a.headOption.map(_.name).getOrElse("empty")) && sameDefs(a, b)
+      debug(a.length == b.length, "\t\tLength differed for " + a.headOption.map(_.name).getOrElse("empty")) && sameDefs(a, b)
     }
 
   /** Checks that the two definitions are the same, other than their name.*/
@@ -148,7 +134,7 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
       case (_: Public, _: Public)         => true
       case (qa: Protected, qb: Protected) => sameQualifier(qa, qb)
       case (qa: Private, qb: Private)     => sameQualifier(qa, qb)
-      case _                              => debug(false, "Different access categories")
+      case _                              => debug(flag = false, "Different access categories")
     }
   def sameQualifier(a: Qualified, b: Qualified): Boolean =
     sameQualifier(a.qualifier, b.qualifier)
@@ -157,7 +143,7 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
       case (_: Unqualified, _: Unqualified)     => true
       case (_: ThisQualifier, _: ThisQualifier) => true
       case (ia: IdQualifier, ib: IdQualifier)   => debug(ia.value == ib.value, "Different qualifiers")
-      case _                                    => debug(false, "Different qualifier categories: " + a.getClass.getName + " -- " + b.getClass.getName)
+      case _                                    => debug(flag = false, "Different qualifier categories: " + a.getClass.getName + " -- " + b.getClass.getName)
     }
 
   def sameModifiers(a: Modifiers, b: Modifiers): Boolean =
@@ -308,7 +294,7 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
     }
 
   def sameMembers(a: Seq[Definition], b: Seq[Definition]): Boolean =
-    sameDefinitions(a, b, false)
+    sameDefinitions(a, b, topLevel = false)
 
   def sameSimpleType(a: SimpleType, b: SimpleType): Boolean =
     samePending(a, b)(sameSimpleTypeDirect)
@@ -322,7 +308,7 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
       case _                                      => differentCategory("simple type", a, b)
     }
   def differentCategory(label: String, a: AnyRef, b: AnyRef): Boolean =
-    debug(false, "Different category of " + label + " (" + a.getClass.getName + " and " + b.getClass.getName + ") for (" + a + " and " + b + ")")
+    debug(flag = false, "Different category of " + label + " (" + a.getClass.getName + " and " + b.getClass.getName + ") for (" + a + " and " + b + ")")
 
   def sameParameterized(a: Parameterized, b: Parameterized): Boolean =
     sameSimpleType(a.baseType, b.baseType) &&

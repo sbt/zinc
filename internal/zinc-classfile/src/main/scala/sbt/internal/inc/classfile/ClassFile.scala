@@ -11,7 +11,6 @@ package inc
 package classfile
 
 import Constants._
-import java.io.File
 
 private[sbt] trait ClassFile {
   val majorVersion: Int

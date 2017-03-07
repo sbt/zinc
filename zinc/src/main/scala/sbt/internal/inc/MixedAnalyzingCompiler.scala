@@ -226,7 +226,6 @@ object MixedAnalyzingCompiler {
     cache: GlobalsCache,
     incrementalCompilerOptions: IncOptions
   ): CompileConfiguration = {
-    import MiniSetupUtil._
     new CompileConfiguration(
       sources,
       classpath,

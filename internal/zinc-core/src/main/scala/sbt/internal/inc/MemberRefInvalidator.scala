@@ -10,9 +10,7 @@ package internal
 package inc
 
 import sbt.internal.util.Relation
-import java.io.File
 import sbt.util.Logger
-import xsbt.api.APIUtil
 
 /**
  * Implements various strategies for invalidating dependencies introduced by member reference.

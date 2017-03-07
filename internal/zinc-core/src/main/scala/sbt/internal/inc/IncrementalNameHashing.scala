@@ -11,7 +11,7 @@ package inc
 
 import xsbti.compile.IncOptions
 import xsbti.api.AnalyzedClass
-import xsbt.api.{ APIUtil, SameAPI }
+import xsbt.api.SameAPI
 
 /**
  * Implementation of incremental algorithm known as "name hashing". It differs from the default implementation

@@ -11,7 +11,6 @@ package inc
 
 import java.io.{ File, IOException }
 import Stamp.getStamp
-import scala.util.matching.Regex
 import sbt.io.{ Hash => IOHash }
 
 trait ReadStamps {

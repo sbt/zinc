@@ -220,11 +220,6 @@ class NameHashingSpecification extends UnitSpec {
     simpleClassLike(name, structure)
   }
 
-  private def simpleClassDef(name: String, dt: DefinitionType = DefinitionType.ClassDef,
-    access: Access = publicAccess): ClassLikeDef = {
-    new ClassLikeDef(name, access, defaultModifiers, Array.empty, Array.empty, dt)
-  }
-
   private def simpleObject(name: String, defs: ClassDefinition*): ClassLike = {
     val structure = simpleStructure(defs: _*)
     simpleClassLike(name, structure, dt = DefinitionType.Module)

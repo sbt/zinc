@@ -3,8 +3,6 @@ package internal
 package inc
 package classfile
 
-import scala.util.Try
-
 import org.scalacheck._
 import Prop._
 

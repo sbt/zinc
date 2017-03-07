@@ -11,7 +11,6 @@ package inc
 
 import java.io._
 
-import sbt.internal.util.Relation
 import xsbti.T2
 import xsbti.api._
 import xsbti.compile._
@@ -35,9 +34,9 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers) extends FormatCo
   private implicit val compilationF: Format[Compilation] = xsbt.api.CompilationFormat
   private implicit val nameHashesFormat: Format[NameHashes] = xsbt.api.NameHashesFormat
   private implicit val companionsFomrat: Format[Companions] = xsbt.api.CompanionsFormat
-  private implicit def problemFormat: Format[Problem] = asProduct4(problem _)(p => (p.category, p.position, p.message, p.severity))
+  private implicit def problemFormat: Format[Problem] = asProduct4(problem)(p => (p.category, p.position, p.message, p.severity))
   private implicit def positionFormat: Format[Position] =
-    asProduct7(position _)(p => (jo2o(p.line), p.lineContent, jo2o(p.offset), jo2o(p.pointer), jo2o(p.pointerSpace), jo2o(p.sourcePath), jo2o(p.sourceFile)))
+    asProduct7(position)(p => (jo2o(p.line), p.lineContent, jo2o(p.offset), jo2o(p.pointer), jo2o(p.pointerSpace), jo2o(p.sourcePath), jo2o(p.sourceFile)))
   private implicit val severityFormat: Format[Severity] =
     wrap[Severity, Byte](_.ordinal.toByte, b => Severity.values.apply(b.toInt))
   private implicit val integerFormat: Format[Integer] = wrap[Integer, Int](_.toInt, Integer.valueOf)

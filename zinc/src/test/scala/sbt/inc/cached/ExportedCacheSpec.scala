@@ -13,7 +13,6 @@ import java.nio.file.Path
 import sbt.internal.inc.cached._
 import sbt.io.IO
 import xsbti.compile.{ MiniSetup, CompileAnalysis }
-import org.scalatest._
 
 class ExportedCacheSpec extends CommonCachedCompilation("Exported Cache") {
 

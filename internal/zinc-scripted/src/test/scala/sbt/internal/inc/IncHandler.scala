@@ -5,7 +5,7 @@ package inc
 import java.io.{ File, FileInputStream }
 import java.net.URLClassLoader
 import java.util.jar.Manifest
-import sbt.util.{ Logger, LogExchange }
+import sbt.util.Logger
 import sbt.util.InterfaceUtil._
 import xsbt.api.Discovery
 import xsbti.{ Maybe, Problem, Severity }

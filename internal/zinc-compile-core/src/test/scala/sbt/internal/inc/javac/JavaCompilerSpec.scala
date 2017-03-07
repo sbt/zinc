@@ -6,12 +6,11 @@ package javac
 import java.io.File
 import java.net.URLClassLoader
 
-import sbt._
 import xsbt.api.SameAPI
 import xsbti.{ Maybe, Problem, Severity }
 import xsbti.compile.{ IncToolOptions, IncToolOptionsUtil, JavaTools => XJavaTools }
 import sbt.io.IO
-import sbt.util.{ Logger, LogExchange }
+import sbt.util.LogExchange
 import sbt.internal.util.UnitSpec
 import org.scalatest.matchers._
 
@@ -33,15 +32,15 @@ class JavaCompilerSpec extends UnitSpec {
   it should "\"safe\" singleton type names " in analyzeStaticDifference("float", "0.123456789f", "0.123456789f")
 
   def docWorks(compiler: XJavaTools) = IO.withTemporaryDirectory { out =>
-    val (result, problems) = doc(compiler, Seq(knownSampleGoodFile), Seq("-d", out.getAbsolutePath))
+    val (result, _) = doc(compiler, Seq(knownSampleGoodFile), Seq("-d", out.getAbsolutePath))
     result shouldBe true
-    (new File(out, "index.html")).exists shouldBe true
-    (new File(out, "good.html")).exists shouldBe true
+    new File(out, "index.html").exists shouldBe true
+    new File(out, "good.html").exists shouldBe true
   }
 
   def works(compiler: XJavaTools, forked: Boolean = false) = IO.withTemporaryDirectory { out =>
     val classfileManager = new CollectingClassFileManager()
-    val (result, problems) = compile(compiler, Seq(knownSampleGoodFile), Seq("-deprecation", "-d", out.getAbsolutePath),
+    val (result, _) = compile(compiler, Seq(knownSampleGoodFile), Seq("-deprecation", "-d", out.getAbsolutePath),
       incToolOptions = IncToolOptionsUtil.defaultIncToolOptions()
         .withClassFileManager(Maybe.just(classfileManager)).withUseCustomizedFileManager(true))
 
@@ -59,7 +58,7 @@ class JavaCompilerSpec extends UnitSpec {
   def findsErrors(compiler: XJavaTools) = {
     val (result, problems) = compile(compiler, Seq(knownSampleErrorFile), Seq("-deprecation"))
     result shouldBe false
-    problems should have size (5)
+    problems should have size 5
     val importWarn = warnOnLine(lineno = 1, lineContent = Some("java.rmi.RMISecurityException"))
     val beAnExpectedError = List(importWarn, errorOnLine(3), errorOnLine(4), warnOnLine(7)) reduce (_ or _)
     problems foreach (_ should beAnExpectedError)
@@ -68,7 +67,7 @@ class JavaCompilerSpec extends UnitSpec {
   def findsDocErrors(compiler: XJavaTools) = IO.withTemporaryDirectory { out =>
     val (result, problems) = doc(compiler, Seq(knownSampleErrorFile), Seq("-d", out.getAbsolutePath))
     result shouldBe true
-    problems should have size (2)
+    problems should have size 2
     val beAnExpectedError = List(errorOnLine(3), errorOnLine(4)) reduce (_ or _)
     problems foreach (_ should beAnExpectedError)
   }
@@ -84,7 +83,7 @@ class JavaCompilerSpec extends UnitSpec {
     def compileWithPrimitive(templateType: String, templateValue: String) =
       IO.withTemporaryDirectory { out =>
         // copy the input file to a temporary location and change the templateValue
-        val input = new File(out, hasStaticFinalFile.getName())
+        val input = new File(out, hasStaticFinalFile.getName)
         IO.writeLines(
           input,
           IO.readLines(hasStaticFinalFile).map { line =>
@@ -93,7 +92,7 @@ class JavaCompilerSpec extends UnitSpec {
         )
 
         // then compile it
-        val (result, problems) = compile(local, Seq(input), Seq("-d", out.getAbsolutePath))
+        val (result, _) = compile(local, Seq(input), Seq("-d", out.getAbsolutePath))
         result shouldBe true
         val clazzz = new URLClassLoader(Array(out.toURI.toURL)).loadClass("hasstaticfinal")
         ClassToAPI(Seq(clazzz))
@@ -146,7 +145,7 @@ class JavaCompilerSpec extends UnitSpec {
     (fproblems zip lproblems) foreach {
       case (f, l) =>
         // TODO - We should check to see if the levenshtein distance of the messages is close...
-        if (f.position.sourcePath.isPresent) (f.position.sourcePath.get shouldBe l.position.sourcePath.get)
+        if (f.position.sourcePath.isPresent) f.position.sourcePath.get shouldBe l.position.sourcePath.get
         else l.position.sourcePath.isPresent shouldBe false
 
         if (f.position.line.isPresent) f.position.line.get shouldBe l.position.line.get
@@ -182,7 +181,7 @@ class JavaCompilerSpec extends UnitSpec {
     )
 
   def cwd =
-    (new File(new File(".").getAbsolutePath)).getCanonicalFile
+    new File(new File(".").getAbsolutePath).getCanonicalFile
 
   def knownSampleErrorFile =
     new java.io.File(getClass.getResource("test1.java").toURI)

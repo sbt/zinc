@@ -14,9 +14,6 @@ import scala.collection.mutable
 import mutable.{ ArrayBuffer, Buffer }
 import scala.annotation.tailrec
 import java.io.File
-import java.lang.annotation.Annotation
-import java.lang.reflect.Method
-import java.lang.reflect.Modifier.{ STATIC, PUBLIC, ABSTRACT }
 import java.net.URL
 import xsbti.api.DependencyContext
 import xsbti.api.DependencyContext._
@@ -45,7 +42,7 @@ private[sbt] object Analyze {
     for (
       newClass <- newClasses;
       classFile = Parser(newClass);
-      sourceFile <- classFile.sourceFile orElse guessSourceName(newClass.getName);
+      _ <- classFile.sourceFile orElse guessSourceName(newClass.getName);
       source <- guessSourcePath(sourceMap, classFile, log);
       binaryClassName = classFile.className;
       loadedClass <- load(binaryClassName, Some("Error reading API from class file"))
@@ -55,9 +52,9 @@ private[sbt] object Analyze {
         .orElse(Option(loadedClass.getEnclosingClass).flatMap(binaryToSourceName))
 
       srcClassName match {
-        case Some(srcClassName) =>
-          analysis.generatedNonLocalClass(source, newClass, binaryClassName, srcClassName)
-          classNames += srcClassName
+        case Some(className) =>
+          analysis.generatedNonLocalClass(source, newClass, binaryClassName, className)
+          classNames += className
         case None => analysis.generatedLocalClass(source, newClass)
       }
 
@@ -162,11 +159,10 @@ private[sbt] object Analyze {
     catch { case e: Throwable => log.trace(e); log.error(e.toString) }
   }
   private def guessSourceName(name: String) = Some(takeToDollar(trimClassExt(name)))
-  private def takeToDollar(name: String) =
-    {
-      val dollar = name.indexOf('$')
-      if (dollar < 0) name else name.substring(0, dollar)
-    }
+  private def takeToDollar(name: String) = {
+    val dollar = name.indexOf('$')
+    if (dollar < 0) name else name.substring(0, dollar)
+  }
   private final val ClassExt = ".class"
   private def trimClassExt(name: String) = if (name.endsWith(ClassExt)) name.substring(0, name.length - ClassExt.length) else name
   private def classNameToClassFile(name: String) = name.replace('.', '/') + ClassExt
@@ -179,9 +175,9 @@ private[sbt] object Analyze {
       val sourceFileName = classFile.sourceFile.getOrElse(simpleClassName.takeWhile(_ != '$').mkString("", "", ".java"))
       val candidates = findSource(sourceNameMap, pkg.toList, sourceFileName)
       candidates match {
-        case Nil         => log.warn("Could not determine source for class " + classFile.className)
-        case head :: Nil => ()
-        case _           => log.warn("Multiple sources matched for class " + classFile.className + ": " + candidates.mkString(", "))
+        case Nil      => log.warn("Could not determine source for class " + classFile.className)
+        case _ :: Nil => ()
+        case _        => log.warn("Multiple sources matched for class " + classFile.className + ": " + candidates.mkString(", "))
       }
       candidates
     }
@@ -216,18 +212,4 @@ private[sbt] object Analyze {
 
   private def distanceToRoot(acc: Int)(file: File): Int =
     if (file == null) acc else distanceToRoot(acc + 1)(file.getParentFile)
-
-  private def isTopLevel(classFile: ClassFile) = classFile.className.indexOf('$') < 0
-  private lazy val unit = classOf[Unit]
-  private lazy val strArray = List(classOf[Array[String]])
-
-  private def isMain(method: Method): Boolean =
-    method.getName == "main" &&
-      isMain(method.getModifiers) &&
-      method.getReturnType == unit &&
-      method.getParameterTypes.toList == strArray
-  private def isMain(modifiers: Int): Boolean = (modifiers & mainModifiers) == mainModifiers && (modifiers & notMainModifiers) == 0
-
-  private val mainModifiers = STATIC | PUBLIC
-  private val notMainModifiers = ABSTRACT
 }
