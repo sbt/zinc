@@ -73,14 +73,14 @@ final class LocalJavadoc() extends XJavadoc {
   override def run(sources: Array[File], options: Array[String], incToolOptions: IncToolOptions,
     reporter: Reporter, log: XLogger): Boolean = {
     val cwd = new File(new File(".").getAbsolutePath).getCanonicalFile
-    val (jArgs, nonJArgs) = options.partition(_.startsWith("-J"))
+    val nonJArgs = options.filterNot(_.startsWith("-J"))
     val allArguments = nonJArgs ++ sources.map(_.getAbsolutePath)
     val javacLogger = new JavacLogger(log, reporter, cwd)
     val warnOrError = new PrintWriter(new ProcessLoggerWriter(javacLogger, Level.Error))
     val infoWriter = new PrintWriter(new ProcessLoggerWriter(javacLogger, Level.Info))
     var exitCode = -1
     try {
-      exitCode = LocalJava.unsafeJavadoc(allArguments.toArray, warnOrError, warnOrError, infoWriter)
+      exitCode = LocalJava.unsafeJavadoc(allArguments, warnOrError, warnOrError, infoWriter)
     } finally {
       warnOrError.close()
       infoWriter.close()

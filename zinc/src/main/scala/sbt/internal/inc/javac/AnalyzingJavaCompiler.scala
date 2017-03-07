@@ -154,7 +154,7 @@ final class AnalyzingJavaCompiler private[sbt] (
       }
 
       // Report that we reached the end
-      progressOpt.map { progress =>
+      progressOpt.foreach { progress =>
         progress.advance(2, 2)
       }
     }

@@ -12,7 +12,7 @@ package inc
 import java.io.File
 import sbt.util.{ Level, Logger }
 import xsbti.compile.ClassFileManager
-import xsbti.compile.{ CompileAnalysis, DependencyChanges, IncOptions, Output }
+import xsbti.compile.{ CompileAnalysis, DependencyChanges, IncOptions }
 
 /**
  * Define helpers to run incremental compilation algorithm with name hashing.

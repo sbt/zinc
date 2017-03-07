@@ -14,8 +14,6 @@ import java.util.zip.{ ZipException, ZipFile }
 
 import xsbti.compile.{ DefinesClass, PerClasspathEntryLookup }
 
-import Function.const
-
 object Locate {
   /**
    * Right(src) provides the value for the found class
@@ -68,14 +66,14 @@ object Locate {
   }
 
   private class JarDefinesClass(entry: File) extends DefinesClass {
-    import collection.JavaConversions._
+    import collection.JavaConverters._
     private val entries = {
       val jar = try { new ZipFile(entry, ZipFile.OPEN_READ) } catch {
         // ZipException doesn't include the file name :(
         case e: ZipException => throw new RuntimeException("Error opening zip file: " + entry.getName, e)
       }
       try {
-        jar.entries.map(e => toClassName(e.getName)).toSet
+        jar.entries.asScala.map(e => toClassName(e.getName)).toSet
       } finally {
         jar.close()
       }

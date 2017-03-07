@@ -17,7 +17,7 @@ import sbt.io.syntax._
 import sbt.io.IO
 import sbt.util.Logger
 import xsbti.{ Reporter, Logger => XLogger }
-import xsbti.compile.{ ClassFileManager, IncToolOptions, JavaCompiler => XJavaCompiler, Javadoc => XJavadoc }
+import xsbti.compile.{ IncToolOptions, JavaCompiler => XJavaCompiler, Javadoc => XJavadoc }
 
 import scala.sys.process.Process
 
@@ -65,7 +65,6 @@ object ForkedJava {
   private def escapeSpaces(s: String): String = '\"' + normalizeSlash(s) + '\"'
   private def normalizeSlash(s: String) = s.replace(File.separatorChar, '/')
 
-  import sbt.io.Path._
   /** create the executable name for java */
   private[javac] def getJavaExecutable(javaHome: Option[File], name: String): String =
     javaHome match {

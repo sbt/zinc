@@ -65,6 +65,7 @@ abstract class CommonCachedCompilation(name: String) extends BaseCompilerSpec wi
 
     val result = remoteCompilerSetup.doCompileWithStore(remoteAnalysisStore)
     assert(result.hasModified)
+    ()
   }
 
   override protected def afterAll(): Unit =

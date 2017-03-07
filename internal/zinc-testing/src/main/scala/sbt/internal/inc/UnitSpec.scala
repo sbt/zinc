@@ -10,7 +10,7 @@ package internal
 package inc
 
 import org.scalatest._
-import sbt.util.{ Logger, LogExchange, Level }
+import sbt.util.{ LogExchange, Level }
 import sbt.internal.util.{ ManagedLogger, ConsoleOut, MainAppender }
 import java.util.concurrent.atomic.AtomicInteger
 

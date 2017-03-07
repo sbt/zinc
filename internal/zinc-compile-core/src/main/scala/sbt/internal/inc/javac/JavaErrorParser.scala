@@ -15,7 +15,7 @@ import java.io.File
 
 import java.util.Optional
 import sbt.util.InterfaceUtil.o2jo
-import xsbti.{ Problem, Severity, Maybe, Position }
+import xsbti.{ Problem, Severity, Position }
 
 /** A wrapper around xsbti.Position so we can pass in Java input. */
 final case class JavaPosition(_sourceFilePath: String, _line: Int, _contents: String, _offset: Int) extends Position {
@@ -52,7 +52,6 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
   // Here we track special handlers to catch "Note:" and "Warning:" lines.
   private val NOTE_LINE_PREFIXES = Array("Note: ", "\u6ce8: ", "\u6ce8\u610f\uff1a ")
   private val WARNING_PREFIXES = Array("warning", "\u8b66\u544a", "\u8b66\u544a\uff1a")
-  private val END_OF_LINE = System.getProperty("line.separator")
 
   override val skipWhitespace = false
 

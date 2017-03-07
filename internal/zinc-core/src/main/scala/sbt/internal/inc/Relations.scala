@@ -13,7 +13,6 @@ import java.io.File
 import sbt.internal.util.Relation
 import xsbti.api.{ InternalDependency, ExternalDependency, DependencyContext }
 import xsbti.api.DependencyContext._
-import xsbti.compile.IncOptionsUtil
 import Relations.ClassDependencies
 
 /**

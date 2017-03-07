@@ -13,7 +13,7 @@ import xsbt.api.DefaultShowAPI
 import java.lang.reflect.Method
 import java.util.{ List => JList }
 
-import xsbti.api.{ Companions, AnalyzedClass, ClassLike }
+import xsbti.api.Companions
 
 /**
  * A class which computes diffs (unified diffs) between two textual representations of an API.

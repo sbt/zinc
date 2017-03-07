@@ -10,7 +10,7 @@ package sbt.internal.inc
 import java.io.File
 import java.nio.file.Path
 
-import xsbti.compile.{ MiniOptions, MiniSetup }
+import xsbti.compile.MiniSetup
 
 import scala.util.Try
 

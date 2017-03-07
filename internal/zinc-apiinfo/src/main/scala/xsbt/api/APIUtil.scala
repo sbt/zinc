@@ -8,7 +8,6 @@
 package xsbt.api
 
 import xsbti.api._
-import scala.collection.mutable.HashSet
 
 object APIUtil {
   val modifiersToByte = (m: Modifiers) => {

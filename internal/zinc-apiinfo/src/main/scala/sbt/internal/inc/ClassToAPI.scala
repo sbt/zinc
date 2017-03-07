@@ -24,9 +24,8 @@ object ClassToAPI {
   // (api, public inherited classes)
   def process(classes: Seq[Class[_]]): (Seq[api.ClassLike], Set[(Class[_], Class[_])]) =
     {
-      val pkgs = packages(classes).map(p => new api.Package(p))
       val cmap = emptyClassMap
-      val defs = classes.flatMap(toDefinitions(cmap))
+      classes.foreach(toDefinitions(cmap)) // force recording of class definitions
       cmap.lz.foreach(_.get()) // force thunks to ensure all inherited dependencies are recorded
       val classApis = cmap.allNonLocalClasses.toSeq
       val inDeps = cmap.inherited.toSet
@@ -72,6 +71,7 @@ object ClassToAPI {
 
   def toDefinitions(cmap: ClassMap)(c: Class[_]): Seq[api.ClassLikeDef] =
     cmap.memo.getOrElseUpdate(classCanonicalName(c), toDefinitions0(c, cmap))
+
   def toDefinitions0(c: Class[_], cmap: ClassMap): Seq[api.ClassLikeDef] =
     {
       import api.DefinitionType.{ ClassDef, Module, Trait }
@@ -109,7 +109,7 @@ object ClassToAPI {
     if (!Modifier.isPrivate(c.getModifiers))
       cmap.inherited ++= parentJavaTypes.collect { case parent: Class[_] => c -> parent }
     val parentTypes = types(parentJavaTypes)
-    val instanceStructure = new api.Structure(lzyS(parentTypes.toArray), lzyS(all.declared.toArray), lzyS(all.inherited.toArray))
+    val instanceStructure = new api.Structure(lzyS(parentTypes), lzyS(all.declared.toArray), lzyS(all.inherited.toArray))
     val staticStructure = new api.Structure(lzyEmptyTpeArray, lzyS(all.staticDeclared.toArray), lzyS(all.staticInherited.toArray))
     (staticStructure, instanceStructure)
   }
@@ -133,7 +133,6 @@ object ClassToAPI {
   private val emptySimpleTypeArray = new Array[xsbti.api.SimpleType](0)
   private val lzyEmptyTpeArray = lzyS(emptyTypeArray)
   private val lzyEmptyDefArray = lzyS(new Array[xsbti.api.ClassDefinition](0))
-  private val lzyEmptyStructure = lzyS(new xsbti.api.Structure(lzyEmptyTpeArray, lzyEmptyDefArray, lzyEmptyDefArray))
 
   private def allSuperTypes(t: Type): Seq[Type] =
     {
@@ -166,7 +165,7 @@ object ClassToAPI {
 
   @deprecated("Use fieldToDef[4] instead", "0.13.9")
   def fieldToDef(enclPkg: Option[String])(f: Field): api.FieldLike = {
-    val c = f.getDeclaringClass()
+    val c = f.getDeclaringClass
     fieldToDef(c, classFileForClass(c), enclPkg)(f)
   }
 
@@ -249,7 +248,7 @@ object ClassToAPI {
     def ++(o: Defs) = Defs(declared ++ o.declared, inherited ++ o.inherited, staticDeclared ++ o.staticDeclared, staticInherited ++ o.staticInherited)
   }
   def mergeMap[T <: Member](of: Class[_], self: Seq[T], public: Seq[T], f: T => api.ClassDefinition): Defs =
-    merge[T](of, self, public, x => f(x) :: Nil, splitStatic _, _.getDeclaringClass != of)
+    merge[T](of, self, public, x => f(x) :: Nil, splitStatic, _.getDeclaringClass != of)
 
   def merge[T](of: Class[_], self: Seq[T], public: Seq[T], f: T => Seq[api.ClassDefinition], splitStatic: Seq[T] => (Seq[T], Seq[T]), isInherited: T => Boolean): Defs =
     {
@@ -339,11 +338,11 @@ object ClassToAPI {
       val targs = t.getActualTypeArguments
       val args = if (targs.isEmpty) emptyTypeArray else arrayMap(targs)(t => reference(t): api.Type)
       val base = reference(t.getRawType)
-      new api.Parameterized(base, args.toArray[api.Type])
+      new api.Parameterized(base, args)
     }
   def reference(t: Type): api.SimpleType =
     t match {
-      case w: WildcardType       => reference("_")
+      case _: WildcardType       => reference("_")
       case tv: TypeVariable[_]   => new api.ParameterRef(typeVariable(tv))
       case pt: ParameterizedType => referenceP(pt)
       case gat: GenericArrayType => array(reference(gat.getGenericComponentType))
@@ -414,12 +413,6 @@ object ClassToAPI {
   }
   private[this] def typeParameterTypes(m: Method): Array[TypeVariable[Method]] = try m.getTypeParameters catch {
     case _: GenericSignatureFormatError => new Array(0)
-  }
-  private[this] def superclassType(c: Class[_]): Type = try c.getGenericSuperclass catch {
-    case _: GenericSignatureFormatError => c.getSuperclass
-  }
-  private[this] def interfaces(c: Class[_]): Array[Type] = try c.getGenericInterfaces catch {
-    case _: GenericSignatureFormatError => convert(c.getInterfaces)
   }
 
   private[this] def convert(classes: Array[Class[_]]): Array[Type] =

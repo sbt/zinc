@@ -11,8 +11,6 @@ package internal
 package inc
 package javac
 
-import java.util.StringTokenizer
-
 import xsbti._
 import java.io.File
 import scala.sys.process.ProcessLogger
@@ -28,7 +26,7 @@ import scala.sys.process.ProcessLogger
  */
 final class JavacLogger(log: sbt.util.Logger, reporter: Reporter, cwd: File) extends ProcessLogger {
   import scala.collection.mutable.ListBuffer
-  import sbt.util.Level.{ Info, Warn, Error, Value => LogLevel }
+  import sbt.util.Level.{ Info, Error, Value => LogLevel }
 
   private val msgs: ListBuffer[(LogLevel, String)] = new ListBuffer()
 
@@ -39,11 +37,6 @@ final class JavacLogger(log: sbt.util.Logger, reporter: Reporter, cwd: File) ext
     synchronized { msgs += ((Error, s)); () }
 
   def buffer[T](f: => T): T = f
-
-  private def print(desiredLevel: LogLevel)(t: (LogLevel, String)) = t match {
-    case (Info, msg)  => log.info(msg)
-    case (Error, msg) => log.log(desiredLevel, msg)
-  }
 
   // Helper method to dump all semantic errors.
   private def parseAndDumpSemanticErrors(): Unit = {
@@ -59,7 +52,6 @@ final class JavacLogger(log: sbt.util.Logger, reporter: Reporter, cwd: File) ext
 
   def flush(exitCode: Int): Unit = {
     parseAndDumpSemanticErrors()
-    val level = if (exitCode == 0) Warn else Error
     // Here we only display things that wouldn't otherwise be output by the error reporter.
     // TODO - NOTES may not be displayed correctly!
     msgs collect {
