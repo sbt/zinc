@@ -35,7 +35,12 @@
             { "name": "path", "type": "Path" }
           ]
         },
-        { "name": "EmptyType", "namespace": "xsbti.api", "target": "Java", "type": "record" },
+        {
+          "name": "EmptyType",
+          "namespace": "xsbti.api",
+          "target": "Java",
+          "type": "record"
+        },
         {
           "name": "Parameterized",
           "namespace": "xsbti.api",

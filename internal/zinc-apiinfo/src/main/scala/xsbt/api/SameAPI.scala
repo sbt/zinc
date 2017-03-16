@@ -262,14 +262,14 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
       (a, b) match {
         case (pa: Projection, pb: Projection)       => debug(sameProjection(pa, pb), "Different projection")
         case (pa: ParameterRef, pb: ParameterRef)   => debug(sameParameterRef(pa, pb), "Different parameter ref")
-        case (sa: Singleton, sb: Singleton)         => debug(sameSingleton(sa, sb), "Different singleton")
-        case (_: EmptyType, _: EmptyType)           => true
+        case (pa: Polymorphic, pb: Polymorphic)     => debug(samePolymorphicType(pa, pb), "Different polymorphic type")
         case (pa: Parameterized, pb: Parameterized) => debug(sameParameterized(pa, pb), "Different parameterized")
+        case (sa: Singleton, sb: Singleton)         => debug(sameSingleton(sa, sb), "Different singleton")
         case (ca: Constant, cb: Constant)           => debug(sameConstantType(ca, cb), "Different constant types: " + DefaultShowAPI(ca) + " and " + DefaultShowAPI(cb))
         case (aa: Annotated, ab: Annotated)         => debug(sameAnnotatedType(aa, ab), "Different annotated types")
         case (sa: Structure, sb: Structure)         => debug(sameStructureDirect(sa, sb), "Different structure type")
         case (ea: Existential, eb: Existential)     => debug(sameExistentialType(ea, eb), "Different existential type")
-        case (pa: Polymorphic, pb: Polymorphic)     => debug(samePolymorphicType(pa, pb), "Different polymorphic type")
+        case (_: EmptyType, _: EmptyType)           => true
         case _                                      => differentCategory("type", a, b)
       }
     }
