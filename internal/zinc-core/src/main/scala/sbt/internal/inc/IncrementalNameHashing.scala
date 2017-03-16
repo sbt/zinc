@@ -36,8 +36,8 @@ private final class IncrementalNameHashing(log: sbt.util.Logger, options: IncOpt
     if (SameAPI(a, b))
       None
     else {
-      val aNameHashes = a.nameHashes()
-      val bNameHashes = b.nameHashes()
+      val aNameHashes = a.nameHashes
+      val bNameHashes = b.nameHashes
       val modifiedNames = ModifiedNames.compareTwoNameHashes(aNameHashes, bNameHashes)
       val apiChange = NamesChange(className, modifiedNames)
       Some(apiChange)
@@ -107,14 +107,16 @@ private final class IncrementalNameHashing(log: sbt.util.Logger, options: IncOpt
       if (all.isEmpty) s"Change $change does not affect any class."
       else {
         val byTransitiveInheritance =
-          if (transitiveInheritance.nonEmpty) s"by transitiveInheritance: $transitiveInheritance" else ""
+          if (transitiveInheritance.nonEmpty) s"by transitive inheritance: $transitiveInheritance" else ""
         val byLocalInheritance =
-          if (localInheritance.nonEmpty) s"by localInheritance: $localInheritance" else ""
+          if (localInheritance.nonEmpty) s"by local inheritance: $localInheritance" else ""
         val byMemberRef =
-          if (memberRef.nonEmpty) s"by transitiveInheritance: $memberRef" else ""
+          if (memberRef.nonEmpty) s"by member reference: $memberRef" else ""
 
-        s"""$change invalidates ${all.size} classes due to ${memberRefInvalidator.invalidationReason(change)}
-           |\t$byTransitiveInheritance $byLocalInheritance $byMemberRef
+        s"""Change $change invalidates ${all.size} classes due to ${memberRefInvalidator.invalidationReason(change)}
+           |\t> $byTransitiveInheritance
+           |\t> $byLocalInheritance
+           |\t> $byMemberRef
         """.stripMargin
       }
     }
