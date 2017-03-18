@@ -100,7 +100,8 @@ class LoggerReporter(maximumErrors: Int, logger: ManagedLogger, sourcePositionMa
 
   private def inc(sev: Severity) = count.put(sev, count.get(sev) + 1)
 
-  private def display(p: Problem): Unit =
+  // this is used by sbt
+  private[sbt] def display(p: Problem): Unit =
     {
       import problemFormats._
       inc(p.severity)
