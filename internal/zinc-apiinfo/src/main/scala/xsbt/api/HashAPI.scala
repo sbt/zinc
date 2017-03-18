@@ -193,7 +193,9 @@ final class HashAPI private (
     extend(ClassHash)
     hashTypeParameters(c.typeParameters)
     hashType(c.selfType)
-    if (includeSealedChildren) hashTypes(c.childrenOfSealedClass, includeDefinitions)
+    if (includeSealedChildren)
+      hashTypes(c.childrenOfSealedClass, includeDefinitions)
+
     hashStructure(c.structure, includeDefinitions)
   }
   def hashField(f: FieldLike): Unit = {
