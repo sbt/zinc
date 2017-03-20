@@ -6,7 +6,11 @@ import sbt.io.IO
 
 class NameHashingCompilerSpec extends BaseCompilerSpec {
 
-  def testIncrementalCompilation(changes: Seq[(String, String => String)], transitiveChanges: Set[String]) = {
+  def testIncrementalCompilation(
+    changes: Seq[(String, String => String)],
+    transitiveChanges: Set[String],
+    optimizedSealed: Boolean = true
+  ) = {
     val nahaPath = Paths.get("naha")
     IO.withTemporaryDirectory { tempDir =>
       val projectSetup = ProjectSetup(
@@ -15,7 +19,10 @@ class NameHashingCompilerSpec extends BaseCompilerSpec {
         Nil
       )
 
-      val compilerSetup = projectSetup.createCompiler()
+      val compilerSetup = {
+        val default = projectSetup.createCompiler()
+        if (optimizedSealed) default.copy(incOptions = default.incOptions.withUseOptimizedSealed(true)) else default
+      }
 
       val result = compilerSetup.doCompile()
 
@@ -87,7 +94,12 @@ class NameHashingCompilerSpec extends BaseCompilerSpec {
     )
     testIncrementalCompilation(
       changes = Seq(Other -> addNewSealedChildren),
-      transitiveChanges = Set(Other3)
+      transitiveChanges = Set(Other3, Other)
+    )
+    testIncrementalCompilation(
+      changes = Seq(Other -> addNewSealedChildren),
+      transitiveChanges = Set(Other3, Other),
+      optimizedSealed = true
     )
   }
 

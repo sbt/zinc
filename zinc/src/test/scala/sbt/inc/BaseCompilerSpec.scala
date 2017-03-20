@@ -88,7 +88,13 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
     new AnalyzingCompiler(instance, CompilerBridgeProvider.constant(bridgeJar),
       ClasspathOptionsUtil.boot, _ => (), Some(new ClassLoaderCache(new URLClassLoader(Array()))))
 
-  case class CompilerSetup(classesDir: File, tempDir: File, sources: Array[File], classpath: Seq[File]) {
+  case class CompilerSetup(
+    classesDir: File,
+    tempDir: File,
+    sources: Array[File],
+    classpath: Seq[File],
+    incOptions: IncOptions = IncOptionsUtil.defaultIncOptions()
+  ) {
     val compiler = new IncrementalCompilerImpl
     val compilerBridge = getCompilerBridge(tempDir, Logger.Null, scalaVersion)
 
@@ -97,7 +103,6 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
     val cs = compiler.compilers(si, ClasspathOptionsUtil.boot, None, sc)
 
     val lookup = MockedLookup(Function.const(Maybe.nothing[CompileAnalysis]))
-    val incOptions = IncOptionsUtil.defaultIncOptions()
     val reporter = new LoggerReporter(maxErrors, log, identity)
     val extra = Array(InterfaceUtil.t2(("key", "value")))
 

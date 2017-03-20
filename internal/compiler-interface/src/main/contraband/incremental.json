@@ -103,6 +103,15 @@
           ]
         },
         {
+          "name": "useOptimizedSealed",
+          "type": "boolean",
+          "doc": [
+            "Determines whether optimized approach for invalidating sealed classes/trait is used.",
+            "Turning this on may cause undercompilation in case of macros that are based sealed",
+            "trait/class children enumeration."
+          ]
+        },
+        {
           "name": "storeApis",
           "type": "boolean",
           "doc": [

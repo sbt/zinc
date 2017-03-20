@@ -12,13 +12,14 @@ import xsbti.api.Definition
 import xsbti.api.DefinitionType
 import xsbti.api.ClassLike
 import xsbti.api.NameHash
+import xsbti.compile.IncOptionsUtil
 
 /**
  * A class that computes hashes for each group of definitions grouped by a simple name.
  *
  * See `nameHashes` method for details.
  */
-class NameHashing {
+class NameHashing(optimizedSealed: Boolean = IncOptionsUtil.defaultUseOptimizedSealed()) {
 
   import NameHashing._
 
@@ -36,15 +37,16 @@ class NameHashing {
     val (regularDefs, implicitDefs) = apiPublicDefs.partition(deff => !deff.modifiers.isImplicit)
     val location = Location(classApi.name, NameType(classApi.definitionType))
 
-    val classDefs = apiPublicDefs.collect {
-      case classLike: ClassLike if classLike.modifiers().isSealed =>
-        classLike
-    }
+    val forPatMat = if (optimizedSealed) {
+      val classDefs = apiPublicDefs.collect {
+        case classLike: ClassLike if classLike.modifiers().isSealed =>
+          classLike
+      }
+      nameHashesForDefinitions(classDefs, location, UseScope.PatMatTarget)
+    } else Array.empty[NameHash]
 
     nameHashesForDefinitions(regularDefs, location, UseScope.Default) ++
-      nameHashesForDefinitions(implicitDefs, location, UseScope.Implicit) ++
-      nameHashesForDefinitions(classDefs, location, UseScope.PatMatTarget)
-
+      nameHashesForDefinitions(implicitDefs, location, UseScope.Implicit) ++ forPatMat
   }
 
   private def nameHashesForDefinitions(
@@ -52,17 +54,22 @@ class NameHashing {
     location: Location,
     useScope: UseScope
   ): Array[NameHash] = {
+    val includeSealedChildren = !optimizedSealed || useScope == UseScope.PatMatTarget
     val groupedBySimpleName = defs.groupBy(locatedDef => localName(locatedDef.name))
-    val hashes = groupedBySimpleName.mapValues(hashLocatedDefinitions(_, location, useScope == UseScope.PatMatTarget))
+    val hashes = groupedBySimpleName.mapValues(hashLocatedDefinitions(_, location, includeSealedChildren))
     hashes.toIterable.map({ case (name: String, hash: Int) => new NameHash(name, useScope, hash) })(collection.breakOut)
   }
 
-  private def hashLocatedDefinitions(defs: Iterable[Definition], location: Location, forPatMat: Boolean): Int = {
+  private def hashLocatedDefinitions(
+    defs: Iterable[Definition],
+    location: Location,
+    includeSealedChildren: Boolean
+  ): Int = {
     val defsWithExtraHashes = defs.toSeq.map(_ -> location.hashCode)
     HashAPI.apply(
       _.hashDefinitionsWithExtraHashes(defsWithExtraHashes),
       includeDefinitions = false,
-      includeSealedChildren = forPatMat
+      includeSealedChildren = includeSealedChildren
     )
   }
 

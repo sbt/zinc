@@ -3,6 +3,7 @@ package xsbt.api
 import xsbti.api._
 import sbt.internal.util.UnitSpec
 import xsbti.UseScope
+import xsbti.compile.IncOptionsUtil
 
 class NameHashingSpecification extends UnitSpec {
 
@@ -21,12 +22,7 @@ class NameHashingSpecification extends UnitSpec {
       nameHashes.find(nameHash => nameHash.scope() == s && nameHash.name() == name).get
   }
 
-  /**
-   * Very basic test which checks whether a name hash is insensitive to
-   * definition order (across the whole compilation unit).
-   */
   "NameHashing" should "generate correct hashes for sealed classes" in {
-    val nameHashing = new NameHashing
     val def1 = new Def("foo", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, strTpe)
     val def2 = new Def("bar", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, intTpe)
 
@@ -43,27 +39,42 @@ class NameHashingSpecification extends UnitSpec {
     val classWithAla = createClass(Ala)
     val classWithAlaAndOla = createClass(Ala, Ola)
 
-    def checkNames(a: ClassLike, b: ClassLike) = {
+    def checkOptimizedNames(a: ClassLike, b: ClassLike, optimizedSealed: Boolean) = {
+      val nameHashing = new NameHashing(optimizedSealed)
       val nameHashesA = nameHashing.nameHashes(a)
       val nameHashesB = nameHashing.nameHashes(b)
 
-      nameHashesA.in(UseScope.Default) shouldEqual nameHashesB.in(UseScope.Default)
-      assert(nameHashesA.in(UseScope.PatMatTarget).nonEmpty)
-      assert(nameHashesB.in(UseScope.PatMatTarget).nonEmpty)
+      if (optimizedSealed) {
+        nameHashesA.in(UseScope.Default) shouldEqual nameHashesB.in(UseScope.Default)
+        assert(nameHashesA.in(UseScope.PatMatTarget).nonEmpty)
+        assert(nameHashesB.in(UseScope.PatMatTarget).nonEmpty)
+      } else {
+        assert(nameHashesA.in(UseScope.PatMatTarget).isEmpty)
+        assert(nameHashesB.in(UseScope.PatMatTarget).isEmpty)
+        nameHashesA.in(UseScope.Default) should not equal nameHashesB.in(UseScope.Default)
+      }
 
-      nameHashesA.namesIn(UseScope.PatMatTarget) shouldEqual nameHashesB.namesIn(UseScope.PatMatTarget)
-      nameHashesA.in(UseScope.PatMatTarget) should not equal nameHashesB.in(UseScope.PatMatTarget)
+      if (optimizedSealed) {
+        nameHashesA.namesIn(UseScope.PatMatTarget) shouldEqual nameHashesB.namesIn(UseScope.PatMatTarget)
+        nameHashesA.in(UseScope.PatMatTarget) should not equal nameHashesB.in(UseScope.PatMatTarget)
+      }
 
       HashAPI(a) should not equal HashAPI(b)
     }
 
-    checkNames(baseClass, classWithAla)
-    checkNames(baseClass, classWithAlaAndOla)
-    checkNames(classWithAla, classWithAlaAndOla)
+    checkOptimizedNames(baseClass, classWithAla, optimizedSealed = true)
+    checkOptimizedNames(baseClass, classWithAla, optimizedSealed = false)
 
-    assert(nameHashing.nameHashes(notSealedClass).in(UseScope.PatMatTarget).isEmpty)
+    checkOptimizedNames(baseClass, classWithAlaAndOla, optimizedSealed = true)
+    checkOptimizedNames(classWithAla, classWithAlaAndOla, optimizedSealed = true)
+
+    assert(new NameHashing(true).nameHashes(notSealedClass).in(UseScope.PatMatTarget).isEmpty)
   }
 
+  /**
+   * Very basic test which checks whether a name hash is insensitive to
+   * definition order (across the whole compilation unit).
+   */
   "NameHashing" should "generate hashes that are insensitive to the definition order when adding a new member" in {
     val nameHashing = new NameHashing
     val def1 = new Def("foo", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, strTpe)
