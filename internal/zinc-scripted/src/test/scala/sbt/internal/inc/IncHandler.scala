@@ -337,12 +337,14 @@ case class ProjectStructure(name: String, dependsOn: Vector[String], baseDirecto
         Maybe.just(new xsbti.compile.TransactionalManagerType(targetDir / "classes.bak", sbt.util.Logger.Null))
       // you can't specify class file manager in the properties files so let's overwrite it to be the transactional
       // one (that's the default for sbt)
-      val incOptions = loadIncOptions(baseDirectory / "incOptions.properties").withClassfileManagerType(transactional)
+      val (incOptions, scalacOptions) = loadIncOptions(baseDirectory / "incOptions.properties")
       val reporter = new LoggerReporter(maxErrors, scriptedLog, identity)
       val extra = Array(t2(("key", "value")))
-      val setup = compiler.setup(lookup, skip = false, cacheFile, CompilerCache.fresh, incOptions, reporter, None, extra)
+      val setup = compiler.setup(lookup, skip = false, cacheFile, cache = CompilerCache.fresh,
+        incOptions.withClassfileManagerType(transactional), reporter, progress = None, extra)
+
       val classpath = (i.si.allJars.toList ++ (unmanagedJars :+ classesDir) ++ internalClasspath).toArray
-      val in = compiler.inputs(classpath, sources.toArray, classesDir, Array(), Array(), maxErrors, Array(),
+      val in = compiler.inputs(classpath, sources.toArray, classesDir, scalacOptions, Array(), maxErrors, Array(),
         CompileOrder.Mixed, cs, setup, prev0)
       val result = compiler.compile(in, scriptedLog)
       val analysis = result.analysis match { case a: Analysis => a }
@@ -411,15 +413,18 @@ case class ProjectStructure(name: String, dependsOn: Vector[String], baseDirecto
     ()
   }
 
-  def loadIncOptions(src: File): IncOptions = {
+  def loadIncOptions(src: File): (IncOptions, Array[String]) = {
     if (src.exists) {
       import collection.JavaConversions._
       val properties = new Properties()
       properties.load(new FileInputStream(src))
       val map = new java.util.HashMap[String, String]
       properties foreach { case (k: String, v: String) => map.put(k, v) }
-      IncOptionsUtil.fromStringMap(map)
-    } else IncOptionsUtil.defaultIncOptions
+
+      val scalacOptions = Option(map.get("scalac.options")).map(_.toString.split(" +")).getOrElse(Array.empty)
+
+      (IncOptionsUtil.fromStringMap(map), scalacOptions)
+    } else (IncOptionsUtil.defaultIncOptions, Array.empty)
   }
 
   def getProblems(): Seq[Problem] =
