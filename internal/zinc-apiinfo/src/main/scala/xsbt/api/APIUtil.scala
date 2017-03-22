@@ -59,7 +59,7 @@ object APIUtil {
       val savedAnnotations = Discovery.defAnnotations(c.structure, (_: Any) => true).toArray[String]
       val struct = minimizeStructure(c.structure, c.definitionType == DefinitionType.Module)
       new ClassLike(c.name, c.access, c.modifiers, c.annotations,
-        c.definitionType, lzy(emptyType), lzy(struct), savedAnnotations, c.childrenOfSealedClass,
+        c.definitionType, emptyType, struct, savedAnnotations, c.childrenOfSealedClass,
         c.topLevel, c.typeParameters)
     }
 
@@ -79,7 +79,7 @@ object APIUtil {
   private val emptyStructure = new Structure(Array.empty, Array.empty, lzy(Array.empty))
   def emptyClassLike(name: String, definitionType: DefinitionType): ClassLike =
     new xsbti.api.ClassLike(name, new Public, emptyModifiers, Array.empty,
-      definitionType, lzy(emptyType), lzy(emptyStructure), Array.empty, Array.empty, true, Array.empty)
+      definitionType, emptyType, emptyStructure, Array.empty, Array.empty, true, Array.empty)
 
   private[this] def lzy[T <: AnyRef](t: T): Lazy[T] = SafeLazyProxy.strict(t)
 

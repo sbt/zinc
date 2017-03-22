@@ -83,11 +83,11 @@ object ClassToAPI {
       val topLevel = c.getEnclosingClass == null
       val name = classCanonicalName(c)
       val tpe = if (Modifier.isInterface(c.getModifiers)) Trait else ClassDef
-      lazy val (static, instance) = structure(c, enclPkg, cmap)
-      val cls = new api.ClassLike(name, acc, mods, annots, tpe, lzyS(Empty), lzy(instance, cmap), emptyStringArray, children.toArray,
+      val (static, instance) = structure(c, enclPkg, cmap)
+      val cls = new api.ClassLike(name, acc, mods, annots, tpe, Empty, instance, emptyStringArray, children.toArray,
         topLevel, typeParameters(typeParameterTypes(c)))
       val clsDef = new api.ClassLikeDef(name, acc, mods, annots, typeParameters(typeParameterTypes(c)), tpe)
-      val stat = new api.ClassLike(name, acc, mods, annots, Module, lzyS(Empty), lzy(static, cmap), emptyStringArray, emptyTypeArray,
+      val stat = new api.ClassLike(name, acc, mods, annots, Module, Empty, static, emptyStringArray, emptyTypeArray,
         topLevel, emptyTypeParameterArray)
       val statDef = new api.ClassLikeDef(name, acc, mods, annots, emptyTypeParameterArray, Module)
       val defs = cls :: stat :: Nil
@@ -120,18 +120,12 @@ object ClassToAPI {
 
   @inline private[this] def lzyS[T <: AnyRef](t: T): xsbti.api.Lazy[T] = SafeLazyProxy.strict(t)
   @inline final def lzy[T <: AnyRef](t: => T): xsbti.api.Lazy[T] = SafeLazyProxy(t)
-  private[this] def lzy[T <: AnyRef](t: => T, cmap: ClassMap): xsbti.api.Lazy[T] = {
-    val s = lzy(t)
-    cmap.lz += s
-    s
-  }
 
   private val emptyStringArray = new Array[String](0)
   private val emptyTypeArray = new Array[xsbti.api.Type](0)
   private val emptyAnnotationArray = new Array[xsbti.api.Annotation](0)
   private val emptyTypeParameterArray = new Array[xsbti.api.TypeParameter](0)
   private val emptyDefArray = new Array[xsbti.api.ClassDefinition](0)
-  private val lzyEmptyTpeArray = lzyS(emptyTypeArray)
   private val lzyEmptyDefArray = lzyS(emptyDefArray)
 
   private def allSuperTypes(t: Type): Seq[Type] =
