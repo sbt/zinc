@@ -14,8 +14,9 @@ implicit lazy val ProjectFormat: JsonFormat[sbt.internal.inctest.Project] = new 
       val name = unbuilder.readField[String]("name")
       val dependsOn = unbuilder.readField[Vector[String]]("dependsOn")
       val in = unbuilder.readField[Option[java.io.File]]("in")
+      val scalaVersion = unbuilder.readField[Option[String]]("scalaVersion")
       unbuilder.endObject()
-      sbt.internal.inctest.Project(name, dependsOn, in)
+      sbt.internal.inctest.Project(name, dependsOn, in, scalaVersion)
       case None =>
       deserializationError("Expected JsObject but found None")
     }
@@ -25,6 +26,7 @@ implicit lazy val ProjectFormat: JsonFormat[sbt.internal.inctest.Project] = new 
     builder.addField("name", obj.name)
     builder.addField("dependsOn", obj.dependsOn)
     builder.addField("in", obj.in)
+    builder.addField("scalaVersion", obj.scalaVersion)
     builder.endObject()
   }
 }

@@ -30,8 +30,6 @@ final case class IncInstance(si: ScalaInstance, cs: XCompilers)
 final class IncHandler(directory: File, scriptedLog: ManagedLogger) extends BridgeProviderSpecification with StatementHandler {
   type State = Option[IncInstance]
   type IncCommand = (ProjectStructure, List[String], IncInstance) => Unit
-  val scalaVersion = scala.util.Properties.versionNumberString
-  val si = scalaInstance(scalaVersion)
   val compiler = new IncrementalCompilerImpl
   def initialState: Option[IncInstance] = None
   def finish(state: Option[IncInstance]): Unit = ()
@@ -47,7 +45,11 @@ final class IncHandler(directory: File, scriptedLog: ManagedLogger) extends Brid
               case None    => directory / p.name
             },
             scriptedLog,
-            lookupProject)
+            lookupProject,
+            p.scalaVersion match {
+              case Some(x) => x
+              case None    => scala.util.Properties.versionNumberString
+            })
       }
     }
   initBuildStructure()
@@ -63,32 +65,36 @@ final class IncHandler(directory: File, scriptedLog: ManagedLogger) extends Brid
   def lookupProject(name: String): ProjectStructure = buildStructure(name)
 
   def apply(command: String, arguments: List[String], i: Option[IncInstance]): Option[IncInstance] =
-    onIncInstance(i) { x: IncInstance =>
-      command.split("/").toList match {
-        case sub :: cmd :: Nil =>
-          val p = buildStructure(sub)
+    command.split("/").toList match {
+      case sub :: cmd :: Nil =>
+        val p = buildStructure(sub)
+        onIncInstance(i, p) { x: IncInstance =>
           commands(cmd)(p, arguments, x)
-        case cmd :: Nil =>
-          val p = buildStructure("root")
+        }
+      case cmd :: Nil =>
+        val p = buildStructure("root")
+        onIncInstance(i, p) { x: IncInstance =>
           // This does not do aggregation.
           commands(cmd)(p, arguments, x)
-        case _ =>
-          sys.error(s"$command")
-      }
+        }
+      case _ =>
+        sys.error(s"$command")
     }
 
-  def onIncInstance(i: Option[IncInstance])(f: IncInstance => Unit): Option[IncInstance] =
+  def onIncInstance(i: Option[IncInstance], p: ProjectStructure)(f: IncInstance => Unit): Option[IncInstance] =
     i match {
       case Some(x) =>
         f(x)
         i
       case None =>
-        onNewIncInstance(f)
+        onNewIncInstance(p, f)
     }
 
-  private[this] def onNewIncInstance(f: IncInstance => Unit): Option[IncInstance] =
+  private[this] def onNewIncInstance(p: ProjectStructure, f: IncInstance => Unit): Option[IncInstance] =
     {
+      val scalaVersion = p.scalaVersion
       val compilerBridge = getCompilerBridge(directory, Logger.Null, scalaVersion)
+      val si = scalaInstance(scalaVersion)
       val sc = scalaCompiler(si, compilerBridge)
       val cs = compiler.compilers(si, ClasspathOptionsUtil.boot, None, sc)
       val i = IncInstance(si, cs)
@@ -199,9 +205,14 @@ final class IncHandler(directory: File, scriptedLog: ManagedLogger) extends Brid
 
 }
 
-case class ProjectStructure(name: String, dependsOn: Vector[String], baseDirectory: File, scriptedLog: ManagedLogger,
-  lookupProject: String => ProjectStructure) extends BridgeProviderSpecification {
-  val scalaVersion = scala.util.Properties.versionNumberString
+case class ProjectStructure(
+  name: String,
+  dependsOn: Vector[String],
+  baseDirectory: File,
+  scriptedLog: ManagedLogger,
+  lookupProject: String => ProjectStructure,
+  scalaVersion: String
+) extends BridgeProviderSpecification {
   val compiler = new IncrementalCompilerImpl
   val maxErrors = 100
   class PerClasspathEntryLookupImpl(
