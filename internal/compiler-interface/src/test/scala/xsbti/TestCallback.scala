@@ -1,17 +1,24 @@
 package xsbti
 
 import java.io.File
-import xsbti.api.{ DependencyContext, ClassLike }
+import java.util
+
+import xsbti.api.{ ClassLike, DependencyContext }
 
 import scala.collection.mutable.ArrayBuffer
 
 class TestCallback extends AnalysisCallback {
+  case class TestUsedName(name: String, scopes: util.EnumSet[UseScope])
+
   val classDependencies = new ArrayBuffer[(String, String, DependencyContext)]
   val binaryDependencies = new ArrayBuffer[(File, String, String, DependencyContext)]
   val products = new ArrayBuffer[(File, File)]
-  val usedNames = scala.collection.mutable.Map.empty[String, Set[String]].withDefaultValue(Set.empty)
+  val usedNamesAndScopes =
+    scala.collection.mutable.Map.empty[String, Set[TestUsedName]].withDefaultValue(Set.empty)
   val classNames = scala.collection.mutable.Map.empty[File, Set[(String, String)]].withDefaultValue(Set.empty)
   val apis: scala.collection.mutable.Map[File, Set[ClassLike]] = scala.collection.mutable.Map.empty
+
+  def usedNames = usedNamesAndScopes.mapValues(_.map(_.name))
 
   def startSource(source: File): Unit = {
     assert(!apis.contains(source), s"The startSource can be called only once per source file: $source")
@@ -38,7 +45,8 @@ class TestCallback extends AnalysisCallback {
     ()
   }
 
-  def usedName(className: String, name: String): Unit = { usedNames(className) += name }
+  def usedName(className: String, name: String, scopes: util.EnumSet[UseScope]): Unit =
+    usedNamesAndScopes(className) += TestUsedName(name, scopes)
 
   def api(source: File, api: ClassLike): Unit = {
     apis(source) += api

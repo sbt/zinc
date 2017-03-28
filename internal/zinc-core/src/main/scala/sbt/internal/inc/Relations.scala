@@ -72,7 +72,7 @@ trait Relations {
   /** Internal source dependencies that depend on external source file `dep`.  This includes both direct and inherited dependencies.  */
   def usesExternal(className: String): Set[String]
 
-  private[inc] def usedNames(className: String): Set[String]
+  private[inc] def usedNames(className: String): Set[UsedName]
 
   /**
    * Records that the file `src` generates products `products`, has internal dependencies `internalDeps`,
@@ -118,7 +118,7 @@ trait Relations {
    */
   private[inc] def addLibraryDeps(src: File, deps: Iterable[(File, String, Stamp)]): Relations
 
-  private[inc] def addUsedName(className: String, name: String): Relations
+  private[inc] def addUsedName(className: String, name: UsedName): Relations
 
   /** Concatenates the two relations. Acts naively, i.e., doesn't internalize external deps on added files. */
   def ++(o: Relations): Relations
@@ -245,7 +245,7 @@ trait Relations {
   /**
    * Relation between source files and _unqualified_ term and type names used in given source file.
    */
-  private[inc] def names: Relation[String, String]
+  private[inc] def names: Relation[String, UsedName]
 }
 
 object Relations {
@@ -271,17 +271,20 @@ object Relations {
 
   private[sbt] def getOrEmpty[A, B, K](m: Map[K, Relation[A, B]], k: K): Relation[A, B] = m.getOrElse(k, Relation.empty)
 
-  private[this] lazy val e = Relation.empty[File, File]
-  private[this] lazy val estr = Relation.empty[File, String]
-  private[this] lazy val estrstr = Relation.empty[String, String]
-
-  private[inc] lazy val emptyClassDependencies: ClassDependencies = new ClassDependencies(estrstr, estrstr)
-  def empty: Relations =
-    new MRelationsNameHashing(e, e, estr, InternalDependencies.empty, ExternalDependencies.empty, estr, estrstr, estrstr)
+  def empty: Relations = new MRelationsNameHashing(
+    srcProd = Relation.empty,
+    libraryDep = Relation.empty,
+    libraryClassName = Relation.empty,
+    internalDependencies = InternalDependencies.empty,
+    externalDependencies = ExternalDependencies.empty,
+    classes = Relation.empty,
+    names = Relation.empty,
+    productClassName = Relation.empty
+  )
 
   private[inc] def make(srcProd: Relation[File, File], libraryDep: Relation[File, File], libraryClassName: Relation[File, String],
     internalDependencies: InternalDependencies, externalDependencies: ExternalDependencies,
-    classes: Relation[File, String], names: Relation[String, String],
+    classes: Relation[File, String], names: Relation[String, UsedName],
     productClassName: Relation[String, String]): Relations =
     new MRelationsNameHashing(srcProd, libraryDep, libraryClassName, internalDependencies = internalDependencies,
       externalDependencies = externalDependencies, classes, names, productClassName)
@@ -453,7 +456,7 @@ private abstract class MRelationsCommon(
   def externalDeps(className: String): Set[String] = externalClassDep.forward(className)
   def usesExternal(className: String): Set[String] = externalClassDep.reverse(className)
 
-  private[inc] def usedNames(className: String): Set[String] = names.forward(className)
+  private[inc] def usedNames(className: String): Set[UsedName] = names.forward(className)
 
   /** Making large Relations a little readable. */
   private val userDir = sys.props("user.dir").stripSuffix("/") + "/"
@@ -477,7 +480,7 @@ private class MRelationsNameHashing(
   val internalDependencies: InternalDependencies,
   val externalDependencies: ExternalDependencies,
   classes: Relation[File, String],
-  val names: Relation[String, String],
+  val names: Relation[String, UsedName],
   productClassName: Relation[String, String]
 ) extends MRelationsCommon(srcProd, libraryDep, libraryClassName, classes, productClassName) {
 
@@ -515,7 +518,7 @@ private class MRelationsNameHashing(
       productClassName = productClassName
     )
 
-  override private[inc] def addUsedName(className: String, name: String): Relations =
+  override private[inc] def addUsedName(className: String, name: UsedName): Relations =
     new MRelationsNameHashing(srcProd, libraryDep, libraryClassName, internalDependencies = internalDependencies,
       externalDependencies = externalDependencies, classes, names = names + (className, name),
       productClassName = productClassName)

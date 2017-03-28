@@ -29,8 +29,8 @@ public class IncOptionsUtil {
   public static final String API_DEBUG_KEY = "apiDebug";
   public static final String API_DIFF_CONTEXT_SIZE_KEY = "apiDiffContextSize";
   public static final String API_DUMP_DIRECTORY_KEY = "apiDumpDirectory";
-  public static final String CLASSFILE_MANAGER_TYPE_KEY = "classfileManagerType";
   public static final String RECOMPILE_ON_MACRO_DEF_KEY = "recompileOnMacroDef";
+  public static final String USE_OPTIMIZED_SEALED = "useOptimizedSealed";
   public static final String LOG_RECOMPILE_ON_MACRO = "logRecompileOnMacro";
   private static final String XSBTI_NOTHING = "NOTHING";
 
@@ -66,6 +66,10 @@ public class IncOptionsUtil {
     return Maybe.<Boolean>nothing();
   }
 
+  public static boolean defaultUseOptimizedSealed(){
+    return false;
+  }
+
   public static boolean defaultRecompileOnMacroDefImpl() {
     return true;
   }
@@ -88,10 +92,6 @@ public class IncOptionsUtil {
 
   public static boolean defaultEnabled() {
     return true;
-  }
-
-  public static boolean defaultAntStyle() {
-    return false;
   }
 
   public static Map<String, String> defaultExtra() {
@@ -122,7 +122,7 @@ public class IncOptionsUtil {
       defaultRelationsDebug(), defaultApiDebug(),
       defaultApiDiffContextSize(), defaultApiDumpDirectory(),
       defaultClassFileManagerType(), defaultUseCustomizedFileManager(),
-      defaultRecompileOnMacroDef(), defaultStoreApis(), defaultEnabled(),
+      defaultRecompileOnMacroDef(),defaultUseOptimizedSealed(), defaultStoreApis(), defaultEnabled(),
       defaultExtra(), defaultLogRecompileOnMacro(), defaultExternal());
     return retval;
   }
@@ -177,6 +177,10 @@ public class IncOptionsUtil {
 
     if (values.containsKey(LOG_RECOMPILE_ON_MACRO)) {
       base = base.withLogRecompileOnMacro(Boolean.parseBoolean(values.get(LOG_RECOMPILE_ON_MACRO)));
+    }
+
+    if(values.containsKey(USE_OPTIMIZED_SEALED)){
+      base = base.withUseOptimizedSealed(Boolean.parseBoolean(values.get(USE_OPTIMIZED_SEALED)));
     }
 
     return base;

@@ -10,6 +10,8 @@ package sbt.internal.inc
 import java.io.File
 import java.nio.file.Path
 
+import xsbti.UseScope
+
 import xsbti.compile.MiniSetup
 
 import scala.util.Try
@@ -21,6 +23,15 @@ object Mapper {
   val forFile: Mapper[File] = Mapper(FormatCommons.stringToFile, FormatCommons.fileToString)
   val forString: Mapper[String] = Mapper(identity, identity)
   val forStamp: ContextAwareMapper[File, Stamp] = ContextAwareMapper((_, v) => Stamp.fromString(v), (_, s) => s.toString)
+  val forUsedName: Mapper[UsedName] = {
+    val enumSetSerializer = EnumSetSerializer(UseScope.values())
+    def serialize(usedName: UsedName): String =
+      s"${enumSetSerializer.serialize(usedName.scopes)}${usedName.name}"
+
+    def deserialize(s: String) = UsedName(s.tail, enumSetSerializer.deserialize(s.head))
+
+    Mapper(deserialize, serialize)
+  }
 
   implicit class MapperOpts[V](mapper: Mapper[V]) {
     def map[T](map: V => T, unmap: T => V) = Mapper[T](mapper.read.andThen(map), unmap.andThen(mapper.write))

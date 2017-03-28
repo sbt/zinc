@@ -13,10 +13,12 @@ import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
 import xsbt.api.{ APIUtil, HashAPI, NameHashing }
 import xsbti.api._
 import xsbti.compile.{ CompileAnalysis, DependencyChanges, IncOptions, MultipleOutput, Output, SingleOutput }
-import xsbti.{ Position, Problem, Severity }
+import xsbti.{ Position, Problem, Severity, UseScope }
 import sbt.util.Logger
 import sbt.util.InterfaceUtil.jo2o
 import java.io.File
+import java.util
+
 import xsbti.api.DependencyContext
 import xsbti.compile.ClassFileManager
 
@@ -120,9 +122,9 @@ private final class AnalysisCallback(
   private[this] val srcs = Set[File]()
   private[this] val classApis = new HashMap[String, (HashAPI.Hash, ClassLike)]
   private[this] val objectApis = new HashMap[String, (HashAPI.Hash, ClassLike)]
-  private[this] val classPublicNameHashes = new HashMap[String, NameHashes]
-  private[this] val objectPublicNameHashes = new HashMap[String, NameHashes]
-  private[this] val usedNames = new HashMap[String, Set[String]]
+  private[this] val classPublicNameHashes = new HashMap[String, Array[NameHash]]
+  private[this] val objectPublicNameHashes = new HashMap[String, Array[NameHash]]
+  private[this] val usedNames = new HashMap[String, Set[UsedName]]
   private[this] val unreporteds = new HashMap[File, ListBuffer[Problem]]
   private[this] val reporteds = new HashMap[File, ListBuffer[Problem]]
   private[this] val binaryDeps = new HashMap[File, Set[File]]
@@ -222,7 +224,7 @@ private final class AnalysisCallback(
     val shouldMinimize = !Incremental.apiDebug(options)
     val savedClassApi = if (shouldMinimize) APIUtil.minimize(classApi) else classApi
     val apiHash: HashAPI.Hash = HashAPI(classApi)
-    val nameHashes = (new xsbt.api.NameHashing).nameHashes(classApi)
+    val nameHashes = (new xsbt.api.NameHashing(options.useOptimizedSealed())).nameHashes(classApi)
     classApi.definitionType match {
       case DefinitionType.ClassDef | DefinitionType.Trait =>
         classApis(className) = apiHash -> savedClassApi
@@ -233,7 +235,8 @@ private final class AnalysisCallback(
     }
   }
 
-  def usedName(className: String, name: String) = add(usedNames, className, name)
+  def usedName(className: String, name: String, useScopes: util.EnumSet[UseScope]) =
+    add(usedNames, className, UsedName(name, useScopes))
 
   override def enabled(): Boolean = options.enabled
 
@@ -258,7 +261,7 @@ private final class AnalysisCallback(
     (companions, apiHash)
   }
 
-  private def nameHashesForCompanions(className: String): NameHashes = {
+  private def nameHashesForCompanions(className: String): Array[NameHash] = {
     val classNameHashes = classPublicNameHashes.get(className)
     val objectNameHashes = objectPublicNameHashes.get(className)
     (classNameHashes, objectNameHashes) match {

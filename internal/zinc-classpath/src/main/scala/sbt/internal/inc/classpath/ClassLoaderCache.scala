@@ -16,7 +16,7 @@ import java.net.URLClassLoader
 import java.util.HashMap
 
 // Hack for testing only
-private[sbt] final class ClassLoaderCache(val commonParent: ClassLoader) {
+final class ClassLoaderCache(val commonParent: ClassLoader) {
   private[this] val delegate =
     new HashMap[List[File], Reference[CachedClassLoader]]
 

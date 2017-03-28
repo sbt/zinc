@@ -13,43 +13,46 @@ import HashAPI.Hash
 
 object HashAPI {
   type Hash = Int
-  def apply(a: ClassLike): Hash =
-    (new HashAPI(false, true, true)).hashAPI(a)
 
-  def apply(x: Def): Hash = {
-    val hashApi = new HashAPI(false, true, true)
-    hashApi.hashDefinition(x)
-    hashApi.finalizeHash
+  def apply(api: ClassLike): Hash = apply(_.hashAPI(api))
+
+  def apply(x: Def): Hash = apply(_.hashDefinition(x))
+
+  def apply(
+    doHashing: HashAPI => Unit,
+    includePrivate: Boolean = false,
+    includeParamNames: Boolean = true,
+    includeDefinitions: Boolean = true,
+    includeSealedChildren: Boolean = true
+  ): Hash = {
+    val hasher = new HashAPI(includePrivate, includeParamNames, includeDefinitions, includeSealedChildren)
+    doHashing(hasher)
+    hasher.finalizeHash
   }
 
-  def apply(x: Definition): Hash = {
-    val hashApi = new HashAPI(false, true, true)
-    hashApi.hashDefinition(x)
-    hashApi.finalizeHash
-  }
-
-  def hashDefinitionsWithExtraHashes(ds: Seq[(Definition, Hash)]): Hash = {
-    val hashAPI = new HashAPI(false, true, false)
-    hashAPI.hashDefinitionsWithExtraHashes(ds)
-    hashAPI.finalizeHash
-  }
 }
 
 /**
  * Implements hashing of public API.
  *
- * @param includePrivate should private definitions be included in a hash sum
- * @param includeParamNames should parameter names for methods be included in a hash sum
- * @param includeDefinitions when hashing a structure (e.g. of a class) should hashes of definitions (members)
- *   be included in a hash sum. Structure can appear as a type (in structural type) and in that case we
- *   always include definitions in a hash sum.
+ * @param includePrivate        should private definitions be included in a hash sum
+ * @param includeParamNames     should parameter names for methods be included in a hash sum
+ * @param includeDefinitions    when hashing a structure (e.g. of a class) should hashes of definitions (members)
+ *                              be included in a hash sum. Structure can appear as a type (in structural type).
+ *                              In that case we always include definitions in a hash sum.
+ * @param includeSealedChildren Controls if types of children of sealed class should be included in hash.
  */
-final class HashAPI(includePrivate: Boolean, includeParamNames: Boolean, includeDefinitions: Boolean) {
+final class HashAPI private (
+  includePrivate: Boolean,
+  includeParamNames: Boolean,
+  includeDefinitions: Boolean,
+  includeSealedChildren: Boolean
+) {
   // this constructor variant is for source and binary backwards compatibility with sbt 0.13.0
   def this(includePrivate: Boolean, includeParamNames: Boolean) {
     // in the old logic we used to always include definitions hence
     // includeDefinitions=true
-    this(includePrivate, includeParamNames, includeDefinitions = true)
+    this(includePrivate, includeParamNames, includeDefinitions = true, includeSealedChildren = true)
   }
 
   import scala.collection.mutable
@@ -136,11 +139,10 @@ final class HashAPI(includePrivate: Boolean, includeParamNames: Boolean, include
 
   def hashModifiers(m: Modifiers) = extend(m.raw.toInt)
 
-  def hashAPI(c: ClassLike): Hash =
+  def hashAPI(c: ClassLike): Unit =
     {
       hash = 1
       hashClass(c)
-      finalizeHash
     }
 
   def hashPackage(p: Package) = hashString(p.name)
@@ -191,7 +193,9 @@ final class HashAPI(includePrivate: Boolean, includeParamNames: Boolean, include
     extend(ClassHash)
     hashTypeParameters(c.typeParameters)
     hashType(c.selfType)
-    hashTypes(c.childrenOfSealedClass, includeDefinitions)
+    if (includeSealedChildren)
+      hashTypes(c.childrenOfSealedClass, includeDefinitions)
+
     hashStructure(c.structure, includeDefinitions)
   }
   def hashField(f: FieldLike): Unit = {

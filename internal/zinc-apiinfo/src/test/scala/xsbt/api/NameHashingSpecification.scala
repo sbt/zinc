@@ -1,10 +1,75 @@
 package xsbt.api
 
 import xsbti.api._
-
 import sbt.internal.util.UnitSpec
+import xsbti.UseScope
+import xsbti.compile.IncOptionsUtil
 
 class NameHashingSpecification extends UnitSpec {
+
+  implicit class NameHashesOpts(nameHashes: Array[NameHash]) {
+
+    def in(s: UseScope): Array[NameHash] =
+      nameHashes.filter(_.scope() == s)
+
+    def namesIn(s: UseScope): Set[String] =
+      nameHashes.collect {
+        case nameHash if nameHash.scope() == s =>
+          nameHash.name()
+      }(collection.breakOut)
+
+    def forNameIn(s: UseScope, name: String): NameHash =
+      nameHashes.find(nameHash => nameHash.scope() == s && nameHash.name() == name).get
+  }
+
+  "NameHashing" should "generate correct hashes for sealed classes" in {
+    val def1 = new Def("foo", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, strTpe)
+    val def2 = new Def("bar", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, intTpe)
+
+    val Ala = new Projection(emptyType, "Ala")
+    val Ola = new Projection(emptyType, "Ola")
+
+    def createClass(types: Type*) = simpleClass("Bar", def1, def2)
+      .withModifiers(new Modifiers(false, false, false, true, false, false, false, false))
+      .withChildrenOfSealedClass(types.toArray)
+
+    val notSealedClass = simpleClass("Bar", def1)
+
+    val baseClass = createClass()
+    val classWithAla = createClass(Ala)
+    val classWithAlaAndOla = createClass(Ala, Ola)
+
+    def checkOptimizedNames(a: ClassLike, b: ClassLike, optimizedSealed: Boolean) = {
+      val nameHashing = new NameHashing(optimizedSealed)
+      val nameHashesA = nameHashing.nameHashes(a)
+      val nameHashesB = nameHashing.nameHashes(b)
+
+      if (optimizedSealed) {
+        nameHashesA.in(UseScope.Default) shouldEqual nameHashesB.in(UseScope.Default)
+        assert(nameHashesA.in(UseScope.PatMatTarget).nonEmpty)
+        assert(nameHashesB.in(UseScope.PatMatTarget).nonEmpty)
+      } else {
+        assert(nameHashesA.in(UseScope.PatMatTarget).isEmpty)
+        assert(nameHashesB.in(UseScope.PatMatTarget).isEmpty)
+        nameHashesA.in(UseScope.Default) should not equal nameHashesB.in(UseScope.Default)
+      }
+
+      if (optimizedSealed) {
+        nameHashesA.namesIn(UseScope.PatMatTarget) shouldEqual nameHashesB.namesIn(UseScope.PatMatTarget)
+        nameHashesA.in(UseScope.PatMatTarget) should not equal nameHashesB.in(UseScope.PatMatTarget)
+      }
+
+      HashAPI(a) should not equal HashAPI(b)
+    }
+
+    checkOptimizedNames(baseClass, classWithAla, optimizedSealed = true)
+    checkOptimizedNames(baseClass, classWithAla, optimizedSealed = false)
+
+    checkOptimizedNames(baseClass, classWithAlaAndOla, optimizedSealed = true)
+    checkOptimizedNames(classWithAla, classWithAlaAndOla, optimizedSealed = true)
+
+    assert(new NameHashing(true).nameHashes(notSealedClass).in(UseScope.PatMatTarget).isEmpty)
+  }
 
   /**
    * Very basic test which checks whether a name hash is insensitive to
@@ -20,8 +85,8 @@ class NameHashingSpecification extends UnitSpec {
     val nameHashes2 = nameHashing.nameHashes(classBar2)
     assertNameHashEqualForRegularName("Bar", nameHashes1, nameHashes2)
     assertNameHashEqualForRegularName("foo", nameHashes1, nameHashes2)
-    nameHashes1.regularMembers.map(_.name).toSeq should not contain ("bar")
-    nameHashes2.regularMembers.map(_.name).toSeq should contain("bar")
+    nameHashes1 namesIn UseScope.Default should not contain "bar"
+    nameHashes2 namesIn UseScope.Default should contain("bar")
   }
 
   /**
@@ -100,8 +165,8 @@ class NameHashingSpecification extends UnitSpec {
     }
     val parentANameHashes = nameHashesForClass(parentA)
     val parentBNameHashes = nameHashesForClass(parentB)
-    Seq("Parent") === parentANameHashes.regularMembers.map(_.name).toSeq
-    Seq("Parent", "bar") === parentBNameHashes.regularMembers.map(_.name).toSeq
+    Set("Parent") === parentANameHashes.namesIn(UseScope.Default)
+    Set("Parent", "bar") === parentBNameHashes.namesIn(UseScope.Default)
     assert(parentANameHashes !== parentBNameHashes)
     val childANameHashes = nameHashesForClass(childA)
     val childBNameHashes = nameHashesForClass(childB)
@@ -141,8 +206,8 @@ class NameHashingSpecification extends UnitSpec {
     val nameHashes1 = nameHashesForClass(aClass1)
     val nameHashes2 = nameHashesForClass(aClass2)
     // note that `bar` does appear here
-    assert(Seq("A", "foo", "bar") === nameHashes1.regularMembers.map(_.name).toSeq)
-    assert(Seq("A", "foo", "bar") === nameHashes2.regularMembers.map(_.name).toSeq)
+    assert(Set("A", "foo", "bar") === nameHashes1.namesIn(UseScope.Default))
+    assert(Set("A", "foo", "bar") === nameHashes2.namesIn(UseScope.Default))
     assertNameHashEqualForRegularName("A", nameHashes1, nameHashes2)
     assertNameHashNotEqualForRegularName("foo", nameHashes1, nameHashes2)
     assertNameHashNotEqualForRegularName("bar", nameHashes1, nameHashes2)
@@ -164,9 +229,9 @@ class NameHashingSpecification extends UnitSpec {
     val nameHashes1 = nameHashing.nameHashes(classBar)
     val nameHashes2 = nameHashing.nameHashes(objectBar)
     val merged = NameHashing.merge(nameHashes1, nameHashes2)
-    assert(nameHashes1.regularMembers.map(_.name).toSet === Set("Bar", "foo"))
-    assert(nameHashes2.regularMembers.map(_.name).toSet === Set("Bar", "bar"))
-    assert(merged.regularMembers.map(_.name).toSet === Set("Bar", "foo", "bar"))
+    assert(nameHashes1.namesIn(UseScope.Default) === Set("Bar", "foo"))
+    assert(nameHashes2.namesIn(UseScope.Default) === Set("Bar", "bar"))
+    assert(merged.namesIn(UseScope.Default) === Set("Bar", "foo", "bar"))
     assertNameHashEqualForRegularName("foo", nameHashes1, merged)
     assertNameHashEqualForRegularName("bar", nameHashes2, merged)
     assertNameHashNotEqualForRegularName("Bar", nameHashes1, merged)
@@ -182,30 +247,30 @@ class NameHashingSpecification extends UnitSpec {
     val fooDef = new Def("foo", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, strTpe)
     val classFoo = simpleClassLike("Foo", simpleStructure(fooDef), access = privateAccess, topLevel = true)
     val nameHashes = nameHashesForClass(classFoo)
-    assert(Seq("Foo", "foo") === nameHashes.regularMembers.map(_.name).toSeq)
+    assert(Set("Foo", "foo") === nameHashes.namesIn(UseScope.Default))
   }
 
-  private def assertNameHashEqualForRegularName(name: String, nameHashes1: NameHashes,
-    nameHashes2: NameHashes) = {
-    val nameHash1 = nameHashForRegularName(nameHashes1, name)
-    val nameHash2 = nameHashForRegularName(nameHashes1, name)
+  private def assertNameHashEqual(scope: UseScope, name: String, nameHashes1: Array[NameHash],
+    nameHashes2: Array[NameHash]) = {
+    val nameHash1 = nameHashes1.forNameIn(scope, name)
+    val nameHash2 = nameHashes2.forNameIn(scope, name)
     assert(nameHash1 === nameHash2)
   }
 
-  private def assertNameHashNotEqualForRegularName(name: String, nameHashes1: NameHashes, nameHashes2: NameHashes) = {
-    val nameHash1 = nameHashForRegularName(nameHashes1, name)
-    val nameHash2 = nameHashForRegularName(nameHashes2, name)
+  private def assertNameHashEqualForRegularName(name: String, nameHashes1: Array[NameHash],
+    nameHashes2: Array[NameHash]) = assertNameHashEqual(UseScope.Default, name, nameHashes1, nameHashes2)
+
+  private def assertNameHashNotEqualForRegularName(
+    name: String,
+    nameHashes1: Array[NameHash],
+    nameHashes2: Array[NameHash]
+  ) = {
+    val nameHash1 = nameHashes1.forNameIn(UseScope.Default, name)
+    val nameHash2 = nameHashes2.forNameIn(UseScope.Default, name)
     assert(nameHash1 !== nameHash2)
   }
 
-  private def nameHashForRegularName(nameHashes: NameHashes, name: String): NameHash =
-    try {
-      nameHashes.regularMembers.find(_.name == name).get
-    } catch {
-      case e: NoSuchElementException => throw new RuntimeException(s"Couldn't find $name in $nameHashes", e)
-    }
-
-  private def nameHashesForClass(cl: ClassLike): NameHashes = {
+  private def nameHashesForClass(cl: ClassLike): Array[NameHash] = {
     val nameHashing = new NameHashing
     nameHashing.nameHashes(cl)
   }
