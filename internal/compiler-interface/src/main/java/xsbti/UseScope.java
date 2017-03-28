@@ -16,9 +16,17 @@ package xsbti;
  * pattern match.
  *
  * The order of declaration of these is crucial. Don't change it.
+ * Don't add more than 6 scopes. Otherwise, change `Mapper` implementation.
  */
 public enum UseScope {
-    // Don't add more than 6 scopes. Otherwise, change `Mapper` implementation.
-    Default, Implicit, PatMatTarget
+    /** Represent standard definition/usage. Default is present for each declaration and usage of given name. */
+    Default,
+    /** Used to track changes in implicit definition.
+     * So far classes don't depend on this scope since implicit changes has it's own invalidation process */
+    Implicit,
+    /** Used in optimized sealed class invalidation (when IncOptions.seOptimizedSealed is true).
+     * Only sealed classes/trait produce hash in this scope (for their names).
+     * Class have dependencies in PatMatTarget scope to all names used in type of pattern match target. */
+    PatMatTarget
 }
 

@@ -42,7 +42,7 @@ class ExportableCache(val cacheLocation: Path, cleanOutputMode: CleanOutputMode 
 
   protected def cacheVerifier(): CacheVerifier = NoopVerifier
 
-  private def outputDir(setup: MiniSetup): File = setup.output() match {
+  protected def outputDirFor(setup: MiniSetup): File = setup.output() match {
     case single: SingleOutput =>
       single.outputDirectory()
     case _ => throw new RuntimeException("Only single output is supported")
@@ -52,25 +52,9 @@ class ExportableCache(val cacheLocation: Path, cleanOutputMode: CleanOutputMode 
     val store = FileBasedStore(analysisFile.toFile, createMapper(projectLocation))
 
     for ((newAnalysis: Analysis, newSetup) <- store.get()) yield {
-      val output = outputDir(newSetup)
 
-      if (output.exists()) {
-        if (output.isDirectory) {
-          cleanOutputMode match {
-            case CleanOutput =>
-              if (output.list().nonEmpty) IO.delete(output)
-            case FailOnNonEmpty =>
-              if (output.list().nonEmpty)
-                throw new IllegalStateException(s"Output directory: $output is not empty and cleanOutput is false")
-            case CleanClasses =>
-              val classFiles = PathFinder(output) ** "*.class"
-              IO.delete(classFiles.get)
-          }
-        } else throw new IllegalStateException(s"Output file: $output is not a directory")
-      }
-
-      val importedClassfiles = IO.unzip(classesZipFile.toFile, output, preserveLastModified = true)
-      val analysisForLocalProducts = updateStampsForImportedProducts(newAnalysis, importedClassfiles)
+      val importedClassFiles = importBinaryCache(newAnalysis, newSetup)
+      val analysisForLocalProducts = updateStampsForImportedProducts(newAnalysis, importedClassFiles)
 
       (analysisForLocalProducts, newSetup)
     }
@@ -99,20 +83,49 @@ class ExportableCache(val cacheLocation: Path, cleanOutputMode: CleanOutputMode 
       val verifier = cacheVerifier()
       val mapper = verifier.verifingMappers(createMapper(projectLocation))
       val remoteStore = FileBasedStore(analysisFile.toFile, mapper)
-      val out = outputDir(currentSetup).toPath
 
-      def files(f: File): List[File] = f :: (if (f.isDirectory) IO.listFiles(f).toList.flatMap(files(_)) else Nil)
-
-      val entries = files(out.toFile).map {
-        classFile =>
-          val mapping = out.relativize(classFile.toPath).toString
-          classFile -> mapping
-      }
-
-      IO.zip(entries, classesZipFile.toFile)
+      exportBinaryCache(currentAnalysis, currentSetup)
 
       remoteStore.set(currentAnalysis, currentSetup)
       verifier.results
     }
+  }
+
+  protected def cleanOutput(output: File): Unit = {
+    if (output.exists()) {
+      if (output.isDirectory) {
+        cleanOutputMode match {
+          case CleanOutput =>
+            if (output.list().nonEmpty) IO.delete(output)
+          case FailOnNonEmpty =>
+            if (output.list().nonEmpty)
+              throw new IllegalStateException(s"Output directory: $output is not empty and cleanOutput is false")
+          case CleanClasses =>
+            val classFiles = PathFinder(output) ** "*.class"
+            IO.delete(classFiles.get)
+        }
+      } else throw new IllegalStateException(s"Output file: $output is not a directory")
+    }
+  }
+
+  protected def importBinaryCache(newAnalysis: Analysis, newSetup: MiniSetup): Set[File] = {
+    val output = outputDirFor(newSetup)
+    cleanOutput(output)
+
+    IO.unzip(classesZipFile.toFile, output, preserveLastModified = true)
+  }
+
+  protected def exportBinaryCache(currentAnalysis: Analysis, currentSetup: MiniSetup): Unit = {
+    val out = outputDirFor(currentSetup).toPath
+
+    def files(f: File): List[File] = f :: (if (f.isDirectory) IO.listFiles(f).toList.flatMap(files) else Nil)
+
+    val entries = files(out.toFile).map {
+      classFile =>
+        val mapping = out.relativize(classFile.toPath).toString
+        classFile -> mapping
+    }
+
+    IO.zip(entries, classesZipFile.toFile)
   }
 }
