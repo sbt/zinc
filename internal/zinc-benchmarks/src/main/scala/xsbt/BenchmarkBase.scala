@@ -1,5 +1,6 @@
 package xsbt
 
+import net.openhft.affinity.AffinityLock
 import org.openjdk.jmh.annotations._
 import java.io.File
 
@@ -18,8 +19,13 @@ class BenchmarkBase {
   var _setup: ProjectSetup = _
   var _subprojectsSetup: List[ProjectSetup] = _
 
+  /* Java thread affinity (install JNA to run this benchmark). */
+  var _lock: AffinityLock = _
+
   @Setup(Level.Trial)
   def setUpCompilerRuns(): Unit = {
+    _lock = AffinityLock.acquireLock()
+
     assert(_project != null, "_project is null, set it.")
     assert(_subprojectToRun != null, "_subprojectToRun is null, set it.")
 
@@ -48,6 +54,7 @@ class BenchmarkBase {
 
   @TearDown(Level.Trial)
   def tearDown(): Unit = {
+    _lock.release()
     // Remove the directory where all the class files have been compiled
     sbt.io.IO.delete(_setup.at)
   }

@@ -8,51 +8,47 @@
 
       "types": [
         {
-          "name": "SimpleType",
+          "name": "Projection",
           "namespace": "xsbti.api",
           "target": "Java",
-          "type": "interface",
-
-          "types": [
-            {
-              "name": "Projection",
-              "namespace": "xsbti.api",
-              "target": "Java",
-              "type": "record",
-              "fields": [
-                { "name": "prefix", "type": "SimpleType" },
-                { "name": "id",     "type": "String"     }
-              ]
-            },
-            {
-              "name": "ParameterRef",
-              "namespace": "xsbti.api",
-              "target": "Java",
-              "type": "record",
-              "fields": [
-                { "name": "id", "type": "String" }
-              ]
-            },
-            {
-              "name": "Singleton",
-              "namespace": "xsbti.api",
-              "target": "Java",
-              "type": "record",
-              "fields": [
-                { "name": "path", "type": "Path" }
-              ]
-            },
-            { "name": "EmptyType", "namespace": "xsbti.api", "target": "Java", "type": "record" },
-            {
-              "name": "Parameterized",
-              "namespace": "xsbti.api",
-              "target": "Java",
-              "type": "record",
-              "fields": [
-                { "name": "baseType",      "type": "SimpleType" },
-                { "name": "typeArguments", "type": "Type*"      }
-              ]
-            }
+          "type": "record",
+          "fields": [
+            { "name": "prefix", "type": "Type" },
+            { "name": "id",     "type": "String"     }
+          ]
+        },
+        {
+          "name": "ParameterRef",
+          "namespace": "xsbti.api",
+          "target": "Java",
+          "type": "record",
+          "fields": [
+            { "name": "id", "type": "String" }
+          ]
+        },
+        {
+          "name": "Singleton",
+          "namespace": "xsbti.api",
+          "target": "Java",
+          "type": "record",
+          "fields": [
+            { "name": "path", "type": "Path" }
+          ]
+        },
+        {
+          "name": "EmptyType",
+          "namespace": "xsbti.api",
+          "target": "Java",
+          "type": "record"
+        },
+        {
+          "name": "Parameterized",
+          "namespace": "xsbti.api",
+          "target": "Java",
+          "type": "record",
+          "fields": [
+            { "name": "baseType",      "type": "Type" },
+            { "name": "typeArguments", "type": "Type*"      }
           ]
         },
         {

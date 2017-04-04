@@ -130,7 +130,6 @@ object ClassToAPI {
   private val emptyTypeArray = new Array[xsbti.api.Type](0)
   private val emptyAnnotationArray = new Array[xsbti.api.Annotation](0)
   private val emptyTypeParameterArray = new Array[xsbti.api.TypeParameter](0)
-  private val emptySimpleTypeArray = new Array[xsbti.api.SimpleType](0)
   private val lzyEmptyTpeArray = lzyS(emptyTypeArray)
   private val lzyEmptyDefArray = lzyS(new Array[xsbti.api.ClassDefinition](0))
 
@@ -239,7 +238,7 @@ object ClassToAPI {
   def parameter(annots: Array[Annotation], parameter: Type, varArgs: Boolean): api.MethodParameter =
     new api.MethodParameter("", annotated(reference(parameter), annots), false, if (varArgs) api.ParameterModifier.Repeated else api.ParameterModifier.Plain)
 
-  def annotated(t: api.SimpleType, annots: Array[Annotation]): api.Type = (
+  def annotated(t: api.Type, annots: Array[Annotation]): api.Type = (
     if (annots.length == 0) t
     else new api.Annotated(t, annotations(annots))
   )
@@ -306,7 +305,7 @@ object ClassToAPI {
    *
    * We need this logic to trigger recompilation due to changes to pattern exhaustivity checking results.
    */
-  private def childrenOfSealedClass(c: Class[_]): Seq[api.SimpleType] = if (!c.isEnum) emptySimpleTypeArray else {
+  private def childrenOfSealedClass(c: Class[_]): Seq[api.Type] = if (!c.isEnum) emptyTypeArray else {
     // Calling getCanonicalName() on classes from enum constants yields same string as enumClazz.getCanonicalName
     // Moreover old behaviour create new instance of enum - what may fail (e.g. in static block )
     Array(reference(c))
@@ -316,14 +315,14 @@ object ClassToAPI {
   def javaAnnotation(s: String): api.AnnotationArgument =
     new api.AnnotationArgument("toString", s)
 
-  def array(tpe: api.Type): api.SimpleType = new api.Parameterized(ArrayRef, Array(tpe))
-  def reference(c: Class[_]): api.SimpleType =
+  def array(tpe: api.Type): api.Type = new api.Parameterized(ArrayRef, Array(tpe))
+  def reference(c: Class[_]): api.Type =
     if (c.isArray) array(reference(c.getComponentType))
     else if (c.isPrimitive) primitive(c.getName)
     else reference(classCanonicalName(c))
 
   // does not handle primitives
-  def reference(s: String): api.SimpleType =
+  def reference(s: String): api.Type =
     {
       val (pkg, cls) = packageAndName(s)
       pkg match {
@@ -340,7 +339,7 @@ object ClassToAPI {
       val base = reference(t.getRawType)
       new api.Parameterized(base, args)
     }
-  def reference(t: Type): api.SimpleType =
+  def reference(t: Type): api.Type =
     t match {
       case _: WildcardType       => reference("_")
       case tv: TypeVariable[_]   => new api.ParameterRef(typeVariable(tv))
@@ -381,7 +380,7 @@ object ClassToAPI {
   private[this] def PrimitiveNames = Seq("boolean", "byte", "char", "short", "int", "long", "float", "double")
   private[this] def PrimitiveMap = PrimitiveNames.map(j => (j, j.capitalize)) :+ ("void" -> "Unit")
   private[this] val PrimitiveRefs = PrimitiveMap.map { case (n, sn) => (n, reference("scala." + sn)) }.toMap
-  def primitive(name: String): api.SimpleType = PrimitiveRefs(name)
+  def primitive(name: String): api.Type = PrimitiveRefs(name)
 
   // Workarounds for https://github.com/sbt/sbt/issues/1035
   //   these catch the GenericSignatureFormatError and return the erased type

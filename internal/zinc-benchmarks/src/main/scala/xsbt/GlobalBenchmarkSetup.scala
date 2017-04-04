@@ -2,12 +2,12 @@ package xsbt
 
 import java.io.File
 
-import xsbt.BenchmarkProjects.Shapeless
+import xsbt.BenchmarkProjects.{ Scalac, Shapeless }
 
 object GlobalBenchmarkSetup {
 
   /** Update this list every time you add a new benchmark. */
-  val projects = List(Shapeless)
+  val projects = List(Scalac)
 
   def runSetup(setupDir: File): (Int, String) = {
     val projectsPreparation = projects.map { project =>

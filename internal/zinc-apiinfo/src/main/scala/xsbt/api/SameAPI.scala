@@ -258,14 +258,20 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
   def sameType(a: Type, b: Type): Boolean =
     samePending(a, b)(sameTypeDirect)
   def sameTypeDirect(a: Type, b: Type): Boolean =
-    (a, b) match {
-      case (sa: SimpleType, sb: SimpleType)   => debug(sameSimpleTypeDirect(sa, sb), "Different simple types: " + DefaultShowAPI(sa) + " and " + DefaultShowAPI(sb))
-      case (ca: Constant, cb: Constant)       => debug(sameConstantType(ca, cb), "Different constant types: " + DefaultShowAPI(ca) + " and " + DefaultShowAPI(cb))
-      case (aa: Annotated, ab: Annotated)     => debug(sameAnnotatedType(aa, ab), "Different annotated types")
-      case (sa: Structure, sb: Structure)     => debug(sameStructureDirect(sa, sb), "Different structure type")
-      case (ea: Existential, eb: Existential) => debug(sameExistentialType(ea, eb), "Different existential type")
-      case (pa: Polymorphic, pb: Polymorphic) => debug(samePolymorphicType(pa, pb), "Different polymorphic type")
-      case _                                  => differentCategory("type", a, b)
+    {
+      (a, b) match {
+        case (pa: Projection, pb: Projection)       => debug(sameProjection(pa, pb), "Different projection")
+        case (pa: ParameterRef, pb: ParameterRef)   => debug(sameParameterRef(pa, pb), "Different parameter ref")
+        case (pa: Polymorphic, pb: Polymorphic)     => debug(samePolymorphicType(pa, pb), "Different polymorphic type")
+        case (pa: Parameterized, pb: Parameterized) => debug(sameParameterized(pa, pb), "Different parameterized")
+        case (sa: Singleton, sb: Singleton)         => debug(sameSingleton(sa, sb), "Different singleton")
+        case (ca: Constant, cb: Constant)           => debug(sameConstantType(ca, cb), "Different constant types: " + DefaultShowAPI(ca) + " and " + DefaultShowAPI(cb))
+        case (aa: Annotated, ab: Annotated)         => debug(sameAnnotatedType(aa, ab), "Different annotated types")
+        case (sa: Structure, sb: Structure)         => debug(sameStructureDirect(sa, sb), "Different structure type")
+        case (ea: Existential, eb: Existential)     => debug(sameExistentialType(ea, eb), "Different existential type")
+        case (_: EmptyType, _: EmptyType)           => true
+        case _                                      => differentCategory("type", a, b)
+      }
     }
 
   def sameConstantType(ca: Constant, cb: Constant): Boolean =
@@ -296,28 +302,17 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
   def sameMembers(a: Seq[Definition], b: Seq[Definition]): Boolean =
     sameDefinitions(a, b, topLevel = false)
 
-  def sameSimpleType(a: SimpleType, b: SimpleType): Boolean =
-    samePending(a, b)(sameSimpleTypeDirect)
-  def sameSimpleTypeDirect(a: SimpleType, b: SimpleType): Boolean =
-    (a, b) match {
-      case (pa: Projection, pb: Projection)       => debug(sameProjection(pa, pb), "Different projection")
-      case (pa: ParameterRef, pb: ParameterRef)   => debug(sameParameterRef(pa, pb), "Different parameter ref")
-      case (sa: Singleton, sb: Singleton)         => debug(sameSingleton(sa, sb), "Different singleton")
-      case (_: EmptyType, _: EmptyType)           => true
-      case (pa: Parameterized, pb: Parameterized) => debug(sameParameterized(pa, pb), "Different parameterized")
-      case _                                      => differentCategory("simple type", a, b)
-    }
   def differentCategory(label: String, a: AnyRef, b: AnyRef): Boolean =
     debug(flag = false, "Different category of " + label + " (" + a.getClass.getName + " and " + b.getClass.getName + ") for (" + a + " and " + b + ")")
 
   def sameParameterized(a: Parameterized, b: Parameterized): Boolean =
-    sameSimpleType(a.baseType, b.baseType) &&
+    sameType(a.baseType, b.baseType) &&
       sameSeq(a.typeArguments, b.typeArguments)(sameType)
   def sameParameterRef(a: ParameterRef, b: ParameterRef): Boolean = sameTags(a.id, b.id)
   def sameSingleton(a: Singleton, b: Singleton): Boolean =
     samePath(a.path, b.path)
   def sameProjection(a: Projection, b: Projection): Boolean =
-    sameSimpleType(a.prefix, b.prefix) &&
+    sameType(a.prefix, b.prefix) &&
       (a.id == b.id)
 
   def samePath(a: Path, b: Path): Boolean =
