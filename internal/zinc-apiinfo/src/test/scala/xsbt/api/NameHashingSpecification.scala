@@ -156,11 +156,11 @@ class NameHashingSpecification extends UnitSpec {
     val barMethod = new Def("bar", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, intTpe)
     val parentB = simpleClass("Parent", barMethod)
     val childA = {
-      val structure = new Structure(lzy(Array[Type](parentA.structure)), emptyMembers, emptyMembers)
+      val structure = new Structure(Array[Type](parentA.structure), emptyMembers, lzyEmptyMembers)
       simpleClassLike("Child", structure)
     }
     val childB = {
-      val structure = new Structure(lzy(Array[Type](parentB.structure)), emptyMembers, lzy(Array[ClassDefinition](barMethod)))
+      val structure = new Structure(Array[Type](parentB.structure), emptyMembers, lzy(Array[ClassDefinition](barMethod)))
       simpleClassLike("Child", structure)
     }
     val parentANameHashes = nameHashesForClass(parentA)
@@ -278,7 +278,7 @@ class NameHashingSpecification extends UnitSpec {
   private def lzy[T](x: T): Lazy[T] = new Lazy[T] { def get: T = x }
 
   private def simpleStructure(defs: ClassDefinition*) =
-    new Structure(lzy(Array.empty[Type]), lzy(defs.toArray), emptyMembers)
+    new Structure(Array.empty[Type], defs.toArray, lzyEmptyMembers)
 
   private def simpleClass(name: String, defs: ClassDefinition*): ClassLike = {
     val structure = simpleStructure(defs: _*)
@@ -302,6 +302,7 @@ class NameHashingSpecification extends UnitSpec {
   private val publicAccess = new Public
   private val privateAccess = new Private(new Unqualified)
   private val defaultModifiers = new Modifiers(false, false, false, false, false, false, false, false)
-  private val emptyMembers = lzy(Array.empty[ClassDefinition])
+  private val emptyMembers = Array.empty[ClassDefinition]
+  private val lzyEmptyMembers = lzy(emptyMembers)
 
 }
