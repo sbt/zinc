@@ -77,8 +77,8 @@
           "target": "Java",
           "type": "record",
           "fields": [
-            { "name": "parents",   "type": "lazy Type*"            },
-            { "name": "declared",  "type": "lazy ClassDefinition*" },
+            { "name": "parents",   "type": "Type*"                 },
+            { "name": "declared",  "type": "ClassDefinition*"      },
             { "name": "inherited", "type": "lazy ClassDefinition*" }
           ]
         },
