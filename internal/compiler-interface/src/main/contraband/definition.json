@@ -105,7 +105,7 @@
             { "name": "structure",             "type": "lazy Structure" },
             { "name": "savedAnnotations",      "type": "String*"        },
             { "name": "childrenOfSealedClass", "type": "Type*"          },
-            { "name": "topLevel",              "type": "Boolean"        },
+            { "name": "topLevel",              "type": "boolean"        },
             { "name": "typeParameters",        "type": "TypeParameter*" }
           ]
         }
