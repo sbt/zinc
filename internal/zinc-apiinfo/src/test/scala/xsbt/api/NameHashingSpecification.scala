@@ -292,8 +292,8 @@ class NameHashingSpecification extends UnitSpec {
 
   private def simpleClassLike(name: String, structure: Structure,
     dt: DefinitionType = DefinitionType.ClassDef, topLevel: Boolean = true, access: Access = publicAccess): ClassLike = {
-    new ClassLike(name, access, defaultModifiers, Array.empty, dt, emptyType,
-      structure, Array.empty, Array.empty, topLevel, Array.empty)
+    new ClassLike(name, access, defaultModifiers, Array.empty, dt, lzy(emptyType),
+      lzy(structure), Array.empty, Array.empty, topLevel, Array.empty)
   }
 
   private val emptyType = new EmptyType
