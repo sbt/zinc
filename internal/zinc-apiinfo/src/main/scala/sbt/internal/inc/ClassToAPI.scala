@@ -83,11 +83,11 @@ object ClassToAPI {
       val topLevel = c.getEnclosingClass == null
       val name = classCanonicalName(c)
       val tpe = if (Modifier.isInterface(c.getModifiers)) Trait else ClassDef
-      val (static, instance) = structure(c, enclPkg, cmap)
-      val cls = new api.ClassLike(name, acc, mods, annots, tpe, Empty, instance, emptyStringArray, children.toArray,
+      lazy val (static, instance) = structure(c, enclPkg, cmap)
+      val cls = new api.ClassLike(name, acc, mods, annots, tpe, lzyS(Empty), lzy(instance, cmap), emptyStringArray, children.toArray,
         topLevel, typeParameters(typeParameterTypes(c)))
       val clsDef = new api.ClassLikeDef(name, acc, mods, annots, typeParameters(typeParameterTypes(c)), tpe)
-      val stat = new api.ClassLike(name, acc, mods, annots, Module, Empty, static, emptyStringArray, emptyTypeArray,
+      val stat = new api.ClassLike(name, acc, mods, annots, Module, lzyS(Empty), lzy(static, cmap), emptyStringArray, emptyTypeArray,
         topLevel, emptyTypeParameterArray)
       val statDef = new api.ClassLikeDef(name, acc, mods, annots, emptyTypeParameterArray, Module)
       val defs = cls :: stat :: Nil
@@ -109,8 +109,8 @@ object ClassToAPI {
     if (!Modifier.isPrivate(c.getModifiers))
       cmap.inherited ++= parentJavaTypes.collect { case parent: Class[_] => c -> parent }
     val parentTypes = types(parentJavaTypes)
-    val instanceStructure = new api.Structure(parentTypes, all.declared.toArray, lzyS(all.inherited.toArray))
-    val staticStructure = new api.Structure(emptyTypeArray, all.staticDeclared.toArray, lzyS(all.staticInherited.toArray))
+    val instanceStructure = new api.Structure(lzyS(parentTypes), lzyS(all.declared.toArray), lzyS(all.inherited.toArray))
+    val staticStructure = new api.Structure(lzyEmptyTpeArray, lzyS(all.staticDeclared.toArray), lzyS(all.staticInherited.toArray))
     (staticStructure, instanceStructure)
   }
 
@@ -120,13 +120,18 @@ object ClassToAPI {
 
   @inline private[this] def lzyS[T <: AnyRef](t: T): xsbti.api.Lazy[T] = SafeLazyProxy.strict(t)
   @inline final def lzy[T <: AnyRef](t: => T): xsbti.api.Lazy[T] = SafeLazyProxy(t)
+  private[this] def lzy[T <: AnyRef](t: => T, cmap: ClassMap): xsbti.api.Lazy[T] = {
+    val s = lzy(t)
+    cmap.lz += s
+    s
+  }
 
   private val emptyStringArray = new Array[String](0)
   private val emptyTypeArray = new Array[xsbti.api.Type](0)
   private val emptyAnnotationArray = new Array[xsbti.api.Annotation](0)
   private val emptyTypeParameterArray = new Array[xsbti.api.TypeParameter](0)
-  private val emptyDefArray = new Array[xsbti.api.ClassDefinition](0)
-  private val lzyEmptyDefArray = lzyS(emptyDefArray)
+  private val lzyEmptyTpeArray = lzyS(emptyTypeArray)
+  private val lzyEmptyDefArray = lzyS(new Array[xsbti.api.ClassDefinition](0))
 
   private def allSuperTypes(t: Type): Seq[Type] =
     {
@@ -155,7 +160,7 @@ object ClassToAPI {
   def parents(c: Class[_]): Seq[api.Type] = types(allSuperTypes(c))
   def types(ts: Seq[Type]): Array[api.Type] = (ts filter (_ ne null) map reference).toArray
   def upperBounds(ts: Array[Type]): api.Type =
-    new api.Structure(types(ts), emptyDefArray, lzyEmptyDefArray)
+    new api.Structure(lzy(types(ts)), lzyEmptyDefArray, lzyEmptyDefArray)
 
   @deprecated("Use fieldToDef[4] instead", "0.13.9")
   def fieldToDef(enclPkg: Option[String])(f: Field): api.FieldLike = {

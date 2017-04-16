@@ -71,12 +71,12 @@ object TestCaseGenerators {
     } yield Stamps(zipMap(prod, prodStamps), zipMap(src, srcStamps), zipMap(bin, binStamps))
   }
 
-  private[this] val emptyStructure = new Structure(Array(), Array(), lzy(Array()))
+  private[this] val emptyStructure = new Structure(lzy(Array()), lzy(Array()), lzy(Array()))
 
   // We need "proper" definitions with specific class names, as groupBy use these to pick a representative top-level class when splitting.
   private[this] def makeClassLike(name: String, definitionType: DefinitionType): ClassLike =
     new ClassLike(name, new Public(), APIs.emptyModifiers, Array(),
-      definitionType, new EmptyType(), emptyStructure, Array(), Array(), true, Array())
+      definitionType, lzy(new EmptyType()), lzy(emptyStructure), Array(), Array(), true, Array())
 
   private[this] def makeCompanions(name: String): Companions =
     new Companions(makeClassLike(name, DefinitionType.ClassDef), makeClassLike(name, DefinitionType.Module))

@@ -95,7 +95,7 @@ class JavaCompilerSpec extends UnitSpec {
         val (result, _) = compile(local, Seq(input), Seq("-d", out.getAbsolutePath))
         result shouldBe true
         val clazzz = new URLClassLoader(Array(out.toURI.toURL)).loadClass("hasstaticfinal")
-        ClassToAPI(Seq(clazzz)).sortBy(_.definitionType.hashCode)
+        ClassToAPI(Seq(clazzz))
       }
 
     // compile with two different primitive values, and confirm that they match if their

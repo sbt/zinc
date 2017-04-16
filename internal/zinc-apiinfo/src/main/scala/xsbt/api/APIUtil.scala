@@ -59,14 +59,14 @@ object APIUtil {
       val savedAnnotations = Discovery.defAnnotations(c.structure, (_: Any) => true).toArray[String]
       val struct = minimizeStructure(c.structure, c.definitionType == DefinitionType.Module)
       new ClassLike(c.name, c.access, c.modifiers, c.annotations,
-        c.definitionType, emptyType, struct, savedAnnotations, c.childrenOfSealedClass,
+        c.definitionType, lzy(emptyType), lzy(struct), savedAnnotations, c.childrenOfSealedClass,
         c.topLevel, c.typeParameters)
     }
 
   def minimizeStructure(s: Structure, isModule: Boolean): Structure =
-    new Structure(s.parents, filterDefinitions(s.declared, isModule), lzy(filterDefinitions(s.inherited, isModule)))
-  def filterDefinitions(ds: Array[ClassDefinition], isModule: Boolean): Array[ClassDefinition] =
-    if (isModule) ds filter Discovery.isMainMethod else Array()
+    new Structure(lzy(s.parents), filterDefinitions(s.declared, isModule), filterDefinitions(s.inherited, isModule))
+  def filterDefinitions(ds: Array[ClassDefinition], isModule: Boolean): Lazy[Array[ClassDefinition]] =
+    lzy(if (isModule) ds filter Discovery.isMainMethod else Array())
 
   def isNonPrivate(d: Definition): Boolean = isNonPrivate(d.access)
   /** Returns false if the `access` is `Private` and qualified, true otherwise.*/
@@ -76,10 +76,10 @@ object APIUtil {
       case _ => true
     }
   private val emptyModifiers = new Modifiers(false, false, false, false, false, false, false, false)
-  private val emptyStructure = new Structure(Array.empty, Array.empty, lzy(Array.empty))
+  private val emptyStructure = new Structure(lzy(Array.empty), lzy(Array.empty), lzy(Array.empty))
   def emptyClassLike(name: String, definitionType: DefinitionType): ClassLike =
     new xsbti.api.ClassLike(name, new Public, emptyModifiers, Array.empty,
-      definitionType, emptyType, emptyStructure, Array.empty, Array.empty, true, Array.empty)
+      definitionType, lzy(emptyType), lzy(emptyStructure), Array.empty, Array.empty, true, Array.empty)
 
   private[this] def lzy[T <: AnyRef](t: T): Lazy[T] = SafeLazyProxy.strict(t)
 
