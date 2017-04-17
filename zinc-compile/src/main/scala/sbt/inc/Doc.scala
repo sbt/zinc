@@ -14,10 +14,10 @@ import sbt.io.IO
 import sbt.util.Logger
 import xsbti.compile.{ IncToolOptions, JavaTools }
 import sbt.internal.inc.javac.JavaCompilerArguments
-import sbt.internal.util.Tracked.inputChanged
-import sbt.internal.util.{ CacheStoreFactory, FileInfo, FilesInfo, HashFileInfo, ModifiedFileInfo, PlainFileInfo }
-import sbt.internal.util.CacheImplicits._
-import sbt.internal.util.FileInfo.{ exists, hash, lastModified }
+import sbt.util.Tracked.inputChanged
+import sbt.util.{ CacheStoreFactory, FileInfo, FilesInfo, HashFileInfo, ModifiedFileInfo, PlainFileInfo }
+import sbt.util.CacheImplicits._
+import sbt.util.FileInfo.{ exists, hash, lastModified }
 import exists._
 import sjsonnew._
 import LList.:*:
@@ -62,8 +62,8 @@ object Doc {
         incToolOptions: IncToolOptions, log: Logger, reporter: Reporter): Unit =
         {
           val inputs = Inputs(filesInfoToList(hash(sources.toSet)), filesInfoToList(lastModified(classpath.toSet)), classpath, outputDirectory, options)
-          val cachedDoc = inputChanged(storeFactory derive "inputs") { (inChanged, in: Inputs) =>
-            inputChanged(storeFactory derive "output") { (outChanged, outputs: List[PlainFileInfo]) =>
+          val cachedDoc = inputChanged(storeFactory make "inputs") { (inChanged, in: Inputs) =>
+            inputChanged(storeFactory make "output") { (outChanged, outputs: List[PlainFileInfo]) =>
               if (inChanged || outChanged) {
                 IO.delete(outputDirectory)
                 IO.createDirectory(outputDirectory)
