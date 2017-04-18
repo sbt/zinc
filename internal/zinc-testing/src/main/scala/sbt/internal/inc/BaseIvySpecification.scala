@@ -15,13 +15,8 @@ import sbt.io.syntax._
 import java.io.File
 import sbt.internal.librarymanagement._
 import sbt.internal.librarymanagement.cross.CrossVersionUtil
-import sbt.internal.util.FileBasedStore
 import sbt.librarymanagement._
 import Configurations._
-
-import sjsonnew.IsoString
-import sjsonnew.support.scalajson.unsafe.{ CompactPrinter, Converter }
-import sjsonnew.support.scalajson.unsafe.FixedParser
 
 import scala.json.ast.unsafe.JValue
 
@@ -32,8 +27,6 @@ trait BaseIvySpecification extends UnitSpec {
   def currentDependency: File = currentBase / "target" / "dependency"
   def defaultModuleId: ModuleID = ModuleID("com.example", "foo", "0.1.0").withConfigurations(Some("compile"))
 
-  implicit val isoString: IsoString[JValue] = IsoString.iso(CompactPrinter.apply, FixedParser.parseUnsafe)
-  val fileToStore = (f: File) => new FileBasedStore(f, Converter)
   def configurations = Vector(Compile, Test, Runtime)
   def module(moduleId: ModuleID, deps: Vector[ModuleID], scalaFullVersion: Option[String],
     uo: UpdateOptions = UpdateOptions(), overrideScalaVersion: Boolean = true): IvySbt#Module = {
@@ -55,7 +48,7 @@ trait BaseIvySpecification extends UnitSpec {
       moduleInfo = ModuleInfo("foo"),
       dependencies = deps
     ).withConfigurations(configurations)
-    val ivySbt = new IvySbt(mkIvyConfiguration(uo), fileToStore)
+    val ivySbt = new IvySbt(mkIvyConfiguration(uo))
     new ivySbt.Module(moduleSetting)
   }
 
