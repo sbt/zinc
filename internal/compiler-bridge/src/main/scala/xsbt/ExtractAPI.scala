@@ -375,7 +375,7 @@ class ExtractAPI[GlobalType <: Global](
                           inherited: List[Symbol]): xsbti.api.Structure = {
     new xsbti.api.Structure(lzy(types(s, bases)),
                             processDefinitions(s, declared),
-                            lzy(processDefinitions(s, inherited)))
+                            processDefinitions(s, inherited))
   }
   private def processDefinitions(in: Symbol,
                                  defs: List[Symbol]): Array[xsbti.api.ClassDefinition] =

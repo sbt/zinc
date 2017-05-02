@@ -76,7 +76,7 @@ object APIUtil {
   def minimizeStructure(s: Structure, isModule: Boolean): Structure =
     new Structure(lzy(s.parents),
                   filterDefinitions(s.declared, isModule),
-                  lzy(filterDefinitions(s.inherited, isModule)))
+                  filterDefinitions(s.inherited, isModule))
   def filterDefinitions(ds: Array[ClassDefinition], isModule: Boolean): Array[ClassDefinition] =
     if (isModule) ds filter Discovery.isMainMethod else Array()
 
@@ -90,7 +90,7 @@ object APIUtil {
     }
   private val emptyModifiers =
     new Modifiers(false, false, false, false, false, false, false, false)
-  private val emptyStructure = new Structure(lzy(Array.empty), Array.empty, lzy(Array.empty))
+  private val emptyStructure = new Structure(lzy(Array.empty), Array.empty, Array.empty)
   def emptyClassLike(name: String, definitionType: DefinitionType): ClassLike =
     new xsbti.api.ClassLike(name,
                             new Public,

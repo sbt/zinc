@@ -171,13 +171,13 @@ class NameHashingSpecification extends UnitSpec {
     val parentB = simpleClass("Parent", barMethod)
     val childA = {
       val structure =
-        new Structure(lzy(Array[Type](parentA.structure)), emptyMembers, lzy(emptyMembers))
+        new Structure(lzy(Array[Type](parentA.structure)), emptyMembers, emptyMembers)
       simpleClassLike("Child", structure)
     }
     val childB = {
       val structure = new Structure(lzy(Array[Type](parentB.structure)),
                                     emptyMembers,
-                                    lzy(Array[ClassDefinition](barMethod)))
+                                    Array[ClassDefinition](barMethod))
       simpleClassLike("Child", structure)
     }
     val parentANameHashes = nameHashesForClass(parentA)
@@ -329,7 +329,7 @@ class NameHashingSpecification extends UnitSpec {
   private def lzy[T](x: T): Lazy[T] = new Lazy[T] { def get: T = x }
 
   private def simpleStructure(defs: ClassDefinition*) =
-    new Structure(lzy(Array.empty[Type]), defs.toArray, lzy(emptyMembers))
+    new Structure(lzy(Array.empty[Type]), defs.toArray, emptyMembers)
 
   private def simpleClass(name: String, defs: ClassDefinition*): ClassLike = {
     val structure = simpleStructure(defs: _*)

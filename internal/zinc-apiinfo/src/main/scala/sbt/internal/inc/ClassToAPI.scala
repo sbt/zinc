@@ -139,10 +139,9 @@ object ClassToAPI {
       cmap.inherited ++= parentJavaTypes.collect { case parent: Class[_] => c -> parent }
     val parentTypes = types(parentJavaTypes)
     val instanceStructure =
-      new api.Structure(lzyS(parentTypes), all.declared.toArray, lzyS(all.inherited.toArray))
-    val staticStructure = new api.Structure(lzyEmptyTpeArray,
-                                            all.staticDeclared.toArray,
-                                            lzyS(all.staticInherited.toArray))
+      new api.Structure(lzyS(parentTypes), all.declared.toArray, all.inherited.toArray)
+    val staticStructure =
+      new api.Structure(lzyEmptyTpeArray, all.staticDeclared.toArray, all.staticInherited.toArray)
     (staticStructure, instanceStructure)
   }
 
@@ -193,7 +192,7 @@ object ClassToAPI {
   def parents(c: Class[_]): Seq[api.Type] = types(allSuperTypes(c))
   def types(ts: Seq[Type]): Array[api.Type] = (ts filter (_ ne null) map reference).toArray
   def upperBounds(ts: Array[Type]): api.Type =
-    new api.Structure(lzy(types(ts)), emptyDefArray, lzyEmptyDefArray)
+    new api.Structure(lzy(types(ts)), emptyDefArray, emptyDefArray)
 
   @deprecated("Use fieldToDef[4] instead", "0.13.9")
   def fieldToDef(enclPkg: Option[String])(f: Field): api.FieldLike = {
