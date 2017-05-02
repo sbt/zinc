@@ -139,9 +139,9 @@ object ClassToAPI {
       cmap.inherited ++= parentJavaTypes.collect { case parent: Class[_] => c -> parent }
     val parentTypes = types(parentJavaTypes)
     val instanceStructure =
-      new api.Structure(lzyS(parentTypes), lzyS(all.declared.toArray), lzyS(all.inherited.toArray))
+      new api.Structure(lzyS(parentTypes), all.declared.toArray, lzyS(all.inherited.toArray))
     val staticStructure = new api.Structure(lzyEmptyTpeArray,
-                                            lzyS(all.staticDeclared.toArray),
+                                            all.staticDeclared.toArray,
                                             lzyS(all.staticInherited.toArray))
     (staticStructure, instanceStructure)
   }
@@ -163,7 +163,8 @@ object ClassToAPI {
   private val emptyAnnotationArray = new Array[xsbti.api.Annotation](0)
   private val emptyTypeParameterArray = new Array[xsbti.api.TypeParameter](0)
   private val lzyEmptyTpeArray = lzyS(emptyTypeArray)
-  private val lzyEmptyDefArray = lzyS(new Array[xsbti.api.ClassDefinition](0))
+  private val emptyDefArray = new Array[xsbti.api.ClassDefinition](0)
+  private val lzyEmptyDefArray = lzyS(emptyDefArray)
 
   private def allSuperTypes(t: Type): Seq[Type] = {
     @tailrec def accumulate(t: Type, accum: Seq[Type] = Seq.empty): Seq[Type] = t match {
@@ -192,7 +193,7 @@ object ClassToAPI {
   def parents(c: Class[_]): Seq[api.Type] = types(allSuperTypes(c))
   def types(ts: Seq[Type]): Array[api.Type] = (ts filter (_ ne null) map reference).toArray
   def upperBounds(ts: Array[Type]): api.Type =
-    new api.Structure(lzy(types(ts)), lzyEmptyDefArray, lzyEmptyDefArray)
+    new api.Structure(lzy(types(ts)), emptyDefArray, lzyEmptyDefArray)
 
   @deprecated("Use fieldToDef[4] instead", "0.13.9")
   def fieldToDef(enclPkg: Option[String])(f: Field): api.FieldLike = {

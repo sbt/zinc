@@ -78,7 +78,7 @@
           "type": "record",
           "fields": [
             { "name": "parents",   "type": "lazy Type*"            },
-            { "name": "declared",  "type": "lazy ClassDefinition*" },
+            { "name": "declared",  "type": "ClassDefinition*"      },
             { "name": "inherited", "type": "lazy ClassDefinition*" }
           ]
         },
