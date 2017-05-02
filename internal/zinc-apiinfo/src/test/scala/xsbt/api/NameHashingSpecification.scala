@@ -351,7 +351,7 @@ class NameHashingSpecification extends UnitSpec {
                   defaultModifiers,
                   Array.empty,
                   dt,
-                  lzy(emptyType),
+                  emptyType,
                   lzy(structure),
                   Array.empty,
                   Array.empty,

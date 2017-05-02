@@ -620,7 +620,7 @@ class ExtractAPI[GlobalType <: Global](
     val acc = getAccess(c)
     val name = classNameAsSeenIn(in, c)
     val tParams = typeParameters(in, sym) // look at class symbol
-    val selfType = lzy(this.selfType(in, sym))
+    val selfType = this.selfType(in, sym)
     def constructClass(structure: xsbti.api.Lazy[Structure]): ClassLike = {
       new xsbti.api.ClassLike(
         name,

@@ -83,7 +83,7 @@ object TestCaseGenerators {
                   APIs.emptyModifiers,
                   Array(),
                   definitionType,
-                  lzy(new EmptyType()),
+                  new EmptyType(),
                   lzy(emptyStructure),
                   Array(),
                   Array(),
