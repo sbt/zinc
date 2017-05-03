@@ -12,14 +12,17 @@ import java.io.File
 import sbt.util.Logger._
 import xsbti.compile.{ CompileAnalysis, MiniSetup, FileHash }
 
-class LookupImpl(compileConfiguration: CompileConfiguration, previousSetup: Option[MiniSetup]) extends Lookup {
+class LookupImpl(compileConfiguration: CompileConfiguration, previousSetup: Option[MiniSetup])
+    extends Lookup {
   private val classpath: Vector[File] = compileConfiguration.classpath.toVector
-  private val classpathHash: Vector[FileHash] = compileConfiguration.currentSetup.options.classpathHash.toVector
+  private val classpathHash: Vector[FileHash] =
+    compileConfiguration.currentSetup.options.classpathHash.toVector
 
   lazy val analyses: Vector[Analysis] =
     classpath flatMap { entry =>
-      m2o(compileConfiguration.perClasspathEntryLookup.analysis(entry)) map
-        { case a: Analysis => a }
+      m2o(compileConfiguration.perClasspathEntryLookup.analysis(entry)) map {
+        case a: Analysis => a
+      }
     }
   lazy val previousClasspathHash: Vector[FileHash] =
     previousSetup match {
@@ -54,6 +57,7 @@ class LookupImpl(compileConfiguration: CompileConfiguration, previousSetup: Opti
   override def removedProducts(previousAnalysis: Analysis): Option[Set[File]] =
     externalLookup.flatMap(_.removedProducts(previousAnalysis))
 
-  override def shouldDoIncrementalCompilation(changedClasses: Set[String], analysis: Analysis): Boolean =
+  override def shouldDoIncrementalCompilation(changedClasses: Set[String],
+                                              analysis: Analysis): Boolean =
     externalLookup.forall(_.shouldDoIncrementalCompilation(changedClasses, analysis))
 }

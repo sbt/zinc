@@ -33,12 +33,12 @@ import sbt.io.IO
  * @note A jar can actually be any valid classpath entry, not just a jar file.
  */
 final class ScalaInstance(
-  val version: String,
-  val loader: ClassLoader,
-  val libraryJar: File,
-  val compilerJar: File,
-  val allJars: Array[File],
-  val explicitActual: Option[String]
+    val version: String,
+    val loader: ClassLoader,
+    val libraryJar: File,
+    val compilerJar: File,
+    val allJars: Array[File],
+    val explicitActual: Option[String]
 ) extends xsbti.compile.ScalaInstance {
 
   /**
@@ -153,23 +153,28 @@ object ScalaInstance {
      ******************************************************************* */
 
   private def apply(
-    version: String,
-    libraryJar: File,
-    compilerJar: File,
-    extraJars: File*
+      version: String,
+      libraryJar: File,
+      compilerJar: File,
+      extraJars: File*
   )(classLoader: List[File] => ClassLoader): ScalaInstance =
     apply(version, None, libraryJar, compilerJar, extraJars: _*)(classLoader)
 
   private def apply(
-    version: String,
-    explicitActual: Option[String],
-    libraryJar: File,
-    compilerJar: File,
-    extraJars: File*
+      version: String,
+      explicitActual: Option[String],
+      libraryJar: File,
+      compilerJar: File,
+      extraJars: File*
   )(classLoader: List[File] => ClassLoader): ScalaInstance = {
     val loader = classLoader(libraryJar :: compilerJar :: extraJars.toList)
     new ScalaInstance(
-      version, loader, libraryJar, compilerJar, extraJars.toArray, explicitActual
+      version,
+      loader,
+      libraryJar,
+      compilerJar,
+      extraJars.toArray,
+      explicitActual
     )
   }
 
@@ -233,19 +238,18 @@ object ScalaInstance {
     } finally stream.close()
   }
 
-  private def scalaLoader(launcher: xsbti.Launcher): Seq[File] => ClassLoader = {
-    jars =>
-      import java.net.{ URL, URLClassLoader }
-      new URLClassLoader(
-        jars.map(_.toURI.toURL).toArray[URL],
-        launcher.topLoader
-      )
+  private def scalaLoader(launcher: xsbti.Launcher): Seq[File] => ClassLoader = { jars =>
+    import java.net.{ URL, URLClassLoader }
+    new URLClassLoader(
+      jars.map(_.toURI.toURL).toArray[URL],
+      launcher.topLoader
+    )
   }
 }
 
 /** Runtime exception representing a failure when finding a `ScalaInstance`. */
 class InvalidScalaInstance(message: String, cause: Throwable)
-  extends RuntimeException(message, cause)
+    extends RuntimeException(message, cause)
 
 /** Runtime exception representing a failure when finding a `ScalaProvider`. */
 class InvalidScalaProvider(message: String) extends RuntimeException(message)

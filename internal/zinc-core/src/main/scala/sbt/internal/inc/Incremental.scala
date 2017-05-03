@@ -45,43 +45,53 @@ object Incremental {
    *         A flag of whether or not compilation completed succesfully, and the resulting dependency analysis object.
    */
   def compile(
-    sources: Set[File],
-    lookup: Lookup,
-    previous0: CompileAnalysis,
-    current: ReadStamps,
-    compile: (Set[File], DependencyChanges, xsbti.AnalysisCallback, ClassFileManager) => Unit,
-    callbackBuilder: AnalysisCallback.Builder,
-    log: sbt.util.Logger,
-    options: IncOptions
-  )(implicit equivS: Equiv[Stamp]): (Boolean, Analysis) =
-    {
-      val previous = previous0 match { case a: Analysis => a }
-      val incremental: IncrementalCommon =
-        new IncrementalNameHashing(log, options)
-      val initialChanges = incremental.changedInitial(sources, previous, current, lookup)
-      val binaryChanges = new DependencyChanges {
-        val modifiedBinaries = initialChanges.binaryDeps.toArray
-        val modifiedClasses = initialChanges.external.allModified.toArray
-        def isEmpty = modifiedBinaries.isEmpty && modifiedClasses.isEmpty
-      }
-      val (initialInvClasses, initialInvSources) = incremental.invalidateInitial(previous.relations, initialChanges)
-      if (initialInvClasses.nonEmpty || initialInvSources.nonEmpty)
-        if (initialInvSources == sources) incremental.log.debug("All sources are invalidated.")
-        else incremental.log.debug("All initially invalidated classes: " + initialInvClasses + "\n" +
-          "All initially invalidated sources:" + initialInvSources + "\n")
-      val analysis = manageClassfiles(options) { classfileManager =>
-        incremental.cycle(initialInvClasses, initialInvSources, sources, binaryChanges, lookup, previous,
-          doCompile(compile, callbackBuilder, classfileManager), classfileManager, 1)
-      }
-      (initialInvClasses.nonEmpty || initialInvSources.nonEmpty, analysis)
+      sources: Set[File],
+      lookup: Lookup,
+      previous0: CompileAnalysis,
+      current: ReadStamps,
+      compile: (Set[File], DependencyChanges, xsbti.AnalysisCallback, ClassFileManager) => Unit,
+      callbackBuilder: AnalysisCallback.Builder,
+      log: sbt.util.Logger,
+      options: IncOptions
+  )(implicit equivS: Equiv[Stamp]): (Boolean, Analysis) = {
+    val previous = previous0 match { case a: Analysis => a }
+    val incremental: IncrementalCommon =
+      new IncrementalNameHashing(log, options)
+    val initialChanges = incremental.changedInitial(sources, previous, current, lookup)
+    val binaryChanges = new DependencyChanges {
+      val modifiedBinaries = initialChanges.binaryDeps.toArray
+      val modifiedClasses = initialChanges.external.allModified.toArray
+      def isEmpty = modifiedBinaries.isEmpty && modifiedClasses.isEmpty
     }
+    val (initialInvClasses, initialInvSources) =
+      incremental.invalidateInitial(previous.relations, initialChanges)
+    if (initialInvClasses.nonEmpty || initialInvSources.nonEmpty)
+      if (initialInvSources == sources) incremental.log.debug("All sources are invalidated.")
+      else
+        incremental.log.debug(
+          "All initially invalidated classes: " + initialInvClasses + "\n" +
+            "All initially invalidated sources:" + initialInvSources + "\n")
+    val analysis = manageClassfiles(options) { classfileManager =>
+      incremental.cycle(initialInvClasses,
+                        initialInvSources,
+                        sources,
+                        binaryChanges,
+                        lookup,
+                        previous,
+                        doCompile(compile, callbackBuilder, classfileManager),
+                        classfileManager,
+                        1)
+    }
+    (initialInvClasses.nonEmpty || initialInvSources.nonEmpty, analysis)
+  }
 
   /**
    * Compilation unit in each compile cycle.
    */
   def doCompile(
-    compile: (Set[File], DependencyChanges, xsbti.AnalysisCallback, ClassFileManager) => Unit,
-    callbackBuilder: AnalysisCallback.Builder, classFileManager: ClassFileManager
+      compile: (Set[File], DependencyChanges, xsbti.AnalysisCallback, ClassFileManager) => Unit,
+      callbackBuilder: AnalysisCallback.Builder,
+      classFileManager: ClassFileManager
   )(srcs: Set[File], changes: DependencyChanges): Analysis = {
     // Note `ClassFileManager` is shared among multiple cycles in the same incremental compile run,
     // in order to rollback entirely if transaction fails. `AnalysisCallback` is used by each cycle
@@ -99,28 +109,30 @@ object Incremental {
   val incDebugProp = "xsbt.inc.debug"
 
   private[inc] val apiDebugProp = "xsbt.api.debug"
-  private[inc] def apiDebug(options: IncOptions): Boolean = options.apiDebug || java.lang.Boolean.getBoolean(apiDebugProp)
+  private[inc] def apiDebug(options: IncOptions): Boolean =
+    options.apiDebug || java.lang.Boolean.getBoolean(apiDebugProp)
 
   private[sbt] def prune(invalidatedSrcs: Set[File], previous: CompileAnalysis): Analysis =
     prune(invalidatedSrcs, previous, ClassFileManager.deleteImmediately())
 
-  private[sbt] def prune(invalidatedSrcs: Set[File], previous0: CompileAnalysis, classfileManager: ClassFileManager): Analysis =
-    {
-      val previous = previous0 match { case a: Analysis => a }
-      classfileManager.delete(invalidatedSrcs.flatMap(previous.relations.products).toArray)
-      previous -- invalidatedSrcs
-    }
+  private[sbt] def prune(invalidatedSrcs: Set[File],
+                         previous0: CompileAnalysis,
+                         classfileManager: ClassFileManager): Analysis = {
+    val previous = previous0 match { case a: Analysis => a }
+    classfileManager.delete(invalidatedSrcs.flatMap(previous.relations.products).toArray)
+    previous -- invalidatedSrcs
+  }
 
-  private[this] def manageClassfiles[T](options: IncOptions)(run: ClassFileManager => T): T =
-    {
-      val classfileManager = ClassFileManager.getClassFileManager(options)
-      val result = try run(classfileManager) catch {
-        case e: Throwable =>
-          classfileManager.complete(false)
-          throw e
-      }
-      classfileManager.complete(true)
-      result
+  private[this] def manageClassfiles[T](options: IncOptions)(run: ClassFileManager => T): T = {
+    val classfileManager = ClassFileManager.getClassFileManager(options)
+    val result = try run(classfileManager)
+    catch {
+      case e: Throwable =>
+        classfileManager.complete(false)
+        throw e
     }
+    classfileManager.complete(true)
+    result
+  }
 
 }

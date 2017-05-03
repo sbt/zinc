@@ -47,9 +47,9 @@ object JavaTools {
    * @return An instance of Java tools that includes a [[JavaCompiler]].
    */
   def directOrFork(
-    instance: ScalaInstance,
-    options: ClasspathOptions,
-    javaHome: Option[File]
+      instance: ScalaInstance,
+      options: ClasspathOptions,
+      javaHome: Option[File]
   ): JavaTools = {
     val (javaCompiler, javaDoc) = javaHome match {
       case Some(_) =>
@@ -83,11 +83,11 @@ object JavaCompiler {
    * passed to a [[JavaCompiler]] from the current configuration.
    */
   def commandArguments(
-    classpath: Seq[File],
-    output: Output,
-    options: Seq[String],
-    scalaInstance: ScalaInstance,
-    cpOptions: ClasspathOptions
+      classpath: Seq[File],
+      output: Output,
+      options: Seq[String],
+      scalaInstance: ScalaInstance,
+      cpOptions: ClasspathOptions
   ): Seq[String] = {
     /* Oracle Javac doesn't support multiple output directories
      * However, we use multiple output directories in case the

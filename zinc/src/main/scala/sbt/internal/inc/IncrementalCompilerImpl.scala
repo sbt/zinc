@@ -102,24 +102,24 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
    *         field [[xsbti.compile.CompileAnalysis]].
    */
   override def compile(
-    scalaCompiler: xsbti.compile.ScalaCompiler,
-    javaCompiler: xsbti.compile.JavaCompiler,
-    sources: Array[File],
-    classpath: Array[File],
-    output: xsbti.compile.Output,
-    cache: xsbti.compile.GlobalsCache,
-    scalaOptions: Array[String],
-    javaOptions: Array[String],
-    previousAnalysis: Maybe[xsbti.compile.CompileAnalysis],
-    previousSetup: Maybe[xsbti.compile.MiniSetup],
-    perClasspathEntryLookup: xsbti.compile.PerClasspathEntryLookup,
-    reporter: Reporter,
-    compileOrder: xsbti.compile.CompileOrder,
-    skip: java.lang.Boolean,
-    progress: Maybe[xsbti.compile.CompileProgress],
-    incrementalOptions: xsbti.compile.IncOptions,
-    extra: Array[xsbti.T2[String, String]],
-    logger: xsbti.Logger
+      scalaCompiler: xsbti.compile.ScalaCompiler,
+      javaCompiler: xsbti.compile.JavaCompiler,
+      sources: Array[File],
+      classpath: Array[File],
+      output: xsbti.compile.Output,
+      cache: xsbti.compile.GlobalsCache,
+      scalaOptions: Array[String],
+      javaOptions: Array[String],
+      previousAnalysis: Maybe[xsbti.compile.CompileAnalysis],
+      previousSetup: Maybe[xsbti.compile.MiniSetup],
+      perClasspathEntryLookup: xsbti.compile.PerClasspathEntryLookup,
+      reporter: Reporter,
+      compileOrder: xsbti.compile.CompileOrder,
+      skip: java.lang.Boolean,
+      progress: Maybe[xsbti.compile.CompileProgress],
+      incrementalOptions: xsbti.compile.IncOptions,
+      extra: Array[xsbti.T2[String, String]],
+      logger: xsbti.Logger
   ) = {
     val extraInScala = extra.toList.map(_.toScalaTuple)
     compileIncrementally(
@@ -148,9 +148,9 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
    * confusing compilation execution logic with error handling logic.
    */
   private def handleCompilationError(
-    sources: Array[File],
-    output: Output,
-    logger: Logger
+      sources: Array[File],
+      output: Output,
+      logger: Logger
   )(compilerRun: => CompileResult): CompileResult = {
     try {
       compilerRun
@@ -214,23 +214,23 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
    *         field [[xsbti.compile.CompileAnalysis]].
    */
   private[sbt] def compileIncrementally(
-    scalaCompiler: xsbti.compile.ScalaCompiler,
-    javaCompiler: xsbti.compile.JavaCompiler,
-    sources: Array[File],
-    classpath: Seq[File],
-    output: Output,
-    cache: GlobalsCache,
-    progress: Option[CompileProgress] = None,
-    scalaOptions: Seq[String] = Nil,
-    javaOptions: Seq[String] = Nil,
-    previousAnalysis: Option[CompileAnalysis],
-    previousSetup: Option[MiniSetup],
-    perClasspathEntryLookup: PerClasspathEntryLookup,
-    reporter: Reporter,
-    compileOrder: CompileOrder = Mixed,
-    skip: Boolean = false,
-    incrementalOptions: IncOptions,
-    extra: List[(String, String)]
+      scalaCompiler: xsbti.compile.ScalaCompiler,
+      javaCompiler: xsbti.compile.JavaCompiler,
+      sources: Array[File],
+      classpath: Seq[File],
+      output: Output,
+      cache: GlobalsCache,
+      progress: Option[CompileProgress] = None,
+      scalaOptions: Seq[String] = Nil,
+      javaOptions: Seq[String] = Nil,
+      previousAnalysis: Option[CompileAnalysis],
+      previousSetup: Option[MiniSetup],
+      perClasspathEntryLookup: PerClasspathEntryLookup,
+      reporter: Reporter,
+      compileOrder: CompileOrder = Mixed,
+      skip: Boolean = false,
+      incrementalOptions: IncOptions,
+      extra: List[(String, String)]
   )(implicit logger: Logger): CompileResult = {
     handleCompilationError(sources, output, logger) {
       val prev = previousAnalysis match {
@@ -238,10 +238,23 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         case None           => Analysis.empty
       }
       val config = MixedAnalyzingCompiler.makeConfig(
-        scalaCompiler, javaCompiler, sources, classpath, output, cache,
-        progress, scalaOptions, javaOptions, prev, previousSetup,
-        perClasspathEntryLookup, reporter, compileOrder, skip,
-        incrementalOptions, extra
+        scalaCompiler,
+        javaCompiler,
+        sources,
+        classpath,
+        output,
+        cache,
+        progress,
+        scalaOptions,
+        javaOptions,
+        prev,
+        previousSetup,
+        perClasspathEntryLookup,
+        reporter,
+        compileOrder,
+        skip,
+        incrementalOptions,
+        extra
       )
       if (skip) new CompileResult(prev, config.currentSetup, false)
       else {
@@ -262,10 +275,10 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
    * This operation prunes the inputs based on [[MiniSetup]].
    */
   private[sbt] def compileInternal(
-    mixedCompiler: MixedAnalyzingCompiler,
-    equiv: Equiv[MiniSetup],
-    equivPairs: Equiv[Array[T2[String, String]]],
-    log: Logger
+      mixedCompiler: MixedAnalyzingCompiler,
+      equiv: Equiv[MiniSetup],
+      equivPairs: Equiv[Array[T2[String, String]]],
+      log: Logger
   ): (Analysis, Boolean) = {
     import mixedCompiler.config._
     import mixedCompiler.config.currentSetup.output
@@ -285,48 +298,61 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
 
     // Run the incremental compilation
     val compile = IncrementalCompile(
-      srcsSet, lookup, mixedCompiler.compile, analysis, output, log, incOptions
+      srcsSet,
+      lookup,
+      mixedCompiler.compile,
+      analysis,
+      output,
+      log,
+      incOptions
     )
     compile.swap
   }
 
   def setup(
-    lookup: PerClasspathEntryLookup,
-    skip: Boolean,
-    cacheFile: File,
-    cache: GlobalsCache,
-    incOptions: IncOptions,
-    reporter: Reporter,
-    progress: Option[CompileProgress],
-    extra: Array[T2[String, String]]
+      lookup: PerClasspathEntryLookup,
+      skip: Boolean,
+      cacheFile: File,
+      cache: GlobalsCache,
+      incOptions: IncOptions,
+      reporter: Reporter,
+      progress: Option[CompileProgress],
+      extra: Array[T2[String, String]]
   ): Setup = {
     val maybeProgress = InterfaceUtil.o2m(progress)
     new Setup(
-      lookup, skip, cacheFile, cache, incOptions, reporter, maybeProgress, extra
+      lookup,
+      skip,
+      cacheFile,
+      cache,
+      incOptions,
+      reporter,
+      maybeProgress,
+      extra
     )
   }
 
   def inputs(
-    options: CompileOptions,
-    compilers: Compilers,
-    setup: Setup,
-    pr: PreviousResult
+      options: CompileOptions,
+      compilers: Compilers,
+      setup: Setup,
+      pr: PreviousResult
   ): Inputs = {
     new Inputs(compilers, options, setup, pr)
   }
 
   def inputs(
-    classpath: Array[File],
-    sources: Array[File],
-    classesDirectory: File,
-    scalacOptions: Array[String],
-    javacOptions: Array[String],
-    maxErrors: Int,
-    sourcePositionMappers: Array[F1[Position, Maybe[Position]]],
-    order: CompileOrder,
-    compilers: Compilers,
-    setup: Setup,
-    pr: PreviousResult
+      classpath: Array[File],
+      sources: Array[File],
+      classesDirectory: File,
+      scalacOptions: Array[String],
+      javacOptions: Array[String],
+      maxErrors: Int,
+      sourcePositionMappers: Array[F1[Position, Maybe[Position]]],
+      order: CompileOrder,
+      compilers: Compilers,
+      setup: Setup,
+      pr: PreviousResult
   ): Inputs = {
     val compileOptions = {
       new CompileOptions(
@@ -358,10 +384,10 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
   }
 
   def compilers(
-    instance: ScalaInstance,
-    cpOptions: XClasspathOptions,
-    javaHome: Option[File],
-    scalac: ScalaCompiler
+      instance: ScalaInstance,
+      cpOptions: XClasspathOptions,
+      javaHome: Option[File],
+      scalac: ScalaCompiler
   ): Compilers = {
     val javac = JavaTools.directOrFork(instance, cpOptions, javaHome)
     new Compilers(scalac, javac)

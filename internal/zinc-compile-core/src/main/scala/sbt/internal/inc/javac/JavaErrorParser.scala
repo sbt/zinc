@@ -18,7 +18,8 @@ import sbt.util.InterfaceUtil.o2jo
 import xsbti.{ Problem, Severity, Position }
 
 /** A wrapper around xsbti.Position so we can pass in Java input. */
-final case class JavaPosition(_sourceFilePath: String, _line: Int, _contents: String, _offset: Int) extends Position {
+final case class JavaPosition(_sourceFilePath: String, _line: Int, _contents: String, _offset: Int)
+    extends Position {
   def line: Optional[Integer] = o2jo(Some(_line))
   def lineContent: String = _contents
   def offset: Optional[Integer] = o2jo(Some(_offset))
@@ -42,13 +43,16 @@ object JavaNoPosition extends Position {
 }
 
 /** A wrapper around xsbti.Problem with java-specific options. */
-final case class JavaProblem(position: Position, severity: Severity, message: String) extends xsbti.Problem {
-  override def category: String = "javac" // TODO - what is this even supposed to be?  For now it appears unused.
+final case class JavaProblem(position: Position, severity: Severity, message: String)
+    extends xsbti.Problem {
+  override def category: String =
+    "javac" // TODO - what is this even supposed to be?  For now it appears unused.
   override def toString = s"$severity @ $position - $message"
 }
 
 /** A parser that is able to parse java's error output successfully. */
-class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath).getCanonicalFile) extends scala.util.parsing.combinator.RegexParsers {
+class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath).getCanonicalFile)
+    extends scala.util.parsing.combinator.RegexParsers {
   // Here we track special handlers to catch "Note:" and "Warning:" lines.
   private val NOTE_LINE_PREFIXES = Array("Note: ", "\u6ce8: ", "\u6ce8\u610f\uff1a ")
   private val WARNING_PREFIXES = Array("warning", "\u8b66\u544a", "\u8b66\u544a\uff1a")
@@ -57,8 +61,10 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
 
   val JAVAC: Parser[String] = literal("javac")
   val SEMICOLON: Parser[String] = literal(":") | literal("\uff1a")
-  val SYMBOL: Parser[String] = allUntilChar(':') // We ignore whether it actually says "symbol" for i18n
-  val LOCATION: Parser[String] = allUntilChar(':') // We ignore whether it actually says "location" for i18n.
+  val SYMBOL
+    : Parser[String] = allUntilChar(':') // We ignore whether it actually says "symbol" for i18n
+  val LOCATION
+    : Parser[String] = allUntilChar(':') // We ignore whether it actually says "location" for i18n.
   val WARNING: Parser[String] = allUntilChar(':') ^? {
     case x if WARNING_PREFIXES.exists(x.trim.startsWith) => x
   }
@@ -104,7 +110,9 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
 
   // Helper to extract an integer from a string
   private object ParsedInteger {
-    def unapply(s: String): Option[Int] = try Some(Integer.parseInt(s)) catch { case e: NumberFormatException => None }
+    def unapply(s: String): Option[Int] =
+      try Some(Integer.parseInt(s))
+      catch { case e: NumberFormatException => None }
   }
   // Parses a line number
   val line: Parser[Int] = allUntilChar(':') ^? {
@@ -114,8 +122,10 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
   // Parses the file + lineno output of javac.
   val fileAndLineNo: Parser[(String, Int)] = {
     val linuxFile = allUntilChar(':') ^^ { _.trim() }
-    val windowsRootFile = linuxFile ~ SEMICOLON ~ linuxFile ^^ { case root ~ _ ~ path => s"$root:$path" }
-    val linuxOption = linuxFile ~ SEMICOLON ~ line ^^ { case f ~ _ ~ l => (f, l) }
+    val windowsRootFile = linuxFile ~ SEMICOLON ~ linuxFile ^^ {
+      case root ~ _ ~ path => s"$root:$path"
+    }
+    val linuxOption = linuxFile ~ SEMICOLON ~ line ^^ { case f ~ _ ~ l         => (f, l) }
     val windowsOption = windowsRootFile ~ SEMICOLON ~ line ^^ { case f ~ _ ~ l => (f, l) }
     (linuxOption | windowsOption)
   }
@@ -144,7 +154,8 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
           new JavaPosition(
             findFileSource(file),
             line,
-            contents + '^' + r + ind.getOrElse(""), // TODO - Actually parse caret position out of here.
+            contents + '^' + r + ind
+              .getOrElse(""), // TODO - Actually parse caret position out of here.
             getOffset(contents)
           ),
           Severity.Error,
@@ -193,6 +204,7 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
   val potentialProblem: Parser[Problem] = warningMessage | errorMessage | noteMessage | javacError
 
   val javacOutput: Parser[Seq[Problem]] = rep(potentialProblem)
+
   /**
    * Example:
    *
@@ -206,7 +218,6 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
    * throw new java.rmi.RMISecurityException("O NOES");
    * ^
    */
-
   final def parseProblems(in: String, logger: sbt.util.Logger): Seq[Problem] =
     parse(javacOutput, in) match {
       case Success(result, _) => result

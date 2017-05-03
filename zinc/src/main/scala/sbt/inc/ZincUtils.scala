@@ -28,6 +28,7 @@ import sbt.internal.inc.{
  *
  */
 class ZincUtils extends xsbti.compile.IncrementalCompilerUtil {
+
   /**
    * Return a fully-fledged, default incremental compiler ready to use.
    */
@@ -49,15 +50,19 @@ class ZincUtils extends xsbti.compile.IncrementalCompilerUtil {
    * @return A Scala compiler ready to be used.
    */
   override def scalaCompiler(
-    scalaInstance: ScalaInstance,
-    compilerBridgeJar: File,
-    classpathOptions: ClasspathOptions
+      scalaInstance: ScalaInstance,
+      compilerBridgeJar: File,
+      classpathOptions: ClasspathOptions
   ): AnalyzingCompiler = {
     val bridgeProvider = CompilerBridgeProvider.constant(compilerBridgeJar)
     val emptyHandler = (_: Seq[String]) => ()
     val loader = Some(new ClassLoaderCache(new URLClassLoader(Array())))
     new AnalyzingCompiler(
-      scalaInstance, bridgeProvider, classpathOptions, emptyHandler, loader
+      scalaInstance,
+      bridgeProvider,
+      classpathOptions,
+      emptyHandler,
+      loader
     )
   }
 
@@ -74,8 +79,8 @@ class ZincUtils extends xsbti.compile.IncrementalCompilerUtil {
    * @return A Scala compiler ready to be used.
    */
   override def scalaCompiler(
-    scalaInstance: ScalaInstance,
-    compilerBridgeJar: File
+      scalaInstance: ScalaInstance,
+      compilerBridgeJar: File
   ): AnalyzingCompiler = {
     val optionsUtil = ClasspathOptionsUtil.boot
     scalaCompiler(scalaInstance, compilerBridgeJar, optionsUtil)

@@ -7,9 +7,9 @@ import sbt.io.IO
 class NameHashingCompilerSpec extends BaseCompilerSpec {
 
   def testIncrementalCompilation(
-    changes: Seq[(String, String => String)],
-    transitiveChanges: Set[String],
-    optimizedSealed: Boolean = true
+      changes: Seq[(String, String => String)],
+      transitiveChanges: Set[String],
+      optimizedSealed: Boolean = true
   ) = {
     val nahaPath = Paths.get("naha")
     IO.withTemporaryDirectory { tempDir =>
@@ -21,7 +21,9 @@ class NameHashingCompilerSpec extends BaseCompilerSpec {
 
       val compilerSetup = {
         val default = projectSetup.createCompiler()
-        if (optimizedSealed) default.copy(incOptions = default.incOptions.withUseOptimizedSealed(true)) else default
+        if (optimizedSealed)
+          default.copy(incOptions = default.incOptions.withUseOptimizedSealed(true))
+        else default
       }
 
       val result = compilerSetup.doCompile()
@@ -31,11 +33,13 @@ class NameHashingCompilerSpec extends BaseCompilerSpec {
           projectSetup.update(nahaPath.resolve("naha").resolve(name))(change)
       }
 
-      val result2 = compilerSetup.doCompile(_.withPreviousResult(compilerSetup.compiler.previousResult(result)))
+      val result2 = compilerSetup.doCompile(
+        _.withPreviousResult(compilerSetup.compiler.previousResult(result)))
       if (changes.isEmpty) {
         assert(!result2.hasModified)
       } else {
-        val recompiledUnitsNames = compilerSetup.lastCompiledUnits.map(n => Paths.get(n).getFileName.toString)
+        val recompiledUnitsNames =
+          compilerSetup.lastCompiledUnits.map(n => Paths.get(n).getFileName.toString)
         recompiledUnitsNames should equal((transitiveChanges ++ changes.map(_._1)).toSet)
         assert(result2.hasModified)
       }
@@ -44,7 +48,8 @@ class NameHashingCompilerSpec extends BaseCompilerSpec {
 
   def changeImplicitMemberType(in: String) = in.replace("\"implicitMemberValue\"", "42")
   def changeStandardMemberType(in: String) = in.replace("\"standardMemberValue\"", "42")
-  def changeOtherSealedType(in: String) = in.replace("class OtherSealed", "class OtherSealed extends MarkerTrait")
+  def changeOtherSealedType(in: String) =
+    in.replace("class OtherSealed", "class OtherSealed extends MarkerTrait")
   def addNewSealedChildren(in: String) =
     s"""
       |$in
@@ -60,18 +65,21 @@ class NameHashingCompilerSpec extends BaseCompilerSpec {
   it should "recompile all usages of class on implicit name change" in {
     testIncrementalCompilation(
       changes = Seq(WithImplicits -> changeImplicitMemberType),
-      transitiveChanges = Set(ClientWithImplicitUsed, ClientWithImplicitNotUsed, ClientWithoutImplicit)
+      transitiveChanges =
+        Set(ClientWithImplicitUsed, ClientWithImplicitNotUsed, ClientWithoutImplicit)
     )
   }
 
   it should "not recompile all usages of class on non implicit name change" in {
     testIncrementalCompilation(
       changes = Seq(SourceFiles.Naha.WithImplicits -> changeStandardMemberType),
-      transitiveChanges = Set(ClientWithImplicitUsed, ClientWithImplicitNotUsed, ClientWithoutImplicit)
+      transitiveChanges =
+        Set(ClientWithImplicitUsed, ClientWithImplicitNotUsed, ClientWithoutImplicit)
     )
     testIncrementalCompilation(
       changes = Seq(SourceFiles.Naha.NormalDependecy -> changeStandardMemberType),
-      transitiveChanges = Set(ClientWithImplicitUsed, ClientWithImplicitNotUsed, ClientWithoutImplicit)
+      transitiveChanges =
+        Set(ClientWithImplicitUsed, ClientWithImplicitNotUsed, ClientWithoutImplicit)
     )
     testIncrementalCompilation(
       changes = Seq(SourceFiles.Naha.NormalDependecy -> changeImplicitMemberType),

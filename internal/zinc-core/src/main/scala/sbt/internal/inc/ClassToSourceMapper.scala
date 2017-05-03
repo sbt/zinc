@@ -64,7 +64,8 @@ class ClassToSourceMapper(previousRelations: Relations, recompiledRelations: Rel
    * This method should be used to convert internal class->external class dependencies into
    * internal source->external class dependencies.
    */
-  def convertToExternalSrcDependency(classDependency: Relation[String, String]): Relation[File, String] = {
+  def convertToExternalSrcDependency(
+      classDependency: Relation[String, String]): Relation[File, String] = {
     def convertMapKeys(m: Map[String, Set[String]]): Map[File, Set[String]] = {
       val pairs = m.toSeq.flatMap {
         case (key, values) =>

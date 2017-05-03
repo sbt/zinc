@@ -20,6 +20,7 @@ import sbt.util.Logger.f0
  * @param maxInstances The maximum number to be cached.
  */
 final class CompilerCache(val maxInstances: Int) extends GlobalsCache {
+
   /** Define a least-recently used cache indexed by a generated key. */
   private[this] val cache = lru[CompilerKey, CachedCompiler](maxInstances)
   private[this] def lru[A, B](max: Int) = {
@@ -30,12 +31,12 @@ final class CompilerCache(val maxInstances: Int) extends GlobalsCache {
   }
 
   override def apply(
-    args: Array[String],
-    output: Output,
-    forceNew: Boolean,
-    c: CachedCompilerProvider,
-    log: xLogger,
-    reporter: Reporter
+      args: Array[String],
+      output: Output,
+      forceNew: Boolean,
+      c: CachedCompilerProvider,
+      log: xLogger,
+      reporter: Reporter
   ): CachedCompiler = synchronized {
     val scalaVersion = c.scalaInstance.actualVersion
     val key = CompilerKey(dropSources(args.toList), scalaVersion)
@@ -89,12 +90,12 @@ object CompilerCache {
   val fresh: GlobalsCache = new GlobalsCache {
     def clear(): Unit = ()
     def apply(
-      args: Array[String],
-      output: Output,
-      forceNew: Boolean,
-      c: CachedCompilerProvider,
-      log: xLogger,
-      reporter: Reporter
+        args: Array[String],
+        output: Output,
+        forceNew: Boolean,
+        c: CachedCompilerProvider,
+        log: xLogger,
+        reporter: Reporter
     ): CachedCompiler = c.newCachedCompiler(args, output, log, reporter, false)
   }
 }

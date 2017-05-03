@@ -49,11 +49,17 @@ object LoggerReporter {
       case _ => "" + n + " " + elements + "s"
     }
 
-  lazy val problemFormats: ProblemFormats = new ProblemFormats with SeverityFormats with PositionFormats with sjsonnew.BasicJsonProtocol {}
+  lazy val problemFormats: ProblemFormats = new ProblemFormats with SeverityFormats
+  with PositionFormats with sjsonnew.BasicJsonProtocol {}
   lazy val problemStringFormats: ProblemStringFormats = new ProblemStringFormats {}
 }
 
-class LoggerReporter(maximumErrors: Int, logger: ManagedLogger, sourcePositionMapper: Position => Position = { p => p }) extends Reporter {
+class LoggerReporter(maximumErrors: Int,
+                     logger: ManagedLogger,
+                     sourcePositionMapper: Position => Position = { p =>
+                       p
+                     })
+    extends Reporter {
   val positions = new mutable.HashMap[PositionKey, Severity]
   val count = new EnumMap[Severity, Int](classOf[Severity])
   private[this] val allProblems = new mutable.ListBuffer[Problem]
@@ -74,20 +80,18 @@ class LoggerReporter(maximumErrors: Int, logger: ManagedLogger, sourcePositionMa
   def problems: Array[Problem] = allProblems.toArray
   def comment(pos: Position, msg: String): Unit = ()
 
-  override def log(pos: Position, msg: String, severity: Severity): Unit =
-    {
-      val mappedPos: Position = sourcePositionMapper(pos)
-      val p = problem("", mappedPos, msg, severity)
-      allProblems += p
-      severity match {
-        case Warn | Error =>
-          {
-            if (!testAndLog(mappedPos, severity))
-              display(p)
-          }
-        case _ => display(p)
+  override def log(pos: Position, msg: String, severity: Severity): Unit = {
+    val mappedPos: Position = sourcePositionMapper(pos)
+    val p = problem("", mappedPos, msg, severity)
+    allProblems += p
+    severity match {
+      case Warn | Error => {
+        if (!testAndLog(mappedPos, severity))
+          display(p)
       }
+      case _ => display(p)
     }
+  }
 
   def printSummary(): Unit = {
     val warnings = count.get(Severity.Warn)
@@ -101,30 +105,28 @@ class LoggerReporter(maximumErrors: Int, logger: ManagedLogger, sourcePositionMa
   private def inc(sev: Severity) = count.put(sev, count.get(sev) + 1)
 
   // this is used by sbt
-  private[sbt] def display(p: Problem): Unit =
-    {
-      import problemFormats._
-      inc(p.severity)
-      if (p.severity != Error || maximumErrors <= 0 || count.get(p.severity) <= maximumErrors) {
-        p.severity match {
-          case Error => logger.errorEvent(p)
-          case Warn  => logger.warnEvent(p)
-          case SInfo => logger.infoEvent(p)
-        }
+  private[sbt] def display(p: Problem): Unit = {
+    import problemFormats._
+    inc(p.severity)
+    if (p.severity != Error || maximumErrors <= 0 || count.get(p.severity) <= maximumErrors) {
+      p.severity match {
+        case Error => logger.errorEvent(p)
+        case Warn  => logger.warnEvent(p)
+        case SInfo => logger.infoEvent(p)
       }
     }
+  }
 
-  private def testAndLog(pos: Position, severity: Severity): Boolean =
-    {
-      if (!pos.offset.isPresent || !pos.sourceFile.isPresent) false
+  private def testAndLog(pos: Position, severity: Severity): Boolean = {
+    if (!pos.offset.isPresent || !pos.sourceFile.isPresent) false
+    else {
+      val key = new PositionKey(pos)
+      if (positions.get(key).exists(_.ordinal >= severity.ordinal))
+        true
       else {
-        val key = new PositionKey(pos)
-        if (positions.get(key).exists(_.ordinal >= severity.ordinal))
-          true
-        else {
-          positions(key) = severity
-          false
-        }
+        positions(key) = severity
+        false
       }
     }
+  }
 }

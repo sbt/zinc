@@ -50,20 +50,23 @@ class NameHashing(optimizedSealed: Boolean = IncOptionsUtil.defaultUseOptimizedS
   }
 
   private def nameHashesForDefinitions(
-    defs: Iterable[Definition],
-    location: Location,
-    useScope: UseScope
+      defs: Iterable[Definition],
+      location: Location,
+      useScope: UseScope
   ): Array[NameHash] = {
     val includeSealedChildren = !optimizedSealed || useScope == UseScope.PatMatTarget
     val groupedBySimpleName = defs.groupBy(locatedDef => localName(locatedDef.name))
-    val hashes = groupedBySimpleName.mapValues(hashLocatedDefinitions(_, location, includeSealedChildren))
-    hashes.toIterable.map({ case (name: String, hash: Int) => new NameHash(name, useScope, hash) })(collection.breakOut)
+    val hashes =
+      groupedBySimpleName.mapValues(hashLocatedDefinitions(_, location, includeSealedChildren))
+    hashes.toIterable
+      .map({ case (name: String, hash: Int) => new NameHash(name, useScope, hash) })(
+        collection.breakOut)
   }
 
   private def hashLocatedDefinitions(
-    defs: Iterable[Definition],
-    location: Location,
-    includeSealedChildren: Boolean
+      defs: Iterable[Definition],
+      location: Location,
+      includeSealedChildren: Boolean
   ): Int = {
     val defsWithExtraHashes = defs.toSeq.map(_ -> location.hashCode)
     HashAPI.apply(
@@ -91,10 +94,11 @@ class NameHashing(optimizedSealed: Boolean = IncOptionsUtil.defaultUseOptimizedS
     val defs = scala.collection.mutable.Buffer[Definition]()
     // if the definition is private, we do not visit because we do
     // not want to include any private members or its children
-    override def visitDefinition(d: Definition): Unit = if (d.isInstanceOf[ClassLike] || APIUtil.isNonPrivate(d)) {
-      defs += d
-      super.visitDefinition(d)
-    }
+    override def visitDefinition(d: Definition): Unit =
+      if (d.isInstanceOf[ClassLike] || APIUtil.isNonPrivate(d)) {
+        defs += d
+        super.visitDefinition(d)
+      }
   }
 
   private def publicDefs(c: ClassLike): Iterable[Definition] = {
@@ -130,6 +134,7 @@ object NameHashing {
   }
 
   private case class LocatedDefinition(location: Location, definition: Definition)
+
   /**
    * Location is the fully qualified name of a class together with `nameType`
    * that distinguishes between type names and term names. For example:

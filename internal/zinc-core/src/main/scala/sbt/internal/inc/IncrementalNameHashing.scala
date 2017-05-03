@@ -19,20 +19,24 @@ import xsbt.api.SameAPI
  *
  * See MemberReferenceInvalidationStrategy for some more information.
  */
-private final class IncrementalNameHashing(log: sbt.util.Logger, options: IncOptions) extends IncrementalCommon(log, options) {
+private final class IncrementalNameHashing(log: sbt.util.Logger, options: IncOptions)
+    extends IncrementalCommon(log, options) {
 
   private val memberRefInvalidator = new MemberRefInvalidator(log, options.logRecompileOnMacro())
 
   // Package objects are fragile: if they inherit from an invalidated class, get "class file needed by package is missing" error
   //  This might be too conservative: we probably only need package objects for packages of invalidated classes.
-  protected def invalidatedPackageObjects(invalidatedClasses: Set[String], relations: Relations,
-    apis: APIs): Set[String] = {
+  protected def invalidatedPackageObjects(invalidatedClasses: Set[String],
+                                          relations: Relations,
+                                          apis: APIs): Set[String] = {
     transitiveDeps(invalidatedClasses, logging = false)(relations.inheritance.internal.reverse) filter {
       _.endsWith(".package")
     }
   }
 
-  override protected def sameAPI(className: String, a: AnalyzedClass, b: AnalyzedClass): Option[APIChange] = {
+  override protected def sameAPI(className: String,
+                                 a: AnalyzedClass,
+                                 b: AnalyzedClass): Option[APIChange] = {
     if (SameAPI(a, b))
       None
     else {
@@ -45,31 +49,39 @@ private final class IncrementalNameHashing(log: sbt.util.Logger, options: IncOpt
   }
 
   /** Invalidates classes based on initially detected 'changes' to the sources, products, and dependencies. */
-  override protected def invalidateByExternal(relations: Relations, externalAPIChange: APIChange,
-    isScalaClass: String => Boolean): Set[String] = {
+  override protected def invalidateByExternal(relations: Relations,
+                                              externalAPIChange: APIChange,
+                                              isScalaClass: String => Boolean): Set[String] = {
     val modifiedBinaryClassName = externalAPIChange.modifiedClass
     val invalidationReason = memberRefInvalidator.invalidationReason(externalAPIChange)
-    log.debug(s"$invalidationReason\nAll member reference dependencies will be considered within this context.")
+    log.debug(
+      s"$invalidationReason\nAll member reference dependencies will be considered within this context.")
     // Propagate inheritance dependencies transitively.
     // This differs from normal because we need the initial crossing from externals to classes in this project.
     val externalInheritanceR = relations.inheritance.external
     val byExternalInheritance = externalInheritanceR.reverse(modifiedBinaryClassName)
-    log.debug(s"Files invalidated by inheriting from (external) $modifiedBinaryClassName: $byExternalInheritance; now invalidating by inheritance (internally).")
+    log.debug(
+      s"Files invalidated by inheriting from (external) $modifiedBinaryClassName: $byExternalInheritance; now invalidating by inheritance (internally).")
     val transitiveInheritance = byExternalInheritance flatMap { className =>
       invalidateByInheritance(relations, className)
     }
     val localInheritance = relations.localInheritance.external.reverse(modifiedBinaryClassName)
     val memberRefInvalidationInternal = memberRefInvalidator.get(
       relations.memberRef.internal,
-      relations.names, externalAPIChange, isScalaClass
+      relations.names,
+      externalAPIChange,
+      isScalaClass
     )
     val memberRefInvalidationExternal = memberRefInvalidator.get(
       relations.memberRef.external,
-      relations.names, externalAPIChange, isScalaClass
+      relations.names,
+      externalAPIChange,
+      isScalaClass
     )
 
     // Get the member reference dependencies of all classes transitively invalidated by inheritance
-    log.debug("Getting direct dependencies of all classes transitively invalidated by inheritance.")
+    log.debug(
+      "Getting direct dependencies of all classes transitively invalidated by inheritance.")
     val memberRefA = transitiveInheritance flatMap memberRefInvalidationInternal
     // Get the classes that depend on externals by member reference.
     // This includes non-inheritance dependencies and is not transitive.
@@ -93,13 +105,17 @@ private final class IncrementalNameHashing(log: sbt.util.Logger, options: IncOpt
     localInheritanceDeps
   }
 
-  override protected def invalidateClass(relations: Relations, change: APIChange, isScalaClass: String => Boolean): Set[String] = {
+  override protected def invalidateClass(relations: Relations,
+                                         change: APIChange,
+                                         isScalaClass: String => Boolean): Set[String] = {
     val modifiedClass = change.modifiedClass
     val transitiveInheritance = invalidateByInheritance(relations, modifiedClass)
-    val localInheritance = transitiveInheritance.flatMap(invalidateByLocalInheritance(relations, _))
+    val localInheritance =
+      transitiveInheritance.flatMap(invalidateByLocalInheritance(relations, _))
 
     val memberRefSrcDeps = relations.memberRef.internal
-    val memberRefInvalidation = memberRefInvalidator.get(memberRefSrcDeps, relations.names, change, isScalaClass)
+    val memberRefInvalidation =
+      memberRefInvalidator.get(memberRefSrcDeps, relations.names, change, isScalaClass)
     val memberRef = transitiveInheritance flatMap memberRefInvalidation
     val all = transitiveInheritance ++ localInheritance ++ memberRef
 
@@ -107,13 +123,15 @@ private final class IncrementalNameHashing(log: sbt.util.Logger, options: IncOpt
       if (all.isEmpty) s"Change $change does not affect any class."
       else {
         val byTransitiveInheritance =
-          if (transitiveInheritance.nonEmpty) s"by transitive inheritance: $transitiveInheritance" else ""
+          if (transitiveInheritance.nonEmpty) s"by transitive inheritance: $transitiveInheritance"
+          else ""
         val byLocalInheritance =
           if (localInheritance.nonEmpty) s"by local inheritance: $localInheritance" else ""
         val byMemberRef =
           if (memberRef.nonEmpty) s"by member reference: $memberRef" else ""
 
-        s"""Change $change invalidates ${all.size} classes due to ${memberRefInvalidator.invalidationReason(change)}
+        s"""Change $change invalidates ${all.size} classes due to ${memberRefInvalidator
+             .invalidationReason(change)}
            |\t> $byTransitiveInheritance
            |\t> $byLocalInheritance
            |\t> $byMemberRef

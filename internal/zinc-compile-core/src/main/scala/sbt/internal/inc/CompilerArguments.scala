@@ -36,14 +36,14 @@ import sbt.io.syntax._
  * @param cpOptions The classpath options for the Scala compiler.
  */
 final class CompilerArguments(
-  scalaInstance: xsbti.compile.ScalaInstance,
-  cpOptions: xsbti.compile.ClasspathOptions
+    scalaInstance: xsbti.compile.ScalaInstance,
+    cpOptions: xsbti.compile.ClasspathOptions
 ) {
   def apply(
-    sources: Seq[File],
-    classpath: Seq[File],
-    outputDirectory: Option[File],
-    options: Seq[String]
+      sources: Seq[File],
+      classpath: Seq[File],
+      outputDirectory: Option[File],
+      options: Seq[String]
   ): Seq[String] = {
     /* Add dummy to avoid Scalac misbehaviour for empty classpath (as of 2.9.1). */
     def dummy: String = "dummy_" + Integer.toHexString(util.Random.nextInt)
@@ -55,7 +55,8 @@ final class CompilerArguments(
       else absString(compilerClasspath)
     val classpathOption = Seq("-classpath", stringClasspath)
     val outputOption: Seq[String] = outputDirectory
-      .map(output => List("-d", output.getAbsolutePath)).getOrElse(Nil)
+      .map(output => List("-d", output.getAbsolutePath))
+      .getOrElse(Nil)
     val bootClasspath = bootClasspathOption(hasLibrary(classpath))
     options ++ outputOption ++ bootClasspath ++ classpathOption ++ abs(sources)
   }
@@ -128,7 +129,7 @@ final class CompilerArguments(
   private[this] val isScalaLibrary: File => Boolean = file => {
     val name = file.getName
     name.contains(ArtifactInfo.ScalaLibraryID) ||
-      name == scalaInstance.libraryJar.getName
+    name == scalaInstance.libraryJar.getName
   }
 }
 

@@ -14,8 +14,10 @@ import xsbti.compile.{ CompileAnalysis, MiniSetup }
 class ProjectRebaseCacheSpec extends CommonCachedCompilation("Project based cache") {
 
   override def remoteCacheProvider() = new CacheProvider {
-    override def findCache(previous: Option[(CompileAnalysis, MiniSetup)]): Option[CompilationCache] =
-      Some(ProjectRebasedCache(remoteProject.baseLocation, remoteProject.defaultStoreLocation.toPath))
+    override def findCache(
+        previous: Option[(CompileAnalysis, MiniSetup)]): Option[CompilationCache] =
+      Some(
+        ProjectRebasedCache(remoteProject.baseLocation, remoteProject.defaultStoreLocation.toPath))
   }
 
 }

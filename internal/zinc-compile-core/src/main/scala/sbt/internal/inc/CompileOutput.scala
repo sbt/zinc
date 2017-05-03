@@ -17,6 +17,7 @@ import java.io.File
  * compiler. Both [[SingleOutput]] and [[MultipleOutput]] are supported.
  */
 object CompileOutput {
+
   /**
    * Create a [[SingleOutput]].
    *
@@ -37,11 +38,12 @@ object CompileOutput {
    */
   def apply(groups: (File, File)*): Output = new MultipleOutput {
     def outputGroups = groups.toArray map {
-      case (src, out) => new MultipleOutput.OutputGroup {
-        def sourceDirectory = src
-        def outputDirectory = out
-        override def toString = s"OutputGroup($src -> $out)"
-      }
+      case (src, out) =>
+        new MultipleOutput.OutputGroup {
+          def sourceDirectory = src
+          def outputDirectory = out
+          override def toString = s"OutputGroup($src -> $out)"
+        }
     }
     override def toString = s"MultiOutput($outputGroups)"
   }

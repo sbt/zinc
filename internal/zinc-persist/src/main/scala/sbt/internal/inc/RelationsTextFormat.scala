@@ -17,10 +17,10 @@ trait RelationsTextFormat extends FormatCommons {
   def mappers: AnalysisMappers
 
   private case class Descriptor[A, B](
-    header: String,
-    selectCorresponding: Relations => Relation[A, B],
-    keyMapper: Mapper[A],
-    valueMapper: Mapper[B]
+      header: String,
+      selectCorresponding: Relations => Relation[A, B],
+      keyMapper: Mapper[A],
+      valueMapper: Mapper[B]
   )
 
   private def stringsDescriptor(header: String, rels: Relations => Relation[String, String]) =
@@ -30,7 +30,10 @@ trait RelationsTextFormat extends FormatCommons {
     List(
       Descriptor("products", _.srcProd, mappers.sourceMapper, mappers.productMapper),
       Descriptor("library dependencies", _.libraryDep, mappers.sourceMapper, mappers.binaryMapper),
-      Descriptor("library class names", _.libraryClassName, mappers.binaryMapper, Mapper.forString),
+      Descriptor("library class names",
+                 _.libraryClassName,
+                 mappers.binaryMapper,
+                 Mapper.forString),
       stringsDescriptor("member reference internal dependencies", _.memberRef.internal),
       stringsDescriptor("member reference external dependencies", _.memberRef.external),
       stringsDescriptor("inheritance internal dependencies", _.inheritance.internal),
@@ -54,7 +57,8 @@ trait RelationsTextFormat extends FormatCommons {
           def compare(a: A, b: A) = relDesc.keyMapper.write(a) compare relDesc.keyMapper.write(b)
         }
         val toStringOrdB = new Ordering[B] {
-          def compare(a: B, b: B) = relDesc.valueMapper.write(a) compare relDesc.valueMapper.write(b)
+          def compare(a: B, b: B) =
+            relDesc.valueMapper.write(a) compare relDesc.valueMapper.write(b)
         }
         val header = relDesc.header
         val rel = relDesc.selectCorresponding(relations)
@@ -67,18 +71,22 @@ trait RelationsTextFormat extends FormatCommons {
           case (k, vs) =>
             val kStr = relDesc.keyMapper.write(k)
             vs.toSeq.sorted(toStringOrdB) foreach { v =>
-              out.write(kStr); out.write(" -> "); out.write(relDesc.valueMapper.write(v)); out.write("\n")
+              out.write(kStr); out.write(" -> "); out.write(relDesc.valueMapper.write(v));
+              out.write("\n")
             }
         }
       }
 
-      allRelations.foreach { relDesc => writeRelation(relDesc, relations) }
+      allRelations.foreach { relDesc =>
+        writeRelation(relDesc, relations)
+      }
     }
 
     def read(in: BufferedReader): Relations = {
       def readRelation[A, B](relDesc: Descriptor[A, B]): Relation[A, B] = {
         val expectedHeader = relDesc.header
-        val items = readPairs(in)(expectedHeader, relDesc.keyMapper.read, relDesc.valueMapper.read).toIterator
+        val items =
+          readPairs(in)(expectedHeader, relDesc.keyMapper.read, relDesc.valueMapper.read).toIterator
         // Reconstruct the forward map. This is more efficient than Relation.empty ++ items.
         var forward: List[(A, Set[B])] = Nil
         var currentItem: (A, B) = null
@@ -91,7 +99,8 @@ trait RelationsTextFormat extends FormatCommons {
         }
         while (items.hasNext) {
           currentItem = items.next()
-          if (currentItem._1 == currentKey) currentVals = currentItem._2 :: currentVals else closeEntry()
+          if (currentItem._1 == currentKey) currentVals = currentItem._2 :: currentVals
+          else closeEntry()
         }
         if (currentItem != null) closeEntry()
         Relation.reconstruct(forward.toMap)
@@ -117,17 +126,28 @@ trait RelationsTextFormat extends FormatCommons {
         val names = un.asInstanceOf[Relation[String, UsedName]]
         val binaryClassName = bcn.asInstanceOf[Relation[String, String]]
 
-        val internal = InternalDependencies(Map(
-          DependencyByMemberRef -> mri.asInstanceOf[Relation[String, String]],
-          DependencyByInheritance -> ii.asInstanceOf[Relation[String, String]],
-          LocalDependencyByInheritance -> lii.asInstanceOf[Relation[String, String]]
-        ))
-        val external = ExternalDependencies(Map(
-          DependencyByMemberRef -> mre.asInstanceOf[Relation[String, String]],
-          DependencyByInheritance -> ie.asInstanceOf[Relation[String, String]],
-          LocalDependencyByInheritance -> lie.asInstanceOf[Relation[String, String]]
-        ))
-        Relations.make(srcProd, binaryDep, libraryClassName, internal, external, classes, names, binaryClassName)
-      case _ => throw new java.io.IOException(s"Expected to read ${allRelations.length} relations but read ${relations.length}.")
+        val internal = InternalDependencies(
+          Map(
+            DependencyByMemberRef -> mri.asInstanceOf[Relation[String, String]],
+            DependencyByInheritance -> ii.asInstanceOf[Relation[String, String]],
+            LocalDependencyByInheritance -> lii.asInstanceOf[Relation[String, String]]
+          ))
+        val external = ExternalDependencies(
+          Map(
+            DependencyByMemberRef -> mre.asInstanceOf[Relation[String, String]],
+            DependencyByInheritance -> ie.asInstanceOf[Relation[String, String]],
+            LocalDependencyByInheritance -> lie.asInstanceOf[Relation[String, String]]
+          ))
+        Relations.make(srcProd,
+                       binaryDep,
+                       libraryClassName,
+                       internal,
+                       external,
+                       classes,
+                       names,
+                       binaryClassName)
+      case _ =>
+        throw new java.io.IOException(
+          s"Expected to read ${allRelations.length} relations but read ${relations.length}.")
     }
 }

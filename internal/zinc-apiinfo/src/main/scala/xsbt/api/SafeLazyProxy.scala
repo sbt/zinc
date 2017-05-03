@@ -16,6 +16,7 @@ package xsbti.api
  * the price of a new object in this hot path is not worth it.
  */
 object SafeLazyProxy {
+
   /**
    * Return a lazy implementation of a Scala by-name parameter.
    */
