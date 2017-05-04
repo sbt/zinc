@@ -47,7 +47,8 @@ final class DiagnosticsReporter(reporter: Reporter) extends DiagnosticListener[J
       lines.mkString(EOL)
     }
     d.getKind match {
-      case Diagnostic.Kind.ERROR | Diagnostic.Kind.WARNING | Diagnostic.Kind.MANDATORY_WARNING => fixWarnOrErrorMessage
+      case Diagnostic.Kind.ERROR | Diagnostic.Kind.WARNING | Diagnostic.Kind.MANDATORY_WARNING =>
+        fixWarnOrErrorMessage
       case _ => getRawMessage
     }
   }
@@ -55,9 +56,9 @@ final class DiagnosticsReporter(reporter: Reporter) extends DiagnosticListener[J
   override def report(d: Diagnostic[_ <: JavaFileObject]): Unit = {
     val severity =
       d.getKind match {
-        case Diagnostic.Kind.ERROR => Severity.Error
+        case Diagnostic.Kind.ERROR                                       => Severity.Error
         case Diagnostic.Kind.WARNING | Diagnostic.Kind.MANDATORY_WARNING => Severity.Warn
-        case _ => Severity.Info
+        case _                                                           => Severity.Info
       }
     val msg = fixedDiagnosticMessage(d)
     val pos: xsbti.Position = new PositionImpl(d)
@@ -78,23 +79,30 @@ final class DiagnosticsReporter(reporter: Reporter) extends DiagnosticListener[J
         case x           => Option(x)
       }
 
-    override val line: Optional[Integer] = o2jo(checkNoPos(d.getLineNumber) map { x => new Integer(x.toInt) })
+    override val line: Optional[Integer] = o2jo(checkNoPos(d.getLineNumber) map { x =>
+      new Integer(x.toInt)
+    })
     def startPosition: Option[Long] = checkNoPos(d.getStartPosition)
     def endPosition: Option[Long] = checkNoPos(d.getEndPosition)
-    override val offset: Optional[Integer] = o2jo(checkNoPos(d.getPosition) map { x => new Integer(x.toInt) })
+    override val offset: Optional[Integer] = o2jo(checkNoPos(d.getPosition) map { x =>
+      new Integer(x.toInt)
+    })
     override def lineContent: String = {
       def getDiagnosticLine: Option[String] =
         try {
           // See com.sun.tools.javac.api.ClientCodeWrapper.DiagnosticSourceUnwrapper
           val diagnostic = d.getClass.getField("d").get(d)
           // See com.sun.tools.javac.util.JCDiagnostic#getDiagnosticSource
-          val getDiagnosticSourceMethod = diagnostic.getClass.getDeclaredMethod("getDiagnosticSource")
+          val getDiagnosticSourceMethod =
+            diagnostic.getClass.getDeclaredMethod("getDiagnosticSource")
           val getPositionMethod = diagnostic.getClass.getDeclaredMethod("getPosition")
-          (Option(getDiagnosticSourceMethod.invoke(diagnostic)), Option(getPositionMethod.invoke(diagnostic))) match {
+          (Option(getDiagnosticSourceMethod.invoke(diagnostic)),
+           Option(getPositionMethod.invoke(diagnostic))) match {
             case (Some(diagnosticSource), Some(position: java.lang.Long)) =>
               // See com.sun.tools.javac.util.DiagnosticSource
               val getLineMethod = diagnosticSource.getClass.getMethod("getLine", Integer.TYPE)
-              Option(getLineMethod.invoke(diagnosticSource, new Integer(position.intValue()))).map(_.toString)
+              Option(getLineMethod.invoke(diagnosticSource, new Integer(position.intValue())))
+                .map(_.toString)
             case _ => None
           }
         } catch {
@@ -106,8 +114,9 @@ final class DiagnosticsReporter(reporter: Reporter) extends DiagnosticListener[J
         Option(d.getSource) match {
           case Some(source: JavaFileObject) =>
             (Option(source.getCharContent(true)), startPosition, endPosition) match {
-              case (Some(cc), Some(start), Some(end)) => cc.subSequence(start.toInt, end.toInt).toString
-              case _                                  => ""
+              case (Some(cc), Some(start), Some(end)) =>
+                cc.subSequence(start.toInt, end.toInt).toString
+              case _ => ""
             }
           case _ => ""
         }

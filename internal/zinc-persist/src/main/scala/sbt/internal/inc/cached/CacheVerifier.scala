@@ -42,7 +42,9 @@ abstract class CacheVerifier {
 
   def results: VerficationResults
 
-  protected def analyzeValue(category: String, serializedValue: String, deserializedValue: Any): Unit
+  protected def analyzeValue(category: String,
+                             serializedValue: String,
+                             deserializedValue: Any): Unit
 
   private def analyzed[T](category: String, original: Mapper[T]): Mapper[T] = {
     def write(v: T): String = {
@@ -53,7 +55,8 @@ abstract class CacheVerifier {
     Mapper(original.read, write)
   }
 
-  private def analyzed[C, T](category: String, original: ContextAwareMapper[C, T]): ContextAwareMapper[C, T] = {
+  private def analyzed[C, T](category: String,
+                             original: ContextAwareMapper[C, T]): ContextAwareMapper[C, T] = {
     def write(c: C, v: T): String = {
       val result = original.write(c, v)
       analyzeValue(category, result, v)
@@ -65,7 +68,9 @@ abstract class CacheVerifier {
 }
 
 object NoopVerifier extends CacheVerifier {
-  override protected def analyzeValue(category: String, serializedValue: String, deserializedValue: Any): Unit = ()
+  override protected def analyzeValue(category: String,
+                                      serializedValue: String,
+                                      deserializedValue: Any): Unit = ()
 
   override def verifingMappers(from: AnalysisMappers): AnalysisMappers = from
   override def results: VerficationResults = NoVerification

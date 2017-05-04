@@ -38,7 +38,10 @@ class RawCompiler(val scalaInstance: XScalaInstance, cp: ClasspathOptions, log: 
    * @param outputDirectory The directory in which the class files are placed.
    * @param options The auxiliary options to Scala compilers.
    */
-  def apply(sources: Seq[File], classpath: Seq[File], outputDirectory: File, options: Seq[String]): Unit = {
+  def apply(sources: Seq[File],
+            classpath: Seq[File],
+            outputDirectory: File,
+            options: Seq[String]): Unit = {
 
     /** Run the compiler and get the reporter attached to it. */
     def getReporter(fqn: String, args: Array[String], isDotty: Boolean): AnyRef = {
@@ -86,7 +89,8 @@ class RawCompiler(val scalaInstance: XScalaInstance, cp: ClasspathOptions, log: 
 }
 
 class CompileFailed(
-  val arguments: Array[String],
-  override val toString: String,
-  val problems: Array[xsbti.Problem]
-) extends xsbti.CompileFailed with FeedbackProvidedException
+    val arguments: Array[String],
+    override val toString: String,
+    val problems: Array[xsbti.Problem]
+) extends xsbti.CompileFailed
+    with FeedbackProvidedException

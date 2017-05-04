@@ -24,7 +24,8 @@ class ClassToAPISpecification extends UnitSpec {
     assert(companionsA.classApi.topLevel === true)
     assert(companionsA.objectApi.topLevel === true)
 
-    val innerClassDefB = findDeclaredInnerClass(companionsA.classApi, "A.B", DefinitionType.ClassDef)
+    val innerClassDefB =
+      findDeclaredInnerClass(companionsA.classApi, "A.B", DefinitionType.ClassDef)
     assert(innerClassDefB.isDefined)
 
     val companionsB = apis("A.B")
@@ -48,7 +49,8 @@ class ClassToAPISpecification extends UnitSpec {
    * extracted by ClassToAPI class.
    */
   private def extractApisFromSrc(src: (String, String)): Set[Companions] = {
-    val (Seq(tempSrcFile), analysisCallback) = JavaCompilerForUnitTesting.compileJavaSrcs(src)(readAPI)
+    val (Seq(tempSrcFile), analysisCallback) =
+      JavaCompilerForUnitTesting.compileJavaSrcs(src)(readAPI)
     val apis = analysisCallback.apis(tempSrcFile)
     apis.groupBy(_.name).map((companions _).tupled).toSet
   }
@@ -67,14 +69,17 @@ class ClassToAPISpecification extends UnitSpec {
 
   private case class Companions(name: String, classApi: ClassLike, objectApi: ClassLike)
 
-  private def findDeclaredInnerClass(classApi: ClassLike, innerClassName: String,
-    defType: DefinitionType): Option[ClassLikeDef] = {
+  private def findDeclaredInnerClass(classApi: ClassLike,
+                                     innerClassName: String,
+                                     defType: DefinitionType): Option[ClassLikeDef] = {
     classApi.structure.declared.collectFirst({
       case c: ClassLikeDef if c.name == innerClassName && c.definitionType == defType => c
     })
   }
 
-  def readAPI(callback: AnalysisCallback, source: File, classes: Seq[Class[_]]): Set[(String, String)] = {
+  def readAPI(callback: AnalysisCallback,
+              source: File,
+              classes: Seq[Class[_]]): Set[(String, String)] = {
     val (apis, inherits) = ClassToAPI.process(classes)
     apis.foreach(callback.api(source, _))
     inherits.map {

@@ -16,13 +16,13 @@ object Dependencies {
 
   private val sbtIO = "org.scala-sbt" %% "io" % ioVersion
 
-  private val utilLogging   = "org.scala-sbt" %% "util-logging"   % utilVersion
-  private val utilControl   = "org.scala-sbt" %% "util-control"   % utilVersion
-  private val utilRelation  = "org.scala-sbt" %% "util-relation"  % utilVersion
-  private val utilTesting   = "org.scala-sbt" %% "util-testing"   % utilVersion
-  private val utilTracking  = "org.scala-sbt" %% "util-tracking"  % utilVersion
-  private val utilInterface = "org.scala-sbt"  % "util-interface" % utilVersion
-  private val utilScripted  = "org.scala-sbt" %% "util-scripted"  % utilVersion
+  private val utilLogging = "org.scala-sbt" %% "util-logging" % utilVersion
+  private val utilControl = "org.scala-sbt" %% "util-control" % utilVersion
+  private val utilRelation = "org.scala-sbt" %% "util-relation" % utilVersion
+  private val utilTesting = "org.scala-sbt" %% "util-testing" % utilVersion
+  private val utilTracking = "org.scala-sbt" %% "util-tracking" % utilVersion
+  private val utilInterface = "org.scala-sbt" % "util-interface" % utilVersion
+  private val utilScripted = "org.scala-sbt" %% "util-scripted" % utilVersion
 
   private val libraryManagement = "org.scala-sbt" %% "librarymanagement" % lmVersion
 
@@ -36,25 +36,38 @@ object Dependencies {
     path
   }
 
-  lazy val sbtIoPath   = getSbtModulePath("sbtio.path",   "sbt/io")
+  lazy val sbtIoPath = getSbtModulePath("sbtio.path", "sbt/io")
   lazy val sbtUtilPath = getSbtModulePath("sbtutil.path", "sbt/util")
-  lazy val sbtLmPath   = getSbtModulePath("sbtlm.path",   "sbt/lm")
+  lazy val sbtLmPath = getSbtModulePath("sbtlm.path", "sbt/lm")
 
-  def addSbtModule(p: Project, path: Option[String], projectName: String, m: ModuleID, c: Option[Configuration] = None) =
+  def addSbtModule(p: Project,
+                   path: Option[String],
+                   projectName: String,
+                   m: ModuleID,
+                   c: Option[Configuration] = None) =
     path match {
-      case Some(f) => p dependsOn c.fold[ClasspathDependency](ProjectRef(file(f), projectName))(ProjectRef(file(f), projectName) % _)
-      case None    => p settings (libraryDependencies += c.fold(m)(m % _))
+      case Some(f) =>
+        p dependsOn c.fold[ClasspathDependency](ProjectRef(file(f), projectName))(
+          ProjectRef(file(f), projectName) % _)
+      case None => p settings (libraryDependencies += c.fold(m)(m % _))
     }
 
   def addSbtIO(p: Project): Project = addSbtModule(p, sbtIoPath, "io", sbtIO)
 
-  def addSbtUtilControl(p: Project): Project   = addSbtModule(p, sbtUtilPath, "utilControl",   utilControl)
-  def addSbtUtilInterface(p: Project): Project = addSbtModule(p, sbtUtilPath, "utilInterface", utilInterface)
-  def addSbtUtilLogging(p: Project): Project   = addSbtModule(p, sbtUtilPath, "utilLogging",   utilLogging)
-  def addSbtUtilRelation(p: Project): Project  = addSbtModule(p, sbtUtilPath, "utilRelation",  utilRelation)
-  def addSbtUtilScripted(p: Project): Project  = addSbtModule(p, sbtUtilPath, "utilScripted",  utilScripted, Some(Test))
-  def addSbtUtilTesting(p: Project): Project   = addSbtModule(p, sbtUtilPath, "utilTesting",   utilTesting, Some(Test))
-  def addSbtUtilTracking(p: Project): Project  = addSbtModule(p, sbtUtilPath, "utilTracking",  utilTracking)
+  def addSbtUtilControl(p: Project): Project =
+    addSbtModule(p, sbtUtilPath, "utilControl", utilControl)
+  def addSbtUtilInterface(p: Project): Project =
+    addSbtModule(p, sbtUtilPath, "utilInterface", utilInterface)
+  def addSbtUtilLogging(p: Project): Project =
+    addSbtModule(p, sbtUtilPath, "utilLogging", utilLogging)
+  def addSbtUtilRelation(p: Project): Project =
+    addSbtModule(p, sbtUtilPath, "utilRelation", utilRelation)
+  def addSbtUtilScripted(p: Project): Project =
+    addSbtModule(p, sbtUtilPath, "utilScripted", utilScripted, Some(Test))
+  def addSbtUtilTesting(p: Project): Project =
+    addSbtModule(p, sbtUtilPath, "utilTesting", utilTesting, Some(Test))
+  def addSbtUtilTracking(p: Project): Project =
+    addSbtModule(p, sbtUtilPath, "utilTracking", utilTracking)
 
   def addSbtLm(p: Project): Project = addSbtModule(p, sbtLmPath, "lm", libraryManagement)
 
@@ -70,11 +83,14 @@ object Dependencies {
   val diffUtils = "com.googlecode.java-diff-utils" % "diffutils" % "1.3.0"
   val sjsonnewScalaJson = "com.eed3si9n" %% "sjson-new-scalajson" % "0.7.0"
 
-  def addTestDependencies(p: Project): Project = p.settings(libraryDependencies ++=
-    Seq(
-      scalaCheck % Test,
-      scalatest % Test,
-      junit % Test,
-      diffUtils % Test
-    )).configure(addSbtUtilTesting)
+  def addTestDependencies(p: Project): Project =
+    p.settings(
+        libraryDependencies ++=
+          Seq(
+            scalaCheck % Test,
+            scalatest % Test,
+            junit % Test,
+            diffUtils % Test
+          ))
+      .configure(addSbtUtilTesting)
 }

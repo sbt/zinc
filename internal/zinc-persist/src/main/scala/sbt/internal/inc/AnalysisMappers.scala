@@ -22,7 +22,8 @@ case class ContextAwareMapper[C, V](read: (C, String) => V, write: (C, V) => Str
 object Mapper {
   val forFile: Mapper[File] = Mapper(FormatCommons.stringToFile, FormatCommons.fileToString)
   val forString: Mapper[String] = Mapper(identity, identity)
-  val forStamp: ContextAwareMapper[File, Stamp] = ContextAwareMapper((_, v) => Stamp.fromString(v), (_, s) => s.toString)
+  val forStamp: ContextAwareMapper[File, Stamp] =
+    ContextAwareMapper((_, v) => Stamp.fromString(v), (_, s) => s.toString)
   val forUsedName: Mapper[UsedName] = {
     val enumSetSerializer = EnumSetSerializer(UseScope.values())
     def serialize(usedName: UsedName): String =
@@ -34,13 +35,13 @@ object Mapper {
   }
 
   implicit class MapperOpts[V](mapper: Mapper[V]) {
-    def map[T](map: V => T, unmap: T => V) = Mapper[T](mapper.read.andThen(map), unmap.andThen(mapper.write))
+    def map[T](map: V => T, unmap: T => V) =
+      Mapper[T](mapper.read.andThen(map), unmap.andThen(mapper.write))
   }
 
   def rebaseFile(from: Path, to: Path): Mapper[File] = {
     def rebaseFile(from: Path, to: Path): File => File =
-      f =>
-        Try { to.resolve(from.relativize(f.toPath)).toFile }.getOrElse(f)
+      f => Try { to.resolve(from.relativize(f.toPath)).toFile }.getOrElse(f)
 
     forFile.map(rebaseFile(from, to), rebaseFile(to, from))
   }

@@ -23,15 +23,16 @@ object AnalysisStore {
       backing.set(analysis, setup)
       last = Some((analysis, setup))
     }
-    def get(): Option[(CompileAnalysis, MiniSetup)] =
-      {
-        if (last.isEmpty)
-          last = backing.get()
-        last
-      }
+    def get(): Option[(CompileAnalysis, MiniSetup)] = {
+      if (last.isEmpty)
+        last = backing.get()
+      last
+    }
   }
   def sync(backing: AnalysisStore): AnalysisStore = new AnalysisStore {
-    def set(analysis: CompileAnalysis, setup: MiniSetup): Unit = synchronized { backing.set(analysis, setup) }
+    def set(analysis: CompileAnalysis, setup: MiniSetup): Unit = synchronized {
+      backing.set(analysis, setup)
+    }
     def get(): Option[(CompileAnalysis, MiniSetup)] = synchronized { backing.get() }
   }
 }

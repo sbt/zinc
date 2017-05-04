@@ -39,14 +39,14 @@ import xsbti.compile.{
  * @param classLoaderCache
  */
 final class AnalyzingCompiler(
-  // This scala instance refers to the interface
-  val scalaInstance: xsbti.compile.ScalaInstance,
-  val provider: CompilerBridgeProvider,
-  override val classpathOptions: ClasspathOptions,
-  onArgsHandler: Seq[String] => Unit,
-  val classLoaderCache: Option[ClassLoaderCache]
+    // This scala instance refers to the interface
+    val scalaInstance: xsbti.compile.ScalaInstance,
+    val provider: CompilerBridgeProvider,
+    override val classpathOptions: ClasspathOptions,
+    onArgsHandler: Seq[String] => Unit,
+    val classLoaderCache: Option[ClassLoaderCache]
 ) extends CachedCompilerProvider
-  with ScalaCompiler {
+    with ScalaCompiler {
 
   def onArgs(f: Seq[String] => Unit): AnalyzingCompiler =
     new AnalyzingCompiler(
@@ -67,15 +67,15 @@ final class AnalyzingCompiler(
     )
 
   def apply(
-    sources: Array[File],
-    changes: DependencyChanges,
-    classpath: Array[File],
-    singleOutput: File,
-    options: Array[String],
-    callback: AnalysisCallback,
-    maximumErrors: Int,
-    cache: GlobalsCache,
-    log: ManagedLogger
+      sources: Array[File],
+      changes: DependencyChanges,
+      classpath: Array[File],
+      singleOutput: File,
+      options: Array[String],
+      callback: AnalysisCallback,
+      maximumErrors: Int,
+      cache: GlobalsCache,
+      log: ManagedLogger
   ): Unit = {
     val compArgs = new CompilerArguments(scalaInstance, classpathOptions)
     val arguments = compArgs(Nil, classpath, None, options)
@@ -95,15 +95,15 @@ final class AnalyzingCompiler(
   }
 
   def compile(
-    sources: Array[File],
-    changes: DependencyChanges,
-    options: Array[String],
-    output: Output,
-    callback: AnalysisCallback,
-    reporter: Reporter,
-    cache: GlobalsCache,
-    log: xLogger,
-    progressOpt: Maybe[CompileProgress]
+      sources: Array[File],
+      changes: DependencyChanges,
+      options: Array[String],
+      output: Output,
+      callback: AnalysisCallback,
+      reporter: Reporter,
+      cache: GlobalsCache,
+      log: xLogger,
+      progressOpt: Maybe[CompileProgress]
   ): Unit = {
     val cached = cache(options, output, !changes.isEmpty, this, log, reporter)
     val progress =
@@ -112,13 +112,13 @@ final class AnalyzingCompiler(
   }
 
   def compile(
-    sources: Array[File],
-    changes: DependencyChanges,
-    callback: AnalysisCallback,
-    log: xLogger,
-    reporter: Reporter,
-    progress: CompileProgress,
-    compiler: CachedCompiler
+      sources: Array[File],
+      changes: DependencyChanges,
+      callback: AnalysisCallback,
+      log: xLogger,
+      reporter: Reporter,
+      progress: CompileProgress,
+      compiler: CachedCompiler
   ): Unit = {
     onArgsHandler(compiler.commandArguments(sources))
     call("xsbt.CompilerInterface", "run", log)(
@@ -133,20 +133,20 @@ final class AnalyzingCompiler(
     ()
   }
   def newCachedCompiler(
-    arguments: Array[String],
-    output: Output,
-    log: xLogger,
-    reporter: Reporter,
-    resident: Boolean
+      arguments: Array[String],
+      output: Output,
+      log: xLogger,
+      reporter: Reporter,
+      resident: Boolean
   ): CachedCompiler =
     newCachedCompiler(arguments: Seq[String], output, log, reporter, resident)
 
   def newCachedCompiler(
-    arguments: Seq[String],
-    output: Output,
-    log: xLogger,
-    reporter: Reporter,
-    resident: Boolean
+      arguments: Seq[String],
+      output: Output,
+      log: xLogger,
+      reporter: Reporter,
+      resident: Boolean
   ): CachedCompiler = {
     val javaResident: java.lang.Boolean = resident
     val compiler = call("xsbt.CompilerInterface", "newCompiler", log)(
@@ -160,23 +160,23 @@ final class AnalyzingCompiler(
   }
 
   def doc(
-    sources: Seq[File],
-    classpath: Seq[File],
-    outputDirectory: File,
-    options: Seq[String],
-    maximumErrors: Int,
-    log: ManagedLogger
+      sources: Seq[File],
+      classpath: Seq[File],
+      outputDirectory: File,
+      options: Seq[String],
+      maximumErrors: Int,
+      log: ManagedLogger
   ): Unit = {
     val reporter = new LoggerReporter(maximumErrors, log)
     doc(sources, classpath, outputDirectory, options, log, reporter)
   }
   def doc(
-    sources: Seq[File],
-    classpath: Seq[File],
-    outputDirectory: File,
-    options: Seq[String],
-    log: Logger,
-    reporter: Reporter
+      sources: Seq[File],
+      classpath: Seq[File],
+      outputDirectory: File,
+      options: Seq[String],
+      log: Logger,
+      reporter: Reporter
   ): Unit = {
     val compArgs = new CompilerArguments(scalaInstance, classpathOptions)
     val arguments =
@@ -190,14 +190,14 @@ final class AnalyzingCompiler(
     ()
   }
   def console(
-    classpath: Seq[File],
-    options: Seq[String],
-    initialCommands: String,
-    cleanupCommands: String,
-    log: Logger
+      classpath: Seq[File],
+      options: Seq[String],
+      initialCommands: String,
+      cleanupCommands: String,
+      log: Logger
   )(
-    loader: Option[ClassLoader] = None,
-    bindings: Seq[(String, Any)] = Nil
+      loader: Option[ClassLoader] = None,
+      bindings: Seq[(String, Any)] = Nil
   ): Unit = {
     onArgsHandler(consoleCommandArguments(classpath, options, log))
     val (classpathString, bootClasspath) = consoleClasspaths(classpath)
@@ -237,21 +237,24 @@ final class AnalyzingCompiler(
     (classpathString, bootClasspath)
   }
   def consoleCommandArguments(
-    classpath: Seq[File],
-    options: Seq[String],
-    log: Logger
+      classpath: Seq[File],
+      options: Seq[String],
+      log: Logger
   ): Seq[String] = {
     val (classpathString, bootClasspath) = consoleClasspaths(classpath)
     val argsObj = call("xsbt.ConsoleInterface", "commandArguments", log)(
-      classOf[Array[String]], classOf[String], classOf[String], classOf[xLogger]
+      classOf[Array[String]],
+      classOf[String],
+      classOf[String],
+      classOf[xLogger]
     )(options.toArray[String], bootClasspath, classpathString, log)
     argsObj.asInstanceOf[Array[String]].toSeq
   }
   def force(log: Logger): Unit = { provider(scalaInstance, log); () }
   private def call(
-    interfaceClassName: String,
-    methodName: String,
-    log: Logger
+      interfaceClassName: String,
+      methodName: String,
+      log: Logger
   )(argTypes: Class[_]*)(args: AnyRef*): AnyRef = {
     val interfaceClass = getInterfaceClass(interfaceClassName, log)
     val interface = interfaceClass.newInstance.asInstanceOf[AnyRef]
@@ -287,8 +290,8 @@ final class AnalyzingCompiler(
     Class.forName(name, true, loader(log))
 
   protected def createDualLoader(
-    scalaLoader: ClassLoader,
-    sbtLoader: ClassLoader
+      scalaLoader: ClassLoader,
+      sbtLoader: ClassLoader
   ): ClassLoader = {
     val xsbtiFilter = (name: String) => name.startsWith("xsbti.")
     val notXsbtiFilter = (name: String) => !xsbtiFilter(name)
@@ -324,12 +327,12 @@ object AnalyzingCompiler {
    * Scala version is installed in your system).
    */
   def compileSources(
-    sourceJars: Iterable[File],
-    targetJar: File,
-    xsbtiJars: Iterable[File],
-    id: String,
-    compiler: RawCompiler,
-    log: Logger
+      sourceJars: Iterable[File],
+      targetJar: File,
+      xsbtiJars: Iterable[File],
+      id: String,
+      compiler: RawCompiler,
+      log: Logger
   ): Unit = {
     val isSource = (f: File) => isSourceName(f.getName)
     def keepIfSource(files: Set[File]): Set[File] =
@@ -340,14 +343,16 @@ object AnalyzingCompiler {
       import sbt.io.Path._
       copy(resources.pair(rebase(dir, outputDir)))
       val toBeZipped = outputDir.allPaths.pair(
-        relativeTo(outputDir), errorIfNone = false
+        relativeTo(outputDir),
+        errorIfNone = false
       )
       zip(toBeZipped, targetJar)
     }
 
     /** Handle the compilation failure of the Scala compiler. */
     def handleCompilationError(compilation: => Unit) = {
-      try compilation catch {
+      try compilation
+      catch {
         case e: xsbti.CompileFailed =>
           val msg = s"Error compiling the sbt component '$id'"
           throw new CompileFailed(e.arguments, msg, e.problems)
@@ -356,9 +361,8 @@ object AnalyzingCompiler {
 
     withTemporaryDirectory { dir =>
       // Extract the sources to be compiled
-      val extractedSources = (Set[File]() /: sourceJars) {
-        (extracted, sourceJar) =>
-          extracted ++ keepIfSource(unzip(sourceJar, dir))
+      val extractedSources = (Set[File]() /: sourceJars) { (extracted, sourceJar) =>
+        extracted ++ keepIfSource(unzip(sourceJar, dir))
       }.toSeq
       val (sourceFiles, resources) = extractedSources.partition(isSource)
       withTemporaryDirectory { outputDirectory =>

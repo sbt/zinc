@@ -32,7 +32,9 @@ object JavaCompilerForUnitTesting {
     ExtractedClassDependencies.fromPairs(memberRefDeps, inheritanceDeps, localInheritanceDeps)
   }
 
-  def compileJavaSrcs(srcs: (String, String)*)(readAPI: (AnalysisCallback, File, Seq[Class[_]]) => Set[(String, String)]): (Seq[File], TestCallback) = {
+  def compileJavaSrcs(srcs: (String, String)*)(
+      readAPI: (AnalysisCallback, File, Seq[Class[_]]) => Set[(String, String)])
+    : (Seq[File], TestCallback) = {
     IO.withTemporaryDirectory { temp =>
       val srcFiles = srcs.map {
         case (fileName, src) => prepareSrcFile(temp, fileName, src)
@@ -59,7 +61,9 @@ object JavaCompilerForUnitTesting {
       // - extract api representation out of Class (and saved it via a side effect)
       // - extract all base classes.
       // we extract just parents as this is enough for testing
-      Analyze(classFiles, srcFiles, logger)(analysisCallback, classloader, readAPI(analysisCallback, _, _))
+      Analyze(classFiles, srcFiles, logger)(analysisCallback,
+                                            classloader,
+                                            readAPI(analysisCallback, _, _))
       (srcFiles, analysisCallback)
     }
   }

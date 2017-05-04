@@ -26,7 +26,9 @@ class ExportedCacheSpec extends CommonCachedCompilation("Exported Cache") {
   class TestVerifier extends CacheVerifier {
     val currentResults = new TestVerifierResults
 
-    override protected def analyzeValue(category: String, serializedValue: String, deserializedValue: Any): Unit = {
+    override protected def analyzeValue(category: String,
+                                        serializedValue: String,
+                                        deserializedValue: Any): Unit = {
       currentResults.categories += category
       currentResults.values += deserializedValue.toString
       ()
@@ -47,8 +49,8 @@ class ExportedCacheSpec extends CommonCachedCompilation("Exported Cache") {
         results.categories.result() should not be empty
         val values = results.values.result()
         values should not be empty
-        remoteProject.allSources.map(_.toString).foreach {
-          source => values should contain(source)
+        remoteProject.allSources.map(_.toString).foreach { source =>
+          values should contain(source)
         }
       case Some(other) =>
         fail(s"Bad verification results: $other (of class ${other.getClass.getName}")
@@ -58,7 +60,8 @@ class ExportedCacheSpec extends CommonCachedCompilation("Exported Cache") {
   }
 
   override def remoteCacheProvider(): CacheProvider = new CacheProvider {
-    override def findCache(previous: Option[(CompileAnalysis, MiniSetup)]): Option[CompilationCache] =
+    override def findCache(
+        previous: Option[(CompileAnalysis, MiniSetup)]): Option[CompilationCache] =
       Some(new ExportableCache(cacheLocation))
   }
 
@@ -70,61 +73,63 @@ class ExportedCacheSpec extends CommonCachedCompilation("Exported Cache") {
     }
 
     val plainFileProjectMock = new File(tmpDir, "plain-file")
-    val plainFileAsOutput = nonEmptyFile(plainFileProjectMock, remoteProject.defaultClassesDir.getName)
+    val plainFileAsOutput =
+      nonEmptyFile(plainFileProjectMock, remoteProject.defaultClassesDir.getName)
 
     val nonemptyDirProjectMock = new File(tmpDir, "non-empty-dir")
-    val nonemptyDirOutputDir = new File(nonemptyDirProjectMock, remoteProject.defaultClassesDir.getName)
+    val nonemptyDirOutputDir =
+      new File(nonemptyDirProjectMock, remoteProject.defaultClassesDir.getName)
     val contentFile: File = nonEmptyFile(nonemptyDirOutputDir, "some-file")
     val contentDirectory = new File(nonemptyDirOutputDir, "some-dir")
     val contentDirectoryMember = nonEmptyFile(contentDirectory, "another")
     val contentDirectoryClassMember = nonEmptyFile(contentDirectory, "another.class")
   }
 
-  it should "fail non empty output with FailOnNonEmpty" in IO.withTemporaryDirectory {
-    tmpDir =>
-      val fixture = new NonEmptyOutputFixture(tmpDir)
-      import fixture._
+  it should "fail non empty output with FailOnNonEmpty" in IO.withTemporaryDirectory { tmpDir =>
+    val fixture = new NonEmptyOutputFixture(tmpDir)
+    import fixture._
 
-      intercept[IllegalStateException] {
-        new ExportableCache(cacheLocation, cleanOutputMode = FailOnNonEmpty).loadCache(nonemptyDirProjectMock)
-      }
+    intercept[IllegalStateException] {
+      new ExportableCache(cacheLocation, cleanOutputMode = FailOnNonEmpty)
+        .loadCache(nonemptyDirProjectMock)
+    }
 
-      assert(contentFile.exists())
-      assert(contentDirectory.exists())
-      assert(contentDirectory.list().nonEmpty)
+    assert(contentFile.exists())
+    assert(contentDirectory.exists())
+    assert(contentDirectory.list().nonEmpty)
   }
 
-  it should "fail on plain file as classes dir" in IO.withTemporaryDirectory {
-    tmpDir =>
-      val fixture = new NonEmptyOutputFixture(tmpDir)
-      import fixture._
+  it should "fail on plain file as classes dir" in IO.withTemporaryDirectory { tmpDir =>
+    val fixture = new NonEmptyOutputFixture(tmpDir)
+    import fixture._
 
-      intercept[IllegalStateException] { new ExportableCache(cacheLocation).loadCache(plainFileProjectMock) }
-      assert(plainFileProjectMock.exists())
+    intercept[IllegalStateException] {
+      new ExportableCache(cacheLocation).loadCache(plainFileProjectMock)
+    }
+    assert(plainFileProjectMock.exists())
   }
 
-  it should "handle output with CleanOutput" in IO.withTemporaryDirectory {
-    tmpDir =>
-      val fixture = new NonEmptyOutputFixture(tmpDir)
-      import fixture._
+  it should "handle output with CleanOutput" in IO.withTemporaryDirectory { tmpDir =>
+    val fixture = new NonEmptyOutputFixture(tmpDir)
+    import fixture._
 
-      new ExportableCache(cacheLocation).loadCache(nonemptyDirProjectMock)
+    new ExportableCache(cacheLocation).loadCache(nonemptyDirProjectMock)
 
-      assert(!contentFile.exists())
-      assert(!contentDirectory.exists())
+    assert(!contentFile.exists())
+    assert(!contentDirectory.exists())
   }
 
-  it should "handle output with CleanClasses" in IO.withTemporaryDirectory {
-    tmpDir =>
-      val fixture = new NonEmptyOutputFixture(tmpDir)
-      import fixture._
+  it should "handle output with CleanClasses" in IO.withTemporaryDirectory { tmpDir =>
+    val fixture = new NonEmptyOutputFixture(tmpDir)
+    import fixture._
 
-      new ExportableCache(cacheLocation, cleanOutputMode = CleanClasses).loadCache(nonemptyDirProjectMock)
+    new ExportableCache(cacheLocation, cleanOutputMode = CleanClasses)
+      .loadCache(nonemptyDirProjectMock)
 
-      assert(contentFile.exists())
-      assert(contentDirectory.exists())
-      assert(contentDirectoryMember.exists())
-      assert(!contentDirectoryClassMember.exists())
+    assert(contentFile.exists())
+    assert(contentDirectory.exists())
+    assert(contentDirectoryMember.exists())
+    assert(!contentDirectoryClassMember.exists())
   }
 
 }

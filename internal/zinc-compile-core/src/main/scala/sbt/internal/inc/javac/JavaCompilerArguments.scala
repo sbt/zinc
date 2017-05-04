@@ -16,10 +16,10 @@ import CompilerArguments.{ absString, abs }
 // Intended to be used with sbt.internal.inc.javac.JavaTools.
 private[sbt] object JavaCompilerArguments {
   def apply(
-    sources: List[File],
-    classpath: List[File],
-    outputDirectory: Option[File],
-    options: List[String]
+      sources: List[File],
+      classpath: List[File],
+      outputDirectory: Option[File],
+      options: List[String]
   ): List[String] = {
     val classpathOption = List("-classpath", absString(classpath))
     val outputOption =

@@ -17,12 +17,12 @@ class ZincBenchmarkSpec extends FunSuite {
 
   test("Check that setup for small project is successful and zinc compiles") {
     object Stoml
-      extends BenchmarkProject(
-        "jvican/stoml",
-        "deb10309809912fbf38cf891af2ac61342024632",
-        List("stoml"),
-        useJavaCp = false
-      )
+        extends BenchmarkProject(
+          "jvican/stoml",
+          "deb10309809912fbf38cf891af2ac61342024632",
+          List("stoml"),
+          useJavaCp = false
+        )
 
     val stoml = new ZincBenchmark(Stoml)
     val tempDir = IO.createTemporaryDirectory

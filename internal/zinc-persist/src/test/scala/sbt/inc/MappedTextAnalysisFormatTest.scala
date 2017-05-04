@@ -14,14 +14,19 @@ import sbt.internal.inc._
 
 import scala.util.{ Random, Try }
 
-object MappedTextAnalysisFormatTest extends Properties("MappedTextAnalysisFormat") with BaseTextAnalysisFormatTest {
+object MappedTextAnalysisFormatTest
+    extends Properties("MappedTextAnalysisFormat")
+    with BaseTextAnalysisFormatTest {
   object TestMapper extends AnalysisMappersAdapter {
     override val sourceMapper: Mapper[File] = mapped(Mapper.forFile)
     override val productMapper: Mapper[File] = mapped(Mapper.forFile)
     override val binaryMapper: Mapper[File] = mapped(Mapper.forFile)
-    override val binaryStampMapper: ContextAwareMapper[File, Stamp] = contextedMapped(Mapper.forStamp)
-    override val productStampMapper: ContextAwareMapper[File, Stamp] = contextedMapped(Mapper.forStamp)
-    override val sourceStampMapper: ContextAwareMapper[File, Stamp] = contextedMapped(Mapper.forStamp)
+    override val binaryStampMapper: ContextAwareMapper[File, Stamp] = contextedMapped(
+      Mapper.forStamp)
+    override val productStampMapper: ContextAwareMapper[File, Stamp] = contextedMapped(
+      Mapper.forStamp)
+    override val sourceStampMapper: ContextAwareMapper[File, Stamp] = contextedMapped(
+      Mapper.forStamp)
 
     private class TestRandomizer[V] {
       val HEADER = Random.nextInt(20000).toString
@@ -34,7 +39,8 @@ object MappedTextAnalysisFormatTest extends Properties("MappedTextAnalysisFormat
         case Regexp(list @ _*) =>
           throw new RuntimeException(s"Value '$v' cannot be used. Matched: $list")
         case _ =>
-          throw new RuntimeException(s"Value '$v' cannot be used. Does not match ${Regexp.pattern.pattern()}")
+          throw new RuntimeException(
+            s"Value '$v' cannot be used. Does not match ${Regexp.pattern.pattern()}")
       }
 
       def write(v: String) = s"#$HEADER#${v}"
@@ -72,7 +78,7 @@ object MappedTextAnalysisFormatTest extends Properties("MappedTextAnalysisFormat
     }
 
     ("READ mappeped by standard" |: checkFormatFail(TextAnalysisFormat, format)) &&
-      ("READ standard by mapped" |: checkFormatFail(format, TextAnalysisFormat)) &&
-      super.checkAnalysis(analysis)
+    ("READ standard by mapped" |: checkFormatFail(format, TextAnalysisFormat)) &&
+    super.checkAnalysis(analysis)
   }
 }

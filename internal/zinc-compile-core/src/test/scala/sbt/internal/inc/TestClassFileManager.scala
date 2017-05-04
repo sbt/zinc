@@ -10,6 +10,7 @@ import scala.collection.mutable
  * Collection of `ClassFileManager`s used for testing purposes.
  */
 class CollectingClassFileManager extends ClassFileManager {
+
   /** Collect generated classes, with public access to allow inspection. */
   val generatedClasses = new mutable.HashSet[File]
 

@@ -37,7 +37,8 @@ class BenchmarkBase {
     assert(_subprojectsSetup.nonEmpty)
 
     val id = CompilationInfo.createIdentifierFor(_subprojectToRun, _project)
-    _setup = _subprojectsSetup.find(p => p.subproject == id)
+    _setup = _subprojectsSetup
+      .find(p => p.subproject == id)
       .getOrElse(sys.error(s"No subproject ${_subprojectToRun} found."))
     _message = {
       val info = _setup.compilationInfo

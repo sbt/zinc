@@ -25,8 +25,9 @@ class AnalyzeSpecification extends UnitSpec {
         |class D {}
         |""".stripMargin
 
-    val deps = JavaCompilerForUnitTesting.
-      extractDependenciesFromSrcs("A.java" -> srcA, "C.java" -> srcC, "D.java" -> srcD)
+    val deps = JavaCompilerForUnitTesting.extractDependenciesFromSrcs("A.java" -> srcA,
+                                                                      "C.java" -> srcC,
+                                                                      "D.java" -> srcD)
 
     assert(deps.memberRef("A") === Set("A.B"))
     assert(deps.memberRef("A.B") === Set("A", "D"))

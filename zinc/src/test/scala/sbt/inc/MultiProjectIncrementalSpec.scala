@@ -51,11 +51,14 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       val lookup = new PerClasspathEntryLookupImpl(
         {
           case x if x.getAbsoluteFile == targetDir.getAbsoluteFile => m2o(prev0.analysis)
-          case _ => None
-        }, Locate.definesClass
+          case _                                                   => None
+        },
+        Locate.definesClass
       )
       val skipBinaryChangeDetection = false
-      val incOptions = IncOptionsUtil.defaultIncOptions().withApiDebug(true)
+      val incOptions = IncOptionsUtil
+        .defaultIncOptions()
+        .withApiDebug(true)
         .withExternalHooks(new ExternalHooks() {
           def externalLookup(): ExternalHooks.Lookup = new ExternalLookup {
             override def changedSources(previousAnalysis: Analysis): Option[Changes[File]] = None
@@ -63,7 +66,8 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
               if (skipBinaryChangeDetection) Some(Set.empty)
               else None
             override def removedProducts(previousAnalysis: Analysis): Option[Set[File]] = None
-            override def shouldDoIncrementalCompilation(changedClasses: Set[String], analysis: Analysis): Boolean = true
+            override def shouldDoIncrementalCompilation(changedClasses: Set[String],
+                                                        analysis: Analysis): Boolean = true
           }
           def externalClassFileManager(): ClassFileManager = {
             null
@@ -71,9 +75,25 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
         })
 
       val reporter = new LoggerReporter(maxErrors, log, identity)
-      val setup = compiler.setup(lookup, skip = false, cacheFile, CompilerCache.fresh, incOptions, reporter, None, Array())
-      val in = compiler.inputs(cp, sources, targetDir, Array(), Array(), maxErrors, Array(),
-        CompileOrder.Mixed, cs, setup, prev0)
+      val setup = compiler.setup(lookup,
+                                 skip = false,
+                                 cacheFile,
+                                 CompilerCache.fresh,
+                                 incOptions,
+                                 reporter,
+                                 None,
+                                 Array())
+      val in = compiler.inputs(cp,
+                               sources,
+                               targetDir,
+                               Array(),
+                               Array(),
+                               maxErrors,
+                               Array(),
+                               CompileOrder.Mixed,
+                               cs,
+                               setup,
+                               prev0)
       // This registers `test.pkg.Ext1` as the class name on the binary stamp
       val result0 = compiler.compile(in, log)
       fileStore.set(result0.analysis match { case a: Analysis => a }, result0.setup)
@@ -82,8 +102,17 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
         case _            => sys.error("previous is not found")
       }
       val sources1 = Array(dependerFile, depender2File)
-      val in1 = compiler.inputs(cp, sources1, targetDir, Array(), Array(), maxErrors, Array(),
-        CompileOrder.Mixed, cs, setup, prev1)
+      val in1 = compiler.inputs(cp,
+                                sources1,
+                                targetDir,
+                                Array(),
+                                Array(),
+                                maxErrors,
+                                Array(),
+                                CompileOrder.Mixed,
+                                cs,
+                                setup,
+                                prev1)
       // This registers `test.pkg.Ext2` as the class name on the binary stamp,
       // which means `test.pkg.Ext1` is no longer in the stamp.
       val result1 = compiler.compile(in1, log)
@@ -98,12 +127,29 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       val lookup2 = new PerClasspathEntryLookupImpl(
         {
           case x if x.getAbsoluteFile == targetDir2.getAbsoluteFile => m2o(emptyPrev.analysis)
-          case _ => None
-        }, Locate.definesClass
+          case _                                                    => None
+        },
+        Locate.definesClass
       )
-      val setup2 = compiler.setup(lookup2, skip = false, cacheFile2, CompilerCache.fresh, incOptions, reporter, None, Array())
-      val in2 = compiler.inputs(cp2, sources2, targetDir2, Array(), Array(), maxErrors, Array(),
-        CompileOrder.Mixed, cs, setup2, emptyPrev)
+      val setup2 = compiler.setup(lookup2,
+                                  skip = false,
+                                  cacheFile2,
+                                  CompilerCache.fresh,
+                                  incOptions,
+                                  reporter,
+                                  None,
+                                  Array())
+      val in2 = compiler.inputs(cp2,
+                                sources2,
+                                targetDir2,
+                                Array(),
+                                Array(),
+                                maxErrors,
+                                Array(),
+                                CompileOrder.Mixed,
+                                cs,
+                                setup2,
+                                emptyPrev)
       val result2 = compiler.compile(in2, log)
       fileStore2.set(result2.analysis match { case a: Analysis => a }, result2.setup)
 
@@ -117,14 +163,31 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       }
       val lookup3 = new PerClasspathEntryLookupImpl(
         {
-          case x if x.getAbsoluteFile == targetDir.getAbsoluteFile => m2o(prev.analysis)
+          case x if x.getAbsoluteFile == targetDir.getAbsoluteFile  => m2o(prev.analysis)
           case x if x.getAbsoluteFile == targetDir2.getAbsoluteFile => Some(result2.analysis)
-          case _ => None
-        }, Locate.definesClass
+          case _                                                    => None
+        },
+        Locate.definesClass
       )
-      val setup3 = compiler.setup(lookup3, skip = false, cacheFile, CompilerCache.fresh, incOptions, reporter, None, Array())
-      val in3 = compiler.inputs(cp, sources3, targetDir, Array(), Array(), maxErrors, Array(),
-        CompileOrder.Mixed, cs, setup3, prev)
+      val setup3 = compiler.setup(lookup3,
+                                  skip = false,
+                                  cacheFile,
+                                  CompilerCache.fresh,
+                                  incOptions,
+                                  reporter,
+                                  None,
+                                  Array())
+      val in3 = compiler.inputs(cp,
+                                sources3,
+                                targetDir,
+                                Array(),
+                                Array(),
+                                maxErrors,
+                                Array(),
+                                CompileOrder.Mixed,
+                                cs,
+                                setup3,
+                                prev)
       val result3 = compiler.compile(in3, log)
       val a3 = result3.analysis match { case a: Analysis => a }
       fileStore.set(a3, result3.setup)
@@ -145,13 +208,16 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
   }
 
   def scalaCompiler(instance: ScalaInstance, bridgeJar: File): AnalyzingCompiler =
-    new AnalyzingCompiler(instance, CompilerBridgeProvider.constant(bridgeJar), ClasspathOptionsUtil.boot,
-      _ => (), Some(new ClassLoaderCache(new URLClassLoader(Array()))))
+    new AnalyzingCompiler(instance,
+                          CompilerBridgeProvider.constant(bridgeJar),
+                          ClasspathOptionsUtil.boot,
+                          _ => (),
+                          Some(new ClassLoaderCache(new URLClassLoader(Array()))))
 }
 
 class PerClasspathEntryLookupImpl(
-  am: File => Option[CompileAnalysis],
-  definesClassLookup: File => DefinesClass
+    am: File => Option[CompileAnalysis],
+    definesClassLookup: File => DefinesClass
 ) extends PerClasspathEntryLookup {
   override def analysis(classpathEntry: File): Maybe[CompileAnalysis] =
     o2m(am(classpathEntry))
@@ -166,4 +232,4 @@ package test.pkg
 object Ext1 {
   val x = 1
 }
-*/
+ */

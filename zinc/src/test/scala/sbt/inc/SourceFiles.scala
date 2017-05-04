@@ -23,8 +23,15 @@ object SourceFiles {
     val Other3 = "Other3.scala"
 
     val all = Seq(
-      ClientWithImplicitUsed, ClientWithImplicitNotUsed, ClientWithoutImplicit, ClientWithoutAnythingUsed,
-      NormalDependecy, WithImplicits, Other, Other2, Other3
+      ClientWithImplicitUsed,
+      ClientWithImplicitNotUsed,
+      ClientWithoutImplicit,
+      ClientWithoutAnythingUsed,
+      NormalDependecy,
+      WithImplicits,
+      Other,
+      Other2,
+      Other3
     )
   }
 }

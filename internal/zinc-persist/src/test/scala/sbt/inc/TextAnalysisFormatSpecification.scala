@@ -13,19 +13,26 @@ import Analysis.NonLocalProduct
 import org.scalacheck._
 import Prop._
 
-object DefaultTextAnalysisFormatTest extends Properties("TextAnalysisFormat") with BaseTextAnalysisFormatTest {
+object DefaultTextAnalysisFormatTest
+    extends Properties("TextAnalysisFormat")
+    with BaseTextAnalysisFormatTest {
   override def format = TextAnalysisFormat
 }
 
-trait BaseTextAnalysisFormatTest {
-  self: Properties =>
+trait BaseTextAnalysisFormatTest { self: Properties =>
 
   def format: TextAnalysisFormat
 
   val storeApis = true
-  val dummyOutput = new xsbti.compile.SingleOutput { def outputDirectory: java.io.File = new java.io.File("/dummy") }
-  val commonSetup = new MiniSetup(dummyOutput, new MiniOptions(Array(), Array(), Array()), "2.10.4", xsbti.compile.CompileOrder.Mixed, storeApis,
-    Array(t2(("key", "value"))))
+  val dummyOutput = new xsbti.compile.SingleOutput {
+    def outputDirectory: java.io.File = new java.io.File("/dummy")
+  }
+  val commonSetup = new MiniSetup(dummyOutput,
+                                  new MiniOptions(Array(), Array(), Array()),
+                                  "2.10.4",
+                                  xsbti.compile.CompileOrder.Mixed,
+                                  storeApis,
+                                  Array(t2(("key", "value"))))
   val companionStore = new CompanionsStore {
     def getUncaught(): (Map[String, Companions], Map[String, Companions]) = (Map(), Map())
     def get(): Option[(Map[String, Companions], Map[String, Companions])] = Some(getUncaught())
@@ -70,8 +77,19 @@ trait BaseTextAnalysisFormatTest {
     val products = NonLocalProduct("A", "A", f("A.class"), exists) ::
       NonLocalProduct("A$", "A$", f("A$.class"), exists) :: Nil
     val binaryDeps = (f("x.jar"), "x", exists) :: Nil
-    val externalDeps = new ExternalDependency("A", "C", cClass, DependencyContext.DependencyByMemberRef) :: Nil
-    analysis = analysis.addSource(aScala, Seq(aClass), exists, sourceInfos, products, Nil, Nil, externalDeps, binaryDeps)
+    val externalDeps = new ExternalDependency("A",
+                                              "C",
+                                              cClass,
+                                              DependencyContext.DependencyByMemberRef) :: Nil
+    analysis = analysis.addSource(aScala,
+                                  Seq(aClass),
+                                  exists,
+                                  sourceInfos,
+                                  products,
+                                  Nil,
+                                  Nil,
+                                  externalDeps,
+                                  binaryDeps)
 
     checkAnalysis(analysis)
   }
@@ -82,10 +100,10 @@ trait BaseTextAnalysisFormatTest {
   // Compare two analyses with useful labelling when they aren't equal.
   protected def compare(left: Analysis, right: Analysis): Prop = {
     ("STAMPS" |: left.stamps =? right.stamps) &&
-      ("APIS" |: left.apis =? right.apis) &&
-      ("RELATIONS" |: left.relations =? right.relations) &&
-      ("SourceInfos" |: mapInfos(left.infos) =? mapInfos(right.infos)) &&
-      ("Whole Analysis" |: left =? right)
+    ("APIS" |: left.apis =? right.apis) &&
+    ("RELATIONS" |: left.relations =? right.relations) &&
+    ("SourceInfos" |: mapInfos(left.infos) =? mapInfos(right.infos)) &&
+    ("Whole Analysis" |: left =? right)
   }
 
   private def mapInfos(a: SourceInfos): Map[File, (Seq[Problem], Seq[Problem])] =
@@ -108,11 +126,11 @@ trait BaseTextAnalysisFormatTest {
   // Compare two analyses with useful labelling when they aren't equal.
   protected def compare(left: MiniSetup, right: MiniSetup): Prop = {
     ("OUTPUT EQUAL" |: compareOutputs(left.output(), right.output())) &&
-      ("OPTIONS EQUAL" |: left.options() =? right.options()) &&
-      ("COMPILER VERSION EQUAL" |: left.compilerVersion() == right.compilerVersion) &&
-      ("COMPILE ORDER EQUAL" |: left.order() =? right.order()) &&
-      ("STORE API EQUAL" |: left.storeApis() =? right.storeApis()) &&
-      ("EXTEA EQUAL" |: mapExtra(left.extra()) =? mapExtra(right.extra()))
+    ("OPTIONS EQUAL" |: left.options() =? right.options()) &&
+    ("COMPILER VERSION EQUAL" |: left.compilerVersion() == right.compilerVersion) &&
+    ("COMPILE ORDER EQUAL" |: left.order() =? right.order()) &&
+    ("STORE API EQUAL" |: left.storeApis() =? right.storeApis()) &&
+    ("EXTEA EQUAL" |: mapExtra(left.extra()) =? mapExtra(right.extra()))
   }
 
   private def mapExtra(extra: Array[T2[String, String]]): Seq[(String, String)] =

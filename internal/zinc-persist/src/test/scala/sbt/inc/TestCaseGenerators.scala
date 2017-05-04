@@ -43,20 +43,23 @@ object TestCaseGenerators {
     resize(Math.max(size, 3), Gen.identifier)
   }
 
-  def genFilePathSegment: Gen[String] = for {
-    n <- choose(3, maxPathSegmentLen) // Segments have at least 3 characters.
-    c <- alphaChar
-    cs <- listOfN(n - 1, alphaNumChar)
-  } yield (c :: cs).mkString
+  def genFilePathSegment: Gen[String] =
+    for {
+      n <- choose(3, maxPathSegmentLen) // Segments have at least 3 characters.
+      c <- alphaChar
+      cs <- listOfN(n - 1, alphaNumChar)
+    } yield (c :: cs).mkString
 
-  def genFile: Gen[File] = for {
-    n <- choose(2, maxPathLen) // Paths have at least 2 segments.
-    path <- listOfN(n, genFilePathSegment)
-  } yield new File("/temp/" + path.mkString("/"))
+  def genFile: Gen[File] =
+    for {
+      n <- choose(2, maxPathLen) // Paths have at least 2 segments.
+      path <- listOfN(n, genFilePathSegment)
+    } yield new File("/temp/" + path.mkString("/"))
 
-  def genStamp: Gen[Stamp] = for {
-    b <- oneOf(true, false)
-  } yield new Exists(b)
+  def genStamp: Gen[Stamp] =
+    for {
+      b <- oneOf(true, false)
+    } yield new Exists(b)
 
   def zipMap[A, B](a: Seq[A], b: Seq[B]): Map[A, B] = (a zip b).toMap
 
@@ -75,27 +78,45 @@ object TestCaseGenerators {
 
   // We need "proper" definitions with specific class names, as groupBy use these to pick a representative top-level class when splitting.
   private[this] def makeClassLike(name: String, definitionType: DefinitionType): ClassLike =
-    new ClassLike(name, new Public(), APIs.emptyModifiers, Array(),
-      definitionType, lzy(new EmptyType()), lzy(emptyStructure), Array(), Array(), true, Array())
+    new ClassLike(name,
+                  new Public(),
+                  APIs.emptyModifiers,
+                  Array(),
+                  definitionType,
+                  lzy(new EmptyType()),
+                  lzy(emptyStructure),
+                  Array(),
+                  Array(),
+                  true,
+                  Array())
 
   private[this] def makeCompanions(name: String): Companions =
-    new Companions(makeClassLike(name, DefinitionType.ClassDef), makeClassLike(name, DefinitionType.Module))
+    new Companions(makeClassLike(name, DefinitionType.ClassDef),
+                   makeClassLike(name, DefinitionType.Module))
 
   private[this] def lzy[T <: AnyRef](x: T) = SafeLazyProxy.strict(x)
 
   def genNameHashes(defns: Seq[String]): Gen[Array[NameHash]] =
     for {
       names <- const(defns.toArray)
-      scopes <- listOfN(defns.size, oneOf(Seq(UseScope.Default, UseScope.Implicit, UseScope.PatMatTarget)))
+      scopes <- listOfN(defns.size,
+                        oneOf(Seq(UseScope.Default, UseScope.Implicit, UseScope.PatMatTarget)))
       (name, scope) <- names zip scopes
     } yield new NameHash(name, scope, (name, scope).hashCode())
 
-  def genClass(name: String): Gen[AnalyzedClass] = for {
-    startTime <- arbitrary[Long]
-    apiHash <- arbitrary[Int]
-    hasMacro <- arbitrary[Boolean]
-    nameHashes <- genNameHashes(Seq(name))
-  } yield new AnalyzedClass(startTime, name, SafeLazyProxy(makeCompanions(name)), apiHash, nameHashes, hasMacro)
+  def genClass(name: String): Gen[AnalyzedClass] =
+    for {
+      startTime <- arbitrary[Long]
+      apiHash <- arbitrary[Int]
+      hasMacro <- arbitrary[Boolean]
+      nameHashes <- genNameHashes(Seq(name))
+    } yield
+      new AnalyzedClass(startTime,
+                        name,
+                        SafeLazyProxy(makeCompanions(name)),
+                        apiHash,
+                        nameHashes,
+                        hasMacro)
 
   def genClasses(all_defns: Seq[String]): Gen[Seq[AnalyzedClass]] =
     Gen.sequence[List[AnalyzedClass], AnalyzedClass](all_defns.map(genClass))
@@ -109,77 +130,96 @@ object TestCaseGenerators {
     } yield APIs(zipMap(internal, internalSources), zipMap(external, externalSources))
   }
 
-  def genRelation[T](g: Gen[T])(srcs: List[File]): Gen[Relation[File, T]] = for {
-    n <- choose(1, maxRelatives)
-    entries <- listOfN(srcs.length, containerOfN[Set, T](n, g))
-  } yield Relation.reconstruct(zipMap(srcs, entries))
+  def genRelation[T](g: Gen[T])(srcs: List[File]): Gen[Relation[File, T]] =
+    for {
+      n <- choose(1, maxRelatives)
+      entries <- listOfN(srcs.length, containerOfN[Set, T](n, g))
+    } yield Relation.reconstruct(zipMap(srcs, entries))
 
   val genFileRelation = genRelation[File](unique(genFile)) _
   val genStringRelation = genRelation[String](unique(identifier)) _
 
-  def genStringStringRelation(num: Int): Gen[Relation[String, String]] = for {
-    n <- choose(1, if (num == 0) 1 else num)
-    fwd <- listOfN(n, unique(identifier))
-    prv <- listOfN(n, unique(identifier))
-  } yield Relation.reconstruct(zipMap(fwd, prv).mapValues(x => Set(x)))
+  def genStringStringRelation(num: Int): Gen[Relation[String, String]] =
+    for {
+      n <- choose(1, if (num == 0) 1 else num)
+      fwd <- listOfN(n, unique(identifier))
+      prv <- listOfN(n, unique(identifier))
+    } yield Relation.reconstruct(zipMap(fwd, prv).mapValues(x => Set(x)))
 
-  def genRClassDependencies(classNames: List[String]): Gen[Relations.ClassDependencies] = for {
-    internal <- listOfN(classNames.length, someOf(classNames))
-    external <- listOfN(classNames.length, someOf(classNames))
-  } yield {
-    def toForwardMap(targets: Seq[Seq[String]]): Map[String, Set[String]] =
-      (classNames zip (targets map { _.toSet }) map { case (a, b) => (a, b - a) }).toMap
-    Relations.makeClassDependencies(
-      Relation.reconstruct(toForwardMap(internal)),
-      Relation.reconstruct(toForwardMap(external))
-    )
-  }
+  def genRClassDependencies(classNames: List[String]): Gen[Relations.ClassDependencies] =
+    for {
+      internal <- listOfN(classNames.length, someOf(classNames))
+      external <- listOfN(classNames.length, someOf(classNames))
+    } yield {
+      def toForwardMap(targets: Seq[Seq[String]]): Map[String, Set[String]] =
+        (classNames zip (targets map { _.toSet }) map { case (a, b) => (a, b - a) }).toMap
+      Relations.makeClassDependencies(
+        Relation.reconstruct(toForwardMap(internal)),
+        Relation.reconstruct(toForwardMap(external))
+      )
+    }
 
-  def genSubRClassDependencies(src: Relations.ClassDependencies): Gen[Relations.ClassDependencies] = for {
-    internal <- someOf(src.internal.all.toList)
-    external <- someOf(src.external.all.toList)
-  } yield Relations.makeClassDependencies(Relation.empty ++ internal, Relation.empty ++ external)
+  def genSubRClassDependencies(
+      src: Relations.ClassDependencies): Gen[Relations.ClassDependencies] =
+    for {
+      internal <- someOf(src.internal.all.toList)
+      external <- someOf(src.external.all.toList)
+    } yield Relations.makeClassDependencies(Relation.empty ++ internal, Relation.empty ++ external)
 
   def genScalaName: Gen[String] = Gen.listOf(Gen.choose('!', 'Z')).map(_.toString())
 
-  def genUsedName(namesGen: Gen[String] = genScalaName): Gen[UsedName] = for {
-    name <- namesGen
-    scopes <- Gen.someOf(UseScope.values())
-  } yield UsedName(name, UseScope.Default +: scopes)
+  def genUsedName(namesGen: Gen[String] = genScalaName): Gen[UsedName] =
+    for {
+      name <- namesGen
+      scopes <- Gen.someOf(UseScope.values())
+    } yield UsedName(name, UseScope.Default +: scopes)
 
-  def genUsedNames(classNames: Seq[String]): Gen[Relation[String, UsedName]] = for {
-    scopes <- Gen.someOf(UseScope.values())
-    allNames <- listOfN(classNames.length, containerOf[Set, UsedName](genUsedName()))
-  } yield Relation.reconstruct(zipMap(classNames, allNames))
+  def genUsedNames(classNames: Seq[String]): Gen[Relation[String, UsedName]] =
+    for {
+      scopes <- Gen.someOf(UseScope.values())
+      allNames <- listOfN(classNames.length, containerOf[Set, UsedName](genUsedName()))
+    } yield Relation.reconstruct(zipMap(classNames, allNames))
 
-  def genRelationsNameHashing: Gen[Relations] = for {
-    numSrcs <- choose(0, maxSources)
-    srcs <- listOfN(numSrcs, genFile)
-    productClassName <- genStringStringRelation(numSrcs)
-    libraryClassName <- genStringRelation(srcs)
-    srcProd <- genFileRelation(srcs)
-    libraryDep <- genFileRelation(srcs)
-    classNames = productClassName._1s.toList
-    memberRef <- genRClassDependencies(classNames)
-    inheritance <- genSubRClassDependencies(memberRef)
-    localInheritance <- genSubRClassDependencies(memberRef)
-    classes = Relation.reconstruct(zipMap(srcs, classNames).mapValues(x => Set(x)))
-    names <- genUsedNames(classNames)
-    internal <- InternalDependencies(Map(
-      DependencyByMemberRef -> memberRef.internal,
-      DependencyByInheritance -> inheritance.internal,
-      LocalDependencyByInheritance -> localInheritance.internal
-    ))
-    external <- ExternalDependencies(Map(
-      DependencyByMemberRef -> memberRef.external,
-      DependencyByInheritance -> inheritance.external,
-      LocalDependencyByInheritance -> localInheritance.external
-    ))
-  } yield Relations.make(srcProd, libraryDep, libraryClassName, internal, external, classes, names, productClassName)
+  def genRelationsNameHashing: Gen[Relations] =
+    for {
+      numSrcs <- choose(0, maxSources)
+      srcs <- listOfN(numSrcs, genFile)
+      productClassName <- genStringStringRelation(numSrcs)
+      libraryClassName <- genStringRelation(srcs)
+      srcProd <- genFileRelation(srcs)
+      libraryDep <- genFileRelation(srcs)
+      classNames = productClassName._1s.toList
+      memberRef <- genRClassDependencies(classNames)
+      inheritance <- genSubRClassDependencies(memberRef)
+      localInheritance <- genSubRClassDependencies(memberRef)
+      classes = Relation.reconstruct(zipMap(srcs, classNames).mapValues(x => Set(x)))
+      names <- genUsedNames(classNames)
+      internal <- InternalDependencies(
+        Map(
+          DependencyByMemberRef -> memberRef.internal,
+          DependencyByInheritance -> inheritance.internal,
+          LocalDependencyByInheritance -> localInheritance.internal
+        ))
+      external <- ExternalDependencies(
+        Map(
+          DependencyByMemberRef -> memberRef.external,
+          DependencyByInheritance -> inheritance.external,
+          LocalDependencyByInheritance -> localInheritance.external
+        ))
+    } yield
+      Relations.make(srcProd,
+                     libraryDep,
+                     libraryClassName,
+                     internal,
+                     external,
+                     classes,
+                     names,
+                     productClassName)
 
-  def genAnalysis: Gen[Analysis] = for {
-    rels <- genRelationsNameHashing
-    stamps <- genStamps(rels)
-    apis <- genAPIs(rels)
-  } yield new MAnalysis(stamps, apis, rels, SourceInfos.empty, Compilations.empty)
+  def genAnalysis: Gen[Analysis] =
+    for {
+      rels <- genRelationsNameHashing
+      stamps <- genStamps(rels)
+      apis <- genAPIs(rels)
+    } yield new MAnalysis(stamps, apis, rels, SourceInfos.empty, Compilations.empty)
 }

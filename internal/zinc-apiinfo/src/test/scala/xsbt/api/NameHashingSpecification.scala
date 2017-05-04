@@ -23,15 +23,18 @@ class NameHashingSpecification extends UnitSpec {
   }
 
   "NameHashing" should "generate correct hashes for sealed classes" in {
-    val def1 = new Def("foo", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, strTpe)
-    val def2 = new Def("bar", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, intTpe)
+    val def1 =
+      new Def("foo", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, strTpe)
+    val def2 =
+      new Def("bar", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, intTpe)
 
     val Ala = new Projection(emptyType, "Ala")
     val Ola = new Projection(emptyType, "Ola")
 
-    def createClass(types: Type*) = simpleClass("Bar", def1, def2)
-      .withModifiers(new Modifiers(false, false, false, true, false, false, false, false))
-      .withChildrenOfSealedClass(types.toArray)
+    def createClass(types: Type*) =
+      simpleClass("Bar", def1, def2)
+        .withModifiers(new Modifiers(false, false, false, true, false, false, false, false))
+        .withChildrenOfSealedClass(types.toArray)
 
     val notSealedClass = simpleClass("Bar", def1)
 
@@ -55,8 +58,10 @@ class NameHashingSpecification extends UnitSpec {
       }
 
       if (optimizedSealed) {
-        nameHashesA.namesIn(UseScope.PatMatTarget) shouldEqual nameHashesB.namesIn(UseScope.PatMatTarget)
-        nameHashesA.in(UseScope.PatMatTarget) should not equal nameHashesB.in(UseScope.PatMatTarget)
+        nameHashesA.namesIn(UseScope.PatMatTarget) shouldEqual nameHashesB.namesIn(
+          UseScope.PatMatTarget)
+        nameHashesA.in(UseScope.PatMatTarget) should not equal nameHashesB.in(
+          UseScope.PatMatTarget)
       }
 
       HashAPI(a) should not equal HashAPI(b)
@@ -77,8 +82,10 @@ class NameHashingSpecification extends UnitSpec {
    */
   "NameHashing" should "generate hashes that are insensitive to the definition order when adding a new member" in {
     val nameHashing = new NameHashing
-    val def1 = new Def("foo", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, strTpe)
-    val def2 = new Def("bar", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, intTpe)
+    val def1 =
+      new Def("foo", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, strTpe)
+    val def2 =
+      new Def("bar", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, intTpe)
     val classBar1 = simpleClass("Bar", def1)
     val classBar2 = simpleClass("Bar", def1, def2)
     val nameHashes1 = nameHashing.nameHashes(classBar1)
@@ -95,8 +102,10 @@ class NameHashingSpecification extends UnitSpec {
    */
   it should "generate hashes that are insensitive to the definition order" in {
     val nameHashing = new NameHashing
-    val def1 = new Def("bar", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, intTpe)
-    val def2 = new Def("bar", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, strTpe)
+    val def1 =
+      new Def("bar", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, intTpe)
+    val def2 =
+      new Def("bar", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, strTpe)
     val classA = simpleClass("Foo", def1, def2)
     val classB = simpleClass("Foo", def2, def1)
     val nameHashes1 = nameHashing.nameHashes(classA)
@@ -126,9 +135,13 @@ class NameHashingSpecification extends UnitSpec {
    */
   it should "generate hashes that are sensitive to the definition location" in {
     val nameHashing = new NameHashing
-    val deff = new Def("bar", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, intTpe)
-    val classFoo = simpleClassLike(name = "Foo", dt = DefinitionType.ClassDef, structure = simpleStructure(deff))
-    val objectFoo = simpleClassLike(name = "Foo", dt = DefinitionType.Module, structure = simpleStructure(deff))
+    val deff =
+      new Def("bar", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, intTpe)
+    val classFoo = simpleClassLike(name = "Foo",
+                                   dt = DefinitionType.ClassDef,
+                                   structure = simpleStructure(deff))
+    val objectFoo =
+      simpleClassLike(name = "Foo", dt = DefinitionType.Module, structure = simpleStructure(deff))
     val nameHashes1 = nameHashing.nameHashes(classFoo)
     val nameHashes2 = nameHashing.nameHashes(objectFoo)
     assertNameHashNotEqualForRegularName("bar", nameHashes1, nameHashes2)
@@ -153,14 +166,18 @@ class NameHashingSpecification extends UnitSpec {
    */
   it should "generate hashes that account for definitions in parent class" in {
     val parentA = simpleClass("Parent")
-    val barMethod = new Def("bar", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, intTpe)
+    val barMethod =
+      new Def("bar", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, intTpe)
     val parentB = simpleClass("Parent", barMethod)
     val childA = {
-      val structure = new Structure(lzy(Array[Type](parentA.structure)), emptyMembers, emptyMembers)
+      val structure =
+        new Structure(lzy(Array[Type](parentA.structure)), emptyMembers, emptyMembers)
       simpleClassLike("Child", structure)
     }
     val childB = {
-      val structure = new Structure(lzy(Array[Type](parentB.structure)), emptyMembers, lzy(Array[ClassDefinition](barMethod)))
+      val structure = new Structure(lzy(Array[Type](parentB.structure)),
+                                    emptyMembers,
+                                    lzy(Array[ClassDefinition](barMethod)))
       simpleClassLike("Child", structure)
     }
     val parentANameHashes = nameHashesForClass(parentA)
@@ -191,15 +208,41 @@ class NameHashingSpecification extends UnitSpec {
    * then name hash for "foo" should be different in those two cases.
    */
   it should "generate hashes that account for structural types in definition" in {
+
     /** def foo: { bar: Int } */
     val fooMethod1 = {
-      val barMethod1 = new Def("bar", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, intTpe)
-      new Def("foo", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, simpleStructure(barMethod1))
+      val barMethod1 = new Def("bar",
+                               publicAccess,
+                               defaultModifiers,
+                               Array.empty,
+                               Array.empty,
+                               Array.empty,
+                               intTpe)
+      new Def("foo",
+              publicAccess,
+              defaultModifiers,
+              Array.empty,
+              Array.empty,
+              Array.empty,
+              simpleStructure(barMethod1))
     }
+
     /** def foo: { bar: String } */
     val fooMethod2 = {
-      val barMethod2 = new Def("bar", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, strTpe)
-      new Def("foo", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, simpleStructure(barMethod2))
+      val barMethod2 = new Def("bar",
+                               publicAccess,
+                               defaultModifiers,
+                               Array.empty,
+                               Array.empty,
+                               Array.empty,
+                               strTpe)
+      new Def("foo",
+              publicAccess,
+              defaultModifiers,
+              Array.empty,
+              Array.empty,
+              Array.empty,
+              simpleStructure(barMethod2))
     }
     val aClass1 = simpleClass("A", fooMethod1)
     val aClass2 = simpleClass("A", fooMethod2)
@@ -222,8 +265,10 @@ class NameHashingSpecification extends UnitSpec {
    */
   it should "merge name hashes" in {
     val nameHashing = new NameHashing
-    val def1 = new Def("foo", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, strTpe)
-    val def2 = new Def("bar", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, intTpe)
+    val def1 =
+      new Def("foo", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, strTpe)
+    val def2 =
+      new Def("bar", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, intTpe)
     val classBar = simpleClass("Bar", def1)
     val objectBar = simpleObject("Bar", def2)
     val nameHashes1 = nameHashing.nameHashes(classBar)
@@ -244,26 +289,32 @@ class NameHashingSpecification extends UnitSpec {
    */
   it should "calcualte name hashes for private top level class" in {
     /* class Foo { def foo: String } */
-    val fooDef = new Def("foo", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, strTpe)
-    val classFoo = simpleClassLike("Foo", simpleStructure(fooDef), access = privateAccess, topLevel = true)
+    val fooDef =
+      new Def("foo", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, strTpe)
+    val classFoo =
+      simpleClassLike("Foo", simpleStructure(fooDef), access = privateAccess, topLevel = true)
     val nameHashes = nameHashesForClass(classFoo)
     assert(Set("Foo", "foo") === nameHashes.namesIn(UseScope.Default))
   }
 
-  private def assertNameHashEqual(scope: UseScope, name: String, nameHashes1: Array[NameHash],
-    nameHashes2: Array[NameHash]) = {
+  private def assertNameHashEqual(scope: UseScope,
+                                  name: String,
+                                  nameHashes1: Array[NameHash],
+                                  nameHashes2: Array[NameHash]) = {
     val nameHash1 = nameHashes1.forNameIn(scope, name)
     val nameHash2 = nameHashes2.forNameIn(scope, name)
     assert(nameHash1 === nameHash2)
   }
 
-  private def assertNameHashEqualForRegularName(name: String, nameHashes1: Array[NameHash],
-    nameHashes2: Array[NameHash]) = assertNameHashEqual(UseScope.Default, name, nameHashes1, nameHashes2)
+  private def assertNameHashEqualForRegularName(name: String,
+                                                nameHashes1: Array[NameHash],
+                                                nameHashes2: Array[NameHash]) =
+    assertNameHashEqual(UseScope.Default, name, nameHashes1, nameHashes2)
 
   private def assertNameHashNotEqualForRegularName(
-    name: String,
-    nameHashes1: Array[NameHash],
-    nameHashes2: Array[NameHash]
+      name: String,
+      nameHashes1: Array[NameHash],
+      nameHashes2: Array[NameHash]
   ) = {
     val nameHash1 = nameHashes1.forNameIn(UseScope.Default, name)
     val nameHash2 = nameHashes2.forNameIn(UseScope.Default, name)
@@ -290,10 +341,22 @@ class NameHashingSpecification extends UnitSpec {
     simpleClassLike(name, structure, dt = DefinitionType.Module)
   }
 
-  private def simpleClassLike(name: String, structure: Structure,
-    dt: DefinitionType = DefinitionType.ClassDef, topLevel: Boolean = true, access: Access = publicAccess): ClassLike = {
-    new ClassLike(name, access, defaultModifiers, Array.empty, dt, lzy(emptyType),
-      lzy(structure), Array.empty, Array.empty, topLevel, Array.empty)
+  private def simpleClassLike(name: String,
+                              structure: Structure,
+                              dt: DefinitionType = DefinitionType.ClassDef,
+                              topLevel: Boolean = true,
+                              access: Access = publicAccess): ClassLike = {
+    new ClassLike(name,
+                  access,
+                  defaultModifiers,
+                  Array.empty,
+                  dt,
+                  lzy(emptyType),
+                  lzy(structure),
+                  Array.empty,
+                  Array.empty,
+                  topLevel,
+                  Array.empty)
   }
 
   private val emptyType = new EmptyType
@@ -301,7 +364,8 @@ class NameHashingSpecification extends UnitSpec {
   private val strTpe = new Projection(emptyType, "String")
   private val publicAccess = new Public
   private val privateAccess = new Private(new Unqualified)
-  private val defaultModifiers = new Modifiers(false, false, false, false, false, false, false, false)
+  private val defaultModifiers =
+    new Modifiers(false, false, false, false, false, false, false, false)
   private val emptyMembers = lzy(Array.empty[ClassDefinition])
 
 }

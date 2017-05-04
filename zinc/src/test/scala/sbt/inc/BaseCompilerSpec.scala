@@ -36,7 +36,8 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
   case class ProjectSetup(baseLocation: Path, sources: Map[Path, Seq[Path]], classPath: Seq[Path]) {
     private def fromResource(prefix: Path)(path: Path): File = {
       val fullPath = prefix.resolve(path).toString()
-      Option(getClass.getClassLoader.getResource(fullPath)).map(url => new File(url.toURI))
+      Option(getClass.getClassLoader.getResource(fullPath))
+        .map(url => new File(url.toURI))
         .getOrElse(throw new NoSuchElementException(s"Missing resource $fullPath"))
     }
 
@@ -69,7 +70,8 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
 
     def defaultStoreLocation: File = baseLocation.resolve("inc_data.zip").toFile
 
-    def createCompiler() = CompilerSetup(defaultClassesDir, baseLocation.toFile, allSources.toArray, allClasspath)
+    def createCompiler() =
+      CompilerSetup(defaultClassesDir, baseLocation.toFile, allSources.toArray, allClasspath)
 
     def update(source: Path)(change: String => String): Unit = {
       import collection.JavaConverters._
@@ -81,19 +83,24 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
 
   object ProjectSetup {
     def simple(baseLocation: Path, classes: Seq[String]): ProjectSetup =
-      ProjectSetup(baseLocation, Map(Paths.get("src") -> classes.map(path => Paths.get(path))), Nil)
+      ProjectSetup(baseLocation,
+                   Map(Paths.get("src") -> classes.map(path => Paths.get(path))),
+                   Nil)
   }
 
   def scalaCompiler(instance: ScalaInstance, bridgeJar: File): AnalyzingCompiler =
-    new AnalyzingCompiler(instance, CompilerBridgeProvider.constant(bridgeJar),
-      ClasspathOptionsUtil.boot, _ => (), Some(new ClassLoaderCache(new URLClassLoader(Array()))))
+    new AnalyzingCompiler(instance,
+                          CompilerBridgeProvider.constant(bridgeJar),
+                          ClasspathOptionsUtil.boot,
+                          _ => (),
+                          Some(new ClassLoaderCache(new URLClassLoader(Array()))))
 
   case class CompilerSetup(
-    classesDir: File,
-    tempDir: File,
-    sources: Array[File],
-    classpath: Seq[File],
-    incOptions: IncOptions = IncOptionsUtil.defaultIncOptions()
+      classesDir: File,
+      tempDir: File,
+      sources: Array[File],
+      classpath: Seq[File],
+      incOptions: IncOptions = IncOptionsUtil.defaultIncOptions()
   ) {
     val compiler = new IncrementalCompilerImpl
     val compilerBridge = getCompilerBridge(tempDir, Logger.Null, scalaVersion)
@@ -113,20 +120,38 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
       override def startUnit(phase: String, unitPath: String): Unit = lastCompiledUnits += unitPath
     }
 
-    val setup = compiler.setup(lookup, skip = false, tempDir / "inc_compile", CompilerCache.fresh, incOptions, reporter, Some(progress), extra)
+    val setup = compiler.setup(lookup,
+                               skip = false,
+                               tempDir / "inc_compile",
+                               CompilerCache.fresh,
+                               incOptions,
+                               reporter,
+                               Some(progress),
+                               extra)
     val prev = compiler.emptyPreviousResult
-    val in = compiler.inputs(Array(classesDir) ++ si.allJars ++ classpath, sources, classesDir, Array(), Array(), maxErrors, Array(),
-      CompileOrder.Mixed, cs, setup, prev)
+    val in = compiler.inputs(Array(classesDir) ++ si.allJars ++ classpath,
+                             sources,
+                             classesDir,
+                             Array(),
+                             Array(),
+                             maxErrors,
+                             Array(),
+                             CompileOrder.Mixed,
+                             cs,
+                             setup,
+                             prev)
 
     def doCompile(newInputs: Inputs => Inputs = identity): CompileResult = {
       lastCompiledUnits = Set.empty
       compiler.compile(newInputs(in), log)
     }
 
-    def doCompileWithStore(store: AnalysisStore, newInputs: Inputs => Inputs = identity): CompileResult = {
+    def doCompileWithStore(store: AnalysisStore,
+                           newInputs: Inputs => Inputs = identity): CompileResult = {
       val previousResult = store.get() match {
         case Some((prevAnalysis, prevSetup)) =>
-          new PreviousResult(Maybe.just[CompileAnalysis](prevAnalysis), Maybe.just[MiniSetup](prevSetup))
+          new PreviousResult(Maybe.just[CompileAnalysis](prevAnalysis),
+                             Maybe.just[MiniSetup](prevSetup))
         case _ =>
           compiler.emptyPreviousResult
       }

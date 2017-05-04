@@ -6,7 +6,7 @@ object Other3 {
 
   Other2.otherSealed match {
     case OtherSealed2 => 1
-    case _ => 2
+    case _            => 2
   }
 
 }

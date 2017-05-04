@@ -40,7 +40,8 @@ private[inc] object FormatTimer {
 }
 
 class ReadException(s: String) extends Exception(s) {
-  def this(expected: String, found: String) = this("Expected: %s. Found: %s.".format(expected, found))
+  def this(expected: String, found: String) =
+    this("Expected: %s. Found: %s.".format(expected, found))
 }
 
 class EOFException extends ReadException("Unexpected EOF.")
@@ -50,22 +51,23 @@ object FormatCommons extends FormatCommons
 /** Various helper functions. */
 trait FormatCommons {
 
-  val fileToString: File => String =
-    { f: File => f.toPath.toString }
-  val stringToFile: String => File =
-    { s: String =>
-      try {
-        Paths.get(s).toFile
-      } catch {
-        case e: Exception => sys.error(e.getMessage + ": " + s)
-      }
+  val fileToString: File => String = { f: File =>
+    f.toPath.toString
+  }
+  val stringToFile: String => File = { s: String =>
+    try {
+      Paths.get(s).toFile
+    } catch {
+      case e: Exception => sys.error(e.getMessage + ": " + s)
     }
+  }
 
   protected def writeHeader(out: Writer, header: String): Unit = out.write(header + ":\n")
 
   protected def expectHeader(in: BufferedReader, expectedHeader: String): Unit = {
     val header = in.readLine()
-    if (header != expectedHeader + ":") throw new ReadException(expectedHeader, if (header == null) "EOF" else header)
+    if (header != expectedHeader + ":")
+      throw new ReadException(expectedHeader, if (header == null) "EOF" else header)
   }
 
   protected def writeSize(out: Writer, n: Int): Unit = out.write("%d items\n".format(n))
@@ -89,13 +91,21 @@ trait FormatCommons {
     writeMap(out)(header, m, identity[String] _, t2s)
   }
 
-  protected def writeMap[K, V](out: Writer)(header: String, m: Map[K, V],
-    k2s: K => String,
-    v2s: V => String,
-    inlineVals: Boolean = true)(implicit ord: Ordering[K]): Unit =
-    writePairs(out)(header, m.keys.toSeq.sorted map { k => (k, (m(k))) }, k2s, v2s, inlineVals)
+  protected def writeMap[K, V](out: Writer)(
+      header: String,
+      m: Map[K, V],
+      k2s: K => String,
+      v2s: V => String,
+      inlineVals: Boolean = true)(implicit ord: Ordering[K]): Unit =
+    writePairs(out)(header, m.keys.toSeq.sorted map { k =>
+      (k, (m(k)))
+    }, k2s, v2s, inlineVals)
 
-  protected def writePairs[K, V](out: Writer)(header: String, s: Seq[(K, V)], k2s: K => String, v2s: V => String, inlineVals: Boolean = true): Unit = {
+  protected def writePairs[K, V](out: Writer)(header: String,
+                                              s: Seq[(K, V)],
+                                              k2s: K => String,
+                                              v2s: V => String,
+                                              inlineVals: Boolean = true): Unit = {
     writeHeader(out, header)
     writeSize(out, s.size)
     s foreach {
@@ -108,17 +118,23 @@ trait FormatCommons {
     }
   }
 
-  protected def readMap[K, V](in: BufferedReader)(expectedHeader: String, s2k: String => K, s2v: String => V): Map[K, V] = {
+  protected def readMap[K, V](in: BufferedReader)(expectedHeader: String,
+                                                  s2k: String => K,
+                                                  s2v: String => V): Map[K, V] = {
     readPairs(in)(expectedHeader, s2k, s2v).toMap
   }
 
   protected def readSeq[T](in: BufferedReader)(expectedHeader: String, s2t: String => T): Seq[T] =
     (readPairs(in)(expectedHeader, identity[String], s2t).toSeq.sortBy(_._1) map (_._2))
 
-  protected def readPairs[K, V](in: BufferedReader)(expectedHeader: String, s2k: String => K, s2v: String => V) =
+  protected def readPairs[K, V](
+      in: BufferedReader)(expectedHeader: String, s2k: String => K, s2v: String => V) =
     readMappedPairs(in)(expectedHeader, s2k, (_: K, s) => s2v(s))
 
-  protected def readMappedPairs[K, V](in: BufferedReader)(expectedHeader: String, s2k: String => K, s2v: (K, String) => V): Traversable[(K, V)] = {
+  protected def readMappedPairs[K, V](in: BufferedReader)(
+      expectedHeader: String,
+      s2k: String => K,
+      s2v: (K, String) => V): Traversable[(K, V)] = {
     def toPair(s: String): (K, V) = {
       if (s == null) throw new EOFException
       val p = s.indexOf(" -> ")

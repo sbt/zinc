@@ -9,7 +9,15 @@ import sbt.util.Logger
 import sbt.util.InterfaceUtil._
 import xsbt.api.Discovery
 import xsbti.{ Maybe, Problem, Severity }
-import xsbti.compile.{ CompileAnalysis, CompileOrder, DefinesClass, IncOptionsUtil, PreviousResult, Compilers => XCompilers, IncOptions }
+import xsbti.compile.{
+  CompileAnalysis,
+  CompileOrder,
+  DefinesClass,
+  IncOptionsUtil,
+  PreviousResult,
+  Compilers => XCompilers,
+  IncOptions
+}
 import xsbti.compile.PerClasspathEntryLookup
 import sbt.io.IO
 import sbt.io.syntax._
@@ -27,31 +35,34 @@ import scala.collection.mutable
 
 final case class IncInstance(si: ScalaInstance, cs: XCompilers)
 
-final class IncHandler(directory: File, scriptedLog: ManagedLogger) extends BridgeProviderSpecification with StatementHandler {
+final class IncHandler(directory: File, scriptedLog: ManagedLogger)
+    extends BridgeProviderSpecification
+    with StatementHandler {
   type State = Option[IncInstance]
   type IncCommand = (ProjectStructure, List[String], IncInstance) => Unit
   val compiler = new IncrementalCompilerImpl
   def initialState: Option[IncInstance] = None
   def finish(state: Option[IncInstance]): Unit = ()
   val buildStructure: mutable.Map[String, ProjectStructure] = mutable.Map.empty
-  def initBuildStructure(): Unit =
-    {
-      val b = initBuild
-      b.projects foreach { p =>
-        buildStructure(p.name) =
-          ProjectStructure(p.name, p.dependsOn,
-            p.in match {
-              case Some(x) => x
-              case None    => directory / p.name
-            },
-            scriptedLog,
-            lookupProject,
-            p.scalaVersion match {
-              case Some(x) => x
-              case None    => scala.util.Properties.versionNumberString
-            })
-      }
+  def initBuildStructure(): Unit = {
+    val b = initBuild
+    b.projects foreach { p =>
+      buildStructure(p.name) = ProjectStructure(
+        p.name,
+        p.dependsOn,
+        p.in match {
+          case Some(x) => x
+          case None    => directory / p.name
+        },
+        scriptedLog,
+        lookupProject,
+        p.scalaVersion match {
+          case Some(x) => x
+          case None    => scala.util.Properties.versionNumberString
+        }
+      )
     }
+  }
   initBuildStructure()
 
   def initBuild: Build =
@@ -59,12 +70,16 @@ final class IncHandler(directory: File, scriptedLog: ManagedLogger) extends Brid
       import JsonProtocol._
       val json = JsonParser.parseFromFile(directory / "build.json").get
       Converter.fromJsonUnsafe[Build](json)
-    } else Build(projects = Vector(
-      Project(name = "root").withIn(directory)
-    ))
+    } else
+      Build(
+        projects = Vector(
+          Project(name = "root").withIn(directory)
+        ))
   def lookupProject(name: String): ProjectStructure = buildStructure(name)
 
-  def apply(command: String, arguments: List[String], i: Option[IncInstance]): Option[IncInstance] =
+  def apply(command: String,
+            arguments: List[String],
+            i: Option[IncInstance]): Option[IncInstance] =
     command.split("/").toList match {
       case sub :: cmd :: Nil =>
         val p = buildStructure(sub)
@@ -81,7 +96,8 @@ final class IncHandler(directory: File, scriptedLog: ManagedLogger) extends Brid
         sys.error(s"$command")
     }
 
-  def onIncInstance(i: Option[IncInstance], p: ProjectStructure)(f: IncInstance => Unit): Option[IncInstance] =
+  def onIncInstance(i: Option[IncInstance], p: ProjectStructure)(
+      f: IncInstance => Unit): Option[IncInstance] =
     i match {
       case Some(x) =>
         f(x)
@@ -90,20 +106,23 @@ final class IncHandler(directory: File, scriptedLog: ManagedLogger) extends Brid
         onNewIncInstance(p, f)
     }
 
-  private[this] def onNewIncInstance(p: ProjectStructure, f: IncInstance => Unit): Option[IncInstance] =
-    {
-      val scalaVersion = p.scalaVersion
-      val compilerBridge = getCompilerBridge(directory, Logger.Null, scalaVersion)
-      val si = scalaInstance(scalaVersion)
-      val sc = scalaCompiler(si, compilerBridge)
-      val cs = compiler.compilers(si, ClasspathOptionsUtil.boot, None, sc)
-      val i = IncInstance(si, cs)
-      f(i)
-      Some(i)
-    }
+  private[this] def onNewIncInstance(p: ProjectStructure,
+                                     f: IncInstance => Unit): Option[IncInstance] = {
+    val scalaVersion = p.scalaVersion
+    val compilerBridge = getCompilerBridge(directory, Logger.Null, scalaVersion)
+    val si = scalaInstance(scalaVersion)
+    val sc = scalaCompiler(si, compilerBridge)
+    val cs = compiler.compilers(si, ClasspathOptionsUtil.boot, None, sc)
+    val i = IncInstance(si, cs)
+    f(i)
+    Some(i)
+  }
   def scalaCompiler(instance: ScalaInstance, bridgeJar: File): AnalyzingCompiler =
-    new AnalyzingCompiler(instance, CompilerBridgeProvider.constant(bridgeJar), ClasspathOptionsUtil.boot,
-      _ => (), Some(new ClassLoaderCache(new URLClassLoader(Array()))))
+    new AnalyzingCompiler(instance,
+                          CompilerBridgeProvider.constant(bridgeJar),
+                          ClasspathOptionsUtil.boot,
+                          _ => (),
+                          Some(new ClassLoaderCache(new URLClassLoader(Array()))))
 
   lazy val commands: Map[String, IncCommand] = Map(
     "compile" -> {
@@ -206,18 +225,18 @@ final class IncHandler(directory: File, scriptedLog: ManagedLogger) extends Brid
 }
 
 case class ProjectStructure(
-  name: String,
-  dependsOn: Vector[String],
-  baseDirectory: File,
-  scriptedLog: ManagedLogger,
-  lookupProject: String => ProjectStructure,
-  scalaVersion: String
+    name: String,
+    dependsOn: Vector[String],
+    baseDirectory: File,
+    scriptedLog: ManagedLogger,
+    lookupProject: String => ProjectStructure,
+    scalaVersion: String
 ) extends BridgeProviderSpecification {
   val compiler = new IncrementalCompilerImpl
   val maxErrors = 100
   class PerClasspathEntryLookupImpl(
-    am: File => Option[CompileAnalysis],
-    definesClassLookup: File => DefinesClass
+      am: File => Option[CompileAnalysis],
+      definesClassLookup: File => DefinesClass
   ) extends PerClasspathEntryLookup {
     override def analysis(classpathEntry: File): Maybe[CompileAnalysis] =
       o2m(am(classpathEntry))
@@ -243,14 +262,17 @@ case class ProjectStructure(
       case _            => compiler.emptyPreviousResult
     }
   def unmanagedJars: List[File] = (baseDirectory / "lib" ** "*.jar").get.toList
-  def lookupAnalysis: File => Option[CompileAnalysis] =
-    {
-      val f0: PartialFunction[File, Option[CompileAnalysis]] = { case x if x.getAbsoluteFile == classesDir.getAbsoluteFile => m2o(prev.analysis) }
-      val f1 = (f0 /: dependsOnRef) { (acc, dep) =>
-        acc orElse { case x if x.getAbsoluteFile == dep.classesDir.getAbsoluteFile => m2o(dep.prev.analysis) }
-      }
-      f1 orElse { case _ => None }
+  def lookupAnalysis: File => Option[CompileAnalysis] = {
+    val f0: PartialFunction[File, Option[CompileAnalysis]] = {
+      case x if x.getAbsoluteFile == classesDir.getAbsoluteFile => m2o(prev.analysis)
     }
+    val f1 = (f0 /: dependsOnRef) { (acc, dep) =>
+      acc orElse {
+        case x if x.getAbsoluteFile == dep.classesDir.getAbsoluteFile => m2o(dep.prev.analysis)
+      }
+    }
+    f1 orElse { case _ => None }
+  }
   def dependsOnRef: Vector[ProjectStructure] = dependsOn map { lookupProject(_) }
   def internalClasspath: Vector[File] = dependsOnRef map { _.classesDir }
 
@@ -268,34 +290,34 @@ case class ProjectStructure(
   def clean(i: IncInstance): Unit =
     IO.delete(classesDir)
 
-  def checkNumberOfCompilerIterations(i: IncInstance, expected: Int): Unit =
-    {
-      val analysis = compile(i)
-      assert(
-        (analysis.compilations.allCompilations.size: Int) == expected,
-        "analysis.compilations.allCompilations.size = %d (expected %d)".format(analysis.compilations.allCompilations.size, expected)
-      )
-      ()
+  def checkNumberOfCompilerIterations(i: IncInstance, expected: Int): Unit = {
+    val analysis = compile(i)
+    assert(
+      (analysis.compilations.allCompilations.size: Int) == expected,
+      "analysis.compilations.allCompilations.size = %d (expected %d)"
+        .format(analysis.compilations.allCompilations.size, expected)
+    )
+    ()
+  }
+
+  def checkRecompilations(i: IncInstance, step: Int, expected: List[String]): Unit = {
+    val analysis = compile(i)
+    val allCompilations = analysis.compilations.allCompilations
+    val recompiledClasses: Seq[Set[String]] = allCompilations map { c =>
+      val recompiledClasses = analysis.apis.internal.collect {
+        case (className, api) if api.compilationTimestamp() == c.startTime => className
+      }
+      recompiledClasses.toSet
+    }
+    def recompiledClassesInIteration(iteration: Int, classNames: Set[String]) = {
+      assert(recompiledClasses(iteration) == classNames,
+             "%s != %s".format(recompiledClasses(iteration), classNames))
     }
 
-  def checkRecompilations(i: IncInstance, step: Int, expected: List[String]): Unit =
-    {
-      val analysis = compile(i)
-      val allCompilations = analysis.compilations.allCompilations
-      val recompiledClasses: Seq[Set[String]] = allCompilations map { c =>
-        val recompiledClasses = analysis.apis.internal.collect {
-          case (className, api) if api.compilationTimestamp() == c.startTime => className
-        }
-        recompiledClasses.toSet
-      }
-      def recompiledClassesInIteration(iteration: Int, classNames: Set[String]) = {
-        assert(recompiledClasses(iteration) == classNames, "%s != %s".format(recompiledClasses(iteration), classNames))
-      }
-
-      assert(step < allCompilations.size.toInt)
-      recompiledClassesInIteration(step, expected.toSet)
-      ()
-    }
+    assert(step < allCompilations.size.toInt)
+    recompiledClassesInIteration(step, expected.toSet)
+    ()
+  }
 
   def checkClasses(i: IncInstance, src: String, expected: List[String]): Unit = {
     val analysis = compile(i)
@@ -337,54 +359,73 @@ case class ProjectStructure(
     ()
   }
 
-  def compile(i: IncInstance): Analysis =
-    {
-      dependsOnRef map { dep => dep.compile(i) }
-      import i._
-      val sources = scalaSources ++ javaSources
-      val prev0 = prev
-      val lookup = new PerClasspathEntryLookupImpl(lookupAnalysis, Locate.definesClass)
-      val transactional: xsbti.Maybe[xsbti.compile.ClassFileManagerType] =
-        Maybe.just(new xsbti.compile.TransactionalManagerType(targetDir / "classes.bak", sbt.util.Logger.Null))
-      // you can't specify class file manager in the properties files so let's overwrite it to be the transactional
-      // one (that's the default for sbt)
-      val (incOptions, scalacOptions) = loadIncOptions(baseDirectory / "incOptions.properties")
-      val reporter = new LoggerReporter(maxErrors, scriptedLog, identity)
-      val extra = Array(t2(("key", "value")))
-      val setup = compiler.setup(lookup, skip = false, cacheFile, cache = CompilerCache.fresh,
-        incOptions.withClassfileManagerType(transactional), reporter, progress = None, extra)
-
-      val classpath = (i.si.allJars.toList ++ (unmanagedJars :+ classesDir) ++ internalClasspath).toArray
-      val in = compiler.inputs(classpath, sources.toArray, classesDir, scalacOptions, Array(), maxErrors, Array(),
-        CompileOrder.Mixed, cs, setup, prev0)
-      val result = compiler.compile(in, scriptedLog)
-      val analysis = result.analysis match { case a: Analysis => a }
-      fileStore.set(analysis, result.setup)
-      scriptedLog.info(s"""Compilation done: ${sources.toList.mkString(", ")}""")
-      analysis
+  def compile(i: IncInstance): Analysis = {
+    dependsOnRef map { dep =>
+      dep.compile(i)
     }
+    import i._
+    val sources = scalaSources ++ javaSources
+    val prev0 = prev
+    val lookup = new PerClasspathEntryLookupImpl(lookupAnalysis, Locate.definesClass)
+    val transactional: xsbti.Maybe[xsbti.compile.ClassFileManagerType] =
+      Maybe.just(
+        new xsbti.compile.TransactionalManagerType(targetDir / "classes.bak",
+                                                   sbt.util.Logger.Null))
+    // you can't specify class file manager in the properties files so let's overwrite it to be the transactional
+    // one (that's the default for sbt)
+    val (incOptions, scalacOptions) = loadIncOptions(baseDirectory / "incOptions.properties")
+    val reporter = new LoggerReporter(maxErrors, scriptedLog, identity)
+    val extra = Array(t2(("key", "value")))
+    val setup = compiler.setup(lookup,
+                               skip = false,
+                               cacheFile,
+                               cache = CompilerCache.fresh,
+                               incOptions.withClassfileManagerType(transactional),
+                               reporter,
+                               progress = None,
+                               extra)
 
-  def packageBin(i: IncInstance): Unit =
-    {
-      compile(i)
-      val jar = targetDir / s"$name.jar"
-      val manifest = new Manifest
-      val sources =
-        (classesDir ** -DirectoryFilter).get flatMap {
-          case x =>
-            IO.relativize(classesDir, x) match {
-              case Some(path) => List((x, path))
-              case _          => Nil
-            }
-        }
-      IO.jar(sources, jar, manifest)
-    }
+    val classpath =
+      (i.si.allJars.toList ++ (unmanagedJars :+ classesDir) ++ internalClasspath).toArray
+    val in = compiler.inputs(classpath,
+                             sources.toArray,
+                             classesDir,
+                             scalacOptions,
+                             Array(),
+                             maxErrors,
+                             Array(),
+                             CompileOrder.Mixed,
+                             cs,
+                             setup,
+                             prev0)
+    val result = compiler.compile(in, scriptedLog)
+    val analysis = result.analysis match { case a: Analysis => a }
+    fileStore.set(analysis, result.setup)
+    scriptedLog.info(s"""Compilation done: ${sources.toList.mkString(", ")}""")
+    analysis
+  }
+
+  def packageBin(i: IncInstance): Unit = {
+    compile(i)
+    val jar = targetDir / s"$name.jar"
+    val manifest = new Manifest
+    val sources =
+      (classesDir ** -DirectoryFilter).get flatMap {
+        case x =>
+          IO.relativize(classesDir, x) match {
+            case Some(path) => List((x, path))
+            case _          => Nil
+          }
+      }
+    IO.jar(sources, jar, manifest)
+  }
 
   def unrecognizedArguments(commandName: String, args: List[String]): Unit =
     scriptError("Unrecognized arguments for '" + commandName + "': '" + spaced(args) + "'.")
 
   def acceptsNoArguments(commandName: String, args: List[String]): Unit =
-    scriptError("Command '" + commandName + "' does not accept arguments (found '" + spaced(args) + "').")
+    scriptError(
+      "Command '" + commandName + "' does not accept arguments (found '" + spaced(args) + "').")
 
   def spaced[T](l: Seq[T]): String = l.mkString(" ")
 
@@ -395,32 +436,36 @@ case class ProjectStructure(
       case Some(apis) =>
         def companionsApis(c: xsbti.api.Companions): Seq[xsbti.api.ClassLike] =
           Seq(c.classApi, c.objectApi)
-        val allDefs = apis.internal.values.flatMap(x =>
-          companionsApis(x.api)).toSeq
-        Discovery.applications(allDefs).collect({ case (definition, discovered) if discovered.hasMain => definition.name }).sorted
+        val allDefs = apis.internal.values.flatMap(x => companionsApis(x.api)).toSeq
+        Discovery
+          .applications(allDefs)
+          .collect({ case (definition, discovered) if discovered.hasMain => definition.name })
+          .sorted
       case None => Nil
     }
 
   // Taken from Run.scala in sbt/sbt
-  def getMainMethod(mainClassName: String, loader: ClassLoader) =
-    {
-      val mainClass = Class.forName(mainClassName, true, loader)
-      val method = mainClass.getMethod("main", classOf[Array[String]])
-      // jvm allows the actual main class to be non-public and to run a method in the non-public class,
-      //  we need to make it accessible
-      method.setAccessible(true)
-      val modifiers = method.getModifiers
-      if (!isPublic(modifiers)) throw new NoSuchMethodException(mainClassName + ".main is not public")
-      if (!isStatic(modifiers)) throw new NoSuchMethodException(mainClassName + ".main is not static")
-      method
-    }
+  def getMainMethod(mainClassName: String, loader: ClassLoader) = {
+    val mainClass = Class.forName(mainClassName, true, loader)
+    val method = mainClass.getMethod("main", classOf[Array[String]])
+    // jvm allows the actual main class to be non-public and to run a method in the non-public class,
+    //  we need to make it accessible
+    method.setAccessible(true)
+    val modifiers = method.getModifiers
+    if (!isPublic(modifiers))
+      throw new NoSuchMethodException(mainClassName + ".main is not public")
+    if (!isStatic(modifiers))
+      throw new NoSuchMethodException(mainClassName + ".main is not static")
+    method
+  }
 
   def invokeMain(loader: ClassLoader, main: Method, options: Seq[String]): Unit = {
     val currentThread = Thread.currentThread
     val oldLoader = Thread.currentThread.getContextClassLoader
     currentThread.setContextClassLoader(loader)
-    try { main.invoke(null, options.toArray[String]); () }
-    finally { currentThread.setContextClassLoader(oldLoader) }
+    try { main.invoke(null, options.toArray[String]); () } finally {
+      currentThread.setContextClassLoader(oldLoader)
+    }
     ()
   }
 
@@ -432,7 +477,8 @@ case class ProjectStructure(
       val map = new java.util.HashMap[String, String]
       properties foreach { case (k: String, v: String) => map.put(k, v) }
 
-      val scalacOptions = Option(map.get("scalac.options")).map(_.toString.split(" +")).getOrElse(Array.empty)
+      val scalacOptions =
+        Option(map.get("scalac.options")).map(_.toString.split(" +")).getOrElse(Array.empty)
 
       (IncOptionsUtil.fromStringMap(map), scalacOptions)
     } else (IncOptionsUtil.defaultIncOptions, Array.empty)
@@ -449,8 +495,11 @@ case class ProjectStructure(
 
   def checkMessages(expected: Int, severity: Severity): Unit = {
     val messages = getProblems() filter (_.severity == severity)
-    assert(messages.length == expected, s"""Expected $expected messages with severity $severity but ${messages.length} found:
-                                           |${messages mkString "\n"}""".stripMargin)
+    assert(
+      messages.length == expected,
+      s"""Expected $expected messages with severity $severity but ${messages.length} found:
+                                           |${messages mkString "\n"}""".stripMargin
+    )
     ()
   }
 
@@ -458,9 +507,11 @@ case class ProjectStructure(
     val problems = getProblems() filter (_.severity == severity)
     problems lift index match {
       case Some(problem) =>
-        assert(problem.message contains expected, s"""'${problem.message}' doesn't contain '$expected'.""")
+        assert(problem.message contains expected,
+               s"""'${problem.message}' doesn't contain '$expected'.""")
       case None =>
-        throw new TestFailed(s"Problem not found: $index (there are ${problems.length} problem with severity $severity).")
+        throw new TestFailed(
+          s"Problem not found: $index (there are ${problems.length} problem with severity $severity).")
     }
     ()
   }

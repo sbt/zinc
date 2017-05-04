@@ -37,12 +37,12 @@ import sbt.util.Logger
  * @param searchClasspath The classpath used to look for binary dependencies.
  */
 final class AnalyzingJavaCompiler private[sbt] (
-  val javac: xsbti.compile.JavaCompiler,
-  val classpath: Seq[File],
-  val scalaInstance: xsbti.compile.ScalaInstance,
-  val classpathOptions: ClasspathOptions,
-  val classLookup: (String => Option[File]),
-  val searchClasspath: Seq[File]
+    val javac: xsbti.compile.JavaCompiler,
+    val classpath: Seq[File],
+    val scalaInstance: xsbti.compile.ScalaInstance,
+    val classpathOptions: ClasspathOptions,
+    val classLookup: (String => Option[File]),
+    val searchClasspath: Seq[File]
 ) extends JavaCompiler {
 
   /**
@@ -59,17 +59,18 @@ final class AnalyzingJavaCompiler private[sbt] (
    *                    back what files are currently under compilation.
    */
   def compile(
-    sources: Seq[File],
-    options: Seq[String],
-    output: Output,
-    callback: AnalysisCallback,
-    incToolOptions: IncToolOptions,
-    reporter: XReporter,
-    log: XLogger,
-    progressOpt: Option[CompileProgress]
+      sources: Seq[File],
+      options: Seq[String],
+      output: Output,
+      callback: AnalysisCallback,
+      incToolOptions: IncToolOptions,
+      reporter: XReporter,
+      log: XLogger,
+      progressOpt: Option[CompileProgress]
   ): Unit = {
     // Helper for finding the ancestor of two files
-    @annotation.tailrec def ancestor(f1: File, f2: File): Boolean = {
+    @annotation.tailrec
+    def ancestor(f1: File, f2: File): Boolean = {
       if (f2 eq null) false
       else if (f1 == f2) true
       else ancestor(f1, f2.getParentFile)
@@ -85,9 +86,11 @@ final class AnalyzingJavaCompiler private[sbt] (
           Map(Some(single.outputDirectory) -> sources)
         case multi: MultipleOutput =>
           sources.groupBy { src =>
-            multi.outputGroups.find {
-              out => ancestor(out.sourceDirectory, src)
-            }.map(_.outputDirectory)
+            multi.outputGroups
+              .find { out =>
+                ancestor(out.sourceDirectory, src)
+              }
+              .map(_.outputDirectory)
           }
       }
 
@@ -115,7 +118,11 @@ final class AnalyzingJavaCompiler private[sbt] (
 
       timed(javaCompilationPhase, log) {
         val args = JavaCompiler.commandArguments(
-          absClasspath, output, options, scalaInstance, classpathOptions
+          absClasspath,
+          output,
+          options,
+          scalaInstance,
+          classpathOptions
         )
         val javaSources = sources.sortBy(_.getAbsolutePath).toArray
         val success =
@@ -174,11 +181,11 @@ final class AnalyzingJavaCompiler private[sbt] (
    * @param log       A place where we can log debugging/error messages.
    */
   override def run(
-    sources: Array[File],
-    options: Array[String],
-    incToolOptions: IncToolOptions,
-    reporter: XReporter,
-    log: XLogger
+      sources: Array[File],
+      options: Array[String],
+      incToolOptions: IncToolOptions,
+      reporter: XReporter,
+      log: XLogger
   ): Boolean = javac.run(sources, options, incToolOptions, reporter, log)
 
   /** Time how long it takes to run various compilation tasks. */

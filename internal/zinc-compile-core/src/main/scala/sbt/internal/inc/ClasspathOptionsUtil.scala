@@ -16,6 +16,7 @@ import xsbti.compile.ClasspathOptions
  * that create typical classpath options based on the desired use-case.
  */
 class ClasspathOptionsUtil {
+
   /** Define [[ClasspathOptions]] where the client manages everything. */
   def manual = new ClasspathOptions(false, false, false, true, false)
 

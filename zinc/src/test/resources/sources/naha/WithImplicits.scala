@@ -1,6 +1,6 @@
 package naha
 
-object WithImplicits{
+object WithImplicits {
   implicit def implicitMember = ImplicitWrapper("implicitMemberValue")
   def standardMember = "standardMemberValue"
 }

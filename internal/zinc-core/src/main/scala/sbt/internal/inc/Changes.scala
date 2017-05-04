@@ -15,16 +15,17 @@ import xsbti.UseScope
 import xsbti.api.NameHash
 
 final case class InitialChanges(
-  internalSrc: Changes[File],
-  removedProducts: Set[File],
-  binaryDeps: Set[File],
-  external: APIChanges
+    internalSrc: Changes[File],
+    removedProducts: Set[File],
+    binaryDeps: Set[File],
+    external: APIChanges
 ) {
 
-  def isEmpty: Boolean = internalSrc.isEmpty &&
-    removedProducts.isEmpty &&
-    binaryDeps.isEmpty &&
-    external.apiChanges.isEmpty
+  def isEmpty: Boolean =
+    internalSrc.isEmpty &&
+      removedProducts.isEmpty &&
+      binaryDeps.isEmpty &&
+      external.apiChanges.isEmpty
 }
 
 final class APIChanges(val apiChanges: Iterable[APIChange]) {
@@ -33,18 +34,21 @@ final class APIChanges(val apiChanges: Iterable[APIChange]) {
 }
 
 sealed abstract class APIChange(val modifiedClass: String)
+
 /**
  * If we recompile a source file that contains a macro definition then we always assume that it's
  * api has changed. The reason is that there's no way to determine if changes to macros implementation
  * are affecting its users or not. Therefore we err on the side of caution.
  */
 final case class APIChangeDueToMacroDefinition(modified0: String) extends APIChange(modified0)
+
 /**
  * An APIChange that carries information about modified names.
  *
  * This class is used only when name hashing algorithm is enabled.
  */
-final case class NamesChange(modified0: String, modifiedNames: ModifiedNames) extends APIChange(modified0) {
+final case class NamesChange(modified0: String, modifiedNames: ModifiedNames)
+    extends APIChange(modified0) {
   assert(modifiedNames.names.nonEmpty, s"Modified names for $modified0 is empty")
 }
 
@@ -60,7 +64,8 @@ final case class ModifiedNames(names: Set[UsedName]) {
   def in(scope: UseScope): Set[UsedName] = names.filter(_.scopes.contains(scope))
 
   import collection.JavaConverters._
-  private lazy val lookupMap: Set[(String, UseScope)] = names.flatMap(n => n.scopes.asScala.map(n.name -> _))
+  private lazy val lookupMap: Set[(String, UseScope)] =
+    names.flatMap(n => n.scopes.asScala.map(n.name -> _))
 
   def isModified(usedName: UsedName): Boolean =
     usedName.scopes.asScala.exists(scope => lookupMap.contains(usedName.name -> scope))
@@ -73,10 +78,12 @@ object ModifiedNames {
     val xs = a.toSet
     val ys = b.toSet
     val changed = (xs union ys) diff (xs intersect ys)
-    val modifiedNames: Set[UsedName] = changed.groupBy(_.name).map {
-      case (name, nameHashes) =>
-        UsedName(name, nameHashes.map(_.scope()))
-    }(collection.breakOut)
+    val modifiedNames: Set[UsedName] = changed
+      .groupBy(_.name)
+      .map {
+        case (name, nameHashes) =>
+          UsedName(name, nameHashes.map(_.scope()))
+      }(collection.breakOut)
 
     ModifiedNames(modifiedNames)
   }

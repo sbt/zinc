@@ -39,8 +39,8 @@ final class ClassLoaderCache(val commonParent: ClassLoader) {
    * This method is thread-safe.
    */
   def cachedCustomClassloader(
-    files: List[File],
-    mkLoader: () => ClassLoader
+      files: List[File],
+      mkLoader: () => ClassLoader
   ): ClassLoader =
     synchronized {
       val tstamps = files.map(_.lastModified)
@@ -48,10 +48,10 @@ final class ClassLoaderCache(val commonParent: ClassLoader) {
     }
 
   private[this] def getFromReference(
-    files: List[File],
-    stamps: List[Long],
-    existingRef: Reference[CachedClassLoader],
-    mkLoader: () => ClassLoader
+      files: List[File],
+      stamps: List[Long],
+      existingRef: Reference[CachedClassLoader],
+      mkLoader: () => ClassLoader
   ) =
     if (existingRef eq null)
       newEntry(files, stamps, mkLoader)
@@ -59,10 +59,10 @@ final class ClassLoaderCache(val commonParent: ClassLoader) {
       get(files, stamps, existingRef.get, mkLoader)
 
   private[this] def get(
-    files: List[File],
-    stamps: List[Long],
-    existing: CachedClassLoader,
-    mkLoader: () => ClassLoader
+      files: List[File],
+      stamps: List[Long],
+      existing: CachedClassLoader,
+      mkLoader: () => ClassLoader
   ): ClassLoader =
     if (existing == null || stamps != existing.timestamps) {
       newEntry(files, stamps, mkLoader)
@@ -70,9 +70,9 @@ final class ClassLoaderCache(val commonParent: ClassLoader) {
       existing.loader
 
   private[this] def newEntry(
-    files: List[File],
-    stamps: List[Long],
-    mkLoader: () => ClassLoader
+      files: List[File],
+      stamps: List[Long],
+      mkLoader: () => ClassLoader
   ): ClassLoader = {
     val loader = mkLoader()
     delegate.put(
@@ -83,7 +83,7 @@ final class ClassLoaderCache(val commonParent: ClassLoader) {
   }
 }
 private[sbt] final class CachedClassLoader(
-  val loader: ClassLoader,
-  val files: List[File],
-  val timestamps: List[Long]
+    val loader: ClassLoader,
+    val files: List[File],
+    val timestamps: List[Long]
 )

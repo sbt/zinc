@@ -40,29 +40,38 @@ private[inc] class APIDiff {
   private val generateUnifiedDiffMethod: Method = {
     val patchClass = Class.forName(patchClassName)
     // method signature: generateUnifiedDiff(String, String, List<String>, Patch, int)
-    diffUtilsClass.getMethod(generateUnifiedDiffMethodName, classOf[String],
-      classOf[String], classOf[JList[String]], patchClass, classOf[Int])
+    diffUtilsClass.getMethod(generateUnifiedDiffMethodName,
+                             classOf[String],
+                             classOf[String],
+                             classOf[JList[String]],
+                             patchClass,
+                             classOf[Int])
   }
 
   /**
    * Generates an unified diff between textual representations of `api1` and `api2`.
    */
-  def generateApiDiff(fileName: String, api1: Companions, api2: Companions, contextSize: Int): String = {
+  def generateApiDiff(fileName: String,
+                      api1: Companions,
+                      api2: Companions,
+                      contextSize: Int): String = {
     val api1Str = DefaultShowAPI(api1.classApi) + "\n" + DefaultShowAPI(api1.objectApi)
     val api2Str = DefaultShowAPI(api2.classApi) + "\n" + DefaultShowAPI(api2.objectApi)
     generateApiDiff(fileName, api1Str, api2Str, contextSize)
   }
 
   private def generateApiDiff(fileName: String, f1: String, f2: String, contextSize: Int): String = {
-    assert((diffMethod != null) && (generateUnifiedDiffMethod != null), "APIDiff isn't properly initialized.")
+    assert((diffMethod != null) && (generateUnifiedDiffMethod != null),
+           "APIDiff isn't properly initialized.")
     import scala.collection.JavaConverters._
     def asJavaList[T](it: Iterator[T]): java.util.List[T] = it.toSeq.asJava
     val f1Lines = asJavaList(f1.lines)
     val f2Lines = asJavaList(f2.lines)
     //val diff = DiffUtils.diff(f1Lines, f2Lines)
     val diff /*: Patch*/ = diffMethod.invoke(null, f1Lines, f2Lines)
-    val unifiedPatch: JList[String] = generateUnifiedDiffMethod.invoke(null, fileName, fileName, f1Lines, diff,
-      (contextSize: java.lang.Integer)).asInstanceOf[JList[String]]
+    val unifiedPatch: JList[String] = generateUnifiedDiffMethod
+      .invoke(null, fileName, fileName, f1Lines, diff, (contextSize: java.lang.Integer))
+      .asInstanceOf[JList[String]]
     unifiedPatch.asScala.mkString("\n")
   }
 

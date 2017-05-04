@@ -22,10 +22,10 @@ import xsbti.compile.ClassFileManager
 
 /** An instance of an analyzing compiler that can run both javac + scalac. */
 final class MixedAnalyzingCompiler(
-  val scalac: xsbti.compile.ScalaCompiler,
-  val javac: AnalyzingJavaCompiler,
-  val config: CompileConfiguration,
-  val log: Logger
+    val scalac: xsbti.compile.ScalaCompiler,
+    val javac: AnalyzingJavaCompiler,
+    val config: CompileConfiguration,
+    val log: Logger
 ) {
 
   import config._
@@ -46,10 +46,10 @@ final class MixedAnalyzingCompiler(
    * @param classfileManager The component that manages generated class files.
    */
   def compile(
-    include: Set[File],
-    changes: DependencyChanges,
-    callback: XAnalysisCallback,
-    classfileManager: ClassFileManager
+      include: Set[File],
+      changes: DependencyChanges,
+      callback: XAnalysisCallback,
+      classfileManager: ClassFileManager
   ): Unit = {
     val outputDirs = outputDirectories(output)
     outputDirs.foreach { d =>
@@ -134,10 +134,10 @@ final class MixedAnalyzingCompiler(
   }
 
   private[this] def logInputs(
-    log: Logger,
-    javaCount: Int,
-    scalaCount: Int,
-    outputDirs: Seq[File]
+      log: Logger,
+      javaCount: Int,
+      scalaCount: Int,
+      outputDirs: Seq[File]
   ): Unit = {
     val scalaMsg = Analysis.counted("Scala source", "", "s", scalaCount)
     val javaMsg = Analysis.counted("Java source", "", "s", javaCount)
@@ -161,23 +161,23 @@ final class MixedAnalyzingCompiler(
  */
 object MixedAnalyzingCompiler {
   def makeConfig(
-    scalac: xsbti.compile.ScalaCompiler,
-    javac: xsbti.compile.JavaCompiler,
-    sources: Seq[File],
-    classpath: Seq[File],
-    output: Output,
-    cache: GlobalsCache,
-    progress: Option[CompileProgress] = None,
-    options: Seq[String] = Nil,
-    javacOptions: Seq[String] = Nil,
-    previousAnalysis: CompileAnalysis,
-    previousSetup: Option[MiniSetup],
-    perClasspathEntryLookup: PerClasspathEntryLookup,
-    reporter: Reporter,
-    compileOrder: CompileOrder = Mixed,
-    skip: Boolean = false,
-    incrementalCompilerOptions: IncOptions,
-    extra: List[(String, String)]
+      scalac: xsbti.compile.ScalaCompiler,
+      javac: xsbti.compile.JavaCompiler,
+      sources: Seq[File],
+      classpath: Seq[File],
+      output: Output,
+      cache: GlobalsCache,
+      progress: Option[CompileProgress] = None,
+      options: Seq[String] = Nil,
+      javacOptions: Seq[String] = Nil,
+      previousAnalysis: CompileAnalysis,
+      previousSetup: Option[MiniSetup],
+      perClasspathEntryLookup: PerClasspathEntryLookup,
+      reporter: Reporter,
+      compileOrder: CompileOrder = Mixed,
+      skip: Boolean = false,
+      incrementalCompilerOptions: IncOptions,
+      extra: List[(String, String)]
   ): CompileConfiguration = {
     val classpathHash = classpath map { x =>
       new FileHash(x, Stamp.hash(x).hashCode)
@@ -212,19 +212,19 @@ object MixedAnalyzingCompiler {
   }
 
   def config(
-    sources: Seq[File],
-    classpath: Seq[File],
-    setup: MiniSetup,
-    progress: Option[CompileProgress],
-    previousAnalysis: CompileAnalysis,
-    previousSetup: Option[MiniSetup],
-    perClasspathEntryLookup: PerClasspathEntryLookup,
-    compiler: xsbti.compile.ScalaCompiler,
-    javac: xsbti.compile.JavaCompiler,
-    reporter: Reporter,
-    skip: Boolean,
-    cache: GlobalsCache,
-    incrementalCompilerOptions: IncOptions
+      sources: Seq[File],
+      classpath: Seq[File],
+      setup: MiniSetup,
+      progress: Option[CompileProgress],
+      previousAnalysis: CompileAnalysis,
+      previousSetup: Option[MiniSetup],
+      perClasspathEntryLookup: PerClasspathEntryLookup,
+      compiler: xsbti.compile.ScalaCompiler,
+      javac: xsbti.compile.JavaCompiler,
+      reporter: Reporter,
+      skip: Boolean,
+      cache: GlobalsCache,
+      incrementalCompilerOptions: IncOptions
   ): CompileConfiguration = {
     new CompileConfiguration(
       sources,
@@ -244,7 +244,7 @@ object MixedAnalyzingCompiler {
 
   /** Returns the search classpath (for dependencies) and a function which can also do so. */
   def searchClasspathAndLookup(
-    config: CompileConfiguration
+      config: CompileConfiguration
   ): (Seq[File], String => Option[File]) = {
     import config._
     import currentSetup._
@@ -263,8 +263,7 @@ object MixedAnalyzingCompiler {
     searchClasspathAndLookup(config)._2
 
   def apply(config: CompileConfiguration)(
-    implicit
-    log: Logger
+      implicit log: Logger
   ): MixedAnalyzingCompiler = {
     import config._
     val (searchClasspath, entry) = searchClasspathAndLookup(config)
@@ -286,8 +285,8 @@ object MixedAnalyzingCompiler {
   }
 
   def withBootclasspath(
-    args: CompilerArguments,
-    classpath: Seq[File]
+      args: CompilerArguments,
+      classpath: Seq[File]
   ): Seq[File] = {
     args.bootClasspathFor(classpath) ++ args.extClasspath ++
       args.finishClasspath(classpath)
@@ -306,8 +305,8 @@ object MixedAnalyzingCompiler {
     new collection.mutable.HashMap[File, Reference[AnalysisStore]]
 
   private def staticCache(
-    file: File,
-    backing: => AnalysisStore
+      file: File,
+      backing: => AnalysisStore
   ): AnalysisStore = {
     synchronized {
       cache get file flatMap { ref =>

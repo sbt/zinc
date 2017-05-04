@@ -16,7 +16,9 @@ import sbt.internal.inc.{ Analysis, AnalysisStore, FileBasedStore }
 import sbt.io.IO
 import sbt.inc.BaseCompilerSpec
 
-abstract class CommonCachedCompilation(name: String) extends BaseCompilerSpec with BeforeAndAfterAll {
+abstract class CommonCachedCompilation(name: String)
+    extends BaseCompilerSpec
+    with BeforeAndAfterAll {
 
   behavior of name
 
@@ -59,7 +61,8 @@ abstract class CommonCachedCompilation(name: String) extends BaseCompilerSpec wi
     val basePath = IO.createTemporaryDirectory.toPath.resolve("remote")
     Files.createDirectory(basePath)
 
-    remoteProject = ProjectSetup(basePath, SetupCommons.baseSourceMapping, SetupCommons.baseCpMapping)
+    remoteProject =
+      ProjectSetup(basePath, SetupCommons.baseSourceMapping, SetupCommons.baseCpMapping)
     remoteCompilerSetup = remoteProject.createCompiler()
     remoteAnalysisStore = FileBasedStore.apply(remoteProject.defaultStoreLocation)
 
@@ -71,49 +74,47 @@ abstract class CommonCachedCompilation(name: String) extends BaseCompilerSpec wi
   override protected def afterAll(): Unit =
     IO.delete(remoteProject.baseLocation.toFile.getParentFile)
 
-  it should "provide correct analysis for empty project" in IO.withTemporaryDirectory {
-    tempDir =>
-      val cache = remoteCacheProvider().findCache(None)
-      assert(cache.nonEmpty)
+  it should "provide correct analysis for empty project" in IO.withTemporaryDirectory { tempDir =>
+    val cache = remoteCacheProvider().findCache(None)
+    assert(cache.nonEmpty)
 
-      val result = cache.get.loadCache(tempDir)
+    val result = cache.get.loadCache(tempDir)
 
-      assert(result.nonEmpty)
+    assert(result.nonEmpty)
 
-      val analysis = result.get._1.asInstanceOf[Analysis]
+    val analysis = result.get._1.asInstanceOf[Analysis]
 
-      val prefix = tempDir.toPath.toString
+    val prefix = tempDir.toPath.toString
 
-      val allFilesToMigrate = analysis.stamps.sources.keySet ++
-        analysis.stamps.products.keySet ++ analysis.stamps.binaries.keySet
+    val allFilesToMigrate = analysis.stamps.sources.keySet ++
+      analysis.stamps.products.keySet ++ analysis.stamps.binaries.keySet
 
-      val globalTmpPrefix = tempDir.getParentFile.toPath.toString
-      def isGlobal(f: File): Boolean =
-        !f.toPath.toString.startsWith(globalTmpPrefix)
+    val globalTmpPrefix = tempDir.getParentFile.toPath.toString
+    def isGlobal(f: File): Boolean =
+      !f.toPath.toString.startsWith(globalTmpPrefix)
 
-      allFilesToMigrate.filterNot(isGlobal).foreach {
-        source => source.toString should startWith(prefix)
-      }
+    allFilesToMigrate.filterNot(isGlobal).foreach { source =>
+      source.toString should startWith(prefix)
+    }
   }
 
-  it should "not run compilation in local project" in namedTempDir("localProject") {
-    tempDir =>
-      val projectSetup = ProjectSetup(tempDir.toPath, SetupCommons.baseSourceMapping, SetupCommons.baseCpMapping)
-      val localStore = FileBasedStore(new File(tempDir, "inc_data.zip"))
-      val cache = CacheAwareStore(localStore, remoteCacheProvider(), tempDir)
+  it should "not run compilation in local project" in namedTempDir("localProject") { tempDir =>
+    val projectSetup =
+      ProjectSetup(tempDir.toPath, SetupCommons.baseSourceMapping, SetupCommons.baseCpMapping)
+    val localStore = FileBasedStore(new File(tempDir, "inc_data.zip"))
+    val cache = CacheAwareStore(localStore, remoteCacheProvider(), tempDir)
 
-      val compiler = projectSetup.createCompiler()
-      val result = compiler.doCompileWithStore(cache)
+    val compiler = projectSetup.createCompiler()
+    val result = compiler.doCompileWithStore(cache)
 
-      assert(!result.hasModified)
+    assert(!result.hasModified)
   }
 
   private def namedTempDir[T](name: String)(op: File => T): T = {
-    IO.withTemporaryDirectory {
-      file =>
-        val dir = new File(file, name)
-        dir.mkdir()
-        op(dir)
+    IO.withTemporaryDirectory { file =>
+      val dir = new File(file, name)
+      dir.mkdir()
+      op(dir)
     }
   }
 }

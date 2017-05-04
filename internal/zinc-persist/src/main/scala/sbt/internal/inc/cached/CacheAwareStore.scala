@@ -12,7 +12,10 @@ import java.io.File
 import sbt.internal.inc.AnalysisStore
 import xsbti.compile.{ MiniSetup, CompileAnalysis }
 
-case class CacheAwareStore(localStore: AnalysisStore, cacheProvider: CacheProvider, projectLocation: File) extends AnalysisStore {
+case class CacheAwareStore(localStore: AnalysisStore,
+                           cacheProvider: CacheProvider,
+                           projectLocation: File)
+    extends AnalysisStore {
   override def set(analysis: CompileAnalysis, setup: MiniSetup): Unit = {
     localStore.set(analysis, setup)
   }
