@@ -9,6 +9,7 @@ package sbt
 package internal
 package inc
 
+import java.lang.reflect.InvocationTargetException
 import java.io.File
 import java.net.URLClassLoader
 
@@ -16,16 +17,16 @@ import sbt.util.Logger
 import sbt.io.syntax._
 import sbt.internal.inc.classpath.ClassLoaderCache
 import sbt.internal.util.ManagedLogger
-import xsbti.{ AnalysisCallback, Logger => xLogger, Maybe, Reporter }
+import xsbti.{ AnalysisCallback, Maybe, Reporter, Logger => xLogger }
 import xsbti.compile.{
   CachedCompiler,
   CachedCompilerProvider,
+  ClasspathOptions,
+  CompileProgress,
   DependencyChanges,
   GlobalsCache,
-  CompileProgress,
   Output,
-  ScalaCompiler,
-  ClasspathOptions
+  ScalaCompiler
 }
 
 /**
@@ -49,13 +50,7 @@ final class AnalyzingCompiler(
     with ScalaCompiler {
 
   def onArgs(f: Seq[String] => Unit): AnalyzingCompiler =
-    new AnalyzingCompiler(
-      scalaInstance,
-      provider,
-      classpathOptions,
-      f,
-      classLoaderCache
-    )
+    new AnalyzingCompiler(scalaInstance, provider, classpathOptions, f, classLoaderCache)
 
   def withClassLoaderCache(classLoaderCache: ClassLoaderCache) =
     new AnalyzingCompiler(
@@ -81,17 +76,8 @@ final class AnalyzingCompiler(
     val arguments = compArgs(Nil, classpath, None, options)
     val output = CompileOutput(singleOutput)
     val reporter = new LoggerReporter(maximumErrors, log, p => p)
-    compile(
-      sources,
-      changes,
-      arguments.toArray,
-      output,
-      callback,
-      reporter,
-      cache,
-      log,
-      Maybe.nothing[CompileProgress]
-    )
+    val progress = Maybe.nothing[CompileProgress]
+    compile(sources, changes, arguments.toArray, output, callback, reporter, cache, log, progress)
   }
 
   def compile(
@@ -106,8 +92,7 @@ final class AnalyzingCompiler(
       progressOpt: Maybe[CompileProgress]
   ): Unit = {
     val cached = cache(options, output, !changes.isEmpty, this, log, reporter)
-    val progress =
-      if (progressOpt.isDefined) progressOpt.get else IgnoreProgress
+    val progress = if (progressOpt.isDefined) progressOpt.get else IgnoreProgress
     compile(sources, changes, callback, log, reporter, progress, cached)
   }
 
@@ -132,6 +117,7 @@ final class AnalyzingCompiler(
     )(sources, changes, callback, log, reporter, progress, compiler)
     ()
   }
+
   def newCachedCompiler(
       arguments: Array[String],
       output: Output,
@@ -170,6 +156,7 @@ final class AnalyzingCompiler(
     val reporter = new LoggerReporter(maximumErrors, log)
     doc(sources, classpath, outputDirectory, options, log, reporter)
   }
+
   def doc(
       sources: Seq[File],
       classpath: Seq[File],
@@ -189,16 +176,14 @@ final class AnalyzingCompiler(
     )(arguments.toArray[String], log, reporter)
     ()
   }
+
   def console(
       classpath: Seq[File],
       options: Seq[String],
       initialCommands: String,
       cleanupCommands: String,
       log: Logger
-  )(
-      loader: Option[ClassLoader] = None,
-      bindings: Seq[(String, Any)] = Nil
-  ): Unit = {
+  )(loader: Option[ClassLoader] = None, bindings: Seq[(String, Any)] = Nil): Unit = {
     onArgsHandler(consoleCommandArguments(classpath, options, log))
     val (classpathString, bootClasspath) = consoleClasspaths(classpath)
     val (names, values) = bindings.unzip
@@ -228,14 +213,12 @@ final class AnalyzingCompiler(
 
   private[this] def consoleClasspaths(classpath: Seq[File]): (String, String) = {
     val arguments = new CompilerArguments(scalaInstance, classpathOptions)
-    val classpathString =
-      CompilerArguments.absString(arguments.finishClasspath(classpath))
+    val classpathString = CompilerArguments.absString(arguments.finishClasspath(classpath))
     val bootClasspath =
-      if (classpathOptions.autoBoot)
-        arguments.createBootClasspathFor(classpath)
-      else ""
+      if (classpathOptions.autoBoot) arguments.createBootClasspathFor(classpath) else ""
     (classpathString, bootClasspath)
   }
+
   def consoleCommandArguments(
       classpath: Seq[File],
       options: Seq[String],
@@ -250,7 +233,9 @@ final class AnalyzingCompiler(
     )(options.toArray[String], bootClasspath, classpathString, log)
     argsObj.asInstanceOf[Array[String]].toSeq
   }
+
   def force(log: Logger): Unit = { provider(scalaInstance, log); () }
+
   private def call(
       interfaceClassName: String,
       methodName: String,
@@ -259,8 +244,9 @@ final class AnalyzingCompiler(
     val interfaceClass = getInterfaceClass(interfaceClassName, log)
     val interface = interfaceClass.newInstance.asInstanceOf[AnyRef]
     val method = interfaceClass.getMethod(methodName, argTypes: _*)
-    try { method.invoke(interface, args: _*) } catch {
-      case e: java.lang.reflect.InvocationTargetException =>
+    try method.invoke(interface, args: _*)
+    catch {
+      case e: InvocationTargetException =>
         e.getCause match {
           case c: xsbti.CompileFailed =>
             throw new CompileFailed(c.arguments, c.toString, c.problems)
@@ -268,6 +254,7 @@ final class AnalyzingCompiler(
         }
     }
   }
+
   private[this] def loader(log: Logger) = {
     val interfaceJar = provider(scalaInstance, log)
     def createInterfaceLoader =
@@ -298,15 +285,14 @@ final class AnalyzingCompiler(
     new classpath.DualLoader(
       scalaLoader,
       notXsbtiFilter,
-      x => true,
+      _ => true,
       sbtLoader,
       xsbtiFilter,
-      x => false
+      _ => false
     )
   }
 
-  override def toString =
-    "Analyzing compiler (Scala " + scalaInstance.actualVersion + ")"
+  override def toString = s"Analyzing compiler (Scala ${scalaInstance.actualVersion})"
 }
 
 object AnalyzingCompiler {
@@ -342,10 +328,7 @@ object AnalyzingCompiler {
     def generateJar(outputDir: File, dir: File, resources: Seq[File], targetJar: File) = {
       import sbt.io.Path._
       copy(resources.pair(rebase(dir, outputDir)))
-      val toBeZipped = outputDir.allPaths.pair(
-        relativeTo(outputDir),
-        errorIfNone = false
-      )
+      val toBeZipped = outputDir.allPaths.pair(relativeTo(outputDir), errorIfNone = false)
       zip(toBeZipped, targetJar)
     }
 
