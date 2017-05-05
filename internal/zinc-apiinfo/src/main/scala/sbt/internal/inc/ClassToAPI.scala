@@ -262,9 +262,12 @@ object ClassToAPI {
       enclPkg
     )
 
+  /** Use the unique constructor format defined in [[xsbt.ClassName.constructorName]]. */
+  private def uniqueConstructorName(constructor: Constructor[_]): String =
+    s"${name(constructor).replace('.', ';')};init;"
   def constructorToDef(enclPkg: Option[String])(c: Constructor[_]): api.Def =
     defLike(
-      "<init>",
+      uniqueConstructorName(c),
       c.getModifiers,
       c.getDeclaredAnnotations,
       typeParameterTypes(c),
