@@ -127,6 +127,7 @@ private object AnalysisCallback {
     )
   }
 }
+
 private final class AnalysisCallback(
     internalBinaryToSourceClassName: String => Option[String],
     internalSourceToClassNamesMap: File => Set[String],
@@ -136,7 +137,7 @@ private final class AnalysisCallback(
     options: IncOptions
 ) extends xsbti.AnalysisCallback {
 
-  val compilation = {
+  private[this] val compilation: Compilation = {
     val outputSettings = output match {
       case single: SingleOutput =>
         Array(new OutputSetting("/", single.outputDirectory.getAbsolutePath))
