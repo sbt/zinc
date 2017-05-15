@@ -95,9 +95,8 @@ private[xsbt] class ZincBenchmark(toCompile: BenchmarkProject) {
 
 private[xsbt] object ZincBenchmark {
   type Sources = List[String]
-  type Compiler = CachedCompiler0#Compiler
-  type Run = Compiler#Run
-  type Generator = () => Run
+  type Compiler = ZincCompiler
+  type Generator = () => ZincCompiler#Run
 
   /** Set up the compiler to compile `sources` with -cp `classpath` at `targetDir`. */
   def setUpCompiler(
@@ -119,7 +118,7 @@ private[xsbt] object ZincBenchmark {
       outputDir: File,
       analysisCallback: AnalysisCallback,
       compilationInfo: CompilationInfo
-  ): Compiler = {
+  ): ZincCompiler = {
     object output extends SingleOutput {
       def outputDirectory: File = outputDir
       override def toString = s"SingleOutput($outputDirectory)"
@@ -131,7 +130,7 @@ private[xsbt] object ZincBenchmark {
     val settings = cachedCompiler.settings
     settings.classpath.value = classpath
     val delegatingReporter = DelegatingReporter(settings, ConsoleReporter)
-    val compiler = cachedCompiler.compiler
+    val compiler: ZincCompiler = cachedCompiler.compiler
     compiler.set(analysisCallback, delegatingReporter)
     compiler
   }
