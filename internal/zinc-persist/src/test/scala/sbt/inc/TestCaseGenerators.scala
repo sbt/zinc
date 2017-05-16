@@ -11,6 +11,7 @@ import sbt.internal.util.Relation
 import xsbti.api._
 import xsbti.UseScope
 import xsbti.api.DependencyContext._
+import xsbti.compile.analysis.Stamp
 
 /**
  * Scalacheck generators for Analysis objects and their substructures.

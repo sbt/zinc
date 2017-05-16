@@ -10,10 +10,12 @@ package internal
 package inc
 
 import java.io.File
+
 import sbt.internal.util.Relation
-import xsbti.api.{ InternalDependency, ExternalDependency, DependencyContext }
+import xsbti.api.{ DependencyContext, ExternalDependency, InternalDependency }
 import xsbti.api.DependencyContext._
 import Relations.ClassDependencies
+import xsbti.compile.analysis.Stamp
 
 /**
  * Provides mappings between source files, generated classes (products), and binaries.

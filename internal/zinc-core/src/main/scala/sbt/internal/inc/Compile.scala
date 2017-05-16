@@ -28,6 +28,7 @@ import java.util
 
 import xsbti.api.DependencyContext
 import xsbti.compile.ClassFileManager
+import xsbti.compile.analysis.ReadStamps
 
 /**
  * Helper methods for running incremental compilation.  All this is responsible for is
@@ -38,24 +39,16 @@ object IncrementalCompile {
   /**
    * Runs the incremental compilation algorithm.
    *
-   * @param sources
-   *              The full set of input sources
-   * @param lookup
-   *              An instance of the `Lookup` that implements looking up both classpath elements
-   *              and Analysis object instances by a binary class name.
-   * @param compile
-   *                The mechanism to run a single 'step' of compile, for ALL source files involved.
-   * @param previous0
-   *                 The previous dependency Analysis (or an empty one).
-   * @param output
-   *               The configured output directory/directory mapping for source files.
-   * @param log
-   *            Where all log messages should go
-   * @param options
-   *                Incremental compiler options (like name hashing vs. not).
-   * @return
-   *         A flag of whether or not compilation completed succesfully, and the resulting dependency analysis object.
-   *
+   * @param sources The full set of input sources
+   * @param lookup An instance of the `Lookup` that implements looking up both classpath elements
+   *               and Analysis object instances by a binary class name.
+   * @param compile The mechanism to run a single 'step' of compile, for ALL source files involved.
+   * @param previous0 The previous dependency Analysis (or an empty one).
+   * @param output The configured output directory/directory mapping for source files.
+   * @param log Where all log messages should go
+   * @param options Incremental compiler options (like name hashing vs. not).
+   * @return A flag of whether or not compilation completed succesfully, and the resulting
+   *         dependency analysis object.
    */
   def apply(
       sources: Set[File],
@@ -66,7 +59,7 @@ object IncrementalCompile {
       log: Logger,
       options: IncOptions): (Boolean, Analysis) = {
     val previous = previous0 match { case a: Analysis => a }
-    val current = Stamps.initial(Stamp.lastModified, Stamp.hash, Stamp.lastModified)
+    val current = Stamps.initial(Stamper.forLastModified, Stamper.forHash, Stamper.forLastModified)
     val internalBinaryToSourceClassName = (binaryClassName: String) =>
       previous.relations.productClassName.reverse(binaryClassName).headOption
     val internalSourceToClassNamesMap: File => Set[String] = (f: File) =>
@@ -132,7 +125,7 @@ private final class AnalysisCallback(
     internalBinaryToSourceClassName: String => Option[String],
     internalSourceToClassNamesMap: File => Set[String],
     externalAPI: (File, String) => Option[AnalyzedClass],
-    current: ReadStamps,
+    stampReader: ReadStamps,
     output: Output,
     options: IncOptions
 ) extends xsbti.AnalysisCallback {
@@ -360,13 +353,14 @@ private final class AnalysisCallback(
   def addProductsAndDeps(base: Analysis): Analysis =
     (base /: srcs) {
       case (a, src) =>
-        val stamp = current.internalSource(src)
+        val stamp = stampReader.source(src)
         val classesInSrc = classNames.getOrElse(src, Set.empty).map(_._1)
         val analyzedApis = classesInSrc.map(analyzeClass)
         val info = SourceInfos.makeInfo(getOrNil(reporteds, src), getOrNil(unreporteds, src))
         val binaries = binaryDeps.getOrElse(src, Nil: Iterable[File])
         val localProds = localClasses.getOrElse(src, Nil: Iterable[File]) map { classFile =>
-          LocalProduct(classFile, current product classFile)
+          val classFileStamp = stampReader.product(classFile)
+          LocalProduct(classFile, classFileStamp)
         }
         val binaryToSrcClassName = (classNames.getOrElse(src, Set.empty) map {
           case (srcClassName, binaryClassName) => (binaryClassName, srcClassName)
@@ -374,12 +368,13 @@ private final class AnalysisCallback(
         val nonLocalProds = nonLocalClasses.getOrElse(src, Nil: Iterable[(File, String)]) map {
           case (classFile, binaryClassName) =>
             val srcClassName = binaryToSrcClassName(binaryClassName)
-            NonLocalProduct(srcClassName, binaryClassName, classFile, current product classFile)
+            val classFileStamp = stampReader.product(classFile)
+            NonLocalProduct(srcClassName, binaryClassName, classFile, classFileStamp)
         }
 
         val internalDeps = classesInSrc.flatMap(cls => intSrcDeps.getOrElse(cls, Set.empty))
         val externalDeps = classesInSrc.flatMap(cls => extSrcDeps.getOrElse(cls, Set.empty))
-        val binDeps = binaries.map(d => (d, binaryClassName(d), current binary d))
+        val binDeps = binaries.map(d => (d, binaryClassName(d), stampReader binary d))
 
         a.addSource(src,
                     analyzedApis,

@@ -16,7 +16,7 @@ import xsbti.UseScope
 import xsbti.api._
 import xsbti.compile._
 import sbt.util.InterfaceUtil
-import sbt.util.InterfaceUtil.{ jo2o, problem, position }
+import sbt.util.InterfaceUtil.{ jo2o, position, problem }
 
 // A text-based serialization format for Analysis objects.
 // This code has been tuned for high performance, and therefore has non-idiomatic areas.

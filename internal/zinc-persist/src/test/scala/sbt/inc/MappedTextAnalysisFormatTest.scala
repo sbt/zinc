@@ -11,6 +11,7 @@ import java.io.File
 
 import org.scalacheck.{ Prop, Properties }
 import sbt.internal.inc._
+import xsbti.compile.analysis.Stamp
 
 import scala.util.{ Random, Try }
 

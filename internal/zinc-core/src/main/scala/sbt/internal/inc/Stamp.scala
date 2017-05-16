@@ -10,31 +10,27 @@ package internal
 package inc
 
 import java.io.{ File, IOException }
-import Stamp.getStamp
+import java.util.Optional
+
 import sbt.io.{ Hash => IOHash }
+import xsbti.compile.analysis.{ ReadStamps, Stamp }
 
-trait ReadStamps {
+import scala.util.matching.Regex
 
-  /** The Stamp for the given product at the time represented by this Stamps instance.*/
-  def product(prod: File): Stamp
-
-  /** The Stamp for the given source file at the time represented by this Stamps instance.*/
-  def internalSource(src: File): Stamp
-
-  /** The Stamp for the given binary dependency at the time represented by this Stamps instance.*/
-  def binary(bin: File): Stamp
-}
-
-/** Provides information about files as they were at a specific time.*/
+/**
+ * Provides a richer interface to read and write stamps associated with files.
+ *
+ * This interface is meant for internal use.
+ */
 trait Stamps extends ReadStamps {
-  def allInternalSources: collection.Set[File]
+  def allSources: collection.Set[File]
   def allBinaries: collection.Set[File]
   def allProducts: collection.Set[File]
 
   def sources: Map[File, Stamp]
   def binaries: Map[File, Stamp]
   def products: Map[File, Stamp]
-  def markInternalSource(src: File, s: Stamp): Stamps
+  def markSource(src: File, s: Stamp): Stamps
   def markBinary(bin: File, className: String, s: Stamp): Stamps
   def markProduct(prod: File, s: Stamp): Stamps
 
@@ -46,29 +42,60 @@ trait Stamps extends ReadStamps {
                  bin: Map[K, File => Boolean]): Map[K, Stamps]
 }
 
-sealed trait Stamp {
+private[inc] sealed abstract class StampBase extends Stamp {
+  override def toString: String = this.writeStamp()
+  override def hashCode(): Int = this.getValueId()
   override def equals(other: Any): Boolean = other match {
     case o: Stamp => Stamp.equivStamp.equiv(this, o)
     case _        => false
   }
-
-  override def toString: String = Stamp.toString(this)
 }
 
-final class Hash(val value: Array[Byte]) extends Stamp {
-  override def hashCode: Int = java.util.Arrays.hashCode(value)
+trait WithPattern {
+  protected def Pattern: Regex
 }
-final class LastModified(val value: Long) extends Stamp {
-  override def hashCode: Int = (value ^ (value >>> 32)).toInt
+
+import java.lang.{ Long => BoxedLong }
+
+final class Hash(val value: Array[Byte]) extends StampBase {
+  val hexHash = IOHash.toHex(value)
+  override def writeStamp: String = s"hash($hexHash)"
+  override def getValueId: Int = java.util.Arrays.hashCode(value)
+  override def getHash: Optional[String] = Optional.of(hexHash)
+  override def getLastModified: Optional[BoxedLong] = Optional.empty[BoxedLong]
 }
-final class Exists(val value: Boolean) extends Stamp {
-  override def hashCode: Int = if (value) 0 else 1
+
+private[inc] object Hash extends WithPattern {
+  final val Pattern = """hash\((\w+)\)""".r
+}
+
+final class LastModified(val value: Long) extends StampBase {
+  override def writeStamp: String = s"lastModified(${value})"
+  override def getValueId: Int = (value ^ (value >>> 32)).toInt
+  override def getHash: Optional[String] = Optional.empty[String]
+  override def getLastModified: Optional[BoxedLong] = Optional.of(value)
+}
+
+private[inc] object LastModified extends WithPattern {
+  final val Pattern = """lastModified\((\d+)\)""".r
+}
+
+final class Exists(val value: Boolean) extends StampBase {
+  override def writeStamp: String = if (value) Exists.Exists else Exists.Absent
+  override def getValueId: Int = if (value) 0 else 1
+  override def getHash: Optional[String] = Optional.empty[String]
+  override def getLastModified: Optional[BoxedLong] = Optional.empty[BoxedLong]
+}
+
+private[inc] object Exists {
+  private[inc] final val Exists = "exists"
+  private[inc] final val Absent = "absent"
 }
 
 object Stamp {
   private final val maxModificationDifferenceInMillis = 100L
 
-  implicit val equivStamp: Equiv[Stamp] = new Equiv[Stamp] {
+  private[inc] implicit val equivStamp: Equiv[Stamp] = new Equiv[Stamp] {
     def equiv(a: Stamp, b: Stamp) = (a, b) match {
       case (h1: Hash, h2: Hash)     => h1.value sameElements h2.value
       case (e1: Exists, e2: Exists) => e1.value == e2.value
@@ -80,41 +107,27 @@ object Stamp {
     }
   }
 
-  // NOTE: toString/fromString used for serialization, not just for debug prints.
-
-  def toString(s: Stamp): String = s match {
-    case e: Exists        => if (e.value) "exists" else "absent"
-    case h: Hash          => "hash(" + IOHash.toHex(h.value) + ")"
-    case lm: LastModified => "lastModified(" + lm.value + ")"
-  }
-
-  private val hashPattern = """hash\((\w+)\)""".r
-  private val lastModifiedPattern = """lastModified\((\d+)\)""".r
-
   def fromString(s: String): Stamp = s match {
-    case "exists"                   => new Exists(true)
-    case "absent"                   => new Exists(false)
-    case hashPattern(value)         => new Hash(IOHash.fromHex(value))
-    case lastModifiedPattern(value) => new LastModified(java.lang.Long.parseLong(value))
-    case _                          => throw new IllegalArgumentException("Unrecognized Stamp string representation: " + s)
+    case Exists.Exists               => new Exists(true)
+    case Exists.Absent               => new Exists(false)
+    case Hash.Pattern(value)         => new Hash(IOHash.fromHex(value))
+    case LastModified.Pattern(value) => new LastModified(java.lang.Long.parseLong(value))
+    case _ =>
+      throw new IllegalArgumentException("Unrecognized Stamp string representation: " + s)
   }
 
-  def show(s: Stamp): String = s match {
-    case h: Hash          => "hash(" + IOHash.toHex(h.value) + ")"
-    case e: Exists        => if (e.value) "exists" else "does not exist"
-    case lm: LastModified => "last modified(" + lm.value + ")"
-  }
-
-  val hash = (f: File) => tryStamp(new Hash(IOHash(f)))
-  val lastModified = (f: File) => tryStamp(new LastModified(f.lastModified))
-  val exists = (f: File) => tryStamp(if (f.exists) present else notPresent)
-
-  def tryStamp(g: => Stamp): Stamp = try { g } catch { case i: IOException => notPresent }
-
-  val notPresent = new Exists(false)
-  val present = new Exists(true)
-
+  private[inc] final val notPresent = new Exists(false)
   def getStamp(map: Map[File, Stamp], src: File): Stamp = map.getOrElse(src, notPresent)
+}
+
+object Stamper {
+  private def tryStamp(g: => Stamp): Stamp = {
+    try { g } // TODO: Double check correctness. Why should we not report an exception here?
+    catch { case i: IOException => Stamp.notPresent }
+  }
+
+  val forHash = (toStamp: File) => tryStamp(new Hash(IOHash(toStamp)))
+  val forLastModified = (toStamp: File) => tryStamp(new LastModified(toStamp.lastModified()))
 }
 
 object Stamps {
@@ -146,14 +159,14 @@ private class MStamps(val products: Map[File, Stamp],
                       val sources: Map[File, Stamp],
                       val binaries: Map[File, Stamp])
     extends Stamps {
-  def allInternalSources: collection.Set[File] = sources.keySet
+  def allSources: collection.Set[File] = sources.keySet
   def allBinaries: collection.Set[File] = binaries.keySet
   def allProducts: collection.Set[File] = products.keySet
 
   def ++(o: Stamps): Stamps =
     new MStamps(products ++ o.products, sources ++ o.sources, binaries ++ o.binaries)
 
-  def markInternalSource(src: File, s: Stamp): Stamps =
+  def markSource(src: File, s: Stamp): Stamps =
     new MStamps(products, sources.updated(src, s), binaries)
 
   def markBinary(bin: File, className: String, s: Stamp): Stamps =
@@ -180,9 +193,9 @@ private class MStamps(val products: Map[File, Stamp],
     (for (k <- prod.keySet ++ sourcesMap.keySet ++ bin.keySet) yield (k, kStamps(k))).toMap
   }
 
-  def product(prod: File) = getStamp(products, prod)
-  def internalSource(src: File) = getStamp(sources, src)
-  def binary(bin: File) = getStamp(binaries, bin)
+  override def product(prod: File) = Stamp.getStamp(products, prod)
+  override def source(src: File) = Stamp.getStamp(sources, src)
+  override def binary(bin: File) = Stamp.getStamp(binaries, bin)
 
   override def equals(other: Any): Boolean = other match {
     case o: MStamps => products == o.products && sources == o.sources && binaries == o.binaries
@@ -206,9 +219,9 @@ private class InitialStamps(prodStamp: File => Stamp,
   private val sources: Map[File, Stamp] = new HashMap
   private val binaries: Map[File, Stamp] = new HashMap
 
-  def product(prod: File): Stamp = prodStamp(prod)
-  def internalSource(src: File): Stamp = synchronized {
-    sources.getOrElseUpdate(src, srcStamp(src))
-  }
-  def binary(bin: File): Stamp = synchronized { binaries.getOrElseUpdate(bin, binStamp(bin)) }
+  override def product(prod: File): Stamp = prodStamp(prod)
+  override def source(src: File): Stamp =
+    synchronized { sources.getOrElseUpdate(src, srcStamp(src)) }
+  override def binary(bin: File): Stamp =
+    synchronized { binaries.getOrElseUpdate(bin, binStamp(bin)) }
 }

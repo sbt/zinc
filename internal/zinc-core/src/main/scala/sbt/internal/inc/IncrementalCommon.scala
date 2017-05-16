@@ -12,8 +12,9 @@ package inc
 import java.io.File
 
 import xsbti.api.AnalyzedClass
-import xsbti.compile.ClassFileManager
-import xsbti.compile.{ CompileAnalysis, DependencyChanges, IncOptions, IncOptionsUtil }
+import xsbti.compile.{ ClassFileManager, CompileAnalysis, DependencyChanges, IncOptions }
+import xsbti.compile.IncOptionsUtil
+import xsbti.compile.analysis.{ ReadStamps, Stamp }
 
 import scala.annotation.tailrec
 
@@ -222,8 +223,8 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
 
     val srcChanges = lookup.changedSources(previousAnalysis).getOrElse {
       def sourceModified(f: File): Boolean =
-        !equivS.equiv(previous.internalSource(f), current.internalSource(f))
-      changes(previous.allInternalSources.toSet, sources, sourceModified _)
+        !equivS.equiv(previous.source(f), current.source(f))
+      changes(previous.allSources.toSet, sources, sourceModified _)
     }
 
     val removedProducts = lookup.removedProducts(previousAnalysis).getOrElse {

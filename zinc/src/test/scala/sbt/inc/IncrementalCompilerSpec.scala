@@ -16,7 +16,7 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
         assert(f.exists, s"$f does not exist.")
       }
       val a = result.analysis match { case a: Analysis => a }
-      assert(a.stamps.allInternalSources.nonEmpty)
+      assert(a.stamps.allSources.nonEmpty)
     }
   }
 

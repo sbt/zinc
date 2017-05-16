@@ -13,6 +13,7 @@ import java.io.File
 
 import xsbti.UseScope
 import xsbti.api.NameHash
+import xsbti.compile.analysis.Stamp
 
 final case class InitialChanges(
     internalSrc: Changes[File],

@@ -11,7 +11,8 @@ import java.io.File
 import java.nio.file.Path
 
 import sbt.internal.inc._
-import sbt.io.{ PathFinder, IO }
+import sbt.io.{ IO, PathFinder }
+import xsbti.compile.analysis.Stamp
 import xsbti.compile.{ CompileAnalysis, MiniSetup, SingleOutput }
 
 class ExportableCacheMapper(root: Path) extends AnalysisMappersAdapter {
@@ -69,7 +70,7 @@ class ExportableCache(val cacheLocation: Path, cleanOutputMode: CleanOutputMode 
 
     val updatedProducts = oldStamps.products.map {
       case (file, stamp) if importedFiles.contains(file) =>
-        (file, Stamp.lastModified(file))
+        (file, Stamper.forLastModified(file))
       case other => other
     }
 

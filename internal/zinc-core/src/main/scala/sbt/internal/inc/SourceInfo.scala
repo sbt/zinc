@@ -10,7 +10,6 @@ package internal
 package inc
 
 import xsbti.Problem
-
 import java.io.File
 
 trait SourceInfo {

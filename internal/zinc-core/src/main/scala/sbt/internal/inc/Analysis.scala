@@ -12,8 +12,9 @@ package inc
 import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
 import java.io.File
 
-import xsbti.api.{ AnalyzedClass, InternalDependency, ExternalDependency }
+import xsbti.api.{ AnalyzedClass, ExternalDependency, InternalDependency }
 import xsbti.compile.CompileAnalysis
+import xsbti.compile.analysis.Stamp
 
 trait Analysis extends CompileAnalysis {
   val stamps: Stamps
@@ -146,7 +147,7 @@ private class MAnalysis(val stamps: Stamps,
 
     val newStamps = {
       val nonLocalProductStamps =
-        nonLocalProducts.foldLeft(stamps.markInternalSource(src, stamp)) {
+        nonLocalProducts.foldLeft(stamps.markSource(src, stamp)) {
           case (tmpStamps, nonLocalProduct) =>
             tmpStamps.markProduct(nonLocalProduct.classFile, nonLocalProduct.classFileStamp)
         }

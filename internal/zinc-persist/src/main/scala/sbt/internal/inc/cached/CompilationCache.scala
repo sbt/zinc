@@ -12,6 +12,7 @@ import java.nio.file.Path
 
 import sbt.internal.inc._
 import sbt.io.IO
+import xsbti.compile.analysis.Stamp
 import xsbti.compile.{ CompileAnalysis, MiniSetup }
 
 trait CompilationCache {

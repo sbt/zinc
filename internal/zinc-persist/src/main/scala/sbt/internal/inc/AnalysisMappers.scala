@@ -11,8 +11,8 @@ import java.io.File
 import java.nio.file.Path
 
 import xsbti.UseScope
-
 import xsbti.compile.MiniSetup
+import xsbti.compile.analysis.Stamp
 
 import scala.util.Try
 
@@ -63,7 +63,7 @@ object Mapper {
 
   def updateModificationDateFileMapper(from: Mapper[File]): ContextAwareMapper[File, Stamp] =
     ContextAwareMapper(
-      (binaryFile, _) => Stamp.lastModified(from.read(binaryFile.toString)),
+      (binaryFile, _) => Stamper.forLastModified(from.read(binaryFile.toString)),
       (_, stamp) => stamp.toString
     )
 }

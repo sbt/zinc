@@ -180,7 +180,7 @@ object MixedAnalyzingCompiler {
       extra: List[(String, String)]
   ): CompileConfiguration = {
     val classpathHash = classpath map { x =>
-      new FileHash(x, Stamp.hash(x).hashCode)
+      new FileHash(x, Stamper.forHash(x).hashCode)
     }
     val compileSetup = new MiniSetup(
       output,
