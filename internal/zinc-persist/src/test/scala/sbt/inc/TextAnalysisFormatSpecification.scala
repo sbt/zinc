@@ -70,20 +70,20 @@ trait BaseTextAnalysisFormatTest { self: Properties =>
     val aScala = f("A.scala")
     val aClass = genClass("A").sample.get
     val cClass = genClass("C").sample.get
-    val exists = new Exists(true)
+    val absent = EmptyStamp
     val sourceInfos = SourceInfos.makeInfo(Nil, Nil)
 
     var analysis = Analysis.empty
-    val products = NonLocalProduct("A", "A", f("A.class"), exists) ::
-      NonLocalProduct("A$", "A$", f("A$.class"), exists) :: Nil
-    val binaryDeps = (f("x.jar"), "x", exists) :: Nil
+    val products = NonLocalProduct("A", "A", f("A.class"), absent) ::
+      NonLocalProduct("A$", "A$", f("A$.class"), absent) :: Nil
+    val binaryDeps = (f("x.jar"), "x", absent) :: Nil
     val externalDeps = new ExternalDependency("A",
                                               "C",
                                               cClass,
                                               DependencyContext.DependencyByMemberRef) :: Nil
     analysis = analysis.addSource(aScala,
                                   Seq(aClass),
-                                  exists,
+                                  absent,
                                   sourceInfos,
                                   products,
                                   Nil,

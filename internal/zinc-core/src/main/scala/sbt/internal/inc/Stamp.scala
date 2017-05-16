@@ -42,7 +42,7 @@ trait Stamps extends ReadStamps {
                  bin: Map[K, File => Boolean]): Map[K, Stamps]
 }
 
-private[inc] sealed abstract class StampBase extends Stamp {
+private[sbt] sealed abstract class StampBase extends Stamp {
   override def toString: String = this.writeStamp()
   override def hashCode(): Int = this.getValueId()
   override def equals(other: Any): Boolean = other match {
@@ -51,12 +51,11 @@ private[inc] sealed abstract class StampBase extends Stamp {
   }
 }
 
-trait WithPattern {
-  protected def Pattern: Regex
-}
+trait WithPattern { protected def Pattern: Regex }
 
 import java.lang.{ Long => BoxedLong }
 
+/** Define the hash of the file contents. It's a typical stamp for compilation sources. */
 final class Hash(val value: Array[Byte]) extends StampBase {
   val hexHash = IOHash.toHex(value)
   override def writeStamp: String = s"hash($hexHash)"
@@ -65,10 +64,11 @@ final class Hash(val value: Array[Byte]) extends StampBase {
   override def getLastModified: Optional[BoxedLong] = Optional.empty[BoxedLong]
 }
 
-private[inc] object Hash extends WithPattern {
+private[sbt] object Hash extends WithPattern {
   final val Pattern = """hash\((\w+)\)""".r
 }
 
+/** Define the last modified time of the file. It's a typical stamp for class files and products. */
 final class LastModified(val value: Long) extends StampBase {
   override def writeStamp: String = s"lastModified(${value})"
   override def getValueId: Int = (value ^ (value >>> 32)).toInt
@@ -76,54 +76,49 @@ final class LastModified(val value: Long) extends StampBase {
   override def getLastModified: Optional[BoxedLong] = Optional.of(value)
 }
 
-private[inc] object LastModified extends WithPattern {
-  final val Pattern = """lastModified\((\d+)\)""".r
-}
-
-final class Exists(val value: Boolean) extends StampBase {
-  override def writeStamp: String = if (value) Exists.Exists else Exists.Absent
-  override def getValueId: Int = if (value) 0 else 1
+/** Defines an empty stamp. */
+private[sbt] object EmptyStamp extends StampBase {
+  // Use `absent` because of historic reasons -- replacement of old `Exists` representation
+  final val Value = "absent"
+  override def writeStamp: String = Value
+  override def getValueId: Int = System.identityHashCode(this)
   override def getHash: Optional[String] = Optional.empty[String]
   override def getLastModified: Optional[BoxedLong] = Optional.empty[BoxedLong]
 }
 
-private[inc] object Exists {
-  private[inc] final val Exists = "exists"
-  private[inc] final val Absent = "absent"
+private[inc] object LastModified extends WithPattern {
+  final val Pattern = """lastModified\((\d+)\)""".r
 }
 
 object Stamp {
   private final val maxModificationDifferenceInMillis = 100L
-
   private[inc] implicit val equivStamp: Equiv[Stamp] = new Equiv[Stamp] {
     def equiv(a: Stamp, b: Stamp) = (a, b) match {
-      case (h1: Hash, h2: Hash)     => h1.value sameElements h2.value
-      case (e1: Exists, e2: Exists) => e1.value == e2.value
+      case (h1: Hash, h2: Hash) => h1.value sameElements h2.value
       // Windows is handling this differently sometimes...
       case (lm1: LastModified, lm2: LastModified) =>
-        lm1.value == lm2.value || Math
-          .abs(lm1.value - lm2.value) < maxModificationDifferenceInMillis
-      case _ => false
+        lm1.value == lm2.value ||
+          Math.abs(lm1.value - lm2.value) < maxModificationDifferenceInMillis
+      case (EmptyStamp, EmptyStamp) => true
+      case _                        => false
     }
   }
 
   def fromString(s: String): Stamp = s match {
-    case Exists.Exists               => new Exists(true)
-    case Exists.Absent               => new Exists(false)
+    case EmptyStamp.Value            => EmptyStamp
     case Hash.Pattern(value)         => new Hash(IOHash.fromHex(value))
     case LastModified.Pattern(value) => new LastModified(java.lang.Long.parseLong(value))
     case _ =>
       throw new IllegalArgumentException("Unrecognized Stamp string representation: " + s)
   }
 
-  private[inc] final val notPresent = new Exists(false)
-  def getStamp(map: Map[File, Stamp], src: File): Stamp = map.getOrElse(src, notPresent)
+  def getStamp(map: Map[File, Stamp], src: File): Stamp = map.getOrElse(src, EmptyStamp)
 }
 
 object Stamper {
   private def tryStamp(g: => Stamp): Stamp = {
     try { g } // TODO: Double check correctness. Why should we not report an exception here?
-    catch { case i: IOException => Stamp.notPresent }
+    catch { case i: IOException => EmptyStamp }
   }
 
   val forHash = (toStamp: File) => tryStamp(new Hash(IOHash(toStamp)))
