@@ -17,6 +17,7 @@ import xsbti.api._
 import xsbti.compile._
 import sbt.util.InterfaceUtil
 import sbt.util.InterfaceUtil.{ jo2o, position, problem }
+import xsbti.compile.analysis.SourceInfo
 
 // A text-based serialization format for Analysis objects.
 // This code has been tuned for high performance, and therefore has non-idiomatic areas.
@@ -60,7 +61,7 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers)
     xsbt.api.AnalyzedClassFormats.analyzedClassFormat
   private implicit def infoFormat: Format[SourceInfo] =
     wrap[SourceInfo, (Seq[Problem], Seq[Problem])](
-      si => (si.reportedProblems, si.unreportedProblems), {
+      si => (si.getReportedProblems, si.getUnreportedProblems), {
         case (a, b) => SourceInfos.makeInfo(a, b)
       })
   private implicit def fileHashFormat: Format[FileHash] =

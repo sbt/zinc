@@ -488,7 +488,7 @@ case class ProjectStructure(
     fileStore.get match {
       case Some((analysis: Analysis, _)) =>
         val allInfos = analysis.infos.allInfos.values.toSeq
-        allInfos flatMap (i => i.reportedProblems ++ i.unreportedProblems)
+        allInfos flatMap (i => i.getReportedProblems ++ i.getUnreportedProblems)
       case _ =>
         Nil
     }

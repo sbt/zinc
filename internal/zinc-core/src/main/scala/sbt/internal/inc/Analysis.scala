@@ -14,7 +14,7 @@ import java.io.File
 
 import xsbti.api.{ AnalyzedClass, ExternalDependency, InternalDependency }
 import xsbti.compile.CompileAnalysis
-import xsbti.compile.analysis.{ ReadStamps, Stamp }
+import xsbti.compile.analysis.{ ReadStamps, SourceInfo, Stamp }
 
 trait Analysis extends CompileAnalysis {
   val stamps: Stamps
@@ -87,7 +87,7 @@ object Analysis {
     val c = a.stamps.allProducts
     val ext = a.apis.allExternals
     val jars = a.relations.allLibraryDeps.filter(_.getName.endsWith(".jar"))
-    val unreportedCount = a.infos.allInfos.values.map(_.unreportedProblems.size).sum
+    val unreportedCount = a.infos.allInfos.values.map(_.getUnreportedProblems.length).sum
     val sections =
       counted("Scala source", "", "s", s.size) ++
         counted("Java source", "", "s", j.size) ++

@@ -109,7 +109,7 @@ trait BaseTextAnalysisFormatTest { self: Properties =>
   private def mapInfos(a: SourceInfos): Map[File, (Seq[Problem], Seq[Problem])] =
     a.allInfos.map {
       case (f, infos) =>
-        f -> (infos.reportedProblems -> infos.unreportedProblems)
+        f -> (infos.getReportedProblems.toList -> infos.getUnreportedProblems.toList)
     }
 
   private def compareOutputs(left: Output, right: Output): Prop = {
