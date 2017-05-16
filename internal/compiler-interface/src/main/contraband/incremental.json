@@ -264,13 +264,6 @@
       ]
     },
     {
-      "name": "CompileAnalysis",
-      "namespace": "xsbti.compile",
-      "target": "Java",
-      "type": "interface",
-      "doc": "Represents the analysis of an incremental compilation."
-    },
-    {
       "name": "CompileResult",
       "namespace": "xsbti.compile",
       "target": "Java",
