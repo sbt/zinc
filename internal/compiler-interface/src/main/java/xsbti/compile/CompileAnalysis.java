@@ -11,24 +11,8 @@ import java.io.Serializable;
 
 /**
  * Represents the analysis interface of an incremental compilation.
+ *
+ * The analysis interface conforms the public API of the Analysis files that
+ * contain information about the incremental compilation of a project.
  */
-public abstract class CompileAnalysis implements Serializable {
-    public CompileAnalysis() {
-        super();
-    }
-
-    public boolean equals(Object obj) {
-        if (this == obj) {
-            return true;
-        } else if (!(obj instanceof CompileAnalysis)) {
-            return false;
-        } else {
-            CompileAnalysis o = (CompileAnalysis) obj;
-            return true;
-        }
-    }
-
-    public String toString() {
-        return "CompileAnalysis(" + ")";
-    }
-}
+public interface CompileAnalysis extends Serializable {}
