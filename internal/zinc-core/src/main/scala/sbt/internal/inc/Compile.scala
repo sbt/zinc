@@ -28,6 +28,7 @@ import sbt.util.InterfaceUtil.jo2o
 import java.io.File
 import java.util
 
+import sbt.inc.Compilation
 import xsbti.api.DependencyContext
 import xsbti.compile.analysis.ReadStamps
 
@@ -131,8 +132,7 @@ private final class AnalysisCallback(
     options: IncOptions
 ) extends xsbti.AnalysisCallback {
 
-  private[this] val compilation: Compilation =
-    new Compilation(System.currentTimeMillis, output)
+  private[this] val compilation: Compilation = Compilation(output)
 
   override def toString =
     (List("Class APIs", "Object APIs", "Binary deps", "Products", "Source deps") zip
@@ -332,7 +332,7 @@ private final class AnalysisCallback(
     val (companions, apiHash) = companionsWithHash(name)
     val nameHashes = nameHashesForCompanions(name)
     val safeCompanions = SafeLazyProxy(companions)
-    val ac = new AnalyzedClass(compilation.startTime(),
+    val ac = new AnalyzedClass(compilation.getStartTime(),
                                name,
                                safeCompanions,
                                apiHash,

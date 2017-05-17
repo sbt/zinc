@@ -14,7 +14,7 @@ import java.io.File
 
 import xsbti.api.{ AnalyzedClass, ExternalDependency, InternalDependency }
 import xsbti.compile.CompileAnalysis
-import xsbti.compile.analysis.{ ReadSourceInfos, ReadStamps, SourceInfo, Stamp }
+import xsbti.compile.analysis.{ ReadCompilations, ReadSourceInfos, ReadStamps, SourceInfo, Stamp }
 
 trait Analysis extends CompileAnalysis {
   val stamps: Stamps
@@ -24,8 +24,9 @@ trait Analysis extends CompileAnalysis {
   val relations: Relations
   val infos: SourceInfos
 
-  override def readStamps(): ReadStamps = stamps
-  override def readSourceInfos(): ReadSourceInfos = infos
+  override def readStamps: ReadStamps = stamps
+  override def readSourceInfos: ReadSourceInfos = infos
+  override def readCompilations: ReadCompilations = compilations
 
   /**
    * Information about compiler runs accumulated since `clean` command has been run.

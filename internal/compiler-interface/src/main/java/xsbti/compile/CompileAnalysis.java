@@ -7,6 +7,7 @@
 
 package xsbti.compile;
 
+import xsbti.compile.analysis.ReadCompilations;
 import xsbti.compile.analysis.ReadSourceInfos;
 import xsbti.compile.analysis.ReadStamps;
 
@@ -35,4 +36,12 @@ public interface CompileAnalysis extends Serializable {
      * @see xsbti.compile.analysis.SourceInfo
      */
     public ReadSourceInfos readSourceInfos();
+
+    /**
+     * Returns a read-only interface to check information about the incremental compilations.
+     *
+     * @return A read-only compilation info interface.
+     * @see xsbti.compile.analysis.Compilation
+     */
+    public ReadCompilations readCompilations();
 }

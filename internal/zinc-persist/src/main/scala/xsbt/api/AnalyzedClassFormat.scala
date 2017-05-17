@@ -10,6 +10,7 @@ package xsbt.api
 import xsbti.api._
 import sbinary._
 import sbinary.DefaultProtocol._
+import sbt.inc.Compilation
 import sbt.internal.inc.APIs.emptyCompanions
 
 object AnalyzedClassFormats {

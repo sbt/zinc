@@ -36,16 +36,6 @@
       ]
     },
     {
-      "name": "Compilation",
-      "namespace": "xsbti.api",
-      "target": "Java",
-      "type": "record",
-      "fields": [
-        { "name": "startTime", "type": "long"           },
-        { "name": "output",   "type": "xsbti.compile.Output" }
-      ]
-    },
-    {
       "name": "Package",
       "namespace": "xsbti.api",
       "target": "Java",

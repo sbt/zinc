@@ -9,6 +9,7 @@ package xsbt.api
 
 import xsbti.api._
 import sbinary._
+import sbt.inc.Compilation
 
 object CompilationFormat extends Format[Compilation] {
   import java.io._

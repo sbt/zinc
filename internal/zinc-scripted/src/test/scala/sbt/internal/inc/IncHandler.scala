@@ -305,7 +305,7 @@ case class ProjectStructure(
     val allCompilations = analysis.compilations.allCompilations
     val recompiledClasses: Seq[Set[String]] = allCompilations map { c =>
       val recompiledClasses = analysis.apis.internal.collect {
-        case (className, api) if api.compilationTimestamp() == c.startTime => className
+        case (className, api) if api.compilationTimestamp() == c.getStartTime => className
       }
       recompiledClasses.toSet
     }
