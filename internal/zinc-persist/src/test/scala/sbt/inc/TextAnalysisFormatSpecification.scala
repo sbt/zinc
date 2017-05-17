@@ -25,7 +25,7 @@ trait BaseTextAnalysisFormatTest { self: Properties =>
 
   val storeApis = true
   val dummyOutput = new xsbti.compile.SingleOutput {
-    def outputDirectory: java.io.File = new java.io.File("/dummy")
+    def getOutputDirectory: java.io.File = new java.io.File("/dummy")
   }
   val commonSetup = new MiniSetup(dummyOutput,
                                   new MiniOptions(Array(), Array(), Array()),
@@ -115,9 +115,9 @@ trait BaseTextAnalysisFormatTest { self: Properties =>
   private def compareOutputs(left: Output, right: Output): Prop = {
     (left, right) match {
       case (l: SingleOutput, r: SingleOutput) =>
-        "Single output dir" |: l.outputDirectory() =? r.outputDirectory()
+        "Single output dir" |: l.getOutputDirectory() =? r.getOutputDirectory()
       case (l: MultipleOutput, r: MultipleOutput) =>
-        "Output group match" |: l.outputGroups() =? r.outputGroups()
+        "Output group match" |: l.getOutputGroups() =? r.getOutputGroups()
       case _ =>
         s"Cannot compare $left with $right" |: left =? right
     }

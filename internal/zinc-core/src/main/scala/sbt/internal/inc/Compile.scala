@@ -131,18 +131,8 @@ private final class AnalysisCallback(
     options: IncOptions
 ) extends xsbti.AnalysisCallback {
 
-  private[this] val compilation: Compilation = {
-    val outputSettings = output match {
-      case single: SingleOutput =>
-        // TODO: Why are we using the root as the file with all the sources? Smell.
-        val rootFile = new java.io.File("/")
-        List(new SimpleOutputGroup(rootFile, single.outputDirectory))
-      case multi: MultipleOutput =>
-        multi.outputGroups.toList.map(out =>
-          new SimpleOutputGroup(out.sourceDirectory, out.outputDirectory))
-    }
-    new Compilation(System.currentTimeMillis, outputSettings.toArray)
-  }
+  private[this] val compilation: Compilation =
+    new Compilation(System.currentTimeMillis, output)
 
   override def toString =
     (List("Class APIs", "Object APIs", "Binary deps", "Products", "Source deps") zip

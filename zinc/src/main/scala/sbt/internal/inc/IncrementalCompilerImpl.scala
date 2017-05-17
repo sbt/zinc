@@ -161,10 +161,10 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         val numberSources = s"${sources.length} sources"
         val outputString = output match {
           case singleOutput: SingleOutput =>
-            singleOutput.outputDirectory().toString
+            singleOutput.getOutputDirectory().toString
           case multiOutput: MultipleOutput =>
             multiOutput
-              .outputGroups()
+              .getOutputGroups()
               .map(_.outputDirectory().toString)
               .mkString("[", ", ", "]")
           case _ =>

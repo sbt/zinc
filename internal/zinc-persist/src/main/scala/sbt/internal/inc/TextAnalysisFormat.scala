@@ -320,11 +320,11 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers)
       val (mode, outputAsMap) = setup.output match {
         case s: SingleOutput =>
           // just to be compatible with multipleOutputMode
-          val ignored = s.outputDirectory
-          (singleOutputMode, Map(ignored -> s.outputDirectory))
+          val ignored = s.getOutputDirectory
+          (singleOutputMode, Map(ignored -> s.getOutputDirectory))
         case m: MultipleOutput =>
           (multipleOutputMode,
-           m.outputGroups.map(x => x.sourceDirectory -> x.outputDirectory).toMap)
+           m.getOutputGroups.map(x => x.sourceDirectory -> x.outputDirectory).toMap)
       }
 
       writeSeq(out)(Headers.outputMode, mode :: Nil, identity[String])
@@ -365,11 +365,11 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers)
           s match {
             case `singleOutputMode` =>
               new SingleOutput {
-                val outputDirectory = outputAsMap.values.head
+                val getOutputDirectory = outputAsMap.values.head
               }
             case `multipleOutputMode` =>
               new MultipleOutput {
-                val outputGroups: Array[OutputGroup] = outputAsMap.toArray.map {
+                val getOutputGroups: Array[OutputGroup] = outputAsMap.toArray.map {
                   case (src: File, out: File) =>
                     new OutputGroup {
                       val sourceDirectory = src
@@ -377,7 +377,7 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers)
                       override def toString = s"OutputGroup($src -> $out)"
                     }
                 }
-                override def toString = s"MultipleOuput($outputGroups)"
+                override def toString = s"MultipleOuput($getOutputGroups)"
               }
             case str: String => throw new ReadException("Unrecognized output mode: " + str)
           }

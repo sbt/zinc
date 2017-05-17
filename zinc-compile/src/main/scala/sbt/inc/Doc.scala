@@ -33,7 +33,7 @@ import xsbti.Reporter
 object Doc {
   private[this] implicit val IsoInputs = LList.iso(
     { in: Inputs =>
-      ("outputDirectory", in.outputDirectory) :*: LNil
+      ("getOutputDirectory", in.outputDirectory) :*: LNil
     }, { in: File :*: LNil =>
       Inputs(Nil, Nil, Nil, in.head, Nil)
     }

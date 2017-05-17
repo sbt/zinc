@@ -42,7 +42,7 @@
       "type": "record",
       "fields": [
         { "name": "startTime", "type": "long"           },
-        { "name": "outputs",   "type": "xsbti.compile.OutputGroup*" }
+        { "name": "output",   "type": "xsbti.compile.Output" }
       ]
     },
     {

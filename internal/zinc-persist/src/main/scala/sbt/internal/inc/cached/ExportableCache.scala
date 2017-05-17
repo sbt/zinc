@@ -47,7 +47,7 @@ class ExportableCache(val cacheLocation: Path, cleanOutputMode: CleanOutputMode 
 
   protected def outputDirFor(setup: MiniSetup): File = setup.output() match {
     case single: SingleOutput =>
-      single.outputDirectory()
+      single.getOutputDirectory()
     case _ => throw new RuntimeException("Only single output is supported")
   }
 

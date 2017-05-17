@@ -120,8 +120,8 @@ private[xsbt] object ZincBenchmark {
       compilationInfo: CompilationInfo
   ): ZincCompiler = {
     object output extends SingleOutput {
-      def outputDirectory: File = outputDir
-      override def toString = s"SingleOutput($outputDirectory)"
+      def getOutputDirectory: File = outputDir
+      override def toString = s"SingleOutput($getOutputDirectory)"
     }
     val args = compilationInfo.scalacOptions
     val classpath = compilationInfo.classpath
