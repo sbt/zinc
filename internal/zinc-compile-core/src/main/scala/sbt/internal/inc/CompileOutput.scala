@@ -40,8 +40,8 @@ object CompileOutput {
     def getOutputGroups = groups.toArray map {
       case (src, out) =>
         new OutputGroup {
-          def sourceDirectory = src
-          def outputDirectory = out
+          def getSourceDirectory = src
+          def getOutputDirectory = out
           override def toString = s"OutputGroup($src -> $out)"
         }
     }

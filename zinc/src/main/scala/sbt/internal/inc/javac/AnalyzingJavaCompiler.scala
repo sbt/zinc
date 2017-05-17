@@ -88,9 +88,9 @@ final class AnalyzingJavaCompiler private[sbt] (
           sources.groupBy { src =>
             multi.getOutputGroups
               .find { out =>
-                ancestor(out.sourceDirectory, src)
+                ancestor(out.getSourceDirectory, src)
               }
-              .map(_.outputDirectory)
+              .map(_.getOutputDirectory)
           }
       }
 

@@ -120,7 +120,7 @@ final class MixedAnalyzingCompiler(
   private[this] def outputDirectories(output: Output): Seq[File] = {
     output match {
       case single: SingleOutput => List(single.getOutputDirectory)
-      case mult: MultipleOutput => mult.getOutputGroups map (_.outputDirectory)
+      case mult: MultipleOutput => mult.getOutputGroups map (_.getOutputDirectory)
     }
   }
 

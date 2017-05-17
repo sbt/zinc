@@ -24,7 +24,7 @@ public interface SingleOutput extends Output {
      * <p>
      * This directory must be exclusively used for one set of sources.
      */
-    File getOutputDirectory();
+    public File getOutputDirectory();
 
     @Override
     public default Optional<File> getSingleOutput() {

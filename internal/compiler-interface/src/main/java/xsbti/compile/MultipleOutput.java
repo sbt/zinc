@@ -23,7 +23,7 @@ public interface MultipleOutput extends Output {
      * don't play with them out of the Zinc API. Zinc already takes care of
      * deleting classes before every compilation run.
      */
-    OutputGroup[] getOutputGroups();
+    public OutputGroup[] getOutputGroups();
 
     @Override
     public default Optional<File> getSingleOutput() {

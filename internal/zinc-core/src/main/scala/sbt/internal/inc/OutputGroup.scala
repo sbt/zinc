@@ -4,4 +4,5 @@ import java.io.File
 
 import xsbti.compile.OutputGroup
 
-case class SimpleOutputGroup(sourceDirectory: File, outputDirectory: File) extends OutputGroup
+case class SimpleOutputGroup(getSourceDirectory: File, getOutputDirectory: File)
+    extends OutputGroup

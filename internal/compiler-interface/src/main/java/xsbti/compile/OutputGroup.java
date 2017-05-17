@@ -13,7 +13,7 @@ public interface OutputGroup extends Serializable {
      * Note that source directories should uniquely identify the group
      * for a certain source file.
      */
-    public File sourceDirectory();
+    public File getSourceDirectory();
 
     /**
      * Return the directory where class files should be generated.
@@ -24,5 +24,5 @@ public interface OutputGroup extends Serializable {
      * <p>
      * This directory must be exclusively used for one set of sources.
      */
-    public File outputDirectory();
+    public File getOutputDirectory();
 }

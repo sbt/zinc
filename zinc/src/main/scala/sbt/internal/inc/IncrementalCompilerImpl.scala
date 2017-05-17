@@ -165,7 +165,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
           case multiOutput: MultipleOutput =>
             multiOutput
               .getOutputGroups()
-              .map(_.outputDirectory().toString)
+              .map(_.getOutputDirectory().toString)
               .mkString("[", ", ", "]")
           case _ =>
             s"other output ($output)"
