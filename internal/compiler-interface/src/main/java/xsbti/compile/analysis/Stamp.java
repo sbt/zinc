@@ -14,6 +14,10 @@ import java.util.Optional;
  * A stamp defines certain properties or information on files.
  * <p>
  * Stamp properties are available depending on its associated file.
+ *
+ * A stamp is empty when <code>getHash</code> and <code>getModified</code> return
+ * an empty {@link Optional optional}. This value is returned for files that have
+ * not been tracked by the incremental compiler.
  */
 public interface Stamp {
     /**
