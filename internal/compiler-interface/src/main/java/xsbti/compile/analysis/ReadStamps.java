@@ -28,10 +28,11 @@ public interface ReadStamps {
 
     /**
      * Retrieves the stamp associated with a given internal source.
+     * <p>
+     * Note that the internal source has to be a source under compilation.
      *
      * @param internalSource The source file under compilation.
      * @return The stamp for the file.
-     * @apiNote The internal source has to be a source under compilation.
      * @see xsbti.AnalysisCallback#startSource(File)
      */
     public Stamp source(File internalSource);
@@ -63,11 +64,11 @@ public interface ReadStamps {
 
     /**
      * Returns a map of all the stamps associated with product files.
-     *
-     * @apiNote The returned map can be empty if no compilation has happened yet
-     * (e.g. compile analysis is empty).
+     * <p>
+     * Note that the returned map can be empty if no compilation has happened yet.
      *
      * @return A map of product files to stamps.
+     * (e.g. compile analysis is empty).
      * @see xsbti.compile.analysis.ReadStamps#product(File)
      */
     public Map<File, Stamp> getAllProductStamps();
