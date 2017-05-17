@@ -13,11 +13,13 @@ import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
 import xsbt.api.{ APIUtil, HashAPI, NameHashing }
 import xsbti.api._
 import xsbti.compile.{
+  ClassFileManager,
   CompileAnalysis,
   DependencyChanges,
   IncOptions,
   MultipleOutput,
   Output,
+  OutputGroup,
   SingleOutput
 }
 import xsbti.{ Position, Problem, Severity, UseScope }
@@ -27,7 +29,6 @@ import java.io.File
 import java.util
 
 import xsbti.api.DependencyContext
-import xsbti.compile.ClassFileManager
 import xsbti.compile.analysis.ReadStamps
 
 /**
@@ -133,14 +134,14 @@ private final class AnalysisCallback(
   private[this] val compilation: Compilation = {
     val outputSettings = output match {
       case single: SingleOutput =>
-        Array(new OutputSetting("/", single.outputDirectory.getAbsolutePath))
+        // TODO: Why are we using the root as the file with all the sources? Smell.
+        val rootFile = new java.io.File("/")
+        List(new SimpleOutputGroup(rootFile, single.outputDirectory))
       case multi: MultipleOutput =>
-        multi.outputGroups.map(
-          out =>
-            new OutputSetting(out.sourceDirectory.getAbsolutePath,
-                              out.outputDirectory.getAbsolutePath))
+        multi.outputGroups.toList.map(out =>
+          new SimpleOutputGroup(out.sourceDirectory, out.outputDirectory))
     }
-    new Compilation(System.currentTimeMillis, outputSettings)
+    new Compilation(System.currentTimeMillis, outputSettings.toArray)
   }
 
   override def toString =

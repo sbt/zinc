@@ -9,7 +9,7 @@ package sbt
 package internal
 package inc
 
-import xsbti.compile.{ Output, SingleOutput, MultipleOutput }
+import xsbti.compile.{ MultipleOutput, Output, OutputGroup, SingleOutput }
 import java.io.File
 
 /**
@@ -39,7 +39,7 @@ object CompileOutput {
   def apply(groups: (File, File)*): Output = new MultipleOutput {
     def outputGroups = groups.toArray map {
       case (src, out) =>
-        new MultipleOutput.OutputGroup {
+        new OutputGroup {
           def sourceDirectory = src
           def outputDirectory = out
           override def toString = s"OutputGroup($src -> $out)"

@@ -369,9 +369,9 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers)
               }
             case `multipleOutputMode` =>
               new MultipleOutput {
-                val outputGroups: Array[MultipleOutput.OutputGroup] = outputAsMap.toArray.map {
+                val outputGroups: Array[OutputGroup] = outputAsMap.toArray.map {
                   case (src: File, out: File) =>
-                    new MultipleOutput.OutputGroup {
+                    new OutputGroup {
                       val sourceDirectory = src
                       val outputDirectory = out
                       override def toString = s"OutputGroup($src -> $out)"
