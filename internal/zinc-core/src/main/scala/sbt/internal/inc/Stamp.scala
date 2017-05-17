@@ -10,6 +10,7 @@ package internal
 package inc
 
 import java.io.{ File, IOException }
+import java.util
 import java.util.Optional
 
 import sbt.io.{ Hash => IOHash }
@@ -20,7 +21,8 @@ import scala.util.matching.Regex
 /**
  * Provides a richer interface to read and write stamps associated with files.
  *
- * This interface is meant for internal use.
+ * This interface is meant for internal use and is Scala idiomatic. It implements the
+ * Java interface [[ReadStamps]] that is exposed in the [[xsbti.compile.CompileAnalysis]].
  */
 trait Stamps extends ReadStamps {
   def allSources: collection.Set[File]
@@ -154,6 +156,15 @@ private class MStamps(val products: Map[File, Stamp],
                       val sources: Map[File, Stamp],
                       val binaries: Map[File, Stamp])
     extends Stamps {
+
+  import scala.collection.JavaConverters.mapAsJavaMapConverter
+  override def getAllBinaryStamps: util.Map[File, Stamp] =
+    mapAsJavaMapConverter(binaries).asJava
+  override def getAllProductStamps: util.Map[File, Stamp] =
+    mapAsJavaMapConverter(products).asJava
+  override def getAllSourceStamps: util.Map[File, Stamp] =
+    mapAsJavaMapConverter(sources).asJava
+
   def allSources: collection.Set[File] = sources.keySet
   def allBinaries: collection.Set[File] = binaries.keySet
   def allProducts: collection.Set[File] = products.keySet
@@ -213,6 +224,13 @@ private class InitialStamps(prodStamp: File => Stamp,
   // cached stamps for files that do not change during compilation
   private val sources: Map[File, Stamp] = new HashMap
   private val binaries: Map[File, Stamp] = new HashMap
+
+  import scala.collection.JavaConverters.mapAsJavaMapConverter
+  override def getAllBinaryStamps: util.Map[File, Stamp] =
+    mapAsJavaMapConverter(binaries).asJava
+  override def getAllSourceStamps: util.Map[File, Stamp] =
+    mapAsJavaMapConverter(sources).asJava
+  override def getAllProductStamps: util.Map[File, Stamp] = new util.HashMap()
 
   override def product(prod: File): Stamp = prodStamp(prod)
   override def source(src: File): Stamp =

@@ -12,16 +12,16 @@ package inc
 import xsbti.Problem
 import java.io.File
 
-import xsbti.compile.analysis.SourceInfo
+import xsbti.compile.analysis.{ ReadSourceInfos, SourceInfo }
 
-trait SourceInfos {
+trait SourceInfos extends ReadSourceInfos {
   def ++(o: SourceInfos): SourceInfos
   def add(file: File, info: SourceInfo): SourceInfos
   def --(files: Iterable[File]): SourceInfos
   def groupBy[K](f: (File) => K): Map[K, SourceInfos]
-  def get(file: File): SourceInfo
   def allInfos: Map[File, SourceInfo]
 }
+
 object SourceInfos {
   def empty: SourceInfos = make(Map.empty)
   def make(m: Map[File, SourceInfo]): SourceInfos = new MSourceInfos(m)
@@ -31,6 +31,7 @@ object SourceInfos {
     new UnderlyingSourceInfo(reported, unreported)
   def merge(infos: Traversable[SourceInfos]): SourceInfos = (SourceInfos.empty /: infos)(_ ++ _)
 }
+
 private final class MSourceInfos(val allInfos: Map[File, SourceInfo]) extends SourceInfos {
   def ++(o: SourceInfos) = new MSourceInfos(allInfos ++ o.allInfos)
   def --(sources: Iterable[File]) = new MSourceInfos(allInfos -- sources)
@@ -38,7 +39,12 @@ private final class MSourceInfos(val allInfos: Map[File, SourceInfo]) extends So
     (x._1, new MSourceInfos(x._2))
   }
   def add(file: File, info: SourceInfo) = new MSourceInfos(allInfos + ((file, info)))
-  def get(file: File) = allInfos.getOrElse(file, SourceInfos.emptyInfo)
+
+  override def get(file: File): SourceInfo = allInfos.getOrElse(file, SourceInfos.emptyInfo)
+  override def getAllSourceInfos: java.util.Map[File, SourceInfo] = {
+    import scala.collection.JavaConverters.mapAsJavaMapConverter
+    mapAsJavaMapConverter(allInfos).asJava
+  }
 }
 
 private final class UnderlyingSourceInfo(val reportedProblems: Seq[Problem],

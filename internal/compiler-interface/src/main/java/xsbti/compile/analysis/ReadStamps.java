@@ -10,6 +10,7 @@ package xsbti.compile.analysis;
 import xsbti.api.DependencyContext;
 
 import java.io.File;
+import java.util.Map;
 
 /**
  * A read-only interface to get the timestamps of the binaries, sources and compilation products.
@@ -43,4 +44,31 @@ public interface ReadStamps {
      * @see xsbti.AnalysisCallback#binaryDependency(File, String, String, File, DependencyContext)
      */
     public Stamp binary(File binaryFile);
+
+    /**
+     * Returns a map of all the stamps associated with binary files.
+     *
+     * @return A map of binary files to stamps.
+     * @see xsbti.compile.analysis.ReadStamps#binary(File)
+     */
+    public Map<File, Stamp> getAllBinaryStamps();
+
+    /**
+     * Returns a map of all the stamps associated with source files.
+     *
+     * @return A map of source files to stamps.
+     * @see xsbti.compile.analysis.ReadStamps#source(File)
+     */
+    public Map<File, Stamp> getAllSourceStamps();
+
+    /**
+     * Returns a map of all the stamps associated with product files.
+     *
+     * @apiNote The returned map can be empty if no compilation has happened yet
+     * (e.g. compile analysis is empty).
+     *
+     * @return A map of product files to stamps.
+     * @see xsbti.compile.analysis.ReadStamps#product(File)
+     */
+    public Map<File, Stamp> getAllProductStamps();
 }

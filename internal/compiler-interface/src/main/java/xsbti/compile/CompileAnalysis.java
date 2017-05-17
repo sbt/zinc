@@ -7,6 +7,7 @@
 
 package xsbti.compile;
 
+import xsbti.compile.analysis.ReadSourceInfos;
 import xsbti.compile.analysis.ReadStamps;
 
 import java.io.Serializable;
@@ -25,4 +26,13 @@ public interface CompileAnalysis extends Serializable {
      * @see xsbti.compile.analysis.Stamp
      */
     public ReadStamps readStamps();
+
+    /**
+     * Returns a read-only source infos interface that allows users to get compiler
+     * information on every source file they wish to.
+     *
+     * @return A read-only source infos interface.
+     * @see xsbti.compile.analysis.SourceInfo
+     */
+    public ReadSourceInfos readSourceInfos();
 }
