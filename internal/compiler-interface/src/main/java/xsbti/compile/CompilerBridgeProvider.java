@@ -22,7 +22,7 @@ public interface CompilerBridgeProvider {
     static CompilerBridgeProvider constant(File file) {
         return new CompilerBridgeProvider() {
             @Override
-            public File getBridgeSources(ScalaInstance scalaInstance, Logger logger) {
+            public File getCompiledBridge(ScalaInstance scalaInstance, Logger logger) {
                 return file;
             }
         };
@@ -35,5 +35,5 @@ public interface CompilerBridgeProvider {
      * @param logger        A logger.
      * @return The jar or directory where the bridge sources have been compiled.
      */
-    File getBridgeSources(ScalaInstance scalaInstance, Logger logger);
+    File getCompiledBridge(ScalaInstance scalaInstance, Logger logger);
 }

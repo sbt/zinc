@@ -225,7 +225,7 @@ final class AnalyzingCompiler(
     argsObj.asInstanceOf[Array[String]].toSeq
   }
 
-  def force(log: Logger): Unit = { provider.getBridgeSources(scalaInstance, log); () }
+  def force(log: Logger): Unit = { provider.getCompiledBridge(scalaInstance, log); () }
 
   private def call(
       interfaceClassName: String,
@@ -247,7 +247,7 @@ final class AnalyzingCompiler(
   }
 
   private[this] def loader(log: Logger) = {
-    val interfaceJar = provider.getBridgeSources(scalaInstance, log)
+    val interfaceJar = provider.getCompiledBridge(scalaInstance, log)
     def createInterfaceLoader =
       new URLClassLoader(
         Array(interfaceJar.toURI.toURL),
