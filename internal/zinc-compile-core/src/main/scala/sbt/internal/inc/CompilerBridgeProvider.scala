@@ -10,14 +10,11 @@ package internal
 package inc
 
 import java.io.File
-import sbt.util.Logger
-
-trait CompilerBridgeProvider {
-  def apply(scalaInstance: xsbti.compile.ScalaInstance, log: Logger): File
-}
+import xsbti.compile.CompilerBridgeProvider
 
 object CompilerBridgeProvider {
   def constant(file: File): CompilerBridgeProvider = new CompilerBridgeProvider {
-    def apply(scalaInstance: xsbti.compile.ScalaInstance, log: Logger): File = file
+    override def getBridgeSources(scalaInstance: xsbti.compile.ScalaInstance,
+                                  log: xsbti.Logger): File = file
   }
 }

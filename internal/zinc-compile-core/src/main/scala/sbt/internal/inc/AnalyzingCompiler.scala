@@ -18,16 +18,7 @@ import sbt.io.syntax._
 import sbt.internal.inc.classpath.ClassLoaderCache
 import sbt.internal.util.ManagedLogger
 import xsbti.{ AnalysisCallback, Maybe, Reporter, Logger => xLogger }
-import xsbti.compile.{
-  CachedCompiler,
-  CachedCompilerProvider,
-  ClasspathOptions,
-  CompileProgress,
-  DependencyChanges,
-  GlobalsCache,
-  Output,
-  ScalaCompiler
-}
+import xsbti.compile._
 
 /**
  * Implement a cached incremental [[ScalaCompiler]] that has been instrumented
@@ -234,7 +225,7 @@ final class AnalyzingCompiler(
     argsObj.asInstanceOf[Array[String]].toSeq
   }
 
-  def force(log: Logger): Unit = { provider(scalaInstance, log); () }
+  def force(log: Logger): Unit = { provider.getBridgeSources(scalaInstance, log); () }
 
   private def call(
       interfaceClassName: String,
@@ -256,7 +247,7 @@ final class AnalyzingCompiler(
   }
 
   private[this] def loader(log: Logger) = {
-    val interfaceJar = provider(scalaInstance, log)
+    val interfaceJar = provider.getBridgeSources(scalaInstance, log)
     def createInterfaceLoader =
       new URLClassLoader(
         Array(interfaceJar.toURI.toURL),
