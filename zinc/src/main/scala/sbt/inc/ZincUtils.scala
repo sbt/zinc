@@ -12,12 +12,7 @@ import java.net.URLClassLoader
 
 import xsbti.compile._
 import sbt.internal.inc.classpath.ClassLoaderCache
-import sbt.internal.inc.{
-  AnalyzingCompiler,
-  ClasspathOptionsUtil,
-  CompilerBridgeProvider,
-  IncrementalCompilerImpl
-}
+import sbt.internal.inc.{ AnalyzingCompiler, ClasspathOptionsUtil, IncrementalCompilerImpl }
 
 /**
  * Define utils to get instance of the Zinc public API back living under

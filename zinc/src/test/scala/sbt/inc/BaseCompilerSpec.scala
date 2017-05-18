@@ -17,7 +17,7 @@ import sbt.io.IO
 import sbt.io.syntax._
 import sbt.util.{ InterfaceUtil, Logger }
 import xsbti.Maybe
-import xsbti.compile.{ CompilerBridgeProvider => _, ScalaInstance => _, _ }
+import xsbti.compile.{ ScalaInstance => _, _ }
 
 class BaseCompilerSpec extends BridgeProviderSpecification {
 

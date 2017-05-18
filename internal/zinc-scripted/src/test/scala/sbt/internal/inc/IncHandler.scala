@@ -5,6 +5,7 @@ package inc
 import java.io.{ File, FileInputStream }
 import java.net.URLClassLoader
 import java.util.jar.Manifest
+
 import sbt.util.Logger
 import sbt.util.InterfaceUtil._
 import xsbt.api.Discovery
@@ -12,25 +13,27 @@ import xsbti.{ Maybe, Problem, Severity }
 import xsbti.compile.{
   CompileAnalysis,
   CompileOrder,
+  CompilerBridgeProvider,
   DefinesClass,
+  IncOptions,
   IncOptionsUtil,
+  PerClasspathEntryLookup,
   PreviousResult,
-  Compilers => XCompilers,
-  IncOptions
+  Compilers => XCompilers
 }
-import xsbti.compile.PerClasspathEntryLookup
 import sbt.io.IO
 import sbt.io.syntax._
 import sbt.io.DirectoryFilter
-
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier.{ isPublic, isStatic }
 import java.util.Properties
-import sbt.internal.inc.classpath.{ ClasspathUtilities, ClassLoaderCache }
+
+import sbt.internal.inc.classpath.{ ClassLoaderCache, ClasspathUtilities }
 import sbt.internal.scripted.{ StatementHandler, TestFailed }
-import sbt.internal.inctest.{ Build, Project, JsonProtocol }
+import sbt.internal.inctest.{ Build, JsonProtocol, Project }
 import sbt.internal.util.ManagedLogger
 import sjsonnew.support.scalajson.unsafe.{ Converter, Parser => JsonParser }
+
 import scala.collection.mutable
 
 final case class IncInstance(si: ScalaInstance, cs: XCompilers)

@@ -11,7 +11,7 @@ import InterfaceUtil.{ m2o, o2m }
 import xsbti.Maybe
 import TestResource._
 import sbt.internal.inc.classpath.ClassLoaderCache
-import xsbti.compile.{ ClassFileManager, CompilerBridgeProvider => _, _ }
+import xsbti.compile.{ ClassFileManager, CompilerBridgeProvider, _ }
 
 class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
   val scalaVersion = "2.11.8"
