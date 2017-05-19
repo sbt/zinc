@@ -36,7 +36,7 @@ import sjsonnew.support.scalajson.unsafe.{ Converter, Parser => JsonParser }
 
 import scala.collection.mutable
 
-final case class IncInstance(si: ScalaInstance, cs: XCompilers)
+final case class IncInstance(si: xsbti.compile.ScalaInstance, cs: XCompilers)
 
 final class IncHandler(directory: File, scriptedLog: ManagedLogger)
     extends BridgeProviderSpecification
@@ -112,15 +112,16 @@ final class IncHandler(directory: File, scriptedLog: ManagedLogger)
   private[this] def onNewIncInstance(p: ProjectStructure,
                                      f: IncInstance => Unit): Option[IncInstance] = {
     val scalaVersion = p.scalaVersion
-    val compilerBridge = getCompilerBridge(directory, Logger.Null, scalaVersion)
-    val si = scalaInstance(scalaVersion)
+    val noLogger = Logger.Null
+    val compilerBridge = getCompilerBridge(directory, noLogger, scalaVersion)
+    val si = scalaInstance(scalaVersion, directory, noLogger)
     val sc = scalaCompiler(si, compilerBridge)
     val cs = compiler.compilers(si, ClasspathOptionsUtil.boot, None, sc)
     val i = IncInstance(si, cs)
     f(i)
     Some(i)
   }
-  def scalaCompiler(instance: ScalaInstance, bridgeJar: File): AnalyzingCompiler = {
+  def scalaCompiler(instance: xsbti.compile.ScalaInstance, bridgeJar: File): AnalyzingCompiler = {
     val bridgeProvider = CompilerBridgeProvider.constant(bridgeJar, instance)
     val classpath = ClasspathOptionsUtil.boot
     val cache = Some(new ClassLoaderCache(new URLClassLoader(Array())))

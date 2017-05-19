@@ -87,7 +87,7 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
                    Nil)
   }
 
-  def scalaCompiler(instance: ScalaInstance, bridgeJar: File): AnalyzingCompiler = {
+  def scalaCompiler(instance: xsbti.compile.ScalaInstance, bridgeJar: File): AnalyzingCompiler = {
     val bridgeProvider = CompilerBridgeProvider.constant(bridgeJar, instance)
     val classpath = ClasspathOptionsUtil.boot
     val cache = Some(new ClassLoaderCache(new URLClassLoader(Array())))
@@ -101,10 +101,11 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
       classpath: Seq[File],
       incOptions: IncOptions = IncOptionsUtil.defaultIncOptions()
   ) {
+    val noLogger = Logger.Null
     val compiler = new IncrementalCompilerImpl
-    val compilerBridge = getCompilerBridge(tempDir, Logger.Null, scalaVersion)
+    val compilerBridge = getCompilerBridge(tempDir, noLogger, scalaVersion)
 
-    val si = scalaInstance(scalaVersion)
+    val si = scalaInstance(scalaVersion, tempDir, noLogger)
     val sc = scalaCompiler(si, compilerBridge)
     val cs = compiler.compilers(si, ClasspathOptionsUtil.boot, None, sc)
 

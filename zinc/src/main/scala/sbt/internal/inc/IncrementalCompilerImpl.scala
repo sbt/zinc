@@ -384,7 +384,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
   }
 
   def compilers(
-      instance: ScalaInstance,
+      instance: xsbti.compile.ScalaInstance,
       cpOptions: XClasspathOptions,
       javaHome: Option[File],
       scalac: ScalaCompiler

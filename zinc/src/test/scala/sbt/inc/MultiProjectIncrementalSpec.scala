@@ -42,8 +42,9 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       val sources = Array(dependerFile)
       // uncomment this to see the debug log
       // log.setLevel(Level.Debug)
-      val compilerBridge = getCompilerBridge(sub1Directory, Logger.Null, scalaVersion)
-      val si = scalaInstance(scalaVersion)
+      val noLogger = Logger.Null
+      val compilerBridge = getCompilerBridge(sub1Directory, noLogger, scalaVersion)
+      val si = scalaInstance(scalaVersion, sub1Directory, noLogger)
       val sc = scalaCompiler(si, compilerBridge)
       val cs = compiler.compilers(si, ClasspathOptionsUtil.boot, None, sc)
       val prev0 = compiler.emptyPreviousResult
