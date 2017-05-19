@@ -243,7 +243,8 @@ lazy val zincIvyIntegration = (project in internalPath / "zinc-ivy-integration")
   .dependsOn(zincCompileCore, zincTesting % Test)
   .settings(
     baseSettings,
-    name := "zinc Ivy Integration"
+    name := "zinc Ivy Integration",
+    compileOrder := sbt.CompileOrder.ScalaThenJava
   )
   .configure(addSbtLm)
 
