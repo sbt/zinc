@@ -34,7 +34,8 @@ def commonSettings: Seq[Setting[_]] = Seq(
   crossScalaVersions := Seq(scala211, scala212),
   mimaPreviousArtifacts := Set(), // Some(organization.value %% moduleName.value % "1.0.0"),
   publishArtifact in Test := false,
-  commands ++= Seq(publishBridgesAndTest, publishBridges, crossTestBridges, scalafmtCheck)
+  commands ++= Seq(publishBridgesAndTest, publishBridges, crossTestBridges, scalafmtCheck),
+  scalacOptions += "-YdisableFlatCpCaching"
 )
 
 def relaxNon212: Seq[Setting[_]] = Seq(
@@ -46,7 +47,8 @@ def relaxNon212: Seq[Setting[_]] = Seq(
         old filterNot Set("-Xfatal-warnings",
                           "-deprecation",
                           "-Ywarn-unused",
-                          "-Ywarn-unused-import")
+                          "-Ywarn-unused-import",
+                          "-YdisableFlatCpCaching")
     }
   }
 )
