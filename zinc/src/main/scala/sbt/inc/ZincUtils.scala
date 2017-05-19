@@ -49,7 +49,7 @@ class ZincUtils extends xsbti.compile.IncrementalCompilerUtil {
       compilerBridgeJar: File,
       classpathOptions: ClasspathOptions
   ): AnalyzingCompiler = {
-    val bridgeProvider = CompilerBridgeProvider.constant(compilerBridgeJar)
+    val bridgeProvider = CompilerBridgeProvider.constant(compilerBridgeJar, scalaInstance)
     val emptyHandler = (_: Seq[String]) => ()
     val loader = Some(new ClassLoaderCache(new URLClassLoader(Array())))
     new AnalyzingCompiler(

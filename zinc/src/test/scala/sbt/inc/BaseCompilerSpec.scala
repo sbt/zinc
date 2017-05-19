@@ -87,12 +87,12 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
                    Nil)
   }
 
-  def scalaCompiler(instance: ScalaInstance, bridgeJar: File): AnalyzingCompiler =
-    new AnalyzingCompiler(instance,
-                          CompilerBridgeProvider.constant(bridgeJar),
-                          ClasspathOptionsUtil.boot,
-                          _ => (),
-                          Some(new ClassLoaderCache(new URLClassLoader(Array()))))
+  def scalaCompiler(instance: ScalaInstance, bridgeJar: File): AnalyzingCompiler = {
+    val bridgeProvider = CompilerBridgeProvider.constant(bridgeJar, instance)
+    val classpath = ClasspathOptionsUtil.boot
+    val cache = Some(new ClassLoaderCache(new URLClassLoader(Array())))
+    new AnalyzingCompiler(instance, bridgeProvider, classpath, _ => (), cache)
+  }
 
   case class CompilerSetup(
       classesDir: File,

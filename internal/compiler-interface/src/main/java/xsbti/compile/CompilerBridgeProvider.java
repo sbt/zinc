@@ -19,11 +19,16 @@ public interface CompilerBridgeProvider {
      * @param file The jar or directory of the compiled Scala bridge.
      * @return A provider that always returns the same compiled bridge.
      */
-    static CompilerBridgeProvider constant(File file) {
+    static CompilerBridgeProvider constant(File file, ScalaInstance scalaInstance) {
         return new CompilerBridgeProvider() {
             @Override
             public File getCompiledBridge(ScalaInstance scalaInstance, Logger logger) {
                 return file;
+            }
+
+            @Override
+            public ScalaInstance getScalaInstance(String scalaVersion, Logger logger) {
+                return scalaInstance;
             }
         };
     }
@@ -36,4 +41,15 @@ public interface CompilerBridgeProvider {
      * @return The jar or directory where the bridge sources have been compiled.
      */
     File getCompiledBridge(ScalaInstance scalaInstance, Logger logger);
+
+    /**
+     * Get the Scala instance for a given Scala version.
+     *
+     * @param scalaVersion The scala version we want the instance for.
+     * @param logger       A logger.
+     * @return A scala instance, useful to get a compiled bridge.
+     * @see ScalaInstance
+     * @see CompilerBridgeProvider#getCompiledBridge
+     */
+    ScalaInstance getScalaInstance(String scalaVersion, Logger logger);
 }
