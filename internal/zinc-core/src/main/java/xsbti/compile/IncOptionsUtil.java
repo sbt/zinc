@@ -8,6 +8,10 @@
 package xsbti.compile;
 
 import xsbti.Maybe;
+import xsbti.compile.ClassFileManager;
+import xsbti.compile.ClassFileManagerType;
+import xsbti.compile.ExternalHooks;
+import xsbti.compile.IncOptions;
 
 import java.io.File;
 import java.util.HashMap;

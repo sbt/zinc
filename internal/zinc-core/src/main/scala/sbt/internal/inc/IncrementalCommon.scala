@@ -12,8 +12,13 @@ package inc
 import java.io.File
 
 import xsbti.api.AnalyzedClass
-import xsbti.compile.{ ClassFileManager, CompileAnalysis, DependencyChanges, IncOptions }
-import xsbti.compile.IncOptionsUtil
+import xsbti.compile.{
+  ClassFileManager,
+  CompileAnalysis,
+  DependencyChanges,
+  IncOptions,
+  IncOptionsUtil
+}
 import xsbti.compile.analysis.{ ReadStamps, Stamp }
 
 import scala.annotation.tailrec

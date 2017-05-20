@@ -3,7 +3,6 @@ package xsbt.api
 import xsbti.api._
 import sbt.internal.util.UnitSpec
 import xsbti.UseScope
-import xsbti.compile.IncOptionsUtil
 
 class NameHashingSpecification extends UnitSpec {
 
@@ -81,7 +80,7 @@ class NameHashingSpecification extends UnitSpec {
    * definition order (across the whole compilation unit).
    */
   "NameHashing" should "generate hashes that are insensitive to the definition order when adding a new member" in {
-    val nameHashing = new NameHashing
+    val nameHashing = new NameHashing(false)
     val def1 =
       new Def("foo", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, strTpe)
     val def2 =
@@ -101,7 +100,7 @@ class NameHashingSpecification extends UnitSpec {
    * definition order (across the whole compilation unit).
    */
   it should "generate hashes that are insensitive to the definition order" in {
-    val nameHashing = new NameHashing
+    val nameHashing = new NameHashing(false)
     val def1 =
       new Def("bar", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, intTpe)
     val def2 =
@@ -134,7 +133,7 @@ class NameHashingSpecification extends UnitSpec {
    * because method `xyz` was moved from class to an object.
    */
   it should "generate hashes that are sensitive to the definition location" in {
-    val nameHashing = new NameHashing
+    val nameHashing = new NameHashing(false)
     val deff =
       new Def("bar", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, intTpe)
     val classFoo = simpleClassLike(name = "Foo",
@@ -264,7 +263,7 @@ class NameHashingSpecification extends UnitSpec {
    *   - conflicting names have their hashes combined
    */
   it should "merge name hashes" in {
-    val nameHashing = new NameHashing
+    val nameHashing = new NameHashing(false)
     val def1 =
       new Def("foo", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, strTpe)
     val def2 =
@@ -322,7 +321,7 @@ class NameHashingSpecification extends UnitSpec {
   }
 
   private def nameHashesForClass(cl: ClassLike): Array[NameHash] = {
-    val nameHashing = new NameHashing
+    val nameHashing = new NameHashing(false)
     nameHashing.nameHashes(cl)
   }
 
