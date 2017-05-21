@@ -18,9 +18,10 @@ class LookupImpl(compileConfiguration: CompileConfiguration, previousSetup: Opti
   private val classpathHash: Vector[FileHash] =
     compileConfiguration.currentSetup.options.classpathHash.toVector
 
+  import sbt.internal.inc.JavaInterfaceUtil.PimpOptional
   lazy val analyses: Vector[Analysis] =
     classpath flatMap { entry =>
-      m2o(compileConfiguration.perClasspathEntryLookup.analysis(entry)) map {
+      compileConfiguration.perClasspathEntryLookup.analysis(entry).toOption.map {
         case a: Analysis => a
       }
     }

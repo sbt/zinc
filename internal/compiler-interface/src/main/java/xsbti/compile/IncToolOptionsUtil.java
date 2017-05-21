@@ -7,7 +7,7 @@
 
 package xsbti.compile;
 
-import xsbti.Maybe;
+import java.util.Optional;
 
 /**
  * Define a helper for {@link IncToolOptions} that provides information on
@@ -37,8 +37,8 @@ public class IncToolOptionsUtil {
    *
    * @return An optional default class file manager.
    */
-  public static Maybe<ClassFileManager> defaultClassFileManager() {
-    return Maybe.<ClassFileManager>nothing();
+  public static Optional<ClassFileManager> defaultClassFileManager() {
+    return Optional.empty();
   }
 
   /**
@@ -47,7 +47,6 @@ public class IncToolOptionsUtil {
    * @return The default incremental compilation options.
    */
   public static IncToolOptions defaultIncToolOptions() {
-    return new IncToolOptions(defaultClassFileManager(),
-            defaultUseCustomizedFileManager());
+    return new IncToolOptions(defaultClassFileManager(), defaultUseCustomizedFileManager());
   }
 }

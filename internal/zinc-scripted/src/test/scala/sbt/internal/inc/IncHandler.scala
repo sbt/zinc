@@ -8,8 +8,9 @@ import java.util.jar.Manifest
 
 import sbt.util.Logger
 import sbt.util.InterfaceUtil._
+import sbt.internal.inc.JavaInterfaceUtil.{ PimpOption, PimpOptional }
 import xsbt.api.Discovery
-import xsbti.{ Maybe, Problem, Severity }
+import xsbti.{ Problem, Severity }
 import xsbti.compile.{
   CompileAnalysis,
   CompileOrder,
@@ -26,7 +27,7 @@ import sbt.io.syntax._
 import sbt.io.DirectoryFilter
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier.{ isPublic, isStatic }
-import java.util.Properties
+import java.util.{ Optional, Properties }
 
 import sbt.internal.inc.classpath.{ ClassLoaderCache, ClasspathUtilities }
 import sbt.internal.scripted.{ StatementHandler, TestFailed }
@@ -242,8 +243,8 @@ case class ProjectStructure(
       am: File => Option[CompileAnalysis],
       definesClassLookup: File => DefinesClass
   ) extends PerClasspathEntryLookup {
-    override def analysis(classpathEntry: File): Maybe[CompileAnalysis] =
-      o2m(am(classpathEntry))
+    override def analysis(classpathEntry: File): Optional[CompileAnalysis] =
+      am(classpathEntry).toOptional
     override def definesClass(classpathEntry: File): DefinesClass =
       definesClassLookup(classpathEntry)
   }
@@ -262,17 +263,17 @@ case class ProjectStructure(
   val fileStore = AnalysisStore.cached(FileBasedStore(cacheFile))
   def prev =
     fileStore.get match {
-      case Some((a, s)) => new PreviousResult(Maybe.just(a), Maybe.just(s))
+      case Some((a, s)) => new PreviousResult(Optional.of(a), Optional.of(s))
       case _            => compiler.emptyPreviousResult
     }
   def unmanagedJars: List[File] = (baseDirectory / "lib" ** "*.jar").get.toList
   def lookupAnalysis: File => Option[CompileAnalysis] = {
     val f0: PartialFunction[File, Option[CompileAnalysis]] = {
-      case x if x.getAbsoluteFile == classesDir.getAbsoluteFile => m2o(prev.analysis)
+      case x if x.getAbsoluteFile == classesDir.getAbsoluteFile => prev.analysis.toOption
     }
     val f1 = (f0 /: dependsOnRef) { (acc, dep) =>
       acc orElse {
-        case x if x.getAbsoluteFile == dep.classesDir.getAbsoluteFile => m2o(dep.prev.analysis)
+        case x if x.getAbsoluteFile == dep.classesDir.getAbsoluteFile => dep.prev.analysis.toOption
       }
     }
     f1 orElse { case _ => None }
@@ -371,8 +372,8 @@ case class ProjectStructure(
     val sources = scalaSources ++ javaSources
     val prev0 = prev
     val lookup = new PerClasspathEntryLookupImpl(lookupAnalysis, Locate.definesClass)
-    val transactional: xsbti.Maybe[xsbti.compile.ClassFileManagerType] =
-      Maybe.just(
+    val transactional: Optional[xsbti.compile.ClassFileManagerType] =
+      Optional.of(
         new xsbti.compile.TransactionalManagerType(targetDir / "classes.bak",
                                                    sbt.util.Logger.Null))
     // you can't specify class file manager in the properties files so let's overwrite it to be the transactional
@@ -387,7 +388,7 @@ case class ProjectStructure(
                                cache = CompilerCache.fresh,
                                incOptions.withClassfileManagerType(transactional),
                                reporter,
-                               progress = None,
+                               optionProgress = None,
                                extra)
 
     val classpath =

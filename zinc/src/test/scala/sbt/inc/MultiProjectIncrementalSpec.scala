@@ -2,13 +2,13 @@ package sbt.inc
 
 import java.io.File
 import java.net.URLClassLoader
+import java.util.Optional
 
 import sbt.internal.inc.{ ScalaInstance => _, _ }
 import sbt.io.IO
 import sbt.io.syntax._
 import sbt.util.{ InterfaceUtil, Logger }
-import InterfaceUtil.{ m2o, o2m }
-import xsbti.Maybe
+import JavaInterfaceUtil.{ PimpOption, PimpOptional }
 import TestResource._
 import sbt.internal.inc.classpath.ClassLoaderCache
 import xsbti.compile.{ ClassFileManager, CompilerBridgeProvider, _ }
@@ -51,7 +51,7 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       val cp = si.allJars ++ Array(targetDir, targetDir2, binarySampleFile)
       val lookup = new PerClasspathEntryLookupImpl(
         {
-          case x if x.getAbsoluteFile == targetDir.getAbsoluteFile => m2o(prev0.analysis)
+          case x if x.getAbsoluteFile == targetDir.getAbsoluteFile => prev0.analysis.toOption
           case _                                                   => None
         },
         Locate.definesClass
@@ -99,7 +99,7 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       val result0 = compiler.compile(in, log)
       fileStore.set(result0.analysis match { case a: Analysis => a }, result0.setup)
       val prev1 = fileStore.get match {
-        case Some((a, s)) => new PreviousResult(Maybe.just(a), Maybe.just(s))
+        case Some((a, s)) => new PreviousResult(Optional.of(a), Optional.of(s))
         case _            => sys.error("previous is not found")
       }
       val sources1 = Array(dependerFile, depender2File)
@@ -127,7 +127,7 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       val cp2 = si.allJars ++ Array(targetDir2)
       val lookup2 = new PerClasspathEntryLookupImpl(
         {
-          case x if x.getAbsoluteFile == targetDir2.getAbsoluteFile => m2o(emptyPrev.analysis)
+          case x if x.getAbsoluteFile == targetDir2.getAbsoluteFile => emptyPrev.analysis.toOption
           case _                                                    => None
         },
         Locate.definesClass
@@ -159,12 +159,12 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       IO.copyFile(knownSampleGoodFile0, knownSampleGoodFile, false)
       val sources3 = Array(knownSampleGoodFile, dependerFile, depender2File)
       val prev = fileStore.get match {
-        case Some((a, s)) => new PreviousResult(Maybe.just(a), Maybe.just(s))
+        case Some((a, s)) => new PreviousResult(Optional.of(a), Optional.of(s))
         case _            => sys.error("previous is not found")
       }
       val lookup3 = new PerClasspathEntryLookupImpl(
         {
-          case x if x.getAbsoluteFile == targetDir.getAbsoluteFile  => m2o(prev.analysis)
+          case x if x.getAbsoluteFile == targetDir.getAbsoluteFile  => prev.analysis.toOption
           case x if x.getAbsoluteFile == targetDir2.getAbsoluteFile => Some(result2.analysis)
           case _                                                    => None
         },
@@ -220,8 +220,8 @@ class PerClasspathEntryLookupImpl(
     am: File => Option[CompileAnalysis],
     definesClassLookup: File => DefinesClass
 ) extends PerClasspathEntryLookup {
-  override def analysis(classpathEntry: File): Maybe[CompileAnalysis] =
-    o2m(am(classpathEntry))
+  override def analysis(classpathEntry: File): Optional[CompileAnalysis] =
+    am(classpathEntry).toOptional
   override def definesClass(classpathEntry: File): DefinesClass =
     definesClassLookup(classpathEntry)
 }

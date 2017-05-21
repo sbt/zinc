@@ -73,7 +73,7 @@
         },
         {
           "name": "apiDumpDirectory",
-          "type": "xsbti.Maybe<java.io.File>",
+          "type": "java.util.Optional<java.io.File>",
           "doc": [
             "The directory where we dump textual representation of APIs. This method might be called",
             "only if apiDebug returns true. This is unused option at the moment as the needed functionality",
@@ -82,7 +82,7 @@
         },
         {
           "name": "classfileManagerType",
-          "type": "xsbti.Maybe<ClassFileManagerType>",
+          "type": "java.util.Optional<ClassFileManagerType>",
           "doc": "ClassfileManager that will handle class file deletion and addition during a single incremental compilation run."
         },
         {
@@ -96,7 +96,7 @@
         },
         {
           "name": "recompileOnMacroDef",
-          "type": "xsbti.Maybe<Boolean>",
+          "type": "java.util.Optional<Boolean>",
           "doc": [
             "Determines whether incremental compiler should recompile all dependencies of a file",
             "that contains a macro definition."
@@ -241,7 +241,7 @@
       "fields": [
         {
           "name": "classFileManager",
-          "type": "xsbti.Maybe<xsbti.compile.ClassFileManager>",
+          "type": "java.util.Optional<xsbti.compile.ClassFileManager>",
           "doc": "Define a component that manages the generated class files in every compilation cycle."
         },
         {
@@ -285,8 +285,8 @@
       "type": "record",
       "doc": "The previous source dependency analysis result from compilation.",
       "fields": [
-        { "name": "analysis", "type": "xsbti.Maybe<xsbti.compile.CompileAnalysis>" },
-        { "name": "setup",    "type": "xsbti.Maybe<xsbti.compile.MiniSetup>"       }
+        { "name": "analysis", "type": "java.util.Optional<xsbti.compile.CompileAnalysis>" },
+        { "name": "setup",    "type": "java.util.Optional<xsbti.compile.MiniSetup>"       }
       ]
     },
     {
@@ -324,7 +324,7 @@
         },
         {
           "name": "progress",
-          "type": "xsbti.Maybe<xsbti.compile.CompileProgress>",
+          "type": "java.util.Optional<xsbti.compile.CompileProgress>",
           "doc": "Optionally provide progress indication."
         },
         { "name": "extra", "type": "xsbti.T2<String, String>*" }

@@ -40,7 +40,7 @@ object ClassFileManager {
 
   def getClassFileManager(options: IncOptions): ClassFileManager = {
     val internal =
-      if (options.classfileManagerType.isDefined)
+      if (options.classfileManagerType.isPresent)
         options.classfileManagerType.get match {
           case _: DeleteImmediatelyManagerType => deleteImmediately()
           case m: TransactionalManagerType     => transactional(m.backupDirectory, m.logger)()

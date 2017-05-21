@@ -8,6 +8,7 @@
 package xsbti.compile;
 
 import java.io.File;
+import java.util.Optional;
 
 /**
  * Define the interface to look up mapped data structures and query classpath
@@ -28,7 +29,7 @@ public interface PerClasspathEntryLookup {
      *
      * @return An optional instance of {@link CompileAnalysis}.
      */
-    xsbti.Maybe<CompileAnalysis> analysis(File classpathEntry);
+    Optional<CompileAnalysis> analysis(File classpathEntry);
 
     /**
      * Provide an instance of {@link DefinesClass} that will allow you to

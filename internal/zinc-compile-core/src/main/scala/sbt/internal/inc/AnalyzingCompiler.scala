@@ -12,12 +12,13 @@ package inc
 import java.lang.reflect.InvocationTargetException
 import java.io.File
 import java.net.URLClassLoader
+import java.util.Optional
 
 import sbt.util.Logger
 import sbt.io.syntax._
 import sbt.internal.inc.classpath.ClassLoaderCache
 import sbt.internal.util.ManagedLogger
-import xsbti.{ AnalysisCallback, Maybe, Reporter, Logger => xLogger }
+import xsbti.{ AnalysisCallback, Reporter, Logger => xLogger }
 import xsbti.compile._
 
 /**
@@ -67,7 +68,7 @@ final class AnalyzingCompiler(
     val arguments = compArgs(Nil, classpath, None, options)
     val output = CompileOutput(singleOutput)
     val reporter = new LoggerReporter(maximumErrors, log, p => p)
-    val progress = Maybe.nothing[CompileProgress]
+    val progress = Optional.empty[CompileProgress]
     compile(sources, changes, arguments.toArray, output, callback, reporter, cache, log, progress)
   }
 
@@ -80,10 +81,10 @@ final class AnalyzingCompiler(
       reporter: Reporter,
       cache: GlobalsCache,
       log: xLogger,
-      progressOpt: Maybe[CompileProgress]
+      progressOpt: Optional[CompileProgress]
   ): Unit = {
     val cached = cache(options, output, !changes.isEmpty, this, log, reporter)
-    val progress = if (progressOpt.isDefined) progressOpt.get else IgnoreProgress
+    val progress = if (progressOpt.isPresent) progressOpt.get else IgnoreProgress
     compile(sources, changes, callback, log, reporter, progress, cached)
   }
 

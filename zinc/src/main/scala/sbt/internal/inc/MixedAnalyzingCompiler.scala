@@ -11,13 +11,15 @@ package inc
 
 import java.io.File
 import java.lang.ref.{ Reference, SoftReference }
+import java.util.Optional
 
 import inc.javac.AnalyzingJavaCompiler
-import xsbti.{ Maybe, Reporter, AnalysisCallback => XAnalysisCallback }
+import xsbti.{ Reporter, AnalysisCallback => XAnalysisCallback }
 import xsbti.compile.CompileOrder._
 import xsbti.compile._
 import sbt.io.IO
 import sbt.util.{ InterfaceUtil, Logger }
+import sbt.internal.inc.JavaInterfaceUtil.PimpOption
 import xsbti.compile.ClassFileManager
 
 /** An instance of an analyzing compiler that can run both javac + scalac. */
@@ -76,7 +78,7 @@ final class MixedAnalyzingCompiler(
             reporter,
             config.cache,
             log,
-            InterfaceUtil.o2m(progress)
+            progress.toOptional
           )
         }
       }
@@ -87,7 +89,7 @@ final class MixedAnalyzingCompiler(
         timed("Java compilation + analysis", log) {
           val incToolOptions =
             new IncToolOptions(
-              Maybe.just(classfileManager),
+              Optional.of(classfileManager),
               incOptions.useCustomizedFileManager()
             )
           val joptions = options.javacOptions().toArray[String]

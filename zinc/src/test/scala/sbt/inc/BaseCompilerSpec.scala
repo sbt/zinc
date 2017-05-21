@@ -10,13 +10,13 @@ package sbt.inc
 import java.io.File
 import java.net.URLClassLoader
 import java.nio.file.{ Files, Path, Paths }
+import java.util.Optional
 
 import sbt.internal.inc._
 import sbt.internal.inc.classpath.ClassLoaderCache
 import sbt.io.IO
 import sbt.io.syntax._
 import sbt.util.{ InterfaceUtil, Logger }
-import xsbti.Maybe
 import xsbti.compile.{ ScalaInstance => _, _ }
 
 class BaseCompilerSpec extends BridgeProviderSpecification {
@@ -24,8 +24,8 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
   val scalaVersion = scala.util.Properties.versionNumberString
   val maxErrors = 100
 
-  case class MockedLookup(am: File => Maybe[CompileAnalysis]) extends PerClasspathEntryLookup {
-    override def analysis(classpathEntry: File): Maybe[CompileAnalysis] =
+  case class MockedLookup(am: File => Optional[CompileAnalysis]) extends PerClasspathEntryLookup {
+    override def analysis(classpathEntry: File): Optional[CompileAnalysis] =
       am(classpathEntry)
 
     override def definesClass(classpathEntry: File): DefinesClass =
@@ -109,7 +109,7 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
     val sc = scalaCompiler(si, compilerBridge)
     val cs = compiler.compilers(si, ClasspathOptionsUtil.boot, None, sc)
 
-    val lookup = MockedLookup(Function.const(Maybe.nothing[CompileAnalysis]))
+    val lookup = MockedLookup(Function.const(Optional.empty[CompileAnalysis]))
     val reporter = new LoggerReporter(maxErrors, log, identity)
     val extra = Array(InterfaceUtil.t2(("key", "value")))
 
@@ -150,8 +150,8 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
                            newInputs: Inputs => Inputs = identity): CompileResult = {
       val previousResult = store.get() match {
         case Some((prevAnalysis, prevSetup)) =>
-          new PreviousResult(Maybe.just[CompileAnalysis](prevAnalysis),
-                             Maybe.just[MiniSetup](prevSetup))
+          new PreviousResult(Optional.of[CompileAnalysis](prevAnalysis),
+                             Optional.of[MiniSetup](prevSetup))
         case _ =>
           compiler.emptyPreviousResult
       }

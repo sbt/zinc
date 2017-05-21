@@ -9,15 +9,11 @@ package xsbti.compile;
 
 import xsbti.F0;
 import xsbti.Logger;
-import xsbti.Maybe;
-import xsbti.compile.ClassFileManager;
-import xsbti.compile.ClassFileManagerType;
-import xsbti.compile.ExternalHooks;
-import xsbti.compile.IncOptions;
 
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Define a helper class to instantiate {@link IncOptions}.
@@ -64,16 +60,16 @@ public class IncOptionsUtil {
         return 5;
     }
 
-    public static Maybe<File> defaultApiDumpDirectory() {
-        return Maybe.<File>nothing();
+    public static Optional<File> defaultApiDumpDirectory() {
+        return Optional.empty();
     }
 
-    public static Maybe<ClassFileManagerType> defaultClassFileManagerType() {
-        return Maybe.<ClassFileManagerType>nothing();
+    public static Optional<ClassFileManagerType> defaultClassFileManagerType() {
+        return Optional.empty();
     }
 
-    public static Maybe<Boolean> defaultRecompileOnMacroDef() {
-        return Maybe.<Boolean>nothing();
+    public static Optional<Boolean> defaultRecompileOnMacroDef() {
+        return Optional.empty();
     }
 
     public static boolean defaultUseOptimizedSealed() {
@@ -85,7 +81,7 @@ public class IncOptionsUtil {
     }
 
     public static boolean getRecompileOnMacroDef(IncOptions options) {
-        if (options.recompileOnMacroDef().isDefined()) {
+        if (options.recompileOnMacroDef().isPresent()) {
             return options.recompileOnMacroDef().get();
         } else {
             return defaultRecompileOnMacroDefImpl();
@@ -129,10 +125,10 @@ public class IncOptionsUtil {
     public static IncOptions defaultIncOptions() {
         IncOptions retval = new IncOptions(
                 defaultTransitiveStep(), defaultRecompileAllFraction(),
-                defaultRelationsDebug(), defaultApiDebug(),
-                defaultApiDiffContextSize(), defaultApiDumpDirectory(),
-                defaultClassFileManagerType(), defaultUseCustomizedFileManager(),
-                defaultRecompileOnMacroDef(), defaultUseOptimizedSealed(), defaultStoreApis(), defaultEnabled(),
+                defaultRelationsDebug(), defaultApiDebug(), defaultApiDiffContextSize(),
+                defaultApiDumpDirectory(), defaultClassFileManagerType(),
+                defaultUseCustomizedFileManager(), defaultRecompileOnMacroDef(),
+                defaultUseOptimizedSealed(), defaultStoreApis(), defaultEnabled(),
                 defaultExtra(), defaultLogRecompileOnMacro(), defaultExternal());
         return retval;
     }
@@ -185,45 +181,45 @@ public class IncOptionsUtil {
 
         if (values.containsKey(API_DUMP_DIRECTORY_KEY)) {
             if (values.get(API_DUMP_DIRECTORY_KEY).equals(XSBTI_NOTHING)) {
-                base = base.withApiDumpDirectory(xsbti.Maybe.<File>nothing());
+                base = base.withApiDumpDirectory(Optional.empty());
             } else {
                 logger.debug(f0("API_DUMP_DIRECTORY_KEY value was read."));
-                base = base.withApiDumpDirectory(xsbti.Maybe.<File>just(new File(values.get(API_DUMP_DIRECTORY_KEY))));
+                base = base.withApiDumpDirectory(Optional.of(new File(values.get(API_DUMP_DIRECTORY_KEY))));
             }
         }
 
         if (values.containsKey(CLASSFILE_MANAGER_TYPE_KEY)) {
             String value = values.get(CLASSFILE_MANAGER_TYPE_KEY);
             if (value.equals(XSBTI_NOTHING)) {
-                base.withClassfileManagerType(xsbti.Maybe.nothing());
+                base.withClassfileManagerType(Optional.empty());
             } else {
                 logger.debug(f0("CLASS_FILE_MANAGER_TYPE_KEY value was read."));
                 if (value.equals(TRANSACTIONAL_MANAGER_TYPE)) {
                     if (values.containsKey(TRANSACTIONAL_MANAGER_BASE_DIRECTORY)) {
                         File baseDirectory = new File(values.get(TRANSACTIONAL_MANAGER_BASE_DIRECTORY));
-                        base.withClassfileManagerType(xsbti.Maybe.just(new TransactionalManagerType(baseDirectory, logger)));
+                        base.withClassfileManagerType(Optional.of(new TransactionalManagerType(baseDirectory, logger)));
                     } else {
                         logger.warn(f0("Missing " + TRANSACTIONAL_MANAGER_BASE_DIRECTORY + " key for specified transactional classfile manager."));
                         logger.warn(f0("Classfile manager defaults to delete immediately manager type."));
-                        base.withClassfileManagerType(xsbti.Maybe.just(new DeleteImmediatelyManagerType()));
+                        base.withClassfileManagerType(Optional.of(new DeleteImmediatelyManagerType()));
                     }
                 } else if (value.equals(DELETE_IMMEDIATELY_MANAGER_TYPE)) {
-                    base.withClassfileManagerType(xsbti.Maybe.just(new DeleteImmediatelyManagerType()));
+                    base.withClassfileManagerType(Optional.of(new DeleteImmediatelyManagerType()));
                 } else {
                     logger.warn(f0("Unrecognised classfile manager type key " + value + "."));
                     logger.warn(f0("Classfile manager defaults to delete immediately manager type."));
                     // Default case -- if value is not understood, pick DeleteImmediatelyManagerType
-                    base.withClassfileManagerType(xsbti.Maybe.just(new DeleteImmediatelyManagerType()));
+                    base.withClassfileManagerType(Optional.of(new DeleteImmediatelyManagerType()));
                 }
             }
         }
 
         if (values.containsKey(RECOMPILE_ON_MACRO_DEF_KEY)) {
             if (values.get(RECOMPILE_ON_MACRO_DEF_KEY).equals(XSBTI_NOTHING)) {
-                base = base.withRecompileOnMacroDef(xsbti.Maybe.<Boolean>nothing());
+                base = base.withRecompileOnMacroDef(Optional.empty());
             } else {
                 logger.debug(f0("RECOMPILE_ON_MACRO_DEF_KEY value was read."));
-                base = base.withRecompileOnMacroDef(xsbti.Maybe.<Boolean>just(Boolean.parseBoolean(values.get(RECOMPILE_ON_MACRO_DEF_KEY))));
+                base = base.withRecompileOnMacroDef(Optional.of(Boolean.parseBoolean(values.get(RECOMPILE_ON_MACRO_DEF_KEY))));
             }
         }
 

@@ -7,9 +7,12 @@
 
 package xsbti.compile;
 
-import xsbti.*;
+import xsbti.Logger;
+import xsbti.Reporter;
+import xsbti.T2;
 
 import java.io.File;
+import java.util.Optional;
 
 /*
 * This API is subject to change.
@@ -91,15 +94,15 @@ public interface IncrementalCompiler {
                           GlobalsCache globalsCache,
                           String[] scalacOptions,
                           String[] javacOptions,
-                          Maybe<CompileAnalysis> previousAnalysis,
-                          Maybe<MiniSetup> previousSetup,
+                          Optional<CompileAnalysis> previousAnalysis,
+                          Optional<MiniSetup> previousSetup,
                           PerClasspathEntryLookup perClasspathEntryLookup,
                           Reporter reporter,
                           CompileOrder compileOrder,
                           // Has to be boxed to override in Scala,
                           // this is a bug of the Scala compiler 2.12
                           java.lang.Boolean skip,
-                          Maybe<CompileProgress> progress,
+                          Optional<CompileProgress> progress,
                           IncOptions incrementalOptions,
                           T2<String, String>[] extra,
                           Logger logger);
