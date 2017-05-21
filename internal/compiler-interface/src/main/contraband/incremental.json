@@ -233,7 +233,10 @@
       "doc": [
         "Define the component that manages the generated class files and defines the",
         "configuration options for an incremental compiler. This component is used by",
-        "any Java compiler that implements {@link xsbti.compile.JavaTools}."
+        "any Java compiler that implements {@link xsbti.compile.JavaTools} and they",
+        "should return empty values by default because the incremental tool options",
+        "are not enabled for Java tools, they are only enabled for Scala's incremental",
+        "compiler."
       ],
       "fields": [
         {

@@ -13,6 +13,11 @@ import xsbti.Maybe;
  * Define a helper for {@link IncToolOptions} that provides information on
  * default {@link ClassFileManager class file managers} used and gives
  * default incremental compilation options to the user.
+ *
+ * The default customized classfile manager and incremental options are empty
+ * options because these are disabled by default in Java compilers and Java doc.
+ * {@link IncToolOptions} are only supposed to be used for the Scala incremental
+ * compiler.
  */
 public class IncToolOptionsUtil {
 
