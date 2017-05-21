@@ -7,6 +7,8 @@
 
 package xsbti.compile;
 
+import xsbti.F0;
+import xsbti.Logger;
 import xsbti.Maybe;
 import xsbti.compile.ClassFileManager;
 import xsbti.compile.ClassFileManagerType;
@@ -36,6 +38,10 @@ public class IncOptionsUtil {
     public static final String RECOMPILE_ON_MACRO_DEF_KEY = "recompileOnMacroDef";
     public static final String USE_OPTIMIZED_SEALED = "useOptimizedSealed";
     public static final String LOG_RECOMPILE_ON_MACRO = "logRecompileOnMacro";
+    public static final String CLASSFILE_MANAGER_TYPE_KEY = "classfileManagerType";
+    public static final String TRANSACTIONAL_MANAGER_TYPE = "transactionalManagerType";
+    public static final String TRANSACTIONAL_MANAGER_BASE_DIRECTORY = "transactionalManagerBaseDirectory";
+    public static final String DELETE_IMMEDIATELY_MANAGER_TYPE = "deleteImmediatelyManagerType";
     private static final String XSBTI_NOTHING = "NOTHING";
 
     public static int defaultTransitiveStep() {
@@ -131,26 +137,49 @@ public class IncOptionsUtil {
         return retval;
     }
 
-    public static IncOptions fromStringMap(Map<String, String> values) {
+    // Small utility function for logging
+    private static F0<String> f0(String message) {
+        return new F0<String>() {
+            @Override
+            public String apply() {
+                return message;
+            }
+        };
+    }
+
+    /**
+     * Reads and returns an instance of {@link IncOptions} from a mapping of values.
+     *
+     * @param values The values read from a properties file.
+     * @param logger The logger used for reporting **and** for the transactional manager type.
+     * @return An instance of {@link IncOptions}.
+     */
+    public static IncOptions fromStringMap(Map<String, String> values, Logger logger) {
         IncOptions base = defaultIncOptions();
+        logger.debug(f0("Reading incremental options from map"));
 
         if (values.containsKey(TRANSITIVE_STEP_KEY)) {
+            logger.debug(f0("TRANSITIVE_STEP_KEY value was read."));
             base = base.withTransitiveStep(Integer.parseInt(values.get(TRANSITIVE_STEP_KEY)));
         }
 
         if (values.containsKey(RECOMPILE_ALL_FRACTION_KEY)) {
+            logger.debug(f0("RECOMPILE_ALL_FRACTION_KEY value was read."));
             base = base.withRecompileAllFraction(Double.parseDouble(values.get(RECOMPILE_ALL_FRACTION_KEY)));
         }
 
         if (values.containsKey(RELATIONS_DEBUG_KEY)) {
+            logger.debug(f0("RELATIONS_DEBUG_KEY value was read."));
             base = base.withRelationsDebug(Boolean.parseBoolean(values.get(RELATIONS_DEBUG_KEY)));
         }
 
         if (values.containsKey(API_DEBUG_KEY)) {
+            logger.debug(f0("API_DEBUG_KEY value was read."));
             base = base.withApiDebug(Boolean.parseBoolean(values.get(API_DEBUG_KEY)));
         }
 
         if (values.containsKey(API_DIFF_CONTEXT_SIZE_KEY)) {
+            logger.debug(f0("API_DIFF_CONTENT_SIZE_KEY value was read."));
             base = base.withApiDiffContextSize(Integer.parseInt(values.get(API_DIFF_CONTEXT_SIZE_KEY)));
         }
 
@@ -158,32 +187,53 @@ public class IncOptionsUtil {
             if (values.get(API_DUMP_DIRECTORY_KEY).equals(XSBTI_NOTHING)) {
                 base = base.withApiDumpDirectory(xsbti.Maybe.<File>nothing());
             } else {
+                logger.debug(f0("API_DUMP_DIRECTORY_KEY value was read."));
                 base = base.withApiDumpDirectory(xsbti.Maybe.<File>just(new File(values.get(API_DUMP_DIRECTORY_KEY))));
             }
         }
 
-        // TODO: Figure out how to specify the class file manager type.
-        // if (values.containsKey(CLASSFILE_MANAGER_TYPE_KEY)) {
-        //   if (values.get(CLASSFILE_MANAGER_TYPE_KEY).equals(XSBTI_NOTHING)) {
-        //     base = base.withClassFileManagerType(xsbti.Maybe.nothing<ClassfileManagerType>());
-        //   } else {
-        //     base = base.withClassFileManagerType(???)
-        //   }
-        // }
+        if (values.containsKey(CLASSFILE_MANAGER_TYPE_KEY)) {
+            String value = values.get(CLASSFILE_MANAGER_TYPE_KEY);
+            if (value.equals(XSBTI_NOTHING)) {
+                base.withClassfileManagerType(xsbti.Maybe.nothing());
+            } else {
+                logger.debug(f0("CLASS_FILE_MANAGER_TYPE_KEY value was read."));
+                if (value.equals(TRANSACTIONAL_MANAGER_TYPE)) {
+                    if (values.containsKey(TRANSACTIONAL_MANAGER_BASE_DIRECTORY)) {
+                        File baseDirectory = new File(values.get(TRANSACTIONAL_MANAGER_BASE_DIRECTORY));
+                        base.withClassfileManagerType(xsbti.Maybe.just(new TransactionalManagerType(baseDirectory, logger)));
+                    } else {
+                        logger.warn(f0("Missing " + TRANSACTIONAL_MANAGER_BASE_DIRECTORY + " key for specified transactional classfile manager."));
+                        logger.warn(f0("Classfile manager defaults to delete immediately manager type."));
+                        base.withClassfileManagerType(xsbti.Maybe.just(new DeleteImmediatelyManagerType()));
+                    }
+                } else if (value.equals(DELETE_IMMEDIATELY_MANAGER_TYPE)) {
+                    base.withClassfileManagerType(xsbti.Maybe.just(new DeleteImmediatelyManagerType()));
+                } else {
+                    logger.warn(f0("Unrecognised classfile manager type key " + value + "."));
+                    logger.warn(f0("Classfile manager defaults to delete immediately manager type."));
+                    // Default case -- if value is not understood, pick DeleteImmediatelyManagerType
+                    base.withClassfileManagerType(xsbti.Maybe.just(new DeleteImmediatelyManagerType()));
+                }
+            }
+        }
 
         if (values.containsKey(RECOMPILE_ON_MACRO_DEF_KEY)) {
             if (values.get(RECOMPILE_ON_MACRO_DEF_KEY).equals(XSBTI_NOTHING)) {
                 base = base.withRecompileOnMacroDef(xsbti.Maybe.<Boolean>nothing());
             } else {
+                logger.debug(f0("RECOMPILE_ON_MACRO_DEF_KEY value was read."));
                 base = base.withRecompileOnMacroDef(xsbti.Maybe.<Boolean>just(Boolean.parseBoolean(values.get(RECOMPILE_ON_MACRO_DEF_KEY))));
             }
         }
 
         if (values.containsKey(LOG_RECOMPILE_ON_MACRO)) {
+            logger.debug(f0("LOG_RECOMPILE_ON_MACRO value was read."));
             base = base.withLogRecompileOnMacro(Boolean.parseBoolean(values.get(LOG_RECOMPILE_ON_MACRO)));
         }
 
         if (values.containsKey(USE_OPTIMIZED_SEALED)) {
+            logger.debug(f0("USE_OPTIMIZED_SEALED value was read."));
             base = base.withUseOptimizedSealed(Boolean.parseBoolean(values.get(USE_OPTIMIZED_SEALED)));
         }
 

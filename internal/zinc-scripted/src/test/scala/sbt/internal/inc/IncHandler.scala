@@ -377,7 +377,8 @@ case class ProjectStructure(
                                                    sbt.util.Logger.Null))
     // you can't specify class file manager in the properties files so let's overwrite it to be the transactional
     // one (that's the default for sbt)
-    val (incOptions, scalacOptions) = loadIncOptions(baseDirectory / "incOptions.properties")
+    val incOptionsFile = baseDirectory / "incOptions.properties"
+    val (incOptions, scalacOptions) = loadIncOptions(incOptionsFile)
     val reporter = new LoggerReporter(maxErrors, scriptedLog, identity)
     val extra = Array(t2(("key", "value")))
     val setup = compiler.setup(lookup,
@@ -484,7 +485,7 @@ case class ProjectStructure(
       val scalacOptions =
         Option(map.get("scalac.options")).map(_.toString.split(" +")).getOrElse(Array.empty)
 
-      (IncOptionsUtil.fromStringMap(map), scalacOptions)
+      (IncOptionsUtil.fromStringMap(map, scriptedLog), scalacOptions)
     } else (IncOptionsUtil.defaultIncOptions, Array.empty)
   }
 

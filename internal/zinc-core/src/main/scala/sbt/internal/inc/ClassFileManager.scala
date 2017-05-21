@@ -48,9 +48,6 @@ object ClassFileManager {
 
     val external = Option(options.externalHooks())
       .flatMap(ext => Option(ext.externalClassFileManager))
-      .collect {
-        case manager: ClassFileManager => manager
-      }
 
     WrappedClassFileManager(internal, external)
   }
