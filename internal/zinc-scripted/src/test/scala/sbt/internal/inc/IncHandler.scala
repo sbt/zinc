@@ -12,6 +12,7 @@ import sbt.internal.inc.JavaInterfaceUtil.{ PimpOption, PimpOptional }
 import xsbt.api.Discovery
 import xsbti.{ Problem, Severity }
 import xsbti.compile.{
+  ClasspathOptionsUtil,
   CompileAnalysis,
   CompileOrder,
   CompilerBridgeProvider,

@@ -15,6 +15,7 @@ import java.io.File
 
 import xsbti.compile.{
   ClasspathOptions,
+  ClasspathOptionsUtil,
   JavaCompiler,
   JavaTools,
   Javadoc,
