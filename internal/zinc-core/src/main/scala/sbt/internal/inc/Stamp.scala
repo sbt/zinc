@@ -94,7 +94,7 @@ private[inc] object LastModified extends WithPattern {
 
 object Stamp {
   private final val maxModificationDifferenceInMillis = 100L
-  private[inc] implicit val equivStamp: Equiv[Stamp] = new Equiv[Stamp] {
+  implicit val equivStamp: Equiv[Stamp] = new Equiv[Stamp] {
     def equiv(a: Stamp, b: Stamp) = (a, b) match {
       case (h1: Hash, h2: Hash) => h1.value sameElements h2.value
       // Windows is handling this differently sometimes...
