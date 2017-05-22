@@ -66,36 +66,14 @@ final class CompilerCache(val maxInstances: Int) extends GlobalsCache {
   }
 }
 
-/** Define helpers to create compiler caches. */
-object CompilerCache {
-
-  /**
-   * Return a compiler cache that manages up until <b>5</b> cached
-   * Scala compilers, where 5 is the default number.
-   */
-  def default: GlobalsCache = new CompilerCache(5)
-
-  /**
-   * Return a compiler cache that manages up until <code>maxInstances</code>
-   * of cached Scala compilers.
-   *
-   * @param maxInstances Number of maximum Scala compilers cached.
-   */
-  def apply(maxInstances: Int): GlobalsCache =
-    new CompilerCache(maxInstances)
-
-  /**
-   * Return a cached compiler
-   */
-  val fresh: GlobalsCache = new GlobalsCache {
-    def clear(): Unit = ()
-    def apply(
-        args: Array[String],
-        output: Output,
-        forceNew: Boolean,
-        c: CachedCompilerProvider,
-        log: xLogger,
-        reporter: Reporter
-    ): CachedCompiler = c.newCachedCompiler(args, output, log, reporter, false)
-  }
+final class FreshCompilerCache extends GlobalsCache {
+  def clear(): Unit = ()
+  def apply(
+      args: Array[String],
+      output: Output,
+      forceNew: Boolean,
+      c: CachedCompilerProvider,
+      log: xLogger,
+      reporter: Reporter
+  ): CachedCompiler = c.newCachedCompiler(args, output, log, reporter, false)
 }

@@ -16,6 +16,7 @@ import xsbti.compile.{
   CompileAnalysis,
   CompileOrder,
   CompilerBridgeProvider,
+  CompilerCache,
   DefinesClass,
   IncOptions,
   IncOptionsUtil,
