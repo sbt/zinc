@@ -11,7 +11,6 @@ package inc
 
 import java.io._
 
-import sbt.inc.Compilation
 import xsbti.T2
 import xsbti.UseScope
 import xsbti.api._

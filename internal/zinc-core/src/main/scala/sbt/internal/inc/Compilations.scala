@@ -9,7 +9,6 @@ package sbt
 package internal
 package inc
 
-import sbt.inc.Compilation
 import xsbti.compile.analysis.ReadCompilations
 
 /** Information about compiler runs accumulated since `clean` command has been run. */

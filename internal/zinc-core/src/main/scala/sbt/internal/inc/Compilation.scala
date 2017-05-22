@@ -5,7 +5,7 @@
  * This software is released under the terms written in LICENSE.
  */
 
-package sbt.inc
+package sbt.internal.inc
 
 import xsbti.compile.Output
 

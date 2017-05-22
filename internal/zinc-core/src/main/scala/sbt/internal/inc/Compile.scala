@@ -28,7 +28,6 @@ import sbt.util.InterfaceUtil.jo2o
 import java.io.File
 import java.util
 
-import sbt.inc.Compilation
 import xsbti.api.DependencyContext
 import xsbti.compile.analysis.ReadStamps
 

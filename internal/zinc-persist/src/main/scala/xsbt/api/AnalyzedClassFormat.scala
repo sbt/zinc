@@ -10,8 +10,8 @@ package xsbt.api
 import xsbti.api._
 import sbinary._
 import sbinary.DefaultProtocol._
-import sbt.inc.Compilation
 import sbt.internal.inc.APIs.emptyCompanions
+import sbt.internal.inc.Compilation
 
 object AnalyzedClassFormats {
   // This will throw out API information intentionally.
