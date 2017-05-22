@@ -36,10 +36,6 @@ trait Relations {
   /** All files that are recorded as a library dependency of a source file.*/
   def allLibraryDeps: collection.Set[File]
 
-  /** All files in this compilation group (project) that are recorded as a source dependency of a source file in this group.*/
-  @deprecated("Class-based dependency tracking", "1.0-M1")
-  def allInternalSrcDeps: collection.Set[File]
-
   /** All files in another compilation group (project) that are recorded as a source dependency of a source file in this group.*/
   def allExternalDeps: collection.Set[String]
 
@@ -486,7 +482,6 @@ private abstract class MRelationsCommon(
 
   def allProducts: collection.Set[File] = srcProd._2s
   def allLibraryDeps: collection.Set[File] = libraryDep._2s
-  def allInternalSrcDeps: collection.Set[File] = internalClassDep._2s.flatMap(classes.reverse)
   def allExternalDeps: collection.Set[String] = externalClassDep._2s
 
   def classNames(src: File): Set[String] = classes.forward(src)
