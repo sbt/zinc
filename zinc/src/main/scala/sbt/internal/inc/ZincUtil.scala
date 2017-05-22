@@ -5,29 +5,23 @@
  * This software is released under the terms written in LICENSE.
  */
 
-package sbt.inc
+package sbt.internal.inc
 
 import java.io.File
 import java.net.URLClassLoader
 
-import xsbti.compile._
 import sbt.internal.inc.classpath.ClassLoaderCache
-import sbt.internal.inc.{ AnalyzingCompiler, ClasspathOptionsUtil, IncrementalCompilerImpl }
+import xsbti.compile._
 
 /**
- * Define utils to get instance of the Zinc public API back living under
- * [[xsbti.compile]], extending [[xsbti.compile.IncrementalCompilerUtil]].
- *
- * @note These utils are modeled as a class to be Java-friendly.
- *       Scala consumers should use these helpers via the [[ZincUtils]] object.
- *
+ * Define a private implementation of the static methods forwarded from [[ZincCompilerUtil]].
  */
-class ZincUtils extends xsbti.compile.IncrementalCompilerUtil {
+object ZincUtil {
 
   /**
    * Return a fully-fledged, default incremental compiler ready to use.
    */
-  override def defaultIncrementalCompiler: IncrementalCompiler =
+  def defaultIncrementalCompiler: IncrementalCompiler =
     new IncrementalCompilerImpl
 
   /**
@@ -39,13 +33,13 @@ class ZincUtils extends xsbti.compile.IncrementalCompilerUtil {
    *     incremental compiler.
    *
    * @param scalaInstance The Scala instance to be used.
-   * @param compilerBridgeJar The jar file of the compiler bridge.
+   * @param compilerBridgeJar The jar file or directory of the compiler bridge compiled for the given scala instance.
    * @param classpathOptions The options of all the classpath that the
    *                         compiler takes in.
    * @return A Scala compiler ready to be used.
    */
-  override def scalaCompiler(
-      scalaInstance: ScalaInstance,
+  def scalaCompiler(
+      scalaInstance: xsbti.compile.ScalaInstance,
       compilerBridgeJar: File,
       classpathOptions: ClasspathOptions
   ): AnalyzingCompiler = {
@@ -70,16 +64,14 @@ class ZincUtils extends xsbti.compile.IncrementalCompilerUtil {
    *     incremental compiler.
    *
    * @param scalaInstance The Scala instance to be used.
-   * @param compilerBridgeJar The jar file of the compiler bridge.
+   * @param compilerBridgeJar The jar file or directory of the compiler bridge compiled for the given scala instance.
    * @return A Scala compiler ready to be used.
    */
-  override def scalaCompiler(
-      scalaInstance: ScalaInstance,
+  def scalaCompiler(
+      scalaInstance: xsbti.compile.ScalaInstance,
       compilerBridgeJar: File
   ): AnalyzingCompiler = {
     val optionsUtil = ClasspathOptionsUtil.boot
     scalaCompiler(scalaInstance, compilerBridgeJar, optionsUtil)
   }
 }
-
-object ZincUtils extends ZincUtils
