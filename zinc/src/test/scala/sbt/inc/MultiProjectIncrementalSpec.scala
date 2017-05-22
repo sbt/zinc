@@ -57,22 +57,20 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
         Locate.definesClass
       )
       val skipBinaryChangeDetection = false
+      val emptyLookup = new ExternalLookup {
+        override def changedSources(previous: CompileAnalysis): Option[Changes[File]] = None
+        override def changedBinaries(previous: CompileAnalysis): Option[Set[File]] =
+          if (skipBinaryChangeDetection) Some(Set.empty) else None
+        override def removedProducts(previous: CompileAnalysis): Option[Set[File]] = None
+        override def shouldDoIncrementalCompilation(changedClasses: Set[String],
+                                                    analysis: CompileAnalysis): Boolean = true
+      }
       val incOptions = IncOptionsUtil
         .defaultIncOptions()
         .withApiDebug(true)
         .withExternalHooks(new ExternalHooks() {
-          def externalLookup(): ExternalHooks.Lookup = new ExternalLookup {
-            override def changedSources(previousAnalysis: Analysis): Option[Changes[File]] = None
-            override def changedBinaries(previousAnalysis: Analysis): Option[Set[File]] =
-              if (skipBinaryChangeDetection) Some(Set.empty)
-              else None
-            override def removedProducts(previousAnalysis: Analysis): Option[Set[File]] = None
-            override def shouldDoIncrementalCompilation(changedClasses: Set[String],
-                                                        analysis: Analysis): Boolean = true
-          }
-          def externalClassFileManager(): ClassFileManager = {
-            null
-          }
+          def externalLookup(): ExternalHooks.Lookup = emptyLookup
+          def externalClassFileManager(): ClassFileManager = null
         })
 
       val reporter = new LoggerReporter(maxErrors, log, identity)

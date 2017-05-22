@@ -8,8 +8,10 @@
 package sbt.internal.inc
 
 import java.io.File
+import java.{ lang, util }
+import java.util.Optional
 
-import xsbti.compile.{ CompileAnalysis, ExternalHooks, FileHash }
+import xsbti.compile.{ Changes, CompileAnalysis, ExternalHooks, FileHash }
 
 /**
  * A trait that encapsulates looking up elements on a classpath and looking up
@@ -43,6 +45,8 @@ trait Lookup extends ExternalLookup {
 }
 
 trait ExternalLookup extends ExternalHooks.Lookup {
+  import sbt.internal.inc.JavaInterfaceUtil.PimpOption
+  import scala.collection.JavaConverters._
 
   /**
    * Used to provide information from external tools into sbt (e.g. IDEs)
@@ -50,7 +54,9 @@ trait ExternalLookup extends ExternalHooks.Lookup {
    * @param previousAnalysis
    * @return None if is unable to determine what was changed, changes otherwise
    */
-  def changedSources(previousAnalysis: Analysis): Option[Changes[File]]
+  def changedSources(previousAnalysis: CompileAnalysis): Option[Changes[File]]
+  override def getChangedSources(previousAnalysis: CompileAnalysis): Optional[Changes[File]] =
+    changedSources(previousAnalysis).toOptional
 
   /**
    * Used to provide information from external tools into sbt (e.g. IDEs)
@@ -58,7 +64,9 @@ trait ExternalLookup extends ExternalHooks.Lookup {
    * @param previousAnalysis
    * @return None if is unable to determine what was changed, changes otherwise
    */
-  def changedBinaries(previousAnalysis: Analysis): Option[Set[File]]
+  def changedBinaries(previousAnalysis: CompileAnalysis): Option[Set[File]]
+  override def getChangedBinaries(previousAnalysis: CompileAnalysis): Optional[util.Set[File]] =
+    changedBinaries(previousAnalysis).map(_.asJava).toOptional
 
   /**
    * Used to provide information from external tools into sbt (e.g. IDEs)
@@ -66,11 +74,19 @@ trait ExternalLookup extends ExternalHooks.Lookup {
    * @param previousAnalysis
    * @return None if is unable to determine what was changed, changes otherwise
    */
-  def removedProducts(previousAnalysis: Analysis): Option[Set[File]]
+  def removedProducts(previousAnalysis: CompileAnalysis): Option[Set[File]]
+  override def getRemovedProducts(previousAnalysis: CompileAnalysis): Optional[util.Set[File]] =
+    removedProducts(previousAnalysis).map(_.asJava).toOptional
 
   /**
    * Used to provide information from external tools into sbt (e.g. IDEs)
    * @return API changes
    */
-  def shouldDoIncrementalCompilation(changedClasses: Set[String], analysis: Analysis): Boolean
+  def shouldDoIncrementalCompilation(changedClasses: Set[String],
+                                     analysis: CompileAnalysis): Boolean
+  override def shouldDoIncrementalCompilation(changedClasses: util.Set[String],
+                                              previousAnalysis: CompileAnalysis): Boolean = {
+    import scala.collection.JavaConverters._
+    shouldDoIncrementalCompilation(changedClasses.iterator().asScala.toSet, previousAnalysis)
+  }
 }

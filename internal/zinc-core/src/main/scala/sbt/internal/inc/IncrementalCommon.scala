@@ -13,6 +13,7 @@ import java.io.File
 
 import xsbti.api.AnalyzedClass
 import xsbti.compile.{
+  Changes,
   ClassFileManager,
   CompileAnalysis,
   DependencyChanges,
@@ -257,13 +258,14 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
 
   def changes(previous: Set[File],
               current: Set[File],
-              existingModified: File => Boolean): Changes[File] =
-    new Changes[File] {
+              existingModified: File => Boolean): Changes[File] = {
+    new UnderlyingChanges[File] {
       private val inBoth = previous & current
       val removed = previous -- inBoth
       val added = current -- inBoth
       val (changed, unmodified) = inBoth.partition(existingModified)
     }
+  }
 
   def invalidateIncremental(previous: Relations,
                             apis: APIs,
@@ -313,10 +315,16 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
   def invalidateInitial(previous: Relations, changes: InitialChanges): (Set[String], Set[File]) = {
     def classNames(srcs: Set[File]): Set[String] =
       srcs.flatMap(previous.classNames)
+    def toImmutableSet(srcs: java.util.Set[File]): Set[File] = {
+      import scala.collection.JavaConverters.asScalaIteratorConverter
+      srcs.iterator().asScala.toSet
+    }
+
     val srcChanges = changes.internalSrc
-    val modifiedSrcs = srcChanges.changed
-    val addedSrcs = srcChanges.added
-    val removedClasses = classNames(srcChanges.removed)
+    val modifiedSrcs = toImmutableSet(srcChanges.getChanged)
+    val addedSrcs = toImmutableSet(srcChanges.getAdded)
+    val removedSrcs = toImmutableSet(srcChanges.getRemoved)
+    val removedClasses = classNames(removedSrcs)
     val dependentOnRemovedClasses = removedClasses.flatMap(previous.memberRef.internal.reverse)
     val modifiedClasses = classNames(modifiedSrcs)
     val invalidatedClasses = removedClasses ++ dependentOnRemovedClasses ++ modifiedClasses
@@ -324,13 +332,11 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
     val byBinaryDep = changes.binaryDeps.flatMap(previous.usesLibrary)
     val classToSrc = new ClassToSourceMapper(previous, previous)
     val byExtSrcDep = {
-      val classNames = invalidateByAllExternal(
-        previous,
-        changes.external,
-        classToSrc.isDefinedInScalaSrc) //changes.external.modified.flatMap(previous.usesExternal) // ++ scopeInvalidations
-      classNames
+      //changes.external.modified.flatMap(previous.usesExternal) // ++ scopeInvalidations
+      invalidateByAllExternal(previous, changes.external, classToSrc.isDefinedInScalaSrc)
     }
-    checkAbsolute(srcChanges.added.toList)
+
+    checkAbsolute(addedSrcs.toList)
 
     val allInvalidatedClasses = invalidatedClasses ++ byExtSrcDep
     val allInvalidatedSourcefiles = addedSrcs ++ modifiedSrcs ++ byProduct ++ byBinaryDep
@@ -341,7 +347,7 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
       log.debug("No changes")
     else
       log.debug(
-        "\nInitial source changes: \n\tremoved:" + srcChanges.removed + "\n\tadded: " + srcChanges.added + "\n\tmodified: " + srcChanges.changed +
+        "\nInitial source changes: \n\tremoved:" + removedSrcs + "\n\tadded: " + addedSrcs + "\n\tmodified: " + modifiedSrcs +
           "\nInvalidated products: " + changes.removedProducts +
           "\nExternal API changes: " + changes.external +
           "\nModified binary dependencies: " + changes.binaryDeps +
