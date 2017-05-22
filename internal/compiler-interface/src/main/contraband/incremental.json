@@ -11,13 +11,21 @@
           "namespace": "xsbti.compile",
           "target": "Java",
           "type": "record",
-          "doc": "Constructs a minimal ClassfileManager that immediately deletes class files when requested."
+          "doc": [
+           "Constructs a minimal ClassfileManager that immediately deletes class files when requested.",
+           "This is the default classfile manager if no type is provided in incremental options."
+          ]
         },
         {
           "name": "TransactionalManagerType",
           "namespace": "xsbti.compile",
           "target": "Java",
           "type": "record",
+          "doc": [
+            "Constructs a transactional ClassFileManager implementation that restores class",
+            "files to the way they were before compilation if there is an error. Otherwise, it",
+            "keeps the successfully generated class files from the new compilation."
+          ],
           "fields": [
             { "name": "backupDirectory", "type": "java.io.File" },
             { "name": "logger",          "type": "xsbti.Logger" }

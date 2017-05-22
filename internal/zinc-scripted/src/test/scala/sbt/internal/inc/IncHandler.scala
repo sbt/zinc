@@ -376,8 +376,8 @@ case class ProjectStructure(
       Optional.of(
         new xsbti.compile.TransactionalManagerType(targetDir / "classes.bak",
                                                    sbt.util.Logger.Null))
-    // you can't specify class file manager in the properties files so let's overwrite it to be the transactional
-    // one (that's the default for sbt)
+    // We specify the class file manager explicitly even though it's noew possible
+    // to specify it in the incremental option property file (this is the default for sbt)
     val incOptionsFile = baseDirectory / "incOptions.properties"
     val (incOptions, scalacOptions) = loadIncOptions(incOptionsFile)
     val reporter = new LoggerReporter(maxErrors, scriptedLog, identity)

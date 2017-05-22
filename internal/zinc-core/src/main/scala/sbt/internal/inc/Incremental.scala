@@ -114,7 +114,7 @@ object Incremental {
     options.apiDebug || java.lang.Boolean.getBoolean(apiDebugProp)
 
   private[sbt] def prune(invalidatedSrcs: Set[File], previous: CompileAnalysis): Analysis =
-    prune(invalidatedSrcs, previous, ClassFileManager.deleteImmediately())
+    prune(invalidatedSrcs, previous, ClassFileManager.deleteImmediately)
 
   private[sbt] def prune(invalidatedSrcs: Set[File],
                          previous0: CompileAnalysis,
