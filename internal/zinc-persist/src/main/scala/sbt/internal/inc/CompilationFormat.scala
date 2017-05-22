@@ -5,18 +5,17 @@
  * This software is released under the terms written in LICENSE.
  */
 
-package xsbt.api
+package sbt.internal.inc
 
-import xsbti.api._
 import sbinary._
 
-object CompanionsFormat extends Format[Companions] {
+object CompilationFormat extends Format[Compilation] {
   import java.io._
-  def reads(in: Input): Companions = {
+  def reads(in: Input): Compilation = {
     val oin = new ObjectInputStream(new InputWrapperStream(in))
-    try { oin.readObject.asInstanceOf[Companions] } finally { oin.close() }
+    try { oin.readObject.asInstanceOf[Compilation] } finally { oin.close() }
   }
-  def writes(out: Output, src: Companions): Unit = {
+  def writes(out: Output, src: Compilation): Unit = {
     val oout = new ObjectOutputStream(new OutputWrapperStream(out))
     try { oout.writeObject(src) } finally { oout.close() }
   }

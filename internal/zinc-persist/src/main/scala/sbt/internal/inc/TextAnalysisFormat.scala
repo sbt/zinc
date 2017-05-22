@@ -34,13 +34,13 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers)
   import sbinary.Format
   import xsbti.{ Position, Problem, Severity }
 
-  private implicit val compilationF: Format[Compilation] = xsbt.api.CompilationFormat
+  private implicit val compilationF: Format[Compilation] = CompilationFormat
   private implicit val nameHashesFormat: Format[NameHash] = {
     def read(name: String, scopeName: String, hash: Int) =
       new NameHash(name, UseScope.valueOf(scopeName), hash)
     asProduct3(read)(a => (a.name(), a.scope().name(), a.hash()))
   }
-  private implicit val companionsFomrat: Format[Companions] = xsbt.api.CompanionsFormat
+  private implicit val companionsFomrat: Format[Companions] = CompanionsFormat
   private implicit def problemFormat: Format[Problem] =
     asProduct4(problem)(p => (p.category, p.position, p.message, p.severity))
   private implicit def positionFormat: Format[Position] =
@@ -58,7 +58,7 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers)
   private implicit val integerFormat: Format[Integer] =
     wrap[Integer, Int](_.toInt, Integer.valueOf)
   private implicit val analyzedClassFormat: Format[AnalyzedClass] =
-    xsbt.api.AnalyzedClassFormats.analyzedClassFormat
+    AnalyzedClassFormats.analyzedClassFormat
   private implicit def infoFormat: Format[SourceInfo] =
     wrap[SourceInfo, (Seq[Problem], Seq[Problem])](
       si => (si.getReportedProblems, si.getUnreportedProblems), {
