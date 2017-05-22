@@ -85,10 +85,6 @@ object ClassFileManager {
    */
   def deleteImmediately: ClassFileManager = new DeleteClassFileManager
 
-  @deprecated("Use overloaded variant that takes additional logger argument, instead.", "0.13.5")
-  def transactional(tempDir0: File): ClassFileManager =
-    transactional(tempDir0, sbt.util.Logger.Null)
-
   /**
    * Constructs a transactional [[ClassFileManager]] implementation that restores class
    * files to the way they were before compilation if there is an error. Otherwise, it
