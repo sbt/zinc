@@ -7,6 +7,7 @@
 
 package xsbti.compile;
 
+import scala.tools.cmd.Opt;
 import xsbti.F0;
 import xsbti.Logger;
 
@@ -107,13 +108,13 @@ public class IncOptionsUtil {
     public static ExternalHooks defaultExternal() {
         return new ExternalHooks() {
             @Override
-            public Lookup externalLookup() {
-                return null;
+            public Optional<Lookup> externalLookup() {
+                return Optional.empty();
             }
 
             @Override
-            public ClassFileManager externalClassFileManager() {
-                return null;
+            public Optional<ClassFileManager> externalClassFileManager() {
+                return Optional.empty();
             }
         };
     }

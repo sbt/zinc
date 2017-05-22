@@ -46,8 +46,9 @@ object ClassFileManager {
           case m: TransactionalManagerType     => transactional(m.backupDirectory, m.logger)()
         } else deleteImmediately()
 
+    import sbt.internal.inc.JavaInterfaceUtil.PimpOptional
     val external = Option(options.externalHooks())
-      .flatMap(ext => Option(ext.externalClassFileManager))
+      .flatMap(ext => ext.externalClassFileManager.toOption)
 
     WrappedClassFileManager(internal, external)
   }

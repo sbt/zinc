@@ -57,7 +57,7 @@ public interface ExternalHooks {
      * Return the implementation of a lookup mechanism to be used instead of
      * the internal lookup provided by the default implementation.
      */
-    Lookup externalLookup();
+    Optional<Lookup> externalLookup();
 
     /**
      * Return the implementation of a {@link ClassFileManager} to be used
@@ -66,5 +66,5 @@ public interface ExternalHooks {
      * This class file manager is run after the internal
      * {@link ClassFileManager} defined in {@link IncOptions}.
      */
-    ClassFileManager externalClassFileManager();
+    Optional<ClassFileManager> externalClassFileManager();
 }

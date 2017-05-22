@@ -50,7 +50,7 @@ class LookupImpl(compileConfiguration: CompileConfiguration, previousSetup: Opti
     entry(binaryClassName)
 
   lazy val externalLookup = Option(compileConfiguration.incOptions.externalHooks())
-    .flatMap(ext => Option(ext.externalLookup()))
+    .flatMap(ext => ext.externalLookup().toOption)
     .collect { case externalLookup: ExternalLookup => externalLookup }
 
   override def changedSources(previousAnalysis: CompileAnalysis): Option[Changes[File]] =

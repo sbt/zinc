@@ -69,8 +69,8 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
         .defaultIncOptions()
         .withApiDebug(true)
         .withExternalHooks(new ExternalHooks() {
-          def externalLookup(): ExternalHooks.Lookup = emptyLookup
-          def externalClassFileManager(): ClassFileManager = null
+          def externalLookup: Optional[ExternalHooks.Lookup] = Optional.of(emptyLookup)
+          def externalClassFileManager: Optional[ClassFileManager] = Optional.empty()
         })
 
       val reporter = new LoggerReporter(maxErrors, log, identity)
