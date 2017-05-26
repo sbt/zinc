@@ -33,7 +33,7 @@ public interface CompilerBridgeProvider {
     static CompilerBridgeProvider constant(File file, ScalaInstance scalaInstance) {
         return new CompilerBridgeProvider() {
             @Override
-            public File getCompiledBridge(ScalaInstance scalaInstance, Logger logger) {
+            public File fetchCompiledBridge(ScalaInstance scalaInstance, Logger logger) {
                 logger.debug(new F0<String>() {
                     @Override
                     public String apply() {
@@ -45,7 +45,7 @@ public interface CompilerBridgeProvider {
             }
 
             @Override
-            public ScalaInstance getScalaInstance(String scalaVersion, Logger logger) {
+            public ScalaInstance fetchScalaInstance(String scalaVersion, Logger logger) {
                 logger.debug(new F0<String>() {
                     @Override
                     public String apply() {
@@ -65,7 +65,7 @@ public interface CompilerBridgeProvider {
      * @param logger        A logger.
      * @return The jar or directory where the bridge sources have been compiled.
      */
-    File getCompiledBridge(ScalaInstance scalaInstance, Logger logger);
+    File fetchCompiledBridge(ScalaInstance scalaInstance, Logger logger);
 
     /**
      * Get the Scala instance for a given Scala version.
@@ -74,7 +74,7 @@ public interface CompilerBridgeProvider {
      * @param logger       A logger.
      * @return A scala instance, useful to get a compiled bridge.
      * @see ScalaInstance
-     * @see CompilerBridgeProvider#getCompiledBridge
+     * @see CompilerBridgeProvider#fetchCompiledBridge
      */
-    ScalaInstance getScalaInstance(String scalaVersion, Logger logger);
+    ScalaInstance fetchScalaInstance(String scalaVersion, Logger logger);
 }
