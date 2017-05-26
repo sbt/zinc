@@ -8,32 +8,30 @@
 package xsbti.compile;
 
 import java.io.File;
+import java.util.Optional;
 
-/** Define the interface for several kind of output directories. */
+/**
+ * Represents a mapping of several outputs depending on the source directory.
+ * <p>
+ * This option is used only by the Scala compiler.
+ */
 public interface MultipleOutput extends Output {
+    /**
+     * Return an array of the existent output groups.
+     * <p>
+     * Incremental compilation manages the class files in these directories, so
+     * don't play with them out of the Zinc API. Zinc already takes care of
+     * deleting classes before every compilation run.
+     */
+    public OutputGroup[] getOutputGroups();
 
-	/** Define the interface of a group of outputs. */
-	interface OutputGroup {
-		/**
-		 * Return the directory where source files are stored for this group.
-         *
-		 * Note that source directories should uniquely identify the group
-		 * for a certain source file.
-         */
-		File sourceDirectory();
+    @Override
+    public default Optional<File> getSingleOutput() {
+        return Optional.empty();
+    }
 
-		/**
-		 * Return the directory where class files should be generated.
-		 *
-		 * Incremental compilation manages the class files in this directory, so
-		 * don't play with this directory out of the Zinc API. Zinc already takes
-		 * care of deleting classes before every compilation run.
-		 *
-		 * This directory must be exclusively used for one set of sources.
-		 */
-		File outputDirectory();
-	}
-
-	/** Return an array of the existent output groups. */
-	OutputGroup[] outputGroups();
+    @Override
+    public default Optional<OutputGroup[]> getMultipleOutput() {
+        return Optional.of(getOutputGroups());
+    }
 }

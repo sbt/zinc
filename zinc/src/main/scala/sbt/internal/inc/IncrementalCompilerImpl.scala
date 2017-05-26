@@ -10,8 +10,10 @@ package internal
 package inc
 
 import java.io.File
+import java.util.Optional
 
 import sbt.internal.inc.javac.JavaTools
+import sbt.internal.inc.JavaInterfaceUtil._
 import sbt.util.InterfaceUtil
 import xsbti._
 import xsbti.compile.CompileOrder.Mixed
@@ -52,11 +54,11 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       classpath,
       CompileOutput(classesDirectory),
       cache,
-      InterfaceUtil.m2o(progress()),
+      progress().toOption,
       scalacOptions,
       javacOptions,
-      InterfaceUtil.m2o(in.previousResult.analysis),
-      InterfaceUtil.m2o(in.previousResult.setup),
+      in.previousResult.analysis.toOption,
+      in.previousResult.setup.toOption,
       perClasspathEntryLookup,
       reporter,
       order,
@@ -110,13 +112,13 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       cache: xsbti.compile.GlobalsCache,
       scalaOptions: Array[String],
       javaOptions: Array[String],
-      previousAnalysis: Maybe[xsbti.compile.CompileAnalysis],
-      previousSetup: Maybe[xsbti.compile.MiniSetup],
+      previousAnalysis: Optional[xsbti.compile.CompileAnalysis],
+      previousSetup: Optional[xsbti.compile.MiniSetup],
       perClasspathEntryLookup: xsbti.compile.PerClasspathEntryLookup,
       reporter: Reporter,
       compileOrder: xsbti.compile.CompileOrder,
       skip: java.lang.Boolean,
-      progress: Maybe[xsbti.compile.CompileProgress],
+      progress: Optional[xsbti.compile.CompileProgress],
       incrementalOptions: xsbti.compile.IncOptions,
       extra: Array[xsbti.T2[String, String]],
       logger: xsbti.Logger
@@ -129,11 +131,11 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       classpath.toSeq,
       output,
       cache,
-      InterfaceUtil.m2o(progress),
+      progress.toOption,
       scalaOptions.toSeq,
       javaOptions.toSeq,
-      InterfaceUtil.m2o(previousAnalysis),
-      InterfaceUtil.m2o(previousSetup),
+      previousAnalysis.toOption,
+      previousSetup.toOption,
       perClasspathEntryLookup,
       reporter,
       compileOrder,
@@ -161,11 +163,11 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         val numberSources = s"${sources.length} sources"
         val outputString = output match {
           case singleOutput: SingleOutput =>
-            singleOutput.outputDirectory().toString
+            singleOutput.getOutputDirectory().toString
           case multiOutput: MultipleOutput =>
             multiOutput
-              .outputGroups()
-              .map(_.outputDirectory().toString)
+              .getOutputGroups()
+              .map(_.getOutputDirectory().toString)
               .mkString("[", ", ", "]")
           case _ =>
             s"other output ($output)"
@@ -316,20 +318,11 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       cache: GlobalsCache,
       incOptions: IncOptions,
       reporter: Reporter,
-      progress: Option[CompileProgress],
+      optionProgress: Option[CompileProgress],
       extra: Array[T2[String, String]]
   ): Setup = {
-    val maybeProgress = InterfaceUtil.o2m(progress)
-    new Setup(
-      lookup,
-      skip,
-      cacheFile,
-      cache,
-      incOptions,
-      reporter,
-      maybeProgress,
-      extra
-    )
+    val progress = optionProgress.toOptional
+    new Setup(lookup, skip, cacheFile, cache, incOptions, reporter, progress, extra)
   }
 
   def inputs(
@@ -348,7 +341,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       scalacOptions: Array[String],
       javacOptions: Array[String],
       maxErrors: Int,
-      sourcePositionMappers: Array[F1[Position, Maybe[Position]]],
+      sourcePositionMappers: Array[F1[Position, Optional[Position]]],
       order: CompileOrder,
       compilers: Compilers,
       setup: Setup,
@@ -371,20 +364,20 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
 
   def previousResult(result: CompileResult): PreviousResult = {
     new PreviousResult(
-      Maybe.just[CompileAnalysis](result.analysis),
-      Maybe.just[MiniSetup](result.setup)
+      Optional.of[CompileAnalysis](result.analysis),
+      Optional.of[MiniSetup](result.setup)
     )
   }
 
   def emptyPreviousResult: PreviousResult = {
     new PreviousResult(
-      Maybe.nothing[CompileAnalysis],
-      Maybe.nothing[MiniSetup]
+      Optional.empty[CompileAnalysis],
+      Optional.empty[MiniSetup]
     )
   }
 
   def compilers(
-      instance: ScalaInstance,
+      instance: xsbti.compile.ScalaInstance,
       cpOptions: XClasspathOptions,
       javaHome: Option[File],
       scalac: ScalaCompiler
@@ -401,15 +394,11 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
   /* * Define helpers to convert from sbt Java interface to the Scala one  * */
   /* *********************************************************************** */
 
-  private[sbt] def foldMappers[A](mappers: Array[F1[A, Maybe[A]]]) = {
+  private[sbt] def foldMappers[A](mappers: Array[F1[A, Optional[A]]]) = {
     mappers.foldRight(InterfaceUtil.f1[A, A](identity)) { (mapper, mappers) =>
       InterfaceUtil.f1[A, A]({ p: A =>
-        InterfaceUtil.m2o(mapper(p)).getOrElse(mappers(p))
+        mapper(p).toOption.getOrElse(mappers(p))
       })
     }
-  }
-
-  private[sbt] implicit class PimpSbtTuple[T, U](sbtTuple: T2[T, U]) {
-    def toScalaTuple: (T, U) = sbtTuple.get1() -> sbtTuple.get2()
   }
 }

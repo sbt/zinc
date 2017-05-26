@@ -11,6 +11,7 @@ import java.io.File
 
 import sbt.internal.inc.{ AnalysisMappers, ContextAwareMapper, Mapper, Stamp }
 import xsbti.compile.MiniSetup
+import xsbti.compile.analysis.Stamp
 
 trait VerficationResults
 object NoVerification extends VerficationResults

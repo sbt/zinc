@@ -13,6 +13,8 @@ import java.io.File
 
 import xsbti.UseScope
 import xsbti.api.NameHash
+import xsbti.compile.Changes
+import xsbti.compile.analysis.Stamp
 
 final case class InitialChanges(
     internalSrc: Changes[File],
@@ -89,13 +91,18 @@ object ModifiedNames {
   }
 }
 
-trait Changes[A] {
+abstract class UnderlyingChanges[A] extends Changes[A] {
   def added: Set[A]
   def removed: Set[A]
   def changed: Set[A]
   def unmodified: Set[A]
 
-  def isEmpty = added.isEmpty && removed.isEmpty && changed.isEmpty
+  import scala.collection.JavaConverters.setAsJavaSetConverter
+  override def getAdded: java.util.Set[A] = added.asJava
+  override def getChanged: java.util.Set[A] = changed.asJava
+  override def getRemoved: java.util.Set[A] = removed.asJava
+  override def getUnmodified: java.util.Set[A] = unmodified.asJava
+  override def isEmpty = added.isEmpty && removed.isEmpty && changed.isEmpty
 }
 
 sealed abstract class Change(val file: File)

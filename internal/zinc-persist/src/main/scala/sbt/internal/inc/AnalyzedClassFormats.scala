@@ -5,12 +5,12 @@
  * This software is released under the terms written in LICENSE.
  */
 
-package xsbt.api
+package sbt.internal.inc
 
-import xsbti.api._
 import sbinary._
 import sbinary.DefaultProtocol._
 import sbt.internal.inc.APIs.emptyCompanions
+import xsbti.api.{ AnalyzedClass, NameHash, SafeLazyProxy }
 
 object AnalyzedClassFormats {
   // This will throw out API information intentionally.
@@ -33,13 +33,4 @@ object AnalyzedClassFormats {
                               hasMacro)
       }
     )
-}
-final class InputWrapperStream(in: Input) extends java.io.InputStream {
-  def toInt(b: Byte) = if (b < 0) b + 256 else b.toInt
-  def read() = try { toInt(in.readByte) } catch { case e: sbinary.EOF => -1 }
-  override def read(b: Array[Byte], off: Int, len: Int) = in.readTo(b, off, len)
-}
-final class OutputWrapperStream(out: Output) extends java.io.OutputStream {
-  override def write(bs: Array[Byte], off: Int, len: Int) = out.writeAll(bs, off, len)
-  def write(b: Int) = out.writeByte(b.toByte)
 }

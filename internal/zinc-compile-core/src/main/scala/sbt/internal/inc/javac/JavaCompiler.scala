@@ -15,6 +15,7 @@ import java.io.File
 
 import xsbti.compile.{
   ClasspathOptions,
+  ClasspathOptionsUtil,
   JavaCompiler,
   JavaTools,
   Javadoc,
@@ -95,7 +96,7 @@ object JavaCompiler {
      * make use of it (e.g. the Eclipse compiler does this via EJC).
      * See https://github.com/sbt/zinc/issues/163. */
     val target = output match {
-      case so: SingleOutput  => Some(so.outputDirectory)
+      case so: SingleOutput  => Some(so.getOutputDirectory)
       case _: MultipleOutput => None
     }
     // TODO(jvican): Fix the `libraryJar` deprecation.

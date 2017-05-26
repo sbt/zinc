@@ -12,8 +12,9 @@ package inc
 import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
 import java.io.File
 
-import xsbti.api.{ AnalyzedClass, InternalDependency, ExternalDependency }
+import xsbti.api.{ AnalyzedClass, ExternalDependency, InternalDependency }
 import xsbti.compile.CompileAnalysis
+import xsbti.compile.analysis.{ ReadCompilations, ReadSourceInfos, ReadStamps, SourceInfo, Stamp }
 
 trait Analysis extends CompileAnalysis {
   val stamps: Stamps
@@ -22,6 +23,10 @@ trait Analysis extends CompileAnalysis {
   /** Mappings between sources, classes, and binaries. */
   val relations: Relations
   val infos: SourceInfos
+
+  override def readStamps: ReadStamps = stamps
+  override def readSourceInfos: ReadSourceInfos = infos
+  override def readCompilations: ReadCompilations = compilations
 
   /**
    * Information about compiler runs accumulated since `clean` command has been run.
@@ -84,7 +89,7 @@ object Analysis {
     val c = a.stamps.allProducts
     val ext = a.apis.allExternals
     val jars = a.relations.allLibraryDeps.filter(_.getName.endsWith(".jar"))
-    val unreportedCount = a.infos.allInfos.values.map(_.unreportedProblems.size).sum
+    val unreportedCount = a.infos.allInfos.values.map(_.getUnreportedProblems.length).sum
     val sections =
       counted("Scala source", "", "s", s.size) ++
         counted("Java source", "", "s", j.size) ++
@@ -146,7 +151,7 @@ private class MAnalysis(val stamps: Stamps,
 
     val newStamps = {
       val nonLocalProductStamps =
-        nonLocalProducts.foldLeft(stamps.markInternalSource(src, stamp)) {
+        nonLocalProducts.foldLeft(stamps.markSource(src, stamp)) {
           case (tmpStamps, nonLocalProduct) =>
             tmpStamps.markProduct(nonLocalProduct.classFile, nonLocalProduct.classFileStamp)
         }

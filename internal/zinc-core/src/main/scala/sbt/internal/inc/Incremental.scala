@@ -10,9 +10,10 @@ package internal
 package inc
 
 import java.io.File
+
 import sbt.util.{ Level, Logger }
-import xsbti.compile.ClassFileManager
-import xsbti.compile.{ CompileAnalysis, DependencyChanges, IncOptions }
+import xsbti.compile.analysis.{ ReadStamps, Stamp }
+import xsbti.compile.{ ClassFileManager, CompileAnalysis, DependencyChanges, IncOptions }
 
 /**
  * Define helpers to run incremental compilation algorithm with name hashing.
@@ -113,7 +114,7 @@ object Incremental {
     options.apiDebug || java.lang.Boolean.getBoolean(apiDebugProp)
 
   private[sbt] def prune(invalidatedSrcs: Set[File], previous: CompileAnalysis): Analysis =
-    prune(invalidatedSrcs, previous, ClassFileManager.deleteImmediately())
+    prune(invalidatedSrcs, previous, ClassFileManager.deleteImmediately)
 
   private[sbt] def prune(invalidatedSrcs: Set[File],
                          previous0: CompileAnalysis,

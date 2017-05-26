@@ -16,7 +16,8 @@ import xsbti.UseScope
 import xsbti.api._
 import xsbti.compile._
 import sbt.util.InterfaceUtil
-import sbt.util.InterfaceUtil.{ jo2o, problem, position }
+import sbt.util.InterfaceUtil.{ jo2o, position, problem }
+import xsbti.compile.analysis.SourceInfo
 
 // A text-based serialization format for Analysis objects.
 // This code has been tuned for high performance, and therefore has non-idiomatic areas.
@@ -33,13 +34,13 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers)
   import sbinary.Format
   import xsbti.{ Position, Problem, Severity }
 
-  private implicit val compilationF: Format[Compilation] = xsbt.api.CompilationFormat
+  private implicit val compilationF: Format[Compilation] = CompilationFormat
   private implicit val nameHashesFormat: Format[NameHash] = {
     def read(name: String, scopeName: String, hash: Int) =
       new NameHash(name, UseScope.valueOf(scopeName), hash)
     asProduct3(read)(a => (a.name(), a.scope().name(), a.hash()))
   }
-  private implicit val companionsFomrat: Format[Companions] = xsbt.api.CompanionsFormat
+  private implicit val companionsFomrat: Format[Companions] = CompanionsFormat
   private implicit def problemFormat: Format[Problem] =
     asProduct4(problem)(p => (p.category, p.position, p.message, p.severity))
   private implicit def positionFormat: Format[Position] =
@@ -57,10 +58,10 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers)
   private implicit val integerFormat: Format[Integer] =
     wrap[Integer, Int](_.toInt, Integer.valueOf)
   private implicit val analyzedClassFormat: Format[AnalyzedClass] =
-    xsbt.api.AnalyzedClassFormats.analyzedClassFormat
+    AnalyzedClassFormats.analyzedClassFormat
   private implicit def infoFormat: Format[SourceInfo] =
     wrap[SourceInfo, (Seq[Problem], Seq[Problem])](
-      si => (si.reportedProblems, si.unreportedProblems), {
+      si => (si.getReportedProblems, si.getUnreportedProblems), {
         case (a, b) => SourceInfos.makeInfo(a, b)
       })
   private implicit def fileHashFormat: Format[FileHash] =
@@ -319,11 +320,11 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers)
       val (mode, outputAsMap) = setup.output match {
         case s: SingleOutput =>
           // just to be compatible with multipleOutputMode
-          val ignored = s.outputDirectory
-          (singleOutputMode, Map(ignored -> s.outputDirectory))
+          val ignored = s.getOutputDirectory
+          (singleOutputMode, Map(ignored -> s.getOutputDirectory))
         case m: MultipleOutput =>
           (multipleOutputMode,
-           m.outputGroups.map(x => x.sourceDirectory -> x.outputDirectory).toMap)
+           m.getOutputGroups.map(x => x.getSourceDirectory -> x.getOutputDirectory).toMap)
       }
 
       writeSeq(out)(Headers.outputMode, mode :: Nil, identity[String])
@@ -363,20 +364,18 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers)
         case Some(s) =>
           s match {
             case `singleOutputMode` =>
-              new SingleOutput {
-                val outputDirectory = outputAsMap.values.head
-              }
+              new SingleOutput { val getOutputDirectory = outputAsMap.values.head }
             case `multipleOutputMode` =>
               new MultipleOutput {
-                val outputGroups: Array[MultipleOutput.OutputGroup] = outputAsMap.toArray.map {
+                val getOutputGroups: Array[OutputGroup] = outputAsMap.toArray.map {
                   case (src: File, out: File) =>
-                    new MultipleOutput.OutputGroup {
-                      val sourceDirectory = src
-                      val outputDirectory = out
+                    new OutputGroup {
+                      val getSourceDirectory = src
+                      val getOutputDirectory = out
                       override def toString = s"OutputGroup($src -> $out)"
                     }
                 }
-                override def toString = s"MultipleOuput($outputGroups)"
+                override def toString = s"MultipleOutput($getOutputGroups)"
               }
             case str: String => throw new ReadException("Unrecognized output mode: " + str)
           }

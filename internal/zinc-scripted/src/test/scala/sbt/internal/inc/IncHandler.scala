@@ -5,35 +5,41 @@ package inc
 import java.io.{ File, FileInputStream }
 import java.net.URLClassLoader
 import java.util.jar.Manifest
+
 import sbt.util.Logger
 import sbt.util.InterfaceUtil._
+import sbt.internal.inc.JavaInterfaceUtil.{ PimpOption, PimpOptional }
 import xsbt.api.Discovery
-import xsbti.{ Maybe, Problem, Severity }
+import xsbti.{ Problem, Severity }
 import xsbti.compile.{
+  ClasspathOptionsUtil,
   CompileAnalysis,
   CompileOrder,
+  CompilerBridgeProvider,
+  CompilerCache,
   DefinesClass,
+  IncOptions,
   IncOptionsUtil,
+  PerClasspathEntryLookup,
   PreviousResult,
-  Compilers => XCompilers,
-  IncOptions
+  Compilers => XCompilers
 }
-import xsbti.compile.PerClasspathEntryLookup
 import sbt.io.IO
 import sbt.io.syntax._
 import sbt.io.DirectoryFilter
-
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier.{ isPublic, isStatic }
-import java.util.Properties
-import sbt.internal.inc.classpath.{ ClasspathUtilities, ClassLoaderCache }
+import java.util.{ Optional, Properties }
+
+import sbt.internal.inc.classpath.{ ClassLoaderCache, ClasspathUtilities }
 import sbt.internal.scripted.{ StatementHandler, TestFailed }
-import sbt.internal.inctest.{ Build, Project, JsonProtocol }
+import sbt.internal.inctest.{ Build, JsonProtocol, Project }
 import sbt.internal.util.ManagedLogger
 import sjsonnew.support.scalajson.unsafe.{ Converter, Parser => JsonParser }
+
 import scala.collection.mutable
 
-final case class IncInstance(si: ScalaInstance, cs: XCompilers)
+final case class IncInstance(si: xsbti.compile.ScalaInstance, cs: XCompilers)
 
 final class IncHandler(directory: File, scriptedLog: ManagedLogger)
     extends BridgeProviderSpecification
@@ -109,20 +115,21 @@ final class IncHandler(directory: File, scriptedLog: ManagedLogger)
   private[this] def onNewIncInstance(p: ProjectStructure,
                                      f: IncInstance => Unit): Option[IncInstance] = {
     val scalaVersion = p.scalaVersion
-    val compilerBridge = getCompilerBridge(directory, Logger.Null, scalaVersion)
-    val si = scalaInstance(scalaVersion)
+    val noLogger = Logger.Null
+    val compilerBridge = getCompilerBridge(directory, noLogger, scalaVersion)
+    val si = scalaInstance(scalaVersion, directory, noLogger)
     val sc = scalaCompiler(si, compilerBridge)
     val cs = compiler.compilers(si, ClasspathOptionsUtil.boot, None, sc)
     val i = IncInstance(si, cs)
     f(i)
     Some(i)
   }
-  def scalaCompiler(instance: ScalaInstance, bridgeJar: File): AnalyzingCompiler =
-    new AnalyzingCompiler(instance,
-                          CompilerBridgeProvider.constant(bridgeJar),
-                          ClasspathOptionsUtil.boot,
-                          _ => (),
-                          Some(new ClassLoaderCache(new URLClassLoader(Array()))))
+  def scalaCompiler(instance: xsbti.compile.ScalaInstance, bridgeJar: File): AnalyzingCompiler = {
+    val bridgeProvider = CompilerBridgeProvider.constant(bridgeJar, instance)
+    val classpath = ClasspathOptionsUtil.boot
+    val cache = Some(new ClassLoaderCache(new URLClassLoader(Array())))
+    new AnalyzingCompiler(instance, bridgeProvider, classpath, _ => (), cache)
+  }
 
   lazy val commands: Map[String, IncCommand] = Map(
     "compile" -> {
@@ -238,8 +245,8 @@ case class ProjectStructure(
       am: File => Option[CompileAnalysis],
       definesClassLookup: File => DefinesClass
   ) extends PerClasspathEntryLookup {
-    override def analysis(classpathEntry: File): Maybe[CompileAnalysis] =
-      o2m(am(classpathEntry))
+    override def analysis(classpathEntry: File): Optional[CompileAnalysis] =
+      am(classpathEntry).toOptional
     override def definesClass(classpathEntry: File): DefinesClass =
       definesClassLookup(classpathEntry)
   }
@@ -258,17 +265,17 @@ case class ProjectStructure(
   val fileStore = AnalysisStore.cached(FileBasedStore(cacheFile))
   def prev =
     fileStore.get match {
-      case Some((a, s)) => new PreviousResult(Maybe.just(a), Maybe.just(s))
+      case Some((a, s)) => new PreviousResult(Optional.of(a), Optional.of(s))
       case _            => compiler.emptyPreviousResult
     }
   def unmanagedJars: List[File] = (baseDirectory / "lib" ** "*.jar").get.toList
   def lookupAnalysis: File => Option[CompileAnalysis] = {
     val f0: PartialFunction[File, Option[CompileAnalysis]] = {
-      case x if x.getAbsoluteFile == classesDir.getAbsoluteFile => m2o(prev.analysis)
+      case x if x.getAbsoluteFile == classesDir.getAbsoluteFile => prev.analysis.toOption
     }
     val f1 = (f0 /: dependsOnRef) { (acc, dep) =>
       acc orElse {
-        case x if x.getAbsoluteFile == dep.classesDir.getAbsoluteFile => m2o(dep.prev.analysis)
+        case x if x.getAbsoluteFile == dep.classesDir.getAbsoluteFile => dep.prev.analysis.toOption
       }
     }
     f1 orElse { case _ => None }
@@ -305,7 +312,7 @@ case class ProjectStructure(
     val allCompilations = analysis.compilations.allCompilations
     val recompiledClasses: Seq[Set[String]] = allCompilations map { c =>
       val recompiledClasses = analysis.apis.internal.collect {
-        case (className, api) if api.compilationTimestamp() == c.startTime => className
+        case (className, api) if api.compilationTimestamp() == c.getStartTime => className
       }
       recompiledClasses.toSet
     }
@@ -367,13 +374,14 @@ case class ProjectStructure(
     val sources = scalaSources ++ javaSources
     val prev0 = prev
     val lookup = new PerClasspathEntryLookupImpl(lookupAnalysis, Locate.definesClass)
-    val transactional: xsbti.Maybe[xsbti.compile.ClassFileManagerType] =
-      Maybe.just(
+    val transactional: Optional[xsbti.compile.ClassFileManagerType] =
+      Optional.of(
         new xsbti.compile.TransactionalManagerType(targetDir / "classes.bak",
                                                    sbt.util.Logger.Null))
-    // you can't specify class file manager in the properties files so let's overwrite it to be the transactional
-    // one (that's the default for sbt)
-    val (incOptions, scalacOptions) = loadIncOptions(baseDirectory / "incOptions.properties")
+    // We specify the class file manager explicitly even though it's noew possible
+    // to specify it in the incremental option property file (this is the default for sbt)
+    val incOptionsFile = baseDirectory / "incOptions.properties"
+    val (incOptions, scalacOptions) = loadIncOptions(incOptionsFile)
     val reporter = new LoggerReporter(maxErrors, scriptedLog, identity)
     val extra = Array(t2(("key", "value")))
     val setup = compiler.setup(lookup,
@@ -382,7 +390,7 @@ case class ProjectStructure(
                                cache = CompilerCache.fresh,
                                incOptions.withClassfileManagerType(transactional),
                                reporter,
-                               progress = None,
+                               optionProgress = None,
                                extra)
 
     val classpath =
@@ -480,7 +488,7 @@ case class ProjectStructure(
       val scalacOptions =
         Option(map.get("scalac.options")).map(_.toString.split(" +")).getOrElse(Array.empty)
 
-      (IncOptionsUtil.fromStringMap(map), scalacOptions)
+      (IncOptionsUtil.fromStringMap(map, scriptedLog), scalacOptions)
     } else (IncOptionsUtil.defaultIncOptions, Array.empty)
   }
 
@@ -488,7 +496,7 @@ case class ProjectStructure(
     fileStore.get match {
       case Some((analysis: Analysis, _)) =>
         val allInfos = analysis.infos.allInfos.values.toSeq
-        allInfos flatMap (i => i.reportedProblems ++ i.unreportedProblems)
+        allInfos flatMap (i => i.getReportedProblems ++ i.getUnreportedProblems)
       case _ =>
         Nil
     }

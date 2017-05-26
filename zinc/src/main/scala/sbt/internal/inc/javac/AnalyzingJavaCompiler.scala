@@ -83,14 +83,14 @@ final class AnalyzingJavaCompiler private[sbt] (
       // Outline chunks of compiles so that .class files end up in right location
       val chunks: Map[Option[File], Seq[File]] = output match {
         case single: SingleOutput =>
-          Map(Some(single.outputDirectory) -> sources)
+          Map(Some(single.getOutputDirectory) -> sources)
         case multi: MultipleOutput =>
           sources.groupBy { src =>
-            multi.outputGroups
+            multi.getOutputGroups
               .find { out =>
-                ancestor(out.sourceDirectory, src)
+                ancestor(out.getSourceDirectory, src)
               }
-              .map(_.outputDirectory)
+              .map(_.getOutputDirectory)
           }
       }
 

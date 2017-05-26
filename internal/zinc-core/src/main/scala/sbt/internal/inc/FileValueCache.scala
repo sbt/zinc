@@ -12,6 +12,8 @@ package inc
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
+import xsbti.compile.analysis.Stamp
+
 sealed trait FileValueCache[T] {
   def clear(): Unit
   def get: File => T
@@ -47,7 +49,7 @@ private[this] final class FileValueCache0[T](getStamp: File => Stamp, make: File
   }
 }
 object FileValueCache {
-  def apply[T](f: File => T): FileValueCache[T] = make(Stamp.lastModified)(f)
+  def apply[T](f: File => T): FileValueCache[T] = make(Stamper.forLastModified)(f)
   def make[T](stamp: File => Stamp)(f: File => T): FileValueCache[T] =
     new FileValueCache0[T](stamp, f)
 }

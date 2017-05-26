@@ -12,14 +12,13 @@ import xsbti.api.Definition
 import xsbti.api.DefinitionType
 import xsbti.api.ClassLike
 import xsbti.api.NameHash
-import xsbti.compile.IncOptionsUtil
 
 /**
  * A class that computes hashes for each group of definitions grouped by a simple name.
  *
  * See `nameHashes` method for details.
  */
-class NameHashing(optimizedSealed: Boolean = IncOptionsUtil.defaultUseOptimizedSealed()) {
+class NameHashing(optimizedSealed: Boolean) {
 
   import NameHashing._
 

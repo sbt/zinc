@@ -13,12 +13,13 @@ import java.io.File
 
 import xsbti.T2
 import xsbti.compile.{
-  MiniSetup,
   CompileOrder,
-  Output => APIOutput,
-  SingleOutput,
+  MiniOptions,
+  MiniSetup,
   MultipleOutput,
-  MiniOptions
+  OutputGroup,
+  SingleOutput,
+  Output => APIOutput
 }
 
 /**
@@ -87,19 +88,19 @@ object MiniSetupUtil {
   implicit val equivOutput: Equiv[APIOutput] = {
     new Equiv[APIOutput] {
       implicit val outputGroupsOrdering =
-        Ordering.by((og: MultipleOutput.OutputGroup) => og.sourceDirectory)
+        Ordering.by((og: OutputGroup) => og.getSourceDirectory)
 
       def equiv(out1: APIOutput, out2: APIOutput) = (out1, out2) match {
         case (m1: MultipleOutput, m2: MultipleOutput) =>
-          (m1.outputGroups.length == m2.outputGroups.length) &&
-            (m1.outputGroups.sorted zip m2.outputGroups.sorted forall {
+          (m1.getOutputGroups.length == m2.getOutputGroups.length) &&
+            (m1.getOutputGroups.sorted zip m2.getOutputGroups.sorted forall {
               case (a, b) =>
                 equivFile
-                  .equiv(a.sourceDirectory, b.sourceDirectory) && equivFile
-                  .equiv(a.outputDirectory, b.outputDirectory)
+                  .equiv(a.getSourceDirectory, b.getSourceDirectory) && equivFile
+                  .equiv(a.getOutputDirectory, b.getOutputDirectory)
             })
         case (s1: SingleOutput, s2: SingleOutput) =>
-          equivFile.equiv(s1.outputDirectory, s2.outputDirectory)
+          equivFile.equiv(s1.getOutputDirectory, s2.getOutputDirectory)
         case _ =>
           false
       }

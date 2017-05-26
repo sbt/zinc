@@ -1,5 +1,6 @@
 package xsbt
 
+import xsbti.compile.Output
 import scala.reflect.{ internal => sri }
 import scala.reflect.internal.{ util => sriu }
 import scala.tools.nsc.{ Global, Settings }
@@ -131,6 +132,23 @@ abstract class Compat {
   }
 }
 
+/** Defines compatibility utils for [[ZincCompiler]]. */
+trait ZincGlobalCompat {
+
+  /** Use `dropRun` only in 2.10.x series. It was removed as of 2.11.0. */
+  protected def superDropRun(): Unit = {
+    def superCall(methodName: String): AnyRef = {
+      val meth = classOf[Global].getDeclaredMethod(methodName)
+      meth.setAccessible(true)
+      meth.invoke(this)
+    }
+
+    try superCall("dropRun")
+    catch { case e: NoSuchMethodException => () }
+    ()
+  }
+}
+
 object Compat {
   implicit final class TreeOps(val tree: sri.Trees#Tree) extends AnyVal {
     // Introduced in 2.11
@@ -149,9 +167,9 @@ object Compat {
 }
 
 private trait CachedCompilerCompat { self: CachedCompiler0 =>
-  def newCompiler: Compiler =
-    if (command.settings.Yrangepos.value)
-      new Compiler() with RangePositions // unnecessary in 2.11
-    else
-      new Compiler()
+  def newCompiler(settings: Settings, reporter: DelegatingReporter, output: Output): ZincCompiler = {
+    // Mixin RangePositions manually if we're in 2.10.x -- unnecessary as of 2.11.x
+    if (settings.Yrangepos.value) new ZincCompilerRangePos(settings, reporter, output)
+    else new ZincCompiler(settings, reporter, output)
+  }
 }

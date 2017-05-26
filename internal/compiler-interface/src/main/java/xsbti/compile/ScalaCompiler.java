@@ -9,9 +9,10 @@ package xsbti.compile;
 
 import xsbti.AnalysisCallback;
 import xsbti.Logger;
-import xsbti.Maybe;
 import xsbti.Reporter;
+
 import java.io.File;
+import java.util.Optional;
 
 /**
  * Represent the interface of a Scala compiler.
@@ -75,5 +76,5 @@ public interface ScalaCompiler {
 	             Reporter reporter,
 	             GlobalsCache cache,
 	             Logger log,
-	             Maybe<CompileProgress> progressOpt);
+	             Optional<CompileProgress> progressOpt);
 }

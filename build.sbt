@@ -217,7 +217,8 @@ lazy val zincCore = (project in internalPath / "zinc-core")
     // needed because we fork tests and tests are ran in parallel so we have multiple Scala
     // compiler instances that are memory hungry
     javaOptions in Test += "-Xmx1G",
-    name := "zinc Core"
+    name := "zinc Core",
+    compileOrder := sbt.CompileOrder.Mixed
   )
   .configure(addSbtIO, addSbtUtilLogging, addSbtUtilRelation)
 
@@ -243,7 +244,8 @@ lazy val zincIvyIntegration = (project in internalPath / "zinc-ivy-integration")
   .dependsOn(zincCompileCore, zincTesting % Test)
   .settings(
     baseSettings,
-    name := "zinc Ivy Integration"
+    name := "zinc Ivy Integration",
+    compileOrder := sbt.CompileOrder.ScalaThenJava
   )
   .configure(addSbtLm)
 

@@ -9,7 +9,7 @@ package sbt
 package internal
 package inc
 
-import xsbti.compile.{ Output, SingleOutput, MultipleOutput }
+import xsbti.compile.{ MultipleOutput, Output, OutputGroup, SingleOutput }
 import java.io.File
 
 /**
@@ -25,8 +25,8 @@ object CompileOutput {
    * @return An instance of [[SingleOutput]] that stores contents in <code>dir</code>.
    */
   def apply(dir: File): Output = new SingleOutput {
-    def outputDirectory = dir
-    override def toString = s"SingleOutput($outputDirectory)"
+    def getOutputDirectory = dir
+    override def toString = s"SingleOutput($getOutputDirectory)"
   }
 
   /**
@@ -37,14 +37,14 @@ object CompileOutput {
    * @return An instance of [[MultipleOutput]].
    */
   def apply(groups: (File, File)*): Output = new MultipleOutput {
-    def outputGroups = groups.toArray map {
+    def getOutputGroups = groups.toArray map {
       case (src, out) =>
-        new MultipleOutput.OutputGroup {
-          def sourceDirectory = src
-          def outputDirectory = out
+        new OutputGroup {
+          def getSourceDirectory = src
+          def getOutputDirectory = out
           override def toString = s"OutputGroup($src -> $out)"
         }
     }
-    override def toString = s"MultiOutput($outputGroups)"
+    override def toString = s"MultiOutput($getOutputGroups)"
   }
 }

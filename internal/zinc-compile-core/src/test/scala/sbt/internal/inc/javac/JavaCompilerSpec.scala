@@ -5,9 +5,10 @@ package javac
 
 import java.io.File
 import java.net.URLClassLoader
+import java.util.Optional
 
 import xsbt.api.SameAPI
-import xsbti.{ Maybe, Problem, Severity }
+import xsbti.{ Problem, Severity }
 import xsbti.compile.{ IncToolOptions, IncToolOptionsUtil, JavaTools => XJavaTools }
 import sbt.io.IO
 import sbt.util.LogExchange
@@ -58,7 +59,7 @@ class JavaCompilerSpec extends UnitSpec {
       Seq("-deprecation", "-d", out.getAbsolutePath),
       incToolOptions = IncToolOptionsUtil
         .defaultIncToolOptions()
-        .withClassFileManager(Maybe.just(classfileManager))
+        .withClassFileManager(Optional.of(classfileManager))
         .withUseCustomizedFileManager(true)
     )
 

@@ -136,7 +136,7 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
 
     val customizedFileManager = {
       val maybeClassFileManager = incToolOptions.classFileManager()
-      if (incToolOptions.useCustomizedFileManager && maybeClassFileManager.isDefined)
+      if (incToolOptions.useCustomizedFileManager && maybeClassFileManager.isPresent)
         new WriteReportingFileManager(fileManager, maybeClassFileManager.get)
       else fileManager
     }

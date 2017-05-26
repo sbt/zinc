@@ -5,9 +5,8 @@
  * This software is released under the terms written in LICENSE.
  */
 
-package xsbt.api
+package sbt.internal.inc
 
-import xsbti.api._
 import sbinary._
 
 object CompilationFormat extends Format[Compilation] {

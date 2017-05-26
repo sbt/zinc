@@ -11,6 +11,7 @@ import sbt.internal.util.Relation
 import xsbti.api._
 import xsbti.UseScope
 import xsbti.api.DependencyContext._
+import xsbti.compile.analysis.Stamp
 
 /**
  * Scalacheck generators for Analysis objects and their substructures.
@@ -56,10 +57,7 @@ object TestCaseGenerators {
       path <- listOfN(n, genFilePathSegment)
     } yield new File("/temp/" + path.mkString("/"))
 
-  def genStamp: Gen[Stamp] =
-    for {
-      b <- oneOf(true, false)
-    } yield new Exists(b)
+  def genStamp: Gen[Stamp] = const(EmptyStamp)
 
   def zipMap[A, B](a: Seq[A], b: Seq[B]): Map[A, B] = (a zip b).toMap
 

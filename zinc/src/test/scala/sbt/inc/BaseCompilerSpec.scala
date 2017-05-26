@@ -10,23 +10,22 @@ package sbt.inc
 import java.io.File
 import java.net.URLClassLoader
 import java.nio.file.{ Files, Path, Paths }
+import java.util.Optional
 
 import sbt.internal.inc._
 import sbt.internal.inc.classpath.ClassLoaderCache
 import sbt.io.IO
 import sbt.io.syntax._
 import sbt.util.{ InterfaceUtil, Logger }
-import xsbti.Maybe
-import xsbti.compile._
-import xsbti.compile.ScalaInstance
+import xsbti.compile.{ ScalaInstance => _, _ }
 
 class BaseCompilerSpec extends BridgeProviderSpecification {
 
   val scalaVersion = scala.util.Properties.versionNumberString
   val maxErrors = 100
 
-  case class MockedLookup(am: File => Maybe[CompileAnalysis]) extends PerClasspathEntryLookup {
-    override def analysis(classpathEntry: File): Maybe[CompileAnalysis] =
+  case class MockedLookup(am: File => Optional[CompileAnalysis]) extends PerClasspathEntryLookup {
+    override def analysis(classpathEntry: File): Optional[CompileAnalysis] =
       am(classpathEntry)
 
     override def definesClass(classpathEntry: File): DefinesClass =
@@ -88,12 +87,12 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
                    Nil)
   }
 
-  def scalaCompiler(instance: ScalaInstance, bridgeJar: File): AnalyzingCompiler =
-    new AnalyzingCompiler(instance,
-                          CompilerBridgeProvider.constant(bridgeJar),
-                          ClasspathOptionsUtil.boot,
-                          _ => (),
-                          Some(new ClassLoaderCache(new URLClassLoader(Array()))))
+  def scalaCompiler(instance: xsbti.compile.ScalaInstance, bridgeJar: File): AnalyzingCompiler = {
+    val bridgeProvider = CompilerBridgeProvider.constant(bridgeJar, instance)
+    val classpath = ClasspathOptionsUtil.boot
+    val cache = Some(new ClassLoaderCache(new URLClassLoader(Array())))
+    new AnalyzingCompiler(instance, bridgeProvider, classpath, _ => (), cache)
+  }
 
   case class CompilerSetup(
       classesDir: File,
@@ -102,14 +101,15 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
       classpath: Seq[File],
       incOptions: IncOptions = IncOptionsUtil.defaultIncOptions()
   ) {
+    val noLogger = Logger.Null
     val compiler = new IncrementalCompilerImpl
-    val compilerBridge = getCompilerBridge(tempDir, Logger.Null, scalaVersion)
+    val compilerBridge = getCompilerBridge(tempDir, noLogger, scalaVersion)
 
-    val si = scalaInstance(scalaVersion)
+    val si = scalaInstance(scalaVersion, tempDir, noLogger)
     val sc = scalaCompiler(si, compilerBridge)
     val cs = compiler.compilers(si, ClasspathOptionsUtil.boot, None, sc)
 
-    val lookup = MockedLookup(Function.const(Maybe.nothing[CompileAnalysis]))
+    val lookup = MockedLookup(Function.const(Optional.empty[CompileAnalysis]))
     val reporter = new LoggerReporter(maxErrors, log, identity)
     val extra = Array(InterfaceUtil.t2(("key", "value")))
 
@@ -150,8 +150,8 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
                            newInputs: Inputs => Inputs = identity): CompileResult = {
       val previousResult = store.get() match {
         case Some((prevAnalysis, prevSetup)) =>
-          new PreviousResult(Maybe.just[CompileAnalysis](prevAnalysis),
-                             Maybe.just[MiniSetup](prevSetup))
+          new PreviousResult(Optional.of[CompileAnalysis](prevAnalysis),
+                             Optional.of[MiniSetup](prevSetup))
         case _ =>
           compiler.emptyPreviousResult
       }

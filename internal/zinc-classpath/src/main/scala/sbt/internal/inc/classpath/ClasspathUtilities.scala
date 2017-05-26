@@ -13,6 +13,7 @@ package classpath
 import java.io.File
 import java.net.{ URI, URL, URLClassLoader }
 import sbt.io.{ IO, Path, PathFinder, Using }
+import xsbti.compile.ScalaInstance
 
 object ClasspathUtilities {
   def toLoader(finder: PathFinder): ClassLoader = toLoader(finder, rootLoader)
