@@ -71,7 +71,7 @@ trait BaseTextAnalysisFormatTest { self: Properties =>
     val aClass = genClass("A").sample.get
     val cClass = genClass("C").sample.get
     val absent = EmptyStamp
-    val sourceInfos = SourceInfos.makeInfo(Nil, Nil)
+    val sourceInfos = SourceInfos.makeInfo(Nil, Nil, Nil)
 
     var analysis = Analysis.empty
     val products = NonLocalProduct("A", "A", f("A.class"), absent) ::
@@ -106,10 +106,14 @@ trait BaseTextAnalysisFormatTest { self: Properties =>
     ("Whole Analysis" |: left =? right)
   }
 
-  private def mapInfos(a: SourceInfos): Map[File, (Seq[Problem], Seq[Problem])] =
+  private def mapInfos(a: SourceInfos): Map[File, (Seq[Problem], Seq[Problem], Seq[String])] =
     a.allInfos.map {
       case (f, infos) =>
-        f -> (infos.getReportedProblems.toList -> infos.getUnreportedProblems.toList)
+        f -> ((
+                infos.getReportedProblems.toList,
+                infos.getUnreportedProblems.toList,
+                infos.getMainClasses.toList
+              ))
     }
 
   private def compareOutputs(left: Output, right: Output): Prop = {

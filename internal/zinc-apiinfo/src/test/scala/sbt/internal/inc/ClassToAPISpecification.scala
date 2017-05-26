@@ -80,8 +80,9 @@ class ClassToAPISpecification extends UnitSpec {
   def readAPI(callback: AnalysisCallback,
               source: File,
               classes: Seq[Class[_]]): Set[(String, String)] = {
-    val (apis, inherits) = ClassToAPI.process(classes)
+    val (apis, mainClasses, inherits) = ClassToAPI.process(classes)
     apis.foreach(callback.api(source, _))
+    mainClasses.foreach(callback.mainClass(source, _))
     inherits.map {
       case (from, to) => (from.getName, to.getName)
     }

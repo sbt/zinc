@@ -64,6 +64,8 @@ class TestCallback extends AnalysisCallback {
     ()
   }
 
+  def mainClass(source: File, className: String): Unit = ()
+
   override def enabled(): Boolean = true
 
   def problem(category: String,

@@ -60,9 +60,9 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers)
   private implicit val analyzedClassFormat: Format[AnalyzedClass] =
     AnalyzedClassFormats.analyzedClassFormat
   private implicit def infoFormat: Format[SourceInfo] =
-    wrap[SourceInfo, (Seq[Problem], Seq[Problem])](
-      si => (si.getReportedProblems, si.getUnreportedProblems), {
-        case (a, b) => SourceInfos.makeInfo(a, b)
+    wrap[SourceInfo, (Seq[Problem], Seq[Problem], Seq[String])](
+      si => (si.getReportedProblems, si.getUnreportedProblems, si.getMainClasses), {
+        case (a, b, c) => SourceInfos.makeInfo(a, b, c)
       })
   private implicit def fileHashFormat: Format[FileHash] =
     asProduct2((file: File, hash: Int) => new FileHash(file, hash))(h => (h.file, h.hash))

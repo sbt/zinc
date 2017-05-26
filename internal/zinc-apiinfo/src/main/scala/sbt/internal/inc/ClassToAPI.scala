@@ -22,14 +22,16 @@ object ClassToAPI {
   def apply(c: Seq[Class[_]]): Seq[api.ClassLike] = process(c)._1
 
   // (api, public inherited classes)
-  def process(classes: Seq[Class[_]]): (Seq[api.ClassLike], Set[(Class[_], Class[_])]) = {
+  def process(
+      classes: Seq[Class[_]]): (Seq[api.ClassLike], Seq[String], Set[(Class[_], Class[_])]) = {
     val cmap = emptyClassMap
     classes.foreach(toDefinitions(cmap)) // force recording of class definitions
     cmap.lz.foreach(_.get()) // force thunks to ensure all inherited dependencies are recorded
     val classApis = cmap.allNonLocalClasses.toSeq
+    val mainClasses = cmap.mainClasses.toSeq
     val inDeps = cmap.inherited.toSet
     cmap.clear()
-    (classApis, inDeps)
+    (classApis, mainClasses, inDeps)
   }
 
   // Avoiding implicit allocation.
@@ -55,7 +57,8 @@ object ClassToAPI {
       private[sbt] val memo: mutable.Map[String, Seq[api.ClassLikeDef]],
       private[sbt] val inherited: mutable.Set[(Class[_], Class[_])],
       private[sbt] val lz: mutable.Buffer[xsbti.api.Lazy[_]],
-      private[sbt] val allNonLocalClasses: mutable.Set[api.ClassLike]
+      private[sbt] val allNonLocalClasses: mutable.Set[api.ClassLike],
+      private[sbt] val mainClasses: mutable.Set[String]
   ) {
     def clear(): Unit = {
       memo.clear()
@@ -67,6 +70,7 @@ object ClassToAPI {
     new ClassMap(new mutable.HashMap,
                  new mutable.HashSet,
                  new mutable.ListBuffer,
+                 new mutable.HashSet,
                  new mutable.HashSet)
 
   def classCanonicalName(c: Class[_]): String =
@@ -115,6 +119,17 @@ object ClassToAPI {
     val defsEmptyMembers = clsDef :: statDef :: Nil
     cmap.memo(name) = defsEmptyMembers
     cmap.allNonLocalClasses ++= defs
+
+    if (c.getMethods.exists(
+          meth =>
+            meth.getName == "main" &&
+              Modifier.isStatic(meth.getModifiers) &&
+              meth.getParameterTypes.length == 1 &&
+              meth.getParameterTypes.head == classOf[Array[String]] &&
+              meth.getReturnType == java.lang.Void.TYPE)) {
+      cmap.mainClasses += name
+    }
+
     defsEmptyMembers
   }
 

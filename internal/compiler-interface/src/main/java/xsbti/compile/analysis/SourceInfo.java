@@ -30,5 +30,12 @@ public interface SourceInfo {
      * @return The compiler reported problems.
      */
     public Problem[] getUnreportedProblems();
+
+    /**
+     * Returns the main classes found in this compilation unit.
+     *
+     * @return The full name of the main classes, like "foo.bar.Main"
+     */
+    public String[] getMainClasses();
 }
 
