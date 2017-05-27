@@ -60,32 +60,31 @@ trait BaseIvySpecification extends UnitSpec {
 
   def chainResolver = ChainedResolver("sbt-chain", resolvers)
 
-  def mkIvyConfiguration(uo: UpdateOptions): IvyConfiguration = {
-    val paths = IvyPaths(currentBase, Some(currentTarget))
-    val other = Vector.empty
-    val moduleConfs = Vector(ModuleConfiguration("*", chainResolver))
-    val off = false
-    val check = Vector.empty
-    val resCacheDir = currentTarget / "resolution-cache"
-    new InlineIvyConfiguration(paths,
-                               resolvers,
-                               other,
-                               moduleConfs,
-                               off,
-                               None,
-                               check,
-                               Some(resCacheDir),
-                               uo,
-                               log)
-  }
+  def mkIvyConfiguration(uo: UpdateOptions): IvyConfiguration =
+    new InlineIvyConfiguration(
+      paths = IvyPaths(currentBase, Some(currentTarget)),
+      resolvers = resolvers,
+      otherResolvers = Vector.empty,
+      moduleConfigurations = Vector(ModuleConfiguration("*", chainResolver)),
+      lock = None,
+      checksums = Vector.empty,
+      managedChecksums = false,
+      resolutionCacheDir = Some(currentTarget / "resolution-cache"),
+      updateOptions = uo,
+      log = log
+    )
 
   def makeUpdateConfiguration: UpdateConfiguration = {
     val retrieveConfig =
       RetrieveConfiguration(currentManaged, Resolver.defaultRetrievePattern, false, None)
-    UpdateConfiguration(Some(retrieveConfig),
-                        false,
-                        UpdateLogging.Full,
-                        ArtifactTypeFilter.forbid(Set("src", "doc")))
+    UpdateConfiguration(
+      retrieve = Some(retrieveConfig),
+      missingOk = false,
+      logging = UpdateLogging.Full,
+      artifactFilter = ArtifactTypeFilter.forbid(Set("src", "doc")),
+      offline = false,
+      frozen = false
+    )
   }
 
   def ivyUpdateEither(module: IvySbt#Module): Either[UnresolvedWarning, UpdateReport] = {
