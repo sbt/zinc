@@ -149,6 +149,7 @@ private final class AnalysisCallback(
   private[this] val usedNames = new HashMap[String, Set[UsedName]]
   private[this] val unreporteds = new HashMap[File, ListBuffer[Problem]]
   private[this] val reporteds = new HashMap[File, ListBuffer[Problem]]
+  private[this] val mainClasses = new HashMap[File, ListBuffer[String]]
   private[this] val binaryDeps = new HashMap[File, Set[File]]
   // source file to set of generated (class file, binary class name); only non local classes are stored here
   private[this] val nonLocalClasses = new HashMap[File, Set[(File, String)]]
@@ -285,6 +286,11 @@ private final class AnalysisCallback(
     }
   }
 
+  def mainClass(sourceFile: File, className: String): Unit = {
+    mainClasses.getOrElseUpdate(sourceFile, ListBuffer.empty) += className
+    ()
+  }
+
   def usedName(className: String, name: String, useScopes: util.EnumSet[UseScope]) =
     add(usedNames, className, UsedName(name, useScopes))
 
@@ -346,7 +352,9 @@ private final class AnalysisCallback(
         val stamp = stampReader.source(src)
         val classesInSrc = classNames.getOrElse(src, Set.empty).map(_._1)
         val analyzedApis = classesInSrc.map(analyzeClass)
-        val info = SourceInfos.makeInfo(getOrNil(reporteds, src), getOrNil(unreporteds, src))
+        val info = SourceInfos.makeInfo(getOrNil(reporteds, src),
+                                        getOrNil(unreporteds, src),
+                                        getOrNil(mainClasses, src))
         val binaries = binaryDeps.getOrElse(src, Nil: Iterable[File])
         val localProds = localClasses.getOrElse(src, Nil: Iterable[File]) map { classFile =>
           val classFileStamp = stampReader.product(classFile)

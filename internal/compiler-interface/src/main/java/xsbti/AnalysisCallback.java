@@ -111,6 +111,20 @@ public interface AnalysisCallback {
     void api(File sourceFile, xsbti.api.ClassLike classApi);
 
     /**
+     * Register a class containing an entry point coming from a given source file.
+     *
+     * A class is an entry point if its bytecode contains a method with the
+     * following signature:
+     * <pre>
+     * public static void main(String[] args);
+     * </pre>
+     *
+     * @param sourceFile Source file where <code>className</code> is defined.
+     * @param className A class containing an entry point.
+     */
+    void mainClass(File sourceFile, String className);
+
+    /**
      * Register the use of a <code>name</code> from a given source class name.
      *
      * @param className The source class name that uses <code>name</code>.

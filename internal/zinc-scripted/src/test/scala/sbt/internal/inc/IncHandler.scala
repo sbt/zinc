@@ -160,6 +160,12 @@ final class IncHandler(directory: File, scriptedLog: ManagedLogger)
         p.checkClasses(i, srcFile, products)
       case (p, other, _) => p.unrecognizedArguments("checkClasses", other)
     },
+    "checkMainClasses" -> {
+      case (p, src :: products, i) =>
+        val srcFile = if (src endsWith ":") src dropRight 1 else src
+        p.checkMainClasses(i, srcFile, products)
+      case (p, other, _) => p.unrecognizedArguments("checkMainClasses", other)
+    },
     "checkProducts" -> {
       case (p, src :: products, i) =>
         val srcFile = if (src endsWith ":") src dropRight 1 else src
@@ -333,6 +339,17 @@ case class ProjectStructure(
       assert(expected == actual, s"Expected $expected classes, got $actual")
 
     assertClasses(expected.toSet, classes(src))
+    ()
+  }
+
+  def checkMainClasses(i: IncInstance, src: String, expected: List[String]): Unit = {
+    val analysis = compile(i)
+    def mainClasses(src: String): Set[String] =
+      analysis.infos.get(baseDirectory / src).getMainClasses.toSet
+    def assertClasses(expected: Set[String], actual: Set[String]) =
+      assert(expected == actual, s"Expected $expected classes, got $actual")
+
+    assertClasses(expected.toSet, mainClasses(src))
     ()
   }
 

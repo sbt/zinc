@@ -26,9 +26,11 @@ object SourceInfos {
   def empty: SourceInfos = make(Map.empty)
   def make(m: Map[File, SourceInfo]): SourceInfos = new MSourceInfos(m)
 
-  val emptyInfo: SourceInfo = makeInfo(Nil, Nil)
-  def makeInfo(reported: Seq[Problem], unreported: Seq[Problem]): SourceInfo =
-    new UnderlyingSourceInfo(reported, unreported)
+  val emptyInfo: SourceInfo = makeInfo(Nil, Nil, Nil)
+  def makeInfo(reported: Seq[Problem],
+               unreported: Seq[Problem],
+               mainClasses: Seq[String]): SourceInfo =
+    new UnderlyingSourceInfo(reported, unreported, mainClasses)
   def merge(infos: Traversable[SourceInfos]): SourceInfos = (SourceInfos.empty /: infos)(_ ++ _)
 }
 
@@ -48,8 +50,10 @@ private final class MSourceInfos(val allInfos: Map[File, SourceInfo]) extends So
 }
 
 private final class UnderlyingSourceInfo(val reportedProblems: Seq[Problem],
-                                         val unreportedProblems: Seq[Problem])
+                                         val unreportedProblems: Seq[Problem],
+                                         val mainClasses: Seq[String])
     extends SourceInfo {
   override def getReportedProblems: Array[Problem] = reportedProblems.toArray
   override def getUnreportedProblems: Array[Problem] = unreportedProblems.toArray
+  override def getMainClasses: Array[String] = mainClasses.toArray
 }
