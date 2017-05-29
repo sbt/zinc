@@ -12,7 +12,6 @@ package inc
 import java.io.File
 import java.util.Optional
 
-import sbt.internal.inc.javac.JavaTools
 import sbt.internal.inc.JavaInterfaceUtil._
 import sbt.util.InterfaceUtil
 import xsbti._
@@ -381,14 +380,11 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       cpOptions: XClasspathOptions,
       javaHome: Option[File],
       scalac: ScalaCompiler
-  ): Compilers = {
-    val javac = JavaTools.directOrFork(instance, cpOptions, javaHome)
-    new Compilers(scalac, javac)
-  }
+  ): Compilers =
+    ZincUtil.compilers(instance, cpOptions, javaHome, scalac)
 
-  def compilers(javaTools: XJavaTools, scalac: ScalaCompiler): Compilers = {
-    new Compilers(scalac, javaTools)
-  }
+  def compilers(javaTools: XJavaTools, scalac: ScalaCompiler): Compilers =
+    ZincUtil.compilers(javaTools, scalac)
 
   /* *********************************************************************** */
   /* * Define helpers to convert from sbt Java interface to the Scala one  * */

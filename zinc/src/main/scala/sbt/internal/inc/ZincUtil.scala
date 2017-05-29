@@ -10,8 +10,11 @@ package sbt.internal.inc
 import java.io.File
 import java.net.URLClassLoader
 
+import sbt.librarymanagement.ModuleID
+import sbt.internal.librarymanagement.IvyConfiguration
+import sbt.internal.inc.javac.JavaTools
 import sbt.internal.inc.classpath.ClassLoaderCache
-import xsbti.compile._
+import xsbti.compile.{ JavaTools => XJavaTools, _ }
 
 /**
  * Define a private implementation of the static methods forwarded from [[ZincCompilerUtil]].
@@ -73,5 +76,54 @@ object ZincUtil {
   ): AnalyzingCompiler = {
     val optionsUtil = ClasspathOptionsUtil.boot
     scalaCompiler(scalaInstance, compilerBridgeJar, optionsUtil)
+  }
+
+  /**
+   * Instantiate a Scala compiler that is instrumented to analyze dependencies.
+   * This Scala compiler is useful to create your own instance of incremental
+   * compilation.
+   */
+  def scalaCompiler(
+      scalaInstance: xsbti.compile.ScalaInstance,
+      classpathOptions: ClasspathOptions,
+      globalLock: xsbti.GlobalLock,
+      componentProvider: xsbti.ComponentProvider,
+      secondaryCacheDir: Option[File],
+      ivyConfiguration: IvyConfiguration,
+      compilerBridgeSource: ModuleID,
+      scalaJarsTarget: File,
+      log: xsbti.Logger
+  ): AnalyzingCompiler = {
+    val componentManager =
+      new ZincComponentManager(globalLock, componentProvider, secondaryCacheDir, log)
+    val bridgeProvider =
+      ZincComponentCompiler.interfaceProvider(compilerBridgeSource,
+                                              componentManager,
+                                              ivyConfiguration,
+                                              scalaJarsTarget)
+    val emptyHandler = (_: Seq[String]) => ()
+    val loader = Some(new ClassLoaderCache(new URLClassLoader(Array())))
+    new AnalyzingCompiler(
+      scalaInstance,
+      bridgeProvider,
+      classpathOptions,
+      emptyHandler,
+      loader
+    )
+  }
+
+  def getDefaultBridgeModule(scalaVersion: String): ModuleID =
+    ZincComponentCompiler.getDefaultBridgeModule(scalaVersion)
+
+  def compilers(
+      instance: xsbti.compile.ScalaInstance,
+      classpathOptions: ClasspathOptions,
+      javaHome: Option[File],
+      scalac: ScalaCompiler
+  ): Compilers =
+    compilers(JavaTools.directOrFork(instance, classpathOptions, javaHome), scalac)
+
+  def compilers(javaTools: XJavaTools, scalac: ScalaCompiler): Compilers = {
+    new Compilers(scalac, javaTools)
   }
 }
