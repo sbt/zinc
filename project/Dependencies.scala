@@ -3,13 +3,10 @@ import Keys._
 
 object Dependencies {
 
-  val scala282 = "2.8.2"
-  val scala293 = "2.9.3"
   val scala210 = "2.10.6"
   val scala211 = "2.11.8"
   val scala212 = "2.12.1"
 
-  val bootstrapSbtVersion = "0.13.8"
   private val ioVersion = "1.0.0-M11"
   private val utilVersion = "1.0.0-M24"
   private val lmVersion = "1.0.0-X14"
@@ -73,7 +70,6 @@ object Dependencies {
 
   val scalaLibrary = Def.setting { "org.scala-lang" % "scala-library" % scalaVersion.value }
   val scalaCompiler = Def.setting { "org.scala-lang" % "scala-compiler" % scalaVersion.value }
-  val scalaReflect = Def.setting { "org.scala-lang" % "scala-reflect" % scalaVersion.value }
 
   val parserCombinator = "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.5"
   val sbinary = "org.scala-sbt" %% "sbinary" % "0.4.4"
