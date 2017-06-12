@@ -58,10 +58,9 @@ trait WithPattern { protected def Pattern: Regex }
 import java.lang.{ Long => BoxedLong }
 
 /** Define the hash of the file contents. It's a typical stamp for compilation sources. */
-final class Hash(val value: Array[Byte]) extends StampBase {
-  val hexHash = IOHash.toHex(value)
+final class Hash(val hexHash: String) extends StampBase {
   override def writeStamp: String = s"hash($hexHash)"
-  override def getValueId: Int = java.util.Arrays.hashCode(value)
+  override def getValueId: Int = hexHash.hashCode()
   override def getHash: Optional[String] = Optional.of(hexHash)
   override def getLastModified: Optional[BoxedLong] = Optional.empty[BoxedLong]
 }
@@ -96,7 +95,7 @@ object Stamp {
   private final val maxModificationDifferenceInMillis = 100L
   implicit val equivStamp: Equiv[Stamp] = new Equiv[Stamp] {
     def equiv(a: Stamp, b: Stamp) = (a, b) match {
-      case (h1: Hash, h2: Hash) => h1.value sameElements h2.value
+      case (h1: Hash, h2: Hash) => h1.hexHash == h2.hexHash
       // Windows is handling this differently sometimes...
       case (lm1: LastModified, lm2: LastModified) =>
         lm1.value == lm2.value ||
@@ -108,7 +107,7 @@ object Stamp {
 
   def fromString(s: String): Stamp = s match {
     case EmptyStamp.Value            => EmptyStamp
-    case Hash.Pattern(value)         => new Hash(IOHash.fromHex(value))
+    case Hash.Pattern(value)         => new Hash(value)
     case LastModified.Pattern(value) => new LastModified(java.lang.Long.parseLong(value))
     case _ =>
       throw new IllegalArgumentException("Unrecognized Stamp string representation: " + s)
@@ -123,7 +122,7 @@ object Stamper {
     catch { case i: IOException => EmptyStamp }
   }
 
-  val forHash = (toStamp: File) => tryStamp(new Hash(IOHash(toStamp)))
+  val forHash = (toStamp: File) => tryStamp(new Hash(IOHash.toHex(IOHash(toStamp))))
   val forLastModified = (toStamp: File) => tryStamp(new LastModified(toStamp.lastModified()))
 }
 
