@@ -4,8 +4,8 @@ import Keys._
 object Dependencies {
 
   val scala210 = "2.10.6"
-  val scala211 = "2.11.8"
-  val scala212 = "2.12.1"
+  val scala211 = "2.11.11"
+  val scala212 = "2.12.2"
 
   private val ioVersion = "1.0.0-M11"
   private val utilVersion = "1.0.0-M24"

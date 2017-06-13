@@ -5,8 +5,8 @@ before_cache:
   - find $HOME/.sbt        -name "*.lock"               -print -delete
 
 scala:
-  - 2.11.8
-  - 2.12.1
+  - 2.11.11
+  - 2.12.2
 
 cache:
   directories:
@@ -15,13 +15,12 @@ cache:
 
 env:
   matrix:
-    - SBT_CMD="zincScripted/test zinc/test zincPersist/test zincIvyIntegration/test zincTesting/test scalafmtCheck"
-    - SBT_CMD="compilerInterface/test zincCompile/test zincCompileCore/test zincClasspath/test zincApiInfo/test zincClassfile/test scalafmtCheck"
-    - SBT_CMD="zincRoot/scripted zincCore/test zincBenchmarks/test scalafmtCheck"
-    - SBT_CMD="crossTestBridges scalafmtCheck"
+    - SBT_CMD="zincTesting/test zincCompileCore/test zincCore/test zincPersist/test zincIvyIntegration/test zincBenchmarks/test zincCompile/test zinc/test scalafmtCheck"
+    - SBT_CMD="zincScripted/test zincRoot/scripted scalafmtCheck"
+    - SBT_CMD="compilerInterface/test zincClassfile/test zincApiInfo/test crossTestBridges scalafmtCheck"
 
 script:
-  - sbt -Dfile.encoding=UTF8 -J-XX:ReservedCodeCacheSize=256M "publishBridges $TRAVIS_SCALA_VERSION" $SBT_CMD
+  - sbt -Dfile.encoding=UTF8 -J-XX:ReservedCodeCacheSize=256M -J-Xmx2048M -J-Xms2048M -J-server "publishBridges $TRAVIS_SCALA_VERSION" $SBT_CMD
 
 jdk:
   - oraclejdk8

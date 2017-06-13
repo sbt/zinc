@@ -235,6 +235,7 @@ lazy val zincBenchmarks = (project in internalPath / "zinc-benchmarks")
     ),
     scalaVersion := scala212,
     crossScalaVersions := Seq(scala211, scala212),
+    javaOptions in Test += "-Xmx600M -Xms600M",
     publish := {},
     publishLocal := {}
   )
