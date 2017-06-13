@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package sbt.internal.inc.schema;
+
+message Hash {
+    string hash = 1;
+}
+
+message LastModified {
+    int64 millis = 1;
+}
+
+message EmptyStamp {}
+
