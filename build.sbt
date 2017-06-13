@@ -34,7 +34,7 @@ def commonSettings: Seq[Setting[_]] = Seq(
   crossScalaVersions := Seq(scala211, scala212),
   mimaPreviousArtifacts := Set(), // Some(organization.value %% moduleName.value % "1.0.0"),
   publishArtifact in Test := false,
-  commands ++= Seq(publishBridgesAndTest, publishBridges, crossTestBridges, scalafmtCheck),
+  commands ++= Seq(publishBridgesAndTest, publishBridgesAndSet, crossTestBridges, scalafmtCheck),
   scalacOptions += "-YdisableFlatCpCaching"
 )
 
@@ -390,8 +390,8 @@ lazy val crossTestBridges = {
   }
 }
 
-lazy val publishBridges = {
-  Command.args("publishBridges", "<version>") { (state, args) =>
+lazy val publishBridgesAndSet = {
+  Command.args("publishBridgesAndSet", "<version>") { (state, args) =>
     require(args.nonEmpty, "Missing Scala version argument.")
     val userScalaVersion = args.mkString("")
     s"${compilerInterface.id}/publishLocal" ::

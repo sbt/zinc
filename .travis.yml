@@ -26,7 +26,7 @@ env:
     - SBT_CMD="compilerInterface/test zincClassfile/test zincApiInfo/test crossTestBridges scalafmtCheck"
 
 script:
-  - sbt -Dfile.encoding=UTF8 -J-XX:ReservedCodeCacheSize=256M -J-Xmx2048M -J-Xms2048M -J-server "publishBridges $TRAVIS_SCALA_VERSION" $SBT_CMD
+  - sbt -Dfile.encoding=UTF8 -J-XX:ReservedCodeCacheSize=256M -J-Xmx2048M -J-Xms2048M -J-server "publishBridgesAndSet $TRAVIS_SCALA_VERSION" $SBT_CMD
 
 jdk:
   - oraclejdk8
