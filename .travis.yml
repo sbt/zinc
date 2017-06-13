@@ -1,4 +1,10 @@
+# Use Docker-based container (instead of OpenVZ)
+sudo: false
+
 language: scala
+
+matrix:
+  fast_finish: true
 
 before_cache:
   - find $HOME/.ivy2/cache -name "ivydata-*.properties" -print -delete
