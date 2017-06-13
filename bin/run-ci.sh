@@ -6,8 +6,7 @@ SCALA_VERSION="$1"
 sbt -Dfile.encoding=UTF-8 \
   -J-XX:ReservedCodeCacheSize=256M \
   -J-Xmx3046M -J-Xms3046M -J-server \
-  zincRoot/test:compile \
-  scalafmtCheck \
+  zincRoot/scalafmt::test zincRoot/test:scalafmt::test \
   "publishBridgesAndSet $SCALA_VERSION" \
   crossTestBridges \
   zincRoot/test \
