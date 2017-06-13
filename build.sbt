@@ -3,12 +3,12 @@ import Util._
 import Dependencies._
 import Scripted._
 // import StringUtilities.normalize
-import com.typesafe.tools.mima.core._, ProblemFilters._
+//import com.typesafe.tools.mima.core._, ProblemFilters._
 
 def baseVersion = "1.0.0-X16-SNAPSHOT"
 def internalPath = file("internal")
 
-lazy val compilerBridgeScalaVersions = Seq(scala212, scala211, scala210)
+lazy val compilerBridgeScalaVersions = List(scala212, scala211, scala210)
 
 def commonSettings: Seq[Setting[_]] = Seq(
   scalaVersion := scala212,
@@ -22,11 +22,10 @@ def commonSettings: Seq[Setting[_]] = Seq(
   // concurrentRestrictions in Global += Util.testExclusiveRestriction,
   testOptions += Tests.Argument(TestFrameworks.ScalaCheck, "-w", "1"),
   javacOptions in compile ++= Seq("-Xlint", "-Xlint:-serial"),
-  incOptions := incOptions.value.withNameHashing(true),
   crossScalaVersions := Seq(scala211, scala212),
-  mimaPreviousArtifacts := Set(), // Some(organization.value %% moduleName.value % "1.0.0"),
+  //mimaPreviousArtifacts := Set(), // Some(organization.value %% moduleName.value % "1.0.0"),
   publishArtifact in Test := false,
-  commands ++= Seq(publishBridgesAndTest, publishBridges, crossTestBridges),
+  commands ++= Seq(publishBridgesAndTest, publishBridgesAndSet, crossTestBridges),
   scalacOptions += "-YdisableFlatCpCaching"
 )
 
@@ -56,7 +55,7 @@ def baseSettings: Seq[Setting[_]] =
 //   minimalSettings ++ baseScalacOptions ++ Licensed.settings ++ Formatting.settings
 
 def addBaseSettingsAndTestDeps(p: Project): Project =
-  p.settings(baseSettings).configure(addTestDependencies)
+  p.settings(baseSettings).configure(addTestDependencies _)
 
 val altLocalRepoName = "alternative-local"
 val altLocalRepoPath = sys.props("user.home") + "/.ivy2/sbt-alternative"
@@ -69,6 +68,7 @@ def altPublishSettings: Seq[Setting[_]] =
   Seq(
     resolvers += altLocalResolver,
     altLocalPublish := {
+      import sbt.internal.librarymanagement._
       val config = (Keys.publishLocalConfiguration).value
       val moduleSettings = (Keys.moduleSettings).value
       val ivy = new IvySbt((ivyConfiguration.value))
@@ -87,7 +87,6 @@ def altPublishSettings: Seq[Setting[_]] =
   )
 
 lazy val zincRoot: Project = (project in file("."))
-  .disablePlugins(com.typesafe.sbt.SbtScalariform)
   .enablePlugins(ScalafmtPlugin)
   .aggregate(
     zinc,
@@ -150,7 +149,6 @@ lazy val zincRoot: Project = (project in file("."))
   )
 
 lazy val zinc = (project in file("zinc"))
-  .disablePlugins(com.typesafe.sbt.SbtScalariform)
   .enablePlugins(ScalafmtPlugin)
   .dependsOn(zincCore,
              zincPersist,
@@ -158,14 +156,13 @@ lazy val zinc = (project in file("zinc"))
              zincClassfile,
              zincIvyIntegration % "compile->compile;test->test",
              zincTesting % Test)
-  .configure(addBaseSettingsAndTestDeps)
+  .configure(addBaseSettingsAndTestDeps _)
   .settings(
     name := "zinc"
   )
 
 lazy val zincTesting = (project in internalPath / "zinc-testing")
   .enablePlugins(ScalafmtPlugin)
-  .disablePlugins(com.typesafe.sbt.SbtScalariform)
   .settings(
     minimalSettings,
     name := "zinc Testing",
@@ -175,24 +172,22 @@ lazy val zincTesting = (project in internalPath / "zinc-testing")
     publishArtifact := false,
     libraryDependencies ++= Seq(scalaCheck, scalatest, junit, sjsonnewScalaJson)
   )
-  .configure(addSbtLm, addSbtUtilTesting)
+  .configure(addSbtLm _, addSbtUtilTesting _)
 
 lazy val zincCompile = (project in file("zinc-compile"))
   .enablePlugins(ScalafmtPlugin)
-  .disablePlugins(com.typesafe.sbt.SbtScalariform)
   .dependsOn(zincCompileCore, zincCompileCore % "test->test")
-  .configure(addBaseSettingsAndTestDeps)
+  .configure(addBaseSettingsAndTestDeps _)
   .settings(
     name := "zinc Compile"
   )
-  .configure(addSbtUtilTracking)
+  .configure(addSbtUtilTracking _)
 
 // Persists the incremental data structures using SBinary
 lazy val zincPersist = (project in internalPath / "zinc-persist")
   .enablePlugins(ScalafmtPlugin)
-  .disablePlugins(com.typesafe.sbt.SbtScalariform)
   .dependsOn(zincCore, zincCore % "test->test")
-  .configure(addBaseSettingsAndTestDeps)
+  .configure(addBaseSettingsAndTestDeps _)
   .settings(
     name := "zinc Persist",
     libraryDependencies += sbinary
@@ -202,9 +197,8 @@ lazy val zincPersist = (project in internalPath / "zinc-persist")
 //   Defines the data structures for representing file fingerprints and relationships and the overall source analysis
 lazy val zincCore = (project in internalPath / "zinc-core")
   .enablePlugins(ScalafmtPlugin)
-  .disablePlugins(com.typesafe.sbt.SbtScalariform)
   .dependsOn(zincApiInfo, zincClasspath, compilerInterface, compilerBridge % Test)
-  .configure(addBaseSettingsAndTestDeps)
+  .configure(addBaseSettingsAndTestDeps _)
   .settings(
     // we need to fork because in unit tests we set usejavacp = true which means
     // we are expecting all of our dependencies to be on classpath so Scala compiler
@@ -216,14 +210,12 @@ lazy val zincCore = (project in internalPath / "zinc-core")
     name := "zinc Core",
     compileOrder := sbt.CompileOrder.Mixed
   )
-  .configure(addSbtIO, addSbtUtilLogging, addSbtUtilRelation)
+  .configure(addSbtIO _, addSbtUtilLogging _, addSbtUtilRelation _)
 
 lazy val zincBenchmarks = (project in internalPath / "zinc-benchmarks")
   .enablePlugins(ScalafmtPlugin)
-  .disablePlugins(com.typesafe.sbt.SbtScalariform)
   .dependsOn(compilerInterface % "compile->compile;compile->test")
   .dependsOn(compilerBridge, zincCore, zincTesting % Test)
-  .enablePlugins(JmhPlugin)
   .settings(
     name := "Benchmarks of Zinc and the compiler bridge",
     libraryDependencies ++= Seq(
@@ -239,38 +231,35 @@ lazy val zincBenchmarks = (project in internalPath / "zinc-benchmarks")
 
 lazy val zincIvyIntegration = (project in internalPath / "zinc-ivy-integration")
   .enablePlugins(ScalafmtPlugin)
-  .disablePlugins(com.typesafe.sbt.SbtScalariform)
   .dependsOn(zincCompileCore, zincTesting % Test)
   .settings(
     baseSettings,
     name := "zinc Ivy Integration",
     compileOrder := sbt.CompileOrder.ScalaThenJava
   )
-  .configure(addSbtLm)
+  .configure(addSbtLm _)
 
 // sbt-side interface to compiler.  Calls compiler-side interface reflectively
 lazy val zincCompileCore = (project in internalPath / "zinc-compile-core")
   .enablePlugins(ScalafmtPlugin)
-  .disablePlugins(com.typesafe.sbt.SbtScalariform)
   .dependsOn(compilerInterface % "compile;test->test",
              zincClasspath,
              zincApiInfo,
              zincClassfile,
              zincTesting % Test)
-  .configure(addBaseSettingsAndTestDeps)
+  .configure(addBaseSettingsAndTestDeps _)
   .settings(
     name := "zinc Compile Core",
     libraryDependencies ++= Seq(scalaCompiler.value % Test, launcherInterface, parserCombinator),
     unmanagedJars in Test := Seq(packageSrc in compilerBridge in Compile value).classpath
   )
-  .configure(addSbtUtilLogging, addSbtIO, addSbtUtilControl)
+  .configure(addSbtUtilLogging _, addSbtIO _, addSbtUtilControl _)
 
 // defines Java structures used across Scala versions, such as the API structures and relationships extracted by
 //   the analysis compiler phases and passed back to sbt.  The API structures are defined in a simple
 //   format from which Java sources are generated by the sbt-contraband plugin.
 lazy val compilerInterface = (project in internalPath / "compiler-interface")
   .enablePlugins(ContrabandPlugin)
-  .disablePlugins(com.typesafe.sbt.SbtScalariform)
   .enablePlugins(ScalafmtPlugin)
   .settings(
     minimalSettings,
@@ -286,7 +275,7 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface")
         generateVersionFile(version.value,
                             resourceManaged.value,
                             streams.value,
-                            compile in Compile value))
+                            (compile in Compile).value.asInstanceOf[sbt.internal.inc.Analysis]))
       .taskValue,
     apiDefinitions := List((baseDirectory.value / "definition"),
                            (baseDirectory.value / "other"),
@@ -295,12 +284,11 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface")
     autoScalaLibrary := false,
     altPublishSettings
   )
-  .configure(addSbtUtilInterface)
+  .configure(addSbtUtilInterface _)
 
 // Compiler-side interface to compiler that is compiled against the compiler being used either in advance or on the fly.
 //   Includes API and Analyzer phases that extract source API and relationships.
 lazy val compilerBridge: Project = (project in internalPath / "compiler-bridge")
-  .disablePlugins(com.typesafe.sbt.SbtScalariform)
   .enablePlugins(ScalafmtPlugin)
   .dependsOn(compilerInterface % "compile;test->test",
              /*launchProj % "test->test",*/ zincApiInfo % "test->test")
@@ -326,7 +314,7 @@ lazy val compilerBridge: Project = (project in internalPath / "compiler-bridge")
     }.toList),
     altPublishSettings
   )
-  .configure(addSbtIO, addSbtUtilLogging)
+  .configure(addSbtIO _, addSbtUtilLogging _)
 
 val scalaPartialVersion = Def setting (CrossVersion partialVersion scalaVersion.value)
 
@@ -335,10 +323,9 @@ def inBoth(ss: Setting[_]*): Seq[Setting[_]] = Seq(Compile, Test) flatMap (inCon
 // defines operations on the API of a source, including determining whether it has changed and converting it to a string
 //   and discovery of Projclasses and annotations
 lazy val zincApiInfo = (project in internalPath / "zinc-apiinfo")
-  .disablePlugins(com.typesafe.sbt.SbtScalariform)
   .enablePlugins(ScalafmtPlugin)
   .dependsOn(compilerInterface, zincClassfile % "compile;test->test")
-  .configure(addBaseSettingsAndTestDeps)
+  .configure(addBaseSettingsAndTestDeps _)
   .settings(
     name := "zinc ApiInfo",
     crossScalaVersions := compilerBridgeScalaVersions,
@@ -347,45 +334,42 @@ lazy val zincApiInfo = (project in internalPath / "zinc-apiinfo")
 
 // Utilities related to reflection, managing Scala versions, and custom class loaders
 lazy val zincClasspath = (project in internalPath / "zinc-classpath")
-  .disablePlugins(com.typesafe.sbt.SbtScalariform)
   .enablePlugins(ScalafmtPlugin)
   .dependsOn(compilerInterface)
-  .configure(addBaseSettingsAndTestDeps)
+  .configure(addBaseSettingsAndTestDeps _)
   .settings(
     name := "zinc Classpath",
     crossScalaVersions := compilerBridgeScalaVersions,
     relaxNon212,
     libraryDependencies ++= Seq(scalaCompiler.value, launcherInterface)
   )
-  .configure(addSbtIO)
+  .configure(addSbtIO _)
 
 // class file reader and analyzer
 lazy val zincClassfile = (project in internalPath / "zinc-classfile")
-  .disablePlugins(com.typesafe.sbt.SbtScalariform)
   .enablePlugins(ScalafmtPlugin)
   .dependsOn(compilerInterface % "compile;test->test")
-  .configure(addBaseSettingsAndTestDeps)
+  .configure(addBaseSettingsAndTestDeps _)
   .settings(
     name := "zinc Classfile",
     crossScalaVersions := compilerBridgeScalaVersions,
     relaxNon212
   )
-  .configure(addSbtIO, addSbtUtilLogging)
+  .configure(addSbtIO _, addSbtUtilLogging _)
 
 // re-implementation of scripted engine
 lazy val zincScripted = (project in internalPath / "zinc-scripted")
   .enablePlugins(ContrabandPlugin, JsonCodecPlugin)
-  .disablePlugins(com.typesafe.sbt.SbtScalariform)
   .enablePlugins(ScalafmtPlugin)
   .dependsOn(zinc, zincIvyIntegration % "test->test")
   .settings(
     minimalSettings,
     name := "zinc Scripted",
-    publish := (),
-    publishLocal := (),
+    publish := {},
+    publishLocal := {},
     sourceManaged in (Compile, generateContrabands) := baseDirectory.value / "src" / "main" / "contraband-scala"
   )
-  .configure(addSbtUtilScripted)
+  .configure(addSbtUtilScripted _)
 
 lazy val crossTestBridges = {
   Command.command("crossTestBridges") { state =>

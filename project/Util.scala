@@ -1,17 +1,19 @@
 import sbt._
 import Keys._
 
+import sbt.internal.inc.Analysis
+
 object Util {
   lazy val apiDefinitions = TaskKey[Seq[File]]("api-definitions")
 
-  def lastCompilationTime(analysis: sbt.inc.Analysis): Long = {
+  def lastCompilationTime(analysis: Analysis): Long = {
     val lastCompilation = analysis.compilations.allCompilations.lastOption
-    lastCompilation.map(_.startTime) getOrElse 0L
+    lastCompilation.map(_.getStartTime) getOrElse 0L
   }
   def generateVersionFile(version: String,
                           dir: File,
                           s: TaskStreams,
-                          analysis: sbt.inc.Analysis): Seq[File] = {
+                          analysis: Analysis): Seq[File] = {
     import java.util.{ Date, TimeZone }
     val formatter = new java.text.SimpleDateFormat("yyyyMMdd'T'HHmmss")
     formatter.setTimeZone(TimeZone.getTimeZone("GMT"))

@@ -65,11 +65,13 @@ object Scripted {
     def run(resourceBaseDirectory: File, bufferLog: Boolean, tests: Array[String]): Unit
   }
 
+  import sbt.internal.inc.ScalaInstance
   def doScripted(scriptedSbtClasspath: Seq[Attributed[File]],
                  scriptedSbtInstance: ScalaInstance,
                  sourcePath: File,
                  args: Seq[String],
                  prescripted: File => Unit): Unit = {
+    import sbt.internal.inc.classpath
     System.err.println(s"About to run tests: ${args.mkString("\n * ", "\n * ", "\n")}")
     val noJLine = new classpath.FilteredLoader(scriptedSbtInstance.loader, "jline." :: Nil)
     val loader = classpath.ClasspathUtilities.toLoader(scriptedSbtClasspath.files, noJLine)
