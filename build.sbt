@@ -193,14 +193,15 @@ lazy val zincCompile = (project in file("zinc-compile"))
   )
   .configure(addSbtUtilTracking)
 
-// Persists the incremental data structures using SBinary
+// Persists the incremental data structures using Protobuf
 lazy val zincPersist = (project in internalPath / "zinc-persist")
   .disablePlugins(com.typesafe.sbt.SbtScalariform)
   .dependsOn(zincCore, zincCore % "test->test")
   .configure(addBaseSettingsAndTestDeps)
   .settings(
     name := "zinc Persist",
-    libraryDependencies += sbinary
+    libraryDependencies += sbinary,
+    PB.targets in Compile := List(scalapb.gen() -> (sourceManaged in Compile).value)
   )
 
 // Implements the core functionality of detecting and propagating changes incrementally.
