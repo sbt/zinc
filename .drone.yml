@@ -1,0 +1,35 @@
+pipeline:
+  # Fetch folders from distributed cache
+  sftp_cache_restore:
+    image: plugins/sftp-cache
+    restore: true
+    mount:
+      - /drone/.ivy2
+      - /drone/.coursier-cache
+      - /drone/.sbt
+      - /drone/.git
+    when:
+      event: [push, pull_request, tag, deployment]
+
+  tests:
+    image: scalacenter/scala:1.0
+    commands:
+      - git fetch --tags && git log | head -n 20
+      - ./bin/run-ci.sh ${CI_SCALA_VERSION}
+
+  # Save folders in distributed cache
+  sftp_cache_rebuild:
+    image: plugins/sftp-cache
+    rebuild: true
+    mount:
+      - /drone/.ivy2
+      - /drone/.coursier-cache
+      - /drone/.sbt
+      - /drone/.git
+    when:
+      event: [push, pull_request, tag, deployment]
+
+matrix:
+  CI_SCALA_VERSION:
+    - 2.11.11
+    - 2.12.2

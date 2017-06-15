@@ -41,94 +41,81 @@ import scala.collection.mutable
 
 final case class IncInstance(si: xsbti.compile.ScalaInstance, cs: XCompilers)
 
-final class IncHandler(directory: File, scriptedLog: ManagedLogger)
+final class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogger)
     extends BridgeProviderSpecification
     with StatementHandler {
+
   type State = Option[IncInstance]
   type IncCommand = (ProjectStructure, List[String], IncInstance) => Unit
+
   val compiler = new IncrementalCompilerImpl
   def initialState: Option[IncInstance] = None
   def finish(state: Option[IncInstance]): Unit = ()
   val buildStructure: mutable.Map[String, ProjectStructure] = mutable.Map.empty
   def initBuildStructure(): Unit = {
-    val b = initBuild
-    b.projects foreach { p =>
-      buildStructure(p.name) = ProjectStructure(
-        p.name,
-        p.dependsOn,
-        p.in match {
-          case Some(x) => x
-          case None    => directory / p.name
-        },
-        scriptedLog,
-        lookupProject,
-        p.scalaVersion match {
-          case Some(x) => x
-          case None    => scala.util.Properties.versionNumberString
-        }
-      )
+    val build = initBuild
+    build.projects.foreach { p =>
+      val in = p.in.getOrElse(directory / p.name)
+      val version = p.scalaVersion.getOrElse(scala.util.Properties.versionNumberString)
+      val project = ProjectStructure(p.name, p.dependsOn, in, scriptedLog, lookupProject, version)
+      buildStructure(p.name) = project
     }
   }
+
   initBuildStructure()
 
-  def initBuild: Build =
+  private final val RootIdentifier = "root"
+  def initBuild: Build = {
+    import JsonProtocol._
     if ((directory / "build.json").exists) {
-      import JsonProtocol._
       val json = JsonParser.parseFromFile(directory / "build.json").get
       Converter.fromJsonUnsafe[Build](json)
-    } else
-      Build(
-        projects = Vector(
-          Project(name = "root").withIn(directory)
-        ))
+    } else Build(projects = Vector(Project(name = RootIdentifier).withIn(directory)))
+  }
+
   def lookupProject(name: String): ProjectStructure = buildStructure(name)
 
-  def apply(command: String,
-            arguments: List[String],
-            i: Option[IncInstance]): Option[IncInstance] =
-    command.split("/").toList match {
-      case sub :: cmd :: Nil =>
-        val p = buildStructure(sub)
-        onIncInstance(i, p) { x: IncInstance =>
-          commands(cmd)(p, arguments, x)
-        }
-      case cmd :: Nil =>
-        val p = buildStructure("root")
-        onIncInstance(i, p) { x: IncInstance =>
-          // This does not do aggregation.
-          commands(cmd)(p, arguments, x)
-        }
-      case _ =>
-        sys.error(s"$command")
+  override def apply(command: String, arguments: List[String], state: State): State = {
+    val splitCommands = command.split("/").toList
+    // Note that root does not do aggregation as sbt does.
+    val (project, commandToRun) = splitCommands match {
+      case sub :: cmd :: Nil => buildStructure(sub) -> cmd
+      case cmd :: Nil        => buildStructure(RootIdentifier) -> cmd
+      case _                 => sys.error(s"The command is either empty or has more than one `/`: $command")
     }
+    val runner = (ii: IncInstance) => commands(commandToRun)(project, arguments, ii)
+    Some(onIncInstance(state, project)(runner))
+  }
 
   def onIncInstance(i: Option[IncInstance], p: ProjectStructure)(
-      f: IncInstance => Unit): Option[IncInstance] =
-    i match {
-      case Some(x) =>
-        f(x)
-        i
-      case None =>
-        onNewIncInstance(p, f)
-    }
-
-  private[this] def onNewIncInstance(p: ProjectStructure,
-                                     f: IncInstance => Unit): Option[IncInstance] = {
-    val scalaVersion = p.scalaVersion
-    val noLogger = Logger.Null
-    val compilerBridge = getCompilerBridge(directory, noLogger, scalaVersion)
-    val si = scalaInstance(scalaVersion, directory, noLogger)
-    val sc = scalaCompiler(si, compilerBridge)
-    val cs = compiler.compilers(si, ClasspathOptionsUtil.boot, None, sc)
-    val i = IncInstance(si, cs)
-    f(i)
-    Some(i)
+      run: IncInstance => Unit): IncInstance = {
+    val instance = i.getOrElse(onNewIncInstance(p))
+    run(instance)
+    instance
   }
+
+  private final val noLogger = Logger.Null
+  private[this] def onNewIncInstance(p: ProjectStructure): IncInstance = {
+    val scalaVersion = p.scalaVersion
+    val (compilerBridge, si) = IncHandler.scriptedCompilerCache.get(scalaVersion) match {
+      case Some(alreadyInstantiated) =>
+        alreadyInstantiated
+      case None =>
+        val compilerBridge = getCompilerBridge(cacheDir, noLogger, scalaVersion)
+        val si = scalaInstance(scalaVersion, cacheDir, noLogger)
+        val toCache = (compilerBridge, si)
+        IncHandler.scriptedCompilerCache.put(scalaVersion, toCache)
+        toCache
+    }
+    val analyzingCompiler = scalaCompiler(si, compilerBridge)
+    IncInstance(si, compiler.compilers(si, ClasspathOptionsUtil.boot, None, analyzingCompiler))
+  }
+
+  private final val unit = (_: Seq[String]) => ()
   def scalaCompiler(instance: xsbti.compile.ScalaInstance, bridgeJar: File): AnalyzingCompiler = {
     val bridgeProvider = CompilerBridgeProvider.constant(bridgeJar, instance)
     val classpath = ClasspathOptionsUtil.boot
-    val cache = Some(new ClassLoaderCache(new URLClassLoader(Array())))
-    new AnalyzingCompiler(instance, bridgeProvider, classpath, _ => (), cache)
+    new AnalyzingCompiler(instance, bridgeProvider, classpath, unit, IncHandler.classLoaderCache)
   }
 
   lazy val commands: Map[String, IncCommand] = Map(
@@ -540,4 +527,11 @@ case class ProjectStructure(
     }
     ()
   }
+}
+
+object IncHandler {
+  type Cached = (File, xsbti.compile.ScalaInstance)
+  private[internal] final val scriptedCompilerCache = new mutable.WeakHashMap[String, Cached]()
+  private[internal] final val classLoaderCache = Some(
+    new ClassLoaderCache(new URLClassLoader(Array())))
 }
