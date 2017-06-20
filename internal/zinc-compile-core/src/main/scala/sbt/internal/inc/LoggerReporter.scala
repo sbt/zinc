@@ -103,7 +103,7 @@ class LoggerReporter(
       logger.error(countElementsAsString(errors, "error") + " found")
   }
 
-  private def inc(sev: Severity) = count.put(sev, count.get(sev) + 1)
+  protected def inc(sev: Severity) = count.put(sev, count.get(sev) + 1)
 
   // this is used by sbt
   private[sbt] def display(p: Problem): Unit = {

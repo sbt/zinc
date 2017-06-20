@@ -5,14 +5,16 @@ import java.nio.charset.StandardCharsets
 import java.util.logging.Level
 
 import sbt.internal.util.{ ConsoleAppender, MainAppender }
-import sbt.util.{ LogExchange }
+import sbt.util.LogExchange
 import sbt.util.{ Level => SbtLevel }
 import xsbti.{ Position, Reporter, ReporterConfig }
+
+import scala.util.matching.Regex
 
 object ReporterManager {
   import java.util.concurrent.atomic.AtomicInteger
   private val idGenerator: AtomicInteger = new AtomicInteger
-  private val DefaultReporterName = "zinc-out"
+  private val DefaultName = "zinc-out"
   private def generateZincReporterId(name: String): String =
     s"$name-${idGenerator.incrementAndGet}"
 
@@ -45,7 +47,7 @@ object ReporterManager {
     }
   }
 
-  private val FallbackUseColor = ConsoleAppender.formatEnabled
+  private val UseColor = ConsoleAppender.formatEnabled
   private val NoPositionMapper = java.util.function.Function.identity[Position]()
 
   import java.util.function.{ Function => JavaFunction }
@@ -56,7 +58,7 @@ object ReporterManager {
 
   /** Returns sane defaults with a long tradition in sbt. */
   def getDefaultReporterConfig: ReporterConfig =
-    new ReporterConfig(DefaultReporterName, 100, FallbackUseColor, Level.INFO, NoPositionMapper)
+    new ReporterConfig(DefaultName, 100, UseColor, Array(), Array(), Level.INFO, NoPositionMapper)
 
   def getReporter(toOutput: PrintWriter, config: ReporterConfig): Reporter = {
     val printWriterToAppender = MainAppender.defaultBacked(config.useColor())
@@ -69,7 +71,16 @@ object ReporterManager {
     val sbtLogLevel = fromJavaLogLevel(config.logLevel())
     val toAppend = List(appender -> sbtLogLevel)
     LogExchange.bindLoggerAppenders(loggerName, toAppend)
-    new LoggerReporter(config.maximumErrors(), logger, config.positionMapper().toScala)
+
+    val maxErrors = config.maximumErrors()
+    val posMapper = config.positionMapper().toScala
+    if (config.fileFilters().isEmpty && config.msgFilters.isEmpty)
+      new LoggerReporter(maxErrors, logger, posMapper)
+    else {
+      implicit def scalaPatterns(patterns: Array[java.util.regex.Pattern]): Array[Regex] =
+        patterns.map(_.pattern().r)
+      new FilteredReporter(config.fileFilters, config.msgFilters, maxErrors, logger, posMapper)
+    }
   }
 
   def getReporter(toOutput: PrintStream, config: ReporterConfig): Reporter = {
