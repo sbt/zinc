@@ -1,11 +1,9 @@
 package xsbti;
 
-import sbt.internal.inc.LoggerReporter;
 import sbt.internal.inc.ReporterManager;
-import sbt.internal.util.ManagedLogger;
-import sbt.util.Level$;
 
-import java.util.function.Function;
+import java.io.PrintStream;
+import java.io.PrintWriter;
 
 public interface ReporterUtil {
     public static ReporterConfig getDefaultReporterConfig() {
@@ -14,5 +12,13 @@ public interface ReporterUtil {
 
     public static Reporter getDefault(ReporterConfig config) {
         return ReporterManager.getReporter(System.out, config);
+    }
+
+    public static Reporter getReporter(PrintWriter writer, ReporterConfig config) {
+        return ReporterManager.getReporter(writer, config);
+    }
+
+    public static Reporter getReporter(PrintStream stream, ReporterConfig config) {
+        return ReporterManager.getReporter(stream, config);
     }
 }
