@@ -4,7 +4,7 @@ import java.io.{ OutputStreamWriter, PrintStream, PrintWriter }
 import java.nio.charset.StandardCharsets
 import java.util.logging.Level
 
-import sbt.internal.util.{ ConsoleAppender, MainAppender }
+import sbt.internal.util.{ ConsoleAppender, MainAppender, ManagedLogger }
 import sbt.util.LogExchange
 import sbt.util.{ Level => SbtLevel }
 import xsbti.{ Position, Reporter, ReporterConfig }
@@ -60,6 +60,19 @@ object ReporterManager {
   def getDefaultReporterConfig: ReporterConfig =
     new ReporterConfig(DefaultName, 100, UseColor, Array(), Array(), Level.INFO, NoPositionMapper)
 
+  // WARNING: Never expose this method in the public API, `ManagedLogger` is internal
+  def getReporter(logger: ManagedLogger, config: ReporterConfig): Reporter = {
+    val maxErrors = config.maximumErrors()
+    val posMapper = config.positionMapper().toScala
+    if (config.fileFilters().isEmpty && config.msgFilters.isEmpty)
+      new LoggerReporter(maxErrors, logger, posMapper)
+    else {
+      implicit def scalaPatterns(patterns: Array[java.util.regex.Pattern]): Array[Regex] =
+        patterns.map(_.pattern().r)
+      new FilteredReporter(config.fileFilters, config.msgFilters, maxErrors, logger, posMapper)
+    }
+  }
+
   def getReporter(toOutput: PrintWriter, config: ReporterConfig): Reporter = {
     val printWriterToAppender = MainAppender.defaultBacked(config.useColor())
     val appender = printWriterToAppender(toOutput)
@@ -71,16 +84,7 @@ object ReporterManager {
     val sbtLogLevel = fromJavaLogLevel(config.logLevel())
     val toAppend = List(appender -> sbtLogLevel)
     LogExchange.bindLoggerAppenders(loggerName, toAppend)
-
-    val maxErrors = config.maximumErrors()
-    val posMapper = config.positionMapper().toScala
-    if (config.fileFilters().isEmpty && config.msgFilters.isEmpty)
-      new LoggerReporter(maxErrors, logger, posMapper)
-    else {
-      implicit def scalaPatterns(patterns: Array[java.util.regex.Pattern]): Array[Regex] =
-        patterns.map(_.pattern().r)
-      new FilteredReporter(config.fileFilters, config.msgFilters, maxErrors, logger, posMapper)
-    }
+    getReporter(logger, config)
   }
 
   def getReporter(toOutput: PrintStream, config: ReporterConfig): Reporter = {

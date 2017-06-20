@@ -18,7 +18,7 @@ import sbt.util.Logger
 import sbt.io.syntax._
 import sbt.internal.inc.classpath.ClassLoaderCache
 import sbt.internal.util.ManagedLogger
-import xsbti.{ AnalysisCallback, Reporter, Logger => xLogger }
+import xsbti.{ AnalysisCallback, Reporter, ReporterUtil, Logger => xLogger }
 import xsbti.compile._
 
 /**
@@ -67,7 +67,9 @@ final class AnalyzingCompiler(
     val compArgs = new CompilerArguments(scalaInstance, classpathOptions)
     val arguments = compArgs(Nil, classpath, None, options)
     val output = CompileOutput(singleOutput)
-    val reporter = new LoggerReporter(maximumErrors, log)
+    val basicReporterConfig = ReporterUtil.getDefaultReporterConfig()
+    val reporterConfig = basicReporterConfig.withMaximumErrors(maximumErrors)
+    val reporter = ReporterManager.getReporter(log, reporterConfig)
     val progress = Optional.empty[CompileProgress]
     compile(sources, changes, arguments.toArray, output, callback, reporter, cache, log, progress)
   }
