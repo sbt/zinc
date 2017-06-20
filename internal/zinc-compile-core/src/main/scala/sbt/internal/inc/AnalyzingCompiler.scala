@@ -67,7 +67,7 @@ final class AnalyzingCompiler(
     val compArgs = new CompilerArguments(scalaInstance, classpathOptions)
     val arguments = compArgs(Nil, classpath, None, options)
     val output = CompileOutput(singleOutput)
-    val reporter = new LoggerReporter(maximumErrors, log, p => p)
+    val reporter = new LoggerReporter(maximumErrors, log)
     val progress = Optional.empty[CompileProgress]
     compile(sources, changes, arguments.toArray, output, callback, reporter, cache, log, progress)
   }

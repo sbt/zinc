@@ -54,12 +54,11 @@ object LoggerReporter {
   lazy val problemStringFormats: ProblemStringFormats = new ProblemStringFormats {}
 }
 
-class LoggerReporter(maximumErrors: Int,
-                     logger: ManagedLogger,
-                     sourcePositionMapper: Position => Position = { p =>
-                       p
-                     })
-    extends Reporter {
+class LoggerReporter(
+    maximumErrors: Int,
+    logger: ManagedLogger,
+    sourcePositionMapper: Position => Position = identity[Position]
+) extends Reporter {
   val positions = new mutable.HashMap[PositionKey, Severity]
   val count = new EnumMap[Severity, Int](classOf[Severity])
   private[this] val allProblems = new mutable.ListBuffer[Problem]
@@ -75,6 +74,7 @@ class LoggerReporter(maximumErrors: Int,
     positions.clear()
     allProblems.clear()
   }
+
   def hasWarnings = count.get(Warn) > 0
   def hasErrors = count.get(Error) > 0
   def problems: Array[Problem] = allProblems.toArray

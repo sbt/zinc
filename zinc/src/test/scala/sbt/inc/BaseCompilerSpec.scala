@@ -110,7 +110,7 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
     val cs = compiler.compilers(si, ClasspathOptionsUtil.boot, None, sc)
 
     val lookup = MockedLookup(Function.const(Optional.empty[CompileAnalysis]))
-    val reporter = new LoggerReporter(maxErrors, log, identity)
+    val reporter = new LoggerReporter(maxErrors, log)
     val extra = Array(InterfaceUtil.t2(("key", "value")))
 
     var lastCompiledUnits: Set[String] = Set.empty
