@@ -1,0 +1,17 @@
+{
+  "types": [
+    {
+      "name": "ReporterConfig",
+      "namespace": "xsbti",
+      "target": "Java",
+      "type": "record",
+      "fields": [
+        { "name": "loggerName",        "type": "String"                                           },
+        { "name": "maximumErrors",     "type": "int"                                              },
+        { "name": "useColor",          "type": "boolean"                                          },
+        { "name": "logLevel",          "type": "java.util.logging.Level"                           },
+        { "name": "positionMapper",    "type": "java.util.function.Function<Position, Position>"  }
+      ]
+    }
+  ]
+}

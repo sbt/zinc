@@ -252,6 +252,7 @@ lazy val zincIvyIntegration = (project in internalPath / "zinc-ivy-integration")
 
 // sbt-side interface to compiler.  Calls compiler-side interface reflectively
 lazy val zincCompileCore = (project in internalPath / "zinc-compile-core")
+  .enablePlugins(ContrabandPlugin)
   .dependsOn(
     compilerInterface % "compile;test->test",
     zincClasspath,

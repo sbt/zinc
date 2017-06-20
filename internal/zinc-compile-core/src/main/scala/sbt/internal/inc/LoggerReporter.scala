@@ -39,7 +39,7 @@ object LoggerReporter {
       jo2o(pos.offset).hashCode * 31 + jo2o(pos.sourceFile).hashCode
   }
 
-  def countElementsAsString(n: Int, elements: String): String =
+  def countElementsAsString(n: Int, elements: String): String = {
     n match {
       case 0 => "no " + elements + "s"
       case 1 => "one " + elements
@@ -48,6 +48,7 @@ object LoggerReporter {
       case 4 => "four " + elements + "s"
       case _ => "" + n + " " + elements + "s"
     }
+  }
 
   lazy val problemFormats: ProblemFormats = new ProblemFormats with SeverityFormats
   with PositionFormats with sjsonnew.BasicJsonProtocol {}

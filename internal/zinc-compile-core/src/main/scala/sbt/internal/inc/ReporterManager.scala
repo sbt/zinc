@@ -1,0 +1,80 @@
+package sbt.internal.inc
+
+import java.io.{ OutputStreamWriter, PrintStream, PrintWriter }
+import java.nio.charset.StandardCharsets
+import java.util.logging.Level
+
+import sbt.internal.util.{ ConsoleAppender, MainAppender }
+import sbt.util.{ LogExchange }
+import sbt.util.{ Level => SbtLevel }
+import xsbti.{ Position, Reporter, ReporterConfig }
+
+object ReporterManager {
+  import java.util.concurrent.atomic.AtomicInteger
+  private val idGenerator: AtomicInteger = new AtomicInteger
+  private val DefaultReporterName = "zinc-out"
+  private def generateZincReporterId(name: String): String =
+    s"$name-${idGenerator.incrementAndGet}"
+
+  /**
+   * Returns the id that is used to know what's the minimum level from which the
+   * reporter should log messages from the compilers.
+   *
+   * It uses `java.util.logging.Level` because `sbt.util.Level` is a Scala enumeration
+   * and there are lots of deficiencies in its design (as well as in some bugs in
+   * scalac) that prevent its leak in the public Java API, even though it's supposed
+   * to be public. For instance, I have tried to refer to it in the following ways:
+   *
+   * - `sbt.util.Level.Info` -> Scalac passes, Javac fails.
+   * - `sbt.util.Level$.Info` -> Scalac error: type mismatch.
+   * - `sbt.util.Level$.MODULE$.Info` -> Scalac fails with stable identifier required.
+   *
+   * Using `CompileOrder.Mixed` does not solve the issue. Therefore, we fallback
+   * on `java.util.logging.Level` and we transform to `sbt.util.Level` at runtime. This
+   * provides more type safety than asking users to provide the id of `sbt.util.Level`.
+   *
+   * TODO(someone): Don't define `sbt.util.Level` as a Scala enumeration.
+   */
+  private def fromJavaLogLevel(level: Level): SbtLevel.Value = {
+    level match {
+      case Level.INFO    => SbtLevel.Info
+      case Level.WARNING => SbtLevel.Warn
+      case Level.SEVERE  => SbtLevel.Error
+      case Level.OFF     => sys.error("Level.OFF is not supported. Change the logging level.")
+      case _             => SbtLevel.Debug
+    }
+  }
+
+  private val FallbackUseColor = ConsoleAppender.formatEnabled
+  private val NoPositionMapper = java.util.function.Function.identity[Position]()
+
+  import java.util.function.{ Function => JavaFunction }
+  private implicit class EnrichedJava[T, R](f: JavaFunction[T, R]) {
+    def toScala: Function[T, R] =
+      new Function[T, R] { override def apply(v1: T): R = f.apply(v1) }
+  }
+
+  /** Returns sane defaults with a long tradition in sbt. */
+  def getDefaultReporterConfig: ReporterConfig =
+    new ReporterConfig(DefaultReporterName, 100, FallbackUseColor, Level.INFO, NoPositionMapper)
+
+  def getReporter(toOutput: PrintWriter, config: ReporterConfig): Reporter = {
+    val printWriterToAppender = MainAppender.defaultBacked(config.useColor())
+    val appender = printWriterToAppender(toOutput)
+    val freshName = generateZincReporterId(config.loggerName())
+    val logger = LogExchange.logger(freshName)
+    val loggerName = logger.name
+
+    LogExchange.unbindLoggerAppenders(loggerName)
+    val sbtLogLevel = fromJavaLogLevel(config.logLevel())
+    val toAppend = List(appender -> sbtLogLevel)
+    LogExchange.bindLoggerAppenders(loggerName, toAppend)
+    new LoggerReporter(config.maximumErrors(), logger, config.positionMapper().toScala)
+  }
+
+  def getReporter(toOutput: PrintStream, config: ReporterConfig): Reporter = {
+    val utf8Writer = new OutputStreamWriter(toOutput, StandardCharsets.UTF_8)
+    val printWriter = new PrintWriter(utf8Writer)
+    getReporter(printWriter, config)
+  }
+}
