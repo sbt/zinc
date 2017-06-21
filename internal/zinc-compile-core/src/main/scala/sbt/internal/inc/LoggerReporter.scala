@@ -86,10 +86,9 @@ class LoggerReporter(
     val p = problem("", mappedPos, msg, severity)
     allProblems += p
     severity match {
-      case Warn | Error => {
-        if (!testAndLog(mappedPos, severity))
-          display(p)
-      }
+      case Warn | Error =>
+        if (!testAndLog(mappedPos, severity)) display(p)
+        else ()
       case _ => display(p)
     }
   }
@@ -108,9 +107,10 @@ class LoggerReporter(
   // this is used by sbt
   private[sbt] def display(p: Problem): Unit = {
     import problemFormats._
-    inc(p.severity)
-    if (p.severity != Error || maximumErrors <= 0 || count.get(p.severity) <= maximumErrors) {
-      p.severity match {
+    val severity = p.severity()
+    inc(severity)
+    if (severity != Error || maximumErrors <= 0 || count.get(severity) <= maximumErrors) {
+      severity match {
         case Error => logger.errorEvent(p)
         case Warn  => logger.warnEvent(p)
         case SInfo => logger.infoEvent(p)
