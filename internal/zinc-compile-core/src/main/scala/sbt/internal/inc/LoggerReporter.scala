@@ -21,11 +21,11 @@ import scala.collection.mutable
 import LoggerReporter._
 import sbt.internal.util.ManagedLogger
 import sbt.internal.util.codec._
-import sbt.util.InterfaceUtil.{ jo2o, problem }
 import Severity.{ Error, Warn, Info => SInfo }
 
 object LoggerReporter {
   final class PositionKey(pos: Position) {
+    import sbt.util.InterfaceUtil.jo2o
     def offset = pos.offset
     def sourceFile = pos.sourceFile
 
@@ -81,15 +81,19 @@ class LoggerReporter(
   def problems: Array[Problem] = allProblems.toArray
   def comment(pos: Position, msg: String): Unit = ()
 
-  override def log(pos: Position, msg: String, severity: Severity): Unit = {
-    val mappedPos: Position = sourcePositionMapper(pos)
-    val p = problem("", mappedPos, msg, severity)
-    allProblems += p
+  override def log(problem0: Problem): Unit = {
+    import sbt.util.InterfaceUtil
+    val (category, position, msg, severity) =
+      (problem0.category(), problem0.position, problem0.message, problem0.severity)
+    // Note: positions in reported errors can be fixed with `sourcePositionMapper`.
+    val transformedPos: Position = sourcePositionMapper(position)
+    val problem = InterfaceUtil.problem(category, transformedPos, msg, severity)
+    allProblems += problem
     severity match {
       case Warn | Error =>
-        if (!testAndLog(mappedPos, severity)) display(p)
+        if (!testAndLog(transformedPos, severity)) display(problem)
         else ()
-      case _ => display(p)
+      case _ => display(problem)
     }
   }
 

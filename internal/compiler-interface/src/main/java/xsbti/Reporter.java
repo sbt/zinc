@@ -31,7 +31,7 @@ public interface Reporter {
 	Problem[] problems();
 
 	/** Log a message at a concrete position and with a concrete severity. */
-	void log(Position pos, String msg, Severity sev);
+	void log(Problem problem);
 
 	/** Report a comment. */
 	void comment(Position pos, String msg);
