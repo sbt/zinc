@@ -332,7 +332,6 @@ lazy val compilerBridge: Project = (project in internalPath / "compiler-bridge")
     }.toList),
     altPublishSettings
   )
-  .configure(addSbtIO, addSbtUtilLogging)
 
 val scalaPartialVersion = Def setting (CrossVersion partialVersion scalaVersion.value)
 
