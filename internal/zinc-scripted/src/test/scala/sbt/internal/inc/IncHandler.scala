@@ -347,7 +347,7 @@ case class ProjectStructure(
     // to specify it in the incremental option property file (this is the default for sbt)
     val incOptionsFile = baseDirectory / "incOptions.properties"
     val (incOptions, scalacOptions) = loadIncOptions(incOptionsFile)
-    val reporter = new ManagedLoggerReporter(maxErrors, scriptedLog)
+    val reporter = new ManagedLoggedReporter(maxErrors, scriptedLog)
     val extra = Array(t2(("key", "value")))
     val setup = compiler.setup(lookup,
                                skip = false,

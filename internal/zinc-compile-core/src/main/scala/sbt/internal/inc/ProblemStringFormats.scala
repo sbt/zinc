@@ -15,7 +15,7 @@ import sbt.util.InterfaceUtil.jo2o
 
 /**
  * Represent a string that contains the compiler output (warnings and error
- * messages, etc) that have been reported by [[LoggerReporter]] and the logger.
+ * messages, etc) that have been reported by [[LoggedReporter]] and the logger.
  */
 trait ProblemStringFormats {
   implicit lazy val ProblemStringFormat: ShowLines[Problem] = new ShowLines[Problem] {

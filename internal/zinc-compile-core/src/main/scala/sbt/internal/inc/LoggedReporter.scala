@@ -18,12 +18,12 @@ import xsbti.{ Logger, Position, Problem, Reporter, Severity }
 import java.util.EnumMap
 
 import scala.collection.mutable
-import LoggerReporter._
+import LoggedReporter._
 import sbt.internal.util.ManagedLogger
 import sbt.internal.util.codec._
 import Severity.{ Error, Warn, Info => SInfo }
 
-object LoggerReporter {
+object LoggedReporter {
   final class PositionKey(pos: Position) {
     import sbt.util.InterfaceUtil.jo2o
     def offset = pos.offset
@@ -61,7 +61,7 @@ object LoggerReporter {
  * This functionality can be use by anyone that wants to get support for event
  * logging and use an underlying, controlled logger under the hood.
  *
- * The [[ManagedLoggerReporter]] exists for those users that do not want to set
+ * The [[ManagedLoggedReporter]] exists for those users that do not want to set
  * up the passed logger. Event logging requires registration of codects to
  * serialize and deserialize [[Problem]]s. This reporter makes sure to initialize
  * the managed logger so that users do not need to take care of this cumbersome process.
@@ -70,11 +70,11 @@ object LoggerReporter {
  * @param logger The event managed logger.
  * @param sourcePositionMapper The position mapper.
  */
-class ManagedLoggerReporter(
+class ManagedLoggedReporter(
     maximumErrors: Int,
     logger: ManagedLogger,
     sourcePositionMapper: Position => Position = identity[Position]
-) extends LoggerReporter(maximumErrors, logger, sourcePositionMapper) {
+) extends LoggedReporter(maximumErrors, logger, sourcePositionMapper) {
   import problemFormats._
   import problemStringFormats._
   logger.registerStringCodec[Problem]
@@ -95,7 +95,7 @@ class ManagedLoggerReporter(
  * @param logger The logger interface provided by the user.
  * @param sourcePositionMapper The position mapper.
  */
-class LoggerReporter(
+class LoggedReporter(
     maximumErrors: Int,
     logger: Logger,
     sourcePositionMapper: Position => Position = identity[Position]

@@ -20,7 +20,7 @@ class FilteredReporter(
     maximumErrors: Int,
     logger: Logger,
     positionMapper: Position => Position
-) extends LoggerReporter(maximumErrors, logger, positionMapper) {
+) extends LoggedReporter(maximumErrors, logger, positionMapper) {
   private final def isFiltered(pos: Position, msg: String, severity: Severity): Boolean = {
     def isFiltered(filters: Seq[Regex], str: String): Boolean =
       filters.exists(_.findFirstIn(str).isDefined)

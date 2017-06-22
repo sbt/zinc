@@ -65,7 +65,7 @@ object ReporterManager {
     val maxErrors = config.maximumErrors()
     val posMapper = config.positionMapper().toScala
     if (config.fileFilters().isEmpty && config.msgFilters.isEmpty)
-      new ManagedLoggerReporter(maxErrors, logger, posMapper)
+      new ManagedLoggedReporter(maxErrors, logger, posMapper)
     else {
       implicit def scalaPatterns(patterns: Array[java.util.regex.Pattern]): Array[Regex] =
         patterns.map(_.pattern().r)
