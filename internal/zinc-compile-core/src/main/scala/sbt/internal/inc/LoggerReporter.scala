@@ -62,7 +62,7 @@ class LoggerReporter(
 ) extends Reporter {
   val positions = new mutable.HashMap[PositionKey, Severity]
   val count = new EnumMap[Severity, Int](classOf[Severity])
-  private[this] val allProblems = new mutable.ListBuffer[Problem]
+  protected val allProblems = new mutable.ListBuffer[Problem]
 
   import problemStringFormats._
   logger.registerStringCodec[Problem]
@@ -83,11 +83,11 @@ class LoggerReporter(
 
   override def log(problem0: Problem): Unit = {
     import sbt.util.InterfaceUtil
-    val (category, position, msg, severity) =
-      (problem0.category(), problem0.position, problem0.message, problem0.severity)
+    val (category, position, message, severity) =
+      (problem0.category, problem0.position, problem0.message, problem0.severity)
     // Note: positions in reported errors can be fixed with `sourcePositionMapper`.
     val transformedPos: Position = sourcePositionMapper(position)
-    val problem = InterfaceUtil.problem(category, transformedPos, msg, severity)
+    val problem = InterfaceUtil.problem(category, transformedPos, message, severity)
     allProblems += problem
     severity match {
       case Warn | Error =>
@@ -106,10 +106,8 @@ class LoggerReporter(
       logger.error(countElementsAsString(errors, "error") + " found")
   }
 
-  protected def inc(sev: Severity) = count.put(sev, count.get(sev) + 1)
-
-  // this is used by sbt
-  private[sbt] def display(p: Problem): Unit = {
+  private def inc(sev: Severity) = count.put(sev, count.get(sev) + 1)
+  private def display(p: Problem): Unit = {
     import problemFormats._
     val severity = p.severity()
     inc(severity)

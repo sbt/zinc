@@ -22,10 +22,10 @@ class FilteredReporter(
     logger: ManagedLogger,
     positionMapper: Position => Position
 ) extends LoggerReporter(maximumErrors, logger, positionMapper) {
-  private final def isFiltered(filters: Seq[Regex], str: String): Boolean =
-    filters.exists(_.findFirstIn(str).isDefined)
-
   private final def isFiltered(pos: Position, msg: String, severity: Severity): Boolean = {
+    def isFiltered(filters: Seq[Regex], str: String): Boolean =
+      filters.exists(_.findFirstIn(str).isDefined)
+
     severity != Severity.Error && (
       (pos.sourceFile.isPresent && isFiltered(fileFilters, pos.sourceFile.get.getPath)) ||
       (isFiltered(msgFilters, msg))
@@ -33,13 +33,25 @@ class FilteredReporter(
   }
 
   /**
-   * Redefines display so that non-error messages whose paths match a regex in `fileFilters`
-   * or whose messages' content match `msgFilters` are not reported to the user.
+   * Redefines display so that non-error messages are filtered.
+   *
+   * Problems are filtered out when they happen in a file that matches the regex in `fileFilters`
+   * or when the content of the messages contain `msgFilters`.
+   *
+   * Problems that are filtered are not logged with the underlying logger but they are still
+   * registered as problems so that users of `problems()` receive them.
    */
-  override def display(problem: Problem): Unit = {
-    val severity = problem.severity()
-    val dontShow = isFiltered(problem.position(), problem.message(), severity)
-    if (dontShow) inc(severity)
-    else super.display(problem)
+  override def log(problem: Problem): Unit = {
+    val (category, position, message, severity) =
+      (problem.category, problem.position, problem.message, problem.severity)
+    val dontShow = isFiltered(position, message, severity)
+    if (!dontShow) super.log(problem)
+    else {
+      // Even if we don't display, we do want to register the problem
+      import sbt.util.InterfaceUtil
+      val transformedPos: Position = positionMapper(position)
+      val problem = InterfaceUtil.problem(category, transformedPos, message, severity)
+      allProblems += problem
+    }
   }
 }
