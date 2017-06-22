@@ -143,7 +143,7 @@ final class AnalyzingCompiler(
       maximumErrors: Int,
       log: ManagedLogger
   ): Unit = {
-    val reporter = new LoggerReporter(maximumErrors, log)
+    val reporter = new ManagedLoggerReporter(maximumErrors, log)
     doc(sources, classpath, outputDirectory, options, log, reporter)
   }
 

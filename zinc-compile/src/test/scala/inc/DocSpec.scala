@@ -6,7 +6,7 @@ import java.io.File
 import sbt.io.IO
 import sbt.internal.inc.javac.{ JavaCompiler, JavaTools, Javadoc }
 import sbt.internal.inc.javac.JavaCompilerSpec
-import sbt.internal.inc.{ LoggerReporter, UnitSpec }
+import sbt.internal.inc.{ ManagedLoggerReporter, UnitSpec }
 import xsbti.compile.IncToolOptionsUtil
 import sbt.util.CacheStoreFactory
 
@@ -48,7 +48,7 @@ class DocSpec extends UnitSpec {
       JavaCompiler.local.getOrElse(sys.error("This test cannot be run on a JRE, but only a JDK.")),
       Javadoc.local.getOrElse(Javadoc.fork())
     )
-  lazy val reporter = new LoggerReporter(10, log)
+  lazy val reporter = new ManagedLoggerReporter(10, log)
   def knownSampleGoodFile =
     new File(classOf[JavaCompilerSpec].getResource("good.java").toURI)
 }

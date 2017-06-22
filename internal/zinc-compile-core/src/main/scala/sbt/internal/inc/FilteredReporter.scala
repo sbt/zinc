@@ -1,7 +1,6 @@
 package sbt.internal.inc
 
-import sbt.internal.util.ManagedLogger
-import xsbti.{ Position, Problem, Severity }
+import xsbti.{ Logger, Position, Problem, Severity }
 
 import scala.util.matching.Regex
 
@@ -19,7 +18,7 @@ class FilteredReporter(
     fileFilters: Array[Regex],
     msgFilters: Array[Regex],
     maximumErrors: Int,
-    logger: ManagedLogger,
+    logger: Logger,
     positionMapper: Position => Position
 ) extends LoggerReporter(maximumErrors, logger, positionMapper) {
   private final def isFiltered(pos: Position, msg: String, severity: Severity): Boolean = {

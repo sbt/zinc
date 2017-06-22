@@ -14,7 +14,7 @@ package inc
 // see licenses/LICENSE_Scala
 // Original author: Martin Odersky
 
-import xsbti.{ Position, Problem, Severity, Reporter }
+import xsbti.{ Logger, Position, Problem, Reporter, Severity }
 import java.util.EnumMap
 
 import scala.collection.mutable
@@ -55,17 +55,55 @@ object LoggerReporter {
   lazy val problemStringFormats: ProblemStringFormats = new ProblemStringFormats {}
 }
 
-class LoggerReporter(
+/**
+ * Defines a logger that uses event logging provided by a [[ManagedLogger]].
+ *
+ * This functionality can be use by anyone that wants to get support for event
+ * logging and use an underlying, controlled logger under the hood.
+ *
+ * The [[ManagedLoggerReporter]] exists for those users that do not want to set
+ * up the passed logger. Event logging requires registration of codects to
+ * serialize and deserialize [[Problem]]s. This reporter makes sure to initialize
+ * the managed logger so that users do not need to take care of this cumbersome process.
+ *
+ * @param maximumErrors The maximum errors.
+ * @param logger The event managed logger.
+ * @param sourcePositionMapper The position mapper.
+ */
+class ManagedLoggerReporter(
     maximumErrors: Int,
     logger: ManagedLogger,
     sourcePositionMapper: Position => Position = identity[Position]
+) extends LoggerReporter(maximumErrors, logger, sourcePositionMapper) {
+  import problemFormats._
+  import problemStringFormats._
+  logger.registerStringCodec[Problem]
+
+  override def logError(problem: Problem): Unit = logger.errorEvent(problem)
+  override def logWarning(problem: Problem): Unit = logger.warnEvent(problem)
+  override def logInfo(problem: Problem): Unit = logger.infoEvent(problem)
+}
+
+/**
+ * Defines a reporter that forwards every reported problem to a wrapped logger.
+ *
+ * This is the most common use of a reporter, where users pass in whichever logger
+ * they want. If they are depending on loggers from other libraries, they can
+ * create a logger that extends the xsbti logging interface.
+ *
+ * @param maximumErrors The maximum errors.
+ * @param logger The logger interface provided by the user.
+ * @param sourcePositionMapper The position mapper.
+ */
+class LoggerReporter(
+    maximumErrors: Int,
+    logger: Logger,
+    sourcePositionMapper: Position => Position = identity[Position]
 ) extends Reporter {
+  import sbt.util.InterfaceUtil.f0
   val positions = new mutable.HashMap[PositionKey, Severity]
   val count = new EnumMap[Severity, Int](classOf[Severity])
   protected val allProblems = new mutable.ListBuffer[Problem]
-
-  import problemStringFormats._
-  logger.registerStringCodec[Problem]
   reset()
 
   def reset(): Unit = {
@@ -97,25 +135,28 @@ class LoggerReporter(
     }
   }
 
-  def printSummary(): Unit = {
+  override def printSummary(): Unit = {
     val warnings = count.get(Severity.Warn)
     if (warnings > 0)
-      logger.warn(countElementsAsString(warnings, "warning") + " found")
+      logger.warn(f0(countElementsAsString(warnings, "warning") + " found"))
     val errors = count.get(Severity.Error)
     if (errors > 0)
-      logger.error(countElementsAsString(errors, "error") + " found")
+      logger.error(f0(countElementsAsString(errors, "error") + " found"))
   }
 
   private def inc(sev: Severity) = count.put(sev, count.get(sev) + 1)
+  protected def logError(problem: Problem): Unit = logger.error(f0(problem.toString))
+  protected def logWarning(problem: Problem): Unit = logger.warn(f0(problem.toString))
+  protected def logInfo(problem: Problem): Unit = logger.info(f0(problem.toString))
+
   private def display(p: Problem): Unit = {
-    import problemFormats._
     val severity = p.severity()
     inc(severity)
     if (severity != Error || maximumErrors <= 0 || count.get(severity) <= maximumErrors) {
       severity match {
-        case Error => logger.errorEvent(p)
-        case Warn  => logger.warnEvent(p)
-        case SInfo => logger.infoEvent(p)
+        case Error => logError(p)
+        case Warn  => logWarning(p)
+        case SInfo => logInfo(p)
       }
     }
   }

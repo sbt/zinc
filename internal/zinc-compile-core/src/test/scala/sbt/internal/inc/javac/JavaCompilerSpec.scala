@@ -185,7 +185,7 @@ class JavaCompilerSpec extends UnitSpec {
               incToolOptions: IncToolOptions = IncToolOptionsUtil.defaultIncToolOptions())
     : (Boolean, Array[Problem]) = {
     val log = LogExchange.logger("JavaCompilerSpec")
-    val reporter = new LoggerReporter(10, log)
+    val reporter = new ManagedLoggerReporter(10, log)
     val result = c.javac.run(sources.toArray, args.toArray, incToolOptions, reporter, log)
     (result, reporter.problems)
   }
@@ -196,7 +196,7 @@ class JavaCompilerSpec extends UnitSpec {
           incToolOptions: IncToolOptions = IncToolOptionsUtil.defaultIncToolOptions())
     : (Boolean, Array[Problem]) = {
     val log = LogExchange.logger("JavaCompilerSpec")
-    val reporter = new LoggerReporter(10, log)
+    val reporter = new ManagedLoggerReporter(10, log)
     val result = c.javadoc.run(sources.toArray, args.toArray, incToolOptions, reporter, log)
     (result, reporter.problems)
   }

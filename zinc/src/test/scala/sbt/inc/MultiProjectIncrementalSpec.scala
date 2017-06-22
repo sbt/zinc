@@ -73,7 +73,7 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
           def externalClassFileManager: Optional[ClassFileManager] = Optional.empty()
         })
 
-      val reporter = new LoggerReporter(maxErrors, log)
+      val reporter = new ManagedLoggerReporter(maxErrors, log)
       val setup = compiler.setup(lookup,
                                  skip = false,
                                  cacheFile,
