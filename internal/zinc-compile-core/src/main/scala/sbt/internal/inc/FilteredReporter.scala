@@ -1,13 +1,43 @@
 package sbt.internal.inc
 
+import sbt.internal.util.ManagedLogger
 import xsbti.{ Logger, Position, Problem, Severity }
 
 import scala.util.matching.Regex
 
 /**
- * Defines a filtered reporter as Pants Zinc's fork does letting users control which messages
- * are reported or not. This implementation has been adapted from the Pants repository.
+ * Defines a filtered reporter to control which messages are reported or not.
  *
+ * This reporter is meant to be used with a `ManagedLogger`, which will be set up.
+ * See [[ManagedLoggedReporter]] for a similar case.
+ *
+ * This implementation has been adapted from the Pants repository.
+ * @link https://github.com/pantsbuild/pants/blob/master/src/scala/org/pantsbuild/zinc/logging/Reporters.scala#L28
+ *
+ * This reporter may be useful to companies that have domain-specific knowledge
+ * about compile messages that are not relevant and can be filtered out, or users
+ * that hold similar knowledge about the piece of code that they compile.
+ */
+class ManagedFilteredReporter(
+    fileFilters: Array[Regex],
+    msgFilters: Array[Regex],
+    maximumErrors: Int,
+    logger: ManagedLogger,
+    positionMapper: Position => Position
+) extends FilteredReporter(fileFilters, msgFilters, maximumErrors, logger, positionMapper) {
+  import LoggedReporter.problemFormats._
+  import LoggedReporter.problemStringFormats._
+  logger.registerStringCodec[Problem]
+
+  override def logError(problem: Problem): Unit = logger.errorEvent(problem)
+  override def logWarning(problem: Problem): Unit = logger.warnEvent(problem)
+  override def logInfo(problem: Problem): Unit = logger.infoEvent(problem)
+}
+
+/**
+ * Defines a filtered reporter to control which messages are reported or not.
+ *
+ * This implementation has been adapted from the Pants repository.
  * @link https://github.com/pantsbuild/pants/blob/master/src/scala/org/pantsbuild/zinc/logging/Reporters.scala#L28
  *
  * This reporter may be useful to companies that have domain-specific knowledge

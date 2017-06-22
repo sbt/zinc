@@ -69,7 +69,8 @@ object ReporterManager {
     else {
       implicit def scalaPatterns(patterns: Array[java.util.regex.Pattern]): Array[Regex] =
         patterns.map(_.pattern().r)
-      new FilteredReporter(config.fileFilters, config.msgFilters, maxErrors, logger, posMapper)
+      val (fileRegexes, msgRegexes) = (config.fileFilters, config.msgFilters)
+      new ManagedFilteredReporter(fileRegexes, msgRegexes, maxErrors, logger, posMapper)
     }
   }
 
