@@ -21,4 +21,8 @@ public interface ReporterUtil {
     public static Reporter getReporter(PrintStream stream, ReporterConfig config) {
         return ReporterManager.getReporter(stream, config);
     }
+
+    public static Reporter getReporter(xsbti.Logger logger, ReporterConfig config) {
+        return ReporterManager.getReporter(logger, config);
+    }
 }

@@ -60,17 +60,23 @@ object ReporterManager {
   def getDefaultReporterConfig: ReporterConfig =
     new ReporterConfig(DefaultName, 100, UseColor, Array(), Array(), Level.INFO, NoPositionMapper)
 
-  // WARNING: Never expose this method in the public API, `ManagedLogger` is internal
-  def getReporter(logger: ManagedLogger, config: ReporterConfig): Reporter = {
+  def getReporter(logger: xsbti.Logger, config: ReporterConfig): Reporter = {
     val maxErrors = config.maximumErrors()
     val posMapper = config.positionMapper().toScala
-    if (config.fileFilters().isEmpty && config.msgFilters.isEmpty)
-      new ManagedLoggedReporter(maxErrors, logger, posMapper)
-    else {
+    if (config.fileFilters().isEmpty && config.msgFilters.isEmpty) {
+      logger match {
+        case managed: ManagedLogger => new ManagedLoggedReporter(maxErrors, managed, posMapper)
+        case _                      => new LoggedReporter(maxErrors, logger, posMapper)
+      }
+    } else {
       implicit def scalaPatterns(patterns: Array[java.util.regex.Pattern]): Array[Regex] =
         patterns.map(_.pattern().r)
       val (fileRegexes, msgRegexes) = (config.fileFilters, config.msgFilters)
-      new ManagedFilteredReporter(fileRegexes, msgRegexes, maxErrors, logger, posMapper)
+      logger match {
+        case managed: ManagedLogger =>
+          new ManagedFilteredReporter(fileRegexes, msgRegexes, maxErrors, managed, posMapper)
+        case _ => new FilteredReporter(fileRegexes, msgRegexes, maxErrors, logger, posMapper)
+      }
     }
   }
 
