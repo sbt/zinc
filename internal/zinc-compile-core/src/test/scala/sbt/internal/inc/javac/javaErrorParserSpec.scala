@@ -4,7 +4,6 @@ package inc
 package javac
 
 import sbt.util.Logger
-import sbt.internal.util.UnitSpec
 
 class JavaErrorParserSpec extends UnitSpec {
 

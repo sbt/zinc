@@ -187,7 +187,7 @@ lazy val zincTesting = (project in internalPath / "zinc-testing")
     publishArtifact := false,
     libraryDependencies ++= Seq(scalaCheck, scalatest, junit, sjsonnewScalaJson.value)
   )
-  .configure(addSbtLmCore, addSbtLmIvy, addSbtUtilTesting)
+  .configure(addSbtLmCore, addSbtLmIvy)
 
 lazy val zincCompile = (project in file("zinc-compile"))
   .dependsOn(zincCompileCore, zincCompileCore % "test->test")
@@ -211,7 +211,7 @@ lazy val zincPersist = (project in internalPath / "zinc-persist")
 // Implements the core functionality of detecting and propagating changes incrementally.
 //   Defines the data structures for representing file fingerprints and relationships and the overall source analysis
 lazy val zincCore = (project in internalPath / "zinc-core")
-  .dependsOn(zincApiInfo, zincClasspath, compilerInterface, compilerBridge % Test)
+  .dependsOn(zincApiInfo, zincClasspath, compilerInterface, compilerBridge % Test, zincTesting % Test)
   .configure(addBaseSettingsAndTestDeps)
   .settings(
     // we need to fork because in unit tests we set usejavacp = true which means
