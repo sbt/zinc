@@ -188,7 +188,7 @@ lazy val zincTesting = (project in internalPath / "zinc-testing")
     publishArtifact := false,
     libraryDependencies ++= Seq(scalaCheck, scalatest, junit, sjsonnewScalaJson)
   )
-  .configure(addSbtLm, addSbtUtilTesting)
+  .configure(addSbtLm)
 
 lazy val zincCompile = (project in file("zinc-compile"))
   .disablePlugins(com.typesafe.sbt.SbtScalariform)
@@ -374,7 +374,7 @@ lazy val zincClasspath = (project in internalPath / "zinc-classpath")
 // class file reader and analyzer
 lazy val zincClassfile = (project in internalPath / "zinc-classfile")
   .disablePlugins(com.typesafe.sbt.SbtScalariform)
-  .dependsOn(compilerInterface % "compile;test->test")
+  .dependsOn(compilerInterface % "compile;test->test", zincTesting % Test)
   .configure(addBaseSettingsAndTestDeps)
   .settings(
     name := "zinc Classfile",
