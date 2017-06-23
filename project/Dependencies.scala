@@ -1,8 +1,6 @@
-import sbt._
-import Keys._
+import sbt._, Keys._
 
 object Dependencies {
-
   val scala210 = "2.10.6"
   val scala211 = "2.11.11"
   val scala212 = "2.12.2"
@@ -37,11 +35,13 @@ object Dependencies {
   lazy val sbtUtilPath = getSbtModulePath("sbtutil.path", "sbt/util")
   lazy val sbtLmPath = getSbtModulePath("sbtlm.path", "sbt/lm")
 
-  def addSbtModule(p: Project,
-                   path: Option[String],
-                   projectName: String,
-                   m: ModuleID,
-                   c: Option[Configuration] = None) =
+  def addSbtModule(
+      p: Project,
+      path: Option[String],
+      projectName: String,
+      m: ModuleID,
+      c: Option[Configuration] = None
+  ) =
     path match {
       case Some(f) =>
         p dependsOn c.fold[ClasspathDependency](ProjectRef(file(f), projectName))(

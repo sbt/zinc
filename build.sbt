@@ -44,11 +44,13 @@ def relaxNon212: Seq[Setting[_]] = Seq(
     scalaBinaryVersion.value match {
       case "2.12" => old
       case _ =>
-        old filterNot Set("-Xfatal-warnings",
-                          "-deprecation",
-                          "-Ywarn-unused",
-                          "-Ywarn-unused-import",
-                          "-YdisableFlatCpCaching")
+        old filterNot Set(
+          "-Xfatal-warnings",
+          "-deprecation",
+          "-Ywarn-unused",
+          "-Ywarn-unused-import",
+          "-YdisableFlatCpCaching"
+        )
     }
   }
 )
@@ -84,11 +86,13 @@ def altPublishSettings: Seq[Setting[_]] =
       val module =
         new ivy.Module(moduleSettings)
       val newConfig =
-        new PublishConfiguration(config.ivyFile,
-                                 altLocalRepoName,
-                                 config.artifacts,
-                                 config.checksums,
-                                 config.logging)
+        new PublishConfiguration(
+          config.ivyFile,
+          altLocalRepoName,
+          config.artifacts,
+          config.checksums,
+          config.logging
+        )
       streams.value.log.info("Publishing " + module + " to local repo: " + altLocalRepoName)
       IvyActions.publish(module, newConfig, streams.value.log)
     }
@@ -160,12 +164,14 @@ lazy val zincRoot: Project = (project in file("."))
 
 lazy val zinc = (project in file("zinc"))
   .disablePlugins(com.typesafe.sbt.SbtScalariform)
-  .dependsOn(zincCore,
-             zincPersist,
-             zincCompileCore,
-             zincClassfile,
-             zincIvyIntegration % "compile->compile;test->test",
-             zincTesting % Test)
+  .dependsOn(
+    zincCore,
+    zincPersist,
+    zincCompileCore,
+    zincClassfile,
+    zincIvyIntegration % "compile->compile;test->test",
+    zincTesting % Test
+  )
   .configure(addBaseSettingsAndTestDeps)
   .settings(
     name := "zinc"
@@ -253,11 +259,13 @@ lazy val zincIvyIntegration = (project in internalPath / "zinc-ivy-integration")
 // sbt-side interface to compiler.  Calls compiler-side interface reflectively
 lazy val zincCompileCore = (project in internalPath / "zinc-compile-core")
   .disablePlugins(com.typesafe.sbt.SbtScalariform)
-  .dependsOn(compilerInterface % "compile;test->test",
-             zincClasspath,
-             zincApiInfo,
-             zincClassfile,
-             zincTesting % Test)
+  .dependsOn(
+    compilerInterface % "compile;test->test",
+    zincClasspath,
+    zincApiInfo,
+    zincClassfile,
+    zincTesting % Test
+  )
   .configure(addBaseSettingsAndTestDeps)
   .settings(
     name := "zinc Compile Core",
@@ -283,14 +291,18 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface")
     watchSources ++= apiDefinitions.value,
     resourceGenerators in Compile += Def
       .task(
-        generateVersionFile(version.value,
-                            resourceManaged.value,
-                            streams.value,
-                            compile in Compile value))
+        generateVersionFile(
+          version.value,
+          resourceManaged.value,
+          streams.value,
+          compile in Compile value)
+        )
       .taskValue,
-    apiDefinitions := List((baseDirectory.value / "definition"),
-                           (baseDirectory.value / "other"),
-                           (baseDirectory.value / "type")),
+    apiDefinitions := List(
+      (baseDirectory.value / "definition"),
+      (baseDirectory.value / "other"),
+      (baseDirectory.value / "type")
+    ),
     crossPaths := false,
     autoScalaLibrary := false,
     altPublishSettings
@@ -301,8 +313,11 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface")
 //   Includes API and Analyzer phases that extract source API and relationships.
 lazy val compilerBridge: Project = (project in internalPath / "compiler-bridge")
   .disablePlugins(com.typesafe.sbt.SbtScalariform)
-  .dependsOn(compilerInterface % "compile;test->test",
-             /*launchProj % "test->test",*/ zincApiInfo % "test->test")
+  .dependsOn(
+    compilerInterface % "compile;test->test",
+//  launchProj % "test->test",
+    zincApiInfo % "test->test"
+  )
   .settings(
     baseSettings,
     crossScalaVersions := compilerBridgeScalaVersions,
@@ -453,11 +468,13 @@ def scriptedTask: Def.Initialize[InputTask[Unit]] = Def.inputTask {
   // that alternate repo to the running scripted test (in Scripted.scriptedpreScripted).
   (altLocalPublish in compilerInterface).value
   (altLocalPublish in compilerBridge).value
-  doScripted((fullClasspath in zincScripted in Test).value,
-             (scalaInstance in zincScripted).value,
-             scriptedSource.value,
-             result,
-             scriptedPrescripted.value)
+  doScripted(
+    (fullClasspath in zincScripted in Test).value,
+    (scalaInstance in zincScripted).value,
+    scriptedSource.value,
+    result,
+    scriptedPrescripted.value
+  )
 }
 
 def addSbtAlternateResolver(scriptedRoot: File) = {
@@ -466,27 +483,29 @@ def addSbtAlternateResolver(scriptedRoot: File) = {
     IO.write(
       resolver,
       s"""import sbt._
-                          |import Keys._
-                          |
-                          |object AddResolverPlugin extends AutoPlugin {
-                          |  override def requires = sbt.plugins.JvmPlugin
-                          |  override def trigger = allRequirements
-                          |
-                          |  override lazy val projectSettings = Seq(resolvers += alternativeLocalResolver)
-                          |  lazy val alternativeLocalResolver = Resolver.file("$altLocalRepoName", file("$altLocalRepoPath"))(Resolver.ivyStylePatterns)
-                          |}
-                          |""".stripMargin
+         |import Keys._
+         |
+         |object AddResolverPlugin extends AutoPlugin {
+         |  override def requires = sbt.plugins.JvmPlugin
+         |  override def trigger = allRequirements
+         |
+         |  override lazy val projectSettings = Seq(resolvers += alternativeLocalResolver)
+         |  lazy val alternativeLocalResolver = Resolver.file("$altLocalRepoName", file("$altLocalRepoPath"))(Resolver.ivyStylePatterns)
+         |}
+         |""".stripMargin
     )
   }
 }
 
 def scriptedUnpublishedTask: Def.Initialize[InputTask[Unit]] = Def.inputTask {
   val result = scriptedSource(dir => (s: State) => scriptedParser(dir)).parsed
-  doScripted((fullClasspath in zincScripted in Test).value,
-             (scalaInstance in zincScripted).value,
-             scriptedSource.value,
-             result,
-             scriptedPrescripted.value)
+  doScripted(
+    (fullClasspath in zincScripted in Test).value,
+    (scalaInstance in zincScripted).value,
+    scriptedSource.value,
+    result,
+    scriptedPrescripted.value
+  )
 }
 
 lazy val publishAll = TaskKey[Unit]("publish-all")
