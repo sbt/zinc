@@ -13,6 +13,8 @@ import xsbti.UseScope
 import xsbti.api.DependencyContext._
 import xsbti.compile.analysis.Stamp
 
+import scala.collection.immutable.TreeMap
+
 /**
  * Scalacheck generators for Analysis objects and their substructures.
  * Fairly complex, as Analysis has interconnected state that can't be
@@ -59,17 +61,20 @@ object TestCaseGenerators {
 
   def genStamp: Gen[Stamp] = const(EmptyStamp)
 
-  def zipMap[A, B](a: Seq[A], b: Seq[B]): Map[A, B] = (a zip b).toMap
+  def zipMap[A, B](a: Seq[A], b: Seq[B]): Map[A, B] = a.zip(b).toMap
 
   def genStamps(rel: Relations): Gen[Stamps] = {
+    def zipTreeMap[B](a: Seq[File], b: Seq[B]): Map[File, B] = TreeMap(a.zip(b): _*)
     val prod = rel.allProducts.toList
     val src = rel.allSources.toList
     val bin = rel.allLibraryDeps.toList
+
     for {
       prodStamps <- listOfN(prod.length, genStamp)
       srcStamps <- listOfN(src.length, genStamp)
       binStamps <- listOfN(bin.length, genStamp)
-    } yield Stamps(zipMap(prod, prodStamps), zipMap(src, srcStamps), zipMap(bin, binStamps))
+    } yield
+      Stamps(zipTreeMap(prod, prodStamps), zipTreeMap(src, srcStamps), zipTreeMap(bin, binStamps))
   }
 
   private[this] val emptyStructure = new Structure(lzy(Array()), lzy(Array()), lzy(Array()))

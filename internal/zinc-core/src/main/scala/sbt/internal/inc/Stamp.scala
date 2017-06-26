@@ -16,6 +16,7 @@ import java.util.Optional
 import sbt.io.{ Hash => IOHash }
 import xsbti.compile.analysis.{ ReadStamps, Stamp }
 
+import scala.collection.immutable.TreeMap
 import scala.util.matching.Regex
 
 /**
@@ -140,7 +141,8 @@ object Stamps {
     new InitialStamps(prodStamp, srcStamp, binStamp)
 
   def empty: Stamps = {
-    val eSt = Map.empty[File, Stamp]
+    // Use a TreeMap to avoid sorting when serializing
+    val eSt = TreeMap.empty[File, Stamp]
     apply(eSt, eSt, eSt)
   }
   def apply(products: Map[File, Stamp],
