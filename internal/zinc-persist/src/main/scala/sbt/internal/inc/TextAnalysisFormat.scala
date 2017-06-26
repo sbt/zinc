@@ -17,7 +17,7 @@ import xsbti.api._
 import xsbti.compile._
 import sbt.util.InterfaceUtil
 import sbt.util.InterfaceUtil.{ jo2o, position, problem }
-import xsbti.compile.analysis.SourceInfo
+import xsbti.compile.analysis.{ SourceInfo, Stamp }
 
 // A text-based serialization format for Analysis objects.
 // This code has been tuned for high performance, and therefore has non-idiomatic areas.
@@ -151,7 +151,7 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers)
                         m: Map[File, V],
                         keyMapper: Mapper[File],
                         valueMapper: ContextAwareMapper[File, V]) = {
-        val pairsToWrite = m.keys.toSeq.sorted map (k => (k, valueMapper.write(k, m(k))))
+        val pairsToWrite = m.keys.map(k => (k, valueMapper.write(k, m(k)))).toSeq
         writePairs(out)(header, pairsToWrite, keyMapper.write, identity[String])
       }
 
@@ -167,10 +167,12 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers)
     }
 
     def read(in: BufferedReader): Stamps = {
+      import scala.collection.immutable.TreeMap
       def doReadMap[V](expectedHeader: String,
                        keyMapper: Mapper[File],
-                       valueMapper: ContextAwareMapper[File, V]) =
-        readMappedPairs(in)(expectedHeader, keyMapper.read, valueMapper.read).toMap
+                       valueMapper: ContextAwareMapper[File, V]): TreeMap[File, V] = {
+        TreeMap(readMappedPairs(in)(expectedHeader, keyMapper.read, valueMapper.read).toSeq: _*)
+      }
 
       val products = doReadMap(Headers.products, mappers.productMapper, mappers.productStampMapper)
       val sources = doReadMap(Headers.sources, mappers.sourceMapper, mappers.sourceStampMapper)
