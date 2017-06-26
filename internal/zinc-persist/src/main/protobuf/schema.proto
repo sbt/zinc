@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package sbt.internal.inc;
+
+message Hash {
+    string hash = 1;
+}
+
+message LastModified {
+    int64 millis = 1;
+}
+
+message StampType {
+    oneof type {
+        Hash hash = 1;
+        LastModified lastModified = 2;
+    }
+}
+
+message Stamps {
+    map<string, StampType> productStamps = 1;
+    map<string, StampType> binaryStamps = 2;
+    map<string, StampType> sourceStamps = 3;
+}

@@ -155,6 +155,16 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers)
         writePairs(out)(header, pairsToWrite, keyMapper.write, identity[String])
       }
 
+      import ProtobufConverters.toSchemaMap
+      val binaryStamps = toSchemaMap(stamps.binaries, mappers.binaryMapper)
+      val sourceStamps = toSchemaMap(stamps.sources, mappers.sourceMapper)
+      val productStamps = toSchemaMap(stamps.products, mappers.productMapper)
+      val toSerialize = schema
+        .Stamps()
+        .withBinaryStamps(binaryStamps)
+        .withProductStamps(productStamps)
+        .withSourceStamps(sourceStamps)
+
       doWriteMap(Headers.products,
                  stamps.products,
                  mappers.productMapper,
