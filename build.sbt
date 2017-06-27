@@ -55,7 +55,7 @@ def baseSettings: Seq[Setting[_]] =
 //   minimalSettings ++ baseScalacOptions ++ Licensed.settings ++ Formatting.settings
 
 def addBaseSettingsAndTestDeps(p: Project): Project =
-  p.settings(baseSettings).configure(addTestDependencies _)
+  p.settings(baseSettings).configure(addTestDependencies)
 
 val altLocalRepoName = "alternative-local"
 val altLocalRepoPath = sys.props("user.home") + "/.ivy2/sbt-alternative"
@@ -156,7 +156,7 @@ lazy val zinc = (project in file("zinc"))
              zincClassfile,
              zincIvyIntegration % "compile->compile;test->test",
              zincTesting % Test)
-  .configure(addBaseSettingsAndTestDeps _)
+  .configure(addBaseSettingsAndTestDeps)
   .settings(
     name := "zinc"
   )
@@ -172,22 +172,22 @@ lazy val zincTesting = (project in internalPath / "zinc-testing")
     publishArtifact := false,
     libraryDependencies ++= Seq(scalaCheck, scalatest, junit, sjsonnewScalaJson)
   )
-  .configure(addSbtLm _, addSbtUtilTesting _)
+  .configure(addSbtLm, addSbtUtilTesting)
 
 lazy val zincCompile = (project in file("zinc-compile"))
   .enablePlugins(ScalafmtPlugin)
   .dependsOn(zincCompileCore, zincCompileCore % "test->test")
-  .configure(addBaseSettingsAndTestDeps _)
+  .configure(addBaseSettingsAndTestDeps)
   .settings(
     name := "zinc Compile"
   )
-  .configure(addSbtUtilTracking _)
+  .configure(addSbtUtilTracking)
 
 // Persists the incremental data structures using SBinary
 lazy val zincPersist = (project in internalPath / "zinc-persist")
   .enablePlugins(ScalafmtPlugin)
   .dependsOn(zincCore, zincCore % "test->test")
-  .configure(addBaseSettingsAndTestDeps _)
+  .configure(addBaseSettingsAndTestDeps)
   .settings(
     name := "zinc Persist",
     libraryDependencies += sbinary
@@ -198,7 +198,7 @@ lazy val zincPersist = (project in internalPath / "zinc-persist")
 lazy val zincCore = (project in internalPath / "zinc-core")
   .enablePlugins(ScalafmtPlugin)
   .dependsOn(zincApiInfo, zincClasspath, compilerInterface, compilerBridge % Test)
-  .configure(addBaseSettingsAndTestDeps _)
+  .configure(addBaseSettingsAndTestDeps)
   .settings(
     // we need to fork because in unit tests we set usejavacp = true which means
     // we are expecting all of our dependencies to be on classpath so Scala compiler
@@ -210,7 +210,7 @@ lazy val zincCore = (project in internalPath / "zinc-core")
     name := "zinc Core",
     compileOrder := sbt.CompileOrder.Mixed
   )
-  .configure(addSbtIO _, addSbtUtilLogging _, addSbtUtilRelation _)
+  .configure(addSbtIO, addSbtUtilLogging, addSbtUtilRelation)
 
 lazy val zincBenchmarks = (project in internalPath / "zinc-benchmarks")
   .enablePlugins(ScalafmtPlugin)
@@ -237,7 +237,7 @@ lazy val zincIvyIntegration = (project in internalPath / "zinc-ivy-integration")
     name := "zinc Ivy Integration",
     compileOrder := sbt.CompileOrder.ScalaThenJava
   )
-  .configure(addSbtLm _)
+  .configure(addSbtLm)
 
 // sbt-side interface to compiler.  Calls compiler-side interface reflectively
 lazy val zincCompileCore = (project in internalPath / "zinc-compile-core")
@@ -247,13 +247,13 @@ lazy val zincCompileCore = (project in internalPath / "zinc-compile-core")
              zincApiInfo,
              zincClassfile,
              zincTesting % Test)
-  .configure(addBaseSettingsAndTestDeps _)
+  .configure(addBaseSettingsAndTestDeps)
   .settings(
     name := "zinc Compile Core",
     libraryDependencies ++= Seq(scalaCompiler.value % Test, launcherInterface, parserCombinator),
     unmanagedJars in Test := Seq(packageSrc in compilerBridge in Compile value).classpath
   )
-  .configure(addSbtUtilLogging _, addSbtIO _, addSbtUtilControl _)
+  .configure(addSbtUtilLogging, addSbtIO, addSbtUtilControl)
 
 // defines Java structures used across Scala versions, such as the API structures and relationships extracted by
 //   the analysis compiler phases and passed back to sbt.  The API structures are defined in a simple
@@ -284,7 +284,7 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface")
     autoScalaLibrary := false,
     altPublishSettings
   )
-  .configure(addSbtUtilInterface _)
+  .configure(addSbtUtilInterface)
 
 // Compiler-side interface to compiler that is compiled against the compiler being used either in advance or on the fly.
 //   Includes API and Analyzer phases that extract source API and relationships.
@@ -314,7 +314,7 @@ lazy val compilerBridge: Project = (project in internalPath / "compiler-bridge")
     }.toList),
     altPublishSettings
   )
-  .configure(addSbtIO _, addSbtUtilLogging _)
+  .configure(addSbtIO, addSbtUtilLogging)
 
 val scalaPartialVersion = Def setting (CrossVersion partialVersion scalaVersion.value)
 
@@ -325,7 +325,7 @@ def inBoth(ss: Setting[_]*): Seq[Setting[_]] = Seq(Compile, Test) flatMap (inCon
 lazy val zincApiInfo = (project in internalPath / "zinc-apiinfo")
   .enablePlugins(ScalafmtPlugin)
   .dependsOn(compilerInterface, zincClassfile % "compile;test->test")
-  .configure(addBaseSettingsAndTestDeps _)
+  .configure(addBaseSettingsAndTestDeps)
   .settings(
     name := "zinc ApiInfo",
     crossScalaVersions := compilerBridgeScalaVersions,
@@ -336,26 +336,26 @@ lazy val zincApiInfo = (project in internalPath / "zinc-apiinfo")
 lazy val zincClasspath = (project in internalPath / "zinc-classpath")
   .enablePlugins(ScalafmtPlugin)
   .dependsOn(compilerInterface)
-  .configure(addBaseSettingsAndTestDeps _)
+  .configure(addBaseSettingsAndTestDeps)
   .settings(
     name := "zinc Classpath",
     crossScalaVersions := compilerBridgeScalaVersions,
     relaxNon212,
     libraryDependencies ++= Seq(scalaCompiler.value, launcherInterface)
   )
-  .configure(addSbtIO _)
+  .configure(addSbtIO)
 
 // class file reader and analyzer
 lazy val zincClassfile = (project in internalPath / "zinc-classfile")
   .enablePlugins(ScalafmtPlugin)
   .dependsOn(compilerInterface % "compile;test->test")
-  .configure(addBaseSettingsAndTestDeps _)
+  .configure(addBaseSettingsAndTestDeps)
   .settings(
     name := "zinc Classfile",
     crossScalaVersions := compilerBridgeScalaVersions,
     relaxNon212
   )
-  .configure(addSbtIO _, addSbtUtilLogging _)
+  .configure(addSbtIO, addSbtUtilLogging)
 
 // re-implementation of scripted engine
 lazy val zincScripted = (project in internalPath / "zinc-scripted")
@@ -369,7 +369,7 @@ lazy val zincScripted = (project in internalPath / "zinc-scripted")
     publishLocal := {},
     sourceManaged in (Compile, generateContrabands) := baseDirectory.value / "src" / "main" / "contraband-scala"
   )
-  .configure(addSbtUtilScripted _)
+  .configure(addSbtUtilScripted)
 
 lazy val crossTestBridges = {
   Command.command("crossTestBridges") { state =>
