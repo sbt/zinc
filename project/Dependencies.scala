@@ -32,11 +32,7 @@ object Dependencies {
     path foreach (f => println(s"Using $name from $f"))
     path
   }
-
-  lazy val sbtIoPath = getSbtModulePath("sbtio.path", "sbt/io")
-  lazy val sbtUtilPath = getSbtModulePath("sbtutil.path", "sbt/util")
-  lazy val sbtLmPath = getSbtModulePath("sbtlm.path", "sbt/lm")
-
+  
   def addSbtModule(p: Project,
                    path: Option[String],
                    projectName: String,
@@ -44,10 +40,14 @@ object Dependencies {
                    c: Option[Configuration] = None) =
     path match {
       case Some(f) =>
-        p dependsOn c.fold[ClasspathDependency](ProjectRef(file(f), projectName))(
+        p dependsOn c.fold[ClasspathDep[ProjectReference]](ProjectRef(file(f), projectName))(
           ProjectRef(file(f), projectName) % _)
       case None => p settings (libraryDependencies += c.fold(m)(m % _))
     }
+
+  lazy val sbtIoPath = getSbtModulePath("sbtio.path", "sbt/io")
+  lazy val sbtUtilPath = getSbtModulePath("sbtutil.path", "sbt/util")
+  lazy val sbtLmPath = getSbtModulePath("sbtlm.path", "sbt/lm")
 
   def addSbtIO(p: Project): Project = addSbtModule(p, sbtIoPath, "io", sbtIO)
 
