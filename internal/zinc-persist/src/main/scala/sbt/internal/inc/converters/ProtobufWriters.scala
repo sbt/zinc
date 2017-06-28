@@ -3,7 +3,7 @@ package sbt.internal.inc.converters
 import java.io.File
 
 import sbt.internal.inc.{ Compilation, Compilations, Hash, LastModified, Mapper, schema }
-import xsbti.Position
+import xsbti.{ Position, Problem, Severity }
 import xsbti.compile.analysis.Stamp
 import xsbti.compile.{ MultipleOutput, Output, OutputGroup, SingleOutput }
 
@@ -66,6 +66,27 @@ object ProtobufWriters {
       pointerSpace = position.pointerSpace.toOption.getOrElse(MissingString),
       sourcePath = position.sourcePath.toOption.getOrElse(MissingString),
       sourceFilepath = position.sourceFile.toOption.fold(MissingString)(_.getAbsolutePath)
+    )
+  }
+
+  def toSeverity(severity: Severity): schema.Severity = {
+    severity match {
+      case Severity.Info  => schema.Severity.INFO
+      case Severity.Warn  => schema.Severity.WARN
+      case Severity.Error => schema.Severity.ERROR
+    }
+  }
+
+  def toProblem(problem: Problem): schema.Problem = {
+    val category = problem.category()
+    val message = problem.message()
+    val position = Option(toPosition(problem.position()))
+    val severity = toSeverity(problem.severity())
+    schema.Problem(
+      category = category,
+      message = message,
+      position = position,
+      severity = severity
     )
   }
 }

@@ -5,7 +5,8 @@ import java.io.File
 import sbt.internal.inc.schema
 import sbt.internal.inc.Compilations
 import sbt.internal.inc.{ ConcreteMultipleOutput, ConcreteSingleOutput, SimpleOutputGroup }
-import xsbti.Position
+import sbt.util.InterfaceUtil
+import xsbti.{ Position, Problem, Severity }
 import xsbti.compile.{ Output, OutputGroup }
 import xsbti.compile.analysis.Compilation
 
@@ -25,7 +26,7 @@ object ProtobufReaders {
         val groups = multiple.outputGroups.iterator.map(fromOutputGroup).toArray
         new ConcreteMultipleOutput(groups)
       case schema.Compilation.Output.Empty =>
-        sys.error("Expected non-empty output from protobuf.")
+        sys.error(SerializationFeedback.ExpectedNonEmptyOutput)
     }
   }
 
@@ -46,7 +47,7 @@ object ProtobufReaders {
       if (value == MissingString) None else Some(value)
     def fromInt(value: Int): Option[Integer] =
       if (value == MissingInt) None else Some(value)
-    sbt.util.InterfaceUtil.position(
+    InterfaceUtil.position(
       line0 = fromInt(position.line),
       content = position.lineContent,
       offset0 = fromInt(position.offset),
@@ -55,5 +56,23 @@ object ProtobufReaders {
       sourcePath0 = fromString(position.sourcePath),
       sourceFile0 = fromString(position.sourceFilepath).map(new File(_))
     )
+  }
+
+  def fromSeverity(severity: schema.Severity): Severity = {
+    severity match {
+      case schema.Severity.INFO  => Severity.Info
+      case schema.Severity.WARN  => Severity.Warn
+      case schema.Severity.ERROR => Severity.Error
+    }
+  }
+
+  def fromProblem(problem: schema.Problem): Problem = {
+    val category = problem.category
+    val message = problem.message
+    val severity = fromSeverity(problem.severity)
+    val position = problem.position
+      .map(fromPosition)
+      .getOrElse(sys.error(SerializationFeedback.ExpectedPositionInProblem))
+    InterfaceUtil.problem(category, position, message, severity)
   }
 }
