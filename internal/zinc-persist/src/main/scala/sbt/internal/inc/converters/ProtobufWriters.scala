@@ -4,7 +4,7 @@ import java.io.File
 
 import sbt.internal.inc.{ Compilation, Compilations, Hash, LastModified, Mapper, schema }
 import xsbti.{ Position, Problem, Severity }
-import xsbti.compile.analysis.Stamp
+import xsbti.compile.analysis.{ SourceInfo, Stamp }
 import xsbti.compile.{ MultipleOutput, Output, OutputGroup, SingleOutput }
 
 object ProtobufWriters {
@@ -87,6 +87,17 @@ object ProtobufWriters {
       message = message,
       position = position,
       severity = severity
+    )
+  }
+
+  def toSourceInfo(sourceInfo: SourceInfo): schema.SourceInfo = {
+    val mainClasses = sourceInfo.getMainClasses
+    val reportedProblems = sourceInfo.getReportedProblems.map(toProblem).toSeq
+    val unreportedProblems = sourceInfo.getUnreportedProblems.map(toProblem).toSeq
+    schema.SourceInfo(
+      reportedProblems = reportedProblems,
+      unreportedProblems = unreportedProblems,
+      mainClasses = mainClasses
     )
   }
 }
