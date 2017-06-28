@@ -2,13 +2,18 @@ package sbt.internal.inc.converters
 
 import java.io.File
 
-import sbt.internal.inc.schema
-import sbt.internal.inc.Compilations
-import sbt.internal.inc.{ ConcreteMultipleOutput, ConcreteSingleOutput, SimpleOutputGroup }
+import sbt.internal.inc.{
+  Compilations,
+  ConcreteMultipleOutput,
+  ConcreteSingleOutput,
+  SimpleOutputGroup,
+  SourceInfos,
+  schema
+}
 import sbt.util.InterfaceUtil
 import xsbti.{ Position, Problem, Severity }
 import xsbti.compile.{ Output, OutputGroup }
-import xsbti.compile.analysis.Compilation
+import xsbti.compile.analysis.{ Compilation, SourceInfo }
 
 object ProtobufReaders {
   def fromOutputGroup(outputGroup: schema.OutputGroup): OutputGroup = {
@@ -74,5 +79,14 @@ object ProtobufReaders {
       .map(fromPosition)
       .getOrElse(sys.error(SerializationFeedback.ExpectedPositionInProblem))
     InterfaceUtil.problem(category, position, message, severity)
+  }
+
+  def fromSourceInfo(sourceInfo: schema.SourceInfo): SourceInfo = {
+    val mainClasses = sourceInfo.mainClasses
+    val reportedProblems = sourceInfo.reportedProblems.map(fromProblem)
+    val unreportedProblems = sourceInfo.unreportedProblems.map(fromProblem)
+    SourceInfos.makeInfo(reported = reportedProblems,
+                         unreported = unreportedProblems,
+                         mainClasses = mainClasses)
   }
 }
