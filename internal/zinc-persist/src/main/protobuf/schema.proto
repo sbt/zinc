@@ -89,3 +89,32 @@ message Compilation {
 message Compilations {
     repeated Compilation compilations = 1;
 }
+
+enum Severity {
+    INFO = 0;
+    WARN = 1;
+    ERROR = 2;
+}
+
+message Position {
+    int32 line = 1;
+    int32 offset = 2;
+    string lineContent = 3;
+    int32 pointer = 4;
+    string pointerSpace = 5;
+    string sourcePath = 6;
+    string sourceFilepath = 7;
+}
+
+message Problem {
+    string category = 1;
+    Severity severity = 2;
+    string message = 3;
+    Position position = 4;
+}
+
+message SourceInfo {
+    repeated Problem reportedProblems = 1;
+    repeated Problem unreportedProblems = 2;
+    repeated string mainClasses = 3;
+}

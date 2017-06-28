@@ -5,6 +5,7 @@ import java.io.File
 import sbt.internal.inc.schema
 import sbt.internal.inc.Compilations
 import sbt.internal.inc.{ ConcreteMultipleOutput, ConcreteSingleOutput, SimpleOutputGroup }
+import xsbti.Position
 import xsbti.compile.{ Output, OutputGroup }
 import xsbti.compile.analysis.Compilation
 
@@ -37,5 +38,22 @@ object ProtobufReaders {
     val compilations = compilations0.compilations.map(fromCompilation).toList
     val castedCompilations = compilations.map { case c: sbt.internal.inc.Compilation => c }
     Compilations.make(castedCompilations)
+  }
+
+  def fromPosition(position: schema.Position): Position = {
+    import CommonData.{ MissingString, MissingInt }
+    def fromString(value: String): Option[String] =
+      if (value == MissingString) None else Some(value)
+    def fromInt(value: Int): Option[Integer] =
+      if (value == MissingInt) None else Some(value)
+    sbt.util.InterfaceUtil.position(
+      line0 = fromInt(position.line),
+      content = position.lineContent,
+      offset0 = fromInt(position.offset),
+      pointer0 = fromInt(position.pointer),
+      pointerSpace0 = fromString(position.pointerSpace),
+      sourcePath0 = fromString(position.sourcePath),
+      sourceFile0 = fromString(position.sourceFilepath).map(new File(_))
+    )
   }
 }
