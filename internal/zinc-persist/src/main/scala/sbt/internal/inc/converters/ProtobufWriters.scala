@@ -54,4 +54,18 @@ object ProtobufWriters {
     val compilations = compilations0.allCompilations.map(toCompilation)
     schema.Compilations(compilations = compilations)
   }
+
+  import CommonData.{ MissingString, MissingInt }
+  import sbt.internal.inc.JavaInterfaceUtil._
+  def toPosition(position: Position): schema.Position = {
+    schema.Position(
+      line = position.line.toOption.fold(MissingInt)(_.toInt),
+      offset = position.offset.toOption.fold(MissingInt)(_.toInt),
+      lineContent = position.lineContent,
+      pointer = position.pointer.toOption.fold(MissingInt)(_.toInt),
+      pointerSpace = position.pointerSpace.toOption.getOrElse(MissingString),
+      sourcePath = position.sourcePath.toOption.getOrElse(MissingString),
+      sourceFilepath = position.sourceFile.toOption.fold(MissingString)(_.getAbsolutePath)
+    )
+  }
 }
