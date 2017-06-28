@@ -11,6 +11,7 @@ package inc
 
 import java.io._
 
+import sbt.internal.inc.converters.ProtobufWriters
 import xsbti.T2
 import xsbti.UseScope
 import xsbti.api._
@@ -155,7 +156,7 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers)
         writePairs(out)(header, pairsToWrite, keyMapper.write, identity[String])
       }
 
-      import ProtobufConverters.toSchemaMap
+      import sbt.internal.inc.converters.ProtobufWriters.toSchemaMap
       val binaryStamps = toSchemaMap(stamps.binaries, mappers.binaryMapper)
       val sourceStamps = toSchemaMap(stamps.sources, mappers.sourceMapper)
       val productStamps = toSchemaMap(stamps.products, mappers.productMapper)
@@ -375,20 +376,12 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers)
       val output = outputDirMode match {
         case Some(s) =>
           s match {
-            case `singleOutputMode` =>
-              new SingleOutput { val getOutputDirectory = outputAsMap.values.head }
+            case `singleOutputMode` => new ConcreteSingleOutput(outputAsMap.values.head)
             case `multipleOutputMode` =>
-              new MultipleOutput {
-                val getOutputGroups: Array[OutputGroup] = outputAsMap.toArray.map {
-                  case (src: File, out: File) =>
-                    new OutputGroup {
-                      val getSourceDirectory = src
-                      val getOutputDirectory = out
-                      override def toString = s"OutputGroup($src -> $out)"
-                    }
-                }
-                override def toString = s"MultipleOutput($getOutputGroups)"
+              val groups = outputAsMap.iterator.map {
+                case (src: File, out: File) => new SimpleOutputGroup(src, out)
               }
+              new ConcreteMultipleOutput(groups.toArray)
             case str: String => throw new ReadException("Unrecognized output mode: " + str)
           }
         case None => throw new ReadException("No output mode specified")

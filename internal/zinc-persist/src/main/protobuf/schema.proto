@@ -64,3 +64,28 @@ message AnnotationArgument {
     string name = 1;
     string value = 2;
 }
+
+message OutputGroup {
+    string source = 1;
+    string target = 2;
+}
+
+message MultipleOutput {
+    repeated OutputGroup outputGroups = 1;
+}
+
+message SingleOutput {
+    string target = 1;
+}
+
+message Compilation {
+    int64 startTime = 1;
+    oneof Output {
+        SingleOutput singleOutput = 2;
+        MultipleOutput multipleOutput = 3;
+    }
+}
+
+message Compilations {
+    repeated Compilation compilations = 1;
+}
