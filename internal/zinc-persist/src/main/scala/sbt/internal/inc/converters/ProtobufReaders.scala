@@ -8,14 +8,38 @@ import sbt.internal.inc.{
   ConcreteSingleOutput,
   SimpleOutputGroup,
   SourceInfos,
+  Stamps,
   schema
 }
 import sbt.util.InterfaceUtil
 import xsbti.{ Position, Problem, Severity }
 import xsbti.compile.{ Output, OutputGroup }
-import xsbti.compile.analysis.{ Compilation, SourceInfo }
+import xsbti.compile.analysis.{ Compilation, SourceInfo, Stamp }
 
 object ProtobufReaders {
+  def fromStampType(stampType: schema.Stamps.StampType): Stamp = {
+    import sbt.internal.inc.{ EmptyStamp, LastModified, Hash }
+    stampType.`type` match {
+      case schema.Stamps.StampType.Type.Empty            => EmptyStamp
+      case schema.Stamps.StampType.Type.Hash(h)          => new Hash(h.hash)
+      case schema.Stamps.StampType.Type.LastModified(lm) => new LastModified(lm.millis)
+      // ^ NOTE: Double check that we recompute millis when reading this in certain conditions
+    }
+  }
+
+  def fromStamps(stamps: schema.Stamps): Stamps = {
+    def fromSchemaMap(stamps: Map[String, schema.Stamps.StampType]): Map[File, Stamp] =
+      stamps.map(kv => new File(kv._1) -> fromStampType(kv._2))
+    val binaries = fromSchemaMap(stamps.binaryStamps)
+    val sources = fromSchemaMap(stamps.sourceStamps)
+    val products = fromSchemaMap(stamps.productStamps)
+    Stamps(
+      binaries = binaries,
+      sources = sources,
+      products = products
+    )
+  }
+
   def fromOutputGroup(outputGroup: schema.OutputGroup): OutputGroup = {
     val source = new File(outputGroup.source)
     val target = new File(outputGroup.target)
