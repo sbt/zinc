@@ -22,3 +22,45 @@ message Stamps {
     map<string, StampType> binaryStamps = 2;
     map<string, StampType> sourceStamps = 3;
 }
+
+enum DefinitionType {
+    TRAIT = 0;
+    CLASSDEF = 1;
+    MODULE = 2;
+    PACKAGEMODULE = 3;
+}
+
+message This {}
+
+message Id {
+    string id = 1;
+}
+
+
+message Super {
+    message PartialPath {
+        oneof path {
+            Id id = 1;
+            This this = 2;
+        }
+    }
+
+    PartialPath qualifier = 3;
+}
+
+message Path {
+    message PathComponent {
+        oneof Component {
+            Id id = 1;
+            This this = 2;
+            Super super = 3;
+        }
+    }
+
+    repeated PathComponent components = 1;
+}
+
+message AnnotationArgument {
+    string name = 1;
+    string value = 2;
+}
