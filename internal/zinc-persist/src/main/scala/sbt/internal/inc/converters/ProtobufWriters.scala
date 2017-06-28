@@ -2,15 +2,14 @@ package sbt.internal.inc.converters
 
 import java.io.File
 
-import sbt.internal.inc.{ Compilation, Compilations, Hash, LastModified, Mapper, schema }
+import sbt.internal.inc.{ Compilation, Compilations, Hash, LastModified, Mapper, Stamps, schema }
 import xsbti.{ Position, Problem, Severity }
 import xsbti.compile.analysis.{ SourceInfo, Stamp }
 import xsbti.compile.{ MultipleOutput, Output, OutputGroup, SingleOutput }
 
 object ProtobufWriters {
-
-  def toSchema(stamp: Stamp): schema.StampType = {
-    val s0 = schema.StampType()
+  def toStampType(stamp: Stamp): schema.Stamps.StampType = {
+    val s0 = schema.Stamps.StampType()
     stamp match {
       case hash: Hash       => s0.withHash(schema.Hash(hash = hash.hexHash))
       case lm: LastModified => s0.withLastModified(schema.LastModified(millis = lm.value))
@@ -18,9 +17,19 @@ object ProtobufWriters {
     }
   }
 
-  def toSchemaMap(data: Map[File, Stamp],
-                  fileMapper: Mapper[File]): Map[String, schema.StampType] =
-    data.map(kv => fileMapper.write(kv._1) -> toSchema(kv._2))
+  def toStamps(stamps: Stamps): schema.Stamps = {
+    def toSchemaMap(data: Map[File, Stamp]): Map[String, schema.Stamps.StampType] =
+      data.map(kv => kv._1.getAbsolutePath -> toStampType(kv._2))
+
+    val binaryStamps = toSchemaMap(stamps.binaries)
+    val sourceStamps = toSchemaMap(stamps.sources)
+    val productStamps = toSchemaMap(stamps.products)
+    schema.Stamps(
+      binaryStamps = binaryStamps,
+      sourceStamps = sourceStamps,
+      productStamps = productStamps
+    )
+  }
 
   def toOutputGroup(outputGroup: OutputGroup): schema.OutputGroup = {
     val sourcePath = outputGroup.getSourceDirectory.getAbsolutePath
