@@ -15,7 +15,7 @@ import sbt.util.InterfaceUtil
 import xsbti.{ Position, Problem, Severity, T2 }
 import xsbti.compile.{ CompileOrder, FileHash, MiniOptions, MiniSetup, Output, OutputGroup }
 import xsbti.compile.analysis.{ Compilation, SourceInfo, Stamp }
-import sbt.internal.inc.converters.Feedback.{ Readers => ReadersFeedback }
+import sbt.internal.inc.converters.ProtobufDefaults.Feedback.{ Readers => ReadersFeedback }
 
 object ProtobufReaders {
   def fromStampType(stampType: schema.Stamps.StampType): Stamp = {
@@ -24,7 +24,7 @@ object ProtobufReaders {
       case schema.Stamps.StampType.Type.Empty            => EmptyStamp
       case schema.Stamps.StampType.Type.Hash(h)          => new Hash(h.hash)
       case schema.Stamps.StampType.Type.LastModified(lm) => new LastModified(lm.millis)
-      // ^ NOTE: Double check that we recompute millis when reading this in certain conditions
+      // ^ TODO: Double check that we recompute millis when reading this in certain conditions
     }
   }
 
@@ -73,7 +73,7 @@ object ProtobufReaders {
   }
 
   def fromPosition(position: schema.Position): Position = {
-    import CommonData.{ MissingString, MissingInt }
+    import ProtobufDefaults.{ MissingString, MissingInt }
     def fromString(value: String): Option[String] =
       if (value == MissingString) None else Some(value)
     def fromInt(value: Int): Option[Integer] =

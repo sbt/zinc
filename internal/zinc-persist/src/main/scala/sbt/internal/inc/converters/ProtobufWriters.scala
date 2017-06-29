@@ -5,7 +5,7 @@ import java.io.File
 import sbt.internal.inc.{ Compilation, Compilations, Hash, LastModified, Stamps, schema }
 import xsbti.{ Position, Problem, Severity, T2 }
 import xsbti.compile.analysis.{ SourceInfo, Stamp }
-import sbt.internal.inc.converters.Feedback.{ Writers => WritersFeedback }
+import sbt.internal.inc.converters.ProtobufDefaults.Feedback.{ Writers => WritersFeedback }
 import xsbti.api.{ Private, _ }
 import xsbti.compile.{
   CompileOrder,
@@ -74,7 +74,7 @@ object ProtobufWriters {
     schema.Compilations(compilations = compilations)
   }
 
-  import CommonData.{ MissingString, MissingInt }
+  import ProtobufDefaults.{ MissingString, MissingInt }
   import sbt.internal.inc.JavaInterfaceUtil._
   def toPosition(position: Position): schema.Position = {
     schema.Position(
