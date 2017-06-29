@@ -291,3 +291,29 @@ message ClassLike {
     repeated TypeParameter typeParameters = 7;
 }
 
+message Companions {
+    ClassLike classApi = 1;
+    ClassLike objectApi = 2;
+}
+
+enum UseScope {
+    DEFAULT = 0;
+    IMPLICIT = 1;
+    PATMAT = 2;
+}
+
+message NameHash {
+    string name = 1;
+    UseScope scope = 2;
+    int32 hash = 3;
+}
+
+message AnalyzedClass {
+    int64 compilationTimestamp = 1;
+    string name = 2;
+    Companions api = 3;
+    int32 apiHash = 4;
+    repeated NameHash nameHashes = 5;
+    bool hasMacro = 6;
+}
+
