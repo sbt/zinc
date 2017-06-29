@@ -16,7 +16,8 @@ import xsbti.{ Position, Problem, Severity, T2 }
 import xsbti.compile.{ CompileOrder, FileHash, MiniOptions, MiniSetup, Output, OutputGroup }
 import xsbti.compile.analysis.{ Compilation, SourceInfo, Stamp }
 import sbt.internal.inc.converters.ProtobufDefaults.Feedback.{ Readers => ReadersFeedback }
-import xsbti.api.{ Id, Path, PathComponent, Super, This }
+import sbt.internal.inc.converters.ProtobufDefaults.Classes._
+import xsbti.api._
 
 object ProtobufReaders {
   def fromStampType(stampType: schema.Stamps.StampType): Stamp = {
@@ -174,19 +175,105 @@ object ProtobufReaders {
       seq.iterator.map(f).toArray
   }
 
+  implicit class OptionReader[T](option: Option[T]) {
+    def read[R](from: T => R, errorMessage: => String) =
+      option.fold(sys.error(errorMessage))(from)
+  }
+
   def fromPath(path: schema.Path): Path = {
     def fromPathComponent(pathComponent: schema.Path.PathComponent): PathComponent = {
-      def readQualifier(path: Option[schema.Path]): Path =
-        path.fold(sys.error(ReadersFeedback.MissingPathInSuper))(fromPath)
+      import ReadersFeedback.MissingPathInSuper
       import schema.Path.{ PathComponent => SchemaPath }
       import SchemaPath.{ Component => SchemaComponent }
       pathComponent.component match {
         case SchemaComponent.Id(c)    => new Id(c.id)
-        case SchemaComponent.Super(c) => new Super(readQualifier(c.qualifier))
+        case SchemaComponent.Super(c) => new Super(c.qualifier.read(fromPath, MissingPathInSuper))
         case SchemaComponent.This(c)  => ProtobufDefaults.This
       }
     }
     val components = path.components.toZincArray(fromPathComponent)
     new Path(components)
   }
+
+  def fromAnnotation(annotation: schema.Annotation): Annotation = {
+    def fromAnnotationArgument(argument: schema.AnnotationArgument): AnnotationArgument = {
+      val name = argument.name
+      val value = argument.value
+      new AnnotationArgument(name, value)
+    }
+
+    val arguments = annotation.arguments.toZincArray(fromAnnotationArgument)
+    val base = annotation.base.read(fromType, ReadersFeedback.missingBaseIn(AnnotationClazz))
+    new Annotation(base, arguments)
+  }
+
+  def fromType(`type`: schema.Type): Type = {
+    def fromParameterRef(tpe: schema.Type.ParameterRef): ParameterRef = {
+      new ParameterRef(tpe.id)
+    }
+
+    def fromParameterized(tpe: schema.Type.Parameterized): Parameterized = {
+      val baseType = tpe.baseType.read(fromType, ReadersFeedback.missingBaseIn(ParameterizedClazz))
+      val typeArguments = tpe.typeArguments.toZincArray(fromType)
+      new Parameterized(baseType, typeArguments)
+    }
+
+    def fromStructure(tpe: schema.Type.Structure): Structure = {
+      def `lazy`[T](value: T): Lazy[T] = SafeLazyProxy.strict(value)
+      val parents = `lazy`(tpe.parents.toZincArray(fromType))
+      val declared = `lazy`(tpe.declared.toZincArray(fromClassDefinition))
+      val inherited = `lazy`(tpe.inherited.toZincArray(fromClassDefinition))
+      new Structure(parents, declared, inherited)
+    }
+
+    def fromPolymorphic(tpe: schema.Type.Polymorphic): Polymorphic = {
+      val baseType = tpe.baseType.read(fromType, ReadersFeedback.missingBaseIn(PolymorphicClazz))
+      val typeParameters = tpe.typeParameters.toZincArray(fromTypeParameter)
+      new Polymorphic(baseType, typeParameters)
+    }
+
+    def fromConstant(tpe: schema.Type.Constant): Constant = {
+      val baseType = tpe.baseType.read(fromType, ReadersFeedback.missingBaseIn(ConstantClazz))
+      val value = tpe.value
+      new Constant(baseType, value)
+    }
+
+    def fromExistential(tpe: schema.Type.Existential): Existential = {
+      val baseType = tpe.baseType.read(fromType, ReadersFeedback.missingBaseIn(ExistentialClazz))
+      val clause = tpe.clause.toZincArray(fromTypeParameter)
+      new Existential(baseType, clause)
+    }
+
+    def fromSingleton(tpe: schema.Type.Singleton): Singleton = {
+      val path = tpe.path.read(fromPath, ReadersFeedback.MissingPathInSingleton)
+      new Singleton(path)
+    }
+
+    def fromProjection(tpe: schema.Type.Projection): Projection = {
+      val id = tpe.id
+      val prefix = tpe.prefix.read(fromType, ReadersFeedback.MissingPrefixInProjection)
+      new Projection(prefix, id)
+    }
+
+    def fromAnnotated(tpe: schema.Type.Annotated): Annotated = {
+      val baseType = tpe.baseType.read(fromType, ReadersFeedback.missingBaseIn(AnnotatedClazz))
+      val annotations = tpe.annotations.toZincArray(fromAnnotation)
+      new Annotated(baseType, annotations)
+    }
+
+    `type`.value match {
+      case schema.Type.Value.ParameterRef(tpe)  => fromParameterRef(tpe)
+      case schema.Type.Value.Parameterized(tpe) => fromParameterized(tpe)
+      case schema.Type.Value.Structure(tpe)     => fromStructure(tpe)
+      case schema.Type.Value.Polymorphic(tpe)   => fromPolymorphic(tpe)
+      case schema.Type.Value.Constant(tpe)      => fromConstant(tpe)
+      case schema.Type.Value.Existential(tpe)   => fromExistential(tpe)
+      case schema.Type.Value.Singleton(tpe)     => fromSingleton(tpe)
+      case schema.Type.Value.Projection(tpe)    => fromProjection(tpe)
+      case schema.Type.Value.Annotated(tpe)     => fromAnnotated(tpe)
+    }
+  }
+
+  def fromClassDefinition(classDefinition: schema.ClassDefinition): ClassDefinition = ???
+  def fromTypeParameter(typeParameter: schema.TypeParameter): TypeParameter = ???
 }
