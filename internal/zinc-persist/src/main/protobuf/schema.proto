@@ -167,11 +167,6 @@ enum Variance {
     Covariant = 2;
 }
 
-message ParameterRef {
-    string id = 1;
-}
-
-
 message ThisQualifier {}
 
 message Unqualified {}
