@@ -119,13 +119,6 @@ message MiniSetup {
 /////////////////////////////////////////// BRIDGE API ////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
-enum DefinitionType {
-    TRAIT = 0;
-    CLASSDEF = 1;
-    MODULE = 2;
-    PACKAGEMODULE = 3;
-}
-
 message This {}
 
 message Id {
@@ -280,4 +273,21 @@ message ClassDefinition {
     repeated Annotation annotations = 4;
 }
 
+
+enum DefinitionType {
+    TRAIT = 0;
+    CLASSDEF = 1;
+    MODULE = 2;
+    PACKAGEMODULE = 3;
+}
+
+message ClassLike {
+    DefinitionType definitionType = 1;
+    Type selfType = 2;
+    Type.Structure structure = 3;
+    repeated string savedAnnotations = 4;
+    repeated Type childrenOfSealedClass = 5;
+    bool topLevel = 6;
+    repeated TypeParameter typeParameters = 7;
+}
 
