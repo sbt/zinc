@@ -45,7 +45,7 @@ trait Lookup extends ExternalLookup {
 }
 
 trait ExternalLookup extends ExternalHooks.Lookup {
-  import sbt.internal.inc.JavaInterfaceUtil.PimpOption
+  import sbt.internal.inc.JavaInterfaceUtil.EnrichOption
   import scala.collection.JavaConverters._
 
   /**
