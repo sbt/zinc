@@ -232,9 +232,9 @@ message Type {
     }
 
     message Structure {
-        Type parents = 1;
-        ClassDefinition declared = 2;
-        ClassDefinition inherited = 3;
+        repeated Type parents = 1;
+        repeated ClassDefinition declared = 2;
+        repeated ClassDefinition inherited = 3;
     }
 
     message Singleton {
