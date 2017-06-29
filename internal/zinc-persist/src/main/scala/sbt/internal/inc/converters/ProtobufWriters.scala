@@ -6,6 +6,7 @@ import sbt.internal.inc.{ Compilation, Compilations, Hash, LastModified, Stamps,
 import xsbti.{ Position, Problem, Severity, T2 }
 import xsbti.compile.analysis.{ SourceInfo, Stamp }
 import sbt.internal.inc.converters.Feedback.{ Writers => WritersFeedback }
+import xsbti.api._
 import xsbti.compile.{
   CompileOrder,
   FileHash,
@@ -178,6 +179,122 @@ object ProtobufWriters {
       compileOrder = compileOrder,
       storeApis = storeApis,
       extra = extra
+    )
+  }
+
+  def toPath(path: Path): schema.Path = {
+    def toPathComponents(pathComponent: PathComponent): schema.Path.PathComponent = {
+      import schema.Path.{ PathComponent => SchemaPath }
+      import SchemaPath.{ Component => SchemaComponent }
+      val component = pathComponent match {
+        case c: Id    => SchemaComponent.Id(schema.Id(id = c.id))
+        case c: Super => SchemaComponent.Super(schema.Super(qualifier = Some(toPath(c.qualifier))))
+        case c: This  => SchemaComponent.This(schema.This.defaultInstance)
+      }
+      SchemaPath(component = component)
+    }
+    val components = path.components().iterator.map(toPathComponents).toList
+    schema.Path(components = components)
+  }
+
+  def toAnnotation(annotation: Annotation): schema.Annotation = {
+    def toAnnotationArgument(annotationArgument: AnnotationArgument): schema.AnnotationArgument = {
+      val name = annotationArgument.name()
+      val value = annotationArgument.value()
+      schema.AnnotationArgument(name = name, value = value)
+    }
+
+    val arguments = annotation.arguments().iterator.map(toAnnotationArgument).toList
+    val base = Some(toType(annotation.base()))
+    schema.Annotation(base = base, arguments = arguments)
+  }
+
+  def toType(`type`: Type): schema.Type = {
+    def toExistential(tpe: Existential): schema.Type.Existential = {
+      val baseType = Some(toType(tpe.baseType()))
+      val clause = tpe.clause().iterator.map(toTypeParameter).toList
+      schema.Type.Existential(baseType = baseType, clause = clause)
+    }
+
+    def toProjection(tpe: Projection): schema.Type.Projection = {
+      val id = tpe.id()
+      val prefix = Some(toType(tpe.prefix()))
+      schema.Type.Projection(id = id, prefix = prefix)
+    }
+
+    def toPolymorphic(tpe: Polymorphic): schema.Type.Polymorphic = {
+      val baseType = Some(toType(tpe.baseType()))
+      val parameters = tpe.parameters().iterator.map(toTypeParameter).toList
+      schema.Type.Polymorphic(baseType = baseType, typeParameters = parameters)
+    }
+
+    def toParameterRef(tpe: ParameterRef): schema.Type.ParameterRef = {
+      schema.Type.ParameterRef(id = tpe.id())
+    }
+
+    def toParameterized(tpe: Parameterized): schema.Type.Parameterized = {
+      val baseType = Some(toType(tpe.baseType()))
+      val typeArguments = tpe.typeArguments().iterator.map(toType).toList
+      schema.Type.Parameterized(baseType = baseType, typeArguments = typeArguments)
+    }
+
+    def toSingleton(tpe: Singleton): schema.Type.Singleton = {
+      val path = Some(toPath(tpe.path()))
+      schema.Type.Singleton(path = path)
+    }
+
+    def toConstant(tpe: Constant): schema.Type.Constant = {
+      val baseType = Some(toType(tpe.baseType()))
+      val value = tpe.value()
+      schema.Type.Constant(baseType = baseType, value = value)
+    }
+
+    def toAnnotated(tpe: Annotated): schema.Type.Annotated = {
+      val annotations = tpe.annotations().iterator.map(toAnnotation).toList
+      val baseType = Some(toType(tpe.baseType()))
+      schema.Type.Annotated(baseType = baseType, annotations = annotations)
+    }
+
+    // Provide this when `ClassDefinition` writers exist
+    def toStructure(tpe: Structure): schema.Type.Structure = ???
+
+    val schemaType = `type` match {
+      case tpe: ParameterRef  => schema.Type.Value.ParameterRef(value = toParameterRef(tpe))
+      case tpe: Parameterized => schema.Type.Value.Parameterized(value = toParameterized(tpe))
+      case tpe: Structure     => schema.Type.Value.Structure(value = toStructure(tpe))
+      case tpe: Polymorphic   => schema.Type.Value.Polymorphic(value = toPolymorphic(tpe))
+      case tpe: Constant      => schema.Type.Value.Constant(value = toConstant(tpe))
+      case tpe: Existential   => schema.Type.Value.Existential(value = toExistential(tpe))
+      case tpe: Singleton     => schema.Type.Value.Singleton(value = toSingleton(tpe))
+      case tpe: Projection    => schema.Type.Value.Projection(value = toProjection(tpe))
+      case tpe: Annotated     => schema.Type.Value.Annotated(value = toAnnotated(tpe))
+    }
+
+    schema.Type(value = schemaType)
+  }
+
+  def toTypeParameter(typeParameter: TypeParameter): schema.TypeParameter = {
+    def toVariance(variance: Variance): schema.Variance = {
+      variance match {
+        case Variance.Invariant     => schema.Variance.INVARIANT
+        case Variance.Covariant     => schema.Variance.COVARIANT
+        case Variance.Contravariant => schema.Variance.CONTRAVARIANT
+      }
+    }
+
+    val id = typeParameter.id()
+    val annotations = typeParameter.annotations().map(toAnnotation)
+    val typeParameters = typeParameter.typeParameters().map(toTypeParameter)
+    val variance = toVariance(typeParameter.variance())
+    val lowerBound = Some(toType(typeParameter.lowerBound()))
+    val upperBound = Some(toType(typeParameter.upperBound()))
+    schema.TypeParameter(
+      id = id,
+      annotations = annotations,
+      typeParameters = typeParameters,
+      variance = variance,
+      lowerBound = lowerBound,
+      upperBound = upperBound
     )
   }
 }

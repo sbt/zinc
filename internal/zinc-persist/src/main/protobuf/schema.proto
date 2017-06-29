@@ -127,14 +127,7 @@ message Id {
 
 
 message Super {
-    message PartialPath {
-        oneof path {
-            Id id = 1;
-            This this = 2;
-        }
-    }
-
-    PartialPath qualifier = 3;
+    Path qualifier = 1;
 }
 
 message Path {
@@ -155,9 +148,9 @@ message AnnotationArgument {
 }
 
 enum Variance {
-    Invariant = 0;
-    Contravariant = 1;
-    Covariant = 2;
+    INVARIANT = 0;
+    CONTRAVARIANT = 1;
+    COVARIANT = 2;
 }
 
 message ThisQualifier {}
@@ -215,7 +208,7 @@ message Type {
 
     message Polymorphic {
         Type baseType = 1;
-        repeated TypeParameter typeParameter = 2;
+        repeated TypeParameter typeParameters = 2;
     }
 
     message Parameterized {
@@ -227,8 +220,6 @@ message Type {
         Type baseType = 1;
         repeated TypeParameter clause = 2;
     }
-
-    message EmptyType {}
 
     message Constant {
         Type baseType = 1;
@@ -249,6 +240,18 @@ message Type {
     message Singleton {
         Path path = 1;
     }
+
+    oneof Value {
+        ParameterRef parameterRef = 1;
+        Parameterized parameterized = 2;
+        Structure structure = 3;
+        Polymorphic polymorphic = 4;
+        Constant constant = 5;
+        Existential existential = 6;
+        Singleton singleton = 7;
+        Projection projection = 8;
+        Annotated annotated = 9;
+    }
 }
 
 message Annotation {
@@ -258,7 +261,7 @@ message Annotation {
 
 message TypeParameter {
     string id = 1;
-    repeated Annotation annotation = 2;
+    repeated Annotation annotations = 2;
     repeated TypeParameter typeParameters = 3;
     Variance variance = 4;
     Type lowerBound = 5;
