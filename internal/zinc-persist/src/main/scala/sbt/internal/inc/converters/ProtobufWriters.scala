@@ -2,10 +2,20 @@ package sbt.internal.inc.converters
 
 import java.io.File
 
-import sbt.internal.inc.{ Compilation, Compilations, Hash, LastModified, Mapper, Stamps, schema }
-import xsbti.{ Position, Problem, Severity }
+import sbt.internal.inc.{ Compilation, Compilations, Hash, LastModified, Stamps, schema }
+import xsbti.{ Position, Problem, Severity, T2 }
 import xsbti.compile.analysis.{ SourceInfo, Stamp }
-import xsbti.compile.{ MultipleOutput, Output, OutputGroup, SingleOutput }
+import sbt.internal.inc.converters.Feedback.{ Writers => WritersFeedback }
+import xsbti.compile.{
+  CompileOrder,
+  FileHash,
+  MiniOptions,
+  MiniSetup,
+  MultipleOutput,
+  Output,
+  OutputGroup,
+  SingleOutput
+}
 
 object ProtobufWriters {
   def toStampType(stamp: Stamp): schema.Stamps.StampType = {
@@ -37,7 +47,7 @@ object ProtobufWriters {
     schema.OutputGroup(source = sourcePath, target = targetPath)
   }
 
-  def toOutput(output: Output): schema.Compilation.Output = {
+  def toCompilationOutput(output: Output): schema.Compilation.Output = {
     import schema.Compilation.{ Output => CompilationOutput }
     output match {
       case single0: SingleOutput =>
@@ -48,14 +58,13 @@ object ProtobufWriters {
         val groups = multiple0.getOutputGroups.iterator.map(toOutputGroup).toList
         val multiple = schema.MultipleOutput(outputGroups = groups)
         CompilationOutput.MultipleOutput(multiple)
-      case unknown =>
-        sys.error("Expected `Output` to be either `SingleOutput` or `MultipleOutput`.")
+      case unknown => sys.error(WritersFeedback.ExpectedNonEmptyOutput)
     }
   }
 
   def toCompilation(compilation: Compilation): schema.Compilation = {
     val startTime = compilation.getStartTime
-    val output = toOutput(compilation.getOutput)
+    val output = toCompilationOutput(compilation.getOutput)
     schema.Compilation(startTime = startTime, output = output)
   }
 
@@ -107,6 +116,68 @@ object ProtobufWriters {
       reportedProblems = reportedProblems,
       unreportedProblems = unreportedProblems,
       mainClasses = mainClasses
+    )
+  }
+
+  def toFileHash(fileHash: FileHash): schema.FileHash = {
+    schema.FileHash(
+      path = fileHash.file.getAbsolutePath,
+      hash = fileHash.hash
+    )
+  }
+
+  def toMiniOptions(miniOptions: MiniOptions): schema.MiniOptions = {
+    val classpathHash = miniOptions.classpathHash.map(toFileHash)
+    val javacOptions = miniOptions.javacOptions()
+    val scalacOptions = miniOptions.scalacOptions()
+    schema.MiniOptions(
+      classpathHash = classpathHash,
+      javacOptions = javacOptions,
+      scalacOptions = scalacOptions
+    )
+  }
+
+  def toCompileOrder(compileOrder: CompileOrder): schema.CompileOrder = {
+    compileOrder match {
+      case CompileOrder.Mixed         => schema.CompileOrder.MIXED
+      case CompileOrder.JavaThenScala => schema.CompileOrder.JAVATHENSCALA
+      case CompileOrder.ScalaThenJava => schema.CompileOrder.SCALATHENJAVA
+    }
+  }
+
+  def toStringTuple(tuple: T2[String, String]): schema.Tuple = {
+    schema.Tuple(first = tuple.get1(), second = tuple.get2())
+  }
+
+  def toMiniSetupOutput(output: Output): schema.MiniSetup.Output = {
+    import schema.MiniSetup.{ Output => CompilationOutput }
+    output match {
+      case single0: SingleOutput =>
+        val targetPath = single0.getOutputDirectory.getAbsolutePath
+        val single = schema.SingleOutput(target = targetPath)
+        CompilationOutput.SingleOutput(single)
+      case multiple0: MultipleOutput =>
+        val groups = multiple0.getOutputGroups.iterator.map(toOutputGroup).toList
+        val multiple = schema.MultipleOutput(outputGroups = groups)
+        CompilationOutput.MultipleOutput(multiple)
+      case unknown => sys.error(WritersFeedback.ExpectedNonEmptyOutput)
+    }
+  }
+
+  def toMiniSetup(miniSetup: MiniSetup): schema.MiniSetup = {
+    val output = toMiniSetupOutput(miniSetup.output())
+    val miniOptions = Some(toMiniOptions(miniSetup.options()))
+    val compilerVersion = miniSetup.compilerVersion()
+    val compileOrder = toCompileOrder(miniSetup.order())
+    val storeApis = miniSetup.storeApis()
+    val extra = miniSetup.extra().map(toStringTuple)
+    schema.MiniSetup(
+      output = output,
+      miniOptions = miniOptions,
+      compilerVersion = compilerVersion,
+      compileOrder = compileOrder,
+      storeApis = storeApis,
+      extra = extra
     )
   }
 }
