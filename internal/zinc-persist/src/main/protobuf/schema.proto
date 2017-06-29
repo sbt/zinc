@@ -2,6 +2,10 @@ syntax = "proto3";
 
 package sbt.internal.inc;
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////// ANALYSIS API ////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+
 message Hash {
     string hash = 1;
 }
@@ -21,48 +25,6 @@ message Stamps {
     map<string, StampType> productStamps = 1;
     map<string, StampType> binaryStamps = 2;
     map<string, StampType> sourceStamps = 3;
-}
-
-enum DefinitionType {
-    TRAIT = 0;
-    CLASSDEF = 1;
-    MODULE = 2;
-    PACKAGEMODULE = 3;
-}
-
-message This {}
-
-message Id {
-    string id = 1;
-}
-
-
-message Super {
-    message PartialPath {
-        oneof path {
-            Id id = 1;
-            This this = 2;
-        }
-    }
-
-    PartialPath qualifier = 3;
-}
-
-message Path {
-    message PathComponent {
-        oneof Component {
-            Id id = 1;
-            This this = 2;
-            Super super = 3;
-        }
-    }
-
-    repeated PathComponent components = 1;
-}
-
-message AnnotationArgument {
-    string name = 1;
-    string value = 2;
 }
 
 message OutputGroup {
@@ -152,3 +114,175 @@ message MiniSetup {
     bool storeApis = 6;
     repeated Tuple extra = 7;
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////// BRIDGE API ////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+enum DefinitionType {
+    TRAIT = 0;
+    CLASSDEF = 1;
+    MODULE = 2;
+    PACKAGEMODULE = 3;
+}
+
+message This {}
+
+message Id {
+    string id = 1;
+}
+
+
+message Super {
+    message PartialPath {
+        oneof path {
+            Id id = 1;
+            This this = 2;
+        }
+    }
+
+    PartialPath qualifier = 3;
+}
+
+message Path {
+    message PathComponent {
+        oneof Component {
+            Id id = 1;
+            This this = 2;
+            Super super = 3;
+        }
+    }
+
+    repeated PathComponent components = 1;
+}
+
+message AnnotationArgument {
+    string name = 1;
+    string value = 2;
+}
+
+enum Variance {
+    Invariant = 0;
+    Contravariant = 1;
+    Covariant = 2;
+}
+
+message ParameterRef {
+    string id = 1;
+}
+
+
+message ThisQualifier {}
+
+message Unqualified {}
+
+message IdQualifier {
+    string value = 1;
+}
+
+message Qualifier {
+    oneof Type {
+        ThisQualifier thisQualifier = 1;
+        IdQualifier idQualifier = 2;
+        Unqualified unqualified = 3;
+    }
+}
+
+message Public {}
+
+message Private {
+    Qualifier qualifier = 1;
+}
+
+message Protected {
+    Qualifier qualifier = 1;
+}
+
+message Qualified {
+    Qualifier qualifier = 1;
+}
+
+message Access {
+    oneof Type {
+        Public public = 1;
+        Protected protected = 2;
+        Private private = 3;
+        // Can we remove this one?
+        Qualifier qualifier = 4;
+    }
+}
+
+message Modifiers {
+    sfixed32 flags = 1;
+}
+
+message Type {
+    message Projection {
+        string id = 1;
+        Type prefix = 2;
+    }
+
+    message ParameterRef {
+        string id = 1;
+    }
+
+    message Polymorphic {
+        Type baseType = 1;
+        repeated TypeParameter typeParameter = 2;
+    }
+
+    message Parameterized {
+        Type baseType = 1;
+        repeated Type typeArguments = 2;
+    }
+
+    message Existential {
+        Type baseType = 1;
+        repeated TypeParameter clause = 2;
+    }
+
+    message EmptyType {}
+
+    message Constant {
+        Type baseType = 1;
+        string value = 2;
+    }
+
+    message Annotated {
+        Type baseType = 1;
+        repeated Annotation annotations = 2;
+    }
+
+    message Structure {
+        Type parents = 1;
+        ClassDefinition declared = 2;
+        ClassDefinition inherited = 3;
+    }
+
+    message Singleton {
+        Path path = 1;
+    }
+}
+
+message Annotation {
+    Type base = 1;
+    repeated AnnotationArgument arguments = 2;
+}
+
+message TypeParameter {
+    string id = 1;
+    repeated Annotation annotation = 2;
+    repeated TypeParameter typeParameters = 3;
+    Variance variance = 4;
+    Type lowerBound = 5;
+    Type upperBound = 6;
+}
+
+message ClassDefinition {
+    //public ClassDefinition(Modifiers _modifiers, Annotation[] _annotations) {
+    string name = 1;
+    Access access = 2;
+    Modifiers modifiers = 3;
+}
+
+
