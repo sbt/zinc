@@ -8,7 +8,7 @@ import sbt.internal.inc.{ ScalaInstance => _, _ }
 import sbt.io.IO
 import sbt.io.syntax._
 import sbt.util.{ InterfaceUtil, Logger }
-import JavaInterfaceUtil.{ PimpOption, PimpOptional }
+import JavaInterfaceUtil.{ EnrichOption, EnrichOptional }
 import TestResource._
 import sbt.internal.inc.classpath.ClassLoaderCache
 import xsbti.compile.{ ClassFileManager, CompilerBridgeProvider, _ }

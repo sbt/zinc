@@ -157,8 +157,8 @@ private[xsbt] object ZincBenchmark {
   /* Utils to programmatically instantiate Compiler from sbt setup  */
   /* ************************************************************* */
 
-  /** Pimp for < Scala 2.12.x compatibility. */
-  implicit class TryPimp[T](t: Try[T]) {
+  /** Enrich for < Scala 2.12.x compatibility. */
+  implicit class TryEnrich[T](t: Try[T]) {
     def toEither: Either[Throwable, T] = {
       t match {
         case scala.util.Success(value) => Right(value)
@@ -349,7 +349,7 @@ case class BenchmarkProject(
     gitClient.right.flatMap(Git.checkout(_, hash)).right.map(_ => tempDir)
   }
 
-  import ZincBenchmark.TryPimp
+  import ZincBenchmark.TryEnrich
   def writeBuildInfo(projectDir: File, sharedDir: File): WriteBuildInfo = {
     def persistBuildInfo(subproject: String, stateFile: File): Result[Unit] = {
       val filename = CompilationInfo.generateOutputFile(subproject)

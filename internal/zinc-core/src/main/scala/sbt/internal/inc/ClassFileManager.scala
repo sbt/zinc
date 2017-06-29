@@ -65,7 +65,7 @@ object ClassFileManager {
   }
 
   def getClassFileManager(options: IncOptions): ClassFileManager = {
-    import sbt.internal.inc.JavaInterfaceUtil.PimpOptional
+    import sbt.internal.inc.JavaInterfaceUtil.EnrichOptional
     val internal = getDefaultClassFileManager(options.classfileManagerType)
     val external = Option(options.externalHooks())
       .flatMap(ext => ext.externalClassFileManager.toOption)

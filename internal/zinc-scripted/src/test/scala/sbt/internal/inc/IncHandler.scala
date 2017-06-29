@@ -8,7 +8,7 @@ import java.util.jar.Manifest
 
 import sbt.util.Logger
 import sbt.util.InterfaceUtil._
-import sbt.internal.inc.JavaInterfaceUtil.{ PimpOption, PimpOptional }
+import sbt.internal.inc.JavaInterfaceUtil.{ EnrichOption, EnrichOptional }
 import xsbt.api.Discovery
 import xsbti.{ Problem, Severity }
 import xsbti.compile.{

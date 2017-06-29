@@ -19,7 +19,7 @@ import xsbti.compile.CompileOrder._
 import xsbti.compile._
 import sbt.io.IO
 import sbt.util.{ InterfaceUtil, Logger }
-import sbt.internal.inc.JavaInterfaceUtil.PimpOption
+import sbt.internal.inc.JavaInterfaceUtil.EnrichOption
 import xsbti.compile.ClassFileManager
 
 /** An instance of an analyzing compiler that can run both javac + scalac. */
