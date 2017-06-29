@@ -16,6 +16,7 @@ import xsbti.{ Position, Problem, Severity, T2 }
 import xsbti.compile.{ CompileOrder, FileHash, MiniOptions, MiniSetup, Output, OutputGroup }
 import xsbti.compile.analysis.{ Compilation, SourceInfo, Stamp }
 import sbt.internal.inc.converters.ProtobufDefaults.Feedback.{ Readers => ReadersFeedback }
+import xsbti.api.{ Id, Path, PathComponent, Super, This }
 
 object ProtobufReaders {
   def fromStampType(stampType: schema.Stamps.StampType): Stamp = {
@@ -166,5 +167,26 @@ object ProtobufReaders {
     val storeApis = miniSetup.storeApis
     val extra = miniSetup.extra.map(fromStringTuple).toArray
     new MiniSetup(output, miniOptions, compilerVersion, compileOrder, storeApis, extra)
+  }
+
+  implicit class EfficientTraverse[T](seq: Seq[T]) {
+    def toZincArray[R: scala.reflect.ClassTag](f: T => R): Array[R] =
+      seq.iterator.map(f).toArray
+  }
+
+  def fromPath(path: schema.Path): Path = {
+    def fromPathComponent(pathComponent: schema.Path.PathComponent): PathComponent = {
+      def readQualifier(path: Option[schema.Path]): Path =
+        path.fold(sys.error(ReadersFeedback.MissingPathInSuper))(fromPath)
+      import schema.Path.{ PathComponent => SchemaPath }
+      import SchemaPath.{ Component => SchemaComponent }
+      pathComponent.component match {
+        case SchemaComponent.Id(c)    => new Id(c.id)
+        case SchemaComponent.Super(c) => new Super(readQualifier(c.qualifier))
+        case SchemaComponent.This(c)  => ProtobufDefaults.This
+      }
+    }
+    val components = path.components.toZincArray(fromPathComponent)
+    new Path(components)
   }
 }
