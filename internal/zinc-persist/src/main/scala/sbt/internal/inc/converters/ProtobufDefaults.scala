@@ -1,7 +1,16 @@
 package sbt.internal.inc.converters
 
 import sbt.internal.inc.schema
-import xsbti.api.This
+import xsbti.api.{
+  Annotated,
+  Annotation,
+  Constant,
+  Existential,
+  Parameterized,
+  Polymorphic,
+  Singleton,
+  This
+}
 
 object ProtobufDefaults {
   final val MissingInt: Int = -1
@@ -11,6 +20,16 @@ object ProtobufDefaults {
   final val ThisQualifier: schema.ThisQualifier = schema.ThisQualifier.defaultInstance
   final val Unqualified: schema.Unqualified = schema.Unqualified.defaultInstance
   final val PublicAccess: schema.Public = schema.Public.defaultInstance
+
+  object Classes {
+    final val AnnotationClazz = classOf[Annotation]
+    final val ParameterizedClazz = classOf[Parameterized]
+    final val PolymorphicClazz = classOf[Polymorphic]
+    final val ConstantClazz = classOf[Constant]
+    final val ExistentialClazz = classOf[Existential]
+    final val SingletonClazz = classOf[Singleton]
+    final val AnnotatedClazz = classOf[Annotated]
+  }
 
   object Feedback {
     object Writers {
@@ -23,7 +42,13 @@ object ProtobufDefaults {
         s"Unrecognized `Severity` level when reading data (id = $id)."
       final def unrecognizedOrder(id: Int) =
         s"Unrecognized `CompileOrder` when reading data (id = $id)."
-      final val MissingPathInSuper = "Missing qualifier of tyep `Path` in `Super`."
+      final def missingBaseIn(clazz: Class[_]) =
+        s"Missing base type in `${clazz.getName}` when reading data."
+
+      final val MissingPathInSingleton = "Missing path in `Singleton` when reading data."
+      final val MissingPrefixInProjection = "Missing prefix in `Projection` when reading data."
+      final val MissingPathInSuper =
+        "Missing qualifier of type `Path` in `Super` when reading data."
       final val MissingMiniOptions = "`MiniOptions` are missing in `MiniSetup` when reading data."
       final val ExpectedNonEmptyOutput = "Expected non-empty `Output` when reading data."
       final val ExpectedPositionInProblem: String =
