@@ -118,3 +118,37 @@ message SourceInfo {
     repeated Problem unreportedProblems = 2;
     repeated string mainClasses = 3;
 }
+
+message FileHash {
+    string path = 1;
+    int32 hash = 2;
+}
+
+enum CompileOrder {
+    MIXED = 0;
+    JAVATHENSCALA = 1;
+    SCALATHENJAVA = 2;
+}
+
+message Tuple {
+    string first = 1;
+    string second = 2;
+}
+
+message MiniOptions {
+    repeated FileHash classpathHash = 1;
+    repeated string scalacOptions = 2;
+    repeated string javacOptions = 3;
+}
+
+message MiniSetup {
+    oneof Output {
+        SingleOutput singleOutput = 1;
+        MultipleOutput multipleOutput = 2;
+    }
+    MiniOptions miniOptions = 3;
+    string compilerVersion = 4;
+    CompileOrder compileOrder = 5;
+    bool storeApis = 6;
+    repeated Tuple extra = 7;
+}

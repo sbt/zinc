@@ -12,9 +12,10 @@ import sbt.internal.inc.{
   schema
 }
 import sbt.util.InterfaceUtil
-import xsbti.{ Position, Problem, Severity }
-import xsbti.compile.{ Output, OutputGroup }
+import xsbti.{ Position, Problem, Severity, T2 }
+import xsbti.compile.{ CompileOrder, FileHash, MiniOptions, MiniSetup, Output, OutputGroup }
 import xsbti.compile.analysis.{ Compilation, SourceInfo, Stamp }
+import sbt.internal.inc.converters.Feedback.{ Readers => ReadersFeedback }
 
 object ProtobufReaders {
   def fromStampType(stampType: schema.Stamps.StampType): Stamp = {
@@ -46,21 +47,22 @@ object ProtobufReaders {
     SimpleOutputGroup(source, target)
   }
 
-  def fromOutput(output: schema.Compilation.Output): Output = {
+  def fromCompilationOutput(output: schema.Compilation.Output): Output = {
+    import schema.Compilation.{ Output => CompilationOutput }
     output match {
-      case schema.Compilation.Output.SingleOutput(single) =>
+      case CompilationOutput.SingleOutput(single) =>
         val target = new File(single.target)
         new ConcreteSingleOutput(target)
-      case schema.Compilation.Output.MultipleOutput(multiple) =>
+      case CompilationOutput.MultipleOutput(multiple) =>
         val groups = multiple.outputGroups.iterator.map(fromOutputGroup).toArray
         new ConcreteMultipleOutput(groups)
-      case schema.Compilation.Output.Empty =>
-        sys.error(SerializationFeedback.ExpectedNonEmptyOutput)
+      case CompilationOutput.Empty =>
+        sys.error(ReadersFeedback.ExpectedNonEmptyOutput)
     }
   }
 
   def fromCompilation(compilation: schema.Compilation): Compilation = {
-    val output = fromOutput(compilation.output)
+    val output = fromCompilationOutput(compilation.output)
     new sbt.internal.inc.Compilation(compilation.startTime, output)
   }
 
@@ -89,9 +91,10 @@ object ProtobufReaders {
 
   def fromSeverity(severity: schema.Severity): Severity = {
     severity match {
-      case schema.Severity.INFO  => Severity.Info
-      case schema.Severity.WARN  => Severity.Warn
-      case schema.Severity.ERROR => Severity.Error
+      case schema.Severity.INFO             => Severity.Info
+      case schema.Severity.WARN             => Severity.Warn
+      case schema.Severity.ERROR            => Severity.Error
+      case schema.Severity.Unrecognized(id) => sys.error(ReadersFeedback.unrecognizedSeverity(id))
     }
   }
 
@@ -101,7 +104,7 @@ object ProtobufReaders {
     val severity = fromSeverity(problem.severity)
     val position = problem.position
       .map(fromPosition)
-      .getOrElse(sys.error(SerializationFeedback.ExpectedPositionInProblem))
+      .getOrElse(sys.error(ReadersFeedback.ExpectedPositionInProblem))
     InterfaceUtil.problem(category, position, message, severity)
   }
 
@@ -112,5 +115,56 @@ object ProtobufReaders {
     SourceInfos.makeInfo(reported = reportedProblems,
                          unreported = unreportedProblems,
                          mainClasses = mainClasses)
+  }
+
+  def fromFileHash(fileHash: schema.FileHash): FileHash = {
+    val file = new File(fileHash.path)
+    new FileHash(file, fileHash.hash)
+  }
+
+  def fromMiniOptions(miniOptions: schema.MiniOptions): MiniOptions = {
+    val classpathHash = miniOptions.classpathHash.map(fromFileHash).toArray
+    val javacOptions = miniOptions.javacOptions.toArray
+    val scalacOptions = miniOptions.scalacOptions.toArray
+    new MiniOptions(classpathHash, scalacOptions, javacOptions)
+  }
+
+  def fromCompileOrder(compileOrder: schema.CompileOrder): CompileOrder = {
+    compileOrder match {
+      case schema.CompileOrder.MIXED            => CompileOrder.Mixed
+      case schema.CompileOrder.JAVATHENSCALA    => CompileOrder.JavaThenScala
+      case schema.CompileOrder.SCALATHENJAVA    => CompileOrder.ScalaThenJava
+      case schema.CompileOrder.Unrecognized(id) => sys.error(ReadersFeedback.unrecognizedOrder(id))
+    }
+  }
+
+  def fromStringTuple(tuple: schema.Tuple): T2[String, String] = {
+    InterfaceUtil.t2(tuple.first -> tuple.second)
+  }
+
+  def fromMiniSetupOutput(output: schema.MiniSetup.Output): Output = {
+    import schema.MiniSetup.{ Output => MiniSetupOutput }
+    output match {
+      case MiniSetupOutput.SingleOutput(single) =>
+        val target = new File(single.target)
+        new ConcreteSingleOutput(target)
+      case MiniSetupOutput.MultipleOutput(multiple) =>
+        val groups = multiple.outputGroups.iterator.map(fromOutputGroup).toArray
+        new ConcreteMultipleOutput(groups)
+      case MiniSetupOutput.Empty =>
+        sys.error(ReadersFeedback.ExpectedNonEmptyOutput)
+    }
+  }
+
+  def fromMiniSetup(miniSetup: schema.MiniSetup): MiniSetup = {
+    val output = fromMiniSetupOutput(miniSetup.output)
+    val miniOptions = miniSetup.miniOptions
+      .map(fromMiniOptions)
+      .getOrElse(sys.error(ReadersFeedback.MissingMiniOptions))
+    val compilerVersion = miniSetup.compilerVersion
+    val compileOrder = fromCompileOrder(miniSetup.compileOrder)
+    val storeApis = miniSetup.storeApis
+    val extra = miniSetup.extra.map(fromStringTuple).toArray
+    new MiniSetup(output, miniOptions, compilerVersion, compileOrder, storeApis, extra)
   }
 }
