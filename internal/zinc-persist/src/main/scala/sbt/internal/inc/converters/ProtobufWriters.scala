@@ -183,7 +183,7 @@ object ProtobufWriters {
   }
 
   def toPath(path: Path): schema.Path = {
-    def toPathComponents(pathComponent: PathComponent): schema.Path.PathComponent = {
+    def toPathComponent(pathComponent: PathComponent): schema.Path.PathComponent = {
       import schema.Path.{ PathComponent => SchemaPath }
       import SchemaPath.{ Component => SchemaComponent }
       val component = pathComponent match {
@@ -193,7 +193,7 @@ object ProtobufWriters {
       }
       SchemaPath(component = component)
     }
-    val components = path.components().iterator.map(toPathComponents).toList
+    val components = path.components().iterator.map(toPathComponent).toList
     schema.Path(components = components)
   }
 
