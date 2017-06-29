@@ -6,7 +6,7 @@ import sbt.internal.inc.{ Compilation, Compilations, Hash, LastModified, Stamps,
 import xsbti.{ Position, Problem, Severity, T2 }
 import xsbti.compile.analysis.{ SourceInfo, Stamp }
 import sbt.internal.inc.converters.Feedback.{ Writers => WritersFeedback }
-import xsbti.api._
+import xsbti.api.{ Private, _ }
 import xsbti.compile.{
   CompileOrder,
   FileHash,
@@ -255,8 +255,16 @@ object ProtobufWriters {
       schema.Type.Annotated(baseType = baseType, annotations = annotations)
     }
 
-    // Provide this when `ClassDefinition` writers exist
-    def toStructure(tpe: Structure): schema.Type.Structure = ???
+    def toStructure(tpe: Structure): schema.Type.Structure = {
+      val declared = tpe.declared().iterator.map(toClassDefinition).toList
+      val inherited = tpe.inherited().iterator.map(toClassDefinition).toList
+      val parents = tpe.parents().iterator.map(toType).toList
+      schema.Type.Structure(
+        declared = declared,
+        inherited = inherited,
+        parents = parents
+      )
+    }
 
     val schemaType = `type` match {
       case tpe: ParameterRef  => schema.Type.Value.ParameterRef(value = toParameterRef(tpe))
@@ -273,6 +281,47 @@ object ProtobufWriters {
     schema.Type(value = schemaType)
   }
 
+  def toClassDefinition(classDefinition: ClassDefinition): schema.ClassDefinition = {
+    def toAccess(access: Access): schema.Access = {
+      def toQualifier(qualifier: Qualifier): schema.Qualifier = {
+        import ProtobufDefaults.{ ThisQualifier, Unqualified }
+        import schema.Qualifier.{ Type => QualifierType }
+        val qualifierType = qualifier match {
+          case q: IdQualifier   => QualifierType.IdQualifier(value = schema.IdQualifier(q.value()))
+          case q: ThisQualifier => QualifierType.ThisQualifier(value = ThisQualifier)
+          case q: Unqualified   => QualifierType.Unqualified(value = Unqualified)
+        }
+        schema.Qualifier(`type` = qualifierType)
+      }
+      import ProtobufDefaults.PublicAccess
+      import schema.Access.{ Type => AccessType }
+      val accessType = access match {
+        case a: Public => AccessType.Public(value = PublicAccess)
+        case qualified: Qualified =>
+          val qualifier = Some(toQualifier(qualified.qualifier()))
+          qualified match {
+            case _: Private   => AccessType.Private(schema.Private(qualifier = qualifier))
+            case _: Protected => AccessType.Protected(schema.Protected(qualifier = qualifier))
+          }
+      }
+      schema.Access(`type` = accessType)
+    }
+
+    def toModifiers(modifiers: Modifiers): schema.Modifiers =
+      schema.Modifiers(flags = modifiers.raw().toInt)
+
+    val name = classDefinition.name()
+    val access = Some(toAccess(classDefinition.access()))
+    val modifiers = Some(toModifiers(classDefinition.modifiers()))
+    val annotations = classDefinition.annotations().iterator.map(toAnnotation).toList
+    schema.ClassDefinition(
+      name = name,
+      access = access,
+      modifiers = modifiers,
+      annotations = annotations
+    )
+  }
+
   def toTypeParameter(typeParameter: TypeParameter): schema.TypeParameter = {
     def toVariance(variance: Variance): schema.Variance = {
       variance match {
@@ -283,8 +332,8 @@ object ProtobufWriters {
     }
 
     val id = typeParameter.id()
-    val annotations = typeParameter.annotations().map(toAnnotation)
-    val typeParameters = typeParameter.typeParameters().map(toTypeParameter)
+    val annotations = typeParameter.annotations().iterator.map(toAnnotation).toList
+    val typeParameters = typeParameter.typeParameters().iterator.map(toTypeParameter).toList
     val variance = toVariance(typeParameter.variance())
     val lowerBound = Some(toType(typeParameter.lowerBound()))
     val upperBound = Some(toType(typeParameter.upperBound()))
