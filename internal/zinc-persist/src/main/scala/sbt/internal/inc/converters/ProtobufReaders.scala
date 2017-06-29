@@ -17,6 +17,7 @@ import xsbti.compile.{ CompileOrder, FileHash, MiniOptions, MiniSetup, Output, O
 import xsbti.compile.analysis.{ Compilation, SourceInfo, Stamp }
 import sbt.internal.inc.converters.ProtobufDefaults.Feedback.{ Readers => ReadersFeedback }
 import sbt.internal.inc.converters.ProtobufDefaults.Classes._
+import sbt.internal.inc.converters.ProtobufDefaults.ReadersConstants
 import xsbti.api._
 
 object ProtobufReaders {
@@ -188,7 +189,7 @@ object ProtobufReaders {
       pathComponent.component match {
         case SchemaComponent.Id(c)    => new Id(c.id)
         case SchemaComponent.Super(c) => new Super(c.qualifier.read(fromPath, MissingPathInSuper))
-        case SchemaComponent.This(c)  => ProtobufDefaults.This
+        case SchemaComponent.This(_)  => ReadersConstants.This
       }
     }
     val components = path.components.toZincArray(fromPathComponent)
@@ -271,6 +272,7 @@ object ProtobufReaders {
       case schema.Type.Value.Singleton(tpe)     => fromSingleton(tpe)
       case schema.Type.Value.Projection(tpe)    => fromProjection(tpe)
       case schema.Type.Value.Annotated(tpe)     => fromAnnotated(tpe)
+      case schema.Type.Value.EmptyType(_)       => ReadersConstants.EmptyType
     }
   }
 

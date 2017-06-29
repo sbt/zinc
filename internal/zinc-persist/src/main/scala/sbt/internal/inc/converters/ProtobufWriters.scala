@@ -6,6 +6,7 @@ import sbt.internal.inc.{ Compilation, Compilations, Hash, LastModified, Stamps,
 import xsbti.{ Position, Problem, Severity, T2 }
 import xsbti.compile.analysis.{ SourceInfo, Stamp }
 import sbt.internal.inc.converters.ProtobufDefaults.Feedback.{ Writers => WritersFeedback }
+import sbt.internal.inc.converters.ProtobufDefaults.WritersConstants
 import xsbti.api.{ Private, _ }
 import xsbti.compile.{
   CompileOrder,
@@ -189,7 +190,7 @@ object ProtobufWriters {
       val component = pathComponent match {
         case c: Id    => SchemaComponent.Id(schema.Id(id = c.id))
         case c: Super => SchemaComponent.Super(schema.Super(qualifier = Some(toPath(c.qualifier))))
-        case c: This  => SchemaComponent.This(schema.This.defaultInstance)
+        case c: This  => SchemaComponent.This(WritersConstants.This)
       }
       SchemaPath(component = component)
     }
@@ -276,6 +277,7 @@ object ProtobufWriters {
       case tpe: Singleton     => schema.Type.Value.Singleton(value = toSingleton(tpe))
       case tpe: Projection    => schema.Type.Value.Projection(value = toProjection(tpe))
       case tpe: Annotated     => schema.Type.Value.Annotated(value = toAnnotated(tpe))
+      case tpe: EmptyType     => schema.Type.Value.EmptyType(value = WritersConstants.EmptyType)
     }
 
     schema.Type(value = schemaType)
@@ -284,7 +286,7 @@ object ProtobufWriters {
   def toClassDefinition(classDefinition: ClassDefinition): schema.ClassDefinition = {
     def toAccess(access: Access): schema.Access = {
       def toQualifier(qualifier: Qualifier): schema.Qualifier = {
-        import ProtobufDefaults.{ ThisQualifier, Unqualified }
+        import WritersConstants.{ ThisQualifier, Unqualified }
         import schema.Qualifier.{ Type => QualifierType }
         val qualifierType = qualifier match {
           case q: IdQualifier   => QualifierType.IdQualifier(value = schema.IdQualifier(q.value()))
@@ -293,7 +295,7 @@ object ProtobufWriters {
         }
         schema.Qualifier(`type` = qualifierType)
       }
-      import ProtobufDefaults.PublicAccess
+      import WritersConstants.PublicAccess
       import schema.Access.{ Type => AccessType }
       val accessType = access match {
         case a: Public => AccessType.Public(value = PublicAccess)

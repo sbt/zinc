@@ -241,6 +241,8 @@ message Type {
         Path path = 1;
     }
 
+    message EmptyType {}
+
     oneof Value {
         ParameterRef parameterRef = 1;
         Parameterized parameterized = 2;
@@ -251,6 +253,7 @@ message Type {
         Singleton singleton = 7;
         Projection projection = 8;
         Annotated annotated = 9;
+        EmptyType emptyType = 10;
     }
 }
 

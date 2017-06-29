@@ -5,6 +5,7 @@ import xsbti.api.{
   Annotated,
   Annotation,
   Constant,
+  EmptyType,
   Existential,
   Parameterized,
   Polymorphic,
@@ -16,10 +17,18 @@ object ProtobufDefaults {
   final val MissingInt: Int = -1
   final val MissingString: String = ""
 
-  final val This: This = new This()
-  final val ThisQualifier: schema.ThisQualifier = schema.ThisQualifier.defaultInstance
-  final val Unqualified: schema.Unqualified = schema.Unqualified.defaultInstance
-  final val PublicAccess: schema.Public = schema.Public.defaultInstance
+  object ReadersConstants {
+    final val EmptyType: EmptyType = new EmptyType()
+    final val This: This = new This()
+  }
+
+  object WritersConstants {
+    final val This: schema.This = schema.This.defaultInstance
+    final val PublicAccess: schema.Public = schema.Public.defaultInstance
+    final val Unqualified: schema.Unqualified = schema.Unqualified.defaultInstance
+    final val EmptyType: schema.Type.EmptyType = schema.Type.EmptyType.defaultInstance
+    final val ThisQualifier: schema.ThisQualifier = schema.ThisQualifier.defaultInstance
+  }
 
   object Classes {
     final val AnnotationClazz = classOf[Annotation]
