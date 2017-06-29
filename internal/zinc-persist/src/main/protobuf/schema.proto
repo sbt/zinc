@@ -279,10 +279,10 @@ message TypeParameter {
 }
 
 message ClassDefinition {
-    //public ClassDefinition(Modifiers _modifiers, Annotation[] _annotations) {
     string name = 1;
     Access access = 2;
     Modifiers modifiers = 3;
+    repeated Annotation annotations = 4;
 }
 
 
