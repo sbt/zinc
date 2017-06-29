@@ -59,10 +59,10 @@ enum Severity {
 }
 
 message Position {
-    int32 line = 1;
-    int32 offset = 2;
+    sint32 line = 1;
+    sint32 offset = 2;
     string lineContent = 3;
-    int32 pointer = 4;
+    sint32 pointer = 4;
     string pointerSpace = 5;
     string sourcePath = 6;
     string sourceFilepath = 7;
