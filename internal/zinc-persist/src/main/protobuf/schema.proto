@@ -83,7 +83,7 @@ message SourceInfo {
 
 message FileHash {
     string path = 1;
-    int32 hash = 2;
+    sint32 hash = 2;
 }
 
 enum CompileOrder {
@@ -195,7 +195,6 @@ message Access {
         Public public = 1;
         Protected protected = 2;
         Private private = 3;
-        // Can we remove this one?
         Qualifier qualifier = 4;
     }
 }
@@ -305,14 +304,14 @@ enum UseScope {
 message NameHash {
     string name = 1;
     UseScope scope = 2;
-    int32 hash = 3;
+    sint32 hash = 3;
 }
 
 message AnalyzedClass {
     int64 compilationTimestamp = 1;
     string name = 2;
     Companions api = 3;
-    int32 apiHash = 4;
+    sint32 apiHash = 4;
     repeated NameHash nameHashes = 5;
     bool hasMacro = 6;
 }
