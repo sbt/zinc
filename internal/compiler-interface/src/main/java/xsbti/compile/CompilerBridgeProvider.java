@@ -7,9 +7,7 @@
 
 package xsbti.compile;
 
-import xsbti.F0;
 import xsbti.Logger;
-
 import java.io.File;
 
 /**
@@ -20,44 +18,6 @@ import java.io.File;
  * compile them and then define the sbt component, which is reused across different sbt projects.
  */
 public interface CompilerBridgeProvider {
-
-    /**
-     * Defines a constant {@link CompilerBridgeProvider} that returns an already compiled bridge.
-     * <p>
-     * This method is useful for external build tools that want full control over the retrieval
-     * and compilation of the compiler bridge, as well as the Scala instance to be used.
-     *
-     * @param file The jar or directory of the compiled Scala bridge.
-     * @return A provider that always returns the same compiled bridge.
-     */
-    static CompilerBridgeProvider constant(File file, ScalaInstance scalaInstance) {
-        return new CompilerBridgeProvider() {
-            @Override
-            public File fetchCompiledBridge(ScalaInstance scalaInstance, Logger logger) {
-                logger.debug(new F0<String>() {
-                    @Override
-                    public String apply() {
-                        String bridgeName = file.getAbsolutePath();
-                        return "Returning already retrieved and compiled bridge: " + bridgeName + ".";
-                    }
-                });
-                return file;
-            }
-
-            @Override
-            public ScalaInstance fetchScalaInstance(String scalaVersion, Logger logger) {
-                logger.debug(new F0<String>() {
-                    @Override
-                    public String apply() {
-                        String instance = scalaInstance.toString();
-                        return "Returning default scala instance:\n\t" + instance;
-                    }
-                });
-                return scalaInstance;
-            }
-        };
-    }
-
     /**
      * Get the location of the compiled Scala compiler bridge for a concrete Scala version.
      *

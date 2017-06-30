@@ -8,6 +8,8 @@
 package xsbti.compile;
 
 import java.io.File;
+import xsbti.F0;
+import xsbti.Logger;
 
 /**
  * Defines a util interface to get Scala compilers and the default implementation
@@ -50,5 +52,43 @@ public interface ZincCompilerUtil {
     public static ScalaCompiler scalaCompiler(ScalaInstance scalaInstance,
                                               File compilerBridgeJar) {
         return sbt.internal.inc.ZincUtil.scalaCompiler(scalaInstance, compilerBridgeJar);
+    }
+
+    /**
+     * Defines a constant {@link CompilerBridgeProvider} that returns an already compiled bridge.
+     * <p>
+     * This method is useful for external build tools that want full control over the retrieval
+     * and compilation of the compiler bridge, as well as the Scala instance to be used.
+     *
+     * @param file The jar or directory of the compiled Scala bridge.
+     * @return A provider that always returns the same compiled bridge.
+     */
+    public static CompilerBridgeProvider constantBridgeProvider(ScalaInstance scalaInstance,
+                                                         File compilerBridgeJar) {
+        return new CompilerBridgeProvider() {
+            @Override
+            public File fetchCompiledBridge(ScalaInstance scalaInstance, Logger logger) {
+                logger.debug(new F0<String>() {
+                    @Override
+                    public String apply() {
+                        String bridgeName = compilerBridgeJar.getAbsolutePath();
+                        return "Returning already retrieved and compiled bridge: " + bridgeName + ".";
+                    }
+                });
+                return compilerBridgeJar;
+            }
+
+            @Override
+            public ScalaInstance fetchScalaInstance(String scalaVersion, Logger logger) {
+                logger.debug(new F0<String>() {
+                    @Override
+                    public String apply() {
+                        String instance = scalaInstance.toString();
+                        return "Returning default scala instance:\n\t" + instance;
+                    }
+                });
+                return scalaInstance;
+            }
+        };
     }
 }
