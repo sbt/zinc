@@ -46,7 +46,7 @@ object ZincUtil {
       compilerBridgeJar: File,
       classpathOptions: ClasspathOptions
   ): AnalyzingCompiler = {
-    val bridgeProvider = CompilerBridgeProvider.constant(compilerBridgeJar, scalaInstance)
+    val bridgeProvider = constantBridgeProvider(scalaInstance, compilerBridgeJar)
     val emptyHandler = (_: Seq[String]) => ()
     val loader = Some(new ClassLoaderCache(new URLClassLoader(Array())))
     new AnalyzingCompiler(
@@ -126,4 +126,8 @@ object ZincUtil {
   def compilers(javaTools: XJavaTools, scalac: ScalaCompiler): Compilers = {
     new Compilers(scalac, javaTools)
   }
+
+  def constantBridgeProvider(scalaInstance: xsbti.compile.ScalaInstance,
+                             compilerBridgeJar: File): xsbti.compile.CompilerBridgeProvider =
+    ZincCompilerUtil.constantBridgeProvider(scalaInstance, compilerBridgeJar)
 }

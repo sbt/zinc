@@ -113,7 +113,7 @@ final class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogg
 
   private final val unit = (_: Seq[String]) => ()
   def scalaCompiler(instance: xsbti.compile.ScalaInstance, bridgeJar: File): AnalyzingCompiler = {
-    val bridgeProvider = CompilerBridgeProvider.constant(bridgeJar, instance)
+    val bridgeProvider = ZincUtil.constantBridgeProvider(instance, bridgeJar)
     val classpath = ClasspathOptionsUtil.boot
     new AnalyzingCompiler(instance, bridgeProvider, classpath, unit, IncHandler.classLoaderCache)
   }
