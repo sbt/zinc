@@ -36,6 +36,7 @@ import sbt.internal.inctest.{ Build, JsonProtocol, Project }
 import sbt.internal.util.ManagedLogger
 import sjsonnew.support.scalajson.unsafe.{ Converter, Parser => JsonParser }
 
+import scala.{ PartialFunction => ?=> }
 import scala.collection.mutable
 
 final case class IncInstance(si: xsbti.compile.ScalaInstance, cs: XCompilers)
@@ -118,43 +119,28 @@ final class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogg
   }
 
   lazy val commands: Map[String, IncCommand] = Map(
-    "compile" -> {
-      case (p, Nil, i) => { p.compile(i); () }
-      case (p, xs, _)  => p.acceptsNoArguments("compile", xs)
-    },
-    "clean" -> {
-      case (p, Nil, _) => p.clean()
-      case (p, xs, _)  => p.acceptsNoArguments("clean", xs)
-    },
-    "checkIterations" -> {
+    noArgs("compile") { case (p, i) => p.compile(i); () },
+    noArgs("clean") { case (p, _)   => p.clean() },
+    onArgs("checkIterations") {
       case (p, x :: Nil, i) => p.checkNumberOfCompilerIterations(i, x.toInt)
-      case (p, xs, _)       => p.unrecognizedArguments("checkIterations", xs)
     },
-    "checkRecompilations" -> {
-      case (p, Nil, _)                => p.unrecognizedArguments("checkRecompilations", Nil)
+    onArgs("checkRecompilations") {
       case (p, step :: classNames, i) => p.checkRecompilations(i, step.toInt, classNames)
     },
-    "checkClasses" -> {
+    onArgs("checkClasses") {
       case (p, src :: products, i) => p.checkClasses(i, dropRightColon(src), products)
-      case (p, other, _)           => p.unrecognizedArguments("checkClasses", other)
     },
-    "checkMainClasses" -> {
+    onArgs("checkMainClasses") {
       case (p, src :: products, i) => p.checkMainClasses(i, dropRightColon(src), products)
-      case (p, other, _)           => p.unrecognizedArguments("checkMainClasses", other)
     },
-    "checkProducts" -> {
+    onArgs("checkProducts") {
       case (p, src :: products, i) => p.checkProducts(i, dropRightColon(src), products)
-      case (p, other, _)           => p.unrecognizedArguments("checkProducts", other)
     },
-    "checkDependencies" -> {
+    onArgs("checkDependencies") {
       case (p, cls :: dependencies, i) => p.checkDependencies(i, dropRightColon(cls), dependencies)
-      case (p, other, _)               => p.unrecognizedArguments("checkDependencies", other)
     },
-    "checkSame" -> {
-      case (p, Nil, i) => p.checkSame(i)
-      case (p, xs, _)  => p.acceptsNoArguments("checkSame", xs)
-    },
-    "run" -> {
+    noArgs("checkSame") { case (p, i) => p.checkSame(i) },
+    onArgs("run") {
       case (p, params, i) =>
         val analysis = p.compile(i)
         p.discoverMainClasses(Some(analysis.apis)) match {
@@ -167,33 +153,37 @@ final class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogg
             throw new TestFailed("Found more than one main class.")
         }
     },
-    "package" -> {
-      case (p, Nil, i)   => p.packageBin(i)
-      case (p, other, _) => p.unrecognizedArguments("package", other)
-    },
-    "checkWarnings" -> {
+    noArgs("package") { case (p, i) => p.packageBin(i) },
+    onArgs("checkWarnings") {
       case (p, count :: Nil, _) => p.checkMessages(count.toInt, Severity.Warn)
-      case (p, other, _)        => p.unrecognizedArguments("checkWarnings", other)
     },
-    "checkWarning" -> {
-      case (p, idx :: expected :: Nil, _) => p.checkMessage(idx.toInt, expected, Severity.Warn)
-      case (p, other, _)                  => p.unrecognizedArguments("checkWarning", other)
+    onArgs("checkWarning") {
+      case (p, index :: expected :: Nil, _) => p.checkMessage(index.toInt, expected, Severity.Warn)
     },
-    "checkErrors" -> {
+    onArgs("checkErrors") {
       case (p, count :: Nil, _) => p.checkMessages(count.toInt, Severity.Error)
-      case (p, other, _)        => p.unrecognizedArguments("checkErrors", other)
     },
-    "checkError" -> {
+    onArgs("checkError") {
       case (p, idx :: expected :: Nil, _) => p.checkMessage(idx.toInt, expected, Severity.Error)
-      case (p, other, _)                  => p.unrecognizedArguments("checkError", other)
     },
-    "checkNoClassFiles" -> {
-      case (p, Nil, _) => p.checkNoGeneratedClassFiles()
-      case (p, xs, _)  => p.acceptsNoArguments("checkNoClassFiles", xs)
-    }
+    noArgs("checkNoClassFiles") { case (p, _) => p.checkNoGeneratedClassFiles() }
   )
 
   private def dropRightColon(s: String) = if (s endsWith ":") s dropRight 1 else s
+
+  private def onArgs(commandName: String)(
+      pf: (ProjectStructure, List[String], IncInstance) ?=> Unit
+  ): (String, IncCommand) =
+    commandName ->
+      ((p, xs, i) => applyOrElse(pf, (p, xs, i), p.unrecognizedArguments(commandName, xs)))
+
+  private def noArgs(commandName: String)(
+      pf: (ProjectStructure, IncInstance) ?=> Unit
+  ): (String, IncCommand) =
+    commandName ->
+      ((p, xs, i) => applyOrElse(pf, (p, i), p.acceptsNoArguments(commandName, xs)))
+
+  private def applyOrElse[A, B](pf: A ?=> B, x: A, fb: => B) = pf.applyOrElse(x, (_: A) => fb)
 }
 
 case class ProjectStructure(
