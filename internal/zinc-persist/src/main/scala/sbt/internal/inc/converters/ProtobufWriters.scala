@@ -60,7 +60,7 @@ object ProtobufWriters {
         val groups = multiple0.getOutputGroups.toSchemaList(toOutputGroup)
         val multiple = schema.MultipleOutput(outputGroups = groups)
         CompilationOutput.MultipleOutput(multiple)
-      case unknown => sys.error(WritersFeedback.ExpectedNonEmptyOutput)
+      case _ => sys.error(WritersFeedback.UnexpectedEmptyOutput)
     }
   }
 
@@ -162,7 +162,7 @@ object ProtobufWriters {
         val groups = multiple0.getOutputGroups.toSchemaList(toOutputGroup)
         val multiple = schema.MultipleOutput(outputGroups = groups)
         CompilationOutput.MultipleOutput(multiple)
-      case unknown => sys.error(WritersFeedback.ExpectedNonEmptyOutput)
+      case _ => sys.error(WritersFeedback.UnexpectedEmptyOutput)
     }
   }
 
@@ -195,7 +195,7 @@ object ProtobufWriters {
       val component = pathComponent match {
         case c: Id    => SchemaComponent.Id(schema.Id(id = c.id))
         case c: Super => SchemaComponent.Super(schema.Super(qualifier = Some(toPath(c.qualifier))))
-        case c: This  => SchemaComponent.This(WritersConstants.This)
+        case _: This  => SchemaComponent.This(WritersConstants.This)
       }
       SchemaPath(component = component)
     }
@@ -282,7 +282,7 @@ object ProtobufWriters {
       case tpe: Singleton     => schema.Type.Value.Singleton(value = toSingleton(tpe))
       case tpe: Projection    => schema.Type.Value.Projection(value = toProjection(tpe))
       case tpe: Annotated     => schema.Type.Value.Annotated(value = toAnnotated(tpe))
-      case tpe: EmptyType     => schema.Type.Value.EmptyType(value = WritersConstants.EmptyType)
+      case _: EmptyType       => schema.Type.Value.EmptyType(value = WritersConstants.EmptyType)
     }
 
     schema.Type(value = schemaType)
@@ -295,15 +295,15 @@ object ProtobufWriters {
         import schema.Qualifier.{ Type => QualifierType }
         val qualifierType = qualifier match {
           case q: IdQualifier   => QualifierType.IdQualifier(value = schema.IdQualifier(q.value()))
-          case q: ThisQualifier => QualifierType.ThisQualifier(value = ThisQualifier)
-          case q: Unqualified   => QualifierType.Unqualified(value = Unqualified)
+          case _: ThisQualifier => QualifierType.ThisQualifier(value = ThisQualifier)
+          case _: Unqualified   => QualifierType.Unqualified(value = Unqualified)
         }
         schema.Qualifier(`type` = qualifierType)
       }
       import WritersConstants.PublicAccess
       import schema.Access.{ Type => AccessType }
       val accessType = access match {
-        case a: Public => AccessType.Public(value = PublicAccess)
+        case _: Public => AccessType.Public(value = PublicAccess)
         case qualified: Qualified =>
           val qualifier = Some(toQualifier(qualified.qualifier()))
           qualified match {
@@ -344,6 +344,25 @@ object ProtobufWriters {
     }
 
     import schema.ClassDefinition.{ Extra => DefType }
+    def toClassLikeDef(classLikeDef: ClassLikeDef): DefType.ClassLikeDef = {
+      def toDefinitionType(definitionType: DefinitionType): schema.DefinitionType = {
+        definitionType match {
+          case DefinitionType.ClassDef      => schema.DefinitionType.CLASSDEF
+          case DefinitionType.Module        => schema.DefinitionType.MODULE
+          case DefinitionType.Trait         => schema.DefinitionType.TRAIT
+          case DefinitionType.PackageModule => schema.DefinitionType.PACKAGEMODULE
+        }
+      }
+      val definitionType = toDefinitionType(classLikeDef.definitionType())
+      val typeParameters = classLikeDef.typeParameters().toSchemaList(toTypeParameter)
+      DefType.ClassLikeDef(
+        schema.ClassDefinition.ClassLikeDef(
+          typeParameters = typeParameters,
+          definitionType = definitionType
+        )
+      )
+    }
+
     def toValDef(valDef: Val): DefType.ValDef = {
       val `type` = Some(toType(valDef.tpe))
       DefType.ValDef(schema.ClassDefinition.Val(`type` = `type`))
@@ -396,6 +415,7 @@ object ProtobufWriters {
     val modifiers = Some(toModifiers(classDefinition.modifiers()))
     val annotations = classDefinition.annotations().toSchemaList(toAnnotation)
     val extra = classDefinition match {
+      case classLikeDef: ClassLikeDef       => toClassLikeDef(classLikeDef)
       case valDef: Val                      => toValDef(valDef)
       case varDef: Var                      => toVarDef(varDef)
       case defDef: Def                      => toDefDef(defDef)
