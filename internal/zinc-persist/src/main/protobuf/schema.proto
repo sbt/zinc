@@ -179,16 +179,11 @@ message Protected {
     Qualifier qualifier = 1;
 }
 
-message Qualified {
-    Qualifier qualifier = 1;
-}
-
 message Access {
     oneof Type {
         Public public = 1;
         Protected protected = 2;
         Private private = 3;
-        Qualifier qualifier = 4;
     }
 }
 
