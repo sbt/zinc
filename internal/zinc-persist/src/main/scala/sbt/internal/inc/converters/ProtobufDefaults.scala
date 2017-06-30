@@ -39,11 +39,13 @@ object ProtobufDefaults {
     final val TypeAliasClazz = classOf[schema.ClassDefinition.TypeAlias]
     final val TypeDeclarationClazz = classOf[schema.ClassDefinition.TypeDeclaration]
     final val DefClazz = classOf[schema.ClassDefinition.Def]
+    final val PathComponentClazz = classOf[schema.Path.PathComponent]
+    final val ComponentClazz = classOf[schema.Path.PathComponent.Component]
   }
 
   object Feedback {
     object Writers {
-      final val ExpectedNonEmptyOutput =
+      final val UnexpectedEmptyOutput =
         "Expected `Output` to be either `SingleOutput` or `MultipleOutput`."
     }
 
@@ -62,7 +64,20 @@ object ProtobufDefaults {
         s"Missing lower bound in `${clazz.getName}` when reading data."
       final def missingUpperBoundIn(clazz: Class[_]) =
         s"Missing upper bound in `${clazz.getName}` when reading data."
+      final def missing(culprit: Class[_], owner: Class[_]) =
+        s"Missing `${culprit.getName}` in `${owner.getName}` when reading data."
 
+      final val UnexpectedEmptyType = "Unexpected empty type when reading `schema.Type`."
+      final val UnexpectedEmptyClassDefinition =
+        "Unexpected empty `ClassDefinition` type when reading `schema.ClassDefinition`."
+      final val UnrecognizedParamModifier =
+        "Unrecognized param modifier when reading `schema.MethodParameter`."
+      final val UnrecognizedVariance = "Unrecognized variance when reading `schema.TypeParameter`."
+      final val UnrecognizedDefinitionType =
+        "Unrecognized definition type when reading `schema.ClassDefinition.ClassLikeDef`."
+      final val UnexpectedAccessType = "Unexpected access type when reading `schema.Access`."
+      final val UnexpectedEmptyQualifier =
+        "Unexpected empty qualifier when reading `schema.Access`."
       final val MissingModifiersInDef = "Missing modifiers in `ClassDefinition` while reading."
       final val MissingAccessInDef = "Missing access in `ClassDefinition` while reading."
       final val MissingQualifierInAccess = "Missing qualifier in `Access` while reading."

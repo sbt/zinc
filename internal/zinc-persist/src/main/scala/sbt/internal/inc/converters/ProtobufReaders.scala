@@ -190,6 +190,8 @@ object ProtobufReaders {
         case SchemaComponent.Id(c)    => new Id(c.id)
         case SchemaComponent.Super(c) => new Super(c.qualifier.read(fromPath, MissingPathInSuper))
         case SchemaComponent.This(_)  => ReadersConstants.This
+        case SchemaComponent.Empty =>
+          sys.error(ReadersFeedback.missing(ComponentClazz, PathComponentClazz))
       }
     }
     val components = path.components.toZincArray(fromPathComponent)
@@ -273,6 +275,7 @@ object ProtobufReaders {
       case schema.Type.Value.Projection(tpe)    => fromProjection(tpe)
       case schema.Type.Value.Annotated(tpe)     => fromAnnotated(tpe)
       case schema.Type.Value.EmptyType(_)       => ReadersConstants.EmptyType
+      case schema.Type.Value.Empty              => sys.error(ReadersFeedback.UnexpectedEmptyType)
     }
   }
 
@@ -284,6 +287,7 @@ object ProtobufReaders {
           case QualifierType.IdQualifier(q)   => new IdQualifier(q.value)
           case QualifierType.ThisQualifier(_) => ReadersConstants.ThisQualifier
           case QualifierType.Unqualified(_)   => ReadersConstants.Unqualified
+          case QualifierType.Empty            => sys.error(ReadersFeedback.UnexpectedEmptyQualifier)
         }
       }
 
@@ -291,9 +295,10 @@ object ProtobufReaders {
         qualifier.read(fromQualifier, ReadersFeedback.MissingQualifierInAccess)
 
       access.`type` match {
-        case schema.Access.Type.Public(a)    => ReadersConstants.Public
+        case schema.Access.Type.Public(_)    => ReadersConstants.Public
         case schema.Access.Type.Protected(a) => new Protected(readQualifier(a.qualifier))
         case schema.Access.Type.Private(a)   => new Private(readQualifier(a.qualifier))
+        case schema.Access.Type.Empty        => sys.error(ReadersFeedback.UnexpectedAccessType)
       }
     }
 
@@ -314,6 +319,8 @@ object ProtobufReaders {
             case schema.ParameterModifier.PLAIN    => ParameterModifier.Plain
             case schema.ParameterModifier.BYNAME   => ParameterModifier.ByName
             case schema.ParameterModifier.REPEATED => ParameterModifier.Repeated
+            case schema.ParameterModifier.Unrecognized(_) =>
+              sys.error(ReadersFeedback.UnrecognizedParamModifier)
           }
         }
         val name = methodParameter.name
@@ -326,6 +333,23 @@ object ProtobufReaders {
       val isImplicit = parameterList.isImplicit
       val parameters = parameterList.parameters.toZincArray(fromMethodParameter)
       new ParameterList(parameters, isImplicit)
+    }
+
+    def fromClassLikeDef(defDef: schema.ClassDefinition.ClassLikeDef): ClassLikeDef = {
+      def fromDefinitionType(definitionType: schema.DefinitionType): DefinitionType = {
+        definitionType match {
+          case schema.DefinitionType.CLASSDEF      => DefinitionType.ClassDef
+          case schema.DefinitionType.MODULE        => DefinitionType.Module
+          case schema.DefinitionType.TRAIT         => DefinitionType.Trait
+          case schema.DefinitionType.PACKAGEMODULE => DefinitionType.PackageModule
+          case schema.DefinitionType.Unrecognized(_) =>
+            sys.error(ReadersFeedback.UnrecognizedDefinitionType)
+        }
+      }
+
+      val definitionType = fromDefinitionType(defDef.definitionType)
+      val typeParameters = defDef.typeParameters.toZincArray(fromTypeParameter)
+      new ClassLikeDef(name, access, modifiers, annotations, typeParameters, definitionType)
     }
 
     def fromDefDef(defDef: schema.ClassDefinition.Def): Def = {
@@ -353,27 +377,30 @@ object ProtobufReaders {
 
     def fromTypeDeclaration(decl: schema.ClassDefinition.TypeDeclaration): TypeDeclaration = {
       val lowerBound = decl.lowerBound.read(fromType, missingLowerBoundIn(TypeDeclarationClazz))
-      val upperBound = decl.upperBound.read(fromType, missingLowerBoundIn(TypeDeclarationClazz))
+      val upperBound = decl.upperBound.read(fromType, missingUpperBoundIn(TypeDeclarationClazz))
       val typeParams = decl.typeParameters.toZincArray(fromTypeParameter)
       new TypeDeclaration(name, access, modifiers, annotations, typeParams, lowerBound, upperBound)
     }
 
     import schema.ClassDefinition.{ Extra => DefType }
     classDefinition.extra match {
+      case DefType.ClassLikeDef(d)    => fromClassLikeDef(d)
       case DefType.DefDef(d)          => fromDefDef(d)
       case DefType.ValDef(d)          => fromValDef(d)
       case DefType.VarDef(d)          => fromVarDef(d)
       case DefType.TypeAlias(d)       => fromTypeAlias(d)
       case DefType.TypeDeclaration(d) => fromTypeDeclaration(d)
+      case DefType.Empty              => sys.error(ReadersFeedback.UnexpectedEmptyClassDefinition)
     }
   }
 
   def fromTypeParameter(typeParameter: schema.TypeParameter): TypeParameter = {
     def fromVariance(variance: schema.Variance): Variance = {
       variance match {
-        case schema.Variance.INVARIANT     => Variance.Invariant
-        case schema.Variance.COVARIANT     => Variance.Covariant
-        case schema.Variance.CONTRAVARIANT => Variance.Contravariant
+        case schema.Variance.INVARIANT       => Variance.Invariant
+        case schema.Variance.COVARIANT       => Variance.Covariant
+        case schema.Variance.CONTRAVARIANT   => Variance.Contravariant
+        case schema.Variance.Unrecognized(_) => sys.error(ReadersFeedback.UnrecognizedVariance)
       }
     }
 
