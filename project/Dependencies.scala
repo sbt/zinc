@@ -1,26 +1,18 @@
-import sbt._
-import Keys._
+import sbt._, Keys._
 
 object Dependencies {
-
   val scala210 = "2.10.6"
   val scala211 = "2.11.11"
   val scala212 = "2.12.2"
 
   private val ioVersion = "1.0.0-M11"
-  private val utilVersion = "1.0.0-M24"
   private val lmVersion = "1.0.0-X14"
 
   private val sbtIO = "org.scala-sbt" %% "io" % ioVersion
 
-  private val utilLogging = "org.scala-sbt" %% "util-logging" % utilVersion
-  private val utilControl = "org.scala-sbt" %% "util-control" % utilVersion
-  private val utilRelation = "org.scala-sbt" %% "util-relation" % utilVersion
-  private val utilTesting = "org.scala-sbt" %% "util-testing" % utilVersion
-  private val utilTracking = "org.scala-sbt" %% "util-tracking" % utilVersion
-  private val utilInterface = "org.scala-sbt" % "util-interface" % utilVersion
-  private val utilScripted = "org.scala-sbt" %% "util-scripted" % utilVersion
-
+  private val lmLogging = "org.scala-sbt" %% "lm-logging" % lmVersion
+  private val lmInterface = "org.scala-sbt" % "lm-interface" % lmVersion
+  private val lmCache = "org.scala-sbt" % "lm-cache" % lmVersion
   private val libraryManagement = "org.scala-sbt" %% "librarymanagement" % lmVersion
 
   val launcherInterface = "org.scala-sbt" % "launcher-interface" % "1.0.0"
@@ -34,14 +26,15 @@ object Dependencies {
   }
 
   lazy val sbtIoPath = getSbtModulePath("sbtio.path", "sbt/io")
-  lazy val sbtUtilPath = getSbtModulePath("sbtutil.path", "sbt/util")
   lazy val sbtLmPath = getSbtModulePath("sbtlm.path", "sbt/lm")
 
-  def addSbtModule(p: Project,
-                   path: Option[String],
-                   projectName: String,
-                   m: ModuleID,
-                   c: Option[Configuration] = None) =
+  def addSbtModule(
+      p: Project,
+      path: Option[String],
+      projectName: String,
+      m: ModuleID,
+      c: Option[Configuration] = None
+  ) =
     path match {
       case Some(f) =>
         p dependsOn c.fold[ClasspathDependency](ProjectRef(file(f), projectName))(
@@ -51,25 +44,15 @@ object Dependencies {
 
   def addSbtIO(p: Project): Project = addSbtModule(p, sbtIoPath, "io", sbtIO)
 
-  def addSbtUtilControl(p: Project): Project =
-    addSbtModule(p, sbtUtilPath, "utilControl", utilControl)
-  def addSbtUtilInterface(p: Project): Project =
-    addSbtModule(p, sbtUtilPath, "utilInterface", utilInterface)
-  def addSbtUtilLogging(p: Project): Project =
-    addSbtModule(p, sbtUtilPath, "utilLogging", utilLogging)
-  def addSbtUtilRelation(p: Project): Project =
-    addSbtModule(p, sbtUtilPath, "utilRelation", utilRelation)
-  def addSbtUtilScripted(p: Project): Project =
-    addSbtModule(p, sbtUtilPath, "utilScripted", utilScripted, Some(Test))
-  def addSbtUtilTesting(p: Project): Project =
-    addSbtModule(p, sbtUtilPath, "utilTesting", utilTesting, Some(Test))
-  def addSbtUtilTracking(p: Project): Project =
-    addSbtModule(p, sbtUtilPath, "utilTracking", utilTracking)
-
+  def addSbtLmInterface(p: Project): Project =
+    addSbtModule(p, sbtLmPath, "lmInterface", lmInterface)
+  def addSbtLmLogging(p: Project): Project = addSbtModule(p, sbtLmPath, "lmLogging", lmLogging)
+  def addSbtLmCache(p: Project): Project = addSbtModule(p, sbtLmPath, "lmCache", lmCache)
   def addSbtLm(p: Project): Project = addSbtModule(p, sbtLmPath, "lm", libraryManagement)
 
   val scalaLibrary = Def.setting { "org.scala-lang" % "scala-library" % scalaVersion.value }
   val scalaCompiler = Def.setting { "org.scala-lang" % "scala-compiler" % scalaVersion.value }
+  val parserCombinator211 = "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.4"
 
   val parserCombinator = "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.5"
   val sbinary = "org.scala-sbt" %% "sbinary" % "0.4.4"
@@ -81,12 +64,11 @@ object Dependencies {
 
   def addTestDependencies(p: Project): Project =
     p.settings(
-        libraryDependencies ++=
-          Seq(
-            scalaCheck % Test,
-            scalatest % Test,
-            junit % Test,
-            diffUtils % Test
-          ))
-      .configure(addSbtUtilTesting)
+        libraryDependencies ++= Seq(
+          scalaCheck % Test,
+          scalatest % Test,
+          junit % Test,
+          diffUtils % Test
+        )
+    )
 }
