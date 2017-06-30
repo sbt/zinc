@@ -57,7 +57,7 @@ object ProtobufWriters {
         val single = schema.SingleOutput(target = targetPath)
         CompilationOutput.SingleOutput(single)
       case multiple0: MultipleOutput =>
-        val groups = multiple0.getOutputGroups.iterator.map(toOutputGroup).toList
+        val groups = multiple0.getOutputGroups.toSchemaList(toOutputGroup)
         val multiple = schema.MultipleOutput(outputGroups = groups)
         CompilationOutput.MultipleOutput(multiple)
       case unknown => sys.error(WritersFeedback.ExpectedNonEmptyOutput)
@@ -159,7 +159,7 @@ object ProtobufWriters {
         val single = schema.SingleOutput(target = targetPath)
         CompilationOutput.SingleOutput(single)
       case multiple0: MultipleOutput =>
-        val groups = multiple0.getOutputGroups.iterator.map(toOutputGroup).toList
+        val groups = multiple0.getOutputGroups.toSchemaList(toOutputGroup)
         val multiple = schema.MultipleOutput(outputGroups = groups)
         CompilationOutput.MultipleOutput(multiple)
       case unknown => sys.error(WritersFeedback.ExpectedNonEmptyOutput)
@@ -183,6 +183,11 @@ object ProtobufWriters {
     )
   }
 
+  implicit class EfficientTraverse[T](array: Array[T]) {
+    def toSchemaList[R](f: T => R): List[R] =
+      array.iterator.map(f).toList
+  }
+
   def toPath(path: Path): schema.Path = {
     def toPathComponent(pathComponent: PathComponent): schema.Path.PathComponent = {
       import schema.Path.{ PathComponent => SchemaPath }
@@ -194,7 +199,7 @@ object ProtobufWriters {
       }
       SchemaPath(component = component)
     }
-    val components = path.components().iterator.map(toPathComponent).toList
+    val components = path.components().toSchemaList(toPathComponent)
     schema.Path(components = components)
   }
 
@@ -205,7 +210,7 @@ object ProtobufWriters {
       schema.AnnotationArgument(name = name, value = value)
     }
 
-    val arguments = annotation.arguments().iterator.map(toAnnotationArgument).toList
+    val arguments = annotation.arguments().toSchemaList(toAnnotationArgument)
     val base = Some(toType(annotation.base()))
     schema.Annotation(base = base, arguments = arguments)
   }
@@ -213,7 +218,7 @@ object ProtobufWriters {
   def toType(`type`: Type): schema.Type = {
     def toExistential(tpe: Existential): schema.Type.Existential = {
       val baseType = Some(toType(tpe.baseType()))
-      val clause = tpe.clause().iterator.map(toTypeParameter).toList
+      val clause = tpe.clause().toSchemaList(toTypeParameter)
       schema.Type.Existential(baseType = baseType, clause = clause)
     }
 
@@ -225,7 +230,7 @@ object ProtobufWriters {
 
     def toPolymorphic(tpe: Polymorphic): schema.Type.Polymorphic = {
       val baseType = Some(toType(tpe.baseType()))
-      val parameters = tpe.parameters().iterator.map(toTypeParameter).toList
+      val parameters = tpe.parameters().toSchemaList(toTypeParameter)
       schema.Type.Polymorphic(baseType = baseType, typeParameters = parameters)
     }
 
@@ -235,7 +240,7 @@ object ProtobufWriters {
 
     def toParameterized(tpe: Parameterized): schema.Type.Parameterized = {
       val baseType = Some(toType(tpe.baseType()))
-      val typeArguments = tpe.typeArguments().iterator.map(toType).toList
+      val typeArguments = tpe.typeArguments().toSchemaList(toType)
       schema.Type.Parameterized(baseType = baseType, typeArguments = typeArguments)
     }
 
@@ -251,15 +256,15 @@ object ProtobufWriters {
     }
 
     def toAnnotated(tpe: Annotated): schema.Type.Annotated = {
-      val annotations = tpe.annotations().iterator.map(toAnnotation).toList
+      val annotations = tpe.annotations().toSchemaList(toAnnotation)
       val baseType = Some(toType(tpe.baseType()))
       schema.Type.Annotated(baseType = baseType, annotations = annotations)
     }
 
     def toStructure(tpe: Structure): schema.Type.Structure = {
-      val declared = tpe.declared().iterator.map(toClassDefinition).toList
-      val inherited = tpe.inherited().iterator.map(toClassDefinition).toList
-      val parents = tpe.parents().iterator.map(toType).toList
+      val declared = tpe.declared().toSchemaList(toClassDefinition)
+      val inherited = tpe.inherited().toSchemaList(toClassDefinition)
+      val parents = tpe.parents().toSchemaList(toType)
       schema.Type.Structure(
         declared = declared,
         inherited = inherited,
@@ -333,7 +338,7 @@ object ProtobufWriters {
         )
       }
 
-      val parameters = parameterList.parameters().iterator.map(toMethodParameter).toList
+      val parameters = parameterList.parameters().toSchemaList(toMethodParameter)
       val isImplicit = parameterList.isImplicit()
       schema.ParameterList(parameters = parameters, isImplicit = isImplicit)
     }
@@ -351,8 +356,8 @@ object ProtobufWriters {
 
     def toDefDef(defDef: Def): DefType.DefDef = {
       val returnType = Some(toType(defDef.returnType))
-      val typeParameters = defDef.typeParameters().iterator.map(toTypeParameter).toList
-      val valueParameters = defDef.valueParameters().iterator.map(toParameterList).toList
+      val typeParameters = defDef.typeParameters().toSchemaList(toTypeParameter)
+      val valueParameters = defDef.valueParameters().toSchemaList(toParameterList)
       DefType.DefDef(
         schema.ClassDefinition.Def(
           typeParameters = typeParameters,
@@ -364,7 +369,7 @@ object ProtobufWriters {
 
     def toTypeAlias(typeAlias: TypeAlias): DefType.TypeAlias = {
       val `type` = Some(toType(typeAlias.tpe()))
-      val typeParameters = typeAlias.typeParameters().iterator.map(toTypeParameter).toList
+      val typeParameters = typeAlias.typeParameters().toSchemaList(toTypeParameter)
       DefType.TypeAlias(
         schema.ClassDefinition.TypeAlias(
           `type` = `type`,
@@ -376,7 +381,7 @@ object ProtobufWriters {
     def toTypeDeclaration(typeDeclaration: TypeDeclaration): DefType.TypeDeclaration = {
       val lowerBound = Some(toType(typeDeclaration.lowerBound()))
       val upperBound = Some(toType(typeDeclaration.upperBound()))
-      val typeParameters = typeDeclaration.typeParameters().iterator.map(toTypeParameter).toList
+      val typeParameters = typeDeclaration.typeParameters().toSchemaList(toTypeParameter)
       DefType.TypeDeclaration(
         schema.ClassDefinition.TypeDeclaration(
           lowerBound = lowerBound,
@@ -389,7 +394,7 @@ object ProtobufWriters {
     val name = classDefinition.name()
     val access = Some(toAccess(classDefinition.access()))
     val modifiers = Some(toModifiers(classDefinition.modifiers()))
-    val annotations = classDefinition.annotations().iterator.map(toAnnotation).toList
+    val annotations = classDefinition.annotations().toSchemaList(toAnnotation)
     val extra = classDefinition match {
       case valDef: Val                      => toValDef(valDef)
       case varDef: Var                      => toVarDef(varDef)
@@ -417,8 +422,8 @@ object ProtobufWriters {
     }
 
     val id = typeParameter.id()
-    val annotations = typeParameter.annotations().iterator.map(toAnnotation).toList
-    val typeParameters = typeParameter.typeParameters().iterator.map(toTypeParameter).toList
+    val annotations = typeParameter.annotations().toSchemaList(toAnnotation)
+    val typeParameters = typeParameter.typeParameters().toSchemaList(toTypeParameter)
     val variance = toVariance(typeParameter.variance())
     val lowerBound = Some(toType(typeParameter.lowerBound()))
     val upperBound = Some(toType(typeParameter.upperBound()))
