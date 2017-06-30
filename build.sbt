@@ -381,15 +381,13 @@ lazy val zincClassfile = (project in internalPath / "zinc-classfile")
 
 // re-implementation of scripted engine
 lazy val zincScripted = (project in internalPath / "zinc-scripted")
-  .enablePlugins(ContrabandPlugin, JsonCodecPlugin)
   .dependsOn(zinc, zincIvyIntegration % "test->test")
   .settings(
     minimalSettings,
     name := "zinc Scripted",
     publish := {},
     publishLocal := {},
-    skip in publish := true,
-    sourceManaged in (Compile, generateContrabands) := baseDirectory.value / "src" / "main" / "contraband-scala"
+    skip in publish := true
   )
   .configure(addSbtUtilScripted)
 
