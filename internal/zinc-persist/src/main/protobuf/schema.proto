@@ -266,11 +266,67 @@ message TypeParameter {
     Type upperBound = 6;
 }
 
+enum ParameterModifier {
+    PLAIN = 0;
+    REPEATED = 1;
+    BYNAME = 2;
+}
+
+message MethodParameter {
+    string name = 1;
+    Type type = 2;
+    bool hasDefault = 3;
+    ParameterModifier modifier = 4;
+}
+
+message ParameterList {
+    repeated MethodParameter parameters = 1;
+    bool isImplicit = 2;
+}
+
 message ClassDefinition {
+    message ClassLikeDef {
+        repeated TypeParameter typeParameters = 1;
+        DefinitionType definitionType = 2;
+    }
+
+    message Def {
+        repeated TypeParameter typeParameters = 1;
+        repeated ParameterList valueParameters = 2;
+        Type returnType = 3;
+    }
+
+    message Val {
+        Type type = 1;
+    }
+
+    message Var {
+        Type type = 1;
+    }
+
+    message TypeAlias {
+        repeated TypeParameter typeParameters = 1;
+        Type type = 2;
+    }
+
+    message TypeDeclaration {
+        repeated TypeParameter typeParameters = 1;
+        Type lowerBound = 2;
+        Type upperBound = 3;
+    }
+
     string name = 1;
     Access access = 2;
     Modifiers modifiers = 3;
     repeated Annotation annotations = 4;
+    oneof extra {
+        ClassLikeDef classLikeDef = 5;
+        Def defDef = 6;
+        Val valDef = 7;
+        Var varDef = 8;
+        TypeAlias typeAlias = 9;
+        TypeDeclaration typeDeclaration = 10;
+    }
 }
 
 

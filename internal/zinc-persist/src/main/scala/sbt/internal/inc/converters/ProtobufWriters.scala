@@ -312,15 +312,98 @@ object ProtobufWriters {
     def toModifiers(modifiers: Modifiers): schema.Modifiers =
       schema.Modifiers(flags = modifiers.raw().toInt)
 
+    def toParameterList(parameterList: ParameterList): schema.ParameterList = {
+      def toMethodParameter(methodParameter: MethodParameter): schema.MethodParameter = {
+        def toParameterModifier(modifier: ParameterModifier): schema.ParameterModifier = {
+          modifier match {
+            case ParameterModifier.Plain    => schema.ParameterModifier.PLAIN
+            case ParameterModifier.ByName   => schema.ParameterModifier.BYNAME
+            case ParameterModifier.Repeated => schema.ParameterModifier.REPEATED
+          }
+        }
+        val name = methodParameter.name()
+        val hasDefault = methodParameter.hasDefault()
+        val `type` = Some(toType(methodParameter.tpe()))
+        val modifier = toParameterModifier(methodParameter.modifier())
+        schema.MethodParameter(
+          name = name,
+          `type` = `type`,
+          hasDefault = hasDefault,
+          modifier = modifier
+        )
+      }
+
+      val parameters = parameterList.parameters().iterator.map(toMethodParameter).toList
+      val isImplicit = parameterList.isImplicit()
+      schema.ParameterList(parameters = parameters, isImplicit = isImplicit)
+    }
+
+    import schema.ClassDefinition.{ Extra => DefType }
+    def toValDef(valDef: Val): DefType.ValDef = {
+      val `type` = Some(toType(valDef.tpe))
+      DefType.ValDef(schema.ClassDefinition.Val(`type` = `type`))
+    }
+
+    def toVarDef(varDef: Var): DefType.VarDef = {
+      val `type` = Some(toType(varDef.tpe))
+      DefType.VarDef(schema.ClassDefinition.Var(`type` = `type`))
+    }
+
+    def toDefDef(defDef: Def): DefType.DefDef = {
+      val returnType = Some(toType(defDef.returnType))
+      val typeParameters = defDef.typeParameters().iterator.map(toTypeParameter).toList
+      val valueParameters = defDef.valueParameters().iterator.map(toParameterList).toList
+      DefType.DefDef(
+        schema.ClassDefinition.Def(
+          typeParameters = typeParameters,
+          valueParameters = valueParameters,
+          returnType = returnType
+        )
+      )
+    }
+
+    def toTypeAlias(typeAlias: TypeAlias): DefType.TypeAlias = {
+      val `type` = Some(toType(typeAlias.tpe()))
+      val typeParameters = typeAlias.typeParameters().iterator.map(toTypeParameter).toList
+      DefType.TypeAlias(
+        schema.ClassDefinition.TypeAlias(
+          `type` = `type`,
+          typeParameters = typeParameters
+        )
+      )
+    }
+
+    def toTypeDeclaration(typeDeclaration: TypeDeclaration): DefType.TypeDeclaration = {
+      val lowerBound = Some(toType(typeDeclaration.lowerBound()))
+      val upperBound = Some(toType(typeDeclaration.upperBound()))
+      val typeParameters = typeDeclaration.typeParameters().iterator.map(toTypeParameter).toList
+      DefType.TypeDeclaration(
+        schema.ClassDefinition.TypeDeclaration(
+          lowerBound = lowerBound,
+          upperBound = upperBound,
+          typeParameters = typeParameters
+        )
+      )
+    }
+
     val name = classDefinition.name()
     val access = Some(toAccess(classDefinition.access()))
     val modifiers = Some(toModifiers(classDefinition.modifiers()))
     val annotations = classDefinition.annotations().iterator.map(toAnnotation).toList
+    val extra = classDefinition match {
+      case valDef: Val                      => toValDef(valDef)
+      case varDef: Var                      => toVarDef(varDef)
+      case defDef: Def                      => toDefDef(defDef)
+      case typeAlias: TypeAlias             => toTypeAlias(typeAlias)
+      case typeDeclaration: TypeDeclaration => toTypeDeclaration(typeDeclaration)
+    }
+
     schema.ClassDefinition(
       name = name,
       access = access,
       modifiers = modifiers,
-      annotations = annotations
+      annotations = annotations,
+      extra = extra
     )
   }
 
