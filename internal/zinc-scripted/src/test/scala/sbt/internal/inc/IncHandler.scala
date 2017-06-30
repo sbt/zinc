@@ -15,7 +15,6 @@ import xsbti.compile.{
   ClasspathOptionsUtil,
   CompileAnalysis,
   CompileOrder,
-  CompilerBridgeProvider,
   CompilerCache,
   DefinesClass,
   IncOptions,
@@ -126,8 +125,8 @@ final class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogg
       case (p, xs, _) => p.acceptsNoArguments("compile", xs)
     },
     "clean" -> {
-      case (p, Nil, i) =>
-        p.clean(i)
+      case (p, Nil, _) =>
+        p.clean()
         ()
       case (p, xs, _) => p.acceptsNoArguments("clean", xs)
     },
@@ -215,7 +214,7 @@ final class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogg
         p.unrecognizedArguments("checkError", other)
     },
     "checkNoClassFiles" -> {
-      case (p, Nil, i) =>
+      case (p, Nil, _) =>
         p.checkNoGeneratedClassFiles()
         ()
       case (p, xs, _) => p.acceptsNoArguments("checkNoClassFiles", xs)
@@ -287,8 +286,7 @@ case class ProjectStructure(
       case _ => ()
     }
 
-  def clean(i: IncInstance): Unit =
-    IO.delete(classesDir)
+  def clean(): Unit = IO.delete(classesDir)
 
   def checkNumberOfCompilerIterations(i: IncInstance, expected: Int): Unit = {
     val analysis = compile(i)
@@ -483,11 +481,11 @@ case class ProjectStructure(
 
   def loadIncOptions(src: File): (IncOptions, Array[String]) = {
     if (src.exists) {
-      import collection.JavaConversions._
+      import scala.collection.JavaConverters._
       val properties = new Properties()
       properties.load(new FileInputStream(src))
       val map = new java.util.HashMap[String, String]
-      properties foreach { case (k: String, v: String) => map.put(k, v) }
+      properties.asScala foreach { case (k: String, v: String) => map.put(k, v) }
 
       val scalacOptions =
         Option(map.get("scalac.options")).map(_.toString.split(" +")).getOrElse(Array.empty)
