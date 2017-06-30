@@ -3,6 +3,8 @@ package sbt.internal.inc.converters
 import sbt.internal.inc.schema
 import xsbti.api._
 
+import scala.reflect.ClassTag
+
 object ProtobufDefaults {
   final val MissingInt: Int = -1
   final val MissingString: String = ""
@@ -24,13 +26,19 @@ object ProtobufDefaults {
   }
 
   object Classes {
-    final val AnnotationClazz = classOf[Annotation]
-    final val ParameterizedClazz = classOf[Parameterized]
-    final val PolymorphicClazz = classOf[Polymorphic]
-    final val ConstantClazz = classOf[Constant]
-    final val ExistentialClazz = classOf[Existential]
-    final val SingletonClazz = classOf[Singleton]
-    final val AnnotatedClazz = classOf[Annotated]
+    final val AnnotationClazz = classOf[schema.Annotation]
+    final val ParameterizedClazz = classOf[schema.Type.Parameterized]
+    final val PolymorphicClazz = classOf[schema.Type.Polymorphic]
+    final val ConstantClazz = classOf[schema.Type.Constant]
+    final val ExistentialClazz = classOf[schema.Type.Existential]
+    final val SingletonClazz = classOf[schema.Type.Singleton]
+    final val AnnotatedClazz = classOf[schema.Type.Annotated]
+    final val MethodParamClazz = classOf[schema.MethodParameter]
+    final val ValClazz = classOf[schema.ClassDefinition.Val]
+    final val VarClazz = classOf[schema.ClassDefinition.Var]
+    final val TypeAliasClazz = classOf[schema.ClassDefinition.TypeAlias]
+    final val TypeDeclarationClazz = classOf[schema.ClassDefinition.TypeDeclaration]
+    final val DefClazz = classOf[schema.ClassDefinition.Def]
   }
 
   object Feedback {
@@ -46,6 +54,14 @@ object ProtobufDefaults {
         s"Unrecognized `CompileOrder` when reading data (id = $id)."
       final def missingBaseIn(clazz: Class[_]) =
         s"Missing base type in `${clazz.getName}` when reading data."
+      final def missingTypeIn(clazz: Class[_]) =
+        s"Missing type in `${clazz.getName}` when reading data."
+      final def missingReturnTypeIn(clazz: Class[_]) =
+        s"Missing return type in `${clazz.getName}` when reading data."
+      final def missingLowerBoundIn(clazz: Class[_]) =
+        s"Missing lower bound in `${clazz.getName}` when reading data."
+      final def missingUpperBoundIn(clazz: Class[_]) =
+        s"Missing upper bound in `${clazz.getName}` when reading data."
 
       final val MissingModifiersInDef = "Missing modifiers in `ClassDefinition` while reading."
       final val MissingAccessInDef = "Missing access in `ClassDefinition` while reading."

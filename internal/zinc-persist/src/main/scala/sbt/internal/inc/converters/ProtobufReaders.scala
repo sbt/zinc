@@ -296,16 +296,76 @@ object ProtobufReaders {
         case schema.Access.Type.Private(a)   => new Private(readQualifier(a.qualifier))
       }
     }
+
     def fromModifiers(modifiers: schema.Modifiers): Modifiers =
       InternalApiProxy.Modifiers(modifiers.flags)
 
-    import ReadersFeedback.{ MissingModifiersInDef, MissingAccessInDef }
+    import ReadersFeedback.{ MissingModifiersInDef, MissingAccessInDef, missingTypeIn }
+    import ReadersFeedback.{ missingReturnTypeIn, missingLowerBoundIn, missingUpperBoundIn }
     val name = classDefinition.name
     val access = classDefinition.access.read(fromAccess, MissingAccessInDef)
     val modifiers = classDefinition.modifiers.read(fromModifiers, MissingModifiersInDef)
     val annotations = classDefinition.annotations.toZincArray(fromAnnotation)
-    // Come back to this whenever we have protos for all the subclasses of ClassDefinition
-    ???
+
+    def fromParameterList(parameterList: schema.ParameterList): ParameterList = {
+      def fromMethodParameter(methodParameter: schema.MethodParameter): MethodParameter = {
+        def fromParameterModifier(modifier: schema.ParameterModifier): ParameterModifier = {
+          modifier match {
+            case schema.ParameterModifier.PLAIN    => ParameterModifier.Plain
+            case schema.ParameterModifier.BYNAME   => ParameterModifier.ByName
+            case schema.ParameterModifier.REPEATED => ParameterModifier.Repeated
+          }
+        }
+        val name = methodParameter.name
+        val hasDefault = methodParameter.hasDefault
+        val `type` = methodParameter.`type`.read(fromType, missingTypeIn(MethodParamClazz))
+        val modifier = fromParameterModifier(methodParameter.modifier)
+        new MethodParameter(name, `type`, hasDefault, modifier)
+      }
+
+      val isImplicit = parameterList.isImplicit
+      val parameters = parameterList.parameters.toZincArray(fromMethodParameter)
+      new ParameterList(parameters, isImplicit)
+    }
+
+    def fromDefDef(defDef: schema.ClassDefinition.Def): Def = {
+      val returnType = defDef.returnType.read(fromType, missingReturnTypeIn(DefClazz))
+      val typeParameters = defDef.typeParameters.toZincArray(fromTypeParameter)
+      val valueParameters = defDef.valueParameters.toZincArray(fromParameterList)
+      new Def(name, access, modifiers, annotations, typeParameters, valueParameters, returnType)
+    }
+
+    def fromValDef(valDef: schema.ClassDefinition.Val): Val = {
+      val `type` = valDef.`type`.read(fromType, missingTypeIn(ValClazz))
+      new Val(name, access, modifiers, annotations, `type`)
+    }
+
+    def fromVarDef(varDef: schema.ClassDefinition.Var): Var = {
+      val `type` = varDef.`type`.read(fromType, missingTypeIn(VarClazz))
+      new Var(name, access, modifiers, annotations, `type`)
+    }
+
+    def fromTypeAlias(typeAlias: schema.ClassDefinition.TypeAlias): TypeAlias = {
+      val `type` = typeAlias.`type`.read(fromType, missingTypeIn(TypeAliasClazz))
+      val typeParameters = typeAlias.typeParameters.toZincArray(fromTypeParameter)
+      new TypeAlias(name, access, modifiers, annotations, typeParameters, `type`)
+    }
+
+    def fromTypeDeclaration(decl: schema.ClassDefinition.TypeDeclaration): TypeDeclaration = {
+      val lowerBound = decl.lowerBound.read(fromType, missingLowerBoundIn(TypeDeclarationClazz))
+      val upperBound = decl.upperBound.read(fromType, missingLowerBoundIn(TypeDeclarationClazz))
+      val typeParams = decl.typeParameters.toZincArray(fromTypeParameter)
+      new TypeDeclaration(name, access, modifiers, annotations, typeParams, lowerBound, upperBound)
+    }
+
+    import schema.ClassDefinition.{ Extra => DefType }
+    classDefinition.extra match {
+      case DefType.DefDef(d)          => fromDefDef(d)
+      case DefType.ValDef(d)          => fromValDef(d)
+      case DefType.VarDef(d)          => fromVarDef(d)
+      case DefType.TypeAlias(d)       => fromTypeAlias(d)
+      case DefType.TypeDeclaration(d) => fromTypeDeclaration(d)
+    }
   }
 
   def fromTypeParameter(typeParameter: schema.TypeParameter): TypeParameter = {
