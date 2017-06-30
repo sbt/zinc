@@ -1,4 +1,4 @@
-import sbt._
+/*import sbt._
 import Keys._
 
 import de.heikoseeberger.sbtheader.{ HeaderPlugin, HeaderPattern }
@@ -24,4 +24,4 @@ object CustomHeaderPlugin extends AutoPlugin {
        | */
        |
        |""".stripMargin
-}
+}*/
