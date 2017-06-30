@@ -119,56 +119,40 @@ final class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogg
 
   lazy val commands: Map[String, IncCommand] = Map(
     "compile" -> {
-      case (p, Nil, i) =>
-        p.compile(i)
-        ()
-      case (p, xs, _) => p.acceptsNoArguments("compile", xs)
+      case (p, Nil, i) => { p.compile(i); () }
+      case (p, xs, _)  => p.acceptsNoArguments("compile", xs)
     },
     "clean" -> {
-      case (p, Nil, _) =>
-        p.clean()
-        ()
-      case (p, xs, _) => p.acceptsNoArguments("clean", xs)
+      case (p, Nil, _) => p.clean()
+      case (p, xs, _)  => p.acceptsNoArguments("clean", xs)
     },
     "checkIterations" -> {
-      case (p, x :: Nil, i) =>
-        p.checkNumberOfCompilerIterations(i, x.toInt)
-      case (p, xs, _) => p.unrecognizedArguments("checkIterations", xs)
+      case (p, x :: Nil, i) => p.checkNumberOfCompilerIterations(i, x.toInt)
+      case (p, xs, _)       => p.unrecognizedArguments("checkIterations", xs)
     },
     "checkRecompilations" -> {
-      case (p, Nil, _) => p.unrecognizedArguments("checkRecompilations", Nil)
-      case (p, step :: classNames, i) =>
-        p.checkRecompilations(i, step.toInt, classNames)
+      case (p, Nil, _)                => p.unrecognizedArguments("checkRecompilations", Nil)
+      case (p, step :: classNames, i) => p.checkRecompilations(i, step.toInt, classNames)
     },
     "checkClasses" -> {
-      case (p, src :: products, i) =>
-        val srcFile = if (src endsWith ":") src dropRight 1 else src
-        p.checkClasses(i, srcFile, products)
-      case (p, other, _) => p.unrecognizedArguments("checkClasses", other)
+      case (p, src :: products, i) => p.checkClasses(i, dropRightColon(src), products)
+      case (p, other, _)           => p.unrecognizedArguments("checkClasses", other)
     },
     "checkMainClasses" -> {
-      case (p, src :: products, i) =>
-        val srcFile = if (src endsWith ":") src dropRight 1 else src
-        p.checkMainClasses(i, srcFile, products)
-      case (p, other, _) => p.unrecognizedArguments("checkMainClasses", other)
+      case (p, src :: products, i) => p.checkMainClasses(i, dropRightColon(src), products)
+      case (p, other, _)           => p.unrecognizedArguments("checkMainClasses", other)
     },
     "checkProducts" -> {
-      case (p, src :: products, i) =>
-        val srcFile = if (src endsWith ":") src dropRight 1 else src
-        p.checkProducts(i, srcFile, products)
-      case (p, other, _) => p.unrecognizedArguments("checkProducts", other)
+      case (p, src :: products, i) => p.checkProducts(i, dropRightColon(src), products)
+      case (p, other, _)           => p.unrecognizedArguments("checkProducts", other)
     },
     "checkDependencies" -> {
-      case (p, cls :: dependencies, i) =>
-        val className = if (cls endsWith ":") cls dropRight 1 else cls
-        p.checkDependencies(i, className, dependencies)
-      case (p, other, _) => p.unrecognizedArguments("checkDependencies", other)
+      case (p, cls :: dependencies, i) => p.checkDependencies(i, dropRightColon(cls), dependencies)
+      case (p, other, _)               => p.unrecognizedArguments("checkDependencies", other)
     },
     "checkSame" -> {
-      case (p, Nil, i) =>
-        p.checkSame(i)
-        ()
-      case (p, xs, _) => p.acceptsNoArguments("checkSame", xs)
+      case (p, Nil, i) => p.checkSame(i)
+      case (p, xs, _)  => p.acceptsNoArguments("checkSame", xs)
     },
     "run" -> {
       case (p, params, i) =>
@@ -184,43 +168,32 @@ final class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogg
         }
     },
     "package" -> {
-      case (p, Nil, i) =>
-        p.packageBin(i)
-      case (p, other, _) =>
-        p.unrecognizedArguments("package", other)
+      case (p, Nil, i)   => p.packageBin(i)
+      case (p, other, _) => p.unrecognizedArguments("package", other)
     },
     "checkWarnings" -> {
-      case (p, count :: Nil, _) =>
-        p.checkMessages(count.toInt, Severity.Warn)
-      case (p, other, _) =>
-        p.unrecognizedArguments("checkWarnings", other)
+      case (p, count :: Nil, _) => p.checkMessages(count.toInt, Severity.Warn)
+      case (p, other, _)        => p.unrecognizedArguments("checkWarnings", other)
     },
     "checkWarning" -> {
-      case (p, index :: expected :: Nil, _) =>
-        p.checkMessage(index.toInt, expected, Severity.Warn)
-      case (p, other, _) =>
-        p.unrecognizedArguments("checkWarning", other)
+      case (p, idx :: expected :: Nil, _) => p.checkMessage(idx.toInt, expected, Severity.Warn)
+      case (p, other, _)                  => p.unrecognizedArguments("checkWarning", other)
     },
     "checkErrors" -> {
-      case (p, count :: Nil, _) =>
-        p.checkMessages(count.toInt, Severity.Error)
-      case (p, other, _) =>
-        p.unrecognizedArguments("checkErrors", other)
+      case (p, count :: Nil, _) => p.checkMessages(count.toInt, Severity.Error)
+      case (p, other, _)        => p.unrecognizedArguments("checkErrors", other)
     },
     "checkError" -> {
-      case (p, index :: expected :: Nil, _) =>
-        p.checkMessage(index.toInt, expected, Severity.Error)
-      case (p, other, _) =>
-        p.unrecognizedArguments("checkError", other)
+      case (p, idx :: expected :: Nil, _) => p.checkMessage(idx.toInt, expected, Severity.Error)
+      case (p, other, _)                  => p.unrecognizedArguments("checkError", other)
     },
     "checkNoClassFiles" -> {
-      case (p, Nil, _) =>
-        p.checkNoGeneratedClassFiles()
-        ()
-      case (p, xs, _) => p.acceptsNoArguments("checkNoClassFiles", xs)
+      case (p, Nil, _) => p.checkNoGeneratedClassFiles()
+      case (p, xs, _)  => p.acceptsNoArguments("checkNoClassFiles", xs)
     }
   )
 
+  private def dropRightColon(s: String) = if (s endsWith ":") s dropRight 1 else s
 }
 
 case class ProjectStructure(
