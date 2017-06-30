@@ -276,6 +276,55 @@ object ProtobufReaders {
     }
   }
 
-  def fromClassDefinition(classDefinition: schema.ClassDefinition): ClassDefinition = ???
-  def fromTypeParameter(typeParameter: schema.TypeParameter): TypeParameter = ???
+  def fromClassDefinition(classDefinition: schema.ClassDefinition): ClassDefinition = {
+    def fromAccess(access: schema.Access): Access = {
+      def fromQualifier(qualifier: schema.Qualifier): Qualifier = {
+        import schema.Qualifier.{ Type => QualifierType }
+        qualifier.`type` match {
+          case QualifierType.IdQualifier(q)   => new IdQualifier(q.value)
+          case QualifierType.ThisQualifier(_) => ReadersConstants.ThisQualifier
+          case QualifierType.Unqualified(_)   => ReadersConstants.Unqualified
+        }
+      }
+
+      def readQualifier(qualifier: Option[schema.Qualifier]): Qualifier =
+        qualifier.read(fromQualifier, ReadersFeedback.MissingQualifierInAccess)
+
+      access.`type` match {
+        case schema.Access.Type.Public(a)    => ReadersConstants.Public
+        case schema.Access.Type.Protected(a) => new Protected(readQualifier(a.qualifier))
+        case schema.Access.Type.Private(a)   => new Private(readQualifier(a.qualifier))
+      }
+    }
+    def fromModifiers(modifiers: schema.Modifiers): Modifiers =
+      InternalApiProxy.Modifiers(modifiers.flags)
+
+    import ReadersFeedback.{ MissingModifiersInDef, MissingAccessInDef }
+    val name = classDefinition.name
+    val access = classDefinition.access.read(fromAccess, MissingAccessInDef)
+    val modifiers = classDefinition.modifiers.read(fromModifiers, MissingModifiersInDef)
+    val annotations = classDefinition.annotations.toZincArray(fromAnnotation)
+    // Come back to this whenever we have protos for all the subclasses of ClassDefinition
+    ???
+  }
+
+  def fromTypeParameter(typeParameter: schema.TypeParameter): TypeParameter = {
+    def fromVariance(variance: schema.Variance): Variance = {
+      variance match {
+        case schema.Variance.INVARIANT     => Variance.Invariant
+        case schema.Variance.COVARIANT     => Variance.Covariant
+        case schema.Variance.CONTRAVARIANT => Variance.Contravariant
+      }
+    }
+
+    val id = typeParameter.id
+    val annotations = typeParameter.annotations.toZincArray(fromAnnotation)
+    val typeParameters = typeParameter.typeParameters.toZincArray(fromTypeParameter)
+    val variance = fromVariance(typeParameter.variance)
+    val lowerBound =
+      typeParameter.lowerBound.read(fromType, ReadersFeedback.MissingLowerBoundInParam)
+    val upperBound =
+      typeParameter.upperBound.read(fromType, ReadersFeedback.MissingUpperBoundInParam)
+    new TypeParameter(id, annotations, typeParameters, variance, lowerBound, upperBound)
+  }
 }

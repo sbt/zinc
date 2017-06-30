@@ -1,25 +1,18 @@
 package sbt.internal.inc.converters
 
 import sbt.internal.inc.schema
-import xsbti.api.{
-  Annotated,
-  Annotation,
-  Constant,
-  EmptyType,
-  Existential,
-  Parameterized,
-  Polymorphic,
-  Singleton,
-  This
-}
+import xsbti.api._
 
 object ProtobufDefaults {
   final val MissingInt: Int = -1
   final val MissingString: String = ""
 
   object ReadersConstants {
-    final val EmptyType: EmptyType = new EmptyType()
     final val This: This = new This()
+    final val Public: Public = new Public()
+    final val EmptyType: EmptyType = new EmptyType()
+    final val Unqualified: Unqualified = new Unqualified()
+    final val ThisQualifier: ThisQualifier = new ThisQualifier()
   }
 
   object WritersConstants {
@@ -54,7 +47,14 @@ object ProtobufDefaults {
       final def missingBaseIn(clazz: Class[_]) =
         s"Missing base type in `${clazz.getName}` when reading data."
 
+      final val MissingModifiersInDef = "Missing modifiers in `ClassDefinition` while reading."
+      final val MissingAccessInDef = "Missing access in `ClassDefinition` while reading."
+      final val MissingQualifierInAccess = "Missing qualifier in `Access` while reading."
       final val MissingPathInSingleton = "Missing path in `Singleton` when reading data."
+      final val MissingLowerBoundInParam =
+        "Missing lower bound in `TypeParameter` when reading data."
+      final val MissingUpperBoundInParam =
+        "Missing upper bound in `TypeParameter` when reading data."
       final val MissingPrefixInProjection = "Missing prefix in `Projection` when reading data."
       final val MissingPathInSuper =
         "Missing qualifier of type `Path` in `Super` when reading data."
