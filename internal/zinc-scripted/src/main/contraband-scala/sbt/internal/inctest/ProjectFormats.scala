@@ -4,7 +4,7 @@
 
 // DO NOT EDIT MANUALLY
 package sbt.internal.inctest
-import _root_.sjsonnew.{ deserializationError, serializationError, Builder, JsonFormat, Unbuilder }
+import _root_.sjsonnew.{ Unbuilder, Builder, JsonFormat, deserializationError }
 trait ProjectFormats { self: sjsonnew.BasicJsonProtocol =>
 implicit lazy val ProjectFormat: JsonFormat[sbt.internal.inctest.Project] = new JsonFormat[sbt.internal.inctest.Project] {
   override def read[J](jsOpt: Option[J], unbuilder: Unbuilder[J]): sbt.internal.inctest.Project = {
