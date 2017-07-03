@@ -260,6 +260,8 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface")
     // javaOnlySettings,
     name := "Compiler Interface",
     // Use the smallest Scala version in the compilerBridgeScalaVersions
+    // Technically the scalaVersion shouldn't have any effect since scala library is not included,
+    // but given that Scala 2.10 compiler cannot parse Java 8 source, it's probably good to keep this.
     crossScalaVersions := Seq(scala210),
     scalaVersion := scala210,
     relaxNon212,
