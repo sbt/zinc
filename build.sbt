@@ -8,14 +8,6 @@ def internalPath = file("internal")
 
 lazy val compilerBridgeScalaVersions = List(scala212, scala211, scala210)
 
-val scalafmtCheck = Command.command("scalafmtCheck") { state =>
-  sys.process.Process("git diff --name-only --exit-code").! match {
-    case 0 => // ok
-    case x => sys.error("git diff detected! Did you compile before committing?")
-  }
-  state
-}
-
 def commonSettings: Seq[Setting[_]] = Seq(
   scalaVersion := scala212,
   // publishArtifact in packageDoc := false,
@@ -31,7 +23,7 @@ def commonSettings: Seq[Setting[_]] = Seq(
   crossScalaVersions := Seq(scala211, scala212),
   // mimaPreviousArtifacts := Set(), // Some(organization.value %% moduleName.value % "1.0.0"),
   publishArtifact in Test := false,
-  commands ++= Seq(publishBridgesAndTest, publishBridgesAndSet, crossTestBridges, scalafmtCheck),
+  commands ++= Seq(publishBridgesAndTest, publishBridgesAndSet, crossTestBridges),
   scalacOptions += "-YdisableFlatCpCaching"
 )
 
@@ -142,7 +134,10 @@ lazy val zincRoot: Project = (project in file("."))
         scmInfo := Some(
           ScmInfo(url("https://github.com/sbt/zinc"), "git@github.com:sbt/zinc.git")),
         description := "Incremental compiler of Scala",
-        homepage := Some(url("https://github.com/sbt/zinc"))
+        homepage := Some(url("https://github.com/sbt/zinc")),
+        scalafmtOnCompile := true,
+        // scalafmtVersion 1.0.0-RC3 has regression
+        scalafmtVersion := "0.6.8"
       )),
     minimalSettings,
     otherRootSettings,
@@ -265,6 +260,8 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface")
     // javaOnlySettings,
     name := "Compiler Interface",
     // Use the smallest Scala version in the compilerBridgeScalaVersions
+    // Technically the scalaVersion shouldn't have any effect since scala library is not included,
+    // but given that Scala 2.10 compiler cannot parse Java 8 source, it's probably good to keep this.
     crossScalaVersions := Seq(scala210),
     scalaVersion := scala210,
     relaxNon212,
