@@ -112,7 +112,7 @@ object FileBasedStore {
   private def lookupEntry(in: ZipInputStream, name: String): Unit =
     Option(in.getNextEntry) match {
       case Some(entry) if entry.getName == name => ()
-      case Some(entry)                          => lookupEntry(in, name)
+      case Some(_)                              => lookupEntry(in, name)
       case None                                 => sys.error(s"$name not found in the zip file")
     }
 
