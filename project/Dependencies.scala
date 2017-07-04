@@ -1,5 +1,6 @@
 import sbt._
 import Keys._
+import sbt.contraband.ContrabandPlugin.autoImport._
 
 object Dependencies {
 
@@ -7,9 +8,9 @@ object Dependencies {
   val scala211 = "2.11.11"
   val scala212 = "2.12.2"
 
-  private val ioVersion = "1.0.0-M11"
-  private val utilVersion = "1.0.0-M24"
-  private val lmVersion = "1.0.0-X14"
+  private val ioVersion = "1.0.0-M12"
+  private val utilVersion = "1.0.0-M25"
+  private val lmVersion = "1.0.0-X16"
 
   private val sbtIO = "org.scala-sbt" %% "io" % ioVersion
 
@@ -32,11 +33,7 @@ object Dependencies {
     path foreach (f => println(s"Using $name from $f"))
     path
   }
-
-  lazy val sbtIoPath = getSbtModulePath("sbtio.path", "sbt/io")
-  lazy val sbtUtilPath = getSbtModulePath("sbtutil.path", "sbt/util")
-  lazy val sbtLmPath = getSbtModulePath("sbtlm.path", "sbt/lm")
-
+  
   def addSbtModule(p: Project,
                    path: Option[String],
                    projectName: String,
@@ -44,10 +41,14 @@ object Dependencies {
                    c: Option[Configuration] = None) =
     path match {
       case Some(f) =>
-        p dependsOn c.fold[ClasspathDependency](ProjectRef(file(f), projectName))(
+        p dependsOn c.fold[ClasspathDep[ProjectReference]](ProjectRef(file(f), projectName))(
           ProjectRef(file(f), projectName) % _)
       case None => p settings (libraryDependencies += c.fold(m)(m % _))
     }
+
+  lazy val sbtIoPath = getSbtModulePath("sbtio.path", "sbt/io")
+  lazy val sbtUtilPath = getSbtModulePath("sbtutil.path", "sbt/util")
+  lazy val sbtLmPath = getSbtModulePath("sbtlm.path", "sbt/lm")
 
   def addSbtIO(p: Project): Project = addSbtModule(p, sbtIoPath, "io", sbtIO)
 
@@ -77,7 +78,8 @@ object Dependencies {
   val scalatest = "org.scalatest" %% "scalatest" % "3.0.1"
   val junit = "junit" % "junit" % "4.11"
   val diffUtils = "com.googlecode.java-diff-utils" % "diffutils" % "1.3.0"
-  val sjsonnewScalaJson = "com.eed3si9n" %% "sjson-new-scalajson" % "0.7.0"
+  val sjsonnew = Def.setting { "com.eed3si9n" %% "sjson-new-core" % contrabandSjsonNewVersion.value }
+  val sjsonnewScalaJson = Def.setting { "com.eed3si9n" %% "sjson-new-scalajson" % contrabandSjsonNewVersion.value }
 
   def addTestDependencies(p: Project): Project =
     p.settings(
