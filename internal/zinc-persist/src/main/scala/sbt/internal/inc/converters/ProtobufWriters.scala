@@ -510,8 +510,9 @@ object ProtobufWriters {
 
     def toNameHash(nameHash: NameHash): schema.NameHash = {
       val name = nameHash.name()
-      val useScope = toUseScope(nameHash.scope())
-      schema.NameHash(name = name, scope = useScope)
+      val hash = nameHash.hash()
+      val scope = toUseScope(nameHash.scope())
+      schema.NameHash(name = name, scope = scope, hash = hash)
     }
 
     val companions = Some(toCompanions(analyzedClass.api()))
@@ -619,5 +620,11 @@ object ProtobufWriters {
       sourceInfos = sourceInfos,
       compilations = compilations
     )
+  }
+
+  def toAnalysisFile(analysis0: Analysis, miniSetup0: MiniSetup): schema.AnalysisFile = {
+    val analysis = Some(toAnalysis(analysis0))
+    val miniSetup = Some(toMiniSetup(miniSetup0))
+    schema.AnalysisFile(analysis = analysis, miniSetup = miniSetup)
   }
 }

@@ -2,22 +2,16 @@ package sbt.internal.inc.converters
 
 import java.io.File
 
-import sbt.internal.inc.{
-  Compilations,
-  ConcreteMultipleOutput,
-  ConcreteSingleOutput,
-  SimpleOutputGroup,
-  SourceInfos,
-  Stamps,
-  schema
-}
+import sbt.internal.inc.Relations.ClassDependencies
+import sbt.internal.inc._
 import sbt.util.InterfaceUtil
-import xsbti.{ Position, Problem, Severity, T2 }
+import xsbti.{ Position, Problem, Severity, T2, UseScope }
 import xsbti.compile.{ CompileOrder, FileHash, MiniOptions, MiniSetup, Output, OutputGroup }
 import xsbti.compile.analysis.{ Compilation, SourceInfo, Stamp }
 import sbt.internal.inc.converters.ProtobufDefaults.Feedback.{ Readers => ReadersFeedback }
 import sbt.internal.inc.converters.ProtobufDefaults.Classes._
 import sbt.internal.inc.converters.ProtobufDefaults.ReadersConstants
+import sbt.internal.util.Relation
 import xsbti.api._
 
 object ProtobufReaders {
@@ -120,6 +114,16 @@ object ProtobufReaders {
                          mainClasses = mainClasses)
   }
 
+  def fromSourceInfos(sourceInfos0: schema.SourceInfos): SourceInfos = {
+    val sourceInfos = sourceInfos0.sourceInfos.iterator.map {
+      case (path, value) =>
+        val file = new File(path)
+        val sourceInfo = fromSourceInfo(value)
+        file -> sourceInfo
+    }
+    SourceInfos.make(sourceInfos.toMap)
+  }
+
   def fromFileHash(fileHash: schema.FileHash): FileHash = {
     val file = new File(fileHash.path)
     new FileHash(file, fileHash.hash)
@@ -210,6 +214,14 @@ object ProtobufReaders {
     new Annotation(base, arguments)
   }
 
+  def fromStructure(tpe: schema.Type.Structure): Structure = {
+    def `lazy`[T](value: T): Lazy[T] = SafeLazyProxy.strict(value)
+    val parents = `lazy`(tpe.parents.toZincArray(fromType))
+    val declared = `lazy`(tpe.declared.toZincArray(fromClassDefinition))
+    val inherited = `lazy`(tpe.inherited.toZincArray(fromClassDefinition))
+    new Structure(parents, declared, inherited)
+  }
+
   def fromType(`type`: schema.Type): Type = {
     def fromParameterRef(tpe: schema.Type.ParameterRef): ParameterRef = {
       new ParameterRef(tpe.id)
@@ -219,14 +231,6 @@ object ProtobufReaders {
       val baseType = tpe.baseType.read(fromType, ReadersFeedback.missingBaseIn(ParameterizedClazz))
       val typeArguments = tpe.typeArguments.toZincArray(fromType)
       new Parameterized(baseType, typeArguments)
-    }
-
-    def fromStructure(tpe: schema.Type.Structure): Structure = {
-      def `lazy`[T](value: T): Lazy[T] = SafeLazyProxy.strict(value)
-      val parents = `lazy`(tpe.parents.toZincArray(fromType))
-      val declared = `lazy`(tpe.declared.toZincArray(fromClassDefinition))
-      val inherited = `lazy`(tpe.inherited.toZincArray(fromClassDefinition))
-      new Structure(parents, declared, inherited)
     }
 
     def fromPolymorphic(tpe: schema.Type.Polymorphic): Polymorphic = {
@@ -279,32 +283,43 @@ object ProtobufReaders {
     }
   }
 
-  def fromClassDefinition(classDefinition: schema.ClassDefinition): ClassDefinition = {
-    def fromAccess(access: schema.Access): Access = {
-      def fromQualifier(qualifier: schema.Qualifier): Qualifier = {
-        import schema.Qualifier.{ Type => QualifierType }
-        qualifier.`type` match {
-          case QualifierType.IdQualifier(q)   => new IdQualifier(q.value)
-          case QualifierType.ThisQualifier(_) => ReadersConstants.ThisQualifier
-          case QualifierType.Unqualified(_)   => ReadersConstants.Unqualified
-          case QualifierType.Empty            => sys.error(ReadersFeedback.UnexpectedEmptyQualifier)
-        }
-      }
+  def fromModifiers(modifiers: schema.Modifiers): Modifiers =
+    InternalApiProxy.Modifiers(modifiers.flags)
 
-      def readQualifier(qualifier: Option[schema.Qualifier]): Qualifier =
-        qualifier.read(fromQualifier, ReadersFeedback.MissingQualifierInAccess)
-
-      access.`type` match {
-        case schema.Access.Type.Public(_)    => ReadersConstants.Public
-        case schema.Access.Type.Protected(a) => new Protected(readQualifier(a.qualifier))
-        case schema.Access.Type.Private(a)   => new Private(readQualifier(a.qualifier))
-        case schema.Access.Type.Empty        => sys.error(ReadersFeedback.UnexpectedAccessType)
+  def fromAccess(access: schema.Access): Access = {
+    def fromQualifier(qualifier: schema.Qualifier): Qualifier = {
+      import schema.Qualifier.{ Type => QualifierType }
+      qualifier.`type` match {
+        case QualifierType.IdQualifier(q)   => new IdQualifier(q.value)
+        case QualifierType.ThisQualifier(_) => ReadersConstants.ThisQualifier
+        case QualifierType.Unqualified(_)   => ReadersConstants.Unqualified
+        case QualifierType.Empty            => sys.error(ReadersFeedback.UnexpectedEmptyQualifier)
       }
     }
 
-    def fromModifiers(modifiers: schema.Modifiers): Modifiers =
-      InternalApiProxy.Modifiers(modifiers.flags)
+    def readQualifier(qualifier: Option[schema.Qualifier]): Qualifier =
+      qualifier.read(fromQualifier, ReadersFeedback.MissingQualifierInAccess)
 
+    access.`type` match {
+      case schema.Access.Type.Public(_)    => ReadersConstants.Public
+      case schema.Access.Type.Protected(a) => new Protected(readQualifier(a.qualifier))
+      case schema.Access.Type.Private(a)   => new Private(readQualifier(a.qualifier))
+      case schema.Access.Type.Empty        => sys.error(ReadersFeedback.UnexpectedAccessType)
+    }
+  }
+
+  def fromDefinitionType(definitionType: schema.DefinitionType): DefinitionType = {
+    definitionType match {
+      case schema.DefinitionType.CLASSDEF      => DefinitionType.ClassDef
+      case schema.DefinitionType.MODULE        => DefinitionType.Module
+      case schema.DefinitionType.TRAIT         => DefinitionType.Trait
+      case schema.DefinitionType.PACKAGEMODULE => DefinitionType.PackageModule
+      case schema.DefinitionType.Unrecognized(_) =>
+        sys.error(ReadersFeedback.UnrecognizedDefinitionType)
+    }
+  }
+
+  def fromClassDefinition(classDefinition: schema.ClassDefinition): ClassDefinition = {
     import ReadersFeedback.{ MissingModifiersInDef, MissingAccessInDef, missingTypeIn }
     import ReadersFeedback.{ missingReturnTypeIn, missingLowerBoundIn, missingUpperBoundIn }
     val name = classDefinition.name
@@ -336,17 +351,6 @@ object ProtobufReaders {
     }
 
     def fromClassLikeDef(defDef: schema.ClassDefinition.ClassLikeDef): ClassLikeDef = {
-      def fromDefinitionType(definitionType: schema.DefinitionType): DefinitionType = {
-        definitionType match {
-          case schema.DefinitionType.CLASSDEF      => DefinitionType.ClassDef
-          case schema.DefinitionType.MODULE        => DefinitionType.Module
-          case schema.DefinitionType.TRAIT         => DefinitionType.Trait
-          case schema.DefinitionType.PACKAGEMODULE => DefinitionType.PackageModule
-          case schema.DefinitionType.Unrecognized(_) =>
-            sys.error(ReadersFeedback.UnrecognizedDefinitionType)
-        }
-      }
-
       val definitionType = fromDefinitionType(defDef.definitionType)
       val typeParameters = defDef.typeParameters.toZincArray(fromTypeParameter)
       new ClassLikeDef(name, access, modifiers, annotations, typeParameters, definitionType)
@@ -413,5 +417,157 @@ object ProtobufReaders {
     val upperBound =
       typeParameter.upperBound.read(fromType, ReadersFeedback.MissingUpperBoundInParam)
     new TypeParameter(id, annotations, typeParameters, variance, lowerBound, upperBound)
+  }
+
+  def fromClassLike(classLike: schema.ClassLike): ClassLike = {
+    import ReadersFeedback._
+    val name = classLike.name
+    val access = classLike.access.read(fromAccess, ???)
+    val modifiers = classLike.modifiers.read(fromModifiers, ???)
+    val annotations = classLike.annotations.toZincArray(fromAnnotation)
+
+    val definitionType = fromDefinitionType(classLike.definitionType)
+    val selfType = SafeLazyProxy.strict(classLike.selfType.read(fromType, ???))
+    val structure = SafeLazyProxy.strict(classLike.structure.read(fromStructure, ???))
+    val savedAnnotations = classLike.savedAnnotations.toArray
+    val childrenOfSealedClass = classLike.childrenOfSealedClass.toZincArray(fromType)
+    val topLevel = classLike.topLevel
+    val typeParameters = classLike.typeParameters.toZincArray(fromTypeParameter)
+    new ClassLike(
+      name,
+      access,
+      modifiers,
+      annotations,
+      definitionType,
+      selfType,
+      structure,
+      savedAnnotations,
+      childrenOfSealedClass,
+      topLevel,
+      typeParameters
+    )
+  }
+
+  def fromUseScope(useScope: schema.UseScope): UseScope = {
+    useScope match {
+      case schema.UseScope.DEFAULT          => UseScope.Default
+      case schema.UseScope.IMPLICIT         => UseScope.Implicit
+      case schema.UseScope.PATMAT           => UseScope.PatMatTarget
+      case schema.UseScope.Unrecognized(id) => sys.error(ReadersFeedback.unrecognizedUseScope(id))
+    }
+  }
+
+  def fromAnalyzedClass(analyzedClass: schema.AnalyzedClass): AnalyzedClass = {
+    def fromCompanions(companions: schema.Companions): Companions = {
+      val classApi = companions.classApi.read(fromClassLike, ???)
+      val objectApi = companions.objectApi.read(fromClassLike, ???)
+      new Companions(classApi, objectApi)
+    }
+
+    def fromNameHash(nameHash: schema.NameHash): NameHash = {
+      val name = nameHash.name
+      val hash = nameHash.hash
+      val scope = fromUseScope(nameHash.scope)
+      new NameHash(name, scope, hash)
+    }
+
+    val compilationTimestamp = analyzedClass.compilationTimestamp
+    val name = analyzedClass.name
+    val api = SafeLazyProxy.strict(analyzedClass.api.read(fromCompanions, ???))
+    val apiHash = analyzedClass.apiHash
+    val nameHashes = analyzedClass.nameHashes.toZincArray(fromNameHash)
+    val hasMacro = analyzedClass.hasMacro
+    new AnalyzedClass(compilationTimestamp, name, api, apiHash, nameHashes, hasMacro)
+  }
+
+  private final val stringId = identity[String] _
+  private final val stringToFile = (path: String) => new File(path)
+  def fromRelations(relations: schema.Relations): Relations = {
+    def fromMap[K, V](map: Map[String, schema.Values],
+                      fk: String => K,
+                      fv: String => V): Relation[K, V] = {
+      val forwardMap = map.iterator.map {
+        case (k, vs) =>
+          val values = vs.values.iterator.map(fv).toSet
+          fk(k) -> values
+      }
+      Relation.reconstruct(forwardMap.toMap)
+    }
+
+    def fromClassDependencies(classDependencies: schema.ClassDependencies): ClassDependencies = {
+      val internal = fromMap(classDependencies.internal, stringId, stringId)
+      val external = fromMap(classDependencies.external, stringId, stringId)
+      new ClassDependencies(internal, external)
+    }
+
+    def fromUsedName(usedName: schema.UsedName): UsedName = {
+      val name = usedName.name
+      val scopes = usedName.scopes.iterator.map(fromUseScope).toIterable
+      UsedName.apply(name, scopes)
+    }
+
+    def fromUsedNamesMap(map: Map[String, schema.UsedNames]): Relation[String, UsedName] = {
+      val forwardMap = map.mapValues(values => values.usedNames.iterator.map(fromUsedName).toSet)
+      Relation.reconstruct(forwardMap)
+    }
+
+    val srcProd = fromMap(relations.srcProd, stringToFile, stringToFile)
+    val libraryDep = fromMap(relations.libraryDep, stringToFile, stringToFile)
+    val libraryClassName = fromMap(relations.libraryClassName, stringToFile, stringId)
+    val memberRef = relations.memberRef.read(fromClassDependencies, ???)
+    val inheritance = relations.inheritance.read(fromClassDependencies, ???)
+    val localInheritance = relations.localInheritance.read(fromClassDependencies, ???)
+    val classes = fromMap(relations.classes, stringToFile, stringId)
+    val productClassName = fromMap(relations.productClassName, stringId, stringId)
+    val names = fromUsedNamesMap(relations.names)
+    val internal = InternalDependencies(
+      Map(
+        DependencyContext.DependencyByMemberRef -> memberRef.internal,
+        DependencyContext.DependencyByInheritance -> inheritance.internal,
+        DependencyContext.LocalDependencyByInheritance -> localInheritance.internal
+      )
+    )
+    val external = ExternalDependencies(
+      Map(
+        DependencyContext.DependencyByMemberRef -> memberRef.external,
+        DependencyContext.DependencyByInheritance -> inheritance.external,
+        DependencyContext.LocalDependencyByInheritance -> localInheritance.external
+      )
+    )
+    Relations.make(
+      srcProd,
+      libraryDep,
+      libraryClassName,
+      internal,
+      external,
+      classes,
+      names,
+      productClassName
+    )
+  }
+
+  def fromApis(apis: schema.APIs): APIs = {
+    val internal = apis.internal.mapValues(fromAnalyzedClass)
+    val external = apis.external.mapValues(fromAnalyzedClass)
+    APIs(internal = internal, external = external)
+  }
+
+  def fromAnalysis(analysis: schema.Analysis): Analysis = {
+    val stamps = analysis.stamps.read(fromStamps, ???)
+    val relations = analysis.relations.read(fromRelations, ???)
+    val sourceInfos = analysis.sourceInfos.read(fromSourceInfos, ???)
+    val compilations = analysis.compilations.read(fromCompilations, ???)
+    Analysis.Empty.copy(
+      stamps = stamps,
+      relations = relations,
+      infos = sourceInfos,
+      compilations = compilations
+    )
+  }
+
+  def fromAnalysisFile(analysisFile: schema.AnalysisFile): (Analysis, MiniSetup) = {
+    val analysis = analysisFile.analysis.read(fromAnalysis, ???)
+    val miniSetup = analysisFile.miniSetup.read(fromMiniSetup, ???)
+    (analysis, miniSetup)
   }
 }

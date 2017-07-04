@@ -3,8 +3,6 @@ package sbt.internal.inc.converters
 import sbt.internal.inc.schema
 import xsbti.api._
 
-import scala.reflect.ClassTag
-
 object ProtobufDefaults {
   final val MissingInt: Int = -1
   final val MissingString: String = ""
@@ -41,6 +39,8 @@ object ProtobufDefaults {
     final val DefClazz = classOf[schema.ClassDefinition.Def]
     final val PathComponentClazz = classOf[schema.Path.PathComponent]
     final val ComponentClazz = classOf[schema.Path.PathComponent.Component]
+    final val ClassLikeClazz = classOf[schema.ClassLike]
+    final val ClassDefClazz = classOf[schema.ClassDefinition]
   }
 
   object Feedback {
@@ -52,6 +52,8 @@ object ProtobufDefaults {
     object Readers {
       final def unrecognizedSeverity(id: Int) =
         s"Unrecognized `Severity` level when reading data (id = $id)."
+      final def unrecognizedUseScope(id: Int) =
+        s"Unrecognized `UseScope` level when reading data (id = $id)."
       final def unrecognizedOrder(id: Int) =
         s"Unrecognized `CompileOrder` when reading data (id = $id)."
       final def missingBaseIn(clazz: Class[_]) =

@@ -424,3 +424,8 @@ message Analysis {
     SourceInfos sourceInfos = 3;
     Compilations compilations = 4;
 }
+
+message AnalysisFile {
+    Analysis analysis = 1;
+    MiniSetup miniSetup = 2;
+}
