@@ -12,7 +12,7 @@ package inc
 import java.io._
 import java.util.zip.{ ZipEntry, ZipInputStream }
 
-import com.google.protobuf.CodedOutputStream
+import com.google.protobuf.{ CodedInputStream, CodedOutputStream }
 import sbt.io.{ IO, Using }
 import xsbti.compile.{ CompileAnalysis, MiniSetup }
 import xsbti.api.Companions
@@ -23,6 +23,7 @@ object FileBasedStore {
   private final val analysisFileName = "inc_compile.txt"
   private final val companionsFileName = "api_companions.txt"
 
+  def binary(file: File): AnalysisStore = new BinaryFileStore(file)
   def apply(file: File): AnalysisStore = new FileBasedStoreImpl(file, TextAnalysisFormat)
   def apply(file: File, format: TextAnalysisFormat): AnalysisStore =
     new FileBasedStoreImpl(file, format)
@@ -31,7 +32,21 @@ object FileBasedStore {
 
   private final class BinaryFileStore(file: File) extends AnalysisStore {
     private final val TmpEnding = ".tmp"
-    override def get: Option[(CompileAnalysis, MiniSetup)] = ???
+    override def get: Option[(CompileAnalysis, MiniSetup)] = {
+      val nestedRead = allCatch.opt {
+        Using.zipInputStream(new FileInputStream(file)) { inputStream =>
+          lookupEntry(inputStream, analysisFileName)
+          val reader = CodedInputStream.newInstance(inputStream)
+          val (analysis, miniSetup) = BinaryAnalysisFormat.read(reader)
+          val analysisWithAPIs = allCatch.opt {
+            lookupEntry(inputStream, companionsFileName)
+            BinaryAnalysisFormat.readAPIs(reader, analysis)
+          }
+          analysisWithAPIs.map(analysis => analysis -> miniSetup)
+        }
+      }
+      nestedRead.flatten
+    }
 
     override def set(analysis: CompileAnalysis, setup: MiniSetup): Unit = {
       val tmpAnalysisFile = File.createTempFile(file.getName, TmpEnding)
