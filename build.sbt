@@ -484,8 +484,8 @@ lazy val publishLauncher = TaskKey[Unit]("publish-launcher")
 def customCommands: Seq[Setting[_]] = Seq(
   commands += Command.command("release") { state =>
     "clean" :: // This is required since version number is generated in properties file.
-      "so compile" ::
-      "so publishSigned" ::
+      "+compile" ::
+      "+publishSigned" ::
       "reload" ::
       state
   }
