@@ -81,6 +81,10 @@ message SourceInfo {
     repeated string mainClasses = 3;
 }
 
+message SourceInfos {
+    map<string, SourceInfo> sourceInfos = 1;
+}
+
 message FileHash {
     string path = 1;
     sint32 hash = 2;
@@ -338,13 +342,18 @@ enum DefinitionType {
 }
 
 message ClassLike {
-    DefinitionType definitionType = 1;
-    Type selfType = 2;
-    Type.Structure structure = 3;
-    repeated string savedAnnotations = 4;
-    repeated Type childrenOfSealedClass = 5;
-    bool topLevel = 6;
-    repeated TypeParameter typeParameters = 7;
+    string name = 1;
+    Access access = 2;
+    Modifiers modifiers = 3;
+    repeated Annotation annotations = 4;
+
+    DefinitionType definitionType = 5;
+    Type selfType = 6;
+    Type.Structure structure = 7;
+    repeated string savedAnnotations = 8;
+    repeated Type childrenOfSealedClass = 9;
+    bool topLevel = 10;
+    repeated TypeParameter typeParameters = 11;
 }
 
 message Companions {
@@ -373,3 +382,46 @@ message AnalyzedClass {
     bool hasMacro = 6;
 }
 
+message APIs {
+    map<string, AnalyzedClass> internal = 1;
+    map<string, AnalyzedClass> external = 2;
+}
+
+message UsedName {
+    string name = 1;
+    repeated UseScope scopes = 2;
+}
+
+message Values {
+    repeated string values = 1;
+}
+
+message UsedNames {
+    repeated UsedName usedNames = 1;
+}
+
+message ClassDependencies {
+    map<string, Values> internal = 1;
+    map<string, Values> external = 2;
+}
+
+message Relations {
+    map<string, Values> srcProd = 1;
+    map<string, Values> libraryDep = 2;
+    map<string, Values> libraryClassName = 3;
+    map<string, Values> classes = 4;
+    map<string, Values> productClassName = 5;
+    map<string, UsedNames> names = 6;
+
+    ClassDependencies memberRef = 7;
+    ClassDependencies inheritance = 8;
+    ClassDependencies localInheritance = 9;
+}
+
+message Analysis {
+    Stamps stamps = 1;
+    APIs apis = 2;
+    Relations relations = 3;
+    SourceInfos sourceInfos = 4;
+    Compilations compilations = 5;
+}
