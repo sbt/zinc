@@ -602,21 +602,19 @@ object ProtobufWriters {
     )
   }
 
-  def toAnalysis(analysis: Analysis): schema.Analysis = {
-    def toApis(apis: APIs): schema.APIs = {
-      val internal = apis.internal.mapValues(toAnalyzedClass)
-      val external = apis.external.mapValues(toAnalyzedClass)
-      schema.APIs(internal = internal, external = external)
-    }
+  def toApis(apis: APIs): schema.APIs = {
+    val internal = apis.internal.mapValues(toAnalyzedClass)
+    val external = apis.external.mapValues(toAnalyzedClass)
+    schema.APIs(internal = internal, external = external)
+  }
 
+  def toAnalysis(analysis: Analysis): schema.Analysis = {
     val stamps = Some(toStamps(analysis.stamps))
-    val apis = Some(toApis(analysis.apis))
     val relations = Some(toRelations(analysis.relations))
     val sourceInfos = Some(toSourceInfos(analysis.infos))
     val compilations = Some(toCompilations(analysis.compilations))
     schema.Analysis(
       stamps = stamps,
-      apis = apis,
       relations = relations,
       sourceInfos = sourceInfos,
       compilations = compilations
