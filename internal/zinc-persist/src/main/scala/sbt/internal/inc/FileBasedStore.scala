@@ -10,21 +10,50 @@ package internal
 package inc
 
 import java.io._
-import java.util.zip.{ ZipInputStream, ZipEntry }
+import java.util.zip.{ ZipEntry, ZipInputStream }
+
+import com.google.protobuf.CodedOutputStream
 import sbt.io.{ IO, Using }
 import xsbti.compile.{ CompileAnalysis, MiniSetup }
 import xsbti.api.Companions
+
 import scala.util.control.Exception.allCatch
 
 object FileBasedStore {
-  private val analysisFileName = "inc_compile.txt"
-  private val companionsFileName = "api_companions.txt"
+  private final val analysisFileName = "inc_compile.txt"
+  private final val companionsFileName = "api_companions.txt"
 
   def apply(file: File): AnalysisStore = new FileBasedStoreImpl(file, TextAnalysisFormat)
   def apply(file: File, format: TextAnalysisFormat): AnalysisStore =
     new FileBasedStoreImpl(file, format)
   def apply(file: File, format: AnalysisMappers): AnalysisStore =
     new FileBasedStoreImpl(file, new TextAnalysisFormat(format))
+
+  private final class BinaryFileStore(file: File) extends AnalysisStore {
+    private final val TmpEnding = ".tmp"
+    override def get: Option[(CompileAnalysis, MiniSetup)] = ???
+
+    override def set(analysis: CompileAnalysis, setup: MiniSetup): Unit = {
+      val tmpAnalysisFile = File.createTempFile(file.getName, TmpEnding)
+      if (!file.getParentFile.exists())
+        file.getParentFile.mkdirs()
+
+      val outputStream = new FileOutputStream(tmpAnalysisFile)
+      Using.zipOutputStream(outputStream) { outputStream =>
+        val protobufWriter = CodedOutputStream.newInstance(outputStream)
+        outputStream.putNextEntry(new ZipEntry(analysisFileName))
+        BinaryAnalysisFormat.write(protobufWriter, analysis, setup)
+        outputStream.closeEntry()
+
+        if (setup.storeApis()) {
+          outputStream.putNextEntry(new ZipEntry(companionsFileName))
+          BinaryAnalysisFormat.writeAPIs(protobufWriter, analysis)
+          outputStream.closeEntry()
+        }
+      }
+      IO.move(tmpAnalysisFile, file)
+    }
+  }
 
   private final class FileBasedStoreImpl(file: File, format: TextAnalysisFormat)
       extends AnalysisStore {

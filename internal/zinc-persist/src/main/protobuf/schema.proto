@@ -420,8 +420,7 @@ message Relations {
 
 message Analysis {
     Stamps stamps = 1;
-    APIs apis = 2;
-    Relations relations = 3;
-    SourceInfos sourceInfos = 4;
-    Compilations compilations = 5;
+    Relations relations = 2;
+    SourceInfos sourceInfos = 3;
+    Compilations compilations = 4;
 }
