@@ -1,7 +1,7 @@
 package sbt.internal.inc.converters
 
-import sbt.internal.inc.schema
 import xsbti.api._
+import sbt.internal.inc.schema
 
 object ProtobufDefaults {
   final val MissingInt: Int = -1

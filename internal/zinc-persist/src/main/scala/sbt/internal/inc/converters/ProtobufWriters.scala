@@ -609,6 +609,11 @@ object ProtobufWriters {
     schema.APIs(internal = internal, external = external)
   }
 
+  def toApisFile(apis0: APIs, version: schema.Version): schema.APIsFile = {
+    val apis = Some(toApis(apis0))
+    schema.APIsFile(version = version, apis = apis)
+  }
+
   def toAnalysis(analysis: Analysis): schema.Analysis = {
     val stamps = Some(toStamps(analysis.stamps))
     val relations = Some(toRelations(analysis.relations))
@@ -622,9 +627,11 @@ object ProtobufWriters {
     )
   }
 
-  def toAnalysisFile(analysis0: Analysis, miniSetup0: MiniSetup): schema.AnalysisFile = {
+  def toAnalysisFile(analysis0: Analysis,
+                     miniSetup0: MiniSetup,
+                     version: schema.Version): schema.AnalysisFile = {
     val analysis = Some(toAnalysis(analysis0))
     val miniSetup = Some(toMiniSetup(miniSetup0))
-    schema.AnalysisFile(analysis = analysis, miniSetup = miniSetup)
+    schema.AnalysisFile(version = version, analysis = analysis, miniSetup = miniSetup)
   }
 }
