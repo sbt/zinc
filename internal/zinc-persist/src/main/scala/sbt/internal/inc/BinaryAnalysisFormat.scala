@@ -5,30 +5,31 @@ import sbt.internal.inc.converters.{ ProtobufReaders, ProtobufWriters }
 import xsbti.compile.{ CompileAnalysis, MiniSetup }
 
 object BinaryAnalysisFormat {
+  private final val CurrentVersion = schema.Version.V1
   def write(writer: CodedOutputStream, analysis0: CompileAnalysis, miniSetup: MiniSetup): Unit = {
     val analysis = analysis0 match { case analysis: Analysis => analysis }
-    val protobufFile = ProtobufWriters.toAnalysisFile(analysis, miniSetup)
+    val protobufFile = ProtobufWriters.toAnalysisFile(analysis, miniSetup, CurrentVersion)
     protobufFile.writeTo(writer)
     writer.flush()
   }
 
   def writeAPIs(writer: CodedOutputStream, analysis0: CompileAnalysis): Unit = {
     val analysis = analysis0 match { case analysis: Analysis => analysis }
-    val protobufAPIs = ProtobufWriters.toApis(analysis.apis)
-    protobufAPIs.writeTo(writer)
+    val protobufAPIsFile = ProtobufWriters.toApisFile(analysis.apis, CurrentVersion)
+    protobufAPIsFile.writeTo(writer)
     writer.flush()
   }
 
   def read(reader: CodedInputStream): (CompileAnalysis, MiniSetup) = {
     val protobufFile = schema.AnalysisFile.parseFrom(reader)
-    val (analysis, miniSetup) = ProtobufReaders.fromAnalysisFile(protobufFile)
+    val (analysis, miniSetup, _) = ProtobufReaders.fromAnalysisFile(protobufFile)
     analysis -> miniSetup
   }
 
   def readAPIs(reader: CodedInputStream, analysis0: CompileAnalysis): CompileAnalysis = {
     val analysis = analysis0 match { case analysis: Analysis => analysis }
-    val protobufAPIs = schema.APIs.parseFrom(reader)
-    val apis = ProtobufReaders.fromApis(protobufAPIs)
+    val protobufAPIsFile = schema.APIsFile.parseFrom(reader)
+    val (apis, _) = ProtobufReaders.fromApisFile(protobufAPIsFile)
     analysis.copy(apis = apis)
   }
 }

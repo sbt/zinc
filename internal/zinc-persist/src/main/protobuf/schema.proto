@@ -425,7 +425,20 @@ message Analysis {
     Compilations compilations = 4;
 }
 
+/** Defines a version that allows to have custom protobuf-based readers and writers
+ * in the future without sacrificing binary compatibility. For instance, this can be
+ * used to enable an streaming-based protobuf API to be even more performant. */
+enum Version {
+    V1 = 0;
+}
+
 message AnalysisFile {
-    Analysis analysis = 1;
-    MiniSetup miniSetup = 2;
+    Version version = 1;
+    Analysis analysis = 2;
+    MiniSetup miniSetup = 3;
+}
+
+message APIsFile {
+    Version version = 1;
+    APIs apis = 2;
 }

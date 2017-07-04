@@ -552,6 +552,12 @@ object ProtobufReaders {
     APIs(internal = internal, external = external)
   }
 
+  def fromApisFile(apisFile: schema.APIsFile): (APIs, schema.Version) = {
+    val apis = apisFile.apis.read(fromApis, ???)
+    val version = apisFile.version
+    apis -> version
+  }
+
   def fromAnalysis(analysis: schema.Analysis): Analysis = {
     val stamps = analysis.stamps.read(fromStamps, ???)
     val relations = analysis.relations.read(fromRelations, ???)
@@ -565,9 +571,10 @@ object ProtobufReaders {
     )
   }
 
-  def fromAnalysisFile(analysisFile: schema.AnalysisFile): (Analysis, MiniSetup) = {
+  def fromAnalysisFile(analysisFile: schema.AnalysisFile): (Analysis, MiniSetup, schema.Version) = {
+    val version = analysisFile.version
     val analysis = analysisFile.analysis.read(fromAnalysis, ???)
     val miniSetup = analysisFile.miniSetup.read(fromMiniSetup, ???)
-    (analysis, miniSetup)
+    (analysis, miniSetup, version)
   }
 }
