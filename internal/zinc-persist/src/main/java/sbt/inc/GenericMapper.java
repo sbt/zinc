@@ -47,16 +47,16 @@ public interface GenericMapper {
     public File mapClasspathEntry(File classpathEntry);
 
     /**
-     * @param javacOptions The options to be passed to the Java compiler.
-     * @return A string composed of valid javac compiler options.
+     * @param javacOption An option to be passed to the Java compiler.
+     * @return A valid javac compiler option.
      */
-    public String mapJavacOptions(String javacOptions);
+    public String mapJavacOption(String javacOption);
 
     /**
-     * @param scalacOptions The options to be passed to the Scala compiler.
-     * @return A string composed of valid Scala compiler options.
+     * @param scalacOption An options to be passed to the Scala compiler.
+     * @return A valid Scala compiler option.
      */
-    public String mapScalacOptions(String scalacOptions);
+    public String mapScalacOption(String scalacOption);
 
     /**
      * @param file The owner of the stamp.

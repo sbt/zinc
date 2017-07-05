@@ -13,6 +13,7 @@ import java.io._
 import java.util.zip.{ ZipEntry, ZipInputStream }
 
 import com.google.protobuf.{ CodedInputStream, CodedOutputStream }
+import sbt.inc.ReadWriteMappers
 import sbt.io.{ IO, Using }
 import xsbti.compile.{ CompileAnalysis, MiniSetup }
 import xsbti.api.Companions
@@ -23,24 +24,32 @@ object FileBasedStore {
   private final val analysisFileName = "inc_compile.txt"
   private final val companionsFileName = "api_companions.txt"
 
-  def binary(file: File): AnalysisStore = new BinaryFileStore(file)
+  def binary(analysisFile: File): AnalysisStore =
+    new BinaryFileStore(analysisFile, ReadWriteMappers.getEmptyMappers())
+  def binary(analysisFile: File, mappers: ReadWriteMappers): AnalysisStore =
+    new BinaryFileStore(analysisFile, mappers)
+
   def apply(file: File): AnalysisStore = new FileBasedStoreImpl(file, TextAnalysisFormat)
   def apply(file: File, format: TextAnalysisFormat): AnalysisStore =
     new FileBasedStoreImpl(file, format)
   def apply(file: File, format: AnalysisMappers): AnalysisStore =
     new FileBasedStoreImpl(file, new TextAnalysisFormat(format))
 
-  private final class BinaryFileStore(file: File) extends AnalysisStore {
+  private final class BinaryFileStore(file: File, readWriteMappers: ReadWriteMappers)
+      extends AnalysisStore {
+
+    private final val format = new BinaryAnalysisFormat(readWriteMappers)
     private final val TmpEnding = ".tmp"
+
     override def get: Option[(CompileAnalysis, MiniSetup)] = {
       val nestedRead = allCatch.opt {
         Using.zipInputStream(new FileInputStream(file)) { inputStream =>
           lookupEntry(inputStream, analysisFileName)
           val reader = CodedInputStream.newInstance(inputStream)
-          val (analysis, miniSetup) = BinaryAnalysisFormat.read(reader)
+          val (analysis, miniSetup) = format.read(reader)
           val analysisWithAPIs = allCatch.opt {
             lookupEntry(inputStream, companionsFileName)
-            BinaryAnalysisFormat.readAPIs(reader, analysis)
+            format.readAPIs(reader, analysis)
           }
           analysisWithAPIs.map(analysis => analysis -> miniSetup)
         }
@@ -57,12 +66,12 @@ object FileBasedStore {
       Using.zipOutputStream(outputStream) { outputStream =>
         val protobufWriter = CodedOutputStream.newInstance(outputStream)
         outputStream.putNextEntry(new ZipEntry(analysisFileName))
-        BinaryAnalysisFormat.write(protobufWriter, analysis, setup)
+        format.write(protobufWriter, analysis, setup)
         outputStream.closeEntry()
 
         if (setup.storeApis()) {
           outputStream.putNextEntry(new ZipEntry(companionsFileName))
-          BinaryAnalysisFormat.writeAPIs(protobufWriter, analysis)
+          format.writeAPIs(protobufWriter, analysis)
           outputStream.closeEntry()
         }
       }

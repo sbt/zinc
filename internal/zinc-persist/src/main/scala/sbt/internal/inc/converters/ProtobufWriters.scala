@@ -2,6 +2,7 @@ package sbt.internal.inc.converters
 
 import java.io.File
 
+import sbt.inc.WriteMapper
 import sbt.internal.inc._
 import xsbti.{ Position, Problem, Severity, T2, UseScope }
 import xsbti.compile.analysis.{ SourceInfo, Stamp }
@@ -19,7 +20,11 @@ import xsbti.compile.{
   SingleOutput
 }
 
-object ProtobufWriters {
+final class ProtobufWriters(mapper: WriteMapper) {
+  def toStringPath(file: File): String = {
+    file.toPath.toString
+  }
+
   def toStampType(stamp: Stamp): schema.Stamps.StampType = {
     val s0 = schema.Stamps.StampType()
     stamp match {
@@ -30,12 +35,43 @@ object ProtobufWriters {
   }
 
   def toStamps(stamps: Stamps): schema.Stamps = {
-    def toSchemaMap(data: Map[File, Stamp]): Map[String, schema.Stamps.StampType] =
-      data.map(kv => kv._1.getAbsolutePath -> toStampType(kv._2))
+    // Note that boilerplate here is inteded, abstraction is expensive
+    def toBinarySchemaMap(data: Map[File, Stamp]): Map[String, schema.Stamps.StampType] = {
+      data.map {
+        case (binaryFile, stamp) =>
+          val newBinaryFile = mapper.mapBinaryFile(binaryFile)
+          val newPath = toStringPath(newBinaryFile)
+          val newBinaryStamp = mapper.mapBinaryStamp(binaryFile, stamp)
+          val newStamp = toStampType(newBinaryStamp)
+          newPath -> newStamp
+      }
+    }
 
-    val binaryStamps = toSchemaMap(stamps.binaries)
-    val sourceStamps = toSchemaMap(stamps.sources)
-    val productStamps = toSchemaMap(stamps.products)
+    def toSourceSchemaMap(data: Map[File, Stamp]): Map[String, schema.Stamps.StampType] = {
+      data.map {
+        case (sourceFile, stamp) =>
+          val newSourceFile = mapper.mapSourceFile(sourceFile)
+          val newPath = toStringPath(newSourceFile)
+          val newSourceStamp = mapper.mapSourceStamp(sourceFile, stamp)
+          val newStamp = toStampType(newSourceStamp)
+          newPath -> newStamp
+      }
+    }
+
+    def toProductSchemaMap(data: Map[File, Stamp]): Map[String, schema.Stamps.StampType] = {
+      data.map {
+        case (productFile, stamp) =>
+          val newProductFile = mapper.mapProductFile(productFile)
+          val newPath = toStringPath(newProductFile)
+          val newProductStamp = mapper.mapProductStamp(productFile, stamp)
+          val newStamp = toStampType(newProductStamp)
+          newPath -> newStamp
+      }
+    }
+
+    val binaryStamps = toBinarySchemaMap(stamps.binaries)
+    val sourceStamps = toSourceSchemaMap(stamps.sources)
+    val productStamps = toProductSchemaMap(stamps.products)
     schema.Stamps(
       binaryStamps = binaryStamps,
       sourceStamps = sourceStamps,
@@ -44,16 +80,19 @@ object ProtobufWriters {
   }
 
   def toOutputGroup(outputGroup: OutputGroup): schema.OutputGroup = {
-    val sourcePath = outputGroup.getSourceDirectory.getAbsolutePath
-    val targetPath = outputGroup.getOutputDirectory.getAbsolutePath
-    schema.OutputGroup(source = sourcePath, target = targetPath)
+    val newSource = mapper.mapSourceDir(outputGroup.getSourceDirectory)
+    val newTarget = mapper.mapOutputDir(outputGroup.getOutputDirectory)
+    val source = toStringPath(newSource)
+    val target = toStringPath(newTarget)
+    schema.OutputGroup(source = source, target = target)
   }
 
   def toCompilationOutput(output: Output): schema.Compilation.Output = {
     import schema.Compilation.{ Output => CompilationOutput }
     output match {
       case single0: SingleOutput =>
-        val targetPath = single0.getOutputDirectory.getAbsolutePath
+        val newOutputDir = mapper.mapOutputDir(single0.getOutputDirectory)
+        val targetPath = toStringPath(newOutputDir)
         val single = schema.SingleOutput(target = targetPath)
         CompilationOutput.SingleOutput(single)
       case multiple0: MultipleOutput =>
@@ -85,7 +124,7 @@ object ProtobufWriters {
       pointer = position.pointer.toOption.fold(MissingInt)(_.toInt),
       pointerSpace = position.pointerSpace.toOption.getOrElse(MissingString),
       sourcePath = position.sourcePath.toOption.getOrElse(MissingString),
-      sourceFilepath = position.sourceFile.toOption.fold(MissingString)(_.getAbsolutePath)
+      sourceFilepath = position.sourceFile.toOption.fold(MissingString)(toStringPath)
     )
   }
 
@@ -122,21 +161,24 @@ object ProtobufWriters {
   }
 
   def toSourceInfos(sourceInfos0: SourceInfos): schema.SourceInfos = {
-    val sourceInfos = sourceInfos0.allInfos.map(kv => kv._1.getAbsolutePath -> toSourceInfo(kv._2))
+    val sourceInfos = sourceInfos0.allInfos.map(kv => toStringPath(kv._1) -> toSourceInfo(kv._2))
     schema.SourceInfos(sourceInfos = sourceInfos)
   }
 
-  def toFileHash(fileHash: FileHash): schema.FileHash = {
+  def toClasspathFileHash(fileHash: FileHash): schema.FileHash = {
+    val newClasspathEntry = mapper.mapClasspathEntry(fileHash.file())
+    val path = toStringPath(newClasspathEntry)
+    val hash = fileHash.hash()
     schema.FileHash(
-      path = fileHash.file.getAbsolutePath,
-      hash = fileHash.hash
+      path = path,
+      hash = hash
     )
   }
 
   def toMiniOptions(miniOptions: MiniOptions): schema.MiniOptions = {
-    val classpathHash = miniOptions.classpathHash.map(toFileHash)
-    val javacOptions = miniOptions.javacOptions()
-    val scalacOptions = miniOptions.scalacOptions()
+    val classpathHash = miniOptions.classpathHash.map(toClasspathFileHash)
+    val javacOptions = miniOptions.javacOptions().map(mapper.mapJavacOption)
+    val scalacOptions = miniOptions.scalacOptions().map(mapper.mapScalacOption)
     schema.MiniOptions(
       classpathHash = classpathHash,
       javacOptions = javacOptions,
@@ -160,7 +202,8 @@ object ProtobufWriters {
     import schema.MiniSetup.{ Output => CompilationOutput }
     output match {
       case single0: SingleOutput =>
-        val targetPath = single0.getOutputDirectory.getAbsolutePath
+        val newOutputDir = mapper.mapOutputDir(single0.getOutputDirectory)
+        val targetPath = toStringPath(newOutputDir)
         val single = schema.SingleOutput(target = targetPath)
         CompilationOutput.SingleOutput(single)
       case multiple0: MultipleOutput =>
@@ -531,7 +574,7 @@ object ProtobufWriters {
     )
   }
 
-  private final val fileToString = (f: File) => f.getAbsolutePath
+  private final val fileToString = (f: File) => toStringPath(f)
   private final val stringId = identity[String] _
   def toRelations(relations: Relations): schema.Relations = {
     import sbt.internal.util.Relation
