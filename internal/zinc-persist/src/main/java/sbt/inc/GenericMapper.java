@@ -1,5 +1,6 @@
 package sbt.inc;
 
+import xsbti.compile.MiniSetup;
 import xsbti.compile.analysis.Stamp;
 
 import java.io.File;
@@ -77,4 +78,10 @@ public interface GenericMapper {
      * @return A valid, transformed stamp.
      */
     public Stamp mapProductStamp(File file, Stamp productStamp);
+
+    /**
+     * @param miniSetup The simple compile setup that is serialized in the analysis file.
+     * @return A valid, transformed mini setup.
+     */
+    public MiniSetup mapMiniSetup(MiniSetup miniSetup);
 }
