@@ -43,8 +43,6 @@ class ExportableCache(val cacheLocation: Path, cleanOutputMode: CleanOutputMode 
   protected def createMapper(projectLocation: File) =
     new ExportableCacheMapper(projectLocation.toPath)
 
-  protected def cacheVerifier(): CacheVerifier = NoopVerifier
-
   protected def outputDirFor(setup: MiniSetup): File = setup.output() match {
     case single: SingleOutput =>
       single.getOutputDirectory()
@@ -83,17 +81,12 @@ class ExportableCache(val cacheLocation: Path, cleanOutputMode: CleanOutputMode 
     analysis.copy(stamps = newStamps)
   }
 
-  def exportCache(projectLocation: File,
-                  currentAnalysisStore: AnalysisStore): Option[VerficationResults] = {
+  def exportCache(projectLocation: File, currentAnalysisStore: AnalysisStore): Option[Unit] = {
     for ((currentAnalysis: Analysis, currentSetup) <- currentAnalysisStore.get()) yield {
-      val verifier = cacheVerifier()
-      val mapper = verifier.verifingMappers(createMapper(projectLocation))
+      val mapper = createMapper(projectLocation)
       val remoteStore = FileBasedStore(analysisFile.toFile, mapper)
-
       exportBinaryCache(currentAnalysis, currentSetup)
-
       remoteStore.set(currentAnalysis, currentSetup)
-      verifier.results
     }
   }
 
