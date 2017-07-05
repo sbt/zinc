@@ -119,11 +119,18 @@ lazy val zincRoot: Project = (project in file("."))
           // can't use git.runner.value because it's a task
           val runner = com.typesafe.sbt.git.ConsoleGitRunner
           val dir = baseDirectory.value
-          val uncommittedChanges = statusCommands.map { c =>
-            runner(c: _*)(dir, com.typesafe.sbt.git.NullLogger)
+          val uncommittedChanges = statusCommands flatMap { c =>
+            val res = runner(c: _*)(dir, com.typesafe.sbt.git.NullLogger)
+            if (res.isEmpty) Nil else Seq(c -> res)
           }
 
-          uncommittedChanges.exists(_.nonEmpty)
+          val un = uncommittedChanges.nonEmpty
+          if (un) {
+            uncommittedChanges foreach { case (cmd, res) =>
+              sLog.value debug s"""Uncommitted changes found via "${cmd mkString " "}":\n${res}"""
+            }
+          }
+          un
         },
         version := {
           val v = version.value
