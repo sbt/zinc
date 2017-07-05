@@ -2,6 +2,7 @@ package sbt.internal.inc.converters
 
 import java.io.File
 
+import sbt.inc.ReadMapper
 import sbt.internal.inc.Relations.ClassDependencies
 import sbt.internal.inc._
 import sbt.util.InterfaceUtil
@@ -14,7 +15,11 @@ import sbt.internal.inc.converters.ProtobufDefaults.ReadersConstants
 import sbt.internal.util.Relation
 import xsbti.api._
 
-object ProtobufReaders {
+final class ProtobufReaders(mapper: ReadMapper) {
+  def fromPathString(path: String): File = {
+    java.nio.file.Paths.get(path).toFile
+  }
+
   def fromStampType(stampType: schema.Stamps.StampType): Stamp = {
     import sbt.internal.inc.{ EmptyStamp, LastModified, Hash }
     stampType.`type` match {
@@ -26,11 +31,43 @@ object ProtobufReaders {
   }
 
   def fromStamps(stamps: schema.Stamps): Stamps = {
-    def fromSchemaMap(stamps: Map[String, schema.Stamps.StampType]): Map[File, Stamp] =
-      stamps.map(kv => new File(kv._1) -> fromStampType(kv._2))
-    val binaries = fromSchemaMap(stamps.binaryStamps)
-    val sources = fromSchemaMap(stamps.sourceStamps)
-    val products = fromSchemaMap(stamps.productStamps)
+    // Note that boilerplate here is inteded, abstraction is expensive
+    def fromBinarySchemaMap(stamps: Map[String, schema.Stamps.StampType]): Map[File, Stamp] = {
+      stamps.map {
+        case (path, schemaStamp) =>
+          val file = fromPathString(path)
+          val newFile = mapper.mapBinaryFile(file)
+          val stamp = fromStampType(schemaStamp)
+          val newStamp = mapper.mapBinaryStamp(newFile, stamp)
+          newFile -> newStamp
+      }
+    }
+
+    def fromSourceSchemaMap(stamps: Map[String, schema.Stamps.StampType]): Map[File, Stamp] = {
+      stamps.map {
+        case (path, schemaStamp) =>
+          val file = fromPathString(path)
+          val newFile = mapper.mapSourceFile(file)
+          val stamp = fromStampType(schemaStamp)
+          val newStamp = mapper.mapSourceStamp(newFile, stamp)
+          newFile -> newStamp
+      }
+    }
+
+    def fromProductSchemaMap(stamps: Map[String, schema.Stamps.StampType]): Map[File, Stamp] = {
+      stamps.map {
+        case (path, schemaStamp) =>
+          val file = fromPathString(path)
+          val newFile = mapper.mapProductFile(file)
+          val stamp = fromStampType(schemaStamp)
+          val newStamp = mapper.mapProductStamp(newFile, stamp)
+          newFile -> newStamp
+      }
+    }
+
+    val binaries = fromBinarySchemaMap(stamps.binaryStamps)
+    val sources = fromSourceSchemaMap(stamps.sourceStamps)
+    val products = fromProductSchemaMap(stamps.productStamps)
     Stamps(
       binaries = binaries,
       sources = sources,
@@ -39,17 +76,20 @@ object ProtobufReaders {
   }
 
   def fromOutputGroup(outputGroup: schema.OutputGroup): OutputGroup = {
-    val source = new File(outputGroup.source)
-    val target = new File(outputGroup.target)
-    SimpleOutputGroup(source, target)
+    val source = fromPathString(outputGroup.source)
+    val sourceDir = mapper.mapSourceDir(source)
+    val target = fromPathString(outputGroup.target)
+    val targetDir = mapper.mapOutputDir(target)
+    SimpleOutputGroup(sourceDir, targetDir)
   }
 
   def fromCompilationOutput(output: schema.Compilation.Output): Output = {
     import schema.Compilation.{ Output => CompilationOutput }
     output match {
       case CompilationOutput.SingleOutput(single) =>
-        val target = new File(single.target)
-        new ConcreteSingleOutput(target)
+        val target = fromPathString(single.target)
+        val outputDir = mapper.mapOutputDir(target)
+        new ConcreteSingleOutput(outputDir)
       case CompilationOutput.MultipleOutput(multiple) =>
         val groups = multiple.outputGroups.iterator.map(fromOutputGroup).toArray
         new ConcreteMultipleOutput(groups)
@@ -82,7 +122,7 @@ object ProtobufReaders {
       pointer0 = fromInt(position.pointer),
       pointerSpace0 = fromString(position.pointerSpace),
       sourcePath0 = fromString(position.sourcePath),
-      sourceFile0 = fromString(position.sourceFilepath).map(new File(_))
+      sourceFile0 = fromString(position.sourceFilepath).map(fromPathString)
     )
   }
 
@@ -117,22 +157,24 @@ object ProtobufReaders {
   def fromSourceInfos(sourceInfos0: schema.SourceInfos): SourceInfos = {
     val sourceInfos = sourceInfos0.sourceInfos.iterator.map {
       case (path, value) =>
-        val file = new File(path)
+        val file = fromPathString(path)
         val sourceInfo = fromSourceInfo(value)
         file -> sourceInfo
     }
     SourceInfos.make(sourceInfos.toMap)
   }
 
-  def fromFileHash(fileHash: schema.FileHash): FileHash = {
-    val file = new File(fileHash.path)
-    new FileHash(file, fileHash.hash)
+  def fromClasspathFileHash(fileHash: schema.FileHash): FileHash = {
+    val hash = fileHash.hash
+    val classpathEntry = fromPathString(fileHash.path)
+    val newClasspathEntry = mapper.mapClasspathEntry(classpathEntry)
+    new FileHash(newClasspathEntry, fileHash.hash)
   }
 
   def fromMiniOptions(miniOptions: schema.MiniOptions): MiniOptions = {
-    val classpathHash = miniOptions.classpathHash.map(fromFileHash).toArray
-    val javacOptions = miniOptions.javacOptions.toArray
-    val scalacOptions = miniOptions.scalacOptions.toArray
+    val classpathHash = miniOptions.classpathHash.map(fromClasspathFileHash).toArray
+    val javacOptions = miniOptions.javacOptions.map(mapper.mapJavacOption).toArray
+    val scalacOptions = miniOptions.scalacOptions.map(mapper.mapScalacOption).toArray
     new MiniOptions(classpathHash, scalacOptions, javacOptions)
   }
 
@@ -153,8 +195,9 @@ object ProtobufReaders {
     import schema.MiniSetup.{ Output => MiniSetupOutput }
     output match {
       case MiniSetupOutput.SingleOutput(single) =>
-        val target = new File(single.target)
-        new ConcreteSingleOutput(target)
+        val targetDir = fromPathString(single.target)
+        val outputDir = mapper.mapOutputDir(targetDir)
+        new ConcreteSingleOutput(outputDir)
       case MiniSetupOutput.MultipleOutput(multiple) =>
         val groups = multiple.outputGroups.iterator.map(fromOutputGroup).toArray
         new ConcreteMultipleOutput(groups)
@@ -481,7 +524,7 @@ object ProtobufReaders {
   }
 
   private final val stringId = identity[String] _
-  private final val stringToFile = (path: String) => new File(path)
+  private final val stringToFile = (path: String) => fromPathString(path)
   def fromRelations(relations: schema.Relations): Relations = {
     def fromMap[K, V](map: Map[String, schema.Values],
                       fk: String => K,
