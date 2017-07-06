@@ -6,13 +6,15 @@ import java.nio.file.Path
 import xsbti.compile.analysis.Stamp
 
 object MapperUtils {
+  private[inc] def rebase(target: File, from: Path, to: Path): File = {
+    to.resolve(from.relativize(target.toPath)).toFile
+  }
+
   private[inc] def makeRelative(file: File, from: Path): File = {
-    // This does not throw any exception, yay.
     from.relativize(file.toPath).toFile
   }
 
   private[inc] def reconstructRelative(file: File, from: Path): File = {
-    // This does not throw any exception, yay.
     if (file.isAbsolute) file
     else from.resolve(file.toPath).toFile
   }

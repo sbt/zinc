@@ -16,8 +16,8 @@ final class RelativeReadMapper(rootProjectPath: Path) extends ReadMapper {
   override def mapProductFile(productFile: File): File = reconstructRelative(productFile)
 
   override def mapClasspathEntry(classpathEntry: File): File = reconstructRelative(classpathEntry)
-  override def mapJavacOptions(javacOptions: String): String = identity(javacOptions)
-  override def mapScalacOptions(scalacOptions: String): String = identity(scalacOptions)
+  override def mapJavacOption(javacOption: String): String = identity(javacOption)
+  override def mapScalacOption(scalacOption: String): String = identity(scalacOption)
 
   override def mapOutputDir(outputDir: File): File = reconstructRelative(outputDir)
   override def mapSourceDir(sourceDir: File): File = reconstructRelative(sourceDir)

@@ -15,8 +15,8 @@ final class RelativeWriteMapper(rootProjectPath: Path) extends WriteMapper {
   override def mapProductFile(productFile: File): File = makeRelative(productFile)
 
   override def mapClasspathEntry(classpathEntry: File): File = makeRelative(classpathEntry)
-  override def mapJavacOptions(javacOptions: String): String = identity(javacOptions)
-  override def mapScalacOptions(scalacOptions: String): String = identity(scalacOptions)
+  override def mapJavacOption(javacOption: String): String = identity(javacOption)
+  override def mapScalacOption(scalacOption: String): String = identity(scalacOption)
 
   override def mapOutputDir(outputDir: File): File = makeRelative(outputDir)
   override def mapSourceDir(sourceDir: File): File = makeRelative(sourceDir)
