@@ -10,7 +10,7 @@ object Dependencies {
 
   private val ioVersion = "1.0.0-M12"
   private val utilVersion = "1.0.0-M25"
-  private val lmVersion = "1.0.0-X16"
+  private val lmVersion = "1.0.0-SNAPSHOT"
 
   private val sbtIO = "org.scala-sbt" %% "io" % ioVersion
 
@@ -22,7 +22,8 @@ object Dependencies {
   private val utilInterface = "org.scala-sbt" % "util-interface" % utilVersion
   private val utilScripted = "org.scala-sbt" %% "util-scripted" % utilVersion
 
-  private val libraryManagement = "org.scala-sbt" %% "librarymanagement" % lmVersion
+  private val libraryManagementCore = "org.scala-sbt" %% "librarymanagement-core" % lmVersion
+  private val libraryManagementIvy  = "org.scala-sbt" %% "librarymanagement-ivy" % lmVersion
 
   val launcherInterface = "org.scala-sbt" % "launcher-interface" % "1.0.0"
 
@@ -67,7 +68,9 @@ object Dependencies {
   def addSbtUtilTracking(p: Project): Project =
     addSbtModule(p, sbtUtilPath, "utilTracking", utilTracking)
 
-  def addSbtLm(p: Project): Project = addSbtModule(p, sbtLmPath, "lm", libraryManagement)
+  def addSbtLm(p: Project): Project = addSbtModule(p, sbtLmPath, "lm", libraryManagementCore)
+  def addSbtLmIvy(p: Project): Project = addSbtModule(p, sbtLmPath, "lmIvy", libraryManagementIvy)
+  def addSbtLmIvyTest(p: Project): Project = addSbtModule(p, sbtLmPath, "lmIvy", libraryManagementIvy, Some(Test))
 
   val scalaLibrary = Def.setting { "org.scala-lang" % "scala-library" % scalaVersion.value }
   val scalaCompiler = Def.setting { "org.scala-lang" % "scala-compiler" % scalaVersion.value }
