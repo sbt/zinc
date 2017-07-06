@@ -123,6 +123,8 @@ lazy val zincRoot: Project = (project in file("."))
           // can't use git.runner.value because it's a task
           val runner = com.typesafe.sbt.git.ConsoleGitRunner
           val dir = baseDirectory.value
+          // sbt/zinc#334 Seemingly "git status" resets some stale metadata.
+          runner("status")(dir, com.typesafe.sbt.git.NullLogger)
           val uncommittedChanges = statusCommands flatMap { c =>
             val res = runner(c: _*)(dir, com.typesafe.sbt.git.NullLogger)
             if (res.isEmpty) Nil else Seq(c -> res)
