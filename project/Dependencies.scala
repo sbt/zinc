@@ -49,7 +49,7 @@ object Dependencies {
 
   lazy val sbtIoPath = getSbtModulePath("sbtio.path", "sbt/io")
   lazy val sbtUtilPath = getSbtModulePath("sbtutil.path", "sbt/util")
-  lazy val sbtLmPath = getSbtModulePath("sbtlm.path", "sbt/lm")
+  lazy val sbtLmPath = getSbtModulePath("sbtlm.path", "sbt/librarymanagement")
 
   def addSbtIO(p: Project): Project = addSbtModule(p, sbtIoPath, "io", sbtIO)
 
@@ -68,7 +68,7 @@ object Dependencies {
   def addSbtUtilTracking(p: Project): Project =
     addSbtModule(p, sbtUtilPath, "utilTracking", utilTracking)
 
-  def addSbtLm(p: Project): Project = addSbtModule(p, sbtLmPath, "lmCore", libraryManagementCore)
+  def addSbtLmCore(p: Project): Project = addSbtModule(p, sbtLmPath, "lmCore", libraryManagementCore)
   def addSbtLmIvy(p: Project): Project = addSbtModule(p, sbtLmPath, "lmIvy", libraryManagementIvy)
   def addSbtLmIvyTest(p: Project): Project = addSbtModule(p, sbtLmPath, "lmIvy", libraryManagementIvy, Some(Test))
 
