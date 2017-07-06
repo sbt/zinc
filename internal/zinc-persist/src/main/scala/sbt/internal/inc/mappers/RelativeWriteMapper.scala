@@ -7,6 +7,8 @@ import sbt.inc.WriteMapper
 import xsbti.compile.MiniSetup
 import xsbti.compile.analysis.Stamp
 
+// Please see docs about the implementation in the WriteMapper interface
+/** @inheritdoc */
 final class RelativeWriteMapper(rootProjectPath: Path) extends WriteMapper {
   private def makeRelative(file: File): File = MapperUtils.makeRelative(file, rootProjectPath)
 
