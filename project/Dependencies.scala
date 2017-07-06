@@ -68,7 +68,7 @@ object Dependencies {
   def addSbtUtilTracking(p: Project): Project =
     addSbtModule(p, sbtUtilPath, "utilTracking", utilTracking)
 
-  def addSbtLm(p: Project): Project = addSbtModule(p, sbtLmPath, "lm", libraryManagementCore)
+  def addSbtLm(p: Project): Project = addSbtModule(p, sbtLmPath, "lmCore", libraryManagementCore)
   def addSbtLmIvy(p: Project): Project = addSbtModule(p, sbtLmPath, "lmIvy", libraryManagementIvy)
   def addSbtLmIvyTest(p: Project): Project = addSbtModule(p, sbtLmPath, "lmIvy", libraryManagementIvy, Some(Test))
 
