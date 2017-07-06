@@ -7,6 +7,8 @@ import sbt.inc.{ ReadMapper }
 import xsbti.compile.MiniSetup
 import xsbti.compile.analysis.Stamp
 
+// Please see docs about the implementation in the WriteMapper interface
+/** @inheritdoc */
 final class RelativeReadMapper(rootProjectPath: Path) extends ReadMapper {
   private def reconstructRelative(file: File): File =
     MapperUtils.reconstructRelative(file, rootProjectPath)
