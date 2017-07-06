@@ -12,7 +12,7 @@ import java.nio.file.{ Files, Path, Paths }
 
 import org.scalatest.BeforeAndAfterAll
 import sbt.internal.inc.cached.{ CacheAwareStore, CacheProvider }
-import sbt.internal.inc.{ Analysis, AnalysisStore, FileBasedStore }
+import sbt.internal.inc.{ Analysis, AnalysisStore, FileBasedStore}
 import sbt.io.IO
 import sbt.inc.BaseCompilerSpec
 
@@ -57,6 +57,30 @@ abstract class CommonCachedCompilation(name: String)
 
   def remoteCacheProvider(): CacheProvider
 
+  /**
+    * Redefine what `currentManaged` is based on the project base location.
+    *
+    * The `lib_managed` folder stores all the cached libraries. It's an equivalent of
+    * `.ivy2` or `.coursier`. The analysis file provides simple read and write mappers
+    * that turn all paths relative to a **concrete position**.
+    *
+    * Note that the assumption that all paths can be made relative to a concrete position
+    * is not correct. There is no guarantee that the paths of the caches, the artifacts,
+    * the classpath entries, the outputs, et cetera share the same prefix.
+    *
+    * Such assumption is broken in our test infrastructure: `lib_managed` does not share
+    * the same prefix, and without redefining it, it fails. Note that this is a conscious
+    * design decision of the relative read and write mappers. They are focused on simplicity.
+    * Build tools that need more careful handling of paths should create their own read and
+    * write mappers.
+    *
+    * @return The file where all the libraries are stored.
+    */
+  override def currentManaged: File = {
+    import sbt.io.syntax.fileToRichFile
+    remoteProject.baseLocation.toFile./("target/lib_managed")
+  }
+
   override protected def beforeAll(): Unit = {
     val basePath = IO.createTemporaryDirectory.toPath.resolve("remote")
     Files.createDirectory(basePath)
@@ -64,7 +88,7 @@ abstract class CommonCachedCompilation(name: String)
     remoteProject =
       ProjectSetup(basePath, SetupCommons.baseSourceMapping, SetupCommons.baseCpMapping)
     remoteCompilerSetup = remoteProject.createCompiler()
-    remoteAnalysisStore = FileBasedStore.apply(remoteProject.defaultStoreLocation)
+    remoteAnalysisStore = FileBasedStore.binary(remoteProject.defaultStoreLocation)
 
     val result = remoteCompilerSetup.doCompileWithStore(remoteAnalysisStore)
     assert(result.hasModified)
@@ -86,6 +110,7 @@ abstract class CommonCachedCompilation(name: String)
 
     val prefix = tempDir.toPath.toString
 
+    // TODO(jvican): Add files that are missing...
     val allFilesToMigrate = analysis.stamps.sources.keySet ++
       analysis.stamps.products.keySet ++ analysis.stamps.binaries.keySet
 
@@ -98,11 +123,11 @@ abstract class CommonCachedCompilation(name: String)
     }
   }
 
-  it should "not run compilation in local project" in namedTempDir("localProject") { tempDir =>
+  it should "not run compilation in local project" in namedTempDir("localProject") { projectRoot =>
     val projectSetup =
-      ProjectSetup(tempDir.toPath, SetupCommons.baseSourceMapping, SetupCommons.baseCpMapping)
-    val localStore = FileBasedStore(new File(tempDir, "inc_data.zip"))
-    val cache = CacheAwareStore(localStore, remoteCacheProvider(), tempDir)
+      ProjectSetup(projectRoot.toPath, SetupCommons.baseSourceMapping, SetupCommons.baseCpMapping)
+    val localStore = FileBasedStore.binary(new File(projectRoot, "inc_data.zip"))
+    val cache = CacheAwareStore(localStore, remoteCacheProvider(), projectRoot)
 
     val compiler = projectSetup.createCompiler()
     val result = compiler.doCompileWithStore(cache)
