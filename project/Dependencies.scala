@@ -1,16 +1,14 @@
-import sbt._
-import Keys._
+import sbt._, Keys._
 import sbt.contraband.ContrabandPlugin.autoImport._
 
 object Dependencies {
-
   val scala210 = "2.10.6"
   val scala211 = "2.11.11"
   val scala212 = "2.12.2"
 
   private val ioVersion = "1.0.0-M12"
-  private val utilVersion = "1.0.0-M25"
-  private val lmVersion = "1.0.0-X16"
+  private val utilVersion = "1.0.0-M26"
+  private val lmVersion = "1.0.0-X17"
 
   private val sbtIO = "org.scala-sbt" %% "io" % ioVersion
 
@@ -33,12 +31,14 @@ object Dependencies {
     path foreach (f => println(s"Using $name from $f"))
     path
   }
-  
-  def addSbtModule(p: Project,
-                   path: Option[String],
-                   projectName: String,
-                   m: ModuleID,
-                   c: Option[Configuration] = None) =
+
+  def addSbtModule(
+    p: Project,
+    path: Option[String],
+    projectName: String,
+    m: ModuleID,
+    c: Option[Configuration] = None
+  ) =
     path match {
       case Some(f) =>
         p dependsOn c.fold[ClasspathDep[ProjectReference]](ProjectRef(file(f), projectName))(
