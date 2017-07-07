@@ -77,7 +77,6 @@ object Dependencies {
   val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.13.4"
   val scalatest = "org.scalatest" %% "scalatest" % "3.0.1"
   val junit = "junit" % "junit" % "4.11"
-  val diffUtils = "com.googlecode.java-diff-utils" % "diffutils" % "1.3.0"
   val sjsonnew = Def.setting { "com.eed3si9n" %% "sjson-new-core" % contrabandSjsonNewVersion.value }
   val sjsonnewScalaJson = Def.setting { "com.eed3si9n" %% "sjson-new-scalajson" % contrabandSjsonNewVersion.value }
 
@@ -87,8 +86,7 @@ object Dependencies {
           Seq(
             scalaCheck % Test,
             scalatest % Test,
-            junit % Test,
-            diffUtils % Test
+            junit % Test
           ))
       .configure(addSbtUtilTesting)
 }
