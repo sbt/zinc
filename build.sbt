@@ -3,7 +3,7 @@ import Dependencies._
 import Scripted._
 // import com.typesafe.tools.mima.core._, ProblemFilters._
 
-def baseVersion = "1.0.0-X16-SNAPSHOT"
+def baseVersion = "1.0.0-X19-SNAPSHOT"
 def internalPath = file("internal")
 
 lazy val compilerBridgeScalaVersions = List(scala212, scala211, scala210)
