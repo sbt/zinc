@@ -18,7 +18,7 @@ import sbt.internal.librarymanagement.cross.CrossVersionUtil
 import sbt.librarymanagement._
 import Configurations._
 
-import scala.json.ast.unsafe.JValue
+import scalajson.ast.unsafe.JValue
 
 trait BaseIvySpecification extends UnitSpec {
   def currentBase: File = new File(".")

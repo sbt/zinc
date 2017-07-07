@@ -1,22 +1,12 @@
-// import Project.Initialize
 import Util._
 import Dependencies._
 import Scripted._
-// import StringUtilities.normalize
-import com.typesafe.tools.mima.core._, ProblemFilters._
+// import com.typesafe.tools.mima.core._, ProblemFilters._
 
 def baseVersion = "1.0.0-X16-SNAPSHOT"
 def internalPath = file("internal")
 
-lazy val compilerBridgeScalaVersions = Seq(scala212, scala211, scala210)
-
-val scalafmtCheck = Command.command("scalafmtCheck") { state =>
-  sys.process.Process("git diff --name-only --exit-code").! match {
-    case 0 => // ok
-    case x => sys.error("git diff detected! Did you compile before committing?")
-  }
-  state
-}
+lazy val compilerBridgeScalaVersions = List(scala212, scala211, scala210)
 
 def commonSettings: Seq[Setting[_]] = Seq(
   scalaVersion := scala212,
@@ -30,11 +20,10 @@ def commonSettings: Seq[Setting[_]] = Seq(
   // concurrentRestrictions in Global += Util.testExclusiveRestriction,
   testOptions += Tests.Argument(TestFrameworks.ScalaCheck, "-w", "1"),
   javacOptions in compile ++= Seq("-Xlint", "-Xlint:-serial"),
-  incOptions := incOptions.value.withNameHashing(true),
   crossScalaVersions := Seq(scala211, scala212),
-  mimaPreviousArtifacts := Set(), // Some(organization.value %% moduleName.value % "1.0.0"),
+  // mimaPreviousArtifacts := Set(), // Some(organization.value %% moduleName.value % "1.0.0"),
   publishArtifact in Test := false,
-  commands ++= Seq(publishBridgesAndTest, publishBridgesAndSet, crossTestBridges, scalafmtCheck),
+  commands ++= Seq(publishBridgesAndTest, publishBridgesAndSet, crossTestBridges),
   scalacOptions += "-YdisableFlatCpCaching"
 )
 
@@ -44,11 +33,13 @@ def relaxNon212: Seq[Setting[_]] = Seq(
     scalaBinaryVersion.value match {
       case "2.12" => old
       case _ =>
-        old filterNot Set("-Xfatal-warnings",
-                          "-deprecation",
-                          "-Ywarn-unused",
-                          "-Ywarn-unused-import",
-                          "-YdisableFlatCpCaching")
+        old filterNot Set(
+          "-Xfatal-warnings",
+          "-deprecation",
+          "-Ywarn-unused",
+          "-Ywarn-unused-import",
+          "-YdisableFlatCpCaching"
+        )
     }
   }
 )
@@ -77,6 +68,8 @@ def altPublishSettings: Seq[Setting[_]] =
   Seq(
     resolvers += altLocalResolver,
     altLocalPublish := {
+      import sbt.librarymanagement._
+      import sbt.internal.librarymanagement._
       val config = (Keys.publishLocalConfiguration).value
       val moduleSettings = (Keys.moduleSettings).value
       val ivy = new IvySbt((ivyConfiguration.value))
@@ -84,21 +77,21 @@ def altPublishSettings: Seq[Setting[_]] =
       val module =
         new ivy.Module(moduleSettings)
       val newConfig =
-        new PublishConfiguration(config.ivyFile,
-                                 altLocalRepoName,
-                                 config.artifacts,
-                                 config.checksums,
-                                 config.logging)
+        new PublishConfiguration(
+          config.ivyFile,
+          altLocalRepoName,
+          config.artifacts,
+          config.checksums,
+          config.logging
+        )
       streams.value.log.info("Publishing " + module + " to local repo: " + altLocalRepoName)
       IvyActions.publish(module, newConfig, streams.value.log)
     }
   )
 
 lazy val zincRoot: Project = (project in file("."))
-  .disablePlugins(com.typesafe.sbt.SbtScalariform)
-  .
   // configs(Sxr.sxrConf).
-  aggregate(
+  .aggregate(
     zinc,
     zincTesting,
     zincPersist,
@@ -130,11 +123,20 @@ lazy val zincRoot: Project = (project in file("."))
           // can't use git.runner.value because it's a task
           val runner = com.typesafe.sbt.git.ConsoleGitRunner
           val dir = baseDirectory.value
-          val uncommittedChanges = statusCommands.map { c =>
-            runner(c: _*)(dir, com.typesafe.sbt.git.NullLogger)
+          // sbt/zinc#334 Seemingly "git status" resets some stale metadata.
+          runner("status")(dir, com.typesafe.sbt.git.NullLogger)
+          val uncommittedChanges = statusCommands flatMap { c =>
+            val res = runner(c: _*)(dir, com.typesafe.sbt.git.NullLogger)
+            if (res.isEmpty) Nil else Seq(c -> res)
           }
 
-          uncommittedChanges.exists(_.nonEmpty)
+          val un = uncommittedChanges.nonEmpty
+          if (un) {
+            uncommittedChanges foreach { case (cmd, res) =>
+              sLog.value debug s"""Uncommitted changes found via "${cmd mkString " "}":\n${res}"""
+            }
+          }
+          un
         },
         version := {
           val v = version.value
@@ -145,7 +147,10 @@ lazy val zincRoot: Project = (project in file("."))
         scmInfo := Some(
           ScmInfo(url("https://github.com/sbt/zinc"), "git@github.com:sbt/zinc.git")),
         description := "Incremental compiler of Scala",
-        homepage := Some(url("https://github.com/sbt/zinc"))
+        homepage := Some(url("https://github.com/sbt/zinc")),
+        scalafmtOnCompile := true,
+        // scalafmtVersion 1.0.0-RC3 has regression
+        scalafmtVersion := "0.6.8"
       )),
     minimalSettings,
     otherRootSettings,
@@ -159,20 +164,20 @@ lazy val zincRoot: Project = (project in file("."))
   )
 
 lazy val zinc = (project in file("zinc"))
-  .disablePlugins(com.typesafe.sbt.SbtScalariform)
-  .dependsOn(zincCore,
-             zincPersist,
-             zincCompileCore,
-             zincClassfile,
-             zincIvyIntegration % "compile->compile;test->test",
-             zincTesting % Test)
+  .dependsOn(
+    zincCore,
+    zincPersist,
+    zincCompileCore,
+    zincClassfile,
+    zincIvyIntegration % "compile->compile;test->test",
+    zincTesting % Test
+  )
   .configure(addBaseSettingsAndTestDeps)
   .settings(
     name := "zinc"
   )
 
 lazy val zincTesting = (project in internalPath / "zinc-testing")
-  .disablePlugins(com.typesafe.sbt.SbtScalariform)
   .settings(
     minimalSettings,
     name := "zinc Testing",
@@ -180,12 +185,11 @@ lazy val zincTesting = (project in internalPath / "zinc-testing")
     publishArtifact in Compile := false,
     publishArtifact in Test := false,
     publishArtifact := false,
-    libraryDependencies ++= Seq(scalaCheck, scalatest, junit, sjsonnewScalaJson)
+    libraryDependencies ++= Seq(scalaCheck, scalatest, junit, sjsonnewScalaJson.value)
   )
   .configure(addSbtLm, addSbtUtilTesting)
 
 lazy val zincCompile = (project in file("zinc-compile"))
-  .disablePlugins(com.typesafe.sbt.SbtScalariform)
   .dependsOn(zincCompileCore, zincCompileCore % "test->test")
   .configure(addBaseSettingsAndTestDeps)
   .settings(
@@ -195,7 +199,6 @@ lazy val zincCompile = (project in file("zinc-compile"))
 
 // Persists the incremental data structures using SBinary
 lazy val zincPersist = (project in internalPath / "zinc-persist")
-  .disablePlugins(com.typesafe.sbt.SbtScalariform)
   .dependsOn(zincCore, zincCore % "test->test")
   .configure(addBaseSettingsAndTestDeps)
   .settings(
@@ -206,7 +209,6 @@ lazy val zincPersist = (project in internalPath / "zinc-persist")
 // Implements the core functionality of detecting and propagating changes incrementally.
 //   Defines the data structures for representing file fingerprints and relationships and the overall source analysis
 lazy val zincCore = (project in internalPath / "zinc-core")
-  .disablePlugins(com.typesafe.sbt.SbtScalariform)
   .dependsOn(zincApiInfo, zincClasspath, compilerInterface, compilerBridge % Test)
   .configure(addBaseSettingsAndTestDeps)
   .settings(
@@ -223,7 +225,6 @@ lazy val zincCore = (project in internalPath / "zinc-core")
   .configure(addSbtIO, addSbtUtilLogging, addSbtUtilRelation)
 
 lazy val zincBenchmarks = (project in internalPath / "zinc-benchmarks")
-  .disablePlugins(com.typesafe.sbt.SbtScalariform)
   .dependsOn(compilerInterface % "compile->compile;compile->test")
   .dependsOn(compilerBridge, zincCore, zincTesting % Test)
   .enablePlugins(JmhPlugin)
@@ -241,7 +242,6 @@ lazy val zincBenchmarks = (project in internalPath / "zinc-benchmarks")
   )
 
 lazy val zincIvyIntegration = (project in internalPath / "zinc-ivy-integration")
-  .disablePlugins(com.typesafe.sbt.SbtScalariform)
   .dependsOn(zincCompileCore, zincTesting % Test)
   .settings(
     baseSettings,
@@ -252,12 +252,13 @@ lazy val zincIvyIntegration = (project in internalPath / "zinc-ivy-integration")
 
 // sbt-side interface to compiler.  Calls compiler-side interface reflectively
 lazy val zincCompileCore = (project in internalPath / "zinc-compile-core")
-  .disablePlugins(com.typesafe.sbt.SbtScalariform)
-  .dependsOn(compilerInterface % "compile;test->test",
-             zincClasspath,
-             zincApiInfo,
-             zincClassfile,
-             zincTesting % Test)
+  .dependsOn(
+    compilerInterface % "compile;test->test",
+    zincClasspath,
+    zincApiInfo,
+    zincClassfile,
+    zincTesting % Test
+  )
   .configure(addBaseSettingsAndTestDeps)
   .settings(
     name := "zinc Compile Core",
@@ -271,26 +272,33 @@ lazy val zincCompileCore = (project in internalPath / "zinc-compile-core")
 //   format from which Java sources are generated by the sbt-contraband plugin.
 lazy val compilerInterface = (project in internalPath / "compiler-interface")
   .enablePlugins(ContrabandPlugin)
-  .disablePlugins(com.typesafe.sbt.SbtScalariform)
   .settings(
     minimalSettings,
     // javaOnlySettings,
     name := "Compiler Interface",
-    crossScalaVersions := Seq(scala212),
+    // Use the smallest Scala version in the compilerBridgeScalaVersions
+    // Technically the scalaVersion shouldn't have any effect since scala library is not included,
+    // but given that Scala 2.10 compiler cannot parse Java 8 source, it's probably good to keep this.
+    crossScalaVersions := Seq(scala210),
+    scalaVersion := scala210,
     relaxNon212,
     libraryDependencies ++= Seq(scalaLibrary.value % Test),
     exportJars := true,
     watchSources ++= apiDefinitions.value,
     resourceGenerators in Compile += Def
       .task(
-        generateVersionFile(version.value,
-                            resourceManaged.value,
-                            streams.value,
-                            compile in Compile value))
+        generateVersionFile(
+          version.value,
+          resourceManaged.value,
+          streams.value,
+          compile in Compile value)
+        )
       .taskValue,
-    apiDefinitions := List((baseDirectory.value / "definition"),
-                           (baseDirectory.value / "other"),
-                           (baseDirectory.value / "type")),
+    apiDefinitions := List(
+      (baseDirectory.value / "definition"),
+      (baseDirectory.value / "other"),
+      (baseDirectory.value / "type")
+    ),
     crossPaths := false,
     autoScalaLibrary := false,
     altPublishSettings
@@ -300,9 +308,7 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface")
 // Compiler-side interface to compiler that is compiled against the compiler being used either in advance or on the fly.
 //   Includes API and Analyzer phases that extract source API and relationships.
 lazy val compilerBridge: Project = (project in internalPath / "compiler-bridge")
-  .disablePlugins(com.typesafe.sbt.SbtScalariform)
-  .dependsOn(compilerInterface % "compile;test->test",
-             /*launchProj % "test->test",*/ zincApiInfo % "test->test")
+  .dependsOn(compilerInterface % "compile;test->test", zincApiInfo % "test->test")
   .settings(
     baseSettings,
     crossScalaVersions := compilerBridgeScalaVersions,
@@ -334,7 +340,6 @@ def inBoth(ss: Setting[_]*): Seq[Setting[_]] = Seq(Compile, Test) flatMap (inCon
 // defines operations on the API of a source, including determining whether it has changed and converting it to a string
 //   and discovery of Projclasses and annotations
 lazy val zincApiInfo = (project in internalPath / "zinc-apiinfo")
-  .disablePlugins(com.typesafe.sbt.SbtScalariform)
   .dependsOn(compilerInterface, zincClassfile % "compile;test->test")
   .configure(addBaseSettingsAndTestDeps)
   .settings(
@@ -345,7 +350,6 @@ lazy val zincApiInfo = (project in internalPath / "zinc-apiinfo")
 
 // Utilities related to reflection, managing Scala versions, and custom class loaders
 lazy val zincClasspath = (project in internalPath / "zinc-classpath")
-  .disablePlugins(com.typesafe.sbt.SbtScalariform)
   .dependsOn(compilerInterface)
   .configure(addBaseSettingsAndTestDeps)
   .settings(
@@ -358,7 +362,6 @@ lazy val zincClasspath = (project in internalPath / "zinc-classpath")
 
 // class file reader and analyzer
 lazy val zincClassfile = (project in internalPath / "zinc-classfile")
-  .disablePlugins(com.typesafe.sbt.SbtScalariform)
   .dependsOn(compilerInterface % "compile;test->test")
   .configure(addBaseSettingsAndTestDeps)
   .settings(
@@ -371,22 +374,27 @@ lazy val zincClassfile = (project in internalPath / "zinc-classfile")
 // re-implementation of scripted engine
 lazy val zincScripted = (project in internalPath / "zinc-scripted")
   .enablePlugins(ContrabandPlugin, JsonCodecPlugin)
-  .disablePlugins(com.typesafe.sbt.SbtScalariform)
   .dependsOn(zinc, zincIvyIntegration % "test->test")
   .settings(
     minimalSettings,
     name := "zinc Scripted",
-    publish := (),
-    publishLocal := (),
+    publish := {},
+    publishLocal := {},
+    skip in publish := true,
     sourceManaged in (Compile, generateContrabands) := baseDirectory.value / "src" / "main" / "contraband-scala"
   )
   .configure(addSbtUtilScripted)
 
 lazy val crossTestBridges = {
   Command.command("crossTestBridges") { state =>
-    compilerBridgeScalaVersions.map { (bridgeVersion: String) =>
-      s"plz $bridgeVersion ${compilerBridge.id}/test"
-    } ::: state
+    (compilerBridgeScalaVersions.flatMap { (bridgeVersion: String) =>
+      // Note the ! here. You need this so compilerInterface gets forced to the scalaVersion
+      s"++ $bridgeVersion!" ::
+      s"${compilerBridge.id}/test" ::
+      Nil
+    }) ::: 
+    (s"++ $scala212!" ::
+    state)
   }
 }
 
@@ -396,11 +404,11 @@ lazy val publishBridgesAndSet = {
     val userScalaVersion = args.mkString("")
     s"${compilerInterface.id}/publishLocal" ::
       compilerBridgeScalaVersions.flatMap { (bridgeVersion: String) =>
-      s"wow $bridgeVersion" ::
+      s"++ $bridgeVersion!" ::
         s"${zincApiInfo.id}/publishLocal" ::
         s"${compilerBridge.id}/publishLocal" :: Nil
     } :::
-      s"wow $userScalaVersion" ::
+      s"++ $userScalaVersion!" ::
       state
   }
 }
@@ -411,14 +419,15 @@ lazy val publishBridgesAndTest = Command.args("publishBridgesAndTest", "<version
             "Missing arguments to publishBridgesAndTest. Maybe quotes are missing around command?")
     val version = args mkString ""
     s"${compilerInterface.id}/publishLocal" ::
-      // using plz here causes: java.lang.OutOfMemoryError: GC overhead limit exceeded
-      (compilerBridgeScalaVersions flatMap { v =>
-      s"wow $v" ::
-        s";${zincApiInfo.id}/publishLocal;${compilerBridge.id}/test;${compilerBridge.id}/publishLocal" ::
-        Nil
-    }) :::
-      s"plz $version zincRoot/test" ::
-      s"plz $version zincRoot/scripted" ::
+      (compilerBridgeScalaVersions.flatMap { (bridgeVersion: String) =>
+      s"++ $bridgeVersion" ::
+        s"${zincApiInfo.id}/publishLocal" ::
+        s"${compilerBridge.id}/publishLocal" :: Nil
+      }) :::
+      s"++ $version" ::
+      s"zincRoot/scalaVersion" ::
+      s"zincRoot/test" ::
+      s"zincRoot/scripted" ::
       state
 }
 
@@ -453,11 +462,13 @@ def scriptedTask: Def.Initialize[InputTask[Unit]] = Def.inputTask {
   // that alternate repo to the running scripted test (in Scripted.scriptedpreScripted).
   (altLocalPublish in compilerInterface).value
   (altLocalPublish in compilerBridge).value
-  doScripted((fullClasspath in zincScripted in Test).value,
-             (scalaInstance in zincScripted).value,
-             scriptedSource.value,
-             result,
-             scriptedPrescripted.value)
+  doScripted(
+    (fullClasspath in zincScripted in Test).value,
+    (scalaInstance in zincScripted).value,
+    scriptedSource.value,
+    result,
+    scriptedPrescripted.value
+  )
 }
 
 def addSbtAlternateResolver(scriptedRoot: File) = {
@@ -466,27 +477,29 @@ def addSbtAlternateResolver(scriptedRoot: File) = {
     IO.write(
       resolver,
       s"""import sbt._
-                          |import Keys._
-                          |
-                          |object AddResolverPlugin extends AutoPlugin {
-                          |  override def requires = sbt.plugins.JvmPlugin
-                          |  override def trigger = allRequirements
-                          |
-                          |  override lazy val projectSettings = Seq(resolvers += alternativeLocalResolver)
-                          |  lazy val alternativeLocalResolver = Resolver.file("$altLocalRepoName", file("$altLocalRepoPath"))(Resolver.ivyStylePatterns)
-                          |}
-                          |""".stripMargin
+         |import Keys._
+         |
+         |object AddResolverPlugin extends AutoPlugin {
+         |  override def requires = sbt.plugins.JvmPlugin
+         |  override def trigger = allRequirements
+         |
+         |  override lazy val projectSettings = Seq(resolvers += alternativeLocalResolver)
+         |  lazy val alternativeLocalResolver = Resolver.file("$altLocalRepoName", file("$altLocalRepoPath"))(Resolver.ivyStylePatterns)
+         |}
+         |""".stripMargin
     )
   }
 }
 
 def scriptedUnpublishedTask: Def.Initialize[InputTask[Unit]] = Def.inputTask {
   val result = scriptedSource(dir => (s: State) => scriptedParser(dir)).parsed
-  doScripted((fullClasspath in zincScripted in Test).value,
-             (scalaInstance in zincScripted).value,
-             scriptedSource.value,
-             result,
-             scriptedPrescripted.value)
+  doScripted(
+    (fullClasspath in zincScripted in Test).value,
+    (scalaInstance in zincScripted).value,
+    scriptedSource.value,
+    result,
+    scriptedPrescripted.value
+  )
 }
 
 lazy val publishAll = TaskKey[Unit]("publish-all")
@@ -495,8 +508,8 @@ lazy val publishLauncher = TaskKey[Unit]("publish-launcher")
 def customCommands: Seq[Setting[_]] = Seq(
   commands += Command.command("release") { state =>
     "clean" :: // This is required since version number is generated in properties file.
-      "so compile" ::
-      "so publishSigned" ::
+      "+compile" ::
+      "+publishSigned" ::
       "reload" ::
       state
   }

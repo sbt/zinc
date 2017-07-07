@@ -7,8 +7,9 @@ sbt -Dfile.encoding=UTF-8 \
   -J-XX:ReservedCodeCacheSize=256M \
   -J-Xmx3046M -J-Xms3046M -J-server \
   zincRoot/test:compile \
-  scalafmtCheck \
-  "publishBridgesAndSet $SCALA_VERSION" \
+  scalafmt::test \
+  test:scalafmt::test \
   crossTestBridges \
+  "publishBridgesAndSet $SCALA_VERSION" \
   zincRoot/test \
   zincRoot/scripted
