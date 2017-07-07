@@ -10,12 +10,12 @@ package sbt.internal.inc.cached
 import java.io.File
 import java.nio.file.Path
 
-import sbt.inc.{ReadMapper, ReadWriteMappers, WriteMapper}
+import sbt.inc.{ ReadMapper, ReadWriteMappers, WriteMapper }
 import sbt.internal.inc._
 import sbt.internal.inc.mappers.MapperUtils
 import sbt.io.IO
 import xsbti.compile.analysis.Stamp
-import xsbti.compile.{CompileAnalysis, MiniSetup}
+import xsbti.compile.{ CompileAnalysis, MiniSetup }
 
 trait CompilationCache {
   // TODO(jvican): Consider removing this interface or at least document it.
@@ -57,8 +57,7 @@ case class ProjectRebasedCache(remoteRoot: Path, cacheLocation: Path) extends Co
 
     override def mapProductStamp(file: File, productStamp: Stamp): Stamp = identity(productStamp)
     override def mapSourceStamp(file: File, sourceStamp: Stamp): Stamp = identity(sourceStamp)
-    override def mapBinaryStamp(file: File, binaryStamp: Stamp): Stamp =
-      MapperUtils.recomputeModificationDate(file)
+    override def mapBinaryStamp(file: File, binaryStamp: Stamp): Stamp = identity(binaryStamp)
 
     override def mapMiniSetup(miniSetup: MiniSetup): MiniSetup = identity(miniSetup)
   }

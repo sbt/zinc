@@ -20,7 +20,7 @@ import scala.collection.immutable.TreeMap
  * Fairly complex, as Analysis has interconnected state that can't be
  * independently generated.
  */
-object TestCaseGenerators {
+trait TestCaseGenerators {
   // We restrict sizes, otherwise the generated Analysis objects get huge and the tests take a long time.
   val maxSources = 10 // Max number of source files.
   val maxRelatives = 10 // Max number of things that a source x can relate to in a single Relation.
@@ -53,11 +53,13 @@ object TestCaseGenerators {
       cs <- listOfN(n - 1, alphaNumChar)
     } yield (c :: cs).mkString
 
-  def genFile: Gen[File] =
+  protected def RootFilePath: String = "/temp"
+  def genFile: Gen[File] = {
     for {
       n <- choose(2, maxPathLen) // Paths have at least 2 segments.
       path <- listOfN(n, genFilePathSegment)
-    } yield new File("/temp/" + path.mkString("/"))
+    } yield new File(s"$RootFilePath/" + path.mkString("/"))
+  }
 
   def genStamp: Gen[Stamp] = const(EmptyStamp)
 
@@ -226,3 +228,5 @@ object TestCaseGenerators {
       apis <- genAPIs(rels)
     } yield new MAnalysis(stamps, apis, rels, SourceInfos.empty, Compilations.empty)
 }
+
+object TestCaseGenerators extends TestCaseGenerators
