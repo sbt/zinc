@@ -18,5 +18,5 @@ public interface CachedCompilerProvider {
 	ScalaInstance scalaInstance();
 
 	/** Return a new cached compiler from the usual compiler input. */
-	CachedCompiler newCachedCompiler(String[] arguments, Output output, Logger log, Reporter reporter, boolean resident);
+	CachedCompiler newCachedCompiler(String[] arguments, Output output, Logger log, Reporter reporter);
 }
