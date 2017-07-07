@@ -26,8 +26,7 @@ final class RelativeReadMapper(rootProjectPath: Path) extends ReadMapper {
 
   override def mapProductStamp(file: File, productStamp: Stamp): Stamp = identity(productStamp)
   override def mapSourceStamp(file: File, sourceStamp: Stamp): Stamp = identity(sourceStamp)
-  override def mapBinaryStamp(file: File, binaryStamp: Stamp): Stamp =
-    MapperUtils.recomputeModificationDate(file)
+  override def mapBinaryStamp(file: File, binaryStamp: Stamp): Stamp = identity(binaryStamp)
 
   override def mapMiniSetup(miniSetup: MiniSetup): MiniSetup = identity(miniSetup)
 }

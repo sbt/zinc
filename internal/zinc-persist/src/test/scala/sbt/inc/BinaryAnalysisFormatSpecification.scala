@@ -12,10 +12,46 @@ import org.scalacheck._
 import Prop._
 import sbt.io.IO
 
-object BinaryAnalysisFormatSpecification extends Properties("BinaryAnalysisFormat") {
+object BinaryAnalysisFormatSpecification
+    extends Properties("BinaryAnalysisFormat")
+    with BinaryAnalysisFormatSpecification {
+
+  property("Write and read empty Analysis") = {
+    checkAnalysis(Analysis.empty)
+  }
+
+  val simpleAnalysis: Analysis = {
+    import TestCaseGenerators._
+    def f(s: String) = new File(s"$RootFilePath/s")
+    val aScala = f("A.scala")
+    val aClass = genClass("A").sample.get
+    val cClass = genClass("C").sample.get
+    val stamp = EmptyStamp
+    val infos = SourceInfos.makeInfo(Nil, Nil, Nil)
+
+    val apis = Seq(aClass)
+    val products = NonLocalProduct("A", "A", f("A.class"), stamp) ::
+      NonLocalProduct("A$", "A$", f("A$.class"), stamp) :: Nil
+    val binDeps = (f("x.jar"), "x", stamp) :: Nil
+    val memberDep = DependencyContext.DependencyByMemberRef
+    val extDeps = new ExternalDependency("A", "C", cClass, memberDep) :: Nil
+    Analysis.empty.addSource(aScala, apis, stamp, infos, products, Nil, Nil, extDeps, binDeps)
+  }
+
+  property("Write and read simple Analysis") = {
+    checkAnalysis(simpleAnalysis)
+  }
+
+  property("Write and read complex Analysis") =
+    forAllNoShrink(TestCaseGenerators.genAnalysis)(checkAnalysis)
+
+}
+
+trait BinaryAnalysisFormatSpecification { self: Properties =>
   val storeApis = true
-  val dummyOutput = new xsbti.compile.SingleOutput {
-    def getOutputDirectory: java.io.File = new java.io.File("/dummy")
+  def RootFilePath: String = "/dummy"
+  def dummyOutput = new xsbti.compile.SingleOutput {
+    def getOutputDirectory: java.io.File = new java.io.File(RootFilePath)
   }
 
   private final val ScalaVersion = "2.10.4"
@@ -28,7 +64,7 @@ object BinaryAnalysisFormatSpecification extends Properties("BinaryAnalysisForma
     new MiniSetup(output, options, ScalaVersion, order, shouldStoreApis, extra)
   }
 
-  private final val ReadFeedback = "The analysis file was written but it cannot be read."
+  private final val ReadFeedback = "The analysis file cannot be read."
   protected def checkAnalysis(analysis: Analysis): Prop = {
     // Note: we test writing to the file directly to reuse `FileBasedStore` as it is written
     val (readAnalysis0, readSetup) = IO.withTemporaryFile("analysis", "test") { tempAnalysisFile =>
@@ -39,43 +75,6 @@ object BinaryAnalysisFormatSpecification extends Properties("BinaryAnalysisForma
     val readAnalysis = readAnalysis0 match { case a: Analysis => a }
     compare(analysis, readAnalysis) && compare(commonSetup, readSetup)
   }
-
-  property("Write and read empty Analysis") = {
-    checkAnalysis(Analysis.empty)
-  }
-  property("Write and read simple Analysis") = {
-    import TestCaseGenerators._
-
-    def f(s: String) = new File("/temp/" + s)
-    val aScala = f("A.scala")
-    val aClass = genClass("A").sample.get
-    val cClass = genClass("C").sample.get
-    val absent = EmptyStamp
-    val sourceInfos = SourceInfos.makeInfo(Nil, Nil, Nil)
-
-    var analysis = Analysis.empty
-    val products = NonLocalProduct("A", "A", f("A.class"), absent) ::
-      NonLocalProduct("A$", "A$", f("A$.class"), absent) :: Nil
-    val binaryDeps = (f("x.jar"), "x", absent) :: Nil
-    val externalDeps = new ExternalDependency("A",
-                                              "C",
-                                              cClass,
-                                              DependencyContext.DependencyByMemberRef) :: Nil
-    analysis = analysis.addSource(aScala,
-                                  Seq(aClass),
-                                  absent,
-                                  sourceInfos,
-                                  products,
-                                  Nil,
-                                  Nil,
-                                  externalDeps,
-                                  binaryDeps)
-
-    checkAnalysis(analysis)
-  }
-
-  property("Write and read complex Analysis") =
-    forAllNoShrink(TestCaseGenerators.genAnalysis)(checkAnalysis)
 
   // Compare two analyses with useful labelling when they aren't equal.
   protected def compare(left: Analysis, right: Analysis): Prop = {

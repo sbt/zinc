@@ -101,8 +101,10 @@ object Stamp {
       case (lm1: LastModified, lm2: LastModified) =>
         lm1.value == lm2.value ||
           Math.abs(lm1.value - lm2.value) < maxModificationDifferenceInMillis
-      case (EmptyStamp, EmptyStamp) => true
-      case _                        => false
+      case (stampA, stampB) =>
+        // This part of code should not depend on `equals`
+        // Checking for (EmptyStamp, EmptyStamp) produces SOE
+        stampA.eq(EmptyStamp) && stampB.eq(EmptyStamp)
     }
   }
 
