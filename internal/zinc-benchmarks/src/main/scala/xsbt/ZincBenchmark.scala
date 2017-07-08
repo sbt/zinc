@@ -133,7 +133,7 @@ private[xsbt] object ZincBenchmark {
     val args = compilationInfo.scalacOptions
     val classpath = compilationInfo.classpath
     val weakLog = new WeakLog(ConsoleLogger(), ConsoleReporter)
-    val cachedCompiler = new CachedCompiler0(args, output, weakLog, false)
+    val cachedCompiler = new CachedCompiler0(args, output, weakLog)
     val settings = cachedCompiler.settings
     settings.classpath.value = classpath
     val delegatingReporter = DelegatingReporter(settings, ConsoleReporter)

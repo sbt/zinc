@@ -114,26 +114,22 @@ final class AnalyzingCompiler(
       arguments: Array[String],
       output: Output,
       log: xLogger,
-      reporter: Reporter,
-      resident: Boolean
+      reporter: Reporter
   ): CachedCompiler =
-    newCachedCompiler(arguments: Seq[String], output, log, reporter, resident)
+    newCachedCompiler(arguments: Seq[String], output, log, reporter)
 
   def newCachedCompiler(
       arguments: Seq[String],
       output: Output,
       log: xLogger,
-      reporter: Reporter,
-      resident: Boolean
+      reporter: Reporter
   ): CachedCompiler = {
-    val javaResident: java.lang.Boolean = resident
     val compiler = call("xsbt.CompilerInterface", "newCompiler", log)(
       classOf[Array[String]],
       classOf[Output],
       classOf[xLogger],
-      classOf[Reporter],
-      classOf[Boolean]
-    )(arguments.toArray[String], output, log, reporter, javaResident)
+      classOf[Reporter]
+    )(arguments.toArray[String], output, log, reporter)
     compiler.asInstanceOf[CachedCompiler]
   }
 
