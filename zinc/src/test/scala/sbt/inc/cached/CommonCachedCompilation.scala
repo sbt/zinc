@@ -88,7 +88,7 @@ abstract class CommonCachedCompilation(name: String)
     remoteProject =
       ProjectSetup(basePath, SetupCommons.baseSourceMapping, SetupCommons.baseCpMapping)
     remoteCompilerSetup = remoteProject.createCompiler()
-    remoteAnalysisStore = FileBasedStore.binary(remoteProject.defaultStoreLocation)
+    remoteAnalysisStore = FileBasedStore(remoteProject.defaultStoreLocation)
 
     val result = remoteCompilerSetup.doCompileWithStore(remoteAnalysisStore)
     assert(result.hasModified)
@@ -126,7 +126,7 @@ abstract class CommonCachedCompilation(name: String)
   it should "not run compilation in local project" in namedTempDir("localProject") { projectRoot =>
     val projectSetup =
       ProjectSetup(projectRoot.toPath, SetupCommons.baseSourceMapping, SetupCommons.baseCpMapping)
-    val localStore = FileBasedStore.binary(new File(projectRoot, "inc_data.zip"))
+    val localStore = FileBasedStore(new File(projectRoot, "inc_data.zip"))
     val cache = CacheAwareStore(localStore, remoteCacheProvider(), projectRoot)
 
     val compiler = projectSetup.createCompiler()

@@ -3,9 +3,8 @@ package sbt.inc
 import java.nio.file.Paths
 
 import org.scalacheck.{ Prop, Properties }
-import sbt.internal.inc.{ Analysis, FileBasedStore, TestCaseGenerators }
+import sbt.internal.inc.{ Analysis, FileBasedStore, AnalysisGenerator }
 import sbt.io.IO
-import xsbti.compile.MiniSetup
 
 object BinaryMappersSpecification
     extends Properties("BinaryMappers")
@@ -15,7 +14,7 @@ object BinaryMappersSpecification
   private final val mappers: ReadWriteMappers =
     ReadWriteMappers.getMachineIndependentMappers(Paths.get(RootFilePath))
 
-  object RelativeTestCaseGenerators extends TestCaseGenerators {
+  object RelativeAnalysisGenerator extends AnalysisGenerator {
     override def RootFilePath = BinaryMappersSpecification.RootFilePath
   }
 
@@ -23,7 +22,7 @@ object BinaryMappersSpecification
   override protected def checkAnalysis(analysis: Analysis): Prop = {
     // Note: we test writing to the file directly to reuse `FileBasedStore` as it is written
     val (readAnalysis0, readSetup) = IO.withTemporaryFile("analysis", "test") { tempAnalysisFile =>
-      val fileBasedStore = FileBasedStore.binary(tempAnalysisFile, mappers)
+      val fileBasedStore = FileBasedStore(tempAnalysisFile, mappers)
       fileBasedStore.set(analysis, commonSetup)
       fileBasedStore.get().getOrElse(sys.error(ReadFeedback))
     }
@@ -38,6 +37,6 @@ object BinaryMappersSpecification
 
   property("The default relative mapper works in complex analysis files") = {
     import org.scalacheck.Prop.forAllNoShrink
-    forAllNoShrink(RelativeTestCaseGenerators.genAnalysis)(checkAnalysis)
+    forAllNoShrink(RelativeAnalysisGenerator.genAnalysis)(checkAnalysis)
   }
 }

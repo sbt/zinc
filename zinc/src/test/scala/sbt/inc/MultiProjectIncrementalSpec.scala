@@ -25,14 +25,14 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       IO.createDirectory(sub2Directory)
       val targetDir2 = sub2Directory / "target"
       val cacheFile2 = targetDir2 / "inc_compile.zip"
-      val fileStore2 = AnalysisStore.cached(FileBasedStore.binary(cacheFile2))
+      val fileStore2 = AnalysisStore.cached(FileBasedStore(cacheFile2))
 
       // Prepare the initial compilation
       val sub1Directory = tempDir / "sub1"
       IO.createDirectory(sub1Directory)
       val targetDir = sub1Directory / "target"
       val cacheFile = targetDir / "inc_compile.zip"
-      val fileStore = AnalysisStore.cached(FileBasedStore.binary(cacheFile))
+      val fileStore = AnalysisStore.cached(FileBasedStore(cacheFile))
       val dependerFile = sub1Directory / "src" / "Depender.scala"
       IO.copyFile(dependerFile0, dependerFile, false)
       val depender2File = sub1Directory / "src" / "Depender2.scala"

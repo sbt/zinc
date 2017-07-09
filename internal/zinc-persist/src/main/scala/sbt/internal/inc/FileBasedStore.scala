@@ -24,16 +24,14 @@ object FileBasedStore {
   private final val analysisFileName = "inc_compile.txt"
   private final val companionsFileName = "api_companions.txt"
 
-  def binary(analysisFile: File): AnalysisStore =
-    new BinaryFileStore(analysisFile, ReadWriteMappers.getEmptyMappers())
-  def binary(analysisFile: File, mappers: ReadWriteMappers): AnalysisStore =
-    new BinaryFileStore(analysisFile, mappers)
+  def apply(analysisFile: File): AnalysisStore = binary(analysisFile)
+  def apply(analysisFile: File, mappers: ReadWriteMappers): AnalysisStore =
+    binary(analysisFile, mappers)
 
-  def apply(file: File): AnalysisStore = new FileBasedStoreImpl(file, TextAnalysisFormat)
-  def apply(file: File, format: TextAnalysisFormat): AnalysisStore =
-    new FileBasedStoreImpl(file, format)
-  def apply(file: File, format: AnalysisMappers): AnalysisStore =
-    new FileBasedStoreImpl(file, new TextAnalysisFormat(format))
+  private[inc] def binary(analysisFile: File): AnalysisStore =
+    new BinaryFileStore(analysisFile, ReadWriteMappers.getEmptyMappers())
+  private[inc] def binary(analysisFile: File, mappers: ReadWriteMappers): AnalysisStore =
+    new BinaryFileStore(analysisFile, mappers)
 
   private final class BinaryFileStore(file: File, readWriteMappers: ReadWriteMappers)
       extends AnalysisStore {
@@ -41,6 +39,9 @@ object FileBasedStore {
     private final val format = new BinaryAnalysisFormat(readWriteMappers)
     private final val TmpEnding = ".tmp"
 
+    /**
+     * Get `CompileAnalysis` and `MiniSetup` instances for current `Analysis`.
+     */
     override def get: Option[(CompileAnalysis, MiniSetup)] = {
       val nestedRead = allCatch.opt {
         Using.zipInputStream(new FileInputStream(file)) { inputStream =>
@@ -57,6 +58,12 @@ object FileBasedStore {
       nestedRead.flatten
     }
 
+    /**
+     * Write the zipped analysis contents into a temporary file before
+     * overwriting the old analysis file and avoiding data race conditions.
+     *
+     * See https://github.com/sbt/zinc/issues/220 for more details.
+     */
     override def set(analysis: CompileAnalysis, setup: MiniSetup): Unit = {
       val tmpAnalysisFile = File.createTempFile(file.getName, TmpEnding)
       if (!file.getParentFile.exists())
@@ -79,60 +86,11 @@ object FileBasedStore {
     }
   }
 
-  private final class FileBasedStoreImpl(file: File, format: TextAnalysisFormat)
-      extends AnalysisStore {
-    val companionsStore = new FileBasedCompanionsMapStore(file)
-
-    /**
-     * Write the zipped analysis contents into a temporary file before
-     * overwriting the old analysis file and avoiding data race conditions.
-     *
-     * See https://github.com/sbt/zinc/issues/220 for more details.
-     */
-    def set(analysis: CompileAnalysis, setup: MiniSetup): Unit = {
-      val tmpAnalysisFile = File.createTempFile(file.getName, ".tmp")
-      if (!file.getParentFile.exists()) file.getParentFile.mkdirs()
-      Using.zipOutputStream(new FileOutputStream(tmpAnalysisFile)) { outputStream =>
-        val writer = new BufferedWriter(new OutputStreamWriter(outputStream, IO.utf8))
-        outputStream.putNextEntry(new ZipEntry(analysisFileName))
-        format.write(writer, analysis, setup)
-        outputStream.closeEntry()
-        if (setup.storeApis()) {
-          outputStream.putNextEntry(new ZipEntry(companionsFileName))
-          format.writeCompanionMap(writer, analysis match { case a: Analysis => a.apis })
-          outputStream.closeEntry()
-        }
-      }
-      IO.move(tmpAnalysisFile, file)
-    }
-
-    /** Get `CompileAnalysis` and `MiniSetup` instances for current `Analysis`. */
-    def get(): Option[(CompileAnalysis, MiniSetup)] =
-      allCatch.opt(getUncaught())
-
-    def getUncaught(): (CompileAnalysis, MiniSetup) =
-      Using.zipInputStream(new FileInputStream(file)) { inputStream =>
-        lookupEntry(inputStream, analysisFileName)
-        val writer = new BufferedReader(new InputStreamReader(inputStream, IO.utf8))
-        format.read(writer, companionsStore)
-      }
-  }
-
-  private def lookupEntry(in: ZipInputStream, name: String): Unit =
+  private def lookupEntry(in: ZipInputStream, name: String): Unit = {
     Option(in.getNextEntry) match {
       case Some(entry) if entry.getName == name => ()
       case Some(_)                              => lookupEntry(in, name)
       case None                                 => sys.error(s"$name not found in the zip file")
     }
-
-  private final class FileBasedCompanionsMapStore(file: File) extends CompanionsStore {
-    def get(): Option[(Map[String, Companions], Map[String, Companions])] =
-      allCatch.opt(getUncaught())
-    def getUncaught(): (Map[String, Companions], Map[String, Companions]) =
-      Using.zipInputStream(new FileInputStream(file)) { inputStream =>
-        lookupEntry(inputStream, companionsFileName)
-        val reader = new BufferedReader(new InputStreamReader(inputStream, IO.utf8))
-        TextAnalysisFormat.readCompanionMap(reader)
-      }
   }
 }

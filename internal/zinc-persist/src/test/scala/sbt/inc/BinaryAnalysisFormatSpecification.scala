@@ -21,7 +21,7 @@ object BinaryAnalysisFormatSpecification
   }
 
   val simpleAnalysis: Analysis = {
-    import TestCaseGenerators._
+    import AnalysisGenerator._
     def f(s: String) = new File(s"$RootFilePath/s")
     val aScala = f("A.scala")
     val aClass = genClass("A").sample.get
@@ -43,7 +43,7 @@ object BinaryAnalysisFormatSpecification
   }
 
   property("Write and read complex Analysis") =
-    forAllNoShrink(TestCaseGenerators.genAnalysis)(checkAnalysis)
+    forAllNoShrink(AnalysisGenerator.genAnalysis)(checkAnalysis)
 
 }
 
@@ -68,7 +68,7 @@ trait BinaryAnalysisFormatSpecification { self: Properties =>
   protected def checkAnalysis(analysis: Analysis): Prop = {
     // Note: we test writing to the file directly to reuse `FileBasedStore` as it is written
     val (readAnalysis0, readSetup) = IO.withTemporaryFile("analysis", "test") { tempAnalysisFile =>
-      val fileBasedStore = FileBasedStore.binary(tempAnalysisFile)
+      val fileBasedStore = FileBasedStore(tempAnalysisFile)
       fileBasedStore.set(analysis, commonSetup)
       fileBasedStore.get().getOrElse(sys.error(ReadFeedback))
     }

@@ -28,7 +28,7 @@ case class ProjectRebasedCache(remoteRoot: Path, cacheLocation: Path) extends Co
     val readMapper = new RebaseReadWriteMapper(remoteRoot, projectLocationPath)
     val writeMapper = new RebaseReadWriteMapper(projectLocationPath, remoteRoot)
     val mappers = new ReadWriteMappers(readMapper, writeMapper)
-    val store = FileBasedStore.binary(cacheLocation.toFile, mappers)
+    val store = FileBasedStore(cacheLocation.toFile, mappers)
     store.get() match {
       case Some((originalAnalysis: Analysis, originalSetup)) =>
         originalAnalysis.stamps.products.keySet.foreach { originalFile =>

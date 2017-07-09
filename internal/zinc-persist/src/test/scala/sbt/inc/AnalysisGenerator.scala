@@ -20,7 +20,7 @@ import scala.collection.immutable.TreeMap
  * Fairly complex, as Analysis has interconnected state that can't be
  * independently generated.
  */
-trait TestCaseGenerators {
+trait AnalysisGenerator {
   // We restrict sizes, otherwise the generated Analysis objects get huge and the tests take a long time.
   val maxSources = 10 // Max number of source files.
   val maxRelatives = 10 // Max number of things that a source x can relate to in a single Relation.
@@ -229,4 +229,4 @@ trait TestCaseGenerators {
     } yield new MAnalysis(stamps, apis, rels, SourceInfos.empty, Compilations.empty)
 }
 
-object TestCaseGenerators extends TestCaseGenerators
+object AnalysisGenerator extends AnalysisGenerator
