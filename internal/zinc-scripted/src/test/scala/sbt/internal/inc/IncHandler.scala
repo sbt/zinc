@@ -217,7 +217,7 @@ case class ProjectStructure(
     (javaSourceDirectory ** "*.java").get.toList ++
       (baseDirectory * "*.java").get.toList
   val cacheFile = baseDirectory / "target" / "inc_compile.zip"
-  val fileStore = AnalysisStore.cached(FileBasedStore(cacheFile))
+  val fileStore = AnalysisStore.cached(FileBasedStore.binary(cacheFile))
   def prev =
     fileStore.get match {
       case Some((a, s)) => new PreviousResult(Optional.of(a), Optional.of(s))
