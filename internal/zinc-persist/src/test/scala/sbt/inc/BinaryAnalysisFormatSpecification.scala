@@ -22,7 +22,7 @@ object BinaryAnalysisFormatSpecification
 
   val simpleAnalysis: Analysis = {
     import AnalysisGenerator._
-    def f(s: String) = new File(s"$RootFilePath/s")
+    def f(s: String) = new File(s"$RootFilePath/$s")
     val aScala = f("A.scala")
     val aClass = genClass("A").sample.get
     val cClass = genClass("C").sample.get
@@ -66,14 +66,16 @@ trait BinaryAnalysisFormatSpecification { self: Properties =>
 
   private final val ReadFeedback = "The analysis file cannot be read."
   protected def checkAnalysis(analysis: Analysis): Prop = {
+    import JavaInterfaceUtil.PimpOptional
     // Note: we test writing to the file directly to reuse `FileBasedStore` as it is written
-    val (readAnalysis0, readSetup) = IO.withTemporaryFile("analysis", "test") { tempAnalysisFile =>
+    val readContents = IO.withTemporaryFile("analysis", "test") { tempAnalysisFile =>
       val fileBasedStore = FileAnalysisStore(tempAnalysisFile)
-      fileBasedStore.set(analysis, commonSetup)
-      fileBasedStore.get().getOrElse(sys.error(ReadFeedback))
+      val contents = ConcreteAnalysisContents(analysis, commonSetup)
+      fileBasedStore.set(contents)
+      fileBasedStore.get().toOption.getOrElse(sys.error(ReadFeedback))
     }
-    val readAnalysis = readAnalysis0 match { case a: Analysis => a }
-    compare(analysis, readAnalysis) && compare(commonSetup, readSetup)
+    val readAnalysis = readContents.getAnalysis match { case a: Analysis => a }
+    compare(analysis, readAnalysis) && compare(commonSetup, readContents.getMiniSetup)
   }
 
   // Compare two analyses with useful labelling when they aren't equal.

@@ -256,11 +256,12 @@ case class ProjectStructure(
       (baseDirectory * "*.java").get.toList
   val cacheFile = baseDirectory / "target" / "inc_compile.zip"
   val fileStore = AnalysisStore.cached(FileAnalysisStore.apply(cacheFile))
-  def prev =
-    fileStore.get match {
-      case Some((a, s)) => new PreviousResult(Optional.of(a), Optional.of(s))
-      case _            => compiler.emptyPreviousResult
-    }
+  import JavaInterfaceUtil.PimpOptional
+  def prev = fileStore.get.toOption match {
+    case Some(contents) =>
+      new PreviousResult(Optional.of(contents.getAnalysis), Optional.of(contents.getMiniSetup))
+    case _ => compiler.emptyPreviousResult
+  }
   def unmanagedJars: List[File] = (baseDirectory / "lib" ** "*.jar").get.toList
   def lookupAnalysis: File => Option[CompileAnalysis] = {
     val f0: PartialFunction[File, Option[CompileAnalysis]] = {
@@ -277,8 +278,9 @@ case class ProjectStructure(
   def internalClasspath: Vector[File] = dependsOnRef map { _.classesDir }
 
   def checkSame(i: IncInstance): Unit =
-    fileStore.get match {
-      case Some((prevAnalysis: Analysis, _)) =>
+    fileStore.get.toOption match {
+      case Some(contents) =>
+        val prevAnalysis = contents.getAnalysis.asInstanceOf[Analysis]
         val analysis = compile(i)
         analysis.apis.internal foreach {
           case (k, api) =>
@@ -412,7 +414,7 @@ case class ProjectStructure(
                              prev0)
     val result = compiler.compile(in, scriptedLog)
     val analysis = result.analysis match { case a: Analysis => a }
-    fileStore.set(analysis, result.setup)
+    fileStore.set(ConcreteAnalysisContents(analysis, result.setup))
     scriptedLog.info(s"""Compilation done: ${sources.toList.mkString(", ")}""")
     analysis
   }
@@ -497,8 +499,9 @@ case class ProjectStructure(
   }
 
   def getProblems(): Seq[Problem] =
-    fileStore.get match {
-      case Some((analysis: Analysis, _)) =>
+    fileStore.get.toOption match {
+      case Some(analysisContents) =>
+        val analysis = analysisContents.getAnalysis.asInstanceOf[Analysis]
         val allInfos = analysis.infos.allInfos.values.toSeq
         allInfos flatMap (i => i.getReportedProblems ++ i.getUnreportedProblems)
       case _ =>

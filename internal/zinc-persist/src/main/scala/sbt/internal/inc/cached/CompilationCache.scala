@@ -24,14 +24,19 @@ trait CompilationCache {
 
 case class ProjectRebasedCache(remoteRoot: Path, cacheLocation: Path) extends CompilationCache {
   override def loadCache(projectLocation: File): Option[(CompileAnalysis, MiniSetup)] = {
+    import JavaInterfaceUtil.PimpOptional
+    import scala.collection.JavaConverters._
     val projectLocationPath = projectLocation.toPath
     val readMapper = new RebaseReadWriteMapper(remoteRoot, projectLocationPath)
     val writeMapper = new RebaseReadWriteMapper(projectLocationPath, remoteRoot)
     val mappers = new ReadWriteMappers(readMapper, writeMapper)
     val store = FileAnalysisStore(cacheLocation.toFile, mappers)
-    store.get() match {
-      case Some((originalAnalysis: Analysis, originalSetup)) =>
-        originalAnalysis.stamps.products.keySet.foreach { originalFile =>
+    store.get().toOption match {
+      case Some(analysisContents) =>
+        val originalAnalysis = analysisContents.getAnalysis
+        val originalSetup = analysisContents.getMiniSetup
+        val allProductsStamps = originalAnalysis.readStamps().getAllProductStamps.keySet.asScala
+        allProductsStamps.foreach { (originalFile: File) =>
           val targetFile = writeMapper.mapProductFile(originalFile)
           IO.copyFile(targetFile, originalFile, preserveLastModified = true)
         }

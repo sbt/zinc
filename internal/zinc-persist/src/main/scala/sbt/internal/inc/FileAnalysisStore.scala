@@ -10,13 +10,13 @@ package internal
 package inc
 
 import java.io._
+import java.util.Optional
 import java.util.zip.{ ZipEntry, ZipInputStream }
 
 import com.google.protobuf.{ CodedInputStream, CodedOutputStream }
 import sbt.inc.ReadWriteMappers
 import sbt.io.{ IO, Using }
-import xsbti.compile.{ CompileAnalysis, MiniSetup }
-import xsbti.api.Companions
+import xsbti.compile.{ AnalysisContents, AnalysisStore }
 
 import scala.util.control.Exception.allCatch
 
@@ -42,8 +42,9 @@ object FileAnalysisStore {
     /**
      * Get `CompileAnalysis` and `MiniSetup` instances for current `Analysis`.
      */
-    override def get: Option[(CompileAnalysis, MiniSetup)] = {
-      val nestedRead = allCatch.opt {
+    override def get: Optional[AnalysisContents] = {
+      import JavaInterfaceUtil.PimpOption
+      val nestedRead: Option[Option[AnalysisContents]] = allCatch.opt {
         Using.zipInputStream(new FileInputStream(file)) { inputStream =>
           lookupEntry(inputStream, analysisFileName)
           val reader = CodedInputStream.newInstance(inputStream)
@@ -52,10 +53,10 @@ object FileAnalysisStore {
             lookupEntry(inputStream, companionsFileName)
             format.readAPIs(reader, analysis)
           }
-          analysisWithAPIs.map(analysis => analysis -> miniSetup)
+          analysisWithAPIs.map(analysis => ConcreteAnalysisContents(analysis, miniSetup))
         }
       }
-      nestedRead.flatten
+      nestedRead.flatten.toOptional
     }
 
     /**
@@ -64,7 +65,9 @@ object FileAnalysisStore {
      *
      * See https://github.com/sbt/zinc/issues/220 for more details.
      */
-    override def set(analysis: CompileAnalysis, setup: MiniSetup): Unit = {
+    override def set(contents: AnalysisContents): Unit = {
+      val analysis = contents.getAnalysis
+      val setup = contents.getMiniSetup
       val tmpAnalysisFile = File.createTempFile(file.getName, TmpEnding)
       if (!file.getParentFile.exists())
         file.getParentFile.mkdirs()
