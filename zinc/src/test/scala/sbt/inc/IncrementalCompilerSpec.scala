@@ -37,7 +37,7 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
   it should "trigger full compilation if extra changes" in {
     IO.withTemporaryDirectory { tempDir =>
       val cacheFile = tempDir / "target" / "inc_compile.zip"
-      val fileStore = AnalysisStore.cached(FileBasedStore(cacheFile))
+      val fileStore = AnalysisStore.cached(FileAnalysisStore(cacheFile))
 
       val projectSetup =
         ProjectSetup.simple(tempDir.toPath, Seq(SourceFiles.Good, SourceFiles.Foo))

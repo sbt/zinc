@@ -323,7 +323,7 @@ object MixedAnalyzingCompiler {
 
   /** Create a an analysis store cache at the desired location. */
   def staticCachedStore(analysisFile: File): AnalysisStore = {
-    val cachedStore = AnalysisStore.cached(FileBasedStore(analysisFile))
+    val cachedStore = AnalysisStore.cached(FileAnalysisStore(analysisFile))
     staticCache(analysisFile, AnalysisStore.sync(cachedStore))
   }
 }

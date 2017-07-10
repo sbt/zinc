@@ -34,7 +34,7 @@ class ExportableCache(val cacheLocation: Path, cleanOutputMode: CleanOutputMode 
 
   override def loadCache(projectLocation: File): Option[(CompileAnalysis, MiniSetup)] = {
     val mappers = ReadWriteMappers.getMachineIndependentMappers(projectLocation.toPath)
-    val store = FileBasedStore(analysisFile.toFile, mappers)
+    val store = FileAnalysisStore(analysisFile.toFile, mappers)
 
     for ((newAnalysis: Analysis, newSetup) <- store.get()) yield {
 
@@ -68,7 +68,7 @@ class ExportableCache(val cacheLocation: Path, cleanOutputMode: CleanOutputMode 
   def exportCache(projectLocation: File, currentAnalysisStore: AnalysisStore): Option[Unit] = {
     for ((currentAnalysis: Analysis, currentSetup) <- currentAnalysisStore.get()) yield {
       val mappers = ReadWriteMappers.getMachineIndependentMappers(projectLocation.toPath)
-      val remoteStore = FileBasedStore(analysisFile.toFile, mappers)
+      val remoteStore = FileAnalysisStore(analysisFile.toFile, mappers)
       exportBinaryCache(currentAnalysis, currentSetup)
       remoteStore.set(currentAnalysis, currentSetup)
     }

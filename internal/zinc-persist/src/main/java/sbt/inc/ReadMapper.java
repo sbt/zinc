@@ -34,7 +34,7 @@ public interface ReadMapper extends GenericMapper {
      * the local machine it's executed on.
      *
      * @param projectRootPath The path on which we want to "mount" all the relative paths in analysis.
-     * @return A read mapper to pass in to {@link sbt.internal.inc.FileBasedStore}.
+     * @return A read mapper to pass in to {@link sbt.internal.inc.FileAnalysisStore}.
      */
     public static ReadMapper getMachineIndependentMapper(Path projectRootPath) {
         return new RelativeReadMapper(projectRootPath);
@@ -44,7 +44,7 @@ public interface ReadMapper extends GenericMapper {
      * Defines an no-op read mapper.
      *
      * This is useful when users are not interested in distributing the analysis files
-     * and need to pass a read mapper to {@link sbt.internal.inc.FileBasedStore}.
+     * and need to pass a read mapper to {@link sbt.internal.inc.FileAnalysisStore}.
      *
      * @return A no-op read mapper.
      */

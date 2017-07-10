@@ -12,7 +12,7 @@ import java.nio.file.{ Files, Path, Paths }
 
 import org.scalatest.BeforeAndAfterAll
 import sbt.internal.inc.cached.{ CacheAwareStore, CacheProvider }
-import sbt.internal.inc.{ Analysis, AnalysisStore, FileBasedStore }
+import sbt.internal.inc.{ Analysis, AnalysisStore, FileAnalysisStore }
 import sbt.io.IO
 import sbt.inc.BaseCompilerSpec
 
@@ -88,7 +88,7 @@ abstract class CommonCachedCompilation(name: String)
     remoteProject =
       ProjectSetup(basePath, SetupCommons.baseSourceMapping, SetupCommons.baseCpMapping)
     remoteCompilerSetup = remoteProject.createCompiler()
-    remoteAnalysisStore = FileBasedStore(remoteProject.defaultStoreLocation)
+    remoteAnalysisStore = FileAnalysisStore(remoteProject.defaultStoreLocation)
 
     val result = remoteCompilerSetup.doCompileWithStore(remoteAnalysisStore)
     assert(result.hasModified)
@@ -126,7 +126,7 @@ abstract class CommonCachedCompilation(name: String)
   it should "not run compilation in local project" in namedTempDir("localProject") { projectRoot =>
     val projectSetup =
       ProjectSetup(projectRoot.toPath, SetupCommons.baseSourceMapping, SetupCommons.baseCpMapping)
-    val localStore = FileBasedStore(new File(projectRoot, "inc_data.zip"))
+    val localStore = FileAnalysisStore(new File(projectRoot, "inc_data.zip"))
     val cache = CacheAwareStore(localStore, remoteCacheProvider(), projectRoot)
 
     val compiler = projectSetup.createCompiler()

@@ -3,7 +3,7 @@ package sbt.inc
 import java.nio.file.Paths
 
 import org.scalacheck.{ Prop, Properties }
-import sbt.internal.inc.{ Analysis, FileBasedStore, AnalysisGenerator }
+import sbt.internal.inc.{ Analysis, FileAnalysisStore, AnalysisGenerator }
 import sbt.io.IO
 
 object BinaryMappersSpecification
@@ -22,7 +22,7 @@ object BinaryMappersSpecification
   override protected def checkAnalysis(analysis: Analysis): Prop = {
     // Note: we test writing to the file directly to reuse `FileBasedStore` as it is written
     val (readAnalysis0, readSetup) = IO.withTemporaryFile("analysis", "test") { tempAnalysisFile =>
-      val fileBasedStore = FileBasedStore(tempAnalysisFile, mappers)
+      val fileBasedStore = FileAnalysisStore(tempAnalysisFile, mappers)
       fileBasedStore.set(analysis, commonSetup)
       fileBasedStore.get().getOrElse(sys.error(ReadFeedback))
     }

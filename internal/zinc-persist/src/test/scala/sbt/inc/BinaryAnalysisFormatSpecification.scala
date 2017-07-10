@@ -68,7 +68,7 @@ trait BinaryAnalysisFormatSpecification { self: Properties =>
   protected def checkAnalysis(analysis: Analysis): Prop = {
     // Note: we test writing to the file directly to reuse `FileBasedStore` as it is written
     val (readAnalysis0, readSetup) = IO.withTemporaryFile("analysis", "test") { tempAnalysisFile =>
-      val fileBasedStore = FileBasedStore(tempAnalysisFile)
+      val fileBasedStore = FileAnalysisStore(tempAnalysisFile)
       fileBasedStore.set(analysis, commonSetup)
       fileBasedStore.get().getOrElse(sys.error(ReadFeedback))
     }

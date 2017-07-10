@@ -20,7 +20,7 @@ import xsbti.api.Companions
 
 import scala.util.control.Exception.allCatch
 
-object FileBasedStore {
+object FileAnalysisStore {
   private final val analysisFileName = "inc_compile.txt"
   private final val companionsFileName = "api_companions.txt"
 
