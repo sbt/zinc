@@ -20,7 +20,7 @@ import xsbti.api.Companions
 
 import scala.util.control.Exception.allCatch
 
-object FileBasedStore {
+object FileAnalysisStore {
   private final val analysisFileName = "inc_compile.txt"
   private final val companionsFileName = "api_companions.txt"
 
@@ -41,6 +41,7 @@ object FileBasedStore {
     private final val format = new BinaryAnalysisFormat(readWriteMappers)
     private final val TmpEnding = ".tmp"
 
+    /** Get `CompileAnalysis` and `MiniSetup` instances for current `Analysis`. */
     override def get: Option[(CompileAnalysis, MiniSetup)] = {
       val nestedRead = allCatch.opt {
         Using.zipInputStream(new FileInputStream(file)) { inputStream =>
@@ -57,6 +58,12 @@ object FileBasedStore {
       nestedRead.flatten
     }
 
+    /**
+     * Write the zipped analysis contents into a temporary file before
+     * overwriting the old analysis file and avoiding data race conditions.
+     *
+     * See https://github.com/sbt/zinc/issues/220 for more details.
+     */
     override def set(analysis: CompileAnalysis, setup: MiniSetup): Unit = {
       val tmpAnalysisFile = File.createTempFile(file.getName, TmpEnding)
       if (!file.getParentFile.exists())
@@ -83,12 +90,6 @@ object FileBasedStore {
       extends AnalysisStore {
     val companionsStore = new FileBasedCompanionsMapStore(file)
 
-    /**
-     * Write the zipped analysis contents into a temporary file before
-     * overwriting the old analysis file and avoiding data race conditions.
-     *
-     * See https://github.com/sbt/zinc/issues/220 for more details.
-     */
     def set(analysis: CompileAnalysis, setup: MiniSetup): Unit = {
       val tmpAnalysisFile = File.createTempFile(file.getName, ".tmp")
       if (!file.getParentFile.exists()) file.getParentFile.mkdirs()
@@ -106,7 +107,6 @@ object FileBasedStore {
       IO.move(tmpAnalysisFile, file)
     }
 
-    /** Get `CompileAnalysis` and `MiniSetup` instances for current `Analysis`. */
     def get(): Option[(CompileAnalysis, MiniSetup)] =
       allCatch.opt(getUncaught())
 

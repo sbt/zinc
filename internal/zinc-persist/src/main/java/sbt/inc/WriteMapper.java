@@ -45,7 +45,7 @@ public interface WriteMapper extends GenericMapper {
      * write mappers.
      *
      * @param projectRootPath The path on which the analysis file was generated and has to be made relative.
-     * @return A write mapper to pass in to {@link sbt.internal.inc.FileBasedStore}.
+     * @return A write mapper to pass in to {@link sbt.internal.inc.FileAnalysisStore}.
      */
     public static WriteMapper getMachineIndependentMapper(Path projectRootPath) {
         return new RelativeWriteMapper(projectRootPath);
@@ -55,7 +55,7 @@ public interface WriteMapper extends GenericMapper {
      * Defines an no-op write mapper.
      *
      * This is useful when users are not interested in distributing the analysis files
-     * and need to pass a read mapper to {@link sbt.internal.inc.FileBasedStore}.
+     * and need to pass a read mapper to {@link sbt.internal.inc.FileAnalysisStore}.
      *
      * @return A no-op read mapper.
      */

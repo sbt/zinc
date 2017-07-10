@@ -21,7 +21,7 @@ object DefaultTextAnalysisFormatTest
   override def checkAnalysis(analysis: Analysis): Prop = {
     // Note: we test writing to the file directly to reuse `FileBasedStore` as it is written
     val (readAnalysis0, readSetup) = IO.withTemporaryFile("analysis", "test") { tempAnalysisFile =>
-      val fileBasedStore = FileBasedStore(tempAnalysisFile, format)
+      val fileBasedStore = FileAnalysisStore.apply(tempAnalysisFile, format)
       fileBasedStore.set(analysis, commonSetup)
       fileBasedStore.get().getOrElse(sys.error(""))
     }
