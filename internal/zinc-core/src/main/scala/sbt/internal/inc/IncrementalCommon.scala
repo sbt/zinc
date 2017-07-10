@@ -168,12 +168,6 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
           wrappedLog.debug(s"Detected a change in a public API ($src):\n$apiUnifiedPatch")
       }
     } catch {
-      case e: ClassNotFoundException =>
-        log.error(
-          "You have api debugging enabled but DiffUtils library cannot be found on sbt's classpath")
-      case e: LinkageError =>
-        log.error("Encountered linkage error while trying to load DiffUtils library.")
-        log.trace(e)
       case e: Exception =>
         log.error("An exception has been thrown while trying to dump an api diff.")
         log.trace(e)

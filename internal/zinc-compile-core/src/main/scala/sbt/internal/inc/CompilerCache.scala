@@ -45,7 +45,7 @@ final class CompilerCache(val maxInstances: Int) extends GlobalsCache {
       case null =>
         log.debug(f0(s"Compiler cache miss. $key "))
         val newCompiler: CachedCompiler =
-          c.newCachedCompiler(args, output, log, reporter, !forceNew)
+          c.newCachedCompiler(args, output, log, reporter)
         cache.put(key, newCompiler)
         newCompiler
       case cachedCompiler =>
@@ -75,5 +75,5 @@ final class FreshCompilerCache extends GlobalsCache {
       c: CachedCompilerProvider,
       log: xLogger,
       reporter: Reporter
-  ): CachedCompiler = c.newCachedCompiler(args, output, log, reporter, false)
+  ): CachedCompiler = c.newCachedCompiler(args, output, log, reporter)
 }
