@@ -13,7 +13,7 @@ import java.nio.file.Path
 import sbt.internal.inc._
 import sbt.io.{ IO, PathFinder }
 import xsbti.compile.analysis.ReadWriteMappers
-import xsbti.compile.{ CompileAnalysis, MiniSetup, SingleOutput }
+import xsbti.compile.{ AnalysisContents, AnalysisStore, CompileAnalysis, MiniSetup, SingleOutput }
 
 sealed trait CleanOutputMode
 case object CleanOutput extends CleanOutputMode
@@ -35,9 +35,11 @@ class ExportableCache(val cacheLocation: Path, cleanOutputMode: CleanOutputMode 
   override def loadCache(projectLocation: File): Option[(CompileAnalysis, MiniSetup)] = {
     val mappers = ReadWriteMappers.getMachineIndependentMappers(projectLocation.toPath)
     val store = FileAnalysisStore.binary(analysisFile.toFile, mappers)
+    import JavaInterfaceUtil.EnrichOptional
 
-    for ((newAnalysis: Analysis, newSetup) <- store.get()) yield {
-
+    for (analysisContents <- store.get.toOption) yield {
+      val newAnalysis = analysisContents.getAnalysis.asInstanceOf[Analysis]
+      val newSetup = analysisContents.getMiniSetup
       val importedClassFiles = importBinaryCache(newAnalysis, newSetup)
       val analysisForLocalProducts =
         updateStampsForImportedProducts(newAnalysis, importedClassFiles)
@@ -66,11 +68,15 @@ class ExportableCache(val cacheLocation: Path, cleanOutputMode: CleanOutputMode 
   }
 
   def exportCache(projectLocation: File, currentAnalysisStore: AnalysisStore): Option[Unit] = {
-    for ((currentAnalysis: Analysis, currentSetup) <- currentAnalysisStore.get()) yield {
+    import JavaInterfaceUtil.EnrichOptional
+    for (analysisContents <- currentAnalysisStore.get.toOption) yield {
+      val currentAnalysis = analysisContents.getAnalysis.asInstanceOf[Analysis]
+      val currentSetup = analysisContents.getMiniSetup
       val mappers = ReadWriteMappers.getMachineIndependentMappers(projectLocation.toPath)
       val remoteStore = FileAnalysisStore.binary(analysisFile.toFile, mappers)
       exportBinaryCache(currentAnalysis, currentSetup)
-      remoteStore.set(currentAnalysis, currentSetup)
+      val contents = ConcreteAnalysisContents(currentAnalysis, currentSetup)
+      remoteStore.set(contents)
     }
   }
 

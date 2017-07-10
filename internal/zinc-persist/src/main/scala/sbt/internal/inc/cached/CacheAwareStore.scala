@@ -8,23 +8,28 @@
 package sbt.internal.inc.cached
 
 import java.io.File
+import java.util.Optional
 
-import sbt.internal.inc.AnalysisStore
-import xsbti.compile.{ MiniSetup, CompileAnalysis }
+import sbt.internal.inc.ConcreteAnalysisContents
+import xsbti.compile.{ AnalysisContents, AnalysisStore }
 
 case class CacheAwareStore(localStore: AnalysisStore,
                            cacheProvider: CacheProvider,
                            projectLocation: File)
     extends AnalysisStore {
-  override def set(analysis: CompileAnalysis, setup: MiniSetup): Unit = {
-    localStore.set(analysis, setup)
-  }
+  override def set(analysisFile: AnalysisContents): Unit =
+    localStore.set(analysisFile)
 
-  override def get(): Option[(CompileAnalysis, MiniSetup)] = {
-    val previous = localStore.get()
+  final val Empty = Optional.empty[AnalysisContents]
+  override def get: Optional[AnalysisContents] = {
+    import sbt.internal.inc.JavaInterfaceUtil.EnrichOptional
+    val previous = localStore.get().toOption.map(f => (f.getAnalysis, f.getMiniSetup))
     val cache = cacheProvider.findCache(previous)
     val cachedResult = cache.flatMap(_.loadCache(projectLocation))
-
-    cachedResult.orElse(previous)
+    val optResult = cachedResult.orElse(previous)
+    optResult match {
+      case Some((analysis, setup)) => Optional.of(ConcreteAnalysisContents(analysis, setup))
+      case None                    => Empty
+    }
   }
 }

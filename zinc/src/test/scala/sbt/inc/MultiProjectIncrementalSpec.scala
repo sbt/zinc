@@ -12,6 +12,7 @@ import JavaInterfaceUtil.{ EnrichOption, EnrichOptional }
 import TestResource._
 import sbt.internal.inc.classpath.ClassLoaderCache
 import xsbti.compile.{ ClassFileManager, CompilerBridgeProvider, _ }
+import sbt.internal.inc.AnalysisStore
 
 class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
   val scalaVersion = "2.11.8"
@@ -95,10 +96,12 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
                                prev0)
       // This registers `test.pkg.Ext1` as the class name on the binary stamp
       val result0 = compiler.compile(in, log)
-      fileStore.set(result0.analysis match { case a: Analysis => a }, result0.setup)
-      val prev1 = fileStore.get match {
-        case Some((a, s)) => new PreviousResult(Optional.of(a), Optional.of(s))
-        case _            => sys.error("previous is not found")
+      val contents = ConcreteAnalysisContents(result0.analysis(), result0.setup())
+      fileStore.set(contents)
+      val prev1 = fileStore.get.toOption match {
+        case Some(contents) =>
+          new PreviousResult(Optional.of(contents.getAnalysis), Optional.of(contents.getMiniSetup))
+        case _ => sys.error("previous is not found")
       }
       val sources1 = Array(dependerFile, depender2File)
       val in1 = compiler.inputs(cp,
@@ -115,7 +118,7 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       // This registers `test.pkg.Ext2` as the class name on the binary stamp,
       // which means `test.pkg.Ext1` is no longer in the stamp.
       val result1 = compiler.compile(in1, log)
-      fileStore.set(result1.analysis match { case a: Analysis => a }, result1.setup)
+      fileStore.set(ConcreteAnalysisContents(result1.analysis(), result1.setup()))
 
       // Second subproject
       val ext1File = sub2Directory / "src" / "Ext1.scala"
@@ -150,15 +153,16 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
                                 setup2,
                                 emptyPrev)
       val result2 = compiler.compile(in2, log)
-      fileStore2.set(result2.analysis match { case a: Analysis => a }, result2.setup)
+      fileStore2.set(ConcreteAnalysisContents(result2.analysis(), result2.setup()))
 
       // Actual test
       val knownSampleGoodFile = sub1Directory / "src" / "Good.scala"
       IO.copyFile(knownSampleGoodFile0, knownSampleGoodFile, false)
       val sources3 = Array(knownSampleGoodFile, dependerFile, depender2File)
-      val prev = fileStore.get match {
-        case Some((a, s)) => new PreviousResult(Optional.of(a), Optional.of(s))
-        case _            => sys.error("previous is not found")
+      val prev = fileStore.get.toOption match {
+        case Some(contents) =>
+          new PreviousResult(Optional.of(contents.getAnalysis), Optional.of(contents.getMiniSetup))
+        case _ => sys.error("previous is not found")
       }
       val lookup3 = new PerClasspathEntryLookupImpl(
         {
@@ -189,7 +193,7 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
                                 prev)
       val result3 = compiler.compile(in3, log)
       val a3 = result3.analysis match { case a: Analysis => a }
-      fileStore.set(a3, result3.setup)
+      fileStore.set(ConcreteAnalysisContents(a3, result3.setup))
 
       val allCompilations = a3.compilations.allCompilations
       val recompiledClasses: Seq[Set[String]] = allCompilations map { c =>

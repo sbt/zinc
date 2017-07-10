@@ -66,14 +66,16 @@ trait BinaryAnalysisFormatSpecification { self: Properties =>
 
   private final val ReadFeedback = "The analysis file cannot be read."
   protected def checkAnalysis(analysis: Analysis): Prop = {
+    import JavaInterfaceUtil.EnrichOptional
     // Note: we test writing to the file directly to reuse `FileBasedStore` as it is written
-    val (readAnalysis0, readSetup) = IO.withTemporaryFile("analysis", "test") { tempAnalysisFile =>
+    val readContents = IO.withTemporaryFile("analysis", "test") { tempAnalysisFile =>
       val fileBasedStore = FileAnalysisStore.binary(tempAnalysisFile)
-      fileBasedStore.set(analysis, commonSetup)
-      fileBasedStore.get().getOrElse(sys.error(ReadFeedback))
+      val contents = ConcreteAnalysisContents(analysis, commonSetup)
+      fileBasedStore.set(contents)
+      fileBasedStore.get().toOption.getOrElse(sys.error(ReadFeedback))
     }
-    val readAnalysis = readAnalysis0 match { case a: Analysis => a }
-    compare(analysis, readAnalysis) && compare(commonSetup, readSetup)
+    val readAnalysis = readContents.getAnalysis match { case a: Analysis => a }
+    compare(analysis, readAnalysis) && compare(commonSetup, readContents.getMiniSetup)
   }
 
   // Compare two analyses with useful labelling when they aren't equal.
