@@ -31,77 +31,139 @@ object ProtobufDefaults {
   }
 
   object Classes {
-    final val AnnotationClazz = classOf[schema.Annotation]
-    final val ParameterizedClazz = classOf[schema.Type.Parameterized]
-    final val PolymorphicClazz = classOf[schema.Type.Polymorphic]
-    final val ConstantClazz = classOf[schema.Type.Constant]
-    final val ExistentialClazz = classOf[schema.Type.Existential]
-    final val SingletonClazz = classOf[schema.Type.Singleton]
-    final val AnnotatedClazz = classOf[schema.Type.Annotated]
-    final val MethodParamClazz = classOf[schema.MethodParameter]
-    final val ValClazz = classOf[schema.ClassDefinition.Val]
-    final val VarClazz = classOf[schema.ClassDefinition.Var]
-    final val TypeAliasClazz = classOf[schema.ClassDefinition.TypeAlias]
-    final val TypeDeclarationClazz = classOf[schema.ClassDefinition.TypeDeclaration]
-    final val DefClazz = classOf[schema.ClassDefinition.Def]
-    final val PathComponentClazz = classOf[schema.Path.PathComponent]
-    final val ComponentClazz = classOf[schema.Path.PathComponent.Component]
-    final val ClassLikeClazz = classOf[schema.ClassLike]
-    final val ClassDefClazz = classOf[schema.ClassDefinition]
+    final val Annotation = classOf[schema.Annotation]
+    final val Parameterized = classOf[schema.Type.Parameterized]
+    final val ParamModifier = classOf[schema.ParameterModifier]
+    final val Polymorphic = classOf[schema.Type.Polymorphic]
+    final val Constant = classOf[schema.Type.Constant]
+    final val Existential = classOf[schema.Type.Existential]
+    final val Singleton = classOf[schema.Type.Singleton]
+    final val Annotated = classOf[schema.Type.Annotated]
+    final val MethodParameter = classOf[schema.MethodParameter]
+    final val Val = classOf[schema.ClassDefinition.Val]
+    final val Var = classOf[schema.ClassDefinition.Var]
+    final val TypeAlias = classOf[schema.ClassDefinition.TypeAlias]
+    final val TypeDeclaration = classOf[schema.ClassDefinition.TypeDeclaration]
+    final val Def = classOf[schema.ClassDefinition.Def]
+    final val PathComponent = classOf[schema.Path.PathComponent]
+    final val Component = classOf[schema.Path.PathComponent.Component]
+    final val ClassLike = classOf[schema.ClassLike]
+    final val Structure = classOf[schema.Type.Structure]
+    final val ClassLikeDef = classOf[schema.ClassDefinition.ClassLikeDef]
+    final val ClassDefinition = classOf[schema.ClassDefinition]
+    final val TypeParameter = classOf[schema.TypeParameter]
+    final val Type = classOf[schema.Type]
+    final val Projection = classOf[schema.Type.Projection]
+    final val Access = classOf[schema.Access]
+    final val Modifiers = classOf[schema.Modifiers]
+    final val Severity = classOf[schema.Severity]
+    final val UseScope = classOf[schema.UseScope]
+    final val CompileOrder = classOf[schema.CompileOrder]
+    final val Path = classOf[schema.Path]
+    final val Super = classOf[schema.Super]
+    final val MiniOptions = classOf[schema.MiniOptions]
+    final val MiniSetup = classOf[schema.MiniSetup]
+    final val CompilationOutput = classOf[schema.Compilation.Output]
+    final val MiniSetupOutput = classOf[schema.MiniSetup.Output]
+    final val Position = classOf[schema.Position]
+    final val Problem = classOf[schema.Problem]
+    final val Companions = classOf[schema.Companions]
+    final val Relations = classOf[schema.Relations]
+    final val Stamps = classOf[schema.Stamps]
+    final val Compilations = classOf[schema.Compilations]
+    final val SourceInfos = classOf[schema.SourceInfos]
+    final val AnalyzedClass = classOf[schema.AnalyzedClass]
+    final val Analysis = classOf[schema.Analysis]
+    final val APIs = classOf[schema.APIs]
+    final val APIsFile = classOf[schema.APIsFile]
   }
 
   object Feedback {
+    implicit class StringToException(str: String) {
+      def !!(): Nothing = sys.error(str)
+    }
+
     object Writers {
       final val UnexpectedEmptyOutput =
         "Expected `Output` to be either `SingleOutput` or `MultipleOutput`."
     }
 
     object Readers {
-      final def unrecognizedSeverity(id: Int) =
-        s"Unrecognized `Severity` level when reading data (id = $id)."
-      final def unrecognizedUseScope(id: Int) =
-        s"Unrecognized `UseScope` level when reading data (id = $id)."
-      final def unrecognizedOrder(id: Int) =
-        s"Unrecognized `CompileOrder` when reading data (id = $id)."
-      final def missingBaseIn(clazz: Class[_]) =
-        s"Missing base type in `${clazz.getName}` when reading data."
-      final def missingTypeIn(clazz: Class[_]) =
-        s"Missing type in `${clazz.getName}` when reading data."
-      final def missingReturnTypeIn(clazz: Class[_]) =
-        s"Missing return type in `${clazz.getName}` when reading data."
-      final def missingLowerBoundIn(clazz: Class[_]) =
-        s"Missing lower bound in `${clazz.getName}` when reading data."
-      final def missingUpperBoundIn(clazz: Class[_]) =
-        s"Missing upper bound in `${clazz.getName}` when reading data."
-      final def missing(culprit: Class[_], owner: Class[_]) =
-        s"Missing `${culprit.getName}` in `${owner.getName}` when reading data."
+      final val ReadError: String = "Protobuf read error"
 
-      final val UnexpectedEmptyType = "Unexpected empty type when reading `schema.Type`."
-      final val UnexpectedEmptyClassDefinition =
-        "Unexpected empty `ClassDefinition` type when reading `schema.ClassDefinition`."
-      final val UnrecognizedParamModifier =
-        "Unrecognized param modifier when reading `schema.MethodParameter`."
-      final val UnrecognizedVariance = "Unrecognized variance when reading `schema.TypeParameter`."
-      final val UnrecognizedDefinitionType =
-        "Unrecognized definition type when reading `schema.ClassDefinition.ClassLikeDef`."
-      final val UnexpectedAccessType = "Unexpected access type when reading `schema.Access`."
-      final val UnexpectedEmptyQualifier =
-        "Unexpected empty qualifier when reading `schema.Access`."
-      final val MissingModifiersInDef = "Missing modifiers in `ClassDefinition` while reading."
-      final val MissingAccessInDef = "Missing access in `ClassDefinition` while reading."
-      final val MissingQualifierInAccess = "Missing qualifier in `Access` while reading."
-      final val MissingPathInSingleton = "Missing path in `Singleton` when reading data."
-      final val MissingLowerBoundInParam =
-        "Missing lower bound in `TypeParameter` when reading data."
-      final val MissingUpperBoundInParam =
-        "Missing upper bound in `TypeParameter` when reading data."
-      final val MissingPrefixInProjection = "Missing prefix in `Projection` when reading data."
-      final val MissingPathInSuper =
-        "Missing qualifier of type `Path` in `Super` when reading data."
-      final val MissingMiniOptions = "`MiniOptions` are missing in `MiniSetup` when reading data."
-      final val ExpectedNonEmptyOutput = "Expected non-empty `Output` when reading data."
+      final def expectedBaseIn(clazz: Class[_]) =
+        expected("base type", clazz)
+      final def expectedTypeIn(clazz: Class[_]) =
+        expected("type", clazz)
+      final val ExpectedReturnTypeInDef =
+        expected("return type", Classes.Def)
+      final val ExpectedUpperBoundInTypeParameter =
+        expected("upper bound", Classes.TypeParameter)
+      final val ExpectedUpperBoundInTypeDeclaration =
+        expected("upper bound", Classes.TypeDeclaration)
+      final val ExpectedLowerBoundInTypeParameter =
+        expected("lower bound", Classes.TypeParameter)
+      final val ExpectedLowerBoundInTypeDeclaration =
+        expected("lower bound", Classes.TypeDeclaration)
+      final val ExpectedNonEmptyType =
+        expected(s"non empty type", Classes.Type)
+      final val ExpectedNonEmptyDefType =
+        expected(s"non empty `${Classes.ClassDefinition.getName}` type", Classes.Type)
+      final val ExpectedPathInSingleton =
+        expected("path", Classes.Singleton)
+      final val ExpectedPrefixInProjection =
+        expected("prefix", Classes.Projection)
+      final val ExpectedQualifierInAccess =
+        expected("qualifier", Classes.Access)
+      final val MissingModifiersInDef =
+        expected("modifiers", Classes.ClassDefinition)
+      final val MissingAccessInDef =
+        expected("access", Classes.ClassDefinition)
+      final val ExpectedValidAccessType =
+        expected("valid access type", Classes.Access)
+      final val ExpectedAccessInClassLike =
+        expected(Classes.Access, Classes.ClassLike)
+      final val ExpectedNonEmptyQualifier =
+        expected("non-empty qualifier", Classes.Access)
+      final val ExpectedCompanionsInAnalyzedClass =
+        expected(Classes.Companions, Classes.AnalyzedClass)
+      final val ExpectedPathInSuper =
+        expected(s"qualifier of type ${Classes.Path}", Classes.Super)
+      final val ExpectedMiniOptionsInSetup =
+        expected(Classes.MiniOptions, Classes.MiniSetup)
+      final val ExpectedOutputInCompilationOutput =
+        expected("non-empty output", Classes.CompilationOutput)
+      final val ExpectedOutputInMiniSetupOutput =
+        expected("non-empty output", Classes.MiniSetupOutput)
       final val ExpectedPositionInProblem: String =
-        "Expected non-empty `Position` in `Problem` when reading data."
+        expected(Classes.Position, Classes.Problem)
+      final val ExpectedApisInApisFile: String =
+        expected(Classes.APIs, Classes.APIsFile)
+
+      final def expected(culprit: Class[_], owner: Class[_]): String =
+        expected(s"`${culprit.getName}`", owner)
+      final def expected(something: String, owner: Class[_]): String =
+        s"$ReadError: Expected $something in `${owner.getName}`."
+
+      final val UnrecognizedParamModifier =
+        unrecognized("param modifier", Classes.MethodParameter)
+      final val UnrecognizedVariance =
+        unrecognized("variance", Classes.TypeParameter)
+      final val UnrecognizedDefinitionType =
+        unrecognized("definition type", Classes.ClassLikeDef)
+      final def unrecognizedSeverity(id: Int) =
+        unrecognized(Classes.Severity, id.toString)
+      final def unrecognizedUseScope(id: Int) =
+        unrecognized(Classes.UseScope, id.toString)
+      final def unrecognizedOrder(id: Int) =
+        unrecognized(Classes.CompileOrder, id.toString)
+
+      final def unrecognized[T](culprit: Class[_], value: String): String =
+        s"$ReadError: Unrecognized ${culprit.getName} with value `$value`."
+      final def unrecognized(culprit: Class[_], owner: Class[_]): String =
+        unrecognized(s"`${culprit.getName}`", owner)
+      final def unrecognized(something: String, owner: Class[_]): String =
+        s"$ReadError: Unrecognized $something in `${owner.getName}`."
     }
   }
 }
