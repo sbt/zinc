@@ -5,7 +5,7 @@
  * This software is released under the terms written in LICENSE.
  */
 
-package sbt.internal.inc.converters
+package sbt.internal.inc.binary.converters
 
 import xsbti.api._
 import sbt.internal.inc.schema

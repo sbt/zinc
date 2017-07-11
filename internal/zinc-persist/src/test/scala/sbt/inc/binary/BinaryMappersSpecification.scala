@@ -1,8 +1,9 @@
-package sbt.inc
+package sbt.inc.binary
 
 import java.nio.file.Paths
 
 import org.scalacheck.{ Prop, Properties }
+import sbt.inc.ReadWriteMappers
 import sbt.internal.inc.{ Analysis, FileAnalysisStore, TestCaseGenerators }
 import sbt.io.IO
 

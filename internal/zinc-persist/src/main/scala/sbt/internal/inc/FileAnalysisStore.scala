@@ -14,6 +14,8 @@ import java.util.zip.{ ZipEntry, ZipInputStream }
 
 import com.google.protobuf.{ CodedInputStream, CodedOutputStream }
 import sbt.inc.ReadWriteMappers
+import sbt.internal.inc.binary.BinaryAnalysisFormat
+import sbt.internal.inc.text.{ AnalysisMappers, TextAnalysisFormat }
 import sbt.io.{ IO, Using }
 import xsbti.compile.{ CompileAnalysis, MiniSetup }
 import xsbti.api.Companions
@@ -30,10 +32,11 @@ object FileAnalysisStore {
   def binary(analysisFile: File, mappers: ReadWriteMappers): AnalysisStore =
     new BinaryFileStore(analysisFile, mappers)
 
-  def apply(file: File): AnalysisStore = new FileBasedStoreImpl(file, TextAnalysisFormat)
-  def apply(file: File, format: TextAnalysisFormat): AnalysisStore =
+  def text(file: File): AnalysisStore =
+    new FileBasedStoreImpl(file, TextAnalysisFormat)
+  def text(file: File, format: TextAnalysisFormat): AnalysisStore =
     new FileBasedStoreImpl(file, format)
-  def apply(file: File, format: AnalysisMappers): AnalysisStore =
+  def text(file: File, format: AnalysisMappers): AnalysisStore =
     new FileBasedStoreImpl(file, new TextAnalysisFormat(format))
 
   private final class BinaryFileStore(file: File, readWriteMappers: ReadWriteMappers)

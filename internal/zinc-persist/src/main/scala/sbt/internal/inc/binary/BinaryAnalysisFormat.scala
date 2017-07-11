@@ -5,11 +5,12 @@
  * This software is released under the terms written in LICENSE.
  */
 
-package sbt.internal.inc
+package sbt.internal.inc.binary
 
 import com.google.protobuf.{ CodedInputStream, CodedOutputStream }
 import sbt.inc.ReadWriteMappers
-import sbt.internal.inc.converters.{ ProtobufReaders, ProtobufWriters }
+import sbt.internal.inc.binary.converters.{ ProtobufReaders, ProtobufWriters }
+import sbt.internal.inc.{ Analysis, schema }
 import xsbti.compile.{ CompileAnalysis, MiniSetup }
 
 final class BinaryAnalysisFormat(mappers: ReadWriteMappers) {

@@ -5,7 +5,7 @@
  * This software is released under the terms written in LICENSE.
  */
 
-package sbt.internal.inc.converters
+package sbt.internal.inc.binary.converters
 
 import java.io.File
 
@@ -16,9 +16,9 @@ import sbt.util.InterfaceUtil
 import xsbti.{ Position, Problem, Severity, T2, UseScope }
 import xsbti.compile.{ CompileOrder, FileHash, MiniOptions, MiniSetup, Output, OutputGroup }
 import xsbti.compile.analysis.{ Compilation, SourceInfo, Stamp }
-import sbt.internal.inc.converters.ProtobufDefaults.Feedback.StringToException
-import sbt.internal.inc.converters.ProtobufDefaults.Feedback.{ Readers => ReadersFeedback }
-import sbt.internal.inc.converters.ProtobufDefaults.{ Classes, ReadersConstants }
+import sbt.internal.inc.binary.converters.ProtobufDefaults.Feedback.StringToException
+import sbt.internal.inc.binary.converters.ProtobufDefaults.Feedback.{ Readers => ReadersFeedback }
+import sbt.internal.inc.binary.converters.ProtobufDefaults.{ Classes, ReadersConstants }
 import sbt.internal.util.Relation
 import xsbti.api._
 

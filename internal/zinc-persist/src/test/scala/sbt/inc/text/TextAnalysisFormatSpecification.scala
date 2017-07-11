@@ -1,17 +1,17 @@
-package sbt
-package inc
+package sbt.inc.text
 
+import java.io.{ BufferedReader, File, StringReader, StringWriter }
+
+import org.scalacheck.Prop._
+import org.scalacheck._
+import sbt.internal.inc.Analysis.NonLocalProduct
+import sbt.internal.inc._
+import sbt.internal.inc.text.TextAnalysisFormat
+import sbt.io.IO
+import sbt.util.InterfaceUtil._
 import xsbti.api._
 import xsbti.compile._
 import xsbti.{ Problem, T2 }
-import sbt.internal.inc._
-import sbt.util.InterfaceUtil._
-import java.io.{ BufferedReader, File, StringReader, StringWriter }
-
-import Analysis.NonLocalProduct
-import org.scalacheck._
-import Prop._
-import sbt.io.IO
 
 object DefaultTextAnalysisFormatTest
     extends Properties("TextAnalysisFormat")
@@ -21,7 +21,7 @@ object DefaultTextAnalysisFormatTest
   override def checkAnalysis(analysis: Analysis): Prop = {
     // Note: we test writing to the file directly to reuse `FileBasedStore` as it is written
     val (readAnalysis0, readSetup) = IO.withTemporaryFile("analysis", "test") { tempAnalysisFile =>
-      val fileBasedStore = FileAnalysisStore.apply(tempAnalysisFile, format)
+      val fileBasedStore = FileAnalysisStore.text(tempAnalysisFile, format)
       fileBasedStore.set(analysis, commonSetup)
       fileBasedStore.get().getOrElse(sys.error(""))
     }

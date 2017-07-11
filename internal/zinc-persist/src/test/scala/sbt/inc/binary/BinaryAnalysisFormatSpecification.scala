@@ -1,16 +1,16 @@
-package sbt.inc
+package sbt.inc.binary
 
+import java.io.File
+
+import org.scalacheck.Prop._
+import org.scalacheck._
+import sbt.internal.inc.Analysis.NonLocalProduct
+import sbt.internal.inc._
+import sbt.io.IO
+import sbt.util.InterfaceUtil._
 import xsbti.api._
 import xsbti.compile._
 import xsbti.{ Problem, T2 }
-import sbt.internal.inc._
-import sbt.util.InterfaceUtil._
-import java.io.File
-
-import Analysis.NonLocalProduct
-import org.scalacheck._
-import Prop._
-import sbt.io.IO
 
 object BinaryAnalysisFormatSpecification
     extends Properties("BinaryAnalysisFormat")

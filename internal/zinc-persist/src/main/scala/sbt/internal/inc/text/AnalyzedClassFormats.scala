@@ -5,11 +5,12 @@
  * This software is released under the terms written in LICENSE.
  */
 
-package sbt.internal.inc
+package sbt.internal.inc.text
 
-import sbinary._
 import sbinary.DefaultProtocol._
+import sbinary._
 import sbt.internal.inc.APIs.emptyCompanions
+import sbt.internal.inc.Compilation
 import xsbti.api.{ AnalyzedClass, NameHash, SafeLazyProxy }
 
 object AnalyzedClassFormats {

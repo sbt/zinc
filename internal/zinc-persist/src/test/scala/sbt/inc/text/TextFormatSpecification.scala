@@ -5,18 +5,24 @@
  * This software is released under the terms written in LICENSE.
  */
 
-package sbt.inc
+package sbt.inc.text
 
 import java.io.File
 
 import org.scalacheck.{ Prop, Properties }
 import sbt.internal.inc._
+import sbt.internal.inc.text.{
+  AnalysisMappersAdapter,
+  ContextAwareMapper,
+  Mapper,
+  TextAnalysisFormat
+}
 import xsbti.compile.analysis.Stamp
 
 import scala.util.{ Random, Try }
 
-object MappedTextAnalysisFormatTest
-    extends Properties("MappedTextAnalysisFormat")
+object TextFormatSpecification
+    extends Properties("TextFormatSpecification")
     with BaseTextAnalysisFormatTest {
   object TestMapper extends AnalysisMappersAdapter {
     override val sourceMapper: Mapper[File] = mapped(Mapper.forFile)

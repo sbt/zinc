@@ -5,11 +5,12 @@
  * This software is released under the terms written in LICENSE.
  */
 
-package sbt.internal.inc
+package sbt.internal.inc.text
 
 import java.io.File
 import java.nio.file.Path
 
+import sbt.internal.inc.{ Stamper, UsedName }
 import xsbti.UseScope
 import xsbti.compile.MiniSetup
 import xsbti.compile.analysis.Stamp
@@ -23,7 +24,7 @@ object Mapper {
   val forFile: Mapper[File] = Mapper(FormatCommons.stringToFile, FormatCommons.fileToString)
   val forString: Mapper[String] = Mapper(identity, identity)
   val forStamp: ContextAwareMapper[File, Stamp] =
-    ContextAwareMapper((_, v) => Stamp.fromString(v), (_, s) => s.toString)
+    ContextAwareMapper((_, v) => sbt.internal.inc.Stamp.fromString(v), (_, s) => s.toString)
   val forUsedName: Mapper[UsedName] = {
     val enumSetSerializer = EnumSetSerializer(UseScope.values())
     def serialize(usedName: UsedName): String =

@@ -5,20 +5,17 @@
  * This software is released under the terms written in LICENSE.
  */
 
-package sbt
-package internal
-package inc
+package sbt.internal.inc.text
 
 import java.io._
 
-import sbt.internal.inc.converters.ProtobufWriters
-import xsbti.T2
-import xsbti.UseScope
-import xsbti.api._
-import xsbti.compile._
+import sbt.internal.inc._
 import sbt.util.InterfaceUtil
 import sbt.util.InterfaceUtil.{ jo2o, position, problem }
-import xsbti.compile.analysis.{ SourceInfo, Stamp }
+import xsbti.{ T2, UseScope }
+import xsbti.api._
+import xsbti.compile._
+import xsbti.compile.analysis.SourceInfo
 
 // A text-based serialization format for Analysis objects.
 // This code has been tuned for high performance, and therefore has non-idiomatic areas.

@@ -5,7 +5,7 @@
  * This software is released under the terms written in LICENSE.
  */
 
-package sbt.internal.inc.converters
+package sbt.internal.inc.binary.converters
 
 import java.io.File
 
@@ -13,8 +13,8 @@ import sbt.inc.WriteMapper
 import sbt.internal.inc._
 import xsbti.{ Position, Problem, Severity, T2, UseScope }
 import xsbti.compile.analysis.{ SourceInfo, Stamp }
-import sbt.internal.inc.converters.ProtobufDefaults.Feedback.{ Writers => WritersFeedback }
-import sbt.internal.inc.converters.ProtobufDefaults.WritersConstants
+import sbt.internal.inc.binary.converters.ProtobufDefaults.Feedback.{ Writers => WritersFeedback }
+import sbt.internal.inc.binary.converters.ProtobufDefaults.WritersConstants
 import xsbti.api.{ Private, _ }
 import xsbti.compile.{
   CompileOrder,

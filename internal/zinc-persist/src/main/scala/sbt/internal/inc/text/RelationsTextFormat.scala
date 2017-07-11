@@ -5,10 +5,11 @@
  * This software is released under the terms written in LICENSE.
  */
 
-package sbt.internal.inc
+package sbt.internal.inc.text
 
-import java.io.{ File, BufferedReader, Writer }
+import java.io.{ BufferedReader, File, Writer }
 
+import sbt.internal.inc.{ ExternalDependencies, InternalDependencies, Relations, UsedName }
 import sbt.internal.util.Relation
 import xsbti.api.DependencyContext._
 
