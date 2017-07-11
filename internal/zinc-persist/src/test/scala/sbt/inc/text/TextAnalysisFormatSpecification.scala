@@ -76,7 +76,7 @@ trait BaseTextAnalysisFormatTest { self: Properties =>
 
   property("Write and read simple Analysis") = {
 
-    import TestCaseGenerators._
+    import AnalysisGenerators._
 
     def f(s: String) = new File("/temp/" + s)
     val aScala = f("A.scala")
@@ -107,7 +107,7 @@ trait BaseTextAnalysisFormatTest { self: Properties =>
   }
 
   property("Write and read complex Analysis") =
-    forAllNoShrink(TestCaseGenerators.genAnalysis)(checkAnalysis)
+    forAllNoShrink(AnalysisGenerators.genAnalysis)(checkAnalysis)
 
   // Compare two analyses with useful labelling when they aren't equal.
   protected def compare(left: Analysis, right: Analysis): Prop = {

@@ -21,7 +21,7 @@ object BinaryAnalysisFormatSpecification
   }
 
   val simpleAnalysis: Analysis = {
-    import TestCaseGenerators._
+    import AnalysisGenerators._
     def f(s: String) = new File(s"$RootFilePath/s")
     val aScala = f("A.scala")
     val aClass = genClass("A").sample.get
@@ -43,7 +43,7 @@ object BinaryAnalysisFormatSpecification
   }
 
   property("Write and read complex Analysis") =
-    forAllNoShrink(TestCaseGenerators.genAnalysis)(checkAnalysis)
+    forAllNoShrink(AnalysisGenerators.genAnalysis)(checkAnalysis)
 
 }
 

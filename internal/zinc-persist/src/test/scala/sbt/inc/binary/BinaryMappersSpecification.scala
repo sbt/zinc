@@ -4,7 +4,7 @@ import java.nio.file.Paths
 
 import org.scalacheck.{ Prop, Properties }
 import sbt.inc.ReadWriteMappers
-import sbt.internal.inc.{ Analysis, FileAnalysisStore, TestCaseGenerators }
+import sbt.internal.inc.{ Analysis, FileAnalysisStore, AnalysisGenerators }
 import sbt.io.IO
 
 object BinaryMappersSpecification
@@ -15,7 +15,7 @@ object BinaryMappersSpecification
   private final val mappers: ReadWriteMappers =
     ReadWriteMappers.getMachineIndependentMappers(Paths.get(RootFilePath))
 
-  object RelativeTestCaseGenerators extends TestCaseGenerators {
+  object RelativeAnalysisGenerators extends AnalysisGenerators {
     override def RootFilePath = BinaryMappersSpecification.RootFilePath
   }
 
@@ -38,6 +38,6 @@ object BinaryMappersSpecification
 
   property("The default relative mapper works in complex analysis files") = {
     import org.scalacheck.Prop.forAllNoShrink
-    forAllNoShrink(RelativeTestCaseGenerators.genAnalysis)(checkAnalysis)
+    forAllNoShrink(RelativeAnalysisGenerators.genAnalysis)(checkAnalysis)
   }
 }
