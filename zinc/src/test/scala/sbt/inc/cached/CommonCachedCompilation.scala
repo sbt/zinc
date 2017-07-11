@@ -101,18 +101,16 @@ abstract class CommonCachedCompilation(name: String)
   it should "provide correct analysis for empty project" in IO.withTemporaryDirectory { tempDir =>
     val cache = remoteCacheProvider().findCache(None)
     assert(cache.nonEmpty)
-
     val result = cache.get.loadCache(tempDir)
-
     assert(result.nonEmpty)
 
-    val analysis = result.get._1.asInstanceOf[Analysis]
-
+    val analysis: Analysis = result.get._1.asInstanceOf[Analysis]
     val prefix = tempDir.toPath.toString
 
-    // TODO(jvican): Add files that are missing...
-    val allFilesToMigrate = analysis.stamps.sources.keySet ++
-      analysis.stamps.products.keySet ++ analysis.stamps.binaries.keySet
+    val stamps = analysis.stamps
+    val allStamps = stamps.sources.keySet ++ stamps.products.keySet ++ stamps.binaries.keySet
+    val outputs = analysis.compilations.allCompilations.map(_.getOutput.getSingleOutput.get)
+    val allFilesToMigrate = allStamps ++ outputs
 
     val globalTmpPrefix = tempDir.getParentFile.toPath.toString
     def isGlobal(f: File): Boolean =

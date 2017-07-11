@@ -21,8 +21,9 @@ import xsbti.api.Companions
 import scala.util.control.Exception.allCatch
 
 object FileAnalysisStore {
-  private final val analysisFileName = "inc_compile.txt"
-  private final val companionsFileName = "api_companions.txt"
+  private final val BinExtension = "bin"
+  private final val analysisFileName = s"inc_compile.$BinExtension"
+  private final val companionsFileName = s"api_companions.$BinExtension"
 
   def binary(analysisFile: File): AnalysisStore =
     new BinaryFileStore(analysisFile, ReadWriteMappers.getEmptyMappers())

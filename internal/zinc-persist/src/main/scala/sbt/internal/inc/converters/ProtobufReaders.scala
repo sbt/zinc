@@ -33,7 +33,6 @@ final class ProtobufReaders(mapper: ReadMapper) {
       case schema.Stamps.StampType.Type.Empty            => EmptyStamp
       case schema.Stamps.StampType.Type.Hash(h)          => new Hash(h.hash)
       case schema.Stamps.StampType.Type.LastModified(lm) => new LastModified(lm.millis)
-      // ^ TODO: Double check that we recompute millis when reading this in certain conditions
     }
   }
 

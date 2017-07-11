@@ -41,13 +41,13 @@ public final class Modifiers implements java.io.Serializable
      * Allow to set the modifiers from a flags byte where:
 	 *
 	 *   1. The first bit tells if has an abstract modifier.
-	 *   2. The first bit tells if has an override modifier.
-	 *   3. The first bit tells if has an final modifier.
-	 *   4. The first bit tells if has an sealed modifier.
-	 *   5. The first bit tells if has an implicit modifier.
-	 *   6. The first bit tells if has an lazy modifier.
-	 *   7. The first bit tells if has an macro modifier.
-	 *   8. The first bit tells if has an super accessor modifier.
+	 *   2. The second bit tells if has an override modifier.
+	 *   3. The third bit tells if has an final modifier.
+	 *   4. The fourth bit tells if has an sealed modifier.
+	 *   5. The fifth bit tells if has an implicit modifier.
+	 *   6. The sixth bit tells if has an lazy modifier.
+	 *   7. The seventh bit tells if has an macro modifier.
+	 *   8. The eighth bit tells if has an super accessor modifier.
 	 *
 	 * This method is not part of the public API and it may be removed at any point.
 	 * @param flags An instance of byte encoding the modifiers.
