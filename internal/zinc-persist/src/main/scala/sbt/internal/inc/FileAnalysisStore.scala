@@ -27,6 +27,13 @@ object FileAnalysisStore {
   private final val analysisFileName = s"inc_compile.$BinExtension"
   private final val companionsFileName = s"api_companions.$BinExtension"
 
+  /** Defaults the file analysis store to the binary format with empty mappers. */
+  def apply(analysisFile: File): AnalysisStore = binary(analysisFile)
+
+  /** Defaults the file analysis store to the binary format. */
+  def apply(analysisFile: File, mappers: ReadWriteMappers): AnalysisStore =
+    binary(analysisFile, mappers)
+
   def binary(analysisFile: File): AnalysisStore =
     new BinaryFileStore(analysisFile, ReadWriteMappers.getEmptyMappers())
   def binary(analysisFile: File, mappers: ReadWriteMappers): AnalysisStore =
