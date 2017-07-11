@@ -9,10 +9,9 @@ package sbt.internal.inc.binary.converters
 
 import java.io.File
 
-import sbt.inc.WriteMapper
 import sbt.internal.inc._
 import xsbti.{ Position, Problem, Severity, T2, UseScope }
-import xsbti.compile.analysis.{ SourceInfo, Stamp }
+import xsbti.compile.analysis.{ SourceInfo, Stamp, WriteMapper }
 import sbt.internal.inc.binary.converters.ProtobufDefaults.Feedback.{ Writers => WritersFeedback }
 import sbt.internal.inc.binary.converters.ProtobufDefaults.WritersConstants
 import xsbti.api.{ Private, _ }

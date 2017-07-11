@@ -10,9 +10,8 @@ package sbt.internal.inc.mappers
 import java.io.File
 import java.nio.file.Path
 
-import sbt.inc.{ ReadMapper }
 import xsbti.compile.MiniSetup
-import xsbti.compile.analysis.Stamp
+import xsbti.compile.analysis.{ ReadMapper, Stamp }
 
 // Please see docs about the implementation in the WriteMapper interface
 /** @inheritdoc */

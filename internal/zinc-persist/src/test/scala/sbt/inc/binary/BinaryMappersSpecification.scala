@@ -3,9 +3,9 @@ package sbt.inc.binary
 import java.nio.file.Paths
 
 import org.scalacheck.{ Prop, Properties }
-import sbt.inc.ReadWriteMappers
-import sbt.internal.inc.{ Analysis, FileAnalysisStore, AnalysisGenerators }
+import sbt.internal.inc.{ Analysis, AnalysisGenerators, FileAnalysisStore }
 import sbt.io.IO
+import xsbti.compile.analysis.ReadWriteMappers
 
 object BinaryMappersSpecification
     extends Properties("BinaryMappers")

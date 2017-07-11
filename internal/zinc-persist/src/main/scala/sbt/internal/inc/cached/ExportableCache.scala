@@ -10,9 +10,9 @@ package sbt.internal.inc.cached
 import java.io.File
 import java.nio.file.Path
 
-import sbt.inc.ReadWriteMappers
 import sbt.internal.inc._
 import sbt.io.{ IO, PathFinder }
+import xsbti.compile.analysis.ReadWriteMappers
 import xsbti.compile.{ CompileAnalysis, MiniSetup, SingleOutput }
 
 sealed trait CleanOutputMode

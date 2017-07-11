@@ -9,13 +9,12 @@ package sbt.internal.inc.binary.converters
 
 import java.io.File
 
-import sbt.inc.ReadMapper
 import sbt.internal.inc.Relations.ClassDependencies
 import sbt.internal.inc._
 import sbt.util.InterfaceUtil
 import xsbti.{ Position, Problem, Severity, T2, UseScope }
 import xsbti.compile.{ CompileOrder, FileHash, MiniOptions, MiniSetup, Output, OutputGroup }
-import xsbti.compile.analysis.{ Compilation, SourceInfo, Stamp }
+import xsbti.compile.analysis.{ Compilation, ReadMapper, SourceInfo, Stamp }
 import sbt.internal.inc.binary.converters.ProtobufDefaults.Feedback.StringToException
 import sbt.internal.inc.binary.converters.ProtobufDefaults.Feedback.{ Readers => ReadersFeedback }
 import sbt.internal.inc.binary.converters.ProtobufDefaults.{ Classes, ReadersConstants }

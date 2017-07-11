@@ -13,12 +13,12 @@ import java.io._
 import java.util.zip.{ ZipEntry, ZipInputStream }
 
 import com.google.protobuf.{ CodedInputStream, CodedOutputStream }
-import sbt.inc.ReadWriteMappers
 import sbt.internal.inc.binary.BinaryAnalysisFormat
 import sbt.internal.inc.text.{ AnalysisMappers, TextAnalysisFormat }
 import sbt.io.{ IO, Using }
 import xsbti.compile.{ CompileAnalysis, MiniSetup }
 import xsbti.api.Companions
+import xsbti.compile.analysis.ReadWriteMappers
 
 import scala.util.control.Exception.allCatch
 

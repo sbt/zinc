@@ -10,9 +10,8 @@ package sbt.internal.inc.mappers
 import java.io.File
 import java.nio.file.Path
 
-import sbt.inc.WriteMapper
 import xsbti.compile.MiniSetup
-import xsbti.compile.analysis.Stamp
+import xsbti.compile.analysis.{ Stamp, WriteMapper }
 
 // Please see docs about the implementation in the WriteMapper interface
 /** @inheritdoc */

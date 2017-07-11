@@ -10,11 +10,10 @@ package sbt.internal.inc.cached
 import java.io.File
 import java.nio.file.Path
 
-import sbt.inc.{ ReadMapper, ReadWriteMappers, WriteMapper }
 import sbt.internal.inc._
 import sbt.internal.inc.mappers.MapperUtils
 import sbt.io.IO
-import xsbti.compile.analysis.Stamp
+import xsbti.compile.analysis.{ ReadMapper, ReadWriteMappers, Stamp, WriteMapper }
 import xsbti.compile.{ CompileAnalysis, MiniSetup }
 
 trait CompilationCache {

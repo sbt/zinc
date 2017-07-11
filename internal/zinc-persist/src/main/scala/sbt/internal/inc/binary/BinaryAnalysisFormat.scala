@@ -8,9 +8,9 @@
 package sbt.internal.inc.binary
 
 import com.google.protobuf.{ CodedInputStream, CodedOutputStream }
-import sbt.inc.ReadWriteMappers
 import sbt.internal.inc.binary.converters.{ ProtobufReaders, ProtobufWriters }
 import sbt.internal.inc.{ Analysis, schema }
+import xsbti.compile.analysis.ReadWriteMappers
 import xsbti.compile.{ CompileAnalysis, MiniSetup }
 
 final class BinaryAnalysisFormat(mappers: ReadWriteMappers) {
