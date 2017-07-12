@@ -11,7 +11,6 @@ import sbt.internal.inc.ZincComponentCompiler;
 import sbt.internal.inc.ZincComponentManager;
 import sbt.librarymanagement.LibraryManagement;
 import sbt.librarymanagement.Resolver;
-import sbt.librarymanagement.ResolversSyntax;
 import scala.None$;
 import xsbti.ComponentProvider;
 import xsbti.GlobalLock;
@@ -24,7 +23,7 @@ public interface ZincBridgeProvider {
      * Returns an ivy resolver to resolve dependencies locally in the default `.ivy2/local`.
      * <p>
      * For those users interested in using Internet resolvers like Maven Central, you can
-     * instantiate them via {@link ResolversSyntax#DefaultMavenRepository()} et al.
+     * instantiate them via {@link Resolver#DefaultMavenRepository()} et al.
      *
      * @return A local ivy resolver.
      */

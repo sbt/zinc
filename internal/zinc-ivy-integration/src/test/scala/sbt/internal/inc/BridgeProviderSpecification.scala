@@ -4,15 +4,13 @@ import java.io.File
 
 import sbt.io.IO
 import sbt.io.syntax._
-import sbt.librarymanagement.{
-  DefaultMavenRepository,
-  ChainedResolver,
+import sbt.librarymanagement.{ ChainedResolver, ModuleConfiguration, Resolver }
+import sbt.librarymanagement.ivy.{
+  InlineIvyConfiguration,
   IvyLibraryManagement,
-  ModuleConfiguration,
-  Resolver,
+  IvyPaths,
   UpdateOptions
 }
-import sbt.internal.librarymanagement.{ InlineIvyConfiguration, IvyPaths }
 import sbt.util.Logger
 import xsbti.compile.CompilerBridgeProvider
 
@@ -26,7 +24,7 @@ abstract class BridgeProviderSpecification extends UnitSpec {
   def currentTarget: File = currentBase / "target" / "ivyhome"
   def currentManaged: File = currentBase / "target" / "lib_managed"
 
-  val resolvers = Array(ZincComponentCompiler.LocalResolver, DefaultMavenRepository)
+  val resolvers = Array(ZincComponentCompiler.LocalResolver, Resolver.DefaultMavenRepository)
   private val ivyConfiguration =
     getDefaultConfiguration(currentBase, currentTarget, resolvers, log)
 
@@ -40,7 +38,7 @@ abstract class BridgeProviderSpecification extends UnitSpec {
     val secondaryCache = Some(secondaryCacheDirectory)
     val componentProvider = ZincComponentCompiler.getDefaultComponentProvider(targetDir)
     val manager = new ZincComponentManager(lock, componentProvider, secondaryCache, log)
-    val libraryManagement = new IvyLibraryManagement(ivyConfiguration)
+    val libraryManagement = IvyLibraryManagement(ivyConfiguration)
     ZincComponentCompiler.interfaceProvider(manager, libraryManagement, currentManaged)
   }
 
@@ -67,17 +65,11 @@ abstract class BridgeProviderSpecification extends UnitSpec {
     import sbt.io.syntax._
     val resolvers = resolvers0.toVector
     val chainResolver = ChainedResolver("zinc-chain", resolvers)
-    new InlineIvyConfiguration(
-      paths = IvyPaths(baseDirectory, Some(ivyHome)),
-      resolvers = resolvers,
-      otherResolvers = Vector.empty,
-      moduleConfigurations = Vector(ModuleConfiguration("*", chainResolver)),
-      lock = None,
-      checksums = Vector.empty,
-      managedChecksums = false,
-      resolutionCacheDir = Some(ivyHome / "resolution-cache"),
-      updateOptions = UpdateOptions(),
-      log = log
-    )
+    InlineIvyConfiguration()
+      .withPaths(IvyPaths(baseDirectory, Some(ivyHome)))
+      .withResolvers(resolvers)
+      .withModuleConfigurations(Vector(ModuleConfiguration("*", chainResolver)))
+      .withResolutionCacheDir(ivyHome / "resolution-cache")
+      .withLog(log)
   }
 }

@@ -14,8 +14,8 @@ import java.net.URLClassLoader
 import java.util.concurrent.Callable
 
 import sbt.internal.inc.classpath.ClasspathUtilities
-import sbt.io.{ Hash, IO }
-import sbt.internal.librarymanagement._
+import sbt.io.IO
+import sbt.internal.librarymanagement.JsonUtil
 import sbt.internal.util.FullLogger
 import sbt.librarymanagement._
 import sbt.librarymanagement.syntax._
@@ -100,10 +100,7 @@ private[sbt] object ZincComponentCompiler {
       val dependencies = Vector(scalaLibrary, scalaCompiler).map(_.withConfigurations(CompileConf))
       val wrapper = dummyModule.withConfigurations(CompileConf)
       val moduleDescriptor =
-        libraryManagement.moduleDescriptor(wrapper,
-                                           dependencies,
-                                           None,
-                                           ZincLMHelper.DefaultConfigurations)
+        libraryManagement.moduleDescriptor(wrapper, dependencies, None)
       ZincLMHelper.update(libraryManagement,
                           moduleDescriptor,
                           scalaJarsTarget,
@@ -287,7 +284,6 @@ private object ZincLMHelper {
     val updateConfiguration = defaultUpdateConfiguration(retrieveDirectory, noSource)
     val dependencies = prettyPrintDependency(module)
     logger.info(s"Attempting to fetch $dependencies.")
-    val clockForCache = LogicalClock.unknown
     libraryManagement.update(module, updateConfiguration, warningConf, logger) match {
       case Left(unresolvedWarning) =>
         logger.debug(s"Couldn't retrieve module(s) ${prettyPrintDependency(module)}.")
@@ -302,22 +298,17 @@ private object ZincLMHelper {
   }
 
   private def defaultUpdateConfiguration(targetDir: File, noSource: Boolean): UpdateConfiguration = {
-    val retrieve =
-      RetrieveConfiguration(Some(targetDir), Some(defaultRetrievePattern), Some(false), None)
+    val retrieve = RetrieveConfiguration()
+      .withRetrieveDirectory(targetDir)
+      .withOutputPattern(defaultRetrievePattern)
     val logLevel = UpdateLogging.DownloadOnly
     val defaultExcluded = Set("doc")
     val finalExcluded = if (noSource) defaultExcluded + "src" else defaultExcluded
     val artifactFilter = ArtifactTypeFilter.forbid(finalExcluded)
-    UpdateConfiguration(
-      retrieveManaged = Some(retrieve),
-      missingOk = Some(false),
-      logging = Some(logLevel),
-      logicalClock = None,
-      metadataDirectory = None,
-      artifactFilter = Some(artifactFilter),
-      offline = Some(false),
-      frozen = Some(false)
-    )
+    UpdateConfiguration()
+      .withRetrieveManaged(retrieve)
+      .withLogging(logLevel)
+      .withArtifactFilter(artifactFilter)
   }
 
   private def prettyPrintDependency(module: ModuleDescriptor): String = {
