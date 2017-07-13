@@ -81,10 +81,10 @@ final class ProtobufReaders(mapper: ReadMapper) {
   }
 
   def fromOutputGroup(outputGroup: schema.OutputGroup): OutputGroup = {
-    val source = fromPathString(outputGroup.source)
-    val sourceDir = mapper.mapSourceDir(source)
-    val target = fromPathString(outputGroup.target)
-    val targetDir = mapper.mapOutputDir(target)
+    val sourcePath = fromPathString(outputGroup.sourcePath)
+    val sourceDir = mapper.mapSourceDir(sourcePath)
+    val targetPath = fromPathString(outputGroup.targetPath)
+    val targetDir = mapper.mapOutputDir(targetPath)
     SimpleOutputGroup(sourceDir, targetDir)
   }
 
@@ -105,7 +105,7 @@ final class ProtobufReaders(mapper: ReadMapper) {
 
   def fromCompilation(compilation: schema.Compilation): Compilation = {
     val output = fromCompilationOutput(compilation.output)
-    new sbt.internal.inc.Compilation(compilation.startTime, output)
+    new sbt.internal.inc.Compilation(compilation.startTimeMillis, output)
   }
 
   def fromCompilations(compilations0: schema.Compilations): Compilations = {

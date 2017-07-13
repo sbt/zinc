@@ -28,8 +28,8 @@ message Stamps {
 }
 
 message OutputGroup {
-    string source = 1;
-    string target = 2;
+    string sourcePath = 1;
+    string targetPath = 2;
 }
 
 message MultipleOutput {
@@ -41,7 +41,7 @@ message SingleOutput {
 }
 
 message Compilation {
-    int64 startTime = 1;
+    int64 startTimeMillis = 1;
     oneof Output {
         SingleOutput singleOutput = 2;
         MultipleOutput multipleOutput = 3;
@@ -392,6 +392,7 @@ message UsedName {
     repeated UseScope scopes = 2;
 }
 
+/** Defines a container for the values of maps. */
 message Values {
     repeated string values = 1;
 }
@@ -401,16 +402,23 @@ message UsedNames {
 }
 
 message ClassDependencies {
+    /** Keeps track of the internal name dependencies */
     map<string, Values> internal = 1;
+    /** Keeps track of the external name dependencies */
     map<string, Values> external = 2;
 }
 
 message Relations {
+    /** Defines relation between source file paths and the generated products. */
     map<string, Values> srcProd = 1;
+    /** Defines relation between source file paths and library dependencies */
     map<string, Values> libraryDep = 2;
+    /** Defines relation between library JAR file paths and class names. */
     map<string, Values> libraryClassName = 3;
+    /** Defines relation between source file paths and their generated fully-qualified class names. */
     map<string, Values> classes = 4;
     map<string, Values> productClassName = 5;
+    /** Defines relation between names and their used names. */
     map<string, UsedNames> names = 6;
 
     ClassDependencies memberRef = 7;

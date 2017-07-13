@@ -88,9 +88,9 @@ final class ProtobufWriters(mapper: WriteMapper) {
   def toOutputGroup(outputGroup: OutputGroup): schema.OutputGroup = {
     val newSource = mapper.mapSourceDir(outputGroup.getSourceDirectory)
     val newTarget = mapper.mapOutputDir(outputGroup.getOutputDirectory)
-    val source = toStringPath(newSource)
-    val target = toStringPath(newTarget)
-    schema.OutputGroup(source = source, target = target)
+    val sourcePath = toStringPath(newSource)
+    val targetPath = toStringPath(newTarget)
+    schema.OutputGroup(sourcePath = sourcePath, targetPath = targetPath)
   }
 
   def toCompilationOutput(output: Output): schema.Compilation.Output = {
@@ -110,9 +110,9 @@ final class ProtobufWriters(mapper: WriteMapper) {
   }
 
   def toCompilation(compilation: Compilation): schema.Compilation = {
-    val startTime = compilation.getStartTime
+    val startTimeMillis = compilation.getStartTime
     val output = toCompilationOutput(compilation.getOutput)
-    schema.Compilation(startTime = startTime, output = output)
+    schema.Compilation(startTimeMillis = startTimeMillis, output = output)
   }
 
   def toCompilations(compilations0: Compilations): schema.Compilations = {
