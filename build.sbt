@@ -96,7 +96,7 @@ lazy val zincRoot: Project = (project in file("."))
     zincTesting,
     zincPersist,
     zincCore,
-    zincIvyIntegration,
+    zincLmIntegration,
     zincCompile,
     zincCompileCore,
     compilerInterface,
@@ -169,7 +169,7 @@ lazy val zinc = (project in file("zinc"))
     zincPersist,
     zincCompileCore,
     zincClassfile,
-    zincIvyIntegration % "compile->compile;test->test",
+    zincLmIntegration % "compile->compile;test->test",
     zincTesting % Test
   )
   .configure(addBaseSettingsAndTestDeps)
@@ -241,11 +241,11 @@ lazy val zincBenchmarks = (project in internalPath / "zinc-benchmarks")
     publishLocal := {}
   )
 
-lazy val zincIvyIntegration = (project in internalPath / "zinc-ivy-integration")
+lazy val zincLmIntegration = (project in internalPath / "zinc-lm-integration")
   .dependsOn(zincCompileCore, zincTesting % Test)
   .settings(
     baseSettings,
-    name := "zinc Ivy Integration",
+    name := "zinc Library Management Integration",
     compileOrder := sbt.CompileOrder.ScalaThenJava
   )
   .configure(addSbtLmCore, addSbtLmIvyTest)
@@ -374,7 +374,7 @@ lazy val zincClassfile = (project in internalPath / "zinc-classfile")
 // re-implementation of scripted engine
 lazy val zincScripted = (project in internalPath / "zinc-scripted")
   .enablePlugins(ContrabandPlugin, JsonCodecPlugin)
-  .dependsOn(zinc, zincIvyIntegration % "test->test")
+  .dependsOn(zinc, zincLmIntegration % "test->test")
   .settings(
     minimalSettings,
     name := "zinc Scripted",
