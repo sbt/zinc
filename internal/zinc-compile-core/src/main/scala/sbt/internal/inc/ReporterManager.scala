@@ -52,8 +52,7 @@ object ReporterManager {
 
   import java.util.function.{ Function => JavaFunction }
   private implicit class EnrichedJava[T, R](f: JavaFunction[T, R]) {
-    def toScala: Function[T, R] =
-      new Function[T, R] { override def apply(v1: T): R = f.apply(v1) }
+    def toScala: Function[T, R] = (t: T) => f.apply(t)
   }
 
   /** Returns sane defaults with a long tradition in sbt. */
@@ -71,11 +70,12 @@ object ReporterManager {
     } else {
       implicit def scalaPatterns(patterns: Array[java.util.regex.Pattern]): Array[Regex] =
         patterns.map(_.pattern().r)
-      val (fileRegexes, msgRegexes) = (config.fileFilters, config.msgFilters)
+      val fileFilters = config.fileFilters().map(_.toScala)
+      val msgFilters = config.msgFilters().map(_.toScala)
       logger match {
         case managed: ManagedLogger =>
-          new ManagedFilteredReporter(fileRegexes, msgRegexes, maxErrors, managed, posMapper)
-        case _ => new FilteredReporter(fileRegexes, msgRegexes, maxErrors, logger, posMapper)
+          new ManagedFilteredReporter(fileFilters, msgFilters, maxErrors, managed, posMapper)
+        case _ => new FilteredReporter(fileFilters, msgFilters, maxErrors, logger, posMapper)
       }
     }
   }

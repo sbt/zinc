@@ -6,13 +6,13 @@
       "target": "Java",
       "type": "record",
       "fields": [
-        { "name": "loggerName",        "type": "String"                                           },
-        { "name": "maximumErrors",     "type": "int"                                              },
-        { "name": "useColor",          "type": "boolean"                                          },
-        { "name": "msgFilters",        "type": "java.util.regex.Pattern*"                         },
-        { "name": "fileFilters",       "type": "java.util.regex.Pattern*"                         },
-        { "name": "logLevel",          "type": "java.util.logging.Level"                          },
-        { "name": "positionMapper",    "type": "java.util.function.Function<Position, Position>"  }
+        { "name": "loggerName",        "type": "String"                                                    },
+        { "name": "maximumErrors",     "type": "int"                                                       },
+        { "name": "useColor",          "type": "boolean"                                                   },
+        { "name": "msgFilters",        "type": "java.util.function.Function<String, Boolean>*"                         },
+        { "name": "fileFilters",       "type": "java.util.function.Function<java.nio.file.Path, Boolean>*" },
+        { "name": "logLevel",          "type": "java.util.logging.Level"                                   },
+        { "name": "positionMapper",    "type": "java.util.function.Function<Position, Position>"           }
       ]
     }
   ]

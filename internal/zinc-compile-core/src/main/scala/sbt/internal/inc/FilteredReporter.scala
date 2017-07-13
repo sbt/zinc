@@ -1,9 +1,9 @@
 package sbt.internal.inc
 
+import java.nio.file.Path
+
 import sbt.internal.util.ManagedLogger
 import xsbti.{ Logger, Position, Problem, Severity }
-
-import scala.util.matching.Regex
 
 /**
  * Defines a filtered reporter to control which messages are reported or not.
@@ -19,8 +19,8 @@ import scala.util.matching.Regex
  * that hold similar knowledge about the piece of code that they compile.
  */
 class ManagedFilteredReporter(
-    fileFilters: Array[Regex],
-    msgFilters: Array[Regex],
+    fileFilters: Array[Path => java.lang.Boolean],
+    msgFilters: Array[String => java.lang.Boolean],
     maximumErrors: Int,
     logger: ManagedLogger,
     positionMapper: Position => Position
@@ -45,18 +45,18 @@ class ManagedFilteredReporter(
  * that hold similar knowledge about the piece of code that they compile.
  */
 class FilteredReporter(
-    fileFilters: Array[Regex],
-    msgFilters: Array[Regex],
+    fileFilters: Array[Path => java.lang.Boolean],
+    msgFilters: Array[String => java.lang.Boolean],
     maximumErrors: Int,
     logger: Logger,
     positionMapper: Position => Position
 ) extends LoggedReporter(maximumErrors, logger, positionMapper) {
   private final def isFiltered(pos: Position, msg: String, severity: Severity): Boolean = {
-    def isFiltered(filters: Seq[Regex], str: String): Boolean =
-      filters.exists(_.findFirstIn(str).isDefined)
+    def isFiltered[T](filters: Seq[T => java.lang.Boolean], value: T): Boolean =
+      filters.exists(f => f(value).booleanValue())
 
     severity != Severity.Error && (
-      (pos.sourceFile.isPresent && isFiltered(fileFilters, pos.sourceFile.get.getPath)) ||
+      (pos.sourceFile.isPresent && isFiltered(fileFilters, pos.sourceFile.get.toPath)) ||
       (isFiltered(msgFilters, msg))
     )
   }
