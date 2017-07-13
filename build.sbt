@@ -187,7 +187,7 @@ lazy val zincTesting = (project in internalPath / "zinc-testing")
     publishArtifact := false,
     libraryDependencies ++= Seq(scalaCheck, scalatest, junit, sjsonnewScalaJson.value)
   )
-  .configure(addSbtLmCore, addSbtLmIvy, addSbtUtilTesting)
+  .configure(addSbtUtilLogging, addSbtUtilTesting)
 
 lazy val zincCompile = (project in file("zinc-compile"))
   .dependsOn(zincCompileCore, zincCompileCore % "test->test")

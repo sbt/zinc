@@ -58,7 +58,7 @@ private[sbt] object ZincComponentCompiler {
   private class ZincCompilerBridgeProvider(
       userProvidedBridgeSources: Option[ModuleID],
       manager: ZincComponentManager,
-      libraryManagement: LibraryManagement,
+      dependencyResolution: DependencyResolution,
       scalaJarsTarget: File
   ) extends CompilerBridgeProvider {
 
@@ -73,7 +73,8 @@ private[sbt] object ZincComponentCompiler {
                        logger: xsbti.Logger): File = {
       val autoClasspath = ClasspathOptionsUtil.auto
       val raw = new RawCompiler(scalaInstance, autoClasspath, logger)
-      val zinc = new ZincComponentCompiler(raw, manager, libraryManagement, bridgeSources, logger)
+      val zinc =
+        new ZincComponentCompiler(raw, manager, dependencyResolution, bridgeSources, logger)
       logger.debug(InterfaceUtil.f0(s"Getting $bridgeSources for Scala ${scalaInstance.version}"))
       zinc.compiledBridgeJar
     }
@@ -99,9 +100,11 @@ private[sbt] object ZincComponentCompiler {
       val scalaCompiler = ModuleID(ScalaOrganization, ScalaCompilerID, scalaVersion)
       val dependencies = Vector(scalaLibrary, scalaCompiler).map(_.withConfigurations(CompileConf))
       val wrapper = dummyModule.withConfigurations(CompileConf)
-      val moduleDescriptor =
-        libraryManagement.moduleDescriptor(wrapper, dependencies, None)
-      ZincLMHelper.update(libraryManagement,
+      val moduleSettings = ModuleDescriptorConfiguration(wrapper, ModuleInfo(wrapper.name))
+        .withDependencies(dependencies)
+        .withConfigurations(ZincLMHelper.DefaultConfigurations)
+      val moduleDescriptor = dependencyResolution.moduleDescriptor(moduleSettings)
+      ZincLMHelper.update(dependencyResolution,
                           moduleDescriptor,
                           scalaJarsTarget,
                           noSource = true,
@@ -141,17 +144,17 @@ private[sbt] object ZincComponentCompiler {
   // Used by ZincUtil.
   def interfaceProvider(compilerBridgeSource: ModuleID,
                         manager: ZincComponentManager,
-                        libraryManagement: LibraryManagement,
+                        dependencyResolution: DependencyResolution,
                         scalaJarsTarget: File): CompilerBridgeProvider =
     new ZincCompilerBridgeProvider(Some(compilerBridgeSource),
                                    manager,
-                                   libraryManagement,
+                                   dependencyResolution,
                                    scalaJarsTarget)
 
   def interfaceProvider(manager: ZincComponentManager,
-                        libraryManagement: LibraryManagement,
+                        dependencyResolution: DependencyResolution,
                         scalaJarsTarget: File): CompilerBridgeProvider =
-    new ZincCompilerBridgeProvider(None, manager, libraryManagement, scalaJarsTarget)
+    new ZincCompilerBridgeProvider(None, manager, dependencyResolution, scalaJarsTarget)
 
   private final val LocalIvy = s"$${user.home}/.ivy2/local/${Resolver.localBasePattern}"
   final val LocalResolver: Resolver = {
@@ -197,7 +200,7 @@ private[sbt] object ZincComponentCompiler {
 private[inc] class ZincComponentCompiler(
     compiler: RawCompiler,
     manager: ZincComponentManager,
-    libraryManagement: LibraryManagement,
+    dependencyResolution: DependencyResolution,
     bridgeSources: ModuleID,
     log: Logger
 ) {
@@ -239,12 +242,12 @@ private[inc] class ZincComponentCompiler(
   private def compileAndInstall(compilerBridgeId: String): Unit = {
     import UnresolvedWarning.unresolvedWarningLines
     val moduleForBridge =
-      libraryManagement.wrapDependencyInModule(bridgeSources)
+      dependencyResolution.wrapDependencyInModule(bridgeSources)
     IO.withTemporaryDirectory { binaryDirectory =>
       val target = new File(binaryDirectory, s"$compilerBridgeId.jar")
       buffered bufferQuietly {
         IO.withTemporaryDirectory { retrieveDirectory =>
-          ZincLMHelper.update(libraryManagement,
+          ZincLMHelper.update(dependencyResolution,
                               moduleForBridge,
                               retrieveDirectory,
                               false,
@@ -276,7 +279,7 @@ private object ZincLMHelper {
   private[inc] final val DefaultConfigurations: Vector[Configuration] =
     Vector(Configurations.Component, Configurations.Compile)
 
-  private[inc] def update(libraryManagement: LibraryManagement,
+  private[inc] def update(dependencyResolution: DependencyResolution,
                           module: ModuleDescriptor,
                           retrieveDirectory: File,
                           noSource: Boolean = false,
@@ -284,7 +287,7 @@ private object ZincLMHelper {
     val updateConfiguration = defaultUpdateConfiguration(retrieveDirectory, noSource)
     val dependencies = prettyPrintDependency(module)
     logger.info(s"Attempting to fetch $dependencies.")
-    libraryManagement.update(module, updateConfiguration, warningConf, logger) match {
+    dependencyResolution.update(module, updateConfiguration, warningConf, logger) match {
       case Left(unresolvedWarning) =>
         logger.debug(s"Couldn't retrieve module(s) ${prettyPrintDependency(module)}.")
         Left(unresolvedWarning)

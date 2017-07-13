@@ -7,7 +7,7 @@ import sbt.io.syntax._
 import sbt.librarymanagement.{ ChainedResolver, ModuleConfiguration, Resolver }
 import sbt.librarymanagement.ivy.{
   InlineIvyConfiguration,
-  IvyLibraryManagement,
+  IvyDependencyResolution,
   IvyPaths,
   UpdateOptions
 }
@@ -38,8 +38,8 @@ abstract class BridgeProviderSpecification extends UnitSpec {
     val secondaryCache = Some(secondaryCacheDirectory)
     val componentProvider = ZincComponentCompiler.getDefaultComponentProvider(targetDir)
     val manager = new ZincComponentManager(lock, componentProvider, secondaryCache, log)
-    val libraryManagement = IvyLibraryManagement(ivyConfiguration)
-    ZincComponentCompiler.interfaceProvider(manager, libraryManagement, currentManaged)
+    val dependencyResolution = IvyDependencyResolution(ivyConfiguration)
+    ZincComponentCompiler.interfaceProvider(manager, dependencyResolution, currentManaged)
   }
 
   def getCompilerBridge(targetDir: File, log: Logger, scalaVersion: String): File = {

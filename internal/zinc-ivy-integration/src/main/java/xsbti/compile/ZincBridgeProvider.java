@@ -9,7 +9,7 @@ package xsbti.compile;
 
 import sbt.internal.inc.ZincComponentCompiler;
 import sbt.internal.inc.ZincComponentManager;
-import sbt.librarymanagement.LibraryManagement;
+import sbt.librarymanagement.DependencyResolution;
 import sbt.librarymanagement.Resolver;
 import scala.None$;
 import xsbti.ComponentProvider;
@@ -72,9 +72,9 @@ public interface ZincBridgeProvider {
     public static CompilerBridgeProvider getProvider(File scalaJarsTarget,
                                                      GlobalLock lock,
                                                      ComponentProvider componentProvider,
-                                                     LibraryManagement libraryManagement,
+                                                     DependencyResolution dependencyResolution,
                                                      Logger logger) {
         ZincComponentManager manager = new ZincComponentManager(lock, componentProvider, None$.empty(), logger);
-        return ZincComponentCompiler.interfaceProvider(manager, libraryManagement, scalaJarsTarget);
+        return ZincComponentCompiler.interfaceProvider(manager, dependencyResolution, scalaJarsTarget);
     }
 }
