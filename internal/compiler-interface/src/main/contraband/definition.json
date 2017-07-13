@@ -101,7 +101,7 @@
           "type": "record",
           "fields": [
             { "name": "definitionType",        "type": "DefinitionType" },
-            { "name": "selfType",              "type": "lazy Type"      },
+            { "name": "selfType",              "type": "Type"           },
             { "name": "structure",             "type": "lazy Structure" },
             { "name": "savedAnnotations",      "type": "String*"        },
             { "name": "childrenOfSealedClass", "type": "Type*"          },

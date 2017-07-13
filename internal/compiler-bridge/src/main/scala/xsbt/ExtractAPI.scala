@@ -376,8 +376,8 @@ class ExtractAPI[GlobalType <: Global](
                           declared: List[Symbol],
                           inherited: List[Symbol]): xsbti.api.Structure = {
     new xsbti.api.Structure(lzy(types(s, bases)),
-                            lzy(processDefinitions(s, declared)),
-                            lzy(processDefinitions(s, inherited)))
+                            processDefinitions(s, declared),
+                            processDefinitions(s, inherited))
   }
   private def processDefinitions(in: Symbol,
                                  defs: List[Symbol]): Array[xsbti.api.ClassDefinition] =
@@ -627,7 +627,7 @@ class ExtractAPI[GlobalType <: Global](
     val acc = getAccess(c)
     val name = classNameAsSeenIn(in, c)
     val tParams = typeParameters(in, sym) // look at class symbol
-    val selfType = lzy(this.selfType(in, sym))
+    val selfType = this.selfType(in, sym)
     def constructClass(structure: xsbti.api.Lazy[Structure]): ClassLike = {
       new xsbti.api.ClassLike(
         name,

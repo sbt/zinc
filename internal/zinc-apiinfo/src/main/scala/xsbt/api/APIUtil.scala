@@ -64,7 +64,7 @@ object APIUtil {
       c.modifiers,
       c.annotations,
       c.definitionType,
-      lzy(emptyType),
+      emptyType,
       lzy(struct),
       savedAnnotations,
       c.childrenOfSealedClass,
@@ -77,9 +77,8 @@ object APIUtil {
     new Structure(lzy(s.parents),
                   filterDefinitions(s.declared, isModule),
                   filterDefinitions(s.inherited, isModule))
-  def filterDefinitions(ds: Array[ClassDefinition],
-                        isModule: Boolean): Lazy[Array[ClassDefinition]] =
-    lzy(if (isModule) ds filter Discovery.isMainMethod else Array())
+  def filterDefinitions(ds: Array[ClassDefinition], isModule: Boolean): Array[ClassDefinition] =
+    if (isModule) ds filter Discovery.isMainMethod else Array()
 
   def isNonPrivate(d: Definition): Boolean = isNonPrivate(d.access)
 
@@ -91,14 +90,14 @@ object APIUtil {
     }
   private val emptyModifiers =
     new Modifiers(false, false, false, false, false, false, false, false)
-  private val emptyStructure = new Structure(lzy(Array.empty), lzy(Array.empty), lzy(Array.empty))
+  private val emptyStructure = new Structure(lzy(Array.empty), Array.empty, Array.empty)
   def emptyClassLike(name: String, definitionType: DefinitionType): ClassLike =
     new xsbti.api.ClassLike(name,
                             new Public,
                             emptyModifiers,
                             Array.empty,
                             definitionType,
-                            lzy(emptyType),
+                            emptyType,
                             lzy(emptyStructure),
                             Array.empty,
                             Array.empty,
