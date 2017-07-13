@@ -14,7 +14,7 @@ import java.util.zip.{ ZipEntry, ZipInputStream }
 
 import com.google.protobuf.{ CodedInputStream, CodedOutputStream }
 import sbt.internal.inc.binary.BinaryAnalysisFormat
-import sbt.internal.inc.text.{ AnalysisMappers, TextAnalysisFormat }
+import sbt.internal.inc.text.TextAnalysisFormat
 import sbt.io.{ IO, Using }
 import xsbti.compile.{ CompileAnalysis, MiniSetup }
 import xsbti.api.Companions
@@ -41,10 +41,10 @@ object FileAnalysisStore {
 
   def text(file: File): AnalysisStore =
     new FileBasedStoreImpl(file, TextAnalysisFormat)
+  def text(file: File, mappers: ReadWriteMappers): AnalysisStore =
+    new FileBasedStoreImpl(file, new TextAnalysisFormat(mappers))
   def text(file: File, format: TextAnalysisFormat): AnalysisStore =
     new FileBasedStoreImpl(file, format)
-  def text(file: File, format: AnalysisMappers): AnalysisStore =
-    new FileBasedStoreImpl(file, new TextAnalysisFormat(format))
 
   private final class BinaryFileStore(file: File, readWriteMappers: ReadWriteMappers)
       extends AnalysisStore {
@@ -99,7 +99,7 @@ object FileAnalysisStore {
 
   private final class FileBasedStoreImpl(file: File, format: TextAnalysisFormat)
       extends AnalysisStore {
-    val companionsStore = new FileBasedCompanionsMapStore(file)
+    val companionsStore = new FileBasedCompanionsMapStore(file, format)
 
     def set(analysis: CompileAnalysis, setup: MiniSetup): Unit = {
       val tmpAnalysisFile = File.createTempFile(file.getName, ".tmp")
@@ -136,14 +136,15 @@ object FileAnalysisStore {
       case None                                 => sys.error(s"$name not found in the zip file")
     }
 
-  private final class FileBasedCompanionsMapStore(file: File) extends CompanionsStore {
+  private final class FileBasedCompanionsMapStore(file: File, format: TextAnalysisFormat)
+      extends CompanionsStore {
     def get(): Option[(Map[String, Companions], Map[String, Companions])] =
       allCatch.opt(getUncaught())
     def getUncaught(): (Map[String, Companions], Map[String, Companions]) =
       Using.zipInputStream(new FileInputStream(file)) { inputStream =>
         lookupEntry(inputStream, companionsFileName)
         val reader = new BufferedReader(new InputStreamReader(inputStream, IO.utf8))
-        TextAnalysisFormat.readCompanionMap(reader)
+        format.readCompanionMap(reader)
       }
   }
 }
