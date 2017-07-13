@@ -23,15 +23,15 @@ final class RelativeWriteMapper(rootProjectPath: Path) extends WriteMapper {
   override def mapProductFile(productFile: File): File = makeRelative(productFile)
 
   override def mapClasspathEntry(classpathEntry: File): File = makeRelative(classpathEntry)
-  override def mapJavacOption(javacOption: String): String = identity(javacOption)
-  override def mapScalacOption(scalacOption: String): String = identity(scalacOption)
+  override def mapJavacOption(javacOption: String): String = javacOption
+  override def mapScalacOption(scalacOption: String): String = scalacOption
 
   override def mapOutputDir(outputDir: File): File = makeRelative(outputDir)
   override def mapSourceDir(sourceDir: File): File = makeRelative(sourceDir)
 
-  override def mapProductStamp(file: File, productStamp: Stamp): Stamp = identity(productStamp)
-  override def mapSourceStamp(file: File, sourceStamp: Stamp): Stamp = identity(sourceStamp)
-  override def mapBinaryStamp(file: File, binaryStamp: Stamp): Stamp = identity(binaryStamp)
+  override def mapProductStamp(file: File, productStamp: Stamp): Stamp = productStamp
+  override def mapSourceStamp(file: File, sourceStamp: Stamp): Stamp = sourceStamp
+  override def mapBinaryStamp(file: File, binaryStamp: Stamp): Stamp = binaryStamp
 
-  override def mapMiniSetup(miniSetup: MiniSetup): MiniSetup = identity(miniSetup)
+  override def mapMiniSetup(miniSetup: MiniSetup): MiniSetup = miniSetup
 }

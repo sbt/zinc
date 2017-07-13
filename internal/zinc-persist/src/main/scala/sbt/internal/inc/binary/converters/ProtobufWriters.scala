@@ -167,7 +167,10 @@ final class ProtobufWriters(mapper: WriteMapper) {
   }
 
   def toSourceInfos(sourceInfos0: SourceInfos): schema.SourceInfos = {
-    val sourceInfos = sourceInfos0.allInfos.map(kv => toStringPath(kv._1) -> toSourceInfo(kv._2))
+    val sourceInfos = sourceInfos0.allInfos.map {
+      case (file, sourceInfo0) =>
+        toStringPath(mapper.mapSourceFile(file)) -> toSourceInfo(sourceInfo0)
+    }
     schema.SourceInfos(sourceInfos = sourceInfos)
   }
 

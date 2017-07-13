@@ -162,7 +162,7 @@ final class ProtobufReaders(mapper: ReadMapper) {
   def fromSourceInfos(sourceInfos0: schema.SourceInfos): SourceInfos = {
     val sourceInfos = sourceInfos0.sourceInfos.iterator.map {
       case (path, value) =>
-        val file = fromPathString(path)
+        val file = mapper.mapSourceFile(fromPathString(path))
         val sourceInfo = fromSourceInfo(value)
         file -> sourceInfo
     }
