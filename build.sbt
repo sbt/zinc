@@ -266,7 +266,10 @@ lazy val zincCompileCore = (project in internalPath / "zinc-compile-core")
   .settings(
     name := "zinc Compile Core",
     libraryDependencies ++= Seq(scalaCompiler.value % Test, launcherInterface, parserCombinator),
-    unmanagedJars in Test := Seq(packageSrc in compilerBridge in Compile value).classpath
+    unmanagedJars in Test := Seq(packageSrc in compilerBridge in Compile value).classpath,
+    managedSourceDirectories in Compile +=
+      baseDirectory.value / "src" / "main" / "contraband-java",
+    sourceManaged in (Compile, generateContrabands) := baseDirectory.value / "src" / "main" / "contraband-java"
   )
   .configure(addSbtUtilLogging, addSbtIO, addSbtUtilControl)
 
@@ -302,6 +305,9 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface")
       (baseDirectory.value / "other"),
       (baseDirectory.value / "type")
     ),
+    managedSourceDirectories in Compile +=
+      baseDirectory.value / "src" / "main" / "contraband-java",
+    sourceManaged in (Compile, generateContrabands) := baseDirectory.value / "src" / "main" / "contraband-java",
     crossPaths := false,
     autoScalaLibrary := false,
     altPublishSettings
