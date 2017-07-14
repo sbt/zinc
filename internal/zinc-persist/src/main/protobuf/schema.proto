@@ -1,0 +1,452 @@
+syntax = "proto3";
+
+package sbt.internal.inc;
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////// ANALYSIS API ////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+message Hash {
+    string hash = 1;
+}
+
+message LastModified {
+    int64 millis = 1;
+}
+
+message Stamps {
+    message StampType {
+        oneof type {
+            Hash hash = 1;
+            LastModified lastModified = 2;
+        }
+    }
+
+    map<string, StampType> productStamps = 1;
+    map<string, StampType> binaryStamps = 2;
+    map<string, StampType> sourceStamps = 3;
+}
+
+message OutputGroup {
+    string sourcePath = 1;
+    string targetPath = 2;
+}
+
+message MultipleOutput {
+    repeated OutputGroup outputGroups = 1;
+}
+
+message SingleOutput {
+    string target = 1;
+}
+
+message Compilation {
+    int64 startTimeMillis = 1;
+    oneof Output {
+        SingleOutput singleOutput = 2;
+        MultipleOutput multipleOutput = 3;
+    }
+}
+
+message Compilations {
+    repeated Compilation compilations = 1;
+}
+
+enum Severity {
+    INFO = 0;
+    WARN = 1;
+    ERROR = 2;
+}
+
+message Position {
+    sint32 line = 1;
+    sint32 offset = 2;
+    string lineContent = 3;
+    sint32 pointer = 4;
+    string pointerSpace = 5;
+    string sourcePath = 6;
+    string sourceFilepath = 7;
+}
+
+message Problem {
+    string category = 1;
+    Severity severity = 2;
+    string message = 3;
+    Position position = 4;
+}
+
+message SourceInfo {
+    repeated Problem reportedProblems = 1;
+    repeated Problem unreportedProblems = 2;
+    repeated string mainClasses = 3;
+}
+
+message SourceInfos {
+    map<string, SourceInfo> sourceInfos = 1;
+}
+
+message FileHash {
+    string path = 1;
+    sint32 hash = 2;
+}
+
+enum CompileOrder {
+    MIXED = 0;
+    JAVATHENSCALA = 1;
+    SCALATHENJAVA = 2;
+}
+
+message Tuple {
+    string first = 1;
+    string second = 2;
+}
+
+message MiniOptions {
+    repeated FileHash classpathHash = 1;
+    repeated string scalacOptions = 2;
+    repeated string javacOptions = 3;
+}
+
+message MiniSetup {
+    oneof Output {
+        SingleOutput singleOutput = 1;
+        MultipleOutput multipleOutput = 2;
+    }
+    MiniOptions miniOptions = 3;
+    string compilerVersion = 4;
+    CompileOrder compileOrder = 5;
+    bool storeApis = 6;
+    repeated Tuple extra = 7;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////// BRIDGE API ////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+message This {}
+
+message Id {
+    string id = 1;
+}
+
+
+message Super {
+    Path qualifier = 1;
+}
+
+message Path {
+    message PathComponent {
+        oneof Component {
+            Id id = 1;
+            This this = 2;
+            Super super = 3;
+        }
+    }
+
+    repeated PathComponent components = 1;
+}
+
+message AnnotationArgument {
+    string name = 1;
+    string value = 2;
+}
+
+enum Variance {
+    INVARIANT = 0;
+    CONTRAVARIANT = 1;
+    COVARIANT = 2;
+}
+
+message ThisQualifier {}
+
+message Unqualified {}
+
+message IdQualifier {
+    string value = 1;
+}
+
+message Qualifier {
+    oneof Type {
+        ThisQualifier thisQualifier = 1;
+        IdQualifier idQualifier = 2;
+        Unqualified unqualified = 3;
+    }
+}
+
+message Public {}
+
+message Private {
+    Qualifier qualifier = 1;
+}
+
+message Protected {
+    Qualifier qualifier = 1;
+}
+
+message Access {
+    oneof Type {
+        Public public = 1;
+        Protected protected = 2;
+        Private private = 3;
+    }
+}
+
+message Modifiers {
+    sfixed32 flags = 1;
+}
+
+message Type {
+    message Projection {
+        string id = 1;
+        Type prefix = 2;
+    }
+
+    message ParameterRef {
+        string id = 1;
+    }
+
+    message Polymorphic {
+        Type baseType = 1;
+        repeated TypeParameter typeParameters = 2;
+    }
+
+    message Parameterized {
+        Type baseType = 1;
+        repeated Type typeArguments = 2;
+    }
+
+    message Existential {
+        Type baseType = 1;
+        repeated TypeParameter clause = 2;
+    }
+
+    message Constant {
+        Type baseType = 1;
+        string value = 2;
+    }
+
+    message Annotated {
+        Type baseType = 1;
+        repeated Annotation annotations = 2;
+    }
+
+    message Structure {
+        repeated Type parents = 1;
+        repeated ClassDefinition declared = 2;
+        repeated ClassDefinition inherited = 3;
+    }
+
+    message Singleton {
+        Path path = 1;
+    }
+
+    message EmptyType {}
+
+    oneof Value {
+        ParameterRef parameterRef = 1;
+        Parameterized parameterized = 2;
+        Structure structure = 3;
+        Polymorphic polymorphic = 4;
+        Constant constant = 5;
+        Existential existential = 6;
+        Singleton singleton = 7;
+        Projection projection = 8;
+        Annotated annotated = 9;
+        EmptyType emptyType = 10;
+    }
+}
+
+message Annotation {
+    Type base = 1;
+    repeated AnnotationArgument arguments = 2;
+}
+
+message TypeParameter {
+    string id = 1;
+    repeated Annotation annotations = 2;
+    repeated TypeParameter typeParameters = 3;
+    Variance variance = 4;
+    Type lowerBound = 5;
+    Type upperBound = 6;
+}
+
+enum ParameterModifier {
+    PLAIN = 0;
+    REPEATED = 1;
+    BYNAME = 2;
+}
+
+message MethodParameter {
+    string name = 1;
+    Type type = 2;
+    bool hasDefault = 3;
+    ParameterModifier modifier = 4;
+}
+
+message ParameterList {
+    repeated MethodParameter parameters = 1;
+    bool isImplicit = 2;
+}
+
+message ClassDefinition {
+    message ClassLikeDef {
+        repeated TypeParameter typeParameters = 1;
+        DefinitionType definitionType = 2;
+    }
+
+    message Def {
+        repeated TypeParameter typeParameters = 1;
+        repeated ParameterList valueParameters = 2;
+        Type returnType = 3;
+    }
+
+    message Val {
+        Type type = 1;
+    }
+
+    message Var {
+        Type type = 1;
+    }
+
+    message TypeAlias {
+        repeated TypeParameter typeParameters = 1;
+        Type type = 2;
+    }
+
+    message TypeDeclaration {
+        repeated TypeParameter typeParameters = 1;
+        Type lowerBound = 2;
+        Type upperBound = 3;
+    }
+
+    string name = 1;
+    Access access = 2;
+    Modifiers modifiers = 3;
+    repeated Annotation annotations = 4;
+    oneof extra {
+        ClassLikeDef classLikeDef = 5;
+        Def defDef = 6;
+        Val valDef = 7;
+        Var varDef = 8;
+        TypeAlias typeAlias = 9;
+        TypeDeclaration typeDeclaration = 10;
+    }
+}
+
+
+enum DefinitionType {
+    TRAIT = 0;
+    CLASSDEF = 1;
+    MODULE = 2;
+    PACKAGEMODULE = 3;
+}
+
+message ClassLike {
+    string name = 1;
+    Access access = 2;
+    Modifiers modifiers = 3;
+    repeated Annotation annotations = 4;
+
+    DefinitionType definitionType = 5;
+    Type selfType = 6;
+    Type.Structure structure = 7;
+    repeated string savedAnnotations = 8;
+    repeated Type childrenOfSealedClass = 9;
+    bool topLevel = 10;
+    repeated TypeParameter typeParameters = 11;
+}
+
+message Companions {
+    ClassLike classApi = 1;
+    ClassLike objectApi = 2;
+}
+
+enum UseScope {
+    DEFAULT = 0;
+    IMPLICIT = 1;
+    PATMAT = 2;
+}
+
+message NameHash {
+    string name = 1;
+    UseScope scope = 2;
+    sint32 hash = 3;
+}
+
+message AnalyzedClass {
+    int64 compilationTimestamp = 1;
+    string name = 2;
+    Companions api = 3;
+    sint32 apiHash = 4;
+    repeated NameHash nameHashes = 5;
+    bool hasMacro = 6;
+}
+
+message APIs {
+    map<string, AnalyzedClass> internal = 1;
+    map<string, AnalyzedClass> external = 2;
+}
+
+message UsedName {
+    string name = 1;
+    repeated UseScope scopes = 2;
+}
+
+/** Defines a container for the values of maps. */
+message Values {
+    repeated string values = 1;
+}
+
+message UsedNames {
+    repeated UsedName usedNames = 1;
+}
+
+message ClassDependencies {
+    /** Keeps track of the internal name dependencies */
+    map<string, Values> internal = 1;
+    /** Keeps track of the external name dependencies */
+    map<string, Values> external = 2;
+}
+
+message Relations {
+    /** Defines relation between source file paths and the generated products. */
+    map<string, Values> srcProd = 1;
+    /** Defines relation between source file paths and library dependencies */
+    map<string, Values> libraryDep = 2;
+    /** Defines relation between library JAR file paths and class names. */
+    map<string, Values> libraryClassName = 3;
+    /** Defines relation between source file paths and their generated fully-qualified class names. */
+    map<string, Values> classes = 4;
+    map<string, Values> productClassName = 5;
+    /** Defines relation between names and their used names. */
+    map<string, UsedNames> names = 6;
+
+    ClassDependencies memberRef = 7;
+    ClassDependencies inheritance = 8;
+    ClassDependencies localInheritance = 9;
+}
+
+message Analysis {
+    Stamps stamps = 1;
+    Relations relations = 2;
+    SourceInfos sourceInfos = 3;
+    Compilations compilations = 4;
+}
+
+/** Defines a version that allows to have custom protobuf-based readers and writers
+ * in the future without sacrificing binary compatibility. For instance, this can be
+ * used to enable an streaming-based protobuf API to be even more performant. */
+enum Version {
+    V1 = 0;
+}
+
+message AnalysisFile {
+    Version version = 1;
+    Analysis analysis = 2;
+    MiniSetup miniSetup = 3;
+}
+
+message APIsFile {
+    Version version = 1;
+    APIs apis = 2;
+}

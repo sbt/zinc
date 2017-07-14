@@ -5,7 +5,7 @@
  * This software is released under the terms written in LICENSE.
  */
 
-package sbt.internal.inc
+package sbt.internal.inc.text
 
 import sbinary.Output
 

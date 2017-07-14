@@ -5,9 +5,7 @@
  * This software is released under the terms written in LICENSE.
  */
 
-package sbt
-package internal
-package inc
+package sbt.internal.inc.text
 
 import java.lang.reflect.InvocationTargetException
 import javax.xml.bind.DatatypeConverter

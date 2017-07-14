@@ -17,45 +17,14 @@ import xsbti.compile.{ MiniSetup, CompileAnalysis }
 class ExportedCacheSpec extends CommonCachedCompilation("Exported Cache") {
 
   var cacheLocation: Path = _
-
-  class TestVerifierResults extends VerficationResults {
-    val categories = Set.newBuilder[String]
-    val values = Set.newBuilder[String]
-  }
-
-  class TestVerifier extends CacheVerifier {
-    val currentResults = new TestVerifierResults
-
-    override protected def analyzeValue(category: String,
-                                        serializedValue: String,
-                                        deserializedValue: Any): Unit = {
-      currentResults.categories += category
-      currentResults.values += deserializedValue.toString
-      ()
-    }
-
-    override def results: VerficationResults = currentResults
-  }
-
   override protected def beforeAll(): Unit = {
     super.beforeAll()
     cacheLocation = remoteProject.baseLocation.resolveSibling("cache")
-    val remoteCache = new ExportableCache(cacheLocation) {
-      override protected def cacheVerifier(): CacheVerifier = new TestVerifier
-    }
+    val remoteCache = new ExportableCache(cacheLocation)
 
     remoteCache.exportCache(remoteProject.baseLocation.toFile, remoteAnalysisStore) match {
-      case Some(results: TestVerifierResults) =>
-        results.categories.result() should not be empty
-        val values = results.values.result()
-        values should not be empty
-        remoteProject.allSources.map(_.toString).foreach { source =>
-          values should contain(source)
-        }
-      case Some(other) =>
-        fail(s"Bad verification results: $other (of class ${other.getClass.getName}")
-      case _ =>
-        fail(s"No cache verification results.")
+      case None => fail(s"Analysis file was not exported.")
+      case _    =>
     }
   }
 

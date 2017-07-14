@@ -5,28 +5,30 @@
  * This software is released under the terms written in LICENSE.
  */
 
-package sbt
-package internal
-package inc
+package sbt.internal.inc.text
 
 import java.io._
 
-import xsbti.T2
-import xsbti.UseScope
-import xsbti.api._
-import xsbti.compile._
+import sbt.internal.inc._
 import sbt.util.InterfaceUtil
 import sbt.util.InterfaceUtil.{ jo2o, position, problem }
-import xsbti.compile.analysis.SourceInfo
+import xsbti.{ T2, UseScope }
+import xsbti.api._
+import xsbti.compile._
+import xsbti.compile.analysis.{ ReadWriteMappers, SourceInfo, Stamp }
 
 // A text-based serialization format for Analysis objects.
 // This code has been tuned for high performance, and therefore has non-idiomatic areas.
 // Please refrain from making changes that significantly degrade read/write performance on large analysis files.
-object TextAnalysisFormat extends TextAnalysisFormat(AnalysisMappers.default)
+object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMappers)
 
-class TextAnalysisFormat(override val mappers: AnalysisMappers)
+class TextAnalysisFormat(val mappers: ReadWriteMappers)
     extends FormatCommons
     with RelationsTextFormat {
+
+  private final val readMapper = mappers.getReadMapper
+  private final val writeMapper = mappers.getWriteMapper
+
   // Some types are not required for external inspection/manipulation of the analysis file,
   // and are complex to serialize as text. So we serialize them as base64-encoded sbinary-serialized blobs.
   // TODO: This is a big performance hit. Figure out a more efficient way to serialize API objects?
@@ -139,6 +141,21 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers)
     }
   }
 
+  override def productsMapper = Mapper(
+    (str: String) => readMapper.mapProductFile(Mapper.forFile.read(str)),
+    (file: File) => Mapper.forFile.write(writeMapper.mapProductFile(file))
+  )
+
+  override def sourcesMapper = Mapper(
+    (str: String) => readMapper.mapSourceFile(Mapper.forFile.read(str)),
+    (file: File) => Mapper.forFile.write(writeMapper.mapSourceFile(file))
+  )
+
+  override def binariesMapper = Mapper(
+    (str: String) => readMapper.mapBinaryFile(Mapper.forFile.read(str)),
+    (file: File) => Mapper.forFile.write(writeMapper.mapBinaryFile(file))
+  )
+
   private[this] object StampsF {
     object Headers {
       val products = "product stamps"
@@ -146,35 +163,46 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers)
       val binaries = "binary stamps"
     }
 
+    final val productsStampsMapper = ContextAwareMapper[File, Stamp](
+      (f: File, str: String) => readMapper.mapProductStamp(f, Mapper.forStamp.read(f, str)),
+      (f: File, stamp: Stamp) => Mapper.forStamp.write(f, writeMapper.mapProductStamp(f, stamp))
+    )
+
+    final val sourcesStampsMapper = ContextAwareMapper[File, Stamp](
+      (f: File, str: String) => readMapper.mapSourceStamp(f, Mapper.forStamp.read(f, str)),
+      (f: File, stamp: Stamp) => Mapper.forStamp.write(f, writeMapper.mapSourceStamp(f, stamp))
+    )
+
+    final val binariesStampsMapper = ContextAwareMapper[File, Stamp](
+      (f: File, str: String) => readMapper.mapBinaryStamp(f, Mapper.forStamp.read(f, str)),
+      (f: File, stamp: Stamp) => Mapper.forStamp.write(f, writeMapper.mapBinaryStamp(f, stamp))
+    )
+
     def write(out: Writer, stamps: Stamps): Unit = {
-      def doWriteMap[V](header: String,
-                        m: Map[File, V],
-                        keyMapper: Mapper[File],
-                        valueMapper: ContextAwareMapper[File, V]) = {
-        val pairsToWrite = m.keys.toSeq.sorted map (k => (k, valueMapper.write(k, m(k))))
-        writePairs(out)(header, pairsToWrite, keyMapper.write, identity[String])
+      def doWriteMap(header: String,
+                     m: Map[File, Stamp],
+                     keyMapper: Mapper[File],
+                     valueMapper: ContextAwareMapper[File, Stamp]) = {
+        val pairsToWrite = m.map(kv => (kv._1, valueMapper.write(kv._1, m(kv._1))))
+        writePairs(out)(header, pairsToWrite.toSeq, keyMapper.write, identity[String])
       }
 
-      doWriteMap(Headers.products,
-                 stamps.products,
-                 mappers.productMapper,
-                 mappers.productStampMapper)
-      doWriteMap(Headers.sources, stamps.sources, mappers.sourceMapper, mappers.sourceStampMapper)
-      doWriteMap(Headers.binaries,
-                 stamps.binaries,
-                 mappers.binaryMapper,
-                 mappers.binaryStampMapper)
+      doWriteMap(Headers.products, stamps.products, productsMapper, productsStampsMapper)
+      doWriteMap(Headers.sources, stamps.sources, sourcesMapper, sourcesStampsMapper)
+      doWriteMap(Headers.binaries, stamps.binaries, binariesMapper, binariesStampsMapper)
     }
 
     def read(in: BufferedReader): Stamps = {
-      def doReadMap[V](expectedHeader: String,
-                       keyMapper: Mapper[File],
-                       valueMapper: ContextAwareMapper[File, V]) =
-        readMappedPairs(in)(expectedHeader, keyMapper.read, valueMapper.read).toMap
+      import scala.collection.immutable.TreeMap
+      def doReadMap(expectedHeader: String,
+                    keyMapper: Mapper[File],
+                    valueMapper: ContextAwareMapper[File, Stamp]): TreeMap[File, Stamp] = {
+        TreeMap(readMappedPairs(in)(expectedHeader, keyMapper.read, valueMapper.read).toSeq: _*)
+      }
 
-      val products = doReadMap(Headers.products, mappers.productMapper, mappers.productStampMapper)
-      val sources = doReadMap(Headers.sources, mappers.sourceMapper, mappers.sourceStampMapper)
-      val binaries = doReadMap(Headers.binaries, mappers.binaryMapper, mappers.binaryStampMapper)
+      val products = doReadMap(Headers.products, productsMapper, productsStampsMapper)
+      val sources = doReadMap(Headers.sources, sourcesMapper, sourcesStampsMapper)
+      val binaries = doReadMap(Headers.binaries, binariesMapper, binariesStampsMapper)
 
       Stamps(products, sources, binaries)
     }
@@ -274,11 +302,11 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers)
     def write(out: Writer, infos: SourceInfos): Unit =
       writeMap(out)(Headers.infos,
                     infos.allInfos,
-                    mappers.sourceMapper.write,
+                    sourcesMapper.write,
                     sourceInfoToString,
                     inlineVals = false)
     def read(in: BufferedReader): SourceInfos =
-      SourceInfos.make(readMap(in)(Headers.infos, mappers.sourceMapper.read, stringToSourceInfo))
+      SourceInfos.make(readMap(in)(Headers.infos, sourcesMapper.read, stringToSourceInfo))
   }
 
   private[this] object CompilationsF {
@@ -316,7 +344,28 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers)
     val stringToFileHash = ObjectStringifier.stringToObj[FileHash] _
     val fileHashToString = ObjectStringifier.objToString[FileHash] _
 
-    def write(out: Writer, setup: MiniSetup): Unit = {
+    final val sourceDirMapper = Mapper(
+      (str: String) => readMapper.mapSourceDir(Mapper.forFile.read(str)),
+      (file: File) => Mapper.forFile.write(writeMapper.mapSourceDir(file))
+    )
+
+    final val outputDirMapper = Mapper(
+      (str: String) => readMapper.mapOutputDir(Mapper.forFile.read(str)),
+      (file: File) => Mapper.forFile.write(writeMapper.mapOutputDir(file))
+    )
+
+    final val soptionsMapper = Mapper(
+      (serialized: String) => readMapper.mapScalacOption(serialized),
+      (option: String) => writeMapper.mapScalacOption(option)
+    )
+
+    final val joptionsMapper = Mapper(
+      (serialized: String) => readMapper.mapJavacOption(serialized),
+      (option: String) => writeMapper.mapJavacOption(option)
+    )
+
+    def write(out: Writer, setup0: MiniSetup): Unit = {
+      val setup = writeMapper.mapMiniSetup(setup0)
       val (mode, outputAsMap) = setup.output match {
         case s: SingleOutput =>
           // just to be compatible with multipleOutputMode
@@ -327,16 +376,13 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers)
            m.getOutputGroups.map(x => x.getSourceDirectory -> x.getOutputDirectory).toMap)
       }
 
+      val mappedClasspathHash = setup.options.classpathHash
+        .map(fh => fh.withFile(writeMapper.mapClasspathEntry(fh.file)))
       writeSeq(out)(Headers.outputMode, mode :: Nil, identity[String])
-      writeMap(out)(Headers.outputDir,
-                    outputAsMap,
-                    mappers.sourceDirMapper.write,
-                    mappers.outputDirMapper.write)
-      writeSeq(out)(Headers.classpathHash, setup.options.classpathHash, fileHashToString) // TODO!
-      writeSeq(out)(Headers.compileOptions,
-                    setup.options.scalacOptions,
-                    mappers.scalacOptions.write)
-      writeSeq(out)(Headers.javacOptions, setup.options.javacOptions, mappers.javacOptions.write)
+      writeMap(out)(Headers.outputDir, outputAsMap, sourceDirMapper.write, outputDirMapper.write)
+      writeSeq(out)(Headers.classpathHash, mappedClasspathHash, fileHashToString)
+      writeSeq(out)(Headers.compileOptions, setup.options.scalacOptions, soptionsMapper.write)
+      writeSeq(out)(Headers.javacOptions, setup.options.javacOptions, joptionsMapper.write)
       writeSeq(out)(Headers.compilerVersion, setup.compilerVersion :: Nil, identity[String])
       writeSeq(out)(Headers.compileOrder, setup.order.name :: Nil, identity[String])
       writeSeq(out)(Headers.skipApiStoring, setup.storeApis() :: Nil, (b: Boolean) => b.toString)
@@ -348,11 +394,11 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers)
     def read(in: BufferedReader): MiniSetup = {
       def s2b(s: String): Boolean = s.toBoolean
       val outputDirMode = readSeq(in)(Headers.outputMode, identity[String]).headOption
-      val outputAsMap =
-        readMap(in)(Headers.outputDir, mappers.sourceDirMapper.read, mappers.outputDirMapper.read)
-      val classpathHash = readSeq(in)(Headers.classpathHash, stringToFileHash) // TODO
-      val compileOptions = readSeq(in)(Headers.compileOptions, mappers.scalacOptions.read)
-      val javacOptions = readSeq(in)(Headers.javacOptions, mappers.javacOptions.read)
+      val outputAsMap = readMap(in)(Headers.outputDir, sourceDirMapper.read, outputDirMapper.read)
+      val classpathHash0 = readSeq(in)(Headers.classpathHash, stringToFileHash)
+      val classpathHash = classpathHash0.map(h => h.withFile(readMapper.mapClasspathEntry(h.file)))
+      val compileOptions = readSeq(in)(Headers.compileOptions, soptionsMapper.read)
+      val javacOptions = readSeq(in)(Headers.javacOptions, joptionsMapper.read)
       val compilerVersion = readSeq(in)(Headers.compilerVersion, identity[String]).head
       val compileOrder = readSeq(in)(Headers.compileOrder, identity[String]).head
       val skipApiStoring = readSeq(in)(Headers.skipApiStoring, s2b).head
@@ -363,20 +409,12 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers)
       val output = outputDirMode match {
         case Some(s) =>
           s match {
-            case `singleOutputMode` =>
-              new SingleOutput { val getOutputDirectory = outputAsMap.values.head }
+            case `singleOutputMode` => new ConcreteSingleOutput(outputAsMap.values.head)
             case `multipleOutputMode` =>
-              new MultipleOutput {
-                val getOutputGroups: Array[OutputGroup] = outputAsMap.toArray.map {
-                  case (src: File, out: File) =>
-                    new OutputGroup {
-                      val getSourceDirectory = src
-                      val getOutputDirectory = out
-                      override def toString = s"OutputGroup($src -> $out)"
-                    }
-                }
-                override def toString = s"MultipleOutput($getOutputGroups)"
+              val groups = outputAsMap.iterator.map {
+                case (src: File, out: File) => new SimpleOutputGroup(src, out)
               }
+              new ConcreteMultipleOutput(groups.toArray)
             case str: String => throw new ReadException("Unrecognized output mode: " + str)
           }
         case None => throw new ReadException("No output mode specified")
@@ -391,7 +429,7 @@ class TextAnalysisFormat(override val mappers: AnalysisMappers)
         extra.toArray
       )
 
-      mappers.mapOptionsFromCache(original)
+      readMapper.mapMiniSetup(original)
     }
   }
 

@@ -5,16 +5,19 @@
  * This software is released under the terms written in LICENSE.
  */
 
-package sbt.internal.inc
+package sbt.internal.inc.text
 
-import java.io.{ File, BufferedReader, Writer }
+import java.io.{ BufferedReader, File, Writer }
 
+import sbt.internal.inc.{ ExternalDependencies, InternalDependencies, Relations, UsedName }
 import sbt.internal.util.Relation
 import xsbti.api.DependencyContext._
 
 trait RelationsTextFormat extends FormatCommons {
 
-  def mappers: AnalysisMappers
+  def sourcesMapper: Mapper[File]
+  def binariesMapper: Mapper[File]
+  def productsMapper: Mapper[File]
 
   private case class Descriptor[A, B](
       header: String,
@@ -28,19 +31,16 @@ trait RelationsTextFormat extends FormatCommons {
 
   private val allRelations: List[Descriptor[_, _]] = {
     List(
-      Descriptor("products", _.srcProd, mappers.sourceMapper, mappers.productMapper),
-      Descriptor("library dependencies", _.libraryDep, mappers.sourceMapper, mappers.binaryMapper),
-      Descriptor("library class names",
-                 _.libraryClassName,
-                 mappers.binaryMapper,
-                 Mapper.forString),
+      Descriptor("products", _.srcProd, sourcesMapper, productsMapper),
+      Descriptor("library dependencies", _.libraryDep, sourcesMapper, binariesMapper),
+      Descriptor("library class names", _.libraryClassName, binariesMapper, Mapper.forString),
       stringsDescriptor("member reference internal dependencies", _.memberRef.internal),
       stringsDescriptor("member reference external dependencies", _.memberRef.external),
       stringsDescriptor("inheritance internal dependencies", _.inheritance.internal),
       stringsDescriptor("inheritance external dependencies", _.inheritance.external),
       stringsDescriptor("local internal inheritance dependencies", _.localInheritance.internal),
       stringsDescriptor("local external inheritance dependencies", _.localInheritance.external),
-      Descriptor("class names", _.classes, mappers.sourceMapper, Mapper.forString),
+      Descriptor("class names", _.classes, sourcesMapper, Mapper.forString),
       Descriptor("used names", _.names, Mapper.forString, Mapper.forUsedName),
       stringsDescriptor("product class names", _.productClassName)
     )

@@ -1,32 +1,48 @@
-package sbt
-package inc
+package sbt.inc.text
 
+import java.io.{ BufferedReader, File, StringReader, StringWriter }
+
+import org.scalacheck.Prop._
+import org.scalacheck._
+import sbt.internal.inc.Analysis.NonLocalProduct
+import sbt.internal.inc._
+import sbt.internal.inc.text.TextAnalysisFormat
+import sbt.io.IO
+import sbt.util.InterfaceUtil._
 import xsbti.api._
 import xsbti.compile._
 import xsbti.{ Problem, T2 }
-import sbt.internal.inc._
-import sbt.util.InterfaceUtil._
-import java.io.{ BufferedReader, File, StringReader, StringWriter }
 
-import Analysis.NonLocalProduct
-
-import org.scalacheck._
-import Prop._
-
-object DefaultTextAnalysisFormatTest
+object TextAnalysisFormatSpecification
     extends Properties("TextAnalysisFormat")
     with BaseTextAnalysisFormatTest {
+
+  override val analysisGenerators: AnalysisGenerators = AnalysisGenerators
   override def format = TextAnalysisFormat
+  override def checkAnalysis(analysis: Analysis): Prop = {
+    // Note: we test writing to the file directly to reuse `FileBasedStore` as it is written
+    val (readAnalysis0, readSetup) = IO.withTemporaryFile("analysis", "test") { tempAnalysisFile =>
+      val fileBasedStore = FileAnalysisStore.text(tempAnalysisFile, format)
+      fileBasedStore.set(analysis, commonSetup)
+      fileBasedStore.get().getOrElse(sys.error(""))
+    }
+    val readAnalysis = readAnalysis0 match { case a: Analysis => a }
+    compare(analysis, readAnalysis) && compare(commonSetup, readSetup)
+    super.checkAnalysis(analysis)
+  }
 }
 
 trait BaseTextAnalysisFormatTest { self: Properties =>
 
+  val analysisGenerators: AnalysisGenerators
   def format: TextAnalysisFormat
 
   val storeApis = true
-  val dummyOutput = new xsbti.compile.SingleOutput {
-    def getOutputDirectory: java.io.File = new java.io.File("/dummy")
+  def RootFilePath: String = "/dummy"
+  def dummyOutput = new xsbti.compile.SingleOutput {
+    def getOutputDirectory: java.io.File = new java.io.File(RootFilePath)
   }
+
   val commonSetup = new MiniSetup(dummyOutput,
                                   new MiniOptions(Array(), Array(), Array()),
                                   "2.10.4",
@@ -40,21 +56,18 @@ trait BaseTextAnalysisFormatTest { self: Properties =>
 
   protected def serialize(analysis: Analysis, format: TextAnalysisFormat): String = {
     val writer = new StringWriter
-
     format.write(writer, analysis, commonSetup)
     writer.toString
   }
 
   protected def deserialize(from: String, format: TextAnalysisFormat): (Analysis, MiniSetup) = {
     val reader = new BufferedReader(new StringReader(from))
-
     val (readAnalysis: Analysis, readSetup) = format.read(reader, companionStore)
     (readAnalysis, readSetup)
   }
 
   protected def checkAnalysis(analysis: Analysis) = {
     val (readAnalysis, readSetup) = deserialize(serialize(analysis, format), format)
-
     compare(analysis, readAnalysis) && compare(commonSetup, readSetup)
   }
 
@@ -64,9 +77,8 @@ trait BaseTextAnalysisFormatTest { self: Properties =>
 
   property("Write and read simple Analysis") = {
 
-    import TestCaseGenerators._
-
-    def f(s: String) = new File("/temp/" + s)
+    import analysisGenerators._
+    def f(s: String) = new File(s"$RootFilePath/$s")
     val aScala = f("A.scala")
     val aClass = genClass("A").sample.get
     val cClass = genClass("C").sample.get
@@ -95,7 +107,7 @@ trait BaseTextAnalysisFormatTest { self: Properties =>
   }
 
   property("Write and read complex Analysis") =
-    forAllNoShrink(TestCaseGenerators.genAnalysis)(checkAnalysis)
+    forAllNoShrink(analysisGenerators.genAnalysis)(checkAnalysis)
 
   // Compare two analyses with useful labelling when they aren't equal.
   protected def compare(left: Analysis, right: Analysis): Prop = {
