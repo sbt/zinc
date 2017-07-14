@@ -7,7 +7,7 @@ package xsbti.api;
 public abstract class Type implements java.io.Serializable {
     
     
-    public Type() {
+    protected Type() {
         super();
         
     }
@@ -24,7 +24,7 @@ public abstract class Type implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (17 + "Type".hashCode());
+        return 37 * (17 + "xsbti.api.Type".hashCode());
     }
     public String toString() {
         return "Type("  + ")";

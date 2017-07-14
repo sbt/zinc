@@ -6,8 +6,14 @@
 package xsbti.api;
 public final class EmptyType extends xsbti.api.Type {
     
+    public static EmptyType create() {
+        return new EmptyType();
+    }
+    public static EmptyType of() {
+        return new EmptyType();
+    }
     
-    public EmptyType() {
+    protected EmptyType() {
         super();
         
     }
@@ -24,7 +30,7 @@ public final class EmptyType extends xsbti.api.Type {
         }
     }
     public int hashCode() {
-        return 37 * (17 + "EmptyType".hashCode());
+        return 37 * (17 + "xsbti.api.EmptyType".hashCode());
     }
     public String toString() {
         return "EmptyType("  + ")";

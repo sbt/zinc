@@ -6,8 +6,14 @@
 package xsbti.api;
 public final class Var extends xsbti.api.FieldLike {
     
+    public static Var create(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, Type _tpe) {
+        return new Var(_name, _access, _modifiers, _annotations, _tpe);
+    }
+    public static Var of(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, Type _tpe) {
+        return new Var(_name, _access, _modifiers, _annotations, _tpe);
+    }
     
-    public Var(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, Type _tpe) {
+    protected Var(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, Type _tpe) {
         super(_name, _access, _modifiers, _annotations, _tpe);
         
     }
@@ -38,7 +44,7 @@ public final class Var extends xsbti.api.FieldLike {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (37 * (17 + "Var".hashCode()) + name().hashCode()) + access().hashCode()) + modifiers().hashCode()) + annotations().hashCode()) + tpe().hashCode());
+        return 37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.api.Var".hashCode()) + name().hashCode()) + access().hashCode()) + modifiers().hashCode()) + annotations().hashCode()) + tpe().hashCode());
     }
     public String toString() {
         return "Var("  + "name: " + name() + ", " + "access: " + access() + ", " + "modifiers: " + modifiers() + ", " + "annotations: " + annotations() + ", " + "tpe: " + tpe() + ")";

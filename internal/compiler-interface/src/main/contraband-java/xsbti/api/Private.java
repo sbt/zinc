@@ -6,8 +6,14 @@
 package xsbti.api;
 public final class Private extends xsbti.api.Qualified {
     
+    public static Private create(Qualifier _qualifier) {
+        return new Private(_qualifier);
+    }
+    public static Private of(Qualifier _qualifier) {
+        return new Private(_qualifier);
+    }
     
-    public Private(Qualifier _qualifier) {
+    protected Private(Qualifier _qualifier) {
         super(_qualifier);
         
     }
@@ -26,7 +32,7 @@ public final class Private extends xsbti.api.Qualified {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (17 + "Private".hashCode()) + qualifier().hashCode());
+        return 37 * (37 * (17 + "xsbti.api.Private".hashCode()) + qualifier().hashCode());
     }
     public String toString() {
         return "Private("  + "qualifier: " + qualifier() + ")";

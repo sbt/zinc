@@ -7,7 +7,7 @@ package xsbti.api;
 public abstract class Qualifier implements java.io.Serializable {
     
     
-    public Qualifier() {
+    protected Qualifier() {
         super();
         
     }
@@ -24,7 +24,7 @@ public abstract class Qualifier implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (17 + "Qualifier".hashCode());
+        return 37 * (17 + "xsbti.api.Qualifier".hashCode());
     }
     public String toString() {
         return "Qualifier("  + ")";

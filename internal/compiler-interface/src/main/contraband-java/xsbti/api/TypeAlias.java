@@ -6,9 +6,15 @@
 package xsbti.api;
 public final class TypeAlias extends xsbti.api.TypeMember {
     
+    public static TypeAlias create(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters, Type _tpe) {
+        return new TypeAlias(_name, _access, _modifiers, _annotations, _typeParameters, _tpe);
+    }
+    public static TypeAlias of(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters, Type _tpe) {
+        return new TypeAlias(_name, _access, _modifiers, _annotations, _typeParameters, _tpe);
+    }
     
     private Type tpe;
-    public TypeAlias(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters, Type _tpe) {
+    protected TypeAlias(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters, Type _tpe) {
         super(_name, _access, _modifiers, _annotations, _typeParameters);
         tpe = _tpe;
     }
@@ -44,7 +50,7 @@ public final class TypeAlias extends xsbti.api.TypeMember {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "TypeAlias".hashCode()) + name().hashCode()) + access().hashCode()) + modifiers().hashCode()) + annotations().hashCode()) + typeParameters().hashCode()) + tpe().hashCode());
+        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.api.TypeAlias".hashCode()) + name().hashCode()) + access().hashCode()) + modifiers().hashCode()) + annotations().hashCode()) + typeParameters().hashCode()) + tpe().hashCode());
     }
     public String toString() {
         return "TypeAlias("  + "name: " + name() + ", " + "access: " + access() + ", " + "modifiers: " + modifiers() + ", " + "annotations: " + annotations() + ", " + "typeParameters: " + typeParameters() + ", " + "tpe: " + tpe() + ")";

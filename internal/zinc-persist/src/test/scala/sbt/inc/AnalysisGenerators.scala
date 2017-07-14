@@ -79,25 +79,25 @@ trait AnalysisGenerators {
       Stamps(zipTreeMap(prod, prodStamps), zipTreeMap(src, srcStamps), zipTreeMap(bin, binStamps))
   }
 
-  private[this] val emptyStructure = new Structure(lzy(Array()), lzy(Array()), lzy(Array()))
+  private[this] val emptyStructure = Structure.of(lzy(Array()), lzy(Array()), lzy(Array()))
 
   // We need "proper" definitions with specific class names, as groupBy use these to pick a representative top-level class when splitting.
   private[this] def makeClassLike(name: String, definitionType: DefinitionType): ClassLike =
-    new ClassLike(name,
-                  new Public(),
-                  APIs.emptyModifiers,
-                  Array(),
-                  definitionType,
-                  lzy(new EmptyType()),
-                  lzy(emptyStructure),
-                  Array(),
-                  Array(),
-                  true,
-                  Array())
+    ClassLike.of(name,
+                 Public.of(),
+                 APIs.emptyModifiers,
+                 Array(),
+                 definitionType,
+                 lzy(EmptyType.of()),
+                 lzy(emptyStructure),
+                 Array(),
+                 Array(),
+                 true,
+                 Array())
 
   private[this] def makeCompanions(name: String): Companions =
-    new Companions(makeClassLike(name, DefinitionType.ClassDef),
-                   makeClassLike(name, DefinitionType.Module))
+    Companions.of(makeClassLike(name, DefinitionType.ClassDef),
+                  makeClassLike(name, DefinitionType.Module))
 
   private[this] def lzy[T <: AnyRef](x: T) = SafeLazyProxy.strict(x)
 
@@ -107,7 +107,7 @@ trait AnalysisGenerators {
       scopes <- listOfN(defns.size,
                         oneOf(Seq(UseScope.Default, UseScope.Implicit, UseScope.PatMatTarget)))
       (name, scope) <- names zip scopes
-    } yield new NameHash(name, scope, (name, scope).hashCode())
+    } yield NameHash.of(name, scope, (name, scope).hashCode())
 
   def genClass(name: String): Gen[AnalyzedClass] =
     for {
@@ -116,12 +116,12 @@ trait AnalysisGenerators {
       hasMacro <- arbitrary[Boolean]
       nameHashes <- genNameHashes(Seq(name))
     } yield
-      new AnalyzedClass(startTime,
-                        name,
-                        SafeLazyProxy(makeCompanions(name)),
-                        apiHash,
-                        nameHashes,
-                        hasMacro)
+      AnalyzedClass.of(startTime,
+                       name,
+                       SafeLazyProxy(makeCompanions(name)),
+                       apiHash,
+                       nameHashes,
+                       hasMacro)
 
   def genClasses(all_defns: Seq[String]): Gen[Seq[AnalyzedClass]] =
     Gen.sequence[List[AnalyzedClass], AnalyzedClass](all_defns.map(genClass))

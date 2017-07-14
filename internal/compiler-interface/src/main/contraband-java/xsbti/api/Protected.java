@@ -6,8 +6,14 @@
 package xsbti.api;
 public final class Protected extends xsbti.api.Qualified {
     
+    public static Protected create(Qualifier _qualifier) {
+        return new Protected(_qualifier);
+    }
+    public static Protected of(Qualifier _qualifier) {
+        return new Protected(_qualifier);
+    }
     
-    public Protected(Qualifier _qualifier) {
+    protected Protected(Qualifier _qualifier) {
         super(_qualifier);
         
     }
@@ -26,7 +32,7 @@ public final class Protected extends xsbti.api.Qualified {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (17 + "Protected".hashCode()) + qualifier().hashCode());
+        return 37 * (37 * (17 + "xsbti.api.Protected".hashCode()) + qualifier().hashCode());
     }
     public String toString() {
         return "Protected("  + "qualifier: " + qualifier() + ")";

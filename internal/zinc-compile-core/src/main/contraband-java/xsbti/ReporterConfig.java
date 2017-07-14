@@ -6,6 +6,12 @@
 package xsbti;
 public final class ReporterConfig implements java.io.Serializable {
     
+    public static ReporterConfig create(String _loggerName, int _maximumErrors, boolean _useColor, java.util.function.Function<String, Boolean>[] _msgFilters, java.util.function.Function<java.nio.file.Path, Boolean>[] _fileFilters, java.util.logging.Level _logLevel, java.util.function.Function<Position, Position> _positionMapper) {
+        return new ReporterConfig(_loggerName, _maximumErrors, _useColor, _msgFilters, _fileFilters, _logLevel, _positionMapper);
+    }
+    public static ReporterConfig of(String _loggerName, int _maximumErrors, boolean _useColor, java.util.function.Function<String, Boolean>[] _msgFilters, java.util.function.Function<java.nio.file.Path, Boolean>[] _fileFilters, java.util.logging.Level _logLevel, java.util.function.Function<Position, Position> _positionMapper) {
+        return new ReporterConfig(_loggerName, _maximumErrors, _useColor, _msgFilters, _fileFilters, _logLevel, _positionMapper);
+    }
     
     private String loggerName;
     private int maximumErrors;
@@ -14,7 +20,7 @@ public final class ReporterConfig implements java.io.Serializable {
     private java.util.function.Function<java.nio.file.Path, Boolean>[] fileFilters;
     private java.util.logging.Level logLevel;
     private java.util.function.Function<Position, Position> positionMapper;
-    public ReporterConfig(String _loggerName, int _maximumErrors, boolean _useColor, java.util.function.Function<String, Boolean>[] _msgFilters, java.util.function.Function<java.nio.file.Path, Boolean>[] _fileFilters, java.util.logging.Level _logLevel, java.util.function.Function<Position, Position> _positionMapper) {
+    protected ReporterConfig(String _loggerName, int _maximumErrors, boolean _useColor, java.util.function.Function<String, Boolean>[] _msgFilters, java.util.function.Function<java.nio.file.Path, Boolean>[] _fileFilters, java.util.logging.Level _logLevel, java.util.function.Function<Position, Position> _positionMapper) {
         super();
         loggerName = _loggerName;
         maximumErrors = _maximumErrors;
@@ -77,7 +83,7 @@ public final class ReporterConfig implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "ReporterConfig".hashCode()) + loggerName().hashCode()) + (new Integer(maximumErrors())).hashCode()) + (new Boolean(useColor())).hashCode()) + msgFilters().hashCode()) + fileFilters().hashCode()) + logLevel().hashCode()) + positionMapper().hashCode());
+        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.ReporterConfig".hashCode()) + loggerName().hashCode()) + (new Integer(maximumErrors())).hashCode()) + (new Boolean(useColor())).hashCode()) + msgFilters().hashCode()) + fileFilters().hashCode()) + logLevel().hashCode()) + positionMapper().hashCode());
     }
     public String toString() {
         return "ReporterConfig("  + "loggerName: " + loggerName() + ", " + "maximumErrors: " + maximumErrors() + ", " + "useColor: " + useColor() + ", " + "msgFilters: " + msgFilters() + ", " + "fileFilters: " + fileFilters() + ", " + "logLevel: " + logLevel() + ", " + "positionMapper: " + positionMapper() + ")";

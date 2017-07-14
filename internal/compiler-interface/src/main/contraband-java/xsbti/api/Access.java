@@ -7,7 +7,7 @@ package xsbti.api;
 public abstract class Access implements java.io.Serializable {
     
     
-    public Access() {
+    protected Access() {
         super();
         
     }
@@ -24,7 +24,7 @@ public abstract class Access implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (17 + "Access".hashCode());
+        return 37 * (17 + "xsbti.api.Access".hashCode());
     }
     public String toString() {
         return "Access("  + ")";

@@ -6,10 +6,16 @@
 package xsbti.api;
 public final class Constant extends xsbti.api.Type {
     
+    public static Constant create(Type _baseType, String _value) {
+        return new Constant(_baseType, _value);
+    }
+    public static Constant of(Type _baseType, String _value) {
+        return new Constant(_baseType, _value);
+    }
     
     private Type baseType;
     private String value;
-    public Constant(Type _baseType, String _value) {
+    protected Constant(Type _baseType, String _value) {
         super();
         baseType = _baseType;
         value = _value;
@@ -37,7 +43,7 @@ public final class Constant extends xsbti.api.Type {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (17 + "Constant".hashCode()) + baseType().hashCode()) + value().hashCode());
+        return 37 * (37 * (37 * (17 + "xsbti.api.Constant".hashCode()) + baseType().hashCode()) + value().hashCode());
     }
     public String toString() {
         return "Constant("  + "baseType: " + baseType() + ", " + "value: " + value() + ")";

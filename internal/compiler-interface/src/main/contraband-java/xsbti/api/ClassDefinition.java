@@ -7,7 +7,7 @@ package xsbti.api;
 public abstract class ClassDefinition extends xsbti.api.Definition {
     
     
-    public ClassDefinition(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations) {
+    protected ClassDefinition(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations) {
         super(_name, _access, _modifiers, _annotations);
         
     }
@@ -24,7 +24,7 @@ public abstract class ClassDefinition extends xsbti.api.Definition {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (17 + "ClassDefinition".hashCode()) + name().hashCode()) + access().hashCode()) + modifiers().hashCode()) + annotations().hashCode());
+        return 37 * (37 * (37 * (37 * (37 * (17 + "xsbti.api.ClassDefinition".hashCode()) + name().hashCode()) + access().hashCode()) + modifiers().hashCode()) + annotations().hashCode());
     }
     public String toString() {
         return "ClassDefinition("  + "name: " + name() + ", " + "access: " + access() + ", " + "modifiers: " + modifiers() + ", " + "annotations: " + annotations() + ")";

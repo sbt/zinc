@@ -51,13 +51,13 @@ object APIs {
   val emptyAPI = APIUtil.emptyClassLike(emptyName, DefinitionType.ClassDef)
   val emptyAPIHash = -1
   val noCompilationStamp = -1L
-  val emptyCompanions = new xsbti.api.Companions(emptyAPI, emptyAPI)
-  val emptyAnalyzedClass = new xsbti.api.AnalyzedClass(noCompilationStamp,
-                                                       emptyName,
-                                                       SafeLazyProxy(emptyCompanions),
-                                                       emptyAPIHash,
-                                                       Array.empty[NameHash],
-                                                       false)
+  val emptyCompanions = xsbti.api.Companions.of(emptyAPI, emptyAPI)
+  val emptyAnalyzedClass = xsbti.api.AnalyzedClass.of(noCompilationStamp,
+                                                      emptyName,
+                                                      SafeLazyProxy(emptyCompanions),
+                                                      emptyAPIHash,
+                                                      Array.empty[NameHash],
+                                                      false)
   def getAPI[T](map: Map[T, AnalyzedClass], className: T): AnalyzedClass =
     map.getOrElse(className, emptyAnalyzedClass)
 }

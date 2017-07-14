@@ -14,11 +14,17 @@ package xsbti.compile;
  */
 public final class IncToolOptions implements java.io.Serializable {
     
+    public static IncToolOptions create(java.util.Optional<xsbti.compile.ClassFileManager> _classFileManager, boolean _useCustomizedFileManager) {
+        return new IncToolOptions(_classFileManager, _useCustomizedFileManager);
+    }
+    public static IncToolOptions of(java.util.Optional<xsbti.compile.ClassFileManager> _classFileManager, boolean _useCustomizedFileManager) {
+        return new IncToolOptions(_classFileManager, _useCustomizedFileManager);
+    }
     /** Define a component that manages the generated class files in every compilation cycle. */
     private java.util.Optional<xsbti.compile.ClassFileManager> classFileManager;
     /** Flag that enables use of a customized {@link xsbti.compile.ClassFileManager}. */
     private boolean useCustomizedFileManager;
-    public IncToolOptions(java.util.Optional<xsbti.compile.ClassFileManager> _classFileManager, boolean _useCustomizedFileManager) {
+    protected IncToolOptions(java.util.Optional<xsbti.compile.ClassFileManager> _classFileManager, boolean _useCustomizedFileManager) {
         super();
         classFileManager = _classFileManager;
         useCustomizedFileManager = _useCustomizedFileManager;
@@ -46,7 +52,7 @@ public final class IncToolOptions implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (17 + "IncToolOptions".hashCode()) + classFileManager().hashCode()) + (new Boolean(useCustomizedFileManager())).hashCode());
+        return 37 * (37 * (37 * (17 + "xsbti.compile.IncToolOptions".hashCode()) + classFileManager().hashCode()) + (new Boolean(useCustomizedFileManager())).hashCode());
     }
     public String toString() {
         return "IncToolOptions("  + "classFileManager: " + classFileManager() + ", " + "useCustomizedFileManager: " + useCustomizedFileManager() + ")";

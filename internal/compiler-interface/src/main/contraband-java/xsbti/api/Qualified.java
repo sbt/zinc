@@ -8,7 +8,7 @@ public abstract class Qualified extends xsbti.api.Access {
     
     
     private Qualifier qualifier;
-    public Qualified(Qualifier _qualifier) {
+    protected Qualified(Qualifier _qualifier) {
         super();
         qualifier = _qualifier;
     }
@@ -27,7 +27,7 @@ public abstract class Qualified extends xsbti.api.Access {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (17 + "Qualified".hashCode()) + qualifier().hashCode());
+        return 37 * (37 * (17 + "xsbti.api.Qualified".hashCode()) + qualifier().hashCode());
     }
     public String toString() {
         return "Qualified("  + "qualifier: " + qualifier() + ")";

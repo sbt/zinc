@@ -6,8 +6,14 @@
 package xsbti.api;
 public final class Unqualified extends xsbti.api.Qualifier {
     
+    public static Unqualified create() {
+        return new Unqualified();
+    }
+    public static Unqualified of() {
+        return new Unqualified();
+    }
     
-    public Unqualified() {
+    protected Unqualified() {
         super();
         
     }
@@ -24,7 +30,7 @@ public final class Unqualified extends xsbti.api.Qualifier {
         }
     }
     public int hashCode() {
-        return 37 * (17 + "Unqualified".hashCode());
+        return 37 * (17 + "xsbti.api.Unqualified".hashCode());
     }
     public String toString() {
         return "Unqualified("  + ")";

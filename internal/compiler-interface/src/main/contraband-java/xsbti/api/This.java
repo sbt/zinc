@@ -6,8 +6,14 @@
 package xsbti.api;
 public final class This extends xsbti.api.PathComponent {
     
+    public static This create() {
+        return new This();
+    }
+    public static This of() {
+        return new This();
+    }
     
-    public This() {
+    protected This() {
         super();
         
     }
@@ -24,7 +30,7 @@ public final class This extends xsbti.api.PathComponent {
         }
     }
     public int hashCode() {
-        return 37 * (17 + "This".hashCode());
+        return 37 * (17 + "xsbti.api.This".hashCode());
     }
     public String toString() {
         return "This("  + ")";

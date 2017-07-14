@@ -6,8 +6,14 @@
 package xsbti.api;
 public final class Val extends xsbti.api.FieldLike {
     
+    public static Val create(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, Type _tpe) {
+        return new Val(_name, _access, _modifiers, _annotations, _tpe);
+    }
+    public static Val of(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, Type _tpe) {
+        return new Val(_name, _access, _modifiers, _annotations, _tpe);
+    }
     
-    public Val(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, Type _tpe) {
+    protected Val(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, Type _tpe) {
         super(_name, _access, _modifiers, _annotations, _tpe);
         
     }
@@ -38,7 +44,7 @@ public final class Val extends xsbti.api.FieldLike {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (37 * (17 + "Val".hashCode()) + name().hashCode()) + access().hashCode()) + modifiers().hashCode()) + annotations().hashCode()) + tpe().hashCode());
+        return 37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.api.Val".hashCode()) + name().hashCode()) + access().hashCode()) + modifiers().hashCode()) + annotations().hashCode()) + tpe().hashCode());
     }
     public String toString() {
         return "Val("  + "name: " + name() + ", " + "access: " + access() + ", " + "modifiers: " + modifiers() + ", " + "annotations: " + annotations() + ", " + "tpe: " + tpe() + ")";

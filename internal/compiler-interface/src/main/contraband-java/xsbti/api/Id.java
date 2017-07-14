@@ -6,9 +6,15 @@
 package xsbti.api;
 public final class Id extends xsbti.api.PathComponent {
     
+    public static Id create(String _id) {
+        return new Id(_id);
+    }
+    public static Id of(String _id) {
+        return new Id(_id);
+    }
     
     private String id;
-    public Id(String _id) {
+    protected Id(String _id) {
         super();
         id = _id;
     }
@@ -29,7 +35,7 @@ public final class Id extends xsbti.api.PathComponent {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (17 + "Id".hashCode()) + id().hashCode());
+        return 37 * (37 * (17 + "xsbti.api.Id".hashCode()) + id().hashCode());
     }
     public String toString() {
         return "Id("  + "id: " + id() + ")";

@@ -6,11 +6,17 @@
 package xsbti.api;
 public final class InternalDependency implements java.io.Serializable {
     
+    public static InternalDependency create(String _sourceClassName, String _targetClassName, xsbti.api.DependencyContext _context) {
+        return new InternalDependency(_sourceClassName, _targetClassName, _context);
+    }
+    public static InternalDependency of(String _sourceClassName, String _targetClassName, xsbti.api.DependencyContext _context) {
+        return new InternalDependency(_sourceClassName, _targetClassName, _context);
+    }
     
     private String sourceClassName;
     private String targetClassName;
     private xsbti.api.DependencyContext context;
-    public InternalDependency(String _sourceClassName, String _targetClassName, xsbti.api.DependencyContext _context) {
+    protected InternalDependency(String _sourceClassName, String _targetClassName, xsbti.api.DependencyContext _context) {
         super();
         sourceClassName = _sourceClassName;
         targetClassName = _targetClassName;
@@ -45,7 +51,7 @@ public final class InternalDependency implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (17 + "InternalDependency".hashCode()) + sourceClassName().hashCode()) + targetClassName().hashCode()) + context().hashCode());
+        return 37 * (37 * (37 * (37 * (17 + "xsbti.api.InternalDependency".hashCode()) + sourceClassName().hashCode()) + targetClassName().hashCode()) + context().hashCode());
     }
     public String toString() {
         return "InternalDependency("  + "sourceClassName: " + sourceClassName() + ", " + "targetClassName: " + targetClassName() + ", " + "context: " + context() + ")";

@@ -10,8 +10,14 @@ package xsbti.compile;
  */
 public final class DeleteImmediatelyManagerType extends xsbti.compile.ClassFileManagerType {
     
+    public static DeleteImmediatelyManagerType create() {
+        return new DeleteImmediatelyManagerType();
+    }
+    public static DeleteImmediatelyManagerType of() {
+        return new DeleteImmediatelyManagerType();
+    }
     
-    public DeleteImmediatelyManagerType() {
+    protected DeleteImmediatelyManagerType() {
         super();
         
     }
@@ -28,7 +34,7 @@ public final class DeleteImmediatelyManagerType extends xsbti.compile.ClassFileM
         }
     }
     public int hashCode() {
-        return 37 * (17 + "DeleteImmediatelyManagerType".hashCode());
+        return 37 * (17 + "xsbti.compile.DeleteImmediatelyManagerType".hashCode());
     }
     public String toString() {
         return "DeleteImmediatelyManagerType("  + ")";

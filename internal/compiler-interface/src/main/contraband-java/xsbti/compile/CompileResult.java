@@ -7,11 +7,17 @@ package xsbti.compile;
 /** The result of running the incremental compilation. */
 public final class CompileResult implements java.io.Serializable {
     
+    public static CompileResult create(xsbti.compile.CompileAnalysis _analysis, xsbti.compile.MiniSetup _setup, boolean _hasModified) {
+        return new CompileResult(_analysis, _setup, _hasModified);
+    }
+    public static CompileResult of(xsbti.compile.CompileAnalysis _analysis, xsbti.compile.MiniSetup _setup, boolean _hasModified) {
+        return new CompileResult(_analysis, _setup, _hasModified);
+    }
     
     private xsbti.compile.CompileAnalysis analysis;
     private xsbti.compile.MiniSetup setup;
     private boolean hasModified;
-    public CompileResult(xsbti.compile.CompileAnalysis _analysis, xsbti.compile.MiniSetup _setup, boolean _hasModified) {
+    protected CompileResult(xsbti.compile.CompileAnalysis _analysis, xsbti.compile.MiniSetup _setup, boolean _hasModified) {
         super();
         analysis = _analysis;
         setup = _setup;
@@ -46,7 +52,7 @@ public final class CompileResult implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (17 + "CompileResult".hashCode()) + analysis().hashCode()) + setup().hashCode()) + (new Boolean(hasModified())).hashCode());
+        return 37 * (37 * (37 * (37 * (17 + "xsbti.compile.CompileResult".hashCode()) + analysis().hashCode()) + setup().hashCode()) + (new Boolean(hasModified())).hashCode());
     }
     public String toString() {
         return "CompileResult("  + "analysis: " + analysis() + ", " + "setup: " + setup() + ", " + "hasModified: " + hasModified() + ")";

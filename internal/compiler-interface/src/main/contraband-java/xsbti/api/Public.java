@@ -6,8 +6,14 @@
 package xsbti.api;
 public final class Public extends xsbti.api.Access {
     
+    public static Public create() {
+        return new Public();
+    }
+    public static Public of() {
+        return new Public();
+    }
     
-    public Public() {
+    protected Public() {
         super();
         
     }
@@ -24,7 +30,7 @@ public final class Public extends xsbti.api.Access {
         }
     }
     public int hashCode() {
-        return 37 * (17 + "Public".hashCode());
+        return 37 * (17 + "xsbti.api.Public".hashCode());
     }
     public String toString() {
         return "Public("  + ")";

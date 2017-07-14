@@ -6,10 +6,16 @@
 package xsbti.api;
 public final class Companions implements java.io.Serializable {
     
+    public static Companions create(ClassLike _classApi, ClassLike _objectApi) {
+        return new Companions(_classApi, _objectApi);
+    }
+    public static Companions of(ClassLike _classApi, ClassLike _objectApi) {
+        return new Companions(_classApi, _objectApi);
+    }
     
     private ClassLike classApi;
     private ClassLike objectApi;
-    public Companions(ClassLike _classApi, ClassLike _objectApi) {
+    protected Companions(ClassLike _classApi, ClassLike _objectApi) {
         super();
         classApi = _classApi;
         objectApi = _objectApi;
@@ -37,7 +43,7 @@ public final class Companions implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (17 + "Companions".hashCode()) + classApi().hashCode()) + objectApi().hashCode());
+        return 37 * (37 * (37 * (17 + "xsbti.api.Companions".hashCode()) + classApi().hashCode()) + objectApi().hashCode());
     }
     public String toString() {
         return "Companions("  + "classApi: " + classApi() + ", " + "objectApi: " + objectApi() + ")";

@@ -6,9 +6,15 @@
 package xsbti.api;
 public final class ParameterRef extends xsbti.api.Type {
     
+    public static ParameterRef create(String _id) {
+        return new ParameterRef(_id);
+    }
+    public static ParameterRef of(String _id) {
+        return new ParameterRef(_id);
+    }
     
     private String id;
-    public ParameterRef(String _id) {
+    protected ParameterRef(String _id) {
         super();
         id = _id;
     }
@@ -29,7 +35,7 @@ public final class ParameterRef extends xsbti.api.Type {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (17 + "ParameterRef".hashCode()) + id().hashCode());
+        return 37 * (37 * (17 + "xsbti.api.ParameterRef".hashCode()) + id().hashCode());
     }
     public String toString() {
         return "ParameterRef("  + "id: " + id() + ")";

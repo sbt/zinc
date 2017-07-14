@@ -6,9 +6,15 @@
 package xsbti.api;
 public final class IdQualifier extends xsbti.api.Qualifier {
     
+    public static IdQualifier create(String _value) {
+        return new IdQualifier(_value);
+    }
+    public static IdQualifier of(String _value) {
+        return new IdQualifier(_value);
+    }
     
     private String value;
-    public IdQualifier(String _value) {
+    protected IdQualifier(String _value) {
         super();
         value = _value;
     }
@@ -29,7 +35,7 @@ public final class IdQualifier extends xsbti.api.Qualifier {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (17 + "IdQualifier".hashCode()) + value().hashCode());
+        return 37 * (37 * (17 + "xsbti.api.IdQualifier".hashCode()) + value().hashCode());
     }
     public String toString() {
         return "IdQualifier("  + "value: " + value() + ")";

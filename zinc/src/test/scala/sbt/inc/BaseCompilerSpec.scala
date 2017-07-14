@@ -150,8 +150,8 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
                            newInputs: Inputs => Inputs = identity): CompileResult = {
       val previousResult = store.get() match {
         case Some((prevAnalysis, prevSetup)) =>
-          new PreviousResult(Optional.of[CompileAnalysis](prevAnalysis),
-                             Optional.of[MiniSetup](prevSetup))
+          PreviousResult.of(Optional.of[CompileAnalysis](prevAnalysis),
+                            Optional.of[MiniSetup](prevSetup))
         case _ =>
           compiler.emptyPreviousResult
       }

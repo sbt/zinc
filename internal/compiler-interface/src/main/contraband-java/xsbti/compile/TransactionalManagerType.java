@@ -11,10 +11,16 @@ package xsbti.compile;
  */
 public final class TransactionalManagerType extends xsbti.compile.ClassFileManagerType {
     
+    public static TransactionalManagerType create(java.io.File _backupDirectory, xsbti.Logger _logger) {
+        return new TransactionalManagerType(_backupDirectory, _logger);
+    }
+    public static TransactionalManagerType of(java.io.File _backupDirectory, xsbti.Logger _logger) {
+        return new TransactionalManagerType(_backupDirectory, _logger);
+    }
     
     private java.io.File backupDirectory;
     private xsbti.Logger logger;
-    public TransactionalManagerType(java.io.File _backupDirectory, xsbti.Logger _logger) {
+    protected TransactionalManagerType(java.io.File _backupDirectory, xsbti.Logger _logger) {
         super();
         backupDirectory = _backupDirectory;
         logger = _logger;
@@ -42,7 +48,7 @@ public final class TransactionalManagerType extends xsbti.compile.ClassFileManag
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (17 + "TransactionalManagerType".hashCode()) + backupDirectory().hashCode()) + logger().hashCode());
+        return 37 * (37 * (37 * (17 + "xsbti.compile.TransactionalManagerType".hashCode()) + backupDirectory().hashCode()) + logger().hashCode());
     }
     public String toString() {
         return "TransactionalManagerType("  + "backupDirectory: " + backupDirectory() + ", " + "logger: " + logger() + ")";

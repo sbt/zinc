@@ -257,7 +257,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         incrementalOptions,
         extra
       )
-      if (skip) new CompileResult(prev, config.currentSetup, false)
+      if (skip) CompileResult.of(prev, config.currentSetup, false)
       else {
         val (analysis, changed) = compileInternal(
           MixedAnalyzingCompiler(config)(logger),
@@ -265,7 +265,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
           MiniSetupUtil.equivPairs,
           logger
         )
-        new CompileResult(analysis, config.currentSetup, changed)
+        CompileResult.of(analysis, config.currentSetup, changed)
       }
     }
   }
@@ -321,7 +321,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       extra: Array[T2[String, String]]
   ): Setup = {
     val progress = optionProgress.toOptional
-    new Setup(lookup, skip, cacheFile, cache, incOptions, reporter, progress, extra)
+    Setup.of(lookup, skip, cacheFile, cache, incOptions, reporter, progress, extra)
   }
 
   def inputs(
@@ -330,7 +330,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       setup: Setup,
       pr: PreviousResult
   ): Inputs = {
-    new Inputs(compilers, options, setup, pr)
+    Inputs.of(compilers, options, setup, pr)
   }
 
   def inputs(
@@ -347,7 +347,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       pr: PreviousResult
   ): Inputs = {
     val compileOptions = {
-      new CompileOptions(
+      CompileOptions.of(
         classpath,
         sources,
         classesDirectory,
@@ -362,14 +362,14 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
   }
 
   def previousResult(result: CompileResult): PreviousResult = {
-    new PreviousResult(
+    PreviousResult.of(
       Optional.of[CompileAnalysis](result.analysis),
       Optional.of[MiniSetup](result.setup)
     )
   }
 
   def emptyPreviousResult: PreviousResult = {
-    new PreviousResult(
+    PreviousResult.of(
       Optional.empty[CompileAnalysis],
       Optional.empty[MiniSetup]
     )

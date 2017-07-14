@@ -6,10 +6,16 @@
 package xsbti.compile;
 public final class FileHash implements java.io.Serializable {
     
+    public static FileHash create(java.io.File _file, int _hash) {
+        return new FileHash(_file, _hash);
+    }
+    public static FileHash of(java.io.File _file, int _hash) {
+        return new FileHash(_file, _hash);
+    }
     
     private java.io.File file;
     private int hash;
-    public FileHash(java.io.File _file, int _hash) {
+    protected FileHash(java.io.File _file, int _hash) {
         super();
         file = _file;
         hash = _hash;
@@ -37,7 +43,7 @@ public final class FileHash implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (17 + "FileHash".hashCode()) + file().hashCode()) + (new Integer(hash())).hashCode());
+        return 37 * (37 * (37 * (17 + "xsbti.compile.FileHash".hashCode()) + file().hashCode()) + (new Integer(hash())).hashCode());
     }
     public String toString() {
         return "FileHash("  + "file: " + file() + ", " + "hash: " + hash() + ")";

@@ -6,10 +6,16 @@
 package xsbti.api;
 public final class Annotated extends xsbti.api.Type {
     
+    public static Annotated create(Type _baseType, Annotation[] _annotations) {
+        return new Annotated(_baseType, _annotations);
+    }
+    public static Annotated of(Type _baseType, Annotation[] _annotations) {
+        return new Annotated(_baseType, _annotations);
+    }
     
     private Type baseType;
     private Annotation[] annotations;
-    public Annotated(Type _baseType, Annotation[] _annotations) {
+    protected Annotated(Type _baseType, Annotation[] _annotations) {
         super();
         baseType = _baseType;
         annotations = _annotations;
@@ -37,7 +43,7 @@ public final class Annotated extends xsbti.api.Type {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (17 + "Annotated".hashCode()) + baseType().hashCode()) + annotations().hashCode());
+        return 37 * (37 * (37 * (17 + "xsbti.api.Annotated".hashCode()) + baseType().hashCode()) + annotations().hashCode());
     }
     public String toString() {
         return "Annotated("  + "baseType: " + baseType() + ", " + "annotations: " + annotations() + ")";

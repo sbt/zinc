@@ -6,11 +6,17 @@
 package xsbti.api;
 public final class NameHash implements java.io.Serializable {
     
+    public static NameHash create(String _name, xsbti.UseScope _scope, int _hash) {
+        return new NameHash(_name, _scope, _hash);
+    }
+    public static NameHash of(String _name, xsbti.UseScope _scope, int _hash) {
+        return new NameHash(_name, _scope, _hash);
+    }
     
     private String name;
     private xsbti.UseScope scope;
     private int hash;
-    public NameHash(String _name, xsbti.UseScope _scope, int _hash) {
+    protected NameHash(String _name, xsbti.UseScope _scope, int _hash) {
         super();
         name = _name;
         scope = _scope;
@@ -45,7 +51,7 @@ public final class NameHash implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (17 + "NameHash".hashCode()) + name().hashCode()) + scope().hashCode()) + (new Integer(hash())).hashCode());
+        return 37 * (37 * (37 * (37 * (17 + "xsbti.api.NameHash".hashCode()) + name().hashCode()) + scope().hashCode()) + (new Integer(hash())).hashCode());
     }
     public String toString() {
         return "NameHash("  + "name: " + name() + ", " + "scope: " + scope() + ", " + "hash: " + hash() + ")";

@@ -6,10 +6,16 @@
 package xsbti.api;
 public final class Existential extends xsbti.api.Type {
     
+    public static Existential create(Type _baseType, TypeParameter[] _clause) {
+        return new Existential(_baseType, _clause);
+    }
+    public static Existential of(Type _baseType, TypeParameter[] _clause) {
+        return new Existential(_baseType, _clause);
+    }
     
     private Type baseType;
     private TypeParameter[] clause;
-    public Existential(Type _baseType, TypeParameter[] _clause) {
+    protected Existential(Type _baseType, TypeParameter[] _clause) {
         super();
         baseType = _baseType;
         clause = _clause;
@@ -37,7 +43,7 @@ public final class Existential extends xsbti.api.Type {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (17 + "Existential".hashCode()) + baseType().hashCode()) + clause().hashCode());
+        return 37 * (37 * (37 * (17 + "xsbti.api.Existential".hashCode()) + baseType().hashCode()) + clause().hashCode());
     }
     public String toString() {
         return "Existential("  + "baseType: " + baseType() + ", " + "clause: " + clause() + ")";

@@ -7,6 +7,12 @@ package xsbti.compile;
 /** Compilation options. This is used as part of CompileSetup. */
 public final class MiniOptions implements java.io.Serializable {
     
+    public static MiniOptions create(FileHash[] _classpathHash, String[] _scalacOptions, String[] _javacOptions) {
+        return new MiniOptions(_classpathHash, _scalacOptions, _javacOptions);
+    }
+    public static MiniOptions of(FileHash[] _classpathHash, String[] _scalacOptions, String[] _javacOptions) {
+        return new MiniOptions(_classpathHash, _scalacOptions, _javacOptions);
+    }
     /**
      * The classpath to use for compilation.
      * This will be modified according to the ClasspathOptions used to configure the ScalaCompiler.
@@ -16,7 +22,7 @@ public final class MiniOptions implements java.io.Serializable {
     private String[] scalacOptions;
     /** The options to pass to the Java compiler other than the sources and classpath to use. */
     private String[] javacOptions;
-    public MiniOptions(FileHash[] _classpathHash, String[] _scalacOptions, String[] _javacOptions) {
+    protected MiniOptions(FileHash[] _classpathHash, String[] _scalacOptions, String[] _javacOptions) {
         super();
         classpathHash = _classpathHash;
         scalacOptions = _scalacOptions;
@@ -51,7 +57,7 @@ public final class MiniOptions implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (17 + "MiniOptions".hashCode()) + classpathHash().hashCode()) + scalacOptions().hashCode()) + javacOptions().hashCode());
+        return 37 * (37 * (37 * (37 * (17 + "xsbti.compile.MiniOptions".hashCode()) + classpathHash().hashCode()) + scalacOptions().hashCode()) + javacOptions().hashCode());
     }
     public String toString() {
         return "MiniOptions("  + "classpathHash: " + classpathHash() + ", " + "scalacOptions: " + scalacOptions() + ", " + "javacOptions: " + javacOptions() + ")";

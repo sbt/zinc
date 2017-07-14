@@ -7,7 +7,7 @@ package xsbti.compile;
 public abstract class ClassFileManagerType implements java.io.Serializable {
     
     
-    public ClassFileManagerType() {
+    protected ClassFileManagerType() {
         super();
         
     }
@@ -24,7 +24,7 @@ public abstract class ClassFileManagerType implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (17 + "ClassFileManagerType".hashCode());
+        return 37 * (17 + "xsbti.compile.ClassFileManagerType".hashCode());
     }
     public String toString() {
         return "ClassFileManagerType("  + ")";

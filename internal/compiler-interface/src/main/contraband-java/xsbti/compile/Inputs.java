@@ -7,6 +7,12 @@ package xsbti.compile;
 /** Configures a single compilation of a single set of sources. */
 public final class Inputs implements java.io.Serializable {
     
+    public static Inputs create(xsbti.compile.Compilers _compilers, xsbti.compile.CompileOptions _options, xsbti.compile.Setup _setup, xsbti.compile.PreviousResult _previousResult) {
+        return new Inputs(_compilers, _options, _setup, _previousResult);
+    }
+    public static Inputs of(xsbti.compile.Compilers _compilers, xsbti.compile.CompileOptions _options, xsbti.compile.Setup _setup, xsbti.compile.PreviousResult _previousResult) {
+        return new Inputs(_compilers, _options, _setup, _previousResult);
+    }
     /** Return the Scala and Java compilers to use for compilation. */
     private xsbti.compile.Compilers compilers;
     /** Return the compilation options, such as the sources and classpath to use. */
@@ -15,7 +21,7 @@ public final class Inputs implements java.io.Serializable {
     private xsbti.compile.Setup setup;
     /** Represent tha latest result of incremental compilation. */
     private xsbti.compile.PreviousResult previousResult;
-    public Inputs(xsbti.compile.Compilers _compilers, xsbti.compile.CompileOptions _options, xsbti.compile.Setup _setup, xsbti.compile.PreviousResult _previousResult) {
+    protected Inputs(xsbti.compile.Compilers _compilers, xsbti.compile.CompileOptions _options, xsbti.compile.Setup _setup, xsbti.compile.PreviousResult _previousResult) {
         super();
         compilers = _compilers;
         options = _options;
@@ -57,7 +63,7 @@ public final class Inputs implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (17 + "Inputs".hashCode()) + compilers().hashCode()) + options().hashCode()) + setup().hashCode()) + previousResult().hashCode());
+        return 37 * (37 * (37 * (37 * (37 * (17 + "xsbti.compile.Inputs".hashCode()) + compilers().hashCode()) + options().hashCode()) + setup().hashCode()) + previousResult().hashCode());
     }
     public String toString() {
         return "Inputs("  + "compilers: " + compilers() + ", " + "options: " + options() + ", " + "setup: " + setup() + ", " + "previousResult: " + previousResult() + ")";

@@ -193,7 +193,7 @@ private final class AnalysisCallback(
     if (onClassName != sourceClassName)
       add(intSrcDeps,
           sourceClassName,
-          new InternalDependency(sourceClassName, onClassName, context))
+          InternalDependency.of(sourceClassName, onClassName, context))
   }
 
   private[this] def externalBinaryDependency(binary: File,
@@ -209,7 +209,7 @@ private final class AnalysisCallback(
                                              targetClass: AnalyzedClass,
                                              context: DependencyContext): Unit = {
     val dependency =
-      new ExternalDependency(sourceClassName, targetBinaryClassName, targetClass, context)
+      ExternalDependency.of(sourceClassName, targetBinaryClassName, targetClass, context)
     add(extSrcDeps, sourceClassName, dependency)
   }
 
@@ -315,7 +315,7 @@ private final class AnalysisCallback(
     lazy val emptyObject = emptyHash -> APIUtil.emptyClassLike(className, DefinitionType.Module)
     val (classApiHash, classApi) = classApis.getOrElse(className, emptyClass)
     val (objectApiHash, objectApi) = objectApis.getOrElse(className, emptyObject)
-    val companions = new Companions(classApi, objectApi)
+    val companions = Companions.of(classApi, objectApi)
     val apiHash = (classApiHash, objectApiHash).hashCode
     (companions, apiHash)
   }
@@ -337,12 +337,12 @@ private final class AnalysisCallback(
     val (companions, apiHash) = companionsWithHash(name)
     val nameHashes = nameHashesForCompanions(name)
     val safeCompanions = SafeLazyProxy(companions)
-    val ac = new AnalyzedClass(compilation.getStartTime(),
-                               name,
-                               safeCompanions,
-                               apiHash,
-                               nameHashes,
-                               hasMacro)
+    val ac = AnalyzedClass.of(compilation.getStartTime(),
+                              name,
+                              safeCompanions,
+                              apiHash,
+                              nameHashes,
+                              hasMacro)
     ac
   }
 

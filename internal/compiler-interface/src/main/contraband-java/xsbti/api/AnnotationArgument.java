@@ -6,10 +6,16 @@
 package xsbti.api;
 public final class AnnotationArgument implements java.io.Serializable {
     
+    public static AnnotationArgument create(String _name, String _value) {
+        return new AnnotationArgument(_name, _value);
+    }
+    public static AnnotationArgument of(String _name, String _value) {
+        return new AnnotationArgument(_name, _value);
+    }
     
     private String name;
     private String value;
-    public AnnotationArgument(String _name, String _value) {
+    protected AnnotationArgument(String _name, String _value) {
         super();
         name = _name;
         value = _value;
@@ -37,7 +43,7 @@ public final class AnnotationArgument implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (17 + "AnnotationArgument".hashCode()) + name().hashCode()) + value().hashCode());
+        return 37 * (37 * (37 * (17 + "xsbti.api.AnnotationArgument".hashCode()) + name().hashCode()) + value().hashCode());
     }
     public String toString() {
         return "AnnotationArgument("  + "name: " + name() + ", " + "value: " + value() + ")";

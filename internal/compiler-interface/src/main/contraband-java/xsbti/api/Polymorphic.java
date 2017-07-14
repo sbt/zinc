@@ -6,10 +6,16 @@
 package xsbti.api;
 public final class Polymorphic extends xsbti.api.Type {
     
+    public static Polymorphic create(Type _baseType, TypeParameter[] _parameters) {
+        return new Polymorphic(_baseType, _parameters);
+    }
+    public static Polymorphic of(Type _baseType, TypeParameter[] _parameters) {
+        return new Polymorphic(_baseType, _parameters);
+    }
     
     private Type baseType;
     private TypeParameter[] parameters;
-    public Polymorphic(Type _baseType, TypeParameter[] _parameters) {
+    protected Polymorphic(Type _baseType, TypeParameter[] _parameters) {
         super();
         baseType = _baseType;
         parameters = _parameters;
@@ -37,7 +43,7 @@ public final class Polymorphic extends xsbti.api.Type {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (17 + "Polymorphic".hashCode()) + baseType().hashCode()) + parameters().hashCode());
+        return 37 * (37 * (37 * (17 + "xsbti.api.Polymorphic".hashCode()) + baseType().hashCode()) + parameters().hashCode());
     }
     public String toString() {
         return "Polymorphic("  + "baseType: " + baseType() + ", " + "parameters: " + parameters() + ")";

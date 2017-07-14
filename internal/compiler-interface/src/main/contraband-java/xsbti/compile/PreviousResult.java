@@ -7,10 +7,16 @@ package xsbti.compile;
 /** The previous source dependency analysis result from compilation. */
 public final class PreviousResult implements java.io.Serializable {
     
+    public static PreviousResult create(java.util.Optional<xsbti.compile.CompileAnalysis> _analysis, java.util.Optional<xsbti.compile.MiniSetup> _setup) {
+        return new PreviousResult(_analysis, _setup);
+    }
+    public static PreviousResult of(java.util.Optional<xsbti.compile.CompileAnalysis> _analysis, java.util.Optional<xsbti.compile.MiniSetup> _setup) {
+        return new PreviousResult(_analysis, _setup);
+    }
     
     private java.util.Optional<xsbti.compile.CompileAnalysis> analysis;
     private java.util.Optional<xsbti.compile.MiniSetup> setup;
-    public PreviousResult(java.util.Optional<xsbti.compile.CompileAnalysis> _analysis, java.util.Optional<xsbti.compile.MiniSetup> _setup) {
+    protected PreviousResult(java.util.Optional<xsbti.compile.CompileAnalysis> _analysis, java.util.Optional<xsbti.compile.MiniSetup> _setup) {
         super();
         analysis = _analysis;
         setup = _setup;
@@ -38,7 +44,7 @@ public final class PreviousResult implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (17 + "PreviousResult".hashCode()) + analysis().hashCode()) + setup().hashCode());
+        return 37 * (37 * (37 * (17 + "xsbti.compile.PreviousResult".hashCode()) + analysis().hashCode()) + setup().hashCode());
     }
     public String toString() {
         return "PreviousResult("  + "analysis: " + analysis() + ", " + "setup: " + setup() + ")";

@@ -6,6 +6,12 @@
 package xsbti.api;
 public final class ClassLike extends xsbti.api.Definition {
     
+    public static ClassLike create(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, DefinitionType _definitionType, xsbti.api.Lazy<Type> _selfType, xsbti.api.Lazy<Structure> _structure, String[] _savedAnnotations, Type[] _childrenOfSealedClass, boolean _topLevel, TypeParameter[] _typeParameters) {
+        return new ClassLike(_name, _access, _modifiers, _annotations, _definitionType, _selfType, _structure, _savedAnnotations, _childrenOfSealedClass, _topLevel, _typeParameters);
+    }
+    public static ClassLike of(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, DefinitionType _definitionType, xsbti.api.Lazy<Type> _selfType, xsbti.api.Lazy<Structure> _structure, String[] _savedAnnotations, Type[] _childrenOfSealedClass, boolean _topLevel, TypeParameter[] _typeParameters) {
+        return new ClassLike(_name, _access, _modifiers, _annotations, _definitionType, _selfType, _structure, _savedAnnotations, _childrenOfSealedClass, _topLevel, _typeParameters);
+    }
     
     private DefinitionType definitionType;
     private xsbti.api.Lazy<Type> selfType;
@@ -14,7 +20,7 @@ public final class ClassLike extends xsbti.api.Definition {
     private Type[] childrenOfSealedClass;
     private boolean topLevel;
     private TypeParameter[] typeParameters;
-    public ClassLike(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, DefinitionType _definitionType, xsbti.api.Lazy<Type> _selfType, xsbti.api.Lazy<Structure> _structure, String[] _savedAnnotations, Type[] _childrenOfSealedClass, boolean _topLevel, TypeParameter[] _typeParameters) {
+    protected ClassLike(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, DefinitionType _definitionType, xsbti.api.Lazy<Type> _selfType, xsbti.api.Lazy<Structure> _structure, String[] _savedAnnotations, Type[] _childrenOfSealedClass, boolean _topLevel, TypeParameter[] _typeParameters) {
         super(_name, _access, _modifiers, _annotations);
         definitionType = _definitionType;
         selfType = _selfType;

@@ -6,10 +6,16 @@
 package xsbti.api;
 public final class Def extends xsbti.api.ParameterizedDefinition {
     
+    public static Def create(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters, ParameterList[] _valueParameters, Type _returnType) {
+        return new Def(_name, _access, _modifiers, _annotations, _typeParameters, _valueParameters, _returnType);
+    }
+    public static Def of(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters, ParameterList[] _valueParameters, Type _returnType) {
+        return new Def(_name, _access, _modifiers, _annotations, _typeParameters, _valueParameters, _returnType);
+    }
     
     private ParameterList[] valueParameters;
     private Type returnType;
-    public Def(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters, ParameterList[] _valueParameters, Type _returnType) {
+    protected Def(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters, ParameterList[] _valueParameters, Type _returnType) {
         super(_name, _access, _modifiers, _annotations, _typeParameters);
         valueParameters = _valueParameters;
         returnType = _returnType;
@@ -52,7 +58,7 @@ public final class Def extends xsbti.api.ParameterizedDefinition {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "Def".hashCode()) + name().hashCode()) + access().hashCode()) + modifiers().hashCode()) + annotations().hashCode()) + typeParameters().hashCode()) + valueParameters().hashCode()) + returnType().hashCode());
+        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.api.Def".hashCode()) + name().hashCode()) + access().hashCode()) + modifiers().hashCode()) + annotations().hashCode()) + typeParameters().hashCode()) + valueParameters().hashCode()) + returnType().hashCode());
     }
     public String toString() {
         return "Def("  + "name: " + name() + ", " + "access: " + access() + ", " + "modifiers: " + modifiers() + ", " + "annotations: " + annotations() + ", " + "typeParameters: " + typeParameters() + ", " + "valueParameters: " + valueParameters() + ", " + "returnType: " + returnType() + ")";

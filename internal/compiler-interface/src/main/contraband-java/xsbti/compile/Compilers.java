@@ -7,6 +7,12 @@ package xsbti.compile;
 /** The instances of Scalac/Javac used to compile the current project. */
 public final class Compilers implements java.io.Serializable {
     
+    public static Compilers create(xsbti.compile.ScalaCompiler _scalac, xsbti.compile.JavaTools _javaTools) {
+        return new Compilers(_scalac, _javaTools);
+    }
+    public static Compilers of(xsbti.compile.ScalaCompiler _scalac, xsbti.compile.JavaTools _javaTools) {
+        return new Compilers(_scalac, _javaTools);
+    }
     /**
      * A `ScalaCompiler`.
      * It should be cached by the client if desired.
@@ -14,7 +20,7 @@ public final class Compilers implements java.io.Serializable {
     private xsbti.compile.ScalaCompiler scalac;
     /** Tool chain of Java. */
     private xsbti.compile.JavaTools javaTools;
-    public Compilers(xsbti.compile.ScalaCompiler _scalac, xsbti.compile.JavaTools _javaTools) {
+    protected Compilers(xsbti.compile.ScalaCompiler _scalac, xsbti.compile.JavaTools _javaTools) {
         super();
         scalac = _scalac;
         javaTools = _javaTools;
@@ -42,7 +48,7 @@ public final class Compilers implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (17 + "Compilers".hashCode()) + scalac().hashCode()) + javaTools().hashCode());
+        return 37 * (37 * (37 * (17 + "xsbti.compile.Compilers".hashCode()) + scalac().hashCode()) + javaTools().hashCode());
     }
     public String toString() {
         return "Compilers("  + "scalac: " + scalac() + ", " + "javaTools: " + javaTools() + ")";

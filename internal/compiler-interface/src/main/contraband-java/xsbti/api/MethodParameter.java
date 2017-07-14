@@ -6,12 +6,18 @@
 package xsbti.api;
 public final class MethodParameter implements java.io.Serializable {
     
+    public static MethodParameter create(String _name, Type _tpe, boolean _hasDefault, ParameterModifier _modifier) {
+        return new MethodParameter(_name, _tpe, _hasDefault, _modifier);
+    }
+    public static MethodParameter of(String _name, Type _tpe, boolean _hasDefault, ParameterModifier _modifier) {
+        return new MethodParameter(_name, _tpe, _hasDefault, _modifier);
+    }
     
     private String name;
     private Type tpe;
     private boolean hasDefault;
     private ParameterModifier modifier;
-    public MethodParameter(String _name, Type _tpe, boolean _hasDefault, ParameterModifier _modifier) {
+    protected MethodParameter(String _name, Type _tpe, boolean _hasDefault, ParameterModifier _modifier) {
         super();
         name = _name;
         tpe = _tpe;
@@ -53,7 +59,7 @@ public final class MethodParameter implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (17 + "MethodParameter".hashCode()) + name().hashCode()) + tpe().hashCode()) + (new Boolean(hasDefault())).hashCode()) + modifier().hashCode());
+        return 37 * (37 * (37 * (37 * (37 * (17 + "xsbti.api.MethodParameter".hashCode()) + name().hashCode()) + tpe().hashCode()) + (new Boolean(hasDefault())).hashCode()) + modifier().hashCode());
     }
     public String toString() {
         return "MethodParameter("  + "name: " + name() + ", " + "tpe: " + tpe() + ", " + "hasDefault: " + hasDefault() + ", " + "modifier: " + modifier() + ")";

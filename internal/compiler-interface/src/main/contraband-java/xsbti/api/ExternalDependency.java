@@ -6,12 +6,18 @@
 package xsbti.api;
 public final class ExternalDependency implements java.io.Serializable {
     
+    public static ExternalDependency create(String _sourceClassName, String _targetProductClassName, xsbti.api.AnalyzedClass _targetClass, xsbti.api.DependencyContext _context) {
+        return new ExternalDependency(_sourceClassName, _targetProductClassName, _targetClass, _context);
+    }
+    public static ExternalDependency of(String _sourceClassName, String _targetProductClassName, xsbti.api.AnalyzedClass _targetClass, xsbti.api.DependencyContext _context) {
+        return new ExternalDependency(_sourceClassName, _targetProductClassName, _targetClass, _context);
+    }
     
     private String sourceClassName;
     private String targetProductClassName;
     private xsbti.api.AnalyzedClass targetClass;
     private xsbti.api.DependencyContext context;
-    public ExternalDependency(String _sourceClassName, String _targetProductClassName, xsbti.api.AnalyzedClass _targetClass, xsbti.api.DependencyContext _context) {
+    protected ExternalDependency(String _sourceClassName, String _targetProductClassName, xsbti.api.AnalyzedClass _targetClass, xsbti.api.DependencyContext _context) {
         super();
         sourceClassName = _sourceClassName;
         targetProductClassName = _targetProductClassName;
@@ -53,7 +59,7 @@ public final class ExternalDependency implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (17 + "ExternalDependency".hashCode()) + sourceClassName().hashCode()) + targetProductClassName().hashCode()) + targetClass().hashCode()) + context().hashCode());
+        return 37 * (37 * (37 * (37 * (37 * (17 + "xsbti.api.ExternalDependency".hashCode()) + sourceClassName().hashCode()) + targetProductClassName().hashCode()) + targetClass().hashCode()) + context().hashCode());
     }
     public String toString() {
         return "ExternalDependency("  + "sourceClassName: " + sourceClassName() + ", " + "targetProductClassName: " + targetProductClassName() + ", " + "targetClass: " + targetClass() + ", " + "context: " + context() + ")";

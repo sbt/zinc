@@ -6,10 +6,16 @@
 package xsbti.api;
 public final class Parameterized extends xsbti.api.Type {
     
+    public static Parameterized create(Type _baseType, Type[] _typeArguments) {
+        return new Parameterized(_baseType, _typeArguments);
+    }
+    public static Parameterized of(Type _baseType, Type[] _typeArguments) {
+        return new Parameterized(_baseType, _typeArguments);
+    }
     
     private Type baseType;
     private Type[] typeArguments;
-    public Parameterized(Type _baseType, Type[] _typeArguments) {
+    protected Parameterized(Type _baseType, Type[] _typeArguments) {
         super();
         baseType = _baseType;
         typeArguments = _typeArguments;
@@ -37,7 +43,7 @@ public final class Parameterized extends xsbti.api.Type {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (17 + "Parameterized".hashCode()) + baseType().hashCode()) + typeArguments().hashCode());
+        return 37 * (37 * (37 * (17 + "xsbti.api.Parameterized".hashCode()) + baseType().hashCode()) + typeArguments().hashCode());
     }
     public String toString() {
         return "Parameterized("  + "baseType: " + baseType() + ", " + "typeArguments: " + typeArguments() + ")";

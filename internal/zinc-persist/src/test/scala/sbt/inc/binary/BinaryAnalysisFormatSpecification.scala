@@ -34,7 +34,7 @@ object BinaryAnalysisFormatSpecification
       NonLocalProduct("A$", "A$", f("A$.class"), stamp) :: Nil
     val binDeps = (f("x.jar"), "x", stamp) :: Nil
     val memberDep = DependencyContext.DependencyByMemberRef
-    val extDeps = new ExternalDependency("A", "C", cClass, memberDep) :: Nil
+    val extDeps = ExternalDependency.of("A", "C", cClass, memberDep) :: Nil
     Analysis.empty.addSource(aScala, apis, stamp, infos, products, Nil, Nil, extDeps, binDeps)
   }
 
@@ -57,11 +57,11 @@ trait BinaryAnalysisFormatSpecification { self: Properties =>
   private final val ScalaVersion = "2.10.4"
   val commonSetup: MiniSetup = {
     val output = dummyOutput
-    val options = new MiniOptions(Array(), Array(), Array())
+    val options = MiniOptions.of(Array(), Array(), Array())
     val order = xsbti.compile.CompileOrder.Mixed
     val shouldStoreApis = storeApis
     val extra = Array(t2("key" -> "value"))
-    new MiniSetup(output, options, ScalaVersion, order, shouldStoreApis, extra)
+    MiniSetup.of(output, options, ScalaVersion, order, shouldStoreApis, extra)
   }
 
   private final val ReadFeedback = "The analysis file cannot be read."

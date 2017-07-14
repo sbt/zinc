@@ -8,7 +8,7 @@ public abstract class ParameterizedDefinition extends xsbti.api.ClassDefinition 
     
     
     private TypeParameter[] typeParameters;
-    public ParameterizedDefinition(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters) {
+    protected ParameterizedDefinition(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters) {
         super(_name, _access, _modifiers, _annotations);
         typeParameters = _typeParameters;
     }
@@ -27,7 +27,7 @@ public abstract class ParameterizedDefinition extends xsbti.api.ClassDefinition 
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (37 * (17 + "ParameterizedDefinition".hashCode()) + name().hashCode()) + access().hashCode()) + modifiers().hashCode()) + annotations().hashCode()) + typeParameters().hashCode());
+        return 37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.api.ParameterizedDefinition".hashCode()) + name().hashCode()) + access().hashCode()) + modifiers().hashCode()) + annotations().hashCode()) + typeParameters().hashCode());
     }
     public String toString() {
         return "ParameterizedDefinition("  + "name: " + name() + ", " + "access: " + access() + ", " + "modifiers: " + modifiers() + ", " + "annotations: " + annotations() + ", " + "typeParameters: " + typeParameters() + ")";

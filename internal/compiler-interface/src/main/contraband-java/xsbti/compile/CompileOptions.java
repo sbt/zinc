@@ -7,6 +7,18 @@ package xsbti.compile;
 /** Compilation options */
 public final class CompileOptions implements java.io.Serializable {
     
+    public static CompileOptions create() {
+        return new CompileOptions();
+    }
+    public static CompileOptions of() {
+        return new CompileOptions();
+    }
+    public static CompileOptions create(java.io.File[] _classpath, java.io.File[] _sources, java.io.File _classesDirectory, String[] _scalacOptions, String[] _javacOptions, int _maxErrors, xsbti.F1<xsbti.Position, xsbti.Position> _sourcePositionMapper, xsbti.compile.CompileOrder _order) {
+        return new CompileOptions(_classpath, _sources, _classesDirectory, _scalacOptions, _javacOptions, _maxErrors, _sourcePositionMapper, _order);
+    }
+    public static CompileOptions of(java.io.File[] _classpath, java.io.File[] _sources, java.io.File _classesDirectory, String[] _scalacOptions, String[] _javacOptions, int _maxErrors, xsbti.F1<xsbti.Position, xsbti.Position> _sourcePositionMapper, xsbti.compile.CompileOrder _order) {
+        return new CompileOptions(_classpath, _sources, _classesDirectory, _scalacOptions, _javacOptions, _maxErrors, _sourcePositionMapper, _order);
+    }
     /**
      * The classpath to use for compilation.
      * This will be modified according to the ClasspathOptions used to configure the ScalaCompiler.
@@ -26,7 +38,7 @@ public final class CompileOptions implements java.io.Serializable {
     private xsbti.F1<xsbti.Position, xsbti.Position> sourcePositionMapper;
     /** Controls the order in which Java and Scala sources are compiled. */
     private xsbti.compile.CompileOrder order;
-    public CompileOptions() {
+    protected CompileOptions() {
         super();
         classpath = new java.io.File[0];
         sources = new java.io.File[0];
@@ -37,7 +49,7 @@ public final class CompileOptions implements java.io.Serializable {
         sourcePositionMapper = new xsbti.F1<xsbti.Position, xsbti.Position>() { public xsbti.Position apply(xsbti.Position a) { return a; } };
         order = xsbti.compile.CompileOrder.Mixed;
     }
-    public CompileOptions(java.io.File[] _classpath, java.io.File[] _sources, java.io.File _classesDirectory, String[] _scalacOptions, String[] _javacOptions, int _maxErrors, xsbti.F1<xsbti.Position, xsbti.Position> _sourcePositionMapper, xsbti.compile.CompileOrder _order) {
+    protected CompileOptions(java.io.File[] _classpath, java.io.File[] _sources, java.io.File _classesDirectory, String[] _scalacOptions, String[] _javacOptions, int _maxErrors, xsbti.F1<xsbti.Position, xsbti.Position> _sourcePositionMapper, xsbti.compile.CompileOrder _order) {
         super();
         classpath = _classpath;
         sources = _sources;
@@ -107,7 +119,7 @@ public final class CompileOptions implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "CompileOptions".hashCode()) + classpath().hashCode()) + sources().hashCode()) + classesDirectory().hashCode()) + scalacOptions().hashCode()) + javacOptions().hashCode()) + (new Integer(maxErrors())).hashCode()) + sourcePositionMapper().hashCode()) + order().hashCode());
+        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.compile.CompileOptions".hashCode()) + classpath().hashCode()) + sources().hashCode()) + classesDirectory().hashCode()) + scalacOptions().hashCode()) + javacOptions().hashCode()) + (new Integer(maxErrors())).hashCode()) + sourcePositionMapper().hashCode()) + order().hashCode());
     }
     public String toString() {
         return "CompileOptions("  + "classpath: " + classpath() + ", " + "sources: " + sources() + ", " + "classesDirectory: " + classesDirectory() + ", " + "scalacOptions: " + scalacOptions() + ", " + "javacOptions: " + javacOptions() + ", " + "maxErrors: " + maxErrors() + ", " + "sourcePositionMapper: " + sourcePositionMapper() + ", " + "order: " + order() + ")";

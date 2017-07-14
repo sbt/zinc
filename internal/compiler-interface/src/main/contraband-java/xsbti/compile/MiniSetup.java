@@ -7,6 +7,12 @@ package xsbti.compile;
 /** This is used as part of CompileResult. */
 public final class MiniSetup implements java.io.Serializable {
     
+    public static MiniSetup create(xsbti.compile.Output _output, xsbti.compile.MiniOptions _options, String _compilerVersion, xsbti.compile.CompileOrder _order, boolean _storeApis, xsbti.T2<String, String>[] _extra) {
+        return new MiniSetup(_output, _options, _compilerVersion, _order, _storeApis, _extra);
+    }
+    public static MiniSetup of(xsbti.compile.Output _output, xsbti.compile.MiniOptions _options, String _compilerVersion, xsbti.compile.CompileOrder _order, boolean _storeApis, xsbti.T2<String, String>[] _extra) {
+        return new MiniSetup(_output, _options, _compilerVersion, _order, _storeApis, _extra);
+    }
     
     private xsbti.compile.Output output;
     private xsbti.compile.MiniOptions options;
@@ -14,7 +20,7 @@ public final class MiniSetup implements java.io.Serializable {
     private xsbti.compile.CompileOrder order;
     private boolean storeApis;
     private xsbti.T2<String, String>[] extra;
-    public MiniSetup(xsbti.compile.Output _output, xsbti.compile.MiniOptions _options, String _compilerVersion, xsbti.compile.CompileOrder _order, boolean _storeApis, xsbti.T2<String, String>[] _extra) {
+    protected MiniSetup(xsbti.compile.Output _output, xsbti.compile.MiniOptions _options, String _compilerVersion, xsbti.compile.CompileOrder _order, boolean _storeApis, xsbti.T2<String, String>[] _extra) {
         super();
         output = _output;
         options = _options;
@@ -70,7 +76,7 @@ public final class MiniSetup implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "MiniSetup".hashCode()) + output().hashCode()) + options().hashCode()) + compilerVersion().hashCode()) + order().hashCode()) + (new Boolean(storeApis())).hashCode()) + extra().hashCode());
+        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.compile.MiniSetup".hashCode()) + output().hashCode()) + options().hashCode()) + compilerVersion().hashCode()) + order().hashCode()) + (new Boolean(storeApis())).hashCode()) + extra().hashCode());
     }
     public String toString() {
         return "MiniSetup("  + "output: " + output() + ", " + "options: " + options() + ", " + "compilerVersion: " + compilerVersion() + ", " + "order: " + order() + ", " + "storeApis: " + storeApis() + ", " + "extra: " + extra() + ")";

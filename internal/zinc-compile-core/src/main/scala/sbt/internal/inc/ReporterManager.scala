@@ -57,7 +57,7 @@ object ReporterManager {
 
   /** Returns sane defaults with a long tradition in sbt. */
   def getDefaultReporterConfig: ReporterConfig =
-    new ReporterConfig(DefaultName, 100, UseColor, Array(), Array(), Level.INFO, NoPositionMapper)
+    ReporterConfig.of(DefaultName, 100, UseColor, Array(), Array(), Level.INFO, NoPositionMapper)
 
   def getReporter(logger: xsbti.Logger, config: ReporterConfig): Reporter = {
     val maxErrors = config.maximumErrors()

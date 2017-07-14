@@ -6,9 +6,15 @@
 package xsbti.api;
 public final class Singleton extends xsbti.api.Type {
     
+    public static Singleton create(Path _path) {
+        return new Singleton(_path);
+    }
+    public static Singleton of(Path _path) {
+        return new Singleton(_path);
+    }
     
     private Path path;
-    public Singleton(Path _path) {
+    protected Singleton(Path _path) {
         super();
         path = _path;
     }
@@ -29,7 +35,7 @@ public final class Singleton extends xsbti.api.Type {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (17 + "Singleton".hashCode()) + path().hashCode());
+        return 37 * (37 * (17 + "xsbti.api.Singleton".hashCode()) + path().hashCode());
     }
     public String toString() {
         return "Singleton("  + "path: " + path() + ")";

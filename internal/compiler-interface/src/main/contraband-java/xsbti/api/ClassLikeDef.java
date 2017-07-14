@@ -6,9 +6,15 @@
 package xsbti.api;
 public final class ClassLikeDef extends xsbti.api.ParameterizedDefinition {
     
+    public static ClassLikeDef create(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters, DefinitionType _definitionType) {
+        return new ClassLikeDef(_name, _access, _modifiers, _annotations, _typeParameters, _definitionType);
+    }
+    public static ClassLikeDef of(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters, DefinitionType _definitionType) {
+        return new ClassLikeDef(_name, _access, _modifiers, _annotations, _typeParameters, _definitionType);
+    }
     
     private DefinitionType definitionType;
-    public ClassLikeDef(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters, DefinitionType _definitionType) {
+    protected ClassLikeDef(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters, DefinitionType _definitionType) {
         super(_name, _access, _modifiers, _annotations, _typeParameters);
         definitionType = _definitionType;
     }
@@ -44,7 +50,7 @@ public final class ClassLikeDef extends xsbti.api.ParameterizedDefinition {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "ClassLikeDef".hashCode()) + name().hashCode()) + access().hashCode()) + modifiers().hashCode()) + annotations().hashCode()) + typeParameters().hashCode()) + definitionType().hashCode());
+        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.api.ClassLikeDef".hashCode()) + name().hashCode()) + access().hashCode()) + modifiers().hashCode()) + annotations().hashCode()) + typeParameters().hashCode()) + definitionType().hashCode());
     }
     public String toString() {
         return "ClassLikeDef("  + "name: " + name() + ", " + "access: " + access() + ", " + "modifiers: " + modifiers() + ", " + "annotations: " + annotations() + ", " + "typeParameters: " + typeParameters() + ", " + "definitionType: " + definitionType() + ")";

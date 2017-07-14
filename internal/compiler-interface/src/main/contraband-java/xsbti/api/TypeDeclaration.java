@@ -6,10 +6,16 @@
 package xsbti.api;
 public final class TypeDeclaration extends xsbti.api.TypeMember {
     
+    public static TypeDeclaration create(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters, Type _lowerBound, Type _upperBound) {
+        return new TypeDeclaration(_name, _access, _modifiers, _annotations, _typeParameters, _lowerBound, _upperBound);
+    }
+    public static TypeDeclaration of(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters, Type _lowerBound, Type _upperBound) {
+        return new TypeDeclaration(_name, _access, _modifiers, _annotations, _typeParameters, _lowerBound, _upperBound);
+    }
     
     private Type lowerBound;
     private Type upperBound;
-    public TypeDeclaration(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters, Type _lowerBound, Type _upperBound) {
+    protected TypeDeclaration(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters, Type _lowerBound, Type _upperBound) {
         super(_name, _access, _modifiers, _annotations, _typeParameters);
         lowerBound = _lowerBound;
         upperBound = _upperBound;
@@ -52,7 +58,7 @@ public final class TypeDeclaration extends xsbti.api.TypeMember {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "TypeDeclaration".hashCode()) + name().hashCode()) + access().hashCode()) + modifiers().hashCode()) + annotations().hashCode()) + typeParameters().hashCode()) + lowerBound().hashCode()) + upperBound().hashCode());
+        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.api.TypeDeclaration".hashCode()) + name().hashCode()) + access().hashCode()) + modifiers().hashCode()) + annotations().hashCode()) + typeParameters().hashCode()) + lowerBound().hashCode()) + upperBound().hashCode());
     }
     public String toString() {
         return "TypeDeclaration("  + "name: " + name() + ", " + "access: " + access() + ", " + "modifiers: " + modifiers() + ", " + "annotations: " + annotations() + ", " + "typeParameters: " + typeParameters() + ", " + "lowerBound: " + lowerBound() + ", " + "upperBound: " + upperBound() + ")";

@@ -6,6 +6,12 @@
 package xsbti.api;
 public final class AnalyzedClass implements java.io.Serializable {
     
+    public static AnalyzedClass create(long _compilationTimestamp, String _name, xsbti.api.Lazy<Companions> _api, int _apiHash, NameHash[] _nameHashes, boolean _hasMacro) {
+        return new AnalyzedClass(_compilationTimestamp, _name, _api, _apiHash, _nameHashes, _hasMacro);
+    }
+    public static AnalyzedClass of(long _compilationTimestamp, String _name, xsbti.api.Lazy<Companions> _api, int _apiHash, NameHash[] _nameHashes, boolean _hasMacro) {
+        return new AnalyzedClass(_compilationTimestamp, _name, _api, _apiHash, _nameHashes, _hasMacro);
+    }
     
     private long compilationTimestamp;
     private String name;
@@ -13,7 +19,7 @@ public final class AnalyzedClass implements java.io.Serializable {
     private int apiHash;
     private NameHash[] nameHashes;
     private boolean hasMacro;
-    public AnalyzedClass(long _compilationTimestamp, String _name, xsbti.api.Lazy<Companions> _api, int _apiHash, NameHash[] _nameHashes, boolean _hasMacro) {
+    protected AnalyzedClass(long _compilationTimestamp, String _name, xsbti.api.Lazy<Companions> _api, int _apiHash, NameHash[] _nameHashes, boolean _hasMacro) {
         super();
         compilationTimestamp = _compilationTimestamp;
         name = _name;

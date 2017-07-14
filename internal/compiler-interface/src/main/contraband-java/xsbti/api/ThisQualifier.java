@@ -6,8 +6,14 @@
 package xsbti.api;
 public final class ThisQualifier extends xsbti.api.Qualifier {
     
+    public static ThisQualifier create() {
+        return new ThisQualifier();
+    }
+    public static ThisQualifier of() {
+        return new ThisQualifier();
+    }
     
-    public ThisQualifier() {
+    protected ThisQualifier() {
         super();
         
     }
@@ -24,7 +30,7 @@ public final class ThisQualifier extends xsbti.api.Qualifier {
         }
     }
     public int hashCode() {
-        return 37 * (17 + "ThisQualifier".hashCode());
+        return 37 * (17 + "xsbti.api.ThisQualifier".hashCode());
     }
     public String toString() {
         return "ThisQualifier("  + ")";

@@ -97,7 +97,7 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       val result0 = compiler.compile(in, log)
       fileStore.set(result0.analysis match { case a: Analysis => a }, result0.setup)
       val prev1 = fileStore.get match {
-        case Some((a, s)) => new PreviousResult(Optional.of(a), Optional.of(s))
+        case Some((a, s)) => PreviousResult.of(Optional.of(a), Optional.of(s))
         case _            => sys.error("previous is not found")
       }
       val sources1 = Array(dependerFile, depender2File)
@@ -157,7 +157,7 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       IO.copyFile(knownSampleGoodFile0, knownSampleGoodFile, false)
       val sources3 = Array(knownSampleGoodFile, dependerFile, depender2File)
       val prev = fileStore.get match {
-        case Some((a, s)) => new PreviousResult(Optional.of(a), Optional.of(s))
+        case Some((a, s)) => PreviousResult.of(Optional.of(a), Optional.of(s))
         case _            => sys.error("previous is not found")
       }
       val lookup3 = new PerClasspathEntryLookupImpl(

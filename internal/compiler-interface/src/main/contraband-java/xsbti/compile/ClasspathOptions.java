@@ -11,6 +11,12 @@ package xsbti.compile;
  */
 public final class ClasspathOptions implements java.io.Serializable {
     
+    public static ClasspathOptions create(boolean _bootLibrary, boolean _compiler, boolean _extra, boolean _autoBoot, boolean _filterLibrary) {
+        return new ClasspathOptions(_bootLibrary, _compiler, _extra, _autoBoot, _filterLibrary);
+    }
+    public static ClasspathOptions of(boolean _bootLibrary, boolean _compiler, boolean _extra, boolean _autoBoot, boolean _filterLibrary) {
+        return new ClasspathOptions(_bootLibrary, _compiler, _extra, _autoBoot, _filterLibrary);
+    }
     /**
      * If true, includes the Scala library on the boot classpath.
      * This should usually be true.
@@ -36,7 +42,7 @@ public final class ClasspathOptions implements java.io.Serializable {
      * This should usually be true because the library should be included on the boot classpath of the Scala compiler and not the standard classpath.
      */
     private boolean filterLibrary;
-    public ClasspathOptions(boolean _bootLibrary, boolean _compiler, boolean _extra, boolean _autoBoot, boolean _filterLibrary) {
+    protected ClasspathOptions(boolean _bootLibrary, boolean _compiler, boolean _extra, boolean _autoBoot, boolean _filterLibrary) {
         super();
         bootLibrary = _bootLibrary;
         compiler = _compiler;
@@ -85,7 +91,7 @@ public final class ClasspathOptions implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (37 * (17 + "ClasspathOptions".hashCode()) + (new Boolean(bootLibrary())).hashCode()) + (new Boolean(compiler())).hashCode()) + (new Boolean(extra())).hashCode()) + (new Boolean(autoBoot())).hashCode()) + (new Boolean(filterLibrary())).hashCode());
+        return 37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.compile.ClasspathOptions".hashCode()) + (new Boolean(bootLibrary())).hashCode()) + (new Boolean(compiler())).hashCode()) + (new Boolean(extra())).hashCode()) + (new Boolean(autoBoot())).hashCode()) + (new Boolean(filterLibrary())).hashCode());
     }
     public String toString() {
         return "ClasspathOptions("  + "bootLibrary: " + bootLibrary() + ", " + "compiler: " + compiler() + ", " + "extra: " + extra() + ", " + "autoBoot: " + autoBoot() + ", " + "filterLibrary: " + filterLibrary() + ")";

@@ -11,7 +11,7 @@ public abstract class Definition implements java.io.Serializable {
     private Access access;
     private Modifiers modifiers;
     private Annotation[] annotations;
-    public Definition(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations) {
+    protected Definition(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations) {
         super();
         name = _name;
         access = _access;
@@ -42,7 +42,7 @@ public abstract class Definition implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (17 + "Definition".hashCode()) + name().hashCode()) + access().hashCode()) + modifiers().hashCode()) + annotations().hashCode());
+        return 37 * (37 * (37 * (37 * (37 * (17 + "xsbti.api.Definition".hashCode()) + name().hashCode()) + access().hashCode()) + modifiers().hashCode()) + annotations().hashCode());
     }
     public String toString() {
         return "Definition("  + "name: " + name() + ", " + "access: " + access() + ", " + "modifiers: " + modifiers() + ", " + "annotations: " + annotations() + ")";

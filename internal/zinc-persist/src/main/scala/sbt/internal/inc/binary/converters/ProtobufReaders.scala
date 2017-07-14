@@ -111,7 +111,7 @@ final class ProtobufReaders(mapper: ReadMapper) {
   def fromCompilations(compilations0: schema.Compilations): Compilations = {
     val compilations = compilations0.compilations.map(fromCompilation).toList
     val castedCompilations = compilations.map { case c: sbt.internal.inc.Compilation => c }
-    Compilations.make(castedCompilations)
+    Compilations.of(castedCompilations)
   }
 
   def fromPosition(position: schema.Position): Position = {
@@ -166,21 +166,21 @@ final class ProtobufReaders(mapper: ReadMapper) {
         val sourceInfo = fromSourceInfo(value)
         file -> sourceInfo
     }
-    SourceInfos.make(sourceInfos.toMap)
+    SourceInfos.of(sourceInfos.toMap)
   }
 
   def fromClasspathFileHash(fileHash: schema.FileHash): FileHash = {
     val hash = fileHash.hash
     val classpathEntry = fromPathString(fileHash.path)
     val newClasspathEntry = mapper.mapClasspathEntry(classpathEntry)
-    new FileHash(newClasspathEntry, hash)
+    FileHash.of(newClasspathEntry, hash)
   }
 
   def fromMiniOptions(miniOptions: schema.MiniOptions): MiniOptions = {
     val classpathHash = miniOptions.classpathHash.map(fromClasspathFileHash).toArray
     val javacOptions = miniOptions.javacOptions.map(mapper.mapJavacOption).toArray
     val scalacOptions = miniOptions.scalacOptions.map(mapper.mapScalacOption).toArray
-    new MiniOptions(classpathHash, scalacOptions, javacOptions)
+    MiniOptions.of(classpathHash, scalacOptions, javacOptions)
   }
 
   def fromCompileOrder(compileOrder: schema.CompileOrder): CompileOrder = {
@@ -220,7 +220,7 @@ final class ProtobufReaders(mapper: ReadMapper) {
     val compileOrder = fromCompileOrder(miniSetup.compileOrder)
     val storeApis = miniSetup.storeApis
     val extra = miniSetup.extra.map(fromStringTuple).toArray
-    new MiniSetup(output, miniOptions, compilerVersion, compileOrder, storeApis, extra)
+    MiniSetup.of(output, miniOptions, compilerVersion, compileOrder, storeApis, extra)
   }
 
   implicit class EfficientTraverse[T](seq: Seq[T]) {
@@ -240,26 +240,27 @@ final class ProtobufReaders(mapper: ReadMapper) {
       import SchemaPath.{ Component => SchemaComponent }
       import Classes.{ Component, PathComponent }
       pathComponent.component match {
-        case SchemaComponent.Id(c)    => new Id(c.id)
-        case SchemaComponent.Super(c) => new Super(c.qualifier.read(fromPath, ExpectedPathInSuper))
-        case SchemaComponent.This(_)  => ReadersConstants.This
-        case SchemaComponent.Empty    => ReadersFeedback.expected(Component, PathComponent).!!
+        case SchemaComponent.Id(c) => Id.of(c.id)
+        case SchemaComponent.Super(c) =>
+          Super.of(c.qualifier.read(fromPath, ExpectedPathInSuper))
+        case SchemaComponent.This(_) => ReadersConstants.This
+        case SchemaComponent.Empty   => ReadersFeedback.expected(Component, PathComponent).!!
       }
     }
     val components = path.components.toZincArray(fromPathComponent)
-    new Path(components)
+    Path.of(components)
   }
 
   def fromAnnotation(annotation: schema.Annotation): Annotation = {
     def fromAnnotationArgument(argument: schema.AnnotationArgument): AnnotationArgument = {
       val name = argument.name
       val value = argument.value
-      new AnnotationArgument(name, value)
+      AnnotationArgument.of(name, value)
     }
 
     val arguments = annotation.arguments.toZincArray(fromAnnotationArgument)
     val base = annotation.base.read(fromType, ReadersFeedback.expectedBaseIn(Classes.Annotation))
-    new Annotation(base, arguments)
+    Annotation.of(base, arguments)
   }
 
   def fromStructure(tpe: schema.Type.Structure): Structure = {
@@ -267,54 +268,54 @@ final class ProtobufReaders(mapper: ReadMapper) {
     val parents = `lazy`(tpe.parents.toZincArray(fromType))
     val declared = `lazy`(tpe.declared.toZincArray(fromClassDefinition))
     val inherited = `lazy`(tpe.inherited.toZincArray(fromClassDefinition))
-    new Structure(parents, declared, inherited)
+    Structure.of(parents, declared, inherited)
   }
 
   def fromType(`type`: schema.Type): Type = {
     import ReadersFeedback.expectedBaseIn
     def fromParameterRef(tpe: schema.Type.ParameterRef): ParameterRef = {
-      new ParameterRef(tpe.id)
+      ParameterRef.of(tpe.id)
     }
 
     def fromParameterized(tpe: schema.Type.Parameterized): Parameterized = {
       val baseType = tpe.baseType.read(fromType, expectedBaseIn(Classes.Parameterized))
       val typeArguments = tpe.typeArguments.toZincArray(fromType)
-      new Parameterized(baseType, typeArguments)
+      Parameterized.of(baseType, typeArguments)
     }
 
     def fromPolymorphic(tpe: schema.Type.Polymorphic): Polymorphic = {
       val baseType = tpe.baseType.read(fromType, expectedBaseIn(Classes.Polymorphic))
       val typeParameters = tpe.typeParameters.toZincArray(fromTypeParameter)
-      new Polymorphic(baseType, typeParameters)
+      Polymorphic.of(baseType, typeParameters)
     }
 
     def fromConstant(tpe: schema.Type.Constant): Constant = {
       val baseType = tpe.baseType.read(fromType, expectedBaseIn(Classes.Constant))
       val value = tpe.value
-      new Constant(baseType, value)
+      Constant.of(baseType, value)
     }
 
     def fromExistential(tpe: schema.Type.Existential): Existential = {
       val baseType = tpe.baseType.read(fromType, expectedBaseIn(Classes.Existential))
       val clause = tpe.clause.toZincArray(fromTypeParameter)
-      new Existential(baseType, clause)
+      Existential.of(baseType, clause)
     }
 
     def fromSingleton(tpe: schema.Type.Singleton): Singleton = {
       val path = tpe.path.read(fromPath, ReadersFeedback.ExpectedPathInSingleton)
-      new Singleton(path)
+      Singleton.of(path)
     }
 
     def fromProjection(tpe: schema.Type.Projection): Projection = {
       val id = tpe.id
       val prefix = tpe.prefix.read(fromType, ReadersFeedback.ExpectedPrefixInProjection)
-      new Projection(prefix, id)
+      Projection.of(prefix, id)
     }
 
     def fromAnnotated(tpe: schema.Type.Annotated): Annotated = {
       val baseType = tpe.baseType.read(fromType, expectedBaseIn(Classes.Annotated))
       val annotations = tpe.annotations.toZincArray(fromAnnotation)
-      new Annotated(baseType, annotations)
+      Annotated.of(baseType, annotations)
     }
 
     `type`.value match {
@@ -339,7 +340,7 @@ final class ProtobufReaders(mapper: ReadMapper) {
     def fromQualifier(qualifier: schema.Qualifier): Qualifier = {
       import schema.Qualifier.{ Type => QualifierType }
       qualifier.`type` match {
-        case QualifierType.IdQualifier(q)   => new IdQualifier(q.value)
+        case QualifierType.IdQualifier(q)   => IdQualifier.of(q.value)
         case QualifierType.ThisQualifier(_) => ReadersConstants.ThisQualifier
         case QualifierType.Unqualified(_)   => ReadersConstants.Unqualified
         case QualifierType.Empty            => ReadersFeedback.ExpectedNonEmptyQualifier.!!
@@ -351,8 +352,8 @@ final class ProtobufReaders(mapper: ReadMapper) {
 
     access.`type` match {
       case schema.Access.Type.Public(_)    => ReadersConstants.Public
-      case schema.Access.Type.Protected(a) => new Protected(readQualifier(a.qualifier))
-      case schema.Access.Type.Private(a)   => new Private(readQualifier(a.qualifier))
+      case schema.Access.Type.Protected(a) => Protected.of(readQualifier(a.qualifier))
+      case schema.Access.Type.Private(a)   => Private.of(readQualifier(a.qualifier))
       case schema.Access.Type.Empty        => ReadersFeedback.ExpectedValidAccessType.!!
     }
   }
@@ -395,48 +396,48 @@ final class ProtobufReaders(mapper: ReadMapper) {
         val hasDefault = methodParameter.hasDefault
         val `type` = methodParameter.`type`.read(fromType, expectedTypeIn(Classes.MethodParameter))
         val modifier = fromParameterModifier(methodParameter.modifier)
-        new MethodParameter(name, `type`, hasDefault, modifier)
+        MethodParameter.of(name, `type`, hasDefault, modifier)
       }
 
       val isImplicit = parameterList.isImplicit
       val parameters = parameterList.parameters.toZincArray(fromMethodParameter)
-      new ParameterList(parameters, isImplicit)
+      ParameterList.of(parameters, isImplicit)
     }
 
     def fromClassLikeDef(defDef: schema.ClassDefinition.ClassLikeDef): ClassLikeDef = {
       val definitionType = fromDefinitionType(defDef.definitionType)
       val typeParameters = defDef.typeParameters.toZincArray(fromTypeParameter)
-      new ClassLikeDef(name, access, modifiers, annotations, typeParameters, definitionType)
+      ClassLikeDef.of(name, access, modifiers, annotations, typeParameters, definitionType)
     }
 
     def fromDefDef(defDef: schema.ClassDefinition.Def): Def = {
       val returnType = defDef.returnType.read(fromType, ExpectedReturnTypeInDef)
       val typeParameters = defDef.typeParameters.toZincArray(fromTypeParameter)
       val valueParameters = defDef.valueParameters.toZincArray(fromParameterList)
-      new Def(name, access, modifiers, annotations, typeParameters, valueParameters, returnType)
+      Def.of(name, access, modifiers, annotations, typeParameters, valueParameters, returnType)
     }
 
     def fromValDef(valDef: schema.ClassDefinition.Val): Val = {
       val `type` = valDef.`type`.read(fromType, expectedTypeIn(Classes.Val))
-      new Val(name, access, modifiers, annotations, `type`)
+      Val.of(name, access, modifiers, annotations, `type`)
     }
 
     def fromVarDef(varDef: schema.ClassDefinition.Var): Var = {
       val `type` = varDef.`type`.read(fromType, expectedTypeIn(Classes.Var))
-      new Var(name, access, modifiers, annotations, `type`)
+      Var.of(name, access, modifiers, annotations, `type`)
     }
 
     def fromTypeAlias(typeAlias: schema.ClassDefinition.TypeAlias): TypeAlias = {
       val `type` = typeAlias.`type`.read(fromType, expectedTypeIn(Classes.TypeAlias))
       val typeParameters = typeAlias.typeParameters.toZincArray(fromTypeParameter)
-      new TypeAlias(name, access, modifiers, annotations, typeParameters, `type`)
+      TypeAlias.of(name, access, modifiers, annotations, typeParameters, `type`)
     }
 
     def fromTypeDeclaration(decl: schema.ClassDefinition.TypeDeclaration): TypeDeclaration = {
       val lowerBound = decl.lowerBound.read(fromType, ExpectedLowerBoundInTypeDeclaration)
       val upperBound = decl.upperBound.read(fromType, ExpectedUpperBoundInTypeDeclaration)
       val typeParams = decl.typeParameters.toZincArray(fromTypeParameter)
-      new TypeDeclaration(name, access, modifiers, annotations, typeParams, lowerBound, upperBound)
+      TypeDeclaration.of(name, access, modifiers, annotations, typeParams, lowerBound, upperBound)
     }
 
     import schema.ClassDefinition.{ Extra => DefType }
@@ -468,7 +469,7 @@ final class ProtobufReaders(mapper: ReadMapper) {
     val variance = fromVariance(typeParameter.variance)
     val lowerBound = typeParameter.lowerBound.read(fromType, ExpectedLowerBoundInTypeParameter)
     val upperBound = typeParameter.upperBound.read(fromType, ExpectedUpperBoundInTypeParameter)
-    new TypeParameter(id, annotations, typeParameters, variance, lowerBound, upperBound)
+    TypeParameter.of(id, annotations, typeParameters, variance, lowerBound, upperBound)
   }
 
   def fromClassLike(classLike: schema.ClassLike): ClassLike = {
@@ -487,7 +488,7 @@ final class ProtobufReaders(mapper: ReadMapper) {
     val childrenOfSealedClass = classLike.childrenOfSealedClass.toZincArray(fromType)
     val topLevel = classLike.topLevel
     val typeParameters = classLike.typeParameters.toZincArray(fromTypeParameter)
-    new ClassLike(
+    ClassLike.of(
       name,
       access,
       modifiers,
@@ -516,14 +517,14 @@ final class ProtobufReaders(mapper: ReadMapper) {
       def expected(msg: String) = ReadersFeedback.expected(msg, Classes.Companions)
       val classApi = companions.classApi.read(fromClassLike, expected("class api"))
       val objectApi = companions.objectApi.read(fromClassLike, expected("object api"))
-      new Companions(classApi, objectApi)
+      Companions.of(classApi, objectApi)
     }
 
     def fromNameHash(nameHash: schema.NameHash): NameHash = {
       val name = nameHash.name
       val hash = nameHash.hash
       val scope = fromUseScope(nameHash.scope)
-      new NameHash(name, scope, hash)
+      NameHash.of(name, scope, hash)
     }
 
     import SafeLazyProxy.{ strict => mkLazy }
@@ -534,7 +535,7 @@ final class ProtobufReaders(mapper: ReadMapper) {
     val apiHash = analyzedClass.apiHash
     val nameHashes = analyzedClass.nameHashes.toZincArray(fromNameHash)
     val hasMacro = analyzedClass.hasMacro
-    new AnalyzedClass(compilationTimestamp, name, api, apiHash, nameHashes, hasMacro)
+    AnalyzedClass.of(compilationTimestamp, name, api, apiHash, nameHashes, hasMacro)
   }
 
   private final val stringId = identity[String] _

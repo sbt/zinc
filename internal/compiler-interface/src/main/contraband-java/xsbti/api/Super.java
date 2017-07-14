@@ -6,9 +6,15 @@
 package xsbti.api;
 public final class Super extends xsbti.api.PathComponent {
     
+    public static Super create(Path _qualifier) {
+        return new Super(_qualifier);
+    }
+    public static Super of(Path _qualifier) {
+        return new Super(_qualifier);
+    }
     
     private Path qualifier;
-    public Super(Path _qualifier) {
+    protected Super(Path _qualifier) {
         super();
         qualifier = _qualifier;
     }
@@ -29,7 +35,7 @@ public final class Super extends xsbti.api.PathComponent {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (17 + "Super".hashCode()) + qualifier().hashCode());
+        return 37 * (37 * (17 + "xsbti.api.Super".hashCode()) + qualifier().hashCode());
     }
     public String toString() {
         return "Super("  + "qualifier: " + qualifier() + ")";

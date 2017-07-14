@@ -6,10 +6,16 @@
 package xsbti.api;
 public final class ParameterList implements java.io.Serializable {
     
+    public static ParameterList create(MethodParameter[] _parameters, boolean _isImplicit) {
+        return new ParameterList(_parameters, _isImplicit);
+    }
+    public static ParameterList of(MethodParameter[] _parameters, boolean _isImplicit) {
+        return new ParameterList(_parameters, _isImplicit);
+    }
     
     private MethodParameter[] parameters;
     private boolean isImplicit;
-    public ParameterList(MethodParameter[] _parameters, boolean _isImplicit) {
+    protected ParameterList(MethodParameter[] _parameters, boolean _isImplicit) {
         super();
         parameters = _parameters;
         isImplicit = _isImplicit;
@@ -37,7 +43,7 @@ public final class ParameterList implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (17 + "ParameterList".hashCode()) + parameters().hashCode()) + (new Boolean(isImplicit())).hashCode());
+        return 37 * (37 * (37 * (17 + "xsbti.api.ParameterList".hashCode()) + parameters().hashCode()) + (new Boolean(isImplicit())).hashCode());
     }
     public String toString() {
         return "ParameterList("  + "parameters: " + parameters() + ", " + "isImplicit: " + isImplicit() + ")";

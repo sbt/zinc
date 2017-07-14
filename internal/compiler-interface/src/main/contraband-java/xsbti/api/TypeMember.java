@@ -7,7 +7,7 @@ package xsbti.api;
 public abstract class TypeMember extends xsbti.api.ParameterizedDefinition {
     
     
-    public TypeMember(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters) {
+    protected TypeMember(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters) {
         super(_name, _access, _modifiers, _annotations, _typeParameters);
         
     }
@@ -24,7 +24,7 @@ public abstract class TypeMember extends xsbti.api.ParameterizedDefinition {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (37 * (17 + "TypeMember".hashCode()) + name().hashCode()) + access().hashCode()) + modifiers().hashCode()) + annotations().hashCode()) + typeParameters().hashCode());
+        return 37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.api.TypeMember".hashCode()) + name().hashCode()) + access().hashCode()) + modifiers().hashCode()) + annotations().hashCode()) + typeParameters().hashCode());
     }
     public String toString() {
         return "TypeMember("  + "name: " + name() + ", " + "access: " + access() + ", " + "modifiers: " + modifiers() + ", " + "annotations: " + annotations() + ", " + "typeParameters: " + typeParameters() + ")";

@@ -73,6 +73,18 @@ public final class IncOptions implements java.io.Serializable {
     public static boolean defaultLogRecompileOnMacro() {
         return true;
     }
+    public static IncOptions create() {
+        return new IncOptions();
+    }
+    public static IncOptions of() {
+        return new IncOptions();
+    }
+    public static IncOptions create(int _transitiveStep, double _recompileAllFraction, boolean _relationsDebug, boolean _apiDebug, int _apiDiffContextSize, java.util.Optional<java.io.File> _apiDumpDirectory, java.util.Optional<ClassFileManagerType> _classfileManagerType, boolean _useCustomizedFileManager, java.util.Optional<Boolean> _recompileOnMacroDef, boolean _useOptimizedSealed, boolean _storeApis, boolean _enabled, java.util.Map<String,String> _extra, boolean _logRecompileOnMacro, xsbti.compile.ExternalHooks _externalHooks) {
+        return new IncOptions(_transitiveStep, _recompileAllFraction, _relationsDebug, _apiDebug, _apiDiffContextSize, _apiDumpDirectory, _classfileManagerType, _useCustomizedFileManager, _recompileOnMacroDef, _useOptimizedSealed, _storeApis, _enabled, _extra, _logRecompileOnMacro, _externalHooks);
+    }
+    public static IncOptions of(int _transitiveStep, double _recompileAllFraction, boolean _relationsDebug, boolean _apiDebug, int _apiDiffContextSize, java.util.Optional<java.io.File> _apiDumpDirectory, java.util.Optional<ClassFileManagerType> _classfileManagerType, boolean _useCustomizedFileManager, java.util.Optional<Boolean> _recompileOnMacroDef, boolean _useOptimizedSealed, boolean _storeApis, boolean _enabled, java.util.Map<String,String> _extra, boolean _logRecompileOnMacro, xsbti.compile.ExternalHooks _externalHooks) {
+        return new IncOptions(_transitiveStep, _recompileAllFraction, _relationsDebug, _apiDebug, _apiDiffContextSize, _apiDumpDirectory, _classfileManagerType, _useCustomizedFileManager, _recompileOnMacroDef, _useOptimizedSealed, _storeApis, _enabled, _extra, _logRecompileOnMacro, _externalHooks);
+    }
     /** After which step include whole transitive closure of invalidated source files. */
     private int transitiveStep;
     /**
@@ -129,7 +141,7 @@ public final class IncOptions implements java.io.Serializable {
     private boolean logRecompileOnMacro;
     /** External hooks that allows clients e.g. IDEs to interacts with compilation internals */
     private xsbti.compile.ExternalHooks externalHooks;
-    public IncOptions() {
+    protected IncOptions() {
         super();
         transitiveStep = xsbti.compile.IncOptions.defaultTransitiveStep();
         recompileAllFraction = xsbti.compile.IncOptions.defaultRecompileAllFraction();
@@ -147,7 +159,7 @@ public final class IncOptions implements java.io.Serializable {
         logRecompileOnMacro = xsbti.compile.IncOptions.defaultLogRecompileOnMacro();
         externalHooks = xsbti.compile.IncOptions.defaultExternal();
     }
-    public IncOptions(int _transitiveStep, double _recompileAllFraction, boolean _relationsDebug, boolean _apiDebug, int _apiDiffContextSize, java.util.Optional<java.io.File> _apiDumpDirectory, java.util.Optional<ClassFileManagerType> _classfileManagerType, boolean _useCustomizedFileManager, java.util.Optional<Boolean> _recompileOnMacroDef, boolean _useOptimizedSealed, boolean _storeApis, boolean _enabled, java.util.Map<String,String> _extra, boolean _logRecompileOnMacro, xsbti.compile.ExternalHooks _externalHooks) {
+    protected IncOptions(int _transitiveStep, double _recompileAllFraction, boolean _relationsDebug, boolean _apiDebug, int _apiDiffContextSize, java.util.Optional<java.io.File> _apiDumpDirectory, java.util.Optional<ClassFileManagerType> _classfileManagerType, boolean _useCustomizedFileManager, java.util.Optional<Boolean> _recompileOnMacroDef, boolean _useOptimizedSealed, boolean _storeApis, boolean _enabled, java.util.Map<String,String> _extra, boolean _logRecompileOnMacro, xsbti.compile.ExternalHooks _externalHooks) {
         super();
         transitiveStep = _transitiveStep;
         recompileAllFraction = _recompileAllFraction;
@@ -266,7 +278,7 @@ public final class IncOptions implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "IncOptions".hashCode()) + (new Integer(transitiveStep())).hashCode()) + (new Double(recompileAllFraction())).hashCode()) + (new Boolean(relationsDebug())).hashCode()) + (new Boolean(apiDebug())).hashCode()) + (new Integer(apiDiffContextSize())).hashCode()) + apiDumpDirectory().hashCode()) + classfileManagerType().hashCode()) + (new Boolean(useCustomizedFileManager())).hashCode()) + recompileOnMacroDef().hashCode()) + (new Boolean(useOptimizedSealed())).hashCode()) + (new Boolean(storeApis())).hashCode()) + (new Boolean(enabled())).hashCode()) + extra().hashCode()) + (new Boolean(logRecompileOnMacro())).hashCode()) + externalHooks().hashCode());
+        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.compile.IncOptions".hashCode()) + (new Integer(transitiveStep())).hashCode()) + (new Double(recompileAllFraction())).hashCode()) + (new Boolean(relationsDebug())).hashCode()) + (new Boolean(apiDebug())).hashCode()) + (new Integer(apiDiffContextSize())).hashCode()) + apiDumpDirectory().hashCode()) + classfileManagerType().hashCode()) + (new Boolean(useCustomizedFileManager())).hashCode()) + recompileOnMacroDef().hashCode()) + (new Boolean(useOptimizedSealed())).hashCode()) + (new Boolean(storeApis())).hashCode()) + (new Boolean(enabled())).hashCode()) + extra().hashCode()) + (new Boolean(logRecompileOnMacro())).hashCode()) + externalHooks().hashCode());
     }
     public String toString() {
         return "IncOptions("  + "transitiveStep: " + transitiveStep() + ", " + "recompileAllFraction: " + recompileAllFraction() + ", " + "relationsDebug: " + relationsDebug() + ", " + "apiDebug: " + apiDebug() + ", " + "apiDiffContextSize: " + apiDiffContextSize() + ", " + "apiDumpDirectory: " + apiDumpDirectory() + ", " + "classfileManagerType: " + classfileManagerType() + ", " + "useCustomizedFileManager: " + useCustomizedFileManager() + ", " + "recompileOnMacroDef: " + recompileOnMacroDef() + ", " + "useOptimizedSealed: " + useOptimizedSealed() + ", " + "storeApis: " + storeApis() + ", " + "enabled: " + enabled() + ", " + "extra: " + extra() + ", " + "logRecompileOnMacro: " + logRecompileOnMacro() + ", " + "externalHooks: " + externalHooks() + ")";

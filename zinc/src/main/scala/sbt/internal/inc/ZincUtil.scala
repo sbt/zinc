@@ -124,7 +124,7 @@ object ZincUtil {
     compilers(JavaTools.directOrFork(instance, classpathOptions, javaHome), scalac)
 
   def compilers(javaTools: XJavaTools, scalac: ScalaCompiler): Compilers = {
-    new Compilers(scalac, javaTools)
+    Compilers.of(scalac, javaTools)
   }
 
   def constantBridgeProvider(scalaInstance: xsbti.compile.ScalaInstance,

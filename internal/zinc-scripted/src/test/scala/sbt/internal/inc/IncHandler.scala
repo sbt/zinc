@@ -220,7 +220,7 @@ case class ProjectStructure(
   val fileStore = AnalysisStore.cached(FileAnalysisStore.binary(cacheFile))
   def prev =
     fileStore.get match {
-      case Some((a, s)) => new PreviousResult(Optional.of(a), Optional.of(s))
+      case Some((a, s)) => PreviousResult.of(Optional.of(a), Optional.of(s))
       case _            => compiler.emptyPreviousResult
     }
   def unmanagedJars: List[File] = (baseDirectory / "lib" ** "*.jar").get.toList
@@ -341,8 +341,8 @@ case class ProjectStructure(
     val lookup = new PerClasspathEntryLookupImpl(lookupAnalysis, Locate.definesClass)
     val transactional: Optional[xsbti.compile.ClassFileManagerType] =
       Optional.of(
-        new xsbti.compile.TransactionalManagerType(targetDir / "classes.bak",
-                                                   sbt.util.Logger.Null))
+        xsbti.compile.TransactionalManagerType
+          .of(targetDir / "classes.bak", sbt.util.Logger.Null))
     // We specify the class file manager explicitly even though it's noew possible
     // to specify it in the incremental option property file (this is the default for sbt)
     val incOptionsFile = baseDirectory / "incOptions.properties"

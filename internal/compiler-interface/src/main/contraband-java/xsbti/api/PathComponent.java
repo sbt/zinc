@@ -7,7 +7,7 @@ package xsbti.api;
 public abstract class PathComponent implements java.io.Serializable {
     
     
-    public PathComponent() {
+    protected PathComponent() {
         super();
         
     }
@@ -24,7 +24,7 @@ public abstract class PathComponent implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (17 + "PathComponent".hashCode());
+        return 37 * (17 + "xsbti.api.PathComponent".hashCode());
     }
     public String toString() {
         return "PathComponent("  + ")";

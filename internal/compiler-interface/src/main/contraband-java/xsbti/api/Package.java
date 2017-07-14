@@ -6,9 +6,15 @@
 package xsbti.api;
 public final class Package implements java.io.Serializable {
     
+    public static Package create(String _name) {
+        return new Package(_name);
+    }
+    public static Package of(String _name) {
+        return new Package(_name);
+    }
     
     private String name;
-    public Package(String _name) {
+    protected Package(String _name) {
         super();
         name = _name;
     }
@@ -29,7 +35,7 @@ public final class Package implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (17 + "Package".hashCode()) + name().hashCode());
+        return 37 * (37 * (17 + "xsbti.api.Package".hashCode()) + name().hashCode());
     }
     public String toString() {
         return "Package("  + "name: " + name() + ")";

@@ -26,12 +26,12 @@ object AnalyzedClassFormats {
                 apiHash: Int,
                 nameHashes: Array[NameHash],
                 hasMacro: Boolean) =>
-            new AnalyzedClass(compilationTimestamp,
-                              name,
-                              SafeLazyProxy(emptyCompanions),
-                              apiHash,
-                              nameHashes,
-                              hasMacro)
+            AnalyzedClass.of(compilationTimestamp,
+                             name,
+                             SafeLazyProxy(emptyCompanions),
+                             apiHash,
+                             nameHashes,
+                             hasMacro)
       }
     )
 }
