@@ -24,7 +24,7 @@ object TextAnalysisFormatSpecification
     // Note: we test writing to the file directly to reuse `FileBasedStore` as it is written
     val readContents = IO.withTemporaryFile("analysis", "test") { tempAnalysisFile =>
       val fileBasedStore = FileAnalysisStore.text(tempAnalysisFile, format)
-      fileBasedStore.set(ConcreteAnalysisContents(analysis, commonSetup))
+      fileBasedStore.set(AnalysisContents.create(analysis, commonSetup))
       fileBasedStore.get().toOption.getOrElse(sys.error(""))
     }
     val readAnalysis = readContents.getAnalysis match { case a: Analysis => a }

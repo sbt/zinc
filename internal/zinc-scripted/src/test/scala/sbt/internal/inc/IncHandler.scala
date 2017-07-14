@@ -12,6 +12,7 @@ import sbt.internal.inc.JavaInterfaceUtil.{ EnrichOption, EnrichOptional }
 import xsbt.api.Discovery
 import xsbti.{ Problem, Severity }
 import xsbti.compile.{
+  AnalysisContents,
   ClasspathOptionsUtil,
   CompileAnalysis,
   CompileOrder,
@@ -374,7 +375,7 @@ case class ProjectStructure(
                              prev0)
     val result = compiler.compile(in, scriptedLog)
     val analysis = result.analysis match { case a: Analysis => a }
-    fileStore.set(ConcreteAnalysisContents(analysis, result.setup))
+    fileStore.set(AnalysisContents.create(analysis, result.setup))
     scriptedLog.info(s"""Compilation done: ${sources.toList.mkString(", ")}""")
     analysis
   }

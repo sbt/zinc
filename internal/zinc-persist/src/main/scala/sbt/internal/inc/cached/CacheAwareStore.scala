@@ -28,7 +28,7 @@ case class CacheAwareStore(localStore: AnalysisStore,
     val cachedResult = cache.flatMap(_.loadCache(projectLocation))
     val optResult = cachedResult.orElse(previous)
     optResult match {
-      case Some((analysis, setup)) => Optional.of(ConcreteAnalysisContents(analysis, setup))
+      case Some((analysis, setup)) => Optional.of(AnalysisContents.create(analysis, setup))
       case None                    => Empty
     }
   }

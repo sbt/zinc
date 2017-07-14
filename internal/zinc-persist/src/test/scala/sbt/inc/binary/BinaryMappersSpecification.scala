@@ -10,6 +10,7 @@ import sbt.internal.inc.{
   FileAnalysisStore
 }
 import sbt.io.IO
+import xsbti.compile.AnalysisContents
 import xsbti.compile.analysis.ReadWriteMappers
 
 object BinaryMappersSpecification
@@ -30,7 +31,7 @@ object BinaryMappersSpecification
     // Note: we test writing to the file directly to reuse `FileBasedStore` as it is written
     val readContents = IO.withTemporaryFile("analysis", "test") { tempAnalysisFile =>
       val fileBasedStore = FileAnalysisStore.binary(tempAnalysisFile, mappers)
-      val contents = ConcreteAnalysisContents(analysis, commonSetup)
+      val contents = AnalysisContents.create(analysis, commonSetup)
       fileBasedStore.set(contents)
       fileBasedStore.get().toOption.getOrElse(sys.error(ReadFeedback))
     }

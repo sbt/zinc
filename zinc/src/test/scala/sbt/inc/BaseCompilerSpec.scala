@@ -160,7 +160,7 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
       }
       val newResult = doCompile(in => newInputs(in.withPreviousResult(previousResult)))
 
-      store.set(ConcreteAnalysisContents(newResult.analysis(), newResult.setup()))
+      store.set(AnalysisContents.create(newResult.analysis(), newResult.setup()))
       newResult
     }
   }

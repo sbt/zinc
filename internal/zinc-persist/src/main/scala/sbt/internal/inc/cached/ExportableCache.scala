@@ -75,7 +75,7 @@ class ExportableCache(val cacheLocation: Path, cleanOutputMode: CleanOutputMode 
       val mappers = ReadWriteMappers.getMachineIndependentMappers(projectLocation.toPath)
       val remoteStore = FileAnalysisStore.binary(analysisFile.toFile, mappers)
       exportBinaryCache(currentAnalysis, currentSetup)
-      val contents = ConcreteAnalysisContents(currentAnalysis, currentSetup)
+      val contents = AnalysisContents.create(currentAnalysis, currentSetup)
       remoteStore.set(contents)
     }
   }

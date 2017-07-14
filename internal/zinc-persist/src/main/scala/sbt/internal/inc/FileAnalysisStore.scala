@@ -68,7 +68,7 @@ object FileAnalysisStore {
             lookupEntry(inputStream, companionsFileName)
             format.readAPIs(reader, analysis)
           }
-          analysisWithAPIs.map(analysis => ConcreteAnalysisContents(analysis, miniSetup))
+          analysisWithAPIs.map(analysis => AnalysisContents.create(analysis, miniSetup))
         }
       }
       nestedRead.flatten.toOptional
@@ -137,7 +137,7 @@ object FileAnalysisStore {
         lookupEntry(inputStream, analysisFileName)
         val writer = new BufferedReader(new InputStreamReader(inputStream, IO.utf8))
         val (analysis, setup) = format.read(writer, companionsStore)
-        ConcreteAnalysisContents(analysis, setup)
+        AnalysisContents.create(analysis, setup)
       }
   }
 
