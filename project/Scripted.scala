@@ -14,6 +14,7 @@ object Scripted {
     "Execute scripted without publishing SBT first. Saves you some time when only your test has changed.")
   lazy val scriptedSource = SettingKey[File]("scripted-source")
   lazy val scriptedPrescripted = TaskKey[File => Unit]("scripted-prescripted")
+  lazy val scriptedBufferLog = SettingKey[Boolean]("scripted-buffer-log")
 
   import sbt.complete._
   import DefaultParsers._
@@ -71,6 +72,7 @@ object Scripted {
                  scriptedSbtInstance: ScalaInstance,
                  sourcePath: File,
                  args: Seq[String],
+                 bufferLog: Boolean,
                  prescripted: File => Unit): Unit = {
     System.err.println(s"About to run tests: ${args.mkString("\n * ", "\n * ", "\n")}")
     val noJLine = new classpath.FilteredLoader(scriptedSbtInstance.loader, "jline." :: Nil)
@@ -79,7 +81,7 @@ object Scripted {
     val bridge = bridgeClass.newInstance.asInstanceOf[IncScriptedRunner]
     // val launcherVmOptions = Array("-XX:MaxPermSize=256M") // increased after a failure in scripted source-dependencies/macro
     try {
-      bridge.run(sourcePath, true, args.toArray)
+      bridge.run(sourcePath, bufferLog, args.toArray)
     } catch { case ite: java.lang.reflect.InvocationTargetException => throw ite.getCause }
   }
 }

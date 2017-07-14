@@ -157,9 +157,8 @@ sealed class ZincCompiler(settings: Settings, dreporter: DelegatingReporter, out
 
   // Scala 2.10.x and later
   private[xsbt] def logUnreportedWarnings(seq: Seq[(String, List[(Position, String)])]): Unit = {
-    val drep = reporter.asInstanceOf[DelegatingReporter]
     for ((what, warnings) <- seq; (pos, msg) <- warnings)
-      yield callback.problem(what, drep.convert(pos), msg, Severity.Warn, false)
+      yield callback.problem(what, DelegatingReporter.convert(pos), msg, Severity.Warn, false)
     ()
   }
 }

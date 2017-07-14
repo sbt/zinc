@@ -148,7 +148,7 @@ private[xsbt] object ZincBenchmark {
     def hasWarnings: Boolean = false
     def printWarnings(): Unit = ()
     def problems: Array[Problem] = Array.empty
-    def log(pos: Position, msg: String, sev: Severity): Unit = println(msg)
+    def log(problem: Problem): Unit = println(problem.message())
     def comment(pos: Position, msg: String): Unit = ()
     def printSummary(): Unit = ()
   }

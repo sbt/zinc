@@ -15,7 +15,7 @@ import sbt.util.InterfaceUtil.jo2o
 
 /**
  * Represent a string that contains the compiler output (warnings and error
- * messages, etc) that have been reported by [[LoggerReporter]] and the logger.
+ * messages, etc) that have been reported by [[LoggedReporter]] and the logger.
  */
 trait ProblemStringFormats {
   implicit lazy val ProblemStringFormat: ShowLines[Problem] = new ShowLines[Problem] {
@@ -26,10 +26,8 @@ trait ProblemStringFormats {
         case _ =>
           val pos = p.position
           val sourcePrefix = jo2o(pos.sourcePath).getOrElse("")
-          val columnNumber = jo2o(pos.pointer).map(_.toInt + 1).getOrElse(1)
-          val lineNumberString = jo2o(pos.line)
-            .map(":" + _ + ":" + columnNumber + ":")
-            .getOrElse(":") + " "
+          val columnNumber = jo2o(pos.pointer).fold(1)(_.toInt + 1)
+          val lineNumberString = jo2o(pos.line).fold(":")(":" + _ + ":" + columnNumber + ":") + " "
           val line1 = sourcePrefix + lineNumberString + p.message
           val lineContent = pos.lineContent
           if (!lineContent.isEmpty) {

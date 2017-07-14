@@ -252,6 +252,7 @@ lazy val zincIvyIntegration = (project in internalPath / "zinc-ivy-integration")
 
 // sbt-side interface to compiler.  Calls compiler-side interface reflectively
 lazy val zincCompileCore = (project in internalPath / "zinc-compile-core")
+  .enablePlugins(ContrabandPlugin)
   .dependsOn(
     compilerInterface % "compile;test->test",
     zincClasspath,
@@ -331,7 +332,6 @@ lazy val compilerBridge: Project = (project in internalPath / "compiler-bridge")
     }.toList),
     altPublishSettings
   )
-  .configure(addSbtIO, addSbtUtilLogging)
 
 val scalaPartialVersion = Def setting (CrossVersion partialVersion scalaVersion.value)
 
@@ -445,6 +445,7 @@ addCommandAlias(
 )
 
 lazy val otherRootSettings = Seq(
+  Scripted.scriptedBufferLog := true,
   Scripted.scriptedPrescripted := { addSbtAlternateResolver _ },
   Scripted.scripted := scriptedTask.evaluated,
   Scripted.scriptedUnpublished := scriptedUnpublishedTask.evaluated,
@@ -467,6 +468,7 @@ def scriptedTask: Def.Initialize[InputTask[Unit]] = Def.inputTask {
     (scalaInstance in zincScripted).value,
     scriptedSource.value,
     result,
+    scriptedBufferLog.value,
     scriptedPrescripted.value
   )
 }
@@ -498,6 +500,7 @@ def scriptedUnpublishedTask: Def.Initialize[InputTask[Unit]] = Def.inputTask {
     (scalaInstance in zincScripted).value,
     scriptedSource.value,
     result,
+    scriptedBufferLog.value,
     scriptedPrescripted.value
   )
 }

@@ -46,9 +46,7 @@ final class JavacLogger(log: sbt.util.Logger, reporter: Reporter, cwd: File)
         case (Error, msg) => msg
       } mkString "\n"
     val parser = new JavaErrorParser(cwd)
-    parser.parseProblems(input, log) foreach { e =>
-      reporter.log(e.position, e.message, e.severity)
-    }
+    parser.parseProblems(input, log).foreach(reporter.log)
   }
 
   def flush(exitCode: Int): Unit = {

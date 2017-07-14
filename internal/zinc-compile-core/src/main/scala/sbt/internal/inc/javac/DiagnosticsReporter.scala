@@ -54,16 +54,19 @@ final class DiagnosticsReporter(reporter: Reporter) extends DiagnosticListener[J
   }
 
   override def report(d: Diagnostic[_ <: JavaFileObject]): Unit = {
-    val severity =
+    val severity: Severity = {
       d.getKind match {
         case Diagnostic.Kind.ERROR                                       => Severity.Error
         case Diagnostic.Kind.WARNING | Diagnostic.Kind.MANDATORY_WARNING => Severity.Warn
         case _                                                           => Severity.Info
       }
+    }
+
+    import sbt.util.InterfaceUtil.problem
     val msg = fixedDiagnosticMessage(d)
     val pos: xsbti.Position = new PositionImpl(d)
     if (severity == Severity.Error) errorEncountered = true
-    reporter.log(pos, msg, severity)
+    reporter.log(problem("", pos, msg, severity))
   }
 
   private class PositionImpl(d: Diagnostic[_ <: JavaFileObject]) extends xsbti.Position {
