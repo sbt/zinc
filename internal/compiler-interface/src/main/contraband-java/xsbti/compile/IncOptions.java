@@ -9,7 +9,70 @@ package xsbti.compile;
  * not the underlying Java/Scala compiler.
  */
 public final class IncOptions implements java.io.Serializable {
-    
+    public static int defaultTransitiveStep() {
+        return 3;
+    }
+    public static double defaultRecompileAllFraction() {
+        return 0.5;
+    }
+    public static boolean defaultRelationsDebug() {
+        return false;
+    }
+    public static boolean defaultApiDebug() {
+        return false;
+    }
+    public static int defaultApiDiffContextSize() {
+        return 5;
+    }
+    public static java.util.Optional<java.io.File> defaultApiDumpDirectory() {
+        return java.util.Optional.empty();
+    }
+    public static java.util.Optional<ClassFileManagerType> defaultClassFileManagerType() {
+        return java.util.Optional.empty();
+    }
+    public static java.util.Optional<Boolean> defaultRecompileOnMacroDef() {
+        return java.util.Optional.empty();
+    }
+    public static boolean defaultUseOptimizedSealed() {
+        return false;
+    }
+    public static boolean defaultRecompileOnMacroDefImpl() {
+        return true;
+    }
+    public static boolean getRecompileOnMacroDef(IncOptions options) {
+        if (options.recompileOnMacroDef().isPresent()) {
+            return options.recompileOnMacroDef().get();
+        } else {
+            return defaultRecompileOnMacroDefImpl();
+        }
+    }
+    public static boolean defaultUseCustomizedFileManager() {
+        return false;
+    }
+    public static boolean defaultStoreApis() {
+        return true;
+    }
+    public static boolean defaultEnabled() {
+        return true;
+    }
+    public static java.util.Map<String, String> defaultExtra() {
+        return new java.util.HashMap<String, String>();
+    }
+    public static ExternalHooks defaultExternal() {
+        return new ExternalHooks() {
+            @Override
+            public java.util.Optional<Lookup> externalLookup() {
+                return java.util.Optional.empty();
+            }
+            @Override
+            public java.util.Optional<ClassFileManager> externalClassFileManager() {
+                return java.util.Optional.empty();
+            }
+        };
+    }
+    public static boolean defaultLogRecompileOnMacro() {
+        return true;
+    }
     /** After which step include whole transitive closure of invalidated source files. */
     private int transitiveStep;
     /**
@@ -66,6 +129,24 @@ public final class IncOptions implements java.io.Serializable {
     private boolean logRecompileOnMacro;
     /** External hooks that allows clients e.g. IDEs to interacts with compilation internals */
     private xsbti.compile.ExternalHooks externalHooks;
+    public IncOptions() {
+        super();
+        transitiveStep = xsbti.compile.IncOptions.defaultTransitiveStep();
+        recompileAllFraction = xsbti.compile.IncOptions.defaultRecompileAllFraction();
+        relationsDebug = xsbti.compile.IncOptions.defaultRelationsDebug();
+        apiDebug = xsbti.compile.IncOptions.defaultApiDebug();
+        apiDiffContextSize = xsbti.compile.IncOptions.defaultApiDiffContextSize();
+        apiDumpDirectory = xsbti.compile.IncOptions.defaultApiDumpDirectory();
+        classfileManagerType = xsbti.compile.IncOptions.defaultClassFileManagerType();
+        useCustomizedFileManager = xsbti.compile.IncOptions.defaultUseOptimizedSealed();
+        recompileOnMacroDef = xsbti.compile.IncOptions.defaultRecompileOnMacroDef();
+        useOptimizedSealed = xsbti.compile.IncOptions.defaultUseOptimizedSealed();
+        storeApis = xsbti.compile.IncOptions.defaultStoreApis();
+        enabled = xsbti.compile.IncOptions.defaultEnabled();
+        extra = xsbti.compile.IncOptions.defaultExtra();
+        logRecompileOnMacro = xsbti.compile.IncOptions.defaultLogRecompileOnMacro();
+        externalHooks = xsbti.compile.IncOptions.defaultExternal();
+    }
     public IncOptions(int _transitiveStep, double _recompileAllFraction, boolean _relationsDebug, boolean _apiDebug, int _apiDiffContextSize, java.util.Optional<java.io.File> _apiDumpDirectory, java.util.Optional<ClassFileManagerType> _classfileManagerType, boolean _useCustomizedFileManager, java.util.Optional<Boolean> _recompileOnMacroDef, boolean _useOptimizedSealed, boolean _storeApis, boolean _enabled, java.util.Map<String,String> _extra, boolean _logRecompileOnMacro, xsbti.compile.ExternalHooks _externalHooks) {
         super();
         transitiveStep = _transitiveStep;

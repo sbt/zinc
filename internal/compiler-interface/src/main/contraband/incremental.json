@@ -46,108 +46,204 @@
         {
           "name": "transitiveStep",
           "type": "int",
-          "doc": "After which step include whole transitive closure of invalidated source files."
+          "default": "xsbti.compile.IncOptions.defaultTransitiveStep()",
+          "doc": "After which step include whole transitive closure of invalidated source files.",
+          "since": "0.1.0"
         },
         {
           "name": "recompileAllFraction",
           "type": "double",
+          "default": "xsbti.compile.IncOptions.defaultRecompileAllFraction()",
           "doc": [
             "What's the fraction of invalidated source files when we switch to recompiling",
             "all files and giving up incremental compilation altogether. That's useful in",
             "cases when probability that we end up recompiling most of source files but",
             "in multiple steps is high. Multi-step incremental recompilation is slower",
             "than recompiling everything in one step."
-          ]
+          ],
+          "since": "0.1.0"
         },
         {
           "name": "relationsDebug",
           "type": "boolean",
-          "doc": "Print very detailed information about relations, such as dependencies between source files."
+          "default": "xsbti.compile.IncOptions.defaultRelationsDebug()",
+          "doc": "Print very detailed information about relations, such as dependencies between source files.",
+          "since": "0.1.0"
         },
         {
           "name": "apiDebug",
           "type": "boolean",
-          "doc": "Enable tools for debugging API changes."
+          "default": "xsbti.compile.IncOptions.defaultApiDebug()",
+          "doc": "Enable tools for debugging API changes.",
+          "since": "0.1.0"
         },
         {
           "name": "apiDiffContextSize",
           "type": "int",
+          "default": "xsbti.compile.IncOptions.defaultApiDiffContextSize()",
           "doc": [
             "Controls context size (in lines) displayed when diffs are produced for textual API",
             "representation.",
             "",
             "This option is used only when `apiDebug == true`."
-          ]
+          ],
+          "since": "0.1.0"
         },
         {
           "name": "apiDumpDirectory",
           "type": "java.util.Optional<java.io.File>",
+          "default": "xsbti.compile.IncOptions.defaultApiDumpDirectory()",
           "doc": [
             "The directory where we dump textual representation of APIs. This method might be called",
             "only if apiDebug returns true. This is unused option at the moment as the needed functionality",
             "is not implemented yet."
-          ]
+          ],
+          "since": "0.1.0"
         },
         {
           "name": "classfileManagerType",
           "type": "java.util.Optional<ClassFileManagerType>",
-          "doc": "ClassfileManager that will handle class file deletion and addition during a single incremental compilation run."
+          "default": "xsbti.compile.IncOptions.defaultClassFileManagerType()",
+          "doc": "ClassfileManager that will handle class file deletion and addition during a single incremental compilation run.",
+          "since": "0.1.0"
         },
         {
           "name": "useCustomizedFileManager",
           "type": "boolean",
+          "default": "xsbti.compile.IncOptions.defaultUseOptimizedSealed()",
           "doc": [
             "Option to turn on customized file manager that tracks generated class files for transactional rollbacks.",
             "Using customized file manager may conflict with some libraries, this option allows user to decide",
             "whether to use."
-          ]
+          ],
+          "since": "0.1.0"
         },
         {
           "name": "recompileOnMacroDef",
           "type": "java.util.Optional<Boolean>",
+          "default": "xsbti.compile.IncOptions.defaultRecompileOnMacroDef()",
           "doc": [
             "Determines whether incremental compiler should recompile all dependencies of a file",
             "that contains a macro definition."
-          ]
+          ],
+          "since": "0.1.0"
         },
         {
           "name": "useOptimizedSealed",
           "type": "boolean",
+          "default": "xsbti.compile.IncOptions.defaultUseOptimizedSealed()",
           "doc": [
             "Determines whether optimized approach for invalidating sealed classes/trait is used.",
             "Turning this on may cause undercompilation in case of macros that are based sealed",
             "trait/class children enumeration."
-          ]
+          ],
+          "since": "0.1.0"
         },
         {
           "name": "storeApis",
           "type": "boolean",
+          "default": "xsbti.compile.IncOptions.defaultStoreApis()",
           "doc": [
             "Determines whether incremental compiler stores apis alongside analysis."
-          ]
+          ],
+          "since": "0.1.0"
         },
         {
           "name": "enabled",
           "type": "boolean",
+          "default": "xsbti.compile.IncOptions.defaultEnabled()",
           "doc": [
             "Determines whether incremental compilation is enabled."
-          ]
+          ],
+          "since": "0.1.0"
         },
         {
           "name": "extra",
           "type": "java.util.Map<String,String>",
-          "doc": "Extra options"
+          "default": "xsbti.compile.IncOptions.defaultExtra()",
+          "doc": "Extra options",
+          "since": "0.1.0"
         },
         {
           "name": "logRecompileOnMacro",
           "type": "boolean",
-          "doc": "Determines whether to log information on file recompiled due to a transitive macro change"
+          "default": "xsbti.compile.IncOptions.defaultLogRecompileOnMacro()",
+          "doc": "Determines whether to log information on file recompiled due to a transitive macro change",
+          "since": "0.1.0"
         },
         {
           "name": "externalHooks",
           "type": "xsbti.compile.ExternalHooks",
-          "doc": "External hooks that allows clients e.g. IDEs to interacts with compilation internals"
+          "default": "xsbti.compile.IncOptions.defaultExternal()",
+          "doc": "External hooks that allows clients e.g. IDEs to interacts with compilation internals",
+          "since": "0.1.0"
         }
+      ],
+      "extra": [
+        "public static int defaultTransitiveStep() {",
+        "    return 3;",
+        "}",
+        "public static double defaultRecompileAllFraction() {",
+        "    return 0.5;",
+        "}",
+        "public static boolean defaultRelationsDebug() {",
+        "    return false;",
+        "}",
+        "public static boolean defaultApiDebug() {",
+        "    return false;",
+        "}",
+        "public static int defaultApiDiffContextSize() {",
+        "    return 5;",
+        "}",
+        "public static java.util.Optional<java.io.File> defaultApiDumpDirectory() {",
+        "    return java.util.Optional.empty();",
+        "}",
+        "public static java.util.Optional<ClassFileManagerType> defaultClassFileManagerType() {",
+        "    return java.util.Optional.empty();",
+        "}",
+        "public static java.util.Optional<Boolean> defaultRecompileOnMacroDef() {",
+        "    return java.util.Optional.empty();",
+        "}",
+        "public static boolean defaultUseOptimizedSealed() {",
+        "    return false;",
+        "}",
+        "public static boolean defaultRecompileOnMacroDefImpl() {",
+        "    return true;",
+        "}",
+        "public static boolean getRecompileOnMacroDef(IncOptions options) {",
+        "    if (options.recompileOnMacroDef().isPresent()) {",
+        "        return options.recompileOnMacroDef().get();",
+        "    } else {",
+        "        return defaultRecompileOnMacroDefImpl();",
+        "    }",
+        "}",
+        "public static boolean defaultUseCustomizedFileManager() {",
+        "    return false;",
+        "}",
+        "public static boolean defaultStoreApis() {",
+        "    return true;",
+        "}",
+        "public static boolean defaultEnabled() {",
+        "    return true;",
+        "}",
+        "public static java.util.Map<String, String> defaultExtra() {",
+        "    return new java.util.HashMap<String, String>();",
+        "}",
+        "public static ExternalHooks defaultExternal() {",
+        "    return new ExternalHooks() {",
+        "        @Override",
+        "        public java.util.Optional<Lookup> externalLookup() {",
+        "            return java.util.Optional.empty();",
+        "        }",
+        "        @Override",
+        "        public java.util.Optional<ClassFileManager> externalClassFileManager() {",
+        "            return java.util.Optional.empty();",
+        "        }",
+        "    };",
+        "}",
+        "public static boolean defaultLogRecompileOnMacro() {",
+        "    return true;",
+        "}"
       ]
     },
     {
