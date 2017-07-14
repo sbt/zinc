@@ -30,7 +30,7 @@ final class ProtobufReaders(mapper: ReadMapper) {
     import sbt.internal.inc.{ EmptyStamp, LastModified, Hash }
     stampType.`type` match {
       case schema.Stamps.StampType.Type.Empty            => EmptyStamp
-      case schema.Stamps.StampType.Type.Hash(h)          => new Hash(h.hash)
+      case schema.Stamps.StampType.Type.Hash(h)          => Hash.unsafeFromString(h.hash) // fair assumption
       case schema.Stamps.StampType.Type.LastModified(lm) => new LastModified(lm.millis)
     }
   }
