@@ -9,7 +9,7 @@ import sbt.internal.inc._
 import sbt.io.IO
 import sbt.util.InterfaceUtil._
 import xsbti.api._
-import xsbti.compile._
+import xsbti.compile.{ FileAnalysisStore => _, _ }
 import xsbti.{ Problem, T2 }
 
 object BinaryAnalysisFormatSpecification

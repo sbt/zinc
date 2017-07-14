@@ -3,7 +3,6 @@ package sbt.inc
 import sbt.internal.inc._
 import sbt.io.IO
 import sbt.io.syntax._
-import xsbti.compile
 
 class IncrementalCompilerSpec extends BaseCompilerSpec {
 

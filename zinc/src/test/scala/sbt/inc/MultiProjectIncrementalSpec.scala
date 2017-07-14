@@ -7,11 +7,11 @@ import java.util.Optional
 import sbt.internal.inc.{ ScalaInstance => _, _ }
 import sbt.io.IO
 import sbt.io.syntax._
-import sbt.util.{ InterfaceUtil, Logger }
+import sbt.util.Logger
 import JavaInterfaceUtil.{ EnrichOption, EnrichOptional }
 import TestResource._
 import sbt.internal.inc.classpath.ClassLoaderCache
-import xsbti.compile.{ ClassFileManager, CompilerBridgeProvider, _ }
+import xsbti.compile.{ FileAnalysisStore => _, _ }
 import sbt.internal.inc.AnalysisStore
 
 class MultiProjectIncrementalSpec extends BridgeProviderSpecification {

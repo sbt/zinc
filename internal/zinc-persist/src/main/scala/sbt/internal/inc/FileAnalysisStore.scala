@@ -19,7 +19,6 @@ import sbt.internal.inc.text.TextAnalysisFormat
 import sbt.io.{ IO, Using }
 import xsbti.api.Companions
 import xsbti.compile.analysis.ReadWriteMappers
-import xsbti.compile.{ CompileAnalysis, MiniSetup }
 import xsbti.compile.{ AnalysisContents, AnalysisStore }
 
 import scala.util.control.Exception.allCatch
@@ -28,13 +27,6 @@ object FileAnalysisStore {
   private final val BinExtension = "bin"
   private final val analysisFileName = s"inc_compile.$BinExtension"
   private final val companionsFileName = s"api_companions.$BinExtension"
-
-  /** Defaults the file analysis store to the binary format with empty mappers. */
-  def apply(analysisFile: File): AnalysisStore = binary(analysisFile)
-
-  /** Defaults the file analysis store to the binary format. */
-  def apply(analysisFile: File, mappers: ReadWriteMappers): AnalysisStore =
-    binary(analysisFile, mappers)
 
   def binary(analysisFile: File): AnalysisStore =
     new BinaryFileStore(analysisFile, ReadWriteMappers.getEmptyMappers())
