@@ -323,7 +323,9 @@ object MixedAnalyzingCompiler {
 
   /** Create a an analysis store cache at the desired location. */
   def staticCachedStore(analysisFile: File): AnalysisStore = {
-    val cachedStore = AnalysisStore.cached(FileAnalysisStore.binary(analysisFile))
-    staticCache(analysisFile, AnalysisStore.sync(cachedStore))
+    import xsbti.compile.{ AnalysisStore, FileAnalysisStore }
+    val fileStore = FileAnalysisStore.getDefault(analysisFile)
+    val cachedStore = AnalysisStore.getCachedStore(fileStore)
+    staticCache(analysisFile, AnalysisStore.getThreadSafeStore(cachedStore))
   }
 }

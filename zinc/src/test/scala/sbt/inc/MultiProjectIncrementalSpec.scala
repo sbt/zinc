@@ -4,15 +4,14 @@ import java.io.File
 import java.net.URLClassLoader
 import java.util.Optional
 
-import sbt.internal.inc.{ ScalaInstance => _, _ }
+import sbt.internal.inc.{ ScalaInstance => _, FileAnalysisStore => _, AnalysisStore => _, _ }
 import sbt.io.IO
 import sbt.io.syntax._
 import sbt.util.Logger
 import JavaInterfaceUtil.{ EnrichOption, EnrichOptional }
 import TestResource._
 import sbt.internal.inc.classpath.ClassLoaderCache
-import xsbti.compile.{ FileAnalysisStore => _, _ }
-import sbt.internal.inc.AnalysisStore
+import xsbti.compile._
 
 class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
   val scalaVersion = "2.11.8"
@@ -26,14 +25,14 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       IO.createDirectory(sub2Directory)
       val targetDir2 = sub2Directory / "target"
       val cacheFile2 = targetDir2 / "inc_compile.zip"
-      val fileStore2 = AnalysisStore.cached(FileAnalysisStore.binary(cacheFile2))
+      val fileStore2 = AnalysisStore.getCachedStore(FileAnalysisStore.getDefault(cacheFile2))
 
       // Prepare the initial compilation
       val sub1Directory = tempDir / "sub1"
       IO.createDirectory(sub1Directory)
       val targetDir = sub1Directory / "target"
       val cacheFile = targetDir / "inc_compile.zip"
-      val fileStore = AnalysisStore.cached(FileAnalysisStore.binary(cacheFile))
+      val fileStore = AnalysisStore.getCachedStore(FileAnalysisStore.getDefault(cacheFile))
       val dependerFile = sub1Directory / "src" / "Depender.scala"
       IO.copyFile(dependerFile0, dependerFile, false)
       val depender2File = sub1Directory / "src" / "Depender2.scala"

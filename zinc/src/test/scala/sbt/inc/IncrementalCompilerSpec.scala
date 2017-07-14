@@ -1,6 +1,7 @@
 package sbt.inc
 
-import sbt.internal.inc._
+import xsbti.compile.AnalysisStore
+import sbt.internal.inc.{ AnalysisStore => _, _ }
 import sbt.io.IO
 import sbt.io.syntax._
 
@@ -38,7 +39,7 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
     IO.withTemporaryDirectory { tempDir =>
       val cacheFile = tempDir / "target" / "inc_compile.zip"
       val fileStore0 = FileAnalysisStore.binary(cacheFile)
-      val fileStore = sbt.internal.inc.AnalysisStore.cached(fileStore0)
+      val fileStore = AnalysisStore.getCachedStore(fileStore0)
 
       val projectSetup =
         ProjectSetup.simple(tempDir.toPath, Seq(SourceFiles.Good, SourceFiles.Foo))
