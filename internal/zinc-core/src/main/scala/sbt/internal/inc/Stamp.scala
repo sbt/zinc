@@ -68,7 +68,7 @@ final class Hash private[inc] (val hexHash: String) extends StampBase {
 }
 
 private[sbt] object Hash extends WithPattern {
-  final val Pattern = """hash\((\w+)\)""".r
+  final val Pattern = """hash\(([0-9a-fA-F]+)\)""".r
 }
 
 /** Define the last modified time of the file. It's a typical stamp for class files and products. */
