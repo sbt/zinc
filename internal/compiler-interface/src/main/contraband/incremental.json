@@ -256,39 +256,61 @@
         {
           "name": "classpath",
           "type": "java.io.File*",
+          "default": "new java.io.File[0]",
           "doc": [
             "The classpath to use for compilation.",
             "This will be modified according to the ClasspathOptions used to configure the ScalaCompiler."
-          ]
+          ],
+          "since": "0.1.0"
         },
         {
           "name": "sources",
           "type": "java.io.File*",
+          "default": "new java.io.File[0]",
           "doc": [
             "All sources that should be recompiled.",
             "This should include Scala and Java sources, which are identified by their extension."
-          ]
+          ],
+          "since": "0.1.0"
         },
-        { "name": "classesDirectory", "type": "java.io.File" },
+        {
+          "name": "classesDirectory",
+          "type": "java.io.File",
+          "default": "new java.io.File(\"classes\")",
+          "since": "0.1.0"
+        },
         {
           "name": "scalacOptions",
           "type": "String*",
-          "doc": "The options to pass to the Scala compiler other than the sources and classpath to use."
+          "default": "new String[0]",
+          "doc": "The options to pass to the Scala compiler other than the sources and classpath to use.",
+          "since": "0.1.0"
         },
         {
           "name": "javacOptions",
           "type": "String*",
-          "doc": "The options to pass to the Java compiler other than the sources and classpath to use."
+          "default": "new String[0]",
+          "doc": "The options to pass to the Java compiler other than the sources and classpath to use.",
+          "since": "0.1.0"
         },
-        { "name": "maxErrors", "type": "int" },
+        {
+          "name": "maxErrors",
+          "type": "int",
+          "default": "100",
+          "since": "0.1.0"
+        },
         {
           "name": "sourcePositionMapper",
-          "type": "xsbti.F1<xsbti.Position, xsbti.Position>"
+          "type": "xsbti.F1<xsbti.Position, xsbti.Position>",
+          "default": "new xsbti.F1<xsbti.Position, xsbti.Position>() { public xsbti.Position apply(xsbti.Position a) { return a; } }",
+          "since": "0.1.0"
         },
         {
           "name": "order",
           "type": "xsbti.compile.CompileOrder",
-          "doc": "Controls the order in which Java and Scala sources are compiled."
+          "default": "xsbti.compile.CompileOrder.Mixed",
+          "doc": "Controls the order in which Java and Scala sources are compiled.",
+          "since": "0.1.0"
         }
       ]
     },

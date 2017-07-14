@@ -26,6 +26,17 @@ public final class CompileOptions implements java.io.Serializable {
     private xsbti.F1<xsbti.Position, xsbti.Position> sourcePositionMapper;
     /** Controls the order in which Java and Scala sources are compiled. */
     private xsbti.compile.CompileOrder order;
+    public CompileOptions() {
+        super();
+        classpath = new java.io.File[0];
+        sources = new java.io.File[0];
+        classesDirectory = new java.io.File("classes");
+        scalacOptions = new String[0];
+        javacOptions = new String[0];
+        maxErrors = 100;
+        sourcePositionMapper = new xsbti.F1<xsbti.Position, xsbti.Position>() { public xsbti.Position apply(xsbti.Position a) { return a; } };
+        order = xsbti.compile.CompileOrder.Mixed;
+    }
     public CompileOptions(java.io.File[] _classpath, java.io.File[] _sources, java.io.File _classesDirectory, String[] _scalacOptions, String[] _javacOptions, int _maxErrors, xsbti.F1<xsbti.Position, xsbti.Position> _sourcePositionMapper, xsbti.compile.CompileOrder _order) {
         super();
         classpath = _classpath;
