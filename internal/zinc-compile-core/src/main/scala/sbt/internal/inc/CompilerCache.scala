@@ -13,7 +13,7 @@ import java.util
 
 import xsbti.{ Reporter, Logger => xLogger }
 import xsbti.compile.{ CachedCompiler, CachedCompilerProvider, GlobalsCache, Output }
-import sbt.util.Logger.f0
+import sbt.util.InterfaceUtil.{ toSupplier => f0 }
 
 /**
  * Manage a number of <code>maxInstance</code> of cached Scala compilers.
