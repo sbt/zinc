@@ -58,7 +58,7 @@ class NameHashing(optimizedSealed: Boolean) {
     val hashes =
       groupedBySimpleName.mapValues(hashLocatedDefinitions(_, location, includeSealedChildren))
     hashes.toIterable
-      .map({ case (name: String, hash: Int) => new NameHash(name, useScope, hash) })(
+      .map({ case (name: String, hash: Int) => NameHash.of(name, useScope, hash) })(
         collection.breakOut)
   }
 
@@ -129,7 +129,7 @@ object NameHashing {
         m(key) = Set(existingHash, nh.hash).hashCode()
       }
     }
-    m.map { case ((name, scope), hash) => new NameHash(name, scope, hash) }(collection.breakOut)
+    m.map { case ((name, scope), hash) => NameHash.of(name, scope, hash) }(collection.breakOut)
   }
 
   private case class LocatedDefinition(location: Location, definition: Definition)

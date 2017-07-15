@@ -16,9 +16,10 @@ import java.io.File
 import sbt.internal.librarymanagement._
 import sbt.internal.librarymanagement.cross.CrossVersionUtil
 import sbt.librarymanagement._
+import sbt.librarymanagement.ivy._
 import Configurations._
 
-import scalajson.ast.unsafe.JValue
+import sjsonnew.shaded.scalajson.ast.unsafe.JValue
 
 trait BaseIvySpecification extends UnitSpec {
   def currentBase: File = new File(".")
@@ -34,8 +35,8 @@ trait BaseIvySpecification extends UnitSpec {
              scalaFullVersion: Option[String],
              uo: UpdateOptions = UpdateOptions(),
              overrideScalaVersion: Boolean = true): IvySbt#Module = {
-    val ivyScala = scalaFullVersion map { fv =>
-      IvyScala(
+    val scalaModuleInfo = scalaFullVersion map { fv =>
+      ScalaModuleInfo(
         scalaFullVersion = fv,
         scalaBinaryVersion = CrossVersionUtil.binaryScalaVersion(fv),
         configurations = Vector.empty,
@@ -45,57 +46,43 @@ trait BaseIvySpecification extends UnitSpec {
       )
     }
 
-    val moduleSetting: ModuleSettings = InlineConfiguration(
-      validate = false,
-      ivyScala = ivyScala,
-      module = moduleId,
-      moduleInfo = ModuleInfo("foo"),
-      dependencies = deps
-    ).withConfigurations(configurations)
+    val moduleSetting: ModuleSettings = ModuleDescriptorConfiguration(moduleId, ModuleInfo("foo"))
+      .withDependencies(deps)
+      .withConfigurations(configurations)
+      .withScalaModuleInfo(scalaModuleInfo)
     val ivySbt = new IvySbt(mkIvyConfiguration(uo))
     new ivySbt.Module(moduleSetting)
   }
 
-  def resolvers: Vector[Resolver] = Vector(DefaultMavenRepository)
+  def resolvers: Vector[Resolver] = Vector(Resolver.mavenCentral)
 
   def chainResolver = ChainedResolver("sbt-chain", resolvers)
 
-  def mkIvyConfiguration(uo: UpdateOptions): IvyConfiguration =
-    new InlineIvyConfiguration(
-      paths = IvyPaths(currentBase, Some(currentTarget)),
-      resolvers = resolvers,
-      otherResolvers = Vector.empty,
-      moduleConfigurations = Vector(ModuleConfiguration("*", chainResolver)),
-      lock = None,
-      checksums = Vector.empty,
-      managedChecksums = false,
-      resolutionCacheDir = Some(currentTarget / "resolution-cache"),
-      updateOptions = uo,
-      log = log
-    )
+  def mkIvyConfiguration(uo: UpdateOptions): IvyConfiguration = {
+    val moduleConfs = Vector(ModuleConfiguration("*", chainResolver))
+    val resCacheDir = currentTarget / "resolution-cache"
+    InlineIvyConfiguration()
+      .withPaths(IvyPaths(currentTarget, Some(currentTarget)))
+      .withResolvers(resolvers)
+      .withModuleConfigurations(moduleConfs)
+      .withChecksums(Vector.empty)
+      .withResolutionCacheDir(resCacheDir)
+      .withLog(log)
+      .withUpdateOptions(uo)
+  }
 
   def makeUpdateConfiguration: UpdateConfiguration = {
     val retrieveConfig =
-      RetrieveConfiguration(currentManaged, Resolver.defaultRetrievePattern, false, None)
-    UpdateConfiguration(
-      retrieve = Some(retrieveConfig),
-      missingOk = false,
-      logging = UpdateLogging.Full,
-      artifactFilter = ArtifactTypeFilter.forbid(Set("src", "doc")),
-      offline = false,
-      frozen = false
-    )
+      RetrieveConfiguration(currentManaged, Resolver.defaultRetrievePattern, false, Vector.empty)
+    UpdateConfiguration()
+      .withRetrieveManaged(retrieveConfig)
+      .withLogging(UpdateLogging.Full)
   }
 
   def ivyUpdateEither(module: IvySbt#Module): Either[UnresolvedWarning, UpdateReport] = {
     // IO.delete(currentTarget)
     val config = makeUpdateConfiguration
-    IvyActions.updateEither(module,
-                            config,
-                            UnresolvedWarningConfiguration(),
-                            LogicalClock.unknown,
-                            Some(currentDependency),
-                            log)
+    IvyActions.updateEither(module, config, UnresolvedWarningConfiguration(), log)
   }
 
   def cleanIvyCache(): Unit = IO.delete(currentTarget / "cache")
@@ -112,14 +99,12 @@ trait BaseIvySpecification extends UnitSpec {
 
   def mkPublishConfiguration(resolver: Resolver,
                              artifacts: Map[Artifact, File]): PublishConfiguration = {
-    new PublishConfiguration(
-      ivyFile = None,
-      resolverName = resolver.name,
-      artifacts = artifacts,
-      checksums = Vector.empty,
-      logging = UpdateLogging.Full,
-      overwrite = true
-    )
+    PublishConfiguration()
+      .withResolverName(resolver.name)
+      .withArtifacts(artifacts.toVector)
+      .withChecksums(Vector.empty)
+      .withLogging(UpdateLogging.Full)
+      .withOverwrite(true)
   }
 
   def ivyPublish(module: IvySbt#Module, config: PublishConfiguration) = {

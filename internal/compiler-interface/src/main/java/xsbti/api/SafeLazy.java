@@ -7,13 +7,15 @@
 
 package xsbti.api;
 
+import java.util.function.Supplier;
+
 /**
  * Implement a Scala `lazy val` in Java for the facing sbt interface.
  *
  * It holds a reference to a thunk that is lazily evaluated and then
  * its reference is clear to avoid memory leaks in memory-intensive code.
- * It needs to be defined in [[xsbti]] or a subpackage, see
- * [[xsbti.api.Lazy]] or [[xsbti.F0]] for similar definitions.
+ * It needs to be defined in [[xsbti]] or a subpackage, see [[xsbti.api.Lazy]]
+ * for similar definitions.
  */
 public final class SafeLazy {
 
@@ -21,26 +23,27 @@ public final class SafeLazy {
    * cannot hold any reference to Scala code nor the Scala library. */
 
   /** Return a sbt [[xsbti.api.Lazy]] from a given Scala parameterless function. */
-  public static <T> xsbti.api.Lazy<T> apply(xsbti.F0<T> sbtThunk) {
+  public static <T> xsbti.api.Lazy<T> apply(Supplier<T> sbtThunk) {
     return new Impl<T>(sbtThunk);
   }
 
   /** Return a sbt [[xsbti.api.Lazy]] from a strict value. */
   public static <T> xsbti.api.Lazy<T> strict(T value) {
     // Convert strict parameter to sbt function returning it
-    return apply(new xsbti.F0<T>() {
-      public T apply() {
+    return apply(new Supplier<T>() {
+      @Override
+      public T get() {
         return value;
       }
     });
   }
 
   private static final class Impl<T> extends xsbti.api.AbstractLazy<T> {
-    private xsbti.F0<T> thunk;
+    private Supplier<T> thunk;
     private T result;
     private boolean flag = false;
 
-    Impl(xsbti.F0<T> thunk) {
+    Impl(Supplier<T> thunk) {
       this.thunk = thunk;
     }
 
@@ -52,7 +55,7 @@ public final class SafeLazy {
     public T get() {
       if (flag) return result;
       else {
-        result = thunk.apply();
+        result = thunk.get();
         flag = true;
         // Clear reference so that thunk is GC'ed
         thunk = null;

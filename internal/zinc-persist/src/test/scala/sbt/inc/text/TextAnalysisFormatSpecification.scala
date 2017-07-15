@@ -44,12 +44,12 @@ trait BaseTextAnalysisFormatTest { self: Properties =>
     def getOutputDirectory: java.io.File = new java.io.File(RootFilePath)
   }
 
-  val commonSetup = new MiniSetup(dummyOutput,
-                                  new MiniOptions(Array(), Array(), Array()),
-                                  "2.10.4",
-                                  xsbti.compile.CompileOrder.Mixed,
-                                  storeApis,
-                                  Array(t2(("key", "value"))))
+  val commonSetup = MiniSetup.of(dummyOutput,
+                                 MiniOptions.of(Array(), Array(), Array()),
+                                 "2.10.4",
+                                 xsbti.compile.CompileOrder.Mixed,
+                                 storeApis,
+                                 Array(t2(("key", "value"))))
   val companionStore = new CompanionsStore {
     def getUncaught(): (Map[String, Companions], Map[String, Companions]) = (Map(), Map())
     def get(): Option[(Map[String, Companions], Map[String, Companions])] = Some(getUncaught())
@@ -90,10 +90,10 @@ trait BaseTextAnalysisFormatTest { self: Properties =>
     val products = NonLocalProduct("A", "A", f("A.class"), absent) ::
       NonLocalProduct("A$", "A$", f("A$.class"), absent) :: Nil
     val binaryDeps = (f("x.jar"), "x", absent) :: Nil
-    val externalDeps = new ExternalDependency("A",
-                                              "C",
-                                              cClass,
-                                              DependencyContext.DependencyByMemberRef) :: Nil
+    val externalDeps = ExternalDependency.of("A",
+                                             "C",
+                                             cClass,
+                                             DependencyContext.DependencyByMemberRef) :: Nil
     analysis = analysis.addSource(aScala,
                                   Seq(aClass),
                                   absent,

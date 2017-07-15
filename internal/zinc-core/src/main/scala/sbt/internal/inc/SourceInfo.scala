@@ -23,8 +23,8 @@ trait SourceInfos extends ReadSourceInfos {
 }
 
 object SourceInfos {
-  def empty: SourceInfos = make(Map.empty)
-  def make(m: Map[File, SourceInfo]): SourceInfos = new MSourceInfos(m)
+  def empty: SourceInfos = of(Map.empty)
+  def of(m: Map[File, SourceInfo]): SourceInfos = new MSourceInfos(m)
 
   val emptyInfo: SourceInfo = makeInfo(Nil, Nil, Nil)
   def makeInfo(reported: Seq[Problem],

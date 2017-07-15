@@ -7,14 +7,13 @@
 
 package xsbti.compile;
 
-import sbt.internal.inc.ClassFileManager.WrappedClassFileManager;
-import xsbti.F0;
 import xsbti.Logger;
 
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * Define a helper class to instantiate {@link IncOptions}.
@@ -41,130 +40,11 @@ public class IncOptionsUtil {
     public static final String DELETE_IMMEDIATELY_MANAGER_TYPE = "deleteImmediatelyManagerType";
     private static final String XSBTI_NOTHING = "NOTHING";
 
-    public static int defaultTransitiveStep() {
-        return 3;
-    }
-
-    public static double defaultRecompileAllFraction() {
-        return 0.5;
-    }
-
-    public static boolean defaultRelationsDebug() {
-        return false;
-    }
-
-    public static boolean defaultApiDebug() {
-        return false;
-    }
-
-    public static int defaultApiDiffContextSize() {
-        return 5;
-    }
-
-    public static Optional<File> defaultApiDumpDirectory() {
-        return Optional.empty();
-    }
-
-    public static Optional<ClassFileManagerType> defaultClassFileManagerType() {
-        return Optional.empty();
-    }
-
-    public static Optional<Boolean> defaultRecompileOnMacroDef() {
-        return Optional.empty();
-    }
-
-    public static boolean defaultUseOptimizedSealed() {
-        return false;
-    }
-
-    public static boolean defaultRecompileOnMacroDefImpl() {
-        return true;
-    }
-
-    public static boolean getRecompileOnMacroDef(IncOptions options) {
-        if (options.recompileOnMacroDef().isPresent()) {
-            return options.recompileOnMacroDef().get();
-        } else {
-            return defaultRecompileOnMacroDefImpl();
-        }
-    }
-
-    public static boolean defaultUseCustomizedFileManager() {
-        return false;
-    }
-
-    public static boolean defaultStoreApis() {
-        return true;
-    }
-
-    public static boolean defaultEnabled() {
-        return true;
-    }
-
-    public static Map<String, String> defaultExtra() {
-        return new HashMap<String, String>();
-    }
-
-    private static class ConcreteExternalHooks implements ExternalHooks {
-        private Optional<ExternalHooks.Lookup> lookup = Optional.empty();
-        private Optional<ClassFileManager> classFileManager = Optional.empty();
-
-        private ConcreteExternalHooks(Optional<ExternalHooks.Lookup> lookup, Optional<ClassFileManager> classFileManager) {
-            this.lookup = lookup;
-            this.classFileManager = classFileManager;
-        }
-
-        @Override
-        public Optional<Lookup> getExternalLookup() {
-            return lookup;
-        }
-
-        @Override
-        public Optional<ClassFileManager> getExternalClassFileManager() {
-            return classFileManager;
-        }
-
-        @Override
-        public ExternalHooks withExternalClassFileManager(ClassFileManager externalClassFileManager) {
-            Optional<ClassFileManager> currentManager = this.getExternalClassFileManager();
-            Optional<ClassFileManager> mixedManager = currentManager;
-            if (currentManager.isPresent()) {
-                Optional<ClassFileManager> external = Optional.of(externalClassFileManager);
-                mixedManager = Optional.of(new WrappedClassFileManager(currentManager.get(), external));
-            }
-            return new ConcreteExternalHooks(this.getExternalLookup(), mixedManager);
-        }
-
-        @Override
-        public ExternalHooks withExternalLookup(Lookup externalLookup) {
-            return new ConcreteExternalHooks(Optional.of(externalLookup), this.getExternalClassFileManager());
-        }
-    }
-
-    public static ExternalHooks defaultExternal() {
-        return new ConcreteExternalHooks(Optional.empty(), Optional.empty());
-    }
-
-    public static boolean defaultLogRecompileOnMacro() {
-        return true;
-    }
-
-    public static IncOptions defaultIncOptions() {
-        IncOptions retval = new IncOptions(
-                defaultTransitiveStep(), defaultRecompileAllFraction(),
-                defaultRelationsDebug(), defaultApiDebug(), defaultApiDiffContextSize(),
-                defaultApiDumpDirectory(), defaultClassFileManagerType(),
-                defaultUseCustomizedFileManager(), defaultRecompileOnMacroDef(),
-                defaultUseOptimizedSealed(), defaultStoreApis(), defaultEnabled(),
-                defaultExtra(), defaultLogRecompileOnMacro(), defaultExternal());
-        return retval;
-    }
-
     // Small utility function for logging
-    private static F0<String> f0(String message) {
-        return new F0<String>() {
+    private static Supplier<String> f0(String message) {
+        return new Supplier<String>() {
             @Override
-            public String apply() {
+            public String get() {
                 return message;
             }
         };
@@ -178,7 +58,7 @@ public class IncOptionsUtil {
      * @return An instance of {@link IncOptions}.
      */
     public static IncOptions fromStringMap(Map<String, String> values, Logger logger) {
-        IncOptions base = defaultIncOptions();
+        IncOptions base = IncOptions.of();
         logger.debug(f0("Reading incremental options from map"));
 
         if (values.containsKey(TRANSITIVE_STEP_KEY)) {

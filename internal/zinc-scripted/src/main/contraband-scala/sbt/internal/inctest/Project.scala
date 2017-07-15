@@ -17,7 +17,7 @@ final class Project private (
     case _ => false
   }
   override def hashCode: Int = {
-    37 * (37 * (37 * (37 * (37 * (17 + "Project".##) + name.##) + dependsOn.##) + in.##) + scalaVersion.##)
+    37 * (37 * (37 * (37 * (37 * (17 + "sbt.internal.inctest.Project".##) + name.##) + dependsOn.##) + in.##) + scalaVersion.##)
   }
   override def toString: String = {
     "Project(" + name + ", " + dependsOn + ", " + in + ", " + scalaVersion + ")"

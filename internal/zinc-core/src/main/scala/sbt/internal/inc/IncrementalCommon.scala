@@ -201,7 +201,7 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
     if (shortcutSameClass(a, b)) {
       None
     } else {
-      if (hasMacro && IncOptionsUtil.getRecompileOnMacroDef(options)) {
+      if (hasMacro && IncOptions.getRecompileOnMacroDef(options)) {
         Some(APIChangeDueToMacroDefinition(className))
       } else sameAPI(className, a, b)
     }

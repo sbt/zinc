@@ -8,7 +8,7 @@
 package sjsonnew
 package support.scalajson.unsafe
 
-import scalajson.ast.unsafe._
+import sjsonnew.shaded.scalajson.ast.unsafe._
 import scala.collection.mutable
 import jawn.{ SupportParser, MutableFacade }
 

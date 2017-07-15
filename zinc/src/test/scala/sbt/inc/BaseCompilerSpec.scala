@@ -99,7 +99,7 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
       tempDir: File,
       sources: Array[File],
       classpath: Seq[File],
-      incOptions: IncOptions = IncOptionsUtil.defaultIncOptions()
+      incOptions: IncOptions = IncOptions.of()
   ) {
     val noLogger = Logger.Null
     val compiler = new IncrementalCompilerImpl
@@ -153,8 +153,8 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
         case Some(analysisContents) =>
           val prevAnalysis = analysisContents.getAnalysis
           val prevSetup = analysisContents.getMiniSetup
-          new PreviousResult(Optional.of[CompileAnalysis](prevAnalysis),
-                             Optional.of[MiniSetup](prevSetup))
+          PreviousResult.of(Optional.of[CompileAnalysis](prevAnalysis),
+                            Optional.of[MiniSetup](prevSetup))
         case _ =>
           compiler.emptyPreviousResult
       }

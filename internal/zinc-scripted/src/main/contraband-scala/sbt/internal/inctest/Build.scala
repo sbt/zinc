@@ -14,7 +14,7 @@ final class Build private (
     case _ => false
   }
   override def hashCode: Int = {
-    37 * (37 * (17 + "Build".##) + projects.##)
+    37 * (37 * (17 + "sbt.internal.inctest.Build".##) + projects.##)
   }
   override def toString: String = {
     "Build(" + projects + ")"

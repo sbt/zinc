@@ -18,6 +18,7 @@ import xsbti.compile._
 import xsbti.{ AnalysisCallback, Reporter => XReporter, Logger => XLogger }
 import sbt.io.PathFinder
 
+import sbt.util.InterfaceUtil
 import sbt.util.Logger
 
 /**
@@ -97,7 +98,7 @@ final class AnalyzingJavaCompiler private[sbt] (
       // Report warnings about source files that have no output directory
       chunks.get(None) foreach { srcs =>
         val culpritPaths = srcs.map(_.getAbsolutePath).mkString(", ")
-        log.error(Logger.f0(s"No output directory mapped for: $culpritPaths"))
+        log.error(InterfaceUtil.toSupplier(s"No output directory mapped for: $culpritPaths"))
       }
 
       // Memoize the known class files in the Javac output directory

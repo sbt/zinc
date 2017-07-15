@@ -15,11 +15,11 @@ object ProtobufDefaults {
   final val MissingString: String = ""
 
   object ReadersConstants {
-    final val This: This = new This()
-    final val Public: Public = new Public()
-    final val EmptyType: EmptyType = new EmptyType()
-    final val Unqualified: Unqualified = new Unqualified()
-    final val ThisQualifier: ThisQualifier = new ThisQualifier()
+    final val This: This = xsbti.api.This.of()
+    final val Public: Public = xsbti.api.Public.of()
+    final val EmptyType: EmptyType = xsbti.api.EmptyType.of()
+    final val Unqualified: Unqualified = xsbti.api.Unqualified.of()
+    final val ThisQualifier: ThisQualifier = xsbti.api.ThisQualifier.of()
   }
 
   object WritersConstants {

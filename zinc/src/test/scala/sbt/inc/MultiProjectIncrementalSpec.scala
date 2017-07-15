@@ -65,10 +65,9 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
         override def shouldDoIncrementalCompilation(changedClasses: Set[String],
                                                     analysis: CompileAnalysis): Boolean = true
       }
-      val incOptions = IncOptionsUtil
-        .defaultIncOptions()
+      val incOptions = IncOptions
+        .of()
         .withApiDebug(true)
-        .withExternalHooks(IncOptionsUtil.defaultExternal())
 
       val reporter = new ManagedLoggedReporter(maxErrors, log)
       val setup = compiler.setup(lookup,
@@ -96,7 +95,7 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       fileStore.set(contents)
       val prev1 = fileStore.get.toOption match {
         case Some(contents) =>
-          new PreviousResult(Optional.of(contents.getAnalysis), Optional.of(contents.getMiniSetup))
+          PreviousResult.of(Optional.of(contents.getAnalysis), Optional.of(contents.getMiniSetup))
         case _ => sys.error("previous is not found")
       }
       val sources1 = Array(dependerFile, depender2File)
@@ -157,7 +156,7 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       val sources3 = Array(knownSampleGoodFile, dependerFile, depender2File)
       val prev = fileStore.get.toOption match {
         case Some(contents) =>
-          new PreviousResult(Optional.of(contents.getAnalysis), Optional.of(contents.getMiniSetup))
+          PreviousResult.of(Optional.of(contents.getAnalysis), Optional.of(contents.getMiniSetup))
         case _ => sys.error("previous is not found")
       }
       val lookup3 = new PerClasspathEntryLookupImpl(

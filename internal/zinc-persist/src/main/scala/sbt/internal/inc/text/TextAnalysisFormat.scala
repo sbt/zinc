@@ -39,7 +39,7 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
   private implicit val compilationF: Format[Compilation] = CompilationFormat
   private implicit val nameHashesFormat: Format[NameHash] = {
     def read(name: String, scopeName: String, hash: Int) =
-      new NameHash(name, UseScope.valueOf(scopeName), hash)
+      NameHash.of(name, UseScope.valueOf(scopeName), hash)
     asProduct3(read)(a => (a.name(), a.scope().name(), a.hash()))
   }
   private implicit val companionsFomrat: Format[Companions] = CompanionsFormat
@@ -67,7 +67,7 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
         case (a, b, c) => SourceInfos.makeInfo(a, b, c)
       })
   private implicit def fileHashFormat: Format[FileHash] =
-    asProduct2((file: File, hash: Int) => new FileHash(file, hash))(h => (h.file, h.hash))
+    asProduct2((file: File, hash: Int) => FileHash.of(file, hash))(h => (h.file, h.hash))
   private implicit def seqFormat[T](implicit optionFormat: Format[T]): Format[Seq[T]] =
     viaSeq[Seq[T], T](x => x)
   private def t2[A1, A2](a1: A1, a2: A2): T2[A1, A2] = InterfaceUtil.t2(a1 -> a2)
@@ -306,7 +306,7 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
                     sourceInfoToString,
                     inlineVals = false)
     def read(in: BufferedReader): SourceInfos =
-      SourceInfos.make(readMap(in)(Headers.infos, sourcesMapper.read, stringToSourceInfo))
+      SourceInfos.of(readMap(in)(Headers.infos, sourcesMapper.read, stringToSourceInfo))
   }
 
   private[this] object CompilationsF {
@@ -320,7 +320,7 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
     def write(out: Writer, compilations: Compilations): Unit =
       writeSeq(out)(Headers.compilations, compilations.allCompilations, compilationToString)
 
-    def read(in: BufferedReader): Compilations = Compilations.make(
+    def read(in: BufferedReader): Compilations = Compilations.of(
       readSeq[Compilation](in)(Headers.compilations, stringToCompilation)
     )
   }
@@ -420,9 +420,9 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
         case None => throw new ReadException("No output mode specified")
       }
 
-      val original = new MiniSetup(
+      val original = MiniSetup.of(
         output,
-        new MiniOptions(classpathHash.toArray, compileOptions.toArray, javacOptions.toArray),
+        MiniOptions.of(classpathHash.toArray, compileOptions.toArray, javacOptions.toArray),
         compilerVersion,
         xsbti.compile.CompileOrder.valueOf(compileOrder),
         skipApiStoring,

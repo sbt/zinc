@@ -221,7 +221,7 @@ case class ProjectStructure(
   val fileStore = AnalysisStore.cached(FileAnalysisStore.binary(cacheFile))
   def prev = fileStore.get.toOption match {
     case Some(contents) =>
-      new PreviousResult(Optional.of(contents.getAnalysis), Optional.of(contents.getMiniSetup))
+      PreviousResult.of(Optional.of(contents.getAnalysis), Optional.of(contents.getMiniSetup))
     case _ => compiler.emptyPreviousResult
   }
   def unmanagedJars: List[File] = (baseDirectory / "lib" ** "*.jar").get.toList
@@ -343,8 +343,8 @@ case class ProjectStructure(
     val lookup = new PerClasspathEntryLookupImpl(lookupAnalysis, Locate.definesClass)
     val transactional: Optional[xsbti.compile.ClassFileManagerType] =
       Optional.of(
-        new xsbti.compile.TransactionalManagerType(targetDir / "classes.bak",
-                                                   sbt.util.Logger.Null))
+        xsbti.compile.TransactionalManagerType
+          .of(targetDir / "classes.bak", sbt.util.Logger.Null))
     // We specify the class file manager explicitly even though it's noew possible
     // to specify it in the incremental option property file (this is the default for sbt)
     val incOptionsFile = baseDirectory / "incOptions.properties"
@@ -456,7 +456,7 @@ case class ProjectStructure(
         Option(map.get("scalac.options")).map(_.toString.split(" +")).getOrElse(Array.empty)
 
       (IncOptionsUtil.fromStringMap(map, scriptedLog), scalacOptions)
-    } else (IncOptionsUtil.defaultIncOptions, Array.empty)
+    } else (IncOptions.of(), Array.empty)
   }
 
   def getProblems(): Seq[Problem] =

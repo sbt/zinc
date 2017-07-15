@@ -88,7 +88,7 @@ final class MixedAnalyzingCompiler(
       if (javaSrcs.nonEmpty) {
         timed("Java compilation + analysis", log) {
           val incToolOptions =
-            new IncToolOptions(
+            IncToolOptions.of(
               Optional.of(classfileManager),
               incOptions.useCustomizedFileManager()
             )
@@ -182,11 +182,11 @@ object MixedAnalyzingCompiler {
       extra: List[(String, String)]
   ): CompileConfiguration = {
     val classpathHash = classpath map { x =>
-      new FileHash(x, Stamper.forHash(x).hashCode)
+      FileHash.of(x, Stamper.forHash(x).hashCode)
     }
-    val compileSetup = new MiniSetup(
+    val compileSetup = MiniSetup.of(
       output,
-      new MiniOptions(
+      MiniOptions.of(
         classpathHash.toArray,
         options.toArray,
         javacOptions.toArray
@@ -322,10 +322,10 @@ object MixedAnalyzingCompiler {
   }
 
   /**
-    * Create a an analysis store cache at the desired location.
-    *
-    * Note: This method will be deprecated after Zinc 1.1.
-    */
+   * Create a an analysis store cache at the desired location.
+   *
+   * Note: This method will be deprecated after Zinc 1.1.
+   */
   def staticCachedStore(analysisFile: File, useTextAnalysis: Boolean): AnalysisStore = {
     import xsbti.compile.AnalysisStore
     val fileStore =

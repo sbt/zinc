@@ -25,9 +25,9 @@ trait Compilations extends ReadCompilations {
 
 object Compilations {
   val empty: Compilations = new MCompilations(Seq.empty)
-  def make(s: Seq[Compilation]): Compilations = new MCompilations(s)
+  def of(s: Seq[Compilation]): Compilations = new MCompilations(s)
   def merge(s: Traversable[Compilations]): Compilations =
-    make((s flatMap { _.allCompilations }).toSeq.distinct)
+    of((s flatMap { _.allCompilations }).toSeq.distinct)
 }
 
 private final class MCompilations(val allCompilations: Seq[Compilation]) extends Compilations {
