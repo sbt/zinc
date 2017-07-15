@@ -47,7 +47,7 @@ object ReporterManager {
     }
   }
 
-  private val UseColor = ConsoleAppender.formatEnabled
+  private val UseColor = ConsoleAppender.formatEnabledInEnv
   private val NoPositionMapper = java.util.function.Function.identity[Position]()
 
   import java.util.function.{ Function => JavaFunction }

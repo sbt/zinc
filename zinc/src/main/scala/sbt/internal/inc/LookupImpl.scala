@@ -9,7 +9,6 @@ package sbt.internal.inc
 
 import java.io.File
 
-import sbt.util.Logger._
 import xsbti.compile.{ Changes, CompileAnalysis, FileHash, MiniSetup }
 
 class LookupImpl(compileConfiguration: CompileConfiguration, previousSetup: Option[MiniSetup])
