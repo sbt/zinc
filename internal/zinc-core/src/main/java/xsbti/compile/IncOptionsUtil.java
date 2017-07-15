@@ -7,14 +7,13 @@
 
 package xsbti.compile;
 
-import scala.tools.cmd.Opt;
-import xsbti.F0;
 import xsbti.Logger;
 
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * Define a helper class to instantiate {@link IncOptions}.
@@ -47,10 +46,10 @@ public class IncOptionsUtil {
     }
 
     // Small utility function for logging
-    private static F0<String> f0(String message) {
-        return new F0<String>() {
+    private static Supplier<String> f0(String message) {
+        return new Supplier<String>() {
             @Override
-            public String apply() {
+            public String get() {
                 return message;
             }
         };

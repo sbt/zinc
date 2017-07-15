@@ -13,10 +13,10 @@ public final class CompileOptions implements java.io.Serializable {
     public static CompileOptions of() {
         return new CompileOptions();
     }
-    public static CompileOptions create(java.io.File[] _classpath, java.io.File[] _sources, java.io.File _classesDirectory, String[] _scalacOptions, String[] _javacOptions, int _maxErrors, xsbti.F1<xsbti.Position, xsbti.Position> _sourcePositionMapper, xsbti.compile.CompileOrder _order) {
+    public static CompileOptions create(java.io.File[] _classpath, java.io.File[] _sources, java.io.File _classesDirectory, String[] _scalacOptions, String[] _javacOptions, int _maxErrors, java.util.function.Function<xsbti.Position, xsbti.Position> _sourcePositionMapper, xsbti.compile.CompileOrder _order) {
         return new CompileOptions(_classpath, _sources, _classesDirectory, _scalacOptions, _javacOptions, _maxErrors, _sourcePositionMapper, _order);
     }
-    public static CompileOptions of(java.io.File[] _classpath, java.io.File[] _sources, java.io.File _classesDirectory, String[] _scalacOptions, String[] _javacOptions, int _maxErrors, xsbti.F1<xsbti.Position, xsbti.Position> _sourcePositionMapper, xsbti.compile.CompileOrder _order) {
+    public static CompileOptions of(java.io.File[] _classpath, java.io.File[] _sources, java.io.File _classesDirectory, String[] _scalacOptions, String[] _javacOptions, int _maxErrors, java.util.function.Function<xsbti.Position, xsbti.Position> _sourcePositionMapper, xsbti.compile.CompileOrder _order) {
         return new CompileOptions(_classpath, _sources, _classesDirectory, _scalacOptions, _javacOptions, _maxErrors, _sourcePositionMapper, _order);
     }
     /**
@@ -35,7 +35,7 @@ public final class CompileOptions implements java.io.Serializable {
     /** The options to pass to the Java compiler other than the sources and classpath to use. */
     private String[] javacOptions;
     private int maxErrors;
-    private xsbti.F1<xsbti.Position, xsbti.Position> sourcePositionMapper;
+    private java.util.function.Function<xsbti.Position, xsbti.Position> sourcePositionMapper;
     /** Controls the order in which Java and Scala sources are compiled. */
     private xsbti.compile.CompileOrder order;
     protected CompileOptions() {
@@ -46,10 +46,10 @@ public final class CompileOptions implements java.io.Serializable {
         scalacOptions = new String[0];
         javacOptions = new String[0];
         maxErrors = 100;
-        sourcePositionMapper = new xsbti.F1<xsbti.Position, xsbti.Position>() { public xsbti.Position apply(xsbti.Position a) { return a; } };
+        sourcePositionMapper = new java.util.function.Function<xsbti.Position, xsbti.Position>() { public xsbti.Position apply(xsbti.Position a) { return a; } };
         order = xsbti.compile.CompileOrder.Mixed;
     }
-    protected CompileOptions(java.io.File[] _classpath, java.io.File[] _sources, java.io.File _classesDirectory, String[] _scalacOptions, String[] _javacOptions, int _maxErrors, xsbti.F1<xsbti.Position, xsbti.Position> _sourcePositionMapper, xsbti.compile.CompileOrder _order) {
+    protected CompileOptions(java.io.File[] _classpath, java.io.File[] _sources, java.io.File _classesDirectory, String[] _scalacOptions, String[] _javacOptions, int _maxErrors, java.util.function.Function<xsbti.Position, xsbti.Position> _sourcePositionMapper, xsbti.compile.CompileOrder _order) {
         super();
         classpath = _classpath;
         sources = _sources;
@@ -78,7 +78,7 @@ public final class CompileOptions implements java.io.Serializable {
     public int maxErrors() {
         return this.maxErrors;
     }
-    public xsbti.F1<xsbti.Position, xsbti.Position> sourcePositionMapper() {
+    public java.util.function.Function<xsbti.Position, xsbti.Position> sourcePositionMapper() {
         return this.sourcePositionMapper;
     }
     public xsbti.compile.CompileOrder order() {
@@ -102,7 +102,7 @@ public final class CompileOptions implements java.io.Serializable {
     public CompileOptions withMaxErrors(int maxErrors) {
         return new CompileOptions(classpath, sources, classesDirectory, scalacOptions, javacOptions, maxErrors, sourcePositionMapper, order);
     }
-    public CompileOptions withSourcePositionMapper(xsbti.F1<xsbti.Position, xsbti.Position> sourcePositionMapper) {
+    public CompileOptions withSourcePositionMapper(java.util.function.Function<xsbti.Position, xsbti.Position> sourcePositionMapper) {
         return new CompileOptions(classpath, sources, classesDirectory, scalacOptions, javacOptions, maxErrors, sourcePositionMapper, order);
     }
     public CompileOptions withOrder(xsbti.compile.CompileOrder order) {

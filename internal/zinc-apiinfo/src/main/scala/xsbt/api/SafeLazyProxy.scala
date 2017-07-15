@@ -7,6 +7,8 @@
 
 package xsbti.api
 
+import java.util.function.Supplier
+
 /**
  * Proxy `SafeLazy` functionality from the Java implementation
  * implementation in [[xsbt.api.SafeLazy]] to Scala helpers.
@@ -21,7 +23,7 @@ object SafeLazyProxy {
    * Return a lazy implementation of a Scala by-name parameter.
    */
   def apply[T](s: => T): Lazy[T] = {
-    val sbtThunk = new xsbti.F0[T] { def apply() = s }
+    val sbtThunk = new Supplier[T] { override def get() = s }
     SafeLazy.apply(sbtThunk)
   }
 
@@ -29,7 +31,7 @@ object SafeLazyProxy {
    * Return a lazy implementation of a strict value.
    */
   def strict[T](s: T): Lazy[T] = {
-    val sbtThunk = new xsbti.F0[T] { def apply() = s }
+    val sbtThunk = new Supplier[T] { override def get() = s }
     SafeLazy.apply(sbtThunk)
   }
 }

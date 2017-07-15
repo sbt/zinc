@@ -301,8 +301,8 @@
         },
         {
           "name": "sourcePositionMapper",
-          "type": "xsbti.F1<xsbti.Position, xsbti.Position>",
-          "default": "new xsbti.F1<xsbti.Position, xsbti.Position>() { public xsbti.Position apply(xsbti.Position a) { return a; } }",
+          "type": "java.util.function.Function<xsbti.Position, xsbti.Position>",
+          "default": "new java.util.function.Function<xsbti.Position, xsbti.Position>() { public xsbti.Position apply(xsbti.Position a) { return a; } }",
           "since": "0.1.0"
         },
         {

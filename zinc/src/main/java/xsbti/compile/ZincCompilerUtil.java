@@ -7,9 +7,10 @@
 
 package xsbti.compile;
 
-import java.io.File;
-import xsbti.F0;
 import xsbti.Logger;
+
+import java.io.File;
+import java.util.function.Supplier;
 
 /**
  * Defines a util interface to get Scala compilers and the default implementation
@@ -68,9 +69,9 @@ public interface ZincCompilerUtil {
         return new CompilerBridgeProvider() {
             @Override
             public File fetchCompiledBridge(ScalaInstance scalaInstance, Logger logger) {
-                logger.debug(new F0<String>() {
+                logger.debug(new Supplier<String>() {
                     @Override
-                    public String apply() {
+                    public String get() {
                         String bridgeName = compilerBridgeJar.getAbsolutePath();
                         return "Returning already retrieved and compiled bridge: " + bridgeName + ".";
                     }
@@ -80,9 +81,9 @@ public interface ZincCompilerUtil {
 
             @Override
             public ScalaInstance fetchScalaInstance(String scalaVersion, Logger logger) {
-                logger.debug(new F0<String>() {
+                logger.debug(new Supplier<String>() {
                     @Override
-                    public String apply() {
+                    public String get() {
                         String instance = scalaInstance.toString();
                         return "Returning default scala instance:\n\t" + instance;
                     }
