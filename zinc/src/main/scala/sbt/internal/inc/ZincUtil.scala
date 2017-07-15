@@ -10,8 +10,7 @@ package sbt.internal.inc
 import java.io.File
 import java.net.URLClassLoader
 
-import sbt.librarymanagement.ModuleID
-import sbt.internal.librarymanagement.IvyConfiguration
+import sbt.librarymanagement.{ DependencyResolution, ModuleID }
 import sbt.internal.inc.javac.JavaTools
 import sbt.internal.inc.classpath.ClassLoaderCache
 import xsbti.compile.{ JavaTools => XJavaTools, _ }
@@ -89,7 +88,7 @@ object ZincUtil {
       globalLock: xsbti.GlobalLock,
       componentProvider: xsbti.ComponentProvider,
       secondaryCacheDir: Option[File],
-      ivyConfiguration: IvyConfiguration,
+      dependencyResolution: DependencyResolution,
       compilerBridgeSource: ModuleID,
       scalaJarsTarget: File,
       log: xsbti.Logger
@@ -99,7 +98,7 @@ object ZincUtil {
     val bridgeProvider =
       ZincComponentCompiler.interfaceProvider(compilerBridgeSource,
                                               componentManager,
-                                              ivyConfiguration,
+                                              dependencyResolution,
                                               scalaJarsTarget)
     val emptyHandler = (_: Seq[String]) => ()
     val loader = Some(new ClassLoaderCache(new URLClassLoader(Array())))
