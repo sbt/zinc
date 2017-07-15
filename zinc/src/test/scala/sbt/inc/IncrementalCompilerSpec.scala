@@ -1,6 +1,7 @@
 package sbt.inc
 
-import sbt.internal.inc._
+import xsbti.compile.AnalysisStore
+import sbt.internal.inc.{ AnalysisStore => _, _ }
 import sbt.io.IO
 import sbt.io.syntax._
 
@@ -37,7 +38,8 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
   it should "trigger full compilation if extra changes" in {
     IO.withTemporaryDirectory { tempDir =>
       val cacheFile = tempDir / "target" / "inc_compile.zip"
-      val fileStore = AnalysisStore.cached(FileAnalysisStore.binary(cacheFile))
+      val fileStore0 = FileAnalysisStore.binary(cacheFile)
+      val fileStore = AnalysisStore.getCachedStore(fileStore0)
 
       val projectSetup =
         ProjectSetup.simple(tempDir.toPath, Seq(SourceFiles.Good, SourceFiles.Foo))

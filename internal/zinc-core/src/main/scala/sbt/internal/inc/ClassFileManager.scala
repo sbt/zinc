@@ -23,57 +23,28 @@ import xsbti.compile.{
 }
 
 object ClassFileManager {
-
-  /**
-   * Defines a classfile manager that composes the operation of two classfile manager,
-   * one being the internal classfile manager (the one used by the compiler) and the
-   * other one being the external classfile manager (a customizable, build tool-defined
-   * class file manager to control which class files should be notified/removed/generated
-   * aside from the ones covered by the internal classfile manager).
-   *
-   * @param internal Compiler classfile manager.
-   * @param external Build tool (or external) classfile manager the complements the internal one.
-   */
-  private case class WrappedClassFileManager(internal: ClassFileManager,
-                                             external: Option[ClassFileManager])
-      extends ClassFileManager {
-
-    override def delete(classes: Array[File]): Unit = {
-      external.foreach(_.delete(classes))
-      internal.delete(classes)
-    }
-
-    override def complete(success: Boolean): Unit = {
-      external.foreach(_.complete(success))
-      internal.complete(success)
-    }
-
-    override def generated(classes: Array[File]): Unit = {
-      external.foreach(_.generated(classes))
-      internal.generated(classes)
-    }
-  }
-
   def getDefaultClassFileManager(
       classFileManagerType: Optional[ClassFileManagerType]): ClassFileManager = {
     if (classFileManagerType.isPresent) {
       classFileManagerType.get match {
         case _: DeleteImmediatelyManagerType => new DeleteClassFileManager
-        case m: TransactionalManagerType     => transactional(m.backupDirectory, m.logger)
+        case m: TransactionalManagerType =>
+          transactional(m.backupDirectory, m.logger)
       }
     } else new DeleteClassFileManager
   }
 
   def getClassFileManager(options: IncOptions): ClassFileManager = {
-    import sbt.internal.inc.JavaInterfaceUtil.EnrichOptional
+    import sbt.internal.inc.JavaInterfaceUtil.{ EnrichOptional, EnrichOption }
     val internal = getDefaultClassFileManager(options.classfileManagerType)
     val external = Option(options.externalHooks())
-      .flatMap(ext => ext.externalClassFileManager.toOption)
-    WrappedClassFileManager(internal, external)
+      .flatMap(ext => ext.getExternalClassFileManager.toOption)
+    xsbti.compile.WrappedClassFileManager.of(internal, external.toOptional)
   }
 
   private final class DeleteClassFileManager extends ClassFileManager {
-    override def delete(classes: Array[File]): Unit = IO.deleteFilesEmptyDirs(classes)
+    override def delete(classes: Array[File]): Unit =
+      IO.deleteFilesEmptyDirs(classes)
     override def generated(classes: Array[File]): Unit = ()
     override def complete(success: Boolean): Unit = ()
   }

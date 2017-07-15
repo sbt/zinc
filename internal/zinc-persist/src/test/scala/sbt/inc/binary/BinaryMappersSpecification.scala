@@ -3,8 +3,14 @@ package sbt.inc.binary
 import java.nio.file.Paths
 
 import org.scalacheck.{ Prop, Properties }
-import sbt.internal.inc.{ Analysis, AnalysisGenerators, FileAnalysisStore }
+import sbt.internal.inc.{
+  Analysis,
+  AnalysisGenerators,
+  ConcreteAnalysisContents,
+  FileAnalysisStore
+}
 import sbt.io.IO
+import xsbti.compile.AnalysisContents
 import xsbti.compile.analysis.ReadWriteMappers
 
 object BinaryMappersSpecification
@@ -21,15 +27,17 @@ object BinaryMappersSpecification
 
   private final val ReadFeedback = "The analysis file cannot be read."
   override protected def checkAnalysis(analysis: Analysis): Prop = {
+    import sbt.internal.inc.JavaInterfaceUtil.EnrichOptional
     // Note: we test writing to the file directly to reuse `FileBasedStore` as it is written
-    val (readAnalysis0, readSetup) = IO.withTemporaryFile("analysis", "test") { tempAnalysisFile =>
+    val readContents = IO.withTemporaryFile("analysis", "test") { tempAnalysisFile =>
       val fileBasedStore = FileAnalysisStore.binary(tempAnalysisFile, mappers)
-      fileBasedStore.set(analysis, commonSetup)
-      fileBasedStore.get().getOrElse(sys.error(ReadFeedback))
+      val contents = AnalysisContents.create(analysis, commonSetup)
+      fileBasedStore.set(contents)
+      fileBasedStore.get().toOption.getOrElse(sys.error(ReadFeedback))
     }
 
-    val readAnalysis = readAnalysis0 match { case a: Analysis => a }
-    compare(analysis, readAnalysis) && compare(commonSetup, readSetup)
+    val readAnalysis = readContents.getAnalysis match { case a: Analysis => a }
+    compare(analysis, readAnalysis) && compare(commonSetup, readContents.getMiniSetup)
   }
 
   property("The default relative mapper works in empty analysis files") = {

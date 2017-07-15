@@ -59,16 +59,7 @@ public final class IncOptions implements java.io.Serializable {
         return new java.util.HashMap<String, String>();
     }
     public static ExternalHooks defaultExternal() {
-        return new ExternalHooks() {
-            @Override
-            public java.util.Optional<Lookup> externalLookup() {
-                return java.util.Optional.empty();
-            }
-            @Override
-            public java.util.Optional<ClassFileManager> externalClassFileManager() {
-                return java.util.Optional.empty();
-            }
-        };
+        return new DefaultExternalHooks(java.util.Optional.empty(), java.util.Optional.empty());
     }
     public static boolean defaultLogRecompileOnMacro() {
         return true;

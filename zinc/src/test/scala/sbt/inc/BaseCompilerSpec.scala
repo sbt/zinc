@@ -99,7 +99,7 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
       tempDir: File,
       sources: Array[File],
       classpath: Seq[File],
-      incOptions: IncOptions = IncOptionsUtil.defaultIncOptions()
+      incOptions: IncOptions = IncOptions.of()
   ) {
     val noLogger = Logger.Null
     val compiler = new IncrementalCompilerImpl
@@ -148,8 +148,11 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
 
     def doCompileWithStore(store: AnalysisStore,
                            newInputs: Inputs => Inputs = identity): CompileResult = {
-      val previousResult = store.get() match {
-        case Some((prevAnalysis, prevSetup)) =>
+      import JavaInterfaceUtil.EnrichOptional
+      val previousResult = store.get().toOption match {
+        case Some(analysisContents) =>
+          val prevAnalysis = analysisContents.getAnalysis
+          val prevSetup = analysisContents.getMiniSetup
           PreviousResult.of(Optional.of[CompileAnalysis](prevAnalysis),
                             Optional.of[MiniSetup](prevSetup))
         case _ =>
@@ -157,7 +160,7 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
       }
       val newResult = doCompile(in => newInputs(in.withPreviousResult(previousResult)))
 
-      store.set(newResult.analysis(), newResult.setup())
+      store.set(AnalysisContents.create(newResult.analysis(), newResult.setup()))
       newResult
     }
   }

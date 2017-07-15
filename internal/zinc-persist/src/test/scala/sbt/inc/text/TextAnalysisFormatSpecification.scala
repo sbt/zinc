@@ -10,7 +10,7 @@ import sbt.internal.inc.text.TextAnalysisFormat
 import sbt.io.IO
 import sbt.util.InterfaceUtil._
 import xsbti.api._
-import xsbti.compile._
+import xsbti.compile.{ FileAnalysisStore => _, _ }
 import xsbti.{ Problem, T2 }
 
 object TextAnalysisFormatSpecification
@@ -20,14 +20,15 @@ object TextAnalysisFormatSpecification
   override val analysisGenerators: AnalysisGenerators = AnalysisGenerators
   override def format = TextAnalysisFormat
   override def checkAnalysis(analysis: Analysis): Prop = {
+    import JavaInterfaceUtil.EnrichOptional
     // Note: we test writing to the file directly to reuse `FileBasedStore` as it is written
-    val (readAnalysis0, readSetup) = IO.withTemporaryFile("analysis", "test") { tempAnalysisFile =>
+    val readContents = IO.withTemporaryFile("analysis", "test") { tempAnalysisFile =>
       val fileBasedStore = FileAnalysisStore.text(tempAnalysisFile, format)
-      fileBasedStore.set(analysis, commonSetup)
-      fileBasedStore.get().getOrElse(sys.error(""))
+      fileBasedStore.set(AnalysisContents.create(analysis, commonSetup))
+      fileBasedStore.get().toOption.getOrElse(sys.error(""))
     }
-    val readAnalysis = readAnalysis0 match { case a: Analysis => a }
-    compare(analysis, readAnalysis) && compare(commonSetup, readSetup)
+    val readAnalysis = readContents.getAnalysis match { case a: Analysis => a }
+    compare(analysis, readAnalysis) && compare(commonSetup, readContents.getMiniSetup)
     super.checkAnalysis(analysis)
   }
 }

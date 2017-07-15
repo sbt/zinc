@@ -5,6 +5,8 @@ $ exists target/classes/foo/SealedNameUsedInDefaultScope.class
 # Type of one child of Sealed changed
 $ copy-file changed/Sealed1.scala src/main/scala/foo/Sealed.scala
 $ touch beforeFirstCompilation
+# wait a second to be sure that modifaction date is different on all OSs
+$ sleep 1000
 
 > compile
 $ exists target/classes/foo/SealedUsedInPatMatScope.class
@@ -18,6 +20,8 @@ $ newer target/classes/foo/SealedUsedInPatMatScope.class beforeFirstCompilation
 # Change type of Sealed
 $ copy-file changed/Sealed2.scala src/main/scala/foo/Sealed.scala
 $ touch beforeSecondCompilation
+# wait a second to be sure that modifaction date is different on all OSs
+$ sleep 1000
 
 > compile
 $ exists target/classes/foo/SealedUsedInPatMatScope.class
@@ -26,4 +30,3 @@ $ exists target/classes/foo/SealedNameUsedInDefaultScope.class
 # Both PatMat and Default scopes should be recompiled
 $ newer target/classes/foo/SealedNameUsedInDefaultScope.class beforeSecondCompilation
 $ newer target/classes/foo/SealedUsedInPatMatScope.class beforeSecondCompilation
-

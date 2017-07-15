@@ -40,11 +40,6 @@ public class IncOptionsUtil {
     public static final String DELETE_IMMEDIATELY_MANAGER_TYPE = "deleteImmediatelyManagerType";
     private static final String XSBTI_NOTHING = "NOTHING";
 
-    public static IncOptions defaultIncOptions() {
-        IncOptions retval = new IncOptions();
-        return retval;
-    }
-
     // Small utility function for logging
     private static Supplier<String> f0(String message) {
         return new Supplier<String>() {
@@ -63,7 +58,7 @@ public class IncOptionsUtil {
      * @return An instance of {@link IncOptions}.
      */
     public static IncOptions fromStringMap(Map<String, String> values, Logger logger) {
-        IncOptions base = defaultIncOptions();
+        IncOptions base = IncOptions.of();
         logger.debug(f0("Reading incremental options from map"));
 
         if (values.containsKey(TRANSITIVE_STEP_KEY)) {

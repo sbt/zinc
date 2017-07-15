@@ -59,7 +59,7 @@ trait WithPattern { protected def Pattern: Regex }
 import java.lang.{ Long => BoxedLong }
 
 /** Define the hash of the file contents. It's a typical stamp for compilation sources. */
-final class Hash private[inc] (val hexHash: String) extends StampBase {
+final class Hash private (val hexHash: String) extends StampBase {
   // Assumes `hexHash` is a hexadecimal value.
   override def writeStamp: String = s"hash($hexHash)"
   override def getValueId: Int = hexHash.hashCode()
@@ -67,8 +67,23 @@ final class Hash private[inc] (val hexHash: String) extends StampBase {
   override def getLastModified: Optional[BoxedLong] = Optional.empty[BoxedLong]
 }
 
-private[sbt] object Hash extends WithPattern {
-  final val Pattern = """hash\((\w+)\)""".r
+private[sbt] object Hash {
+  private val Pattern = """hash\(((?:[0-9a-fA-F][0-9a-fA-F])+)\)""".r
+
+  def ofFile(f: File): Hash =
+    new Hash(IOHash toHex IOHash(f)) // assume toHex returns a hex string
+
+  def fromString(s: String): Option[Hash] = {
+    val m = Pattern.pattern matcher s
+    if (m.matches()) Some(new Hash(m group 1))
+    else None
+  }
+
+  object FromString {
+    def unapply(s: String): Option[Hash] = fromString(s)
+  }
+
+  def unsafeFromString(s: String): Hash = new Hash(s)
 }
 
 /** Define the last modified time of the file. It's a typical stamp for class files and products. */
@@ -111,7 +126,7 @@ object Stamp {
 
   def fromString(s: String): Stamp = s match {
     case EmptyStamp.Value            => EmptyStamp
-    case Hash.Pattern(value)         => new Hash(value)
+    case Hash.FromString(hash)       => hash
     case LastModified.Pattern(value) => new LastModified(java.lang.Long.parseLong(value))
     case _ =>
       throw new IllegalArgumentException("Unrecognized Stamp string representation: " + s)
@@ -126,7 +141,7 @@ object Stamper {
     catch { case i: IOException => EmptyStamp }
   }
 
-  val forHash = (toStamp: File) => tryStamp(new Hash(IOHash.toHex(IOHash(toStamp))))
+  val forHash = (toStamp: File) => tryStamp(Hash.ofFile(toStamp))
   val forLastModified = (toStamp: File) => tryStamp(new LastModified(toStamp.lastModified()))
 }
 
