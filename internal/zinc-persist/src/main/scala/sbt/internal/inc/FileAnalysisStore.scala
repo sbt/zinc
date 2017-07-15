@@ -10,15 +10,16 @@ package internal
 package inc
 
 import java.io._
+import java.util.Optional
 import java.util.zip.{ ZipEntry, ZipInputStream }
 
 import com.google.protobuf.{ CodedInputStream, CodedOutputStream }
 import sbt.internal.inc.binary.BinaryAnalysisFormat
 import sbt.internal.inc.text.TextAnalysisFormat
 import sbt.io.{ IO, Using }
-import xsbti.compile.{ CompileAnalysis, MiniSetup }
 import xsbti.api.Companions
 import xsbti.compile.analysis.ReadWriteMappers
+import xsbti.compile.{ AnalysisContents, AnalysisStore }
 
 import scala.util.control.Exception.allCatch
 
@@ -26,13 +27,6 @@ object FileAnalysisStore {
   private final val BinExtension = "bin"
   private final val analysisFileName = s"inc_compile.$BinExtension"
   private final val companionsFileName = s"api_companions.$BinExtension"
-
-  /** Defaults the file analysis store to the binary format with empty mappers. */
-  def apply(analysisFile: File): AnalysisStore = binary(analysisFile)
-
-  /** Defaults the file analysis store to the binary format. */
-  def apply(analysisFile: File, mappers: ReadWriteMappers): AnalysisStore =
-    binary(analysisFile, mappers)
 
   def binary(analysisFile: File): AnalysisStore =
     new BinaryFileStore(analysisFile, ReadWriteMappers.getEmptyMappers())
@@ -52,9 +46,12 @@ object FileAnalysisStore {
     private final val format = new BinaryAnalysisFormat(readWriteMappers)
     private final val TmpEnding = ".tmp"
 
-    /** Get `CompileAnalysis` and `MiniSetup` instances for current `Analysis`. */
-    override def get: Option[(CompileAnalysis, MiniSetup)] = {
-      val nestedRead = allCatch.opt {
+    /**
+     * Get `CompileAnalysis` and `MiniSetup` instances for current `Analysis`.
+     */
+    override def get: Optional[AnalysisContents] = {
+      import JavaInterfaceUtil.EnrichOption
+      val nestedRead: Option[Option[AnalysisContents]] = allCatch.opt {
         Using.zipInputStream(new FileInputStream(file)) { inputStream =>
           lookupEntry(inputStream, analysisFileName)
           val reader = CodedInputStream.newInstance(inputStream)
@@ -63,10 +60,10 @@ object FileAnalysisStore {
             lookupEntry(inputStream, companionsFileName)
             format.readAPIs(reader, analysis)
           }
-          analysisWithAPIs.map(analysis => analysis -> miniSetup)
+          analysisWithAPIs.map(analysis => AnalysisContents.create(analysis, miniSetup))
         }
       }
-      nestedRead.flatten
+      nestedRead.flatten.toOptional
     }
 
     /**
@@ -75,7 +72,9 @@ object FileAnalysisStore {
      *
      * See https://github.com/sbt/zinc/issues/220 for more details.
      */
-    override def set(analysis: CompileAnalysis, setup: MiniSetup): Unit = {
+    override def set(contents: AnalysisContents): Unit = {
+      val analysis = contents.getAnalysis
+      val setup = contents.getMiniSetup
       val tmpAnalysisFile = File.createTempFile(file.getName, TmpEnding)
       if (!file.getParentFile.exists())
         file.getParentFile.mkdirs()
@@ -101,7 +100,9 @@ object FileAnalysisStore {
       extends AnalysisStore {
     val companionsStore = new FileBasedCompanionsMapStore(file, format)
 
-    def set(analysis: CompileAnalysis, setup: MiniSetup): Unit = {
+    def set(analysisContents: AnalysisContents): Unit = {
+      val analysis = analysisContents.getAnalysis
+      val setup = analysisContents.getMiniSetup
       val tmpAnalysisFile = File.createTempFile(file.getName, ".tmp")
       if (!file.getParentFile.exists()) file.getParentFile.mkdirs()
       Using.zipOutputStream(new FileOutputStream(tmpAnalysisFile)) { outputStream =>
@@ -118,14 +119,17 @@ object FileAnalysisStore {
       IO.move(tmpAnalysisFile, file)
     }
 
-    def get(): Option[(CompileAnalysis, MiniSetup)] =
-      allCatch.opt(getUncaught())
+    def get(): Optional[AnalysisContents] = {
+      import JavaInterfaceUtil.EnrichOption
+      allCatch.opt(getUncaught()).toOptional
+    }
 
-    def getUncaught(): (CompileAnalysis, MiniSetup) =
+    def getUncaught(): AnalysisContents =
       Using.zipInputStream(new FileInputStream(file)) { inputStream =>
         lookupEntry(inputStream, analysisFileName)
         val writer = new BufferedReader(new InputStreamReader(inputStream, IO.utf8))
-        format.read(writer, companionsStore)
+        val (analysis, setup) = format.read(writer, companionsStore)
+        AnalysisContents.create(analysis, setup)
       }
   }
 

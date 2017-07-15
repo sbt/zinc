@@ -321,9 +321,17 @@ object MixedAnalyzingCompiler {
     }
   }
 
-  /** Create a an analysis store cache at the desired location. */
-  def staticCachedStore(analysisFile: File): AnalysisStore = {
-    val cachedStore = AnalysisStore.cached(FileAnalysisStore.binary(analysisFile))
-    staticCache(analysisFile, AnalysisStore.sync(cachedStore))
+  /**
+    * Create a an analysis store cache at the desired location.
+    *
+    * Note: This method will be deprecated after Zinc 1.1.
+    */
+  def staticCachedStore(analysisFile: File, useTextAnalysis: Boolean): AnalysisStore = {
+    import xsbti.compile.AnalysisStore
+    val fileStore =
+      if (useTextAnalysis) FileAnalysisStore.text(analysisFile)
+      else FileAnalysisStore.binary(analysisFile)
+    val cachedStore = AnalysisStore.getCachedStore(fileStore)
+    staticCache(analysisFile, AnalysisStore.getThreadSafeStore(cachedStore))
   }
 }

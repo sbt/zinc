@@ -12,9 +12,10 @@ import java.nio.file.{ Files, Path, Paths }
 
 import org.scalatest.BeforeAndAfterAll
 import sbt.internal.inc.cached.{ CacheAwareStore, CacheProvider }
-import sbt.internal.inc.{ Analysis, AnalysisStore, FileAnalysisStore }
+import sbt.internal.inc.{ Analysis, FileAnalysisStore }
 import sbt.io.IO
 import sbt.inc.BaseCompilerSpec
+import xsbti.compile.AnalysisStore
 
 abstract class CommonCachedCompilation(name: String)
     extends BaseCompilerSpec

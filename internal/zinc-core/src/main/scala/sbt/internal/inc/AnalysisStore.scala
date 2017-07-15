@@ -9,30 +9,34 @@ package sbt
 package internal
 package inc
 
-import xsbti.compile.{ CompileAnalysis, MiniSetup }
+import java.util.Optional
 
-trait AnalysisStore {
-  def set(analysis: CompileAnalysis, setup: MiniSetup): Unit
-  def get(): Option[(CompileAnalysis, MiniSetup)]
-}
+import xsbti.compile.{ AnalysisContents, AnalysisStore }
 
 object AnalysisStore {
-  def cached(backing: AnalysisStore): AnalysisStore = new AnalysisStore {
-    private var last: Option[(CompileAnalysis, MiniSetup)] = None
-    def set(analysis: CompileAnalysis, setup: MiniSetup): Unit = {
-      backing.set(analysis, setup)
-      last = Some((analysis, setup))
+  def cached(backing: AnalysisStore): AnalysisStore = new CachedAnalysisStore(backing)
+  private final class CachedAnalysisStore(backing: AnalysisStore) extends AnalysisStore {
+    private var lastStore: Optional[AnalysisContents] = Optional.empty()
+    override def get(): Optional[AnalysisContents] = {
+      if (!lastStore.isPresent())
+        lastStore = backing.get()
+      lastStore
     }
-    def get(): Option[(CompileAnalysis, MiniSetup)] = {
-      if (last.isEmpty)
-        last = backing.get()
-      last
+
+    override def set(analysisFile: AnalysisContents): Unit = {
+      backing.set(analysisFile)
+      lastStore = Optional.of(analysisFile)
     }
   }
-  def sync(backing: AnalysisStore): AnalysisStore = new AnalysisStore {
-    def set(analysis: CompileAnalysis, setup: MiniSetup): Unit = synchronized {
-      backing.set(analysis, setup)
+
+  def sync(backing: AnalysisStore): AnalysisStore = new SyncedAnalysisStore(backing)
+  private final class SyncedAnalysisStore(backing: AnalysisStore) extends AnalysisStore {
+    override def get(): Optional[AnalysisContents] = synchronized {
+      backing.get()
     }
-    def get(): Option[(CompileAnalysis, MiniSetup)] = synchronized { backing.get() }
+
+    override def set(analysisFile: AnalysisContents): Unit = synchronized {
+      backing.set(analysisFile)
+    }
   }
 }
