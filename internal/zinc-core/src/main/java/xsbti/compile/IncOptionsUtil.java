@@ -7,7 +7,7 @@
 
 package xsbti.compile;
 
-import scala.tools.cmd.Opt;
+import sbt.internal.inc.ClassFileManager.WrappedClassFileManager;
 import xsbti.F0;
 import xsbti.Logger;
 
@@ -105,18 +105,44 @@ public class IncOptionsUtil {
         return new HashMap<String, String>();
     }
 
-    public static ExternalHooks defaultExternal() {
-        return new ExternalHooks() {
-            @Override
-            public Optional<Lookup> externalLookup() {
-                return Optional.empty();
-            }
+    private static class ConcreteExternalHooks implements ExternalHooks {
+        private Optional<ExternalHooks.Lookup> lookup = Optional.empty();
+        private Optional<ClassFileManager> classFileManager = Optional.empty();
 
-            @Override
-            public Optional<ClassFileManager> externalClassFileManager() {
-                return Optional.empty();
+        private ConcreteExternalHooks(Optional<ExternalHooks.Lookup> lookup, Optional<ClassFileManager> classFileManager) {
+            this.lookup = lookup;
+            this.classFileManager = classFileManager;
+        }
+
+        @Override
+        public Optional<Lookup> getExternalLookup() {
+            return lookup;
+        }
+
+        @Override
+        public Optional<ClassFileManager> getExternalClassFileManager() {
+            return classFileManager;
+        }
+
+        @Override
+        public ExternalHooks withExternalClassFileManager(ClassFileManager externalClassFileManager) {
+            Optional<ClassFileManager> currentManager = this.getExternalClassFileManager();
+            Optional<ClassFileManager> mixedManager = currentManager;
+            if (currentManager.isPresent()) {
+                Optional<ClassFileManager> external = Optional.of(externalClassFileManager);
+                mixedManager = Optional.of(new WrappedClassFileManager(currentManager.get(), external));
             }
-        };
+            return new ConcreteExternalHooks(this.getExternalLookup(), mixedManager);
+        }
+
+        @Override
+        public ExternalHooks withExternalLookup(Lookup externalLookup) {
+            return new ConcreteExternalHooks(Optional.of(externalLookup), this.getExternalClassFileManager());
+        }
+    }
+
+    public static ExternalHooks defaultExternal() {
+        return new ConcreteExternalHooks(Optional.empty(), Optional.empty());
     }
 
     public static boolean defaultLogRecompileOnMacro() {
