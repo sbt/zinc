@@ -34,22 +34,23 @@ object ClassFileManager {
    * @param internal Compiler classfile manager.
    * @param external Build tool (or external) classfile manager the complements the internal one.
    */
-  private case class WrappedClassFileManager(internal: ClassFileManager,
-                                             external: Option[ClassFileManager])
+  case class WrappedClassFileManager(internal: ClassFileManager,
+                                     external: Optional[ClassFileManager])
       extends ClassFileManager {
 
+    import JavaInterfaceUtil.EnrichOptional
     override def delete(classes: Array[File]): Unit = {
-      external.foreach(_.delete(classes))
+      external.toOption.foreach(_.delete(classes))
       internal.delete(classes)
     }
 
     override def complete(success: Boolean): Unit = {
-      external.foreach(_.complete(success))
+      external.toOption.foreach(_.complete(success))
       internal.complete(success)
     }
 
     override def generated(classes: Array[File]): Unit = {
-      external.foreach(_.generated(classes))
+      external.toOption.foreach(_.generated(classes))
       internal.generated(classes)
     }
   }
@@ -59,21 +60,23 @@ object ClassFileManager {
     if (classFileManagerType.isPresent) {
       classFileManagerType.get match {
         case _: DeleteImmediatelyManagerType => new DeleteClassFileManager
-        case m: TransactionalManagerType     => transactional(m.backupDirectory, m.logger)
+        case m: TransactionalManagerType =>
+          transactional(m.backupDirectory, m.logger)
       }
     } else new DeleteClassFileManager
   }
 
   def getClassFileManager(options: IncOptions): ClassFileManager = {
-    import sbt.internal.inc.JavaInterfaceUtil.EnrichOptional
+    import sbt.internal.inc.JavaInterfaceUtil.{ EnrichOptional, EnrichOption }
     val internal = getDefaultClassFileManager(options.classfileManagerType)
     val external = Option(options.externalHooks())
-      .flatMap(ext => ext.externalClassFileManager.toOption)
-    WrappedClassFileManager(internal, external)
+      .flatMap(ext => ext.getExternalClassFileManager.toOption)
+    WrappedClassFileManager(internal, external.toOptional)
   }
 
   private final class DeleteClassFileManager extends ClassFileManager {
-    override def delete(classes: Array[File]): Unit = IO.deleteFilesEmptyDirs(classes)
+    override def delete(classes: Array[File]): Unit =
+      IO.deleteFilesEmptyDirs(classes)
     override def generated(classes: Array[File]): Unit = ()
     override def complete(success: Boolean): Unit = ()
   }

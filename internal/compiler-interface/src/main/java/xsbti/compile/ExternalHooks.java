@@ -12,14 +12,14 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Define hooks that can be user-defined to modify the behaviour of
+ * Defines hooks that can be user-defined to modify the behaviour of
  * internal components of the incremental compiler.
  */
 public interface ExternalHooks {
     /**
-     * Define an interface for a lookup mechanism.
+     * Defines an interface for a lookup mechanism.
      */
-    public static interface Lookup {
+    interface Lookup {
 
         /**
          * Used to provide information from external tools into sbt (e.g. IDEs)
@@ -54,17 +54,36 @@ public interface ExternalHooks {
     }
 
     /**
-     * Return the implementation of a lookup mechanism to be used instead of
+     * Returns the implementation of a lookup mechanism to be used instead of
      * the internal lookup provided by the default implementation.
      */
-    Optional<Lookup> externalLookup();
+    Optional<Lookup> getExternalLookup();
 
     /**
-     * Return the implementation of a {@link ClassFileManager} to be used
+     * Returns the implementation of a {@link ClassFileManager} to be used
      * alongside the internal manager provided by the default implementation.
      * <p>
      * This class file manager is run after the internal
      * {@link ClassFileManager} defined in {@link IncOptions}.
      */
-    Optional<ClassFileManager> externalClassFileManager();
+    Optional<ClassFileManager> getExternalClassFileManager();
+
+    /**
+     * Returns an instance of hooks that executes the external passed class file manager.
+     *
+     * If several class file manager are passed, they are aggregated and their execution happens
+     * in the order of invocations of this method.
+     *
+     * @return An instance of {@link ExternalHooks} with the aggregated external class file manager.
+     */
+    ExternalHooks withExternalClassFileManager(ClassFileManager externalClassFileManager);
+
+    /**
+     * Returns an instance of hooks with one lookup.
+     *
+     * If used several times, only the last lookup instance will be used.
+     *
+     * @return An instance of {@link ExternalHooks} with the specified lookup.
+     */
+    ExternalHooks withExternalLookup(Lookup externalLookup);
 }
