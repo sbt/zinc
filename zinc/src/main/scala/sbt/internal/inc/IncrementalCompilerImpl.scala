@@ -11,6 +11,7 @@ package inc
 
 import java.io.File
 import java.util.Optional
+import java.util.function.{ Function => JavaFunction }
 
 import sbt.internal.inc.JavaInterfaceUtil._
 import sbt.util.InterfaceUtil
@@ -177,7 +178,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
              |${e.getMessage}
              |${ex.getStackTrace.mkString("\n")}
            """
-        logger.error(InterfaceUtil.f0(msg.stripMargin))
+        logger.error(InterfaceUtil.toSupplier(msg.stripMargin))
         throw ex
     }
   }
@@ -340,7 +341,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       scalacOptions: Array[String],
       javacOptions: Array[String],
       maxErrors: Int,
-      sourcePositionMappers: Array[F1[Position, Optional[Position]]],
+      sourcePositionMappers: Array[JavaFunction[Position, Optional[Position]]],
       order: CompileOrder,
       compilers: Compilers,
       setup: Setup,
@@ -390,9 +391,9 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
   /* * Define helpers to convert from sbt Java interface to the Scala one  * */
   /* *********************************************************************** */
 
-  private[sbt] def foldMappers[A](mappers: Array[F1[A, Optional[A]]]) = {
-    mappers.foldRight(InterfaceUtil.f1[A, A](identity)) { (mapper, mappers) =>
-      InterfaceUtil.f1[A, A]({ p: A =>
+  private[sbt] def foldMappers[A](mappers: Array[JavaFunction[A, Optional[A]]]) = {
+    mappers.foldRight(InterfaceUtil.toJavaFunction[A, A](identity)) { (mapper, mappers) =>
+      InterfaceUtil.toJavaFunction[A, A]({ p: A =>
         mapper(p).toOption.getOrElse(mappers(p))
       })
     }
