@@ -88,7 +88,7 @@ object ZincUtil {
       globalLock: xsbti.GlobalLock,
       componentProvider: xsbti.ComponentProvider,
       secondaryCacheDir: Option[File],
-      depencencyResolution: DependencyResolution,
+      dependencyResolution: DependencyResolution,
       compilerBridgeSource: ModuleID,
       scalaJarsTarget: File,
       log: xsbti.Logger
@@ -98,7 +98,7 @@ object ZincUtil {
     val bridgeProvider =
       ZincComponentCompiler.interfaceProvider(compilerBridgeSource,
                                               componentManager,
-                                              depencencyResolution,
+                                              dependencyResolution,
                                               scalaJarsTarget)
     val emptyHandler = (_: Seq[String]) => ()
     val loader = Some(new ClassLoaderCache(new URLClassLoader(Array())))
