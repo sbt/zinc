@@ -1,0 +1,39 @@
+environment:
+  global:
+    COMPILE_AND_TEST: zincRoot/test:compile scalafmt::test test:scalafmt::test crossTestBridges "publishBridgesAndSet $SCALA_VERSION" zincRoot/test zincRoot/scripted
+  matrix:
+    - SCALA_VERSION: 2.10.6
+    - SCALA_VERSION: 2.11.8
+    - SCALA_VERSION: 2.12.1
+install:
+  - ps: |
+      Add-Type -AssemblyName System.IO.Compression.FileSystem
+      if (!(Test-Path -Path "C:\sbt\sbt-launcher-packaging-1.0.0-M6" )) {
+        (new-object System.Net.WebClient).DownloadFile(
+          'https://github.com/sbt/sbt/releases/download/v1.0.0-M6/sbt-1.0.0-M6.zip',
+          'C:\sbt-1.0.0-M6.zip'
+        )
+        [System.IO.Compression.ZipFile]::ExtractToDirectory("C:\sbt-1.0.0-M6.zip", "C:\sbt")
+      }
+  - ps: |
+      if (!(Test-Path -Path "C:\Program Files\Java\jdk1.8.0\src.zip")) {
+        (new-object System.Net.WebClient).DownloadFile(
+          'https://github.com/fommil/openjdk8src/raw/master/src.zip',
+          'C:\Program Files\Java\jdk1.8.0\src.zip'
+        )
+      }
+  - cmd: SET JAVA_HOME=C:\Program Files\Java\jdk1.8.0
+  - cmd: SET PATH=C:\sbt\sbt-launcher-packaging-1.0.0-M6\bin;%JAVA_HOME%\bin;%PATH%
+  - cmd: SET SBT_OPTS=-Xss2m -Dfile.encoding=UTF-8 -XX:ReservedCodeCacheSize=256M -Xmx3046M -Xms3046M -server -XX:+TieredCompilation -XX:+CMSPermGenSweepingEnabled -XX:+CMSClassUnloadingEnabled -XX:+UseConcMarkSweepGC -XX:MaxPermSize=256m
+  - cmd: SET SCALATEST_SPAN_SCALE_FACTOR=20
+  - cmd: SET SBT_TASK_LIMIT=2
+  - cmd: SET SCALATEST_PARALLEL_TESTS=2
+  - cmd: SET SCALATEST_SLEEP_SCALE_FACTOR=2.0
+build_script:
+  - sbt "%COMPILE_AND_TEST%"
+cache:
+  - C:\Program Files\Java\jdk1.8.0\src.zip
+  - C:\sbt\sbt-launcher-packaging-1.0.0-M6
+  - C:\Users\appveyor\.ivy2 -> appveyor.yml
+on_finish:
+  - ps: Get-ChildItem -Path .\* -Include *.log,*.hprof -Recurse | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
