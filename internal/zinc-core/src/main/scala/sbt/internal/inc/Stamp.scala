@@ -9,10 +9,11 @@ package sbt
 package internal
 package inc
 
-import java.io.{ File, IOException }
+import java.io.{ File, IOException, InputStream }
 import java.util
 import java.util.Optional
 
+import net.openhft.hashing.LongHashFunction
 import sbt.io.{ Hash => IOHash }
 import xsbti.compile.analysis.{ ReadStamps, Stamp }
 
@@ -56,7 +57,7 @@ private[sbt] sealed abstract class StampBase extends Stamp {
 
 trait WithPattern { protected def Pattern: Regex }
 
-import java.lang.{ Long => BoxedLong }
+import java.lang.{ Long => BoxedLong, Integer => BoxedInteger }
 
 /** Define the hash of the file contents. It's a typical stamp for compilation sources. */
 final class Hash private (val hexHash: String) extends StampBase {
@@ -86,6 +87,13 @@ private[sbt] object Hash {
   def unsafeFromString(s: String): Hash = new Hash(s)
 }
 
+final class Hash32(val hash: Int) extends StampBase {
+  override def writeStamp: String = s"intHash($hash)"
+  override def getValueId: Int = hash
+  override def getHash: Optional[String] = Optional.empty[String]
+  override def getLastModified: Optional[BoxedLong] = Optional.empty[BoxedLong]
+}
+
 /** Define the last modified time of the file. It's a typical stamp for class files and products. */
 final class LastModified(val value: Long) extends StampBase {
   override def writeStamp: String = s"lastModified(${value})"
@@ -112,6 +120,7 @@ object Stamp {
   private final val maxModificationDifferenceInMillis = 100L
   implicit val equivStamp: Equiv[Stamp] = new Equiv[Stamp] {
     def equiv(a: Stamp, b: Stamp) = (a, b) match {
+      case (h1: Hash32, h2: Hash32) => h1.hash == h2.hash
       case (h1: Hash, h2: Hash) => h1.hexHash == h2.hexHash
       // Windows is handling this differently sometimes...
       case (lm1: LastModified, lm2: LastModified) =>
@@ -139,6 +148,24 @@ object Stamper {
   private def tryStamp(g: => Stamp): Stamp = {
     try { g } // TODO: Double check correctness. Why should we not report an exception here?
     catch { case i: IOException => EmptyStamp }
+  }
+
+  private final val xxHash = LongHashFunction.xx()
+  private final val BufferSize = 8192
+  final val forHash: (File => Stamp) = (toStamp: File) => {
+    if (!toStamp.exists() || toStamp.isDirectory) EmptyStamp
+    else {
+      sbt.io.Using.fileInputStream(toStamp) { (is: InputStream) =>
+        val acc = new Array[Long](2)
+        val buffer = new Array[Byte](BufferSize)
+        while (is.read(buffer) >= 0) {
+          val checksumChunk = xxHash.hashBytes(buffer)
+          acc(1) = checksumChunk
+          acc(0) = xxHash.hashLongs(acc)
+        }
+        new Hash32(acc(0).toInt)
+      }
+    }
   }
 
   val forHash = (toStamp: File) => tryStamp(Hash.ofFile(toStamp))
