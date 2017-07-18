@@ -59,39 +59,16 @@ trait WithPattern { protected def Pattern: Regex }
 
 import java.lang.{ Long => BoxedLong, Integer => BoxedInteger }
 
-/** Define the hash of the file contents. It's a typical stamp for compilation sources. */
-final class Hash private (val hexHash: String) extends StampBase {
-  // Assumes `hexHash` is a hexadecimal value.
-  override def writeStamp: String = s"hash($hexHash)"
-  override def getValueId: Int = hexHash.hashCode()
-  override def getHash: Optional[String] = Optional.of(hexHash)
-  override def getLastModified: Optional[BoxedLong] = Optional.empty[BoxedLong]
-}
-
-private[sbt] object Hash {
-  private val Pattern = """hash\(((?:[0-9a-fA-F][0-9a-fA-F])+)\)""".r
-
-  def ofFile(f: File): Hash =
-    new Hash(IOHash toHex IOHash(f)) // assume toHex returns a hex string
-
-  def fromString(s: String): Option[Hash] = {
-    val m = Pattern.pattern matcher s
-    if (m.matches()) Some(new Hash(m group 1))
-    else None
-  }
-
-  object FromString {
-    def unapply(s: String): Option[Hash] = fromString(s)
-  }
-
-  def unsafeFromString(s: String): Hash = new Hash(s)
-}
-
 final class Hash32(val hash: Int) extends StampBase {
   override def writeStamp: String = s"intHash($hash)"
   override def getValueId: Int = hash
   override def getHash: Optional[String] = Optional.empty[String]
   override def getLastModified: Optional[BoxedLong] = Optional.empty[BoxedLong]
+  override def getHash32: Optional[BoxedInteger] = Optional.of(hash)
+}
+
+private[sbt] object Hash32 {
+  final val Pattern = """intHash\((\d+)\)""".r
 }
 
 /** Define the last modified time of the file. It's a typical stamp for class files and products. */
@@ -100,6 +77,7 @@ final class LastModified(val value: Long) extends StampBase {
   override def getValueId: Int = (value ^ (value >>> 32)).toInt
   override def getHash: Optional[String] = Optional.empty[String]
   override def getLastModified: Optional[BoxedLong] = Optional.of(value)
+  override def getHash32: Optional[BoxedInteger] = Optional.empty[BoxedInteger]
 }
 
 /** Defines an empty stamp. */
@@ -110,6 +88,7 @@ private[sbt] object EmptyStamp extends StampBase {
   override def getValueId: Int = System.identityHashCode(this)
   override def getHash: Optional[String] = Optional.empty[String]
   override def getLastModified: Optional[BoxedLong] = Optional.empty[BoxedLong]
+  override def getHash32: Optional[BoxedInteger] = Optional.empty[BoxedInteger]
 }
 
 private[inc] object LastModified extends WithPattern {
@@ -121,7 +100,6 @@ object Stamp {
   implicit val equivStamp: Equiv[Stamp] = new Equiv[Stamp] {
     def equiv(a: Stamp, b: Stamp) = (a, b) match {
       case (h1: Hash32, h2: Hash32) => h1.hash == h2.hash
-      case (h1: Hash, h2: Hash) => h1.hexHash == h2.hexHash
       // Windows is handling this differently sometimes...
       case (lm1: LastModified, lm2: LastModified) =>
         lm1.value == lm2.value ||
@@ -135,8 +113,8 @@ object Stamp {
 
   def fromString(s: String): Stamp = s match {
     case EmptyStamp.Value            => EmptyStamp
-    case Hash.FromString(hash)       => hash
-    case LastModified.Pattern(value) => new LastModified(java.lang.Long.parseLong(value))
+    case Hash32.Pattern(value)       => new Hash32(BoxedInteger.parseInt(value))
+    case LastModified.Pattern(value) => new LastModified(BoxedLong.parseLong(value))
     case _ =>
       throw new IllegalArgumentException("Unrecognized Stamp string representation: " + s)
   }
@@ -168,8 +146,7 @@ object Stamper {
     }
   }
 
-  val forHash = (toStamp: File) => tryStamp(Hash.ofFile(toStamp))
-  val forLastModified = (toStamp: File) => tryStamp(new LastModified(toStamp.lastModified()))
+  final val forLastModified = (toStamp: File) => tryStamp(new LastModified(toStamp.lastModified()))
 }
 
 object Stamps {

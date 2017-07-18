@@ -35,9 +35,11 @@ public interface Stamp {
     /**
      * Get the hash of the file contents if the stamp supports it.
      *
+     * @deprecated use {@link #getHash32()} instead.
+     *
      * @return An optional hash of the file contents.
      */
-    public Optional<String> getHash();
+    @Deprecated public Optional<String> getHash();
 
     /**
      * Get the last modified time (in milliseconds from Epoch) of a file if the stamp supports it.
@@ -45,4 +47,11 @@ public interface Stamp {
      * @return An optional last modified time.
      */
     public Optional<Long> getLastModified();
+
+    /**
+     * Get a 64-byte hash of a file if the stamp supports it.
+     *
+     * @return An optional 64-byte hash.
+     */
+    public Optional<Integer> getHash32();
 }

@@ -181,9 +181,7 @@ object MixedAnalyzingCompiler {
       incrementalCompilerOptions: IncOptions,
       extra: List[(String, String)]
   ): CompileConfiguration = {
-    val classpathHash = classpath map { x =>
-      FileHash.of(x, Stamper.forHash(x).hashCode)
-    }
+    val classpathHash = classpath.map(entry => FileHash.of(entry, Stamper.forHash(entry).hashCode))
     val compileSetup = MiniSetup.of(
       output,
       MiniOptions.of(

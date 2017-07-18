@@ -34,7 +34,7 @@ final class ProtobufWriters(mapper: WriteMapper) {
   def toStampType(stamp: Stamp): schema.Stamps.StampType = {
     val s0 = schema.Stamps.StampType()
     stamp match {
-      case hash: Hash       => s0.withHash(schema.Hash(hash = hash.hexHash))
+      case hash: Hash32     => s0.withHash(schema.Hash(hash = hash.hash))
       case lm: LastModified => s0.withLastModified(schema.LastModified(millis = lm.value))
       case _: Stamp         => s0
     }
