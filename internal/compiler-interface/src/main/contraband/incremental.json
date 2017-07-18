@@ -306,16 +306,6 @@
       ]
     },
     {
-      "name": "FileHash",
-      "namespace": "xsbti.compile",
-      "target": "Java",
-      "type": "record",
-      "fields": [
-        { "name": "file", "type": "java.io.File" },
-        { "name": "hash", "type": "int"    }
-      ]
-    },
-    {
       "name": "MiniOptions",
       "namespace": "xsbti.compile",
       "target": "Java",

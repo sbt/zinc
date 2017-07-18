@@ -25,7 +25,7 @@ public interface Stamp {
      *
      * @return A valid string-based representation for logical equality, not referential equality.
      */
-    public int getValueId();
+    public long getValueId();
 
     /**
      * @return A string-based and recoverable representation of the underlying stamp.
@@ -35,7 +35,7 @@ public interface Stamp {
     /**
      * Get the hash of the file contents if the stamp supports it.
      *
-     * @deprecated use {@link #getHash32()} instead.
+     * @deprecated use {@link #getHash64()} instead.
      *
      * @return An optional hash of the file contents.
      */
@@ -53,5 +53,5 @@ public interface Stamp {
      *
      * @return An optional 64-byte hash.
      */
-    public Optional<Integer> getHash32();
+    public Optional<Long> getHash64();
 }

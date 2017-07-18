@@ -48,7 +48,6 @@ trait Stamps extends ReadStamps {
 
 private[sbt] sealed abstract class StampBase extends Stamp {
   override def toString: String = this.writeStamp()
-  override def hashCode(): Int = this.getValueId()
   override def equals(other: Any): Boolean = other match {
     case o: Stamp => Stamp.equivStamp.equiv(this, o)
     case _        => false
@@ -57,27 +56,27 @@ private[sbt] sealed abstract class StampBase extends Stamp {
 
 trait WithPattern { protected def Pattern: Regex }
 
-import java.lang.{ Long => BoxedLong, Integer => BoxedInteger }
+import java.lang.{ Long => BoxedLong }
 
-final class Hash32(val hash: Int) extends StampBase {
-  override def writeStamp: String = s"intHash($hash)"
-  override def getValueId: Int = hash
+final class Hash64(val hash: Long) extends StampBase {
+  override def writeStamp: String = s"longHash($hash)"
+  override def getValueId: Long = hash
   override def getHash: Optional[String] = Optional.empty[String]
   override def getLastModified: Optional[BoxedLong] = Optional.empty[BoxedLong]
-  override def getHash32: Optional[BoxedInteger] = Optional.of(hash)
+  override def getHash64: Optional[BoxedLong] = Optional.of(hash)
 }
 
-private[sbt] object Hash32 {
-  final val Pattern = """intHash\((\d+)\)""".r
+private[sbt] object Hash64 {
+  final val Pattern = """longHash\((\d+)\)""".r
 }
 
 /** Define the last modified time of the file. It's a typical stamp for class files and products. */
 final class LastModified(val value: Long) extends StampBase {
   override def writeStamp: String = s"lastModified(${value})"
-  override def getValueId: Int = (value ^ (value >>> 32)).toInt
+  override def getValueId: Long = value
   override def getHash: Optional[String] = Optional.empty[String]
   override def getLastModified: Optional[BoxedLong] = Optional.of(value)
-  override def getHash32: Optional[BoxedInteger] = Optional.empty[BoxedInteger]
+  override def getHash64: Optional[BoxedLong] = Optional.empty[BoxedLong]
 }
 
 /** Defines an empty stamp. */
@@ -85,10 +84,10 @@ private[sbt] object EmptyStamp extends StampBase {
   // Use `absent` because of historic reasons -- replacement of old `Exists` representation
   final val Value = "absent"
   override def writeStamp: String = Value
-  override def getValueId: Int = System.identityHashCode(this)
+  override def getValueId: Long = System.identityHashCode(this).toLong
   override def getHash: Optional[String] = Optional.empty[String]
   override def getLastModified: Optional[BoxedLong] = Optional.empty[BoxedLong]
-  override def getHash32: Optional[BoxedInteger] = Optional.empty[BoxedInteger]
+  override def getHash64: Optional[BoxedLong] = Optional.empty[BoxedLong]
 }
 
 private[inc] object LastModified extends WithPattern {
@@ -99,7 +98,7 @@ object Stamp {
   private final val maxModificationDifferenceInMillis = 100L
   implicit val equivStamp: Equiv[Stamp] = new Equiv[Stamp] {
     def equiv(a: Stamp, b: Stamp) = (a, b) match {
-      case (h1: Hash32, h2: Hash32) => h1.hash == h2.hash
+      case (h1: Hash64, h2: Hash64) => h1.hash == h2.hash
       // Windows is handling this differently sometimes...
       case (lm1: LastModified, lm2: LastModified) =>
         lm1.value == lm2.value ||
@@ -113,7 +112,7 @@ object Stamp {
 
   def fromString(s: String): Stamp = s match {
     case EmptyStamp.Value            => EmptyStamp
-    case Hash32.Pattern(value)       => new Hash32(BoxedInteger.parseInt(value))
+    case Hash64.Pattern(value)       => new Hash64(BoxedLong.parseLong(value))
     case LastModified.Pattern(value) => new LastModified(BoxedLong.parseLong(value))
     case _ =>
       throw new IllegalArgumentException("Unrecognized Stamp string representation: " + s)
@@ -141,7 +140,7 @@ object Stamper {
           acc(1) = checksumChunk
           acc(0) = xxHash.hashLongs(acc)
         }
-        new Hash32(acc(0).toInt)
+        new Hash64(acc(0).toInt)
       }
     }
   }
