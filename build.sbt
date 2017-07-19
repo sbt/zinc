@@ -223,7 +223,7 @@ lazy val zincCore = (project in internalPath / "zinc-core")
     javaOptions in Test += "-Xmx1G",
     name := "zinc Core",
     compileOrder := sbt.CompileOrder.Mixed,
-    libraryDependencies += zeroAllocationHashing
+    libraryDependencies += xxHashLibrary
   )
   .configure(addSbtIO, addSbtUtilLogging, addSbtUtilRelation)
 

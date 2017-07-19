@@ -82,7 +82,7 @@ object Dependencies {
   val junit = "junit" % "junit" % "4.11"
   val sjsonnew = Def.setting { "com.eed3si9n" %% "sjson-new-core" % contrabandSjsonNewVersion.value }
   val sjsonnewScalaJson = Def.setting { "com.eed3si9n" %% "sjson-new-scalajson" % contrabandSjsonNewVersion.value }
-  val zeroAllocationHashing = "net.openhft" % "zero-allocation-hashing" % "0.8"
+  val xxHashLibrary = "net.jpountz.lz4" % "lz4" % "1.3.0"
 
   def addTestDependencies(p: Project): Project =
     p.settings(

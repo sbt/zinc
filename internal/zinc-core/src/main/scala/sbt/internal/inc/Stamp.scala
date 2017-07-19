@@ -9,12 +9,12 @@ package sbt
 package internal
 package inc
 
-import java.io.{ File, IOException, InputStream }
+import java.io.{ File, IOException, RandomAccessFile }
+import java.nio.channels.FileChannel.MapMode
 import java.util
 import java.util.Optional
 
-import net.openhft.hashing.LongHashFunction
-import sbt.io.{ Hash => IOHash }
+import net.jpountz.xxhash.XXHashFactory
 import xsbti.compile.analysis.{ ReadStamps, Stamp }
 
 import scala.collection.immutable.TreeMap
@@ -127,24 +127,29 @@ object Stamper {
     catch { case i: IOException => EmptyStamp }
   }
 
-  private final val xxHash = LongHashFunction.xx()
-  private final val BufferSize = 8192
-  final val forHash: (File => Stamp) = (toStamp: File) => {
+  private final val hashFactory = XXHashFactory.fastestInstance()
+  private final val seed = 0x9747b28c
+  private def hashFile(toStamp: File): Stamp = {
+    import java.nio.channels.FileChannel
     if (!toStamp.exists() || toStamp.isDirectory) EmptyStamp
     else {
-      sbt.io.Using.fileInputStream(toStamp) { (is: InputStream) =>
-        val acc = new Array[Long](2)
-        val buffer = new Array[Byte](BufferSize)
-        while (is.read(buffer) >= 0) {
-          val checksumChunk = xxHash.hashBytes(buffer)
-          acc(1) = checksumChunk
-          acc(0) = xxHash.hashLongs(acc)
-        }
-        new Hash64(acc(0).toInt)
+      val hashFunction = hashFactory.hash64()
+      var randomFile: RandomAccessFile = null
+      var channel: FileChannel = null
+      try {
+        randomFile = new RandomAccessFile(toStamp, "r")
+        channel = randomFile.getChannel
+        val mappedChannel = channel.map(MapMode.READ_ONLY, 0, channel.size())
+        val hash = hashFunction.hash(mappedChannel.asReadOnlyBuffer(), seed)
+        new Hash64(hash)
+      } finally {
+        if (randomFile != null) randomFile.close()
+        if (channel != null) channel.close()
       }
     }
   }
 
+  final val forHash: (File => Stamp) = hashFile _
   final val forLastModified = (toStamp: File) => tryStamp(new LastModified(toStamp.lastModified()))
 }
 
