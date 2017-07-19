@@ -33,12 +33,19 @@ import java.util.{ Optional, Properties }
 
 import sbt.internal.inc.classpath.{ ClassLoaderCache, ClasspathUtilities }
 import sbt.internal.scripted.{ StatementHandler, TestFailed }
-import sbt.internal.inctest.{ Build, JsonProtocol, Project }
 import sbt.internal.util.ManagedLogger
 import sjsonnew.support.scalajson.unsafe.{ Converter, Parser => JsonParser }
 
 import scala.{ PartialFunction => ?=> }
 import scala.collection.mutable
+
+final case class Project(
+    name: String,
+    dependsOn: Vector[String] = Vector.empty,
+    in: Option[File] = None,
+    scalaVersion: Option[String] = None
+)
+final case class Build(projects: Seq[Project])
 
 final case class IncInstance(si: xsbti.compile.ScalaInstance, cs: XCompilers)
 
@@ -67,11 +74,14 @@ final class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogg
 
   private final val RootIdentifier = "root"
   def initBuild: Build = {
-    import JsonProtocol._
     if ((directory / "build.json").exists) {
+      import sjsonnew._, BasicJsonProtocol._
+      implicit val projectFormat =
+        caseClass(Project.apply _, Project.unapply _)("name", "dependsOn", "in", "scalaVersion")
+      implicit val buildFormat = caseClass(Build.apply _, Build.unapply _)("projects")
       val json = JsonParser.parseFromFile(directory / "build.json").get
       Converter.fromJsonUnsafe[Build](json)
-    } else Build(projects = Vector(Project(name = RootIdentifier).withIn(directory)))
+    } else Build(projects = Vector(Project(name = RootIdentifier).copy(in = Some(directory))))
   }
 
   def lookupProject(name: String): ProjectStructure = buildStructure(name)
