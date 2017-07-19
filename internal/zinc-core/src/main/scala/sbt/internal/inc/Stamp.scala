@@ -9,11 +9,13 @@ package sbt
 package internal
 package inc
 
-import java.io.{ File, IOException }
+import java.io.{ File, IOException, RandomAccessFile }
+import java.nio.ByteBuffer
+import java.nio.channels.FileChannel.MapMode
 import java.util
 import java.util.Optional
 
-import sbt.io.{ Hash => IOHash }
+import net.jpountz.xxhash.XXHashFactory
 import xsbti.compile.analysis.{ ReadStamps, Stamp }
 
 import scala.collection.immutable.TreeMap
@@ -47,7 +49,6 @@ trait Stamps extends ReadStamps {
 
 private[sbt] sealed abstract class StampBase extends Stamp {
   override def toString: String = this.writeStamp()
-  override def hashCode(): Int = this.getValueId()
   override def equals(other: Any): Boolean = other match {
     case o: Stamp => Stamp.equivStamp.equiv(this, o)
     case _        => false
@@ -56,52 +57,42 @@ private[sbt] sealed abstract class StampBase extends Stamp {
 
 trait WithPattern { protected def Pattern: Regex }
 
-import java.lang.{ Long => BoxedLong }
+import java.lang.{ Long => BoxedLong, Integer => BoxedInt }
 
-/** Define the hash of the file contents. It's a typical stamp for compilation sources. */
-final class Hash private (val hexHash: String) extends StampBase {
-  // Assumes `hexHash` is a hexadecimal value.
-  override def writeStamp: String = s"hash($hexHash)"
-  override def getValueId: Int = hexHash.hashCode()
-  override def getHash: Optional[String] = Optional.of(hexHash)
+final class Hash64(val hash: Long) extends StampBase {
+  override def writeStamp: String = s"longHash($hash)"
+  override def getValueId: Int = hash.toInt
+  override def getBytes: Array[Byte] = Stamp.toByteArray(hash)
+  override def getHash: Optional[String] = Optional.empty[String]
   override def getLastModified: Optional[BoxedLong] = Optional.empty[BoxedLong]
+  override def getHash64: Optional[BoxedLong] = Optional.of(hash)
 }
 
-private[sbt] object Hash {
-  private val Pattern = """hash\(((?:[0-9a-fA-F][0-9a-fA-F])+)\)""".r
-
-  def ofFile(f: File): Hash =
-    new Hash(IOHash toHex IOHash(f)) // assume toHex returns a hex string
-
-  def fromString(s: String): Option[Hash] = {
-    val m = Pattern.pattern matcher s
-    if (m.matches()) Some(new Hash(m group 1))
-    else None
-  }
-
-  object FromString {
-    def unapply(s: String): Option[Hash] = fromString(s)
-  }
-
-  def unsafeFromString(s: String): Hash = new Hash(s)
+private[sbt] object Hash64 {
+  final val Pattern = """longHash\((\d+)\)""".r
 }
 
 /** Define the last modified time of the file. It's a typical stamp for class files and products. */
 final class LastModified(val value: Long) extends StampBase {
   override def writeStamp: String = s"lastModified(${value})"
-  override def getValueId: Int = (value ^ (value >>> 32)).toInt
+  override def getValueId: Int = value.toInt
+  override def getBytes: Array[Byte] = Stamp.toByteArray(value)
   override def getHash: Optional[String] = Optional.empty[String]
   override def getLastModified: Optional[BoxedLong] = Optional.of(value)
+  override def getHash64: Optional[BoxedLong] = Optional.empty[BoxedLong]
 }
 
 /** Defines an empty stamp. */
 private[sbt] object EmptyStamp extends StampBase {
   // Use `absent` because of historic reasons -- replacement of old `Exists` representation
   final val Value = "absent"
+  private[this] final val underlyingHash = System.identityHashCode(this)
   override def writeStamp: String = Value
-  override def getValueId: Int = System.identityHashCode(this)
+  override def getValueId: Int = underlyingHash
+  override def getBytes: Array[Byte] = Stamp.toByteArray(underlyingHash)
   override def getHash: Optional[String] = Optional.empty[String]
   override def getLastModified: Optional[BoxedLong] = Optional.empty[BoxedLong]
+  override def getHash64: Optional[BoxedLong] = Optional.empty[BoxedLong]
 }
 
 private[inc] object LastModified extends WithPattern {
@@ -109,10 +100,22 @@ private[inc] object LastModified extends WithPattern {
 }
 
 object Stamp {
+  def toByteArray(int: Int): Array[Byte] = {
+    val buffer = ByteBuffer.allocate(BoxedInt.BYTES)
+    buffer.putInt(int)
+    buffer.array()
+  }
+
+  def toByteArray(long: Long): Array[Byte] = {
+    val buffer = ByteBuffer.allocate(BoxedLong.BYTES)
+    buffer.putLong(long)
+    buffer.array()
+  }
+
   private final val maxModificationDifferenceInMillis = 100L
   implicit val equivStamp: Equiv[Stamp] = new Equiv[Stamp] {
     def equiv(a: Stamp, b: Stamp) = (a, b) match {
-      case (h1: Hash, h2: Hash) => h1.hexHash == h2.hexHash
+      case (h1: Hash64, h2: Hash64) => h1.hash == h2.hash
       // Windows is handling this differently sometimes...
       case (lm1: LastModified, lm2: LastModified) =>
         lm1.value == lm2.value ||
@@ -126,8 +129,8 @@ object Stamp {
 
   def fromString(s: String): Stamp = s match {
     case EmptyStamp.Value            => EmptyStamp
-    case Hash.FromString(hash)       => hash
-    case LastModified.Pattern(value) => new LastModified(java.lang.Long.parseLong(value))
+    case Hash64.Pattern(value)       => new Hash64(BoxedLong.parseLong(value))
+    case LastModified.Pattern(value) => new LastModified(BoxedLong.parseLong(value))
     case _ =>
       throw new IllegalArgumentException("Unrecognized Stamp string representation: " + s)
   }
@@ -141,8 +144,30 @@ object Stamper {
     catch { case i: IOException => EmptyStamp }
   }
 
-  val forHash = (toStamp: File) => tryStamp(Hash.ofFile(toStamp))
-  val forLastModified = (toStamp: File) => tryStamp(new LastModified(toStamp.lastModified()))
+  private final val hashFactory = XXHashFactory.fastestInstance()
+  private final val seed = 0x9747b28c
+  private def hashFile(toStamp: File): Stamp = {
+    import java.nio.channels.FileChannel
+    if (!toStamp.exists() || toStamp.isDirectory) EmptyStamp
+    else {
+      val hashFunction = hashFactory.hash64()
+      var randomFile: RandomAccessFile = null
+      var channel: FileChannel = null
+      try {
+        randomFile = new RandomAccessFile(toStamp, "r")
+        channel = randomFile.getChannel
+        val mappedChannel = channel.map(MapMode.READ_ONLY, 0, channel.size())
+        val hash = hashFunction.hash(mappedChannel.asReadOnlyBuffer(), seed)
+        new Hash64(hash)
+      } finally {
+        if (randomFile != null) randomFile.close()
+        if (channel != null) channel.close()
+      }
+    }
+  }
+
+  final val forHash: (File => Stamp) = hashFile _
+  final val forLastModified = (toStamp: File) => tryStamp(new LastModified(toStamp.lastModified()))
 }
 
 object Stamps {

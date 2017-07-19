@@ -70,6 +70,7 @@ object ProtobufDefaults {
     final val Companions = classOf[schema.Companions]
     final val Relations = classOf[schema.Relations]
     final val Stamps = classOf[schema.Stamps]
+    final val StampType = classOf[schema.Stamps.StampType]
     final val Compilations = classOf[schema.Compilations]
     final val SourceInfos = classOf[schema.SourceInfos]
     final val AnalyzedClass = classOf[schema.AnalyzedClass]
@@ -139,6 +140,8 @@ object ProtobufDefaults {
         expected(Classes.Position, Classes.Problem)
       final val ExpectedApisInApisFile: String =
         expected(Classes.APIs, Classes.APIsFile)
+      final val ExpectedLongInHash: String =
+        expected("long hash", Classes.StampType)
 
       final def expected(culprit: Class[_], owner: Class[_]): String =
         expected(s"`${culprit.getName}`", owner)

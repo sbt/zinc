@@ -222,7 +222,8 @@ lazy val zincCore = (project in internalPath / "zinc-core")
     // compiler instances that are memory hungry
     javaOptions in Test += "-Xmx1G",
     name := "zinc Core",
-    compileOrder := sbt.CompileOrder.Mixed
+    compileOrder := sbt.CompileOrder.Mixed,
+    libraryDependencies += xxHashLibrary
   )
   .configure(addSbtIO, addSbtUtilLogging, addSbtUtilRelation)
 

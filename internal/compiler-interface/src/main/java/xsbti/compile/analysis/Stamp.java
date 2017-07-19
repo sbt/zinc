@@ -23,9 +23,17 @@ public interface Stamp {
     /**
      * Returns a unique identifier depending on the underlying data structures.
      *
-     * @return A valid string-based representation for logical equality, not referential equality.
+     * @return A valid representation for logical equality, not referential equality.
      */
-    public int getValueId();
+    public byte[] getBytes();
+
+    /**
+     * Returns a unique identifier depending on the underlying data structures.
+     *
+     * @deprecated use {@link #getValueId()} instead.
+     * @return A valid int representation for logical equality, not referential equality.
+     */
+    @Deprecated public int getValueId();
 
     /**
      * @return A string-based and recoverable representation of the underlying stamp.
@@ -35,9 +43,11 @@ public interface Stamp {
     /**
      * Get the hash of the file contents if the stamp supports it.
      *
+     * @deprecated use {@link #getHash64()} instead.
+     *
      * @return An optional hash of the file contents.
      */
-    public Optional<String> getHash();
+    @Deprecated public Optional<String> getHash();
 
     /**
      * Get the last modified time (in milliseconds from Epoch) of a file if the stamp supports it.
@@ -45,4 +55,11 @@ public interface Stamp {
      * @return An optional last modified time.
      */
     public Optional<Long> getLastModified();
+
+    /**
+     * Get a 64-byte hash of a file if the stamp supports it.
+     *
+     * @return An optional 64-byte hash.
+     */
+    public Optional<Long> getHash64();
 }

@@ -9,6 +9,7 @@ package sbt.internal.inc.binary.converters
 
 import java.io.File
 
+import com.google.protobuf.ByteString
 import sbt.internal.inc._
 import xsbti.{ Position, Problem, Severity, T2, UseScope }
 import xsbti.compile.analysis.{ SourceInfo, Stamp, WriteMapper }
@@ -34,7 +35,7 @@ final class ProtobufWriters(mapper: WriteMapper) {
   def toStampType(stamp: Stamp): schema.Stamps.StampType = {
     val s0 = schema.Stamps.StampType()
     stamp match {
-      case hash: Hash       => s0.withHash(schema.Hash(hash = hash.hexHash))
+      case hash: Hash64     => s0.withHash(schema.Hash(hash = ByteString.copyFrom(hash.getBytes)))
       case lm: LastModified => s0.withLastModified(schema.LastModified(millis = lm.value))
       case _: Stamp         => s0
     }
@@ -177,7 +178,7 @@ final class ProtobufWriters(mapper: WriteMapper) {
   def toClasspathFileHash(fileHash: FileHash): schema.FileHash = {
     val newClasspathEntry = mapper.mapClasspathEntry(fileHash.file())
     val path = toStringPath(newClasspathEntry)
-    val hash = fileHash.hash()
+    val hash = ByteString.copyFrom(fileHash.hash64())
     schema.FileHash(
       path = path,
       hash = hash
