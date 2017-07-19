@@ -23,9 +23,17 @@ public interface Stamp {
     /**
      * Returns a unique identifier depending on the underlying data structures.
      *
-     * @return A valid string-based representation for logical equality, not referential equality.
+     * @return A valid representation for logical equality, not referential equality.
      */
-    public long getValueId();
+    public byte[] getBytes();
+
+    /**
+     * Returns a unique identifier depending on the underlying data structures.
+     *
+     * @deprecated use {@link #getValueId()} instead.
+     * @return A valid int representation for logical equality, not referential equality.
+     */
+    @Deprecated public int getValueId();
 
     /**
      * @return A string-based and recoverable representation of the underlying stamp.

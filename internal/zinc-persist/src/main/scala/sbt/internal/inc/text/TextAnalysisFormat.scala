@@ -67,7 +67,8 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
         case (a, b, c) => SourceInfos.makeInfo(a, b, c)
       })
   private implicit def fileHashFormat: Format[FileHash] =
-    asProduct2((file: File, hash: Long) => FileHash.of(file, hash))(h => (h.file, h.hash64))
+    asProduct2((file: File, bytes: Array[Byte]) => FileHash.of(file, bytes))((h: FileHash) =>
+      (h.file, h.hash64()))
   private implicit def seqFormat[T](implicit optionFormat: Format[T]): Format[Seq[T]] =
     viaSeq[Seq[T], T](x => x)
   private def t2[A1, A2](a1: A1, a2: A2): T2[A1, A2] = InterfaceUtil.t2(a1 -> a2)

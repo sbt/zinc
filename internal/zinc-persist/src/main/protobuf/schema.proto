@@ -8,7 +8,7 @@ package sbt.internal.inc;
 
 message Hash {
     reserved 1;
-    sint64 hash = 2;
+    bytes hash = 2;
 }
 
 message LastModified {
@@ -89,7 +89,7 @@ message SourceInfos {
 message FileHash {
     string path = 1;
     reserved 2;
-    sint64 hash = 3;
+    bytes hash = 3;
 }
 
 enum CompileOrder {

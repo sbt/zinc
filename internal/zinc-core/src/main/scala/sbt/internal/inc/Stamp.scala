@@ -10,6 +10,7 @@ package internal
 package inc
 
 import java.io.{ File, IOException, RandomAccessFile }
+import java.nio.ByteBuffer
 import java.nio.channels.FileChannel.MapMode
 import java.util
 import java.util.Optional
@@ -56,11 +57,12 @@ private[sbt] sealed abstract class StampBase extends Stamp {
 
 trait WithPattern { protected def Pattern: Regex }
 
-import java.lang.{ Long => BoxedLong }
+import java.lang.{ Long => BoxedLong, Integer => BoxedInt }
 
 final class Hash64(val hash: Long) extends StampBase {
   override def writeStamp: String = s"longHash($hash)"
-  override def getValueId: Long = hash
+  override def getValueId: Int = hash.toInt
+  override def getBytes: Array[Byte] = Stamp.toByteArray(hash)
   override def getHash: Optional[String] = Optional.empty[String]
   override def getLastModified: Optional[BoxedLong] = Optional.empty[BoxedLong]
   override def getHash64: Optional[BoxedLong] = Optional.of(hash)
@@ -73,7 +75,8 @@ private[sbt] object Hash64 {
 /** Define the last modified time of the file. It's a typical stamp for class files and products. */
 final class LastModified(val value: Long) extends StampBase {
   override def writeStamp: String = s"lastModified(${value})"
-  override def getValueId: Long = value
+  override def getValueId: Int = value.toInt
+  override def getBytes: Array[Byte] = Stamp.toByteArray(value)
   override def getHash: Optional[String] = Optional.empty[String]
   override def getLastModified: Optional[BoxedLong] = Optional.of(value)
   override def getHash64: Optional[BoxedLong] = Optional.empty[BoxedLong]
@@ -83,8 +86,10 @@ final class LastModified(val value: Long) extends StampBase {
 private[sbt] object EmptyStamp extends StampBase {
   // Use `absent` because of historic reasons -- replacement of old `Exists` representation
   final val Value = "absent"
+  private[this] final val underlyingHash = System.identityHashCode(this)
   override def writeStamp: String = Value
-  override def getValueId: Long = System.identityHashCode(this).toLong
+  override def getValueId: Int = underlyingHash
+  override def getBytes: Array[Byte] = Stamp.toByteArray(underlyingHash)
   override def getHash: Optional[String] = Optional.empty[String]
   override def getLastModified: Optional[BoxedLong] = Optional.empty[BoxedLong]
   override def getHash64: Optional[BoxedLong] = Optional.empty[BoxedLong]
@@ -95,6 +100,18 @@ private[inc] object LastModified extends WithPattern {
 }
 
 object Stamp {
+  def toByteArray(int: Int): Array[Byte] = {
+    val buffer = ByteBuffer.allocate(BoxedInt.BYTES)
+    buffer.putInt(int)
+    buffer.array()
+  }
+
+  def toByteArray(long: Long): Array[Byte] = {
+    val buffer = ByteBuffer.allocate(BoxedLong.BYTES)
+    buffer.putLong(long)
+    buffer.array()
+  }
+
   private final val maxModificationDifferenceInMillis = 100L
   implicit val equivStamp: Equiv[Stamp] = new Equiv[Stamp] {
     def equiv(a: Stamp, b: Stamp) = (a, b) match {

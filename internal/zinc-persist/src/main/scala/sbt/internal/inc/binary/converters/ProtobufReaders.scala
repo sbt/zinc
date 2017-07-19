@@ -9,6 +9,7 @@ package sbt.internal.inc.binary.converters
 
 import java.io.File
 
+import com.google.protobuf.ByteString
 import sbt.internal.inc.Relations.ClassDependencies
 import sbt.internal.inc._
 import sbt.util.InterfaceUtil
@@ -26,11 +27,17 @@ final class ProtobufReaders(mapper: ReadMapper) {
     java.nio.file.Paths.get(path).toFile
   }
 
+  private def readLong(bs: ByteString) = {
+    val array = bs.asReadOnlyByteBuffer().asLongBuffer().array()
+    if (array.isEmpty) ReadersFeedback.ExpectedLongInHash.!!
+    else array.apply(0)
+  }
+
   def fromStampType(stampType: schema.Stamps.StampType): Stamp = {
     import sbt.internal.inc.{ EmptyStamp, LastModified, Hash64 }
     stampType.`type` match {
       case schema.Stamps.StampType.Type.Empty            => EmptyStamp
-      case schema.Stamps.StampType.Type.Hash(h)          => new Hash64(h.hash) // fair assumption
+      case schema.Stamps.StampType.Type.Hash(h)          => new Hash64(readLong(h.hash))
       case schema.Stamps.StampType.Type.LastModified(lm) => new LastModified(lm.millis)
     }
   }
@@ -170,7 +177,7 @@ final class ProtobufReaders(mapper: ReadMapper) {
   }
 
   def fromClasspathFileHash(fileHash: schema.FileHash): FileHash = {
-    val hash = fileHash.hash
+    val hash = fileHash.hash.toByteArray()
     val classpathEntry = fromPathString(fileHash.path)
     val newClasspathEntry = mapper.mapClasspathEntry(classpathEntry)
     FileHash.of(newClasspathEntry, hash)
