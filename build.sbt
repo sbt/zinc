@@ -316,6 +316,15 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface")
   )
   .configure(addSbtUtilInterface)
 
+val cleanSbtBridge = taskKey[Unit]("Cleans the sbt bridge.")
+
+def wrapIn(color: String, content: String): String = {
+  import sbt.internal.util.ConsoleAppender
+  if (!ConsoleAppender.formatEnabled) content
+  else color + content + scala.Console.RESET
+}
+
+
 // Compiler-side interface to compiler that is compiled against the compiler being used either in advance or on the fly.
 //   Includes API and Analyzer phases that extract source API and relationships.
 lazy val compilerBridge: Project = (project in internalPath / "compiler-bridge")
@@ -340,6 +349,36 @@ lazy val compilerBridge: Project = (project in internalPath / "compiler-bridge")
       case (2, y) if y == 10 => new File(scalaSource.value.getPath + "_2.10")
       case (2, y) if y >= 11 => new File(scalaSource.value.getPath + "_2.11+")
     }.toList),
+    cleanSbtBridge := {
+      val sbtV = sbtVersion.value
+      val sbtOrg = "org.scala-sbt"
+      val sbtScalaVersion = "2.10.6"
+      val bridgeVersion = version.value
+      val scalaV = scalaVersion.value
+
+      // Assumes that JDK version is the same than the one that publishes the bridge
+      val classVersion = System.getProperty("java.class.version")
+
+      val home = System.getProperty("user.home")
+      val org = organization.value
+      val artifact = moduleName.value
+      val artifactName =
+        s"$org-$artifact-$bridgeVersion-bin_${scalaV}__$classVersion"
+
+      val targetsToDelete = List(
+        // We cannot use the target key, it's not scoped in `ThisBuild` nor `Global`.
+        (baseDirectory in ThisBuild).value / "target" / "zinc-components",
+        file(home) / ".ivy2/cache" / sbtOrg / artifactName,
+        file(home) / ".sbt/boot" / s"scala-$sbtScalaVersion" / sbtOrg / "sbt" / sbtV / artifactName
+      )
+      val logger = streams.value.log
+      logger.info(wrapIn(scala.Console.BOLD, "Cleaning stale compiler bridges:"))
+      targetsToDelete.foreach { target =>
+        IO.delete(target)
+        logger.info(s"${wrapIn(scala.Console.GREEN, "  ✓ ")}${target.getAbsolutePath}")
+      }
+    },
+    publishLocal := publishLocal.dependsOn(cleanSbtBridge).value,
     altPublishSettings
   )
 
