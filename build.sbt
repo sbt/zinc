@@ -90,7 +90,7 @@ def altPublishSettings: Seq[Setting[_]] =
   )
 
 lazy val zincRoot: Project = (project in file("."))
-  // configs(Sxr.sxrConf).
+// configs(Sxr.sxrConf).
   .aggregate(
     zinc,
     zincTesting,
@@ -132,8 +132,9 @@ lazy val zincRoot: Project = (project in file("."))
 
           val un = uncommittedChanges.nonEmpty
           if (un) {
-            uncommittedChanges foreach { case (cmd, res) =>
-              sLog.value debug s"""Uncommitted changes found via "${cmd mkString " "}":\n${res}"""
+            uncommittedChanges foreach {
+              case (cmd, res) =>
+                sLog.value debug s"""Uncommitted changes found via "${cmd mkString " "}":\n${res}"""
             }
           }
           un
@@ -297,8 +298,9 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface")
           version.value,
           resourceManaged.value,
           streams.value,
-          compile in Compile value)
+          compile in Compile value
         )
+      )
       .taskValue,
     apiDefinitions := List(
       (baseDirectory.value / "definition"),
@@ -396,11 +398,11 @@ lazy val crossTestBridges = {
     (compilerBridgeScalaVersions.flatMap { (bridgeVersion: String) =>
       // Note the ! here. You need this so compilerInterface gets forced to the scalaVersion
       s"++ $bridgeVersion!" ::
-      s"${compilerBridge.id}/test" ::
-      Nil
-    }) ::: 
-    (s"++ $scala212!" ::
-    state)
+        s"${compilerBridge.id}/test" ::
+        Nil
+    }) :::
+      (s"++ $scala212!" ::
+      state)
   }
 }
 
@@ -429,7 +431,7 @@ lazy val publishBridgesAndTest = Command.args("publishBridgesAndTest", "<version
       s"++ $bridgeVersion" ::
         s"${zincApiInfo.id}/publishLocal" ::
         s"${compilerBridge.id}/publishLocal" :: Nil
-      }) :::
+    }) :::
       s"++ $version" ::
       s"zincRoot/scalaVersion" ::
       s"zincRoot/test" ::

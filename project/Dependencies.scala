@@ -21,7 +21,7 @@ object Dependencies {
   private val utilScripted = "org.scala-sbt" %% "util-scripted" % utilVersion
 
   private val libraryManagementCore = "org.scala-sbt" %% "librarymanagement-core" % lmVersion
-  private val libraryManagementIvy  = "org.scala-sbt" %% "librarymanagement-ivy" % lmVersion
+  private val libraryManagementIvy = "org.scala-sbt" %% "librarymanagement-ivy" % lmVersion
 
   val launcherInterface = "org.scala-sbt" % "launcher-interface" % "1.0.0"
 
@@ -34,11 +34,11 @@ object Dependencies {
   }
 
   def addSbtModule(
-    p: Project,
-    path: Option[String],
-    projectName: String,
-    m: ModuleID,
-    c: Option[Configuration] = None
+      p: Project,
+      path: Option[String],
+      projectName: String,
+      m: ModuleID,
+      c: Option[Configuration] = None
   ) =
     path match {
       case Some(f) =>
@@ -68,9 +68,11 @@ object Dependencies {
   def addSbtUtilTracking(p: Project): Project =
     addSbtModule(p, sbtUtilPath, "utilTracking", utilTracking)
 
-  def addSbtLmCore(p: Project): Project = addSbtModule(p, sbtLmPath, "lmCore", libraryManagementCore)
+  def addSbtLmCore(p: Project): Project =
+    addSbtModule(p, sbtLmPath, "lmCore", libraryManagementCore)
   def addSbtLmIvy(p: Project): Project = addSbtModule(p, sbtLmPath, "lmIvy", libraryManagementIvy)
-  def addSbtLmIvyTest(p: Project): Project = addSbtModule(p, sbtLmPath, "lmIvy", libraryManagementIvy, Some(Test))
+  def addSbtLmIvyTest(p: Project): Project =
+    addSbtModule(p, sbtLmPath, "lmIvy", libraryManagementIvy, Some(Test))
 
   val scalaLibrary = Def.setting { "org.scala-lang" % "scala-library" % scalaVersion.value }
   val scalaCompiler = Def.setting { "org.scala-lang" % "scala-compiler" % scalaVersion.value }
@@ -80,8 +82,12 @@ object Dependencies {
   val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.13.4"
   val scalatest = "org.scalatest" %% "scalatest" % "3.0.1"
   val junit = "junit" % "junit" % "4.11"
-  val sjsonnew = Def.setting { "com.eed3si9n" %% "sjson-new-core" % contrabandSjsonNewVersion.value }
-  val sjsonnewScalaJson = Def.setting { "com.eed3si9n" %% "sjson-new-scalajson" % contrabandSjsonNewVersion.value }
+  val sjsonnew = Def.setting {
+    "com.eed3si9n" %% "sjson-new-core" % contrabandSjsonNewVersion.value
+  }
+  val sjsonnewScalaJson = Def.setting {
+    "com.eed3si9n" %% "sjson-new-scalajson" % contrabandSjsonNewVersion.value
+  }
 
   def addTestDependencies(p: Project): Project =
     p.settings(
