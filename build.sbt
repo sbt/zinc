@@ -89,6 +89,15 @@ def altPublishSettings: Seq[Setting[_]] =
     }
   )
 
+val noPublish: Seq[Setting[_]] = List(
+  publish := {},
+  publishLocal := {},
+  publishArtifact in Compile := false,
+  publishArtifact in Test := false,
+  publishArtifact := false,
+  skip in publish := true,
+)
+
 lazy val zincRoot: Project = (project in file("."))
 // configs(Sxr.sxrConf).
   .aggregate(
@@ -155,12 +164,8 @@ lazy val zincRoot: Project = (project in file("."))
       )),
     minimalSettings,
     otherRootSettings,
+    noPublish,
     name := "zinc Root",
-    publish := {},
-    publishLocal := {},
-    publishArtifact in Compile := false,
-    publishArtifact in Test := false,
-    publishArtifact := false,
     customCommands
   )
 
@@ -181,11 +186,8 @@ lazy val zinc = (project in file("zinc"))
 lazy val zincTesting = (project in internalPath / "zinc-testing")
   .settings(
     minimalSettings,
+    noPublish,
     name := "zinc Testing",
-    publish := {},
-    publishArtifact in Compile := false,
-    publishArtifact in Test := false,
-    publishArtifact := false,
     libraryDependencies ++= Seq(scalaCheck, scalatest, junit, sjsonnewScalaJson.value)
   )
   .configure(addSbtLmCore, addSbtLmIvy, addSbtUtilTesting)
@@ -232,6 +234,7 @@ lazy val zincBenchmarks = (project in internalPath / "zinc-benchmarks")
   .dependsOn(compilerBridge, zincCore, zincTesting % Test)
   .enablePlugins(JmhPlugin)
   .settings(
+    noPublish,
     name := "Benchmarks of Zinc and the compiler bridge",
     libraryDependencies ++= Seq(
       "org.eclipse.jgit" % "org.eclipse.jgit" % "4.6.0.201612231935-r",
@@ -240,8 +243,6 @@ lazy val zincBenchmarks = (project in internalPath / "zinc-benchmarks")
     scalaVersion := scala212,
     crossScalaVersions := Seq(scala211, scala212),
     javaOptions in Test += "-Xmx600M -Xms600M",
-    publish := {},
-    publishLocal := {}
   )
 
 lazy val zincIvyIntegration = (project in internalPath / "zinc-ivy-integration")
@@ -425,10 +426,8 @@ lazy val zincScripted = (project in internalPath / "zinc-scripted")
   .dependsOn(zinc, zincIvyIntegration % "test->test")
   .settings(
     minimalSettings,
+    noPublish,
     name := "zinc Scripted",
-    publish := {},
-    publishLocal := {},
-    skip in publish := true
   )
   .configure(addSbtUtilScripted)
 
