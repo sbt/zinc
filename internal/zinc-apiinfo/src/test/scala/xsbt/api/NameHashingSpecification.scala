@@ -1,8 +1,8 @@
 package xsbt.api
 
 import xsbti.api._
-import sbt.internal.util.UnitSpec
 import xsbti.UseScope
+import sbt.internal.inc.UnitSpec
 
 class NameHashingSpecification extends UnitSpec {
 

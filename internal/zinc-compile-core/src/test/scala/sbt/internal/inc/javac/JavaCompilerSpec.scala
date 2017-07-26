@@ -12,7 +12,6 @@ import xsbti.{ Problem, Severity }
 import xsbti.compile.{ IncToolOptions, IncToolOptionsUtil, JavaTools => XJavaTools }
 import sbt.io.IO
 import sbt.util.LogExchange
-import sbt.internal.util.UnitSpec
 import org.scalatest.matchers._
 
 class JavaCompilerSpec extends UnitSpec {

@@ -15,7 +15,6 @@ object Dependencies {
   private val utilLogging = "org.scala-sbt" %% "util-logging" % utilVersion
   private val utilControl = "org.scala-sbt" %% "util-control" % utilVersion
   private val utilRelation = "org.scala-sbt" %% "util-relation" % utilVersion
-  private val utilTesting = "org.scala-sbt" %% "util-testing" % utilVersion
   private val utilTracking = "org.scala-sbt" %% "util-tracking" % utilVersion
   private val utilInterface = "org.scala-sbt" % "util-interface" % utilVersion
   private val utilScripted = "org.scala-sbt" %% "util-scripted" % utilVersion
@@ -63,8 +62,6 @@ object Dependencies {
     addSbtModule(p, sbtUtilPath, "utilRelation", utilRelation)
   def addSbtUtilScripted(p: Project): Project =
     addSbtModule(p, sbtUtilPath, "utilScripted", utilScripted, Some(Test))
-  def addSbtUtilTesting(p: Project): Project =
-    addSbtModule(p, sbtUtilPath, "utilTesting", utilTesting, Some(Test))
   def addSbtUtilTracking(p: Project): Project =
     addSbtModule(p, sbtUtilPath, "utilTracking", utilTracking)
 
@@ -85,11 +82,10 @@ object Dependencies {
 
   def addTestDependencies(p: Project): Project =
     p.settings(
-        libraryDependencies ++=
-          Seq(
-            scalaCheck % Test,
-            scalatest % Test,
-            junit % Test
-          ))
-      .configure(addSbtUtilTesting)
+        libraryDependencies ++= Seq(
+          scalaCheck % Test,
+          scalatest % Test,
+          junit % Test
+        )
+    )
 }

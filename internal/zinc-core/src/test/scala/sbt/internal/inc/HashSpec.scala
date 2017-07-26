@@ -2,8 +2,6 @@ package sbt
 package internal
 package inc
 
-import sbt.internal.util.UnitSpec
-
 class HashSpec extends UnitSpec {
   it should "reject goddleygook" in reject("goddleygook")
   it should "accept lower hex" in accept("0123456789abcdef")

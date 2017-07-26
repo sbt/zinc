@@ -3,8 +3,6 @@ package internal
 package inc
 package classfile
 
-import sbt.internal.util.UnitSpec
-
 class AnalyzeSpecification extends UnitSpec {
 
   "Analyze" should "extract dependencies of inner classes" in {

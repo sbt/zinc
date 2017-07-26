@@ -5,7 +5,6 @@ package inc
 import java.io.File
 
 import sbt.internal.inc.classfile.JavaCompilerForUnitTesting
-import sbt.internal.util.UnitSpec
 import xsbti.AnalysisCallback
 import xsbti.api.{ ClassLike, ClassLikeDef, DefinitionType }
 
