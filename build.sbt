@@ -3,7 +3,7 @@ import Dependencies._
 import Scripted._
 // import com.typesafe.tools.mima.core._, ProblemFilters._
 
-def baseVersion = "1.0.0-X19-SNAPSHOT"
+def baseVersion = "1.0.0-X21-SNAPSHOT"
 def internalPath = file("internal")
 
 lazy val compilerBridgeScalaVersions = List(scala212, scala211, scala210)
@@ -89,8 +89,17 @@ def altPublishSettings: Seq[Setting[_]] =
     }
   )
 
+val noPublish: Seq[Setting[_]] = List(
+  publish := {},
+  publishLocal := {},
+  publishArtifact in Compile := false,
+  publishArtifact in Test := false,
+  publishArtifact := false,
+  skip in publish := true,
+)
+
 lazy val zincRoot: Project = (project in file("."))
-  // configs(Sxr.sxrConf).
+// configs(Sxr.sxrConf).
   .aggregate(
     zinc,
     zincTesting,
@@ -132,8 +141,9 @@ lazy val zincRoot: Project = (project in file("."))
 
           val un = uncommittedChanges.nonEmpty
           if (un) {
-            uncommittedChanges foreach { case (cmd, res) =>
-              sLog.value debug s"""Uncommitted changes found via "${cmd mkString " "}":\n${res}"""
+            uncommittedChanges foreach {
+              case (cmd, res) =>
+                sLog.value debug s"""Uncommitted changes found via "${cmd mkString " "}":\n${res}"""
             }
           }
           un
@@ -154,12 +164,8 @@ lazy val zincRoot: Project = (project in file("."))
       )),
     minimalSettings,
     otherRootSettings,
+    noPublish,
     name := "zinc Root",
-    publish := {},
-    publishLocal := {},
-    publishArtifact in Compile := false,
-    publishArtifact in Test := false,
-    publishArtifact := false,
     customCommands
   )
 
@@ -180,11 +186,8 @@ lazy val zinc = (project in file("zinc"))
 lazy val zincTesting = (project in internalPath / "zinc-testing")
   .settings(
     minimalSettings,
+    noPublish,
     name := "zinc Testing",
-    publish := {},
-    publishArtifact in Compile := false,
-    publishArtifact in Test := false,
-    publishArtifact := false,
     libraryDependencies ++= Seq(scalaCheck, scalatest, junit, sjsonnewScalaJson.value)
   )
   .configure(addSbtLmCore, addSbtLmIvy, addSbtUtilTesting)
@@ -231,6 +234,7 @@ lazy val zincBenchmarks = (project in internalPath / "zinc-benchmarks")
   .dependsOn(compilerBridge, zincCore, zincTesting % Test)
   .enablePlugins(JmhPlugin)
   .settings(
+    noPublish,
     name := "Benchmarks of Zinc and the compiler bridge",
     libraryDependencies ++= Seq(
       "org.eclipse.jgit" % "org.eclipse.jgit" % "4.6.0.201612231935-r",
@@ -239,8 +243,6 @@ lazy val zincBenchmarks = (project in internalPath / "zinc-benchmarks")
     scalaVersion := scala212,
     crossScalaVersions := Seq(scala211, scala212),
     javaOptions in Test += "-Xmx600M -Xms600M",
-    publish := {},
-    publishLocal := {}
   )
 
 lazy val zincIvyIntegration = (project in internalPath / "zinc-ivy-integration")
@@ -297,8 +299,9 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface")
           version.value,
           resourceManaged.value,
           streams.value,
-          compile in Compile value)
+          compile in Compile value
         )
+      )
       .taskValue,
     apiDefinitions := List(
       (baseDirectory.value / "definition"),
@@ -313,6 +316,15 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface")
     altPublishSettings
   )
   .configure(addSbtUtilInterface)
+
+val cleanSbtBridge = taskKey[Unit]("Cleans the sbt bridge.")
+
+def wrapIn(color: String, content: String): String = {
+  import sbt.internal.util.ConsoleAppender
+  if (!ConsoleAppender.formatEnabled) content
+  else color + content + scala.Console.RESET
+}
+
 
 // Compiler-side interface to compiler that is compiled against the compiler being used either in advance or on the fly.
 //   Includes API and Analyzer phases that extract source API and relationships.
@@ -338,6 +350,36 @@ lazy val compilerBridge: Project = (project in internalPath / "compiler-bridge")
       case (2, y) if y == 10 => new File(scalaSource.value.getPath + "_2.10")
       case (2, y) if y >= 11 => new File(scalaSource.value.getPath + "_2.11+")
     }.toList),
+    cleanSbtBridge := {
+      val sbtV = sbtVersion.value
+      val sbtOrg = "org.scala-sbt"
+      val sbtScalaVersion = "2.10.6"
+      val bridgeVersion = version.value
+      val scalaV = scalaVersion.value
+
+      // Assumes that JDK version is the same than the one that publishes the bridge
+      val classVersion = System.getProperty("java.class.version")
+
+      val home = System.getProperty("user.home")
+      val org = organization.value
+      val artifact = moduleName.value
+      val artifactName =
+        s"$org-$artifact-$bridgeVersion-bin_${scalaV}__$classVersion"
+
+      val targetsToDelete = List(
+        // We cannot use the target key, it's not scoped in `ThisBuild` nor `Global`.
+        (baseDirectory in ThisBuild).value / "target" / "zinc-components",
+        file(home) / ".ivy2/cache" / sbtOrg / artifactName,
+        file(home) / ".sbt/boot" / s"scala-$sbtScalaVersion" / sbtOrg / "sbt" / sbtV / artifactName
+      )
+      val logger = streams.value.log
+      logger.info(wrapIn(scala.Console.BOLD, "Cleaning stale compiler bridges:"))
+      targetsToDelete.foreach { target =>
+        IO.delete(target)
+        logger.info(s"${wrapIn(scala.Console.GREEN, "  ✓ ")}${target.getAbsolutePath}")
+      }
+    },
+    publishLocal := publishLocal.dependsOn(cleanSbtBridge).value,
     altPublishSettings
   )
 
@@ -384,10 +426,8 @@ lazy val zincScripted = (project in internalPath / "zinc-scripted")
   .dependsOn(zinc, zincIvyIntegration % "test->test")
   .settings(
     minimalSettings,
+    noPublish,
     name := "zinc Scripted",
-    publish := {},
-    publishLocal := {},
-    skip in publish := true
   )
   .configure(addSbtUtilScripted)
 
@@ -396,11 +436,11 @@ lazy val crossTestBridges = {
     (compilerBridgeScalaVersions.flatMap { (bridgeVersion: String) =>
       // Note the ! here. You need this so compilerInterface gets forced to the scalaVersion
       s"++ $bridgeVersion!" ::
-      s"${compilerBridge.id}/test" ::
-      Nil
-    }) ::: 
-    (s"++ $scala212!" ::
-    state)
+        s"${compilerBridge.id}/test" ::
+        Nil
+    }) :::
+      (s"++ $scala212!" ::
+      state)
   }
 }
 
@@ -429,7 +469,7 @@ lazy val publishBridgesAndTest = Command.args("publishBridgesAndTest", "<version
       s"++ $bridgeVersion" ::
         s"${zincApiInfo.id}/publishLocal" ::
         s"${compilerBridge.id}/publishLocal" :: Nil
-      }) :::
+    }) :::
       s"++ $version" ::
       s"zincRoot/scalaVersion" ::
       s"zincRoot/test" ::
