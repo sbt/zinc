@@ -13,6 +13,7 @@ def commonSettings: Seq[Setting[_]] = Seq(
   // publishArtifact in packageDoc := false,
   resolvers += Resolver.typesafeIvyRepo("releases"),
   resolvers += Resolver.sonatypeRepo("snapshots"),
+  resolvers += Resolver.sonatypeRepo("staging"),
   resolvers += "bintray-sbt-maven-releases" at "https://dl.bintray.com/sbt/maven-releases/",
   resolvers += Resolver.url(
     "bintray-sbt-ivy-snapshots",
@@ -74,17 +75,9 @@ def altPublishSettings: Seq[Setting[_]] =
       val moduleSettings = (Keys.moduleSettings).value
       val ivy = new IvySbt((ivyConfiguration.value))
 
-      val module =
-        new ivy.Module(moduleSettings)
-      val newConfig =
-        new PublishConfiguration(
-          config.ivyFile,
-          altLocalRepoName,
-          config.artifacts,
-          config.checksums,
-          config.logging
-        )
-      streams.value.log.info("Publishing " + module + " to local repo: " + altLocalRepoName)
+      val module = new ivy.Module(moduleSettings)
+      val newConfig = config withResolverName altLocalRepoName withOverwrite false
+      streams.value.log.info(s"Publishing $module to local repo: $altLocalRepoName")
       IvyActions.publish(module, newConfig, streams.value.log)
     }
   )
@@ -158,9 +151,11 @@ lazy val zincRoot: Project = (project in file("."))
           ScmInfo(url("https://github.com/sbt/zinc"), "git@github.com:sbt/zinc.git")),
         description := "Incremental compiler of Scala",
         homepage := Some(url("https://github.com/sbt/zinc")),
-        scalafmtOnCompile := true,
+        // drop scalafmt on the 1.0.0 branch to dogfood 1.0.0-RC2 before there is a sbt 1.0 of new-sbt-scalafnt
+        //  see https://github.com/lucidsoftware/neo-sbt-scalafmt/pull/34
+        // scalafmtOnCompile := true,
         // scalafmtVersion 1.0.0-RC3 has regression
-        scalafmtVersion := "0.6.8"
+        // scalafmtVersion := "0.6.8"
       )),
     minimalSettings,
     otherRootSettings,
@@ -292,7 +287,6 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface")
     relaxNon212,
     libraryDependencies ++= Seq(scalaLibrary.value % Test),
     exportJars := true,
-    watchSources ++= apiDefinitions.value,
     resourceGenerators in Compile += Def
       .task(
         generateVersionFile(
@@ -303,11 +297,6 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface")
         )
       )
       .taskValue,
-    apiDefinitions := List(
-      (baseDirectory.value / "definition"),
-      (baseDirectory.value / "other"),
-      (baseDirectory.value / "type")
-    ),
     managedSourceDirectories in Compile +=
       baseDirectory.value / "src" / "main" / "contraband-java",
     sourceManaged in (Compile, generateContrabands) := baseDirectory.value / "src" / "main" / "contraband-java",
