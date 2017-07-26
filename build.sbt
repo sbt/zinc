@@ -1,12 +1,18 @@
 import Util._
 import Dependencies._
 import Scripted._
-// import com.typesafe.tools.mima.core._, ProblemFilters._
+import com.typesafe.tools.mima.core._, ProblemFilters._
 
 def baseVersion = "1.0.0-X21-SNAPSHOT"
 def internalPath = file("internal")
 
 lazy val compilerBridgeScalaVersions = List(scala212, scala211, scala210)
+
+def mimaSettings: Seq[Setting[_]] = Seq(
+  mimaPreviousArtifacts := Set(organization.value % moduleName.value % "1.0.0-X20"
+    cross (if (crossPaths.value) CrossVersion.binary else CrossVersion.disabled)
+  )
+)
 
 def commonSettings: Seq[Setting[_]] = Seq(
   scalaVersion := scala212,
@@ -21,7 +27,6 @@ def commonSettings: Seq[Setting[_]] = Seq(
   testOptions += Tests.Argument(TestFrameworks.ScalaCheck, "-w", "1"),
   javacOptions in compile ++= Seq("-Xlint", "-Xlint:-serial"),
   crossScalaVersions := Seq(scala211, scala212),
-  // mimaPreviousArtifacts := Set(), // Some(organization.value %% moduleName.value % "1.0.0"),
   publishArtifact in Test := false,
   commands ++= Seq(publishBridgesAndTest, publishBridgesAndSet, crossTestBridges),
   scalacOptions += "-YdisableFlatCpCaching"
@@ -174,7 +179,8 @@ lazy val zinc = (project in file("zinc"))
   )
   .configure(addBaseSettingsAndTestDeps)
   .settings(
-    name := "zinc"
+    name := "zinc",
+    mimaSettings,
   )
 
 lazy val zincTesting = (project in internalPath / "zinc-testing")
@@ -190,7 +196,8 @@ lazy val zincCompile = (project in file("zinc-compile"))
   .dependsOn(zincCompileCore, zincCompileCore % "test->test")
   .configure(addBaseSettingsAndTestDeps)
   .settings(
-    name := "zinc Compile"
+    name := "zinc Compile",
+    mimaSettings,
   )
   .configure(addSbtUtilTracking)
 
@@ -202,7 +209,8 @@ lazy val zincPersist = (project in internalPath / "zinc-persist")
     name := "zinc Persist",
     libraryDependencies += sbinary,
     compileOrder := sbt.CompileOrder.Mixed,
-    PB.targets in Compile := List(scalapb.gen() -> (sourceManaged in Compile).value)
+    PB.targets in Compile := List(scalapb.gen() -> (sourceManaged in Compile).value),
+    mimaSettings,
   )
 
 // Implements the core functionality of detecting and propagating changes incrementally.
@@ -219,7 +227,8 @@ lazy val zincCore = (project in internalPath / "zinc-core")
     // compiler instances that are memory hungry
     javaOptions in Test += "-Xmx1G",
     name := "zinc Core",
-    compileOrder := sbt.CompileOrder.Mixed
+    compileOrder := sbt.CompileOrder.Mixed,
+    mimaSettings,
   )
   .configure(addSbtIO, addSbtUtilLogging, addSbtUtilRelation)
 
@@ -244,7 +253,8 @@ lazy val zincIvyIntegration = (project in internalPath / "zinc-ivy-integration")
   .settings(
     baseSettings,
     name := "zinc Ivy Integration",
-    compileOrder := sbt.CompileOrder.ScalaThenJava
+    compileOrder := sbt.CompileOrder.ScalaThenJava,
+    mimaSettings,
   )
   .configure(addSbtLmCore, addSbtLmIvyTest)
 
@@ -265,7 +275,8 @@ lazy val zincCompileCore = (project in internalPath / "zinc-compile-core")
     unmanagedJars in Test := Seq(packageSrc in compilerBridge in Compile value).classpath,
     managedSourceDirectories in Compile +=
       baseDirectory.value / "src" / "main" / "contraband-java",
-    sourceManaged in (Compile, generateContrabands) := baseDirectory.value / "src" / "main" / "contraband-java"
+    sourceManaged in (Compile, generateContrabands) := baseDirectory.value / "src" / "main" / "contraband-java",
+    mimaSettings,
   )
   .configure(addSbtUtilLogging, addSbtIO, addSbtUtilControl)
 
@@ -301,7 +312,8 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface")
     sourceManaged in (Compile, generateContrabands) := baseDirectory.value / "src" / "main" / "contraband-java",
     crossPaths := false,
     autoScalaLibrary := false,
-    altPublishSettings
+    altPublishSettings,
+    mimaSettings,
   )
   .configure(addSbtUtilInterface)
 
@@ -368,7 +380,8 @@ lazy val compilerBridge: Project = (project in internalPath / "compiler-bridge")
       }
     },
     publishLocal := publishLocal.dependsOn(cleanSbtBridge).value,
-    altPublishSettings
+    altPublishSettings,
+    mimaSettings,
   )
 
 val scalaPartialVersion = Def setting (CrossVersion partialVersion scalaVersion.value)
@@ -383,7 +396,8 @@ lazy val zincApiInfo = (project in internalPath / "zinc-apiinfo")
   .settings(
     name := "zinc ApiInfo",
     crossScalaVersions := compilerBridgeScalaVersions,
-    relaxNon212
+    relaxNon212,
+    mimaSettings,
   )
 
 // Utilities related to reflection, managing Scala versions, and custom class loaders
@@ -394,7 +408,8 @@ lazy val zincClasspath = (project in internalPath / "zinc-classpath")
     name := "zinc Classpath",
     crossScalaVersions := compilerBridgeScalaVersions,
     relaxNon212,
-    libraryDependencies ++= Seq(scalaCompiler.value, launcherInterface)
+    libraryDependencies ++= Seq(scalaCompiler.value, launcherInterface),
+    mimaSettings,
   )
   .configure(addSbtIO)
 
@@ -405,7 +420,8 @@ lazy val zincClassfile = (project in internalPath / "zinc-classfile")
   .settings(
     name := "zinc Classfile",
     crossScalaVersions := compilerBridgeScalaVersions,
-    relaxNon212
+    relaxNon212,
+    mimaSettings,
   )
   .configure(addSbtIO, addSbtUtilLogging)
 

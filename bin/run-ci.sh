@@ -11,6 +11,7 @@ SCALA_VERSION="$1"
 sbt -Dfile.encoding=UTF-8 \
   -J-XX:ReservedCodeCacheSize=256M \
   -J-Xmx3046M -J-Xms3046M -J-server \
+  +mimaReportBinaryIssues \
   zincRoot/test:compile \
   crossTestBridges \
   "publishBridgesAndSet $SCALA_VERSION" \
