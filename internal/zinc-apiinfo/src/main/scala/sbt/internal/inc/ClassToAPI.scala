@@ -90,11 +90,11 @@ object ClassToAPI {
    *
    * In order to fully fix this issue, the Scala compiler should do the desired behaviour
    * in 2.13.x. 2.12.x is already lost since this fix is binary incompatible. The appropriate
-   * JIRA ticket is here: https://github.com/scala/bug/issues/2034.
+   * issue is here: https://github.com/scala/bug/issues/2034.
    *
-   * @return The canonical name if not null, the full name otherwise.
+   * @return The canonical name if not null, the blank string otherwise.
    */
-  def handleMalformedNameOf(c: Class[_], isRecursive: Boolean = false): String = {
+  private def handleMalformedNameOf(c: Class[_], isRecursive: Boolean = false): String = {
     if (c == null) "" // Return nothing if it hits the top-level class
     else {
       val className = c.getName
