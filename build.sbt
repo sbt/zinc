@@ -155,6 +155,8 @@ lazy val zincRoot: Project = (project in file("."))
           ScmInfo(url("https://github.com/sbt/zinc"), "git@github.com:sbt/zinc.git")),
         description := "Incremental compiler of Scala",
         homepage := Some(url("https://github.com/sbt/zinc")),
+        developers +=
+          Developer("jvican", "Jorge Vicente Cantero", "@jvican", url("https://github.com/jvican")),
         // drop scalafmt on the 1.0.0 branch to dogfood 1.0.0-RC2 before there is a sbt 1.0 of new-sbt-scalafnt
         //  see https://github.com/lucidsoftware/neo-sbt-scalafmt/pull/34
         // scalafmtOnCompile := true,
