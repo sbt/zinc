@@ -80,12 +80,12 @@ class ClassCanonicalNameSpec extends FlatSpec with Matchers {
   object CO extends Expected("x.y$")
   object CC extends Expected("x.y")
 
-  object OOO extends Expected("x.y$$z$", nativeClassNameIsMalformed = true)
-  object OOC extends Expected("x.y$$z", nativeClassNameIsMalformed = true)
+  object OOO extends Expected("x$y$z$", nativeClassNameIsMalformed = true)
+  object OOC extends Expected("x$y$z", nativeClassNameIsMalformed = true)
   object OCO extends Expected("x.y.z$")
   object OCC extends Expected("x.y.z")
-  object COO extends Expected("x.y$$z$", nativeClassNameIsMalformed = true)
-  object COC extends Expected("x.y$$z", nativeClassNameIsMalformed = true)
+  object COO extends Expected("x$y$z$", nativeClassNameIsMalformed = true)
+  object COC extends Expected("x$y$z", nativeClassNameIsMalformed = true)
   object CCO extends Expected("x.y.z$")
   object CCC extends Expected("x.y.z")
 
