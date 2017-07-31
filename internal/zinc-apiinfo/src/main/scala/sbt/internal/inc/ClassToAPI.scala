@@ -94,7 +94,7 @@ object ClassToAPI {
    *
    * @return The canonical name if not null, the blank string otherwise.
    */
-  private def handleMalformedNameOf(c: Class[_], isRecursive: Boolean = false): String = {
+  def handleMalformedNameOf(c: Class[_], isRecursive: Boolean = false): String = {
     if (c == null) "" // Return nothing if it hits the top-level class
     else {
       val className = c.getName
