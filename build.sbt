@@ -1,7 +1,7 @@
 import Util._
 import Dependencies._
 import Scripted._
-import com.typesafe.tools.mima.core._, ProblemFilters._
+//import com.typesafe.tools.mima.core._, ProblemFilters._
 
 def baseVersion = "1.0.0-X21-SNAPSHOT"
 def internalPath = file("internal")
@@ -9,7 +9,7 @@ def internalPath = file("internal")
 lazy val compilerBridgeScalaVersions = List(scala212, scala211, scala210)
 
 def mimaSettings: Seq[Setting[_]] = Seq(
-  mimaPreviousArtifacts := Set(organization.value % moduleName.value % "1.0.0-X20"
+  mimaPreviousArtifacts := Set(organization.value % moduleName.value % "1.0.0-RC3"
     cross (if (crossPaths.value) CrossVersion.binary else CrossVersion.disabled)
   )
 )
