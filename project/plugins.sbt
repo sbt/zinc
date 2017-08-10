@@ -9,4 +9,4 @@ addSbtPlugin("org.scala-sbt" % "sbt-houserules" % "0.3.3")
 addSbtPlugin("org.scala-sbt" % "sbt-contraband" % "0.3.0")
 addSbtPlugin("com.thesamet" % "sbt-protoc" % "0.99.12-rc4")
 libraryDependencies += "com.trueaccord.scalapb" %% "compilerplugin" % "0.6.0"
-addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "0.1.15")
+addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "0.1.17")
