@@ -24,8 +24,7 @@ import scala.sys.process.ProcessLogger
  * @param reporter  A reporter for semantic Javac error messages.
  * @param cwd The current working directory of the Javac process, used when parsing Filenames.
  */
-final class JavacLogger(log: sbt.util.Logger, reporter: Reporter, cwd: File)
-    extends ProcessLogger {
+final class JavacLogger(log: sbt.util.Logger, reporter: Reporter, cwd: File) extends ProcessLogger {
   import scala.collection.mutable.ListBuffer
   import sbt.util.Level.{ Info, Error, Value => LogLevel }
 

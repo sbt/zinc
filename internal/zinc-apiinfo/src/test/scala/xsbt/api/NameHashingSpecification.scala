@@ -59,8 +59,7 @@ class NameHashingSpecification extends UnitSpec {
       if (optimizedSealed) {
         nameHashesA.namesIn(UseScope.PatMatTarget) shouldEqual nameHashesB.namesIn(
           UseScope.PatMatTarget)
-        nameHashesA.in(UseScope.PatMatTarget) should not equal nameHashesB.in(
-          UseScope.PatMatTarget)
+        nameHashesA.in(UseScope.PatMatTarget) should not equal nameHashesB.in(UseScope.PatMatTarget)
       }
 
       HashAPI(a) should not equal HashAPI(b)
@@ -136,9 +135,8 @@ class NameHashingSpecification extends UnitSpec {
     val nameHashing = new NameHashing(false)
     val deff =
       Def.of("bar", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, intTpe)
-    val classFoo = simpleClassLike(name = "Foo",
-                                   dt = DefinitionType.ClassDef,
-                                   structure = simpleStructure(deff))
+    val classFoo =
+      simpleClassLike(name = "Foo", dt = DefinitionType.ClassDef, structure = simpleStructure(deff))
     val objectFoo =
       simpleClassLike(name = "Foo", dt = DefinitionType.Module, structure = simpleStructure(deff))
     val nameHashes1 = nameHashing.nameHashes(classFoo)
@@ -210,13 +208,8 @@ class NameHashingSpecification extends UnitSpec {
 
     /** def foo: { bar: Int } */
     val fooMethod1 = {
-      val barMethod1 = Def.of("bar",
-                              publicAccess,
-                              defaultModifiers,
-                              Array.empty,
-                              Array.empty,
-                              Array.empty,
-                              intTpe)
+      val barMethod1 =
+        Def.of("bar", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, intTpe)
       Def.of("foo",
              publicAccess,
              defaultModifiers,
@@ -228,13 +221,8 @@ class NameHashingSpecification extends UnitSpec {
 
     /** def foo: { bar: String } */
     val fooMethod2 = {
-      val barMethod2 = Def.of("bar",
-                              publicAccess,
-                              defaultModifiers,
-                              Array.empty,
-                              Array.empty,
-                              Array.empty,
-                              strTpe)
+      val barMethod2 =
+        Def.of("bar", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, strTpe)
       Def.of("foo",
              publicAccess,
              defaultModifiers,

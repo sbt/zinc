@@ -412,8 +412,8 @@ private[inc] sealed trait RelationDescriptor[A, B] {
 
 private[inc] case class FFRelationDescriptor(
     header: String,
-    selectCorresponding: Relations => Relation[File, File])
-    extends RelationDescriptor[File, File] {
+    selectCorresponding: Relations => Relation[File, File]
+) extends RelationDescriptor[File, File] {
   override def firstWrite(a: File): String = a.toString
   override def secondWrite(b: File): String = b.toString
   override def firstRead(s: String): File = new File(s)
