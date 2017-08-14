@@ -2,7 +2,7 @@ package sbt
 package internal
 package inc
 
-import sbt.internal.util.UnitSpec
+import org.scalatest._
 
 // All eight combinations of class/object nesting to three levels.
 // O-O-O means object { object { object } }
@@ -15,7 +15,7 @@ package p2 { object x { class y { object z; class z } } }
 package p3 { class x { object y { object z; class z } } }
 package p4 { class x { class y { object z; class z } } }
 
-class ClassCanonicalNameSpec extends UnitSpec {
+class ClassCanonicalNameSpec extends FlatSpec with Matchers {
   "ClassToAPI.classCanonicalName" should """return "" for null""" in assert(getCustomCanonicalName(null) === "")
 
   import scala.reflect._
