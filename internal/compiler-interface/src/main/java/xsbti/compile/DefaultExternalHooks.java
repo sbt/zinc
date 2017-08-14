@@ -21,7 +21,7 @@ public class DefaultExternalHooks implements ExternalHooks {
     }
 
     @Override
-    public Optional<Lookup> getExternalLookup() {
+    public Optional<ExternalHooks.Lookup> getExternalLookup() {
         return lookup;
     }
 
@@ -42,7 +42,7 @@ public class DefaultExternalHooks implements ExternalHooks {
     }
 
     @Override
-    public ExternalHooks withExternalLookup(Lookup externalLookup) {
+    public ExternalHooks withExternalLookup(ExternalHooks.Lookup externalLookup) {
         return new DefaultExternalHooks(Optional.of(externalLookup), this.getExternalClassFileManager());
     }
 }

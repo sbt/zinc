@@ -73,8 +73,49 @@ object ClassToAPI {
                  new mutable.HashSet,
                  new mutable.HashSet)
 
-  def classCanonicalName(c: Class[_]): String =
-    Option(c.getCanonicalName) getOrElse { c.getName }
+  /**
+   * The binary name encoding for Scala has been broken for a while. It does not
+   * follow the Java source name rules because it does not append a `$` after the
+   * mirror class of an object, which already ends in `$`.
+   *
+   * Zinc works around this fix in the only way it can: it gets the enclosing class,
+   * which is obtained from the `InnerClasses` java classfile metadata, and it
+   * reconstructs the path from there. It circumvents, by design, the core issue:
+   * it doesn't call Java's name parser at all.
+   *
+   * This issue has been fixed in the JDK9, but unfortunately it's going to be tormenting
+   * us for a while because 2.13 does not target Java 9, and we're still at 2.12.x.
+   *
+   * <a href="http://bugs.java.com/bugdatabase/view_bug.do?bug_id=8057919">This is the fix in Java 9.</a>
+   *
+   * In order to fully fix this issue, the Scala compiler should do the desired behaviour
+   * in 2.13.x. 2.12.x is already lost since this fix is binary incompatible. The appropriate
+   * issue is here: https://github.com/scala/bug/issues/2034.
+   *
+   * @return The canonical name if not null, the blank string otherwise.
+   */
+  def handleMalformedNameOf(c: Class[_], isRecursive: Boolean = false): String = {
+    if (c == null) "" // Return nothing if it hits the top-level class
+    else {
+      val className = c.getName
+      // Adds a `dollar` if it's a recursive call, else nothing
+      val atEnd: String = if (isRecursive) "$" else ""
+      try {
+        val canonicalName = c.getCanonicalName
+        if (canonicalName == null) className
+        else canonicalName + atEnd
+      } catch {
+        case malformedError: java.lang.InternalError
+            if malformedError.getMessage.contains("Malformed class name") =>
+          val enclosingClass = c.getEnclosingClass
+          val enclosingName = enclosingClass.getName
+          val restOfName = c.getName.stripPrefix(enclosingName)
+          handleMalformedNameOf(enclosingClass, true) + restOfName + atEnd
+      }
+    }
+  }
+
+  def classCanonicalName(c: Class[_]): String = handleMalformedNameOf(c)
 
   def toDefinitions(cmap: ClassMap)(c: Class[_]): Seq[api.ClassLikeDef] =
     cmap.memo.getOrElseUpdate(classCanonicalName(c), toDefinitions0(c, cmap))
