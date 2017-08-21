@@ -553,7 +553,7 @@ final class ProtobufWriters(mapper: WriteMapper) {
     }
   }
 
-  def toAnalyzedClass(analyzedClass: AnalyzedClass): schema.AnalyzedClass = {
+  def toAnalyzedClass(storeApis: Boolean)(analyzedClass: AnalyzedClass): schema.AnalyzedClass = {
     def toCompanions(companions: Companions): schema.Companions = {
       val classApi = Some(toClassLike(companions.classApi()))
       val objectApi = Some(toClassLike(companions.objectApi()))
@@ -567,7 +567,7 @@ final class ProtobufWriters(mapper: WriteMapper) {
       schema.NameHash(name = name, scope = scope, hash = hash)
     }
 
-    val companions = Some(toCompanions(analyzedClass.api()))
+    val companions = if (storeApis) Some(toCompanions(analyzedClass.api())) else None
     val apiHash = analyzedClass.apiHash()
     val compilationTimestamp = analyzedClass.compilationTimestamp()
     val hasMacro = analyzedClass.hasMacro
@@ -655,14 +655,14 @@ final class ProtobufWriters(mapper: WriteMapper) {
     )
   }
 
-  def toApis(apis: APIs): schema.APIs = {
-    val internal = apis.internal.mapValues(toAnalyzedClass)
-    val external = apis.external.mapValues(toAnalyzedClass)
+  def toApis(apis: APIs, storeApis: Boolean): schema.APIs = {
+    val internal = apis.internal.mapValues(toAnalyzedClass(storeApis))
+    val external = apis.external.mapValues(toAnalyzedClass(storeApis))
     schema.APIs(internal = internal, external = external)
   }
 
-  def toApisFile(apis0: APIs, version: schema.Version): schema.APIsFile = {
-    val apis = Some(toApis(apis0))
+  def toApisFile(apis0: APIs, version: schema.Version, storeApis: Boolean): schema.APIsFile = {
+    val apis = Some(toApis(apis0, storeApis))
     schema.APIsFile(version = version, apis = apis)
   }
 

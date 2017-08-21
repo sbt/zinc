@@ -512,7 +512,7 @@ final class ProtobufReaders(mapper: ReadMapper) {
     }
   }
 
-  def fromAnalyzedClass(analyzedClass: schema.AnalyzedClass): AnalyzedClass = {
+  def fromAnalyzedClass(storeApis: Boolean)(analyzedClass: schema.AnalyzedClass): AnalyzedClass = {
     def fromCompanions(companions: schema.Companions): Companions = {
       def expected(msg: String) = ReadersFeedback.expected(msg, Classes.Companions)
       val classApi = companions.classApi.read(fromClassLike, expected("class api"))
@@ -531,7 +531,15 @@ final class ProtobufReaders(mapper: ReadMapper) {
     import ReadersFeedback.ExpectedCompanionsInAnalyzedClass
     val compilationTimestamp = analyzedClass.compilationTimestamp
     val name = analyzedClass.name
-    val api = mkLazy(analyzedClass.api.read(fromCompanions, ExpectedCompanionsInAnalyzedClass))
+    val api =
+      if (storeApis)
+        mkLazy((analyzedClass.api.read(fromCompanions, ExpectedCompanionsInAnalyzedClass)))
+      else
+        new Lazy[Companions] {
+          override def get(): Companions =
+            throw new IllegalArgumentException("No companions was stored!")
+        }
+
     val apiHash = analyzedClass.apiHash
     val nameHashes = analyzedClass.nameHashes.toZincArray(fromNameHash)
     val hasMacro = analyzedClass.hasMacro
@@ -607,14 +615,14 @@ final class ProtobufReaders(mapper: ReadMapper) {
     )
   }
 
-  def fromApis(apis: schema.APIs): APIs = {
-    val internal = apis.internal.mapValues(fromAnalyzedClass)
-    val external = apis.external.mapValues(fromAnalyzedClass)
+  def fromApis(storeApis: Boolean)(apis: schema.APIs): APIs = {
+    val internal = apis.internal.mapValues(fromAnalyzedClass(storeApis: Boolean))
+    val external = apis.external.mapValues(fromAnalyzedClass(storeApis: Boolean))
     APIs(internal = internal, external = external)
   }
 
-  def fromApisFile(apisFile: schema.APIsFile): (APIs, schema.Version) = {
-    val apis = apisFile.apis.read(fromApis, ReadersFeedback.ExpectedApisInApisFile)
+  def fromApisFile(apisFile: schema.APIsFile, storeApis: Boolean): (APIs, schema.Version) = {
+    val apis = apisFile.apis.read(fromApis(storeApis), ReadersFeedback.ExpectedApisInApisFile)
     val version = apisFile.version
     apis -> version
   }
