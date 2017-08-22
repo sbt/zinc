@@ -256,7 +256,9 @@ object ClassToAPI {
     fieldToDef(c, classFileForClass(c), enclPkg)(f)
   }
 
-  def fieldToDef(c: Class[_], cf: => ClassFile, enclPkg: Option[String])(f: Field): api.FieldLike = {
+  def fieldToDef(c: Class[_], cf: => ClassFile, enclPkg: Option[String])(
+      f: Field
+  ): api.FieldLike = {
     val name = f.getName
     val accs = access(f.getModifiers, enclPkg)
     val mods = modifiers(f.getModifiers)
@@ -367,9 +369,7 @@ object ClassToAPI {
       arrayMap(exceptions)(t =>
         api.Annotation.of(Throws, Array(api.AnnotationArgument.of("value", t.toString))))
 
-  def parameter(annots: Array[Annotation],
-                parameter: Type,
-                varArgs: Boolean): api.MethodParameter =
+  def parameter(annots: Array[Annotation], parameter: Type, varArgs: Boolean): api.MethodParameter =
     api.MethodParameter.of(
       "",
       annotated(reference(parameter), annots),

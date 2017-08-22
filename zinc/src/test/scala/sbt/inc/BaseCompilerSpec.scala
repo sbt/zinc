@@ -82,9 +82,7 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
 
   object ProjectSetup {
     def simple(baseLocation: Path, classes: Seq[String]): ProjectSetup =
-      ProjectSetup(baseLocation,
-                   Map(Paths.get("src") -> classes.map(path => Paths.get(path))),
-                   Nil)
+      ProjectSetup(baseLocation, Map(Paths.get("src") -> classes.map(path => Paths.get(path))), Nil)
   }
 
   def scalaCompiler(instance: xsbti.compile.ScalaInstance, bridgeJar: File): AnalyzingCompiler = {

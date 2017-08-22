@@ -9,8 +9,9 @@ def internalPath = file("internal")
 lazy val compilerBridgeScalaVersions = List(scala212, scala211, scala210)
 
 def mimaSettings: Seq[Setting[_]] = Seq(
-  mimaPreviousArtifacts := Set(organization.value % moduleName.value % "1.0.0-RC3"
-    cross (if (crossPaths.value) CrossVersion.binary else CrossVersion.disabled)
+  mimaPreviousArtifacts := Set(
+    organization.value % moduleName.value % "1.0.0-RC3"
+      cross (if (crossPaths.value) CrossVersion.binary else CrossVersion.disabled)
   )
 )
 
@@ -151,17 +152,13 @@ lazy val zincRoot: Project = (project in file("."))
           else v
         },
         bintrayPackage := "zinc",
-        scmInfo := Some(
-          ScmInfo(url("https://github.com/sbt/zinc"), "git@github.com:sbt/zinc.git")),
+        scmInfo := Some(ScmInfo(url("https://github.com/sbt/zinc"), "git@github.com:sbt/zinc.git")),
         description := "Incremental compiler of Scala",
         homepage := Some(url("https://github.com/sbt/zinc")),
         developers +=
           Developer("jvican", "Jorge Vicente Cantero", "@jvican", url("https://github.com/jvican")),
-        // drop scalafmt on the 1.0.0 branch to dogfood 1.0.0-RC2 before there is a sbt 1.0 of new-sbt-scalafnt
-        //  see https://github.com/lucidsoftware/neo-sbt-scalafmt/pull/34
-        // scalafmtOnCompile := true,
-        // scalafmtVersion 1.0.0-RC3 has regression
-        // scalafmtVersion := "0.6.8"
+        scalafmtOnCompile := true,
+        scalafmtVersion := "1.2.0",
       )),
     minimalSettings,
     otherRootSettings,
@@ -218,7 +215,13 @@ lazy val zincPersist = (project in internalPath / "zinc-persist")
 // Implements the core functionality of detecting and propagating changes incrementally.
 //   Defines the data structures for representing file fingerprints and relationships and the overall source analysis
 lazy val zincCore = (project in internalPath / "zinc-core")
-  .dependsOn(zincApiInfo, zincClasspath, compilerInterface, compilerBridge % Test, zincTesting % Test)
+  .dependsOn(
+    zincApiInfo,
+    zincClasspath,
+    compilerInterface,
+    compilerBridge % Test,
+    zincTesting % Test
+  )
   .configure(addBaseSettingsAndTestDeps)
   .settings(
     // we need to fork because in unit tests we set usejavacp = true which means
@@ -326,7 +329,6 @@ def wrapIn(color: String, content: String): String = {
   if (!ConsoleAppender.formatEnabledInEnv) content
   else color + content + scala.Console.RESET
 }
-
 
 // Compiler-side interface to compiler that is compiled against the compiler being used either in advance or on the fly.
 //   Includes API and Analyzer phases that extract source API and relationships.
