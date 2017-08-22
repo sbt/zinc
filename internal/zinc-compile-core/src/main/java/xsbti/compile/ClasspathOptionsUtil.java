@@ -17,7 +17,7 @@ public interface ClasspathOptionsUtil {
      * Define a manual {@link ClasspathOptions} where the client manages everything.
      */
     public static ClasspathOptions manual() {
-        return new ClasspathOptions(false, false, false, true, false);
+        return ClasspathOptions.of(false, false, false, true, false);
     }
 
     /**
@@ -27,7 +27,7 @@ public interface ClasspathOptionsUtil {
      * 3. the Scala standard library JAR is fetched from the classpath.
      */
     public static ClasspathOptions boot() {
-        return new ClasspathOptions(true, false, false, true, true);
+        return ClasspathOptions.of(true, false, false, true, true);
     }
 
     /**
@@ -39,7 +39,7 @@ public interface ClasspathOptionsUtil {
      * 5. the Scala standard library JAR is fetched from the classpath.
      */
     public static ClasspathOptions auto() {
-        return new ClasspathOptions(true, true, true, true, true);
+        return ClasspathOptions.of(true, true, true, true, true);
     }
 
     /**
@@ -51,7 +51,7 @@ public interface ClasspathOptionsUtil {
      */
 
     public static ClasspathOptions javac(Boolean compilerInClasspath) {
-        return new ClasspathOptions(false, compilerInClasspath, false,false,false);
+        return ClasspathOptions.of(false, compilerInClasspath, false,false,false);
     }
 
     /**
