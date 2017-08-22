@@ -118,9 +118,11 @@ trait FormatCommons {
     }
   }
 
-  protected def readMap[K, V](in: BufferedReader)(expectedHeader: String,
-                                                  s2k: String => K,
-                                                  s2v: String => V): Map[K, V] = {
+  protected def readMap[K, V](in: BufferedReader)(
+      expectedHeader: String,
+      s2k: String => K,
+      s2v: String => V
+  ): Map[K, V] = {
     readPairs(in)(expectedHeader, s2k, s2v).toMap
   }
 

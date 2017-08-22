@@ -191,9 +191,7 @@ private final class AnalysisCallback(
 
   def classDependency(onClassName: String, sourceClassName: String, context: DependencyContext) = {
     if (onClassName != sourceClassName)
-      add(intSrcDeps,
-          sourceClassName,
-          InternalDependency.of(sourceClassName, onClassName, context))
+      add(intSrcDeps, sourceClassName, InternalDependency.of(sourceClassName, onClassName, context))
   }
 
   private[this] def externalBinaryDependency(binary: File,
@@ -229,11 +227,7 @@ private final class AnalysisCallback(
             //  but not in the same compiler run (as in javac v. scalac)
             classDependency(dependsOn, fromClassName, context)
           case None =>
-            externalDependency(classFile,
-                               onBinaryClassName,
-                               fromClassName,
-                               fromSourceFile,
-                               context)
+            externalDependency(classFile, onBinaryClassName, fromClassName, fromSourceFile, context)
         }
     }
 

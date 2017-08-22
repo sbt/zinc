@@ -103,13 +103,7 @@ object Doc {
             if (inChanged || outChanged) {
               IO.delete(outputDirectory)
               IO.createDirectory(outputDirectory)
-              doDoc.run(sources,
-                        classpath,
-                        outputDirectory,
-                        options,
-                        incToolOptions,
-                        log,
-                        reporter)
+              doDoc.run(sources, classpath, outputDirectory, options, incToolOptions, log, reporter)
             } else log.debug("Doc uptodate: " + outputDirectory.getAbsolutePath)
           }
         }

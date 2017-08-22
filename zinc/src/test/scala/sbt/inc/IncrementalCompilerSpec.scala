@@ -28,8 +28,8 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
       val compilerSetup = projectSetup.createCompiler()
 
       val result = compilerSetup.doCompile()
-      val result2 = compilerSetup.doCompile(
-        _.withPreviousResult(compilerSetup.compiler.previousResult(result)))
+      val result2 =
+        compilerSetup.doCompile(_.withPreviousResult(compilerSetup.compiler.previousResult(result)))
 
       assert(!result2.hasModified)
     }

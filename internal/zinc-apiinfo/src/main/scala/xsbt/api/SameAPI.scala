@@ -147,7 +147,8 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
       case _ =>
         debug(
           flag = false,
-          "Different qualifier categories: " + a.getClass.getName + " -- " + b.getClass.getName)
+          "Different qualifier categories: " + a.getClass.getName + " -- " + b.getClass.getName
+        )
     }
 
   def sameModifiers(a: Modifiers, b: Modifiers): Boolean =
@@ -184,8 +185,7 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
       case _                              => false
     }
 
-  def sameParameterizedDefinition(a: ParameterizedDefinition,
-                                  b: ParameterizedDefinition): Boolean =
+  def sameParameterizedDefinition(a: ParameterizedDefinition, b: ParameterizedDefinition): Boolean =
     debug(sameTypeParameters(a.typeParameters, b.typeParameters),
           "Different type parameters for " + a.name) &&
       sameParameterizedSpecificAPI(a, b)
@@ -208,8 +208,7 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
     debug(sameType(a.tpe, b.tpe), "Different alias type for " + a.name)
   def sameDeclarationSpecificAPI(a: TypeDeclaration, b: TypeDeclaration): Boolean =
     debug(sameType(a.lowerBound, b.lowerBound), "Different lower bound for declaration " + a.name) &&
-      debug(sameType(a.upperBound, b.upperBound),
-            "Different upper bound for declaration " + a.name)
+      debug(sameType(a.upperBound, b.upperBound), "Different upper bound for declaration " + a.name)
   def sameFieldSpecificAPI(a: FieldLike, b: FieldLike): Boolean =
     debug(
       sameFieldCategory(a, b),
