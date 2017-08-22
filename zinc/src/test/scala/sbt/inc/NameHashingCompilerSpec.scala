@@ -33,8 +33,8 @@ class NameHashingCompilerSpec extends BaseCompilerSpec {
           projectSetup.update(nahaPath.resolve("naha").resolve(name))(change)
       }
 
-      val result2 = compilerSetup.doCompile(
-        _.withPreviousResult(compilerSetup.compiler.previousResult(result)))
+      val result2 =
+        compilerSetup.doCompile(_.withPreviousResult(compilerSetup.compiler.previousResult(result)))
       if (changes.isEmpty) {
         assert(!result2.hasModified)
       } else {

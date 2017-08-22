@@ -53,10 +53,7 @@ final class HashAPI private (
   def this(includePrivate: Boolean, includeParamNames: Boolean) {
     // in the old logic we used to always include definitions hence
     // includeDefinitions=true
-    this(includePrivate,
-         includeParamNames,
-         includeDefinitions = true,
-         includeSealedChildren = true)
+    this(includePrivate, includeParamNames, includeDefinitions = true, includeSealedChildren = true)
   }
 
   import scala.collection.mutable

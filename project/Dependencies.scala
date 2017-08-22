@@ -88,10 +88,10 @@ object Dependencies {
 
   def addTestDependencies(p: Project): Project =
     p.settings(
-        libraryDependencies ++= Seq(
-          scalaCheck % Test,
-          scalatest % Test,
-          junit % Test
-        )
+      libraryDependencies ++= Seq(
+        scalaCheck % Test,
+        scalatest % Test,
+        junit % Test
+      )
     )
 }

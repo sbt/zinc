@@ -164,8 +164,7 @@ trait AnalysisGenerators {
       )
     }
 
-  def genSubRClassDependencies(
-      src: Relations.ClassDependencies): Gen[Relations.ClassDependencies] =
+  def genSubRClassDependencies(src: Relations.ClassDependencies): Gen[Relations.ClassDependencies] =
     for {
       internal <- someOf(src.internal.all.toList)
       external <- someOf(src.external.all.toList)

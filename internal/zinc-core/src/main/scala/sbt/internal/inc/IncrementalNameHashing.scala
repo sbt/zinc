@@ -80,8 +80,7 @@ private final class IncrementalNameHashing(log: sbt.util.Logger, options: IncOpt
     )
 
     // Get the member reference dependencies of all classes transitively invalidated by inheritance
-    log.debug(
-      "Getting direct dependencies of all classes transitively invalidated by inheritance.")
+    log.debug("Getting direct dependencies of all classes transitively invalidated by inheritance.")
     val memberRefA = transitiveInheritance flatMap memberRefInvalidationInternal
     // Get the classes that depend on externals by member reference.
     // This includes non-inheritance dependencies and is not transitive.
