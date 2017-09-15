@@ -9,11 +9,20 @@ package sbt
 package internal
 package inc
 
-import sbt.internal.inc.Analysis.{LocalProduct, NonLocalProduct}
-import xsbt.api.{APIUtil, HashAPI, NameHashing}
+import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
+import xsbt.api.{ APIUtil, HashAPI, NameHashing }
 import xsbti.api._
-import xsbti.compile.{ClassFileManager, CompileAnalysis, DependencyChanges, IncOptions, MultipleOutput, Output, OutputGroup, SingleOutput}
-import xsbti.{Position, Problem, Severity, UseScope}
+import xsbti.compile.{
+  ClassFileManager,
+  CompileAnalysis,
+  DependencyChanges,
+  IncOptions,
+  MultipleOutput,
+  Output,
+  OutputGroup,
+  SingleOutput
+}
+import xsbti.{ Position, Problem, Severity, UseScope }
 import sbt.util.Logger
 import sbt.util.InterfaceUtil.jo2o
 import java.io.File
@@ -135,8 +144,7 @@ private final class AnalysisCallback(
 
   import collection.mutable.{ HashMap, HashSet, ListBuffer, Map, Set }
 
-  private[this] class SyncHashMap[K, V]
-      extends mutable.Map[K, V] {
+  private[this] class SyncHashMap[K, V] extends mutable.Map[K, V] {
 
     private val underline = new java.util.concurrent.ConcurrentHashMap[K, V]
 
@@ -144,7 +152,8 @@ private final class AnalysisCallback(
 
     override def -=(key: K): SyncHashMap.this.type = { underline.remove(key); this }
 
-    override def get(key: K): Option[V] = if (underline.contains(key)) Some(underline.get(key)) else None
+    override def get(key: K): Option[V] =
+      if (underline.contains(key)) Some(underline.get(key)) else None
 
     override def iterator: Iterator[(K, V)] = new Iterator[(K, V)] {
 
