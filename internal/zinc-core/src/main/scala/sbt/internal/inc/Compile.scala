@@ -9,20 +9,11 @@ package sbt
 package internal
 package inc
 
-import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
-import xsbt.api.{ APIUtil, HashAPI, NameHashing }
+import sbt.internal.inc.Analysis.{LocalProduct, NonLocalProduct}
+import xsbt.api.{APIUtil, HashAPI, NameHashing}
 import xsbti.api._
-import xsbti.compile.{
-  ClassFileManager,
-  CompileAnalysis,
-  DependencyChanges,
-  IncOptions,
-  MultipleOutput,
-  Output,
-  OutputGroup,
-  SingleOutput
-}
-import xsbti.{ Position, Problem, Severity, UseScope }
+import xsbti.compile.{ClassFileManager, CompileAnalysis, DependencyChanges, IncOptions, MultipleOutput, Output, OutputGroup, SingleOutput}
+import xsbti.{Position, Problem, Severity, UseScope}
 import sbt.util.Logger
 import sbt.util.InterfaceUtil.jo2o
 import java.io.File
@@ -30,6 +21,8 @@ import java.util
 
 import xsbti.api.DependencyContext
 import xsbti.compile.analysis.ReadStamps
+
+import scala.collection.mutable
 
 /**
  * Helper methods for running incremental compilation.  All this is responsible for is
@@ -141,32 +134,51 @@ private final class AnalysisCallback(
 
   import collection.mutable.{ HashMap, HashSet, ListBuffer, Map, Set }
 
-  private[this] val srcs = Set[File]()
-  private[this] val classApis = new HashMap[String, (HashAPI.Hash, ClassLike)]
-  private[this] val objectApis = new HashMap[String, (HashAPI.Hash, ClassLike)]
-  private[this] val classPublicNameHashes = new HashMap[String, Array[NameHash]]
-  private[this] val objectPublicNameHashes = new HashMap[String, Array[NameHash]]
-  private[this] val usedNames = new HashMap[String, Set[UsedName]]
-  private[this] val unreporteds = new HashMap[File, ListBuffer[Problem]]
-  private[this] val reporteds = new HashMap[File, ListBuffer[Problem]]
-  private[this] val mainClasses = new HashMap[File, ListBuffer[String]]
-  private[this] val binaryDeps = new HashMap[File, Set[File]]
-  // source file to set of generated (class file, binary class name); only non local classes are stored here
-  private[this] val nonLocalClasses = new HashMap[File, Set[(File, String)]]
-  private[this] val localClasses = new HashMap[File, Set[File]]
-  // mapping between src class name and binary (flat) class name for classes generated from src file
-  private[this] val classNames = new HashMap[File, Set[(String, String)]]
-  // generated class file to its source class name
-  private[this] val classToSource = new HashMap[File, String]
-  // internal source dependencies
-  private[this] val intSrcDeps = new HashMap[String, Set[InternalDependency]]
-  // external source dependencies
-  private[this] val extSrcDeps = new HashMap[String, Set[ExternalDependency]]
-  private[this] val binaryClassName = new HashMap[File, String]
-  // source files containing a macro def.
-  private[this] val macroClasses = Set[String]()
+  class SyncHashMap[K, V] private[this] extends java.util.concurrent.ConcurrentHashMap[K, V] with mutable.Map[K, V] {
 
-  private def add[A, B](map: Map[A, Set[B]], a: A, b: B): Unit = {
+    override def +=(kv: (K, V)): SyncHashMap.this.type = { put(kv._1, kv._2); this }
+
+    override def -=(key: K): SyncHashMap.this.type = { remove(key); this}
+
+    override def get(key: K): Option[V] = if (super.contains(key)) Some(super.get(key)) else None
+
+    override def iterator: Iterator[(K, V)] = new Iterator[(K, V)] {
+
+      private val it = entrySet.iterator
+      override def hasNext: Boolean = it.hasNext
+      override def next(): (K, V) = {
+        val entry = it.next()
+        (entry.getKey, entry.getValue)
+      }
+    }
+  }
+
+  private[this] val srcs = new SyncHashMap[File, Boolean]()
+  private[this] val classApis = new SyncHashMap[String, (HashAPI.Hash, ClassLike)]
+  private[this] val objectApis = new SyncHashMap[String, (HashAPI.Hash, ClassLike)]
+  private[this] val classPublicNameHashes = new SyncHashMap[String, Array[NameHash]]
+  private[this] val objectPublicNameHashes = new SyncHashMap[String, Array[NameHash]]
+  private[this] val usedNames = new SyncHashMap[String, Set[UsedName]]
+  private[this] val unreporteds = new SyncHashMap[File, ListBuffer[Problem]]
+  private[this] val reporteds = new SyncHashMap[File, ListBuffer[Problem]]
+  private[this] val mainClasses = new SyncHashMap[File, ListBuffer[String]]
+  private[this] val binaryDeps = new SyncHashMap[File, Set[File]]
+  // source file to set of generated (class file, binary class name); only non local classes are stored here
+  private[this] val nonLocalClasses = new SyncHashMap[File, Set[(File, String)]]
+  private[this] val localClasses = new SyncHashMap[File, Set[File]]
+  // mapping between src class name and binary (flat) class name for classes generated from src file
+  private[this] val classNames = new SyncHashMap[File, Set[(String, String)]]
+  // generated class file to its source class name
+  private[this] val classToSource = new SyncHashMap[File, String]
+  // internal source dependencies
+  private[this] val intSrcDeps = new SyncHashMap[String, Set[InternalDependency]]
+  // external source dependencies
+  private[this] val extSrcDeps = new SyncHashMap[String, Set[ExternalDependency]]
+  private[this] val binaryClassName = new SyncHashMap[File, String]
+  // source files containing a macro def.
+  private[this] val macroClasses = new SyncHashMap[String, Boolean]()
+
+  private def add[A, B](map: SyncHashMap[A, Set[B]], a: A, b: B): Unit = {
     map.getOrElseUpdate(a, new HashSet[B]) += b
     ()
   }
@@ -174,7 +186,7 @@ private final class AnalysisCallback(
   def startSource(source: File): Unit = {
     assert(!srcs.contains(source),
            s"The startSource can be called only once per source file: $source")
-    srcs += source
+    srcs += ((source, true))
     ()
   }
 
@@ -265,7 +277,7 @@ private final class AnalysisCallback(
     import xsbt.api.{ APIUtil, HashAPI }
     val className = classApi.name
     if (APIUtil.isScalaSourceName(sourceFile.getName) && APIUtil.hasMacro(classApi))
-      macroClasses += className
+      macroClasses += ((className, true))
     val shouldMinimize = !Incremental.apiDebug(options)
     val savedClassApi = if (shouldMinimize) APIUtil.minimize(classApi) else classApi
     val apiHash: HashAPI.Hash = HashAPI(classApi)
@@ -342,7 +354,7 @@ private final class AnalysisCallback(
 
   def addProductsAndDeps(base: Analysis): Analysis =
     (base /: srcs) {
-      case (a, src) =>
+      case (a, (src, _)) =>
         val stamp = stampReader.source(src)
         val classesInSrc = classNames.getOrElse(src, Set.empty).map(_._1)
         val analyzedApis = classesInSrc.map(analyzeClass)
