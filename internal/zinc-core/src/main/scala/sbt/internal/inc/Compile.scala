@@ -9,24 +9,16 @@ package sbt
 package internal
 package inc
 
-import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
-import xsbt.api.{ APIUtil, HashAPI, NameHashing }
+import sbt.internal.inc.Analysis.{LocalProduct, NonLocalProduct}
+import xsbt.api.{APIUtil, HashAPI, NameHashing}
 import xsbti.api._
-import xsbti.compile.{
-  ClassFileManager,
-  CompileAnalysis,
-  DependencyChanges,
-  IncOptions,
-  MultipleOutput,
-  Output,
-  OutputGroup,
-  SingleOutput
-}
-import xsbti.{ Position, Problem, Severity, UseScope }
+import xsbti.compile.{ClassFileManager, CompileAnalysis, DependencyChanges, IncOptions, MultipleOutput, Output, OutputGroup, SingleOutput}
+import xsbti.{Position, Problem, Severity, UseScope}
 import sbt.util.Logger
 import sbt.util.InterfaceUtil.jo2o
 import java.io.File
 import java.util
+import java.util.concurrent.ConcurrentHashMap
 
 import xsbti.api.DependencyContext
 import xsbti.compile.analysis.ReadStamps
@@ -143,19 +135,20 @@ private final class AnalysisCallback(
 
   import collection.mutable.{ HashMap, HashSet, ListBuffer, Map, Set }
 
-  class SyncHashMap[K, V] private[this]
-      extends java.util.concurrent.ConcurrentHashMap[K, V]
-      with mutable.Map[K, V] {
+  private[this] class SyncHashMap[K, V]
+      extends mutable.Map[K, V] {
 
-    override def +=(kv: (K, V)): SyncHashMap.this.type = { put(kv._1, kv._2); this }
+    private val underline = new java.util.concurrent.ConcurrentHashMap[K, V]
 
-    override def -=(key: K): SyncHashMap.this.type = { remove(key); this }
+    override def +=(kv: (K, V)): SyncHashMap.this.type = { underline.put(kv._1, kv._2); this }
 
-    override def get(key: K): Option[V] = if (super.contains(key)) Some(super.get(key)) else None
+    override def -=(key: K): SyncHashMap.this.type = { underline.remove(key); this }
+
+    override def get(key: K): Option[V] = if (underline.contains(key)) Some(underline.get(key)) else None
 
     override def iterator: Iterator[(K, V)] = new Iterator[(K, V)] {
 
-      private val it = entrySet.iterator
+      private val it = underline.entrySet.iterator
       override def hasNext: Boolean = it.hasNext
       override def next(): (K, V) = {
         val entry = it.next()
