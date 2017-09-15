@@ -663,16 +663,16 @@ private class MRelationsNameHashing(
 
   override def toString = (
     """
-    |Relations (with name hashing enabled):
-    |  products: %s
-    |  library deps: %s
-    |  library class names: %s
-    |  class deps: %s
-    |  ext deps: %s
-    |  class names: %s
-    |  used names: %s
-    |  product class names: %s
-    """.trim.stripMargin.format(
+    |#yellow#Relations (with name hashing enabled):#reset#
+    |  #yellow#products:#reset# %s
+    |  #yellow#library deps:#reset# %s
+    |  #yellow#library class names:#reset# %s
+    |  #yellow#class deps:#reset# %s
+    |  #yellow#ext deps:#reset# %s
+    |  #yellow#class names:#reset# %s
+    |  #yellow#used names:#reset# %s
+    |  #yellow#product class names:#reset# %s
+    """.trim.stripMargin.replace("#yellow#", Console.YELLOW).replace("#reset#", Console.RESET).format(
       List(srcProd,
            libraryDep,
            libraryClassName,
