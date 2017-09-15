@@ -672,15 +672,18 @@ private class MRelationsNameHashing(
     |  #yellow#class names:#reset# %s
     |  #yellow#used names:#reset# %s
     |  #yellow#product class names:#reset# %s
-    """.trim.stripMargin.replace("#yellow#", Console.YELLOW).replace("#reset#", Console.RESET).format(
-      List(srcProd,
-           libraryDep,
-           libraryClassName,
-           internalClassDep,
-           externalClassDep,
-           classes,
-           names,
-           productClassName) map relation_s: _*)
-  )
+    """.trim.stripMargin
+      .replace("#yellow#", Console.YELLOW)
+      .replace("#reset#", Console.RESET)
+      .format(
+        List(srcProd,
+             libraryDep,
+             libraryClassName,
+             internalClassDep,
+             externalClassDep,
+             classes,
+             names,
+             productClassName) map relation_s: _*)
+    )
 
 }
