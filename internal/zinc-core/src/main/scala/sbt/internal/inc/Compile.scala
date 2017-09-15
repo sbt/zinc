@@ -9,11 +9,20 @@ package sbt
 package internal
 package inc
 
-import sbt.internal.inc.Analysis.{LocalProduct, NonLocalProduct}
-import xsbt.api.{APIUtil, HashAPI, NameHashing}
+import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
+import xsbt.api.{ APIUtil, HashAPI, NameHashing }
 import xsbti.api._
-import xsbti.compile.{ClassFileManager, CompileAnalysis, DependencyChanges, IncOptions, MultipleOutput, Output, OutputGroup, SingleOutput}
-import xsbti.{Position, Problem, Severity, UseScope}
+import xsbti.compile.{
+  ClassFileManager,
+  CompileAnalysis,
+  DependencyChanges,
+  IncOptions,
+  MultipleOutput,
+  Output,
+  OutputGroup,
+  SingleOutput
+}
+import xsbti.{ Position, Problem, Severity, UseScope }
 import sbt.util.Logger
 import sbt.util.InterfaceUtil.jo2o
 import java.io.File
@@ -134,11 +143,13 @@ private final class AnalysisCallback(
 
   import collection.mutable.{ HashMap, HashSet, ListBuffer, Map, Set }
 
-  class SyncHashMap[K, V] private[this] extends java.util.concurrent.ConcurrentHashMap[K, V] with mutable.Map[K, V] {
+  class SyncHashMap[K, V] private[this]
+      extends java.util.concurrent.ConcurrentHashMap[K, V]
+      with mutable.Map[K, V] {
 
     override def +=(kv: (K, V)): SyncHashMap.this.type = { put(kv._1, kv._2); this }
 
-    override def -=(key: K): SyncHashMap.this.type = { remove(key); this}
+    override def -=(key: K): SyncHashMap.this.type = { remove(key); this }
 
     override def get(key: K): Option[V] = if (super.contains(key)) Some(super.get(key)) else None
 
