@@ -184,11 +184,15 @@ object MixedAnalyzingCompiler {
     val classpathHash = classpath map { x =>
       FileHash.of(x, Stamper.forHash(x).hashCode)
     }
+
+    val filteredOptions =
+      incrementalCompilerOptions.externalHooks().filterScalaCompilerOptions(options.toArray)
+
     val compileSetup = MiniSetup.of(
       output,
       MiniOptions.of(
         classpathHash.toArray,
-        options.toArray,
+        filteredOptions,
         javacOptions.toArray
       ),
       scalac.scalaInstance.actualVersion,

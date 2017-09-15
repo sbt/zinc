@@ -86,4 +86,14 @@ public interface ExternalHooks {
      * @return An instance of {@link ExternalHooks} with the specified lookup.
      */
     ExternalHooks withExternalLookup(Lookup externalLookup);
+
+    /**
+     * Alter which scala compiler options are considered for invalidation of compiled products.
+     *
+     * Expected to be used by filtering out options which do not affect the products,
+     * e.g. debug/logging flags, flags which change the number of cores used, et al.
+     *
+     * @return A String array used to calculate changes in scala options for invalidation.
+     */
+    String[] filterScalaCompilerOptions(String[] options);
 }

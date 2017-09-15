@@ -45,4 +45,9 @@ public class DefaultExternalHooks implements ExternalHooks {
     public ExternalHooks withExternalLookup(ExternalHooks.Lookup externalLookup) {
         return new DefaultExternalHooks(Optional.of(externalLookup), this.getExternalClassFileManager());
     }
+
+    @Override
+    public String[] filterScalaCompilerOptions(String[] options) {
+        return options;
+    }
 }
