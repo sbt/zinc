@@ -48,7 +48,7 @@ final class ScalaInstance(
    */
   def isManagedVersion = explicitActual.isDefined
 
-  def otherJars = (allJars.toSet - libraryJar - compilerJar).toArray
+  def otherJars: Array[File] = allJars filter (f => f != libraryJar && f != compilerJar)
 
   require(
     version.indexOf(' ') < 0,
