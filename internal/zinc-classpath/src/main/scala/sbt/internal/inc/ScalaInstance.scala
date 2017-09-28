@@ -48,7 +48,7 @@ final class ScalaInstance(
    */
   def isManagedVersion = explicitActual.isDefined
 
-  def otherJars = (allJars.toSet - libraryJar - compilerJar).toArray
+  def otherJars: Array[File] = allJars filter (f => f != libraryJar && f != compilerJar)
 
   require(
     version.indexOf(' ') < 0,
@@ -142,40 +142,11 @@ object ScalaInstance {
   }
 
   def apply(version: String, scalaHome: File, launcher: xsbti.Launcher): ScalaInstance = {
+    val all = allJars(scalaHome)
+    val loader = scalaLoader(launcher)(all.toList)
     val library = libraryJar(scalaHome)
     val compiler = compilerJar(scalaHome)
-    val jars = allJars(scalaHome)
-    apply(version, library, compiler, jars: _*)(scalaLoader(launcher))
-  }
-
-  /* *******************************************************************
-       The following apply methods are deprecated but used internally.
-     ******************************************************************* */
-
-  private def apply(
-      version: String,
-      libraryJar: File,
-      compilerJar: File,
-      extraJars: File*
-  )(classLoader: List[File] => ClassLoader): ScalaInstance =
-    apply(version, None, libraryJar, compilerJar, extraJars: _*)(classLoader)
-
-  private def apply(
-      version: String,
-      explicitActual: Option[String],
-      libraryJar: File,
-      compilerJar: File,
-      extraJars: File*
-  )(classLoader: List[File] => ClassLoader): ScalaInstance = {
-    val loader = classLoader(libraryJar :: compilerJar :: extraJars.toList)
-    new ScalaInstance(
-      version,
-      loader,
-      libraryJar,
-      compilerJar,
-      extraJars.toArray,
-      explicitActual
-    )
+    new ScalaInstance(version, loader, library, compiler, all.toArray, None)
   }
 
   /** Return all the required Scala jars from a path `scalaHome`. */

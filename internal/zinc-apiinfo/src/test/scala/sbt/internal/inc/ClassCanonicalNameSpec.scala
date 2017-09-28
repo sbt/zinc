@@ -2,7 +2,7 @@ package sbt
 package internal
 package inc
 
-import sbt.internal.util.UnitSpec
+import org.scalatest._
 
 // All eight combinations of class/object nesting to three levels.
 // O-O-O means object { object { object } }
@@ -15,8 +15,9 @@ package p2 { object x { class y { object z; class z } } }
 package p3 { class x { object y { object z; class z } } }
 package p4 { class x { class y { object z; class z } } }
 
-class ClassCanonicalNameSpec extends UnitSpec {
-  "ClassToAPI.classCanonicalName" should """return "" for null""" in assert(getCustomCanonicalName(null) === "")
+class ClassCanonicalNameSpec extends FlatSpec with Matchers {
+  "ClassToAPI.classCanonicalName" should """return "" for null""" in
+    assert(getCustomCanonicalName(null) === "")
 
   import scala.reflect._
   def check[T: ClassTag](expected: Expected) = checkClass(expected, classTag[T].runtimeClass, "tag")
@@ -60,17 +61,17 @@ class ClassCanonicalNameSpec extends UnitSpec {
 
   checkRef(OO, p1.x.y)
   checkRef(OC, new p2.x.y)
-  checkRef(CO, { val c1 = new p3.x ; c1.y })
-  checkRef(CC, { val c1 = new p4.x ; new c1.y })
+  checkRef(CO, { val c1 = new p3.x; c1.y })
+  checkRef(CC, { val c1 = new p4.x; new c1.y })
 
   checkRef(OOO, p1.x.y.z)
   checkRef(OOC, new p1.x.y.z)
-  checkRef(OCO, { val c2 = new p2.x.y ; c2.z })
-  checkRef(OCC, { val c2 = new p2.x.y ; new c2.z })
-  checkRef(COO, { val c1 = new p3.x ; c1.y.z })
-  checkRef(COC, { val c1 = new p3.x ; new c1.y.z })
-  checkRef(CCO, { val c1 = new p4.x ; val c2 = new c1.y ; c2.z })
-  checkRef(CCC, { val c1 = new p4.x ; val c2 = new c1.y ; new c2.z })
+  checkRef(OCO, { val c2 = new p2.x.y; c2.z })
+  checkRef(OCC, { val c2 = new p2.x.y; new c2.z })
+  checkRef(COO, { val c1 = new p3.x; c1.y.z })
+  checkRef(COC, { val c1 = new p3.x; new c1.y.z })
+  checkRef(CCO, { val c1 = new p4.x; val c2 = new c1.y; c2.z })
+  checkRef(CCC, { val c1 = new p4.x; val c2 = new c1.y; new c2.z })
 
   object O extends Expected("x$")
   object C extends Expected("x")
@@ -90,22 +91,21 @@ class ClassCanonicalNameSpec extends UnitSpec {
   object CCC extends Expected("x.y.z")
 
   class Expected(
-    val canonicalClassName: String,
-    val nativeClassNameIsMalformed: Boolean = false
+      val canonicalClassName: String,
+      val nativeClassNameIsMalformed: Boolean = false
   ) {
     val nesting = {
       val n0 = getClass.getSimpleName stripSuffix "$"
       Seq(n0, "-" * (n0.length - 1)).flatMap(_.zipWithIndex).sortBy(_._2).map(_._1).mkString
     }
 
-    val nativeCanonicalClassName = (
-      if (nativeClassNameIsMalformed) "Malformed class name"
-      else canonicalClassName
-    )
+    val nativeCanonicalClassName =
+      if (nativeClassNameIsMalformed) "Malformed class name" else canonicalClassName
   }
 
   def handleMalformed(s: => String) =
-    try s catch {
+    try s
+    catch {
       case e: InternalError if e.getMessage == "Malformed class name" => "Malformed class name"
     }
 

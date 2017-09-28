@@ -72,9 +72,8 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
           modifiedSrcs.flatMap(previous.relations.classNames) ++ modifiedSrcs.flatMap(
           current.relations.classNames)
 
-        val incChanges = changedIncremental(recompiledClasses,
-                                            previous.apis.internalAPI,
-                                            current.apis.internalAPI)
+        val incChanges =
+          changedIncremental(recompiledClasses, previous.apis.internalAPI, current.apis.internalAPI)
 
         debug("\nChanges:\n" + incChanges)
         val transitiveStep = options.transitiveStep

@@ -1,7 +1,7 @@
 package xsbt
 
 import xsbti.TestCallback.ExtractedClassDependencies
-import sbt.internal.util.UnitSpec
+import sbt.internal.inc.UnitSpec
 
 class DependencySpecification extends UnitSpec {
 
@@ -166,14 +166,8 @@ class DependencySpecification extends UnitSpec {
     val srcH = "trait H extends G.T[Int] with (E[Int] @unchecked)"
 
     val compilerForTesting = new ScalaCompilerForUnitTesting
-    val classDependencies = compilerForTesting.extractDependenciesFromSrcs(srcA,
-                                                                           srcB,
-                                                                           srcC,
-                                                                           srcD,
-                                                                           srcE,
-                                                                           srcF,
-                                                                           srcG,
-                                                                           srcH)
+    val classDependencies =
+      compilerForTesting.extractDependenciesFromSrcs(srcA, srcB, srcC, srcD, srcE, srcF, srcG, srcH)
     classDependencies
   }
 
