@@ -548,56 +548,18 @@ object ClassToAPI {
   }.toMap
   def primitive(name: String): api.Type = PrimitiveRefs(name)
 
-  // Workarounds for https://github.com/sbt/sbt/issues/1035
-  //   these catch the GenericSignatureFormatError and return the erased type
+  private[this] def returnType(f: Field): Type = f.getGenericType
+  private[this] def returnType(m: Method): Type = m.getGenericReturnType
+  private[this] def exceptionTypes(c: Constructor[_]): Array[Type] = c.getGenericExceptionTypes
 
-  private[this] def returnType(f: Field): Type =
-    try f.getGenericType
-    catch {
-      case _: GenericSignatureFormatError => f.getType
-    }
-  private[this] def parameterTypes(c: Constructor[_]): Array[Type] =
-    try c.getGenericParameterTypes
-    catch {
-      case _: GenericSignatureFormatError => convert(c.getParameterTypes)
-    }
-  private[this] def exceptionTypes(c: Constructor[_]): Array[Type] =
-    try c.getGenericExceptionTypes
-    catch {
-      case _: GenericSignatureFormatError => convert(c.getExceptionTypes)
-    }
-  private[this] def parameterTypes(m: Method): Array[Type] =
-    try m.getGenericParameterTypes
-    catch {
-      case _: GenericSignatureFormatError => convert(m.getParameterTypes)
-    }
-  private[this] def returnType(m: Method): Type =
-    try m.getGenericReturnType
-    catch {
-      case _: GenericSignatureFormatError => m.getReturnType
-    }
-  private[this] def exceptionTypes(m: Method): Array[Type] =
-    try m.getGenericExceptionTypes
-    catch {
-      case _: GenericSignatureFormatError => convert(m.getExceptionTypes)
-    }
+  private[this] def exceptionTypes(m: Method): Array[Type] = m.getGenericExceptionTypes
+  private[this] def parameterTypes(m: Method): Array[Type] = m.getGenericParameterTypes
+  private[this] def parameterTypes(c: Constructor[_]): Array[Type] = c.getGenericParameterTypes
 
   private[this] def typeParameterTypes[T](m: Constructor[T]): Array[TypeVariable[Constructor[T]]] =
-    try m.getTypeParameters
-    catch {
-      case _: GenericSignatureFormatError => new Array(0)
-    }
+    m.getTypeParameters
   private[this] def typeParameterTypes[T](m: Class[T]): Array[TypeVariable[Class[T]]] =
-    try m.getTypeParameters
-    catch {
-      case _: GenericSignatureFormatError => new Array(0)
-    }
+    m.getTypeParameters
   private[this] def typeParameterTypes(m: Method): Array[TypeVariable[Method]] =
-    try m.getTypeParameters
-    catch {
-      case _: GenericSignatureFormatError => new Array(0)
-    }
-
-  private[this] def convert(classes: Array[Class[_]]): Array[Type] =
-    classes.asInstanceOf[Array[Type]] // ok: treat Arrays as read-only
+    m.getTypeParameters
 }
