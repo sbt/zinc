@@ -1,0 +1,13 @@
+{
+  "projects": [
+    {
+      "name": "mirtest",
+      "scalaVersion": "2.11.8",
+      "dependsOn": ["gg"]
+    },
+    {
+      "name": "gg",
+      "scalaVersion": "2.11.8"
+    }
+  ]
+}

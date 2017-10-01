@@ -156,8 +156,8 @@ final class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogg
         val analysis = p.compile(i)
         p.discoverMainClasses(Some(analysis.apis)) match {
           case Seq(mainClassName) =>
-            val classpath = i.si.allJars :+ p.classesDir
-            val loader = ClasspathUtilities.makeLoader(classpath, i.si, directory)
+            val cp = p.classpath(i)
+            val loader = ClasspathUtilities.makeLoader(cp, i.si, directory)
             val main = p.getMainMethod(mainClassName, loader)
             p.invokeMain(loader, main, params)
           case _ =>
@@ -343,6 +343,10 @@ case class ProjectStructure(
     ()
   }
 
+  def classpath(i: IncInstance): Array[File] = {
+    (i.si.allJars.toList ++ (unmanagedJars :+ classesDir) ++ internalClasspath).toArray
+  }
+
   def compile(i: IncInstance): Analysis = {
     dependsOnRef map { dep =>
       dep.compile(i)
@@ -370,9 +374,8 @@ case class ProjectStructure(
                                optionProgress = None,
                                extra)
 
-    val classpath =
-      (i.si.allJars.toList ++ (unmanagedJars :+ classesDir) ++ internalClasspath).toArray
-    val in = compiler.inputs(classpath,
+    val cp = classpath(i)
+    val in = compiler.inputs(cp,
                              sources.toArray,
                              classesDir,
                              scalacOptions,
