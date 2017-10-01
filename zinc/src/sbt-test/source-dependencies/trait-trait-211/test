@@ -1,0 +1,4 @@
+> mirtest/run
+
+$ copy-file changes/SliceTransforms1.scala gg/SliceTransforms.scala
+> mirtest/run
