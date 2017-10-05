@@ -36,8 +36,7 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
   case class ProjectSetup(baseLocation: Path,
                           sources: Map[Path, Seq[Path]],
                           classPath: Seq[Path],
-                          analysisForCp: Map[File, File] = Map.empty
-                         ) {
+                          analysisForCp: Map[File, File] = Map.empty) {
     private def fromResource(prefix: Path)(path: Path): File = {
       val fullPath = prefix.resolve(path).toString()
       Option(getClass.getClassLoader.getResource(fullPath))
@@ -64,7 +63,7 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
         val target = classpathBase.resolve(zippedClassesPath.toString.dropRight(4)).toFile
         IO.unzip(fromResource(binPrefix)(zippedClassesPath), target)
         target
-      case existingFile if existingFile.isAbsolute && Files.exists(existingFile)  =>
+      case existingFile if existingFile.isAbsolute && Files.exists(existingFile) =>
         existingFile.toFile
       case jarPath =>
         val newJar = classpathBase.resolve(jarPath).toFile
@@ -78,13 +77,12 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
 
     def createCompiler() =
       CompilerSetup(defaultClassesDir,
-        baseLocation.toFile,
-        allSources.toArray,
-        allClasspath,
-        IncOptions.of(),
-        analysisForCp,
-        defaultStoreLocation
-      )
+                    baseLocation.toFile,
+                    allSources.toArray,
+                    allClasspath,
+                    IncOptions.of(),
+                    analysisForCp,
+                    defaultStoreLocation)
 
     def update(source: Path)(change: String => String): Unit = {
       import collection.JavaConverters._
@@ -95,15 +93,14 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
 
     def dependsOnJarFrom(other: ProjectSetup): ProjectSetup = {
       val sources = other.defaultClassesDir ** "*.class"
-      val mapping = sources.get.map{
-        file =>
-          file -> other.defaultClassesDir.toPath.relativize(file.toPath).toString
+      val mapping = sources.get.map { file =>
+        file -> other.defaultClassesDir.toPath.relativize(file.toPath).toString
       }
       val dest = baseLocation.resolve("bin").resolve(s"${other.baseLocation.getFileName}.jar")
       IO.zip(mapping, dest.toFile)
 
       copy(
-        classPath = classPath :+ dest ,
+        classPath = classPath :+ dest,
         analysisForCp = analysisForCp + (dest.toFile -> other.defaultStoreLocation)
       )
     }
@@ -111,7 +108,10 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
 
   object ProjectSetup {
     def simple(baseLocation: Path, classes: Seq[String]): ProjectSetup =
-      ProjectSetup(baseLocation, Map(Paths.get("src") -> classes.map(path => Paths.get(path))), Nil, Map.empty)
+      ProjectSetup(baseLocation,
+                   Map(Paths.get("src") -> classes.map(path => Paths.get(path))),
+                   Nil,
+                   Map.empty)
   }
 
   def scalaCompiler(instance: xsbti.compile.ScalaInstance, bridgeJar: File): AnalyzingCompiler = {
@@ -141,7 +141,9 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
     private def analysis(forEntry: File): Optional[CompileAnalysis] = {
       analysisForCp.get(forEntry) match {
         case Some(analysisStore) =>
-          FileAnalysisStore.getDefault(analysisStore).get().map(_.getAnalysis)
+          val content = FileAnalysisStore.getDefault(analysisStore).get()
+          if (content.isPresent) Optional.of(content.get().getAnalysis)
+          else Optional.empty()
         case _ =>
           Optional.empty()
       }
@@ -184,7 +186,8 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
       compiler.compile(newInputs(in), log)
     }
 
-    def doCompileWithStore(store: AnalysisStore = FileAnalysisStore.getDefault(analysisStoreLocation),
+    def doCompileWithStore(store: AnalysisStore =
+                             FileAnalysisStore.getDefault(analysisStoreLocation),
                            newInputs: Inputs => Inputs = identity): CompileResult = {
       import JavaInterfaceUtil.EnrichOptional
       val previousResult = store.get().toOption match {
