@@ -57,5 +57,4 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
       assert(result3.hasModified)
     }
   }
-
 }
