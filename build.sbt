@@ -387,14 +387,6 @@ lazy val compilerBridge: Project = (project in internalPath / "compiler-bridge")
     publishLocal := publishLocal.dependsOn(cleanSbtBridge).value,
     altPublishSettings,
     mimaSettings,
-    mimaBinaryIssueFilters ++= Vector(
-      // xsbti Java interfaces must be defined in the compiler interface, not the bridge.
-      // Bridge implementations are compiled per Zinc, so these are safe to change.
-      exclude[MissingClassProblem]("xsbti.InteractiveConsoleFactory"),
-      exclude[MissingClassProblem]("xsbti.InteractiveConsoleResult"),
-      exclude[MissingClassProblem]("xsbti.InteractiveConsoleInterface"),
-      exclude[MissingClassProblem]("xsbti.InteractiveConsoleResponse"),
-    ),
   )
 
 val scalaPartialVersion = Def setting (CrossVersion partialVersion scalaVersion.value)
