@@ -1,7 +1,6 @@
 import Util._
 import Dependencies._
 import Scripted._
-//import com.typesafe.tools.mima.core._, ProblemFilters._
 
 def baseVersion = "1.1.0-SNAPSHOT"
 def internalPath = file("internal")
