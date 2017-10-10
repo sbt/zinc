@@ -198,21 +198,6 @@ lazy val zincCompile = (project in file("zinc-compile"))
   )
   .configure(addSbtUtilTracking)
 
-def zincPersistMimaExcludes = {
-  import com.typesafe.tools.mima.core._
-  import com.typesafe.tools.mima.core.ProblemFilters._
-  Seq(
-    "sbt.internal.inc.binary.BinaryAnalysisFormat.readAPIs",
-    "sbt.internal.inc.binary.BinaryAnalysisFormat.writeAPIs",
-    "sbt.internal.inc.binary.converters.ProtobufWriters.toApis",
-    "sbt.internal.inc.binary.converters.ProtobufWriters.toApisFile",
-    "sbt.internal.inc.binary.converters.ProtobufWriters.toAnalyzedClass",
-    "sbt.internal.inc.binary.converters.ProtobufReaders.fromApis",
-    "sbt.internal.inc.binary.converters.ProtobufReaders.fromApisFile",
-    "sbt.internal.inc.binary.converters.ProtobufReaders.fromAnalyzedClass",
-  ).map(ProblemFilters.exclude[DirectMissingMethodProblem])
-}
-
 // Persists the incremental data structures using Protobuf
 lazy val zincPersist = (project in internalPath / "zinc-persist")
   .dependsOn(zincCore, zincCore % "test->test")
@@ -222,8 +207,7 @@ lazy val zincPersist = (project in internalPath / "zinc-persist")
     libraryDependencies += sbinary,
     compileOrder := sbt.CompileOrder.Mixed,
     PB.targets in Compile := List(scalapb.gen() -> (sourceManaged in Compile).value),
-    mimaSettings,
-    mimaBinaryIssueFilters ++= zincPersistMimaExcludes
+    mimaSettings
   )
 
 // Implements the core functionality of detecting and propagating changes incrementally.

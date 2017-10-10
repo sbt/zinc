@@ -1,0 +1,8 @@
+ProblemFilters.exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.BinaryAnalysisFormat.readAPIs")
+ProblemFilters.exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.BinaryAnalysisFormat.writeAPIs")
+ProblemFilters.exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufWriters.toApis")
+ProblemFilters.exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufWriters.toApisFile")
+ProblemFilters.exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufWriters.toAnalyzedClass")
+ProblemFilters.exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufReaders.fromApis")
+ProblemFilters.exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufReaders.fromApisFile")
+ProblemFilters.exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufReaders.fromAnalyzedClass")
