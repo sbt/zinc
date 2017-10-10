@@ -1,0 +1,5 @@
+> mirtest/run
+
+## After copying the Good implementation, we should be able to run successfully.
+$ copy-file changes/SliceTransforms1.scala mirtest/SliceTransforms.scala
+> mirtest/run
