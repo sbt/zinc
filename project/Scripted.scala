@@ -82,8 +82,7 @@ object Scripted {
     val bridgeClass = Class.forName("sbt.internal.inc.IncScriptedRunner", true, loader)
     val bridge = bridgeClass.newInstance.asInstanceOf[IncScriptedRunner]
     // val launcherVmOptions = Array("-XX:MaxPermSize=256M") // increased after a failure in scripted source-dependencies/macro
-    try {
-      bridge.run(sourcePath, bufferLog, args.toArray)
-    } catch { case ite: java.lang.reflect.InvocationTargetException => throw ite.getCause }
+    try bridge.run(sourcePath, bufferLog, args.toArray)
+    catch { case ite: java.lang.reflect.InvocationTargetException => throw ite.getCause }
   }
 }
