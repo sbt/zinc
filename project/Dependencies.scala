@@ -79,19 +79,12 @@ object Dependencies {
   val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.13.4"
   val scalatest = "org.scalatest" %% "scalatest" % "3.0.1"
   val junit = "junit" % "junit" % "4.11"
-  val sjsonnew = Def.setting {
-    "com.eed3si9n" %% "sjson-new-core" % contrabandSjsonNewVersion.value
-  }
-  val sjsonnewScalaJson = Def.setting {
-    "com.eed3si9n" %% "sjson-new-scalajson" % contrabandSjsonNewVersion.value
-  }
+  val sjsonnew = Def.setting("com.eed3si9n" %% "sjson-new-core" % contrabandSjsonNewVersion.value)
+  val sjsonnewScalaJson =
+    Def.setting("com.eed3si9n" %% "sjson-new-scalajson" % contrabandSjsonNewVersion.value)
+  val affinity = "net.openhft" % "affinity" % "3.0.6"
+  val jgit = "org.eclipse.jgit" % "org.eclipse.jgit" % "4.6.0.201612231935-r"
 
   def addTestDependencies(p: Project): Project =
-    p.settings(
-      libraryDependencies ++= Seq(
-        scalaCheck % Test,
-        scalatest % Test,
-        junit % Test
-      )
-    )
+    p.settings(libraryDependencies ++= Seq(scalaCheck % Test, scalatest % Test, junit % Test))
 }
