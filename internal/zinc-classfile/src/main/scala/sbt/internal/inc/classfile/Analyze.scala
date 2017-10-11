@@ -50,8 +50,16 @@ private[sbt] object Analyze {
          binaryClassName = classFile.className;
          loadedClass <- load(binaryClassName, Some("Error reading API from class file"))) {
       binaryClassNameToLoadedClass.update(binaryClassName, loadedClass)
-      val srcClassName = binaryToSourceName(loadedClass)
-        .orElse(Option(loadedClass.getEnclosingClass).flatMap(binaryToSourceName))
+
+      def loadEnclosingClass(clazz: Class[_]): Option[String] = {
+        binaryToSourceName(clazz) match {
+          case None if clazz.getEnclosingClass != null =>
+            loadEnclosingClass(clazz.getEnclosingClass)
+          case other => other
+        }
+      }
+
+      val srcClassName = loadEnclosingClass(loadedClass)
 
       srcClassName match {
         case Some(className) =>
