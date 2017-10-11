@@ -101,7 +101,7 @@ final class LocalJavadoc() extends XJavadoc {
     } finally {
       warnOrError.close()
       infoWriter.close()
-      javacLogger.flush(exitCode)
+      javacLogger.flush("javadoc", exitCode)
     }
     // We return true or false, depending on success.
     exitCode == 0
