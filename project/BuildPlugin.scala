@@ -8,14 +8,24 @@ import com.typesafe.tools.mima.plugin.MimaKeys
 object BuildPlugin extends AutoPlugin {
   override def requires = sbt.plugins.JvmPlugin
   override def trigger = allRequirements
-  val autoImport = BuildKeys
+  val autoImport = BuildAutoImported
 
   override def projectSettings: Seq[Def.Setting[_]] = BuildImplementation.projectSettings
   override def buildSettings: Seq[Def.Setting[_]] = BuildImplementation.buildSettings
-  override def globalSettings: Seq[Def.Setting[_]] = BuildImplementation.globalSettings
+  override def globalSettings: Seq[Def.Setting[_]] = Nil
 }
 
-object BuildKeys {
+trait BuildKeys {
+  import sbt.{ TaskKey, taskKey }
+
+  val tearDownBenchmarkResources: TaskKey[Unit] = taskKey[Unit]("Remove benchmark resources.")
+  val scriptedPublishAll = taskKey[Unit]("Publishes all the Zinc artifacts for scripted")
+  val cleanSbtBridge: TaskKey[Unit] = taskKey[Unit]("Cleans the sbt bridge.")
+  val zincPublishLocal: TaskKey[Unit] =
+    taskKey[Unit]("Publishes Zinc artifacts to a alternative local cache.")
+}
+
+object BuildAutoImported extends BuildKeys {
   import sbt.{ file, File, Developer, url }
   import BuildImplementation.{ BuildDefaults, BuildResolvers }
 
@@ -28,11 +38,6 @@ object BuildKeys {
   val ScalaCenterMaintainer: Developer =
     Developer("jvican", "Jorge Vicente Cantero", "@jvican", url("https://github.com/jvican"))
 
-  // Ids that we will use to name our projects in build.sbt
-  val CompilerInterfaceId = "compiler-interface"
-  val CompilerBridgeId = "compiler-bridge"
-  val ZincApiInfoId = "zinc-apiinfo"
-
   // Defines the constants for the alternative publishing
   val ZincAlternativeCacheName = "alternative-local"
   val ZincAlternativeCacheDir: File = file(sys.props("user.home") + "/.ivy2/zinc-alternative")
@@ -41,28 +46,18 @@ object BuildKeys {
   private[this] val noPublishSettings: Seq[Def.Setting[_]] = BuildDefaults.noPublishSettings
   def noPublish(p: Project): Project = p.settings(noPublishSettings)
 
-  val adaptOptionsForOldScalaVersions: Seq[Def.Setting[_]] =
-    List(Keys.scalacOptions := BuildDefaults.zincScalacOptionsRedefinition.value)
   // Sets up mima settings for modules that have to be binary compatible with Zinc 1.0.0
   val mimaSettings: Seq[Def.Setting[_]] =
     List(MimaKeys.mimaPreviousArtifacts := BuildDefaults.zincPreviousArtifacts.value)
-
-  import sbt.{ TaskKey, taskKey }
-  val scriptedPublishAll = taskKey[Unit]("Publishes all the Zinc artifacts for scripted")
-  val cleanSbtBridge: TaskKey[Unit] = taskKey[Unit]("Cleans the sbt bridge.")
-  val zincPublishLocal: TaskKey[Unit] =
-    taskKey[Unit]("Publishes Zinc artifacts to a alternative local cache.")
+  val adaptOptionsForOldScalaVersions: Seq[Def.Setting[_]] =
+    List(Keys.scalacOptions := BuildDefaults.zincScalacOptionsRedefinition.value)
   val zincPublishLocalSettings: Seq[Def.Setting[_]] = List(
     Keys.resolvers += BuildResolvers.AlternativeLocalResolver,
     zincPublishLocal := BuildDefaults.zincPublishLocal.value,
   )
 
-  val tearDownBenchmarkResources: TaskKey[Unit] = taskKey[Unit]("Remove benchmark resources.")
   val benchmarksTestDir = sbt.IO.createTemporaryDirectory
-
-  val sourcesForAllScalaVersionsSetting: Seq[Def.Setting[_]] =
-    List(Keys.unmanagedSourceDirectories ++= BuildDefaults.handleScalaSpecificSources.value)
-  def inCompileAndTest(ss: Def.Setting[_]): Seq[Def.Setting[_]] =
+  def inCompileAndTest(ss: Def.Setting[_]*): Seq[Def.Setting[_]] =
     List(Compile, Test).flatMap(sbt.inConfig(_)(ss))
 }
 
@@ -70,7 +65,7 @@ object BuildImplementation {
   import sbt.{ ScmInfo }
   val buildSettings: Seq[Def.Setting[_]] = List(
     Scripted.scriptedBufferLog := true,
-    GitKeys.baseVersion := BuildKeys.baseVersion,
+    GitKeys.baseVersion := BuildAutoImported.baseVersion,
     GitKeys.gitUncommittedChanges := BuildDefaults.gitUncommitedChanges.value,
     BintrayKeys.bintrayPackage := "zinc",
     ScalafmtKeys.scalafmtOnCompile := true,
@@ -78,18 +73,14 @@ object BuildImplementation {
     ScalafmtKeys.scalafmtOnCompile in Sbt := false,
     Keys.description := "Incremental compiler of Scala",
     // The rest of the sbt developers come from the Sbt Houserules plugin
-    Keys.developers += BuildKeys.ScalaCenterMaintainer,
+    Keys.developers += BuildAutoImported.ScalaCenterMaintainer,
     // TODO(jvican): Remove `scmInfo` and `homepage` when we have support for sbt-release-early
-    Keys.homepage := Some(BuildKeys.ZincGitHomepage),
-    Keys.scmInfo := Some(ScmInfo(BuildKeys.ZincGitHomepage, "git@github.com:sbt/zinc.git")),
+    Keys.homepage := Some(BuildAutoImported.ZincGitHomepage),
+    Keys.scmInfo := Some(ScmInfo(BuildAutoImported.ZincGitHomepage, "git@github.com:sbt/zinc.git")),
     Keys.version := {
       val previous = Keys.version.value
       if (previous.contains("-SNAPSHOT")) GitKeys.baseVersion.value else previous
     },
-  )
-
-  val globalSettings: Seq[Def.Setting[_]] = List(
-    Keys.commands ++= BuildCommands.all
   )
 
   val projectSettings: Seq[Def.Setting[_]] = List(
@@ -117,57 +108,58 @@ object BuildImplementation {
     val all: List[Resolver] =
       List(TypesafeReleases, SonatypeSnapshots, BintrayMavenReleases, BintraySbtIvySnapshots)
 
-    import BuildKeys.{ ZincAlternativeCacheName, ZincAlternativeCacheDir }
+    import BuildAutoImported.{ ZincAlternativeCacheName, ZincAlternativeCacheDir }
     val AlternativeLocalResolver: Resolver =
       Resolver.file(ZincAlternativeCacheName, ZincAlternativeCacheDir)(Resolver.ivyStylePatterns)
 
     // Naive way of implementing a filter to remove repeated resolvers.
-    def removeRepeatedResolvers(rs: Seq[Resolver]): Seq[Resolver] = rs.toSet.toVector
+    def removeRepeatedResolvers(rs: Seq[Resolver]): Seq[Resolver] = rs.distinct
   }
 
   object BuildCommands {
     import sbt.{ Command, State }
-    import BuildKeys.{ CompilerBridgeId, ZincApiInfoId, CompilerInterfaceId, bridgeScalaVersions }
-    val crossTestBridges: Command = {
+    import BuildAutoImported.bridgeScalaVersions
+    def crossTestBridges(bridge: Project): Command = {
       Command.command("crossTestBridges") { (state: State) =>
         (bridgeScalaVersions.flatMap { (bridgeVersion: String) =>
           // Note the ! here. You need this so compilerInterface gets forced to the scalaVersion
-          s"++ $bridgeVersion!" :: s"$CompilerBridgeId/test" :: Nil
+          s"++ $bridgeVersion!" :: s"${bridge.id}/test" :: Nil
         }) ::: (s"++ ${Dependencies.scala212}!" :: state)
       }
     }
 
-    val publishBridgesAndSet: Command = {
+    def publishBridgesAndSet(bridge: Project, interface: Project, apiInfo: Project): Command = {
       Command.args("publishBridgesAndSet", "<version>") { (state, args) =>
         require(args.nonEmpty, "Missing Scala version argument.")
         val userScalaVersion = args.mkString("")
-        s"$CompilerInterfaceId/publishLocal" :: bridgeScalaVersions.flatMap { (v: String) =>
-          s"++ $v!" :: s"$ZincApiInfoId/publishLocal" :: s"$CompilerBridgeId/publishLocal" :: Nil
+        s"${interface.id}/publishLocal" :: bridgeScalaVersions.flatMap { (v: String) =>
+          s"++ $v!" :: s"${apiInfo.id}/publishLocal" :: s"${bridge.id}/publishLocal" :: Nil
         } ::: s"++ $userScalaVersion!" :: state
       }
     }
 
-    val publishBridgesAndTest: Command = Command.args("publishBridgesAndTest", "<version>") {
-      (state, args) =>
+    def publishBridgesAndTest(bridge: Project, interface: Project, apiInfo: Project): Command = {
+      Command.args("publishBridgesAndTest", "<version>") { (state, args) =>
         require(args.nonEmpty, "Missing arguments to publishBridgesAndTest.")
         val version = args mkString ""
         val bridgeCommands: List[String] = bridgeScalaVersions.flatMap { (v: String) =>
-          s"++ $v" :: s"$ZincApiInfoId/publishLocal" :: s"$CompilerBridgeId/publishLocal" :: Nil
+          s"++ $v" :: s"${apiInfo.id}/publishLocal" :: s"${bridge.id}/publishLocal" :: Nil
         }
-        s"$CompilerInterfaceId/publishLocal" ::
+        s"${interface.id}/publishLocal" ::
           bridgeCommands :::
           s"++ $version" ::
           s"zincRoot/scalaVersion" ::
           s"zincRoot/test" ::
           s"zincRoot/scripted" ::
           state
+      }
     }
 
     val release: Command =
       Command.command("release")(st => "clean" :: "+compile" :: "+publishSigned" :: "reload" :: st)
 
     def runBenchmarks(benchmarkProject: Project): Command = {
-      val dirPath = BuildKeys.benchmarksTestDir.getAbsolutePath
+      val dirPath = BuildAutoImported.benchmarksTestDir.getAbsolutePath
       val projectId = benchmarkProject.id
       val runPreSetup = s"$projectId/run $dirPath"
       val runBenchmark = s"$projectId/jmh:run -p _tempDir=$dirPath -prof gc"
@@ -175,11 +167,17 @@ object BuildImplementation {
       Command.command("runBenchmarks")(st => runPreSetup :: runBenchmark :: tearDownResources :: st)
     }
 
-    val all: List[Command] = List(crossTestBridges, publishBridgesAndSet, publishBridgesAndTest)
+    def all(bridge: Project, interface: Project, apiInfo: Project, bench: Project): Seq[Command] = {
+      val crossTest = crossTestBridges(bridge)
+      val publishBridges = publishBridgesAndSet(bridge, interface, apiInfo)
+      val publishBridgesTest = publishBridgesAndTest(bridge, interface, apiInfo)
+      val runBench = runBenchmarks(bench)
+      List(crossTest, publishBridges, publishBridgesTest, runBench, release)
+    }
   }
 
   object BuildDefaults {
-    import BuildKeys.{ ZincAlternativeCacheName, ZincAlternativeCacheDir }
+    import BuildAutoImported.{ ZincAlternativeCacheName, ZincAlternativeCacheDir }
     import sbt.{ Task, State, fileToRichFile, file, File, IO }
     private[this] val statusCommands = List(
       List("diff-index", "--cached", "HEAD"),
@@ -309,25 +307,25 @@ object BuildImplementation {
                      scriptedRef: Project): Def.Initialize[InputTask[Unit]] = Def.inputTask {
       val result = scriptedSource(dir => (s: State) => scriptedParser(dir)).parsed
       // We first publish all the zinc modules
-      BuildKeys.scriptedPublishAll.value
+      BuildAutoImported.scriptedPublishAll.value
 
       val source = scriptedSource.value
       val logged = scriptedBufferLog.value
       val hook = scriptedPrescripted.value
 
       // Publish the interface and the bridge for scripted to resolve them correctly
-      (BuildKeys.zincPublishLocal in interfaceRef).value
-      (BuildKeys.zincPublishLocal in bridgeRef).value
+      (BuildAutoImported.zincPublishLocal in interfaceRef).value
+      (BuildAutoImported.zincPublishLocal in bridgeRef).value
 
       val scriptedClasspath = (Keys.fullClasspath in scriptedRef in Test).value
-      val instance = (Keys.scalaInstance in scriptedRef in Test).value
+      val instance = (Keys.scalaInstance in scriptedRef).value
       Scripted.doScripted(scriptedClasspath, instance, source, result, logged, hook)
     }
 
     def zincOnlyScripted(scriptedRef: Project): Def.Initialize[InputTask[Unit]] = Def.inputTask {
       val result = scriptedSource(dir => (s: State) => scriptedParser(dir)).parsed
       val scriptedClasspath = (Keys.fullClasspath in scriptedRef in Test).value
-      val instance = (Keys.scalaInstance in scriptedRef in Test).value
+      val instance = (Keys.scalaInstance in scriptedRef).value
       val source = scriptedSource.value
       val logged = scriptedBufferLog.value
       val hook = scriptedPrescripted.value
@@ -354,6 +352,6 @@ object BuildImplementation {
     }
 
     val tearDownBenchmarkResources: Def.Initialize[Task[Unit]] =
-      Def.task(IO.delete(BuildKeys.benchmarksTestDir))
+      Def.task(IO.delete(BuildAutoImported.benchmarksTestDir))
   }
 }
