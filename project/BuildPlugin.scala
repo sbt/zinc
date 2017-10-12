@@ -12,7 +12,6 @@ object BuildPlugin extends AutoPlugin {
 
   override def projectSettings: Seq[Def.Setting[_]] = BuildImplementation.projectSettings
   override def buildSettings: Seq[Def.Setting[_]] = BuildImplementation.buildSettings
-  override def globalSettings: Seq[Def.Setting[_]] = Nil
 }
 
 trait BuildKeys {
@@ -97,7 +96,7 @@ object BuildImplementation {
   )
 
   object BuildResolvers {
-    import sbt.{ MavenRepository, file }
+    import sbt.MavenRepository
     val TypesafeReleases: Resolver = Resolver.typesafeIvyRepo("releases")
     val SonatypeSnapshots: Resolver = Resolver.sonatypeRepo("snapshots")
     val BintrayMavenReleases: Resolver =
