@@ -83,6 +83,13 @@ How is the Zinc build structured? Let's see it.
 |compilerInterface|The public binary interface used to connect the bridges with the Zinc modules. It is written in Java and uses Contraband.|
 |compilerBridge|The module that defines the compiler plugin phases that provide incrementality for all Scala versions.|
 
+If you want to visualize the relationships between the projects, have a look at
+the following diagram:
+
+![Diagram of projects](docs/project-structure.png)
+
+Note: ignore `jar2`, `jar1` and `classesDep1`. 
+
 #### Build-specific commands/keys
 
 The sbt build defines several keys that help contributors run and test Zinc.
