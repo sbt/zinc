@@ -1,7 +1,7 @@
 package gg
 package table
 
-trait SliceTransforms {
+trait A {
   def transform: Unit = {
     // the use site is updated
     buildNonemptyObjects(0, 1)
