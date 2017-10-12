@@ -31,8 +31,7 @@ Once you understand the basics of incremental compilation, start having a look
 at open tickets you can help with. All issues are labelled and will give you an
 idea about its difficulty and scope.
 
-Hacking on Zinc should not seem like a difficult task. Zinc does not implement
-a compiler, it defines the logic to analyse dependencies based on the compiler
+Hacking on Zinc should not seem like a difficult task. Zinc does not implement a compiler, it defines the logic to analyse dependencies based on the compiler
 API and creates all the required infrastructure around it to let build tools
 use it.
 
@@ -54,6 +53,48 @@ bridge, you don't need to run these benchmarks.
 
 If you need any help, the Zinc team hangs out in [sbt/zinc-contrib][].
 Feel free to ask any question.
+
+### Getting familiar with the build
+
+#### Project structure
+
+As of now, the current project structure is not as simple as it can be and we
+believe that it can be simpler in the future. However, as of now, no work is
+happening in this area because it's deemed to have low impact on the overall
+quality of the project.
+
+How is the Zinc build structured? Let's see it.
+
+|Project name| Project description|
+|------------|--------------------|
+|zincRoot| The root of the project. Aggregates all projects except the benchmarks.|
+|zinc|The user-facing Zinc incremental compiler.|
+|zincTesting|The project that defines testing facilities.|
+|zincCompile|A thin wrapper that provides doc capabilities.|
+|zincPersist|The project that persists incremental compiler's data into a binary file.|
+|zincCore|The project that defines relations, analysis, stamps, and essential core utils.| 
+|zincBenchmarks|The project that defines the benchmarks.|
+|zincIvyIntegration|The project that defines the ivy utilities to fetch compiler bridges.|
+|zincCompileCore|The project that interfaces with the compiler API and provides compilation capabilities.| 
+|zincApiInfo|The project that defines name hashes and provides way to interpret api changes.|
+|zincClassfile|The project that parses class files to provide Java incremental compilation.|
+|zincClasspath|The project that provides basic utilities to load libraries with classloaders and represents Scala instances.|
+|zincScripted|The project that defines the scripted logic to run Zinc's integration test suite.|
+|compilerInterface|The public binary interface used to connect the bridges with the Zinc modules. It is written in Java and uses Contraband.|
+|compilerBridge|The module that defines the compiler plugin phases that provide incrementality for all Scala versions.|
+
+#### Build-specific commands/keys
+
+The sbt build defines several keys that help contributors run and test Zinc.
+Zinc's build requires the compiler bridges to be published before tests are run
+(compiler bridges are compiler-specific Scala sources that need to be fetched
+to perform incremental compilation).
+
+|Key|Use|
+|---|---|
+|crossTestBridges|Runs compiler bridge unit tests for all scala versions.|
+|publishBridgesAndTest|Publish bridges and test the whole incremental compiler.|
+|publishBridgesAndSet|Publish bridges and set the current Scala version.|
 
 ### Benchmarking Zinc
 
