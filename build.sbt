@@ -136,6 +136,8 @@ lazy val zincCompileCore = (project in internalPath / "zinc-compile-core")
     sourceManaged in (Compile, generateContrabands) :=
       baseDirectory.value / "src" / "main" / "contraband-java",
     mimaSettings,
+    // We disable check here temporarily because of https://github.com/sbt/sbt-header/issues/130
+    headerCheck in Test := List()
   )
 
 // defines Java structures used across Scala versions, such as the API structures and relationships extracted by
