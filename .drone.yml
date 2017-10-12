@@ -12,10 +12,24 @@ pipeline:
       event: [push, pull_request, tag, deployment]
 
   tests:
-    image: scalacenter/scala:1.0
+    image: scalacenter/scala:1.3
     commands:
       - git fetch --tags && git log | head -n 20
       - ./bin/run-ci.sh ${CI_SCALA_VERSION}
+
+  publish:
+    image: scalacenter/scala:1.3
+    volumes:
+      - /scalacenter:/keys
+    when:
+      event: [ push, tag, deployment ]
+      status: success
+    commands:
+      # To know what we're releasing
+      - git log | head -n 20
+      - /usr/local/bin/setup_keys.sh
+      - /usr/local/bin/store_credentials.sh
+      - sbt releaseEarly
 
   # Save folders in distributed cache
   sftp_cache_rebuild:

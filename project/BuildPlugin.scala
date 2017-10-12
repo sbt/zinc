@@ -1,12 +1,18 @@
 import sbt.{ AutoPlugin, Compile, Def, Keys, Resolver, Test, TestFrameworks, Tests, URL, Project }
+import com.typesafe.sbt.GitPlugin
 import com.typesafe.sbt.SbtGit.{ git => GitKeys }
 import bintray.BintrayPlugin.{ autoImport => BintrayKeys }
+import ch.epfl.scala.sbt.release.ReleaseEarlyPlugin
+import ch.epfl.scala.sbt.release.ReleaseEarlyPlugin.{autoImport => ReleaseEarlyKeys}
+import com.lucidchart.sbt.scalafmt.ScalafmtCorePlugin
 import com.lucidchart.sbt.scalafmt.ScalafmtCorePlugin.{ autoImport => ScalafmtKeys }
 import com.lucidchart.sbt.scalafmt.ScalafmtSbtPlugin.autoImport.Sbt
 import com.typesafe.tools.mima.plugin.MimaKeys
+import com.typesafe.tools.mima.plugin.MimaPlugin
 
 object BuildPlugin extends AutoPlugin {
-  override def requires = sbt.plugins.JvmPlugin
+  override def requires =
+    sbt.plugins.JvmPlugin && ScalafmtCorePlugin && GitPlugin && ReleaseEarlyPlugin && MimaPlugin
   override def trigger = allRequirements
   val autoImport = BuildAutoImported
 
@@ -61,7 +67,6 @@ object BuildAutoImported extends BuildKeys {
 }
 
 object BuildImplementation {
-  import sbt.{ ScmInfo }
   val buildSettings: Seq[Def.Setting[_]] = List(
     Scripted.scriptedBufferLog := true,
     GitKeys.baseVersion := BuildAutoImported.baseVersion,
@@ -70,12 +75,11 @@ object BuildImplementation {
     ScalafmtKeys.scalafmtOnCompile := true,
     ScalafmtKeys.scalafmtVersion := "1.2.0",
     ScalafmtKeys.scalafmtOnCompile in Sbt := false,
+    ReleaseEarlyKeys.releaseEarlyWith := ReleaseEarlyKeys.BintrayPublisher,
     Keys.description := "Incremental compiler of Scala",
     // The rest of the sbt developers come from the Sbt Houserules plugin
     Keys.developers += BuildAutoImported.ScalaCenterMaintainer,
-    // TODO(jvican): Remove `scmInfo` and `homepage` when we have support for sbt-release-early
     Keys.homepage := Some(BuildAutoImported.ZincGitHomepage),
-    Keys.scmInfo := Some(ScmInfo(BuildAutoImported.ZincGitHomepage, "git@github.com:sbt/zinc.git")),
     Keys.version := {
       val previous = Keys.version.value
       if (previous.contains("-SNAPSHOT")) GitKeys.baseVersion.value else previous
@@ -154,9 +158,6 @@ object BuildImplementation {
       }
     }
 
-    val release: Command =
-      Command.command("release")(st => "clean" :: "+compile" :: "+publishSigned" :: "reload" :: st)
-
     def runBenchmarks(benchmarkProject: Project): Command = {
       val dirPath = BuildAutoImported.benchmarksTestDir.getAbsolutePath
       val projectId = benchmarkProject.id
@@ -171,7 +172,7 @@ object BuildImplementation {
       val publishBridges = publishBridgesAndSet(bridge, interface, apiInfo)
       val publishBridgesTest = publishBridgesAndTest(bridge, interface, apiInfo)
       val runBench = runBenchmarks(bench)
-      List(crossTest, publishBridges, publishBridgesTest, runBench, release)
+      List(crossTest, publishBridges, publishBridgesTest, runBench)
     }
   }
 
