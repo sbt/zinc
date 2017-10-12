@@ -1,9 +1,7 @@
 addSbtPlugin("pl.project13.scala" % "sbt-jmh" % "0.2.27")
-addSbtPlugin("org.foundweekends" % "sbt-bintray" % "0.5.1")
-addSbtPlugin("com.jsuereth" % "sbt-pgp" % "1.1.0-M1")
-addSbtPlugin("com.lucidchart" % "sbt-scalafmt" % "1.12")
 addSbtPlugin("de.heikoseeberger" % "sbt-header" % "3.0.2")
-addSbtPlugin("org.scala-sbt" % "sbt-houserules" % "0.3.3")
+addSbtPlugin("ch.epfl.scala" % "sbt-release-early" % "2.0.0")
+addSbtPlugin("org.scala-sbt" % "sbt-houserules" % "0.3.4")
 addSbtPlugin("org.scala-sbt" % "sbt-contraband" % "0.3.0")
 addSbtPlugin("com.thesamet" % "sbt-protoc" % "0.99.12-rc5")
 libraryDependencies += "com.trueaccord.scalapb" %% "compilerplugin" % "0.6.0"
