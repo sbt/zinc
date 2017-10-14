@@ -182,7 +182,9 @@ object MixedAnalyzingCompiler {
       extra: List[(String, String)]
   ): CompileConfiguration = {
     val classpathHash = classpath map { x =>
-      FileHash.of(x, Stamper.forHash(x).hashCode)
+      val mod = x.lastModified
+      val length = x.length // TODO reverse
+      FileHash.of(x, (mod ^ length).##)
     }
     val compileSetup = MiniSetup.of(
       output,
