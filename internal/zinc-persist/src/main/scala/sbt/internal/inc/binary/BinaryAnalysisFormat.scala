@@ -25,10 +25,12 @@ final class BinaryAnalysisFormat(mappers: ReadWriteMappers) {
     writer.flush()
   }
 
-  def writeAPIs(writer: CodedOutputStream, analysis0: CompileAnalysis, storeApis: Boolean): Unit = {
+  def writeAPIs(writer: CodedOutputStream,
+                analysis0: CompileAnalysis,
+                shouldStoreApis: Boolean): Unit = {
     val analysis = analysis0 match { case analysis: Analysis => analysis }
     val protobufAPIsFile =
-      protobufWriters.toApisFile(analysis.apis, CurrentVersion, storeApis: Boolean)
+      protobufWriters.toApisFile(analysis.apis, CurrentVersion, shouldStoreApis: Boolean)
     protobufAPIsFile.writeTo(writer)
     writer.flush()
   }
@@ -41,10 +43,10 @@ final class BinaryAnalysisFormat(mappers: ReadWriteMappers) {
 
   def readAPIs(reader: CodedInputStream,
                analysis0: CompileAnalysis,
-               storeApis: Boolean): CompileAnalysis = {
+               shouldStoreApis: Boolean): CompileAnalysis = {
     val analysis = analysis0 match { case analysis: Analysis => analysis }
     val protobufAPIsFile = schema.APIsFile.parseFrom(reader)
-    val (apis, _) = protobufReaders.fromApisFile(protobufAPIsFile, storeApis)
+    val (apis, _) = protobufReaders.fromApisFile(protobufAPIsFile, shouldStoreApis)
     analysis.copy(apis = apis)
   }
 }

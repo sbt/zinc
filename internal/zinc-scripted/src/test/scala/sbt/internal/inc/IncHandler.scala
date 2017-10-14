@@ -370,12 +370,14 @@ case class ProjectStructure(
     val extra = Array(t2(("key", "value")))
     val previousResult = prev(
       Option(properties.getProperty("alwaysLoadAnalysis")).exists(_.toBoolean))
+    val initializedIncOptions =
+      incOptions.withClassfileManagerType(transactional).withStoreApis(storeApis)
     val setup = compiler.setup(
       lookup,
       skip = false,
       cacheFile,
       cache = CompilerCache.fresh,
-      incOptions.withClassfileManagerType(transactional).withStoreApis(storeApis),
+      initializedIncOptions,
       reporter,
       optionProgress = None,
       extra

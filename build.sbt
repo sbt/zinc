@@ -207,7 +207,7 @@ lazy val zincPersist = (project in internalPath / "zinc-persist")
     libraryDependencies += sbinary,
     compileOrder := sbt.CompileOrder.Mixed,
     PB.targets in Compile := List(scalapb.gen() -> (sourceManaged in Compile).value),
-    mimaSettings
+    mimaSettings,
   )
 
 // Implements the core functionality of detecting and propagating changes incrementally.

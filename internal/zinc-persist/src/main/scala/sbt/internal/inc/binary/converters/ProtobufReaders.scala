@@ -11,6 +11,7 @@ import java.io.File
 
 import sbt.internal.inc.Relations.ClassDependencies
 import sbt.internal.inc._
+import sbt.internal.inc.binary.converters.ProtobufDefaults.EmptyLazyCompanions
 import sbt.util.InterfaceUtil
 import xsbti.{ Position, Problem, Severity, T2, UseScope }
 import xsbti.compile.{ CompileOrder, FileHash, MiniOptions, MiniSetup, Output, OutputGroup }
@@ -512,7 +513,8 @@ final class ProtobufReaders(mapper: ReadMapper) {
     }
   }
 
-  def fromAnalyzedClass(storeApis: Boolean)(analyzedClass: schema.AnalyzedClass): AnalyzedClass = {
+  def fromAnalyzedClass(shouldStoreApis: Boolean)(
+      analyzedClass: schema.AnalyzedClass): AnalyzedClass = {
     def fromCompanions(companions: schema.Companions): Companions = {
       def expected(msg: String) = ReadersFeedback.expected(msg, Classes.Companions)
       val classApi = companions.classApi.read(fromClassLike, expected("class api"))
@@ -532,13 +534,8 @@ final class ProtobufReaders(mapper: ReadMapper) {
     val compilationTimestamp = analyzedClass.compilationTimestamp
     val name = analyzedClass.name
     val api =
-      if (storeApis)
-        mkLazy((analyzedClass.api.read(fromCompanions, ExpectedCompanionsInAnalyzedClass)))
-      else
-        new Lazy[Companions] {
-          override def get(): Companions =
-            throw new IllegalArgumentException("No companions was stored!")
-        }
+      if (!shouldStoreApis) EmptyLazyCompanions
+      else mkLazy(analyzedClass.api.read(fromCompanions, ExpectedCompanionsInAnalyzedClass))
 
     val apiHash = analyzedClass.apiHash
     val nameHashes = analyzedClass.nameHashes.toZincArray(fromNameHash)
@@ -615,14 +612,14 @@ final class ProtobufReaders(mapper: ReadMapper) {
     )
   }
 
-  def fromApis(storeApis: Boolean)(apis: schema.APIs): APIs = {
-    val internal = apis.internal.mapValues(fromAnalyzedClass(storeApis: Boolean))
-    val external = apis.external.mapValues(fromAnalyzedClass(storeApis: Boolean))
+  def fromApis(shouldStoreApis: Boolean)(apis: schema.APIs): APIs = {
+    val internal = apis.internal.mapValues(fromAnalyzedClass(shouldStoreApis: Boolean))
+    val external = apis.external.mapValues(fromAnalyzedClass(shouldStoreApis: Boolean))
     APIs(internal = internal, external = external)
   }
 
-  def fromApisFile(apisFile: schema.APIsFile, storeApis: Boolean): (APIs, schema.Version) = {
-    val apis = apisFile.apis.read(fromApis(storeApis), ReadersFeedback.ExpectedApisInApisFile)
+  def fromApisFile(apisFile: schema.APIsFile, shouldStoreApis: Boolean): (APIs, schema.Version) = {
+    val apis = apisFile.apis.read(fromApis(shouldStoreApis), ReadersFeedback.ExpectedApisInApisFile)
     val version = apisFile.version
     apis -> version
   }
