@@ -193,9 +193,13 @@ lazy val compilerBridge: Project = (project in internalPath / "compiler-bridge")
     javaOptions in Test += "-Xmx1G",
     inCompileAndTest(unmanagedSourceDirectories ++= BuildDefaults.handleScalaSpecificSources.value),
     mimaSettings,
-    cachedPublishLocal := cachedPublishLocal.dependsOn(cachedPublishLocal.in(zincApiInfo)).value,
     // Make sure that the sources are published for the bridge because we need them to compile it
     publishArtifact in (Compile, packageSrc) := true,
+    // Cached publish local in the bridge also publishes api info and the compiler interface
+    cachedPublishLocal := cachedPublishLocal
+      .dependsOn(cachedPublishLocal.in(zincApiInfo))
+      .dependsOn(cachedPublishLocal.in(compilerInterface))
+      .value,
   )
 
 // defines operations on the API of a source, including determining whether it has changed and converting it to a string

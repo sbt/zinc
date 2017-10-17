@@ -126,40 +126,21 @@ object BuildImplementation {
   }
 
   object BuildCommands {
-    import sbt.{ Command, State }
+    import sbt.Command
     import BuildAutoImported.bridgeScalaVersions
-    def crossTestBridges(bridge: Project): Command = {
-      Command.command("crossTestBridges") { (state: State) =>
-        (bridgeScalaVersions.flatMap { (bridgeVersion: String) =>
-          // Note the ! here. You need this so compilerInterface gets forced to the scalaVersion
-          s"++ $bridgeVersion!" :: s"${bridge.id}/test" :: Nil
-        }) ::: (s"++ ${Dependencies.scala212}!" :: state)
-      }
-    }
 
-    def publishBridgesAndSet(bridge: Project, interface: Project, apiInfo: Project): Command = {
-      Command.args("publishBridgesAndSet", "<version>") { (state, args) =>
-        require(args.nonEmpty, "Missing Scala version argument.")
-        val userScalaVersion = args.mkString("")
-        s"${interface.id}/publishLocal" :: bridgeScalaVersions.flatMap { (v: String) =>
-          s"++ $v!" :: s"${apiInfo.id}/publishLocal" :: s"${bridge.id}/publishLocal" :: Nil
-        } ::: s"++ $userScalaVersion!" :: state
-      }
-    }
-
-    def publishBridgesAndTest(bridge: Project, interface: Project, apiInfo: Project): Command = {
+    def publishBridgesAndTest(bridge: Project, interface: Project, root: Project): Command = {
       Command.args("publishBridgesAndTest", "<version>") { (state, args) =>
         require(args.nonEmpty, "Missing arguments to publishBridgesAndTest.")
         val version = args mkString ""
-        val bridgeCommands: List[String] = bridgeScalaVersions.flatMap { (v: String) =>
-          s"++ $v" :: s"${apiInfo.id}/publishLocal" :: s"${bridge.id}/publishLocal" :: Nil
-        }
-        s"${interface.id}/publishLocal" ::
-          bridgeCommands :::
-          s"++ $version" ::
-          s"zincRoot/scalaVersion" ::
-          s"zincRoot/test" ::
-          s"zincRoot/scripted" ::
+        val bridgeCommands: List[String] =
+          bridgeScalaVersions.flatMap((v: String) => s"+${bridge.id}/publishLocal" :: Nil)
+        val rootProject = root.id
+        bridgeCommands :::
+          s"++$version" ::
+          s"$rootProject/scalaVersion" ::
+          s"$rootProject/test" ::
+          s"$rootProject/scripted" ::
           state
       }
     }
@@ -173,12 +154,10 @@ object BuildImplementation {
       Command.command("runBenchmarks")(st => runPreSetup :: runBenchmark :: tearDownResources :: st)
     }
 
-    def all(bridge: Project, interface: Project, apiInfo: Project, bench: Project): Seq[Command] = {
-      val crossTest = crossTestBridges(bridge)
-      val publishBridges = publishBridgesAndSet(bridge, interface, apiInfo)
-      val publishBridgesTest = publishBridgesAndTest(bridge, interface, apiInfo)
+    def all(bridge: Project, interface: Project, root: Project, bench: Project): Seq[Command] = {
+      val publishBridgesTest = publishBridgesAndTest(bridge, interface, root)
       val runBench = runBenchmarks(bench)
-      List(crossTest, publishBridges, publishBridgesTest, runBench)
+      List(publishBridgesTest, runBench)
     }
   }
 
@@ -236,7 +215,6 @@ object BuildImplementation {
         case _                               => old.filterNot(toFilterInOldScala)
       }
     }
-
 
     /**
       * This setting figures out whether the version is a snapshot or not and configures
