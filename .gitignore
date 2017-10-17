@@ -1,2 +1,3 @@
 target/
 zinc/src/test/resources/bin
+.ivy2/

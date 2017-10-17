@@ -27,13 +27,11 @@ abstract class BridgeProviderSpecification extends UnitSpec {
   def currentManaged: File = currentBase / "target" / "lib_managed"
 
   val resolvers = Array(ZincComponentCompiler.LocalResolver, Resolver.mavenCentral)
-  private val ivyConfiguration =
+  private def ivyConfiguration =
     getDefaultConfiguration(currentBase, currentTarget, resolvers, log)
 
-  def secondaryCacheDirectory: File = {
-    val target = file("target").getAbsoluteFile
-    target / "zinc-components"
-  }
+  // Place where we store the compiled and installed bridges for every Scala version
+  def secondaryCacheDirectory: File = file("target").getAbsoluteFile./("zinc-components")
 
   def getZincProvider(targetDir: File, log: Logger): CompilerBridgeProvider = {
     val lock = ZincComponentCompiler.getDefaultLock
