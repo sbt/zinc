@@ -22,10 +22,9 @@ lazy val zincRoot: Project = (project in file("."))
   )
   .settings(
     name := "Zinc Root",
-    Scripted.scriptedPrescripted := BuildDefaults.addSbtAlternateResolver _,
+    Scripted.scriptedPrescripted := {(f: File) => ()},
     Scripted.scriptedSource := (sourceDirectory in zinc).value / "sbt-test",
     scriptedPublish := cachedPublishLocal.all(ScopeFilter(inAnyProject)).value,
-    Scripted.scriptedUnpublished := BuildDefaults.zincOnlyScripted(zincScripted).evaluated,
     Scripted.scripted :=
       BuildDefaults.zincScripted(compilerBridge, compilerInterface, zincScripted).evaluated,
     commands in Global ++=
@@ -173,7 +172,6 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface")
       baseDirectory.value / "src" / "main" / "contraband-java",
     crossPaths := false,
     autoScalaLibrary := false,
-    zincPublishLocalSettings,
     mimaSettings,
   )
 
@@ -198,7 +196,6 @@ lazy val compilerBridge: Project = (project in internalPath / "compiler-bridge")
     // compiler instances that are memory hungry
     javaOptions in Test += "-Xmx1G",
     inCompileAndTest(unmanagedSourceDirectories ++= BuildDefaults.handleScalaSpecificSources.value),
-    zincPublishLocalSettings,
     mimaSettings,
     cachedPublishLocal := cachedPublishLocal.dependsOn(cachedPublishLocal.in(zincApiInfo)).value,
     // Make sure that the sources are published for the bridge because we need them to compile it

@@ -27,8 +27,6 @@ trait BuildKeys {
   val tearDownBenchmarkResources: TaskKey[Unit] = taskKey[Unit]("Remove benchmark resources.")
   val scriptedPublish = taskKey[Unit]("Publishes all the Zinc artifacts for scripted")
   val cachedPublishLocal = taskKey[Unit]("Publishes a project if it hasn't been published before.")
-  val zincPublishLocal: TaskKey[Unit] =
-    taskKey[Unit]("Publishes Zinc artifacts to a alternative local cache.")
 }
 
 object BuildAutoImported extends BuildKeys {
@@ -44,10 +42,6 @@ object BuildAutoImported extends BuildKeys {
   val ScalaCenterMaintainer: Developer =
     Developer("jvican", "Jorge Vicente Cantero", "@jvican", url("https://github.com/jvican"))
 
-  // Defines the constants for the alternative publishing
-  val ZincAlternativeCacheName = "alternative-local"
-  val ZincAlternativeCacheDir: File = file(sys.props("user.home") + "/.ivy2/zinc-alternative")
-
   // Defines several settings that are exposed to the projects definition in build.sbt
   private[this] val noPublishSettings: Seq[Def.Setting[_]] = BuildDefaults.noPublishSettings
   def noPublish(p: Project): Project = p.settings(noPublishSettings)
@@ -57,10 +51,6 @@ object BuildAutoImported extends BuildKeys {
     List(MimaKeys.mimaPreviousArtifacts := BuildDefaults.zincPreviousArtifacts.value)
   val adaptOptionsForOldScalaVersions: Seq[Def.Setting[_]] =
     List(Keys.scalacOptions := BuildDefaults.zincScalacOptionsRedefinition.value)
-  val zincPublishLocalSettings: Seq[Def.Setting[_]] = List(
-    Keys.resolvers += BuildResolvers.AlternativeLocalResolver,
-    zincPublishLocal := BuildDefaults.zincPublishLocal.value,
-  )
 
   val benchmarksTestDir = sbt.IO.createTemporaryDirectory
   def inCompileAndTest(ss: Def.Setting[_]*): Seq[Def.Setting[_]] =
@@ -116,10 +106,6 @@ object BuildImplementation {
     val BintraySbtIvySnapshots: Resolver =
       Resolver.url("bintray-sbt-ivy-snapshots",
                    new URL("https://dl.bintray.com/sbt/ivy-snapshots/"))(Resolver.ivyStylePatterns)
-
-    import BuildAutoImported.{ ZincAlternativeCacheName, ZincAlternativeCacheDir }
-    val AlternativeLocalResolver: Resolver =
-      Resolver.file(ZincAlternativeCacheName, ZincAlternativeCacheDir)(Resolver.ivyStylePatterns)
 
     // Defines a resolver that is used to publish only for local testing via scripted
     val ScriptedResolverId = "zinc-scripted-local"
@@ -197,7 +183,6 @@ object BuildImplementation {
   }
 
   object BuildDefaults {
-    import BuildAutoImported.{ ZincAlternativeCacheName, ZincAlternativeCacheDir }
     import sbt.{ Task, State, IO }
     private[this] val statusCommands = List(
       List("diff-index", "--cached", "HEAD"),
@@ -252,17 +237,6 @@ object BuildImplementation {
       }
     }
 
-    val zincPublishLocal: Def.Initialize[Task[Unit]] = Def.task {
-      import sbt.internal.librarymanagement._
-      val logger = Keys.streams.value.log
-      val config = (Keys.publishLocalConfiguration).value
-      val ivy = new IvySbt((Keys.ivyConfiguration.value))
-      val moduleSettings = (Keys.moduleSettings).value
-      val module = new ivy.Module(moduleSettings)
-      val newConfig = config.withResolverName(ZincAlternativeCacheName).withOverwrite(false)
-      logger.info(s"Publishing $module to local repo: $ZincAlternativeCacheName")
-      Set(IvyActions.publish(module, newConfig, logger))
-    }
 
     /**
       * This setting figures out whether the version is a snapshot or not and configures
@@ -290,7 +264,7 @@ object BuildImplementation {
       !isDynVerSnapshot(DynVerKeys.dynverGitDescribeOutput.value, Keys.isSnapshot.value)
     }
 
-    private val P = s"[${Console.BOLD}${Console.CYAN}scripted${Console.RESET}]"
+    private val P = "[" + wrapIn(Console.BOLD + Console.CYAN, "scripted") + "]"
     val cachedPublishLocal: Def.Initialize[Task[Unit]] = Def.taskDyn {
       import BuildResolvers.{ ScriptedResolveCacheDir, ScriptedResolver }
       if ((Keys.skip in Keys.publish).value) Def.task(())
@@ -408,47 +382,17 @@ object BuildImplementation {
     def zincScripted(bridgeRef: Project,
                      interfaceRef: Project,
                      scriptedRef: Project): Def.Initialize[InputTask[Unit]] = Def.inputTask {
-      val result = scriptedSource(dir => (s: State) => scriptedParser(dir)).parsed
-
       // First, publish all the zinc modules (not cross-compiled though)
       BuildAutoImported.scriptedPublish.value
 
-      val source = scriptedSource.value
-      val logged = scriptedBufferLog.value
-      val hook = scriptedPrescripted.value
-
-      val scriptedClasspath = (Keys.fullClasspath in scriptedRef in Test).value
-      val instance = (Keys.scalaInstance in scriptedRef).value
-      Scripted.doScripted(scriptedClasspath, instance, source, result, logged, hook)
-    }
-
-    def zincOnlyScripted(scriptedRef: Project): Def.Initialize[InputTask[Unit]] = Def.inputTask {
       val result = scriptedSource(dir => (s: State) => scriptedParser(dir)).parsed
-      val scriptedClasspath = (Keys.fullClasspath in scriptedRef in Test).value
-      val instance = (Keys.scalaInstance in scriptedRef).value
       val source = scriptedSource.value
       val logged = scriptedBufferLog.value
       val hook = scriptedPrescripted.value
+
+      val scriptedClasspath = (Keys.fullClasspath in scriptedRef in Test).value
+      val instance = (Keys.scalaInstance in scriptedRef).value
       Scripted.doScripted(scriptedClasspath, instance, source, result, logged, hook)
-    }
-
-    private[this] val ZincAlternativeResolverPlugin = s"""
-       |import sbt._
-       |import Keys._
-       |
-       |object AddResolverPlugin extends AutoPlugin {
-       |  override def requires = sbt.plugins.JvmPlugin
-       |  override def trigger = allRequirements
-       |
-       |  override lazy val projectSettings = Seq(resolvers += alternativeLocalResolver)
-       |  lazy val alternativeLocalResolver = Resolver.file("$ZincAlternativeCacheName", file("${ZincAlternativeCacheDir.getAbsolutePath}"))(Resolver.ivyStylePatterns)
-       |}
-       |""".stripMargin
-
-    def addSbtAlternateResolver(scriptedRoot: File): Unit = {
-      val resolver = scriptedRoot / "project" / "AddResolverPlugin.scala"
-      if (!resolver.exists) IO.write(resolver, ZincAlternativeResolverPlugin)
-      else ()
     }
 
     val tearDownBenchmarkResources: Def.Initialize[Task[Unit]] =
