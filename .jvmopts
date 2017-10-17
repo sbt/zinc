@@ -1,0 +1,4 @@
+-Xms1024m
+-Xmx4086m
+-XX:ReservedCodeCacheSize=512m
+-XX:MaxInlineLevel=20
