@@ -97,11 +97,25 @@ Zinc's build requires the compiler bridges to be published before tests are run
 (compiler bridges are compiler-specific Scala sources that need to be fetched
 to perform incremental compilation).
 
+The following keys assume that you're at the root project `zincRoot` (true unless you do `project somethingElse`).
+
 |Key|Use|
 |---|---|
-|crossTestBridges|Runs compiler bridge unit tests for all scala versions.|
-|publishBridgesAndTest|Publish bridges and test the whole incremental compiler.|
-|publishBridgesAndSet|Publish bridges and set the current Scala version.|
+|+compilerBridge/cachedPublishLocal|Cross-publishes all the compiler bridges if there have been changes. Required by `scripted`.|
+|cachedPublishLocal|Compiles and publishes all the modules if there have been changes. Executed by `scripted` internally.|
+|test|Run the unit tests (if defined).|
+|scripted|Run all the integration tests that check that incremental compilation happens with real-world examples. You can also pass the scripted test you want to run as an argument.|
+|publishBridgesAndTest|Publish bridges and test the whole incremental compiler. Inefficient for a fast, local developer workflow, ideal for CI.|
+
+##### Workflow?
+
+The most likely scenario is that you don't change code in the bridges. In that case, if you want to
+unit test you run `test` on whichever modules you want (typically in the `zincRoot` for all of them).
+If you want to run integration tests, you run `scripted` directly.
+
+If you change code in the bridges and you want to test it, you must always run
+`+compilerBridge/cachedPublishLocal` for scripted to pick up your changes for all the scala versions.
+Then, you proceed with `scripted`.
 
 ### Benchmarking Zinc
 
