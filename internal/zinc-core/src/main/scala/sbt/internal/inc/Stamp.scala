@@ -138,7 +138,7 @@ object Stamp {
 object Stamper {
   private def tryStamp(g: => Stamp): Stamp = {
     try { g } // TODO: Double check correctness. Why should we not report an exception here?
-    catch { case i: IOException => EmptyStamp }
+    catch { case _: IOException => EmptyStamp }
   }
 
   val forHash = (toStamp: File) => tryStamp(Hash.ofFile(toStamp))

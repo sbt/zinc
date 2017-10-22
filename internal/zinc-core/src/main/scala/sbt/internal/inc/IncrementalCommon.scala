@@ -12,14 +12,7 @@ package inc
 import java.io.File
 
 import xsbti.api.AnalyzedClass
-import xsbti.compile.{
-  Changes,
-  ClassFileManager,
-  CompileAnalysis,
-  DependencyChanges,
-  IncOptions,
-  IncOptionsUtil
-}
+import xsbti.compile.{ Changes, ClassFileManager, CompileAnalysis, DependencyChanges, IncOptions }
 import xsbti.compile.analysis.{ ReadStamps, Stamp }
 
 import scala.annotation.tailrec
@@ -287,7 +280,7 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
   /** Invalidate all classes that claim to produce the same class file as another class. */
   def invalidateDuplicates(merged: Relations): Set[String] =
     merged.srcProd.reverseMap.flatMap {
-      case (classFile, sources) =>
+      case (_, sources) =>
         if (sources.size > 1) sources.flatMap(merged.classNames) else Nil
     }.toSet
 
@@ -456,7 +449,7 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
           if (lookup.changedClasspathHash.isEmpty)
             lookup.lookupAnalysis(binaryClassName) match {
               case None    => false
-              case Some(e) => inv(s"shadowing is detected for class $binaryClassName")
+              case Some(_) => inv(s"shadowing is detected for class $binaryClassName")
             } else
             lookup.lookupOnClasspath(binaryClassName) match {
               case None    => inv(s"could not find class $binaryClassName on the classpath.")

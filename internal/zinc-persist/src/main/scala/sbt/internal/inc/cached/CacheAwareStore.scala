@@ -10,7 +10,6 @@ package sbt.internal.inc.cached
 import java.io.File
 import java.util.Optional
 
-import sbt.internal.inc.ConcreteAnalysisContents
 import xsbti.compile.{ AnalysisContents, AnalysisStore }
 
 case class CacheAwareStore(localStore: AnalysisStore,

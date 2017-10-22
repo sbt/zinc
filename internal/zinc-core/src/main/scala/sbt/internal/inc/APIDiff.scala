@@ -10,8 +10,6 @@ package internal
 package inc
 
 import xsbt.api.DefaultShowAPI
-import java.lang.reflect.Method
-import java.util.{ List => JList }
 
 import xsbti.api.Companions
 
@@ -170,7 +168,6 @@ private[inc] class APIDiff {
         } else {
           val xlen = x.length
           val xmid = xlen / 2
-          val ylen = y.length
 
           val (x1, x2) = x.splitAt(xmid)
           val leftScore = nwScore(x1, y)

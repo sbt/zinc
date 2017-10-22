@@ -198,8 +198,8 @@ final class HashAPI private (
   }
   def hashField(f: FieldLike): Unit = {
     f match {
-      case v: Var => extend(VarHash)
-      case v: Val => extend(ValHash)
+      case _: Var => extend(VarHash)
+      case _: Val => extend(ValHash)
     }
     hashType(f.tpe)
   }
@@ -211,13 +211,13 @@ final class HashAPI private (
   }
   def hashAccess(a: Access): Unit =
     a match {
-      case pub: Public     => extend(PublicHash)
+      case _: Public       => extend(PublicHash)
       case qual: Qualified => hashQualified(qual)
     }
   def hashQualified(qual: Qualified): Unit = {
     qual match {
-      case p: Protected => extend(ProtectedHash)
-      case p: Private   => extend(PrivateHash)
+      case _: Protected => extend(ProtectedHash)
+      case _: Private   => extend(PrivateHash)
     }
     hashQualifier(qual.qualifier)
   }

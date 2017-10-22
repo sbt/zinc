@@ -8,7 +8,7 @@
 package sbt.internal.inc
 
 import java.io.File
-import java.{ lang, util }
+import java.util
 import java.util.Optional
 
 import xsbti.compile.{ Changes, CompileAnalysis, ExternalHooks, FileHash }
