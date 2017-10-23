@@ -9,7 +9,7 @@ package xsbt
 
 import java.io.File
 
-import xsbt.BenchmarkProjects.{ Scalac, Shapeless }
+import xsbt.BenchmarkProjects.Scalac
 
 object GlobalBenchmarkSetup {
 

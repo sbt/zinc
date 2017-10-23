@@ -110,7 +110,7 @@ final class DiagnosticsReporter(reporter: Reporter) extends DiagnosticListener[J
           }
         } catch {
           // TODO - catch ReflectiveOperationException once sbt is migrated to JDK7
-          case ignored: Throwable => None
+          case _: Throwable => None
         }
 
       def getExpression: String =
@@ -137,7 +137,7 @@ final class DiagnosticsReporter(reporter: Reporter) extends DiagnosticListener[J
     private def fixSource[T <: JavaFileObject](source: T): Option[String] = {
       try Option(source).map(_.toUri.normalize).map(new File(_)).map(_.getAbsolutePath)
       catch {
-        case t: IllegalArgumentException =>
+        case _: IllegalArgumentException =>
           // Oracle JDK6 has a super dumb notion of what a URI is.  In fact, it's not even a legimitate URL, but a dump
           // of the filename in a "I hope this works to toString it" kind of way.  This appears to work in practice
           // but we may need to re-evaluate.

@@ -107,7 +107,7 @@ object ClasspathUtilities {
         (in.read() == 0x03) &&
         (in.read() == 0x04)
       }
-    } catch { case e: Exception => false }
+    } catch { case _: Exception => false }
 
   /** Returns all entries in 'classpath' that correspond to a compiler plugin.*/
   private[sbt] def compilerPlugins(classpath: Seq[File]): Iterable[File] = {
@@ -128,6 +128,6 @@ object ClasspathUtilities {
           new File(new URI(if (end == -1) path else path.substring(0, end))) :: Nil
         case _ => Nil
       }
-    } catch { case e: Exception => Nil }
+    } catch { case _: Exception => Nil }
   }
 }

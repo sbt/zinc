@@ -3,12 +3,7 @@ package sbt.inc.binary
 import java.nio.file.Paths
 
 import org.scalacheck.{ Prop, Properties }
-import sbt.internal.inc.{
-  Analysis,
-  AnalysisGenerators,
-  ConcreteAnalysisContents,
-  FileAnalysisStore
-}
+import sbt.internal.inc.{ Analysis, AnalysisGenerators, FileAnalysisStore }
 import sbt.io.IO
 import xsbti.compile.AnalysisContents
 import xsbti.compile.analysis.ReadWriteMappers

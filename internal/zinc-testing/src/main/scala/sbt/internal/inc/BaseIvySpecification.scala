@@ -19,8 +19,6 @@ import sbt.librarymanagement._
 import sbt.librarymanagement.ivy._
 import Configurations._
 
-import sjsonnew.shaded.scalajson.ast.unsafe.JValue
-
 trait BaseIvySpecification extends UnitSpec {
   def currentBase: File = new File(".")
   def currentTarget: File = currentBase / "target" / "ivyhome"

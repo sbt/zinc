@@ -64,7 +64,7 @@ object ShowAPI {
     case st: Projection   => showType(st.prefix) + "#" + st.id
     case st: ParameterRef => "<" + st.id + ">"
     case st: Singleton    => showPath(st.path)
-    case st: EmptyType    => "<empty>"
+    case _: EmptyType     => "<empty>"
     case p: Parameterized =>
       showType(p.baseType) + p.typeArguments.map(showType).mkString("[", ", ", "]")
     case c: Constant  => showType(c.baseType) + "(" + c.value + ")"
@@ -149,7 +149,7 @@ object ShowAPI {
   }
 
   private def showAccess(a: Access) = a match {
-    case p: Public    => ""
+    case _: Public    => ""
     case p: Protected => "protected" + showQualifier(p.qualifier)
     case p: Private   => "private" + showQualifier(p.qualifier)
   }

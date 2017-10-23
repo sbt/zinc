@@ -99,12 +99,12 @@ object Discovery {
   def named(t: Type, nme: String) = simpleName(t) == Some(nme)
 
   def simpleName(t: Type): Option[String] = t match {
-    case a: Annotated    => simpleName(a.baseType)
-    case sing: Singleton => None
+    case a: Annotated => simpleName(a.baseType)
+    case _: Singleton => None
     case p: Projection =>
       p.prefix match {
         case s: Singleton => pathName(s.path, p.id)
-        case e: EmptyType => Some(p.id)
+        case _: EmptyType => Some(p.id)
         case _            => None
       }
     case _ => None

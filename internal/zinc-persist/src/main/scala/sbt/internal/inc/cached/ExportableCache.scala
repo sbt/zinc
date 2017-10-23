@@ -53,7 +53,7 @@ class ExportableCache(val cacheLocation: Path, cleanOutputMode: CleanOutputMode 
     val oldStamps = analysis.stamps
 
     val updatedProducts = oldStamps.products.map {
-      case (file, stamp) if importedFiles.contains(file) =>
+      case (file, _) if importedFiles.contains(file) =>
         (file, Stamper.forLastModified(file))
       case other => other
     }
