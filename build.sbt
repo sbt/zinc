@@ -157,7 +157,7 @@ lazy val zincRoot: Project = (project in file("."))
         developers +=
           Developer("jvican", "Jorge Vicente Cantero", "@jvican", url("https://github.com/jvican")),
         scalafmtOnCompile := true,
-        scalafmtVersion := "1.2.0",
+        scalafmtVersion := "1.3.0",
         scalafmtOnCompile in Sbt := false,
       )),
     minimalSettings,
