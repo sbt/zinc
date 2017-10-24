@@ -1,7 +1,6 @@
 import Util._
 import Dependencies._
 import Scripted._
-//import com.typesafe.tools.mima.core._, ProblemFilters._
 
 def baseVersion = "1.1.0-SNAPSHOT"
 def internalPath = file("internal")
@@ -157,6 +156,9 @@ lazy val zincRoot: Project = (project in file("."))
         homepage := Some(url("https://github.com/sbt/zinc")),
         developers +=
           Developer("jvican", "Jorge Vicente Cantero", "@jvican", url("https://github.com/jvican")),
+        scalafmtOnCompile := true,
+        scalafmtVersion := "1.2.0",
+        scalafmtOnCompile in Sbt := false,
       )),
     minimalSettings,
     otherRootSettings,
