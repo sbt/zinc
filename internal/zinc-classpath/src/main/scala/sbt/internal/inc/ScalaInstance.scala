@@ -176,7 +176,7 @@ object ScalaInstance {
   /** Gets the version of Scala in the compiler.properties file from the loader.*/
   private def actualVersion(scalaLoader: ClassLoader)(label: String) = {
     try fastActualVersion(scalaLoader)
-    catch { case e: Exception => slowActualVersion(scalaLoader)(label) }
+    catch { case _: Exception => slowActualVersion(scalaLoader)(label) }
   }
 
   private def slowActualVersion(scalaLoader: ClassLoader)(label: String) = {

@@ -12,16 +12,7 @@ package inc
 import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
 import xsbt.api.{ APIUtil, HashAPI, NameHashing }
 import xsbti.api._
-import xsbti.compile.{
-  ClassFileManager,
-  CompileAnalysis,
-  DependencyChanges,
-  IncOptions,
-  MultipleOutput,
-  Output,
-  OutputGroup,
-  SingleOutput
-}
+import xsbti.compile.{ ClassFileManager, CompileAnalysis, DependencyChanges, IncOptions, Output }
 import xsbti.{ Position, Problem, Severity, UseScope }
 import sbt.util.Logger
 import sbt.util.InterfaceUtil.jo2o
