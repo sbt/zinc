@@ -1,0 +1,1 @@
+ProblemFilters.exclude[ReversedMissingMethodProblem]("xsbti.compile.ExternalHooks#Lookup.hashClasspath")

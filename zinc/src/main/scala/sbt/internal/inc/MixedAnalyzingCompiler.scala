@@ -181,13 +181,21 @@ object MixedAnalyzingCompiler {
       incrementalCompilerOptions: IncOptions,
       extra: List[(String, String)]
   ): CompileConfiguration = {
-    val classpathHash = classpath map { x =>
-      FileHash.of(x, Stamper.forHash(x).hashCode)
-    }
+    val lookup = incrementalCompilerOptions.externalHooks().getExternalLookup
+
+    def doHash: Array[FileHash] =
+      classpath.map(x => FileHash.of(x, Stamper.forHash(x).hashCode))(collection.breakOut)
+
+    val classpathHash =
+      if (lookup.isPresent) {
+        val computed = lookup.get().hashClasspath(classpath.toArray)
+        if (computed.isPresent) computed.get() else doHash
+      } else doHash
+
     val compileSetup = MiniSetup.of(
       output,
       MiniOptions.of(
-        classpathHash.toArray,
+        classpathHash,
         options.toArray,
         javacOptions.toArray
       ),

@@ -90,3 +90,12 @@ trait ExternalLookup extends ExternalHooks.Lookup {
     shouldDoIncrementalCompilation(changedClasses.iterator().asScala.toSet, previousAnalysis)
   }
 }
+
+trait NoopExternalLookup extends ExternalLookup {
+  override def changedSources(previous: CompileAnalysis): Option[Changes[File]] = None
+  override def changedBinaries(previous: CompileAnalysis): Option[Set[File]] = None
+  override def removedProducts(previous: CompileAnalysis): Option[Set[File]] = None
+  override def shouldDoIncrementalCompilation(changedClasses: Set[String],
+                                              analysis: CompileAnalysis): Boolean = true
+  override def hashClasspath(classpath: Array[File]): Optional[Array[FileHash]] = Optional.empty()
+}
