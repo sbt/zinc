@@ -170,7 +170,9 @@ trait AnalysisGenerators {
       external <- someOf(src.external.all.toList)
     } yield Relations.makeClassDependencies(Relation.empty ++ internal, Relation.empty ++ external)
 
-  def genScalaName: Gen[String] = Gen.listOf(Gen.choose('!', 'Z')).map(_.toString())
+  def genScalaName: Gen[String] = {
+    Gen.listOf(Gen.oneOf(Gen.choose('!', 'Z'), Gen.const('\n'))).map(_.toString())
+  }
 
   def genUsedName(namesGen: Gen[String] = genScalaName): Gen[UsedName] =
     for {

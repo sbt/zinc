@@ -11,12 +11,18 @@ import java.util
 
 import xsbti.UseScope
 
-case class UsedName(name: String, scopes: util.EnumSet[UseScope])
+case class UsedName private (name: String, scopes: util.EnumSet[UseScope])
 
 object UsedName {
+
   def apply(name: String, scopes: Iterable[UseScope] = Nil): UsedName = {
+    val escapedName = escapeControlChars(name)
     val useScopes = util.EnumSet.noneOf(classOf[UseScope])
     scopes.foreach(useScopes.add)
-    UsedName(name, useScopes)
+    UsedName(escapedName, useScopes)
+  }
+
+  private def escapeControlChars(name: String) = {
+    name.replaceAllLiterally("\n", "\u26680A")
   }
 }
