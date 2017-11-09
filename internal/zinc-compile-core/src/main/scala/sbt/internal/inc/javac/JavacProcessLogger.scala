@@ -13,6 +13,8 @@ package javac
 
 import xsbti._
 import java.io.File
+
+import scala.collection.mutable.ListBuffer
 import scala.sys.process.ProcessLogger
 
 /**
@@ -20,43 +22,37 @@ import scala.sys.process.ProcessLogger
  * dump logs.
  *
  *
- * @param log  The logger where all input will go.
+ * @param log  The logger where all non-semantic messages will go.
  * @param reporter  A reporter for semantic Javac error messages.
  * @param cwd The current working directory of the Javac process, used when parsing Filenames.
  */
 final class JavacLogger(log: sbt.util.Logger, reporter: Reporter, cwd: File) extends ProcessLogger {
-  import scala.collection.mutable.ListBuffer
-  import sbt.util.Level.{ Info, Error, Value => LogLevel }
-
-  private val msgs: ListBuffer[(LogLevel, String)] = new ListBuffer()
+  private var out: ListBuffer[String] = new ListBuffer()
+  private var err: ListBuffer[String] = new ListBuffer()
 
   def out(s: => String): Unit =
-    synchronized { msgs += ((Info, s)); () }
+    synchronized { out += s }
 
   def err(s: => String): Unit =
-    synchronized { msgs += ((Error, s)); () }
+    synchronized { err += s }
 
   def buffer[T](f: => T): T = f
 
-  // Helper method to dump all semantic errors.
-  private def parseAndDumpSemanticErrors(): Unit = {
-    val input =
-      msgs collect {
-        case (Error, msg) => msg
-      } mkString "\n"
-    val parser = new JavaErrorParser(cwd)
-    parser.parseProblems(input, log).foreach(reporter.log)
-  }
+  def flush(exitCode: Int): Unit = flush("tool", exitCode)
 
-  def flush(exitCode: Int): Unit = {
-    parseAndDumpSemanticErrors()
-    // Here we only display things that wouldn't otherwise be output by the error reporter.
+  def flush(toolname: String, exitCode: Int): Unit = {
     // TODO - NOTES may not be displayed correctly!
-    msgs collect {
-      case (Info, msg) => msg
-    } foreach { msg =>
-      log.info(msg)
+    synchronized {
+      val parser = new JavaErrorParser(cwd)
+
+      parser.parseProblems(err.mkString("\n"), log).foreach(reporter.log(_))
+      out.foreach(log.info(_))
+
+      if (exitCode != 0)
+        log.warn(s"$toolname exited with exit code $exitCode")
+
+      out.clear()
+      err.clear()
     }
-    msgs.clear()
   }
 }

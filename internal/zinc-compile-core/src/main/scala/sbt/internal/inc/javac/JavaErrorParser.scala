@@ -220,12 +220,16 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
    */
   final def parseProblems(in: String, logger: sbt.util.Logger): Seq[Problem] =
     parse(javacOutput, in) match {
-      case Success(result, _) => result
-      case Failure(_, n) =>
-        logger.warn(s"Unexpected javac output at:${n.pos.longString}.")
+      case Success(result, next) =>
+        if (!next.atEnd) {
+          logger.warn(s"Unexpected javac output: ${next.source}.")
+        }
+        result
+      case Failure(msg, n) =>
+        logger.warn(s"Unexpected javac output at ${n.pos.longString}: $msg.")
         Seq.empty
-      case Error(_, n) =>
-        logger.warn(s"Unexpected javac output at:${n.pos.longString}.")
+      case Error(msg, n) =>
+        logger.warn(s"Unexpected javac output at ${n.pos.longString}: $msg.")
         Seq.empty
     }
 

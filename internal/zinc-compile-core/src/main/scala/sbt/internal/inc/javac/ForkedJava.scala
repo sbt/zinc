@@ -43,7 +43,7 @@ object ForkedJava {
       try {
         exitCode = Process(exe +: forkArgs, cwd) ! javacLogger
       } finally {
-        javacLogger.flush(exitCode)
+        javacLogger.flush(program, exitCode)
       }
       // We return true or false, depending on success.
       exitCode == 0
