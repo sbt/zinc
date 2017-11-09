@@ -350,7 +350,8 @@ lazy val compilerBridge: Project = (project in internalPath / "compiler-bridge")
     javaOptions in Test += "-Xmx1G",
     inBoth(unmanagedSourceDirectories ++= scalaPartialVersion.value.collect {
       case (2, y) if y == 10 => new File(scalaSource.value.getPath + "_2.10")
-      case (2, y) if y >= 11 => new File(scalaSource.value.getPath + "_2.11+")
+      case (2, y) if y > 10 && y < 13 => new File(scalaSource.value.getPath + "_2.11+")
+      case (2, y) if y >= 13 => new File(scalaSource.value.getPath + "_2.13+")
     }.toList),
     cleanSbtBridge := {
       val sbtV = sbtVersion.value
