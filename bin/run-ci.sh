@@ -12,6 +12,8 @@ sbt -Dfile.encoding=UTF-8 \
   test:scalafmt::test \
   headerCheck \
   test:headerCheck \
+  ++2.10.11 \
+  compilerInterface/compile \
   zincRoot/test:compile \
   crossTestBridges \
   "publishBridgesAndSet $SCALA_VERSION" \
