@@ -24,7 +24,7 @@ lazy val zincRoot: Project = (project in file("."))
     name := "Zinc Root",
     Scripted.scriptedPrescripted := {(f: File) => ()},
     Scripted.scriptedSource := (sourceDirectory in zinc).value / "sbt-test",
-    scriptedPublish := cachedPublishLocal.all(ScopeFilter(inAnyProject)).value,
+    scriptedPublish := cachedPublishLocal.value,
     Scripted.scripted :=
       BuildDefaults.zincScripted(compilerBridge, compilerInterface, zincScripted).evaluated,
     commands in Global ++=
