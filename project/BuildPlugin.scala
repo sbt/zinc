@@ -71,15 +71,15 @@ object BuildImplementation {
     ReleaseEarlyKeys.releaseEarlyWith := ReleaseEarlyKeys.BintrayPublisher,
     Keys.description := "Incremental compiler of Scala",
     // The rest of the sbt developers come from the Sbt Houserules plugin
-    Keys.developers += BuildAutoImported.ScalaCenterMaintainer,
-    Keys.homepage := Some(BuildAutoImported.ZincGitHomepage),
-    Keys.publishArtifact in (Compile, Keys.packageDoc) :=
+    developers += BuildAutoImported.ScalaCenterMaintainer,
+    homepage := Some(BuildAutoImported.ZincGitHomepage),
+    publishArtifact in (Compile, packageDoc) :=
       BuildDefaults.publishDocAndSourceArtifact.value,
-    Keys.publishArtifact in (Compile, Keys.packageSrc) :=
+    publishArtifact in (Compile, packageSrc) :=
       BuildDefaults.publishDocAndSourceArtifact.value,
-    Keys.version := {
-      val previous = Keys.version.value
-      if (previous.contains("-SNAPSHOT")) GitKeys.baseVersion.value else previous
+    version := {
+      val previous = version.value
+      if (previous.contains("-SNAPSHOT")) baseVersion.value else previous
     },
   )
 
@@ -95,6 +95,10 @@ object BuildImplementation {
     Keys.publishArtifact in Test := false,
     Keys.scalacOptions += "-YdisableFlatCpCaching",
     BuildAutoImported.cachedPublishLocal := BuildDefaults.cachedPublishLocal.value,
+    publishArtifact in (Compile, packageDoc) :=
+      BuildDefaults.publishDocAndSourceArtifact.value,
+    publishArtifact in (Compile, packageSrc) :=
+      BuildDefaults.publishDocAndSourceArtifact.value,
   )
 
   object BuildResolvers {
@@ -239,26 +243,26 @@ object BuildImplementation {
       }
 
       // We publish doc and source artifacts if the version is not a snapshot
-      !isDynVerSnapshot(DynVerKeys.dynverGitDescribeOutput.value, Keys.isSnapshot.value)
+      !isDynVerSnapshot(DynVerKeys.dynverGitDescribeOutput.value, isSnapshot.value)
     }
 
     private val P = "[" + wrapIn(Console.BOLD + Console.CYAN, "scripted") + "]"
     val cachedPublishLocal: Def.Initialize[Task[Unit]] = Def.taskDyn {
       import BuildResolvers.{ ScriptedResolveCacheDir, ScriptedResolver }
-      if ((Keys.skip in Keys.publish).value) Def.task(())
+      if ((skip in publish).value) Def.task(())
       else
         Def.taskDyn {
           import sbt.util.Logger.{ Null => NoLogger }
-          val logger = Keys.streams.value.log
+          val logger = streams.value.log
 
           // Find out the configuration of this task to invoke source dirs in the right place
-          val taskConfig = Keys.resolvedScoped.value.scope.config
+          val taskConfig = resolvedScoped.value.scope.config
           val currentConfig: sbt.ConfigKey = taskConfig.fold(identity, Compile, Compile)
 
           // Important to make it transitive, we just want to check if a jar exists
-          val moduleID = Keys.projectID.value.intransitive()
-          val scalaModule = Keys.scalaModuleInfo.value
-          val ivyConfig = Keys.ivyConfiguration.value
+          val moduleID = projectID.value.intransitive()
+          val scalaModule = scalaModuleInfo.value
+          val ivyConfig = ivyConfiguration.value
           val options = ivyConfig.updateOptions
 
           // If it's another thing, just fail! We must have an inline ivy config here.
@@ -275,10 +279,10 @@ object BuildImplementation {
             case l: Left[_, _] => publishLocalWrapper(moduleID, fasterIvyConfig, false)
             case Right(resolved) =>
               Def.taskDyn {
-                val projectName = Keys.name.value
+                val projectName = name.value
                 val baseDirectory = Keys.baseDirectory.value.toPath()
-                val sourceDirs = Keys.sourceDirectories.in(currentConfig).value
-                val resourceDirs = Keys.resourceDirectories.in(currentConfig).value
+                val sourceDirs = sourceDirectories.in(currentConfig).value
+                val resourceDirs = resourceDirectories.in(currentConfig).value
                 val allDirs = sourceDirs ++ resourceDirs
                 val files = allDirs.flatMap(sbt.Path.allSubpaths(_)).toIterator.map(_._1)
 
@@ -309,7 +313,7 @@ object BuildImplementation {
       import sbt.internal.librarymanagement._
       import sbt.librarymanagement.{ ModuleSettings, PublishConfiguration }
       Def.task {
-        val logger = Keys.streams.value.log
+        val logger = streams.value.log
 
         def publishLocal(moduleSettings: ModuleSettings, config: PublishConfiguration): Unit = {
           val ivy = new IvySbt(ivyConfiguration)
