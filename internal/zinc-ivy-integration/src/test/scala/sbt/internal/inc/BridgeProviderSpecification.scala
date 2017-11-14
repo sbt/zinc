@@ -26,7 +26,21 @@ abstract class BridgeProviderSpecification extends UnitSpec {
   def currentTarget: File = currentBase / "target" / "ivyhome"
   def currentManaged: File = currentBase / "target" / "lib_managed"
 
-  val resolvers = Array(ZincComponentCompiler.LocalResolver, Resolver.mavenCentral)
+  private final val ZincScriptedLocal =
+    s"$${user.dir}/.ivy2/zinc-scripted-local/${Resolver.localBasePattern}"
+  private final val ScriptedResolver: Resolver = {
+    import sbt.librarymanagement.{ FileRepository, Patterns }
+    val toUse = Vector(ZincScriptedLocal)
+    val ivyPattern = Patterns().withIsMavenCompatible(false)
+    val finalPatterns = ivyPattern
+      .withIvyPatterns(toUse)
+      .withArtifactPatterns(toUse)
+      .withSkipConsistencyCheck(true)
+    FileRepository("zinc-scripted-local", Resolver.defaultFileConfiguration, finalPatterns)
+  }
+
+  // Use the scripted resolver to make sure that we don't mistakenly get user local jars
+  val resolvers = Array(ScriptedResolver, Resolver.mavenCentral)
   private def ivyConfiguration =
     getDefaultConfiguration(currentBase, currentTarget, resolvers, log)
 
