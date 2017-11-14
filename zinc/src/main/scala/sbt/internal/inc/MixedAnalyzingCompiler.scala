@@ -11,6 +11,7 @@ package inc
 
 import java.io.File
 import java.lang.ref.{ Reference, SoftReference }
+import java.nio.file.Files
 import java.util.Optional
 
 import inc.javac.AnalyzingJavaCompiler
@@ -20,6 +21,7 @@ import xsbti.compile._
 import sbt.io.IO
 import sbt.util.{ InterfaceUtil, Logger }
 import sbt.internal.inc.JavaInterfaceUtil.EnrichOption
+import sbt.internal.inc.caching.ClasspathCache
 import xsbti.compile.ClassFileManager
 
 /** An instance of an analyzing compiler that can run both javac + scalac. */
@@ -181,13 +183,11 @@ object MixedAnalyzingCompiler {
       incrementalCompilerOptions: IncOptions,
       extra: List[(String, String)]
   ): CompileConfiguration = {
-    val classpathHash = classpath map { x =>
-      FileHash.of(x, Stamper.forHash(x).hashCode)
-    }
+    val classpathHash = ClasspathCache.hashClasspath(classpath)
     val compileSetup = MiniSetup.of(
       output,
       MiniOptions.of(
-        classpathHash.toArray,
+        classpathHash,
         options.toArray,
         javacOptions.toArray
       ),
