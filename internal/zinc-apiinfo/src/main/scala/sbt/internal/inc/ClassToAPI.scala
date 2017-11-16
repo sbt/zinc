@@ -244,11 +244,13 @@ object ClassToAPI {
     accumulate(t).filterNot(_ == null).distinct
   }
 
-  @deprecated("No longer used", "0.13.0")
-  def parents(c: Class[_]): Seq[api.Type] = types(allSuperTypes(c))
-  def types(ts: Seq[Type]): Array[api.Type] = (ts filter (_ ne null) map reference).toArray
+  def types(ts: Seq[Type]): Array[api.Type] =
+    ts.filter(_ ne null).map(reference).toArray
   def upperBounds(ts: Array[Type]): api.Type =
     api.Structure.of(lzy(types(ts)), lzyEmptyDefArray, lzyEmptyDefArray)
+
+  @deprecated("No longer used", "0.13.0")
+  def parents(c: Class[_]): Seq[api.Type] = types(allSuperTypes(c))
 
   @deprecated("Use fieldToDef[4] instead", "0.13.9")
   def fieldToDef(enclPkg: Option[String])(f: Field): api.FieldLike = {
@@ -496,12 +498,18 @@ object ClassToAPI {
         api.Projection.of(api.Singleton.of(pathFromString(p)), cls)
     }
   }
+
+  // sbt/zinc#389: Ignore nulls coming from generic parameter types of lambdas
+  private[this] def ignoreNulls[T](genericTypes: Array[T]): Array[T] =
+    genericTypes.filter(_ != null)
+
   def referenceP(t: ParameterizedType): api.Parameterized = {
-    val targs = t.getActualTypeArguments
+    val targs = ignoreNulls(t.getActualTypeArguments)
     val args = if (targs.isEmpty) emptyTypeArray else arrayMap(targs)(t => reference(t): api.Type)
     val base = reference(t.getRawType)
     api.Parameterized.of(base, args)
   }
+
   def reference(t: Type): api.Type =
     t match {
       case _: WildcardType       => reference("_")
@@ -557,7 +565,7 @@ object ClassToAPI {
       case _: GenericSignatureFormatError => f.getType
     }
   private[this] def parameterTypes(c: Constructor[_]): Array[Type] =
-    try c.getGenericParameterTypes
+    try ignoreNulls(c.getGenericParameterTypes)
     catch {
       case _: GenericSignatureFormatError => convert(c.getParameterTypes)
     }
@@ -567,7 +575,7 @@ object ClassToAPI {
       case _: GenericSignatureFormatError => convert(c.getExceptionTypes)
     }
   private[this] def parameterTypes(m: Method): Array[Type] =
-    try m.getGenericParameterTypes
+    try ignoreNulls(m.getGenericParameterTypes)
     catch {
       case _: GenericSignatureFormatError => convert(m.getParameterTypes)
     }
@@ -581,7 +589,6 @@ object ClassToAPI {
     catch {
       case _: GenericSignatureFormatError => convert(m.getExceptionTypes)
     }
-
   private[this] def typeParameterTypes[T](m: Constructor[T]): Array[TypeVariable[Constructor[T]]] =
     try m.getTypeParameters
     catch {
