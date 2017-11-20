@@ -176,6 +176,15 @@ lazy val zinc = (project in file("zinc"))
     zincClassfile,
     zincIvyIntegration % "compile->compile;test->test",
     zincTesting % Test
+  ).settings(
+    Seq(Compile, Test) flatMap (inConfig(_)(
+      Seq(headerCreate, headerCheck) flatMap (inTask(_)(
+        unmanagedResources ~= (_ filterNot { f =>
+          // exclude test resource source files
+          (f.getName endsWith ".java") || (f.getName endsWith ".scala")
+        })
+      ))
+    )),
   )
   .configure(addBaseSettingsAndTestDeps)
   .settings(
@@ -283,6 +292,14 @@ lazy val zincCompileCore = (project in internalPath / "zinc-compile-core")
       baseDirectory.value / "src" / "main" / "contraband-java",
     sourceManaged in (Compile, generateContrabands) := baseDirectory.value / "src" / "main" / "contraband-java",
     mimaSettings,
+    Seq(Compile, Test) flatMap (inConfig(_)(
+      Seq(headerCreate, headerCheck) flatMap (inTask(_)(
+        unmanagedResources ~= (_ filterNot { f =>
+          // exclude test resource source files
+          (f.getName endsWith ".java") || (f.getName endsWith ".scala")
+        })
+      ))
+    )),
   )
   .configure(addSbtUtilLogging, addSbtIO, addSbtUtilControl)
 
