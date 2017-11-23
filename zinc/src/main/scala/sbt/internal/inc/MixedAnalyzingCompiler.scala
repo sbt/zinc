@@ -11,6 +11,7 @@ package inc
 
 import java.io.File
 import java.lang.ref.{ Reference, SoftReference }
+import java.nio.file.Files
 import java.util.Optional
 
 import inc.javac.AnalyzingJavaCompiler
@@ -20,6 +21,7 @@ import xsbti.compile._
 import sbt.io.IO
 import sbt.util.{ InterfaceUtil, Logger }
 import sbt.internal.inc.JavaInterfaceUtil.EnrichOption
+import sbt.internal.inc.caching.ClasspathCache
 import xsbti.compile.ClassFileManager
 
 /** An instance of an analyzing compiler that can run both javac + scalac. */
@@ -184,7 +186,7 @@ object MixedAnalyzingCompiler {
     val lookup = incrementalCompilerOptions.externalHooks().getExternalLookup
 
     def doHash: Array[FileHash] =
-      classpath.map(x => FileHash.of(x, Stamper.forHash(x).hashCode))(collection.breakOut)
+      ClasspathCache.hashClasspath(classpath)
 
     val classpathHash =
       if (lookup.isPresent) {
