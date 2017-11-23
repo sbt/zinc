@@ -57,8 +57,18 @@ final class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogg
   type IncCommand = (ProjectStructure, List[String], IncInstance) => Unit
 
   val compiler = new IncrementalCompilerImpl
-  def initialState: Option[IncInstance] = None
-  def finish(state: Option[IncInstance]): Unit = ()
+
+  def initialState: Option[IncInstance] = {
+    initBuildStructure()
+    None
+  }
+
+  def finish(state: Option[IncInstance]): Unit = {
+    // Required so that next projects re-read the project structure
+    buildStructure.clear()
+    ()
+  }
+
   val buildStructure: mutable.Map[String, ProjectStructure] = mutable.Map.empty
   def initBuildStructure(): Unit = {
     val build = initBuild
@@ -69,8 +79,6 @@ final class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogg
       buildStructure(p.name) = project
     }
   }
-
-  initBuildStructure()
 
   private final val RootIdentifier = "root"
   def initBuild: Build = {
@@ -108,14 +116,14 @@ final class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogg
   private final val noLogger = Logger.Null
   private[this] def onNewIncInstance(p: ProjectStructure): IncInstance = {
     val scalaVersion = p.scalaVersion
-    val (compilerBridge, si) = IncHandler.scriptedCompilerCache.get(scalaVersion) match {
+    val (compilerBridge, si) = IncHandler.getCompilerCacheFor(scalaVersion) match {
       case Some(alreadyInstantiated) =>
         alreadyInstantiated
       case None =>
         val compilerBridge = getCompilerBridge(cacheDir, noLogger, scalaVersion)
         val si = scalaInstance(scalaVersion, cacheDir, noLogger)
         val toCache = (compilerBridge, si)
-        IncHandler.scriptedCompilerCache.put(scalaVersion, toCache)
+        IncHandler.putCompilerCache(scalaVersion, toCache)
         toCache
     }
     val analyzingCompiler = scalaCompiler(si, compilerBridge)
@@ -505,7 +513,12 @@ case class ProjectStructure(
 
 object IncHandler {
   type Cached = (File, xsbti.compile.ScalaInstance)
-  private[internal] final val scriptedCompilerCache = new mutable.WeakHashMap[String, Cached]()
+  private[this] final val scriptedCompilerCache = new mutable.WeakHashMap[String, Cached]()
+  def getCompilerCacheFor(scalaVersion: String): Option[Cached] =
+    synchronized(scriptedCompilerCache.get(scalaVersion))
+  def putCompilerCache(scalaVersion: String, cached: Cached): Option[Cached] =
+    synchronized(scriptedCompilerCache.put(scalaVersion, cached))
+
   private[internal] final val classLoaderCache = Some(
     new ClassLoaderCache(new URLClassLoader(Array())))
 }
