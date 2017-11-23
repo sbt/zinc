@@ -70,3 +70,9 @@ active development. For information on how to contribute, please check the
 [CONTRIBUTING guide](CONTRIBUTING.md).
 
 This software is released under the following [LICENSE](LICENSE).
+
+## Acknoledgements
+
+| Logo | Acknoledgement |
+| ---- | -------------- |
+| ![](https://www.yourkit.com/images/yklogo.png) | We thank [Yourkit](https://www.yourkit.com/) for supporting this open-source project with its full-featured profiler. |
