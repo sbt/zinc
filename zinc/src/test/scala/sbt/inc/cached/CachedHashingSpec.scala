@@ -7,8 +7,8 @@
 
 package sbt.inc.cached
 
-import java.nio.file.Paths
-
+import java.nio.file.{ Path, Paths }
+import java.io.File
 import sbt.inc.{ BaseCompilerSpec, SourceFiles }
 import sbt.internal.inc.{ Analysis, CompileOutput, MixedAnalyzingCompiler }
 import sbt.io.IO
@@ -61,5 +61,57 @@ class CachedHashingSpec extends BaseCompilerSpec {
       assert(cachedHashingTime < (hashingTime * 0.20),
              s"Cache jar didn't work: $cachedHashingTime is >= than 20% of $hashingTime.")
     }
+  }
+
+  it should "fall back when the JAR metadata is changed" in {
+    IO.withTemporaryDirectory { tempDir =>
+      val classes = Seq(SourceFiles.Good)
+      val sources0 = Map(Paths.get("src") -> classes.map(path => Paths.get(path)))
+      val projectSetup = ProjectSetup(tempDir.toPath(), sources0, Nil)
+      val compiler = projectSetup.createCompiler()
+
+      import compiler.in.{ setup, options, compilers, previousResult }
+      import sbt.internal.inc.JavaInterfaceUtil._
+      import sbt.io.syntax._
+
+      val javac = compilers.javaTools.javac
+      val scalac = compilers.scalac
+      val fakeLibraryJar = tempDir / "lib" / "foo.jar"
+
+      def genConfig = MixedAnalyzingCompiler.makeConfig(
+        scalac,
+        javac,
+        options.sources,
+        List(fakeLibraryJar),
+        CompileOutput(options.classesDirectory),
+        setup.cache,
+        setup.progress.toOption,
+        options.scalacOptions,
+        options.javacOptions,
+        Analysis.empty,
+        previousResult.setup.toOption,
+        setup.perClasspathEntryLookup,
+        setup.reporter,
+        options.order,
+        setup.skip,
+        setup.incrementalCompilerOptions,
+        setup.extra.toList.map(_.toScalaTuple)
+      )
+
+      IO.copyFile(fromResource(Paths.get("jar1.jar")), fakeLibraryJar)
+      genConfig
+
+      // This mimics changing dependency like -SNAPSHOT
+      IO.copyFile(fromResource(Paths.get("classesDep1.zip")), fakeLibraryJar)
+      genConfig
+    }
+  }
+
+  private def fromResource(path: Path): File = {
+    val prefix = Paths.get("bin")
+    val fullPath = prefix.resolve(path).toString()
+    Option(getClass.getClassLoader.getResource(fullPath))
+      .map(url => new File(url.toURI))
+      .getOrElse(throw new NoSuchElementException(s"Missing resource $fullPath"))
   }
 }
