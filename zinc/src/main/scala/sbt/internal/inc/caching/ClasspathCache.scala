@@ -32,7 +32,7 @@ object ClasspathCache {
           val currentMetadata = (attrs.lastModifiedTime(), attrs.size())
           Option(cacheMetadataJar.get(file)) match {
             case Some((metadata, hashHit)) if metadata == currentMetadata => hashHit
-            case None                                                     => genFileHash(file, currentMetadata)
+            case _                                                        => genFileHash(file, currentMetadata)
           }
         }
       }
