@@ -15,6 +15,7 @@ import java.util.Optional
 
 import sbt.io.{ Hash => IOHash }
 import xsbti.compile.analysis.{ ReadStamps, Stamp }
+import sbt.io.Milli.getModifiedTime
 
 import scala.collection.immutable.TreeMap
 import scala.util.matching.Regex
@@ -142,7 +143,7 @@ object Stamper {
   }
 
   val forHash = (toStamp: File) => tryStamp(Hash.ofFile(toStamp))
-  val forLastModified = (toStamp: File) => tryStamp(new LastModified(toStamp.lastModified()))
+  val forLastModified = (toStamp: File) => tryStamp(new LastModified(getModifiedTime(toStamp)))
 }
 
 object Stamps {

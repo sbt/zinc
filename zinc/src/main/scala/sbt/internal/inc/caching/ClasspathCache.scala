@@ -7,6 +7,7 @@ import java.nio.file.attribute.{ BasicFileAttributes, FileTime }
 
 import xsbti.compile.FileHash
 import sbt.internal.inc.{ EmptyStamp, Stamper }
+import sbt.io.Milli.getModifiedTime
 
 object ClasspathCache {
   // For more safety, store both the time and size
@@ -29,7 +30,7 @@ object ClasspathCache {
         val attrs = Files.readAttributes(file.toPath, classOf[BasicFileAttributes])
         if (attrs.isDirectory) emptyFileHash(file)
         else {
-          val currentMetadata = (attrs.lastModifiedTime(), attrs.size())
+          val currentMetadata = (FileTime.fromMillis(getModifiedTime(file)), attrs.size())
           Option(cacheMetadataJar.get(file)) match {
             case Some((metadata, hashHit)) if metadata == currentMetadata => hashHit
             case _                                                        => genFileHash(file, currentMetadata)
