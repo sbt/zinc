@@ -15,7 +15,7 @@ import java.util.Optional
 
 import sbt.io.{ Hash => IOHash }
 import xsbti.compile.analysis.{ ReadStamps, Stamp }
-import sbt.io.Milli.getModifiedTime
+import sbt.io.IO.getModifiedTime
 
 import scala.collection.immutable.TreeMap
 import scala.util.matching.Regex

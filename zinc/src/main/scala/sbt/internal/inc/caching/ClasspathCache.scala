@@ -7,7 +7,7 @@ import java.nio.file.attribute.{ BasicFileAttributes, FileTime }
 
 import xsbti.compile.FileHash
 import sbt.internal.inc.{ EmptyStamp, Stamper }
-import sbt.io.Milli.getModifiedTime
+import sbt.io.IO.getModifiedTime
 
 object ClasspathCache {
   // For more safety, store both the time and size

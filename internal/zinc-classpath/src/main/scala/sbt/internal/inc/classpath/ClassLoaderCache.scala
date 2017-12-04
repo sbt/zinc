@@ -14,7 +14,7 @@ import java.lang.ref.{ Reference, SoftReference }
 import java.io.File
 import java.net.URLClassLoader
 import java.util.HashMap
-import sbt.io.Milli.getModifiedTime
+import sbt.io.IO.getModifiedTime
 
 // Hack for testing only
 final class ClassLoaderCache(val commonParent: ClassLoader) {
