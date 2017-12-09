@@ -1,0 +1,3 @@
+# PositionImpl is a private class only invoked in the same source.
+ProblemFilters.exclude[FinalClassProblem]("sbt.internal.inc.javac.DiagnosticsReporter$PositionImpl")
+ProblemFilters.exclude[DirectMissingMethodProblem]("sbt.internal.inc.javac.DiagnosticsReporter#PositionImpl.this")
