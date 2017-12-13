@@ -14,7 +14,7 @@ import java.lang.ref.{ Reference, SoftReference }
 import java.io.File
 import java.net.URLClassLoader
 import java.util.HashMap
-import sbt.io.IO.getModifiedTime
+import sbt.io.IO
 
 // Hack for testing only
 final class ClassLoaderCache(val commonParent: ClassLoader) {
@@ -44,7 +44,7 @@ final class ClassLoaderCache(val commonParent: ClassLoader) {
       mkLoader: () => ClassLoader
   ): ClassLoader =
     synchronized {
-      val tstamps = files.map(getModifiedTime)
+      val tstamps = files.map(IO.getModifiedTime)
       getFromReference(files, tstamps, delegate.get(files), mkLoader)
     }
 
