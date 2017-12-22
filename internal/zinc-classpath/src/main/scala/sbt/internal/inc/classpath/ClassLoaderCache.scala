@@ -44,7 +44,7 @@ final class ClassLoaderCache(val commonParent: ClassLoader) {
       mkLoader: () => ClassLoader
   ): ClassLoader =
     synchronized {
-      val tstamps = files.map(IO.lastModified)
+      val tstamps = files.map(IO.getModifiedTimeOrZero)
       getFromReference(files, tstamps, delegate.get(files), mkLoader)
     }
 
