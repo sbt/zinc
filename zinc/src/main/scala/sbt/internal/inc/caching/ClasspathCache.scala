@@ -30,7 +30,7 @@ object ClasspathCache {
         val attrs = Files.readAttributes(file.toPath, classOf[BasicFileAttributes])
         if (attrs.isDirectory) emptyFileHash(file)
         else {
-          val currentMetadata = (FileTime.fromMillis(IO.getModifiedTime(file)), attrs.size())
+          val currentMetadata = (FileTime.fromMillis(IO.getModifiedTimeOrZero(file)), attrs.size())
           Option(cacheMetadataJar.get(file)) match {
             case Some((metadata, hashHit)) if metadata == currentMetadata => hashHit
             case _                                                        => genFileHash(file, currentMetadata)
