@@ -13,7 +13,7 @@ import java.io.{ File, IOException }
 import java.util
 import java.util.Optional
 
-import sbt.io.{ Hash => IOHash }
+import sbt.io.{ Hash => IOHash, IO }
 import xsbti.compile.analysis.{ ReadStamps, Stamp }
 
 import scala.collection.immutable.TreeMap
@@ -142,7 +142,8 @@ object Stamper {
   }
 
   val forHash = (toStamp: File) => tryStamp(Hash.ofFile(toStamp))
-  val forLastModified = (toStamp: File) => tryStamp(new LastModified(toStamp.lastModified()))
+  val forLastModified = (toStamp: File) =>
+    tryStamp(new LastModified(IO.getModifiedTimeOrZero(toStamp)))
 }
 
 object Stamps {

@@ -164,7 +164,7 @@ final class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogg
         val analysis = p.compile(i)
         p.discoverMainClasses(Some(analysis.apis)) match {
           case Seq(mainClassName) =>
-            val classpath = i.si.allJars :+ p.classesDir
+            val classpath: Array[File] = (i.si.allJars :+ p.classesDir) map { _.getAbsoluteFile }
             val loader = ClasspathUtilities.makeLoader(classpath, i.si, directory)
             val main = p.getMainMethod(mainClassName, loader)
             p.invokeMain(loader, main, params)

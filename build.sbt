@@ -10,9 +10,11 @@ lazy val compilerBridgeTestScalaVersions = List(scala212, scala211, scala210)
 
 def mimaSettings: Seq[Setting[_]] = Seq(
   mimaPreviousArtifacts := Set(
-    organization.value % moduleName.value % "1.0.0"
+    "1.0.0", "1.0.1", "1.0.2", "1.0.3", "1.0.4", "1.0.5",
+  ) map (version =>
+    organization.value %% moduleName.value % version
       cross (if (crossPaths.value) CrossVersion.binary else CrossVersion.disabled)
-  )
+  ),
 )
 
 def commonSettings: Seq[Setting[_]] = Seq(
@@ -160,8 +162,6 @@ lazy val zincRoot: Project = (project in file("."))
         homepage := Some(url("https://github.com/sbt/zinc")),
         developers +=
           Developer("jvican", "Jorge Vicente Cantero", "@jvican", url("https://github.com/jvican")),
-        scalafmtOnCompile := true,
-        scalafmtVersion := "1.2.0",
         scalafmtOnCompile in Sbt := false,
       )),
     minimalSettings,
@@ -286,6 +286,15 @@ lazy val zincCompileCore = (project in internalPath / "zinc-compile-core")
       baseDirectory.value / "src" / "main" / "contraband-java",
     sourceManaged in (Compile, generateContrabands) := baseDirectory.value / "src" / "main" / "contraband-java",
     mimaSettings,
+    mimaBinaryIssueFilters ++= {
+      import com.typesafe.tools.mima.core._
+      import com.typesafe.tools.mima.core.ProblemFilters._
+      Seq(
+        // PositionImpl is a private class only invoked in the same source.
+        exclude[FinalClassProblem]("sbt.internal.inc.javac.DiagnosticsReporter$PositionImpl"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.javac.DiagnosticsReporter#PositionImpl.this"),
+      )
+    },
   )
   .configure(addSbtUtilLogging, addSbtIO, addSbtUtilControl)
 
@@ -323,6 +332,13 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface")
     autoScalaLibrary := false,
     altPublishSettings,
     mimaSettings,
+    mimaBinaryIssueFilters ++= {
+      import com.typesafe.tools.mima.core._
+      import com.typesafe.tools.mima.core.ProblemFilters._
+      Seq(
+        exclude[ReversedMissingMethodProblem]("xsbti.compile.ExternalHooks#Lookup.hashClasspath"),
+      )
+    },
   )
   .configure(addSbtUtilInterface)
 
