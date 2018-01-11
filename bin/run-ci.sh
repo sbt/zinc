@@ -10,6 +10,7 @@ sbt -Dfile.encoding=UTF-8 \
   +mimaReportBinaryIssues \
   scalafmt::test \
   test:scalafmt::test \
+  whitesourceCheckPolicies \
   zincRoot/test:compile \
   crossTestBridges \
   "publishBridgesAndSet $SCALA_VERSION" \
