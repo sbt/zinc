@@ -12,15 +12,15 @@ package inc
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
-import xsbti.compile.analysis.Stamp
+import xsbti.compile.analysis.{ Stamp => XStamp }
 
 sealed trait FileValueCache[T] {
   def clear(): Unit
   def get: File => T
 }
 
-private[this] final class FileValueCache0[T](getStamp: File => Stamp, make: File => T)(
-    implicit equiv: Equiv[Stamp])
+private[this] final class FileValueCache0[T](getStamp: File => XStamp, make: File => T)(
+    implicit equiv: Equiv[XStamp])
     extends FileValueCache[T] {
   private[this] val backing = new ConcurrentHashMap[File, FileCache]
 
@@ -32,7 +32,7 @@ private[this] final class FileValueCache0[T](getStamp: File => Stamp, make: File
   }
 
   private[this] final class FileCache(file: File) {
-    private[this] var stampedValue: Option[(Stamp, T)] = None
+    private[this] var stampedValue: Option[(XStamp, T)] = None
     def get(): T = synchronized {
       val latest = getStamp(file)
       stampedValue match {
@@ -41,7 +41,7 @@ private[this] final class FileValueCache0[T](getStamp: File => Stamp, make: File
       }
     }
 
-    private[this] def update(stamp: Stamp): T = {
+    private[this] def update(stamp: XStamp): T = {
       val value = make(file)
       stampedValue = Some((stamp, value))
       value
@@ -50,6 +50,6 @@ private[this] final class FileValueCache0[T](getStamp: File => Stamp, make: File
 }
 object FileValueCache {
   def apply[T](f: File => T): FileValueCache[T] = make(Stamper.forLastModified)(f)
-  def make[T](stamp: File => Stamp)(f: File => T): FileValueCache[T] =
+  def make[T](stamp: File => XStamp)(f: File => T): FileValueCache[T] =
     new FileValueCache0[T](stamp, f)
 }
