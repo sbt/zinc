@@ -7,9 +7,7 @@
 
 package xsbti.compile;
 
-import java.io.File;
 import java.util.Optional;
-import java.util.Set;
 
 public class DefaultExternalHooks implements ExternalHooks {
     private Optional<ExternalHooks.Lookup> lookup = Optional.empty();
