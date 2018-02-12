@@ -16,9 +16,9 @@ import java.io.File
 import xsbti.compile.{
   ClasspathOptions,
   ClasspathOptionsUtil,
-  JavaCompiler,
-  JavaTools,
-  Javadoc,
+  JavaCompiler => XJavacompiler,
+  JavaTools => XJavaTools,
+  Javadoc => XJavadoc,
   MultipleOutput,
   Output,
   ScalaInstance,
@@ -29,8 +29,8 @@ import xsbti.compile.{
 object JavaTools {
 
   /** Create a new aggregate tool from existing tools. */
-  def apply(c: JavaCompiler, docgen: Javadoc): JavaTools = {
-    new JavaTools {
+  def apply(c: XJavacompiler, docgen: XJavadoc): XJavaTools = {
+    new XJavaTools {
       override val javac = c
       override val javadoc = docgen
     }
@@ -51,7 +51,7 @@ object JavaTools {
       instance: ScalaInstance,
       options: ClasspathOptions,
       javaHome: Option[File]
-  ): JavaTools = {
+  ): XJavaTools = {
     val (javaCompiler, javaDoc) = javaHome match {
       case Some(_) =>
         (JavaCompiler.fork(javaHome), Javadoc.fork(javaHome))
@@ -68,7 +68,7 @@ object JavaTools {
 object JavaCompiler {
 
   /** Returns a local compiler, if the current runtime supports it. */
-  def local: Option[JavaCompiler] = {
+  def local: Option[XJavacompiler] = {
     Option(javax.tools.ToolProvider.getSystemJavaCompiler).map {
       (compiler: javax.tools.JavaCompiler) =>
         new LocalJavaCompiler(compiler)
@@ -76,7 +76,7 @@ object JavaCompiler {
   }
 
   /** Returns a local compiler that will fork javac when needed. */
-  def fork(javaHome: Option[File] = None): JavaCompiler =
+  def fork(javaHome: Option[File] = None): XJavacompiler =
     new ForkedJavaCompiler(javaHome)
 
   /**
@@ -113,7 +113,7 @@ object JavaCompiler {
 object Javadoc {
 
   /** Returns a local compiler, if the current runtime supports it. */
-  def local: Option[Javadoc] = {
+  def local: Option[XJavadoc] = {
     // TODO - javax doc tool not supported in JDK6
     //Option(javax.tools.ToolProvider.getSystemDocumentationTool)
     if (LocalJava.hasLocalJavadoc) Some(new LocalJavadoc)
@@ -121,6 +121,6 @@ object Javadoc {
   }
 
   /** Returns a local compiler that will fork javac when needed. */
-  def fork(javaHome: Option[File] = None): Javadoc =
+  def fork(javaHome: Option[File] = None): XJavadoc =
     new ForkedJavadoc(javaHome)
 }

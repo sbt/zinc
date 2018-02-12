@@ -15,7 +15,7 @@ import sbt.internal.util.Relation
 import xsbti.api.{ DependencyContext, ExternalDependency, InternalDependency }
 import xsbti.api.DependencyContext._
 import Relations.ClassDependencies
-import xsbti.compile.analysis.Stamp
+import xsbti.compile.analysis.{ Stamp => XStamp }
 
 /**
  * Provides mappings between source files, generated classes (products), and binaries.
@@ -89,7 +89,7 @@ trait Relations {
       classes: Iterable[(String, String)],
       internalDeps: Iterable[InternalDependency],
       externalDeps: Iterable[ExternalDependency],
-      libraryDeps: Iterable[(File, String, Stamp)]
+      libraryDeps: Iterable[(File, String, XStamp)]
   ): Relations = {
     addProducts(src, products)
       .addClasses(src, classes)
@@ -123,7 +123,7 @@ trait Relations {
   /**
    * Records all the library dependencies `deps` of `src`
    */
-  private[inc] def addLibraryDeps(src: File, deps: Iterable[(File, String, Stamp)]): Relations
+  private[inc] def addLibraryDeps(src: File, deps: Iterable[(File, String, XStamp)]): Relations
 
   private[inc] def addUsedName(className: String, name: UsedName): Relations
 
@@ -584,7 +584,7 @@ private class MRelationsNameHashing(
       productClassName = productClassName
     )
 
-  def addLibraryDeps(src: File, deps: Iterable[(File, String, Stamp)]) =
+  def addLibraryDeps(src: File, deps: Iterable[(File, String, XStamp)]) =
     new MRelationsNameHashing(
       srcProd,
       libraryDep + (src, deps.map(_._1)),
