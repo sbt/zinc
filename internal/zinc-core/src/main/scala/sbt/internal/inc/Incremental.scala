@@ -12,8 +12,13 @@ package inc
 import java.io.File
 
 import sbt.util.{ Level, Logger }
-import xsbti.compile.analysis.{ ReadStamps, Stamp }
-import xsbti.compile.{ ClassFileManager, CompileAnalysis, DependencyChanges, IncOptions }
+import xsbti.compile.analysis.{ ReadStamps, Stamp => XStamp }
+import xsbti.compile.{
+  ClassFileManager => XClassFileManager,
+  CompileAnalysis,
+  DependencyChanges,
+  IncOptions
+}
 
 /**
  * Define helpers to run incremental compilation algorithm with name hashing.
@@ -50,11 +55,11 @@ object Incremental {
       lookup: Lookup,
       previous0: CompileAnalysis,
       current: ReadStamps,
-      compile: (Set[File], DependencyChanges, xsbti.AnalysisCallback, ClassFileManager) => Unit,
+      compile: (Set[File], DependencyChanges, xsbti.AnalysisCallback, XClassFileManager) => Unit,
       callbackBuilder: AnalysisCallback.Builder,
       log: sbt.util.Logger,
       options: IncOptions
-  )(implicit equivS: Equiv[Stamp]): (Boolean, Analysis) = {
+  )(implicit equivS: Equiv[XStamp]): (Boolean, Analysis) = {
     val previous = previous0 match { case a: Analysis => a }
     val incremental: IncrementalCommon =
       new IncrementalNameHashing(log, options)
@@ -90,9 +95,9 @@ object Incremental {
    * Compilation unit in each compile cycle.
    */
   def doCompile(
-      compile: (Set[File], DependencyChanges, xsbti.AnalysisCallback, ClassFileManager) => Unit,
+      compile: (Set[File], DependencyChanges, xsbti.AnalysisCallback, XClassFileManager) => Unit,
       callbackBuilder: AnalysisCallback.Builder,
-      classFileManager: ClassFileManager
+      classFileManager: XClassFileManager
   )(srcs: Set[File], changes: DependencyChanges): Analysis = {
     // Note `ClassFileManager` is shared among multiple cycles in the same incremental compile run,
     // in order to rollback entirely if transaction fails. `AnalysisCallback` is used by each cycle
@@ -118,13 +123,13 @@ object Incremental {
 
   private[sbt] def prune(invalidatedSrcs: Set[File],
                          previous0: CompileAnalysis,
-                         classfileManager: ClassFileManager): Analysis = {
+                         classfileManager: XClassFileManager): Analysis = {
     val previous = previous0 match { case a: Analysis => a }
     classfileManager.delete(invalidatedSrcs.flatMap(previous.relations.products).toArray)
     previous -- invalidatedSrcs
   }
 
-  private[this] def manageClassfiles[T](options: IncOptions)(run: ClassFileManager => T): T = {
+  private[this] def manageClassfiles[T](options: IncOptions)(run: XClassFileManager => T): T = {
     val classfileManager = ClassFileManager.getClassFileManager(options)
     val result = try run(classfileManager)
     catch {

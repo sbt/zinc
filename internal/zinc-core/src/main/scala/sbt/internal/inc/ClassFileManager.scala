@@ -15,7 +15,7 @@ import java.util.Optional
 
 import collection.mutable
 import xsbti.compile.{
-  ClassFileManager,
+  ClassFileManager => XClassFileManager,
   ClassFileManagerType,
   DeleteImmediatelyManagerType,
   IncOptions,
@@ -24,7 +24,7 @@ import xsbti.compile.{
 
 object ClassFileManager {
   def getDefaultClassFileManager(
-      classFileManagerType: Optional[ClassFileManagerType]): ClassFileManager = {
+      classFileManagerType: Optional[ClassFileManagerType]): XClassFileManager = {
     if (classFileManagerType.isPresent) {
       classFileManagerType.get match {
         case _: DeleteImmediatelyManagerType => new DeleteClassFileManager
@@ -34,7 +34,7 @@ object ClassFileManager {
     } else new DeleteClassFileManager
   }
 
-  def getClassFileManager(options: IncOptions): ClassFileManager = {
+  def getClassFileManager(options: IncOptions): XClassFileManager = {
     import sbt.internal.inc.JavaInterfaceUtil.{ EnrichOptional, EnrichOption }
     val internal = getDefaultClassFileManager(options.classfileManagerType)
     val external = Option(options.externalHooks())
@@ -42,7 +42,7 @@ object ClassFileManager {
     xsbti.compile.WrappedClassFileManager.of(internal, external.toOptional)
   }
 
-  private final class DeleteClassFileManager extends ClassFileManager {
+  private final class DeleteClassFileManager extends XClassFileManager {
     override def delete(classes: Array[File]): Unit =
       IO.deleteFilesEmptyDirs(classes)
     override def generated(classes: Array[File]): Unit = ()
@@ -54,7 +54,7 @@ object ClassFileManager {
    * class files when they are requested. This is the default implementation of the class
    * file manager by the Scala incremental compiler if no class file manager is specified.
    */
-  def deleteImmediately: ClassFileManager = new DeleteClassFileManager
+  def deleteImmediately: XClassFileManager = new DeleteClassFileManager
 
   /**
    * Constructs a transactional [[ClassFileManager]] implementation that restores class
@@ -63,11 +63,11 @@ object ClassFileManager {
    *
    * This is the default class file manager used by sbt, and makes sense in a lot of scenarios.
    */
-  def transactional(tempDir0: File, logger: sbt.util.Logger): ClassFileManager =
+  def transactional(tempDir0: File, logger: sbt.util.Logger): XClassFileManager =
     new TransactionalClassFileManager(tempDir0, logger)
 
   private final class TransactionalClassFileManager(tempDir0: File, logger: sbt.util.Logger)
-      extends ClassFileManager {
+      extends XClassFileManager {
     val tempDir = tempDir0.getCanonicalFile
     IO.delete(tempDir)
     IO.createDirectory(tempDir)

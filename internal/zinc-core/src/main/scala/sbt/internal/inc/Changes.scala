@@ -14,7 +14,7 @@ import java.io.File
 import xsbti.UseScope
 import xsbti.api.NameHash
 import xsbti.compile.Changes
-import xsbti.compile.analysis.Stamp
+import xsbti.compile.analysis.{ Stamp => XStamp }
 
 final case class InitialChanges(
     internalSrc: Changes[File],
@@ -107,5 +107,5 @@ abstract class UnderlyingChanges[A] extends Changes[A] {
 
 sealed abstract class Change(val file: File)
 final class Removed(f: File) extends Change(f)
-final class Added(f: File, newStamp: Stamp) extends Change(f)
-final class Modified(f: File, oldStamp: Stamp, newStamp: Stamp) extends Change(f)
+final class Added(f: File, newStamp: XStamp) extends Change(f)
+final class Modified(f: File, oldStamp: XStamp, newStamp: XStamp) extends Change(f)
