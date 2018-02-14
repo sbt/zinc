@@ -2,7 +2,6 @@ import Util._
 import Dependencies._
 import Scripted._
 
-def baseVersion = "1.1.0-SNAPSHOT"
 def internalPath = file("internal")
 
 lazy val compilerBridgeScalaVersions = List(scala212, scala213, scala211, scala210)
@@ -11,7 +10,7 @@ lazy val compilerBridgeTestScalaVersions = List(scala212, scala211, scala210)
 def mimaSettings: Seq[Setting[_]] = Seq(
   mimaPreviousArtifacts := Set(
     "1.0.0", "1.0.1", "1.0.2", "1.0.3", "1.0.4", "1.0.5",
-    "1.1.0",
+    "1.1.0", "1.1.1",
   ) map (version =>
     organization.value %% moduleName.value % version
       cross (if (crossPaths.value) CrossVersion.binary else CrossVersion.disabled)
@@ -123,7 +122,7 @@ lazy val zincRoot: Project = (project in file("."))
   .settings(
     inThisBuild(
       Seq(
-        git.baseVersion := baseVersion,
+        git.baseVersion := "1.1.1",
         // https://github.com/sbt/sbt-git/issues/109
         // Workaround from https://github.com/sbt/sbt-git/issues/92#issuecomment-161853239
         git.gitUncommittedChanges := {
