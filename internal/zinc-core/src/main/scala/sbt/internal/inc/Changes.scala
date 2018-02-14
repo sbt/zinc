@@ -50,9 +50,7 @@ final case class APIChangeDueToMacroDefinition(modified0: String) extends APICha
  * This class is used only when name hashing algorithm is enabled.
  */
 final case class NamesChange(modified0: String, modifiedNames: ModifiedNames)
-    extends APIChange(modified0) {
-  assert(modifiedNames.names.nonEmpty, s"Modified names for $modified0 is empty")
-}
+    extends APIChange(modified0)
 
 /**
  * ModifiedNames are determined by comparing name hashes in two versions of an API representation.
