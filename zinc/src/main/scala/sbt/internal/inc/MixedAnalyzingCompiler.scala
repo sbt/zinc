@@ -11,7 +11,6 @@ package inc
 
 import java.io.File
 import java.lang.ref.{ Reference, SoftReference }
-import java.nio.file.Files
 import java.util.Optional
 
 import inc.javac.AnalyzingJavaCompiler
