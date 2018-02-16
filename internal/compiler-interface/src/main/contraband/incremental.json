@@ -110,7 +110,7 @@
         {
           "name": "useCustomizedFileManager",
           "type": "boolean",
-          "default": "xsbti.compile.IncOptions.defaultUseOptimizedSealed()",
+          "default": "xsbti.compile.IncOptions.defaultUseCustomizedFileManager()",
           "doc": [
             "Option to turn on customized file manager that tracks generated class files for transactional rollbacks.",
             "Using customized file manager may conflict with some libraries, this option allows user to decide",
