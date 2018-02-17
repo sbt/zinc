@@ -158,19 +158,19 @@ final class HashAPI private (
 
   /**
    * Hashes a sequence of definitions by combining each definition's own
-   * hash with extra one supplied as first element of a pair.
+   * hash with extra one supplied.
    *
    * It's useful when one wants to influence hash of a definition by some
    * external (to definition) factor (e.g. location of definition).
    *
    * NOTE: This method doesn't perform any filtering of passed definitions.
    */
-  def hashDefinitionsWithExtraHashes(ds: Seq[(Definition, Hash)]): Unit = {
-    def hashDefinitionCombined(d: Definition, extraHash: Hash): Unit = {
+  def hashDefinitionsWithExtraHash(ds: TraversableOnce[Definition], extraHash: Hash): Unit = {
+    def hashDefinitionCombined(d: Definition): Unit = {
       hashDefinition(d)
       extend(extraHash)
     }
-    hashSymmetric(ds, (hashDefinitionCombined _).tupled)
+    hashSymmetric(ds, hashDefinitionCombined _)
   }
   def hashDefinition(d: Definition): Unit = {
     hashString(d.name)

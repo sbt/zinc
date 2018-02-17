@@ -67,9 +67,8 @@ class NameHashing(optimizedSealed: Boolean) {
       location: Location,
       includeSealedChildren: Boolean
   ): Int = {
-    val defsWithExtraHashes = defs.toSeq.map(_ -> location.hashCode)
     HashAPI.apply(
-      _.hashDefinitionsWithExtraHashes(defsWithExtraHashes),
+      _.hashDefinitionsWithExtraHash(defs, location.hashCode),
       includeDefinitions = false,
       includeSealedChildren = includeSealedChildren
     )
