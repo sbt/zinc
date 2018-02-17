@@ -114,11 +114,15 @@ final class HashAPI private (
 
   private[this] var hash: Hash = 0
 
-  @inline final def hashString(s: String): Unit = extend(stringHash(s))
-  @inline final def hashBoolean(b: Boolean): Unit = extend(if (b) TrueHash else FalseHash)
-  @inline final def hashSeq[T](s: Seq[T], hashF: T => Unit): Unit = {
+  final def hashString(s: String): Unit = extend(stringHash(s))
+  final def hashBoolean(b: Boolean): Unit = extend(if (b) TrueHash else FalseHash)
+  @inline final def hashArray[T <: AnyRef](s: Array[T], hashF: T => Unit): Unit = {
     extend(s.length)
-    s foreach hashF
+    var i = 0
+    while (i < s.length) {
+      hashF(s(i))
+      i += 1
+    }
   }
   final def hashSymmetric[T](ts: TraversableOnce[T], hashF: T => Unit): Unit = {
     val current = hash
@@ -230,12 +234,12 @@ final class HashAPI private (
         hashString(id.value)
     }
 
-  def hashValueParameters(valueParameters: Seq[ParameterList]) =
-    hashSeq(valueParameters, hashValueParameterList)
+  def hashValueParameters(valueParameters: Array[ParameterList]) =
+    hashArray(valueParameters, hashValueParameterList)
   def hashValueParameterList(list: ParameterList) = {
     extend(ValueParamsHash)
     hashBoolean(list.isImplicit)
-    hashSeq(list.parameters, hashValueParameter)
+    hashArray(list.parameters, hashValueParameter)
   }
   def hashValueParameter(parameter: MethodParameter) = {
     hashString(parameter.name)
@@ -259,7 +263,8 @@ final class HashAPI private (
     hashType(d.tpe)
   }
 
-  def hashTypeParameters(parameters: Seq[TypeParameter]) = hashSeq(parameters, hashTypeParameter)
+  def hashTypeParameters(parameters: Array[TypeParameter]) =
+    hashArray(parameters, hashTypeParameter)
   def hashTypeParameter(parameter: TypeParameter): Unit = {
     hashString(parameter.id)
     extend(parameter.variance.ordinal)
@@ -268,20 +273,20 @@ final class HashAPI private (
     hashType(parameter.upperBound)
     hashAnnotations(parameter.annotations)
   }
-  def hashAnnotations(annotations: Seq[Annotation]) = hashSeq(annotations, hashAnnotation)
+  def hashAnnotations(annotations: Array[Annotation]) = hashArray(annotations, hashAnnotation)
   def hashAnnotation(annotation: Annotation) = {
     hashType(annotation.base)
     hashAnnotationArguments(annotation.arguments)
   }
-  def hashAnnotationArguments(args: Seq[AnnotationArgument]) =
-    hashSeq(args, hashAnnotationArgument)
+  def hashAnnotationArguments(args: Array[AnnotationArgument]) =
+    hashArray(args, hashAnnotationArgument)
   def hashAnnotationArgument(arg: AnnotationArgument): Unit = {
     hashString(arg.name)
     hashString(arg.value)
   }
 
-  def hashTypes(ts: Seq[Type], includeDefinitions: Boolean = true) =
-    hashSeq(ts, (t: Type) => hashType(t, includeDefinitions))
+  def hashTypes(ts: Array[Type], includeDefinitions: Boolean = true) =
+    hashArray(ts, (t: Type) => hashType(t, includeDefinitions))
   def hashType(t: Type, includeDefinitions: Boolean = true): Unit =
     t match {
       case s: Structure     => hashStructure(s, includeDefinitions)
@@ -304,7 +309,9 @@ final class HashAPI private (
     extend(SingletonHash)
     hashPath(s.path)
   }
-  def hashPath(path: Path) = hashSeq(path.components, hashPathComponent)
+  def hashPath(path: Path) = {
+    hashArray(path.components, hashPathComponent)
+  }
   def hashPathComponent(pc: PathComponent) = pc match {
     case _: This  => extend(ThisPathHash)
     case s: Super => hashSuperPath(s)
@@ -357,7 +364,7 @@ final class HashAPI private (
       hashDefinitions(structure.inherited, false)
     }
   }
-  def hashParameters(parameters: Seq[TypeParameter], base: Type): Unit = {
+  def hashParameters(parameters: Array[TypeParameter], base: Type): Unit = {
     hashTypeParameters(parameters)
     hashType(base)
   }
