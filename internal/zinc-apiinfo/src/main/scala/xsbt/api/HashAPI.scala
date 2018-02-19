@@ -8,6 +8,7 @@
 package xsbt.api
 
 import xsbti.api._
+
 import scala.util.hashing.MurmurHash3
 import HashAPI.Hash
 
@@ -355,7 +356,16 @@ final class HashAPI private (
     hashAnnotations(a.annotations)
   }
   final def hashStructure(structure: Structure, includeDefinitions: Boolean) =
-    visit(visitedStructures, structure)(structure => hashStructure0(structure, includeDefinitions))
+    visit(visitedStructures, structure)(hashStructure0(includeDefinitions))
+
+  // Hoisted functions to reduce allocation.
+  private final def hashStructure0(includeDefinitions: Boolean): (Structure => Unit) =
+    if (includeDefinitions) hashStructure0WithDefs else hashStructure0NoDefs
+  private[this] final val hashStructure0WithDefs = (s: Structure) =>
+    hashStructure0(s, includeDefinitions = true)
+  private[this] final val hashStructure0NoDefs = (s: Structure) =>
+    hashStructure0(s, includeDefinitions = false)
+
   def hashStructure0(structure: Structure, includeDefinitions: Boolean): Unit = {
     extend(StructureHash)
     hashTypes(structure.parents, includeDefinitions)
