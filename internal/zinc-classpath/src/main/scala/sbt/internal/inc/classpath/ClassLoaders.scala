@@ -99,9 +99,9 @@ final class ClasspathFilter(parent: ClassLoader, root: ClassLoader, classpath: S
   }
 
   @tailrec private[this] def includeLoader(c: ClassLoader, base: ClassLoader): Boolean =
-    (base ne null) && (
-      (c eq base) || includeLoader(c, base.getParent)
-    )
+    (base ne null) &&
+      (c ne null) &&
+      ((c eq base) || includeLoader(c.getParent, base))
 }
 
 /**

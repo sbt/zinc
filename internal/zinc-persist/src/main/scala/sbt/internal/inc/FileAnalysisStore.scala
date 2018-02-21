@@ -19,7 +19,7 @@ import sbt.internal.inc.text.TextAnalysisFormat
 import sbt.io.{ IO, Using }
 import xsbti.api.Companions
 import xsbti.compile.analysis.ReadWriteMappers
-import xsbti.compile.{ AnalysisContents, AnalysisStore }
+import xsbti.compile.{ AnalysisContents, AnalysisStore => XAnalysisStore }
 
 import scala.util.control.Exception.allCatch
 
@@ -28,20 +28,20 @@ object FileAnalysisStore {
   private final val analysisFileName = s"inc_compile.$BinExtension"
   private final val companionsFileName = s"api_companions.$BinExtension"
 
-  def binary(analysisFile: File): AnalysisStore =
+  def binary(analysisFile: File): XAnalysisStore =
     new BinaryFileStore(analysisFile, ReadWriteMappers.getEmptyMappers())
-  def binary(analysisFile: File, mappers: ReadWriteMappers): AnalysisStore =
+  def binary(analysisFile: File, mappers: ReadWriteMappers): XAnalysisStore =
     new BinaryFileStore(analysisFile, mappers)
 
-  def text(file: File): AnalysisStore =
+  def text(file: File): XAnalysisStore =
     new FileBasedStoreImpl(file, TextAnalysisFormat)
-  def text(file: File, mappers: ReadWriteMappers): AnalysisStore =
+  def text(file: File, mappers: ReadWriteMappers): XAnalysisStore =
     new FileBasedStoreImpl(file, new TextAnalysisFormat(mappers))
-  def text(file: File, format: TextAnalysisFormat): AnalysisStore =
+  def text(file: File, format: TextAnalysisFormat): XAnalysisStore =
     new FileBasedStoreImpl(file, format)
 
   private final class BinaryFileStore(file: File, readWriteMappers: ReadWriteMappers)
-      extends AnalysisStore {
+      extends XAnalysisStore {
 
     private final val format = new BinaryAnalysisFormat(readWriteMappers)
     private final val TmpEnding = ".tmp"
@@ -97,7 +97,7 @@ object FileAnalysisStore {
   }
 
   private final class FileBasedStoreImpl(file: File, format: TextAnalysisFormat)
-      extends AnalysisStore {
+      extends XAnalysisStore {
     val companionsStore = new FileBasedCompanionsMapStore(file, format)
 
     def set(analysisContents: AnalysisContents): Unit = {

@@ -12,8 +12,14 @@ package inc
 import java.io.File
 
 import xsbti.api.AnalyzedClass
-import xsbti.compile.{ Changes, ClassFileManager, CompileAnalysis, DependencyChanges, IncOptions }
-import xsbti.compile.analysis.{ ReadStamps, Stamp }
+import xsbti.compile.{
+  Changes,
+  ClassFileManager => XClassFileManager,
+  CompileAnalysis,
+  DependencyChanges,
+  IncOptions
+}
+import xsbti.compile.analysis.{ ReadStamps, Stamp => XStamp }
 
 import scala.annotation.tailrec
 
@@ -36,7 +42,7 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
                            lookup: ExternalLookup,
                            previous: Analysis,
                            doCompile: (Set[File], DependencyChanges) => Analysis,
-                           classfileManager: ClassFileManager,
+                           classfileManager: XClassFileManager,
                            cycleNum: Int): Analysis =
     if (invalidatedRaw.isEmpty && modifiedSrcs.isEmpty)
       previous
@@ -101,7 +107,7 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
                                      binaryChanges: DependencyChanges,
                                      previous: Analysis,
                                      doCompile: (Set[File], DependencyChanges) => Analysis,
-                                     classfileManager: ClassFileManager): (Analysis, Set[File]) = {
+                                     classfileManager: XClassFileManager): (Analysis, Set[File]) = {
     val invalidatedSources = classes.flatMap(previous.relations.definesClass) ++ modifiedSrcs
     val invalidatedSourcesForCompilation = expand(invalidatedSources, allSources)
     val pruned = Incremental.prune(invalidatedSourcesForCompilation, previous, classfileManager)
@@ -207,7 +213,7 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
   def changedInitial(sources: Set[File],
                      previousAnalysis0: CompileAnalysis,
                      current: ReadStamps,
-                     lookup: Lookup)(implicit equivS: Equiv[Stamp]): InitialChanges = {
+                     lookup: Lookup)(implicit equivS: Equiv[XStamp]): InitialChanges = {
     val previousAnalysis = previousAnalysis0 match { case a: Analysis => a }
     val previous = previousAnalysis.stamps
     val previousRelations = previousAnalysis.relations
@@ -421,7 +427,7 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
       lookup: Lookup,
       previous: Stamps,
       current: ReadStamps,
-      previousRelations: Relations)(implicit equivS: Equiv[Stamp]): File => Boolean =
+      previousRelations: Relations)(implicit equivS: Equiv[XStamp]): File => Boolean =
     dependsOn => {
       def inv(reason: String): Boolean = {
         log.debug("Invalidating " + dependsOn + ": " + reason)

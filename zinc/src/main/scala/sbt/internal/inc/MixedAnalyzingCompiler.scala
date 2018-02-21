@@ -11,7 +11,6 @@ package inc
 
 import java.io.File
 import java.lang.ref.{ Reference, SoftReference }
-import java.nio.file.Files
 import java.util.Optional
 
 import inc.javac.AnalyzingJavaCompiler
@@ -22,7 +21,7 @@ import sbt.io.IO
 import sbt.util.{ InterfaceUtil, Logger }
 import sbt.internal.inc.JavaInterfaceUtil.EnrichOption
 import sbt.internal.inc.caching.ClasspathCache
-import xsbti.compile.ClassFileManager
+import xsbti.compile.{ ClassFileManager => XClassFileManager }
 
 /** An instance of an analyzing compiler that can run both javac + scalac. */
 final class MixedAnalyzingCompiler(
@@ -53,7 +52,7 @@ final class MixedAnalyzingCompiler(
       include: Set[File],
       changes: DependencyChanges,
       callback: XAnalysisCallback,
-      classfileManager: ClassFileManager
+      classfileManager: XClassFileManager
   ): Unit = {
     val outputDirs = outputDirectories(output)
     outputDirs.foreach { d =>
