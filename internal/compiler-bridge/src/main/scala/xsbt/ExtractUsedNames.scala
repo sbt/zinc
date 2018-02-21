@@ -274,6 +274,10 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
           original.foreach(traverse)
         }
 
+      // See https://github.com/sbt/zinc/issues/227
+      case lit: Literal if inspectedOriginalTrees.add(lit) =>
+        traverse(getOriginalTree(lit))
+
       case t if t.hasSymbolField =>
         val symbol = t.symbol
         if (symbol != rootMirror.RootPackage)

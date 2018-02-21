@@ -8,29 +8,25 @@
 package xsbt
 
 import java.io.PrintWriter
+
 import xsbti.compile.Output
-import scala.tools.nsc.Settings
-import scala.tools.nsc.interpreter.shell.ReplReporterImpl
 
 import scala.tools.nsc.{ Global, Settings }
 
 abstract class Compat {
   val global: Global
-
   import global.Tree
-  def getOriginalTree(tree: Tree): Tree = {
-    import global.analyzer.OriginalTreeAttachment
-    tree.attachments.get[OriginalTreeAttachment].map(_.original).getOrElse(tree)
-  }
+
+  // Returns nothing because it's a shim that only exists on 2.12.4 onwards
+  def getOriginalTree(tree: global.Tree): Tree = tree
 }
 
 object Compat {
-  // IR is renanmed to Results
-  val Results = scala.tools.nsc.interpreter.Results
+  // IR is renamed to Results
+  val Results = scala.tools.nsc.interpreter.IR
 
   // IMain in 2.13 accepts ReplReporter
-  def replReporter(settings: Settings, writer: PrintWriter) =
-    new ReplReporterImpl(settings, writer)
+  def replReporter(settings: Settings, writer: PrintWriter) = writer
 }
 
 /** Defines compatibility utils for [[ZincCompiler]]. */

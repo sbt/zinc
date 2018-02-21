@@ -410,6 +410,11 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
         val sym = if (tree.symbol.isModule) tree.symbol.moduleClass else tree.symbol
         localToNonLocalClass.resolveNonLocal(sym)
         super.traverse(tree)
+
+      // See https://github.com/sbt/zinc/issues/227
+      case lit: Literal if inspectedOriginalTrees.add(lit) =>
+        traverse(getOriginalTree(lit))
+
       case other => super.traverse(other)
     }
   }

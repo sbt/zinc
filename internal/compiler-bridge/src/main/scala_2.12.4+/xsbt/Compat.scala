@@ -8,11 +8,21 @@
 package xsbt
 
 import java.io.PrintWriter
+
 import xsbti.compile.Output
 
-import scala.tools.nsc.Settings
+import scala.tools.nsc.{ Global, Settings }
 
-abstract class Compat
+abstract class Compat {
+  val global: Global
+  import global.Tree
+
+  def getOriginalTree(tree: global.Tree): Tree = {
+    import global.analyzer.OriginalTreeAttachment
+    tree.attachments.get[OriginalTreeAttachment].map(_.original).getOrElse(tree)
+  }
+}
+
 object Compat {
   // IR is renamed to Results
   val Results = scala.tools.nsc.interpreter.IR

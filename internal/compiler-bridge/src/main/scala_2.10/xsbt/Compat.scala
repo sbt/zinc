@@ -131,6 +131,9 @@ abstract class Compat {
     // `original` has been renamed to `expandee` in 2.11.x
     @inline final def expandee: Tree = self.original
   }
+
+  // Returns nothing because it's a shim that only exists on 2.12.4 onwards
+  def getOriginalTree(tree: Tree): Tree = tree
 }
 
 /** Defines compatibility utils for [[ZincCompiler]]. */
