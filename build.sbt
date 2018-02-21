@@ -307,11 +307,8 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface")
     minimalSettings,
     // javaOnlySettings,
     name := "Compiler Interface",
-    // Use the smallest Scala version in the compilerBridgeScalaVersions
-    // Technically the scalaVersion shouldn't have any effect since scala library is not included,
-    // but given that Scala 2.10 compiler cannot parse Java 8 source, it's probably good to keep this.
-    crossScalaVersions := Seq(scala210),
-    scalaVersion := scala210,
+    scalaVersion := scala212,
+    crossScalaVersions := Seq(scala212),
     relaxNon212,
     libraryDependencies ++= Seq(scalaLibrary.value % Test),
     exportJars := true,
@@ -341,6 +338,17 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface")
     },
   )
   .configure(addSbtUtilInterface)
+
+/* Create a duplicated compiler-interface project that uses Scala 2.10 to parse Java files.
+ * Scala 2.10's parser uses Java 6 semantics, so this way we ensure that the interface can
+ * be compiled with Java 6 too. `compiler-interface` checks compilation for Java 8. */
+val compilerInterfaceJava6Compat = compilerInterface
+  .withId("compilerInterfaceJava6Compat")
+  .settings(
+    scalaVersion := scala210,
+    crossScalaVersions := Seq(scala210),
+    target := (target in compilerInterface).value / "java6-parser-compat"
+  )
 
 val cleanSbtBridge = taskKey[Unit]("Cleans the sbt bridge.")
 
