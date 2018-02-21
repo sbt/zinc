@@ -156,10 +156,10 @@ private[inc] class APIDiff {
     }
 
     private sealed trait Patch
-    private final case class Unmodified(str: String) extends Patch
-    private final case class Modified(original: String, str: String) extends Patch
-    private final case class Deleted(str: String) extends Patch
-    private final case class Inserted(str: String) extends Patch
+    private case class Unmodified(str: String) extends Patch
+    private case class Modified(original: String, str: String) extends Patch
+    private case class Deleted(str: String) extends Patch
+    private case class Inserted(str: String) extends Patch
 
     private def hirschberg(a: Array[String], b: Array[String]): Array[Patch] = {
       def build(x: Array[String], y: Array[String], builder: mutable.ArrayBuilder[Patch]): Unit = {
