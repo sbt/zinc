@@ -19,6 +19,8 @@ class BenchmarkBase {
   @Param(Array("")) var _tempDir: String = _
   var _project: BenchmarkProject = _
   var _subprojectToRun: String = _
+  @Param(Array("true"))
+  var zincEnabled: Boolean = _
 
   /* Data filled in by the benchmark setup. */
   var _dir: File = _
@@ -39,7 +41,7 @@ class BenchmarkBase {
     _dir = new File(_tempDir)
     assert(_dir.exists(), s"Unexpected inexistent directory ${_tempDir}")
 
-    val compiler = new ZincBenchmark(_project)
+    val compiler = new ZincBenchmark(_project, zincEnabled = this.zincEnabled)
     _subprojectsSetup = compiler.readSetup(_dir).getOrCrash
     assert(_subprojectsSetup.nonEmpty)
 
