@@ -31,10 +31,16 @@ final class JavacLogger(log: sbt.util.Logger, reporter: Reporter, cwd: File) ext
   private var err: ListBuffer[String] = new ListBuffer()
 
   def out(s: => String): Unit =
-    synchronized { out += s }
+    synchronized {
+      out += s
+      ()
+    }
 
   def err(s: => String): Unit =
-    synchronized { err += s }
+    synchronized {
+      err += s
+      ()
+    }
 
   def buffer[T](f: => T): T = f
 
