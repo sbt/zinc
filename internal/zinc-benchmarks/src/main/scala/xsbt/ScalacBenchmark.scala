@@ -53,3 +53,21 @@ class HotScalacBenchmark extends ScalacBenchmark {
     super.compile()
   }
 }
+@State(Scope.Benchmark)
+@BenchmarkMode(Array(Mode.SampleTime))
+@OutputTimeUnit(TimeUnit.MILLISECONDS)
+@Warmup(iterations = 6, time = 10, timeUnit = TimeUnit.SECONDS)
+@Measurement(iterations = 6, time = 10, timeUnit = TimeUnit.SECONDS)
+@Fork(value = 3)
+class HotScalacApiExtractBenchmark extends ScalacBenchmark {
+  _subprojectToRun = _project.subprojects.head
+  var _body: () => Unit = null
+  @Setup(Level.Trial)
+  def runCompiler(): Unit = {
+    _body = _setup.apiExtract()
+  }
+  @Benchmark
+  override def compile(): Unit = {
+    _body.apply()
+  }
+}

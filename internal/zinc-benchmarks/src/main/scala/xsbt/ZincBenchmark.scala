@@ -23,11 +23,32 @@ case class ProjectSetup(
     subproject: String,
     at: File,
     compilationInfo: CompilationInfo,
-    private val runGenerator: ZincBenchmark.Generator
+    private val createCompiler: ZincBenchmark.Generator
 ) {
   def compile(): Unit = {
-    val run = runGenerator()
-    run.compile(compilationInfo.sources)
+    val compiler = createCompiler()
+    new compiler.Run().compile(compilationInfo.sources)
+  }
+
+  /** Run the full compiler in a mode that allows Zinc's APIExtract phase to be subsequently repeated */
+  def apiExtract(): () => Unit = {
+    System.setProperty(API.ApiExtractBenchmarkModeKey, true.toString)
+    val (compiler, run) = try {
+      val compiler = createCompiler()
+      val run = new compiler.Run()
+      run.compile(compilationInfo.sources)
+      (compiler, run)
+    } finally {
+      System.clearProperty(API.ApiExtractBenchmarkModeKey)
+    }
+
+    { () =>
+      compiler.set(new xsbti.TestCallback, compiler.reporter.asInstanceOf[DelegatingReporter])
+      val phase = run
+        .phaseNamed(compiler.apiExtractor.name)
+        .asInstanceOf[compiler.apiExtractor.api.ApiPhase]
+      phase.replay()
+    }
   }
 }
 
@@ -74,8 +95,8 @@ private[xsbt] class ZincBenchmark(toCompile: BenchmarkProject, zincEnabled: Bool
 
       // Set up the compiler and store the current setup
       val javaFile = new RichFile(compilationDir) / "benchmark-target"
-      val runGen = ZincBenchmark.setUpCompiler(buildInfo, javaFile, zincEnabled)
-      ProjectSetup(subproject, javaFile, buildInfo, runGen)
+      val setupCompiler = ZincBenchmark.setUpCompiler(buildInfo, javaFile, zincEnabled)
+      ProjectSetup(subproject, javaFile, buildInfo, setupCompiler)
     }
 
     val targetProjects = toCompile.subprojects.map(
@@ -103,7 +124,7 @@ private[xsbt] class ZincBenchmark(toCompile: BenchmarkProject, zincEnabled: Bool
 private[xsbt] object ZincBenchmark {
   type Sources = List[String]
   type Compiler = ZincCompiler
-  type Generator = () => ZincCompiler#Run
+  type Generator = () => ZincCompiler
 
   /** Set up the compiler to compile `sources` with -cp `classpath` at `targetDir`. */
   def setUpCompiler(
@@ -116,8 +137,7 @@ private[xsbt] object ZincBenchmark {
     val callback: xsbti.TestCallback = new xsbti.TestCallback {
       override def enabled: Boolean = zincEnabled
     }
-    val compiler = prepareCompiler(targetDir, callback, compilationInfo)
-    new compiler.Run
+    prepareCompiler(targetDir, callback, compilationInfo)
   }
 
   /* ***************************************************** */
