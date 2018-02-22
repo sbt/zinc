@@ -62,14 +62,19 @@ final class HashAPI private (
 
   private[this] val visitedStructures = visitedMap[Structure]
   private[this] val visitedClassLike = visitedMap[ClassLike]
-  private[this] def visitedMap[T <: AnyRef] = new mutable.AnyRefMap[T, List[Hash]]
-  private[this] def visit[T](map: mutable.Map[T, List[Hash]], t: T)(hashF: T => Unit): Unit = {
-    map.put(t, hash :: map.getOrElse(t, Nil)) match {
-      case Some(x :: _) => extend(x)
+  private[this] def visitedMap[T <: AnyRef] = new java.util.HashMap[T, List[Hash]]
+  private[this] def visit[T](map: java.util.HashMap[T, List[Hash]], t: T)(
+      hashF: T => Unit): Unit = {
+    val newVal = hash :: map.computeIfAbsent(t, new java.util.function.Function[T, List[Hash]] {
+      def apply(key: T) = Nil
+    })
+    map.put(t, newVal) match {
+      case x :: _ => extend(x)
       case _ =>
         hashF(t)
-        for (hs <- map(t))
+        map.get(t).foreach { hs =>
           extend(hs)
+        }
         map.put(t, hash :: Nil)
         ()
     }
