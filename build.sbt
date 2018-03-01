@@ -454,6 +454,27 @@ lazy val zincApiInfo = (project in internalPath / "zinc-apiinfo")
     crossScalaVersions := compilerBridgeTestScalaVersions,
     compilerVersionDependentScalacOptions,
     mimaSettings,
+    mimaBinaryIssueFilters ++= {
+      import com.typesafe.tools.mima.core._
+      import com.typesafe.tools.mima.core.ProblemFilters._
+      Seq(
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashTypeParameters"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashAnnotations"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashParameters"),
+         exclude[DirectMissingMethodProblem]("xsbt.api.HashAPI.hashDefinitionsWithExtraHashes"),
+         exclude[DirectMissingMethodProblem]("xsbt.api.HashAPI.hashSeq"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashValueParameters"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashAnnotationArguments"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashTypes"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitTypeParameters"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitDefinitions"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitAnnotationArguments"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitAnnotations"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitValueParameters"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitParameters"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitTypes"),
+      )
+    }
   )
 
 // Utilities related to reflection, managing Scala versions, and custom class loaders
