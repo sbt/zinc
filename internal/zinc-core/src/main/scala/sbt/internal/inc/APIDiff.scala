@@ -76,15 +76,19 @@ private[inc] class APIDiff {
       if (str == "") {
         acc.reverse
       } else {
-        val head = str.charAt(0)
+        val head = str.charAt(0).toInt
         val (token, rest) = if (Character.isAlphabetic(head) || Character.isDigit(head)) {
-          str.span(c => Character.isAlphabetic(c) || Character.isDigit(c))
+          str.span { c =>
+            val i = c.toInt
+            Character.isAlphabetic(i) || Character.isDigit(i)
+          }
         } else if (Character.isMirrored(head) || Character.isWhitespace(head)) {
           str.splitAt(1)
         } else {
           str.span { c =>
-            !Character.isAlphabetic(c) && !Character.isDigit(c) &&
-            !Character.isMirrored(c) && !Character.isWhitespace(c)
+            val i = c.toInt
+            !Character.isAlphabetic(i) && !Character.isDigit(i) &&
+            !Character.isMirrored(i) && !Character.isWhitespace(i)
           }
         }
         splitTokens(rest, token :: acc)
@@ -152,10 +156,10 @@ private[inc] class APIDiff {
     }
 
     private sealed trait Patch
-    private final case class Unmodified(str: String) extends Patch
-    private final case class Modified(original: String, str: String) extends Patch
-    private final case class Deleted(str: String) extends Patch
-    private final case class Inserted(str: String) extends Patch
+    private case class Unmodified(str: String) extends Patch
+    private case class Modified(original: String, str: String) extends Patch
+    private case class Deleted(str: String) extends Patch
+    private case class Inserted(str: String) extends Patch
 
     private def hirschberg(a: Array[String], b: Array[String]): Array[Patch] = {
       def build(x: Array[String], y: Array[String], builder: mutable.ArrayBuilder[Patch]): Unit = {
