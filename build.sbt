@@ -347,7 +347,8 @@ val compilerInterfaceJava6Compat = compilerInterface
   .settings(
     scalaVersion := scala210,
     crossScalaVersions := Seq(scala210),
-    target := (target in compilerInterface).value / "java6-parser-compat"
+    target := (target in compilerInterface).value / "java6-parser-compat",
+    skip in publish := true
   )
 
 val cleanSbtBridge = taskKey[Unit]("Cleans the sbt bridge.")
