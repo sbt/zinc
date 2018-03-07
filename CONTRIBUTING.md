@@ -83,7 +83,7 @@ Contributing to Zinc requires you or your employer to sign the
 [Lightbend Contributor License Agreement](https://www.lightbend.com/contribute/cla).
 
 To make it easier to respect our license agreements, we have added an sbt task
-that takes care of adding the LICENSE headers to new files. Run `createHeaders`
+that takes care of adding the LICENSE headers to new files. Run `headerCreate`
 and sbt will put a copyright notice into it.
 
 [sbt/zinc-contrib]: https://gitter.im/sbt/zinc-contrib
