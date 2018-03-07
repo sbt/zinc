@@ -9,14 +9,15 @@ package xsbt
 
 import scala.reflect.io.NoAbstractFile
 import scala.tools.nsc.io.AbstractFile
-
 import java.io.File
+
+import scala.tools.nsc.Global
 
 /**
  * Contains utility methods for looking up class files corresponding to Symbols.
  */
 abstract class LocateClassFile extends Compat with ClassName {
-  val global: CallbackGlobal
+  val global: Global
   import global._
 
   private[this] final val classSeparator = '.'
