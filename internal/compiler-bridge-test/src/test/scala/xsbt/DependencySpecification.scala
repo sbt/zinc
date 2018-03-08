@@ -112,6 +112,25 @@ class DependencySpecification extends UnitSpec {
     assert(inheritance("B") === Set.empty)
   }
 
+  it should "extract class dependency from 'classOf' literal" in {
+    val srcA =
+      """object A {
+        |   print(classOf[B])
+        |}""".stripMargin
+    val srcB = "class B"
+
+    val compilerForTesting = new ScalaCompilerForUnitTesting
+    val classDependencies =
+      compilerForTesting.extractDependenciesFromSrcs(srcA, srcB)
+
+    val memberRef = classDependencies.memberRef
+    val inheritance = classDependencies.inheritance
+    assert(memberRef("A") === Set("B"))
+    assert(inheritance("A") === Set.empty)
+    assert(memberRef("B") === Set.empty)
+    assert(inheritance("B") === Set.empty)
+  }
+
   it should "handle top level import dependencies" in {
     val srcA =
       """
