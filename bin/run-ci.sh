@@ -10,7 +10,7 @@ sbt -Dfile.encoding=UTF-8 \
   scalafmt::test \
   test:scalafmt::test \
   whitesourceCheckPolicies \
-  compilerBridgeJava6Compat/compile \
+  compilerInterfaceJava6Compat/compile \
   zincRoot/test:compile \
   crossTestBridges \
   "publishBridgesAndSet $SCALA_VERSION" \
