@@ -337,6 +337,7 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface")
       import com.typesafe.tools.mima.core.ProblemFilters._
       Seq(
         exclude[ReversedMissingMethodProblem]("xsbti.compile.ExternalHooks#Lookup.hashClasspath"),
+        exclude[ReversedMissingMethodProblem]("xsbti.compile.ScalaInstance.loaderLibraryOnly"),
       )
     },
   )

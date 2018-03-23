@@ -63,8 +63,10 @@ object ClasspathUtilities {
   final val AppClassPath = "app.class.path"
   final val BootClassPath = "boot.class.path"
 
-  def createClasspathResources(classpath: Seq[File], instance: ScalaInstance): Map[String, String] =
-    createClasspathResources(classpath, instance.allJars)
+  def createClasspathResources(classpath: Seq[File],
+                               instance: ScalaInstance): Map[String, String] = {
+    createClasspathResources(classpath, Array(instance.libraryJar))
+  }
 
   def createClasspathResources(appPaths: Seq[File], bootPaths: Seq[File]): Map[String, String] = {
     def make(name: String, paths: Seq[File]) = name -> Path.makeString(paths)
@@ -74,11 +76,16 @@ object ClasspathUtilities {
   private[sbt] def filterByClasspath(classpath: Seq[File], loader: ClassLoader): ClassLoader =
     new ClasspathFilter(loader, xsbtiLoader, classpath.toSet)
 
+  /**
+   * Creates a ClassLoader that contains the classpath and the scala-library from
+   * the given instance.
+   */
   def makeLoader(classpath: Seq[File], instance: ScalaInstance): ClassLoader =
-    filterByClasspath(classpath, makeLoader(classpath, instance.loader, instance))
+    filterByClasspath(classpath, makeLoader(classpath, instance.loaderLibraryOnly, instance))
 
   def makeLoader(classpath: Seq[File], instance: ScalaInstance, nativeTemp: File): ClassLoader =
-    filterByClasspath(classpath, makeLoader(classpath, instance.loader, instance, nativeTemp))
+    filterByClasspath(classpath,
+                      makeLoader(classpath, instance.loaderLibraryOnly, instance, nativeTemp))
 
   def makeLoader(classpath: Seq[File], parent: ClassLoader, instance: ScalaInstance): ClassLoader =
     toLoader(classpath, parent, createClasspathResources(classpath, instance))
