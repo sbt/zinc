@@ -9,6 +9,8 @@ package xsbti.compile.analysis;
 
 import xsbti.Problem;
 
+import java.util.Optional;
+
 /**
  * Defines the compiler information for a given compilation unit (source file).
  */
@@ -37,5 +39,17 @@ public interface SourceInfo {
      * @return The full name of the main classes, like "foo.bar.Main"
      */
     public String[] getMainClasses();
+
+
+    public PositionName[] getPositionNames();
+
+    /**
+     * Return the full name of the symbol at the specified position.
+     *
+     * @param line The line position in source.
+     * @param column The column position in source.
+     * @return The full name of a symbol.
+     */
+    public Optional<String> getFullNameByPosition(int line, int column);
 }
 

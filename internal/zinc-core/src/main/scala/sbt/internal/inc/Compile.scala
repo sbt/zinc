@@ -144,6 +144,7 @@ private final class AnalysisCallback(
   private[this] val classPublicNameHashes = new HashMap[String, Array[NameHash]]
   private[this] val objectPublicNameHashes = new HashMap[String, Array[NameHash]]
   private[this] val usedNames = new HashMap[String, Set[UsedName]]
+  private[this] val positionNames = new HashMap[String, Set[PositionName]]
   private[this] val unreporteds = new HashMap[File, ListBuffer[Problem]]
   private[this] val reporteds = new HashMap[File, ListBuffer[Problem]]
   private[this] val mainClasses = new HashMap[File, ListBuffer[String]]
@@ -285,6 +286,13 @@ private final class AnalysisCallback(
   def usedName(className: String, name: String, useScopes: util.EnumSet[UseScope]) =
     add(usedNames, className, UsedName(name, useScopes))
 
+  def positionName(className: String,
+                   line: Int,
+                   column: Int,
+                   name: String,
+                   fullName: String): Unit =
+    add(positionNames, className, PositionName.of(line, column, name, fullName))
+
   override def enabled(): Boolean = options.enabled
 
   def get: Analysis =
@@ -345,7 +353,8 @@ private final class AnalysisCallback(
         val analyzedApis = classesInSrc.map(analyzeClass)
         val info = SourceInfos.makeInfo(getOrNil(reporteds, src),
                                         getOrNil(unreporteds, src),
-                                        getOrNil(mainClasses, src))
+                                        getOrNil(mainClasses, src),
+                                        classesInSrc.flatMap(s => positionNames(s)).toList)
         val binaries = binaryDeps.getOrElse(src, Nil: Iterable[File])
         val localProds = localClasses.getOrElse(src, Nil: Iterable[File]) map { classFile =>
           val classFileStamp = stampReader.product(classFile)

@@ -134,6 +134,19 @@ public interface AnalysisCallback {
     void usedName(String className, String name, EnumSet<UseScope> useScopes);
 
     /**
+     * Register the position of a <code>name</code> in a source file and
+     * the corresponding <code>fullName</code> from a given source class name.
+     *
+     * @param className The source class name that uses <code>name</code>.
+     * @param line The line position in source whose <code>name</code> is used.
+     * @param column The column position in source whose <code>name</code> is used.
+     * @param name The source name used in <code>className</code>.
+     * @param fullName The full path name corresponding to <code>name</code> in position
+     *                 indicated by <code>line</code> and <code>column</code>.
+     */
+    void positionName(String className, int line, int column, String name, String fullName);
+
+    /**
      * Register a compilation problem.
      *
      * This error may have already been logged or not. Unreported problems may

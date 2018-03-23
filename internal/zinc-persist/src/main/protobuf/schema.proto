@@ -79,6 +79,8 @@ message SourceInfo {
     repeated Problem reportedProblems = 1;
     repeated Problem unreportedProblems = 2;
     repeated string mainClasses = 3;
+    // The symbol name used and its position.
+    repeated PositionName positionNames = 4;
 }
 
 message SourceInfos {
@@ -390,6 +392,13 @@ message APIs {
 message UsedName {
     string name = 1;
     repeated UseScope scopes = 2;
+}
+
+message PositionName {
+    int32 line = 1;
+    int32 column = 2;
+    string name = 3;
+    string fullName = 4;
 }
 
 /** Defines a container for the values of maps. */

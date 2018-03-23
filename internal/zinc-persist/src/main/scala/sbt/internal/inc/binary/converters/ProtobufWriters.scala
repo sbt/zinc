@@ -154,15 +154,23 @@ final class ProtobufWriters(mapper: WriteMapper) {
       severity = severity
     )
   }
+  def toPositionName(positionName: xsbti.compile.analysis.PositionName): schema.PositionName = {
+    schema.PositionName(line = positionName.line,
+                        column = positionName.column,
+                        name = positionName.name,
+                        fullName = positionName.fullName)
+  }
 
   def toSourceInfo(sourceInfo: SourceInfo): schema.SourceInfo = {
     val mainClasses = sourceInfo.getMainClasses
     val reportedProblems = sourceInfo.getReportedProblems.map(toProblem).toSeq
     val unreportedProblems = sourceInfo.getUnreportedProblems.map(toProblem).toSeq
+    val positionNames = sourceInfo.getPositionNames.map(toPositionName).toSeq
     schema.SourceInfo(
       reportedProblems = reportedProblems,
       unreportedProblems = unreportedProblems,
-      mainClasses = mainClasses
+      mainClasses = mainClasses,
+      positionNames = positionNames
     )
   }
 

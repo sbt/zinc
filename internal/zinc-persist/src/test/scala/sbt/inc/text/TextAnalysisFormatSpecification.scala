@@ -84,7 +84,7 @@ trait BaseTextAnalysisFormatTest { self: Properties =>
     val aClass = genClass("A").sample.get
     val cClass = genClass("C").sample.get
     val absent = EmptyStamp
-    val sourceInfos = SourceInfos.makeInfo(Nil, Nil, Nil)
+    val sourceInfos = SourceInfos.makeInfo(Nil, Nil, Nil, Nil)
 
     var analysis = Analysis.empty
     val products = NonLocalProduct("A", "A", f("A.class"), absent) ::

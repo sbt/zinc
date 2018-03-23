@@ -59,23 +59,44 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
   import global._
   import JavaUtils._
 
+  type NamePositionMap = JavaMap[Position, (Name, String)]
+
   private final class NamesUsedInClass {
     // Default names and other scopes are separated for performance reasons
     val defaultNames: JavaSet[Name] = new JavaSet[global.Name]()
+    val defaultNamePositions: NamePositionMap = new NamePositionMap()
     val scopedNames: JavaMap[Name, EnumSet[UseScope]] = new JavaMap[Name, EnumSet[UseScope]]()
 
     // We have to leave with commas on ends
     override def toString(): String = {
-      val builder = new StringBuilder(": ")
+      val builder = new StringBuilder("\nused: ")
       defaultNames.foreach { name =>
         builder.append(name.decoded.trim)
         val otherScopes = scopedNames.get(name)
         if (otherScopes != null) {
           builder.append(" in [")
-          otherScopes.foreach(scope => builder.append(scope.name()).append(", "))
+          otherScopes.foreach { scope =>
+            builder.append(scope.name()).append(", ")
+            ()
+          }
           builder.append("]")
         }
         builder.append(", ")
+        ()
+      }
+      builder.append("\nused positions:")
+      defaultNamePositions.foreach {
+        case (pos, (name, fullName)) =>
+          builder.append("\n (line: ")
+          builder.append(pos.line)
+          builder.append(", column: ")
+          builder.append(pos.column)
+          builder.append(") -> ")
+          builder.append(name.decode.trim)
+          builder.append("(")
+          builder.append(fullName)
+          builder.append("), ")
+          ()
       }
       builder.toString()
     }
@@ -147,6 +168,11 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
         }
         callback.usedName(className, useName, useScopes)
       }
+      usedNames.defaultNamePositions.foreach {
+        case (pos, (rawUsedName, fullName)) =>
+          val useName = rawUsedName.decoded.trim
+          callback.positionName(className, pos.line, pos.column, useName, fullName)
+      }
     }
   }
 
@@ -161,6 +187,7 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
   private class ExtractUsedNamesTraverser extends Traverser {
 
     val usedNamesFromClasses = new JavaMap[Name, NamesUsedInClass]()
+    val usedNamePositions = new NamePositionMap()
     val namesUsedAtTopLevel = new NamesUsedInClass
 
     override def traverse(tree: Tree): Unit = {
@@ -175,6 +202,16 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
         names.add(mangledName(symbol))
         ()
       }
+    }
+
+    val addSymbolPosition: (NamePositionMap, Symbol, Tree) => Unit = {
+      (namePositions: NamePositionMap, symbol: Symbol, tree: Tree) =>
+        // Synthetic names are no longer included. See https://github.com/sbt/sbt/issues/2537
+        if (!namePositions.containsKey(tree.pos) && !ignoredSymbol(symbol) && !isEmptyName(
+              symbol.name)) {
+          namePositions.put(tree.pos, (mangledName(symbol), symbol.fullName))
+          ()
+        }
     }
 
     /** Returns mutable set with all names from given class used in current context */
@@ -227,7 +264,6 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
       def setCacheAndOwner(cache: JavaSet[Name], owner: Symbol): Unit = {
         if (ownerVisited != owner) {
           val ts = ownersCache.get(owner)
-
           if (ts == null) {
             val newVisited = new JavaSet[Type]()
             visited = newVisited
@@ -292,6 +328,7 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
     private var _currentOwner: Symbol = _
     private var _currentNonLocalClass: Symbol = _
     private var _currentNamesCache: JavaSet[Name] = _
+    private var _currentNamePositionsCache: NamePositionMap = _
     private var _currentScopedNamesCache: JavaMap[Name, EnumSet[UseScope]] = _
 
     @inline private def resolveNonLocal(from: Symbol): Symbol = {
@@ -350,6 +387,19 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
     private def getNamesOfEnclosingScope: JavaSet[Name] = {
       updateCurrentOwner()
       _currentNamesCache
+    }
+
+    /**
+     * Return the names associated with the closest non-local class owner
+     * of a tree given `currentOwner`, defined and updated by `Traverser`.
+     *
+     * This method modifies the state associated with the names variable
+     * by calling `updateCurrentOwner()`.
+     */
+    @inline
+    private def getNamePositionsOfEnclosingScope: NamePositionMap = {
+      updateCurrentOwner()
+      _currentNamePositionsCache
     }
   }
 }
