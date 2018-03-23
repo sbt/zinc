@@ -167,7 +167,7 @@ object ScalaInstance {
           case p: ScalaProvider2 @unchecked => Option((provider.loader, p.loaderLibraryOnly))
         }
       } catch {
-        case _: NoSuchMethodError => None
+        case _: NoSuchMethodException => None
       }) getOrElse fallbackClassLoaders
     }
     new ScalaInstance(version, loader, loaderLibraryOnly, libraryJar, compilerJar, jars, None)
