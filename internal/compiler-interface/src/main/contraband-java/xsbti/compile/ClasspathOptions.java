@@ -87,7 +87,7 @@ public final class ClasspathOptions implements java.io.Serializable {
             return false;
         } else {
             ClasspathOptions o = (ClasspathOptions)obj;
-            return (bootLibrary() == o.bootLibrary()) && (compiler() == o.compiler()) && (extra() == o.extra()) && (autoBoot() == o.autoBoot()) && (filterLibrary() == o.filterLibrary());
+            return (this.bootLibrary() == o.bootLibrary()) && (this.compiler() == o.compiler()) && (this.extra() == o.extra()) && (this.autoBoot() == o.autoBoot()) && (this.filterLibrary() == o.filterLibrary());
         }
     }
     public int hashCode() {

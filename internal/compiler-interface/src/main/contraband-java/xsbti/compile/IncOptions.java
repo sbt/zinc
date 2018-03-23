@@ -265,7 +265,7 @@ public final class IncOptions implements java.io.Serializable {
             return false;
         } else {
             IncOptions o = (IncOptions)obj;
-            return (transitiveStep() == o.transitiveStep()) && (recompileAllFraction() == o.recompileAllFraction()) && (relationsDebug() == o.relationsDebug()) && (apiDebug() == o.apiDebug()) && (apiDiffContextSize() == o.apiDiffContextSize()) && apiDumpDirectory().equals(o.apiDumpDirectory()) && classfileManagerType().equals(o.classfileManagerType()) && (useCustomizedFileManager() == o.useCustomizedFileManager()) && recompileOnMacroDef().equals(o.recompileOnMacroDef()) && (useOptimizedSealed() == o.useOptimizedSealed()) && (storeApis() == o.storeApis()) && (enabled() == o.enabled()) && extra().equals(o.extra()) && (logRecompileOnMacro() == o.logRecompileOnMacro()) && externalHooks().equals(o.externalHooks());
+            return (this.transitiveStep() == o.transitiveStep()) && (this.recompileAllFraction() == o.recompileAllFraction()) && (this.relationsDebug() == o.relationsDebug()) && (this.apiDebug() == o.apiDebug()) && (this.apiDiffContextSize() == o.apiDiffContextSize()) && this.apiDumpDirectory().equals(o.apiDumpDirectory()) && this.classfileManagerType().equals(o.classfileManagerType()) && (this.useCustomizedFileManager() == o.useCustomizedFileManager()) && this.recompileOnMacroDef().equals(o.recompileOnMacroDef()) && (this.useOptimizedSealed() == o.useOptimizedSealed()) && (this.storeApis() == o.storeApis()) && (this.enabled() == o.enabled()) && this.extra().equals(o.extra()) && (this.logRecompileOnMacro() == o.logRecompileOnMacro()) && this.externalHooks().equals(o.externalHooks());
         }
     }
     public int hashCode() {

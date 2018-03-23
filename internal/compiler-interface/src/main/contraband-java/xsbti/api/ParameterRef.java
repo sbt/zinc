@@ -31,7 +31,7 @@ public final class ParameterRef extends xsbti.api.Type {
             return false;
         } else {
             ParameterRef o = (ParameterRef)obj;
-            return id().equals(o.id());
+            return this.id().equals(o.id());
         }
     }
     public int hashCode() {

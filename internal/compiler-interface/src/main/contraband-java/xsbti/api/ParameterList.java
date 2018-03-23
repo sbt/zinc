@@ -39,11 +39,11 @@ public final class ParameterList implements java.io.Serializable {
             return false;
         } else {
             ParameterList o = (ParameterList)obj;
-            return java.util.Arrays.deepEquals(parameters(), o.parameters()) && (isImplicit() == o.isImplicit());
+            return java.util.Arrays.deepEquals(this.parameters(), o.parameters()) && (this.isImplicit() == o.isImplicit());
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (17 + "xsbti.api.ParameterList".hashCode()) + parameters().hashCode()) + (new Boolean(isImplicit())).hashCode());
+        return 37 * (37 * (37 * (17 + "xsbti.api.ParameterList".hashCode()) + java.util.Arrays.deepHashCode(parameters())) + (new Boolean(isImplicit())).hashCode());
     }
     public String toString() {
         return "ParameterList("  + "parameters: " + parameters() + ", " + "isImplicit: " + isImplicit() + ")";

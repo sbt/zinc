@@ -39,7 +39,7 @@ public final class Projection extends xsbti.api.Type {
             return false;
         } else {
             Projection o = (Projection)obj;
-            return prefix().equals(o.prefix()) && id().equals(o.id());
+            return this.prefix().equals(o.prefix()) && this.id().equals(o.id());
         }
     }
     public int hashCode() {

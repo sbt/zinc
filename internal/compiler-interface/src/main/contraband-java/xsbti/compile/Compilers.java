@@ -44,7 +44,7 @@ public final class Compilers implements java.io.Serializable {
             return false;
         } else {
             Compilers o = (Compilers)obj;
-            return scalac().equals(o.scalac()) && javaTools().equals(o.javaTools());
+            return this.scalac().equals(o.scalac()) && this.javaTools().equals(o.javaTools());
         }
     }
     public int hashCode() {

@@ -39,11 +39,11 @@ public final class Annotated extends xsbti.api.Type {
             return false;
         } else {
             Annotated o = (Annotated)obj;
-            return baseType().equals(o.baseType()) && java.util.Arrays.deepEquals(annotations(), o.annotations());
+            return this.baseType().equals(o.baseType()) && java.util.Arrays.deepEquals(this.annotations(), o.annotations());
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (17 + "xsbti.api.Annotated".hashCode()) + baseType().hashCode()) + annotations().hashCode());
+        return 37 * (37 * (37 * (17 + "xsbti.api.Annotated".hashCode()) + baseType().hashCode()) + java.util.Arrays.deepHashCode(annotations()));
     }
     public String toString() {
         return "Annotated("  + "baseType: " + baseType() + ", " + "annotations: " + annotations() + ")";

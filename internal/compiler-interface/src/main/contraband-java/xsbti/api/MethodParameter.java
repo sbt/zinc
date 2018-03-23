@@ -55,7 +55,7 @@ public final class MethodParameter implements java.io.Serializable {
             return false;
         } else {
             MethodParameter o = (MethodParameter)obj;
-            return name().equals(o.name()) && tpe().equals(o.tpe()) && (hasDefault() == o.hasDefault()) && modifier().equals(o.modifier());
+            return this.name().equals(o.name()) && this.tpe().equals(o.tpe()) && (this.hasDefault() == o.hasDefault()) && this.modifier().equals(o.modifier());
         }
     }
     public int hashCode() {
