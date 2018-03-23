@@ -39,7 +39,7 @@ public final class Companions implements java.io.Serializable {
             return false;
         } else {
             Companions o = (Companions)obj;
-            return classApi().equals(o.classApi()) && objectApi().equals(o.objectApi());
+            return this.classApi().equals(o.classApi()) && this.objectApi().equals(o.objectApi());
         }
     }
     public int hashCode() {

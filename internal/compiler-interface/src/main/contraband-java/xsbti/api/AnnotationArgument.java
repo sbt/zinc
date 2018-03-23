@@ -39,7 +39,7 @@ public final class AnnotationArgument implements java.io.Serializable {
             return false;
         } else {
             AnnotationArgument o = (AnnotationArgument)obj;
-            return name().equals(o.name()) && value().equals(o.value());
+            return this.name().equals(o.name()) && this.value().equals(o.value());
         }
     }
     public int hashCode() {

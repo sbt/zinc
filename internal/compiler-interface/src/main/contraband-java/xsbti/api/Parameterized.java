@@ -39,11 +39,11 @@ public final class Parameterized extends xsbti.api.Type {
             return false;
         } else {
             Parameterized o = (Parameterized)obj;
-            return baseType().equals(o.baseType()) && java.util.Arrays.deepEquals(typeArguments(), o.typeArguments());
+            return this.baseType().equals(o.baseType()) && java.util.Arrays.deepEquals(this.typeArguments(), o.typeArguments());
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (17 + "xsbti.api.Parameterized".hashCode()) + baseType().hashCode()) + typeArguments().hashCode());
+        return 37 * (37 * (37 * (17 + "xsbti.api.Parameterized".hashCode()) + baseType().hashCode()) + java.util.Arrays.deepHashCode(typeArguments()));
     }
     public String toString() {
         return "Parameterized("  + "baseType: " + baseType() + ", " + "typeArguments: " + typeArguments() + ")";

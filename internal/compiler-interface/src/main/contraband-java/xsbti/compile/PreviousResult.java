@@ -40,7 +40,7 @@ public final class PreviousResult implements java.io.Serializable {
             return false;
         } else {
             PreviousResult o = (PreviousResult)obj;
-            return analysis().equals(o.analysis()) && setup().equals(o.setup());
+            return this.analysis().equals(o.analysis()) && this.setup().equals(o.setup());
         }
     }
     public int hashCode() {

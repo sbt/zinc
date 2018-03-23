@@ -31,7 +31,7 @@ public final class Id extends xsbti.api.PathComponent {
             return false;
         } else {
             Id o = (Id)obj;
-            return id().equals(o.id());
+            return this.id().equals(o.id());
         }
     }
     public int hashCode() {

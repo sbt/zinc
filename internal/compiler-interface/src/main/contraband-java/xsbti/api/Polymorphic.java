@@ -39,11 +39,11 @@ public final class Polymorphic extends xsbti.api.Type {
             return false;
         } else {
             Polymorphic o = (Polymorphic)obj;
-            return baseType().equals(o.baseType()) && java.util.Arrays.deepEquals(parameters(), o.parameters());
+            return this.baseType().equals(o.baseType()) && java.util.Arrays.deepEquals(this.parameters(), o.parameters());
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (17 + "xsbti.api.Polymorphic".hashCode()) + baseType().hashCode()) + parameters().hashCode());
+        return 37 * (37 * (37 * (17 + "xsbti.api.Polymorphic".hashCode()) + baseType().hashCode()) + java.util.Arrays.deepHashCode(parameters()));
     }
     public String toString() {
         return "Polymorphic("  + "baseType: " + baseType() + ", " + "parameters: " + parameters() + ")";

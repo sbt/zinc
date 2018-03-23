@@ -31,11 +31,11 @@ public final class Path implements java.io.Serializable {
             return false;
         } else {
             Path o = (Path)obj;
-            return java.util.Arrays.deepEquals(components(), o.components());
+            return java.util.Arrays.deepEquals(this.components(), o.components());
         }
     }
     public int hashCode() {
-        return 37 * (37 * (17 + "xsbti.api.Path".hashCode()) + components().hashCode());
+        return 37 * (37 * (17 + "xsbti.api.Path".hashCode()) + java.util.Arrays.deepHashCode(components()));
     }
     public String toString() {
         return "Path("  + "components: " + components() + ")";
