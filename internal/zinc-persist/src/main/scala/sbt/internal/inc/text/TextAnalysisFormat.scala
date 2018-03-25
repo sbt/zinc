@@ -64,8 +64,10 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
   private implicit def infoFormat: Format[SourceInfo] =
     wrap[SourceInfo, (Seq[Problem], Seq[Problem], Seq[String])](
       si => (si.getReportedProblems, si.getUnreportedProblems, si.getMainClasses), {
-        case (a, b, c) => SourceInfos.makeInfo(a, b, c, Nil)
-      })
+        // name-index is not serialized in text format
+        case (a, b, c) => SourceInfos.makeInfo(a, b, c, Nil, Nil)
+      }
+    )
   private implicit def fileHashFormat: Format[FileHash] =
     asProduct2((file: File, hash: Int) => FileHash.of(file, hash))(h => (h.file, h.hash))
   private implicit def seqFormat[T](implicit optionFormat: Format[T]): Format[Seq[T]] =

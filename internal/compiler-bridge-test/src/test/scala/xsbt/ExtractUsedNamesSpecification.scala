@@ -11,7 +11,7 @@ class ExtractUsedNamesSpecification extends UnitSpec {
                 | import a.{A => A2}
                 |}""".stripMargin
     val compilerForTesting = new ScalaCompilerForUnitTesting
-    val (usedNames, _) = compilerForTesting.extractUsedNamesFromSrc(src)
+    val (usedNames, _, _) = compilerForTesting.extractUsedNamesFromSrc(src)
     val expectedNames = standardNames ++ Set("a", "A", "A2", "b")
     // names used at top level are attributed to the first class defined in a compilation unit
 
@@ -38,19 +38,23 @@ class ExtractUsedNamesSpecification extends UnitSpec {
                   |   }
                   |}""".stripMargin
     val compilerForTesting = new ScalaCompilerForUnitTesting
-    val (usedNames, positionNames) = compilerForTesting.extractUsedNamesFromSrc(srcA, srcB)
+    val (usedNames, usedNamePositions, definedNamePositions) =
+      compilerForTesting.extractUsedNamesFromSrc(srcA, srcB)
     val expectedNames = standardNames ++ Set("a", "c", "A", "B", "C", "D", "b", "X", "BB")
     assert(usedNames("b.X") === expectedNames)
-    val expectedPositionNames = Set((3, 15, "a"),
-                                    (3, 17, "a.A"),
-                                    (3, 19, "a.A.C"),
-                                    (3, 21, "a.A.C.D"),
-                                    (4, 15, "a"),
-                                    (4, 17, "a.B"),
-                                    (4, 19, "c"),
-                                    (4, 21, "c.BB"),
-                                    (6, 1, "scala.AnyRef"))
-    assert(positionNames("b.X") === expectedPositionNames)
+    val expectedUsedNamePositions = Set((1, 9, "b"),
+                                        (3, 15, "a"),
+                                        (3, 17, "a.A"),
+                                        (3, 19, "a.A.C"),
+                                        (3, 21, "a.A.C.D"),
+                                        (4, 15, "a"),
+                                        (4, 17, "a.B"),
+                                        (4, 19, "c"),
+                                        (4, 21, "c.BB"),
+                                        (6, 1, "scala.AnyRef"))
+    assert(usedNamePositions("b.X") === expectedUsedNamePositions)
+    val expectedDefinedNamePositions = Set((2, 17, "b.X"), (3, 10, "b.X.foo"), (4, 10, "b.X.bar"))
+    assert(definedNamePositions("b.X") === expectedDefinedNamePositions)
   }
 
   // test for https://github.com/gkossakowski/sbt/issues/5
@@ -62,12 +66,16 @@ class ExtractUsedNamesSpecification extends UnitSpec {
                   |  def foo(a: A) = a.`=`
                   |}""".stripMargin
     val compilerForTesting = new ScalaCompilerForUnitTesting
-    val (usedNames, positionNames) = compilerForTesting.extractUsedNamesFromSrc(srcA, srcB)
+    val (usedNames, usedNamePositions, definedNamePositions) =
+      compilerForTesting.extractUsedNamesFromSrc(srcA, srcB)
     val expectedNames = standardNames ++ Set("A", "a", "B", "=", "Int")
     assert(usedNames("B") === expectedNames)
-    val expectedPositionNames =
+    val expectedUsedNamePositions =
       Set((2, 14, "A"), (2, 19, "B.a"), (2, 21, "A.$eq"), (3, 2, "scala.AnyRef"))
-    assert(positionNames("B") === expectedPositionNames)
+    assert(usedNamePositions("B") === expectedUsedNamePositions)
+    val expectedDefinedNamePositions =
+      Set((1, 7, "B"), (2, 7, "B.foo"), (2, 11, "B.a"))
+    assert(definedNamePositions("B") === expectedDefinedNamePositions)
   }
 
   it should "extract type names for objects depending on abstract types" in {
@@ -83,7 +91,7 @@ class ExtractUsedNamesSpecification extends UnitSpec {
     val srcC = "object C extends B"
     val srcD = "object D { C.X.foo(12) }"
     val compilerForTesting = new ScalaCompilerForUnitTesting
-    val (usedNames, positionNames) =
+    val (usedNames, usedNamePositions, definedNamePositions) =
       compilerForTesting.extractUsedNamesFromSrc(srcA, srcB, srcC, srcD)
     val scalaVersion = scala.util.Properties.versionNumberString
     // TODO: Find out what's making these types appear in 2.10
@@ -100,18 +108,31 @@ class ExtractUsedNamesSpecification extends UnitSpec {
     assert(usedNames("B") === namesB)
     assert(usedNames("C") === namesC)
     assert(usedNames("D") === namesD)
-    val expectedPositionNamesA = Set((7, 6, "scala.AnyRef"))
-    val expectedPositionNamesAX =
+
+    val expectedUsedNamePositionsA = Set((7, 6, "scala.AnyRef"))
+    val expectedUsedNamePositionsAX =
       Set((4, 16, "A.T"), (4, 20, "A.T"), (4, 24, "A.X.x"), (6, 1, "scala.AnyRef"))
-    val expectedPositionNamesB = Set((1, 17, "A"), (1, 30, "scala.Int"))
-    val expectedPositionNamesC = Set((1, 18, "B"))
-    val expectedPositionNamesD =
+    val expectedUsedNamePositionsB = Set((1, 17, "A"), (1, 30, "scala.Int"))
+    val expectedUsedNamePositionsC = Set((1, 18, "B"))
+    val expectedUsedNamePositionsD =
       Set((1, 12, "C"), (1, 14, "A.X"), (1, 16, "A.X.foo"), (1, 25, "scala.AnyRef"))
-    assert(positionNames("A") === expectedPositionNamesA)
-    assert(positionNames("A.X") === expectedPositionNamesAX)
-    assert(positionNames("B") === expectedPositionNamesB)
-    assert(positionNames("C") === expectedPositionNamesC)
-    assert(positionNames("D") === expectedPositionNamesD)
+    assert(usedNamePositions("A") === expectedUsedNamePositionsA)
+    assert(usedNamePositions("A.X") === expectedUsedNamePositionsAX)
+    assert(usedNamePositions("B") === expectedUsedNamePositionsB)
+    assert(usedNamePositions("C") === expectedUsedNamePositionsC)
+    assert(usedNamePositions("D") === expectedUsedNamePositionsD)
+
+    val expectedDefinedNamePositionsA = Set((1, 16, "A"), (2, 7, "A.T"), (3, 9, "A.X"))
+    val expectedDefinedNamePositionsAX = Set((4, 9, "A.X.foo"), (4, 13, "A.X.x"))
+    val expectedDefinedNamePositionsB = Set((1, 7, "B"), (1, 26, "B.T"))
+    val expectedDefinedNamePositionsC = Set((1, 8, "C"))
+    val expectedDefinedNamePositionsD = Set((1, 8, "D"))
+    assert(definedNamePositions("A") === expectedDefinedNamePositionsA)
+    assert(definedNamePositions("A.X") === expectedDefinedNamePositionsAX)
+    assert(definedNamePositions("B") === expectedDefinedNamePositionsB)
+    assert(definedNamePositions("C") === expectedDefinedNamePositionsC)
+    assert(definedNamePositions("D") === expectedDefinedNamePositionsD)
+
   }
 
   // See source-dependencies/types-in-used-names-a for an example where
@@ -152,7 +173,8 @@ class ExtractUsedNamesSpecification extends UnitSpec {
                   |}
                   |""".stripMargin
     val compilerForTesting = new ScalaCompilerForUnitTesting
-    val (usedNames, positionNames) = compilerForTesting.extractUsedNamesFromSrc(src1, src2)
+    val (usedNames, usedNamePositions, definedNamePositions) =
+      compilerForTesting.extractUsedNamesFromSrc(src1, src2)
     val expectedNames_lista = standardNames ++ Set("Test_lista", "x", "B", "lista", "List", "A")
     val expectedNames_at = standardNames ++ Set("Test_at", "x", "B", "at", "A", "T", "X0", "X1")
     val expectedNames_as = standardNames ++ Set("Test_as", "x", "B", "as", "S", "Y")
@@ -180,29 +202,57 @@ class ExtractUsedNamesSpecification extends UnitSpec {
     assert(usedNames("Test_as") === expectedNames_as)
     assert(usedNames("Test_foo") === expectedNames_foo)
     assert(usedNames("Test_bar") === expectedNames_bar)
-    val expectedPositionNames_lista =
-      Set((2, 7, "Test_lista.x"), (2, 11, "B"), (2, 13, "B.lista"), (4, 1, "scala.AnyRef"))
-    val expectedPositionNames_at =
-      Set((5, 7, "Test_at.x"), (5, 11, "B"), (5, 13, "B.at"), (7, 1, "scala.AnyRef"))
-    val expectedPositionNames_as =
-      Set((8, 7, "Test_as.x"), (8, 11, "B"), (8, 13, "B.as"), (10, 1, "scala.AnyRef"))
-    val expectedPositionNames_foo =
-      Set((11, 7, "Test_foo.x"),
-          (11, 11, "B"),
+
+    val expectedUsedNamePositions_lista =
+      Set((2, 11, "B"), (2, 13, "B.lista"), (4, 1, "scala.AnyRef"))
+    val expectedUsedNamePositions_at =
+      Set((5, 11, "B"), (5, 13, "B.at"), (7, 1, "scala.AnyRef"))
+    val expectedUsedNamePositions_as =
+      Set((8, 11, "B"), (8, 13, "B.as"), (10, 1, "scala.AnyRef"))
+    val expectedUsedNamePositions_foo =
+      Set((11, 11, "B"),
           (11, 13, "B.foo"),
           (11, 17, "scala.Predef.$qmark$qmark$qmark"),
           (13, 1, "scala.AnyRef"))
-    val expectedPositionNames_bar =
-      Set((14, 7, "Test_bar.x"),
-          (14, 11, "B"),
+    val expectedUsedNamePositions_bar =
+      Set((14, 11, "B"),
           (14, 13, "B.bar"),
           (14, 17, "scala.Predef.$qmark$qmark$qmark"),
           (15, 2, "scala.AnyRef"))
-    assert(positionNames("Test_lista") === expectedPositionNames_lista)
-    assert(positionNames("Test_at") === expectedPositionNames_at)
-    assert(positionNames("Test_as") === expectedPositionNames_as)
-    assert(positionNames("Test_foo") === expectedPositionNames_foo)
-    assert(positionNames("Test_bar") === expectedPositionNames_bar)
+    assert(usedNamePositions("Test_lista") === expectedUsedNamePositions_lista)
+    assert(usedNamePositions("Test_at") === expectedUsedNamePositions_at)
+    assert(usedNamePositions("Test_as") === expectedUsedNamePositions_as)
+    assert(usedNamePositions("Test_foo") === expectedUsedNamePositions_foo)
+    assert(usedNamePositions("Test_bar") === expectedUsedNamePositions_bar)
+
+    val expectedDefinedNamePositions_lista = Set((1, 8, "Test_lista"),
+                                                 (2, 7, "Test_lista.x"),
+                                                 (4, 8, "Test_at"),
+                                                 (7, 8, "Test_as"),
+                                                 (10, 8, "Test_foo"),
+                                                 (13, 8, "Test_bar"))
+    val expectedDefinedNamePositions_at = Set((5, 7, "Test_at.x"))
+    val expectedDefinedNamePositions_as = Set((8, 7, "Test_as.x"))
+    val expectedDefinedNamePositions_foo = Set((11, 7, "Test_foo.x"))
+    val expectedDefinedNamePositions_bar = Set((14, 7, "Test_bar.x"))
+    val expectedDefinedNamePositions_B = Set(
+      (12, 8, "B.S"),
+      (13, 7, "B.lista"),
+      (14, 7, "B.at"),
+      (15, 7, "B.as"),
+      (16, 7, "B.foo"),
+      (16, 11, "B.m"),
+      (17, 7, "B.bar"),
+      (17, 11, "B.Param"),
+      (17, 30, "B.p")
+    )
+    assert(definedNamePositions("Test_lista") === expectedDefinedNamePositions_lista)
+    assert(definedNamePositions("Test_at") === expectedDefinedNamePositions_at)
+    assert(definedNamePositions("Test_as") === expectedDefinedNamePositions_as)
+    assert(definedNamePositions("Test_foo") === expectedDefinedNamePositions_foo)
+    assert(definedNamePositions("Test_bar") === expectedDefinedNamePositions_bar)
+    assert(definedNamePositions("B") === expectedDefinedNamePositions_B)
+
   }
 
   it should "extract used names from an existential" in {
@@ -213,7 +263,8 @@ class ExtractUsedNamesSpecification extends UnitSpec {
       |}
       """.stripMargin
     val compilerForTesting = new ScalaCompilerForUnitTesting
-    val (usedNames, positionNames) = compilerForTesting.extractUsedNamesFromSrc(srcFoo)
+    val (usedNames, usedNamePositions, definedNamePositions) =
+      compilerForTesting.extractUsedNamesFromSrc(srcFoo)
     val expectedNames = standardNames ++ Seq("Double",
                                              "Foo",
                                              "T",
@@ -225,6 +276,18 @@ class ExtractUsedNamesSpecification extends UnitSpec {
                                              "???",
                                              "Predef")
     assert(usedNames("Foo") === expectedNames)
+
+    val expectedUsedNamePositions =
+      Set((1, 8, "scala"),
+          (1, 14, "scala.language"),
+          (3, 12, "Foo.T"),
+          (3, 45, "scala.Predef.$qmark$qmark$qmark"),
+          (5, 6, "scala.AnyRef"))
+    assert(usedNamePositions("Foo") === expectedUsedNamePositions)
+
+    val expectedDefinedNamePositions =
+      Set((2, 7, "Foo"), (3, 7, "Foo.foo"), (3, 29, "Foo.T"))
+    assert(definedNamePositions("Foo") === expectedDefinedNamePositions)
   }
 
   it should "extract used names from a refinement" in {
@@ -232,32 +295,40 @@ class ExtractUsedNamesSpecification extends UnitSpec {
       "object Outer {\n  class Inner { type Xyz }\n\n  type TypeInner = Inner { type Xyz = Int }\n}"
     val srcBar = "object Bar {\n  def bar: Outer.TypeInner = null\n}"
     val compilerForTesting = new ScalaCompilerForUnitTesting
-    val (usedNames, positionNames) = compilerForTesting.extractUsedNamesFromSrc(srcFoo, srcBar)
+    val (usedNames, usedNamePositions, definedNamePositions) =
+      compilerForTesting.extractUsedNamesFromSrc(srcFoo, srcBar)
     val expectedNames = standardNames ++ Set("Bar", "Outer", "TypeInner", "Inner", "Xyz", "Int")
     assert(usedNames("Bar") === expectedNames)
-    val expectedPositionNames =
-      Set((2, 12, "Outer"), (2, 18, "Outer.TypeInner"), (3, 2, "scala.AnyRef"))
-    assert(positionNames("Bar") === expectedPositionNames)
 
+    val expectedUsedNamePositions =
+      Set((2, 12, "Outer"), (2, 18, "Outer.TypeInner"), (3, 2, "scala.AnyRef"))
+    assert(usedNamePositions("Bar") === expectedUsedNamePositions)
+
+    val expectedDefinedNamePositions = Set((1, 8, "Bar"), (2, 7, "Bar.bar"))
+    assert(definedNamePositions("Bar") === expectedDefinedNamePositions)
   }
 
   // test for https://github.com/gkossakowski/sbt/issues/3
   it should "extract used names from the same compilation unit" in {
     val src = "class A { def foo: Int = 0; def bar: Int = foo }"
     val compilerForTesting = new ScalaCompilerForUnitTesting
-    val (usedNames, positionNames) = compilerForTesting.extractUsedNamesFromSrc(src)
+    val (usedNames, usedNamePositions, definedNamePositions) =
+      compilerForTesting.extractUsedNamesFromSrc(src)
     val expectedNames = standardNames ++ Set("A", "foo", "Int")
     assert(usedNames("A") === expectedNames)
-    val expectedPositionNames =
+    val expectedUsedNamePositions =
       Set((1, 20, "scala.Int"), (1, 38, "scala.Int"), (1, 44, "A.foo"), (1, 49, "scala.AnyRef"))
-    assert(positionNames("A") === expectedPositionNames)
+    assert(usedNamePositions("A") === expectedUsedNamePositions)
+    val expectedDefinedNamePositions =
+      Set((1, 7, "A"), (1, 15, "A.foo"), (1, 33, "A.bar"))
+    assert(definedNamePositions("A") === expectedDefinedNamePositions)
   }
 
   // pending test for https://issues.scala-lang.org/browse/SI-7173
   it should "extract names of constants" in pendingUntilFixed {
     val src = "class A { final val foo = 12; def bar: Int = foo }"
     val compilerForTesting = new ScalaCompilerForUnitTesting
-    val (usedNames, _) = compilerForTesting.extractUsedNamesFromSrc(src)
+    val (usedNames, _, _) = compilerForTesting.extractUsedNamesFromSrc(src)
     val expectedNames = standardNames ++ Set("A", "foo", "Int")
     assert(usedNames === expectedNames)
     ()
@@ -272,7 +343,7 @@ class ExtractUsedNamesSpecification extends UnitSpec {
                   |}""".stripMargin
     val srcB = "class B { def foo(a: A): Int = a.bla }"
     val compilerForTesting = new ScalaCompilerForUnitTesting
-    val (usedNames, _) = compilerForTesting.extractUsedNamesFromSrc(srcA, srcB)
+    val (usedNames, _, _) = compilerForTesting.extractUsedNamesFromSrc(srcA, srcB)
     val expectedNames = standardNames ++ Set("B", "A", "a", "Int", "selectDynamic", "bla")
     assert(usedNames === expectedNames)
     ()

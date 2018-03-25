@@ -144,7 +144,8 @@ private final class AnalysisCallback(
   private[this] val classPublicNameHashes = new HashMap[String, Array[NameHash]]
   private[this] val objectPublicNameHashes = new HashMap[String, Array[NameHash]]
   private[this] val usedNames = new HashMap[String, Set[UsedName]]
-  private[this] val positionNames = new HashMap[String, Set[PositionName]]
+  private[this] val usedNamePositions = new HashMap[String, Set[NamePosition]]
+  private[this] val definedNamePositions = new HashMap[String, Set[NamePosition]]
   private[this] val unreporteds = new HashMap[File, ListBuffer[Problem]]
   private[this] val reporteds = new HashMap[File, ListBuffer[Problem]]
   private[this] val mainClasses = new HashMap[File, ListBuffer[String]]
@@ -286,12 +287,19 @@ private final class AnalysisCallback(
   def usedName(className: String, name: String, useScopes: util.EnumSet[UseScope]) =
     add(usedNames, className, UsedName(name, useScopes))
 
-  def positionName(className: String,
-                   line: Int,
-                   column: Int,
-                   name: String,
-                   fullName: String): Unit =
-    add(positionNames, className, PositionName.of(line, column, name, fullName))
+  def usedNamePosition(className: String,
+                       line: Int,
+                       column: Int,
+                       name: String,
+                       fullName: String): Unit =
+    add(usedNamePositions, className, NamePosition(line, column, name, fullName))
+
+  def definedNamePosition(className: String,
+                          line: Int,
+                          column: Int,
+                          name: String,
+                          fullName: String): Unit =
+    add(definedNamePositions, className, NamePosition(line, column, name, fullName))
 
   override def enabled(): Boolean = options.enabled
 
@@ -351,10 +359,15 @@ private final class AnalysisCallback(
         val stamp = stampReader.source(src)
         val classesInSrc = classNames.getOrElse(src, Set.empty).map(_._1)
         val analyzedApis = classesInSrc.map(analyzeClass)
-        val info = SourceInfos.makeInfo(getOrNil(reporteds, src),
-                                        getOrNil(unreporteds, src),
-                                        getOrNil(mainClasses, src),
-                                        classesInSrc.flatMap(s => positionNames(s)).toList)
+        val info = SourceInfos.makeInfo(
+          getOrNil(reporteds, src),
+          getOrNil(unreporteds, src),
+          getOrNil(mainClasses, src),
+          classesInSrc.flatMap(s => usedNamePositions.getOrElse(s, Set.empty)).toList,
+          classesInSrc
+            .flatMap(s => definedNamePositions.getOrElse(s, Set.empty))
+            .toList
+        )
         val binaries = binaryDeps.getOrElse(src, Nil: Iterable[File])
         val localProds = localClasses.getOrElse(src, Nil: Iterable[File]) map { classFile =>
           val classFileStamp = stampReader.product(classFile)

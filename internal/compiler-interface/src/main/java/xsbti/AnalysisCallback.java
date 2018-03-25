@@ -134,17 +134,30 @@ public interface AnalysisCallback {
     void usedName(String className, String name, EnumSet<UseScope> useScopes);
 
     /**
-     * Register the position of a <code>name</code> in a source file and
+     * Register the position of a used <code>name</code> in a source file and
      * the corresponding <code>fullName</code> from a given source class name.
      *
      * @param className The source class name that uses <code>name</code>.
-     * @param line The line position in source whose <code>name</code> is used.
-     * @param column The column position in source whose <code>name</code> is used.
+     * @param line Line position in a document whose <code>name</code> is used (one-based).
+     * @param column column offset on a <code>line</code> in a document whose <code>name</code> is used (one-based).
      * @param name The source name used in <code>className</code>.
      * @param fullName The full path name corresponding to <code>name</code> in position
-     *                 indicated by <code>line</code> and <code>column</code>.
+     *                 that indicated by <code>line</code> and <code>column</code>.
      */
-    void positionName(String className, int line, int column, String name, String fullName);
+    void usedNamePosition(String className, int line, int column, String name, String fullName);
+
+    /**
+     * Register the position of a defined <code>name</code> in a source file and
+     * the corresponding <code>fullName</code> from a given source class name.
+     *
+     * @param className The source class name that defines <code>name</code>.
+     * @param line Line position in a document whose <code>name</code> is defined (one-based).
+     * @param column column offset on a <code>line</code> in a document whose <code>name</code> is defined (one-based).
+     * @param name The source name defined in <code>className</code>.
+     * @param fullName The full path name corresponding to <code>name</code> in position
+     *                 that indicated by <code>line</code> and <code>column</code>.
+     */
+    void definedNamePosition(String className, int line, int column, String name, String fullName);
 
     /**
      * Register a compilation problem.

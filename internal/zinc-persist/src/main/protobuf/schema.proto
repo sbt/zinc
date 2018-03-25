@@ -80,7 +80,9 @@ message SourceInfo {
     repeated Problem unreportedProblems = 2;
     repeated string mainClasses = 3;
     // The symbol name used and its position.
-    repeated PositionName positionNames = 4;
+    repeated NamePosition usedNamePositions = 4;
+    // The symbol name defined and its position.
+    repeated NamePosition definedNamePositions = 5;
 }
 
 message SourceInfos {
@@ -394,7 +396,7 @@ message UsedName {
     repeated UseScope scopes = 2;
 }
 
-message PositionName {
+message NamePosition {
     int32 line = 1;
     int32 column = 2;
     string name = 3;

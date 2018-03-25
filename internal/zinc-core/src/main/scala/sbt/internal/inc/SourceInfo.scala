@@ -28,12 +28,17 @@ object SourceInfos {
   def empty: SourceInfos = of(Map.empty)
   def of(m: Map[File, SourceInfo]): SourceInfos = new MSourceInfos(m)
 
-  val emptyInfo: SourceInfo = makeInfo(Nil, Nil, Nil, Nil)
+  val emptyInfo: SourceInfo = makeInfo(Nil, Nil, Nil, Nil, Nil)
   def makeInfo(reported: Seq[Problem],
                unreported: Seq[Problem],
                mainClasses: Seq[String],
-               positionNames: Seq[PositionName]): SourceInfo =
-    new UnderlyingSourceInfo(reported, unreported, mainClasses, positionNames)
+               usedNamePositions: Seq[NamePosition],
+               definedNamePositions: Seq[NamePosition]): SourceInfo =
+    new UnderlyingSourceInfo(reported,
+                             unreported,
+                             mainClasses,
+                             usedNamePositions,
+                             definedNamePositions)
   def merge(infos: Traversable[SourceInfos]): SourceInfos = (SourceInfos.empty /: infos)(_ ++ _)
 }
 
@@ -55,16 +60,27 @@ private final class MSourceInfos(val allInfos: Map[File, SourceInfo]) extends So
 private final class UnderlyingSourceInfo(val reportedProblems: Seq[Problem],
                                          val unreportedProblems: Seq[Problem],
                                          val mainClasses: Seq[String],
-                                         val positionNames: Seq[PositionName])
+                                         val usedNamePositions: Seq[NamePosition],
+                                         val definedNamePositions: Seq[NamePosition])
     extends SourceInfo {
   override def getReportedProblems: Array[Problem] = reportedProblems.toArray
   override def getUnreportedProblems: Array[Problem] = unreportedProblems.toArray
   override def getMainClasses: Array[String] = mainClasses.toArray
-  override def getPositionNames: Array[analysis.PositionName] = positionNames.toArray
+  override def getUsedNamePositions: Array[analysis.NamePosition] = usedNamePositions.toArray
+  override def getDefinedNamePositions: Array[analysis.NamePosition] = definedNamePositions.toArray
   override def getFullNameByPosition(line: Int, column: Int): Optional[String] =
-    positionNames.find(pn =>
-      pn.line == line && pn.column <= column && column <= (pn.column + pn.name.length)) match {
+    (definedNamePositions ++ usedNamePositions).find(np =>
+      np.line == line && np.column <= column && column <= (np.column + np.name.length)) match {
       case None     => Optional.empty[String]
-      case Some(pn) => Optional.of(pn.fullName)
+      case Some(np) => Optional.of(np.fullName)
     }
+  override def getPositionByFullName(fullName: String): java.util.Set[analysis.NamePosition] = {
+    val javaSet = new java.util.HashSet[analysis.NamePosition]()
+    definedNamePositions
+      .filter(
+        _.fullName == fullName
+      )
+      .foreach(javaSet.add)
+    javaSet
+  }
 }

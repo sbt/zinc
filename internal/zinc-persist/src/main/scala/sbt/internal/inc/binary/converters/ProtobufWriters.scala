@@ -10,21 +10,12 @@ package sbt.internal.inc.binary.converters
 import java.io.File
 
 import sbt.internal.inc._
-import xsbti.{ Position, Problem, Severity, T2, UseScope }
+import xsbti._
 import xsbti.compile.analysis.{ SourceInfo, Stamp, WriteMapper }
 import sbt.internal.inc.binary.converters.ProtobufDefaults.Feedback.{ Writers => WritersFeedback }
 import sbt.internal.inc.binary.converters.ProtobufDefaults.WritersConstants
 import xsbti.api.{ Private, _ }
-import xsbti.compile.{
-  CompileOrder,
-  FileHash,
-  MiniOptions,
-  MiniSetup,
-  MultipleOutput,
-  Output,
-  OutputGroup,
-  SingleOutput
-}
+import xsbti.compile._
 
 final class ProtobufWriters(mapper: WriteMapper) {
   def toStringPath(file: File): String = {
@@ -154,8 +145,8 @@ final class ProtobufWriters(mapper: WriteMapper) {
       severity = severity
     )
   }
-  def toPositionName(positionName: xsbti.compile.analysis.PositionName): schema.PositionName = {
-    schema.PositionName(line = positionName.line,
+  def toPositionName(positionName: analysis.NamePosition): schema.NamePosition = {
+    schema.NamePosition(line = positionName.line,
                         column = positionName.column,
                         name = positionName.name,
                         fullName = positionName.fullName)
@@ -165,12 +156,14 @@ final class ProtobufWriters(mapper: WriteMapper) {
     val mainClasses = sourceInfo.getMainClasses
     val reportedProblems = sourceInfo.getReportedProblems.map(toProblem).toSeq
     val unreportedProblems = sourceInfo.getUnreportedProblems.map(toProblem).toSeq
-    val positionNames = sourceInfo.getPositionNames.map(toPositionName).toSeq
+    val usedNamePositions = sourceInfo.getUsedNamePositions.map(toPositionName).toSeq
+    val definedNamePositions = sourceInfo.getDefinedNamePositions.map(toPositionName).toSeq
     schema.SourceInfo(
       reportedProblems = reportedProblems,
       unreportedProblems = unreportedProblems,
       mainClasses = mainClasses,
-      positionNames = positionNames
+      usedNamePositions = usedNamePositions,
+      definedNamePositions = definedNamePositions
     )
   }
 

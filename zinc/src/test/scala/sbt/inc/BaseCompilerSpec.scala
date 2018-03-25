@@ -70,7 +70,13 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
     def defaultStoreLocation: File = baseLocation.resolve("inc_data.zip").toFile
 
     def createCompiler() =
-      CompilerSetup(defaultClassesDir, baseLocation.toFile, allSources.toArray, allClasspath)
+      CompilerSetup(defaultClassesDir,
+        baseLocation.toFile,
+        allSources.toArray,
+        allClasspath,
+        IncOptions.of(),
+        Seq("-Yrangepos"),
+        Seq())
 
     def update(source: Path)(change: String => String): Unit = {
       import collection.JavaConverters._
