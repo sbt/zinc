@@ -479,6 +479,13 @@ lazy val zincClassfile = (project in internalPath / "zinc-classfile")
     crossScalaVersions := compilerBridgeTestScalaVersions,
     relaxNon212,
     mimaSettings,
+    mimaBinaryIssueFilters ++= {
+      import com.typesafe.tools.mima.core._
+      import com.typesafe.tools.mima.core.ProblemFilters._
+      Seq(
+        exclude[ReversedMissingMethodProblem]("sbt.internal.inc.classfile.ClassFile.innerClasses"),
+      )
+    },
   )
   .configure(addSbtIO, addSbtUtilLogging)
 
