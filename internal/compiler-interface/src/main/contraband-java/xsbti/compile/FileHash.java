@@ -39,7 +39,7 @@ public final class FileHash implements java.io.Serializable {
             return false;
         } else {
             FileHash o = (FileHash)obj;
-            return file().equals(o.file()) && (hash() == o.hash());
+            return this.file().equals(o.file()) && (this.hash() == o.hash());
         }
     }
     public int hashCode() {

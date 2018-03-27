@@ -28,7 +28,7 @@ public final class Protected extends xsbti.api.Qualified {
             return false;
         } else {
             Protected o = (Protected)obj;
-            return qualifier().equals(o.qualifier());
+            return this.qualifier().equals(o.qualifier());
         }
     }
     public int hashCode() {

@@ -54,11 +54,11 @@ public final class TypeDeclaration extends xsbti.api.TypeMember {
             return false;
         } else {
             TypeDeclaration o = (TypeDeclaration)obj;
-            return name().equals(o.name()) && access().equals(o.access()) && modifiers().equals(o.modifiers()) && java.util.Arrays.deepEquals(annotations(), o.annotations()) && java.util.Arrays.deepEquals(typeParameters(), o.typeParameters()) && lowerBound().equals(o.lowerBound()) && upperBound().equals(o.upperBound());
+            return this.name().equals(o.name()) && this.access().equals(o.access()) && this.modifiers().equals(o.modifiers()) && java.util.Arrays.deepEquals(this.annotations(), o.annotations()) && java.util.Arrays.deepEquals(this.typeParameters(), o.typeParameters()) && this.lowerBound().equals(o.lowerBound()) && this.upperBound().equals(o.upperBound());
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.api.TypeDeclaration".hashCode()) + name().hashCode()) + access().hashCode()) + modifiers().hashCode()) + annotations().hashCode()) + typeParameters().hashCode()) + lowerBound().hashCode()) + upperBound().hashCode());
+        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.api.TypeDeclaration".hashCode()) + name().hashCode()) + access().hashCode()) + modifiers().hashCode()) + java.util.Arrays.deepHashCode(annotations())) + java.util.Arrays.deepHashCode(typeParameters())) + lowerBound().hashCode()) + upperBound().hashCode());
     }
     public String toString() {
         return "TypeDeclaration("  + "name: " + name() + ", " + "access: " + access() + ", " + "modifiers: " + modifiers() + ", " + "annotations: " + annotations() + ", " + "typeParameters: " + typeParameters() + ", " + "lowerBound: " + lowerBound() + ", " + "upperBound: " + upperBound() + ")";
