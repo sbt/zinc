@@ -142,8 +142,7 @@ object DiagnosticsReporter {
               case _ => None
             }
           } catch {
-            // TODO - catch ReflectiveOperationException once sbt is migrated to JDK7
-            case _: Throwable => None
+            case _: ReflectiveOperationException => None
           }
 
         def getExpression: String =
