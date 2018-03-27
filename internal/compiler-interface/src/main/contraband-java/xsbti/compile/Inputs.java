@@ -59,7 +59,7 @@ public final class Inputs implements java.io.Serializable {
             return false;
         } else {
             Inputs o = (Inputs)obj;
-            return compilers().equals(o.compilers()) && options().equals(o.options()) && setup().equals(o.setup()) && previousResult().equals(o.previousResult());
+            return this.compilers().equals(o.compilers()) && this.options().equals(o.options()) && this.setup().equals(o.setup()) && this.previousResult().equals(o.previousResult());
         }
     }
     public int hashCode() {

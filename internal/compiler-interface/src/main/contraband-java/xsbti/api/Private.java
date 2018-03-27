@@ -28,7 +28,7 @@ public final class Private extends xsbti.api.Qualified {
             return false;
         } else {
             Private o = (Private)obj;
-            return qualifier().equals(o.qualifier());
+            return this.qualifier().equals(o.qualifier());
         }
     }
     public int hashCode() {

@@ -23,7 +23,7 @@ public abstract class Qualified extends xsbti.api.Access {
             return false;
         } else {
             Qualified o = (Qualified)obj;
-            return qualifier().equals(o.qualifier());
+            return this.qualifier().equals(o.qualifier());
         }
     }
     public int hashCode() {

@@ -47,7 +47,7 @@ public final class InternalDependency implements java.io.Serializable {
             return false;
         } else {
             InternalDependency o = (InternalDependency)obj;
-            return sourceClassName().equals(o.sourceClassName()) && targetClassName().equals(o.targetClassName()) && context().equals(o.context());
+            return this.sourceClassName().equals(o.sourceClassName()) && this.targetClassName().equals(o.targetClassName()) && this.context().equals(o.context());
         }
     }
     public int hashCode() {

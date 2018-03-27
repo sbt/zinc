@@ -39,11 +39,11 @@ public final class Annotation implements java.io.Serializable {
             return false;
         } else {
             Annotation o = (Annotation)obj;
-            return base().equals(o.base()) && java.util.Arrays.deepEquals(arguments(), o.arguments());
+            return this.base().equals(o.base()) && java.util.Arrays.deepEquals(this.arguments(), o.arguments());
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (17 + "xsbti.api.Annotation".hashCode()) + base().hashCode()) + arguments().hashCode());
+        return 37 * (37 * (37 * (17 + "xsbti.api.Annotation".hashCode()) + base().hashCode()) + java.util.Arrays.deepHashCode(arguments()));
     }
     public String toString() {
         return "Annotation("  + "base: " + base() + ", " + "arguments: " + arguments() + ")";

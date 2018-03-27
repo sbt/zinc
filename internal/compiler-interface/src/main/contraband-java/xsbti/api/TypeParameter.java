@@ -71,11 +71,11 @@ public final class TypeParameter implements java.io.Serializable {
             return false;
         } else {
             TypeParameter o = (TypeParameter)obj;
-            return id().equals(o.id()) && java.util.Arrays.deepEquals(annotations(), o.annotations()) && java.util.Arrays.deepEquals(typeParameters(), o.typeParameters()) && variance().equals(o.variance()) && lowerBound().equals(o.lowerBound()) && upperBound().equals(o.upperBound());
+            return this.id().equals(o.id()) && java.util.Arrays.deepEquals(this.annotations(), o.annotations()) && java.util.Arrays.deepEquals(this.typeParameters(), o.typeParameters()) && this.variance().equals(o.variance()) && this.lowerBound().equals(o.lowerBound()) && this.upperBound().equals(o.upperBound());
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.api.TypeParameter".hashCode()) + id().hashCode()) + annotations().hashCode()) + typeParameters().hashCode()) + variance().hashCode()) + lowerBound().hashCode()) + upperBound().hashCode());
+        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.api.TypeParameter".hashCode()) + id().hashCode()) + java.util.Arrays.deepHashCode(annotations())) + java.util.Arrays.deepHashCode(typeParameters())) + variance().hashCode()) + lowerBound().hashCode()) + upperBound().hashCode());
     }
     public String toString() {
         return "TypeParameter("  + "id: " + id() + ", " + "annotations: " + annotations() + ", " + "typeParameters: " + typeParameters() + ", " + "variance: " + variance() + ", " + "lowerBound: " + lowerBound() + ", " + "upperBound: " + upperBound() + ")";

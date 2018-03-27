@@ -31,7 +31,7 @@ public final class Super extends xsbti.api.PathComponent {
             return false;
         } else {
             Super o = (Super)obj;
-            return qualifier().equals(o.qualifier());
+            return this.qualifier().equals(o.qualifier());
         }
     }
     public int hashCode() {
