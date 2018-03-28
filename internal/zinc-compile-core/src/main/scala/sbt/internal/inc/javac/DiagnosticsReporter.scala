@@ -14,6 +14,7 @@ package javac
 import java.util.Optional
 import java.io.File
 import javax.tools.{ Diagnostic, JavaFileObject, DiagnosticListener }
+import sbt.io.IO
 import sbt.util.InterfaceUtil.o2jo
 import xsbti.{ Severity, Reporter }
 import javax.tools.Diagnostic.NOPOS
@@ -118,6 +119,7 @@ object DiagnosticsReporter {
         }
 
       val source: Option[JavaFileObject] = Option(d.getSource)
+      val sourcePath: Option[String] = source map (obj => IO.toFile(obj.toUri).getAbsolutePath)
       val line: Optional[Integer] = o2jo(checkNoPos(d.getLineNumber) map (_.toInt))
       val offset: Optional[Integer] = o2jo(checkNoPos(d.getPosition) map (_.toInt))
       val startPosition: Option[Long] = checkNoPos(d.getStartPosition)
@@ -159,21 +161,7 @@ object DiagnosticsReporter {
         getDiagnosticLine.getOrElse(getExpression)
       }
 
-      def sourceUri: Option[String] =
-        source map { obj =>
-          val uri = obj.toUri
-          try new File(uri.normalize).getAbsolutePath
-          catch {
-            case _: IllegalArgumentException =>
-              // Oracle JDK6 has a super dumb notion of what a URI is.
-              // In fact, it's not even a legitimate URL, but a dump of the filename in a
-              // "I hope this works to toString it" kind of way.
-              // This appears to work in practice but we may need to re-evaluate.
-              uri.toString
-          }
-        }
-
-      new PositionImpl(sourceUri, line, lineContent, offset, startPosition, endPosition)
+      new PositionImpl(sourcePath, line, lineContent, offset, startPosition, endPosition)
     }
 
   }
