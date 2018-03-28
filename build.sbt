@@ -10,11 +10,55 @@ lazy val compilerBridgeTestScalaVersions = List(scala212, scala211, scala210)
 def mimaSettings: Seq[Setting[_]] = Seq(
   mimaPreviousArtifacts := Set(
     "1.0.0", "1.0.1", "1.0.2", "1.0.3", "1.0.4", "1.0.5",
-    "1.1.0", "1.1.1",
+    "1.1.0", "1.1.1", "1.1.2", "1.1.3",
   ) map (version =>
     organization.value %% moduleName.value % version
       cross (if (crossPaths.value) CrossVersion.binary else CrossVersion.disabled)
   ),
+)
+
+def buildLevelSettings: Seq[Setting[_]] = Seq(
+  git.baseVersion := "1.1.4",
+  // https://github.com/sbt/sbt-git/issues/109
+  // Workaround from https://github.com/sbt/sbt-git/issues/92#issuecomment-161853239
+  git.gitUncommittedChanges := {
+    val statusCommands = Seq(
+      Seq("diff-index", "--cached", "HEAD"),
+      Seq("diff-index", "HEAD"),
+      Seq("diff-files"),
+      Seq("ls-files", "--exclude-standard", "--others")
+    )
+    // can't use git.runner.value because it's a task
+    val runner = com.typesafe.sbt.git.ConsoleGitRunner
+    val dir = baseDirectory.value
+    // sbt/zinc#334 Seemingly "git status" resets some stale metadata.
+    runner("status")(dir, com.typesafe.sbt.git.NullLogger)
+    val uncommittedChanges = statusCommands flatMap { c =>
+      val res = runner(c: _*)(dir, com.typesafe.sbt.git.NullLogger)
+      if (res.isEmpty) Nil else Seq(c -> res)
+    }
+
+    val un = uncommittedChanges.nonEmpty
+    if (un) {
+      uncommittedChanges foreach {
+        case (cmd, res) =>
+          sLog.value debug s"""Uncommitted changes found via "${cmd mkString " "}":\n${res}"""
+      }
+    }
+    un
+  },
+  version := {
+    val v = version.value
+    if (v contains "SNAPSHOT") git.baseVersion.value + "-SNAPSHOT"
+    else v
+  },
+  bintrayPackage := "zinc",
+  scmInfo := Some(ScmInfo(url("https://github.com/sbt/zinc"), "git@github.com:sbt/zinc.git")),
+  description := "Incremental compiler of Scala",
+  homepage := Some(url("https://github.com/sbt/zinc")),
+  developers +=
+    Developer("jvican", "Jorge Vicente Cantero", "@jvican", url("https://github.com/jvican")),
+  scalafmtOnCompile in Sbt := false,
 )
 
 def commonSettings: Seq[Setting[_]] = Seq(
@@ -120,50 +164,7 @@ lazy val zincRoot: Project = (project in file("."))
     zincScripted
   )
   .settings(
-    inThisBuild(
-      Seq(
-        git.baseVersion := "1.1.1",
-        // https://github.com/sbt/sbt-git/issues/109
-        // Workaround from https://github.com/sbt/sbt-git/issues/92#issuecomment-161853239
-        git.gitUncommittedChanges := {
-          val statusCommands = Seq(
-            Seq("diff-index", "--cached", "HEAD"),
-            Seq("diff-index", "HEAD"),
-            Seq("diff-files"),
-            Seq("ls-files", "--exclude-standard", "--others")
-          )
-          // can't use git.runner.value because it's a task
-          val runner = com.typesafe.sbt.git.ConsoleGitRunner
-          val dir = baseDirectory.value
-          // sbt/zinc#334 Seemingly "git status" resets some stale metadata.
-          runner("status")(dir, com.typesafe.sbt.git.NullLogger)
-          val uncommittedChanges = statusCommands flatMap { c =>
-            val res = runner(c: _*)(dir, com.typesafe.sbt.git.NullLogger)
-            if (res.isEmpty) Nil else Seq(c -> res)
-          }
-
-          val un = uncommittedChanges.nonEmpty
-          if (un) {
-            uncommittedChanges foreach {
-              case (cmd, res) =>
-                sLog.value debug s"""Uncommitted changes found via "${cmd mkString " "}":\n${res}"""
-            }
-          }
-          un
-        },
-        version := {
-          val v = version.value
-          if (v contains "SNAPSHOT") git.baseVersion.value
-          else v
-        },
-        bintrayPackage := "zinc",
-        scmInfo := Some(ScmInfo(url("https://github.com/sbt/zinc"), "git@github.com:sbt/zinc.git")),
-        description := "Incremental compiler of Scala",
-        homepage := Some(url("https://github.com/sbt/zinc")),
-        developers +=
-          Developer("jvican", "Jorge Vicente Cantero", "@jvican", url("https://github.com/jvican")),
-        scalafmtOnCompile in Sbt := false,
-      )),
+    inThisBuild(buildLevelSettings),
     minimalSettings,
     otherRootSettings,
     noPublish,
