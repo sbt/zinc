@@ -292,14 +292,16 @@ private final class AnalysisCallback(
                        column: Int,
                        name: String,
                        fullName: String): Unit =
-    add(usedNamePositions, className, NamePosition(line, column, name, fullName))
+    if (options.storeNamePositions())
+      add(usedNamePositions, className, NamePosition(line, column, name, fullName))
 
   def definedNamePosition(className: String,
                           line: Int,
                           column: Int,
                           name: String,
                           fullName: String): Unit =
-    add(definedNamePositions, className, NamePosition(line, column, name, fullName))
+    if (options.storeNamePositions())
+      add(definedNamePositions, className, NamePosition(line, column, name, fullName))
 
   override def enabled(): Boolean = options.enabled
 

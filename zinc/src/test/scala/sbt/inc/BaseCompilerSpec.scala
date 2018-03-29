@@ -71,12 +71,12 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
 
     def createCompiler() =
       CompilerSetup(defaultClassesDir,
-        baseLocation.toFile,
-        allSources.toArray,
-        allClasspath,
-        IncOptions.of(),
-        Seq("-Yrangepos"),
-        Seq())
+                    baseLocation.toFile,
+                    allSources.toArray,
+                    allClasspath,
+                    IncOptions.of(),
+                    Seq("-Yrangepos"),
+                    Seq())
 
     def update(source: Path)(change: String => String): Unit = {
       import collection.JavaConverters._

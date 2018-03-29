@@ -59,7 +59,8 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
   import global._
   import JavaUtils._
 
-  private type NamePositionMap = JavaMap[Position, NameInfo]
+  private case class SimplePosition(line: Int, column: Int)
+  private type NamePositionMap = JavaMap[SimplePosition, NameInfo]
   sealed trait NameType
   private object NameType {
     case object Def extends NameType
@@ -136,10 +137,6 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
           val firstClassName = className(firstClassSymbol)
           val namesInFirstClass = traverser.usedNamesFromClass(firstClassName)
           val scopedNamesInFirstClass = namesInFirstClass.scopedNames
-          traverser.addSymbolPosition(namesInFirstClass.defaultNamePositions,
-                                      firstClassSymbol,
-                                      classOrModuleDef,
-                                      NameType.Def)
           namesInFirstClass.defaultNames.addAll(defaultNamesTopLevel)
           scopedNamesTopLevel.foreach { (topLevelName, topLevelScopes) =>
             val existingScopes = scopedNamesInFirstClass.get(topLevelName)
@@ -154,6 +151,7 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
       }
     }
 
+    // Handle names used at top level that cannot be related to an owner
     val defaultNamePositionsTopLevel = namesUsedAtTopLevel.defaultNamePositions
     if (!defaultNamePositionsTopLevel.isEmpty) {
       val responsible = firstClassOrModuleDef(tree)
@@ -242,10 +240,10 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
 
     val addSymbolPosition: (NamePositionMap, Symbol, Tree, NameType) => Unit = {
       (namePositions: NamePositionMap, symbol: Symbol, tree: Tree, nameType: NameType) =>
-        // Synthetic names are no longer included. See https://github.com/sbt/sbt/issues/2537
-        if (!namePositions.containsKey(tree.pos) && !ignoredSymbol(symbol) && !isEmptyName(
+        val position = SimplePosition(tree.pos.line, tree.pos.column)
+        if (!namePositions.containsKey(position) && !ignoredSymbol(symbol) && !isEmptyName(
               symbol.name)) {
-          namePositions.put(tree.pos, NameInfo(mangledName(symbol), symbol.fullName, nameType))
+          namePositions.put(position, NameInfo(mangledName(symbol), symbol.fullName, nameType))
           ()
         }
     }
