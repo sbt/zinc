@@ -215,6 +215,15 @@ lazy val zincPersist = (project in internalPath / "zinc-persist")
     compileOrder := sbt.CompileOrder.Mixed,
     PB.targets in Compile := List(scalapb.gen() -> (sourceManaged in Compile).value),
     mimaSettings,
+    mimaBinaryIssueFilters ++= {
+      import com.typesafe.tools.mima.core._
+      import com.typesafe.tools.mima.core.ProblemFilters._
+      Seq(
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.SourceInfo.copy"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.SourceInfo.this"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.SourceInfo.apply"),
+      )
+    },
   )
 
 // Implements the core functionality of detecting and propagating changes incrementally.
@@ -239,6 +248,16 @@ lazy val zincCore = (project in internalPath / "zinc-core")
     name := "zinc Core",
     compileOrder := sbt.CompileOrder.Mixed,
     mimaSettings,
+    mimaBinaryIssueFilters ++= {
+      import com.typesafe.tools.mima.core._
+      import com.typesafe.tools.mima.core.ProblemFilters._
+      Seq(
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.SourceInfo.copy"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.SourceInfo.this"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.UnderlyingSourceInfo.this"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.SourceInfos.makeInfo"),
+      )
+    },
   )
   .configure(addSbtIO, addSbtUtilLogging, addSbtUtilRelation)
 
@@ -336,6 +355,12 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface")
       Seq(
         exclude[ReversedMissingMethodProblem]("xsbti.compile.ExternalHooks#Lookup.hashClasspath"),
         exclude[ReversedMissingMethodProblem]("xsbti.compile.ScalaInstance.loaderLibraryOnly"),
+        exclude[ReversedMissingMethodProblem]("xsbti.AnalysisCallback.usedNamePosition"),
+        exclude[ReversedMissingMethodProblem]("xsbti.AnalysisCallback.definedNamePosition"),
+        exclude[ReversedMissingMethodProblem]("xsbti.compile.analysis.SourceInfo.getPositionByFullName"),
+        exclude[ReversedMissingMethodProblem]("xsbti.compile.analysis.SourceInfo.getDefinedNamePositions"),
+        exclude[ReversedMissingMethodProblem]("xsbti.compile.analysis.SourceInfo.getFullNameByPosition"),
+        exclude[ReversedMissingMethodProblem]("xsbti.compile.analysis.SourceInfo.getUsedNamePositions"),
       )
     },
   )

@@ -105,7 +105,7 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
         ProjectSetup.simple(tempDir.toPath, Seq(SourceFiles.Good, SourceFiles.Foo))
       val baseCompilerSetup = projectSetup.createCompiler()
       val compilerSetup = baseCompilerSetup.copy(
-        incOptions = baseCompilerSetup.incOptions.withStoreNamePositions(false))
+        incOptions = baseCompilerSetup.incOptions.withStoreApis(false)) // TODO: use other option
       val result = compilerSetup.doCompile()
       val a = result.analysis match { case a: Analysis => a }
       val sourceInfo_Good = a.infos.get(tempDir / "src" / SourceFiles.Good)
