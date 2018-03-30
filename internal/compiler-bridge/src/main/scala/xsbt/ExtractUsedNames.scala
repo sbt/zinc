@@ -240,11 +240,13 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
 
     val addSymbolPosition: (NamePositionMap, Symbol, Tree, NameType) => Unit = {
       (namePositions: NamePositionMap, symbol: Symbol, tree: Tree, nameType: NameType) =>
-        val position = SimplePosition(tree.pos.line, tree.pos.column)
-        if (!namePositions.containsKey(position) && !ignoredSymbol(symbol) && !isEmptyName(
-              symbol.name)) {
-          namePositions.put(position, NameInfo(mangledName(symbol), symbol.fullName, nameType))
-          ()
+        if (tree.pos != NoPosition) {
+          val position = SimplePosition(tree.pos.line, tree.pos.column)
+          if (!namePositions.containsKey(position) && !ignoredSymbol(symbol) && !isEmptyName(
+                symbol.name)) {
+            namePositions.put(position, NameInfo(mangledName(symbol), symbol.fullName, nameType))
+            ()
+          }
         }
     }
 
@@ -320,7 +322,7 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
       case ValDef(mods, _, tpt, _) if mods.isCase && mods.isSynthetic =>
         addSymbolPosition(getNamePositionsOfEnclosingScope, tree.symbol, tree, NameType.Def)
         PatMatDependencyTraverser.traverse(tpt.tpe)
-      case _: ValOrDefDef | _: TypeDef | _: ClassDef | _: ModuleDef if !tree.symbol.isConstructor =>
+      case _: ValOrDefDef | _: TypeDef | _: ClassDef | _: ModuleDef =>
         addSymbolPosition(getNamePositionsOfEnclosingScope, tree.symbol, tree, NameType.Def)
       case _: DefTree | _: Template => ()
       case Import(_, selectors: List[ImportSelector]) =>

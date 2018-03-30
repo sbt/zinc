@@ -73,7 +73,7 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
       val definedNames_Foo = sourceInfo_Foo.getDefinedNamePositions.toSet
 
       assert(
-        usedNames_Good == Set(
+        Set(
           NamePosition(1, 9, "pkg", "pkg"),
           NamePosition(3, 21, "App", "scala.App"),
           NamePosition(6, 3, "scala", "scala"),
@@ -83,18 +83,18 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
           // NamePosition(6, 30, "List", "scala.collection.immutable.List.apply"),
           NamePosition(6, 30, "apply", "scala.collection.immutable.List.apply"),
           NamePosition(7, 3, "println", "scala.Predef.println")
-        )
+        ).forall(usedNames_Good.contains)
       )
       assert(
-        definedNames_Good == Set(NamePosition(3, 8, "Good", "pkg.Good"),
-                                 NamePosition(5, 7, "x", "pkg.Good.x")))
+        Set(NamePosition(3, 8, "Good", "pkg.Good"), NamePosition(5, 7, "x", "pkg.Good.x"))
+          .forall(definedNames_Good.contains))
       assert(
-        usedNames_Foo == Set(NamePosition(1, 9, "pkg", "pkg"),
-                             NamePosition(5, 3, "AnyRef", "scala.AnyRef"))
+        Set(NamePosition(1, 9, "pkg", "pkg"))
+          .forall(usedNames_Foo.contains)
       )
       assert(
-        definedNames_Foo == Set(NamePosition(3, 8, "Foo", "pkg.Foo"),
-                                NamePosition(4, 7, "x", "pkg.Foo.x"))
+        Set(NamePosition(3, 8, "Foo", "pkg.Foo"), NamePosition(4, 7, "x", "pkg.Foo.x"))
+          .forall(definedNames_Foo.contains)
       )
     }
   }
