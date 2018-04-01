@@ -38,22 +38,24 @@ class ExtractUsedNamesSpecification extends UnitSpec {
                   |   }
                   |}""".stripMargin
     val compilerForTesting = new ScalaCompilerForUnitTesting
-    val (usedNames, usedNamePositions, definedNamePositions) =
+    val (usedNames, referencedSymbols, definedSymbols) =
       compilerForTesting.extractUsedNamesFromSrc(srcA, srcB)
     val expectedNames = standardNames ++ Set("a", "c", "A", "B", "C", "D", "b", "X", "BB")
     assert(usedNames("b.X") === expectedNames)
-    val expectedUsedNamePositions = Set((1, 9, "b"),
-                                        (3, 15, "a"),
-                                        (3, 17, "a.A"),
-                                        (3, 19, "a.A.C"),
-                                        (3, 21, "a.A.C.D"),
-                                        (4, 15, "a"),
-                                        (4, 17, "a.B"),
-                                        (4, 19, "c"),
-                                        (4, 21, "c.BB"))
-    assert(expectedUsedNamePositions.forall(usedNamePositions("b.X").contains))
-    val expectedDefinedNamePositions = Set((2, 17, "b.X"), (3, 10, "b.X.foo"), (4, 10, "b.X.bar"))
-    assert(expectedDefinedNamePositions.forall(definedNamePositions("b.X").contains))
+    val expectedSymbols = Set(
+      (2, 16, "a.A#"),
+      (2, 18, "a.A#C#"),
+      (2, 20, "a.A#C#D#"),
+      (3, 16, "a.B#"),
+      (3, 20, "c.BB#")
+    )
+    assert(referencedSymbols("b.X").filterNot(isStandardSemanticNames) === expectedSymbols)
+    val expectedDefinedSymbols =
+      Set((1, 16, "b.X#"), (2, 9, "b.X#foo()."), (3, 9, "b.X#bar()."))
+    assert(
+      definedSymbols("b.X")
+      // The primary constructor differs in Position depending on a scala version
+        .filterNot(_._3 == "b.X#`<init>`().") === expectedDefinedSymbols)
   }
 
   // test for https://github.com/gkossakowski/sbt/issues/5
@@ -65,16 +67,19 @@ class ExtractUsedNamesSpecification extends UnitSpec {
                   |  def foo(a: A) = a.`=`
                   |}""".stripMargin
     val compilerForTesting = new ScalaCompilerForUnitTesting
-    val (usedNames, usedNamePositions, definedNamePositions) =
+    val (usedNames, referencedSymbols, definedSymbols) =
       compilerForTesting.extractUsedNamesFromSrc(srcA, srcB)
     val expectedNames = standardNames ++ Set("A", "a", "B", "=", "Int")
     assert(usedNames("B") === expectedNames)
-    val expectedUsedNamePositions =
-      Set((2, 14, "A"), (2, 19, "B.a"), (2, 21, "A.$eq"))
-    assert(expectedUsedNamePositions.forall(usedNamePositions("B").contains))
-    val expectedDefinedNamePositions =
-      Set((1, 7, "B"), (2, 7, "B.foo"), (2, 11, "B.a"))
-    assert(expectedDefinedNamePositions.forall(definedNamePositions("B").contains))
+    val expectedSymbols =
+      Set((1, 13, "_empty_.A#"), (1, 18, "_empty_.B#foo(A).(a)"), (1, 20, "_empty_.A#$eq()."))
+    assert(referencedSymbols("B").filterNot(isStandardSemanticNames) === expectedSymbols)
+    val expectedDefinedSymbols =
+      Set((0, 6, "_empty_.B#"), (1, 6, "_empty_.B#foo(A)."), (1, 10, "_empty_.B#foo(A).(a)"))
+    assert(
+      definedSymbols("B")
+      // The primary constructor differs in Position depending on a scala version
+        .filterNot(_._3 == "_empty_.B#`<init>`().") === expectedDefinedSymbols)
   }
 
   it should "extract type names for objects depending on abstract types" in {
@@ -90,7 +95,7 @@ class ExtractUsedNamesSpecification extends UnitSpec {
     val srcC = "object C extends B"
     val srcD = "object D { C.X.foo(12) }"
     val compilerForTesting = new ScalaCompilerForUnitTesting
-    val (usedNames, usedNamePositions, definedNamePositions) =
+    val (usedNames, referencedSymbols, definedSymbols) =
       compilerForTesting.extractUsedNamesFromSrc(srcA, srcB, srcC, srcD)
     val scalaVersion = scala.util.Properties.versionNumberString
     // TODO: Find out what's making these types appear in 2.10
@@ -108,28 +113,38 @@ class ExtractUsedNamesSpecification extends UnitSpec {
     assert(usedNames("C") === namesC)
     assert(usedNames("D") === namesD)
 
-    val expectedUsedNamePositionsAX =
-      Set((4, 16, "A.T"), (4, 20, "A.T"), (4, 24, "A.X.x"))
-    val expectedUsedNamePositionsB = Set((1, 17, "A"), (1, 30, "scala.Int"))
-    val expectedUsedNamePositionsC = Set((1, 18, "B"))
-    val expectedUsedNamePositionsD =
-      Set((1, 12, "C"), (1, 14, "A.X"), (1, 16, "A.X.foo"))
-    assert(expectedUsedNamePositionsAX.forall(usedNamePositions("A.X").contains))
-    assert(expectedUsedNamePositionsB.forall(usedNamePositions("B").contains))
-    assert(expectedUsedNamePositionsC.forall(usedNamePositions("C").contains))
-    assert(expectedUsedNamePositionsD.forall(usedNamePositions("D").contains))
+    val expectedSymbolsAX =
+      Set((3, 15, "_empty_.A#T#"), (3, 19, "_empty_.A#T#"), (3, 23, "_empty_.A#X#foo(T).(x)"))
+    val expectedSymbolsB = Set((0, 16, "_empty_.A#"), (0, 29, "scala.Int#"))
+    val expectedSymbolsC = Set((0, 17, "_empty_.B#"))
+    val expectedSymbolsD =
+      Set((0, 11, "_empty_.C."), (0, 13, "_empty_.A#X."), (0, 15, "_empty_.A#X#foo(T)."))
+    assert(referencedSymbols("A.X").filterNot(isStandardSemanticNames) === expectedSymbolsAX)
+    assert(referencedSymbols("B").filterNot(isStandardSemanticNames) === expectedSymbolsB)
+    assert(referencedSymbols("C").filterNot(isStandardSemanticNames) === expectedSymbolsC)
+    assert(referencedSymbols("D").filterNot(isStandardSemanticNames) === expectedSymbolsD)
 
-    val expectedDefinedNamePositionsA = Set((1, 16, "A"), (2, 7, "A.T"), (3, 9, "A.X"))
-    val expectedDefinedNamePositionsAX = Set((4, 9, "A.X.foo"), (4, 13, "A.X.x"))
-    val expectedDefinedNamePositionsB = Set((1, 7, "B"), (1, 26, "B.T"))
-    val expectedDefinedNamePositionsC = Set((1, 8, "C"))
-    val expectedDefinedNamePositionsD = Set((1, 8, "D"))
-    assert(expectedDefinedNamePositionsA.forall(definedNamePositions("A").contains))
-    assert(expectedDefinedNamePositionsAX.forall(definedNamePositions("A.X").contains))
-    assert(expectedDefinedNamePositionsB.forall(definedNamePositions("B").contains))
-    assert(expectedDefinedNamePositionsC.forall(definedNamePositions("C").contains))
-    assert(expectedDefinedNamePositionsD.forall(definedNamePositions("D").contains))
-
+    val expectedDefinedSymbolsA =
+      Set((0, 15, "_empty_.A#"), (1, 6, "_empty_.A#T#"), (2, 8, "_empty_.A#X."))
+    val expectedDefinedSymbolsAX =
+      Set((3, 8, "_empty_.A#X#foo(T)."), (3, 12, "_empty_.A#X#foo(T).(x)"))
+    val expectedDefinedSymbolsB =
+      Set((0, 6, "_empty_.B#"), (0, 25, "_empty_.B#T#"))
+    val expectedDefinedSymbolsC = Set((0, 7, "_empty_.C."))
+    val expectedDefinedSymbolsD = Set((0, 7, "_empty_.D."))
+    assert(
+      definedSymbols("A")
+      // The primary constructor differs in Position depending on a scala version
+        .filterNot(_._3 == "_empty_.A#`<init>`().") === expectedDefinedSymbolsA)
+    assert(
+      definedSymbols("A.X")
+        .filterNot(_._3 == "_empty_.A#X#`<init>`().") === expectedDefinedSymbolsAX)
+    assert(
+      definedSymbols("B").filterNot(_._3 == "_empty_.B#`<init>`().") === expectedDefinedSymbolsB)
+    assert(
+      definedSymbols("C").filterNot(_._3 == "_empty_.C#`<init>`().") === expectedDefinedSymbolsC)
+    assert(
+      definedSymbols("D").filterNot(_._3 == "_empty_.D#`<init>`().") === expectedDefinedSymbolsD)
   }
 
   // See source-dependencies/types-in-used-names-a for an example where
@@ -170,7 +185,7 @@ class ExtractUsedNamesSpecification extends UnitSpec {
                   |}
                   |""".stripMargin
     val compilerForTesting = new ScalaCompilerForUnitTesting
-    val (usedNames, usedNamePositions, definedNamePositions) =
+    val (usedNames, referencedSymbols, definedSymbols) =
       compilerForTesting.extractUsedNamesFromSrc(src1, src2)
     val expectedNames_lista = standardNames ++ Set("Test_lista", "x", "B", "lista", "List", "A")
     val expectedNames_at = standardNames ++ Set("Test_at", "x", "B", "at", "A", "T", "X0", "X1")
@@ -200,49 +215,85 @@ class ExtractUsedNamesSpecification extends UnitSpec {
     assert(usedNames("Test_foo") === expectedNames_foo)
     assert(usedNames("Test_bar") === expectedNames_bar)
 
-    val expectedUsedNamePositions_lista =
-      Set((2, 11, "B"), (2, 13, "B.lista"))
-    val expectedUsedNamePositions_at =
-      Set((5, 11, "B"), (5, 13, "B.at"))
-    val expectedUsedNamePositions_as =
-      Set((8, 11, "B"), (8, 13, "B.as"))
-    val expectedUsedNamePositions_foo =
-      Set((11, 11, "B"), (11, 13, "B.foo"), (11, 17, "scala.Predef.$qmark$qmark$qmark"))
-    val expectedUsedNamePositions_bar =
-      Set((14, 11, "B"), (14, 13, "B.bar"), (14, 17, "scala.Predef.$qmark$qmark$qmark"))
-    assert(expectedUsedNamePositions_lista.forall(usedNamePositions("Test_lista").contains))
-    assert(expectedUsedNamePositions_at.forall(usedNamePositions("Test_at").contains))
-    assert(expectedUsedNamePositions_as.forall(usedNamePositions("Test_as").contains))
-    assert(expectedUsedNamePositions_foo.forall(usedNamePositions("Test_foo").contains))
-    assert(expectedUsedNamePositions_bar.forall(usedNamePositions("Test_bar").contains))
+    val expectedSymbols_lista =
+      Set((1, 10, "_empty_.B."), (1, 12, "_empty_.B#lista()."))
+    val expectedSymbols_at =
+      Set((4, 10, "_empty_.B."), (4, 12, "_empty_.B#at()."))
+    val expectedSymbols_as =
+      Set((7, 10, "_empty_.B."), (7, 12, "_empty_.B#as()."))
+    val expectedSymbols_foo =
+      Set((10, 10, "_empty_.B."),
+          (10, 12, "_empty_.B#foo(M)."),
+          (10, 16, "scala.Predef#$qmark$qmark$qmark()."))
+    val expectedSymbols_bar =
+      Set((13, 10, "_empty_.B."),
+          (13, 12, "_empty_.B#bar(Param)."),
+          (13, 16, "scala.Predef#$qmark$qmark$qmark()."))
+    assert(
+      referencedSymbols("Test_lista")
+        .filterNot(isStandardSemanticNames) === expectedSymbols_lista)
+    assert(
+      referencedSymbols("Test_at")
+        .filterNot(isStandardSemanticNames) === expectedSymbols_at)
+    assert(
+      referencedSymbols("Test_as")
+        .filterNot(isStandardSemanticNames) === expectedSymbols_as)
+    assert(
+      referencedSymbols("Test_foo")
+        .filterNot(isStandardSemanticNames) === expectedSymbols_foo)
+    assert(
+      referencedSymbols("Test_bar")
+        .filterNot(isStandardSemanticNames) === expectedSymbols_bar)
 
-    val expectedDefinedNamePositions_lista = Set((1, 8, "Test_lista"),
-                                                 (2, 7, "Test_lista.x"),
-                                                 (4, 8, "Test_at"),
-                                                 (7, 8, "Test_as"),
-                                                 (10, 8, "Test_foo"),
-                                                 (13, 8, "Test_bar"))
-    val expectedDefinedNamePositions_at = Set((5, 7, "Test_at.x"))
-    val expectedDefinedNamePositions_as = Set((8, 7, "Test_as.x"))
-    val expectedDefinedNamePositions_foo = Set((11, 7, "Test_foo.x"))
-    val expectedDefinedNamePositions_bar = Set((14, 7, "Test_bar.x"))
-    val expectedDefinedNamePositions_B = Set(
-      (12, 8, "B.S"),
-      (13, 7, "B.lista"),
-      (14, 7, "B.at"),
-      (15, 7, "B.as"),
-      (16, 7, "B.foo"),
-      (16, 11, "B.m"),
-      (17, 7, "B.bar"),
-      (17, 11, "B.Param"),
-      (17, 30, "B.p")
+    val expectedDefinedSymbols_lista = Set(
+      (0, 7, "_empty_.Test_lista."),
+      (1, 6, "_empty_.Test_lista#x."),
+      (1, 6, "_empty_.Test_lista#x()."),
+      (3, 7, "_empty_.Test_at."),
+      (6, 7, "_empty_.Test_as."),
+      (9, 7, "_empty_.Test_foo."),
+      (12, 7, "_empty_.Test_bar.")
     )
-    assert(expectedDefinedNamePositions_lista.forall(definedNamePositions("Test_lista").contains))
-    assert(expectedDefinedNamePositions_at.forall(definedNamePositions("Test_at").contains))
-    assert(expectedDefinedNamePositions_as.forall(definedNamePositions("Test_as").contains))
-    assert(expectedDefinedNamePositions_foo.forall(definedNamePositions("Test_foo").contains))
-    assert(expectedDefinedNamePositions_bar.forall(definedNamePositions("Test_bar").contains))
-    assert(expectedDefinedNamePositions_B.forall(definedNamePositions("B").contains))
+    val expectedDefinedSymbols_at =
+      Set((4, 6, "_empty_.Test_at#x."), (4, 6, "_empty_.Test_at#x()."))
+    val expectedDefinedSymbols_as =
+      Set((7, 6, "_empty_.Test_as#x."), (7, 6, "_empty_.Test_as#x()."))
+    val expectedDefinedSymbols_foo =
+      Set((10, 6, "_empty_.Test_foo#x."), (10, 6, "_empty_.Test_foo#x()."))
+    val expectedDefinedSymbols_bar =
+      Set((13, 6, "_empty_.Test_bar#x."), (13, 6, "_empty_.Test_bar#x()."))
+    val expectedDefinedSymbols_B = Set(
+      (11, 7, "_empty_.B#S#"),
+      (12, 6, "_empty_.B#lista."),
+      (12, 6, "_empty_.B#lista()."),
+      (13, 6, "_empty_.B#at."),
+      (13, 6, "_empty_.B#at()."),
+      (14, 6, "_empty_.B#as."),
+      (14, 6, "_empty_.B#as()."),
+      (15, 6, "_empty_.B#foo(M)."),
+      (15, 10, "_empty_.B#foo(M).(m)"),
+      (16, 6, "_empty_.B#bar(Param)."),
+      (16, 10, "_empty_.B#bar(Param).[Param]"),
+      (16, 29, "_empty_.B#bar(Param).(p)")
+    )
+    assert(
+      definedSymbols("Test_lista")
+      // The primary constructor differs in Position depending on a scala version
+        .filterNot(_._3 == "_empty_.Test_lista#`<init>`().") === expectedDefinedSymbols_lista)
+    assert(
+      definedSymbols("Test_at")
+        .filterNot(_._3 == "_empty_.Test_at#`<init>`().") === expectedDefinedSymbols_at)
+    assert(
+      definedSymbols("Test_as")
+        .filterNot(_._3 == "_empty_.Test_as#`<init>`().") === expectedDefinedSymbols_as)
+    assert(
+      definedSymbols("Test_foo")
+        .filterNot(_._3 == "_empty_.Test_foo#`<init>`().") === expectedDefinedSymbols_foo)
+    assert(
+      definedSymbols("Test_bar")
+        .filterNot(_._3 == "_empty_.Test_bar#`<init>`().") === expectedDefinedSymbols_bar)
+    assert(
+      definedSymbols("B").filterNot(_._3 == "_empty_.B#`<init>`().") === expectedDefinedSymbols_B)
 
   }
 
@@ -254,7 +305,7 @@ class ExtractUsedNamesSpecification extends UnitSpec {
       |}
       """.stripMargin
     val compilerForTesting = new ScalaCompilerForUnitTesting
-    val (usedNames, usedNamePositions, definedNamePositions) =
+    val (usedNames, referencedSymbols, definedSymbols) =
       compilerForTesting.extractUsedNamesFromSrc(srcFoo)
     val expectedNames = standardNames ++ Seq("Double",
                                              "Foo",
@@ -268,16 +319,16 @@ class ExtractUsedNamesSpecification extends UnitSpec {
                                              "Predef")
     assert(usedNames("Foo") === expectedNames)
 
-    val expectedUsedNamePositions =
-      Set((1, 8, "scala"),
-          (1, 14, "scala.language"),
-          (3, 12, "Foo.T"),
-          (3, 45, "scala.Predef.$qmark$qmark$qmark"))
-    assert(expectedUsedNamePositions.forall(usedNamePositions("Foo").contains))
+    val expectedSymbols =
+      Set((0, 13, "scala.language."), (2, 44, "scala.Predef#$qmark$qmark$qmark()."))
+    assert(referencedSymbols("Foo").filterNot(isStandardSemanticNames) === expectedSymbols)
 
-    val expectedDefinedNamePositions =
-      Set((2, 7, "Foo"), (3, 7, "Foo.foo"), (3, 29, "Foo.T"))
-    assert(expectedDefinedNamePositions.forall(definedNamePositions("Foo").contains))
+    val expectedDefinedSymbols =
+      Set((1, 6, "_empty_.Foo#"), (2, 6, "_empty_.Foo#foo."), (2, 6, "_empty_.Foo#foo()."))
+    assert(
+      definedSymbols("Foo")
+      // The primary constructor differs in Position depending on a scala version
+        .filterNot(_._3 == "_empty_.Foo#`<init>`().") === expectedDefinedSymbols)
   }
 
   it should "extract used names from a refinement" in {
@@ -285,33 +336,40 @@ class ExtractUsedNamesSpecification extends UnitSpec {
       "object Outer {\n  class Inner { type Xyz }\n\n  type TypeInner = Inner { type Xyz = Int }\n}"
     val srcBar = "object Bar {\n  def bar: Outer.TypeInner = null\n}"
     val compilerForTesting = new ScalaCompilerForUnitTesting
-    val (usedNames, usedNamePositions, definedNamePositions) =
+    val (usedNames, referencedSymbols, definedSymbols) =
       compilerForTesting.extractUsedNamesFromSrc(srcFoo, srcBar)
     val expectedNames = standardNames ++ Set("Bar", "Outer", "TypeInner", "Inner", "Xyz", "Int")
     assert(usedNames("Bar") === expectedNames)
 
-    val expectedUsedNamePositions =
-      Set((2, 12, "Outer"), (2, 18, "Outer.TypeInner"))
-    assert(expectedUsedNamePositions.forall(usedNamePositions("Bar").contains))
+    val expectedSymbols =
+      Set((1, 11, "_empty_.Outer."), (1, 17, "_empty_.Outer#TypeInner#"))
+    assert(referencedSymbols("Bar").filterNot(isStandardSemanticNames) === expectedSymbols)
 
-    val expectedDefinedNamePositions = Set((1, 8, "Bar"), (2, 7, "Bar.bar"))
-    assert(expectedDefinedNamePositions.forall(definedNamePositions("Bar").contains))
+    val expectedDefinedSymbols =
+      Set((0, 7, "_empty_.Bar."), (1, 6, "_empty_.Bar#bar()."))
+    assert(
+      definedSymbols("Bar")
+      // The primary constructor differs in Position depending on a scala version
+        .filterNot(_._3 == "_empty_.Bar#`<init>`().") === expectedDefinedSymbols)
   }
 
   // test for https://github.com/gkossakowski/sbt/issues/3
   it should "extract used names from the same compilation unit" in {
     val src = "class A { def foo: Int = 0; def bar: Int = foo }"
     val compilerForTesting = new ScalaCompilerForUnitTesting
-    val (usedNames, usedNamePositions, definedNamePositions) =
+    val (usedNames, referencedSymbols, definedSymbols) =
       compilerForTesting.extractUsedNamesFromSrc(src)
     val expectedNames = standardNames ++ Set("A", "foo", "Int")
     assert(usedNames("A") === expectedNames)
-    val expectedUsedNamePositions =
-      Set((1, 20, "scala.Int"), (1, 38, "scala.Int"), (1, 44, "A.foo"))
-    assert(expectedUsedNamePositions.forall(usedNamePositions("A").contains))
-    val expectedDefinedNamePositions =
-      Set((1, 7, "A"), (1, 15, "A.foo"), (1, 33, "A.bar"))
-    assert(expectedDefinedNamePositions.forall(definedNamePositions("A").contains))
+    val expectedSymbols =
+      Set((0, 19, "scala.Int#"), (0, 37, "scala.Int#"), (0, 43, "_empty_.A#foo()."))
+    assert(referencedSymbols("A").filterNot(isStandardSemanticNames) === expectedSymbols)
+    val expectedDefinedSymbols =
+      Set((0, 6, "_empty_.A#"), (0, 14, "_empty_.A#foo()."), (0, 32, "_empty_.A#bar()."))
+    assert(
+      definedSymbols("A")
+      // The primary constructor differs in Position depending on a scala version
+        .filterNot(_._3 == "_empty_.A#`<init>`().") === expectedDefinedSymbols)
   }
 
   // pending test for https://issues.scala-lang.org/browse/SI-7173
@@ -420,5 +478,8 @@ class ExtractUsedNamesSpecification extends UnitSpec {
     "Object",
     "java;lang;Object;init;"
   )
+
+  private def isStandardSemanticNames(src: (Int, Int, String)): Boolean =
+    src._3 == "scala.AnyRef#" || src._3 == "scala.Any#" || src._3 == "scala.Nothing#"
 
 }

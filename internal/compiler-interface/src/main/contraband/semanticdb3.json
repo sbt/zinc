@@ -1,0 +1,58 @@
+{
+  "types": [
+    {
+      "name": "Range",
+      "namespace": "xsbti.semanticdb3",
+      "target": "Java",
+      "type": "record",
+      "doc": [
+        "<code>Range</Code> in SemanticDB directly corresponds to <code>Range</code> in LSP.",
+        "@see <a href='https://github.com/scalameta/scalameta/blob/master/semanticdb/semanticdb3/semanticdb3.md#range'>scalameta/semanticdb3#Range</a>",
+        "@see <a href='https://microsoft.github.io/language-server-protocol/'>LSP</a>"
+      ],
+      "fields": [
+        { "name": "startLine", "type": "int" },
+        { "name": "startCharacter", "type": "int" },
+        { "name": "endLine", "type": "int" },
+        { "name": "endCharacter", "type": "int" }
+      ]
+    },
+    {
+      "name": "Role",
+      "namespace": "xsbti.semanticdb3",
+      "target": "Java",
+      "type": "enum",
+      "symbols": [ "UNKNOWN_ROLE", "REFERENCE", "DEFINITION" ]
+    },
+    {
+      "name": "SymbolOccurrence",
+      "namespace": "xsbti.semanticdb3",
+      "target": "Java",
+      "type": "record",
+      "doc": [
+        "\"Occurrences\" is a section of a TextDocument that represents the results of name resolution for identifiers in the underlying code snippet.",
+        "<code>SymbolOccurrence</code> refers to a <code>Range</code> in the TextDocument and has a symbol as explained in <code>Symbol</code>.",
+        "<code>role</code> is an enumeration that describes the semantic role that the identifier performs in the code.",
+        "@see <a href='https://github.com/scalameta/scalameta/blob/master/semanticdb/semanticdb3/semanticdb3.md#symboloccurrence'>scalameta/semanticdb3#SymbolOccurrence</a>"
+      ],
+      "fields": [
+        {
+          "name": "range",
+          "type": "xsbti.semanticdb3.Range"
+        },
+        {
+          "name": "symbol",
+          "type": "String",
+          "doc": [
+            "Symbols are tokens that are used to correlate references and definitions. In the SemanticDB model, symbols are represented as strings.",
+            "@see <a href='https://github.com/scalameta/scalameta/blob/master/semanticdb/semanticdb3/semanticdb3.md#symbol'>scalameta/semanticdb3#Symbol</a>"
+          ]
+        },
+        {
+          "name": "role",
+          "type": "xsbti.semanticdb3.Role"
+        }
+      ]
+    }
+  ]
+}

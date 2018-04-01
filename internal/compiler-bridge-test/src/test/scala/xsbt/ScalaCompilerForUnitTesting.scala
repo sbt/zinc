@@ -40,8 +40,8 @@ class ScalaCompilerForUnitTesting {
                                              Map[String, Set[(Int, Int, String)]]) = {
     val (_, analysisCallback) = compileSrcs(src)
     (analysisCallback.usedNames.toMap,
-     analysisCallback.usedPositionFullNames.toMap,
-     analysisCallback.definedPositionFullNames.toMap)
+     analysisCallback.referencedSymbolOccurrences.toMap,
+     analysisCallback.definedSymbolSymbolOccurrences.toMap)
   }
 
   def extractBinaryClassNamesFromSrc(src: String): Set[(String, String)] = {
@@ -91,12 +91,12 @@ class ScalaCompilerForUnitTesting {
           classesInSrc.map(className => className -> analysisCallback.usedNames(className)).toMap,
           classesInSrc
             .map(className =>
-              className -> analysisCallback.usedPositionFullNames
+              className -> analysisCallback.referencedSymbolOccurrences
                 .getOrElse(className, Set[(Int, Int, String)]()))
             .toMap,
           classesInSrc
             .map(className =>
-              className -> analysisCallback.definedPositionFullNames
+              className -> analysisCallback.definedSymbolSymbolOccurrences
                 .getOrElse(className, Set[(Int, Int, String)]()))
             .toMap
         )

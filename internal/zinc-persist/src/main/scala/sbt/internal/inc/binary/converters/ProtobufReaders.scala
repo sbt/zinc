@@ -11,15 +11,22 @@ import java.io.File
 
 import sbt.internal.inc.Relations.ClassDependencies
 import sbt.internal.inc._
-import sbt.util.InterfaceUtil
-import xsbti.{ Position, Problem, Severity, T2, UseScope }
-import xsbti.compile.{ CompileOrder, FileHash, MiniOptions, MiniSetup, Output, OutputGroup }
-import xsbti.compile.analysis.{ Compilation, ReadMapper, SourceInfo, Stamp }
-import sbt.internal.inc.binary.converters.ProtobufDefaults.Feedback.StringToException
-import sbt.internal.inc.binary.converters.ProtobufDefaults.Feedback.{ Readers => ReadersFeedback }
+import sbt.internal.inc.binary.converters.ProtobufDefaults.Feedback.{
+  StringToException,
+  Readers => ReadersFeedback
+}
 import sbt.internal.inc.binary.converters.ProtobufDefaults.{ Classes, ReadersConstants }
+import sbt.internal.inc.semanticdb3.{
+  Range => RangeProtobuf,
+  SymbolOccurrence => SymbolOccurrenceProtobuf
+}
 import sbt.internal.util.Relation
+import sbt.util.InterfaceUtil
 import xsbti.api._
+import xsbti.compile.analysis.{ Compilation, ReadMapper, SourceInfo, Stamp }
+import xsbti.compile._
+import xsbti.semanticdb3.{ Range, Role, SymbolOccurrence }
+import xsbti._
 
 final class ProtobufReaders(mapper: ReadMapper) {
   def fromPathString(path: String): File = {
@@ -27,7 +34,7 @@ final class ProtobufReaders(mapper: ReadMapper) {
   }
 
   def fromStampType(stampType: schema.Stamps.StampType): Stamp = {
-    import sbt.internal.inc.{ EmptyStamp, LastModified, Hash }
+    import sbt.internal.inc.{ EmptyStamp, Hash, LastModified }
     stampType.`type` match {
       case schema.Stamps.StampType.Type.Empty            => EmptyStamp
       case schema.Stamps.StampType.Type.Hash(h)          => Hash.unsafeFromString(h.hash) // fair assumption
@@ -115,7 +122,7 @@ final class ProtobufReaders(mapper: ReadMapper) {
   }
 
   def fromPosition(position: schema.Position): Position = {
-    import ProtobufDefaults.{ MissingString, MissingInt }
+    import ProtobufDefaults.{ MissingInt, MissingString }
     def fromString(value: String): Option[String] =
       if (value == MissingString) None else Some(value)
     def fromInt(value: Int): Option[Integer] =
@@ -154,14 +161,12 @@ final class ProtobufReaders(mapper: ReadMapper) {
     val mainClasses = sourceInfo.mainClasses
     val reportedProblems = sourceInfo.reportedProblems.map(fromProblem)
     val unreportedProblems = sourceInfo.unreportedProblems.map(fromProblem)
-    val usedNamePositions = sourceInfo.usedNamePositions.map(fromNamePosition)
-    val definedNamePositions = sourceInfo.definedNamePositions.map(fromNamePosition)
+    val symbolOccurrences = sourceInfo.symbolOccurrences.map(fromSymbolOccurrence)
     SourceInfos.makeInfo(
       reported = reportedProblems,
       unreported = unreportedProblems,
       mainClasses = mainClasses,
-      usedNamePositions = usedNamePositions,
-      definedNamePositions = definedNamePositions
+      symbolOccurrences = symbolOccurrences
     )
   }
 
@@ -241,10 +246,10 @@ final class ProtobufReaders(mapper: ReadMapper) {
 
   def fromPath(path: schema.Path): Path = {
     def fromPathComponent(pathComponent: schema.Path.PathComponent): PathComponent = {
+      import Classes.{ Component, PathComponent }
       import ReadersFeedback.ExpectedPathInSuper
       import schema.Path.{ PathComponent => SchemaPath }
       import SchemaPath.{ Component => SchemaComponent }
-      import Classes.{ Component, PathComponent }
       pathComponent.component match {
         case SchemaComponent.Id(c) => Id.of(c.id)
         case SchemaComponent.Super(c) =>
@@ -375,12 +380,7 @@ final class ProtobufReaders(mapper: ReadMapper) {
   }
 
   def fromClassDefinition(classDefinition: schema.ClassDefinition): ClassDefinition = {
-    import ReadersFeedback.{ MissingModifiersInDef, MissingAccessInDef, expectedTypeIn }
-    import ReadersFeedback.{
-      ExpectedReturnTypeInDef,
-      ExpectedLowerBoundInTypeDeclaration,
-      ExpectedUpperBoundInTypeDeclaration
-    }
+    import ReadersFeedback._
 
     val name = classDefinition.name
     val access = classDefinition.access.read(fromAccess, MissingAccessInDef)
@@ -533,8 +533,8 @@ final class ProtobufReaders(mapper: ReadMapper) {
       NameHash.of(name, scope, hash)
     }
 
-    import SafeLazyProxy.{ strict => mkLazy }
     import ReadersFeedback.ExpectedCompanionsInAnalyzedClass
+    import SafeLazyProxy.{ strict => mkLazy }
     val compilationTimestamp = analyzedClass.compilationTimestamp
     val name = analyzedClass.name
     val api = mkLazy(analyzedClass.api.read(fromCompanions, ExpectedCompanionsInAnalyzedClass))
@@ -646,11 +646,22 @@ final class ProtobufReaders(mapper: ReadMapper) {
     (analysis, miniSetup, version)
   }
 
-  def fromNamePosition(namePosition: schema.NamePosition): NamePosition = {
-    NamePosition.apply(namePosition.line,
-                       namePosition.column,
-                       namePosition.name,
-                       namePosition.fullName)
+  def fromRange(range: RangeProtobuf): Range =
+    Range.of(range.startLine, range.startCharacter, range.endLine, range.endCharacter)
+
+  def fromRole(role: SymbolOccurrenceProtobuf.Role): Role =
+    role match {
+      case SymbolOccurrenceProtobuf.Role.DEFINITION =>
+        Role.DEFINITION
+      case SymbolOccurrenceProtobuf.Role.REFERENCE =>
+        Role.REFERENCE
+      case _ => Role.UNKNOWN_ROLE
+    }
+
+  def fromSymbolOccurrence(symbolOccurrence: SymbolOccurrenceProtobuf): SymbolOccurrence = {
+    SymbolOccurrence.of(symbolOccurrence.range.map(fromRange).getOrElse(Range.of(0, 0, 0, 0)),
+                        symbolOccurrence.symbol,
+                        fromRole(symbolOccurrence.role))
   }
 
 }

@@ -13,12 +13,13 @@ import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
 import xsbt.api.{ APIUtil, HashAPI, NameHashing }
 import xsbti.api._
 import xsbti.compile.{
-  ClassFileManager => XClassFileManager,
   CompileAnalysis,
   DependencyChanges,
   IncOptions,
-  Output
+  Output,
+  ClassFileManager => XClassFileManager
 }
+import xsbti.semanticdb3
 import xsbti.{ Position, Problem, Severity, UseScope }
 import sbt.util.Logger
 import sbt.util.InterfaceUtil.jo2o
@@ -27,6 +28,7 @@ import java.util
 
 import xsbti.api.DependencyContext
 import xsbti.compile.analysis.ReadStamps
+import xsbti.semanticdb3.SymbolOccurrence
 
 /**
  * Helper methods for running incremental compilation.  All this is responsible for is
@@ -144,8 +146,8 @@ private final class AnalysisCallback(
   private[this] val classPublicNameHashes = new HashMap[String, Array[NameHash]]
   private[this] val objectPublicNameHashes = new HashMap[String, Array[NameHash]]
   private[this] val usedNames = new HashMap[String, Set[UsedName]]
-  private[this] val usedNamePositions = new HashMap[String, Set[NamePosition]]
-  private[this] val definedNamePositions = new HashMap[String, Set[NamePosition]]
+  private[this] val symbolOccurrences = new HashMap[String, Set[SymbolOccurrence]]
+
   private[this] val unreporteds = new HashMap[File, ListBuffer[Problem]]
   private[this] val reporteds = new HashMap[File, ListBuffer[Problem]]
   private[this] val mainClasses = new HashMap[File, ListBuffer[String]]
@@ -287,21 +289,9 @@ private final class AnalysisCallback(
   def usedName(className: String, name: String, useScopes: util.EnumSet[UseScope]) =
     add(usedNames, className, UsedName(name, useScopes))
 
-  def usedNamePosition(className: String,
-                       line: Int,
-                       column: Int,
-                       name: String,
-                       fullName: String): Unit =
-    if (options.storeApis()) // TODO: use other option
-      add(usedNamePositions, className, NamePosition(line, column, name, fullName))
-
-  def definedNamePosition(className: String,
-                          line: Int,
-                          column: Int,
-                          name: String,
-                          fullName: String): Unit =
-    if (options.storeApis()) // TODO: use other option
-      add(definedNamePositions, className, NamePosition(line, column, name, fullName))
+  def occurredSymbol(className: String, symbolOccurrence: semanticdb3.SymbolOccurrence): Unit =
+    if (options.storeSymbolIndex())
+      add(symbolOccurrences, className, symbolOccurrence)
 
   override def enabled(): Boolean = options.enabled
 
@@ -365,10 +355,7 @@ private final class AnalysisCallback(
           getOrNil(reporteds, src),
           getOrNil(unreporteds, src),
           getOrNil(mainClasses, src),
-          classesInSrc.flatMap(s => usedNamePositions.getOrElse(s, Set.empty)).toList,
-          classesInSrc
-            .flatMap(s => definedNamePositions.getOrElse(s, Set.empty))
-            .toList
+          classesInSrc.flatMap(s => symbolOccurrences.getOrElse(s, Set.empty)).toList
         )
         val binaries = binaryDeps.getOrElse(src, Nil: Iterable[File])
         val localProds = localClasses.getOrElse(src, Nil: Iterable[File]) map { classFile =>

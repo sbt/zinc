@@ -4,33 +4,34 @@ import java.io.File
 import java.util
 
 import xsbti.api.{ ClassLike, DependencyContext }
+import xsbti.semanticdb3.{ Role, SymbolOccurrence }
 
 import scala.collection.mutable.ArrayBuffer
 
 class TestCallback extends AnalysisCallback {
   case class TestUsedName(name: String, scopes: util.EnumSet[UseScope])
-  case class TestNamePosition(line: Int, column: Int, name: String, fullName: String)
+  case class TestSymbolOccurrence(line: Int, column: Int, symbol: String)
 
   val classDependencies = new ArrayBuffer[(String, String, DependencyContext)]
   val binaryDependencies = new ArrayBuffer[(File, String, String, DependencyContext)]
   val products = new ArrayBuffer[(File, File)]
   val usedNamesAndScopes =
     scala.collection.mutable.Map.empty[String, Set[TestUsedName]].withDefaultValue(Set.empty)
-  val usedNamePositions =
-    scala.collection.mutable.Map.empty[String, Set[TestNamePosition]].withDefaultValue(Set.empty)
-  val definedNamePositions =
-    scala.collection.mutable.Map.empty[String, Set[TestNamePosition]].withDefaultValue(Set.empty)
+  val symbolOccurrences =
+    scala.collection.mutable.Map.empty[String, Set[SymbolOccurrence]].withDefaultValue(Set.empty)
   val classNames =
     scala.collection.mutable.Map.empty[File, Set[(String, String)]].withDefaultValue(Set.empty)
   val apis: scala.collection.mutable.Map[File, Set[ClassLike]] = scala.collection.mutable.Map.empty
 
   def usedNames = usedNamesAndScopes.mapValues(_.map(_.name))
 
-  def usedPositionFullNames: collection.Map[String, Set[(Int, Int, String)]] =
-    usedNamePositions.mapValues(_.map(pn => (pn.line, pn.column, pn.fullName)))
+  def referencedSymbolOccurrences: collection.Map[String, Set[(Int, Int, String)]] =
+    symbolOccurrences.mapValues(_.filter(_.role == Role.REFERENCE).map(so =>
+      (so.range.startLine, so.range.startCharacter, so.symbol)))
 
-  def definedPositionFullNames: collection.Map[String, Set[(Int, Int, String)]] =
-    definedNamePositions.mapValues(_.map(pn => (pn.line, pn.column, pn.fullName)))
+  def definedSymbolSymbolOccurrences: collection.Map[String, Set[(Int, Int, String)]] =
+    symbolOccurrences.mapValues(_.filter(_.role == Role.DEFINITION).map(so =>
+      (so.range.startLine, so.range.startCharacter, so.symbol)))
 
   def startSource(source: File): Unit = {
     assert(!apis.contains(source),
@@ -70,20 +71,9 @@ class TestCallback extends AnalysisCallback {
   def usedName(className: String, name: String, scopes: util.EnumSet[UseScope]): Unit =
     usedNamesAndScopes(className) += TestUsedName(name, scopes)
 
-  def usedNamePosition(className: String,
-                       line: Int,
-                       column: Int,
-                       name: String,
-                       fullName: String): Unit =
-    usedNamePositions(className) += TestNamePosition(line, column, name, fullName)
+  def occurredSymbol(className: String, symbolOccurrence: SymbolOccurrence): Unit =
+    symbolOccurrences(className) += symbolOccurrence
 
-  def definedNamePosition(className: String,
-                          line: Int,
-                          column: Int,
-                          name: String,
-                          fullName: String): Unit = {
-    definedNamePositions(className) += TestNamePosition(line, column, name, fullName)
-  }
   def api(source: File, api: ClassLike): Unit = {
     apis(source) += api
     ()

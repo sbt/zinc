@@ -10,12 +10,17 @@ package sbt.internal.inc.binary.converters
 import java.io.File
 
 import sbt.internal.inc._
-import xsbti._
-import xsbti.compile.analysis.{ SourceInfo, Stamp, WriteMapper }
 import sbt.internal.inc.binary.converters.ProtobufDefaults.Feedback.{ Writers => WritersFeedback }
 import sbt.internal.inc.binary.converters.ProtobufDefaults.WritersConstants
+import sbt.internal.inc.semanticdb3.{
+  Range => RangeProtobuf,
+  SymbolOccurrence => SymbolOccurrenceProtobuf
+}
+import xsbti._
 import xsbti.api.{ Private, _ }
 import xsbti.compile._
+import xsbti.compile.analysis.{ SourceInfo, Stamp, WriteMapper }
+import xsbti.semanticdb3.{ Range, Role, SymbolOccurrence }
 
 final class ProtobufWriters(mapper: WriteMapper) {
   def toStringPath(file: File): String = {
@@ -111,7 +116,7 @@ final class ProtobufWriters(mapper: WriteMapper) {
     schema.Compilations(compilations = compilations)
   }
 
-  import ProtobufDefaults.{ MissingString, MissingInt }
+  import ProtobufDefaults.{ MissingInt, MissingString }
   import sbt.internal.inc.JavaInterfaceUtil._
   def toPosition(position: Position): schema.Position = {
     schema.Position(
@@ -145,25 +150,33 @@ final class ProtobufWriters(mapper: WriteMapper) {
       severity = severity
     )
   }
-  def toPositionName(positionName: analysis.NamePosition): schema.NamePosition = {
-    schema.NamePosition(line = positionName.line,
-                        column = positionName.column,
-                        name = positionName.name,
-                        fullName = positionName.fullName)
+
+  def toRange(range: Range): RangeProtobuf =
+    RangeProtobuf(range.startLine, range.startCharacter, range.endLine, range.endCharacter)
+
+  def toRole(role: Role): SymbolOccurrenceProtobuf.Role =
+    role match {
+      case Role.DEFINITION => SymbolOccurrenceProtobuf.Role.DEFINITION
+      case Role.REFERENCE  => SymbolOccurrenceProtobuf.Role.REFERENCE
+      case _               => SymbolOccurrenceProtobuf.Role.UNKNOWN_ROLE
+    }
+
+  def toSymbolOccurrence(symbolOccurrence: SymbolOccurrence): SymbolOccurrenceProtobuf = {
+    SymbolOccurrenceProtobuf(Some(toRange(symbolOccurrence.range)),
+                             symbolOccurrence.symbol,
+                             toRole(symbolOccurrence.role))
   }
 
   def toSourceInfo(sourceInfo: SourceInfo): schema.SourceInfo = {
     val mainClasses = sourceInfo.getMainClasses
     val reportedProblems = sourceInfo.getReportedProblems.map(toProblem).toSeq
     val unreportedProblems = sourceInfo.getUnreportedProblems.map(toProblem).toSeq
-    val usedNamePositions = sourceInfo.getUsedNamePositions.map(toPositionName).toSeq
-    val definedNamePositions = sourceInfo.getDefinedNamePositions.map(toPositionName).toSeq
+    val symbolOccurrences = sourceInfo.getSymbolOccurrences.map(toSymbolOccurrence).toSeq
     schema.SourceInfo(
       reportedProblems = reportedProblems,
       unreportedProblems = unreportedProblems,
       mainClasses = mainClasses,
-      usedNamePositions = usedNamePositions,
-      definedNamePositions = definedNamePositions
+      symbolOccurrences = symbolOccurrences
     )
   }
 

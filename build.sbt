@@ -355,12 +355,12 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface")
       Seq(
         exclude[ReversedMissingMethodProblem]("xsbti.compile.ExternalHooks#Lookup.hashClasspath"),
         exclude[ReversedMissingMethodProblem]("xsbti.compile.ScalaInstance.loaderLibraryOnly"),
-        exclude[ReversedMissingMethodProblem]("xsbti.AnalysisCallback.usedNamePosition"),
-        exclude[ReversedMissingMethodProblem]("xsbti.AnalysisCallback.definedNamePosition"),
-        exclude[ReversedMissingMethodProblem]("xsbti.compile.analysis.SourceInfo.getPositionByFullName"),
-        exclude[ReversedMissingMethodProblem]("xsbti.compile.analysis.SourceInfo.getDefinedNamePositions"),
-        exclude[ReversedMissingMethodProblem]("xsbti.compile.analysis.SourceInfo.getFullNameByPosition"),
-        exclude[ReversedMissingMethodProblem]("xsbti.compile.analysis.SourceInfo.getUsedNamePositions"),
+        exclude[ReversedMissingMethodProblem]("xsbti.AnalysisCallback.occurredSymbol"),
+        exclude[DirectMissingMethodProblem]("xsbti.compile.IncOptions.of"),
+        exclude[DirectMissingMethodProblem]("xsbti.compile.IncOptions.create"),
+        exclude[ReversedMissingMethodProblem]("xsbti.compile.analysis.SourceInfo.getSymbolDefinition"),
+        exclude[ReversedMissingMethodProblem]("xsbti.compile.analysis.SourceInfo.getSymbolOccurrences"),
+        exclude[ReversedMissingMethodProblem]("xsbti.compile.analysis.SourceInfo.getSymbolNameByPosition"),
       )
     },
   )

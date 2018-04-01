@@ -149,6 +149,15 @@
           "since": "0.1.0"
         },
         {
+          "name": "storeSymbolIndex",
+          "type": "boolean",
+          "default": "xsbti.compile.IncOptions.defaultStoreSymbolIndex()",
+          "doc": [
+            "Determines whether incremental compiler stores symbol index alongside analysis."
+          ],
+          "since": "0.1.0"
+        },
+        {
           "name": "enabled",
           "type": "boolean",
           "default": "xsbti.compile.IncOptions.defaultEnabled()",
@@ -221,6 +230,9 @@
         "    return false;",
         "}",
         "public static boolean defaultStoreApis() {",
+        "    return true;",
+        "}",
+        "public static boolean defaultStoreSymbolIndex() {",
         "    return true;",
         "}",
         "public static boolean defaultEnabled() {",

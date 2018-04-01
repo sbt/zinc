@@ -4,6 +4,7 @@ import xsbti.compile.AnalysisStore
 import sbt.internal.inc.{ AnalysisStore => _, _ }
 import sbt.io.IO
 import sbt.io.syntax._
+import xsbti.semanticdb3.{ Range, Role, SymbolOccurrence }
 
 class IncrementalCompilerSpec extends BaseCompilerSpec {
 
@@ -58,7 +59,7 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
     }
   }
 
-  it should "store the name-positions index" in {
+  it should "store an index of SymbolOccurrence" in {
     IO.withTemporaryDirectory { tempDir =>
       val projectSetup =
         ProjectSetup.simple(tempDir.toPath, Seq(SourceFiles.Good, SourceFiles.Foo))
@@ -66,59 +67,50 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
       val result = compilerSetup.doCompile()
       val a = result.analysis match { case a: Analysis => a }
       val sourceInfo_Good = a.infos.get(tempDir / "src" / SourceFiles.Good)
-      val usedNames_Good = sourceInfo_Good.getUsedNamePositions.toSet
-      val definedNames_Good = sourceInfo_Good.getDefinedNamePositions.toSet
+      val symbolOccurrences_Good = sourceInfo_Good.getSymbolOccurrences.toSet
       val sourceInfo_Foo = a.infos.get(tempDir / "src" / SourceFiles.Foo)
-      val usedNames_Foo = sourceInfo_Foo.getUsedNamePositions.toSet
-      val definedNames_Foo = sourceInfo_Foo.getDefinedNamePositions.toSet
+      val symbolOccurrences_Foo = sourceInfo_Foo.getSymbolOccurrences.toSet
 
-      assert(
+      assert(symbolOccurrences_Good
+        .filterNot(so =>
+          so.symbol == "scala.AnyRef#" || so.symbol == "scala.Any#" || so.symbol == "scala.Nothing#")
+        .filterNot(_.symbol == "pkg.Good#`<init>`().") ===
+        // The primary constructor differs in Position depending on a scala version
         Set(
-          NamePosition(1, 9, "pkg", "pkg"),
-          NamePosition(3, 21, "App", "scala.App"),
-          NamePosition(6, 3, "scala", "scala"),
-          NamePosition(6, 9, "collection", "scala.collection"),
-          NamePosition(6, 20, "immutable", "scala.collection.immutable"),
-          // It is difficult to judge whether `apply` is omitted
-          // NamePosition(6, 30, "List", "scala.collection.immutable.List.apply"),
-          NamePosition(6, 30, "apply", "scala.collection.immutable.List.apply"),
-          NamePosition(7, 3, "println", "scala.Predef.println")
-        ).forall(usedNames_Good.contains)
-      )
+          SymbolOccurrence.of(Range.of(2, 7, 2, 11), "pkg.Good.", Role.DEFINITION),
+          SymbolOccurrence.of(Range.of(2, 20, 2, 23), "scala.App#", Role.REFERENCE),
+          SymbolOccurrence.of(Range.of(4, 2, 4, 9), "scala.Predef#println(Any).", Role.REFERENCE)
+        ))
       assert(
-        Set(NamePosition(3, 8, "Good", "pkg.Good"), NamePosition(5, 7, "x", "pkg.Good.x"))
-          .forall(definedNames_Good.contains))
-      assert(
-        Set(NamePosition(1, 9, "pkg", "pkg"))
-          .forall(usedNames_Foo.contains)
-      )
-      assert(
-        Set(NamePosition(3, 8, "Foo", "pkg.Foo"), NamePosition(4, 7, "x", "pkg.Foo.x"))
-          .forall(definedNames_Foo.contains)
+        symbolOccurrences_Foo
+          .filterNot(so =>
+            so.symbol == "scala.AnyRef#" || so.symbol == "scala.Any#" || so.symbol == "scala.Nothing#")
+          .filterNot(_.symbol == "pkg.Foo#`<init>`().") ===
+          Set(
+            SymbolOccurrence.of(Range.of(2, 7, 2, 10), "pkg.Foo.", Role.DEFINITION),
+            SymbolOccurrence.of(Range.of(3, 6, 3, 8), "pkg.Foo#x.", Role.DEFINITION),
+            SymbolOccurrence.of(Range.of(3, 6, 3, 7), "pkg.Foo#x().", Role.DEFINITION)
+          )
       )
     }
   }
 
-  it should "not store the name-positions index if `IncOptions.storeNamePositions` is set to false" in {
+  it should "not store an index of SymbolOccurrence if `IncOptions.storeNamePositions` is set to false" in {
     IO.withTemporaryDirectory { tempDir =>
       val projectSetup =
         ProjectSetup.simple(tempDir.toPath, Seq(SourceFiles.Good, SourceFiles.Foo))
       val baseCompilerSetup = projectSetup.createCompiler()
       val compilerSetup = baseCompilerSetup.copy(
-        incOptions = baseCompilerSetup.incOptions.withStoreApis(false)) // TODO: use other option
+        incOptions = baseCompilerSetup.incOptions.withStoreSymbolIndex(false))
       val result = compilerSetup.doCompile()
       val a = result.analysis match { case a: Analysis => a }
       val sourceInfo_Good = a.infos.get(tempDir / "src" / SourceFiles.Good)
-      val usedNames_Good = sourceInfo_Good.getUsedNamePositions.toSet
-      val definedNames_Good = sourceInfo_Good.getDefinedNamePositions.toSet
+      val symbolOccurrences_Good = sourceInfo_Good.getSymbolOccurrences.toSet
       val sourceInfo_Foo = a.infos.get(tempDir / "src" / SourceFiles.Foo)
-      val usedNames_Foo = sourceInfo_Foo.getUsedNamePositions.toSet
-      val definedNames_Foo = sourceInfo_Foo.getDefinedNamePositions.toSet
+      val symbolOccurrences_Foo = sourceInfo_Foo.getSymbolOccurrences.toSet
 
-      assert(usedNames_Good.isEmpty)
-      assert(definedNames_Good.isEmpty)
-      assert(usedNames_Foo.isEmpty)
-      assert(definedNames_Foo.isEmpty)
+      assert(symbolOccurrences_Good.isEmpty)
+      assert(symbolOccurrences_Foo.isEmpty)
     }
   }
 

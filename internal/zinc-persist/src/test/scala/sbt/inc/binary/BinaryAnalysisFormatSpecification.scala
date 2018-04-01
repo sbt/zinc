@@ -27,7 +27,7 @@ object BinaryAnalysisFormatSpecification
     val aClass = genClass("A").sample.get
     val cClass = genClass("C").sample.get
     val stamp = EmptyStamp
-    val infos = SourceInfos.makeInfo(Nil, Nil, Nil, Nil, Nil)
+    val infos = SourceInfos.makeInfo(Nil, Nil, Nil, Nil)
 
     val apis = Seq(aClass)
     val products = NonLocalProduct("A", "A", f("A.class"), stamp) ::

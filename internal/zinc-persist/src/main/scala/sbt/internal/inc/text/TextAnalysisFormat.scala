@@ -64,8 +64,8 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
   private implicit def infoFormat: Format[SourceInfo] =
     wrap[SourceInfo, (Seq[Problem], Seq[Problem], Seq[String])](
       si => (si.getReportedProblems, si.getUnreportedProblems, si.getMainClasses), {
-        // name-index is not serialized in text format
-        case (a, b, c) => SourceInfos.makeInfo(a, b, c, Nil, Nil)
+        // SymbolOccurrence is not serialized in text format
+        case (a, b, c) => SourceInfos.makeInfo(a, b, c, Nil)
       }
     )
   private implicit def fileHashFormat: Format[FileHash] =
