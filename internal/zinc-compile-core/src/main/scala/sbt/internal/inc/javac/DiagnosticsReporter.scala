@@ -14,6 +14,7 @@ package javac
 import java.util.Optional
 import java.io.File
 import javax.tools.{ Diagnostic, JavaFileObject, DiagnosticListener }
+import sbt.io.IO
 import sbt.util.InterfaceUtil.o2jo
 import xsbti.{ Severity, Reporter }
 import javax.tools.Diagnostic.NOPOS
@@ -99,9 +100,9 @@ object DiagnosticsReporter {
 
     /**
      * Extracts PositionImpl from a Java Diagnostic.
-     * The previous implementation of PositionImpl held on to the Diagostic object as a wrapper,
+     * The previous implementation of PositionImpl held on to the Diagnostic object as a wrapper,
      * and calculated the lineContent on the fly.
-     * This caused race condition on the Diagnostic object, resulting to NullPointerException.
+     * This caused a race condition on the Diagnostic object, resulting in a NullPointerException.
      * See https://github.com/sbt/sbt/issues/3623
      */
     def apply(d: Diagnostic[_ <: JavaFileObject]): PositionImpl = {
@@ -117,67 +118,51 @@ object DiagnosticsReporter {
           case x           => Option(x)
         }
 
-      val line: Optional[Integer] = o2jo(checkNoPos(d.getLineNumber) map { x =>
-        new Integer(x.toInt)
-      })
+      val source: Option[JavaFileObject] = Option(d.getSource)
+      val sourcePath: Option[String] = source map (obj => IO.toFile(obj.toUri).getAbsolutePath)
+      val line: Optional[Integer] = o2jo(checkNoPos(d.getLineNumber) map (_.toInt))
+      val offset: Optional[Integer] = o2jo(checkNoPos(d.getPosition) map (_.toInt))
       val startPosition: Option[Long] = checkNoPos(d.getStartPosition)
       val endPosition: Option[Long] = checkNoPos(d.getEndPosition)
-      val offset: Optional[Integer] = o2jo(checkNoPos(d.getPosition) map { x =>
-        new Integer(x.toInt)
-      })
+
       def lineContent: String = {
         def getDiagnosticLine: Option[String] =
           try {
+            def invoke(obj: Any, m: java.lang.reflect.Method, args: AnyRef*) =
+              Option(m.invoke(obj, args: _*))
             // See com.sun.tools.javac.api.ClientCodeWrapper.DiagnosticSourceUnwrapper
             val diagnostic = d.getClass.getField("d").get(d)
             // See com.sun.tools.javac.util.JCDiagnostic#getDiagnosticSource
-            val getDiagnosticSourceMethod =
-              diagnostic.getClass.getDeclaredMethod("getDiagnosticSource")
-            val getPositionMethod = diagnostic.getClass.getDeclaredMethod("getPosition")
-            (Option(getDiagnosticSourceMethod.invoke(diagnostic)),
-             Option(getPositionMethod.invoke(diagnostic))) match {
+            val getDiagnosticSource = diagnostic.getClass.getDeclaredMethod("getDiagnosticSource")
+            val getPosition = diagnostic.getClass.getDeclaredMethod("getPosition")
+            (invoke(diagnostic, getDiagnosticSource), invoke(diagnostic, getPosition)) match {
               case (Some(diagnosticSource), Some(position: java.lang.Long)) =>
                 // See com.sun.tools.javac.util.DiagnosticSource
                 val getLineMethod = diagnosticSource.getClass.getMethod("getLine", Integer.TYPE)
-                Option(getLineMethod.invoke(diagnosticSource, new Integer(position.intValue())))
+                invoke(diagnosticSource, getLineMethod, new Integer(position.intValue()))
                   .map(_.toString)
               case _ => None
             }
           } catch {
-            // TODO - catch ReflectiveOperationException once sbt is migrated to JDK7
-            case _: Throwable => None
+            case _: ReflectiveOperationException => None
           }
 
         def getExpression: String =
-          Option(d.getSource) match {
-            case Some(source: JavaFileObject) =>
+          source match {
+            case None => ""
+            case Some(source) =>
               (Option(source.getCharContent(true)), startPosition, endPosition) match {
                 case (Some(cc), Some(start), Some(end)) =>
                   cc.subSequence(start.toInt, end.toInt).toString
                 case _ => ""
               }
-            case _ => ""
           }
 
         getDiagnosticLine.getOrElse(getExpression)
       }
 
-      def fixSource[T <: JavaFileObject](source: T): Option[String] = {
-        try Option(source).map(_.toUri.normalize).map(new File(_)).map(_.getAbsolutePath)
-        catch {
-          case _: IllegalArgumentException =>
-            // Oracle JDK6 has a super dumb notion of what a URI is.  In fact, it's not even a legimitate URL, but a dump
-            // of the filename in a "I hope this works to toString it" kind of way.  This appears to work in practice
-            // but we may need to re-evaluate.
-            Option(source).map(_.toUri.toString)
-        }
-      }
-      new PositionImpl(fixSource(d.getSource),
-                       line,
-                       lineContent,
-                       offset,
-                       startPosition,
-                       endPosition)
+      new PositionImpl(sourcePath, line, lineContent, offset, startPosition, endPosition)
     }
+
   }
 }
