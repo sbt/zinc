@@ -121,29 +121,37 @@ class JavaCompilerSpec extends UnitSpec {
     ()
   }
 
+  def messageMatches(p: Problem, lineno: Int, message: Option[String] = None): Boolean = {
+    def messageCheck = message forall (message => p.message contains message)
+    def lineNumberCheck = p.position.line.isPresent && (p.position.line.get == lineno)
+    lineNumberCheck && messageCheck
+  }
+
   def lineMatches(p: Problem, lineno: Int, lineContent: Option[String] = None): Boolean = {
     def lineContentCheck = lineContent forall (content => p.position.lineContent contains content)
     def lineNumberCheck = p.position.line.isPresent && (p.position.line.get == lineno)
     lineNumberCheck && lineContentCheck
   }
 
-  def errorOnLine(lineno: Int, lineContent: Option[String] = None) =
-    problemOnLine(lineno, Severity.Error, lineContent)
+  def errorOnLine(lineno: Int, message: Option[String] = None, lineContent: Option[String] = None) =
+    problemOnLine(lineno, Severity.Error, message, lineContent)
 
-  def warnOnLine(lineno: Int, lineContent: Option[String] = None) =
-    problemOnLine(lineno, Severity.Warn, lineContent)
+  def warnOnLine(lineno: Int, message: Option[String] = None, lineContent: Option[String] = None) =
+    problemOnLine(lineno, Severity.Warn, message, lineContent)
 
   private def problemOnLine(
       lineno: Int,
       severity: Severity,
+      message: Option[String],
       lineContent: Option[String]
   ) = {
     val problemType = severityToProblemType(severity)
+    val msg = message.fold("")(s => s""" with message = "$s"""")
     val content = lineContent.fold("")(s => s""" with content = "$s"""")
     Matcher { (p: Problem) =>
       MatchResult(
-        lineMatches(p, lineno, lineContent) && p.severity == severity,
-        s"Expected $problemType on line $lineno$content, but found $p",
+        messageMatches(p, lineno, message) && lineMatches(p, lineno, lineContent) && p.severity == severity,
+        s"Expected $problemType on line $lineno$msg$content, but found $p",
         "Problem matched: " + p
       )
     }
