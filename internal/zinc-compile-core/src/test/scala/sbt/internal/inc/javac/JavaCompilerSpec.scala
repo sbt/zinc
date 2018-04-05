@@ -204,13 +204,10 @@ class JavaCompilerSpec extends UnitSpec {
   def cwd =
     new File(new File(".").getAbsolutePath).getCanonicalFile
 
-  def knownSampleErrorFile =
-    new java.io.File(getClass.getResource("test1.java").toURI)
+  def knownSampleErrorFile = loadTestResource("test1.java")
+  def knownSampleGoodFile = loadTestResource("good.java")
+  def hasStaticFinalFile = loadTestResource("hasstaticfinal.java")
 
-  def knownSampleGoodFile =
-    new java.io.File(getClass.getResource("good.java").toURI)
-
-  def hasStaticFinalFile =
-    new java.io.File(getClass.getResource("hasstaticfinal.java").toURI)
+  def loadTestResource(name: String): File = new File(getClass.getResource(name).toURI)
 
 }
