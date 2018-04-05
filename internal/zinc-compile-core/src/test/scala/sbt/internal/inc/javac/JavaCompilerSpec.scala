@@ -143,10 +143,11 @@ class JavaCompilerSpec extends UnitSpec {
       lineContent: Option[String]
   ) = {
     val problemType = severityToProblemType(severity)
+    val content = lineContent.fold("")(s => s""" with content = "$s"""")
     Matcher { (p: Problem) =>
       MatchResult(
         lineMatches(p, lineno, lineContent) && p.severity == severity,
-        s"Expected $problemType on line $lineno with content = '$lineContent', but found $p",
+        s"Expected $problemType on line $lineno$content, but found $p",
         "Problem matched: " + p
       )
     }
