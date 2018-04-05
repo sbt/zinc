@@ -122,11 +122,7 @@ class JavaCompilerSpec extends UnitSpec {
   }
 
   def lineMatches(p: Problem, lineno: Int, lineContent: Option[String] = None): Boolean = {
-    def lineContentCheck =
-      lineContent match {
-        case Some(content) => p.position.lineContent contains content
-        case _             => true
-      }
+    def lineContentCheck = lineContent forall (content => p.position.lineContent contains content)
     def lineNumberCheck = p.position.line.isPresent && (p.position.line.get == lineno)
     lineNumberCheck && lineContentCheck
   }
