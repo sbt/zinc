@@ -131,25 +131,32 @@ class JavaCompilerSpec extends UnitSpec {
     lineNumberCheck && lineContentCheck
   }
 
-  def isError(p: Problem): Boolean = p.severity == Severity.Error
-  def isWarn(p: Problem): Boolean = p.severity == Severity.Warn
-
   def errorOnLine(lineno: Int, lineContent: Option[String] = None) =
-    Matcher { (p: Problem) =>
-      MatchResult(
-        lineMatches(p, lineno, lineContent) && isError(p),
-        s"Expected error on line $lineno with content = '$lineContent', but found $p",
-        "Problem matched: " + p
-      )
-    }
+    problemOnLine(lineno, Severity.Error, lineContent)
+
   def warnOnLine(lineno: Int, lineContent: Option[String] = None) =
+    problemOnLine(lineno, Severity.Warn, lineContent)
+
+  private def problemOnLine(
+      lineno: Int,
+      severity: Severity,
+      lineContent: Option[String]
+  ) = {
+    val problemType = severityToProblemType(severity)
     Matcher { (p: Problem) =>
       MatchResult(
-        lineMatches(p, lineno, lineContent) && isWarn(p),
-        s"Expected warning on line $lineno with content = '$lineContent', but found $p",
+        lineMatches(p, lineno, lineContent) && p.severity == severity,
+        s"Expected $problemType on line $lineno with content = '$lineContent', but found $p",
         "Problem matched: " + p
       )
     }
+  }
+
+  private def severityToProblemType(s: Severity) = s match {
+    case Severity.Error => "error"
+    case Severity.Warn  => "warning"
+    case Severity.Info  => "info"
+  }
 
   def forkSameAsLocal() = {
     val (fresult, fproblems) = compile(forked, Seq(knownSampleErrorFile), Seq("-deprecation"))
