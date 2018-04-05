@@ -68,9 +68,11 @@ class JavaCompilerSpec extends UnitSpec {
   def findsErrors(compiler: XJavaTools) = {
     val (result, problems) = compile(compiler, Seq(knownSampleErrorFile), Seq("-deprecation"))
     result shouldBe false
-    problems should have size 5
+    problems should have size 6
     val importWarn = warnOnLine(lineno = 1, lineContent = Some("java.rmi.RMISecurityException"))
-    val beAnExpectedError = List(importWarn, errorOnLine(3), errorOnLine(4), warnOnLine(7)) reduce (_ or _)
+    val enclosingError = errorOnLine(lineno = 14, message = Some("not an enclosing class: C.D"))
+    val beAnExpectedError =
+      List(importWarn, errorOnLine(3), errorOnLine(4), warnOnLine(7), enclosingError) reduce (_ or _)
     problems foreach (_ should beAnExpectedError)
   }
 
