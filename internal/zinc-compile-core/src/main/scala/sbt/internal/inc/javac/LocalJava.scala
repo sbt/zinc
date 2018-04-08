@@ -143,20 +143,29 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
 
     var compileSuccess = false
     try {
-      val success = compiler
-        .getTask(logWriter,
-                 customizedFileManager,
-                 diagnostics,
-                 cleanedOptions.toList.asJava,
-                 null,
-                 jfiles)
-        .call()
+      val task = try {
+        Some(
+          compiler
+            .getTask(logWriter,
+                     customizedFileManager,
+                     diagnostics,
+                     cleanedOptions.toList.asJava,
+                     null,
+                     jfiles))
+      } catch {
+        case ex: IllegalArgumentException =>
+          logger.write(ex.getMessage)
+          None
+      }
+      compileSuccess = task.isDefined && {
+        val success = task.get.call()
 
-      /* Double check success variables for the Java compiler.
-       * The local compiler may report successful compilations even though
-       * there have been errors (e.g. encoding problems in sources). To stick
-       * to javac's behaviour, we report fail compilation from diagnostics. */
-      compileSuccess = success && !diagnostics.hasErrors
+        /* Double check success variables for the Java compiler.
+         * The local compiler may report successful compilations even though
+         * there have been errors (e.g. encoding problems in sources). To stick
+         * to javac's behaviour, we report fail compilation from diagnostics. */
+        success && !diagnostics.hasErrors
+      }
     } finally {
       logger.flushLines(if (compileSuccess) Level.Warn else Level.Error)
     }

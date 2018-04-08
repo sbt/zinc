@@ -18,6 +18,7 @@ class JavaCompilerSpec extends UnitSpec {
 
   "Compiling a java file with local javac" should "compile a java file" in works(local)
   it should "issue errors and warnings" in findsErrors(local)
+  it should "report invalid options without an exception" in reportInvalidOptions()
 
   "Compiling a file with forked javac" should "compile a java file" in works(forked, forked = true)
   it should "issue errors and warnings" in findsErrors(forked)
@@ -182,6 +183,12 @@ class JavaCompilerSpec extends UnitSpec {
 
         f.severity shouldBe l.severity
     }
+  }
+
+  def reportInvalidOptions(): Unit = {
+    val (result, problems) = compile(local, Seq(knownSampleErrorFile), Seq("--release 99999"))
+    result shouldBe false
+    println(problems.toList)
   }
 
   def compile(c: XJavaTools,
