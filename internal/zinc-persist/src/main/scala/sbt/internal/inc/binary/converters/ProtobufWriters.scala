@@ -615,16 +615,21 @@ final class ProtobufWriters(mapper: WriteMapper) {
       }
     }
 
-    val srcProd = toMap(relations.srcProd, fileToString, fileToString)
-    val libraryDep = toMap(relations.libraryDep, fileToString, fileToString)
-    val libraryClassName = toMap(relations.libraryClassName, fileToString, stringId)
+    val srcProd = toMap(relations.srcProd,
+                        (mapper.mapSourceFile _).andThen(fileToString),
+                        (mapper.mapProductFile _).andThen(fileToString))
+    val libraryDep = toMap(relations.libraryDep,
+                           (mapper.mapSourceFile _).andThen(fileToString),
+                           (mapper.mapBinaryFile _).andThen(fileToString))
+    val libraryClassName =
+      toMap(relations.libraryClassName, (mapper.mapBinaryFile _).andThen(fileToString), stringId)
     val memberRefInternal = toMap(relations.memberRef.internal, stringId, stringId)
     val memberRefExternal = toMap(relations.memberRef.external, stringId, stringId)
     val inheritanceInternal = toMap(relations.inheritance.internal, stringId, stringId)
     val inheritanceExternal = toMap(relations.inheritance.external, stringId, stringId)
     val localInheritanceInternal = toMap(relations.localInheritance.internal, stringId, stringId)
     val localInheritanceExternal = toMap(relations.localInheritance.external, stringId, stringId)
-    val classes = toMap(relations.classes, fileToString, stringId)
+    val classes = toMap(relations.classes, (mapper.mapSourceFile _).andThen(fileToString), stringId)
     val productClassName = toMap(relations.productClassName, stringId, stringId)
     val names = toUsedNamesMap(relations.names)
     val memberRef = Some(

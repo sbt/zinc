@@ -571,14 +571,19 @@ final class ProtobufReaders(mapper: ReadMapper) {
 
     def expected(msg: String) = ReadersFeedback.expected(msg, Classes.Relations)
 
-    val srcProd = fromMap(relations.srcProd, stringToFile, stringToFile)
-    val libraryDep = fromMap(relations.libraryDep, stringToFile, stringToFile)
-    val libraryClassName = fromMap(relations.libraryClassName, stringToFile, stringId)
+    val srcProd = fromMap(relations.srcProd,
+                          stringToFile.andThen(mapper.mapSourceFile _),
+                          stringToFile.andThen(mapper.mapProductFile _))
+    val libraryDep = fromMap(relations.libraryDep,
+                             stringToFile.andThen(mapper.mapSourceFile _),
+                             stringToFile.andThen(mapper.mapBinaryFile _))
+    val libraryClassName =
+      fromMap(relations.libraryClassName, stringToFile.andThen(mapper.mapBinaryFile _), stringId)
     val memberRef = relations.memberRef.read(fromClassDependencies, expected("member refs"))
     val inheritance = relations.inheritance.read(fromClassDependencies, expected("inheritance"))
     val localInheritance =
       relations.localInheritance.read(fromClassDependencies, expected("local inheritance"))
-    val classes = fromMap(relations.classes, stringToFile, stringId)
+    val classes = fromMap(relations.classes, stringToFile.andThen(mapper.mapSourceFile _), stringId)
     val productClassName = fromMap(relations.productClassName, stringId, stringId)
     val names = fromUsedNamesMap(relations.names)
     val internal = InternalDependencies(
