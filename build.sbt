@@ -1,6 +1,7 @@
 import Util._
 import Dependencies._
 import Scripted._
+import com.typesafe.tools.mima.core._, ProblemFilters._
 
 def internalPath = file("internal")
 
@@ -489,6 +490,10 @@ lazy val zincClasspath = (project in internalPath / "zinc-classpath")
     compilerVersionDependentScalacOptions,
     libraryDependencies ++= Seq(scalaCompiler.value, launcherInterface),
     mimaSettings,
+    mimaBinaryIssueFilters ++= Seq(
+      // Changed the signature of a private[sbt] method
+      exclude[DirectMissingMethodProblem]("sbt.internal.inc.classpath.ClasspathUtilities.compilerPlugins"),
+    ),
   )
   .configure(addSbtIO)
 
