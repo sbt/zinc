@@ -37,7 +37,7 @@ object APIUtil {
     // that inherits a macro does not have a macro.
     override def visitStructure0(structure: Structure): Unit = {
       visitTypes(structure.parents)
-      visitDefinitions(structure.declared.toArray[Definition])
+      visitDefinitions(structure.declared)
     }
 
     override def visitModifiers(m: Modifiers): Unit = {

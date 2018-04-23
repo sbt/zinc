@@ -9,9 +9,12 @@ package xsbt
 
 import java.io.File
 import java.util.{ Arrays, Comparator }
+
 import scala.tools.nsc.symtab.Flags
 import xsbti.api._
 
+import scala.annotation.tailrec
+import scala.collection.JavaConverters.asScalaIteratorConverter
 import scala.tools.nsc.Global
 
 /**
@@ -61,17 +64,18 @@ class ExtractAPI[GlobalType <: Global](
   // this cache reduces duplicate work both here and when persisting
   //   caches on other structures had minimal effect on time and cache size
   //   (tried: Definition, Modifier, Path, Id, String)
-  private[this] val typeCache = perRunCaches.newMap[(Symbol, Type), xsbti.api.Type]()
+
+  private[this] val typeCache = new java.util.HashMap[(Symbol, Type), xsbti.api.Type]()
   // these caches are necessary for correctness
-  private[this] val structureCache = perRunCaches.newMap[Symbol, xsbti.api.Structure]()
+  private[this] val structureCache = new java.util.HashMap[Symbol, xsbti.api.Structure]()
   private[this] val classLikeCache =
-    perRunCaches.newMap[(Symbol, Symbol), xsbti.api.ClassLikeDef]()
-  private[this] val pending = perRunCaches.newSet[xsbti.api.Lazy[_]]()
+    new java.util.HashMap[(Symbol, Symbol), xsbti.api.ClassLikeDef]()
+  private[this] val pending = new java.util.HashSet[xsbti.api.Lazy[_]]()
 
   private[this] val emptyStringArray = Array.empty[String]
 
-  private[this] val allNonLocalClassesInSrc = perRunCaches.newSet[xsbti.api.ClassLike]()
-  private[this] val _mainClasses = perRunCaches.newSet[String]()
+  private[this] val allNonLocalClassesInSrc = new collection.mutable.HashSet[xsbti.api.ClassLike]()
+  private[this] val _mainClasses = new collection.mutable.HashSet[String]()
 
   /**
    * Implements a work-around for https://github.com/sbt/sbt/issues/823
@@ -152,7 +156,7 @@ class ExtractAPI[GlobalType <: Global](
    */
   private def lzy[S <: AnyRef](s: => S): xsbti.api.Lazy[S] = {
     val lazyImpl = xsbti.api.SafeLazy.apply(Message(s))
-    pending += lazyImpl
+    pending.add(lazyImpl)
     lazyImpl
   }
 
@@ -160,11 +164,11 @@ class ExtractAPI[GlobalType <: Global](
    * Force all lazy structures.  This is necessary so that we see the symbols/types at this phase and
    * so that we don't hold on to compiler objects and classes
    */
-  def forceStructures(): Unit =
+  @tailrec final def forceStructures(): Unit =
     if (pending.isEmpty)
       structureCache.clear()
     else {
-      val toProcess = pending.toList
+      val toProcess = pending.iterator().asScala.toList
       pending.clear()
       toProcess foreach { _.get() }
       forceStructures()
@@ -198,33 +202,62 @@ class ExtractAPI[GlobalType <: Global](
   // The compiler only pickles static annotations, so only include these in the API.
   // This way, the API is not sensitive to whether we compiled from source or loaded from classfile.
   // (When looking at the sources we see all annotations, but when loading from classes we only see the pickled (static) ones.)
-  private def mkAnnotations(in: Symbol, as: List[AnnotationInfo]): Array[xsbti.api.Annotation] =
-    staticAnnotations(as).toArray.map { a =>
-      xsbti.api.Annotation.of(
-        processType(in, a.atp),
-        if (a.assocs.isEmpty)
-          Array(xsbti.api.AnnotationArgument.of("", a.args.mkString("(", ",", ")"))) // what else to do with a Tree?
-        else
-          a.assocs
-            .map {
-              case (name, value) =>
-                xsbti.api.AnnotationArgument.of(name.toString, value.toString)
-            }
-            .toArray[xsbti.api.AnnotationArgument]
-      )
-    }
+  private def mkAnnotations(in: Symbol, as: List[AnnotationInfo]): Array[xsbti.api.Annotation] = {
+    if (in == NoSymbol) ExtractAPI.emptyAnnotationArray
+    else
+      staticAnnotations(as) match {
+        case Nil => ExtractAPI.emptyAnnotationArray
+        case staticAs =>
+          staticAs.map { a =>
+            xsbti.api.Annotation.of(
+              processType(in, a.atp),
+              if (a.assocs.isEmpty)
+                Array(xsbti.api.AnnotationArgument.of("", a.args.mkString("(", ",", ")"))) // what else to do with a Tree?
+              else
+                a.assocs
+                  .map {
+                    case (name, value) =>
+                      xsbti.api.AnnotationArgument.of(name.toString, value.toString)
+                  }
+                  .toArray[xsbti.api.AnnotationArgument]
+            )
+          }.toArray
+      }
+  }
 
-  private def annotations(in: Symbol, s: Symbol): Array[xsbti.api.Annotation] =
-    enteringPhase(currentRun.typerPhase) {
+  // HOT method, hand optimized to reduce allocations and needless creation of Names with calls to getterIn/setterIn
+  // on non-fields.
+  private def annotations(in: Symbol, s: Symbol): Array[xsbti.api.Annotation] = {
+    val saved = phase
+    phase = currentRun.typerPhase
+    try {
       val base = if (s.hasFlag(Flags.ACCESSOR)) s.accessed else NoSymbol
       val b = if (base == NoSymbol) s else base
       // annotations from bean methods are not handled because:
       //  a) they are recorded as normal source methods anyway
       //  b) there is no way to distinguish them from user-defined methods
-      val associated =
-        List(b, b.getterIn(b.enclClass), b.setterIn(b.enclClass)).filter(_ != NoSymbol)
-      associated.flatMap(ss => mkAnnotations(in, ss.annotations)).distinct.toArray
+      if (b.hasGetter) {
+        val annotations = collection.mutable.LinkedHashSet[xsbti.api.Annotation]()
+        def add(sym: Symbol) = {
+          val anns = mkAnnotations(in, sym.annotations)
+          var i = 0
+          while (i < anns.length) {
+            annotations += anns(i)
+            i += 1
+          }
+        }
+        add(b)
+        add(b.getterIn(b.enclClass))
+        add(b.setterIn(b.enclClass))
+        annotations.toArray.distinct
+      } else {
+        if (b.annotations.isEmpty) ExtractAPI.emptyAnnotationArray
+        else mkAnnotations(in, b.annotations)
+      }
+    } finally {
+      phase = saved
     }
+  }
 
   private def viewer(s: Symbol) = (if (s.isModule) s.moduleClass else s).thisType
 
@@ -328,9 +361,13 @@ class ExtractAPI[GlobalType <: Global](
   }
 
   private def structure(info: Type, s: Symbol): xsbti.api.Structure =
-    structureCache.getOrElseUpdate(s, mkStructure(info, s))
+    structureCache.computeIfAbsent(s, new java.util.function.Function[Symbol, xsbti.api.Structure] {
+      def apply(key: Symbol) = mkStructure(info, s)
+    })
   private def structureWithInherited(info: Type, s: Symbol): xsbti.api.Structure =
-    structureCache.getOrElseUpdate(s, mkStructureWithInherited(info, s))
+    structureCache.computeIfAbsent(s, new java.util.function.Function[Symbol, xsbti.api.Structure] {
+      def apply(key: Symbol) = mkStructureWithInherited(info, s)
+    })
 
   private def removeConstructors(ds: List[Symbol]): List[Symbol] = ds filter { !_.isConstructor }
 
@@ -462,10 +499,13 @@ class ExtractAPI[GlobalType <: Global](
       else mapOver(tp)
   }
 
-  private def processType(in: Symbol, t: Type): xsbti.api.Type =
-    typeCache.getOrElseUpdate((in, t), makeType(in, t))
+  private def processType(in: Symbol, t: Type): xsbti.api.Type = {
+    typeCache.computeIfAbsent((in, t),
+                              new java.util.function.Function[(Symbol, Type), xsbti.api.Type] {
+                                def apply(key: (Symbol, Type)) = makeType(in, t)
+                              })
+  }
   private def makeType(in: Symbol, t: Type): xsbti.api.Type = {
-
     val dealiased = t match {
       case TypeRef(_, sym, _) if sym.isAliasType => t.dealias
       case _                                     => t
@@ -616,7 +656,10 @@ class ExtractAPI[GlobalType <: Global](
   }
 
   private def classLike(in: Symbol, c: Symbol): ClassLikeDef =
-    classLikeCache.getOrElseUpdate((in, c), mkClassLike(in, c))
+    classLikeCache.computeIfAbsent((in, c), mkClassLike0)
+  private val mkClassLike0 = new java.util.function.Function[(Symbol, Symbol), ClassLikeDef] {
+    def apply(k: ((Symbol, Symbol))) = mkClassLike(k._1, k._2)
+  }
   private def mkClassLike(in: Symbol, c: Symbol): ClassLikeDef = {
     // Normalize to a class symbol, and initialize it.
     // (An object -- aka module -- also has a term symbol,
@@ -714,13 +757,19 @@ class ExtractAPI[GlobalType <: Global](
     n2.trim
   }
 
-  private def staticAnnotations(annotations: List[AnnotationInfo]): List[AnnotationInfo] = {
-    // compat stub for 2.8/2.9
-    class IsStatic(ann: AnnotationInfo) {
-      def isStatic: Boolean =
-        ann.atp.typeSymbol isNonBottomSubClass definitions.StaticAnnotationClass
+  private def staticAnnotations(annotations: List[AnnotationInfo]): List[AnnotationInfo] =
+    if (annotations == Nil) Nil
+    else {
+      // compat stub for 2.8/2.9
+      class IsStatic(ann: AnnotationInfo) {
+        def isStatic: Boolean =
+          ann.atp.typeSymbol isNonBottomSubClass definitions.StaticAnnotationClass
+      }
+      implicit def compat(ann: AnnotationInfo): IsStatic = new IsStatic(ann)
+      annotations.filter(_.isStatic)
     }
-    implicit def compat(ann: AnnotationInfo): IsStatic = new IsStatic(ann)
-    annotations.filter(_.isStatic)
-  }
+}
+
+object ExtractAPI {
+  private val emptyAnnotationArray = new Array[xsbti.api.Annotation](0)
 }
