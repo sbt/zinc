@@ -502,6 +502,21 @@ lazy val zincScripted = (project in internalPath / "zinc-scripted")
   )
   .configure(addSbtUtilScripted)
 
+// re-implementation of scripted engine as a standalone main
+lazy val bloopScripted = (project in internalPath / "zinc-scripted-bloop")
+  .dependsOn(zinc, zincScripted % "compile->test")
+  .settings(
+    minimalSettings,
+    noPublish,
+    name := "zinc Scripted Bloop",
+    scalaVersion := scala212,
+    crossScalaVersions := List(scala212),
+    libraryDependencies ++= List(
+      "org.scala-sbt" %% "completion" % sbtVersion.value,
+      "ch.epfl.scala" %% "bloop-config" % "1.0.0-M9",
+    )
+  )
+
 lazy val crossTestBridges = {
   Command.command("crossTestBridges") { state =>
     (compilerBridgeTestScalaVersions.flatMap { (bridgeVersion: String) =>

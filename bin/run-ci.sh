@@ -12,6 +12,7 @@ sbt -Dfile.encoding=UTF-8 \
   whitesourceCheckPolicies \
   compilerInterfaceJava6Compat/compile \
   zincRoot/test:compile \
+  bloopScripted/compile \
   crossTestBridges \
   "publishBridgesAndSet $SCALA_VERSION" \
   zincRoot/test \
