@@ -473,8 +473,14 @@ case class ProjectStructure(
       val scalacOptions =
         Option(map.get("scalac.options")).map(_.toString.split(" +")).getOrElse(Array.empty)
 
-      (IncOptionsUtil.fromStringMap(map, scriptedLog), scalacOptions)
-    } else (IncOptions.of(), Array.empty)
+      val incOptions = {
+        val opts = IncOptionsUtil.fromStringMap(map, scriptedLog)
+        if (opts.recompileAllFraction() != IncOptions.defaultRecompileAllFraction()) opts
+        else opts.withRecompileAllFraction(1.0)
+      }
+
+      (incOptions, scalacOptions)
+    } else (IncOptions.of().withRecompileAllFraction(1.0), Array.empty)
   }
 
   def getProblems(): Seq[Problem] =
