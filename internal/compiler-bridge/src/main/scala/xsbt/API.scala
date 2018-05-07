@@ -13,6 +13,7 @@ import xsbti.api._
 
 object API {
   val name = "xsbt-api"
+  private[xsbt] val ApiExtractBenchmarkModeKey = "zinc.benchmark.apiextract"
 }
 
 final class API(val global: CallbackGlobal) extends Compat with GlobalHelpers {
@@ -22,12 +23,31 @@ final class API(val global: CallbackGlobal) extends Compat with GlobalHelpers {
   class ApiPhase(prev: Phase) extends GlobalPhase(prev) {
     override def description = "Extracts the public API from source files."
     def name = API.name
+
     override def run(): Unit = {
       val start = System.currentTimeMillis
       super.run()
       callback.apiPhaseCompleted()
       val stop = System.currentTimeMillis
       debuglog("API phase took : " + ((stop - start) / 1000.0) + " s")
+
+      if (captureUnits) units = currentRun.units.map(u => (u, u.body)).toList
+    }
+
+    // Hack to make this phase independentally benchmarkable
+    private val captureUnits: Boolean = java.lang.Boolean.getBoolean(API.ApiExtractBenchmarkModeKey)
+    private var units: List[(CompilationUnit, Tree)] = Nil
+
+    def replay(): Unit = {
+      enteringPhaseWithName(name) {
+        globalPhase = this
+        units foreach {
+          case (u, body) =>
+            u.body = body
+            apply(u)
+        }
+        callback.apiPhaseCompleted()
+      }
     }
 
     def apply(unit: global.CompilationUnit): Unit = processUnit(unit)
