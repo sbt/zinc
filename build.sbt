@@ -1,6 +1,7 @@
 import Util._
 import Dependencies._
 import Scripted._
+import com.typesafe.tools.mima.core._, ProblemFilters._
 
 def internalPath = file("internal")
 
@@ -82,11 +83,11 @@ def commonSettings: Seq[Setting[_]] = Seq(
   )
 )
 
-def relaxNon212: Seq[Setting[_]] = Seq(
+def compilerVersionDependentScalacOptions: Seq[Setting[_]] = Seq(
   scalacOptions := {
     val old = scalacOptions.value
     scalaBinaryVersion.value match {
-      case "2.12" => old
+      case "2.12" => old ++ List("-opt-inline-from:<sources>", "-opt:l:inline", "-Yopt-inline-heuristics:at-inline-annotated")
       case _ =>
         old filterNot Set(
           "-Xfatal-warnings",
@@ -310,7 +311,7 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface")
     name := "Compiler Interface",
     scalaVersion := scala212,
     crossScalaVersions := Seq(scala212),
-    relaxNon212,
+    compilerVersionDependentScalacOptions,
     libraryDependencies ++= Seq(scalaLibrary.value % Test),
     exportJars := true,
     resourceGenerators in Compile += Def
@@ -375,7 +376,7 @@ lazy val compilerBridge: Project = (project in internalPath / "compiler-bridge")
   .settings(
     baseSettings,
     crossScalaVersions := compilerBridgeScalaVersions,
-    relaxNon212,
+    compilerVersionDependentScalacOptions,
     libraryDependencies += scalaCompiler.value % "provided",
     autoScalaLibrary := false,
     // precompiledSettings,
@@ -437,7 +438,7 @@ lazy val compilerBridgeTest = (project in internalPath / "compiler-bridge-test")
   .settings(
     name := "Compiler Bridge Test",
     baseSettings,
-    relaxNon212,
+    compilerVersionDependentScalacOptions,
     // we need to fork because in unit tests we set usejavacp = true which means
     // we are expecting all of our dependencies to be on classpath so Scala compiler
     // can use them while constructing its own classpath for compilation
@@ -463,8 +464,29 @@ lazy val zincApiInfo = (project in internalPath / "zinc-apiinfo")
   .settings(
     name := "zinc ApiInfo",
     crossScalaVersions := compilerBridgeTestScalaVersions,
-    relaxNon212,
+    compilerVersionDependentScalacOptions,
     mimaSettings,
+    mimaBinaryIssueFilters ++= {
+      import com.typesafe.tools.mima.core._
+      import com.typesafe.tools.mima.core.ProblemFilters._
+      Seq(
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashTypeParameters"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashAnnotations"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashParameters"),
+         exclude[DirectMissingMethodProblem]("xsbt.api.HashAPI.hashDefinitionsWithExtraHashes"),
+         exclude[DirectMissingMethodProblem]("xsbt.api.HashAPI.hashSeq"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashValueParameters"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashAnnotationArguments"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashTypes"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitTypeParameters"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitDefinitions"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitAnnotationArguments"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitAnnotations"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitValueParameters"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitParameters"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitTypes"),
+      )
+    }
   )
 
 // Utilities related to reflection, managing Scala versions, and custom class loaders
@@ -474,9 +496,13 @@ lazy val zincClasspath = (project in internalPath / "zinc-classpath")
   .settings(
     name := "zinc Classpath",
     crossScalaVersions := compilerBridgeTestScalaVersions,
-    relaxNon212,
+    compilerVersionDependentScalacOptions,
     libraryDependencies ++= Seq(scalaCompiler.value, launcherInterface),
     mimaSettings,
+    mimaBinaryIssueFilters ++= Seq(
+      // Changed the signature of a private[sbt] method
+      exclude[DirectMissingMethodProblem]("sbt.internal.inc.classpath.ClasspathUtilities.compilerPlugins"),
+    ),
   )
   .configure(addSbtIO)
 
@@ -487,7 +513,7 @@ lazy val zincClassfile = (project in internalPath / "zinc-classfile")
   .settings(
     name := "zinc Classfile",
     crossScalaVersions := compilerBridgeTestScalaVersions,
-    relaxNon212,
+    compilerVersionDependentScalacOptions,
     mimaSettings,
   )
   .configure(addSbtIO, addSbtUtilLogging)
