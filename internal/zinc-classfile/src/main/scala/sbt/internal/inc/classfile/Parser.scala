@@ -160,6 +160,16 @@ private[sbt] object Parser {
         in.readUnsignedShort()
         in.readUnsignedShort()
         Constant(tag, -1, -1, None)
+      case ConstantModule =>
+        in.readUnsignedShort()
+        Constant(tag, -1, -1, None)
+      case ConstantPackage =>
+        in.readUnsignedShort()
+        Constant(tag, -1, -1, None)
+      case ConstantDynamic =>
+        in.readUnsignedShort()
+        in.readUnsignedShort()
+        Constant(tag, -1, -1, None)
       case _ => sys.error("Unknown constant: " + tag)
     }
   }

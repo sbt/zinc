@@ -7,3 +7,10 @@ public class Test {
         throw new RMISecurityException("O NOES");
     }
 }
+
+class C {
+    class D {}
+    void test() {
+        D.this.toString();
+    }
+}

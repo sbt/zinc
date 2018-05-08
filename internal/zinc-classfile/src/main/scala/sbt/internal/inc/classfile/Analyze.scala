@@ -27,10 +27,15 @@ private[sbt] object Analyze {
       readAPI: (File, Seq[Class[_]]) => Set[(String, String)]): Unit = {
     val sourceMap = sources.toSet[File].groupBy(_.getName)
 
-    def load(tpe: String, errMsg: => Option[String]): Option[Class[_]] =
-      try { Some(Class.forName(tpe, false, loader)) } catch {
-        case e: Throwable => errMsg.foreach(msg => log.warn(msg + " : " + e.toString)); None
-      }
+    def load(tpe: String, errMsg: => Option[String]): Option[Class[_]] = {
+      if (tpe.endsWith("module-info")) None
+      else
+        try {
+          Some(Class.forName(tpe, false, loader))
+        } catch {
+          case e: Throwable => errMsg.foreach(msg => log.warn(msg + " : " + e.toString)); None
+        }
+    }
 
     val classNames = mutable.Set.empty[String]
     val sourceToClassFiles = mutable.HashMap[File, Buffer[ClassFile]](
@@ -48,7 +53,8 @@ private[sbt] object Analyze {
          _ <- classFile.sourceFile orElse guessSourceName(newClass.getName);
          source <- guessSourcePath(sourceMap, classFile, log);
          binaryClassName = classFile.className;
-         loadedClass <- load(binaryClassName, Some("Error reading API from class file"))) {
+         loadedClass <- load(binaryClassName,
+                             Some("Error reading API from class file: " + binaryClassName))) {
       binaryClassNameToLoadedClass.update(binaryClassName, loadedClass)
 
       def loadEnclosingClass(clazz: Class[_]): Option[String] = {

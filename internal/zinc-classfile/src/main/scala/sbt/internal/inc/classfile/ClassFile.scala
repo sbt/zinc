@@ -106,5 +106,8 @@ private[sbt] object Constants {
   final val ConstantMethodHandle = 15
   final val ConstantMethodType = 16
   final val ConstantInvokeDynamic = 18
+  final val ConstantModule = 19
+  final val ConstantPackage = 20
+  final val ConstantDynamic = 17 // http://openjdk.java.net/jeps/309
   final val ClassDescriptor = 'L'
 }

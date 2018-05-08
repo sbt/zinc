@@ -32,30 +32,6 @@ final class DiagnosticsReporter(reporter: Reporter) extends DiagnosticListener[J
   private[this] var errorEncountered = false
   def hasErrors: Boolean = errorEncountered
 
-  private def fixedDiagnosticMessage(d: Diagnostic[_ <: JavaFileObject]): String = {
-    def getRawMessage = d.getMessage(null)
-    def fixWarnOrErrorMessage = {
-      val tmp = getRawMessage
-      // we fragment off the line/source/type report from the message.
-      // NOTE - End of line handling may be off.
-      val lines: Seq[String] =
-        tmp.split(END_OF_LINE_MATCHER) match {
-          case Array(head, tail @ _*) =>
-            val newHead = head.split(":").last
-            newHead +: tail
-          case Array(head) =>
-            head.split(":").last :: Nil
-          case Array() => Seq.empty[String]
-        }
-      lines.mkString(EOL)
-    }
-    d.getKind match {
-      case Diagnostic.Kind.ERROR | Diagnostic.Kind.WARNING | Diagnostic.Kind.MANDATORY_WARNING =>
-        fixWarnOrErrorMessage
-      case _ => getRawMessage
-    }
-  }
-
   override def report(d: Diagnostic[_ <: JavaFileObject]): Unit = {
     val severity: Severity = {
       d.getKind match {
@@ -66,7 +42,7 @@ final class DiagnosticsReporter(reporter: Reporter) extends DiagnosticListener[J
     }
 
     import sbt.util.InterfaceUtil.problem
-    val msg = fixedDiagnosticMessage(d)
+    val msg = d.getMessage(null)
     val pos: xsbti.Position = PositionImpl(d)
     if (severity == Severity.Error) errorEncountered = true
     reporter.log(problem("", pos, msg, severity))
