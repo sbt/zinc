@@ -17,6 +17,9 @@ object SameAPI {
   def apply(a: AnalyzedClass, b: AnalyzedClass): Boolean =
     a.apiHash == b.apiHash
 
+  def hasSameExtraHash(a: AnalyzedClass, b: AnalyzedClass): Boolean =
+    a.extraHash() == b.extraHash()
+
   def apply(a: Definition, b: Definition): Boolean =
     new SameAPI(false, true).sameDefinitions(List(a), List(b), topLevel = true)
 
@@ -52,8 +55,8 @@ object SameAPI {
    * All top-level definitions are always considered: 'private' only means package-private.
    * Other definitions are considered if they are not qualified with 'private[this]' or 'private'.
    */
-  def filterDefinitions(d: Seq[Definition], topLevel: Boolean, includePrivate: Boolean) =
-    if (topLevel || includePrivate) d else d.filter(APIUtil.isNonPrivate)
+  def filterDefinitions(ds: Seq[Definition], topLevel: Boolean, includePrivate: Boolean) =
+    if (topLevel || includePrivate) ds else ds.filter(APIUtil.isNonPrivate)
 
 }
 

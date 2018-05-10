@@ -11,13 +11,13 @@ package inc
 
 import java.io.File
 
-import xsbti.api.AnalyzedClass
+import xsbti.api.{ AnalyzedClass, DefinitionType }
 import xsbti.compile.{
   Changes,
-  ClassFileManager => XClassFileManager,
   CompileAnalysis,
   DependencyChanges,
-  IncOptions
+  IncOptions,
+  ClassFileManager => XClassFileManager
 }
 import xsbti.compile.analysis.{ ReadStamps, Stamp => XStamp }
 

@@ -138,9 +138,15 @@ private final class AnalysisCallback(
 
   import collection.mutable.{ HashMap, HashSet, ListBuffer, Map, Set }
 
+  final case class ApiInfo(
+      publicHash: HashAPI.Hash,
+      extraHash: HashAPI.Hash,
+      classLike: ClassLike
+  )
+
   private[this] val srcs = Set[File]()
-  private[this] val classApis = new HashMap[String, (HashAPI.Hash, ClassLike)]
-  private[this] val objectApis = new HashMap[String, (HashAPI.Hash, ClassLike)]
+  private[this] val classApis = new HashMap[String, ApiInfo]
+  private[this] val objectApis = new HashMap[String, ApiInfo]
   private[this] val classPublicNameHashes = new HashMap[String, Array[NameHash]]
   private[this] val objectPublicNameHashes = new HashMap[String, Array[NameHash]]
   private[this] val usedNames = new HashMap[String, Set[UsedName]]
@@ -268,11 +274,16 @@ private final class AnalysisCallback(
     val apiHash: HashAPI.Hash = HashAPI(classApi)
     val nameHashes = (new xsbt.api.NameHashing(options.useOptimizedSealed())).nameHashes(classApi)
     classApi.definitionType match {
-      case DefinitionType.ClassDef | DefinitionType.Trait =>
-        classApis(className) = apiHash -> savedClassApi
+      case d @ (DefinitionType.ClassDef | DefinitionType.Trait) =>
+        val extraApiHash = {
+          if (d != DefinitionType.Trait) apiHash
+          else HashAPI(_.hashAPI(classApi), includePrivateDefsInTrait = true)
+        }
+
+        classApis(className) = ApiInfo(apiHash, extraApiHash, savedClassApi)
         classPublicNameHashes(className) = nameHashes
       case DefinitionType.Module | DefinitionType.PackageModule =>
-        objectApis(className) = apiHash -> savedClassApi
+        objectApis(className) = ApiInfo(apiHash, apiHash, savedClassApi)
         objectPublicNameHashes(className) = nameHashes
     }
   }
@@ -300,15 +311,19 @@ private final class AnalysisCallback(
       }
   }
 
-  private def companionsWithHash(className: String): (Companions, HashAPI.Hash) = {
+  private def companionsWithHash(className: String): (Companions, HashAPI.Hash, HashAPI.Hash) = {
     val emptyHash = -1
-    lazy val emptyClass = emptyHash -> APIUtil.emptyClassLike(className, DefinitionType.ClassDef)
-    lazy val emptyObject = emptyHash -> APIUtil.emptyClassLike(className, DefinitionType.Module)
-    val (classApiHash, classApi) = classApis.getOrElse(className, emptyClass)
-    val (objectApiHash, objectApi) = objectApis.getOrElse(className, emptyObject)
+    val emptyClass =
+      ApiInfo(emptyHash, emptyHash, APIUtil.emptyClassLike(className, DefinitionType.ClassDef))
+    val emptyObject =
+      ApiInfo(emptyHash, emptyHash, APIUtil.emptyClassLike(className, DefinitionType.Module))
+    val ApiInfo(classApiHash, classHashExtra, classApi) = classApis.getOrElse(className, emptyClass)
+    val ApiInfo(objectApiHash, objectHashExtra, objectApi) =
+      objectApis.getOrElse(className, emptyObject)
     val companions = Companions.of(classApi, objectApi)
     val apiHash = (classApiHash, objectApiHash).hashCode
-    (companions, apiHash)
+    val extraHash = (classHashExtra, objectHashExtra).hashCode
+    (companions, apiHash, extraHash)
   }
 
   private def nameHashesForCompanions(className: String): Array[NameHash] = {
@@ -325,16 +340,18 @@ private final class AnalysisCallback(
 
   private def analyzeClass(name: String): AnalyzedClass = {
     val hasMacro: Boolean = macroClasses.contains(name)
-    val (companions, apiHash) = companionsWithHash(name)
+    val (companions, apiHash, extraHash) = companionsWithHash(name)
     val nameHashes = nameHashesForCompanions(name)
     val safeCompanions = SafeLazyProxy(companions)
-    val ac = AnalyzedClass.of(compilation.getStartTime(),
-                              name,
-                              safeCompanions,
-                              apiHash,
-                              nameHashes,
-                              hasMacro)
-    ac
+    AnalyzedClass.of(
+      compilation.getStartTime(),
+      name,
+      safeCompanions,
+      apiHash,
+      nameHashes,
+      hasMacro,
+      extraHash
+    )
   }
 
   def addProductsAndDeps(base: Analysis): Analysis =

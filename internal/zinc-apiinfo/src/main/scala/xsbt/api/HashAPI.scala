@@ -24,10 +24,17 @@ object HashAPI {
       includePrivate: Boolean = false,
       includeParamNames: Boolean = true,
       includeDefinitions: Boolean = true,
-      includeSealedChildren: Boolean = true
+      includeSealedChildren: Boolean = true,
+      includePrivateDefsInTrait: Boolean = false
   ): Hash = {
-    val hasher =
-      new HashAPI(includePrivate, includeParamNames, includeDefinitions, includeSealedChildren)
+    val hasher = new HashAPI(
+      includePrivate,
+      includeParamNames,
+      includeDefinitions,
+      includeSealedChildren,
+      includePrivateDefsInTrait
+    )
+
     doHashing(hasher)
     hasher.finalizeHash
   }
@@ -48,13 +55,18 @@ final class HashAPI private (
     includePrivate: Boolean,
     includeParamNames: Boolean,
     includeDefinitions: Boolean,
-    includeSealedChildren: Boolean
+    includeSealedChildren: Boolean,
+    includeTraitBreakers: Boolean
 ) {
   // this constructor variant is for source and binary backwards compatibility with sbt 0.13.0
   def this(includePrivate: Boolean, includeParamNames: Boolean) {
     // in the old logic we used to always include definitions hence
     // includeDefinitions=true
-    this(includePrivate, includeParamNames, includeDefinitions = true, includeSealedChildren = true)
+    this(includePrivate,
+         includeParamNames,
+         includeDefinitions = true,
+         includeSealedChildren = true,
+         includeTraitBreakers = false)
   }
 
   import scala.collection.mutable
@@ -152,9 +164,31 @@ final class HashAPI private (
 
   def hashPackage(p: Package) = hashString(p.name)
 
-  def hashDefinitions(ds: Seq[Definition], topLevel: Boolean): Unit = {
+  def hashDefinitions(ds: Seq[Definition], topLevel: Boolean, isTrait: Boolean): Unit = {
+    // Any private definition in a trait is required to be concrete
+    def isPrivate(d: Definition): Boolean =
+      d.access match { case _: xsbti.api.Private => true; case _ => false }
+
+    def isTraitBreaker(d: Definition): Boolean = d match {
+      // Vars and vals in traits introduce getters, setters and fields in the implementing classes.
+      // See test `source-dependencies/trait-private-var
+      case _: FieldLike => true
+      // Objects in traits introduce fields in the implementing classes.
+      // See test `source-dependencies/trait-private-object`
+      case cl: ClassLikeDef => cl.definitionType == DefinitionType.Module
+      // super calls introduce accessors that are not part of the public API
+      case d: Def => d.modifiers.isSuperAccessor
+      case _      => false
+    }
+
+    val requiresPrivateDefinitions = isTrait && includeTraitBreakers && !topLevel
+    // Get private definitions that break trait properties in incremental compilation
+    val extraPrivateDefinitions =
+      if (!requiresPrivateDefinitions) Nil
+      else ds.filter(x => isTraitBreaker(x) && isPrivate(x))
+
     val defs = SameAPI.filterDefinitions(ds, topLevel, includePrivate)
-    hashSymmetric(defs, hashDefinition)
+    hashSymmetric(defs ++ extraPrivateDefinitions, hashDefinition)
   }
 
   /**
@@ -199,7 +233,8 @@ final class HashAPI private (
     if (includeSealedChildren)
       hashTypes(c.childrenOfSealedClass, includeDefinitions)
 
-    hashStructure(c.structure, includeDefinitions)
+    val isTrait = c.definitionType() == DefinitionType.Trait
+    hashStructure(c.structure, includeDefinitions, isTrait)
   }
   def hashField(f: FieldLike): Unit = {
     f match {
@@ -290,7 +325,7 @@ final class HashAPI private (
     hashArray(ts, (t: Type) => hashType(t, includeDefinitions))
   def hashType(t: Type, includeDefinitions: Boolean = true): Unit =
     t match {
-      case s: Structure     => hashStructure(s, includeDefinitions)
+      case s: Structure     => hashStructure(s, includeDefinitions, false)
       case e: Existential   => hashExistential(e)
       case c: Constant      => hashConstant(c)
       case p: Polymorphic   => hashPolymorphic(p)
@@ -355,23 +390,30 @@ final class HashAPI private (
     hashType(a.baseType)
     hashAnnotations(a.annotations)
   }
-  final def hashStructure(structure: Structure, includeDefinitions: Boolean) =
-    visit(visitedStructures, structure)(hashStructure0(includeDefinitions))
+
+  def hashStructure(structure: Structure, includeDefinitions: Boolean, isTrait: Boolean) =
+    visit(visitedStructures, structure)(hashStructure0(includeDefinitions, isTrait))
 
   // Hoisted functions to reduce allocation.
-  private final def hashStructure0(includeDefinitions: Boolean): (Structure => Unit) =
-    if (includeDefinitions) hashStructure0WithDefs else hashStructure0NoDefs
-  private[this] final val hashStructure0WithDefs = (s: Structure) =>
-    hashStructure0(s, includeDefinitions = true)
-  private[this] final val hashStructure0NoDefs = (s: Structure) =>
-    hashStructure0(s, includeDefinitions = false)
+  private def hashStructure0(includeDefinitions: Boolean, isTrait: Boolean): (Structure => Unit) = {
+    if (isTrait && includeTraitBreakers) hashStructure0WithDefsTrait
+    else if (includeDefinitions) hashStructure0WithDefs
+    else hashStructure0NoDefs
+  }
 
-  def hashStructure0(structure: Structure, includeDefinitions: Boolean): Unit = {
+  private[this] final val hashStructure0WithDefsTrait = (s: Structure) =>
+    hashStructure0(s, includeDefinitions = true, isTrait = true)
+  private[this] final val hashStructure0WithDefs = (s: Structure) =>
+    hashStructure0(s, includeDefinitions = true, isTrait = false)
+  private[this] final val hashStructure0NoDefs = (s: Structure) =>
+    hashStructure0(s, includeDefinitions = false, isTrait = false)
+
+  def hashStructure0(structure: Structure, includeDefinitions: Boolean, isTrait: Boolean): Unit = {
     extend(StructureHash)
     hashTypes(structure.parents, includeDefinitions)
     if (includeDefinitions) {
-      hashDefinitions(structure.declared, false)
-      hashDefinitions(structure.inherited, false)
+      hashDefinitions(structure.declared, false, isTrait)
+      hashDefinitions(structure.inherited, false, isTrait)
     }
   }
   def hashParameters(parameters: Array[TypeParameter], base: Type): Unit = {
