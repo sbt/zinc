@@ -387,6 +387,7 @@ message AnalyzedClass {
     sint32 apiHash = 4;
     repeated NameHash nameHashes = 5;
     bool hasMacro = 6;
+    sint32 extraHash = 7;
 }
 
 message APIs {
@@ -445,6 +446,7 @@ message Analysis {
  * used to enable an streaming-based protobuf API to be even more performant. */
 enum Version {
     V1 = 0;
+    V1_1 = 1;
 }
 
 message AnalysisFile {

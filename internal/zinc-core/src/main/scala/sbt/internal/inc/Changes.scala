@@ -52,6 +52,8 @@ final case class APIChangeDueToMacroDefinition(modified0: String) extends APICha
 final case class NamesChange(modified0: String, modifiedNames: ModifiedNames)
     extends APIChange(modified0)
 
+final case class TraitPrivateMembersModified(modified: String) extends APIChange(modified)
+
 /**
  * ModifiedNames are determined by comparing name hashes in two versions of an API representation.
  *

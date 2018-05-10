@@ -115,13 +115,17 @@ trait AnalysisGenerators {
       apiHash <- arbitrary[Int]
       hasMacro <- arbitrary[Boolean]
       nameHashes <- genNameHashes(Seq(name))
-    } yield
-      AnalyzedClass.of(startTime,
-                       name,
-                       SafeLazyProxy(makeCompanions(name)),
-                       apiHash,
-                       nameHashes,
-                       hasMacro)
+    } yield {
+      AnalyzedClass.of(
+        startTime,
+        name,
+        SafeLazyProxy(makeCompanions(name)),
+        apiHash,
+        nameHashes,
+        hasMacro,
+        apiHash // The default is to use the public API hash
+      )
+    }
 
   def genClasses(all_defns: Seq[String]): Gen[Seq[AnalyzedClass]] =
     Gen.sequence[List[AnalyzedClass], AnalyzedClass](all_defns.map(genClass))

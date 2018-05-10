@@ -51,10 +51,12 @@ import xsbti.UseScope
  * of regular members then we'll invalidate sources that use those names.
  */
 private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolean) {
+  private final val NoInvalidation = (_: String) => Set.empty[String]
   def get(memberRef: Relation[String, String],
           usedNames: Relation[String, UsedName],
           apiChange: APIChange,
           isScalaClass: String => Boolean): String => Set[String] = apiChange match {
+    case _: TraitPrivateMembersModified => NoInvalidation
     case _: APIChangeDueToMacroDefinition =>
       new InvalidateUnconditionally(memberRef)
     case NamesChange(_, modifiedNames) if modifiedNames.in(UseScope.Implicit).nonEmpty =>
@@ -64,6 +66,8 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
   }
 
   def invalidationReason(apiChange: APIChange): String = apiChange match {
+    case TraitPrivateMembersModified(modifiedClass) =>
+      s"The private signature of trait ${modifiedClass} changed."
     case APIChangeDueToMacroDefinition(modifiedSrcFile) =>
       s"The $modifiedSrcFile source file declares a macro."
     case NamesChange(modifiedClass, modifiedNames) =>

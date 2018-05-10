@@ -575,6 +575,7 @@ final class ProtobufWriters(mapper: WriteMapper) {
 
     val companions = Some(toCompanions(analyzedClass.api()))
     val apiHash = analyzedClass.apiHash()
+    val extraHash = analyzedClass.extraHash()
     val compilationTimestamp = analyzedClass.compilationTimestamp()
     val hasMacro = analyzedClass.hasMacro
     val name = analyzedClass.name()
@@ -585,7 +586,8 @@ final class ProtobufWriters(mapper: WriteMapper) {
       api = companions,
       apiHash = apiHash,
       nameHashes = nameHashes,
-      hasMacro = hasMacro
+      hasMacro = hasMacro,
+      extraHash = extraHash
     )
   }
 
