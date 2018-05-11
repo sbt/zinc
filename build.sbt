@@ -227,9 +227,14 @@ lazy val zincPersist = (project in internalPath / "zinc-persist")
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufWriters.toAnalyzedClass"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufReaders.fromApis"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufReaders.fromApisFile"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufReaders.fromAnalyzedClass")
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufReaders.fromAnalyzedClass"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.AnalyzedClass.apply"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.AnalyzedClass.copy"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.AnalyzedClass.this"),
+        exclude[ReversedMissingMethodProblem]("sbt.internal.inc.schema.Version.isV11"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufReaders.this")
       )
-    },
+    }
   )
 
 // Implements the core functionality of detecting and propagating changes incrementally.
@@ -501,6 +506,11 @@ lazy val zincApiInfo = (project in internalPath / "zinc-apiinfo")
          exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitValueParameters"),
          exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitParameters"),
          exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitTypes"),
+         exclude[DirectMissingMethodProblem]("xsbt.api.HashAPI.apply"),
+         exclude[DirectMissingMethodProblem]("xsbt.api.HashAPI.hashStructure0"),
+         exclude[DirectMissingMethodProblem]("xsbt.api.HashAPI.hashStructure"),
+         exclude[DirectMissingMethodProblem]("xsbt.api.HashAPI.hashDefinitions"),
+         exclude[DirectMissingMethodProblem]("xsbt.api.HashAPI.this")
       )
     }
   )
