@@ -139,18 +139,18 @@ sealed class ZincCompiler(settings: Settings, dreporter: DelegatingReporter, out
     getOutputClass(fqn).map(f => (f, true)).orElse(findOnClassPath(fqn).map(f => (f, false)))
   }
 
-  private[this] var callback0: AnalysisCallback = null
+  private[this] var callback0: AnalysisCallback = DummyAnalysisCallback
 
   /** Returns the active analysis callback, set by [[set]] and cleared by [[clear]]. */
   def callback: AnalysisCallback = callback0
 
   final def set(callback: AnalysisCallback, dreporter: DelegatingReporter): Unit = {
-    this.callback0 = callback
+    if (callback == null) this.callback0 = DummyAnalysisCallback else this.callback0 = callback
     reporter = dreporter
   }
 
   final def clear(): Unit = {
-    callback0 = null
+    callback0 = DummyAnalysisCallback
     superDropRun()
     reporter = null
   }
@@ -167,3 +167,29 @@ import scala.tools.nsc.interactive.RangePositions
 final class ZincCompilerRangePos(settings: Settings, dreporter: DelegatingReporter, output: Output)
     extends ZincCompiler(settings, dreporter, output)
     with RangePositions
+
+object DummyAnalysisCallback extends AnalysisCallback {
+  import xsbti.{ Severity, UseScope }
+  import xsbti.api.{ ClassLike, DependencyContext }
+  import java.util.EnumSet
+
+  def startSource(source: File) = ()
+  def classDependency(onClassName: String, sourceClassName: String, context: DependencyContext) = ()
+  def binaryDependency(onBinaryEntry: File,
+                       onBinaryClassName: String,
+                       fromClassName: String,
+                       fromSourceFile: File,
+                       context: DependencyContext) = ()
+  def generatedNonLocalClass(source: File,
+                             classFile: File,
+                             binaryClassName: String,
+                             srcClassName: String) = ()
+  def generatedLocalClass(source: File, classFile: File) = ()
+  def api(sourceFile: File, classApi: ClassLike) = ()
+  def mainClass(sourceFile: File, className: String) = ()
+  def usedName(className: String, name: String, useScopes: EnumSet[UseScope]) = ()
+  def problem(what: String, pos: Position, msg: String, severity: Severity, reported: Boolean) = ()
+  def dependencyPhaseCompleted() = ()
+  def apiPhaseCompleted() = ()
+  def enabled() = false
+}
