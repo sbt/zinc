@@ -5,6 +5,7 @@ package inc
 import java.io.{ File, FileInputStream }
 import java.net.URLClassLoader
 import java.util.jar.Manifest
+import java.lang.{ Boolean => JBoolean }
 
 import sbt.util.Logger
 import sbt.util.InterfaceUtil._
@@ -22,7 +23,8 @@ import xsbti.compile.{
   IncOptionsUtil,
   PerClasspathEntryLookup,
   PreviousResult,
-  Compilers => XCompilers
+  Compilers => XCompilers,
+  MiniSetup
 }
 import sbt.io.IO
 import sbt.io.syntax._
@@ -473,14 +475,38 @@ case class ProjectStructure(
       val scalacOptions =
         Option(map.get("scalac.options")).map(_.toString.split(" +")).getOrElse(Array.empty)
 
-      val incOptions = {
-        val opts = IncOptionsUtil.fromStringMap(map, scriptedLog)
-        if (opts.recompileAllFraction() != IncOptions.defaultRecompileAllFraction()) opts
-        else opts.withRecompileAllFraction(1.0)
-      }
+      val incOptions = createIncOptions(map)
 
       (incOptions, scalacOptions)
     } else (IncOptions.of().withRecompileAllFraction(1.0), Array.empty)
+  }
+
+  private def createIncOptions(map: java.util.HashMap[String, String]) = {
+    def adjustRecompileAllFraction(opts: IncOptions): IncOptions = {
+      val unchanged = opts.recompileAllFraction() == IncOptions.defaultRecompileAllFraction()
+      if (unchanged) opts.withRecompileAllFraction(1.0) else opts
+    }
+
+    def adjustExternalCompileSetupEquiv(opts: IncOptions): IncOptions = {
+      val ignoreFlagsChange = Option(map.get("scalac.ignoreFlagChange")).contains("true")
+      if (ignoreFlagsChange) opts.withExternalCompileSetupEquiv(ignoreScalacOptionsChange) else opts
+    }
+
+    val opts = IncOptionsUtil.fromStringMap(map, scriptedLog)
+    adjustExternalCompileSetupEquiv(adjustRecompileAllFraction(opts))
+  }
+
+  private def ignoreScalacOptionsChange = {
+    Optional.of(new java.util.function.BiFunction[MiniSetup, MiniSetup, JBoolean] {
+      override def apply(a: MiniSetup, b: MiniSetup): JBoolean = {
+        import MiniSetupUtil._
+        equivCompileSetup(
+          implicitly,
+          Equiv.fromFunction(_.javacOptions sameElements _.javacOptions),
+          implicitly
+        ).equiv(a, b)
+      }
+    })
   }
 
   def getProblems(): Seq[Problem] =

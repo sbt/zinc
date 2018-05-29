@@ -177,6 +177,13 @@
           "default": "xsbti.compile.IncOptions.defaultExternal()",
           "doc": "External hooks that allows clients e.g. IDEs to interacts with compilation internals",
           "since": "0.1.0"
+        },
+        {
+          "name": "externalCompileSetupEquiv",
+          "type": "java.util.Optional<java.util.function.BiFunction<xsbti.compile.MiniSetup, xsbti.compile.MiniSetup, java.lang.Boolean>>",
+          "default": "xsbti.compile.IncOptions.defaultExternalCompileSetupEquiv()",
+          "doc": "External equivalence function that compares compile setups",
+          "since": "1.3.0"
         }
       ],
       "extra": [
@@ -231,6 +238,9 @@
         "}",
         "public static ExternalHooks defaultExternal() {",
         "    return new DefaultExternalHooks(java.util.Optional.empty(), java.util.Optional.empty());",
+        "}",
+        "public static java.util.Optional<java.util.function.BiFunction<xsbti.compile.MiniSetup, xsbti.compile.MiniSetup, java.lang.Boolean>> defaultExternalCompileSetupEquiv() {",
+        "    return java.util.Optional.empty();",
         "}",
         "public static boolean defaultLogRecompileOnMacro() {",
         "    return true;",
