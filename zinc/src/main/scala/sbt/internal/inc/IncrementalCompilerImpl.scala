@@ -18,6 +18,7 @@ import sbt.util.InterfaceUtil
 import xsbti._
 import xsbti.compile.CompileOrder.Mixed
 import xsbti.compile.{ ClasspathOptions => XClasspathOptions, JavaTools => XJavaTools, _ }
+import sbt.internal.inc.MiniSetupUtil._
 
 class IncrementalCompilerImpl extends IncrementalCompiler {
 

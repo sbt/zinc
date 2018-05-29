@@ -43,11 +43,8 @@ object MiniSetupUtil {
   ): Equiv[MiniSetup] = {
     new Equiv[MiniSetup] {
       def equiv(a: MiniSetup, b: MiniSetup) = {
-        /* Hard-code these to use the `Equiv` defined in this class. For
-         * some reason, `Equiv[Nothing]` or an equivalent is getting injected
-         * into here now, and it's borking all our results. This fixes it. */
-        def sameOutput = MiniSetupUtil.equivOutput.equiv(a.output, b.output)
-        def sameOptions = MiniSetupUtil.equivOpts.equiv(a.options, b.options)
+        def sameOutput = equivOutput.equiv(a.output, b.output)
+        def sameOptions = equivOpts.equiv(a.options, b.options)
         def sameCompiler = equivComp.equiv(a.compilerVersion, b.compilerVersion)
         def sameOrder = a.order == b.order
         def sameExtra = equivPairs.equiv(a.extra, b.extra)
