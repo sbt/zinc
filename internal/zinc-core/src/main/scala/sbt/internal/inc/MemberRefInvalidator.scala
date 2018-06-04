@@ -77,6 +77,20 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
       }
   }
 
+  // Left for compatibility
+  private class InvalidateDueToMacroDefinition(memberRef: Relation[String, String])
+      extends (String => Set[String]) {
+    def apply(from: String): Set[String] = {
+      val invalidated = memberRef.reverse(from)
+      if (invalidated.nonEmpty && logRecompileOnMacro) {
+        log.info(
+          s"Because $from contains a macro definition, the following dependencies are invalidated unconditionally:\n" +
+            formatInvalidated(invalidated))
+      }
+      invalidated
+    }
+  }
+
   private class InvalidateUnconditionally(memberRef: Relation[String, String])
       extends (String => Set[String]) {
     def apply(from: String): Set[String] = {
