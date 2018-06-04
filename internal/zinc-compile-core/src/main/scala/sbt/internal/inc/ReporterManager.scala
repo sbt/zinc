@@ -16,8 +16,6 @@ import sbt.util.LogExchange
 import sbt.util.{ Level => SbtLevel }
 import xsbti.{ Position, Reporter, ReporterConfig }
 
-import scala.util.matching.Regex
-
 object ReporterManager {
   import java.util.concurrent.atomic.AtomicInteger
   private val idGenerator: AtomicInteger = new AtomicInteger
@@ -75,8 +73,6 @@ object ReporterManager {
         case _                      => new LoggedReporter(maxErrors, logger, posMapper)
       }
     } else {
-      implicit def scalaPatterns(patterns: Array[java.util.regex.Pattern]): Array[Regex] =
-        patterns.map(_.pattern().r)
       val fileFilters = config.fileFilters().map(_.toScala)
       val msgFilters = config.msgFilters().map(_.toScala)
       logger match {

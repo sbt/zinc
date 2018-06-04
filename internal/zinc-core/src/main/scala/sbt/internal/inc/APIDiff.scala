@@ -72,7 +72,7 @@ private[inc] class APIDiff {
     private final val DELETION_COLOR = ANSI_RED
     private final val ADDITION_COLOR = ANSI_GREEN
 
-    @tailrec private def splitTokens(str: String, acc: List[String] = Nil): List[String] = {
+    @tailrec private def splitTokens(str: String, acc: List[String]): List[String] = {
       if (str == "") {
         acc.reverse
       } else {

@@ -59,7 +59,7 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
       new InvalidateUnconditionally(memberRef)
     case NamesChange(_, modifiedNames) if modifiedNames.in(UseScope.Implicit).nonEmpty =>
       new InvalidateUnconditionally(memberRef)
-    case NamesChange(modifiedClass, modifiedNames) =>
+    case NamesChange(_, modifiedNames) =>
       new NameHashFilteredInvalidator(usedNames, memberRef, modifiedNames, isScalaClass)
   }
 
@@ -75,19 +75,6 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
           s"""|The $modifiedClass has the following implicit definitions changed:
               |\t${changedImplicits.mkString(", ")}.""".stripMargin
       }
-  }
-
-  private class InvalidateDueToMacroDefinition(memberRef: Relation[String, String])
-      extends (String => Set[String]) {
-    def apply(from: String): Set[String] = {
-      val invalidated = memberRef.reverse(from)
-      if (invalidated.nonEmpty && logRecompileOnMacro) {
-        log.info(
-          s"Because $from contains a macro definition, the following dependencies are invalidated unconditionally:\n" +
-            formatInvalidated(invalidated))
-      }
-      invalidated
-    }
   }
 
   private class InvalidateUnconditionally(memberRef: Relation[String, String])
