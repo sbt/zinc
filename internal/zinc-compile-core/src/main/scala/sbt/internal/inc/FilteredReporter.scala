@@ -88,6 +88,7 @@ class FilteredReporter(
       val transformedPos: Position = positionMapper(position)
       val problem = InterfaceUtil.problem(category, transformedPos, message, severity)
       allProblems += problem
+      ()
     }
   }
 }

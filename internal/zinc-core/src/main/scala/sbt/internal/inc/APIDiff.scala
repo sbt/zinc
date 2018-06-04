@@ -165,8 +165,10 @@ private[inc] class APIDiff {
       def build(x: Array[String], y: Array[String], builder: mutable.ArrayBuilder[Patch]): Unit = {
         if (x.isEmpty) {
           builder += Inserted(y.mkString)
+          ()
         } else if (y.isEmpty) {
           builder += Deleted(x.mkString)
+          ()
         } else if (x.length == 1 || y.length == 1) {
           needlemanWunsch(x, y, builder)
         } else {
@@ -251,6 +253,7 @@ private[inc] class APIDiff {
         }
       }
       builder ++= alignment
+      ()
     }
 
   }

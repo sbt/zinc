@@ -34,6 +34,7 @@ class JavaProcessLoggerSpec extends UnitSpec {
 
     errorLogger.messages shouldBe Map.empty
     reporter.problems.length shouldBe 2
+    ()
   }
 
   def logSeparateSemanticErrors(): Unit = {
@@ -56,6 +57,7 @@ class JavaProcessLoggerSpec extends UnitSpec {
 
     errorLogger.messages shouldBe Map.empty
     reporter.problems.length shouldBe 2
+    ()
   }
 
   def logUnparsableErrors(): Unit = {
@@ -71,5 +73,6 @@ class JavaProcessLoggerSpec extends UnitSpec {
       .messages(Level.Warn)(0)
       .contains("javadoc: error - invalid flag: -target") shouldBe true
     errorLogger.messages(Level.Warn)(1).contains("javadoc exited with exit code -1") shouldBe true
+    ()
   }
 }
