@@ -82,7 +82,15 @@ final class CompilerArguments(
    * @param addLibrary Flag to return the Scala library.
    */
   def createBootClasspath(addLibrary: Boolean): String = {
-    val originalBoot = System.getProperty("sun.boot.class.path", "")
+    def findBoot: String = {
+      import scala.collection.JavaConverters._
+      System.getProperties.asScala.iterator
+        .collectFirst {
+          case (k, v) if k.endsWith(".boot.class.path") => v
+        }
+        .getOrElse("")
+    }
+    val originalBoot = Option(System.getProperty("sun.boot.class.path")).getOrElse(findBoot)
     if (addLibrary) {
       val newBootPrefix =
         if (originalBoot.isEmpty) ""
@@ -109,7 +117,8 @@ final class CompilerArguments(
     bootClasspath(hasLibrary(classpath))
 
   def extClasspath: Seq[File] =
-    (IO.parseClasspath(System.getProperty("java.ext.dirs", "")) * "*.jar").get
+    List("java.ext.dirs", "scala.ext.dirs").flatMap(k =>
+      (IO.parseClasspath(System.getProperty(k, "")) * "*.jar").get)
 
   private[this] def include(flag: Boolean, jars: File*) =
     if (flag || ScalaInstance.isDotty(scalaInstance.version)) jars

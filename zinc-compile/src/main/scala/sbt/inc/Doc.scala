@@ -27,7 +27,6 @@ import sbt.util.CacheImplicits._
 import sbt.util.FileInfo.{ exists, hash, lastModified }
 import exists._
 import sjsonnew._
-import LList.:*:
 import xsbti.Reporter
 
 object Doc {

@@ -115,11 +115,11 @@ public final class CompileOptions implements java.io.Serializable {
             return false;
         } else {
             CompileOptions o = (CompileOptions)obj;
-            return java.util.Arrays.deepEquals(classpath(), o.classpath()) && java.util.Arrays.deepEquals(sources(), o.sources()) && classesDirectory().equals(o.classesDirectory()) && java.util.Arrays.deepEquals(scalacOptions(), o.scalacOptions()) && java.util.Arrays.deepEquals(javacOptions(), o.javacOptions()) && (maxErrors() == o.maxErrors()) && sourcePositionMapper().equals(o.sourcePositionMapper()) && order().equals(o.order());
+            return java.util.Arrays.deepEquals(this.classpath(), o.classpath()) && java.util.Arrays.deepEquals(this.sources(), o.sources()) && this.classesDirectory().equals(o.classesDirectory()) && java.util.Arrays.deepEquals(this.scalacOptions(), o.scalacOptions()) && java.util.Arrays.deepEquals(this.javacOptions(), o.javacOptions()) && (this.maxErrors() == o.maxErrors()) && this.sourcePositionMapper().equals(o.sourcePositionMapper()) && this.order().equals(o.order());
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.compile.CompileOptions".hashCode()) + classpath().hashCode()) + sources().hashCode()) + classesDirectory().hashCode()) + scalacOptions().hashCode()) + javacOptions().hashCode()) + (new Integer(maxErrors())).hashCode()) + sourcePositionMapper().hashCode()) + order().hashCode());
+        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.compile.CompileOptions".hashCode()) + java.util.Arrays.deepHashCode(classpath())) + java.util.Arrays.deepHashCode(sources())) + classesDirectory().hashCode()) + java.util.Arrays.deepHashCode(scalacOptions())) + java.util.Arrays.deepHashCode(javacOptions())) + (new Integer(maxErrors())).hashCode()) + sourcePositionMapper().hashCode()) + order().hashCode());
     }
     public String toString() {
         return "CompileOptions("  + "classpath: " + classpath() + ", " + "sources: " + sources() + ", " + "classesDirectory: " + classesDirectory() + ", " + "scalacOptions: " + scalacOptions() + ", " + "javacOptions: " + javacOptions() + ", " + "maxErrors: " + maxErrors() + ", " + "sourcePositionMapper: " + sourcePositionMapper() + ", " + "order: " + order() + ")";

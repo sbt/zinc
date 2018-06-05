@@ -37,7 +37,7 @@ class JavaErrorParserSpec extends UnitSpec {
   def parseWindowsFile() = {
     val parser = new JavaErrorParser()
     parser.parse(parser.fileAndLineNo, sampleWindowsMessage) match {
-      case parser.Success((file, line), rest) => file shouldBe (windowsFile)
+      case parser.Success((file, _), _) => file shouldBe (windowsFile)
       case parser.Error(msg, next) =>
         assert(false, s"Error to parse: $msg, ${next.pos.longString}")
       case parser.Failure(msg, next) =>

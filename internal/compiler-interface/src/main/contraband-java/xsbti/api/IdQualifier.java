@@ -31,7 +31,7 @@ public final class IdQualifier extends xsbti.api.Qualifier {
             return false;
         } else {
             IdQualifier o = (IdQualifier)obj;
-            return value().equals(o.value());
+            return this.value().equals(o.value());
         }
     }
     public int hashCode() {

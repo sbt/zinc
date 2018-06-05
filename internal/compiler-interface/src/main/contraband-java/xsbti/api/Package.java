@@ -31,7 +31,7 @@ public final class Package implements java.io.Serializable {
             return false;
         } else {
             Package o = (Package)obj;
-            return name().equals(o.name());
+            return this.name().equals(o.name());
         }
     }
     public int hashCode() {

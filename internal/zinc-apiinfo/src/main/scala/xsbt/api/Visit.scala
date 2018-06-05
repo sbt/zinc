@@ -22,7 +22,7 @@ class Visit {
     visitString(p.name)
   }
 
-  def visitDefinitions(ds: Seq[Definition]) = ds foreach visitDefinition
+  def visitDefinitions(ds: Array[_ <: Definition]) = visitArray(ds, visitDefinition)
   def visitDefinition(d: Definition): Unit = {
     visitString(d.name)
     visitAnnotations(d.annotations)
@@ -86,9 +86,10 @@ class Visit {
   def visitProtected(p: Protected): Unit = visitQualifier(p.qualifier)
   def visitModifiers(m: Modifiers): Unit = ()
 
-  def visitValueParameters(valueParameters: Seq[ParameterList]) =
-    valueParameters foreach visitValueParameterList
-  def visitValueParameterList(list: ParameterList) = list.parameters foreach visitValueParameter
+  def visitValueParameters(valueParameters: Array[ParameterList]) =
+    visitArray(valueParameters, visitValueParameterList)
+  def visitValueParameterList(list: ParameterList) =
+    visitArray(list.parameters, visitValueParameter)
   def visitValueParameter(parameter: MethodParameter) = {
     visitString(parameter.name)
     visitType(parameter.tpe)
@@ -107,26 +108,27 @@ class Visit {
     visitType(d.tpe)
   }
 
-  def visitTypeParameters(parameters: Seq[TypeParameter]) = parameters foreach visitTypeParameter
+  def visitTypeParameters(parameters: Array[TypeParameter]) =
+    visitArray(parameters, visitTypeParameter)
   def visitTypeParameter(parameter: TypeParameter): Unit = {
     visitTypeParameters(parameter.typeParameters)
     visitType(parameter.lowerBound)
     visitType(parameter.upperBound)
     visitAnnotations(parameter.annotations)
   }
-  def visitAnnotations(annotations: Seq[Annotation]) = annotations foreach visitAnnotation
+  def visitAnnotations(annotations: Array[Annotation]) = visitArray(annotations, visitAnnotation)
   def visitAnnotation(annotation: Annotation) = {
     visitType(annotation.base)
     visitAnnotationArguments(annotation.arguments)
   }
-  def visitAnnotationArguments(args: Seq[AnnotationArgument]) =
-    args foreach visitAnnotationArgument
+  def visitAnnotationArguments(args: Array[AnnotationArgument]) =
+    visitArray(args, visitAnnotationArgument)
   def visitAnnotationArgument(arg: AnnotationArgument): Unit = {
     visitString(arg.name)
     visitString(arg.value)
   }
 
-  def visitTypes(ts: Seq[Type]) = ts.foreach(visitType)
+  def visitTypes(ts: Array[Type]) = visitArray(ts, visitType)
   def visitType(t: Type): Unit = {
     t match {
       case s: Structure     => visitStructure(s)
@@ -145,7 +147,7 @@ class Visit {
   def visitEmptyType(): Unit = ()
   def visitParameterRef(p: ParameterRef): Unit = ()
   def visitSingleton(s: Singleton): Unit = visitPath(s.path)
-  def visitPath(path: Path) = path.components foreach visitPathComponent
+  def visitPath(path: Path) = visitArray(path.components, visitPathComponent)
   def visitPathComponent(pc: PathComponent) = pc match {
     case t: This  => visitThisPath(t)
     case s: Super => visitSuperPath(s)
@@ -180,9 +182,16 @@ class Visit {
     visitDefinitions(structure.declared)
     visitDefinitions(structure.inherited)
   }
-  def visitParameters(parameters: Seq[TypeParameter], base: Type): Unit = {
+  def visitParameters(parameters: Array[TypeParameter], base: Type): Unit = {
     visitTypeParameters(parameters)
     visitType(base)
   }
   def visitString(s: String): Unit = ()
+  @inline final def visitArray[T <: AnyRef](ts: Array[T], f: T => Unit): Unit = {
+    var i = 0
+    while (i < ts.length) {
+      f(ts(i))
+      i += 1
+    }
+  }
 }

@@ -8,6 +8,7 @@
 package sbt.internal.inc
 
 import java.io.File
+import java.util.Optional
 
 import xsbti.compile.{ Changes, CompileAnalysis, FileHash, MiniSetup }
 
@@ -39,11 +40,8 @@ class LookupImpl(compileConfiguration: CompileConfiguration, previousSetup: Opti
 
   private val entry = MixedAnalyzingCompiler.classPathLookup(compileConfiguration)
 
-  override def lookupAnalysis(binaryClassName: String): Option[CompileAnalysis] = {
-    analyses.collectFirst {
-      case a if a.relations.productClassName._2s.contains(binaryClassName) => a
-    }
-  }
+  override def lookupAnalysis(binaryClassName: String): Option[CompileAnalysis] =
+    analyses.find(_.relations.productClassName._2s.contains(binaryClassName))
 
   override def lookupOnClasspath(binaryClassName: String): Option[File] =
     entry(binaryClassName)
@@ -64,4 +62,7 @@ class LookupImpl(compileConfiguration: CompileConfiguration, previousSetup: Opti
   override def shouldDoIncrementalCompilation(changedClasses: Set[String],
                                               analysis: CompileAnalysis): Boolean =
     externalLookup.forall(_.shouldDoIncrementalCompilation(changedClasses, analysis))
+
+  override def hashClasspath(classpath: Array[File]): Optional[Array[FileHash]] =
+    externalLookup.map(_.hashClasspath(classpath)).getOrElse(Optional.empty())
 }

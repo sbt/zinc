@@ -54,11 +54,11 @@ public final class Def extends xsbti.api.ParameterizedDefinition {
             return false;
         } else {
             Def o = (Def)obj;
-            return name().equals(o.name()) && access().equals(o.access()) && modifiers().equals(o.modifiers()) && java.util.Arrays.deepEquals(annotations(), o.annotations()) && java.util.Arrays.deepEquals(typeParameters(), o.typeParameters()) && java.util.Arrays.deepEquals(valueParameters(), o.valueParameters()) && returnType().equals(o.returnType());
+            return this.name().equals(o.name()) && this.access().equals(o.access()) && this.modifiers().equals(o.modifiers()) && java.util.Arrays.deepEquals(this.annotations(), o.annotations()) && java.util.Arrays.deepEquals(this.typeParameters(), o.typeParameters()) && java.util.Arrays.deepEquals(this.valueParameters(), o.valueParameters()) && this.returnType().equals(o.returnType());
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.api.Def".hashCode()) + name().hashCode()) + access().hashCode()) + modifiers().hashCode()) + annotations().hashCode()) + typeParameters().hashCode()) + valueParameters().hashCode()) + returnType().hashCode());
+        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.api.Def".hashCode()) + name().hashCode()) + access().hashCode()) + modifiers().hashCode()) + java.util.Arrays.deepHashCode(annotations())) + java.util.Arrays.deepHashCode(typeParameters())) + java.util.Arrays.deepHashCode(valueParameters())) + returnType().hashCode());
     }
     public String toString() {
         return "Def("  + "name: " + name() + ", " + "access: " + access() + ", " + "modifiers: " + modifiers() + ", " + "annotations: " + annotations() + ", " + "typeParameters: " + typeParameters() + ", " + "valueParameters: " + valueParameters() + ", " + "returnType: " + returnType() + ")";

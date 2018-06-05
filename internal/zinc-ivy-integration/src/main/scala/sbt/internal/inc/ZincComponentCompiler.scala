@@ -14,7 +14,7 @@ import java.net.URLClassLoader
 import java.util.concurrent.Callable
 
 import sbt.internal.inc.classpath.ClasspathUtilities
-import sbt.io.{ Hash, IO }
+import sbt.io.IO
 import sbt.internal.librarymanagement._
 import sbt.internal.util.FullLogger
 import sbt.librarymanagement._
@@ -40,11 +40,15 @@ private[sbt] object ZincComponentCompiler {
   private val CompileConf = Some(Configurations.Compile.name)
   private[sbt] def getDefaultBridgeModule(scalaVersion: String): ModuleID = {
     def compilerBridgeId(scalaVersion: String) = {
-      // Defaults to bridge for 2.12 for Scala versions bigger than 2.12.x
       scalaVersion match {
-        case sc if (sc startsWith "2.10.") => "compiler-bridge_2.10"
-        case sc if (sc startsWith "2.11.") => "compiler-bridge_2.11"
-        case _                             => "compiler-bridge_2.12"
+        case sc if (sc startsWith "2.10.")       => "compiler-bridge_2.10"
+        case sc if (sc startsWith "2.11.")       => "compiler-bridge_2.11"
+        case sc if (sc startsWith "2.12.")       => "compiler-bridge_2.12"
+        case "2.13.0-M1"                         => "compiler-bridge_2.12"
+        case sc if (sc startsWith "2.13.0-pre-") => "compiler-bridge_2.13.0-M2"
+        case sc if (sc startsWith "2.13.0-M")    => "compiler-bridge_2.13.0-M2"
+        case sc if (sc startsWith "2.13.0-RC")   => "compiler-bridge_2.13.0-M2"
+        case _                                   => "compiler-bridge_2.13"
       }
     }
     import xsbti.ArtifactInfo.SbtOrganization
@@ -87,7 +91,7 @@ private[sbt] object ZincComponentCompiler {
       compiledBridge(bridgeSources, scalaInstance, logger)
     }
 
-    private final case class ScalaArtifacts(compiler: File, library: File, others: Vector[File])
+    private case class ScalaArtifacts(compiler: File, library: File, others: Vector[File])
 
     private def getScalaArtifacts(scalaVersion: String, logger: xsbti.Logger): ScalaArtifacts = {
       def isPrefixedWith(artifact: File, prefix: String) = artifact.getName.startsWith(prefix)
@@ -136,11 +140,19 @@ private[sbt] object ZincComponentCompiler {
       val scalaLibrary = scalaArtifacts.library
       val jarsToLoad = (scalaCompiler +: scalaLibrary +: scalaArtifacts.others).toArray
       assert(jarsToLoad.forall(_.exists), "One or more jar(s) in the Scala instance do not exist.")
-      val loader = new URLClassLoader(toURLs(jarsToLoad), ClasspathUtilities.rootLoader)
+      val loaderLibraryOnly = ClasspathUtilities.toLoader(Vector(scalaLibrary))
+      val loader = ClasspathUtilities.toLoader(jarsToLoad.toVector filterNot { _ == scalaLibrary },
+                                               loaderLibraryOnly)
       val properties = ResourceLoader.getSafePropertiesFor("compiler.properties", loader)
       val loaderVersion = Option(properties.getProperty("version.number"))
       val scalaV = loaderVersion.getOrElse("unknown")
-      new ScalaInstance(scalaV, loader, scalaLibrary, scalaCompiler, jarsToLoad, loaderVersion)
+      new ScalaInstance(scalaV,
+                        loader,
+                        loaderLibraryOnly,
+                        scalaLibrary,
+                        scalaCompiler,
+                        jarsToLoad,
+                        loaderVersion)
     }
   }
 
@@ -290,7 +302,6 @@ private object ZincLMHelper {
     val updateConfiguration = defaultUpdateConfiguration(retrieveDirectory, noSource)
     val dependencies = prettyPrintDependency(module)
     logger.info(s"Attempting to fetch $dependencies.")
-    val clockForCache = LogicalClock.unknown
     dependencyResolution.update(module, updateConfiguration, warningConf, logger) match {
       case Left(unresolvedWarning) =>
         logger.debug(s"Couldn't retrieve module(s) ${prettyPrintDependency(module)}.")

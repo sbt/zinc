@@ -51,6 +51,8 @@ public interface ExternalHooks {
          * @return API changes
          */
         boolean shouldDoIncrementalCompilation(Set<String> changedClasses, CompileAnalysis previousAnalysis);
+
+        Optional<FileHash[]> hashClasspath(File[] classpath);
     }
 
     /**

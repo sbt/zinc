@@ -112,7 +112,7 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
   private object ParsedInteger {
     def unapply(s: String): Option[Int] =
       try Some(Integer.parseInt(s))
-      catch { case e: NumberFormatException => None }
+      catch { case _: NumberFormatException => None }
   }
   // Parses a line number
   val line: Parser[Int] = allUntilChar(':') ^? {
@@ -220,12 +220,16 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
    */
   final def parseProblems(in: String, logger: sbt.util.Logger): Seq[Problem] =
     parse(javacOutput, in) match {
-      case Success(result, _) => result
+      case Success(result, next) =>
+        if (!next.atEnd) {
+          logger.warn(s"Unexpected javac output: ${next.source}.")
+        }
+        result
       case Failure(msg, n) =>
-        logger.warn(s"Unexpected javac output at:${n.pos.longString}.")
+        logger.warn(s"Unexpected javac output at ${n.pos.longString}: $msg.")
         Seq.empty
       case Error(msg, n) =>
-        logger.warn(s"Unexpected javac output at:${n.pos.longString}.")
+        logger.warn(s"Unexpected javac output at ${n.pos.longString}: $msg.")
         Seq.empty
     }
 

@@ -31,7 +31,7 @@ public final class Singleton extends xsbti.api.Type {
             return false;
         } else {
             Singleton o = (Singleton)obj;
-            return path().equals(o.path());
+            return this.path().equals(o.path());
         }
     }
     public int hashCode() {

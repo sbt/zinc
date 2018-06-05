@@ -47,7 +47,7 @@ public final class NameHash implements java.io.Serializable {
             return false;
         } else {
             NameHash o = (NameHash)obj;
-            return name().equals(o.name()) && scope().equals(o.scope()) && (hash() == o.hash());
+            return this.name().equals(o.name()) && this.scope().equals(o.scope()) && (this.hash() == o.hash());
         }
     }
     public int hashCode() {

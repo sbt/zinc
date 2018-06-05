@@ -96,11 +96,11 @@ public final class Setup implements java.io.Serializable {
             return false;
         } else {
             Setup o = (Setup)obj;
-            return perClasspathEntryLookup().equals(o.perClasspathEntryLookup()) && (skip() == o.skip()) && cacheFile().equals(o.cacheFile()) && cache().equals(o.cache()) && incrementalCompilerOptions().equals(o.incrementalCompilerOptions()) && reporter().equals(o.reporter()) && progress().equals(o.progress()) && java.util.Arrays.deepEquals(extra(), o.extra());
+            return this.perClasspathEntryLookup().equals(o.perClasspathEntryLookup()) && (this.skip() == o.skip()) && this.cacheFile().equals(o.cacheFile()) && this.cache().equals(o.cache()) && this.incrementalCompilerOptions().equals(o.incrementalCompilerOptions()) && this.reporter().equals(o.reporter()) && this.progress().equals(o.progress()) && java.util.Arrays.deepEquals(this.extra(), o.extra());
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.compile.Setup".hashCode()) + perClasspathEntryLookup().hashCode()) + (new Boolean(skip())).hashCode()) + cacheFile().hashCode()) + cache().hashCode()) + incrementalCompilerOptions().hashCode()) + reporter().hashCode()) + progress().hashCode()) + extra().hashCode());
+        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.compile.Setup".hashCode()) + perClasspathEntryLookup().hashCode()) + (new Boolean(skip())).hashCode()) + cacheFile().hashCode()) + cache().hashCode()) + incrementalCompilerOptions().hashCode()) + reporter().hashCode()) + progress().hashCode()) + java.util.Arrays.deepHashCode(extra()));
     }
     public String toString() {
         return "Setup("  + "perClasspathEntryLookup: " + perClasspathEntryLookup() + ", " + "skip: " + skip() + ", " + "cacheFile: " + cacheFile() + ", " + "cache: " + cache() + ", " + "incrementalCompilerOptions: " + incrementalCompilerOptions() + ", " + "reporter: " + reporter() + ", " + "progress: " + progress() + ", " + "extra: " + extra() + ")";

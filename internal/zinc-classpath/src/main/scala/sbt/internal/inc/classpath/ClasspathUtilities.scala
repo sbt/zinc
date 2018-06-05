@@ -63,8 +63,10 @@ object ClasspathUtilities {
   final val AppClassPath = "app.class.path"
   final val BootClassPath = "boot.class.path"
 
-  def createClasspathResources(classpath: Seq[File], instance: ScalaInstance): Map[String, String] =
-    createClasspathResources(classpath, instance.allJars)
+  def createClasspathResources(classpath: Seq[File],
+                               instance: ScalaInstance): Map[String, String] = {
+    createClasspathResources(classpath, Array(instance.libraryJar))
+  }
 
   def createClasspathResources(appPaths: Seq[File], bootPaths: Seq[File]): Map[String, String] = {
     def make(name: String, paths: Seq[File]) = name -> Path.makeString(paths)
@@ -74,11 +76,16 @@ object ClasspathUtilities {
   private[sbt] def filterByClasspath(classpath: Seq[File], loader: ClassLoader): ClassLoader =
     new ClasspathFilter(loader, xsbtiLoader, classpath.toSet)
 
+  /**
+   * Creates a ClassLoader that contains the classpath and the scala-library from
+   * the given instance.
+   */
   def makeLoader(classpath: Seq[File], instance: ScalaInstance): ClassLoader =
-    filterByClasspath(classpath, makeLoader(classpath, instance.loader, instance))
+    filterByClasspath(classpath, makeLoader(classpath, instance.loaderLibraryOnly, instance))
 
   def makeLoader(classpath: Seq[File], instance: ScalaInstance, nativeTemp: File): ClassLoader =
-    filterByClasspath(classpath, makeLoader(classpath, instance.loader, instance, nativeTemp))
+    filterByClasspath(classpath,
+                      makeLoader(classpath, instance.loaderLibraryOnly, instance, nativeTemp))
 
   def makeLoader(classpath: Seq[File], parent: ClassLoader, instance: ScalaInstance): ClassLoader =
     toLoader(classpath, parent, createClasspathResources(classpath, instance))
@@ -107,13 +114,14 @@ object ClasspathUtilities {
         (in.read() == 0x03) &&
         (in.read() == 0x04)
       }
-    } catch { case e: Exception => false }
+    } catch { case _: Exception => false }
 
   /** Returns all entries in 'classpath' that correspond to a compiler plugin.*/
-  private[sbt] def compilerPlugins(classpath: Seq[File]): Iterable[File] = {
+  private[sbt] def compilerPlugins(classpath: Seq[File], isDotty: Boolean): Iterable[File] = {
     import collection.JavaConversions._
     val loader = new URLClassLoader(Path.toURLs(classpath))
-    loader.getResources("scalac-plugin.xml").toList.flatMap(asFile(true))
+    val metaFile = if (isDotty) "plugin.properties" else "scalac-plugin.xml"
+    loader.getResources(metaFile).toList.flatMap(asFile(true))
   }
 
   /** Converts the given URL to a File.  If the URL is for an entry in a jar, the File for the jar is returned. */
@@ -128,6 +136,6 @@ object ClasspathUtilities {
           new File(new URI(if (end == -1) path else path.substring(0, end))) :: Nil
         case _ => Nil
       }
-    } catch { case e: Exception => Nil }
+    } catch { case _: Exception => Nil }
   }
 }

@@ -39,7 +39,7 @@ public final class Constant extends xsbti.api.Type {
             return false;
         } else {
             Constant o = (Constant)obj;
-            return baseType().equals(o.baseType()) && value().equals(o.value());
+            return this.baseType().equals(o.baseType()) && this.value().equals(o.value());
         }
     }
     public int hashCode() {

@@ -13,14 +13,11 @@ import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
 import xsbt.api.{ APIUtil, HashAPI, NameHashing }
 import xsbti.api._
 import xsbti.compile.{
-  ClassFileManager,
+  ClassFileManager => XClassFileManager,
   CompileAnalysis,
   DependencyChanges,
   IncOptions,
-  MultipleOutput,
-  Output,
-  OutputGroup,
-  SingleOutput
+  Output
 }
 import xsbti.{ Position, Problem, Severity, UseScope }
 import sbt.util.Logger
@@ -54,7 +51,7 @@ object IncrementalCompile {
   def apply(
       sources: Set[File],
       lookup: Lookup,
-      compile: (Set[File], DependencyChanges, xsbti.AnalysisCallback, ClassFileManager) => Unit,
+      compile: (Set[File], DependencyChanges, xsbti.AnalysisCallback, XClassFileManager) => Unit,
       previous0: CompileAnalysis,
       output: Output,
       log: Logger,
