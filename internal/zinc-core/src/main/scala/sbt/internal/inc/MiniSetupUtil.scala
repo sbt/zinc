@@ -103,7 +103,10 @@ object MiniSetupUtil {
     }
   }
 
-  def equivOpts(equivScalacOpts: Equiv[Array[String]]): Equiv[MiniOptions] = {
+  // for compatibility
+  val equivOpts: Equiv[MiniOptions] = equivOpts0(Equiv.fromFunction(_ sameElements _))
+
+  def equivOpts0(equivScalacOpts: Equiv[Array[String]]): Equiv[MiniOptions] = {
     new Equiv[MiniOptions] {
       def equiv(a: MiniOptions, b: MiniOptions) = {
         equivScalacOpts.equiv(a.scalacOptions, b.scalacOptions) &&
