@@ -131,7 +131,7 @@ object MiniSetupUtil {
     def groupWithParams(opts: Array[String]): Set[String] = {
       def isParam(s: String) = !s.startsWith("-")
       def recur(opts: List[String], res: Set[String]): Set[String] = opts match {
-        case opt :: param :: rest if isParam(param) => recur(rest, res + (opt + " " + param))
+        case opt :: param :: rest if isParam(param) => recur(rest, res + s"$opt $param")
         case opt :: rest                            => recur(rest, res + opt)
         case Nil                                    => res
       }
@@ -144,7 +144,6 @@ object MiniSetupUtil {
     new Equiv[Array[String]] {
       override def equiv(opts1: Array[String], opts2: Array[String]): Boolean = {
         dropIgnored(groupWithParams(opts1)) == dropIgnored(groupWithParams(opts2))
-
       }
     }
   }
