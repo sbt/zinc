@@ -49,4 +49,13 @@ class MiniSetupUtilSpec extends UnitSpec {
     equiv.equiv(before, after) shouldBe false
   }
 
+  it should "ignore reordering of options" in {
+    val equiv = equivScalacOptions(ignoredRegexes = Array())
+
+    val before = Array("-a", "1", "-b", "2", "-c")
+    val after = Array("-b", "2", "-c", "-a", "1")
+
+    equiv.equiv(before, after) shouldBe true
+  }
+
 }
