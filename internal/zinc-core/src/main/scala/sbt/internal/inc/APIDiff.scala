@@ -144,8 +144,9 @@ private[inc] class APIDiff {
       val lastTokens = splitTokens(lastCode, Nil).toArray
 
       val diff = hirschberg(lastTokens, tokens)
+      val cleanDiff = dropNonChangedLines(diff)
 
-      diff.collect {
+      cleanDiff.collect {
         case Unmodified(str) => str
         case Inserted(str)   => ADDITION_COLOR + str + ANSI_DEFAULT
         case Modified(old, str) if printDiffDel =>
@@ -153,6 +154,24 @@ private[inc] class APIDiff {
         case Modified(_, str)             => ADDITION_COLOR + str + ANSI_DEFAULT
         case Deleted(str) if printDiffDel => DELETION_COLOR + str + ANSI_DEFAULT
       }.mkString
+    }
+
+    private def dropNonChangedLines(patches: Array[Patch]): Seq[Patch] = {
+      def recur(patches: List[Patch], result: List[List[Patch]]): List[List[Patch]] = {
+        if (patches.isEmpty) result.reverse
+        else {
+          val (line, rest) = patches.span {
+            case Modified(_, "\n") | Deleted("\n") | Inserted("\n") | Unmodified("\n") => false
+            case _                                                                     => true
+          }
+          val hasChanges = line.exists {
+            case _: Modified | _: Deleted | _: Inserted => true
+            case _: Unmodified                          => false
+          }
+          recur(rest.drop(1), if (hasChanges) (line ++ rest.take(1)) :: result else result)
+        }
+      }
+      recur(patches.toList, Nil).flatten
     }
 
     private sealed trait Patch
