@@ -47,6 +47,7 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
     if (invalidatedRaw.isEmpty && modifiedSrcs.isEmpty)
       previous
     else {
+      debugOuterSection(s"Recompilation cycle #$cycleNum")
       val invalidatedPackageObjects =
         this.invalidatedPackageObjects(invalidatedRaw, previous.relations, previous.apis)
       if (invalidatedPackageObjects.nonEmpty)
@@ -111,21 +112,16 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
     val invalidatedSources = classes.flatMap(previous.relations.definesClass) ++ modifiedSrcs
     val invalidatedSourcesForCompilation = expand(invalidatedSources, allSources)
     val pruned = Incremental.prune(invalidatedSourcesForCompilation, previous, classfileManager)
-    debugSection("Pruned")(pruned.relations)
+    debugInnerSection("Pruned")(pruned.relations)
 
     val fresh = doCompile(invalidatedSourcesForCompilation, binaryChanges)
     // For javac as class files are added to classfileManager as they are generated, so
     // this step is redundant. For scalac this is still necessary. TODO: do the same for scalac.
     classfileManager.generated(fresh.relations.allProducts.toArray)
-    debugSection("Fresh")(fresh.relations)
+    debugInnerSection("Fresh")(fresh.relations)
     val merged = pruned ++ fresh //.copy(relations = pruned.relations ++ fresh.relations, apis = pruned.apis ++ fresh.apis)
-    debugSection("Merged")(merged.relations)
+    debugInnerSection("Merged")(merged.relations)
     (merged, invalidatedSourcesForCompilation)
-  }
-
-  private[this] def debugSection(header: String)(content: => Any): Unit = {
-    import Console._
-    debug(s"$CYAN************* $header:$RESET\n$content\n$CYAN************* (end of $header)$RESET")
   }
 
   private[this] def emptyChanges: DependencyChanges = new DependencyChanges {
@@ -338,6 +334,7 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
     val allInvalidatedClasses = invalidatedClasses ++ byExtSrcDep
     val allInvalidatedSourcefiles = addedSrcs ++ modifiedSrcs ++ byProduct ++ byBinaryDep
 
+    debugOuterSection(s"Initial invalidation")
     if (previous.allSources.isEmpty)
       log.debug("Full compilation, no sources in previous analysis.")
     else if (allInvalidatedClasses.isEmpty && allInvalidatedSourcefiles.isEmpty)
@@ -506,4 +503,15 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
     }
     xs.toSet
   }
+
+  private[this] def debugOuterSection(header: String): Unit = {
+    import Console._
+    log.debug(s"$GREEN*************************** $header$RESET")
+  }
+
+  private[this] def debugInnerSection(header: String)(content: => Any): Unit = {
+    import Console._
+    debug(s"$CYAN************* $header:$RESET\n$content\n$CYAN************* (end of $header)$RESET")
+  }
+
 }
