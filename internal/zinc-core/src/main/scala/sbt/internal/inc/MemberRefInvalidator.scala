@@ -59,7 +59,7 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
       new InvalidateUnconditionally(memberRef)
     case NamesChange(_, modifiedNames) if modifiedNames.in(UseScope.Implicit).nonEmpty =>
       new InvalidateUnconditionally(memberRef)
-    case NamesChange(modifiedClass, modifiedNames) =>
+    case NamesChange(_, modifiedNames) =>
       new NameHashFilteredInvalidator(usedNames, memberRef, modifiedNames, isScalaClass)
   }
 
@@ -77,6 +77,7 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
       }
   }
 
+  // Left for compatibility
   private class InvalidateDueToMacroDefinition(memberRef: Relation[String, String])
       extends (String => Set[String]) {
     def apply(from: String): Set[String] = {

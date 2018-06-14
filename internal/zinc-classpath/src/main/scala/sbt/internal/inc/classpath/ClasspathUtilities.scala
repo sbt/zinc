@@ -118,10 +118,10 @@ object ClasspathUtilities {
 
   /** Returns all entries in 'classpath' that correspond to a compiler plugin.*/
   private[sbt] def compilerPlugins(classpath: Seq[File], isDotty: Boolean): Iterable[File] = {
-    import collection.JavaConversions._
+    import collection.JavaConverters._
     val loader = new URLClassLoader(Path.toURLs(classpath))
     val metaFile = if (isDotty) "plugin.properties" else "scalac-plugin.xml"
-    loader.getResources(metaFile).toList.flatMap(asFile(true))
+    loader.getResources(metaFile).asScala.toList.flatMap(asFile(true))
   }
 
   /** Converts the given URL to a File.  If the URL is for an entry in a jar, the File for the jar is returned. */

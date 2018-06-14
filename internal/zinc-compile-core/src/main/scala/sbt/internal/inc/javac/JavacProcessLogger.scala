@@ -27,8 +27,8 @@ import scala.sys.process.ProcessLogger
  * @param cwd The current working directory of the Javac process, used when parsing Filenames.
  */
 final class JavacLogger(log: sbt.util.Logger, reporter: Reporter, cwd: File) extends ProcessLogger {
-  private var out: ListBuffer[String] = new ListBuffer()
-  private var err: ListBuffer[String] = new ListBuffer()
+  private val out: ListBuffer[String] = new ListBuffer()
+  private val err: ListBuffer[String] = new ListBuffer()
 
   def out(s: => String): Unit =
     synchronized {

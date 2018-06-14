@@ -1,7 +1,5 @@
 package sbt.internal.inc
 
-import org.scalatest.exceptions.TestFailedException
-import sbt.internal.inc
 import sbt.internal.scripted._
 import sbt.internal.inc.BatchScriptRunner.States
 

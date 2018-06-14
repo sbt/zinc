@@ -89,6 +89,7 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
       val sourceFile = baseLocation.resolve(source)
       val text = Files.readAllLines(sourceFile).asScala.mkString("\n")
       Files.write(sourceFile, Seq(change(text)).asJava)
+      ()
     }
 
     def dependsOnJarFrom(other: ProjectSetup): ProjectSetup = {

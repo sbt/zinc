@@ -14,7 +14,7 @@ import sbt.internal.util.ConsoleLogger
 import sbt.io.{ IO, RichFile }
 import xsbt.ZincBenchmark.CompilationInfo
 import xsbti._
-import xsbti.compile.{ IncOptions, SingleOutput }
+import xsbti.compile.SingleOutput
 
 import scala.util.Try
 
@@ -352,6 +352,7 @@ case class BenchmarkProject(
     gitClient.right.flatMap(Git.checkout(_, hash)).right.map(_ => tempDir)
   }
 
+  // Left for compatibility
   import ZincBenchmark.TryEnrich
   def writeBuildInfo(projectDir: File, sharedDir: File): WriteBuildInfo = {
     def persistBuildInfo(subproject: String, stateFile: File): Result[Unit] = {

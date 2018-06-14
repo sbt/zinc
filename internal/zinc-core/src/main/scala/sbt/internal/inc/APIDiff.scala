@@ -72,7 +72,7 @@ private[inc] class APIDiff {
     private final val DELETION_COLOR = ANSI_RED
     private final val ADDITION_COLOR = ANSI_GREEN
 
-    @tailrec private def splitTokens(str: String, acc: List[String] = Nil): List[String] = {
+    @tailrec private def splitTokens(str: String, acc: List[String]): List[String] = {
       if (str == "") {
         acc.reverse
       } else {
@@ -165,8 +165,10 @@ private[inc] class APIDiff {
       def build(x: Array[String], y: Array[String], builder: mutable.ArrayBuilder[Patch]): Unit = {
         if (x.isEmpty) {
           builder += Inserted(y.mkString)
+          ()
         } else if (y.isEmpty) {
           builder += Deleted(x.mkString)
+          ()
         } else if (x.length == 1 || y.length == 1) {
           needlemanWunsch(x, y, builder)
         } else {
@@ -251,6 +253,7 @@ private[inc] class APIDiff {
         }
       }
       builder ++= alignment
+      ()
     }
 
   }

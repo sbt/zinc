@@ -10,7 +10,6 @@ package xsbt
 import xsbti.Logger
 import scala.tools.nsc.interpreter.IMain
 import scala.tools.nsc.interpreter.shell.{ ILoop, ShellConfig, ReplReporterImpl }
-import scala.tools.nsc.reporters.Reporter
 import scala.tools.nsc.{ GenericRunnerCommand, Settings }
 
 class ConsoleInterface {
@@ -52,8 +51,12 @@ class ConsoleInterface {
         } else
           super.createInterpreter(interpreterSettings)
 
-        for ((id, value) <- bindNames zip bindValues)
-          intp.beQuietDuring(intp.bind(id, value.asInstanceOf[AnyRef].getClass.getName, value))
+        for ((id, value) <- bindNames zip bindValues) {
+          intp.beQuietDuring {
+            intp.bind(id, value.asInstanceOf[AnyRef].getClass.getName, value)
+            ()
+          }
+        }
 
         if (!initialCommands.isEmpty)
           intp.interpret(initialCommands)
@@ -69,6 +72,7 @@ class ConsoleInterface {
     }
 
     loop.run(compilerSettings)
+    ()
   }
 }
 

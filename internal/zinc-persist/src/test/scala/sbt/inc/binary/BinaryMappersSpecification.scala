@@ -10,7 +10,7 @@ import xsbti.compile.analysis.ReadWriteMappers
 
 object BinaryMappersSpecification
     extends Properties("BinaryMappers")
-    with BinaryAnalysisFormatSpecification {
+    with BinaryAnalysisFormatSpecificationHelpers {
 
   override def RootFilePath = "/tmp/localProject"
   private final val mappers: ReadWriteMappers =
