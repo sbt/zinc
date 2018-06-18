@@ -58,8 +58,8 @@ class CachedHashingSpec extends BaseCompilerSpec {
 
       val hashingTime = timeMs(genConfig)
       val cachedHashingTime = timeMs(genConfig)
-      assert(cachedHashingTime < (hashingTime * 0.20),
-             s"Cache jar didn't work: $cachedHashingTime is >= than 20% of $hashingTime.")
+      assert(cachedHashingTime < (hashingTime * 0.50),
+             s"Cache jar didn't work: $cachedHashingTime is >= than 50% of $hashingTime.")
     }
   }
 
