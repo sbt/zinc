@@ -13,8 +13,9 @@ import xsbti.compile.{ IncToolOptions, IncToolOptionsUtil, JavaTools => XJavaToo
 import sbt.io.IO
 import sbt.util.LogExchange
 import org.scalatest.matchers._
+import org.scalatest.DiagrammedAssertions
 
-class JavaCompilerSpec extends UnitSpec {
+class JavaCompilerSpec extends UnitSpec with DiagrammedAssertions {
 
   "Compiling a java file with local javac" should "compile a java file" in works(local)
   it should "issue errors and warnings" in findsErrors(local)
@@ -37,9 +38,11 @@ class JavaCompilerSpec extends UnitSpec {
 
   def docWorks(compiler: XJavaTools) = IO.withTemporaryDirectory { out =>
     val (result, _) = doc(compiler, Seq(knownSampleGoodFile), Seq("-d", out.getAbsolutePath))
-    result shouldBe true
-    new File(out, "index.html").exists shouldBe true
-    new File(out, "good.html").exists shouldBe true
+    assert(result)
+    val idx = new File(out, "index.html")
+    assert(idx.exists)
+    val good = new File(out, "good.html")
+    assert(good.exists)
   }
 
   def works(compiler: XJavaTools, forked: Boolean = false) = IO.withTemporaryDirectory { out =>
@@ -54,35 +57,39 @@ class JavaCompilerSpec extends UnitSpec {
         .withUseCustomizedFileManager(true)
     )
 
-    result shouldBe true
+    assert(result)
     val classfile = new File(out, "good.class")
-    classfile.exists shouldBe true
-    classfileManager.generatedClasses shouldEqual (if (forked) Set() else Set(classfile))
+    assert(classfile.exists)
+    assert(classfileManager.generatedClasses == (if (forked) Set() else Set(classfile)))
 
     val cl = new URLClassLoader(Array(out.toURI.toURL))
     val clazzz = cl.loadClass("good")
     val mthd = clazzz.getDeclaredMethod("test")
-    mthd.invoke(null) shouldBe "Hello"
+    assert(mthd.invoke(null) == "Hello")
   }
 
   def findsErrors(compiler: XJavaTools) = {
     val (result, problems) = compile(compiler, Seq(knownSampleErrorFile), Seq("-deprecation"))
-    result shouldBe false
-    problems should have size 6
+    assert(result == false)
+    assert(problems.size == 6)
     val importWarn = warnOnLine(lineno = 1, lineContent = Some("java.rmi.RMISecurityException"))
     val enclosingError = errorOnLine(lineno = 14, message = Some("not an enclosing class: C.D"))
     val beAnExpectedError =
       List(importWarn, errorOnLine(3), errorOnLine(4), warnOnLine(7), enclosingError) reduce (_ or _)
-    problems foreach (_ should beAnExpectedError)
+    problems foreach { p =>
+      p should beAnExpectedError
+    }
   }
 
   def findsDocErrors(compiler: XJavaTools) = IO.withTemporaryDirectory { out =>
     val (result, problems) =
       doc(compiler, Seq(knownSampleErrorFile), Seq("-d", out.getAbsolutePath))
-    result shouldBe true
-    problems should have size 2
+    assert(result)
+    assert(problems.size == 2)
     val beAnExpectedError = List(errorOnLine(3), errorOnLine(4)) reduce (_ or _)
-    problems foreach (_ should beAnExpectedError)
+    problems foreach { p =>
+      p should beAnExpectedError
+    }
   }
 
   /**
@@ -109,7 +116,7 @@ class JavaCompilerSpec extends UnitSpec {
 
         // then compile it
         val (result, _) = compile(local, Seq(input), Seq("-d", out.getAbsolutePath))
-        result shouldBe true
+        assert(result)
         val clazzz = new URLClassLoader(Array(out.toURI.toURL)).loadClass("hasstaticfinal")
         ClassToAPI(Seq(clazzz))
       }
@@ -118,8 +125,8 @@ class JavaCompilerSpec extends UnitSpec {
     // values match
     val leftAPI = compileWithPrimitive(leftType, left)
     val rightAPI = compileWithPrimitive(rightType, right)
-    leftAPI.size shouldBe rightAPI.size
-    ((leftAPI, rightAPI).zipped forall SameAPI.apply) shouldBe (left == right)
+    assert(leftAPI.size == rightAPI.size)
+    assert(((leftAPI, rightAPI).zipped forall SameAPI.apply) == (left == right))
     ()
   }
 
@@ -168,19 +175,19 @@ class JavaCompilerSpec extends UnitSpec {
   def forkSameAsLocal() = {
     val (fresult, fproblems) = compile(forked, Seq(knownSampleErrorFile), Seq("-deprecation"))
     val (lresult, lproblems) = compile(local, Seq(knownSampleErrorFile), Seq("-deprecation"))
-    fresult shouldBe lresult
+    assert(fresult == lresult)
 
     (fproblems zip lproblems) foreach {
       case (f, l) =>
         // TODO - We should check to see if the levenshtein distance of the messages is close...
         if (f.position.sourcePath.isPresent)
-          f.position.sourcePath.get shouldBe l.position.sourcePath.get
-        else l.position.sourcePath.isPresent shouldBe false
+          assert(f.position.sourcePath.get == l.position.sourcePath.get)
+        else assert(!l.position.sourcePath.isPresent)
 
-        if (f.position.line.isPresent) f.position.line.get shouldBe l.position.line.get
-        else l.position.line.isPresent shouldBe false
+        if (f.position.line.isPresent) assert(f.position.line.get == l.position.line.get)
+        else assert(!l.position.line.isPresent)
 
-        f.severity shouldBe l.severity
+        assert(f.severity == l.severity)
     }
   }
 
