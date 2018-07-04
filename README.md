@@ -72,8 +72,8 @@ active development. For information on how to contribute, please check the
 
 This software is released under the following [LICENSE](LICENSE).
 
-## Acknoledgements
+## Acknowledgements
 
-| Logo | Acknoledgement |
+| Logo | Acknowledgement |
 | ---- | -------------- |
 | ![](https://www.yourkit.com/images/yklogo.png) | We thank [Yourkit](https://www.yourkit.com/) for supporting this open-source project with its full-featured profiler. |
