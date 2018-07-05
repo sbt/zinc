@@ -18,13 +18,13 @@ class JavaProcessLoggerSpec extends UnitSpec {
     val javacLogger = new JavacLogger(errorLogger, reporter, cwd = new File("."))
     javacLogger.err(
       Seq(
-        """Test.java:4: cannot find symbol
+        """/home/someone/Test.java:4: cannot find symbol
                           |symbol  : method baz()
                           |location: class Foo
                           |return baz();
                           |       ^
                           |""",
-        """Test.java:8: warning: [deprecation] RMISecurityException(java.lang.String) in java.rmi.RMISecurityException has been deprecated
+        """/home/someone/Test.java:8: warning: [deprecation] RMISecurityException(java.lang.String) in java.rmi.RMISecurityException has been deprecated
                                   |throw new java.rmi.RMISecurityException("O NOES");
                                   |^
                                   |"""
@@ -41,14 +41,14 @@ class JavaProcessLoggerSpec extends UnitSpec {
     val reporter = new CollectingReporter()
     val errorLogger = new CollectingLogger()
     val javacLogger = new JavacLogger(errorLogger, reporter, cwd = new File("."))
-    javacLogger.err("""Test.java:4: cannot find symbol
+    javacLogger.err("""/home/someone/Test.java:4: cannot find symbol
                           |symbol  : method baz()
                           |location: class Foo
                           |return baz();
                           |       ^
                           |""")
     javacLogger.err(
-      """Test.java:8: warning: [deprecation] RMISecurityException(java.lang.String) in java.rmi.RMISecurityException has been deprecated
+      """/home/someone/Test.java:8: warning: [deprecation] RMISecurityException(java.lang.String) in java.rmi.RMISecurityException has been deprecated
                                   |throw new java.rmi.RMISecurityException("O NOES");
                                   |^
                                   |""")
