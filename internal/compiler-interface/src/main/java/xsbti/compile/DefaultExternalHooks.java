@@ -30,17 +30,15 @@ public class DefaultExternalHooks implements ExternalHooks {
 
     @Override
     public ExternalHooks withExternalClassFileManager(ClassFileManager externalClassFileManager) {
-        Optional<ClassFileManager> currentManager = this.getExternalClassFileManager();
-        Optional<ClassFileManager> mixedManager = currentManager;
-        if (currentManager.isPresent()) {
-            Optional<ClassFileManager> external = Optional.of(externalClassFileManager);
-            mixedManager = Optional.of(WrappedClassFileManager.of(currentManager.get(), external));
-        }
-        return new DefaultExternalHooks(this.getExternalLookup(), mixedManager);
+        Optional<ClassFileManager> external = Optional.of(externalClassFileManager);
+        Optional<ClassFileManager> mixedManager = classFileManager.isPresent()
+            ? Optional.of(WrappedClassFileManager.of(classFileManager.get(), external))
+            : external;
+        return new DefaultExternalHooks(lookup, mixedManager);
     }
 
     @Override
     public ExternalHooks withExternalLookup(ExternalHooks.Lookup externalLookup) {
-        return new DefaultExternalHooks(Optional.of(externalLookup), this.getExternalClassFileManager());
+        return new DefaultExternalHooks(Optional.of(externalLookup), classFileManager);
     }
 }
