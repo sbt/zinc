@@ -14,6 +14,7 @@ import xsbti.api._
 
 import scala.annotation.tailrec
 import scala.tools.nsc.Global
+import scala.PartialFunction.cond
 
 /**
  * Extracts full (including private members) API representation out of Symbols and Types.
@@ -263,7 +264,7 @@ class ExtractAPI[GlobalType <: Global](
               typeParams: Array[xsbti.api.TypeParameter],
               valueParameters: List[xsbti.api.ParameterList]): xsbti.api.Def = {
       def parameterList(syms: List[Symbol]): xsbti.api.ParameterList = {
-        val isImplicitList = syms match { case head :: _ => isImplicit(head); case _ => false }
+        val isImplicitList = cond(syms) { case head :: _ => isImplicit(head) }
         xsbti.api.ParameterList.of(syms.map(parameterS).toArray, isImplicitList)
       }
       t match {
@@ -549,7 +550,9 @@ class ExtractAPI[GlobalType <: Global](
         else
           xsbti.api.Parameterized.of(base, types(in, args))
       case SuperType(thistpe: Type, supertpe: Type) =>
-        warning("sbt-api: Super type (not implemented): this=" + thistpe + ", super=" + supertpe);
+        reporter.warning(
+          NoPosition,
+          "sbt-api: Super type (not implemented): this=" + thistpe + ", super=" + supertpe)
         Constants.emptyType
       case at: AnnotatedType =>
         at.annotations match {
@@ -564,9 +567,12 @@ class ExtractAPI[GlobalType <: Global](
       case PolyType(typeParams, resultType) =>
         xsbti.api.Polymorphic.of(processType(in, resultType), typeParameters(in, typeParams))
       case NullaryMethodType(_) =>
-        warning("sbt-api: Unexpected nullary method type " + in + " in " + in.owner);
+        reporter.warning(NoPosition,
+                         "sbt-api: Unexpected nullary method type " + in + " in " + in.owner)
         Constants.emptyType
-      case _ => warning("sbt-api: Unhandled type " + t.getClass + " : " + t); Constants.emptyType
+      case _ =>
+        reporter.warning(NoPosition, "sbt-api: Unhandled type " + t.getClass + " : " + t)
+        Constants.emptyType
     }
   }
   private def makeExistentialType(in: Symbol, t: ExistentialType): xsbti.api.Existential = {
