@@ -1,3 +1,5 @@
+package localzinc
+
 import sbt._
 import Keys._
 import Def.Initialize
@@ -8,13 +10,11 @@ import scala.language.reflectiveCalls
 
 object Scripted {
   def scriptedPath = file("scripted")
-  lazy val scripted = InputKey[Unit]("scripted")
-  lazy val scriptedUnpublished = InputKey[Unit](
-    "scripted-unpublished",
-    "Execute scripted without publishing SBT first. Saves you some time when only your test has changed.")
-  lazy val scriptedSource = SettingKey[File]("scripted-source")
-  lazy val scriptedPrescripted = TaskKey[File => Unit]("scripted-prescripted")
-  lazy val scriptedBufferLog = SettingKey[Boolean]("scripted-buffer-log")
+  val publishLocalBinAll = taskKey[Unit]("")
+  val scriptedUnpublished = inputKey[Unit]("Execute scripted without publishing sbt first. " +
+        "Saves you some time when only your test has changed")
+  val scriptedSource = settingKey[File]("")
+  val scriptedPrescripted = taskKey[File => Unit]("")
 
   import sbt.complete._
   import DefaultParsers._
