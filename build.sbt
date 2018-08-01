@@ -1,6 +1,6 @@
 import Util._
 import Dependencies._
-import Scripted._
+import localzinc.Scripted, Scripted._
 import com.typesafe.tools.mima.core._, ProblemFilters._
 
 def internalPath = file("internal")
@@ -12,6 +12,7 @@ def mimaSettings: Seq[Setting[_]] = Seq(
   mimaPreviousArtifacts := Set(
     "1.0.0", "1.0.1", "1.0.2", "1.0.3", "1.0.4", "1.0.5",
     "1.1.0", "1.1.1", "1.1.2", "1.1.3",
+    "1.2.0",
   ) map (version =>
     organization.value %% moduleName.value % version
       cross (if (crossPaths.value) CrossVersion.binary else CrossVersion.disabled)
@@ -19,7 +20,7 @@ def mimaSettings: Seq[Setting[_]] = Seq(
 )
 
 def buildLevelSettings: Seq[Setting[_]] = Seq(
-  git.baseVersion := "1.2.0",
+  git.baseVersion := "1.2.1",
   // https://github.com/sbt/sbt-git/issues/109
   // Workaround from https://github.com/sbt/sbt-git/issues/92#issuecomment-161853239
   git.gitUncommittedChanges := {
@@ -601,9 +602,9 @@ addCommandAlias(
 )
 
 lazy val otherRootSettings = Seq(
-  Scripted.scriptedBufferLog := true,
+  scriptedBufferLog := true,
   Scripted.scriptedPrescripted := { addSbtAlternateResolver _ },
-  Scripted.scripted := scriptedTask.evaluated,
+  scripted := scriptedTask.evaluated,
   Scripted.scriptedUnpublished := scriptedUnpublishedTask.evaluated,
   Scripted.scriptedSource := (sourceDirectory in zinc).value / "sbt-test",
   publishAll := {
