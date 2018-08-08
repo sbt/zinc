@@ -45,7 +45,7 @@ object IncrementalCompile {
    * @param output The configured output directory/directory mapping for source files.
    * @param log Where all log messages should go
    * @param options Incremental compiler options (like name hashing vs. not).
-   * @return A flag of whether or not compilation completed succesfully, and the resulting
+   * @return A flag of whether or not compilation completed successfully, and the resulting
    *         dependency analysis object.
    */
   def apply(

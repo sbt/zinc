@@ -274,7 +274,7 @@ class NameHashingSpecification extends UnitSpec {
    * Checks that name hashes are being calculated for top level private classes.
    * A class cannot be top level and private in Java but it can be in Scala (it's package private).
    */
-  it should "calcualte name hashes for private top level class" in {
+  it should "calculate name hashes for private top level class" in {
     /* class Foo { def foo: String } */
     val fooDef =
       Def.of("foo", publicAccess, defaultModifiers, Array.empty, Array.empty, Array.empty, strTpe)

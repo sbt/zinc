@@ -47,7 +47,7 @@ public interface ClassFileManager {
      * If it has not succeeded, the class file manager will handle the current
      * generated and the previous class files as per the underlying algorithm.
      *
-     * @param success Whether the compilation run has succeded or not.
+     * @param success Whether the compilation run has succeeded or not.
      */
     void complete(boolean success);
 }

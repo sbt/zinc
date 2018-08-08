@@ -35,7 +35,7 @@ public interface CachedCompiler {
 	 * Run the cached Scala compiler with inputs of incremental compilation.
 	 *
 	 * @param sources The source files to be compiled.
-	 * @param changes The changes that have occured since last compilation.
+	 * @param changes The changes that have occurred since last compilation.
 	 * @param callback The callback injected by the incremental compiler.
 	 * @param logger The logger of the incremental compilation.
 	 * @param delegate The reporter that informs on the compiler's output.

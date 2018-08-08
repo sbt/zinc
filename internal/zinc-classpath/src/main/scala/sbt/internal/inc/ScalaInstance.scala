@@ -101,7 +101,7 @@ final class ScalaInstance(
 
 object ScalaInstance {
   /*
-   * Structural extention for the ScalaProvider post 1.0.3 launcher.
+   * Structural extension for the ScalaProvider post 1.0.3 launcher.
    * See https://github.com/sbt/zinc/pull/505.
    */
   private type ScalaProvider2 = { def loaderLibraryOnly: ClassLoader }
