@@ -196,6 +196,107 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
     }
   }
 
+  it should "recompile the dependent project when the independent project is recompiled" in {
+    IO.withTemporaryDirectory { tempDir =>
+      // Independent subproject
+      val independentDirectory = tempDir / "independent"
+      IO.createDirectory(independentDirectory)
+      val independentTargetDir = independentDirectory / "target"
+      val independentCacheFile = independentTargetDir / "inc_compile.zip"
+      val extFile = independentDirectory / "src" / "Ext1.scala"
+
+      // Dependent subproject
+      val dependentDirectory = tempDir / "sub1"
+      IO.createDirectory(dependentDirectory)
+      val dependentTargetDir = dependentDirectory / "target"
+      val dependentCacheFile = dependentTargetDir / "inc_compile.zip"
+      val dependentFile = dependentDirectory / "src" / "Depender.scala"
+
+      // Shared setup
+      val incOptions = IncOptions
+        .of()
+        .withApiDebug(true)
+      val noLogger = Logger.Null
+      val compilerBridge = getCompilerBridge(dependentDirectory, noLogger, scalaVersion)
+      val si = scalaInstance(scalaVersion, dependentDirectory, noLogger)
+      val sc = scalaCompiler(si, compilerBridge)
+      val cs = compiler.compilers(si, ClasspathOptionsUtil.boot, None, sc)
+      val reporter = new ManagedLoggedReporter(maxErrors, log)
+      val cache = CompilerCache.createCacheFor(4)
+
+      IO.copyFile(dependerFile0, dependentFile, false)
+      val dependentSources = Array(dependentFile)
+      val emptyPrev = compiler.emptyPreviousResult
+      val dependentClassPath = si.allJars ++ Array(independentTargetDir)
+      var prevAnalysis = emptyPrev.analysis.toOption
+      val dependentLookup = new PerClasspathEntryLookupImpl(
+        {
+          case x if x.getAbsoluteFile == independentTargetDir.getAbsoluteFile =>
+            prevAnalysis
+          case _ => None
+        },
+        Locate.definesClass
+      )
+
+      // Build without the required dependency so that we're left with a cached compiler that
+      // will not see binary changes in the independent project
+      val dependentSetup = compiler.setup(dependentLookup,
+                                          skip = false,
+                                          dependentCacheFile,
+                                          cache,
+                                          incOptions,
+                                          reporter,
+                                          None,
+                                          Array())
+      val dependentInput = compiler.inputs(dependentClassPath,
+                                           dependentSources,
+                                           dependentTargetDir,
+                                           Array(),
+                                           Array(),
+                                           maxErrors,
+                                           Array(),
+                                           CompileOrder.Mixed,
+                                           cs,
+                                           dependentSetup,
+                                           emptyPrev)
+      assertThrows[CompileFailed](compiler.compile(dependentInput, log))
+
+      reporter.reset()
+      IO.copyFile(ext1File0, extFile, false)
+      val independentSources = Array(extFile)
+      val independentClassPath = si.allJars
+      val independentSetup = compiler.setup(
+        new PerClasspathEntryLookupImpl(_ => None, Locate.definesClass),
+        skip = false,
+        independentCacheFile,
+        cache,
+        incOptions,
+        reporter,
+        None,
+        Array()
+      )
+      val independentInput = compiler.inputs(independentClassPath,
+                                             independentSources,
+                                             independentTargetDir,
+                                             Array(),
+                                             Array(),
+                                             maxErrors,
+                                             Array(),
+                                             CompileOrder.Mixed,
+                                             cs,
+                                             independentSetup,
+                                             emptyPrev)
+
+      val result = compiler.compile(independentInput, log)
+      assert(result.hasModified)
+
+      // This lets the incremental compiler know that the products have changed.
+      prevAnalysis = Some(AnalysisContents.create(result.analysis(), result.setup()).getAnalysis)
+      val dependentResult = compiler.compile(dependentInput, log)
+      assert(dependentResult.hasModified)
+    }
+  }
+
   def scalaCompiler(instance: ScalaInstance, bridgeJar: File): AnalyzingCompiler = {
     val bridgeProvider = ZincUtil.constantBridgeProvider(instance, bridgeJar)
     val classpath = ClasspathOptionsUtil.boot

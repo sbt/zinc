@@ -22,6 +22,7 @@ import xsbti.compile.{
 import xsbti.compile.analysis.{ ReadStamps, Stamp => XStamp }
 
 import scala.annotation.tailrec
+import scala.collection.JavaConverters._
 
 private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options: IncOptions) {
 
@@ -230,12 +231,15 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
         .filter(p => !equivS.equiv(previous.product(p), current.product(p)))
         .toSet
     }
+    val allProducts =
+      lookup.analyses.flatMap(_.readStamps().getAllProductStamps.keySet.asScala).toSet
+    val newProducts = allProducts -- previous.allProducts
 
     val binaryDepChanges = lookup.changedBinaries(previousAnalysis).getOrElse {
       previous.allBinaries
         .filter(externalBinaryModified(lookup, previous, current, previousRelations))
         .toSet
-    }
+    } ++ newProducts ++ removedProducts
 
     val incrementalExtApiChanges = changedIncremental(previousAPIs.allExternals,
                                                       previousAPIs.externalAPI,
