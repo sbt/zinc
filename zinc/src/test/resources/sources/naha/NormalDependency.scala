@@ -1,6 +1,6 @@
 package naha
 
-object NormalDependecy {
+object NormalDependency {
   def implicitMember = "implicitMemberValue"
   def standardMember = "standardMemberValue"
 }

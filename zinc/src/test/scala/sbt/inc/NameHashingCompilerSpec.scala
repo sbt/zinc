@@ -77,12 +77,12 @@ class NameHashingCompilerSpec extends BaseCompilerSpec {
         Set(ClientWithImplicitUsed, ClientWithImplicitNotUsed, ClientWithoutImplicit)
     )
     testIncrementalCompilation(
-      changes = Seq(SourceFiles.Naha.NormalDependecy -> changeStandardMemberType),
+      changes = Seq(SourceFiles.Naha.NormalDependency -> changeStandardMemberType),
       transitiveChanges =
         Set(ClientWithImplicitUsed, ClientWithImplicitNotUsed, ClientWithoutImplicit)
     )
     testIncrementalCompilation(
-      changes = Seq(SourceFiles.Naha.NormalDependecy -> changeImplicitMemberType),
+      changes = Seq(SourceFiles.Naha.NormalDependency -> changeImplicitMemberType),
       transitiveChanges = Set(ClientWithImplicitUsed, ClientWithImplicitNotUsed)
     )
     testIncrementalCompilation(

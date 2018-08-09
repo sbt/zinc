@@ -16,7 +16,7 @@ object SourceFiles {
     val ClientWithoutImplicit = "ClientWithoutImplicit.scala"
     val ClientWithoutAnythingUsed = "ClientWithoutAnythingUsed.scala"
 
-    val NormalDependecy = "NormalDependecy.scala"
+    val NormalDependency = "NormalDependency.scala"
     val WithImplicits = "WithImplicits.scala"
     val Other = "Other.scala"
     val Other2 = "Other2.scala"
@@ -27,7 +27,7 @@ object SourceFiles {
       ClientWithImplicitNotUsed,
       ClientWithoutImplicit,
       ClientWithoutAnythingUsed,
-      NormalDependecy,
+      NormalDependency,
       WithImplicits,
       Other,
       Other2,

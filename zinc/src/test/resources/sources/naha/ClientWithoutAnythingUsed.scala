@@ -1,7 +1,7 @@
 package naha
 
 object ClientWithoutAnythingUsed {
-  val objects = Seq(NormalDependecy)
+  val objects = Seq(NormalDependency)
 }
 
 object ClientWithoutAnythingUsed2 {

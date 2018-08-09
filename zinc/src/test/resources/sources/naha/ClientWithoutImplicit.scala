@@ -1,5 +1,5 @@
 package naha
 
 object ClientWithoutImplicit {
-  Seq(NormalDependecy.standardMember, WithImplicits.standardMember)
+  Seq(NormalDependency.standardMember, WithImplicits.standardMember)
 }
