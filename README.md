@@ -20,6 +20,7 @@ change. The generated code should be identical to the output of a clean compile.
 [CBT]: https://github.com/cvogt/cbt
 [Intellij]: https://github.com/Jetbrains/intellij-scala
 [Scala IDE]: https://github.com/scala-ide/scala-ide
+[Maven Plugin]: https://github.com/random-maven/scalor-maven-plugin
 
 
 Originally this was project was part of [sbt][], referred to as the incremental compiler module of sbt.
@@ -32,7 +33,7 @@ With the effort for sbt 1, the sbt team extracted the incremental compiler from 
 
 This new repository is an effort driven by Lightbend to allow any build tool
 use the Scala incremental compiler, as [sbt 1.0][sbt], [pants][], [cbt][],
-[Intellij][] and [Scala IDE][].
+[Intellij][], [Scala IDE][] and [Maven Plugin][].
 
 ## Current status
 
@@ -70,3 +71,9 @@ active development. For information on how to contribute, please check the
 [CONTRIBUTING guide](CONTRIBUTING.md).
 
 This software is released under the following [LICENSE](LICENSE).
+
+## Acknowledgements
+
+| Logo | Acknowledgement |
+| ---- | -------------- |
+| ![](https://www.yourkit.com/images/yklogo.png) | We thank [Yourkit](https://www.yourkit.com/) for supporting this open-source project with its full-featured profiler. |

@@ -14,7 +14,13 @@ import java.io.File
 
 import xsbti.api.{ AnalyzedClass, ExternalDependency, InternalDependency }
 import xsbti.compile.CompileAnalysis
-import xsbti.compile.analysis.{ ReadCompilations, ReadSourceInfos, ReadStamps, SourceInfo, Stamp }
+import xsbti.compile.analysis.{
+  ReadCompilations,
+  ReadSourceInfos,
+  ReadStamps,
+  SourceInfo,
+  Stamp => XStamp
+}
 
 trait Analysis extends CompileAnalysis {
   val stamps: Stamps
@@ -56,13 +62,13 @@ trait Analysis extends CompileAnalysis {
 
   def addSource(src: File,
                 apis: Iterable[AnalyzedClass],
-                stamp: Stamp,
+                stamp: XStamp,
                 info: SourceInfo,
                 nonLocalProducts: Iterable[NonLocalProduct],
                 localProducts: Iterable[LocalProduct],
                 internalDeps: Iterable[InternalDependency],
                 externalDeps: Iterable[ExternalDependency],
-                binaryDeps: Iterable[(File, String, Stamp)]): Analysis
+                binaryDeps: Iterable[(File, String, XStamp)]): Analysis
 
   override lazy val toString = Analysis.summary(this)
 }
@@ -71,8 +77,8 @@ object Analysis {
   case class NonLocalProduct(className: String,
                              binaryClassName: String,
                              classFile: File,
-                             classFileStamp: Stamp)
-  case class LocalProduct(classFile: File, classFileStamp: Stamp)
+                             classFileStamp: XStamp)
+  case class LocalProduct(classFile: File, classFileStamp: XStamp)
   lazy val Empty: Analysis =
     new MAnalysis(Stamps.empty, APIs.empty, Relations.empty, SourceInfos.empty, Compilations.empty)
   def empty: Analysis =
@@ -141,13 +147,13 @@ private class MAnalysis(val stamps: Stamps,
 
   def addSource(src: File,
                 apis: Iterable[AnalyzedClass],
-                stamp: Stamp,
+                stamp: XStamp,
                 info: SourceInfo,
                 nonLocalProducts: Iterable[NonLocalProduct],
                 localProducts: Iterable[LocalProduct],
                 internalDeps: Iterable[InternalDependency],
                 externalDeps: Iterable[ExternalDependency],
-                binaryDeps: Iterable[(File, String, Stamp)]): Analysis = {
+                binaryDeps: Iterable[(File, String, XStamp)]): Analysis = {
 
     val newStamps = {
       val nonLocalProductStamps =

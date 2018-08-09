@@ -8,6 +8,7 @@
 package xsbt.api
 
 import xsbti.api._
+
 import scala.util.hashing.MurmurHash3
 import HashAPI.Hash
 
@@ -114,11 +115,15 @@ final class HashAPI private (
 
   private[this] var hash: Hash = 0
 
-  @inline final def hashString(s: String): Unit = extend(stringHash(s))
-  @inline final def hashBoolean(b: Boolean): Unit = extend(if (b) TrueHash else FalseHash)
-  @inline final def hashSeq[T](s: Seq[T], hashF: T => Unit): Unit = {
+  final def hashString(s: String): Unit = extend(stringHash(s))
+  final def hashBoolean(b: Boolean): Unit = extend(if (b) TrueHash else FalseHash)
+  @inline final def hashArray[T <: AnyRef](s: Array[T], hashF: T => Unit): Unit = {
     extend(s.length)
-    s foreach hashF
+    var i = 0
+    while (i < s.length) {
+      hashF(s(i))
+      i += 1
+    }
   }
   final def hashSymmetric[T](ts: TraversableOnce[T], hashF: T => Unit): Unit = {
     val current = hash
@@ -154,19 +159,19 @@ final class HashAPI private (
 
   /**
    * Hashes a sequence of definitions by combining each definition's own
-   * hash with extra one supplied as first element of a pair.
+   * hash with extra one supplied.
    *
    * It's useful when one wants to influence hash of a definition by some
    * external (to definition) factor (e.g. location of definition).
    *
    * NOTE: This method doesn't perform any filtering of passed definitions.
    */
-  def hashDefinitionsWithExtraHashes(ds: Seq[(Definition, Hash)]): Unit = {
-    def hashDefinitionCombined(d: Definition, extraHash: Hash): Unit = {
+  def hashDefinitionsWithExtraHash(ds: TraversableOnce[Definition], extraHash: Hash): Unit = {
+    def hashDefinitionCombined(d: Definition): Unit = {
       hashDefinition(d)
       extend(extraHash)
     }
-    hashSymmetric(ds, (hashDefinitionCombined _).tupled)
+    hashSymmetric(ds, hashDefinitionCombined _)
   }
   def hashDefinition(d: Definition): Unit = {
     hashString(d.name)
@@ -198,8 +203,8 @@ final class HashAPI private (
   }
   def hashField(f: FieldLike): Unit = {
     f match {
-      case v: Var => extend(VarHash)
-      case v: Val => extend(ValHash)
+      case _: Var => extend(VarHash)
+      case _: Val => extend(ValHash)
     }
     hashType(f.tpe)
   }
@@ -211,13 +216,13 @@ final class HashAPI private (
   }
   def hashAccess(a: Access): Unit =
     a match {
-      case pub: Public     => extend(PublicHash)
+      case _: Public       => extend(PublicHash)
       case qual: Qualified => hashQualified(qual)
     }
   def hashQualified(qual: Qualified): Unit = {
     qual match {
-      case p: Protected => extend(ProtectedHash)
-      case p: Private   => extend(PrivateHash)
+      case _: Protected => extend(ProtectedHash)
+      case _: Private   => extend(PrivateHash)
     }
     hashQualifier(qual.qualifier)
   }
@@ -230,12 +235,12 @@ final class HashAPI private (
         hashString(id.value)
     }
 
-  def hashValueParameters(valueParameters: Seq[ParameterList]) =
-    hashSeq(valueParameters, hashValueParameterList)
+  def hashValueParameters(valueParameters: Array[ParameterList]) =
+    hashArray(valueParameters, hashValueParameterList)
   def hashValueParameterList(list: ParameterList) = {
     extend(ValueParamsHash)
     hashBoolean(list.isImplicit)
-    hashSeq(list.parameters, hashValueParameter)
+    hashArray(list.parameters, hashValueParameter)
   }
   def hashValueParameter(parameter: MethodParameter) = {
     hashString(parameter.name)
@@ -259,7 +264,8 @@ final class HashAPI private (
     hashType(d.tpe)
   }
 
-  def hashTypeParameters(parameters: Seq[TypeParameter]) = hashSeq(parameters, hashTypeParameter)
+  def hashTypeParameters(parameters: Array[TypeParameter]) =
+    hashArray(parameters, hashTypeParameter)
   def hashTypeParameter(parameter: TypeParameter): Unit = {
     hashString(parameter.id)
     extend(parameter.variance.ordinal)
@@ -268,20 +274,20 @@ final class HashAPI private (
     hashType(parameter.upperBound)
     hashAnnotations(parameter.annotations)
   }
-  def hashAnnotations(annotations: Seq[Annotation]) = hashSeq(annotations, hashAnnotation)
+  def hashAnnotations(annotations: Array[Annotation]) = hashArray(annotations, hashAnnotation)
   def hashAnnotation(annotation: Annotation) = {
     hashType(annotation.base)
     hashAnnotationArguments(annotation.arguments)
   }
-  def hashAnnotationArguments(args: Seq[AnnotationArgument]) =
-    hashSeq(args, hashAnnotationArgument)
+  def hashAnnotationArguments(args: Array[AnnotationArgument]) =
+    hashArray(args, hashAnnotationArgument)
   def hashAnnotationArgument(arg: AnnotationArgument): Unit = {
     hashString(arg.name)
     hashString(arg.value)
   }
 
-  def hashTypes(ts: Seq[Type], includeDefinitions: Boolean = true) =
-    hashSeq(ts, (t: Type) => hashType(t, includeDefinitions))
+  def hashTypes(ts: Array[Type], includeDefinitions: Boolean = true) =
+    hashArray(ts, (t: Type) => hashType(t, includeDefinitions))
   def hashType(t: Type, includeDefinitions: Boolean = true): Unit =
     t match {
       case s: Structure     => hashStructure(s, includeDefinitions)
@@ -304,7 +310,9 @@ final class HashAPI private (
     extend(SingletonHash)
     hashPath(s.path)
   }
-  def hashPath(path: Path) = hashSeq(path.components, hashPathComponent)
+  def hashPath(path: Path) = {
+    hashArray(path.components, hashPathComponent)
+  }
   def hashPathComponent(pc: PathComponent) = pc match {
     case _: This  => extend(ThisPathHash)
     case s: Super => hashSuperPath(s)
@@ -348,7 +356,16 @@ final class HashAPI private (
     hashAnnotations(a.annotations)
   }
   final def hashStructure(structure: Structure, includeDefinitions: Boolean) =
-    visit(visitedStructures, structure)(structure => hashStructure0(structure, includeDefinitions))
+    visit(visitedStructures, structure)(hashStructure0(includeDefinitions))
+
+  // Hoisted functions to reduce allocation.
+  private final def hashStructure0(includeDefinitions: Boolean): (Structure => Unit) =
+    if (includeDefinitions) hashStructure0WithDefs else hashStructure0NoDefs
+  private[this] final val hashStructure0WithDefs = (s: Structure) =>
+    hashStructure0(s, includeDefinitions = true)
+  private[this] final val hashStructure0NoDefs = (s: Structure) =>
+    hashStructure0(s, includeDefinitions = false)
+
   def hashStructure0(structure: Structure, includeDefinitions: Boolean): Unit = {
     extend(StructureHash)
     hashTypes(structure.parents, includeDefinitions)
@@ -357,7 +374,7 @@ final class HashAPI private (
       hashDefinitions(structure.inherited, false)
     }
   }
-  def hashParameters(parameters: Seq[TypeParameter], base: Type): Unit = {
+  def hashParameters(parameters: Array[TypeParameter], base: Type): Unit = {
     hashTypeParameters(parameters)
     hashType(base)
   }

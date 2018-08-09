@@ -20,11 +20,11 @@ public abstract class ClassDefinition extends xsbti.api.Definition {
             return false;
         } else {
             ClassDefinition o = (ClassDefinition)obj;
-            return name().equals(o.name()) && access().equals(o.access()) && modifiers().equals(o.modifiers()) && java.util.Arrays.deepEquals(annotations(), o.annotations());
+            return this.name().equals(o.name()) && this.access().equals(o.access()) && this.modifiers().equals(o.modifiers()) && java.util.Arrays.deepEquals(this.annotations(), o.annotations());
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (17 + "xsbti.api.ClassDefinition".hashCode()) + name().hashCode()) + access().hashCode()) + modifiers().hashCode()) + annotations().hashCode());
+        return 37 * (37 * (37 * (37 * (37 * (17 + "xsbti.api.ClassDefinition".hashCode()) + name().hashCode()) + access().hashCode()) + modifiers().hashCode()) + java.util.Arrays.deepHashCode(annotations()));
     }
     public String toString() {
         return "ClassDefinition("  + "name: " + name() + ", " + "access: " + access() + ", " + "modifiers: " + modifiers() + ", " + "annotations: " + annotations() + ")";

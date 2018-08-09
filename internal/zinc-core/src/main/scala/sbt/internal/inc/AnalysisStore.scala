@@ -11,11 +11,11 @@ package inc
 
 import java.util.Optional
 
-import xsbti.compile.{ AnalysisContents, AnalysisStore }
+import xsbti.compile.{ AnalysisContents, AnalysisStore => XAnalysisStore }
 
 object AnalysisStore {
-  def cached(backing: AnalysisStore): AnalysisStore = new CachedAnalysisStore(backing)
-  private final class CachedAnalysisStore(backing: AnalysisStore) extends AnalysisStore {
+  def cached(backing: XAnalysisStore): XAnalysisStore = new CachedAnalysisStore(backing)
+  private final class CachedAnalysisStore(backing: XAnalysisStore) extends XAnalysisStore {
     private var lastStore: Optional[AnalysisContents] = Optional.empty()
     override def get(): Optional[AnalysisContents] = {
       if (!lastStore.isPresent())
@@ -29,8 +29,8 @@ object AnalysisStore {
     }
   }
 
-  def sync(backing: AnalysisStore): AnalysisStore = new SyncedAnalysisStore(backing)
-  private final class SyncedAnalysisStore(backing: AnalysisStore) extends AnalysisStore {
+  def sync(backing: XAnalysisStore): XAnalysisStore = new SyncedAnalysisStore(backing)
+  private final class SyncedAnalysisStore(backing: XAnalysisStore) extends XAnalysisStore {
     override def get(): Optional[AnalysisContents] = synchronized {
       backing.get()
     }

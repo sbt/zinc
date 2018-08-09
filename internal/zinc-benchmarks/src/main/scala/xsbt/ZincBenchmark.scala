@@ -49,7 +49,7 @@ case class ZincSetup(result: ZincBenchmark.Result[List[ProjectSetup]]) {
 /* Classes are defined `private[xsbt]` to avoid scoping issues w/ `CachedCompiler0`. */
 
 /** Instantiate a `ZincBenchmark` from a given project. */
-private[xsbt] class ZincBenchmark(toCompile: BenchmarkProject) {
+private[xsbt] class ZincBenchmark(toCompile: BenchmarkProject, zincEnabled: Boolean = true) {
   import ZincBenchmark.WriteBuildInfo
 
   def writeSetup(globalDir: File): WriteBuildInfo = {
@@ -74,7 +74,7 @@ private[xsbt] class ZincBenchmark(toCompile: BenchmarkProject) {
 
       // Set up the compiler and store the current setup
       val javaFile = new RichFile(compilationDir) / "benchmark-target"
-      val runGen = ZincBenchmark.setUpCompiler(buildInfo, javaFile)
+      val runGen = ZincBenchmark.setUpCompiler(buildInfo, javaFile, zincEnabled)
       ProjectSetup(subproject, javaFile, buildInfo, runGen)
     }
 
@@ -108,11 +108,14 @@ private[xsbt] object ZincBenchmark {
   /** Set up the compiler to compile `sources` with -cp `classpath` at `targetDir`. */
   def setUpCompiler(
       compilationInfo: CompilationInfo,
-      targetDir: File
+      targetDir: File,
+      zincEnabled: Boolean
   ): Generator = () => {
     IO.delete(targetDir)
     IO.createDirectory(targetDir)
-    val callback = new xsbti.TestCallback
+    val callback: xsbti.TestCallback = new xsbti.TestCallback {
+      override def enabled: Boolean = zincEnabled
+    }
     val compiler = prepareCompiler(targetDir, callback, compilationInfo)
     new compiler.Run
   }
@@ -349,6 +352,7 @@ case class BenchmarkProject(
     gitClient.right.flatMap(Git.checkout(_, hash)).right.map(_ => tempDir)
   }
 
+  // Left for compatibility
   import ZincBenchmark.TryEnrich
   def writeBuildInfo(projectDir: File, sharedDir: File): WriteBuildInfo = {
     def persistBuildInfo(subproject: String, stateFile: File): Result[Unit] = {

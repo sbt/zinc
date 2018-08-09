@@ -55,7 +55,7 @@ public final class ExternalDependency implements java.io.Serializable {
             return false;
         } else {
             ExternalDependency o = (ExternalDependency)obj;
-            return sourceClassName().equals(o.sourceClassName()) && targetProductClassName().equals(o.targetProductClassName()) && targetClass().equals(o.targetClass()) && context().equals(o.context());
+            return this.sourceClassName().equals(o.sourceClassName()) && this.targetProductClassName().equals(o.targetProductClassName()) && this.targetClass().equals(o.targetClass()) && this.context().equals(o.context());
         }
     }
     public int hashCode() {

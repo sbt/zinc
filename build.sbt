@@ -1,18 +1,65 @@
 import Util._
 import Dependencies._
 import Scripted._
-//import com.typesafe.tools.mima.core._, ProblemFilters._
+import com.typesafe.tools.mima.core._, ProblemFilters._
 
-def baseVersion = "1.1.0-SNAPSHOT"
 def internalPath = file("internal")
 
-lazy val compilerBridgeScalaVersions = List(scala212, scala211, scala210)
+lazy val compilerBridgeScalaVersions = List(scala212, scala213, scala211, scala210)
+lazy val compilerBridgeTestScalaVersions = List(scala212, scala211, scala210)
 
 def mimaSettings: Seq[Setting[_]] = Seq(
   mimaPreviousArtifacts := Set(
-    organization.value % moduleName.value % "1.0.0"
+    "1.0.0", "1.0.1", "1.0.2", "1.0.3", "1.0.4", "1.0.5",
+    "1.1.0", "1.1.1", "1.1.2", "1.1.3",
+  ) map (version =>
+    organization.value %% moduleName.value % version
       cross (if (crossPaths.value) CrossVersion.binary else CrossVersion.disabled)
-  )
+  ),
+)
+
+def buildLevelSettings: Seq[Setting[_]] = Seq(
+  git.baseVersion := "1.2.0",
+  // https://github.com/sbt/sbt-git/issues/109
+  // Workaround from https://github.com/sbt/sbt-git/issues/92#issuecomment-161853239
+  git.gitUncommittedChanges := {
+    val statusCommands = Seq(
+      Seq("diff-index", "--cached", "HEAD"),
+      Seq("diff-index", "HEAD"),
+      Seq("diff-files"),
+      Seq("ls-files", "--exclude-standard", "--others")
+    )
+    // can't use git.runner.value because it's a task
+    val runner = com.typesafe.sbt.git.ConsoleGitRunner
+    val dir = baseDirectory.value
+    // sbt/zinc#334 Seemingly "git status" resets some stale metadata.
+    runner("status")(dir, com.typesafe.sbt.git.NullLogger)
+    val uncommittedChanges = statusCommands flatMap { c =>
+      val res = runner(c: _*)(dir, com.typesafe.sbt.git.NullLogger)
+      if (res.isEmpty) Nil else Seq(c -> res)
+    }
+
+    val un = uncommittedChanges.nonEmpty
+    if (un) {
+      uncommittedChanges foreach {
+        case (cmd, res) =>
+          sLog.value debug s"""Uncommitted changes found via "${cmd mkString " "}":\n${res}"""
+      }
+    }
+    un
+  },
+  version := {
+    val v = version.value
+    if (v contains "SNAPSHOT") git.baseVersion.value + "-SNAPSHOT"
+    else v
+  },
+  bintrayPackage := "zinc",
+  scmInfo := Some(ScmInfo(url("https://github.com/sbt/zinc"), "git@github.com:sbt/zinc.git")),
+  description := "Incremental compiler of Scala",
+  homepage := Some(url("https://github.com/sbt/zinc")),
+  developers +=
+    Developer("jvican", "Jorge Vicente Cantero", "@jvican", url("https://github.com/jvican")),
+  scalafmtOnCompile in Sbt := false,
 )
 
 def commonSettings: Seq[Setting[_]] = Seq(
@@ -30,21 +77,24 @@ def commonSettings: Seq[Setting[_]] = Seq(
   crossScalaVersions := Seq(scala211, scala212),
   publishArtifact in Test := false,
   commands ++= Seq(publishBridgesAndTest, publishBridgesAndSet, crossTestBridges),
-  scalacOptions += "-YdisableFlatCpCaching"
+  scalacOptions ++= Seq(
+    "-YdisableFlatCpCaching",
+    "-target:jvm-1.8",
+  )
 )
 
-def relaxNon212: Seq[Setting[_]] = Seq(
+def compilerVersionDependentScalacOptions: Seq[Setting[_]] = Seq(
   scalacOptions := {
     val old = scalacOptions.value
     scalaBinaryVersion.value match {
-      case "2.12" => old
+      case "2.12" => old ++ List("-opt-inline-from:<sources>", "-opt:l:inline", "-Yopt-inline-heuristics:at-inline-annotated")
       case _ =>
         old filterNot Set(
           "-Xfatal-warnings",
           "-deprecation",
           "-Ywarn-unused",
           "-Ywarn-unused-import",
-          "-YdisableFlatCpCaching"
+          "-YdisableFlatCpCaching",
         )
     }
   }
@@ -115,49 +165,7 @@ lazy val zincRoot: Project = (project in file("."))
     zincScripted
   )
   .settings(
-    inThisBuild(
-      Seq(
-        git.baseVersion := baseVersion,
-        // https://github.com/sbt/sbt-git/issues/109
-        // Workaround from https://github.com/sbt/sbt-git/issues/92#issuecomment-161853239
-        git.gitUncommittedChanges := {
-          val statusCommands = Seq(
-            Seq("diff-index", "--cached", "HEAD"),
-            Seq("diff-index", "HEAD"),
-            Seq("diff-files"),
-            Seq("ls-files", "--exclude-standard", "--others")
-          )
-          // can't use git.runner.value because it's a task
-          val runner = com.typesafe.sbt.git.ConsoleGitRunner
-          val dir = baseDirectory.value
-          // sbt/zinc#334 Seemingly "git status" resets some stale metadata.
-          runner("status")(dir, com.typesafe.sbt.git.NullLogger)
-          val uncommittedChanges = statusCommands flatMap { c =>
-            val res = runner(c: _*)(dir, com.typesafe.sbt.git.NullLogger)
-            if (res.isEmpty) Nil else Seq(c -> res)
-          }
-
-          val un = uncommittedChanges.nonEmpty
-          if (un) {
-            uncommittedChanges foreach {
-              case (cmd, res) =>
-                sLog.value debug s"""Uncommitted changes found via "${cmd mkString " "}":\n${res}"""
-            }
-          }
-          un
-        },
-        version := {
-          val v = version.value
-          if (v contains "SNAPSHOT") git.baseVersion.value
-          else v
-        },
-        bintrayPackage := "zinc",
-        scmInfo := Some(ScmInfo(url("https://github.com/sbt/zinc"), "git@github.com:sbt/zinc.git")),
-        description := "Incremental compiler of Scala",
-        homepage := Some(url("https://github.com/sbt/zinc")),
-        developers +=
-          Developer("jvican", "Jorge Vicente Cantero", "@jvican", url("https://github.com/jvican")),
-      )),
+    inThisBuild(buildLevelSettings),
     minimalSettings,
     otherRootSettings,
     noPublish,
@@ -248,7 +256,7 @@ lazy val zincBenchmarks = (project in internalPath / "zinc-benchmarks")
     ),
     scalaVersion := scala212,
     crossScalaVersions := Seq(scala211, scala212),
-    javaOptions in Test += "-Xmx600M -Xms600M",
+    javaOptions in Test ++= List("-Xmx600M", "-Xms600M"),
   )
 
 lazy val zincIvyIntegration = (project in internalPath / "zinc-ivy-integration")
@@ -280,6 +288,15 @@ lazy val zincCompileCore = (project in internalPath / "zinc-compile-core")
       baseDirectory.value / "src" / "main" / "contraband-java",
     sourceManaged in (Compile, generateContrabands) := baseDirectory.value / "src" / "main" / "contraband-java",
     mimaSettings,
+    mimaBinaryIssueFilters ++= {
+      import com.typesafe.tools.mima.core._
+      import com.typesafe.tools.mima.core.ProblemFilters._
+      Seq(
+        // PositionImpl is a private class only invoked in the same source.
+        exclude[FinalClassProblem]("sbt.internal.inc.javac.DiagnosticsReporter$PositionImpl"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.javac.DiagnosticsReporter#PositionImpl.this"),
+      )
+    },
   )
   .configure(addSbtUtilLogging, addSbtIO, addSbtUtilControl)
 
@@ -292,12 +309,9 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface")
     minimalSettings,
     // javaOnlySettings,
     name := "Compiler Interface",
-    // Use the smallest Scala version in the compilerBridgeScalaVersions
-    // Technically the scalaVersion shouldn't have any effect since scala library is not included,
-    // but given that Scala 2.10 compiler cannot parse Java 8 source, it's probably good to keep this.
-    crossScalaVersions := Seq(scala210),
-    scalaVersion := scala210,
-    relaxNon212,
+    scalaVersion := scala212,
+    crossScalaVersions := Seq(scala212),
+    compilerVersionDependentScalacOptions,
     libraryDependencies ++= Seq(scalaLibrary.value % Test),
     exportJars := true,
     resourceGenerators in Compile += Def
@@ -317,8 +331,28 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface")
     autoScalaLibrary := false,
     altPublishSettings,
     mimaSettings,
+    mimaBinaryIssueFilters ++= {
+      import com.typesafe.tools.mima.core._
+      import com.typesafe.tools.mima.core.ProblemFilters._
+      Seq(
+        exclude[ReversedMissingMethodProblem]("xsbti.compile.ExternalHooks#Lookup.hashClasspath"),
+        exclude[ReversedMissingMethodProblem]("xsbti.compile.ScalaInstance.loaderLibraryOnly"),
+      )
+    },
   )
   .configure(addSbtUtilInterface)
+
+/* Create a duplicated compiler-interface project that uses Scala 2.10 to parse Java files.
+ * Scala 2.10's parser uses Java 6 semantics, so this way we ensure that the interface can
+ * be compiled with Java 6 too. `compiler-interface` checks compilation for Java 8. */
+val compilerInterfaceJava6Compat = compilerInterface
+  .withId("compilerInterfaceJava6Compat")
+  .settings(
+    scalaVersion := scala210,
+    crossScalaVersions := Seq(scala210),
+    target := (target in compilerInterface).value / "java6-parser-compat",
+    skip in publish := true
+  )
 
 val cleanSbtBridge = taskKey[Unit]("Cleans the sbt bridge.")
 
@@ -328,30 +362,39 @@ def wrapIn(color: String, content: String): String = {
   else color + content + scala.Console.RESET
 }
 
-// Compiler-side interface to compiler that is compiled against the compiler being used either in advance or on the fly.
-//   Includes API and Analyzer phases that extract source API and relationships.
+/**
+ * Compiler-side interface to compiler that is compiled against the compiler being used either in advance or on the fly.
+ * Includes API and Analyzer phases that extract source API and relationships.
+ * As this is essentially implementations of the compiler-interface (per Scala compiler),
+ * the code here should not be consumed without going through the classloader trick and the interface.
+ * Due to the hermetic nature of the bridge, there's no necessity to keep binary compatibility across Zinc versions,
+ * and therefore there's no `mimaSettings` added.
+ * For the case of Scala 2.13 bridge, we didn't even have the bridge to compare against when Zinc 1.0.0 came out.
+ */
 lazy val compilerBridge: Project = (project in internalPath / "compiler-bridge")
-  .dependsOn(compilerInterface % "compile;test->test", zincApiInfo % "test->test")
+  .dependsOn(compilerInterface)
   .settings(
     baseSettings,
     crossScalaVersions := compilerBridgeScalaVersions,
-    relaxNon212,
+    compilerVersionDependentScalacOptions,
     libraryDependencies += scalaCompiler.value % "provided",
     autoScalaLibrary := false,
     // precompiledSettings,
     name := "Compiler Bridge",
     exportJars := true,
-    // we need to fork because in unit tests we set usejavacp = true which means
-    // we are expecting all of our dependencies to be on classpath so Scala compiler
-    // can use them while constructing its own classpath for compilation
-    fork in Test := true,
-    // needed because we fork tests and tests are ran in parallel so we have multiple Scala
-    // compiler instances that are memory hungry
-    javaOptions in Test += "-Xmx1G",
     inBoth(unmanagedSourceDirectories ++= scalaPartialVersion.value.collect {
-      case (2, y) if y == 10 => new File(scalaSource.value.getPath + "_2.10")
-      case (2, y) if y >= 11 => new File(scalaSource.value.getPath + "_2.11+")
+      case (2, y) if y == 10            => new File(scalaSource.value.getPath + "_2.10")
+      case (2, y) if y == 11 || y == 12 => new File(scalaSource.value.getPath + "_2.11-12")
+      case (2, y) if y >= 13            => new File(scalaSource.value.getPath + "_2.13")
     }.toList),
+    // Use a bootstrap compiler bridge to compile the compiler bridge.
+    scalaCompilerBridgeSource := {
+      val old = scalaCompilerBridgeSource.value
+      scalaVersion.value match {
+        case x if x startsWith "2.13." => ("org.scala-sbt" % "compiler-bridge_2.13.0-M2" % "1.1.0-M1-bootstrap2" % Compile).sources()
+        case _ => old
+      }
+    },
     cleanSbtBridge := {
       val sbtV = sbtVersion.value
       val sbtOrg = "org.scala-sbt"
@@ -383,7 +426,30 @@ lazy val compilerBridge: Project = (project in internalPath / "compiler-bridge")
     },
     publishLocal := publishLocal.dependsOn(cleanSbtBridge).value,
     altPublishSettings,
-    mimaSettings,
+  )
+
+/**
+ * Tests for the compiler bridge.
+ * This is split into a separate subproject because testing introduces more dependencies
+ * (Zinc API Info, which transitively depends on IO).
+ */
+lazy val compilerBridgeTest = (project in internalPath / "compiler-bridge-test")
+  .dependsOn(compilerBridge, compilerInterface % "test->test", zincApiInfo % "test->test")
+  .settings(
+    name := "Compiler Bridge Test",
+    baseSettings,
+    compilerVersionDependentScalacOptions,
+    // we need to fork because in unit tests we set usejavacp = true which means
+    // we are expecting all of our dependencies to be on classpath so Scala compiler
+    // can use them while constructing its own classpath for compilation
+    fork in Test := true,
+    // needed because we fork tests and tests are ran in parallel so we have multiple Scala
+    // compiler instances that are memory hungry
+    javaOptions in Test += "-Xmx1G",
+    crossScalaVersions := compilerBridgeTestScalaVersions,
+    libraryDependencies += scalaCompiler.value,
+    altPublishSettings,
+    skip in publish := true,
   )
 
 val scalaPartialVersion = Def setting (CrossVersion partialVersion scalaVersion.value)
@@ -397,9 +463,30 @@ lazy val zincApiInfo = (project in internalPath / "zinc-apiinfo")
   .configure(addBaseSettingsAndTestDeps)
   .settings(
     name := "zinc ApiInfo",
-    crossScalaVersions := compilerBridgeScalaVersions,
-    relaxNon212,
+    crossScalaVersions := compilerBridgeTestScalaVersions,
+    compilerVersionDependentScalacOptions,
     mimaSettings,
+    mimaBinaryIssueFilters ++= {
+      import com.typesafe.tools.mima.core._
+      import com.typesafe.tools.mima.core.ProblemFilters._
+      Seq(
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashTypeParameters"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashAnnotations"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashParameters"),
+         exclude[DirectMissingMethodProblem]("xsbt.api.HashAPI.hashDefinitionsWithExtraHashes"),
+         exclude[DirectMissingMethodProblem]("xsbt.api.HashAPI.hashSeq"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashValueParameters"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashAnnotationArguments"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashTypes"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitTypeParameters"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitDefinitions"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitAnnotationArguments"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitAnnotations"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitValueParameters"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitParameters"),
+         exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitTypes"),
+      )
+    }
   )
 
 // Utilities related to reflection, managing Scala versions, and custom class loaders
@@ -408,10 +495,14 @@ lazy val zincClasspath = (project in internalPath / "zinc-classpath")
   .configure(addBaseSettingsAndTestDeps)
   .settings(
     name := "zinc Classpath",
-    crossScalaVersions := compilerBridgeScalaVersions,
-    relaxNon212,
+    crossScalaVersions := compilerBridgeTestScalaVersions,
+    compilerVersionDependentScalacOptions,
     libraryDependencies ++= Seq(scalaCompiler.value, launcherInterface),
     mimaSettings,
+    mimaBinaryIssueFilters ++= Seq(
+      // Changed the signature of a private[sbt] method
+      exclude[DirectMissingMethodProblem]("sbt.internal.inc.classpath.ClasspathUtilities.compilerPlugins"),
+    ),
   )
   .configure(addSbtIO)
 
@@ -421,8 +512,8 @@ lazy val zincClassfile = (project in internalPath / "zinc-classfile")
   .configure(addBaseSettingsAndTestDeps)
   .settings(
     name := "zinc Classfile",
-    crossScalaVersions := compilerBridgeScalaVersions,
-    relaxNon212,
+    crossScalaVersions := compilerBridgeTestScalaVersions,
+    compilerVersionDependentScalacOptions,
     mimaSettings,
   )
   .configure(addSbtIO, addSbtUtilLogging)
@@ -437,12 +528,27 @@ lazy val zincScripted = (project in internalPath / "zinc-scripted")
   )
   .configure(addSbtUtilScripted)
 
+// re-implementation of scripted engine as a standalone main
+lazy val bloopScripted = (project in internalPath / "zinc-scripted-bloop")
+  .dependsOn(zinc, zincScripted % "compile->test")
+  .settings(
+    minimalSettings,
+    noPublish,
+    name := "zinc Scripted Bloop",
+    scalaVersion := scala212,
+    crossScalaVersions := List(scala212),
+    libraryDependencies ++= List(
+      "org.scala-sbt" %% "completion" % sbtVersion.value,
+      "ch.epfl.scala" %% "bloop-config" % "1.0.0-M9",
+    )
+  )
+
 lazy val crossTestBridges = {
   Command.command("crossTestBridges") { state =>
-    (compilerBridgeScalaVersions.flatMap { (bridgeVersion: String) =>
+    (compilerBridgeTestScalaVersions.flatMap { (bridgeVersion: String) =>
       // Note the ! here. You need this so compilerInterface gets forced to the scalaVersion
       s"++ $bridgeVersion!" ::
-        s"${compilerBridge.id}/test" ::
+        s"${compilerBridgeTest.id}/test" ::
         Nil
     }) :::
       (s"++ $scala212!" ::
@@ -457,7 +563,6 @@ lazy val publishBridgesAndSet = {
     s"${compilerInterface.id}/publishLocal" ::
       compilerBridgeScalaVersions.flatMap { (bridgeVersion: String) =>
       s"++ $bridgeVersion!" ::
-        s"${zincApiInfo.id}/publishLocal" ::
         s"${compilerBridge.id}/publishLocal" :: Nil
     } :::
       s"++ $userScalaVersion!" ::
@@ -473,7 +578,6 @@ lazy val publishBridgesAndTest = Command.args("publishBridgesAndTest", "<version
     s"${compilerInterface.id}/publishLocal" ::
       (compilerBridgeScalaVersions.flatMap { (bridgeVersion: String) =>
       s"++ $bridgeVersion" ::
-        s"${zincApiInfo.id}/publishLocal" ::
         s"${compilerBridge.id}/publishLocal" :: Nil
     }) :::
       s"++ $version" ::
@@ -569,3 +673,12 @@ def customCommands: Seq[Setting[_]] = Seq(
       state
   }
 )
+
+inThisBuild(Seq(
+  whitesourceProduct                   := "Lightbend Reactive Platform",
+  whitesourceAggregateProjectName      := "sbt-zinc-master",
+  whitesourceAggregateProjectToken     := "4b57f35176864c6397b872277d51bc27b89503de0f1742b8bc4dfa2e33b95c5c",
+  whitesourceIgnoredScopes             += "scalafmt",
+  whitesourceFailOnError               := sys.env.contains("WHITESOURCE_PASSWORD"), // fail if pwd is present
+  whitesourceForceCheckAllDependencies := true,
+))

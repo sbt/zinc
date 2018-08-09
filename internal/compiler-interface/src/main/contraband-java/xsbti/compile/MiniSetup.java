@@ -72,11 +72,11 @@ public final class MiniSetup implements java.io.Serializable {
             return false;
         } else {
             MiniSetup o = (MiniSetup)obj;
-            return output().equals(o.output()) && options().equals(o.options()) && compilerVersion().equals(o.compilerVersion()) && order().equals(o.order()) && (storeApis() == o.storeApis()) && java.util.Arrays.deepEquals(extra(), o.extra());
+            return this.output().equals(o.output()) && this.options().equals(o.options()) && this.compilerVersion().equals(o.compilerVersion()) && this.order().equals(o.order()) && (this.storeApis() == o.storeApis()) && java.util.Arrays.deepEquals(this.extra(), o.extra());
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.compile.MiniSetup".hashCode()) + output().hashCode()) + options().hashCode()) + compilerVersion().hashCode()) + order().hashCode()) + (new Boolean(storeApis())).hashCode()) + extra().hashCode());
+        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.compile.MiniSetup".hashCode()) + output().hashCode()) + options().hashCode()) + compilerVersion().hashCode()) + order().hashCode()) + (new Boolean(storeApis())).hashCode()) + java.util.Arrays.deepHashCode(extra()));
     }
     public String toString() {
         return "MiniSetup("  + "output: " + output() + ", " + "options: " + options() + ", " + "compilerVersion: " + compilerVersion() + ", " + "order: " + order() + ", " + "storeApis: " + storeApis() + ", " + "extra: " + extra() + ")";

@@ -48,7 +48,7 @@ public final class CompileResult implements java.io.Serializable {
             return false;
         } else {
             CompileResult o = (CompileResult)obj;
-            return analysis().equals(o.analysis()) && setup().equals(o.setup()) && (hasModified() == o.hasModified());
+            return this.analysis().equals(o.analysis()) && this.setup().equals(o.setup()) && (this.hasModified() == o.hasModified());
         }
     }
     public int hashCode() {

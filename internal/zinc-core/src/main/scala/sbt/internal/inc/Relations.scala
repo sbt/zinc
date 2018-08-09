@@ -15,7 +15,7 @@ import sbt.internal.util.Relation
 import xsbti.api.{ DependencyContext, ExternalDependency, InternalDependency }
 import xsbti.api.DependencyContext._
 import Relations.ClassDependencies
-import xsbti.compile.analysis.Stamp
+import xsbti.compile.analysis.{ Stamp => XStamp }
 
 /**
  * Provides mappings between source files, generated classes (products), and binaries.
@@ -89,7 +89,7 @@ trait Relations {
       classes: Iterable[(String, String)],
       internalDeps: Iterable[InternalDependency],
       externalDeps: Iterable[ExternalDependency],
-      libraryDeps: Iterable[(File, String, Stamp)]
+      libraryDeps: Iterable[(File, String, XStamp)]
   ): Relations = {
     addProducts(src, products)
       .addClasses(src, classes)
@@ -123,7 +123,7 @@ trait Relations {
   /**
    * Records all the library dependencies `deps` of `src`
    */
-  private[inc] def addLibraryDeps(src: File, deps: Iterable[(File, String, Stamp)]): Relations
+  private[inc] def addLibraryDeps(src: File, deps: Iterable[(File, String, XStamp)]): Relations
 
   private[inc] def addUsedName(className: String, name: UsedName): Relations
 
@@ -275,6 +275,7 @@ object Relations {
       case o: ClassDependencies => internal == o.internal && external == o.external
       case _                    => false
     }
+    override def toString: String = s"ClassDependencies(internal = $internal, external = $external)"
 
     override def hashCode = (internal, external).hashCode
   }
@@ -583,7 +584,7 @@ private class MRelationsNameHashing(
       productClassName = productClassName
     )
 
-  def addLibraryDeps(src: File, deps: Iterable[(File, String, Stamp)]) =
+  def addLibraryDeps(src: File, deps: Iterable[(File, String, XStamp)]) =
     new MRelationsNameHashing(
       srcProd,
       libraryDep + (src, deps.map(_._1)),
@@ -661,26 +662,23 @@ private class MRelationsNameHashing(
   override def hashCode =
     (srcProd :: libraryDep :: libraryClassName :: memberRef :: inheritance :: classes :: Nil).hashCode
 
-  override def toString = (
-    """
+  override def toString: String = {
+    val internalDepsStr = (internalDependencies.dependencies map {
+      case (k, vs) => k + " " + relation_s(vs)
+    }).mkString("\n    ", "\n    ", "")
+    val externalDepsStr = (externalDependencies.dependencies map {
+      case (k, vs) => k + " " + relation_s(vs)
+    }).mkString("\n    ", "\n    ", "")
+    s"""
     |Relations (with name hashing enabled):
-    |  products: %s
-    |  library deps: %s
-    |  library class names: %s
-    |  class deps: %s
-    |  ext deps: %s
-    |  class names: %s
-    |  used names: %s
-    |  product class names: %s
-    """.trim.stripMargin.format(
-      List(srcProd,
-           libraryDep,
-           libraryClassName,
-           internalClassDep,
-           externalClassDep,
-           classes,
-           names,
-           productClassName) map relation_s: _*)
-  )
-
+    |  products: ${relation_s(srcProd)}
+    |  library deps: ${relation_s(libraryDep)}
+    |  library class names: ${relation_s(libraryClassName)}
+    |  internalDependencies: $internalDepsStr
+    |  externalDependencies: $externalDepsStr
+    |  class names: ${relation_s(classes)}
+    |  used names: ${relation_s(names)}
+    |  product class names: ${relation_s(productClassName)}
+    """.trim.stripMargin
+  }
 }

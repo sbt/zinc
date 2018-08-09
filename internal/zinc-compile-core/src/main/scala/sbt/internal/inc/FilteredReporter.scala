@@ -1,3 +1,10 @@
+/*
+ * Zinc - The incremental compiler for Scala.
+ * Copyright 2011 - 2017, Lightbend, Inc.
+ * Copyright 2008 - 2010, Mark Harrah
+ * This software is released under the terms written in LICENSE.
+ */
+
 package sbt.internal.inc
 
 import java.nio.file.Path
@@ -81,6 +88,7 @@ class FilteredReporter(
       val transformedPos: Position = positionMapper(position)
       val problem = InterfaceUtil.problem(category, transformedPos, message, severity)
       allProblems += problem
+      ()
     }
   }
 }

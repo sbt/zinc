@@ -10,7 +10,6 @@ package xsbti.compile;
 import xsbti.Logger;
 
 import java.io.File;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -35,6 +34,7 @@ public class IncOptionsUtil {
     public static final String USE_OPTIMIZED_SEALED = "useOptimizedSealed";
     public static final String LOG_RECOMPILE_ON_MACRO = "logRecompileOnMacro";
     public static final String CLASSFILE_MANAGER_TYPE_KEY = "classfileManagerType";
+    public static final String IGNORED_SCALAC_OPTIONS_KEY = "ignoredScalacOptions";
     public static final String TRANSACTIONAL_MANAGER_TYPE = "transactionalManagerType";
     public static final String TRANSACTIONAL_MANAGER_BASE_DIRECTORY = "transactionalManagerBaseDirectory";
     public static final String DELETE_IMMEDIATELY_MANAGER_TYPE = "deleteImmediatelyManagerType";
@@ -138,6 +138,11 @@ public class IncOptionsUtil {
         if (values.containsKey(USE_OPTIMIZED_SEALED)) {
             logger.debug(f0("USE_OPTIMIZED_SEALED value was read."));
             base = base.withUseOptimizedSealed(Boolean.parseBoolean(values.get(USE_OPTIMIZED_SEALED)));
+        }
+
+        if (values.containsKey(IGNORED_SCALAC_OPTIONS_KEY)) {
+            logger.debug(f0("IGNORED_SCALAC_OPTIONS_KEY value was read."));
+            base = base.withIgnoredScalacOptions(values.get(IGNORED_SCALAC_OPTIONS_KEY).split(" +"));
         }
 
         return base;

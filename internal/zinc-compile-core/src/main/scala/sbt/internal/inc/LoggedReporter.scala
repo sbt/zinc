@@ -101,9 +101,9 @@ class LoggedReporter(
     sourcePositionMapper: Position => Position = identity[Position]
 ) extends Reporter {
   import sbt.util.InterfaceUtil.{ toSupplier => f0 }
-  val positions = new mutable.HashMap[PositionKey, Severity]
-  val count = new EnumMap[Severity, Int](classOf[Severity])
-  protected val allProblems = new mutable.ListBuffer[Problem]
+  lazy val positions = new mutable.HashMap[PositionKey, Severity]
+  lazy val count = new EnumMap[Severity, Int](classOf[Severity])
+  protected lazy val allProblems = new mutable.ListBuffer[Problem]
   reset()
 
   def reset(): Unit = {

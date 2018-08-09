@@ -92,16 +92,15 @@ final class ClasspathFilter(parent: ClassLoader, root: ClassLoader, classpath: S
   }
 
   override def getResources(name: String): java.util.Enumeration[URL] = {
-    import collection.convert.WrapAsScala.{ enumerationAsScalaIterator => asIt }
-    import collection.convert.WrapAsJava.{ asJavaEnumeration => asEn }
+    import scala.collection.JavaConverters._
     val us = super.getResources(name)
-    if (us ne null) asEn(asIt(us).filter(onClasspath)) else null
+    if (us ne null) us.asScala.filter(onClasspath).asJavaEnumeration else null
   }
 
   @tailrec private[this] def includeLoader(c: ClassLoader, base: ClassLoader): Boolean =
-    (base ne null) && (
-      (c eq base) || includeLoader(c, base.getParent)
-    )
+    (base ne null) &&
+      (c ne null) &&
+      ((c eq base) || includeLoader(c.getParent, base))
 }
 
 /**

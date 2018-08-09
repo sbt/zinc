@@ -79,11 +79,11 @@ public final class ReporterConfig implements java.io.Serializable {
             return false;
         } else {
             ReporterConfig o = (ReporterConfig)obj;
-            return loggerName().equals(o.loggerName()) && (maximumErrors() == o.maximumErrors()) && (useColor() == o.useColor()) && java.util.Arrays.deepEquals(msgFilters(), o.msgFilters()) && java.util.Arrays.deepEquals(fileFilters(), o.fileFilters()) && logLevel().equals(o.logLevel()) && positionMapper().equals(o.positionMapper());
+            return this.loggerName().equals(o.loggerName()) && (this.maximumErrors() == o.maximumErrors()) && (this.useColor() == o.useColor()) && java.util.Arrays.deepEquals(this.msgFilters(), o.msgFilters()) && java.util.Arrays.deepEquals(this.fileFilters(), o.fileFilters()) && this.logLevel().equals(o.logLevel()) && this.positionMapper().equals(o.positionMapper());
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.ReporterConfig".hashCode()) + loggerName().hashCode()) + (new Integer(maximumErrors())).hashCode()) + (new Boolean(useColor())).hashCode()) + msgFilters().hashCode()) + fileFilters().hashCode()) + logLevel().hashCode()) + positionMapper().hashCode());
+        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.ReporterConfig".hashCode()) + loggerName().hashCode()) + (new Integer(maximumErrors())).hashCode()) + (new Boolean(useColor())).hashCode()) + java.util.Arrays.deepHashCode(msgFilters())) + java.util.Arrays.deepHashCode(fileFilters())) + logLevel().hashCode()) + positionMapper().hashCode());
     }
     public String toString() {
         return "ReporterConfig("  + "loggerName: " + loggerName() + ", " + "maximumErrors: " + maximumErrors() + ", " + "useColor: " + useColor() + ", " + "msgFilters: " + msgFilters() + ", " + "fileFilters: " + fileFilters() + ", " + "logLevel: " + logLevel() + ", " + "positionMapper: " + positionMapper() + ")";

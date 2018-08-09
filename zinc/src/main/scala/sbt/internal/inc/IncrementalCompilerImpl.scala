@@ -18,6 +18,7 @@ import sbt.util.InterfaceUtil
 import xsbti._
 import xsbti.compile.CompileOrder.Mixed
 import xsbti.compile.{ ClasspathOptions => XClasspathOptions, JavaTools => XJavaTools, _ }
+import sbt.internal.inc.MiniSetupUtil._
 
 class IncrementalCompilerImpl extends IncrementalCompiler {
 
@@ -262,8 +263,9 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       else {
         val (analysis, changed) = compileInternal(
           MixedAnalyzingCompiler(config)(logger),
-          MiniSetupUtil.equivCompileSetup,
-          MiniSetupUtil.equivPairs,
+          equivCompileSetup(
+            equivOpts0(equivScalacOptions(incrementalOptions.ignoredScalacOptions))),
+          equivPairs,
           logger
         )
         CompileResult.of(analysis, config.currentSetup, changed)

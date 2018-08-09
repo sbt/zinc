@@ -83,6 +83,33 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
     }) ^^ {
       case xs => xs.mkString("\n")
     }
+  val nonPathLine: Parser[String] = {
+    val nonPathLine0 = new Parser[String] {
+      def isStopChar(c: Char): Boolean = c == '\n' || c == '\r'
+
+      def apply(in: Input) = {
+        val source = in.source
+        val offset = in.offset
+        var i = offset
+        while (i < source.length && !isStopChar(source.charAt(i))) {
+          i += 1
+        }
+        val line = source.subSequence(offset, i).toString
+        if ((line.startsWith("/") || line.contains("\\")) && line.contains(".java"))
+          Failure("Path found", in)
+        else if (i == offset) Failure("Empty", in)
+        else Success(line, in.drop(i - offset))
+      }
+    }
+    nonPathLine0 ~ """[\r]?[\n]?""".r ^^ {
+      case msg ~ endline => msg + endline
+    }
+  }
+  val nonPathLines: Parser[String] = {
+    rep(nonPathLine) ^^ {
+      case lines => lines.mkString("")
+    }
+  }
 
   // Parses ALL characters until an expected character is met.
   def allUntilChar(c: Char): Parser[String] = allUntilChars(Array(c))
@@ -112,7 +139,7 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
   private object ParsedInteger {
     def unapply(s: String): Option[Int] =
       try Some(Integer.parseInt(s))
-      catch { case e: NumberFormatException => None }
+      catch { case _: NumberFormatException => None }
   }
   // Parses a line number
   val line: Parser[Int] = allUntilChar(':') ^? {
@@ -148,15 +175,21 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
     val fileLineMessage = fileAndLineNo ~ SEMICOLON ~ restOfLine ^^ {
       case (file, line) ~ _ ~ msg => (file, line, msg)
     }
-    fileLineMessage ~ allUntilCaret ~ restOfLine ~ (allIndented.?) ^^ {
-      case (file, line, msg) ~ contents ~ r ~ ind =>
+    fileLineMessage ~ (allUntilCaret ~ '^' ~ restOfLine).? ~ (nonPathLines.?) ^^ {
+      case (file, line, msg) ~ contentsOpt ~ ind =>
         new JavaProblem(
           new JavaPosition(
             findFileSource(file),
             line,
-            contents + '^' + r + ind
+            (contentsOpt match {
+              case Some(contents ~ _ ~ r) => contents + '^' + r
+              case _                      => ""
+            }) + ind
               .getOrElse(""), // TODO - Actually parse caret position out of here.
-            getOffset(contents)
+            (contentsOpt match {
+              case Some(contents ~ _ ~ _) => getOffset(contents)
+              case _                      => 0
+            })
           ),
           Severity.Error,
           msg
@@ -169,14 +202,20 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
     val fileLineMessage = fileAndLineNo ~ SEMICOLON ~ WARNING ~ SEMICOLON ~ restOfLine ^^ {
       case (file, line) ~ _ ~ _ ~ _ ~ msg => (file, line, msg)
     }
-    fileLineMessage ~ allUntilCaret ~ restOfLine ~ (allIndented.?) ^^ {
-      case (file, line, msg) ~ contents ~ r ~ ind =>
+    fileLineMessage ~ (allUntilCaret ~ '^' ~ restOfLine).? ~ (nonPathLines.?) ^^ {
+      case (file, line, msg) ~ contentsOpt ~ ind =>
         new JavaProblem(
           new JavaPosition(
             findFileSource(file),
             line,
-            contents + "^" + r + ind.getOrElse(""),
-            getOffset(contents)
+            (contentsOpt match {
+              case Some(contents ~ _ ~ r) => contents + '^' + r
+              case _                      => ""
+            }) + ind.getOrElse(""),
+            (contentsOpt match {
+              case Some(contents ~ _ ~ _) => getOffset(contents)
+              case _                      => 0
+            })
           ),
           Severity.Warn,
           msg
@@ -201,9 +240,15 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
         )
     }
 
+  val outputSumamry: Parser[Unit] =
+    """(\s*)(\d+) (\w+)""".r ~ restOfLine ^^ {
+      case a ~ b =>
+        ()
+    }
+
   val potentialProblem: Parser[Problem] = warningMessage | errorMessage | noteMessage | javacError
 
-  val javacOutput: Parser[Seq[Problem]] = rep(potentialProblem)
+  val javacOutput: Parser[Seq[Problem]] = rep(potentialProblem) <~ opt(outputSumamry)
 
   /**
    * Example:
@@ -220,12 +265,16 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
    */
   final def parseProblems(in: String, logger: sbt.util.Logger): Seq[Problem] =
     parse(javacOutput, in) match {
-      case Success(result, _) => result
+      case Success(result, next) =>
+        if (!next.atEnd) {
+          logger.warn(s"Unexpected javac output: ${next.source}.")
+        }
+        result
       case Failure(msg, n) =>
-        logger.warn(s"Unexpected javac output at:${n.pos.longString}.")
+        logger.warn(s"Unexpected javac output at ${n.pos.longString}: $msg.")
         Seq.empty
       case Error(msg, n) =>
-        logger.warn(s"Unexpected javac output at:${n.pos.longString}.")
+        logger.warn(s"Unexpected javac output at ${n.pos.longString}: $msg.")
         Seq.empty
     }
 

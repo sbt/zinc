@@ -48,7 +48,7 @@ public final class IncToolOptions implements java.io.Serializable {
             return false;
         } else {
             IncToolOptions o = (IncToolOptions)obj;
-            return classFileManager().equals(o.classFileManager()) && (useCustomizedFileManager() == o.useCustomizedFileManager());
+            return this.classFileManager().equals(o.classFileManager()) && (this.useCustomizedFileManager() == o.useCustomizedFileManager());
         }
     }
     public int hashCode() {

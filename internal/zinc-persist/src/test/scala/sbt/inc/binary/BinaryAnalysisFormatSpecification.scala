@@ -14,7 +14,7 @@ import xsbti.{ Problem, T2 }
 
 object BinaryAnalysisFormatSpecification
     extends Properties("BinaryAnalysisFormat")
-    with BinaryAnalysisFormatSpecification {
+    with BinaryAnalysisFormatSpecificationHelpers {
 
   property("Write and read empty Analysis") = {
     checkAnalysis(Analysis.empty)
@@ -47,7 +47,7 @@ object BinaryAnalysisFormatSpecification
 
 }
 
-trait BinaryAnalysisFormatSpecification { self: Properties =>
+trait BinaryAnalysisFormatSpecificationHelpers { self: Properties =>
   val storeApis = true
   def RootFilePath: String = "/dummy"
   def dummyOutput = new xsbti.compile.SingleOutput {

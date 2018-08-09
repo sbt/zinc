@@ -93,15 +93,17 @@ final class LocalJavadoc() extends XJavadoc {
     val nonJArgs = options.filterNot(_.startsWith("-J"))
     val allArguments = nonJArgs ++ sources.map(_.getAbsolutePath)
     val javacLogger = new JavacLogger(log, reporter, cwd)
-    val warnOrError = new PrintWriter(new ProcessLoggerWriter(javacLogger, Level.Error))
+    val errorWriter = new PrintWriter(new ProcessLoggerWriter(javacLogger, Level.Error))
+    val warnWriter = new PrintWriter(new ProcessLoggerWriter(javacLogger, Level.Warn))
     val infoWriter = new PrintWriter(new ProcessLoggerWriter(javacLogger, Level.Info))
     var exitCode = -1
     try {
-      exitCode = LocalJava.unsafeJavadoc(allArguments, warnOrError, warnOrError, infoWriter)
+      exitCode = LocalJava.unsafeJavadoc(allArguments, errorWriter, warnWriter, infoWriter)
     } finally {
-      warnOrError.close()
+      errorWriter.close()
+      warnWriter.close()
       infoWriter.close()
-      javacLogger.flush(exitCode)
+      javacLogger.flush("javadoc", exitCode)
     }
     // We return true or false, depending on success.
     exitCode == 0

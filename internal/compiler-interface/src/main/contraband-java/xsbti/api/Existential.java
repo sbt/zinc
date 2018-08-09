@@ -39,11 +39,11 @@ public final class Existential extends xsbti.api.Type {
             return false;
         } else {
             Existential o = (Existential)obj;
-            return baseType().equals(o.baseType()) && java.util.Arrays.deepEquals(clause(), o.clause());
+            return this.baseType().equals(o.baseType()) && java.util.Arrays.deepEquals(this.clause(), o.clause());
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (17 + "xsbti.api.Existential".hashCode()) + baseType().hashCode()) + clause().hashCode());
+        return 37 * (37 * (37 * (17 + "xsbti.api.Existential".hashCode()) + baseType().hashCode()) + java.util.Arrays.deepHashCode(clause()));
     }
     public String toString() {
         return "Existential("  + "baseType: " + baseType() + ", " + "clause: " + clause() + ")";

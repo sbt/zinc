@@ -10,10 +10,11 @@ package xsbt
 import java.io.File
 import java.util.{ Arrays, Comparator }
 import scala.tools.nsc.symtab.Flags
-import scala.collection.mutable.{ HashMap, HashSet, ListBuffer }
 import xsbti.api._
 
+import scala.annotation.tailrec
 import scala.tools.nsc.Global
+import scala.PartialFunction.cond
 
 /**
  * Extracts full (including private members) API representation out of Symbols and Types.
@@ -161,7 +162,7 @@ class ExtractAPI[GlobalType <: Global](
    * Force all lazy structures.  This is necessary so that we see the symbols/types at this phase and
    * so that we don't hold on to compiler objects and classes
    */
-  def forceStructures(): Unit =
+  @tailrec final def forceStructures(): Unit =
     if (pending.isEmpty)
       structureCache.clear()
     else {
@@ -199,33 +200,62 @@ class ExtractAPI[GlobalType <: Global](
   // The compiler only pickles static annotations, so only include these in the API.
   // This way, the API is not sensitive to whether we compiled from source or loaded from classfile.
   // (When looking at the sources we see all annotations, but when loading from classes we only see the pickled (static) ones.)
-  private def mkAnnotations(in: Symbol, as: List[AnnotationInfo]): Array[xsbti.api.Annotation] =
-    staticAnnotations(as).toArray.map { a =>
-      xsbti.api.Annotation.of(
-        processType(in, a.atp),
-        if (a.assocs.isEmpty)
-          Array(xsbti.api.AnnotationArgument.of("", a.args.mkString("(", ",", ")"))) // what else to do with a Tree?
-        else
-          a.assocs
-            .map {
-              case (name, value) =>
-                xsbti.api.AnnotationArgument.of(name.toString, value.toString)
-            }
-            .toArray[xsbti.api.AnnotationArgument]
-      )
-    }
+  private def mkAnnotations(in: Symbol, as: List[AnnotationInfo]): Array[xsbti.api.Annotation] = {
+    if (in == NoSymbol) ExtractAPI.emptyAnnotationArray
+    else
+      staticAnnotations(as) match {
+        case Nil => ExtractAPI.emptyAnnotationArray
+        case staticAs =>
+          staticAs.map { a =>
+            xsbti.api.Annotation.of(
+              processType(in, a.atp),
+              if (a.assocs.isEmpty)
+                Array(xsbti.api.AnnotationArgument.of("", a.args.mkString("(", ",", ")"))) // what else to do with a Tree?
+              else
+                a.assocs
+                  .map {
+                    case (name, value) =>
+                      xsbti.api.AnnotationArgument.of(name.toString, value.toString)
+                  }
+                  .toArray[xsbti.api.AnnotationArgument]
+            )
+          }.toArray
+      }
+  }
 
-  private def annotations(in: Symbol, s: Symbol): Array[xsbti.api.Annotation] =
-    enteringPhase(currentRun.typerPhase) {
+  // HOT method, hand optimized to reduce allocations and needless creation of Names with calls to getterIn/setterIn
+  // on non-fields.
+  private def annotations(in: Symbol, s: Symbol): Array[xsbti.api.Annotation] = {
+    val saved = phase
+    phase = currentRun.typerPhase
+    try {
       val base = if (s.hasFlag(Flags.ACCESSOR)) s.accessed else NoSymbol
       val b = if (base == NoSymbol) s else base
       // annotations from bean methods are not handled because:
       //  a) they are recorded as normal source methods anyway
       //  b) there is no way to distinguish them from user-defined methods
-      val associated =
-        List(b, b.getterIn(b.enclClass), b.setterIn(b.enclClass)).filter(_ != NoSymbol)
-      associated.flatMap(ss => mkAnnotations(in, ss.annotations)).distinct.toArray
+      if (b.hasGetter) {
+        val annotations = collection.mutable.LinkedHashSet[xsbti.api.Annotation]()
+        def add(sym: Symbol) = {
+          val anns = mkAnnotations(in, sym.annotations)
+          var i = 0
+          while (i < anns.length) {
+            annotations += anns(i)
+            i += 1
+          }
+        }
+        add(b)
+        add(b.getterIn(b.enclClass))
+        add(b.setterIn(b.enclClass))
+        annotations.toArray.distinct
+      } else {
+        if (b.annotations.isEmpty) ExtractAPI.emptyAnnotationArray
+        else mkAnnotations(in, b.annotations)
+      }
+    } finally {
+      phase = saved
     }
+  }
 
   private def viewer(s: Symbol) = (if (s.isModule) s.moduleClass else s).thisType
 
@@ -234,7 +264,7 @@ class ExtractAPI[GlobalType <: Global](
               typeParams: Array[xsbti.api.TypeParameter],
               valueParameters: List[xsbti.api.ParameterList]): xsbti.api.Def = {
       def parameterList(syms: List[Symbol]): xsbti.api.ParameterList = {
-        val isImplicitList = syms match { case head :: _ => isImplicit(head); case _ => false }
+        val isImplicitList = cond(syms) { case head :: _ => isImplicit(head) }
         xsbti.api.ParameterList.of(syms.map(parameterS).toArray, isImplicitList)
       }
       t match {
@@ -359,7 +389,16 @@ class ExtractAPI[GlobalType <: Global](
    * TODO: can we include hashes for parent classes instead? This seems a bit messy.
    */
   private def mkStructureWithInherited(info: Type, s: Symbol): xsbti.api.Structure = {
-    val ancestorTypes = linearizedAncestorTypes(info)
+    val ancestorTypes0 = linearizedAncestorTypes(info)
+    val ancestorTypes =
+      if (s.isDerivedValueClass) {
+        val underlying = s.derivedValueClassUnbox.tpe.finalResultType
+        // The underlying type of a value class should be part of the name hash
+        // of the value class (see the test `value-class-underlying`), this is accomplished
+        // by adding the underlying type to the list of parent types.
+        underlying :: ancestorTypes0
+      } else
+        ancestorTypes0
     val decls = info.decls.toList
     val declsNoModuleCtor = if (s.isModuleClass) removeConstructors(decls) else decls
     val declSet = decls.toSet
@@ -511,7 +550,9 @@ class ExtractAPI[GlobalType <: Global](
         else
           xsbti.api.Parameterized.of(base, types(in, args))
       case SuperType(thistpe: Type, supertpe: Type) =>
-        warning("sbt-api: Super type (not implemented): this=" + thistpe + ", super=" + supertpe);
+        reporter.warning(
+          NoPosition,
+          "sbt-api: Super type (not implemented): this=" + thistpe + ", super=" + supertpe)
         Constants.emptyType
       case at: AnnotatedType =>
         at.annotations match {
@@ -526,9 +567,12 @@ class ExtractAPI[GlobalType <: Global](
       case PolyType(typeParams, resultType) =>
         xsbti.api.Polymorphic.of(processType(in, resultType), typeParameters(in, typeParams))
       case NullaryMethodType(_) =>
-        warning("sbt-api: Unexpected nullary method type " + in + " in " + in.owner);
+        reporter.warning(NoPosition,
+                         "sbt-api: Unexpected nullary method type " + in + " in " + in.owner)
         Constants.emptyType
-      case _ => warning("sbt-api: Unhandled type " + t.getClass + " : " + t); Constants.emptyType
+      case _ =>
+        reporter.warning(NoPosition, "sbt-api: Unhandled type " + t.getClass + " : " + t)
+        Constants.emptyType
     }
   }
   private def makeExistentialType(in: Symbol, t: ExistentialType): xsbti.api.Existential = {
@@ -706,13 +750,19 @@ class ExtractAPI[GlobalType <: Global](
     n2.trim
   }
 
-  private def staticAnnotations(annotations: List[AnnotationInfo]): List[AnnotationInfo] = {
-    // compat stub for 2.8/2.9
-    class IsStatic(ann: AnnotationInfo) {
-      def isStatic: Boolean =
-        ann.atp.typeSymbol isNonBottomSubClass definitions.StaticAnnotationClass
+  private def staticAnnotations(annotations: List[AnnotationInfo]): List[AnnotationInfo] =
+    if (annotations == Nil) Nil
+    else {
+      // compat stub for 2.8/2.9
+      class IsStatic(ann: AnnotationInfo) {
+        def isStatic: Boolean =
+          ann.atp.typeSymbol isNonBottomSubClass definitions.StaticAnnotationClass
+      }
+      implicit def compat(ann: AnnotationInfo): IsStatic = new IsStatic(ann)
+      annotations.filter(_.isStatic)
     }
-    implicit def compat(ann: AnnotationInfo): IsStatic = new IsStatic(ann)
-    annotations.filter(_.isStatic)
-  }
+}
+
+object ExtractAPI {
+  private val emptyAnnotationArray = new Array[xsbti.api.Annotation](0)
 }
