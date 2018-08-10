@@ -646,8 +646,11 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) 
 
   def fromAnalysisFile(analysisFile: schema.AnalysisFile): (Analysis, MiniSetup, schema.Version) = {
     val version = analysisFile.version
-    val analysis = analysisFile.analysis.read(fromAnalysis, ???)
-    val miniSetup = analysisFile.miniSetup.read(fromMiniSetup, ???)
+    val analysis =
+      analysisFile.analysis
+        .read(fromAnalysis, s"The analysis file from format ${version} could not be read.")
+    val miniSetup = analysisFile.miniSetup
+      .read(fromMiniSetup, s"The mini setup from format ${version} could not be read.")
     (analysis, miniSetup, version)
   }
 }
