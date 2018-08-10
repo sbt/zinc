@@ -189,7 +189,7 @@ final class ScriptedTests(resourceBaseDirectory: File,
     def testFailed(t: Throwable): Option[String] = {
       if (pending) {
         import sbt.internal.util.codec.JsonProtocol._
-        // Use trace but in debug mode (default trace in `ManagedLogger` prints as error
+        // Use trace but in debug mode (default trace in `ManagedLogger` prints at the error level)
         logger.logEvent(Level.Debug, TraceEvent("Debug", t, logger.channelName, logger.execId))
         buffer.clearBuffer()
 
