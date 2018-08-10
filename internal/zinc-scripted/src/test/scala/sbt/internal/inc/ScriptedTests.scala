@@ -3,11 +3,13 @@ package sbt.internal.inc
 import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 
+import org.apache.logging.log4j.core.LogEvent
+import org.apache.logging.log4j.core.impl.Log4jLogEvent
 import sbt.internal.scripted._
 import sbt.io.IO
 import sbt.io.FileFilter._
 import sbt.internal.io.Resources
-import sbt.internal.util.{ ConsoleAppender, ConsoleOut, ManagedLogger }
+import sbt.internal.util.{ ConsoleAppender, ConsoleOut, ManagedLogger, TraceEvent }
 import sbt.util.{ Level, LogExchange }
 
 final class ScriptedTests(resourceBaseDirectory: File,
@@ -85,7 +87,7 @@ final class ScriptedTests(resourceBaseDirectory: File,
     val fileOut = ConsoleOut.bufferedWriterOut(writer)
     val fileAppender = ConsoleAppender(name, fileOut, useFormat = false)
     val outAppender = BufferedAppender(ConsoleAppender())
-    val appenders = (fileAppender -> Level.Debug) :: (outAppender -> Level.Debug) :: Nil
+    val appenders = (fileAppender -> Level.Debug) :: (outAppender -> Level.Info) :: Nil
     LogExchange.unbindLoggerAppenders(name)
     LogExchange.bindLoggerAppenders(name, appenders)
     ScriptedLogger(logger, logFile, outAppender)
@@ -186,8 +188,12 @@ final class ScriptedTests(resourceBaseDirectory: File,
 
     def testFailed(t: Throwable): Option[String] = {
       if (pending) {
-        logger.trace(t)
+        import sbt.internal.util.codec.JsonProtocol._
+        // Use trace but in debug mode (default trace in `ManagedLogger` prints as error
+        logger.logEvent(Level.Debug, TraceEvent("Debug", t, logger.channelName, logger.execId))
         buffer.clearBuffer()
+
+        logger.error(s"Pending cause: '${t.getMessage}'")
         logger.error(s"$FailureMark $label $PendingLabel")
         None
       } else {
