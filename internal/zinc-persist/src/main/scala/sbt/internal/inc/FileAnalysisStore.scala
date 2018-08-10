@@ -58,8 +58,9 @@ object FileAnalysisStore {
           val (analysis, miniSetup) = format.read(reader)
           val analysisWithAPIs = allCatch.opt {
             lookupEntry(inputStream, companionsFileName)
-            format.readAPIs(reader, analysis)
+            format.readAPIs(reader, analysis, miniSetup.storeApis)
           }
+
           analysisWithAPIs.map(analysis => AnalysisContents.create(analysis, miniSetup))
         }
       }
@@ -86,11 +87,9 @@ object FileAnalysisStore {
         format.write(protobufWriter, analysis, setup)
         outputStream.closeEntry()
 
-        if (setup.storeApis()) {
-          outputStream.putNextEntry(new ZipEntry(companionsFileName))
-          format.writeAPIs(protobufWriter, analysis)
-          outputStream.closeEntry()
-        }
+        outputStream.putNextEntry(new ZipEntry(companionsFileName))
+        format.writeAPIs(protobufWriter, analysis, setup.storeApis())
+        outputStream.closeEntry()
       }
       IO.move(tmpAnalysisFile, file)
     }

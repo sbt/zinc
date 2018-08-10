@@ -78,6 +78,11 @@ object ProtobufDefaults {
     final val APIsFile = classOf[schema.APIsFile]
   }
 
+  object EmptyLazyCompanions extends Lazy[Companions] {
+    override def get(): Companions =
+      throw new IllegalArgumentException("No companions was stored!")
+  }
+
   object Feedback {
     implicit class StringToException(str: String) {
       def !!(): Nothing = sys.error(str)

@@ -216,6 +216,20 @@ lazy val zincPersist = (project in internalPath / "zinc-persist")
     compileOrder := sbt.CompileOrder.Mixed,
     PB.targets in Compile := List(scalapb.gen() -> (sourceManaged in Compile).value),
     mimaSettings,
+    mimaBinaryIssueFilters ++= {
+      import com.typesafe.tools.mima.core._
+      import com.typesafe.tools.mima.core.ProblemFilters._
+      Seq(
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.BinaryAnalysisFormat.writeAPIs"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.BinaryAnalysisFormat.readAPIs"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufWriters.toApisFile"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufWriters.toApis"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufWriters.toAnalyzedClass"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufReaders.fromApis"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufReaders.fromApisFile"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufReaders.fromAnalyzedClass")
+      )
+    },
   )
 
 // Implements the core functionality of detecting and propagating changes incrementally.

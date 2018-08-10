@@ -236,20 +236,25 @@ case class ProjectStructure(
     (javaSourceDirectory ** "*.java").get.toList ++
       (baseDirectory * "*.java").get.toList
   val cacheFile = baseDirectory / "target" / "inc_compile.zip"
-  val fileStore = AnalysisStore.cached(FileAnalysisStore.binary(cacheFile))
-  def prev = fileStore.get.toOption match {
-    case Some(contents) =>
-      PreviousResult.of(Optional.of(contents.getAnalysis), Optional.of(contents.getMiniSetup))
-    case _ => compiler.emptyPreviousResult
+  val fileStore = FileAnalysisStore.binary(cacheFile)
+  val cachedStore = AnalysisStore.cached(fileStore)
+  def prev(useCachedAnalysis: Boolean = true) = {
+    val store = if (useCachedAnalysis) cachedStore else fileStore
+    store.get.toOption match {
+      case Some(contents) =>
+        PreviousResult.of(Optional.of(contents.getAnalysis), Optional.of(contents.getMiniSetup))
+      case _ => compiler.emptyPreviousResult
+    }
   }
   def unmanagedJars: List[File] = (baseDirectory / "lib" ** "*.jar").get.toList
   def lookupAnalysis: File => Option[CompileAnalysis] = {
     val f0: PartialFunction[File, Option[CompileAnalysis]] = {
-      case x if x.getAbsoluteFile == classesDir.getAbsoluteFile => prev.analysis.toOption
+      case x if x.getAbsoluteFile == classesDir.getAbsoluteFile => prev().analysis.toOption
     }
     val f1 = (f0 /: dependsOnRef) { (acc, dep) =>
       acc orElse {
-        case x if x.getAbsoluteFile == dep.classesDir.getAbsoluteFile => dep.prev.analysis.toOption
+        case x if x.getAbsoluteFile == dep.classesDir.getAbsoluteFile =>
+          dep.prev().analysis.toOption
       }
     }
     f1 orElse { case _ => None }
@@ -258,7 +263,7 @@ case class ProjectStructure(
   def internalClasspath: Vector[File] = dependsOnRef map { _.classesDir }
 
   def checkSame(i: IncInstance): Unit =
-    fileStore.get.toOption match {
+    cachedStore.get.toOption match {
       case Some(contents) =>
         val prevAnalysis = contents.getAnalysis.asInstanceOf[Analysis]
         val analysis = compile(i)
@@ -357,7 +362,6 @@ case class ProjectStructure(
     }
     import i._
     val sources = scalaSources ++ javaSources
-    val prev0 = prev
     val lookup = new PerClasspathEntryLookupImpl(lookupAnalysis, Locate.definesClass)
     val transactional: Optional[xsbti.compile.ClassFileManagerType] =
       Optional.of(
@@ -365,18 +369,27 @@ case class ProjectStructure(
           .of(targetDir / "classes.bak", sbt.util.Logger.Null))
     // We specify the class file manager explicitly even though it's noew possible
     // to specify it in the incremental option property file (this is the default for sbt)
-    val incOptionsFile = baseDirectory / "incOptions.properties"
-    val (incOptions, scalacOptions) = loadIncOptions(incOptionsFile)
+    val properties = loadIncProperties(baseDirectory / "incOptions.properties")
+    val (incOptions, scalacOptions) = loadIncOptions(properties)
+    val storeApis = Option(properties.getProperty("incOptions.storeApis"))
+      .map(_.toBoolean)
+      .getOrElse(incOptions.storeApis())
     val reporter = new ManagedLoggedReporter(maxErrors, scriptedLog)
     val extra = Array(t2(("key", "value")))
-    val setup = compiler.setup(lookup,
-                               skip = false,
-                               cacheFile,
-                               cache = CompilerCache.fresh,
-                               incOptions.withClassfileManagerType(transactional),
-                               reporter,
-                               optionProgress = None,
-                               extra)
+    val previousResult = prev(
+      Option(properties.getProperty("alwaysLoadAnalysis")).exists(_.toBoolean))
+    val initializedIncOptions =
+      incOptions.withClassfileManagerType(transactional).withStoreApis(storeApis)
+    val setup = compiler.setup(
+      lookup,
+      skip = false,
+      cacheFile,
+      cache = CompilerCache.fresh,
+      initializedIncOptions,
+      reporter,
+      optionProgress = None,
+      extra
+    )
 
     val classpath =
       (i.si.allJars.toList ++ (unmanagedJars :+ classesDir) ++ internalClasspath).toArray
@@ -390,10 +403,10 @@ case class ProjectStructure(
                              CompileOrder.Mixed,
                              cs,
                              setup,
-                             prev0)
+                             previousResult)
     val result = compiler.compile(in, scriptedLog)
     val analysis = result.analysis match { case a: Analysis => a }
-    fileStore.set(AnalysisContents.create(analysis, result.setup))
+    cachedStore.set(AnalysisContents.create(analysis, result.setup))
     scriptedLog.info(s"""Compilation done: ${sources.toList.mkString(", ")}""")
     analysis
   }
@@ -462,29 +475,33 @@ case class ProjectStructure(
     ()
   }
 
-  def loadIncOptions(src: File): (IncOptions, Array[String]) = {
-    if (src.exists) {
-      import scala.collection.JavaConverters._
+  def loadIncProperties(src: File): Properties = {
+    if (src.exists()) {
       val properties = new Properties()
       properties.load(new FileInputStream(src))
-      val map = new java.util.HashMap[String, String]
-      properties.asScala foreach { case (k: String, v: String) => map.put(k, v) }
+      properties
+    } else new Properties()
+  }
 
-      val scalacOptions =
-        Option(map.get("scalac.options")).map(_.toString.split(" +")).getOrElse(Array.empty)
+  def loadIncOptions(properties: Properties): (IncOptions, Array[String]) = {
+    import scala.collection.JavaConverters._
+    val map = new java.util.HashMap[String, String]
+    properties.asScala foreach { case (k: String, v: String) => map.put(k, v) }
 
-      val incOptions = {
-        val opts = IncOptionsUtil.fromStringMap(map, scriptedLog)
-        if (opts.recompileAllFraction() != IncOptions.defaultRecompileAllFraction()) opts
-        else opts.withRecompileAllFraction(1.0)
-      }
+    val scalacOptions =
+      Option(map.get("scalac.options")).map(_.toString.split(" +")).getOrElse(Array.empty)
 
-      (incOptions, scalacOptions)
-    } else (IncOptions.of().withRecompileAllFraction(1.0), Array.empty)
+    val incOptions = {
+      val opts = IncOptionsUtil.fromStringMap(map, scriptedLog)
+      if (opts.recompileAllFraction() != IncOptions.defaultRecompileAllFraction()) opts
+      else opts.withRecompileAllFraction(1.0)
+    }
+
+    (incOptions, scalacOptions)
   }
 
   def getProblems(): Seq[Problem] =
-    fileStore.get.toOption match {
+    cachedStore.get.toOption match {
       case Some(analysisContents) =>
         val analysis = analysisContents.getAnalysis.asInstanceOf[Analysis]
         val allInfos = analysis.infos.allInfos.values.toSeq
