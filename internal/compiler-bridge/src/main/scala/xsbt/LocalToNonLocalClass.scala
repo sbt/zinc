@@ -8,6 +8,7 @@
 package xsbt
 
 import collection.mutable.Map
+import scala.tools.nsc.Global
 
 /**
  * A memoized lookup of an enclosing non local class.
@@ -30,15 +31,15 @@ import collection.mutable.Map
  *
  * Additionally, you can query whether a given class is local. Check `isLocal`'s documentation.
  */
-class LocalToNonLocalClass[G <: CallbackGlobal](val global: G) {
+class LocalToNonLocalClass[G <: Global](val global: G) {
   import global._
   private val cache: Map[Symbol, Symbol] = perRunCaches.newMap()
 
   def resolveNonLocal(s: Symbol): Symbol = {
-    assert(
-      phase.id <= sbtDependency.ownPhase.id,
-      s"Tried to resolve ${s.fullName} to a  non local classes but the resolution works up to sbtDependency phase. We're at ${phase.name}"
-    )
+//    assert(
+//      phase.id <= sbtDependency.ownPhase.id,
+//      s"Tried to resolve ${s.fullName} to a  non local classes but the resolution works up to sbtDependency phase. We're at ${phase.name}"
+//    )
     resolveCached(s)
   }
 

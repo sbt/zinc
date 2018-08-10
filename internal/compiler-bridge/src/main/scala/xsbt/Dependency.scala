@@ -8,15 +8,14 @@
 package xsbt
 
 import java.io.File
+import java.util.{HashMap => JavaMap, HashSet => JavaSet}
 
+import xsbti.DependencyCallback
 import xsbti.api.DependencyContext
-import DependencyContext._
+import xsbti.api.DependencyContext._
 
-import scala.tools.nsc.io.{ PlainFile, ZipArchive }
-import scala.tools.nsc.Phase
-
-import java.util.{ HashSet => JavaSet }
-import java.util.{ HashMap => JavaMap }
+import scala.tools.nsc.io.{PlainFile, ZipArchive}
+import scala.tools.nsc.{Global, Phase}
 
 object Dependency {
   def name = "xsbt-dependency"
@@ -32,7 +31,7 @@ object Dependency {
  * where it originates from. The Symbol -> Classfile mapping is implemented by
  * LocateClassFile that we inherit from.
  */
-final class Dependency(val global: CallbackGlobal) extends LocateClassFile with GlobalHelpers {
+final class Dependency(val global: CallbackGlobal) {
   import global._
 
   def newPhase(prev: Phase): Phase = new DependencyPhase(prev)
@@ -50,13 +49,27 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
 
     def apply(unit: CompilationUnit): Unit = {
       if (!unit.isJava) {
-        // Process dependencies if name hashing is enabled, fail otherwise
-        val dependencyProcessor = new DependencyProcessor(unit)
-        val dependencyTraverser = new DependencyTraverser(dependencyProcessor)
-        // Traverse symbols in compilation unit and register all dependencies
-        dependencyTraverser.traverse(unit.body)
+        val analyzer =
+          new DependencyAnalyzer[Dependency.this.global.type](global, callback)
+        analyzer.process(unit)
       }
     }
+  }
+
+}
+
+class DependencyAnalyzer[G <: Global](val global: G, callback: DependencyCallback)
+    extends LocateClassFile
+    with GlobalHelpers {
+
+  import global._
+
+  def process(unit: CompilationUnit): Unit = {
+    // Process dependencies if name hashing is enabled, fail otherwise
+    val dependencyProcessor = new DependencyProcessor(unit)
+    val dependencyTraverser = new DependencyTraverser(dependencyProcessor)
+    // Traverse symbols in compilation unit and register all dependencies
+    dependencyTraverser.traverse(unit.body)
   }
 
   private class DependencyProcessor(unit: CompilationUnit) {
@@ -148,9 +161,10 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
     }
   }
 
-  private case class ClassDependency(from: Symbol, to: Symbol)
+  final class DependencyTraverser(processor: DependencyProcessor) extends Traverser {
+    private val localToNonLocalClass =
+      new LocalToNonLocalClass[DependencyAnalyzer.this.global.type](global)
 
-  private final class DependencyTraverser(processor: DependencyProcessor) extends Traverser {
     // are we traversing an Import node at the moment?
     private var inImportNode = false
 
@@ -413,4 +427,6 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
       case other => super.traverse(other)
     }
   }
+
+  case class ClassDependency(from: Symbol, to: Symbol)
 }
