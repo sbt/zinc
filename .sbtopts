@@ -1,1 +1,1 @@
--J-XX:ReservedCodeCacheSize=128m
+-J-XX:ReservedCodeCacheSize=256m
