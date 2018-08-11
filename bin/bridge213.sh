@@ -4,11 +4,11 @@
 # which was used for bootstrapping the initial compiler bridge.
 # In the future when Scala compiler breaks source compatibility, this script might come in handy.
 
-# $ export SCALA_X_HOME=/usr/local/Cellar/scala@2.13/2.13.0-M2
+# $ export SCALA_X_HOME=/usr/local/Cellar/scala@2.13/2.13.0-M4
 
 if [[ -z "$SCALA_X_HOME" ]]; then
   echo "SCALA_X_HOME is not set!" 1>&2
-  echo "Run 'export SCALA_X_HOME=/usr/local/Cellar/scala@2.13/2.13.0-M2' or equivalent."
+  echo "Run 'export SCALA_X_HOME=/usr/local/Cellar/scala@2.13/2.13.0-M4' or equivalent."
   exit 1
 fi
 
