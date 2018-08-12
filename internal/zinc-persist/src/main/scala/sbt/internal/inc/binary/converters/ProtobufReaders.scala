@@ -128,7 +128,13 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) 
       pointer0 = fromInt(position.pointer),
       pointerSpace0 = fromString(position.pointerSpace),
       sourcePath0 = fromString(position.sourcePath),
-      sourceFile0 = fromString(position.sourceFilepath).map(fromPathString)
+      sourceFile0 = fromString(position.sourceFilepath).map(fromPathString),
+      startOffset0 = fromInt(position.startOffset),
+      endOffset0 = fromInt(position.endOffset),
+      startLine0 = fromInt(position.startLine),
+      startColumn0 = fromInt(position.startColumn),
+      endLine0 = fromInt(position.endLine),
+      endColumn0 = fromInt(position.endColumn),
     )
   }
 
