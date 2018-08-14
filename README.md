@@ -1,7 +1,7 @@
 Zinc
 ====
 
-[![Build Status](https://platform-ci.scala-lang.org/api/badges/sbt/zinc/status.svg)](https://platform-ci.scala-lang.org/sbt/zinc)
+[![Build Status](https://ci.scala-lang.org/api/badges/sbt/zinc/status.svg)](https://ci.scala-lang.org/sbt/zinc)
 
 Zinc is the incremental compiler for Scala. Most Scala developers use it daily
 without noticing -- it's embedded in key build tools like sbt, CBT and pants.
