@@ -1,19 +1,18 @@
 #!/usr/bin/env bash
 set -eu
 set -o nounset
-SCALA_VERSION="$1"
 
+PROJECT_ROOT="zincRoot"
 sbt -Dfile.encoding=UTF-8 \
-  -J-XX:ReservedCodeCacheSize=256M \
-  -J-Xmx3046M -J-Xms3046M -J-server \
-  +mimaReportBinaryIssues \
+  -J-XX:ReservedCodeCacheSize=512M \
+  -J-Xms1024M -J-Xmx4096M -J-server \
+  "$PROJECT_ROOT/mimaReportBinaryIssues" \
   scalafmt::test \
   test:scalafmt::test \
   whitesourceCheckPolicies \
-  compilerInterfaceJava6Compat/compile \
-  zincRoot/test:compile \
+  "$PROJECT_ROOT/test:compile" \
   bloopScripted/compile \
   crossTestBridges \
-  "publishBridgesAndSet $SCALA_VERSION" \
-  zincRoot/test \
-  zincRoot/scripted
+  "publishBridges" \
+  "$PROJECT_ROOT/test" \
+  "$PROJECT_ROOT/scripted"

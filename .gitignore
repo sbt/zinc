@@ -1,2 +1,6 @@
 target/
+target-2.10/
+target-2.11/
+target-2.12/
+target-2.13/
 zinc/src/test/resources/bin

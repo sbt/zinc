@@ -1,6 +1,5 @@
 matrix:
   CI_SCALA_VERSION:
-    - 2.11.11
     - 2.12.6
 
 clone:
@@ -30,7 +29,7 @@ pipeline:
     commands:
       - export DRONE_DIR="/drone"
       - git fetch --tags && git log | head -n 20
-      - ./bin/run-ci.sh ${CI_SCALA_VERSION}
+      - ./bin/run-ci.sh
 
   rebuild_cache:
     image: appleboy/drone-sftp-cache
