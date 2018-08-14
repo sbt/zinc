@@ -22,7 +22,7 @@ import sbt.internal.inc.binary.converters.ProtobufDefaults.{ Classes, ReadersCon
 import sbt.internal.util.Relation
 import xsbti.api._
 
-final class ProtobufReaders(mapper: ReadMapper) {
+final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) {
   def fromPathString(path: String): File = {
     java.nio.file.Paths.get(path).toFile
   }
@@ -538,9 +538,11 @@ final class ProtobufReaders(mapper: ReadMapper) {
       else mkLazy(analyzedClass.api.read(fromCompanions, ExpectedCompanionsInAnalyzedClass))
 
     val apiHash = analyzedClass.apiHash
+    // Default on api hash to avoid issues when comparing hashes from two different analysis formats
+    val extraHash = if (currentVersion == schema.Version.V1) apiHash else analyzedClass.extraHash
     val nameHashes = analyzedClass.nameHashes.toZincArray(fromNameHash)
     val hasMacro = analyzedClass.hasMacro
-    AnalyzedClass.of(compilationTimestamp, name, api, apiHash, nameHashes, hasMacro)
+    AnalyzedClass.of(compilationTimestamp, name, api, apiHash, nameHashes, hasMacro, extraHash)
   }
 
   private final val stringId = identity[String] _
@@ -640,8 +642,11 @@ final class ProtobufReaders(mapper: ReadMapper) {
 
   def fromAnalysisFile(analysisFile: schema.AnalysisFile): (Analysis, MiniSetup, schema.Version) = {
     val version = analysisFile.version
-    val analysis = analysisFile.analysis.read(fromAnalysis, ???)
-    val miniSetup = analysisFile.miniSetup.read(fromMiniSetup, ???)
+    val analysis =
+      analysisFile.analysis
+        .read(fromAnalysis, s"The analysis file from format ${version} could not be read.")
+    val miniSetup = analysisFile.miniSetup
+      .read(fromMiniSetup, s"The mini setup from format ${version} could not be read.")
     (analysis, miniSetup, version)
   }
 }

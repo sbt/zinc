@@ -10,7 +10,7 @@ package internal
 package inc
 
 import xsbti.compile.IncOptions
-import xsbti.api.AnalyzedClass
+import xsbti.api.{ AnalyzedClass, DefinitionType }
 import xsbt.api.SameAPI
 
 /**
@@ -37,9 +37,24 @@ private final class IncrementalNameHashing(log: sbt.util.Logger, options: IncOpt
   override protected def sameAPI(className: String,
                                  a: AnalyzedClass,
                                  b: AnalyzedClass): Option[APIChange] = {
-    if (SameAPI(a, b))
-      None
-    else {
+    if (SameAPI(a, b)) {
+      if (SameAPI.hasSameExtraHash(a, b)) None
+      else {
+        val isATrait = a.api().classApi().definitionType() == DefinitionType.Trait
+        val isBTrait = b.api().classApi().definitionType() == DefinitionType.Trait
+        if (isATrait && isBTrait) {
+          Some(TraitPrivateMembersModified(className))
+        } else {
+          // As we don't cover more cases here, we protect ourselves from a potential programming error
+          sys.error(
+            s"""A fatal error happened in `SameAPI`: different extra api hashes for no traits!
+               |  `${a.name}`: ${a.extraHash()}
+               |  `${b.name}`: ${b.extraHash()}
+             """.stripMargin
+          )
+        }
+      }
+    } else {
       val aNameHashes = a.nameHashes
       val bNameHashes = b.nameHashes
       val modifiedNames = ModifiedNames.compareTwoNameHashes(aNameHashes, bNameHashes)
