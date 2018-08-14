@@ -111,30 +111,6 @@ def baseSettings: Seq[Setting[_]] =
 def addBaseSettingsAndTestDeps(p: Project): Project =
   p.settings(baseSettings).configure(addTestDependencies)
 
-val altLocalRepoName = "alternative-local"
-val altLocalRepoPath = sys.props("user.home") + "/.ivy2/sbt-alternative"
-lazy val altLocalResolver = Resolver.file(
-  altLocalRepoName,
-  file(sys.props("user.home") + "/.ivy2/sbt-alternative"))(Resolver.ivyStylePatterns)
-lazy val altLocalPublish =
-  TaskKey[Unit]("alt-local-publish", "Publishes an artifact locally to an alternative location.")
-def altPublishSettings: Seq[Setting[_]] =
-  Seq(
-    resolvers += altLocalResolver,
-    altLocalPublish := {
-      import sbt.librarymanagement._
-      import sbt.internal.librarymanagement._
-      val config = (Keys.publishLocalConfiguration).value
-      val moduleSettings = (Keys.moduleSettings).value
-      val ivy = new IvySbt((ivyConfiguration.value))
-
-      val module = new ivy.Module(moduleSettings)
-      val newConfig = config.withResolverName(altLocalRepoName).withOverwrite(false)
-      streams.value.log.info(s"Publishing $module to local repo: $altLocalRepoName")
-      IvyActions.publish(module, newConfig, streams.value.log)
-    }
-  )
-
 val noPublish: Seq[Setting[_]] = List(
   publish := {},
   publishLocal := {},
@@ -336,7 +312,6 @@ lazy val compilerInterface212 = (project in internalPath / "compiler-interface")
     sourceManaged in (Compile, generateContrabands) := baseDirectory.value / "src" / "main" / "contraband-java",
     crossPaths := false,
     autoScalaLibrary := false,
-    altPublishSettings,
     mimaSettings,
     mimaBinaryIssueFilters ++= {
       import com.typesafe.tools.mima.core._
@@ -456,7 +431,6 @@ lazy val compilerBridgeTemplate: Project = (project in internalPath / "compiler-
       }
     },
     publishLocal := publishLocal.dependsOn(cleanSbtBridge).value,
-    altPublishSettings,
   )
 
 lazy val compilerBridge210 = compilerBridgeTemplate
@@ -513,7 +487,6 @@ lazy val compilerBridgeTestTemplate = (project in internalPath / "compiler-bridg
     // compiler instances that are memory hungry
     javaOptions in Test += "-Xmx1G",
     libraryDependencies += scalaCompiler.value,
-    altPublishSettings,
     skip in publish := true,
     autoScalaLibrary := false,
   )
@@ -763,8 +736,8 @@ addCommandAlias(
 
 lazy val otherRootSettings = Seq(
   scriptedBufferLog := true,
-  Scripted.scriptedPrescripted := { addSbtAlternateResolver _ },
   scripted := scriptedTask.evaluated,
+  Scripted.scriptedPrescripted := { (_: File) => () },
   Scripted.scriptedUnpublished := scriptedUnpublishedTask.evaluated,
   Scripted.scriptedSource := (sourceDirectory in zinc).value / "sbt-test",
   publishAll := {
@@ -775,11 +748,6 @@ lazy val otherRootSettings = Seq(
 def scriptedTask: Def.Initialize[InputTask[Unit]] = Def.inputTask {
   val result = scriptedSource(dir => (s: State) => scriptedParser(dir)).parsed
   publishAll.value
-  // These two projects need to be visible in a repo even if the default
-  // local repository is hidden, so we publish them to an alternate location and add
-  // that alternate repo to the running scripted test (in Scripted.scriptedpreScripted).
-  (altLocalPublish in compilerInterface212).value
-  (altLocalPublish in compilerBridge212).value
   doScripted(
     (fullClasspath in zincScripted in Test).value,
     (scalaInstance in zincScripted).value,
@@ -788,26 +756,6 @@ def scriptedTask: Def.Initialize[InputTask[Unit]] = Def.inputTask {
     scriptedBufferLog.value,
     scriptedPrescripted.value
   )
-}
-
-def addSbtAlternateResolver(scriptedRoot: File) = {
-  val resolver = scriptedRoot / "project" / "AddResolverPlugin.scala"
-  if (!resolver.exists) {
-    IO.write(
-      resolver,
-      s"""import sbt._
-         |import Keys._
-         |
-         |object AddResolverPlugin extends AutoPlugin {
-         |  override def requires = sbt.plugins.JvmPlugin
-         |  override def trigger = allRequirements
-         |
-         |  override lazy val projectSettings = Seq(resolvers += alternativeLocalResolver)
-         |  lazy val alternativeLocalResolver = Resolver.file("$altLocalRepoName", file("$altLocalRepoPath"))(Resolver.ivyStylePatterns)
-         |}
-         |""".stripMargin
-    )
-  }
 }
 
 def scriptedUnpublishedTask: Def.Initialize[InputTask[Unit]] = Def.inputTask {
