@@ -87,7 +87,8 @@ final class ScriptedTests(resourceBaseDirectory: File,
     val fileOut = ConsoleOut.bufferedWriterOut(writer)
     val fileAppender = ConsoleAppender(name, fileOut, useFormat = false)
     val outAppender = BufferedAppender(ConsoleAppender())
-    val appenders = (fileAppender -> Level.Debug) :: (outAppender -> Level.Info) :: Nil
+    val outLevel = if (bufferLog) Level.Info else Level.Debug
+    val appenders = (fileAppender -> Level.Debug) :: (outAppender -> outLevel) :: Nil
     LogExchange.unbindLoggerAppenders(name)
     LogExchange.bindLoggerAppenders(name, appenders)
     ScriptedLogger(logger, logFile, outAppender)

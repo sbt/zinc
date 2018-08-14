@@ -1,16 +1,15 @@
 package sbt.inc
 
 import java.io.File
-import java.nio.file.Path
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Path}
 
 import sbt.io.syntax._
 import sbt.internal.util.complete.Parser
 import sbt.internal.util.complete.Parser._
 import sbt.internal.util.complete.Parsers._
-import sbt.io.{ AllPassFilter, NameFilter }
-import bloop.config.{ Config, ConfigDecoders }
-import metaconfig.{ Conf, Configured }
-import org.langmeta.inputs.Input
+import sbt.io.{AllPassFilter, NameFilter}
+import bloop.config.Config
 
 object ScriptedMain {
   def main(args: Array[String]): Unit = {
@@ -38,13 +37,15 @@ object ScriptedMain {
   }
 
   private def configFromFile(config: File): Config.File = {
-    import metaconfig.typesafeconfig.typesafeConfigMetaconfigParser
+    import io.circe.parser
+    import bloop.config.ConfigEncoderDecoders._
     println(s"Loading project from '$config'")
-    val input = Input.File(config)
-    val configured = Conf.parseInput(input)(typesafeConfigMetaconfigParser)
-    ConfigDecoders.allConfigDecoder.read(configured) match {
-      case Configured.Ok(file)     => file
-      case Configured.NotOk(error) => sys.error(error.toString())
+    val contents = new String(Files.readAllBytes(config.toPath), StandardCharsets.UTF_8)
+    val parsed =
+      parser.parse(contents).right.getOrElse(sys.error(s"Parse error: ${config.getAbsolutePath}"))
+    allDecoder.decodeJson(parsed) match {
+      case Right(parsedConfig) => parsedConfig
+      case Left(failure) => throw failure
     }
   }
 

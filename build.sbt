@@ -565,7 +565,7 @@ lazy val bloopScripted = (project in internalPath / "zinc-scripted-bloop")
     crossScalaVersions := List(scala212),
     libraryDependencies ++= List(
       "org.scala-sbt" %% "completion" % sbtVersion.value,
-      "ch.epfl.scala" %% "bloop-config" % "1.0.0-M9",
+      "ch.epfl.scala" %% "bloop-config" % "1.0.0",
     )
   )
 
