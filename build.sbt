@@ -1,17 +1,15 @@
 import Util._
 import Dependencies._
-import Scripted._
+import localzinc.Scripted, Scripted._
 import com.typesafe.tools.mima.core._, ProblemFilters._
 
 def internalPath = file("internal")
-
-lazy val compilerBridgeScalaVersions = List(scala212, scala213, scala211, scala210)
-lazy val compilerBridgeTestScalaVersions = List(scala212, scala211, scala210)
 
 def mimaSettings: Seq[Setting[_]] = Seq(
   mimaPreviousArtifacts := Set(
     "1.0.0", "1.0.1", "1.0.2", "1.0.3", "1.0.4", "1.0.5",
     "1.1.0", "1.1.1", "1.1.2", "1.1.3",
+    "1.2.0",
   ) map (version =>
     organization.value %% moduleName.value % version
       cross (if (crossPaths.value) CrossVersion.binary else CrossVersion.disabled)
@@ -19,7 +17,7 @@ def mimaSettings: Seq[Setting[_]] = Seq(
 )
 
 def buildLevelSettings: Seq[Setting[_]] = Seq(
-  git.baseVersion := "1.2.0",
+  git.baseVersion := "1.2.1",
   // https://github.com/sbt/sbt-git/issues/109
   // Workaround from https://github.com/sbt/sbt-git/issues/92#issuecomment-161853239
   git.gitUncommittedChanges := {
@@ -74,9 +72,9 @@ def commonSettings: Seq[Setting[_]] = Seq(
   // concurrentRestrictions in Global += Util.testExclusiveRestriction,
   testOptions += Tests.Argument(TestFrameworks.ScalaCheck, "-w", "1"),
   javacOptions in compile ++= Seq("-Xlint", "-Xlint:-serial"),
-  crossScalaVersions := Seq(scala211, scala212),
+  crossScalaVersions := Seq(scala212),
   publishArtifact in Test := false,
-  commands ++= Seq(publishBridgesAndTest, publishBridgesAndSet, crossTestBridges),
+  commands ++= Seq(publishBridges, crossTestBridges),
   scalacOptions ++= Seq(
     "-YdisableFlatCpCaching",
     "-target:jvm-1.8",
@@ -113,30 +111,6 @@ def baseSettings: Seq[Setting[_]] =
 def addBaseSettingsAndTestDeps(p: Project): Project =
   p.settings(baseSettings).configure(addTestDependencies)
 
-val altLocalRepoName = "alternative-local"
-val altLocalRepoPath = sys.props("user.home") + "/.ivy2/sbt-alternative"
-lazy val altLocalResolver = Resolver.file(
-  altLocalRepoName,
-  file(sys.props("user.home") + "/.ivy2/sbt-alternative"))(Resolver.ivyStylePatterns)
-lazy val altLocalPublish =
-  TaskKey[Unit]("alt-local-publish", "Publishes an artifact locally to an alternative location.")
-def altPublishSettings: Seq[Setting[_]] =
-  Seq(
-    resolvers += altLocalResolver,
-    altLocalPublish := {
-      import sbt.librarymanagement._
-      import sbt.internal.librarymanagement._
-      val config = (Keys.publishLocalConfiguration).value
-      val moduleSettings = (Keys.moduleSettings).value
-      val ivy = new IvySbt((ivyConfiguration.value))
-
-      val module = new ivy.Module(moduleSettings)
-      val newConfig = config.withResolverName(altLocalRepoName).withOverwrite(false)
-      streams.value.log.info(s"Publishing $module to local repo: $altLocalRepoName")
-      IvyActions.publish(module, newConfig, streams.value.log)
-    }
-  )
-
 val noPublish: Seq[Setting[_]] = List(
   publish := {},
   publishLocal := {},
@@ -146,8 +120,10 @@ val noPublish: Seq[Setting[_]] = List(
   skip in publish := true,
 )
 
+// TODO: Test Scala 2.13.0 when we upgrade to M5 (this means we need to publish sbt dependencies for this milestone too)
+
+// zincRoot is now only 2.12 (2.11.x is not supported anymore)
 lazy val zincRoot: Project = (project in file("."))
-// configs(Sxr.sxrConf).
   .aggregate(
     zinc,
     zincTesting,
@@ -156,12 +132,15 @@ lazy val zincRoot: Project = (project in file("."))
     zincIvyIntegration,
     zincCompile,
     zincCompileCore,
-    compilerInterface,
-    compilerBridge,
+    compilerInterface212,
+    compilerBridge210,
+    compilerBridge211,
+    compilerBridge212,
+    compilerBridge213,
     zincBenchmarks,
-    zincApiInfo,
-    zincClasspath,
-    zincClassfile,
+    zincApiInfo212,
+    zincClasspath212,
+    zincClassfile212,
     zincScripted
   )
   .settings(
@@ -178,7 +157,7 @@ lazy val zinc = (project in file("zinc"))
     zincCore,
     zincPersist,
     zincCompileCore,
-    zincClassfile,
+    zincClassfile212,
     zincIvyIntegration % "compile->compile;test->test",
     zincTesting % Test
   )
@@ -241,10 +220,10 @@ lazy val zincPersist = (project in internalPath / "zinc-persist")
 //   Defines the data structures for representing file fingerprints and relationships and the overall source analysis
 lazy val zincCore = (project in internalPath / "zinc-core")
   .dependsOn(
-    zincApiInfo,
-    zincClasspath,
-    compilerInterface,
-    compilerBridge % Test,
+    zincApiInfo212,
+    zincClasspath212,
+    compilerInterface212,
+    compilerBridge212 % Test,
     zincTesting % Test
   )
   .configure(addBaseSettingsAndTestDeps)
@@ -263,8 +242,8 @@ lazy val zincCore = (project in internalPath / "zinc-core")
   .configure(addSbtIO, addSbtUtilLogging, addSbtUtilRelation)
 
 lazy val zincBenchmarks = (project in internalPath / "zinc-benchmarks")
-  .dependsOn(compilerInterface % "compile->compile;compile->test")
-  .dependsOn(compilerBridge, zincCore, zincTesting % Test)
+  .dependsOn(compilerInterface212 % "compile->compile;compile->test")
+  .dependsOn(compilerBridge212, zincCore, zincTesting % Test)
   .enablePlugins(JmhPlugin)
   .settings(
     noPublish,
@@ -274,7 +253,7 @@ lazy val zincBenchmarks = (project in internalPath / "zinc-benchmarks")
       "net.openhft" % "affinity" % "3.0.6"
     ),
     scalaVersion := scala212,
-    crossScalaVersions := Seq(scala211, scala212),
+    crossScalaVersions := Seq(scala212),
     javaOptions in Test ++= List("-Xmx600M", "-Xms600M"),
   )
 
@@ -285,6 +264,10 @@ lazy val zincIvyIntegration = (project in internalPath / "zinc-ivy-integration")
     name := "zinc Ivy Integration",
     compileOrder := sbt.CompileOrder.ScalaThenJava,
     mimaSettings,
+    test in Test := {
+      // Test in ivy integration needs the published compiler bridges to work
+      (test in Test).value
+    }
   )
   .configure(addSbtLmCore, addSbtLmIvyTest)
 
@@ -292,17 +275,17 @@ lazy val zincIvyIntegration = (project in internalPath / "zinc-ivy-integration")
 lazy val zincCompileCore = (project in internalPath / "zinc-compile-core")
   .enablePlugins(ContrabandPlugin)
   .dependsOn(
-    compilerInterface % "compile;test->test",
-    zincClasspath,
-    zincApiInfo,
-    zincClassfile,
+    compilerInterface212 % "compile;test->test",
+    zincClasspath212,
+    zincApiInfo212,
+    zincClassfile212,
     zincTesting % Test
   )
   .configure(addBaseSettingsAndTestDeps)
   .settings(
     name := "zinc Compile Core",
     libraryDependencies ++= Seq(scalaCompiler.value % Test, launcherInterface, parserCombinator),
-    unmanagedJars in Test := Seq(packageSrc in compilerBridge in Compile value).classpath,
+    unmanagedJars in Test := Seq(packageSrc in compilerBridge212 in Compile value).classpath,
     managedSourceDirectories in Compile +=
       baseDirectory.value / "src" / "main" / "contraband-java",
     sourceManaged in (Compile, generateContrabands) := baseDirectory.value / "src" / "main" / "contraband-java",
@@ -322,7 +305,7 @@ lazy val zincCompileCore = (project in internalPath / "zinc-compile-core")
 // defines Java structures used across Scala versions, such as the API structures and relationships extracted by
 //   the analysis compiler phases and passed back to sbt.  The API structures are defined in a simple
 //   format from which Java sources are generated by the sbt-contraband plugin.
-lazy val compilerInterface = (project in internalPath / "compiler-interface")
+lazy val compilerInterface212 = (project in internalPath / "compiler-interface")
   .enablePlugins(ContrabandPlugin)
   .settings(
     minimalSettings,
@@ -348,7 +331,6 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface")
     sourceManaged in (Compile, generateContrabands) := baseDirectory.value / "src" / "main" / "contraband-java",
     crossPaths := false,
     autoScalaLibrary := false,
-    altPublishSettings,
     mimaSettings,
     mimaBinaryIssueFilters ++= {
       import com.typesafe.tools.mima.core._
@@ -366,12 +348,30 @@ lazy val compilerInterface = (project in internalPath / "compiler-interface")
 /* Create a duplicated compiler-interface project that uses Scala 2.10 to parse Java files.
  * Scala 2.10's parser uses Java 6 semantics, so this way we ensure that the interface can
  * be compiled with Java 6 too. `compiler-interface` checks compilation for Java 8. */
-val compilerInterfaceJava6Compat = compilerInterface
-  .withId("compilerInterfaceJava6Compat")
+val compilerInterface210 = compilerInterface212
+  .withId("compilerInterface210")
   .settings(
     scalaVersion := scala210,
     crossScalaVersions := Seq(scala210),
-    target := (target in compilerInterface).value / "java6-parser-compat",
+    target := (target in compilerInterface212).value.getParentFile / "target-2.10",
+    skip in publish := true
+  )
+
+val compilerInterface211 = compilerInterface212
+  .withId("compilerInterface211")
+  .settings(
+    scalaVersion := scala211,
+    crossScalaVersions := Seq(scala211),
+    target := (target in compilerInterface212).value.getParentFile / "target-2.11",
+    skip in publish := true
+  )
+
+val compilerInterface213 = compilerInterface212
+  .withId("compilerInterface213")
+  .settings(
+    scalaVersion := scala213,
+    crossScalaVersions := Seq(scala213),
+    target := (target in compilerInterface212).value.getParentFile / "target-2.13",
     skip in publish := true
   )
 
@@ -383,6 +383,13 @@ def wrapIn(color: String, content: String): String = {
   else color + content + scala.Console.RESET
 }
 
+def noSourcesForTemplate: Seq[Setting[_]] = inBoth(
+  sources := {
+    val oldSources = sources.value
+    if (Keys.thisProject.value.id.contains("Template")) Seq.empty[File] else oldSources
+  },
+)
+
 /**
  * Compiler-side interface to compiler that is compiled against the compiler being used either in advance or on the fly.
  * Includes API and Analyzer phases that extract source API and relationships.
@@ -392,11 +399,10 @@ def wrapIn(color: String, content: String): String = {
  * and therefore there's no `mimaSettings` added.
  * For the case of Scala 2.13 bridge, we didn't even have the bridge to compare against when Zinc 1.0.0 came out.
  */
-lazy val compilerBridge: Project = (project in internalPath / "compiler-bridge")
-  .dependsOn(compilerInterface)
+lazy val compilerBridgeTemplate: Project = (project in internalPath / "compiler-bridge")
   .settings(
     baseSettings,
-    crossScalaVersions := compilerBridgeScalaVersions,
+    noSourcesForTemplate,
     compilerVersionDependentScalacOptions,
     libraryDependencies += scalaCompiler.value % "provided",
     autoScalaLibrary := false,
@@ -446,7 +452,42 @@ lazy val compilerBridge: Project = (project in internalPath / "compiler-bridge")
       }
     },
     publishLocal := publishLocal.dependsOn(cleanSbtBridge).value,
-    altPublishSettings,
+  )
+
+lazy val compilerBridge210 = compilerBridgeTemplate
+  .withId("compilerBridge210")
+  .dependsOn(compilerInterface210)
+  .settings(
+    scalaVersion := scala210,
+    crossScalaVersions := Seq(scala210),
+    target := (target in compilerBridgeTemplate).value.getParentFile / "target-2.10"
+  )
+
+lazy val compilerBridge211 = compilerBridgeTemplate
+  .withId("compilerBridge211")
+  .dependsOn(compilerInterface211)
+  .settings(
+    scalaVersion := scala211,
+    crossScalaVersions := Seq(scala211),
+    target := (target in compilerBridgeTemplate).value.getParentFile / "target-2.11"
+  )
+
+lazy val compilerBridge212 = compilerBridgeTemplate
+  .withId("compilerBridge212")
+  .dependsOn(compilerInterface212)
+  .settings(
+    scalaVersion := scala212,
+    crossScalaVersions := Seq(scala212),
+    target := (target in compilerBridgeTemplate).value.getParentFile / "target-2.12"
+  )
+
+lazy val compilerBridge213 = compilerBridgeTemplate
+  .withId("compilerBridge213")
+  .dependsOn(compilerInterface213)
+  .settings(
+    scalaVersion := scala213,
+    crossScalaVersions := Seq(scala213),
+    target := (target in compilerBridgeTemplate).value.getParentFile / "target-2.13"
   )
 
 /**
@@ -454,8 +495,7 @@ lazy val compilerBridge: Project = (project in internalPath / "compiler-bridge")
  * This is split into a separate subproject because testing introduces more dependencies
  * (Zinc API Info, which transitively depends on IO).
  */
-lazy val compilerBridgeTest = (project in internalPath / "compiler-bridge-test")
-  .dependsOn(compilerBridge, compilerInterface % "test->test", zincApiInfo % "test->test")
+lazy val compilerBridgeTestTemplate = (project in internalPath / "compiler-bridge-test")
   .settings(
     name := "Compiler Bridge Test",
     baseSettings,
@@ -467,10 +507,42 @@ lazy val compilerBridgeTest = (project in internalPath / "compiler-bridge-test")
     // needed because we fork tests and tests are ran in parallel so we have multiple Scala
     // compiler instances that are memory hungry
     javaOptions in Test += "-Xmx1G",
-    crossScalaVersions := compilerBridgeTestScalaVersions,
     libraryDependencies += scalaCompiler.value,
-    altPublishSettings,
     skip in publish := true,
+    autoScalaLibrary := false,
+  )
+
+lazy val compilerBridgeTest210 = compilerBridgeTestTemplate
+  .withId("compilerBridgeTest210")
+  .dependsOn(compilerInterface210 % "test->test")
+  .dependsOn(compilerBridge210, zincApiInfo210 % "test->test")
+  .settings(
+    scalaVersion := scala210,
+    crossScalaVersions := Seq(scala210),
+    target := (target in compilerBridgeTestTemplate).value.getParentFile / "target-2.10",
+    skip in publish := true
+  )
+
+lazy val compilerBridgeTest211 = compilerBridgeTestTemplate
+  .withId("compilerBridgeTest211")
+  .dependsOn(compilerInterface211 % "test->test")
+  .dependsOn(compilerBridge211, zincApiInfo211 % "test->test")
+  .settings(
+    scalaVersion := scala211,
+    crossScalaVersions := Seq(scala211),
+    target := (target in compilerBridgeTestTemplate).value.getParentFile / "target-2.11",
+    skip in publish := true
+  )
+
+lazy val compilerBridgeTest212 = compilerBridgeTestTemplate
+  .withId("compilerBridgeTest212")
+  .dependsOn(compilerInterface212 % "test->test")
+  .dependsOn(compilerBridge212, zincApiInfo212 % "test->test")
+  .settings(
+    scalaVersion := scala212,
+    crossScalaVersions := Seq(scala212),
+    target := (target in compilerBridgeTestTemplate).value.getParentFile / "target-2.12",
+    skip in publish := true
   )
 
 val scalaPartialVersion = Def setting (CrossVersion partialVersion scalaVersion.value)
@@ -479,13 +551,12 @@ def inBoth(ss: Setting[_]*): Seq[Setting[_]] = Seq(Compile, Test) flatMap (inCon
 
 // defines operations on the API of a source, including determining whether it has changed and converting it to a string
 //   and discovery of Projclasses and annotations
-lazy val zincApiInfo = (project in internalPath / "zinc-apiinfo")
-  .dependsOn(compilerInterface, zincClassfile % "compile;test->test")
+lazy val zincApiInfoTemplate = (project in internalPath / "zinc-apiinfo")
   .configure(addBaseSettingsAndTestDeps)
   .settings(
     name := "zinc ApiInfo",
-    crossScalaVersions := compilerBridgeTestScalaVersions,
     compilerVersionDependentScalacOptions,
+    noSourcesForTemplate,
     mimaSettings,
     mimaBinaryIssueFilters ++= {
       import com.typesafe.tools.mima.core._
@@ -515,15 +586,43 @@ lazy val zincApiInfo = (project in internalPath / "zinc-apiinfo")
     }
   )
 
+lazy val zincApiInfo210 = zincApiInfoTemplate
+  .withId("zincApiInfo210")
+  .dependsOn(compilerInterface210, zincClassfile210 % "compile;test->test")
+  .settings(
+    scalaVersion := scala210,
+    crossScalaVersions := Seq(scala210),
+    target := (target in zincApiInfoTemplate).value.getParentFile / "target-2.10"
+  )
+
+lazy val zincApiInfo211 = zincApiInfoTemplate
+  .withId("zincApiInfo211")
+  .dependsOn(compilerInterface211, compilerBridge211)
+  .dependsOn(zincClassfile211 % "compile;test->test")
+  .settings(
+    scalaVersion := scala211,
+    crossScalaVersions := Seq(scala211),
+    target := (target in zincApiInfoTemplate).value.getParentFile / "target-2.11"
+  )
+
+lazy val zincApiInfo212 = zincApiInfoTemplate
+  .withId("zincApiInfo212")
+  .dependsOn(compilerInterface212, compilerBridge212)
+  .dependsOn(zincClassfile212 % "compile;test->test")
+  .settings(
+    scalaVersion := scala212,
+    crossScalaVersions := Seq(scala212),
+    target := (target in zincApiInfoTemplate).value.getParentFile / "target-2.12"
+  )
+
 // Utilities related to reflection, managing Scala versions, and custom class loaders
-lazy val zincClasspath = (project in internalPath / "zinc-classpath")
-  .dependsOn(compilerInterface)
+lazy val zincClasspathTemplate = (project in internalPath / "zinc-classpath")
   .configure(addBaseSettingsAndTestDeps)
   .settings(
     name := "zinc Classpath",
-    crossScalaVersions := compilerBridgeTestScalaVersions,
     compilerVersionDependentScalacOptions,
     libraryDependencies ++= Seq(scalaCompiler.value, launcherInterface),
+    noSourcesForTemplate,
     mimaSettings,
     mimaBinaryIssueFilters ++= Seq(
       // Changed the signature of a private[sbt] method
@@ -532,17 +631,70 @@ lazy val zincClasspath = (project in internalPath / "zinc-classpath")
   )
   .configure(addSbtIO)
 
+lazy val zincClasspath210 = zincClasspathTemplate
+  .withId("zincClasspath210")
+  .dependsOn(compilerInterface210)
+  .settings(
+    scalaVersion := scala210,
+    crossScalaVersions := Seq(scala210),
+    target := (target in zincClasspathTemplate).value.getParentFile / "target-2.10"
+  )
+
+lazy val zincClasspath211 = zincClasspathTemplate
+  .withId("zincClasspath211")
+  .dependsOn(compilerInterface211)
+  .settings(
+    scalaVersion := scala211,
+    crossScalaVersions := Seq(scala211),
+    target := (target in zincClasspathTemplate).value.getParentFile / "target-2.11"
+  )
+
+lazy val zincClasspath212 = zincClasspathTemplate
+  .withId("zincClasspath212")
+  .dependsOn(compilerInterface212)
+  .settings(
+    scalaVersion := scala212,
+    crossScalaVersions := Seq(scala212),
+    target := (target in zincClasspathTemplate).value.getParentFile / "target-2.12"
+  )
+
 // class file reader and analyzer
-lazy val zincClassfile = (project in internalPath / "zinc-classfile")
-  .dependsOn(compilerInterface % "compile;test->test")
+lazy val zincClassfileTemplate = (project in internalPath / "zinc-classfile")
   .configure(addBaseSettingsAndTestDeps)
   .settings(
     name := "zinc Classfile",
-    crossScalaVersions := compilerBridgeTestScalaVersions,
     compilerVersionDependentScalacOptions,
     mimaSettings,
+    noSourcesForTemplate,
   )
   .configure(addSbtIO, addSbtUtilLogging)
+
+lazy val zincClassfile210 = zincClassfileTemplate
+  .withId("zincClassfile210")
+  .dependsOn(compilerInterface210 % "compile;test->test")
+  .settings(
+    scalaVersion := scala210,
+    crossScalaVersions := Seq(scala210),
+    target := (target in zincClassfileTemplate).value.getParentFile / "target-2.10"
+  )
+
+lazy val zincClassfile211 = zincClassfileTemplate
+  .withId("zincClassfile211")
+  .dependsOn(compilerInterface211 % "compile;test->test")
+  .settings(
+    scalaVersion := scala211,
+    crossScalaVersions := Seq(scala211),
+    target := (target in zincClassfileTemplate).value.getParentFile / "target-2.11"
+  )
+
+lazy val zincClassfile212 = zincClassfileTemplate
+  .withId("zincClassfile212")
+  .dependsOn(compilerInterface212 % "compile;test->test")
+  .settings(
+    scalaVersion := scala212,
+    crossScalaVersions := Seq(scala212),
+    target := (target in zincClassfileTemplate).value.getParentFile / "target-2.12"
+  )
 
 // re-implementation of scripted engine
 lazy val zincScripted = (project in internalPath / "zinc-scripted")
@@ -571,46 +723,28 @@ lazy val bloopScripted = (project in internalPath / "zinc-scripted-bloop")
 
 lazy val crossTestBridges = {
   Command.command("crossTestBridges") { state =>
-    (compilerBridgeTestScalaVersions.flatMap { (bridgeVersion: String) =>
-      // Note the ! here. You need this so compilerInterface gets forced to the scalaVersion
-      s"++ $bridgeVersion!" ::
-        s"${compilerBridgeTest.id}/test" ::
-        Nil
-    }) :::
-      (s"++ $scala212!" ::
-      state)
+    val publishCommands = List(
+      s"${compilerBridgeTest210.id}/test",
+      s"${compilerBridgeTest211.id}/test",
+      s"${compilerBridgeTest212.id}/test",
+    )
+
+    publishCommands ::: state
   }
 }
 
-lazy val publishBridgesAndSet = {
-  Command.args("publishBridgesAndSet", "<version>") { (state, args) =>
-    require(args.nonEmpty, "Missing Scala version argument.")
-    val userScalaVersion = args.mkString("")
-    s"${compilerInterface.id}/publishLocal" ::
-      compilerBridgeScalaVersions.flatMap { (bridgeVersion: String) =>
-      s"++ $bridgeVersion!" ::
-        s"${compilerBridge.id}/publishLocal" :: Nil
-    } :::
-      s"++ $userScalaVersion!" ::
-      state
-  }
-}
+lazy val publishBridges = {
+  Command.command("publishBridges") { state =>
+    val publishCommands = List(
+      s"${compilerInterface212.id}/publishLocal",
+      s"${compilerBridge210.id}/publishLocal",
+      s"${compilerBridge211.id}/publishLocal",
+      s"${compilerBridge212.id}/publishLocal",
+      s"${compilerBridge213.id}/publishLocal"
+    )
 
-lazy val publishBridgesAndTest = Command.args("publishBridgesAndTest", "<version>") {
-  (state, args) =>
-    require(args.nonEmpty,
-            "Missing arguments to publishBridgesAndTest. Maybe quotes are missing around command?")
-    val version = args mkString ""
-    s"${compilerInterface.id}/publishLocal" ::
-      (compilerBridgeScalaVersions.flatMap { (bridgeVersion: String) =>
-      s"++ $bridgeVersion" ::
-        s"${compilerBridge.id}/publishLocal" :: Nil
-    }) :::
-      s"++ $version" ::
-      s"zincRoot/scalaVersion" ::
-      s"zincRoot/test" ::
-      s"zincRoot/scripted" ::
-      state
+    publishCommands ::: state
+  }
 }
 
 val dir = IO.createTemporaryDirectory
@@ -627,9 +761,9 @@ addCommandAlias(
 )
 
 lazy val otherRootSettings = Seq(
-  Scripted.scriptedBufferLog := true,
-  Scripted.scriptedPrescripted := { addSbtAlternateResolver _ },
-  Scripted.scripted := scriptedTask.evaluated,
+  scriptedBufferLog := true,
+  scripted := scriptedTask.evaluated,
+  Scripted.scriptedPrescripted := { (_: File) => () },
   Scripted.scriptedUnpublished := scriptedUnpublishedTask.evaluated,
   Scripted.scriptedSource := (sourceDirectory in zinc).value / "sbt-test",
   publishAll := {
@@ -640,11 +774,6 @@ lazy val otherRootSettings = Seq(
 def scriptedTask: Def.Initialize[InputTask[Unit]] = Def.inputTask {
   val result = scriptedSource(dir => (s: State) => scriptedParser(dir)).parsed
   publishAll.value
-  // These two projects need to be visible in a repo even if the default
-  // local repository is hidden, so we publish them to an alternate location and add
-  // that alternate repo to the running scripted test (in Scripted.scriptedpreScripted).
-  (altLocalPublish in compilerInterface).value
-  (altLocalPublish in compilerBridge).value
   doScripted(
     (fullClasspath in zincScripted in Test).value,
     (scalaInstance in zincScripted).value,
@@ -653,26 +782,6 @@ def scriptedTask: Def.Initialize[InputTask[Unit]] = Def.inputTask {
     scriptedBufferLog.value,
     scriptedPrescripted.value
   )
-}
-
-def addSbtAlternateResolver(scriptedRoot: File) = {
-  val resolver = scriptedRoot / "project" / "AddResolverPlugin.scala"
-  if (!resolver.exists) {
-    IO.write(
-      resolver,
-      s"""import sbt._
-         |import Keys._
-         |
-         |object AddResolverPlugin extends AutoPlugin {
-         |  override def requires = sbt.plugins.JvmPlugin
-         |  override def trigger = allRequirements
-         |
-         |  override lazy val projectSettings = Seq(resolvers += alternativeLocalResolver)
-         |  lazy val alternativeLocalResolver = Resolver.file("$altLocalRepoName", file("$altLocalRepoPath"))(Resolver.ivyStylePatterns)
-         |}
-         |""".stripMargin
-    )
-  }
 }
 
 def scriptedUnpublishedTask: Def.Initialize[InputTask[Unit]] = Def.inputTask {

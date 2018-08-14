@@ -1,35 +1,44 @@
-pipeline:
-  # Fetch folders from distributed cache
-  sftp_cache_restore:
-    image: plugins/sftp-cache
-    restore: true
-    mount:
-      - /drone/.ivy2
-      - /drone/.coursier-cache
-      - /drone/.sbt
-      - /drone/.git
-    when:
-      event: [push, pull_request, tag, deployment]
-
-  tests:
-    image: scalacenter/scala:1.0
-    commands:
-      - git fetch --tags && git log | head -n 20
-      - ./bin/run-ci.sh ${CI_SCALA_VERSION}
-
-  # Save folders in distributed cache
-  sftp_cache_rebuild:
-    image: plugins/sftp-cache
-    rebuild: true
-    mount:
-      - /drone/.ivy2
-      - /drone/.coursier-cache
-      - /drone/.sbt
-      - /drone/.git
-    when:
-      event: [push, pull_request, tag, deployment]
-
 matrix:
   CI_SCALA_VERSION:
-    - 2.11.11
-    - 2.12.3
+    - 2.12.6
+
+clone:
+  git:
+    image: plugins/git
+    tags: true
+    recursive: true
+    depth: 50
+
+pipeline:
+  restore_cache:
+    image: appleboy/drone-sftp-cache
+    when:
+      ref: [ refs/heads/1.x, refs/tags/*, refs/pull/*/head ]
+    secrets: [ sftp_cache_username, sftp_cache_private_key, sftp_cache_server, sftp_cache_path ]
+    restore: true
+    mount:
+      - /drone/.ivy2/cache
+      - /drone/.coursier-cache
+      - /drone/.sbt
+      - /drone/.git
+
+  tests:
+    image: scalacenter/scala-docs:1.3
+    when:
+      ref: [ refs/heads/1.x, refs/tags/*, refs/pull/*/head ]
+    commands:
+      - export DRONE_DIR="/drone"
+      - git fetch --tags && git log | head -n 20
+      - ./bin/run-ci.sh
+
+  rebuild_cache:
+    image: appleboy/drone-sftp-cache
+    when:
+      ref: [ refs/heads/1.x, refs/tags/*, refs/pull/*/head ]
+    secrets: [ sftp_cache_username, sftp_cache_private_key, sftp_cache_server, sftp_cache_path ]
+    rebuild: true
+    mount:
+      - /drone/.ivy2/cache
+      - /drone/.coursier-cache
+      - /drone/.sbt
+      - /drone/.git
