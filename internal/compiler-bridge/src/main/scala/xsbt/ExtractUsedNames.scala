@@ -276,8 +276,9 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
 
       case t if t.hasSymbolField =>
         val symbol = t.symbol
-        if (symbol != rootMirror.RootPackage)
+        if (symbol != rootMirror.RootPackage) {
           addSymbol(getNamesOfEnclosingScope, t.symbol)
+        }
 
         val tpe = t.tpe
         if (!ignoredType(tpe)) {
