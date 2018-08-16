@@ -285,7 +285,7 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
     val inv: Set[String] = propagated ++ dups
     val newlyInvalidated = (inv -- recompiledClasses) ++ dups
     log.debug(
-      "All newly invalidated classes after taking into account (previously) recompiled classes:" + newlyInvalidated)
+      "All newly invalidated classes after taking into account (previously) recompiled classes: " + newlyInvalidated)
     if (newlyInvalidated.isEmpty) Set.empty else inv
   }
 

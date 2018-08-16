@@ -518,9 +518,9 @@ private abstract class MRelationsCommon(
     }
   }
   protected def relation_s(r: Relation[_, _], indentation: String): String = {
-    if (r.forwardMap.isEmpty) "Relation [ ]"
+    if (r.forwardMap.isEmpty) "[]"
     else
-      formatAsLines(r.all.toSeq, indentation).sorted.mkString("Relation [\n", "", indentation + "]")
+      formatAsLines(r.all.toSeq, indentation).sorted.mkString("[\n", "", indentation + "]")
   }
   protected def relation_s(r: Relation[_, _]): String = relation_s(r, "  ")
 }
@@ -673,7 +673,7 @@ private class MRelationsNameHashing(
   override def toString: String = {
     def color(s: String) = Console.YELLOW + s + Console.RESET
     def nestedRelation(deps: Map[_, Relation[_, _]]): String = {
-      if (deps.isEmpty) "Relation [ ]"
+      if (deps.isEmpty) "[]"
       else {
         val indentation = "    "
         deps
