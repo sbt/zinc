@@ -118,9 +118,14 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
     // For javac as class files are added to classfileManager as they are generated, so
     // this step is redundant. For scalac this is still necessary. TODO: do the same for scalac.
     classfileManager.generated(fresh.relations.allProducts.toArray)
-    debugInnerSection("Fresh")(fresh.relations)
     val merged = pruned ++ fresh //.copy(relations = pruned.relations ++ fresh.relations, apis = pruned.apis ++ fresh.apis)
-    debugInnerSection("Merged")(merged.relations)
+
+    if (fresh.relations == merged.relations) {
+      debugInnerSection("Fresh [== Merged]")(fresh.relations)
+    } else {
+      debugInnerSection("Fresh")(fresh.relations)
+      debugInnerSection("Merged")(merged.relations)
+    }
     (merged, invalidatedSourcesForCompilation)
   }
 
