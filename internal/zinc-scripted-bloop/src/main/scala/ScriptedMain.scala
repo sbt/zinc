@@ -2,13 +2,10 @@ package sbt.inc
 
 import java.io.File
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Path}
+import java.nio.file.{ Files, Path }
 
 import sbt.io.syntax._
-import sbt.internal.util.complete.Parser
-import sbt.internal.util.complete.Parser._
-import sbt.internal.util.complete.Parsers._
-import sbt.io.{AllPassFilter, NameFilter}
+import sbt.io.{ AllPassFilter, NameFilter }
 import bloop.config.Config
 
 object ScriptedMain {
@@ -19,24 +16,29 @@ object ScriptedMain {
       System.err.println(s"Bloop config files missing in ${bloopDir.getAbsolutePath}")
       System.exit(1)
     } else {
-      val scripted = configFromFile(bloopDir./("zincScripted-test.json"))
-      val zinc = configFromFile(workingDirectory./(".bloop")./("zinc.json"))
+      val scripted = configFromFile(bloopDir./("bloopScripted.json"))
+      val zinc = configFromFile(bloopDir./("zinc.json"))
+
       val sourceDir = zinc.project.directory.resolve("src").resolve("sbt-test")
       val fullClasspath = scripted.project.classesDir :: scripted.project.classpath.toList
-      val parser = scriptedParser(sourceDir.toFile)
-      val toParse = args.headOption.map(s => s" $s").getOrElse("")
-      Parser.parse(toParse, parser) match {
-        case Left(error) => System.err.println(s"Parser error: $error")
-        case Right(scriptedArgs) =>
-          val buffer: Boolean =
-            if (toParse.isEmpty) true
-            else args.tail.headOption.map(java.lang.Boolean.getBoolean(_)).getOrElse(true)
-          runScripted(fullClasspath, sourceDir, scriptedArgs, buffer)
+      val toParse = args.headOption.getOrElse("")
+      val (isUserDefined, buffer) = args.lastOption match {
+        case Some(last) =>
+          if (last == "true") (true, true)
+          else if (last == "false") (true, false)
+          else (false, true)
+        case None => (false, true)
+
       }
+
+      val argsToParse = if (isUserDefined) args.init else args
+      val tests = detectScriptedTests(sourceDir.toFile)
+      val parsed = argsToParse.toList.flatMap(arg => parseScripted(tests, sourceDir.toFile, arg))
+      runScripted(bloopDir, fullClasspath, sourceDir, parsed, buffer)
     }
   }
 
-  private def configFromFile(config: File): Config.File = {
+  def configFromFile(config: File): Config.File = {
     import io.circe.parser
     import bloop.config.ConfigEncoderDecoders._
     println(s"Loading project from '$config'")
@@ -45,67 +47,74 @@ object ScriptedMain {
       parser.parse(contents).right.getOrElse(sys.error(s"Parse error: ${config.getAbsolutePath}"))
     allDecoder.decodeJson(parsed) match {
       case Right(parsedConfig) => parsedConfig
-      case Left(failure) => throw failure
+      case Left(failure)       => throw failure
     }
   }
 
-  private def scriptedParser(scriptedBase: File): Parser[Seq[String]] = {
-    case class ScriptedTestPage(page: Int, total: Int)
+  private def detectScriptedTests(scriptedBase: File): Map[String, Set[String]] = {
     val scriptedFiles: NameFilter = ("test": NameFilter) | "pending"
     val pairs = (scriptedBase * AllPassFilter * AllPassFilter * scriptedFiles).get map {
       (f: File) =>
         val p = f.getParentFile
         (p.getParentFile.getName, p.getName)
     }
-    val pairMap = pairs.groupBy(_._1).mapValues(_.map(_._2).toSet);
 
-    val id = charClass(c => !c.isWhitespace && c != '/').+.string
-    val groupP = token(id.examples(pairMap.keySet.toSet)) <~ token('/')
+    pairs.groupBy(_._1).mapValues(_.map(_._2).toSet)
+  }
 
-    // A parser for page definitions
-    val pageP: Parser[ScriptedTestPage] = ("*" ~ NatBasic ~ "of" ~ NatBasic) map {
-      case _ ~ page ~ _ ~ total => ScriptedTestPage(page, total)
+  private def parseScripted(
+      testsMapping: Map[String, Set[String]],
+      scriptedBase: File,
+      toParse: String
+  ): Seq[String] = {
+    if (toParse.isEmpty) List("*")
+    else if (toParse == "*") List(toParse)
+    else {
+      toParse.split("/") match {
+        case Array(directory, target) if directory == "*" => List(toParse)
+        case Array(directory, target) =>
+          val directoryPath = scriptedBase.toPath.resolve(directory).toAbsolutePath
+          testsMapping.get(directory) match {
+            case Some(tests) if tests.isEmpty          => fail(s"No tests in ${directoryPath}")
+            case Some(tests) if target == "*"          => List(toParse)
+            case Some(tests) if tests.contains(target) => List(toParse)
+            case Some(tests)                           => fail(s"Missing test directory ${directoryPath.resolve(target)}")
+            case None                                  => fail(s"Missing parent directory ${directoryPath}")
+          }
+        case _ => fail("Expected only one '/' in the target scripted test(s).")
+      }
     }
-
-    // Grabs the filenames from a given test group in the current page definition.
-    def pagedFilenames(group: String, page: ScriptedTestPage): Seq[String] = {
-      val files = pairMap(group).toSeq.sortBy(_.toLowerCase)
-      val pageSize = files.size / page.total
-      // The last page may loose some values, so we explicitly keep them
-      val dropped = files.drop(pageSize * (page.page - 1))
-      if (page.page == page.total) dropped
-      else dropped.take(pageSize)
-    }
-
-    def nameP(group: String) = {
-      token("*".id | id.examples(pairMap(group)))
-    }
-
-    val PagedIds: Parser[Seq[String]] =
-      for {
-        group <- groupP
-        page <- pageP
-        files = pagedFilenames(group, page)
-      } yield files map (f => group + '/' + f)
-
-    val testID = (for (group <- groupP; name <- nameP(group)) yield (group, name))
-    val testIdAsGroup = matched(testID) map (test => Seq(test))
-    (token(Space) ~> (PagedIds | testIdAsGroup)).* map (_.flatten)
   }
 
   type IncScriptedRunner = {
-    def run(resourceBaseDirectory: File, bufferLog: Boolean, tests: Array[String]): Unit
+    def run(
+        bloopDir: File,
+        resourceBaseDirectory: File,
+        bufferLog: Boolean,
+        tests: Array[String]
+    ): Unit
   }
 
   import sbt.internal.inc.classpath.ClasspathUtilities
-  def runScripted(classpath: Seq[Path], source: Path, args: Seq[String], buffer: Boolean): Unit = {
+  def runScripted(
+      bloopDir: File,
+      classpath: Seq[Path],
+      source: Path,
+      args: Seq[String],
+      buffer: Boolean
+  ): Unit = {
     println(s"About to run tests: ${args.mkString("\n * ", "\n * ", "\n")}")
     // Force Log4J to not use a thread context classloader otherwise it throws a CCE
     sys.props(org.apache.logging.log4j.util.LoaderUtil.IGNORE_TCCL_PROPERTY) = "true"
     val loader = ClasspathUtilities.toLoader(classpath.map(_.toFile))
-    val bridgeClass = Class.forName("sbt.internal.inc.IncScriptedRunner", true, loader)
+    val bridgeClass = Class.forName("sbt.inc.BloopScriptedRunner", true, loader)
     val bridge = bridgeClass.newInstance.asInstanceOf[IncScriptedRunner]
-    try bridge.run(source.toFile, buffer, args.toArray)
+    try bridge.run(bloopDir, source.toFile, buffer, args.toArray)
     catch { case ite: java.lang.reflect.InvocationTargetException => throw ite.getCause }
+  }
+
+  private def fail(msg: String): Nothing = {
+    println(msg)
+    sys.exit(1)
   }
 }
