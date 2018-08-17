@@ -68,7 +68,7 @@ private final class IncrementalNameHashing(log: sbt.util.Logger, options: IncOpt
                                               externalAPIChange: APIChange,
                                               isScalaClass: String => Boolean): Set[String] = {
     val modifiedBinaryClassName = externalAPIChange.modifiedClass
-    val invalidationReason = memberRefInvalidator.invalidationReason(externalAPIChange)
+    val invalidationReason = memberRefInvalidator.invalidationReason(externalAPIChange).capitalize
     log.debug(
       s"$invalidationReason\nAll member reference dependencies will be considered within this context.")
     // Propagate inheritance dependencies transitively.
@@ -136,20 +136,17 @@ private final class IncrementalNameHashing(log: sbt.util.Logger, options: IncOpt
     def debugMessage: String = {
       if (all.isEmpty) s"Change $change does not affect any class."
       else {
-        val byTransitiveInheritance =
-          if (transitiveInheritance.nonEmpty) s"by transitive inheritance: $transitiveInheritance"
-          else ""
-        val byLocalInheritance =
-          if (localInheritance.nonEmpty) s"by local inheritance: $localInheritance" else ""
-        val byMemberRef =
-          if (memberRef.nonEmpty) s"by member reference: $memberRef" else ""
+        def by(reason: String, classes: Set[String]) = {
+          if (classes.isEmpty) ""
+          else {
+            s"\tby $reason: ${classes.mkString(", ")}\n"
+          }
+        }
 
-        s"""Change $change invalidates ${all.size} classes due to ${memberRefInvalidator
-             .invalidationReason(change)}
-           |\t> $byTransitiveInheritance
-           |\t> $byLocalInheritance
-           |\t> $byMemberRef
-        """.stripMargin
+        s"${all.size} classes were invalidated due to ${memberRefInvalidator.invalidationReason(change)}\n" +
+          by("transitive inheritance", transitiveInheritance) +
+          by("local inheritance", localInheritance) +
+          by("member reference", memberRef)
       }
     }
 
