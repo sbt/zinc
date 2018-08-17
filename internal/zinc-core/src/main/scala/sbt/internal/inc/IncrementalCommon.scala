@@ -121,7 +121,7 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
     val merged = pruned ++ fresh //.copy(relations = pruned.relations ++ fresh.relations, apis = pruned.apis ++ fresh.apis)
 
     if (fresh.relations == merged.relations) {
-      debugInnerSection("Fresh [== Merged]")(fresh.relations)
+      debugInnerSection("Fresh == Merged")(fresh.relations)
     } else {
       debugInnerSection("Fresh")(fresh.relations)
       debugInnerSection("Merged")(merged.relations)
@@ -344,21 +344,37 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
       log.debug("Full compilation, no sources in previous analysis.")
     else if (allInvalidatedClasses.isEmpty && allInvalidatedSourcefiles.isEmpty)
       log.debug("No changes")
-    else
+    else {
+      def color(s: String) = Console.YELLOW + s + Console.RESET
       log.debug(
-        "\nInitial source changes: \n\tremoved:" + removedSrcs + "\n\tadded: " + addedSrcs + "\n\tmodified: " + modifiedSrcs +
-          "\nInvalidated products: " + changes.removedProducts +
-          "\nExternal API changes: " + changes.external +
-          "\nModified binary dependencies: " + changes.binaryDeps +
-          "\nInitial directly invalidated classes: " + invalidatedClasses +
-          "\n\nSources indirectly invalidated by:" +
-          "\n\tproduct: " + byProduct +
-          "\n\tbinary dep: " + byBinaryDep +
-          "\n\texternal source: " + byExtSrcDep
+        s"""
+           |${color("Initial source changes")}:
+           |  ${color("removed")}: ${showSet(removedSrcs, baseIndent = "  ")}
+           |  ${color("added")}: ${showSet(addedSrcs, baseIndent = "  ")}
+           |  ${color("modified")}: ${showSet(modifiedSrcs, baseIndent = "  ")}
+           |${color("Invalidated products")}: ${showSet(changes.removedProducts)}
+           |${color("External API changes")}: ${changes.external}
+           |${color("Modified binary dependencies")}: ${changes.binaryDeps}
+           |${color("Initial directly invalidated classes")}: $invalidatedClasses
+           |
+           |${color("Sources indirectly invalidated by")}:
+           |  ${color("product")}: ${showSet(byProduct, baseIndent = "  ")}
+           |  ${color("binary dep")}: ${showSet(byBinaryDep, baseIndent = "  ")}
+           |  ${color("external source")}: ${showSet(byExtSrcDep, baseIndent = "  ")}""".stripMargin
       )
+    }
 
     (allInvalidatedClasses, allInvalidatedSourcefiles)
   }
+
+  private def showSet[A](s: Set[A], baseIndent: String = ""): String = {
+    if (s.isEmpty) {
+      "[]"
+    } else {
+      s.map(baseIndent + "  " + _.toString).mkString("[\n", ",\n", "\n" + baseIndent + "]")
+    }
+  }
+
   private[this] def checkAbsolute(addedSources: List[File]): Unit =
     if (addedSources.nonEmpty) {
       addedSources.filterNot(_.isAbsolute) match {
