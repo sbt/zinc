@@ -195,6 +195,16 @@ lazy val zincPersist = (project in internalPath / "zinc-persist")
     compileOrder := sbt.CompileOrder.Mixed,
     PB.targets in Compile := List(scalapb.gen() -> (sourceManaged in Compile).value),
     mimaSettings,
+    mimaBinaryIssueFilters ++= {
+      import com.typesafe.tools.mima.core._
+      import com.typesafe.tools.mima.core.ProblemFilters._
+      Seq(
+        // Added {start,end}{Offset,Line,Column}
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Position.apply"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Position.copy"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Position.this"),
+      )
+    }
   )
 
 // Implements the core functionality of detecting and propagating changes incrementally.
@@ -278,6 +288,12 @@ lazy val zincCompileCore = (project in internalPath / "zinc-compile-core")
         // PositionImpl is a private class only invoked in the same source.
         exclude[FinalClassProblem]("sbt.internal.inc.javac.DiagnosticsReporter$PositionImpl"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.javac.DiagnosticsReporter#PositionImpl.this"),
+
+
+        // Renamed vals in a private[sbt] class
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.javac.DiagnosticsReporter#PositionImpl.endPosition"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.javac.DiagnosticsReporter#PositionImpl.startPosition"),
+        exclude[IncompatibleMethTypeProblem]("sbt.internal.inc.javac.DiagnosticsReporter#PositionImpl.this"),
       )
     },
   )

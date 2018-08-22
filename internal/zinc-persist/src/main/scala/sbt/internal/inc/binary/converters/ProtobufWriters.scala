@@ -130,7 +130,13 @@ final class ProtobufWriters(mapper: WriteMapper) {
       pointer = position.pointer.toOption.fold(MissingInt)(_.toInt),
       pointerSpace = position.pointerSpace.toOption.getOrElse(MissingString),
       sourcePath = position.sourcePath.toOption.getOrElse(MissingString),
-      sourceFilepath = position.sourceFile.toOption.fold(MissingString)(toStringPath)
+      sourceFilepath = position.sourceFile.toOption.fold(MissingString)(toStringPath),
+      startOffset = position.startOffset.toOption.fold(MissingInt)(_.toInt),
+      endOffset = position.endOffset.toOption.fold(MissingInt)(_.toInt),
+      startLine = position.startLine.toOption.fold(MissingInt)(_.toInt),
+      startColumn = position.startColumn.toOption.fold(MissingInt)(_.toInt),
+      endLine = position.endLine.toOption.fold(MissingInt)(_.toInt),
+      endColumn = position.endColumn.toOption.fold(MissingInt)(_.toInt)
     )
   }
 

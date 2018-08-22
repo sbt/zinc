@@ -15,7 +15,7 @@ import java.util.Optional
 import java.io.File
 import javax.tools.{ Diagnostic, JavaFileObject, DiagnosticListener }
 import sbt.io.IO
-import sbt.util.InterfaceUtil.o2jo
+import sbt.util.InterfaceUtil.{ o2jo, jo2o }
 import xsbti.{ Severity, Reporter }
 import javax.tools.Diagnostic.NOPOS
 
@@ -59,13 +59,18 @@ object DiagnosticsReporter {
       override val line: Optional[Integer],
       override val lineContent: String,
       override val offset: Optional[Integer],
-      val startPosition: Option[Long],
-      val endPosition: Option[Long]
+      override val startOffset: Optional[Integer],
+      override val endOffset: Optional[Integer]
   ) extends xsbti.Position {
     override val sourcePath: Optional[String] = o2jo(sourceUri)
     override val sourceFile: Optional[File] = o2jo(sourceUri.map(new File(_)))
     override val pointer: Optional[Integer] = o2jo(Option.empty[Integer])
     override val pointerSpace: Optional[String] = o2jo(Option.empty[String])
+
+    override val startLine: Optional[Integer] = o2jo(Option.empty)
+    override val startColumn: Optional[Integer] = o2jo(Option.empty)
+    override val endLine: Optional[Integer] = o2jo(Option.empty)
+    override val endColumn: Optional[Integer] = o2jo(Option.empty)
 
     override def toString: String =
       if (sourceUri.isDefined) s"${sourceUri.get}:${if (line.isPresent) line.get else -1}"
@@ -98,8 +103,8 @@ object DiagnosticsReporter {
       val sourcePath: Option[String] = source map (obj => IO.toFile(obj.toUri).getAbsolutePath)
       val line: Optional[Integer] = o2jo(checkNoPos(d.getLineNumber) map (_.toInt))
       val offset: Optional[Integer] = o2jo(checkNoPos(d.getPosition) map (_.toInt))
-      val startPosition: Option[Long] = checkNoPos(d.getStartPosition)
-      val endPosition: Option[Long] = checkNoPos(d.getEndPosition)
+      val startOffset: Optional[Integer] = o2jo(checkNoPos(d.getStartPosition) map (_.toInt))
+      val endOffset: Optional[Integer] = o2jo(checkNoPos(d.getEndPosition) map (_.toInt))
 
       def lineContent: String = {
         def getDiagnosticLine: Option[String] =
@@ -127,9 +132,9 @@ object DiagnosticsReporter {
           source match {
             case None => ""
             case Some(source) =>
-              (Option(source.getCharContent(true)), startPosition, endPosition) match {
+              (Option(source.getCharContent(true)), jo2o(startOffset), jo2o(endOffset)) match {
                 case (Some(cc), Some(start), Some(end)) =>
-                  cc.subSequence(start.toInt, end.toInt).toString
+                  cc.subSequence(start, end).toString
                 case _ => ""
               }
           }
@@ -137,7 +142,7 @@ object DiagnosticsReporter {
         getDiagnosticLine.getOrElse(getExpression)
       }
 
-      new PositionImpl(sourcePath, line, lineContent, offset, startPosition, endPosition)
+      new PositionImpl(sourcePath, line, lineContent, offset, startOffset, endOffset)
     }
 
   }
