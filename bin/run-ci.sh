@@ -11,7 +11,6 @@ sbt -Dfile.encoding=UTF-8 \
   test:scalafmt::test \
   whitesourceCheckPolicies \
   "$PROJECT_ROOT/test:compile" \
-  bloopScripted/compile \
   crossTestBridges \
   "publishBridges" \
   "$PROJECT_ROOT/test" \
