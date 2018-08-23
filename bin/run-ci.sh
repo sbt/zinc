@@ -14,4 +14,4 @@ sbt -Dfile.encoding=UTF-8 \
   crossTestBridges \
   "publishBridges" \
   "$PROJECT_ROOT/test" \
-  "$PROJECT_ROOT/scripted"
+  "zincScripted/test:run"
