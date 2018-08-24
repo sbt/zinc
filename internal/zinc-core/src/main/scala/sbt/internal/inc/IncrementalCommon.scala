@@ -11,7 +11,8 @@ package inc
 
 import java.io.File
 
-import xsbti.api.{ AnalyzedClass, DefinitionType }
+import xsbt.api.APIUtil
+import xsbti.api.AnalyzedClass
 import xsbti.compile.{
   Changes,
   CompileAnalysis,
@@ -33,8 +34,6 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
   val wrappedLog = new Incremental.PrefixingLogger("[inv] ")(log)
   def debug(s: => String) = if (options.relationsDebug) wrappedLog.debug(s) else ()
 
-  // TODO: the Analysis for the last successful compilation should get returned + Boolean indicating success
-  // TODO: full external name changes, scopeInvalidations
   @tailrec final def cycle(invalidatedRaw: Set[String],
                            modifiedSrcs: Set[File],
                            allSources: Set[File],
@@ -76,14 +75,13 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
 
         debug("\nChanges:\n" + incChanges)
         val transitiveStep = options.transitiveStep
-        val classToSourceMapper = new ClassToSourceMapper(previous.relations, current.relations)
         val incrementallyInvalidated = invalidateIncremental(
           current.relations,
-          current.apis,
           incChanges,
           recompiledClasses,
           cycleNum >= transitiveStep,
-          classToSourceMapper.isDefinedInScalaSrc)
+          IncrementalCommon.comesFromScalaSource(previous.relations, Some(current.relations))
+        )
         val allInvalidated =
           if (lookup.shouldDoIncrementalCompilation(incrementallyInvalidated, current))
             incrementallyInvalidated
@@ -260,7 +258,6 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
   }
 
   def invalidateIncremental(previous: Relations,
-                            apis: APIs,
                             changes: APIChanges,
                             recompiledClasses: Set[String],
                             transitive: Boolean,
@@ -322,11 +319,11 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
     val invalidatedClasses = removedClasses ++ dependentOnRemovedClasses ++ modifiedClasses
     val byProduct = changes.removedProducts.flatMap(previous.produced)
     val byBinaryDep = changes.binaryDeps.flatMap(previous.usesLibrary)
-    val classToSrc = new ClassToSourceMapper(previous, previous)
-    val byExtSrcDep = {
-      //changes.external.modified.flatMap(previous.usesExternal) // ++ scopeInvalidations
-      invalidateByAllExternal(previous, changes.external, classToSrc.isDefinedInScalaSrc)
-    }
+    val byExtSrcDep = invalidateByAllExternal(
+      previous,
+      changes.external,
+      IncrementalCommon.comesFromScalaSource(previous)
+    )
 
     checkAbsolute(addedSrcs.toList)
 
@@ -500,5 +497,24 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
       all(start, dependencies(start))
     }
     xs.toSet
+  }
+}
+
+object IncrementalCommon {
+
+  /** Tell if given class names comes from a Scala source file or not by inspecting relations. */
+  def comesFromScalaSource(
+      previous: Relations,
+      current: Option[Relations] = None
+  )(className: String): Boolean = {
+    val previousSourcesWithClassName = previous.classes.reverse(className)
+    val newSourcesWithClassName = current.map(_.classes.reverse(className)).getOrElse(Set.empty)
+    if (previousSourcesWithClassName.isEmpty && newSourcesWithClassName.isEmpty)
+      sys.error(s"Fatal Zinc error: no entry for class $className in classes relation.")
+    else {
+      // Makes sure that the dependency doesn't possibly come from Java
+      previousSourcesWithClassName.forall(src => APIUtil.isScalaSourceName(src.getName)) &&
+      newSourcesWithClassName.forall(src => APIUtil.isScalaSourceName(src.getName))
+    }
   }
 }
