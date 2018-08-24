@@ -253,6 +253,7 @@ private final class AnalysisCallback(
                              classFile: File,
                              binaryClassName: String,
                              srcClassName: String): Unit = {
+    //println(s"Generated non local class ${source}, ${classFile}, ${binaryClassName}, ${srcClassName}")
     add(nonLocalClasses, source, (classFile, binaryClassName))
     add(classNames, source, (srcClassName, binaryClassName))
     classToSource.put(classFile, srcClassName)
@@ -260,6 +261,7 @@ private final class AnalysisCallback(
   }
 
   def generatedLocalClass(source: File, classFile: File): Unit = {
+    //println(s"Generated local class ${source}, ${classFile}")
     add(localClasses, source, classFile)
     ()
   }

@@ -41,7 +41,7 @@ import scala.collection.mutable
 
 final case class Project(
     name: String,
-    dependsOn: Vector[String] = Vector.empty,
+    dependsOn: Option[Vector[String]] = None,
     in: Option[File] = None,
     scalaVersion: Option[String] = None
 )
@@ -49,7 +49,7 @@ final case class Build(projects: Seq[Project])
 
 final case class IncInstance(si: xsbti.compile.ScalaInstance, cs: XCompilers)
 
-final class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogger)
+class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogger)
     extends BridgeProviderSpecification
     with StatementHandler {
 
@@ -75,12 +75,13 @@ final class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogg
     build.projects.foreach { p =>
       val in = p.in.getOrElse(directory / p.name)
       val version = p.scalaVersion.getOrElse(scala.util.Properties.versionNumberString)
-      val project = ProjectStructure(p.name, p.dependsOn, in, scriptedLog, lookupProject, version)
+      val deps = p.dependsOn.toVector.flatten
+      val project = ProjectStructure(p.name, deps, in, scriptedLog, lookupProject, version)
       buildStructure(p.name) = project
     }
   }
 
-  private final val RootIdentifier = "root"
+  final val RootIdentifier = "root"
   def initBuild: Build = {
     if ((directory / "build.json").exists) {
       import sjsonnew._, BasicJsonProtocol._

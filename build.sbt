@@ -710,27 +710,40 @@ lazy val zincClassfile212 = zincClassfileTemplate
 // re-implementation of scripted engine
 lazy val zincScripted = (project in internalPath / "zinc-scripted")
   .dependsOn(zinc, zincIvyIntegration % "test->test")
+  .dependsOn(compilerBridge210, compilerBridge211, compilerBridge212, compilerBridge213)
+  .enablePlugins(BuildInfoPlugin)
+  .settings(sbtbuildinfo.BuildInfoPlugin.buildInfoScopedSettings(Test))
   .settings(
     minimalSettings,
     noPublish,
     name := "zinc Scripted",
+    // Only generate build info for tests
+    buildInfo in Compile := Nil,
+    buildInfoPackage in Test := "sbt.internal.inc",
+    buildInfoKeys in Test := {
+      val bridgeKeys = List[BuildInfoKey](
+        BuildInfoKey.map(scalaVersion in compilerBridge210) { case (_, v) => "scalaVersion210" -> v },
+        BuildInfoKey.map(scalaInstance in compilerBridge210) { case (k, v) => "scalaJars210" -> v.allJars.toList },
+        BuildInfoKey.map(classDirectory in Compile in compilerBridge210) { case (k, v) => "classDirectory210" -> v },
+        BuildInfoKey.map(scalaVersion in compilerBridge211) { case (_, v) => "scalaVersion211" -> v },
+        BuildInfoKey.map(scalaInstance in compilerBridge211) { case (k, v) => "scalaJars211" -> v.allJars.toList },
+        BuildInfoKey.map(classDirectory in Compile in compilerBridge211) { case (k, v) => "classDirectory211" -> v },
+        BuildInfoKey.map(scalaVersion in compilerBridge212) { case (_, v) => "scalaVersion212" -> v },
+        BuildInfoKey.map(scalaInstance in compilerBridge212) { case (k, v) => "scalaJars212" -> v.allJars.toList },
+        BuildInfoKey.map(classDirectory in Compile in compilerBridge212) { case (k, v) => "classDirectory212" -> v },
+        BuildInfoKey.map(scalaVersion in compilerBridge213) { case (_, v) => "scalaVersion213" -> v },
+        BuildInfoKey.map(scalaInstance in compilerBridge213) { case (k, v) => "scalaJars213" -> v.allJars.toList },
+        BuildInfoKey.map(classDirectory in Compile in compilerBridge213) { case (k, v) => "classDirectory213" -> v },
+      )
+
+      Seq[BuildInfoKey](
+        sourceDirectory in zinc,
+        classDirectory in Test,
+        BuildInfoKey.map(dependencyClasspath in Test) { case (k, v) => "classpath" -> v.seq.map(_.data) }
+      ) ++ bridgeKeys
+    }
   )
   .configure(addSbtUtilScripted)
-
-// re-implementation of scripted engine as a standalone main
-lazy val bloopScripted = (project in internalPath / "zinc-scripted-bloop")
-  .dependsOn(zinc, zincScripted % "compile->test")
-  .settings(
-    minimalSettings,
-    noPublish,
-    name := "zinc Scripted Bloop",
-    scalaVersion := scala212,
-    crossScalaVersions := List(scala212),
-    libraryDependencies ++= List(
-      "org.scala-sbt" %% "completion" % sbtVersion.value,
-      "ch.epfl.scala" %% "bloop-config" % "1.0.0",
-    )
-  )
 
 lazy val crossTestBridges = {
   Command.command("crossTestBridges") { state =>

@@ -3,8 +3,6 @@ package sbt.internal.inc
 import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 
-import org.apache.logging.log4j.core.LogEvent
-import org.apache.logging.log4j.core.impl.Log4jLogEvent
 import sbt.internal.scripted._
 import sbt.io.IO
 import sbt.io.FileFilter._
