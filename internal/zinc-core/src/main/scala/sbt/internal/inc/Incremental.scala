@@ -63,7 +63,7 @@ object Incremental {
     val previous = previous0 match { case a: Analysis => a }
     val incremental: IncrementalCommon =
       new IncrementalNameHashing(log, options)
-    val initialChanges = incremental.changedInitial(sources, previous, current, lookup)
+    val initialChanges = incremental.detectInitialChanges(sources, previous, current, lookup)
     val binaryChanges = new DependencyChanges {
       val modifiedBinaries = initialChanges.binaryDeps.toArray
       val modifiedClasses = initialChanges.external.allModified.toArray
@@ -118,15 +118,11 @@ object Incremental {
   private[inc] def apiDebug(options: IncOptions): Boolean =
     options.apiDebug || java.lang.Boolean.getBoolean(apiDebugProp)
 
-  private[sbt] def prune(invalidatedSrcs: Set[File], previous: CompileAnalysis): Analysis =
-    prune(invalidatedSrcs, previous, ClassFileManager.deleteImmediately)
-
-  private[sbt] def prune(invalidatedSrcs: Set[File],
-                         previous0: CompileAnalysis,
-                         classfileManager: XClassFileManager): Analysis = {
-    val previous = previous0 match { case a: Analysis => a }
-    classfileManager.delete(invalidatedSrcs.flatMap(previous.relations.products).toArray)
-    previous -- invalidatedSrcs
+  private[sbt] def prune(invalidatedSrcs: Set[File], previous0: CompileAnalysis): Analysis = {
+    val previous = previous0.asInstanceOf[Analysis]
+    IncrementalCommon.pruneClassFilesOfInvalidations(invalidatedSrcs,
+                                                     previous,
+                                                     ClassFileManager.deleteImmediately)
   }
 
   private[this] def manageClassfiles[T](options: IncOptions)(run: XClassFileManager => T): T = {
