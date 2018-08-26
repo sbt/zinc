@@ -31,7 +31,11 @@ import scala.annotation.tailrec
  * @param log An instance of a logger.
  * @param options An instance of incremental compiler options.
  */
-private[inc] abstract class IncrementalCommon(val log: Logger, options: IncOptions) {
+private[inc] abstract class IncrementalCommon(
+    val log: Logger,
+    options: IncOptions,
+    profiler: RunProfiler
+) extends InvalidationProfilerUtils {
   // Work around bugs in classpath handling such as the "currently" problematic -javabootclasspath
   private[this] def enableShallowLookup: Boolean =
     java.lang.Boolean.getBoolean("xsbt.skip.cp.lookup")
@@ -81,11 +85,11 @@ private[inc] abstract class IncrementalCommon(val log: Logger, options: IncOptio
       // Computes which source files are mapped to the invalidated classes and recompile them
       val invalidatedSources =
         mapInvalidationsToSources(classesToRecompile, initialChangedSources, allSources, previous)
-      val (current, recompiledRecently) =
+      val current =
         recompileClasses(invalidatedSources, binaryChanges, previous, doCompile, classfileManager)
 
       // Return immediate analysis as all sources have been recompiled
-      if (recompiledRecently == allSources) current
+      if (invalidatedSources == allSources) current
       else {
         val recompiledClasses: Set[String] = {
           // Represents classes detected as changed externally and internally (by a previous cycle)
@@ -107,6 +111,18 @@ private[inc] abstract class IncrementalCommon(val log: Logger, options: IncOptio
         )
 
         val continue = lookup.shouldDoIncrementalCompilation(nextInvalidations, current)
+
+        profiler.registerCycle(
+          invalidatedClasses,
+          invalidatedByPackageObjects,
+          initialChangedSources,
+          invalidatedSources,
+          recompiledClasses,
+          newApiChanges,
+          nextInvalidations,
+          continue
+        )
+
         cycle(
           if (continue) nextInvalidations else Set.empty,
           Set.empty,
@@ -147,20 +163,20 @@ private[inc] abstract class IncrementalCommon(val log: Logger, options: IncOptio
       previous: Analysis,
       doCompile: (Set[File], DependencyChanges) => Analysis,
       classfileManager: XClassFileManager
-  ): (Analysis, Set[File]) = {
+  ): Analysis = {
     val pruned =
       IncrementalCommon.pruneClassFilesOfInvalidations(sources, previous, classfileManager)
     debug("********* Pruned: \n" + pruned.relations + "\n*********")
     val fresh = doCompile(sources, binaryChanges)
     debug("********* Fresh: \n" + fresh.relations + "\n*********")
-    val merged = pruned ++ fresh
 
     /* This is required for both scala compilation and forked java compilation, despite
      *  being redundant for the most common Java compilation (using the local compiler). */
     classfileManager.generated(fresh.relations.allProducts.toArray)
 
+    val merged = pruned ++ fresh
     debug("********* Merged: \n" + merged.relations + "\n*********")
-    (merged, sources)
+    merged
   }
 
   /**
@@ -258,7 +274,9 @@ private[inc] abstract class IncrementalCommon(val log: Logger, options: IncOptio
       else incrementalExternalChanges
     }
 
-    InitialChanges(sourceChanges, removedProducts, changedBinaries, externalApiChanges)
+    val init = InitialChanges(sourceChanges, removedProducts, changedBinaries, externalApiChanges)
+    profiler.registerInitial(init)
+    init
   }
 
   /**

@@ -24,8 +24,11 @@ import xsbt.api.SameAPI
  * See [[MemberRefInvalidator]] for more information on how the name heuristics work to invalidate
  * member references.
  */
-private[inc] class IncrementalNameHashingCommon(log: Logger, options: IncOptions)
-    extends IncrementalCommon(log, options) {
+private[inc] class IncrementalNameHashingCommon(
+    log: Logger,
+    options: IncOptions,
+    profiler: RunProfiler
+) extends IncrementalCommon(log, options, profiler) {
   import IncrementalCommon.transitiveDeps
 
   private val memberRefInvalidator = new MemberRefInvalidator(log, options.logRecompileOnMacro())
@@ -142,13 +145,32 @@ private[inc] class IncrementalNameHashingCommon(log: Logger, options: IncOptions
 
     val modifiedClass = change.modifiedClass
     val transitiveInheritance = invalidateByInheritance(relations, modifiedClass)
+    profiler.registerEvent(
+      zprof.InvalidationEvent.InheritanceKind,
+      List(modifiedClass),
+      transitiveInheritance,
+      s"The invalidated class names inherit directly or transitively on ${modifiedClass}."
+    )
+
     val localInheritance =
       transitiveInheritance.flatMap(invalidateByLocalInheritance(relations, _))
+    profiler.registerEvent(
+      zprof.InvalidationEvent.LocalInheritanceKind,
+      transitiveInheritance,
+      localInheritance,
+      s"The invalidated class names inherit (via local inheritance) directly or transitively on ${modifiedClass}."
+    )
 
     val memberRefSrcDeps = relations.memberRef.internal
     val memberRefInvalidation =
       memberRefInvalidator.get(memberRefSrcDeps, relations.names, change, isScalaClass)
     val memberRef = transitiveInheritance flatMap memberRefInvalidation
+    profiler.registerEvent(
+      zprof.InvalidationEvent.MemberReferenceKind,
+      transitiveInheritance,
+      memberRef,
+      s"The invalidated class names refer directly or transitively to ${modifiedClass}."
+    )
     val all = transitiveInheritance ++ localInheritance ++ memberRef
 
     def debugMessage: String = {
@@ -182,5 +204,5 @@ private[inc] class IncrementalNameHashingCommon(log: Logger, options: IncOptions
   ): Set[String] = relations.memberRef.internal.reverse(className)
 }
 
-private final class IncrementalNameHashing(log: Logger, options: IncOptions)
-    extends IncrementalNameHashingCommon(log, options)
+private final class IncrementalNameHashing(log: Logger, options: IncOptions, profiler: RunProfiler)
+    extends IncrementalNameHashingCommon(log, options, profiler)

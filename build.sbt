@@ -243,6 +243,7 @@ lazy val zincCore = (project in internalPath / "zinc-core")
     name := "zinc Core",
     compileOrder := sbt.CompileOrder.Mixed,
     mimaSettings,
+    PB.targets in Compile := List(scalapb.gen() -> (sourceManaged in Compile).value),
   )
   .configure(addSbtIO, addSbtUtilLogging, addSbtUtilRelation)
 
