@@ -29,19 +29,18 @@ object InvalidationProfiler {
 }
 
 class ZincInvalidationProfiler extends InvalidationProfiler {
-  private final var lastKnownIndex: Long = -1L
-  /* These string tables contain any kind of repeated string that is likely to occur
+  private final var lastKnownIndex: Int = -1
+  /* The string table contains any kind of repeated string that is likely to occur
    * in the protobuf profiling data. This includes used names, class names, source
    * files and class files (their paths), as well as other repeated strings. This is
    * done to keep the memory overhead of the profiler to a minimum. */
-  private final val stringTable1: ArrayBuffer[String] = new ArrayBuffer[String](1000)
-  private final val stringTable2: ArrayBuffer[String] = new ArrayBuffer[String](0)
-  
+  private final val stringTable: ArrayBuffer[String] = new ArrayBuffer[String](1000)
+
   /* Maps strings to indices. The indices are long because we're overprotecting ourselves
    * in case the string table grows gigantic. This should not happen, but as the profiling
    * scheme of pprof does it and it's not cumbersome to implement it, we replicate the same design. */
-  private final val stringTableIndices: mutable.HashMap[String, Long] =
-    new mutable.HashMap[String, Long]
+  private final val stringTableIndices: mutable.HashMap[String, Int] =
+    new mutable.HashMap[String, Int]
 
   def profileRun: RunProfiler = new ZincProfilerImplementation
 
@@ -56,46 +55,36 @@ class ZincInvalidationProfiler extends InvalidationProfiler {
    *
    * It is recommended to only perform this operation when we are
    * going to persist the profiled protobuf data to disk. Do not
-   * call this function after every compiler iteration as the aggregation
-   * of the symbol tables may be expensive, it's recommended to
-   * persist this file periodically.
+   * call this function after every compiler iteration as you will
+   * write a symbol table in every persisted protobuf file. It's
+   * better to persist this file periodically after several runs
+   * so that the overhead in disk is not high.
    *
    * @return An immutable zprof profile that can be persisted via protobuf.
    */
   def toProfile: zprof.Profile = zprof.Profile(
     runs = runs,
-    stringTable = stringTable1 ++ stringTable2
+    stringTable = stringTable
   )
 
   private[inc] class ZincProfilerImplementation extends RunProfiler {
-    private def toStringTableIndex(string: String): Long = {
+    private def toStringTableIndex(string: String): Int = {
       stringTableIndices.get(string) match {
         case Some(index) =>
-          if (index <= Integer.MAX_VALUE) {
-            val newIndex = index.toInt
-            stringTable1.apply(newIndex)
-            newIndex
-          } else {
-            val newIndex = (index - Integer.MAX_VALUE.toLong).toInt
-            stringTable2.apply(newIndex)
-            newIndex
-          }
+          val newIndex = index.toInt
+          stringTable.apply(newIndex)
+          newIndex
         case None =>
           val newIndex = lastKnownIndex + 1
           // Depending on the size of the index, use the first or second symbol table
-          if (newIndex <= Integer.MAX_VALUE) {
-            stringTable1.insert(newIndex.toInt, string)
-          } else {
-            val newIndex2 = (newIndex - Integer.MAX_VALUE.toLong).toInt
-            stringTable2.insert(newIndex2, string)
-          }
+          stringTable.insert(newIndex.toInt, string)
           stringTableIndices.put(string, newIndex)
           lastKnownIndex = lastKnownIndex + 1
           newIndex
       }
     }
 
-    private def toStringTableIndices(strings: Iterable[String]): Iterable[Long] =
+    private def toStringTableIndices(strings: Iterable[String]): Iterable[Int] =
       strings.map(toStringTableIndex(_))
 
     private final var compilationStartNanos: Long = 0L
@@ -210,11 +199,11 @@ class ZincInvalidationProfiler extends InvalidationProfiler {
 }
 
 /**
-  * Defines the interface of a profiler. This interface is used in the guts of
-  * [[IncrementalCommon]] and [[IncrementalNameHashing]]. A profiler of a run
-  * is instantiated afresh in `Incremental.compile` and then added to the profiler
-  * instance managed by the client.
-  */
+ * Defines the interface of a profiler. This interface is used in the guts of
+ * [[IncrementalCommon]] and [[IncrementalNameHashing]]. A profiler of a run
+ * is instantiated afresh in `Incremental.compile` and then added to the profiler
+ * instance managed by the client.
+ */
 abstract class RunProfiler {
   def timeCompilation(
       startNanos: Long,
