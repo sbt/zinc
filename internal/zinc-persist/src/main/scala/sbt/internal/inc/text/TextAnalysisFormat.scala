@@ -48,8 +48,8 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
     asProduct3(read)(a => (a.name(), a.scope().name(), a.hash()))
   }
   private implicit val companionsFomrat: Format[Companions] = CompanionsFormat
-  private implicit def problemFormat: Format[Problem] = {
-    asProduct4(problem)(p => (p.category, p.position, p.message, p.severity))
+  private implicit def problemFormat: Format[Problem] =
+    asProduct5(problem)(p => (p.category, p.position, p.message, p.severity, jo2o(p.rendered)))
   private implicit def positionFormat: Format[Position] =
     asProduct13(position)(
       p =>
