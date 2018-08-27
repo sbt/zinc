@@ -30,8 +30,16 @@ object InvalidationProfiler {
 
 class ZincInvalidationProfiler extends InvalidationProfiler {
   private final var lastKnownIndex: Long = -1L
+  /* These string tables contain any kind of repeated string that is likely to occur
+   * in the protobuf profiling data. This includes used names, class names, source
+   * files and class files (their paths), as well as other repeated strings. This is
+   * done to keep the memory overhead of the profiler to a minimum. */
   private final val stringTable1: ArrayBuffer[String] = new ArrayBuffer[String](1000)
-  private final val stringTable2: ArrayBuffer[String] = new ArrayBuffer[String](10)
+  private final val stringTable2: ArrayBuffer[String] = new ArrayBuffer[String](0)
+  
+  /* Maps strings to indices. The indices are long because we're overprotecting ourselves
+   * in case the string table grows gigantic. This should not happen, but as the profiling
+   * scheme of pprof does it and it's not cumbersome to implement it, we replicate the same design. */
   private final val stringTableIndices: mutable.HashMap[String, Long] =
     new mutable.HashMap[String, Long]
 
@@ -201,6 +209,12 @@ class ZincInvalidationProfiler extends InvalidationProfiler {
   }
 }
 
+/**
+  * Defines the interface of a profiler. This interface is used in the guts of
+  * [[IncrementalCommon]] and [[IncrementalNameHashing]]. A profiler of a run
+  * is instantiated afresh in `Incremental.compile` and then added to the profiler
+  * instance managed by the client.
+  */
 abstract class RunProfiler {
   def timeCompilation(
       startNanos: Long,
