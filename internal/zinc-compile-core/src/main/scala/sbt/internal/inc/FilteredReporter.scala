@@ -78,15 +78,20 @@ class FilteredReporter(
    * registered as problems so that users of `problems()` receive them.
    */
   override def log(problem: Problem): Unit = {
-    val (category, position, message, severity) =
-      (problem.category, problem.position, problem.message, problem.severity)
+    import sbt.util.InterfaceUtil
+
+    val (category, position, message, severity, rendered) =
+      (problem.category,
+       problem.position,
+       problem.message,
+       problem.severity,
+       InterfaceUtil.jo2o(problem.rendered))
     val dontShow = isFiltered(position, message, severity)
     if (!dontShow) super.log(problem)
     else {
       // Even if we don't display, we do want to register the problem
-      import sbt.util.InterfaceUtil
       val transformedPos: Position = positionMapper(position)
-      val problem = InterfaceUtil.problem(category, transformedPos, message, severity)
+      val problem = InterfaceUtil.problem(category, transformedPos, message, severity, rendered)
       allProblems += problem
       ()
     }

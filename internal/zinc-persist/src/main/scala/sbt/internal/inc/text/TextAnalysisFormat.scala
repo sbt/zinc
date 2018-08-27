@@ -44,7 +44,7 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
   }
   private implicit val companionsFomrat: Format[Companions] = CompanionsFormat
   private implicit def problemFormat: Format[Problem] =
-    asProduct4(problem)(p => (p.category, p.position, p.message, p.severity))
+    asProduct5(problem)(p => (p.category, p.position, p.message, p.severity, jo2o(p.rendered)))
   private implicit def positionFormat: Format[Position] =
     asProduct13(position)(
       p =>
