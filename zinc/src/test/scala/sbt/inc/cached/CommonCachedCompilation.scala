@@ -83,7 +83,9 @@ abstract class CommonCachedCompilation(name: String)
   }
 
   override protected def beforeAll(): Unit = {
-    val basePath = IO.createTemporaryDirectory.toPath.resolve("remote")
+    //don't use temp dir because it might end up on different drive (on windows) and this later fails in sbt.internal.inc.binary.converters.ProtobufWriters due to inability to relativize paths
+    val basePath =
+      IO.createUniqueDirectory(new java.io.File("target").getAbsoluteFile).toPath.resolve("remote")
     Files.createDirectory(basePath)
 
     remoteProject =
