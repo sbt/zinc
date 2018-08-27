@@ -24,20 +24,21 @@ import sbt.util.InterfaceUtil.jo2o
 trait ProblemStringFormats {
   implicit lazy val ProblemStringFormat: ShowLines[Problem] = new ShowLines[Problem] {
     def showLines(p: Problem): Seq[String] =
-      p match {
-        case p if !p.position.sourcePath.isPresent && !p.position.line.isPresent =>
-          Vector(p.message)
-        case _ =>
-          val pos = p.position
-          val sourcePrefix = jo2o(pos.sourcePath).getOrElse("")
-          val columnNumber = jo2o(pos.pointer).fold(1)(_.toInt + 1)
-          val lineNumberString = jo2o(pos.line).fold(":")(":" + _ + ":" + columnNumber + ":") + " "
-          val line1 = sourcePrefix + lineNumberString + p.message
-          val lineContent = pos.lineContent
-          if (!lineContent.isEmpty) {
-            Vector(line1, lineContent) ++
-              (for { space <- jo2o(pos.pointerSpace) } yield (space + "^")).toVector // pointer to the column position of the error/warning
-          } else Vector(line1)
+      if (p.rendered.isPresent)
+        Vector(p.rendered.get)
+      else if (!p.position.sourcePath.isPresent && !p.position.line.isPresent)
+        Vector(p.message)
+      else {
+        val pos = p.position
+        val sourcePrefix = jo2o(pos.sourcePath).getOrElse("")
+        val columnNumber = jo2o(pos.pointer).fold(1)(_.toInt + 1)
+        val lineNumberString = jo2o(pos.line).fold(":")(":" + _ + ":" + columnNumber + ":") + " "
+        val line1 = sourcePrefix + lineNumberString + p.message
+        val lineContent = pos.lineContent
+        if (!lineContent.isEmpty) {
+          Vector(line1, lineContent) ++
+            (for { space <- jo2o(pos.pointerSpace) } yield (space + "^")).toVector // pointer to the column position of the error/warning
+        } else Vector(line1)
       }
   }
 }

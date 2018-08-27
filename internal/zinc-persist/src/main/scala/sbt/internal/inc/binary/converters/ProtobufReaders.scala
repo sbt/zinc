@@ -26,6 +26,8 @@ import sbt.internal.inc.binary.converters.ProtobufDefaults.{ Classes, ReadersCon
 import sbt.internal.util.Relation
 import xsbti.api._
 
+import ProtobufDefaults.{ MissingString, MissingInt }
+
 final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) {
   def fromPathString(path: String): File = {
     java.nio.file.Paths.get(path).toFile
@@ -120,11 +122,6 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) 
   }
 
   def fromPosition(position: schema.Position): Position = {
-    import ProtobufDefaults.{ MissingString, MissingInt }
-    def fromString(value: String): Option[String] =
-      if (value == MissingString) None else Some(value)
-    def fromInt(value: Int): Option[Integer] =
-      if (value == MissingInt) None else Some(value)
     InterfaceUtil.position(
       line0 = fromInt(position.line),
       content = position.lineContent,
@@ -151,6 +148,12 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) 
     }
   }
 
+  private def fromString(value: String): Option[String] =
+    if (value == MissingString) None else Some(value)
+
+  private def fromInt(value: Int): Option[Integer] =
+    if (value == MissingInt) None else Some(value)
+
   def fromProblem(problem: schema.Problem): Problem = {
     val category = problem.category
     val message = problem.message
@@ -158,7 +161,8 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) 
     val position = problem.position
       .map(fromPosition)
       .getOrElse(ReadersFeedback.ExpectedPositionInProblem.!!)
-    InterfaceUtil.problem(category, position, message, severity, None)
+    val rendered = fromString(problem.rendered)
+    InterfaceUtil.problem(category, position, message, severity, rendered)
   }
 
   def fromSourceInfo(sourceInfo: schema.SourceInfo): SourceInfo = {
