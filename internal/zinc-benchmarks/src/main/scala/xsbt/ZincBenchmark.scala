@@ -235,11 +235,11 @@ private[xsbt] object ZincBenchmark {
          |  // Resolve project dynamically to avoid name clashes/overloading
          |  val project = LocalProject("$sbtProject")
          |  Def.task {
-         |    val file = new File("${outputFile.getAbsolutePath}")
+         |    val file = new File("${outputFile.getAbsolutePath.replaceAllLiterally("\\", "/")}")
          |    val rawSources = (sources in Compile in project).value
          |    val sourcesLine = rawSources.map(_.getAbsolutePath).mkString(" ")
          |    val rawClasspath = (dependencyClasspath in Compile in project).value
-         |    val classpathLine = rawClasspath.map(_.data.getAbsolutePath).mkString(":")
+         |    val classpathLine = rawClasspath.map(_.data.getAbsolutePath).mkString(java.io.File.pathSeparator)
          |    val optionsLine = (scalacOptions in Compile in project).value.mkString(" ")
          |    IO.writeLines(file, Seq(sourcesLine, classpathLine, optionsLine))
          |  }
@@ -317,7 +317,8 @@ private[xsbt] object ZincBenchmark {
       import scala.sys.process._
       val taskName = generateTaskName(sbtProject)
       val scalaVersion = scala.util.Properties.scalaPropOrElse("version.number", "2.12.1")
-      val sbt = Try(Process(s"sbt ++$scalaVersion $taskName", atDir).!).toEither
+      val sbtExecutable = if (scala.util.Properties.isWin) "cmd /c sbt.bat" else "sbt"
+      val sbt = Try(Process(s"$sbtExecutable ++$scalaVersion $taskName", atDir).!).toEither
       sbt.right.flatMap { _ =>
         val buildOutputFilepath = buildOutputFile.getAbsolutePath
         Try {
