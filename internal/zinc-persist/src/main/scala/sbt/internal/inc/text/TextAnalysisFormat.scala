@@ -50,9 +50,8 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
   private implicit val companionsFomrat: Format[Companions] = CompanionsFormat
   private implicit def problemFormat: Format[Problem] = {
     asProduct4(problem)(p => (p.category, p.position, p.message, p.severity))
-  }
-  private implicit def positionFormat: Format[Position] = {
-    asProduct7(position)(
+  private implicit def positionFormat: Format[Position] =
+    asProduct13(position)(
       p =>
         (
           jo2o(p.line),
@@ -61,10 +60,15 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
           jo2o(p.pointer),
           jo2o(p.pointerSpace),
           jo2o(p.sourcePath),
-          jo2o(p.sourceFile)
+          jo2o(p.sourceFile),
+          jo2o(p.startOffset),
+          jo2o(p.endOffset),
+          jo2o(p.startLine),
+          jo2o(p.startColumn),
+          jo2o(p.endLine),
+          jo2o(p.endColumn)
         )
     )
-  }
   private implicit val severityFormat: Format[Severity] =
     wrap[Severity, Byte](_.ordinal.toByte, b => Severity.values.apply(b.toInt))
   private implicit val integerFormat: Format[Integer] =

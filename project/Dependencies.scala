@@ -67,7 +67,7 @@ object Dependencies {
   val scalaCompiler = Def.setting { "org.scala-lang" % "scala-compiler" % scalaVersion.value }
 
   val parserCombinator = "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2"
-  val sbinary = "org.scala-sbt" %% "sbinary" % "0.4.4"
+  val sbinary = "org.scala-sbt" %% "sbinary" % "0.5.0"
   val silencerPlugin = "com.github.ghik" %% "silencer-plugin" % "1.2"
   val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.14.0"
   val scalatest = "org.scalatest" %% "scalatest" % "3.0.8"
