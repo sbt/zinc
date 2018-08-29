@@ -12,7 +12,7 @@ class TestCallback extends AnalysisCallback {
 
   val classDependencies = new ArrayBuffer[(String, String, DependencyContext)]
   val binaryDependencies = new ArrayBuffer[(File, String, String, DependencyContext)]
-  val products = new ArrayBuffer[(File, File)]
+  val productClassesToSources = scala.collection.mutable.Map.empty[File, File]
   val usedNamesAndScopes =
     scala.collection.mutable.Map.empty[String, Set[TestUsedName]].withDefaultValue(Set.empty)
   val classNames =
@@ -42,17 +42,17 @@ class TestCallback extends AnalysisCallback {
     binaryDependencies += ((onBinary, onBinaryClassName, fromClassName, context))
     ()
   }
-  def generatedNonLocalClass(source: File,
-                             module: File,
+  def generatedNonLocalClass(sourceFile: File,
+                             classFile: File,
                              binaryClassName: String,
                              srcClassName: String): Unit = {
-    products += ((source, module))
-    classNames(source) += ((srcClassName, binaryClassName))
+    productClassesToSources += ((classFile, sourceFile))
+    classNames(sourceFile) += ((srcClassName, binaryClassName))
     ()
   }
 
-  def generatedLocalClass(source: File, module: File): Unit = {
-    products += ((source, module))
+  def generatedLocalClass(sourceFile: File, classFile: File): Unit = {
+    productClassesToSources += ((classFile, sourceFile))
     ()
   }
 

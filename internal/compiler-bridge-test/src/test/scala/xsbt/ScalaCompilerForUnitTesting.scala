@@ -3,10 +3,11 @@ package xsbt
 import xsbti.TestCallback.ExtractedClassDependencies
 import xsbti.compile.SingleOutput
 import java.io.File
+import java.nio.file.Files
+
 import xsbti._
 import sbt.io.IO.withTemporaryDirectory
 import xsbti.api.ClassLike
-
 import sbt.internal.util.ConsoleLogger
 import xsbti.api.DependencyContext._
 
@@ -166,11 +167,21 @@ class ScalaCompilerForUnitTesting {
         srcFilePaths.foreach(f => new File(f).delete)
         srcFiles
       }
+
+      // Make sure that the analysis doesn't lie about the class files that are written
+      analysisCallback.productClassesToSources.keySet.foreach { classFile =>
+        if (classFile.exists()) ()
+        else {
+          val cfs = Files.list(classFile.toPath.getParent).toArray.mkString("\n")
+          sys.error(s"Class file '${classFile.getAbsolutePath}' doesn't exist! Found:\n$cfs")
+        }
+      }
+
       (files.flatten, analysisCallback)
     }
   }
 
-  private def compileSrcs(srcs: String*): (Seq[File], TestCallback) = {
+  private[xsbt] def compileSrcs(srcs: String*): (Seq[File], TestCallback) = {
     compileSrcs(List(srcs.toList), reuseCompilerInstance = true)
   }
 
