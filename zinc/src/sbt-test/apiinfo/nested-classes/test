@@ -1,3 +1,5 @@
 > compile
 $ copy-file changes/a1.scala src/main/scala/a.scala
 > run
+$ copy-file changes/a2.scala src/main/scala/a.scala
+> run
