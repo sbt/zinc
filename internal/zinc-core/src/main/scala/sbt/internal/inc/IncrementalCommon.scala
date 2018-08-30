@@ -47,6 +47,7 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
     if (invalidatedRaw.isEmpty && modifiedSrcs.isEmpty)
       previous
     else {
+      debugOuterSection(s"Recompilation cycle #$cycleNum")
       val invalidatedPackageObjects =
         this.invalidatedPackageObjects(invalidatedRaw, previous.relations, previous.apis)
       if (invalidatedPackageObjects.nonEmpty)
@@ -111,15 +112,20 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
     val invalidatedSources = classes.flatMap(previous.relations.definesClass) ++ modifiedSrcs
     val invalidatedSourcesForCompilation = expand(invalidatedSources, allSources)
     val pruned = Incremental.prune(invalidatedSourcesForCompilation, previous, classfileManager)
-    debug("********* Pruned: \n" + pruned.relations + "\n*********")
+    debugInnerSection("Pruned")(pruned.relations)
 
     val fresh = doCompile(invalidatedSourcesForCompilation, binaryChanges)
     // For javac as class files are added to classfileManager as they are generated, so
     // this step is redundant. For scalac this is still necessary. TODO: do the same for scalac.
     classfileManager.generated(fresh.relations.allProducts.toArray)
-    debug("********* Fresh: \n" + fresh.relations + "\n*********")
     val merged = pruned ++ fresh //.copy(relations = pruned.relations ++ fresh.relations, apis = pruned.apis ++ fresh.apis)
-    debug("********* Merged: \n" + merged.relations + "\n*********")
+
+    if (fresh.relations == merged.relations) {
+      debugInnerSection("Fresh == Merged")(fresh.relations)
+    } else {
+      debugInnerSection("Fresh")(fresh.relations)
+      debugInnerSection("Merged")(merged.relations)
+    }
     (merged, invalidatedSourcesForCompilation)
   }
 
@@ -279,7 +285,7 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
     val inv: Set[String] = propagated ++ dups
     val newlyInvalidated = (inv -- recompiledClasses) ++ dups
     log.debug(
-      "All newly invalidated classes after taking into account (previously) recompiled classes:" + newlyInvalidated)
+      "All newly invalidated classes after taking into account (previously) recompiled classes: " + newlyInvalidated)
     if (newlyInvalidated.isEmpty) Set.empty else inv
   }
 
@@ -333,25 +339,42 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
     val allInvalidatedClasses = invalidatedClasses ++ byExtSrcDep
     val allInvalidatedSourcefiles = addedSrcs ++ modifiedSrcs ++ byProduct ++ byBinaryDep
 
+    debugOuterSection(s"Initial invalidation")
     if (previous.allSources.isEmpty)
       log.debug("Full compilation, no sources in previous analysis.")
     else if (allInvalidatedClasses.isEmpty && allInvalidatedSourcefiles.isEmpty)
       log.debug("No changes")
-    else
+    else {
+      def color(s: String) = Console.YELLOW + s + Console.RESET
       log.debug(
-        "\nInitial source changes: \n\tremoved:" + removedSrcs + "\n\tadded: " + addedSrcs + "\n\tmodified: " + modifiedSrcs +
-          "\nInvalidated products: " + changes.removedProducts +
-          "\nExternal API changes: " + changes.external +
-          "\nModified binary dependencies: " + changes.binaryDeps +
-          "\nInitial directly invalidated classes: " + invalidatedClasses +
-          "\n\nSources indirectly invalidated by:" +
-          "\n\tproduct: " + byProduct +
-          "\n\tbinary dep: " + byBinaryDep +
-          "\n\texternal source: " + byExtSrcDep
+        s"""
+           |${color("Initial source changes")}:
+           |  ${color("removed")}: ${showSet(removedSrcs, baseIndent = "  ")}
+           |  ${color("added")}: ${showSet(addedSrcs, baseIndent = "  ")}
+           |  ${color("modified")}: ${showSet(modifiedSrcs, baseIndent = "  ")}
+           |${color("Invalidated products")}: ${showSet(changes.removedProducts)}
+           |${color("External API changes")}: ${changes.external}
+           |${color("Modified binary dependencies")}: ${changes.binaryDeps}
+           |${color("Initial directly invalidated classes")}: $invalidatedClasses
+           |
+           |${color("Sources indirectly invalidated by")}:
+           |  ${color("product")}: ${showSet(byProduct, baseIndent = "  ")}
+           |  ${color("binary dep")}: ${showSet(byBinaryDep, baseIndent = "  ")}
+           |  ${color("external source")}: ${showSet(byExtSrcDep, baseIndent = "  ")}""".stripMargin
       )
+    }
 
     (allInvalidatedClasses, allInvalidatedSourcefiles)
   }
+
+  private def showSet[A](s: Set[A], baseIndent: String = ""): String = {
+    if (s.isEmpty) {
+      "[]"
+    } else {
+      s.map(baseIndent + "  " + _.toString).mkString("[\n", ",\n", "\n" + baseIndent + "]")
+    }
+  }
+
   private[this] def checkAbsolute(addedSources: List[File]): Unit =
     if (addedSources.nonEmpty) {
       addedSources.filterNot(_.isAbsolute) match {
@@ -501,4 +524,15 @@ private[inc] abstract class IncrementalCommon(val log: sbt.util.Logger, options:
     }
     xs.toSet
   }
+
+  private[this] def debugOuterSection(header: String): Unit = {
+    import Console._
+    log.debug(s"$GREEN*************************** $header$RESET")
+  }
+
+  private[this] def debugInnerSection(header: String)(content: => Any): Unit = {
+    import Console._
+    debug(s"$CYAN************* $header:$RESET\n$content\n$CYAN************* (end of $header)$RESET")
+  }
+
 }

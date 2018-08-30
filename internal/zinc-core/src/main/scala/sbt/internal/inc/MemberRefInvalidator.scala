@@ -67,17 +67,15 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
 
   def invalidationReason(apiChange: APIChange): String = apiChange match {
     case TraitPrivateMembersModified(modifiedClass) =>
-      s"The private signature of trait ${modifiedClass} changed."
+      s"the private signature of trait $modifiedClass changed."
     case APIChangeDueToMacroDefinition(modifiedSrcFile) =>
-      s"The $modifiedSrcFile source file declares a macro."
+      s"the $modifiedSrcFile source file declares a macro."
     case NamesChange(modifiedClass, modifiedNames) =>
       modifiedNames.in(UseScope.Implicit) match {
         case changedImplicits if changedImplicits.isEmpty =>
-          s"""|The $modifiedClass has the following regular definitions changed:
-              |\t${modifiedNames.names.mkString(", ")}.""".stripMargin
+          s"the $modifiedClass has the following regular definitions changed: ${modifiedNames.names}"
         case changedImplicits =>
-          s"""|The $modifiedClass has the following implicit definitions changed:
-              |\t${changedImplicits.mkString(", ")}.""".stripMargin
+          s"""the $modifiedClass has the following implicit definitions changed: $changedImplicits""".stripMargin
       }
   }
 

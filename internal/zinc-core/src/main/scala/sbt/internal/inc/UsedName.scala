@@ -11,7 +11,13 @@ import java.util
 
 import xsbti.UseScope
 
-case class UsedName private (name: String, scopes: util.EnumSet[UseScope])
+case class UsedName private (name: String, scopes: util.EnumSet[UseScope]) {
+
+  override def toString: String = {
+    val formattedScopes = if (scopes == UsedName.DefaultScope) "" else " " + scopes
+    name + formattedScopes
+  }
+}
 
 object UsedName {
 
@@ -25,4 +31,7 @@ object UsedName {
   private def escapeControlChars(name: String) = {
     name.replaceAllLiterally("\n", "\u26680A")
   }
+
+  private val DefaultScope = java.util.EnumSet.of(UseScope.Default)
+
 }
