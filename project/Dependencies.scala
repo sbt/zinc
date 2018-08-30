@@ -8,7 +8,7 @@ object Dependencies {
   val scala213 = "2.13.0-M2"
 
   private val ioVersion = "1.2.0"
-  private val utilVersion = "1.2.1"
+  private val utilVersion = "1.2.2"
   private val lmVersion = "1.2.0"
 
   private val sbtIO = "org.scala-sbt" %% "io" % ioVersion
@@ -76,7 +76,7 @@ object Dependencies {
   val scalaCompiler = Def.setting { "org.scala-lang" % "scala-compiler" % scalaVersion.value }
 
   val parserCombinator = "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.5"
-  val sbinary = "org.scala-sbt" %% "sbinary" % "0.4.4"
+  val sbinary = "org.scala-sbt" %% "sbinary" % "0.5.0"
   val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.14.0"
   val scalatest = "org.scalatest" %% "scalatest" % "3.0.5"
   val junit = "junit" % "junit" % "4.11"

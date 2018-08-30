@@ -199,10 +199,15 @@ lazy val zincPersist = (project in internalPath / "zinc-persist")
       import com.typesafe.tools.mima.core._
       import com.typesafe.tools.mima.core.ProblemFilters._
       Seq(
-        // Added {start,end}{Offset,Line,Column}
+        // Added Position#{start,end}{Offset,Line,Column}
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Position.apply"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Position.copy"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Position.this"),
+
+        // Added Problem#reported
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Problem.apply"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Problem.copy"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Problem.this"),
       )
     }
   )

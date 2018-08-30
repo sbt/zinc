@@ -79,6 +79,7 @@ message Problem {
     Severity severity = 2;
     string message = 3;
     Position position = 4;
+    string rendered = 5;
 }
 
 message SourceInfo {
