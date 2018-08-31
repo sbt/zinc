@@ -14,10 +14,10 @@ import java.io.File
 import sbt.util.{ Level, Logger }
 import xsbti.compile.analysis.{ ReadStamps, Stamp => XStamp }
 import xsbti.compile.{
-  ClassFileManager => XClassFileManager,
   CompileAnalysis,
   DependencyChanges,
-  IncOptions
+  IncOptions,
+  ClassFileManager => XClassFileManager
 }
 
 /**
@@ -46,6 +46,7 @@ object Incremental {
    * @param callbackBuilder The builder that builds callback where we report dependency issues.
    * @param log  The log where we write debugging information
    * @param options  Incremental compilation options
+   * @param profiler An implementation of an invalidation profiler, empty by default.
    * @param equivS  The means of testing whether two "Stamps" are the same.
    * @return
    *         A flag of whether or not compilation completed successfully, and the resulting dependency analysis object.
@@ -58,12 +59,13 @@ object Incremental {
       compile: (Set[File], DependencyChanges, xsbti.AnalysisCallback, XClassFileManager) => Unit,
       callbackBuilder: AnalysisCallback.Builder,
       log: sbt.util.Logger,
-      options: IncOptions
+      options: IncOptions,
+      profiler: InvalidationProfiler = InvalidationProfiler.empty
   )(implicit equivS: Equiv[XStamp]): (Boolean, Analysis) = {
     val previous = previous0 match { case a: Analysis => a }
-    val incremental: IncrementalCommon =
-      new IncrementalNameHashing(log, options)
-    val initialChanges = incremental.changedInitial(sources, previous, current, lookup)
+    val runProfiler = profiler.profileRun
+    val incremental: IncrementalCommon = new IncrementalNameHashing(log, options, runProfiler)
+    val initialChanges = incremental.detectInitialChanges(sources, previous, current, lookup)
     val binaryChanges = new DependencyChanges {
       val modifiedBinaries = initialChanges.binaryDeps.toArray
       val modifiedClasses = initialChanges.external.allModified.toArray
@@ -118,15 +120,11 @@ object Incremental {
   private[inc] def apiDebug(options: IncOptions): Boolean =
     options.apiDebug || java.lang.Boolean.getBoolean(apiDebugProp)
 
-  private[sbt] def prune(invalidatedSrcs: Set[File], previous: CompileAnalysis): Analysis =
-    prune(invalidatedSrcs, previous, ClassFileManager.deleteImmediately)
-
-  private[sbt] def prune(invalidatedSrcs: Set[File],
-                         previous0: CompileAnalysis,
-                         classfileManager: XClassFileManager): Analysis = {
-    val previous = previous0 match { case a: Analysis => a }
-    classfileManager.delete(invalidatedSrcs.flatMap(previous.relations.products).toArray)
-    previous -- invalidatedSrcs
+  private[sbt] def prune(invalidatedSrcs: Set[File], previous0: CompileAnalysis): Analysis = {
+    val previous = previous0.asInstanceOf[Analysis]
+    IncrementalCommon.pruneClassFilesOfInvalidations(invalidatedSrcs,
+                                                     previous,
+                                                     ClassFileManager.deleteImmediately)
   }
 
   private[this] def manageClassfiles[T](options: IncOptions)(run: XClassFileManager => T): T = {

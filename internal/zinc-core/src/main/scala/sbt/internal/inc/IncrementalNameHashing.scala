@@ -9,34 +9,50 @@ package sbt
 package internal
 package inc
 
+import sbt.util.Logger
 import xsbti.compile.IncOptions
 import xsbti.api.{ AnalyzedClass, DefinitionType }
 import xsbt.api.SameAPI
 
 /**
- * Implementation of incremental algorithm known as "name hashing". It differs from the default implementation
- * by applying pruning (filter) of member reference dependencies based on used and modified simple names.
+ * Implement the name hashing heuristics to invalidate classes.
  *
- * See MemberReferenceInvalidationStrategy for some more information.
+ * It's defined `private[inc]` to allow other libraries to extend this class to their discretion.
+ * Note that the rest of the Zinc public API will default on the use of the private and final
+ * `IncrementalNameHashing`.
+ *
+ * See [[MemberRefInvalidator]] for more information on how the name heuristics work to invalidate
+ * member references.
  */
-private final class IncrementalNameHashing(log: sbt.util.Logger, options: IncOptions)
-    extends IncrementalCommon(log, options) {
+private[inc] class IncrementalNameHashingCommon(
+    log: Logger,
+    options: IncOptions,
+    profiler: RunProfiler
+) extends IncrementalCommon(log, options, profiler) {
+  import IncrementalCommon.transitiveDeps
 
   private val memberRefInvalidator = new MemberRefInvalidator(log, options.logRecompileOnMacro())
 
-  // Package objects are fragile: if they inherit from an invalidated class, get "class file needed by package is missing" error
-  //  This might be too conservative: we probably only need package objects for packages of invalidated classes.
-  protected def invalidatedPackageObjects(invalidatedClasses: Set[String],
-                                          relations: Relations,
-                                          apis: APIs): Set[String] = {
-    transitiveDeps(invalidatedClasses, logging = false)(relations.inheritance.internal.reverse) filter {
-      _.endsWith(".package")
-    }
+  /** @inheritdoc */
+  protected def invalidatedPackageObjects(
+      invalidatedClasses: Set[String],
+      relations: Relations,
+      apis: APIs
+  ): Set[String] = {
+    val findSubclasses = relations.inheritance.internal.reverse _
+    debug("Invalidate package objects by inheritance only...")
+    val invalidatedPackageObjects =
+      transitiveDeps(invalidatedClasses, log)(findSubclasses).filter(_.endsWith(".package"))
+    debug(s"Package object invalidations: ${invalidatedPackageObjects.mkString(", ")}")
+    invalidatedPackageObjects
   }
 
-  override protected def sameAPI(className: String,
-                                 a: AnalyzedClass,
-                                 b: AnalyzedClass): Option[APIChange] = {
+  /** @inheritdoc */
+  override protected def findAPIChange(
+      className: String,
+      a: AnalyzedClass,
+      b: AnalyzedClass
+  ): Option[APIChange] = {
     if (SameAPI(a, b)) {
       if (SameAPI.hasSameExtraHash(a, b)) None
       else {
@@ -63,10 +79,12 @@ private final class IncrementalNameHashing(log: sbt.util.Logger, options: IncOpt
     }
   }
 
-  /** Invalidates classes based on initially detected 'changes' to the sources, products, and dependencies. */
-  override protected def invalidateByExternal(relations: Relations,
-                                              externalAPIChange: APIChange,
-                                              isScalaClass: String => Boolean): Set[String] = {
+  /** @inheritdoc */
+  override protected def invalidateClassesExternally(
+      relations: Relations,
+      externalAPIChange: APIChange,
+      isScalaClass: String => Boolean
+  ): Set[String] = {
     val modifiedBinaryClassName = externalAPIChange.modifiedClass
     val invalidationReason = memberRefInvalidator.invalidationReason(externalAPIChange)
     log.debug(
@@ -107,30 +125,52 @@ private final class IncrementalNameHashing(log: sbt.util.Logger, options: IncOpt
   private def invalidateByInheritance(relations: Relations, modified: String): Set[String] = {
     val inheritanceDeps = relations.inheritance.internal.reverse _
     log.debug(s"Invalidating (transitively) by inheritance from $modified...")
-    val transitiveInheritance = transitiveDeps(Set(modified))(inheritanceDeps)
+    val transitiveInheritance = transitiveDeps(Set(modified), log)(inheritanceDeps)
     log.debug("Invalidated by transitive inheritance dependency: " + transitiveInheritance)
     transitiveInheritance
   }
 
-  private def invalidateByLocalInheritance(relations: Relations, modified: String): Set[String] = {
-    val localInheritanceDeps = relations.localInheritance.internal.reverse(modified)
-    if (localInheritanceDeps.nonEmpty)
-      log.debug(s"Invalidate by local inheritance: $modified -> $localInheritanceDeps")
-    localInheritanceDeps
-  }
+  /** @inheritdoc */
+  override protected def invalidateClassesInternally(
+      relations: Relations,
+      change: APIChange,
+      isScalaClass: String => Boolean
+  ): Set[String] = {
+    def invalidateByLocalInheritance(relations: Relations, modified: String): Set[String] = {
+      val localInheritanceDeps = relations.localInheritance.internal.reverse(modified)
+      if (localInheritanceDeps.nonEmpty)
+        log.debug(s"Invalidate by local inheritance: $modified -> $localInheritanceDeps")
+      localInheritanceDeps
+    }
 
-  override protected def invalidateClass(relations: Relations,
-                                         change: APIChange,
-                                         isScalaClass: String => Boolean): Set[String] = {
     val modifiedClass = change.modifiedClass
     val transitiveInheritance = invalidateByInheritance(relations, modifiedClass)
+    profiler.registerEvent(
+      zprof.InvalidationEvent.InheritanceKind,
+      List(modifiedClass),
+      transitiveInheritance,
+      s"The invalidated class names inherit directly or transitively on ${modifiedClass}."
+    )
+
     val localInheritance =
       transitiveInheritance.flatMap(invalidateByLocalInheritance(relations, _))
+    profiler.registerEvent(
+      zprof.InvalidationEvent.LocalInheritanceKind,
+      transitiveInheritance,
+      localInheritance,
+      s"The invalidated class names inherit (via local inheritance) directly or transitively on ${modifiedClass}."
+    )
 
     val memberRefSrcDeps = relations.memberRef.internal
     val memberRefInvalidation =
       memberRefInvalidator.get(memberRefSrcDeps, relations.names, change, isScalaClass)
     val memberRef = transitiveInheritance flatMap memberRefInvalidation
+    profiler.registerEvent(
+      zprof.InvalidationEvent.MemberReferenceKind,
+      transitiveInheritance,
+      memberRef,
+      s"The invalidated class names refer directly or transitively to ${modifiedClass}."
+    )
     val all = transitiveInheritance ++ localInheritance ++ memberRef
 
     def debugMessage: String = {
@@ -157,6 +197,12 @@ private final class IncrementalNameHashing(log: sbt.util.Logger, options: IncOpt
     all
   }
 
-  override protected def allDeps(relations: Relations): (String) => Set[String] =
-    cls => relations.memberRef.internal.reverse(cls)
+  /** @inheritdoc */
+  override protected def findClassDependencies(
+      className: String,
+      relations: Relations
+  ): Set[String] = relations.memberRef.internal.reverse(className)
 }
+
+private final class IncrementalNameHashing(log: Logger, options: IncOptions, profiler: RunProfiler)
+    extends IncrementalNameHashingCommon(log, options, profiler)

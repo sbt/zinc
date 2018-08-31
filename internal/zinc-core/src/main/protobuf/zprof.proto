@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package sbt.internal.inc;
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////// ZINC PROF ///////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+// This protobuf scheme is inspired by https://github.com/google/pprof/blob/master/proto/profile.proto
+// As pprof, it uses a string table and all the supposed strings in the format are represented as an
+// index (int32) of that string table. This is done to minimize overhead in memory and disk.
+
+message Profile {
+    repeated ZincRun runs = 1;
+    repeated string string_table = 2;
+}
+
+message ZincRun {
+    InitialChanges initial = 1;
+    repeated CycleInvalidation cycles = 3;
+}
+
+message CycleInvalidation {
+    repeated int32 invalidated = 1;
+    repeated int32 invalidatedByPackageObjects = 2;
+    repeated int32 initialSources = 3;
+    repeated int32 invalidatedSources = 4;
+    repeated int32 recompiledClasses = 5;
+
+    int64 startTimeNanos = 6; // Start time of compilation (UTC) as nanoseconds past the epoch
+    int64 compilationDurationNanos = 7; // Duration of the compilation profile in nanoseconds
+    repeated ApiChange changesAfterRecompilation = 8;
+
+    repeated InvalidationEvent events = 9;
+    repeated int32 nextInvalidations = 10;
+    bool shouldCompileIncrementally = 11;
+}
+
+message InvalidationEvent {
+    string kind = 1;
+    repeated int32 inputs = 2;
+    repeated int32 outputs = 3;
+    string reason = 4;
+}
+
+message Changes {
+    repeated int32 added = 1;
+    repeated int32 removed = 2;
+    repeated int32 modified = 3;
+}
+
+message ApiChange {
+    int32 modifiedClass = 1;
+    string reason = 2;
+    repeated UsedName usedNames = 3; // Can be empty if the change is not related to names
+}
+
+message InitialChanges {
+    Changes changes = 1;
+    repeated int32 removedProducts = 2;
+    repeated int32 binaryDependencies = 3;
+    repeated ApiChange externalChanges = 4;
+}
+
+message UsedName {
+    int32 name = 1;
+    repeated Scope scopes = 2;
+}
+
+message Scope {
+    int32 kind = 1;
+}

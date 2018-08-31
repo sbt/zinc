@@ -44,6 +44,11 @@ trait Lookup extends ExternalLookup {
   def lookupAnalysis(binaryClassName: String): Option[CompileAnalysis]
 }
 
+/**
+ * Defines a hook interface that IDEs or build tools can mock to modify the way
+ * Zinc invalidates the incremental compiler. These hooks operate at a high-level
+ * of abstraction and only allow to modify the inputs of the initial change detection.
+ */
 trait ExternalLookup extends ExternalHooks.Lookup {
   import sbt.internal.inc.JavaInterfaceUtil.EnrichOption
   import scala.collection.JavaConverters._
