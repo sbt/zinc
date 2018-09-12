@@ -58,6 +58,14 @@ final class SelfFirstLoader(classpath: Seq[URL], parent: ClassLoader)
 /** Doesn't load any classes itself, but instead verifies that all classes loaded through `parent` either come from `root` or `classpath`.*/
 final class ClasspathFilter(parent: ClassLoader, root: ClassLoader, classpath: Set[File])
     extends ClassLoader(parent) {
+
+  def close(): Unit = {
+    parent match {
+      case ucl: URLClassLoader => ucl.close()
+      case _                   => ()
+    }
+  }
+
   override def toString =
     s"""|ClasspathFilter(
         |  parent = $parent

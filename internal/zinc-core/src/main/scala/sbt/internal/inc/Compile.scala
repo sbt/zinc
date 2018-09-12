@@ -23,10 +23,14 @@ import xsbti.{ Position, Problem, Severity, UseScope }
 import sbt.util.Logger
 import sbt.util.InterfaceUtil.jo2o
 import java.io.File
+import java.net.URL
 import java.util
 
+import sbt.io.IO
 import xsbti.api.DependencyContext
 import xsbti.compile.analysis.ReadStamps
+
+import scala.util.Try
 
 /**
  * Helper methods for running incremental compilation.  All this is responsible for is
@@ -57,7 +61,8 @@ object IncrementalCompile {
       log: Logger,
       options: IncOptions): (Boolean, Analysis) = {
     val previous = previous0 match { case a: Analysis => a }
-    val current = Stamps.initial(Stamper.forLastModified, Stamper.forHash, Stamper.forLastModified)
+    val current =
+      Stamps.initial(() => Stamper.forLastModified, Stamper.forHash, Stamper.forLastModified)
     val internalBinaryToSourceClassName = (binaryClassName: String) =>
       previous.relations.productClassName.reverse(binaryClassName).headOption
     val internalSourceToClassNamesMap: File => Set[String] = (f: File) =>
@@ -77,7 +82,8 @@ object IncrementalCompile {
                                      output,
                                      options),
         log,
-        options
+        options,
+        output
       )
     } catch {
       case _: xsbti.CompileCancelled =>
@@ -108,14 +114,17 @@ private object AnalysisCallback {
       output: Output,
       options: IncOptions
   ) {
-    def build(): AnalysisCallback = new AnalysisCallback(
-      internalBinaryToSourceClassName,
-      internalSourceToClassNamesMap,
-      externalAPI,
-      current,
-      output,
-      options
-    )
+    def build(): AnalysisCallback = {
+      current.reset()
+      new AnalysisCallback(
+        internalBinaryToSourceClassName,
+        internalSourceToClassNamesMap,
+        externalAPI,
+        current,
+        output,
+        options
+      )
+    }
   }
 }
 

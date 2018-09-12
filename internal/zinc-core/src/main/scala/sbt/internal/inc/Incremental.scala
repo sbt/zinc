@@ -14,10 +14,11 @@ import java.io.File
 import sbt.util.{ Level, Logger }
 import xsbti.compile.analysis.{ ReadStamps, Stamp => XStamp }
 import xsbti.compile.{
+  ClassFileManager => XClassFileManager,
   CompileAnalysis,
   DependencyChanges,
   IncOptions,
-  ClassFileManager => XClassFileManager
+  Output
 }
 
 /**
@@ -60,6 +61,7 @@ object Incremental {
       callbackBuilder: AnalysisCallback.Builder,
       log: sbt.util.Logger,
       options: IncOptions,
+      output: Output,
       profiler: InvalidationProfiler = InvalidationProfiler.empty
   )(implicit equivS: Equiv[XStamp]): (Boolean, Analysis) = {
     val previous = previous0 match { case a: Analysis => a }
@@ -79,7 +81,7 @@ object Incremental {
         incremental.log.debug(
           "All initially invalidated classes: " + initialInvClasses + "\n" +
             "All initially invalidated sources:" + initialInvSources + "\n")
-    val analysis = manageClassfiles(options) { classfileManager =>
+    val analysis = manageClassfiles(options, output) { classfileManager =>
       incremental.cycle(initialInvClasses,
                         initialInvSources,
                         sources,
@@ -120,15 +122,18 @@ object Incremental {
   private[inc] def apiDebug(options: IncOptions): Boolean =
     options.apiDebug || java.lang.Boolean.getBoolean(apiDebugProp)
 
-  private[sbt] def prune(invalidatedSrcs: Set[File], previous0: CompileAnalysis): Analysis = {
+  private[sbt] def prune(invalidatedSrcs: Set[File],
+                         previous0: CompileAnalysis,
+                         output: Output): Analysis = {
     val previous = previous0.asInstanceOf[Analysis]
     IncrementalCommon.pruneClassFilesOfInvalidations(invalidatedSrcs,
                                                      previous,
-                                                     ClassFileManager.deleteImmediately)
+                                                     ClassFileManager.deleteImmediately(output))
   }
 
-  private[this] def manageClassfiles[T](options: IncOptions)(run: XClassFileManager => T): T = {
-    val classfileManager = ClassFileManager.getClassFileManager(options)
+  private[this] def manageClassfiles[T](options: IncOptions, output: Output)(
+      run: XClassFileManager => T): T = {
+    val classfileManager = ClassFileManager.getClassFileManager(options, output)
     val result = try run(classfileManager)
     catch {
       case e: Throwable =>

@@ -15,13 +15,19 @@ import mutable.{ ArrayBuffer, Buffer }
 import scala.annotation.tailrec
 import java.io.File
 import java.net.URL
+
 import xsbti.api.DependencyContext
 import xsbti.api.DependencyContext._
 import sbt.io.IO
 import sbt.util.Logger
+import xsbti.compile.{ Output, SingleOutput }
 
 private[sbt] object Analyze {
-  def apply[T](newClasses: Seq[File], sources: Seq[File], log: Logger)(
+  def apply[T](newClasses: Seq[File],
+               sources: Seq[File],
+               log: Logger,
+               output: Output,
+               finalJarOutput: Option[File])(
       analysis: xsbti.AnalysisCallback,
       loader: ClassLoader,
       readAPI: (File, Seq[Class[_]]) => Set[(String, String)]): Unit = {
@@ -67,11 +73,12 @@ private[sbt] object Analyze {
 
       val srcClassName = loadEnclosingClass(loadedClass)
 
+      val finalClassFile = resolveFinalClassFile(newClass, output, finalJarOutput)
       srcClassName match {
         case Some(className) =>
-          analysis.generatedNonLocalClass(source, newClass, binaryClassName, className)
+          analysis.generatedNonLocalClass(source, finalClassFile, binaryClassName, className)
           classNames += className
-        case None => analysis.generatedLocalClass(source, newClass)
+        case None => analysis.generatedLocalClass(source, finalClassFile)
       }
 
       sourceToClassFiles(source) += classFile
@@ -110,7 +117,7 @@ private[sbt] object Analyze {
         def loadFromClassloader(): Option[File] = {
           for {
             url <- Option(loader.getResource(classNameToClassFile(onBinaryName)))
-            file <- urlAsFile(url, log)
+            file <- urlAsFile(url, log, finalJarOutput)
           } yield { classfilesCache(onBinaryName) = file; file }
         }
 
@@ -122,8 +129,14 @@ private[sbt] object Analyze {
                 analysis.classDependency(scalaLikeTypeName, fromClassName, context)
               } else {
                 val cachedOrigin = classfilesCache.get(onBinaryName)
-                for (file <- cachedOrigin.orElse(loadFromClassloader()))
-                  analysis.binaryDependency(file, onBinaryName, fromClassName, source, context)
+                for (file <- cachedOrigin.orElse(loadFromClassloader())) {
+                  val binaryFile = resolveFinalClassFile(file, output, finalJarOutput)
+                  analysis.binaryDependency(binaryFile,
+                                            onBinaryName,
+                                            fromClassName,
+                                            source,
+                                            context)
+                }
               }
             }
           case None => // It could be a stale class file, ignore
@@ -168,13 +181,44 @@ private[sbt] object Analyze {
       }
     }
   }
-  private[this] def urlAsFile(url: URL, log: Logger): Option[File] =
-    try IO.urlAsFile(url)
+
+  // Classes are compiled to a temporary directory because javac cannot compile to jar directly.
+  // The paths to class files that can be observed here through file system or class loaders
+  // are located there, but as the output will be eventually included in the output jar, as the
+  // output of the analysis we want the final paths like output.jar!A.class.
+  // This method performs the required conversion.
+  private def resolveFinalClassFile(realClassFile: File,
+                                    output: Output,
+                                    finalJarOutput: Option[File]): File = {
+    val jaredClass = for {
+      outputJar <- finalJarOutput
+      outputDir <- Some(output).collect { case s: SingleOutput => s.getOutputDirectory }
+      relativeClass <- IO.relativize(outputDir, realClassFile)
+    } yield {
+      new File(STJ.init(outputJar, relativeClass))
+    }
+    jaredClass.getOrElse(realClassFile)
+  }
+
+  private[this] def urlAsFile(url: URL, log: Logger, finalJarOutput: Option[File]): Option[File] =
+    try urlAsFile(url, finalJarOutput)
     catch {
       case e: Exception =>
         log.warn("Could not convert URL '" + url.toExternalForm + "' to File: " + e.toString)
         None
     }
+
+  private def urlAsFile(url: URL, finalJarOutput: Option[File]): Option[File] = {
+    IO.urlAsFile(url).map { file =>
+      // .contains does not compile with 2.10
+      if (finalJarOutput.exists(_ == file)) {
+        new File(STJ.fromJarAndUrl(file, url))
+      } else {
+        file
+      }
+    }
+  }
+
   private def trapAndLog(log: Logger)(execute: => Unit): Unit = {
     try { execute } catch { case e: Throwable => log.trace(e); log.error(e.toString) }
   }

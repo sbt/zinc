@@ -46,12 +46,35 @@ final class AnalyzingJavaCompiler private[sbt] (
     val searchClasspath: Seq[File]
 ) extends JavaCompiler {
 
+  // for compatibility
+  def compile(
+      sources: Seq[File],
+      options: Seq[String],
+      output: Output,
+      callback: AnalysisCallback,
+      incToolOptions: IncToolOptions,
+      reporter: XReporter,
+      log: XLogger,
+      progressOpt: Option[CompileProgress]
+  ): Unit = {
+    compile(sources,
+            options,
+            output,
+            finalJarOutput = None,
+            callback,
+            incToolOptions,
+            reporter,
+            log,
+            progressOpt)
+  }
+
   /**
    * Compile some java code using the current configured compiler.
    *
    * @param sources  The sources to compile
    * @param options  The options for the Java compiler
    * @param output   The output configuration for this compiler
+   * @param finalJarOutput The output that will be used for straight to jar compilation.
    * @param callback  A callback to report discovered source/binary dependencies on.
    * @param incToolOptions The component that manages generated class files.
    * @param reporter  A reporter where semantic compiler failures can be reported.
@@ -63,6 +86,7 @@ final class AnalyzingJavaCompiler private[sbt] (
       sources: Seq[File],
       options: Seq[String],
       output: Output,
+      finalJarOutput: Option[File],
       callback: AnalysisCallback,
       incToolOptions: IncToolOptions,
       reporter: XReporter,
@@ -158,7 +182,7 @@ final class AnalyzingJavaCompiler private[sbt] (
       timed(javaAnalysisPhase, log) {
         for ((classesFinder, oldClasses, srcs) <- memo) {
           val newClasses = Set(classesFinder.get: _*) -- oldClasses
-          Analyze(newClasses.toSeq, srcs, log)(callback, loader, readAPI)
+          Analyze(newClasses.toSeq, srcs, log, output, finalJarOutput)(callback, loader, readAPI)
         }
       }
 

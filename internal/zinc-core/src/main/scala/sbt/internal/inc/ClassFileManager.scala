@@ -15,11 +15,12 @@ import java.util.Optional
 
 import collection.mutable
 import xsbti.compile.{
-  ClassFileManager => XClassFileManager,
-  ClassFileManagerType,
-  DeleteImmediatelyManagerType,
   IncOptions,
-  TransactionalManagerType
+  DeleteImmediatelyManagerType,
+  TransactionalManagerType,
+  ClassFileManagerType,
+  ClassFileManager => XClassFileManager,
+  Output
 }
 
 object ClassFileManager {
@@ -42,6 +43,27 @@ object ClassFileManager {
     xsbti.compile.WrappedClassFileManager.of(internal, external.toOptional)
   }
 
+  def getDefaultClassFileManager(
+      classFileManagerType: Optional[ClassFileManagerType],
+      output: Output
+  ): XClassFileManager = {
+    if (classFileManagerType.isPresent) {
+      classFileManagerType.get match {
+        case _: DeleteImmediatelyManagerType => deleteImmediately(output)
+        case m: TransactionalManagerType =>
+          transactional(output, m.backupDirectory, m.logger)
+      }
+    } else deleteImmediately(output)
+  }
+
+  def getClassFileManager(options: IncOptions, output: Output): XClassFileManager = {
+    import sbt.internal.inc.JavaInterfaceUtil.{ EnrichOptional, EnrichOption }
+    val internal = getDefaultClassFileManager(options.classfileManagerType, output)
+    val external = Option(options.externalHooks())
+      .flatMap(ext => ext.getExternalClassFileManager.toOption)
+    xsbti.compile.WrappedClassFileManager.of(internal, external.toOptional)
+  }
+
   private final class DeleteClassFileManager extends XClassFileManager {
     override def delete(classes: Array[File]): Unit =
       IO.deleteFilesEmptyDirs(classes)
@@ -56,6 +78,14 @@ object ClassFileManager {
    */
   def deleteImmediately: XClassFileManager = new DeleteClassFileManager
 
+  def deleteImmediatelyFromJar(outputJar: File): XClassFileManager =
+    new DeleteClassFileManagerForJar(outputJar)
+
+  def deleteImmediately(output: Output): XClassFileManager = {
+    val outputJar = STJ.getOutputJar(output)
+    outputJar.fold(deleteImmediately)(deleteImmediatelyFromJar)
+  }
+
   /**
    * Constructs a transactional [[ClassFileManager]] implementation that restores class
    * files to the way they were before compilation if there is an error. Otherwise, it
@@ -65,6 +95,15 @@ object ClassFileManager {
    */
   def transactional(tempDir0: File, logger: sbt.util.Logger): XClassFileManager =
     new TransactionalClassFileManager(tempDir0, logger)
+
+  def transactionalForJar(outputJar: File): XClassFileManager = {
+    new TransactionalClassFileManagerForJar(outputJar)
+  }
+
+  def transactional(output: Output, tempDir: File, logger: sbt.util.Logger): XClassFileManager = {
+    val outputJar = STJ.getOutputJar(output)
+    outputJar.fold(transactional(tempDir, logger))(transactionalForJar)
+  }
 
   private final class TransactionalClassFileManager(tempDir0: File, logger: sbt.util.Logger)
       extends XClassFileManager {
@@ -112,6 +151,33 @@ object ClassFileManager {
       val target = File.createTempFile("sbt", ".class", tempDir)
       IO.move(c, target)
       target
+    }
+  }
+
+  private final class DeleteClassFileManagerForJar(outputJar: File) extends XClassFileManager {
+    override def delete(classes: Array[File]): Unit = {
+      val relClasses = classes.map(c => STJ.getRelClass(c.toString))
+      STJ.removeFromJar(outputJar, relClasses)
+    }
+    override def generated(classes: Array[File]): Unit = ()
+    override def complete(success: Boolean): Unit = ()
+  }
+
+  private final class TransactionalClassFileManagerForJar(outputJar: File)
+      extends XClassFileManager {
+    private val backedUpIndex = Some(outputJar).filter(_.exists()).map(STJ.stashIndex)
+
+    override def delete(jaredClasses: Array[File]): Unit = {
+      val classes = jaredClasses.map(s => STJ.getRelClass(s.toString))
+      STJ.removeFromJar(outputJar, classes)
+    }
+
+    override def generated(classes: Array[File]): Unit = ()
+
+    override def complete(success: Boolean): Unit = {
+      if (!success) {
+        backedUpIndex.foreach(index => STJ.unstashIndex(outputJar, index))
+      }
     }
   }
 }

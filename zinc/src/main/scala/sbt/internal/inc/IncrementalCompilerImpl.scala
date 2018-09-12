@@ -176,7 +176,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
 
         val msg =
           s"""## Exception when compiling $numberSources to $outputString
-             |${e.getMessage}
+             |${e.toString}
              |${ex.getStackTrace.mkString("\n")}
            """
         logger.error(InterfaceUtil.toSupplier(msg.stripMargin))
@@ -240,6 +240,22 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         case Some(previous) => previous
         case None           => Analysis.empty
       }
+
+      val compileStraightToJar = STJ.isEnabled(output)
+
+      if (compileStraightToJar) sys.props.put("scala.classpath.closeZip", "true")
+
+      val extraScalacOptions = {
+        val scalaVersion = scalaCompiler.scalaInstance.version
+        if (compileStraightToJar && scalaVersion.startsWith("2.12")) {
+          STJ.scalacOptions
+        } else Seq.empty
+      }
+
+      val extraJavacOptions = if (compileStraightToJar) {
+        STJ.javacOptions
+      } else Seq.empty
+
       val config = MixedAnalyzingCompiler.makeConfig(
         scalaCompiler,
         javaCompiler,
@@ -248,8 +264,8 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         output,
         cache,
         progress,
-        scalaOptions,
-        javaOptions,
+        scalaOptions ++ extraScalacOptions,
+        javaOptions ++ extraJavacOptions,
         prev,
         previousSetup,
         perClasspathEntryLookup,
@@ -295,9 +311,9 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
           previousAnalysis
         else if (!equivPairs.equiv(previous.extra, currentSetup.extra))
           Analysis.empty
-        else Incremental.prune(srcsSet, previousAnalysis)
+        else Incremental.prune(srcsSet, previousAnalysis, output)
       case None =>
-        Incremental.prune(srcsSet, previousAnalysis)
+        Incremental.prune(srcsSet, previousAnalysis, output)
     }
 
     // Run the incremental compilation

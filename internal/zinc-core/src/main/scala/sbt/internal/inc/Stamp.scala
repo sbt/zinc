@@ -13,7 +13,7 @@ import java.io.{ File, IOException }
 import java.util
 import java.util.Optional
 
-import sbt.io.{ Hash => IOHash, IO }
+import sbt.io.{ Hash => IOHash }
 import xsbti.compile.analysis.{ ReadStamps, Stamp => XStamp }
 
 import scala.collection.immutable.TreeMap
@@ -141,9 +141,13 @@ object Stamper {
     catch { case _: IOException => EmptyStamp }
   }
 
-  val forHash = (toStamp: File) => tryStamp(Hash.ofFile(toStamp))
-  val forLastModified = (toStamp: File) =>
-    tryStamp(new LastModified(IO.getModifiedTimeOrZero(toStamp)))
+  val forHash: File => XStamp = (toStamp: File) => tryStamp(Hash.ofFile(toStamp))
+  def forLastModified: File => XStamp = {
+    val reader = STJ.createCachedStampReader()
+    toStamp: File =>
+      tryStamp(new LastModified(reader(toStamp)))
+  }
+
 }
 
 object Stamps {
@@ -154,10 +158,10 @@ object Stamps {
    * stamp is calculated separately on demand.
    * The stamp for a product is always recalculated.
    */
-  def initial(prodStamp: File => XStamp,
+  def initial(prodStampFactory: () => File => XStamp,
               srcStamp: File => XStamp,
               binStamp: File => XStamp): ReadStamps =
-    new InitialStamps(prodStamp, srcStamp, binStamp)
+    new InitialStamps(prodStampFactory, srcStamp, binStamp)
 
   def empty: Stamps = {
     // Use a TreeMap to avoid sorting when serializing
@@ -184,6 +188,7 @@ private class MStamps(val products: Map[File, XStamp],
     mapAsJavaMapConverter(products).asJava
   override def getAllSourceStamps: util.Map[File, XStamp] =
     mapAsJavaMapConverter(sources).asJava
+  override def reset(): Unit = ()
 
   def allSources: collection.Set[File] = sources.keySet
   def allBinaries: collection.Set[File] = binaries.keySet
@@ -236,14 +241,19 @@ private class MStamps(val products: Map[File, XStamp],
                                                               binaries.size)
 }
 
-private class InitialStamps(prodStamp: File => XStamp,
+private class InitialStamps(prodStampFactory: () => File => XStamp,
                             srcStamp: File => XStamp,
                             binStamp: File => XStamp)
     extends ReadStamps {
   import collection.mutable.{ HashMap, Map }
+
+  private var prodStamp: File => XStamp = prodStampFactory()
+
   // cached stamps for files that do not change during compilation
   private val sources: Map[File, XStamp] = new HashMap
   private val binaries: Map[File, XStamp] = new HashMap
+
+  override def reset(): Unit = prodStamp = prodStampFactory()
 
   import scala.collection.JavaConverters.mapAsJavaMapConverter
   override def getAllBinaryStamps: util.Map[File, XStamp] =

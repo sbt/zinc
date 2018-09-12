@@ -165,6 +165,12 @@ lazy val zinc = (project in file("zinc"))
   .settings(
     name := "zinc",
     mimaSettings,
+    mimaBinaryIssueFilters ++= Seq(
+      exclude[DirectMissingMethodProblem]("sbt.internal.inc.MixedAnalyzingCompiler.searchClasspathAndLookup"),
+      exclude[IncompatibleResultTypeProblem]("sbt.internal.inc.MixedAnalyzingCompiler.javac"),
+      exclude[IncompatibleMethTypeProblem]("sbt.internal.inc.MixedAnalyzingCompiler.this"),
+
+    )
   )
 
 lazy val zincTesting = (project in internalPath / "zinc-testing")
@@ -281,7 +287,10 @@ lazy val zincCore = (project in internalPath / "zinc-core")
         exclude[ReversedMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.findClassDependencies"),
         exclude[ReversedMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.invalidateClassesInternally"),
         exclude[ReversedMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.invalidateClassesExternally"),
-        exclude[ReversedMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.findAPIChange")
+        exclude[ReversedMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.findAPIChange"),
+        exclude[IncompatibleMethTypeProblem]("sbt.internal.inc.Stamps.initial"),
+        exclude[IncompatibleMethTypeProblem]("sbt.internal.inc.InitialStamps.this"),
+        exclude[IncompatibleMethTypeProblem]("sbt.internal.inc.Incremental.prune")
       )
     }
   )
@@ -391,7 +400,8 @@ lazy val compilerInterface212 = (project in internalPath / "compiler-interface")
         exclude[ReversedMissingMethodProblem]("xsbti.compile.ExternalHooks#Lookup.hashClasspath"),
         exclude[ReversedMissingMethodProblem]("xsbti.compile.ScalaInstance.loaderLibraryOnly"),
         exclude[DirectMissingMethodProblem]("xsbti.api.AnalyzedClass.of"),
-        exclude[DirectMissingMethodProblem]("xsbti.api.AnalyzedClass.create")
+        exclude[DirectMissingMethodProblem]("xsbti.api.AnalyzedClass.create"),
+        exclude[ReversedMissingMethodProblem]("xsbti.compile.analysis.ReadStamps.reset")
       )
     },
   )
@@ -745,7 +755,10 @@ lazy val zincClassfile212 = zincClassfileTemplate
   .settings(
     scalaVersion := scala212,
     crossScalaVersions := Seq(scala212),
-    target := (target in zincClassfileTemplate).value.getParentFile / "target-2.12"
+    target := (target in zincClassfileTemplate).value.getParentFile / "target-2.12",
+    mimaBinaryIssueFilters ++= Seq(
+      exclude[DirectMissingMethodProblem]("sbt.internal.inc.classfile.Analyze.apply")
+    )
   )
 
 // re-implementation of scripted engine
