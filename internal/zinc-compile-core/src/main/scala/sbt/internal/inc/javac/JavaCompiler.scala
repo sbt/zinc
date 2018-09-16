@@ -114,8 +114,6 @@ object Javadoc {
 
   /** Returns a local compiler, if the current runtime supports it. */
   def local: Option[XJavadoc] = {
-    // TODO - javax doc tool not supported in JDK6
-    //Option(javax.tools.ToolProvider.getSystemDocumentationTool)
     if (LocalJava.hasLocalJavadoc) Some(new LocalJavadoc)
     else None
   }
