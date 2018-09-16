@@ -11,7 +11,7 @@ package internal
 package inc
 package javac
 
-import java.io.{ File, OutputStream, PrintWriter, Writer }
+import java.io.{ File, InputStream, OutputStream, PrintWriter, Writer }
 import java.nio.charset.Charset
 import java.util.Locale
 
@@ -26,9 +26,10 @@ import javax.tools.{
   StandardJavaFileManager,
   DiagnosticListener
 }
-
 import sbt.internal.util.LoggerWriter
 import sbt.util.{ Level, Logger }
+
+import scala.util.control.NonFatal
 import xsbti.{ Reporter, Logger => XLogger }
 import xsbti.compile.{
   ClassFileManager,
@@ -36,6 +37,8 @@ import xsbti.compile.{
   JavaCompiler => XJavaCompiler,
   Javadoc => XJavadoc
 }
+
+import scala.tools.nsc.interpreter.WriterOutputStream
 
 /**
  * Define helper methods that will try to instantiate the Java toolchain
@@ -45,9 +48,18 @@ import xsbti.compile.{
 object LocalJava {
 
   /** True if we can call a forked Javadoc. */
-  def hasLocalJavadoc: Boolean = javadocMethod.isDefined
+  def hasLocalJavadoc: Boolean = javadocTool.isDefined
 
   private[this] val javadocClass = "com.sun.tools.javadoc.Main"
+
+  /** Get the javadoc tool. */
+  private[this] def javadocTool: Option[javax.tools.DocumentationTool] = {
+    try {
+      Option(javax.tools.ToolProvider.getSystemDocumentationTool)
+    } catch {
+      case NonFatal(_) => None
+    }
+  }
 
   /** Get the javadoc execute method reflectively from current class loader. */
   private[this] def javadocMethod = {
@@ -68,7 +80,23 @@ object LocalJava {
   private val JavadocFailure: String =
     "Unable to reflectively invoke javadoc, class not present on the current class loader."
 
+  private[javac] def javadoc(
+      args: Array[String],
+      in: InputStream,
+      out: OutputStream,
+      err: OutputStream
+  ): Int = {
+    javadocTool match {
+      case Some(m) =>
+        m.run(in, out, err, args: _*)
+      case _ =>
+        System.err.println(JavadocFailure)
+        -1
+    }
+  }
+
   /** A mechanism to call the javadoc tool via reflection. */
+  @deprecated("use javadoc instead", "")
   private[javac] def unsafeJavadoc(
       args: Array[String],
       err: PrintWriter,
@@ -98,15 +126,13 @@ final class LocalJavadoc() extends XJavadoc {
     val nonJArgs = options.filterNot(_.startsWith("-J"))
     val allArguments = nonJArgs ++ sources.map(_.getAbsolutePath)
     val javacLogger = new JavacLogger(log, reporter, cwd)
-    val errorWriter = new PrintWriter(new ProcessLoggerWriter(javacLogger, Level.Error))
-    val warnWriter = new PrintWriter(new ProcessLoggerWriter(javacLogger, Level.Warn))
-    val infoWriter = new PrintWriter(new ProcessLoggerWriter(javacLogger, Level.Info))
+    val errorWriter = new WriterOutputStream(new ProcessLoggerWriter(javacLogger, Level.Error))
+    val infoWriter = new WriterOutputStream(new ProcessLoggerWriter(javacLogger, Level.Info))
     var exitCode = -1
     try {
-      exitCode = LocalJava.unsafeJavadoc(allArguments, errorWriter, warnWriter, infoWriter)
+      exitCode = LocalJava.javadoc(allArguments, null, infoWriter, errorWriter)
     } finally {
       errorWriter.close()
-      warnWriter.close()
       infoWriter.close()
       javacLogger.flush("javadoc", exitCode)
     }
