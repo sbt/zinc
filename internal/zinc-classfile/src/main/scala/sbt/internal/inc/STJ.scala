@@ -10,6 +10,14 @@ import scala.collection.JavaConverters._
 import sbt.io.syntax.URL
 import xsbti.compile.{ Output, SingleOutput }
 
+/** STJ stands for Straight to Jar compilation.
+ *
+ *  This is a utility object that provides a set of functions
+ *  that are used to implement this feature.
+ *
+ *  [[xsbt.STJ]] is a class that has similar purpose and
+ *  duplicates some of the code, as it is difficult to share it.
+ */
 object STJ extends PathFunctions with ForTestCode {
 
   val scalacOptions = Set("-YdisableFlatCpCaching")
@@ -124,15 +132,32 @@ sealed trait PathFunctions {
   type JaredClass = String
   type RelClass = String
 
-  def init(jar: File, cls: RelClass): JaredClass = {
-    val relClass = if (File.separatorChar == '/') cls else cls.replace(File.separatorChar, '/')
+  /** Creates an identifier for a class located inside a jar.
+   * For plain class files it is enough to simply use the path.
+   * A class in jar `JaredClass` is identified as a path to jar
+   * and path to the class within that jar. Those two values
+   * are held in one string separated by `!`. Slashes in both
+   * paths are consistent with `File.separatorChar` as the actual
+   * string is usually kept in `File` object.
+   *
+   * As an example given a jar file "C:\develop\zinc\target\output.jar"
+   * and relative path to the class "sbt/internal/inc/Compile.class"
+   * The resulting identifier would be:
+   * "C:\develop\zinc\target\output.jar!sbt\internal\inc\Compile.class"
+   *
+   *  @param jar jar file that contains the class
+   *  @param cls relative path to the class within the jar
+   *  @return identifier/path to a class in jar.
+   */
+  def jaredClass(jar: File, cls: RelClass): JaredClass = {
+    val relClass = if (File.separatorChar == '/') cls else cls.replace('/', File.separatorChar)
     s"$jar!$relClass"
   }
 
   // Converts URL to JaredClass but reuses the jar file extracted at the call site to avoid recalculation.
   def fromJarAndUrl(jar: File, url: URL): JaredClass = {
     val Array(_, cls) = url.getPath.split("!/")
-    init(jar, cls)
+    jaredClass(jar, cls)
   }
 
   def getRelClass(jc: JaredClass): RelClass = {

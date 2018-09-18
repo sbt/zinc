@@ -195,7 +195,7 @@ private[sbt] object Analyze {
       outputDir <- Some(output).collect { case s: SingleOutput => s.getOutputDirectory }
       relativeClass <- IO.relativize(outputDir, realClassFile)
     } yield {
-      new File(STJ.init(outputJar, relativeClass))
+      new File(STJ.jaredClass(outputJar, relativeClass))
     }
     jaredClass.getOrElse(realClassFile)
   }
