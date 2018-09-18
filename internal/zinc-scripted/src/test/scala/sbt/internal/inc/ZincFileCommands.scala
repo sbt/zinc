@@ -54,7 +54,7 @@ class ZincFileCommands(baseDirectory: File) extends FileCommands(baseDirectory) 
       val relBasePath = "target/classes"
       IO.relativize(new File(relBasePath), new File(path)).map { relClass =>
         val jar = Paths.get(baseDirectory.toString, relBasePath, "output.jar").toFile
-        transformJared(STJ.jaredClass(jar, relClass))
+        transformJared(STJ.JaredClass(jar, relClass))
       }
     }
     val regularRes = transformPlain(fromString(path))

@@ -351,7 +351,7 @@ case class ProjectStructure(
       val productFiles = analysis.relations.products(baseDirectory / srcFile)
       productFiles.map { file =>
         if (STJ.isJar(file)) {
-          STJ.getRelClass(file.toString)
+          STJ.JaredClass.fromFile(file).relClass
         } else {
           relativeClassDir(file).getPath.replace('\\', '/')
         }
@@ -443,6 +443,7 @@ case class ProjectStructure(
     outputJar
       .map { currentJar =>
         IO.copy(Seq(currentJar -> targetJar))
+        ()
       }
       .getOrElse {
         val manifest = new Manifest
@@ -454,6 +455,7 @@ case class ProjectStructure(
             }
           }
         IO.jar(sources, targetJar, manifest)
+        ()
       }
   }
 

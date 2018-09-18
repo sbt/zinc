@@ -103,7 +103,7 @@ final class MixedAnalyzingCompiler(
 
           STJ.getOutputJar(output) match {
             case Some(outputJar) =>
-              val outputDir = STJ.javacOutputTempDir(outputJar)
+              val outputDir = STJ.javacTempOutput(outputJar)
               IO.createDirectory(outputDir)
               javac.compile(javaSrcs,
                             joptions,
@@ -305,7 +305,7 @@ object MixedAnalyzingCompiler {
     // it will be compiled to a temporary directory (with deterministic name)
     // and then added to the final jar. This temporary directory has to be
     // available for Analyze to work phase to work.
-    val tempJavacOutput = STJ.getOutputJar(currentSetup.output).map(STJ.javacOutputTempDir).toSeq
+    val tempJavacOutput = STJ.getOutputJar(currentSetup.output).map(STJ.javacTempOutput).toSeq
     val absClasspath = classpath.map(_.getAbsoluteFile)
     val cArgs =
       new CompilerArguments(compiler.scalaInstance, compiler.classpathOptions)

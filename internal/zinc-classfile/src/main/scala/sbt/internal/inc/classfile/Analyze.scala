@@ -195,7 +195,7 @@ private[sbt] object Analyze {
       outputDir <- Some(output).collect { case s: SingleOutput => s.getOutputDirectory }
       relativeClass <- IO.relativize(outputDir, realClassFile)
     } yield {
-      new File(STJ.jaredClass(outputJar, relativeClass))
+      STJ.JaredClass(outputJar, relativeClass).toFile
     }
     jaredClass.getOrElse(realClassFile)
   }
@@ -212,7 +212,7 @@ private[sbt] object Analyze {
     IO.urlAsFile(url).map { file =>
       // .contains does not compile with 2.10
       if (finalJarOutput.exists(_ == file)) {
-        new File(STJ.fromJarAndUrl(file, url))
+        STJ.JaredClass.fromURL(url, file).toFile
       } else {
         file
       }
