@@ -164,13 +164,7 @@ lazy val zinc = (project in file("zinc"))
   .configure(addBaseSettingsAndTestDeps)
   .settings(
     name := "zinc",
-    mimaSettings,
-    mimaBinaryIssueFilters ++= Seq(
-      exclude[DirectMissingMethodProblem]("sbt.internal.inc.MixedAnalyzingCompiler.searchClasspathAndLookup"),
-      exclude[IncompatibleResultTypeProblem]("sbt.internal.inc.MixedAnalyzingCompiler.javac"),
-      exclude[IncompatibleMethTypeProblem]("sbt.internal.inc.MixedAnalyzingCompiler.this"),
-
-    )
+    mimaSettings
   )
 
 lazy val zincTesting = (project in internalPath / "zinc-testing")

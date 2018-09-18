@@ -26,7 +26,7 @@ import xsbti.compile.{ ClassFileManager => XClassFileManager }
 /** An instance of an analyzing compiler that can run both javac + scalac. */
 final class MixedAnalyzingCompiler(
     val scalac: xsbti.compile.ScalaCompiler,
-    val javac: (Seq[File] => Seq[File]) => AnalyzingJavaCompiler,
+    val javac: AnalyzingJavaCompiler,
     val config: CompileConfiguration,
     val log: Logger
 ) {
@@ -105,27 +105,26 @@ final class MixedAnalyzingCompiler(
             case Some(outputJar) =>
               val outputDir = STJ.javacOutputTempDir(outputJar)
               IO.createDirectory(outputDir)
-              val compiler = javac(originalCp => outputDir +: originalCp)
-              compiler.compile(javaSrcs,
-                               joptions,
-                               CompileOutput(outputDir),
-                               Some(outputJar),
-                               callback,
-                               incToolOptions,
-                               config.reporter,
-                               log,
-                               config.progress)
+              javac.compile(javaSrcs,
+                            joptions,
+                            CompileOutput(outputDir),
+                            Some(outputJar),
+                            callback,
+                            incToolOptions,
+                            config.reporter,
+                            log,
+                            config.progress)
               putJavacOutputInJar(outputJar, outputDir)
             case None =>
-              javac(identity).compile(javaSrcs,
-                                      joptions,
-                                      output,
-                                      finalJarOutput = None,
-                                      callback,
-                                      incToolOptions,
-                                      config.reporter,
-                                      log,
-                                      config.progress)
+              javac.compile(javaSrcs,
+                            joptions,
+                            output,
+                            finalJarOutput = None,
+                            callback,
+                            incToolOptions,
+                            config.reporter,
+                            log,
+                            config.progress)
           }
         }
       }
@@ -298,42 +297,46 @@ object MixedAnalyzingCompiler {
 
   /** Returns the search classpath (for dependencies) and a function which can also do so. */
   def searchClasspathAndLookup(
-      config: CompileConfiguration,
-      classpath: Seq[File]
+      config: CompileConfiguration
   ): (Seq[File], String => Option[File]) = {
+    import config._
+    import currentSetup._
+    // If we are compiling straight to jar, javac does not have this option
+    // it will be compiled to a temporary directory (with deterministic name)
+    // and then added to the final jar. This temporary directory has to be
+    // available for Analyze to work phase to work.
+    val tempJavacOutput = STJ.getOutputJar(currentSetup.output).map(STJ.javacOutputTempDir).toSeq
     val absClasspath = classpath.map(_.getAbsoluteFile)
     val cArgs =
-      new CompilerArguments(config.compiler.scalaInstance, config.compiler.classpathOptions)
-    val searchClasspath = explicitBootClasspath(config.currentSetup.options.scalacOptions) ++ withBootclasspath(
+      new CompilerArguments(compiler.scalaInstance, compiler.classpathOptions)
+    val searchClasspath = explicitBootClasspath(options.scalacOptions) ++ withBootclasspath(
       cArgs,
       absClasspath
-    )
-    (searchClasspath, Locate.entry(searchClasspath, config.perClasspathEntryLookup))
+    ) ++ tempJavacOutput
+    (searchClasspath, Locate.entry(searchClasspath, perClasspathEntryLookup))
   }
 
   /** Returns a "lookup file for a given class name" function. */
   def classPathLookup(config: CompileConfiguration): String => Option[File] =
-    searchClasspathAndLookup(config, config.classpath)._2
+    searchClasspathAndLookup(config)._2
 
   def apply(config: CompileConfiguration)(
       implicit log: Logger
   ): MixedAnalyzingCompiler = {
+    import config._
+    val (searchClasspath, entry) = searchClasspathAndLookup(config)
     // Construct a compiler which can handle both java and scala sources.
     new MixedAnalyzingCompiler(
-      config.compiler,
+      compiler,
       // TODO - Construction of analyzing Java compiler MAYBE should be earlier...
-      (modifyClasspath: Seq[File] => Seq[File]) => {
-        val newCp = modifyClasspath(config.classpath)
-        val (searchClasspath, entry) = searchClasspathAndLookup(config, newCp)
-        new AnalyzingJavaCompiler(
-          config.javac,
-          newCp,
-          config.compiler.scalaInstance,
-          config.compiler.classpathOptions,
-          entry,
-          searchClasspath
-        )
-      },
+      new AnalyzingJavaCompiler(
+        javac,
+        classpath,
+        compiler.scalaInstance,
+        compiler.classpathOptions,
+        entry,
+        searchClasspath
+      ),
       config,
       log
     )
