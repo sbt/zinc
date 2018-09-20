@@ -7,6 +7,10 @@ import sbt.internal.inc.zip.ZipCentralDir
 
 import scala.collection.JavaConverters._
 
+/**
+ * The concrete implementation of [[sbt.internal.inc.IndexBasedZipOps]]
+ * based on [[sbt.internal.inc.zip.ZipCentralDir]].
+ */
 object IndexBasedZipFsOps extends IndexBasedZipOps {
   override type CentralDir = ZipCentralDir
   override type Header = ZipCentralDir.Entry

@@ -226,7 +226,7 @@ case class ProjectStructure(
     scalaVersion: String
 ) extends BridgeProviderSpecification {
 
-  val useStraightToJar = true
+  val useStraightToJar = false
 
   val compiler = new IncrementalCompilerImpl
   val maxErrors = 100
@@ -350,7 +350,7 @@ case class ProjectStructure(
     def products(srcFile: String): Set[String] = {
       val productFiles = analysis.relations.products(baseDirectory / srcFile)
       productFiles.map { file =>
-        if (STJ.isJar(file)) {
+        if (STJ.isJaredClass(file)) {
           STJ.JaredClass.fromFile(file).relClass
         } else {
           relativeClassDir(file).getPath.replace('\\', '/')

@@ -60,8 +60,15 @@ import static sbt.internal.inc.zip.ZipUtils.*;
  * @author Xueming Shen
  */
 
-// Modified implementation of com.sun.nio.zipfs.ZipFileSystem that allows to:
-// read index (central directory), modify it and write at specified offset
+/**
+ * Modified implementation of [[com.sun.nio.zipfs.ZipFileSystem]] that allows to:
+ * read index (central directory), modify it and write at specified offset.
+ *
+ * The changes focus on making public whatever is required and remove what is not.
+ * It is possible to use unmodified ZipFileSystem to implement operations required
+ * for Straight to Jar but it does not work in place (has to recreate zips) and does
+ * not allow to disable compression that makes it not efficient enough.
+ */
 public class ZipCentralDir {
 
     private final byte[] cen; // CEN & ENDHDR

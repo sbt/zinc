@@ -20,18 +20,19 @@ import xsbti.compile.{ Output, SingleOutput }
  */
 object STJ {
 
+  /** Represents a path to a class file located inside a jar, relative to this jar */
   type RelClass = String
 
   /** `JaredClass` is an identifier for a class located inside a jar.
    * For plain class files it is enough to simply use the actual file
-   * system path. A class in jar is identified as a path to a jar
-   * and path to the class within that jar. Those two values
+   * system path. A class in a jar is identified as a path to the jar
+   * and path to the class within that jar (`RelClass`). Those two values
    * are held in one string separated by `!`. Slashes in both
    * paths are consistent with `File.separatorChar` as the actual
    * string is usually kept in `File` object.
    *
-   * As an example given a jar file "C:\develop\zinc\target\output.jar"
-   * and relative path to the class "sbt/internal/inc/Compile.class"
+   * As an example: given a jar file "C:\develop\zinc\target\output.jar"
+   * and a relative path to the class "sbt/internal/inc/Compile.class"
    * The resulting identifier would be:
    * "C:\develop\zinc\target\output.jar!sbt\internal\inc\Compile.class"
    */
@@ -46,51 +47,109 @@ object STJ {
       (new File(jar), relClass)
     }
 
+    /**
+     * Wraps the string value inside a [[java.io.File]] object.
+     * File is needed to e.g. be compatible with [[xsbti.compile.analysis.ReadStamps]] interface.
+     */
     def toFile: File = new File(toString)
 
   }
 
   object JaredClass {
 
+    /**
+     * The base constructor for `JaredClass`
+     * @param jar the jar file
+     * @param cls the relative path to class within the jar
+     * @return a proper JaredClass identified by given jar and path to class
+     */
     def apply(jar: File, cls: RelClass): JaredClass = {
+      // This identifier will be stored as a java.io.File. Its constructor will normalize slashes
+      // which means that the identifier to be consistent should at all points have consistent
+      // slashes for safe comparisons, especially in sets or maps.
       val relClass = if (File.separatorChar == '/') cls else cls.replace('/', File.separatorChar)
       new JaredClass(s"$jar!$relClass")
     }
 
     // Converts URL to JaredClass but reuses the jar file extracted at the call site to avoid recomputing.
+    /**
+     * Converts an URL to a class in a jar to `JaredClass`. The method is rather trivial
+     * as it also takes precomputed path to the jar that it logically should extract itself.
+     * However as it is computed at the callsite anyway, to avoid recomputation it is passed
+     * as a parameter/
+     *
+     * As an example, given a URL:
+     * "jar:file:///C:/develop/zinc/target/output.jar!/sbt/internal/inc/Compile.class"
+     * and a file: "C:\develop\zinc\target\output.jar"
+     * it will create a `JaredClass` represented as:
+     * "C:\develop\zinc\target\output.jar!sbt\internal\inc\Compile.class"
+     *
+     * @param url url to a class inside a jar
+     * @param jar a jar file where the class is located in
+     * @return the class inside a jar represented as `JaredClass`
+     */
     def fromURL(url: URL, jar: File): JaredClass = {
       val Array(_, cls) = url.getPath.split("!/")
       apply(jar, cls)
     }
 
+    /** Initialized `JaredClass` based on its serialized value stored inside a file */
     def fromFile(f: File): JaredClass = new JaredClass(f.toString)
   }
 
+  /**
+   * Options that have to be specified when running scalac in order
+   * for Straight to Jar to work properly.
+   *
+   * -YdisableFlatCpCaching is needed to disable caching the output jar
+   * that changes between compilation runs (incremental compilation cycles).
+   * Caching may hide those changes and lead into incorrect results.
+   */
   val scalacOptions = Set("-YdisableFlatCpCaching")
+
+  /**
+   * Options that have to be specified when running javac in order
+   * for Straight to Jar to work properly.
+   *
+   * -XDuseOptimizedZip=false holds jars open that causes problems
+   * with locks on Windows.
+   */
   val javacOptions = Set("-XDuseOptimizedZip=false")
 
+  /** Reads current index of a jar file to allow restoring it later with `unstashIndex` */
   def stashIndex(jar: File): IndexBasedZipFsOps.CentralDir = {
     IndexBasedZipFsOps.readCentralDir(jar)
   }
 
+  /** Replaces index in given jar file with specified one */
   def unstashIndex(jar: File, index: IndexBasedZipFsOps.CentralDir): Unit = {
     IndexBasedZipFsOps.writeCentralDir(jar, index)
   }
 
+  /**
+   * Adds plain files to specified jar file. See [[sbt.internal.inc.IndexBasedZipOps#includeInArchive]] for details.
+   */
   def includeInJar(jar: File, files: Seq[(File, RelClass)]): Unit = {
-    IndexBasedZipFsOps.includeInJar(jar, files)
+    IndexBasedZipFsOps.includeInArchive(jar, files)
   }
 
-  // puts all files in `from` (overriding the original files in case of conflicts)
-  // into `to`, removing `from`. In other words it merges `from` into `into`.
+  /**
+   * Merges contents of two jards. See [[sbt.internal.inc.IndexBasedZipOps#mergeArchives]] for details.
+   */
   def mergeJars(into: File, from: File): Unit = {
     IndexBasedZipFsOps.mergeArchives(into, from)
   }
 
+  /**
+   * Creates a function that reads timestamps. It supports both plain files
+   * and jared classes (stored as `JaredClass` inside a File). The timestamps
+   * for jar are read only once cached to avoid reopening the jar.
+   * See [[sbt.internal.inc.IndexBasedZipOps.CachedStampReader]] for more details.
+   */
   def createCachedStampReader(): File => Long = {
     val reader = new IndexBasedZipFsOps.CachedStampReader
     file: File =>
-      if (isJar(file)) {
+      if (isJaredClass(file)) {
         val (jar, cls) = JaredClass.fromFile(file).toJarAndRelClass
         reader.readStamp(jar, cls)
       } else {
@@ -98,12 +157,43 @@ object STJ {
       }
   }
 
+  /**
+   * Removes specified entries from a jar file.
+   */
   def removeFromJar(jarFile: File, classes: Iterable[RelClass]): Unit = {
     if (jarFile.exists()) {
       IndexBasedZipFsOps.removeEntries(jarFile, classes)
     }
   }
 
+  /**
+   * Runs the compilation with previous jar if required.
+   *
+   * When compiling directly to a jar, scalac will produce
+   * a jar file, if one exists it will be overwritten rather
+   * than updated. For sake of incremental compilation it
+   * is required to merge the output from previous compilation(s)
+   * and the current one. To make it work, the jar output from
+   * previous compilation is stored aside (renamed) to avoid
+   * overwrite. The compilation is run normally to the specified
+   * output jar. The produced output jar is then merged with
+   * jar from previous compilation(s).
+   *
+   * Classes from previous jar need to be available for the current
+   * compiler run - they need to be added to the classpath. This is
+   * implemented by taking a function that given additional classpath
+   * runs the compilation.
+   *
+   * If compilation fails, it does not produce a jar, the previous jar
+   * is simply reverted (moved to output jar path).
+   *
+   * If the previous output does not exist or the output is not a jar
+   * at all (STJ feature is disabled) this function runs a normal
+   * compilation.
+   *
+   * @param output output for scalac compilation
+   * @param compile function that given extra classpath for compiler runs the compilation
+   */
   def withPreviousJar[A](output: Output)(compile: /*extra classpath: */ Seq[File] => A): A = {
     getOutputJar(output)
       .filter(_.exists())
@@ -139,17 +229,23 @@ object STJ {
 
   val prevJarPrefix: String = "prev-jar"
 
-  def isJar(file: File): Boolean = {
+  /** Checks if given file stores a JaredClass */
+  def isJaredClass(file: File): Boolean = {
     file.toString.split("!") match {
       case Array(jar, _) => jar.endsWith(".jar")
       case _             => false
     }
   }
 
+  /**
+   * Determines if Straight to Jar compilations is enabled
+   * by inspecting if compilation output is a jar file
+   */
   def isEnabled(output: Output): Boolean = {
     getOutputJar(output).isDefined
   }
 
+  /** Extracts a jar file from the output if it is set to be a single jar. */
   def getOutputJar(output: Output): Option[File] = {
     output match {
       case s: SingleOutput =>
@@ -158,13 +254,24 @@ object STJ {
     }
   }
 
+  /**
+   * As javac does not support compiling directly to jar it is required to
+   * change its output to a directory that is temporary, as after compilation
+   * the plain classes are put into a zip file and merged with the output jar.
+   *
+   * This method returns path to this directory based on output jar. The result
+   * of this method has to be deterministic as it is called from different places
+   * independently.
+   */
   def javacTempOutput(outputJar: File): File = {
     val outJarName = outputJar.getName
     val outDirName = outJarName + "-javac-output"
     outputJar.toPath.resolveSibling(outDirName).toFile
   }
 
-  // for test code only
+  /* Methods below are only used for test code. They are not optimized for performance. */
+
+  /** Lists file entries in jars (no directories) */
   def listFiles(jar: File): Seq[String] = {
     if (jar.exists()) {
       withZipFile(jar) { zip =>
@@ -173,7 +280,8 @@ object STJ {
     } else Seq.empty
   }
 
-  def readModifiedTimeFromJar(jc: JaredClass): Long = {
+  /** Reads timestamp of given jared class */
+  def readModifiedTime(jc: JaredClass): Long = {
     val (jar, cls) = jc.toJarAndRelClass
     if (jar.exists()) {
       withZipFile(jar) { zip =>
@@ -182,7 +290,8 @@ object STJ {
     } else 0
   }
 
-  def existsInJar(jc: JaredClass): Boolean = {
+  /** Checks if given jared class exists */
+  def exists(jc: JaredClass): Boolean = {
     val (jar, cls) = jc.toJarAndRelClass
     jar.exists() && {
       withZipFile(jar)(zip => zip.getEntry(cls) != null)

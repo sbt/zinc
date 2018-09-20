@@ -163,6 +163,17 @@ object ClassFileManager {
     override def complete(success: Boolean): Unit = ()
   }
 
+  /**
+   * Version of [[sbt.internal.inc.ClassFileManager.TransactionalClassFileManager]]
+   * that works when sources are compiled directly to a jar file.
+   *
+   * Before compilation the index is read from the output jar if it exists
+   * and after failed compilation it is reverted. This implementation relies
+   * on the fact that nothing is actually removed from jar during incremental
+   * compilation. Files are only removed from index or new files are appended
+   * and potential overwrite is also handled by replacing index entry. For this
+   * reason the old index with offsets to old files will still be valid.
+   */
   private final class TransactionalClassFileManagerForJar(outputJar: File)
       extends XClassFileManager {
     private val backedUpIndex = Some(outputJar).filter(_.exists()).map(STJ.stashIndex)

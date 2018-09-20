@@ -243,6 +243,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
 
       val compileStraightToJar = STJ.isEnabled(output)
 
+      // otherwise jars on classpath will not be closed, especially prev jar.
       if (compileStraightToJar) sys.props.put("scala.classpath.closeZip", "true")
 
       val extraScalacOptions = {

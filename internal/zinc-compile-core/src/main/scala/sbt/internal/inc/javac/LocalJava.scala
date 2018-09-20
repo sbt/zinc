@@ -178,7 +178,12 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
     compileSuccess
   }
 
-  // rewrite of getStandardFileManager method that also sets the desired option
+  /**
+   * Rewrite of [[javax.tools.JavaCompiler.getStandardFileManager]] method that also sets
+   * useOptimizedZip=false flag. With forked javac adding this option to arguments just works.
+   * Here, as `FileManager` is created before `CompilationTask` options do not get passed
+   * properly. Also there is no access to `com.sun.tools.javac` classes, hence the reflection...
+   */
   private def fileManagerWithoutOptimizedZips(
       diagnostics: DiagnosticsReporter): StandardJavaFileManager = {
     val classLoader = compiler.getClass.getClassLoader

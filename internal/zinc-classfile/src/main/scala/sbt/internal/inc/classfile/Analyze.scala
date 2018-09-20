@@ -182,11 +182,19 @@ private[sbt] object Analyze {
     }
   }
 
-  // Classes are compiled to a temporary directory because javac cannot compile to jar directly.
-  // The paths to class files that can be observed here through file system or class loaders
-  // are located there, but as the output will be eventually included in the output jar, as the
-  // output of the analysis we want the final paths like output.jar!A.class.
-  // This method performs the required conversion.
+  /**
+   * When Straight to Jar compilation is enabled, classes are compiled to a temporary directory
+   * because javac cannot compile to jar directly.The paths to class files that can be observed
+   * here through the file system or class loaders are located in temporary output directory for
+   * javac. As this output will be eventually included in the output jar (`finalJarOutput`), the
+   * analysis (products) have to be changed accordingly.
+   * This method will do a conversion from
+   *   "/develop/zinc/target/output.jar-javac-output/sbt/internal/inc/Compile.class"
+   * to
+   *   "/develop/zinc/target/output.jar!/sbt/internal/inc/Compile.class"
+   * given finalJarOutput = Some("/develop/zinc/target/output.jar")
+   * and output = "/develop/zinc/target/output.jar-javac-output"
+   */
   private def resolveFinalClassFile(realClassFile: File,
                                     output: Output,
                                     finalJarOutput: Option[File]): File = {
@@ -210,6 +218,9 @@ private[sbt] object Analyze {
 
   private def urlAsFile(url: URL, finalJarOutput: Option[File]): Option[File] = {
     IO.urlAsFile(url).map { file =>
+      // IO.urlAsFile removes the information about class in jar. If we are looking at a class
+      // compiled to jar, this information needs to be added back.
+      //
       // .contains does not compile with 2.10
       if (finalJarOutput.exists(_ == file)) {
         STJ.JaredClass.fromURL(url, file).toFile

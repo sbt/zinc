@@ -39,13 +39,29 @@ class ZincFileCommands(baseDirectory: File) extends FileCommands(baseDirectory) 
   }
 
   private def exists(path: String): Boolean = {
-    pathFold(path)(_.exists(), STJ.existsInJar)(_ || _)
+    pathFold(path)(_.exists(), STJ.exists)(_ || _)
   }
 
   private def getModifiedTimeOrZero(path: String): Long = {
-    pathFold(path)(IO.getModifiedTimeOrZero, STJ.readModifiedTimeFromJar)(_ max _)
+    pathFold(path)(IO.getModifiedTimeOrZero, STJ.readModifiedTime)(_ max _)
   }
 
+  /**
+   * Folds over representations of path (analogously to Either#fold).
+   * Path can be a path to regular file or a jared class.
+   *
+   * This method is pretty hacky but makes scripted tests work with
+   * Straight to Jar compilation and without changing assertions there.
+   * The path will always point to actual file, but this method will
+   * attempt to run a function for both plain file and jared class
+   * and then decide which result is relevant with `combine` function.
+   *
+   * As an example, it will convert path "target/classes/C.class" to
+   *   "/tmp/sbt_535fddcd/target/classes/a/b/c/C.class"
+   * as well as to
+   *   "/tmp/sbt_535fddcd/target/classes/output.jar!a/b/c/C.class"
+   * and run functions on them, e.g. checking if one of those files exists.
+   */
   private def pathFold[A](path: String)(
       transformPlain: File => A,
       transformJared: STJ.JaredClass => A

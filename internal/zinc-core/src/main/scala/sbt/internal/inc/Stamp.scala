@@ -142,6 +142,16 @@ object Stamper {
   }
 
   val forHash: File => XStamp = (toStamp: File) => tryStamp(Hash.ofFile(toStamp))
+
+  /**
+   * Creates a function that reads a timestamp from file.
+   * Notably it also handles files containing [[sbt.internal.inc.STJ.JaredClass]].
+   * For purpose of reading timestamps from jar, the jar is read only once and
+   * all stamps are cached. This means that for the jar use case it is crutial
+   * to create not create this function for each file/entry as it will be terribly
+   * slow. On the flip side it must be recreated each time the jar that is accessed
+   * changes to get the up to date stamps.
+   */
   def forLastModified: File => XStamp = {
     val reader = STJ.createCachedStampReader()
     toStamp: File =>

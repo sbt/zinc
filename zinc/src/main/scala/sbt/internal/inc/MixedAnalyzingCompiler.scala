@@ -301,10 +301,10 @@ object MixedAnalyzingCompiler {
   ): (Seq[File], String => Option[File]) = {
     import config._
     import currentSetup._
-    // If we are compiling straight to jar, javac does not have this option
+    // If we are compiling straight to jar, as javac does not support this,
     // it will be compiled to a temporary directory (with deterministic name)
     // and then added to the final jar. This temporary directory has to be
-    // available for Analyze to work phase to work.
+    // available for sbt.internal.inc.classfile.Analyze to work correctly.
     val tempJavacOutput = STJ.getOutputJar(currentSetup.output).map(STJ.javacTempOutput).toSeq
     val absClasspath = classpath.map(_.getAbsoluteFile)
     val cArgs =

@@ -8,21 +8,43 @@ import java.util.zip.{ Deflater, ZipOutputStream, ZipEntry }
 
 import sbt.io.{ IO, Using }
 
+/**
+ * Provides efficient implementation of operations on zip files * that are
+ * used for implementation of the Straight to Jar feature.
+ *
+ * The implementation is based on index (aka central directory) that is
+ * located at the end of the zip file and contains among others the name/path
+ * and offset where the actual data of stored file is located. Reading zips
+ * should always be done based on that index, which means that it is often enough
+ * to manipulate this index without rewriting the other part of the file.
+ * This class heavily relies on this fact.
+ *
+ * This class abstracts over the actual operations on index i.e. reading, manipulating
+ * and storing it making it easy to replace.
+ */
 abstract class IndexBasedZipOps extends CreateZip {
 
+  /**
+   * Reads timestamps of zip entries. On the first access to a given zip
+   * it reads the timestamps once and keeps them cached for future lookups.
+   *
+   * It only supports reading stamps from a single zip. The zip passed as
+   * an argument is only used to initialize the cache and is later ignored.
+   * This is enough as stamps are only read from the output jar.
+   */
   class CachedStampReader {
     private var cachedNameToTimestamp: Map[String, Long] = _
 
-    def readStamp(jar: File, cls: String): Long = {
+    def readStamp(zip: File, entry: String): Long = {
       if (cachedNameToTimestamp == null) {
-        cachedNameToTimestamp = initializeCache(jar)
+        cachedNameToTimestamp = initializeCache(zip)
       }
-      cachedNameToTimestamp.getOrElse(cls, 0)
+      cachedNameToTimestamp.getOrElse(entry, 0)
     }
 
-    private def initializeCache(jar: File): Map[String, Long] = {
-      if (jar.exists()) {
-        val centralDir = readCentralDir(jar.toPath)
+    private def initializeCache(zipFile: File): Map[String, Long] = {
+      if (zipFile.exists()) {
+        val centralDir = readCentralDir(zipFile.toPath)
         val headers = getHeaders(centralDir)
         headers.map(header => getFileName(header) -> getLastModifiedTime(header))(
           collection.breakOut)
@@ -32,33 +54,80 @@ abstract class IndexBasedZipOps extends CreateZip {
     }
   }
 
-  def removeEntries(jarFile: File, classes: Iterable[String]): Unit = {
-    removeEntries(jarFile.toPath, classes.toSet)
+  /**
+   * Removes specified entries from given zip file by replacing current index
+   * with a version without those entries.
+   * @param zipFile the zip file to remove entries from
+   * @param entries paths to files inside the jar e.g. sbt/internal/inc/IndexBasedZipOps.class
+   */
+  def removeEntries(zipFile: File, entries: Iterable[String]): Unit = {
+    removeEntries(zipFile.toPath, entries.toSet)
   }
 
+  /**
+   * Merges two zip files. It works by appending contents of `from`
+   * to `into`. Indices are combined, in case of duplicates, the
+   * final entries that are used are from `from`.
+   * The final merged zip is available under `into` path, and `from`
+   * is deleted.
+   *
+   * @param into the target zip file to merge to
+   * @param from the source zip file that is added/merged to `into`
+   */
   def mergeArchives(into: File, from: File): Unit = {
     mergeArchives(into.toPath, from.toPath)
   }
 
-  def includeInJar(jar: File, files: Seq[(File, String)]): Unit = {
-    if (jar.exists()) {
-      val tempZip = jar.toPath.resolveSibling(s"${UUID.randomUUID()}.jar").toFile
+  /**
+   * Adds `files` (plain files) to the specified zip file. Implemented by creating
+   * a new zip with the plain files. If `zipFile` already exists, the archives will
+   * be merged.
+   * Plain files are not removed after this operation.
+   *
+   * @param zipFile A zip file to add files to
+   * @param files a sequence of tuples with actual file to include and the path in
+   *             the zip where it should be put.
+   */
+  def includeInArchive(zipFile: File, files: Seq[(File, String)]): Unit = {
+    if (zipFile.exists()) {
+      val tempZip = zipFile.toPath.resolveSibling(s"${UUID.randomUUID()}.jar").toFile
       createZip(tempZip, files)
-      mergeArchives(jar, tempZip)
+      mergeArchives(zipFile, tempZip)
     } else {
-      createZip(jar, files)
+      createZip(zipFile, files)
     }
   }
 
-  def readCentralDir(file: File): CentralDir = {
-    readCentralDir(file.toPath)
+  /**
+   * Reads the current index from given zip file
+   *
+   * @param zipFile path to the zip file
+   * @return current index
+   */
+  def readCentralDir(zipFile: File): CentralDir = {
+    readCentralDir(zipFile.toPath)
   }
 
-  def writeCentralDir(file: File, centralDir: CentralDir): Unit = {
-    writeCentralDir(file.toPath, centralDir)
+  /**
+   * Replaces index inside the zip file.
+   *
+   * @param zipFile the zip file that should have the index updated
+   * @param centralDir the index to be stored in the file
+   */
+  def writeCentralDir(zipFile: File, centralDir: CentralDir): Unit = {
+    writeCentralDir(zipFile.toPath, centralDir)
   }
 
+  /**
+   * Represents the central directory (index) of a zip file. It must contain the start offset
+   * (where it is located in the zip file) and list of headers
+   */
   type CentralDir
+
+  /**
+   * Represents a header of a zip entry located inside the central directory. It has to contain
+   * the timestamp, name/path and offset to the actual data in zip file.
+   */
   type Header
 
   private def writeCentralDir(path: Path, newCentralDir: CentralDir): Unit = {
