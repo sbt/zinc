@@ -14,9 +14,9 @@ import xsbti.compile.analysis.ReadWriteMappers
 import xsbti.compile.{ CompileAnalysis, MiniSetup }
 
 final class BinaryAnalysisFormat(mappers: ReadWriteMappers) {
-  private final val CurrentVersion = schema.Version.V1
+  private final val CurrentVersion = schema.Version.V1_1
   private final val protobufWriters = new ProtobufWriters(mappers.getWriteMapper)
-  private final val protobufReaders = new ProtobufReaders(mappers.getReadMapper)
+  private final val protobufReaders = new ProtobufReaders(mappers.getReadMapper, CurrentVersion)
 
   def write(writer: CodedOutputStream, analysis0: CompileAnalysis, miniSetup: MiniSetup): Unit = {
     val analysis = analysis0 match { case analysis: Analysis => analysis }
