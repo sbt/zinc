@@ -73,9 +73,4 @@ public interface ReadStamps {
      */
     public Map<File, Stamp> getAllProductStamps();
 
-    /**
-     * Resets internal state of stamp reader that concerns data changing during the compilation.
-     * Namely it resets the cache for compilation products. Should be called before each compilation.
-     */
-    public void reset();
 }

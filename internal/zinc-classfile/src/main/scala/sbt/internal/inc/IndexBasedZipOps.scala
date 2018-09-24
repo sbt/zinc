@@ -32,13 +32,10 @@ abstract class IndexBasedZipOps extends CreateZip {
    * an argument is only used to initialize the cache and is later ignored.
    * This is enough as stamps are only read from the output jar.
    */
-  class CachedStampReader {
-    private var cachedNameToTimestamp: Map[String, Long] = _
+  class CachedStamps(zip: File) {
+    private val cachedNameToTimestamp: Map[String, Long] = initializeCache(zip)
 
-    def readStamp(zip: File, entry: String): Long = {
-      if (cachedNameToTimestamp == null) {
-        cachedNameToTimestamp = initializeCache(zip)
-      }
+    def getStamp(entry: String): Long = {
       cachedNameToTimestamp.getOrElse(entry, 0)
     }
 
@@ -281,14 +278,14 @@ sealed trait CreateZip {
   private def writeZip(files: Seq[(File, String)], output: ZipOutputStream): Unit = {
     val now = System.currentTimeMillis()
 
-    def makeFileEntry(file: File, name: String): ZipEntry = {
+    def makeFileEntry(name: String): ZipEntry = {
       val entry = new ZipEntry(name)
       entry.setTime(now)
       entry
     }
 
     def addFileEntry(file: File, name: String): Unit = {
-      output.putNextEntry(makeFileEntry(file, name))
+      output.putNextEntry(makeFileEntry(name))
       IO.transfer(file, output)
       output.closeEntry()
     }

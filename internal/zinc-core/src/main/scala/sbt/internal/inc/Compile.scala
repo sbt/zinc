@@ -62,7 +62,7 @@ object IncrementalCompile {
       options: IncOptions): (Boolean, Analysis) = {
     val previous = previous0 match { case a: Analysis => a }
     val current =
-      Stamps.initial(() => Stamper.forLastModified, Stamper.forHash, Stamper.forLastModified)
+      Stamps.initial(Stamper.forLastModified, Stamper.forHash, Stamper.forLastModified)
     val internalBinaryToSourceClassName = (binaryClassName: String) =>
       previous.relations.productClassName.reverse(binaryClassName).headOption
     val internalSourceToClassNamesMap: File => Set[String] = (f: File) =>
@@ -115,7 +115,6 @@ private object AnalysisCallback {
       options: IncOptions
   ) {
     def build(): AnalysisCallback = {
-      current.reset()
       new AnalysisCallback(
         internalBinaryToSourceClassName,
         internalSourceToClassNamesMap,
@@ -365,7 +364,9 @@ private final class AnalysisCallback(
     )
   }
 
-  def addProductsAndDeps(base: Analysis): Analysis =
+  def addProductsAndDeps(base: Analysis): Analysis = {
+    val currentProductsStamps =
+      STJ.getOutputJar(output).fold(stampReader.product _)(Stamper.forLastModifiedInJar)
     (base /: srcs) {
       case (a, src) =>
         val stamp = stampReader.source(src)
@@ -376,7 +377,7 @@ private final class AnalysisCallback(
                                         getOrNil(mainClasses, src))
         val binaries = binaryDeps.getOrElse(src, Nil: Iterable[File])
         val localProds = localClasses.getOrElse(src, Nil: Iterable[File]) map { classFile =>
-          val classFileStamp = stampReader.product(classFile)
+          val classFileStamp = currentProductsStamps(classFile)
           LocalProduct(classFile, classFileStamp)
         }
         val binaryToSrcClassName = (classNames.getOrElse(src, Set.empty) map {
@@ -385,7 +386,7 @@ private final class AnalysisCallback(
         val nonLocalProds = nonLocalClasses.getOrElse(src, Nil: Iterable[(File, String)]) map {
           case (classFile, binaryClassName) =>
             val srcClassName = binaryToSrcClassName(binaryClassName)
-            val classFileStamp = stampReader.product(classFile)
+            val classFileStamp = currentProductsStamps(classFile)
             NonLocalProduct(srcClassName, binaryClassName, classFile, classFileStamp)
         }
 
@@ -403,6 +404,7 @@ private final class AnalysisCallback(
                     externalDeps,
                     binDeps)
     }
+  }
 
   override def dependencyPhaseCompleted(): Unit = {}
 

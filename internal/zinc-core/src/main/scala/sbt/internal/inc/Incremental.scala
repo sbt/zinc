@@ -67,7 +67,8 @@ object Incremental {
     val previous = previous0 match { case a: Analysis => a }
     val runProfiler = profiler.profileRun
     val incremental: IncrementalCommon = new IncrementalNameHashing(log, options, runProfiler)
-    val initialChanges = incremental.detectInitialChanges(sources, previous, current, lookup)
+    val initialChanges =
+      incremental.detectInitialChanges(sources, previous, current, lookup, output)
     val binaryChanges = new DependencyChanges {
       val modifiedBinaries = initialChanges.binaryDeps.toArray
       val modifiedClasses = initialChanges.external.allModified.toArray

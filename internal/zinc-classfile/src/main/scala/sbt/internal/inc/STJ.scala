@@ -134,27 +134,20 @@ object STJ {
   }
 
   /**
-   * Merges contents of two jards. See [[sbt.internal.inc.IndexBasedZipOps#mergeArchives]] for details.
+   * Merges contents of two jars. See [[sbt.internal.inc.IndexBasedZipOps#mergeArchives]] for details.
    */
   def mergeJars(into: File, from: File): Unit = {
     IndexBasedZipFsOps.mergeArchives(into, from)
   }
 
   /**
-   * Creates a function that reads timestamps. It supports both plain files
-   * and jared classes (stored as `JaredClass` inside a File). The timestamps
-   * for jar are read only once cached to avoid reopening the jar.
-   * See [[sbt.internal.inc.IndexBasedZipOps.CachedStampReader]] for more details.
+   * Reads all timestamps from given jar file. Returns a function that
+   * allows to access them by `JaredClass` wrapped in `File`.
    */
-  def createCachedStampReader(): File => Long = {
-    val reader = new IndexBasedZipFsOps.CachedStampReader
-    file: File =>
-      if (isJaredClass(file)) {
-        val (jar, cls) = JaredClass.fromFile(file).toJarAndRelClass
-        reader.readStamp(jar, cls)
-      } else {
-        IO.getModifiedTimeOrZero(file)
-      }
+  def readStamps(jar: File): File => Long = {
+    val stamps = new IndexBasedZipFsOps.CachedStamps(jar)
+    file =>
+      stamps.getStamp(JaredClass.fromFile(file).relClass)
   }
 
   /**
