@@ -33,7 +33,7 @@ pipeline:
     commands:
       - export DRONE_DIR="/drone"
       - export JAVA_HOME="${JDK_HOME}" 
-      - export PATH="${JDK_HOME}:${PATH}"      
+      - export PATH="$JAVA_HOME:$PATH"      
       - java -version
       - git fetch --tags && git log | head -n 20
       - ./bin/run-ci.sh
