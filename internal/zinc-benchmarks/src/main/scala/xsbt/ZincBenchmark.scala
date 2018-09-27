@@ -280,7 +280,7 @@ private[xsbt] object ZincBenchmark {
         }
       }
 
-      val readState = Try(IO.read(stateFile).lines.toList).toEither
+      val readState = Try(IO.read(stateFile).linesIterator.toList).toEither
       readState.right.flatMap { stateLines =>
         val init: Result[List[ReadBuildInfo]] = Right(Nil)
         stateLines.foldLeft(init) { (acc, line) =>
