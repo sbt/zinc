@@ -2,8 +2,8 @@ matrix:
   CI_SCALA_VERSION:
     - 2.12.7
   JDK_HOME:
-    - /usr/share/jvm/jdk8/bin
-    - /usr/share/jvm/jdk11/bin
+    - /usr/lib/jvm/jdk8/bin
+    - /usr/lib/jvm/jdk11/bin
 
 clone:
   git:
