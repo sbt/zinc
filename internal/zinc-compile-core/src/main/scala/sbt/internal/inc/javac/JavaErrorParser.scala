@@ -279,6 +279,6 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
     }
 
   private def getOffset(contents: String): Int =
-    contents.lines.toList.lastOption map (_.length) getOrElse 0
+    contents.linesIterator.toList.lastOption map (_.length) getOrElse 0
 
 }

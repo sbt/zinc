@@ -4,7 +4,7 @@ import sbt.contraband.ContrabandPlugin.autoImport._
 object Dependencies {
   val scala210 = "2.10.7"
   val scala211 = "2.11.12"
-  val scala212 = "2.12.6"
+  val scala212 = "2.12.7"
   val scala213 = "2.13.0-M2"
 
   private val ioVersion = "1.2.0"
