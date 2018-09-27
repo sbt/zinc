@@ -224,6 +224,8 @@ lazy val zincPersist = (project in internalPath / "zinc-persist")
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.AnalyzedClass.this"),
         exclude[ReversedMissingMethodProblem]("sbt.internal.inc.schema.Version.isV11"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufReaders.this"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Problem.*"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Problem#ProblemLens.rendered"),
 
         // Added {start,end}{Offset,Line,Column}
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Position.apply"),
@@ -359,7 +361,7 @@ lazy val zincCompileCore = (project in internalPath / "zinc-compile-core")
         // PositionImpl is a private class only invoked in the same source.
         exclude[FinalClassProblem]("sbt.internal.inc.javac.DiagnosticsReporter$PositionImpl"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.javac.DiagnosticsReporter#PositionImpl.this"),
-
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.javac.JavaProblem.rendered"),
 
         // Renamed vals in a private[sbt] class
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.javac.DiagnosticsReporter#PositionImpl.endPosition"),
