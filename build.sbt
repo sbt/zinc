@@ -232,6 +232,7 @@ lazy val zincPersist = (project in internalPath / "zinc-persist")
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufReaders.this"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Problem.*"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Problem#ProblemLens.rendered"),
+        exclude[MissingClassProblem]("sbt.internal.inc.text.Java678Encoder"),
 
         // Added {start,end}{Offset,Line,Column}
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Position.apply"),
