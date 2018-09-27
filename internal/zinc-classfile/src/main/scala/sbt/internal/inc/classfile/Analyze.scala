@@ -198,14 +198,14 @@ private[sbt] object Analyze {
   private def resolveFinalClassFile(realClassFile: File,
                                     output: Output,
                                     finalJarOutput: Option[File]): File = {
-    val jaredClass = for {
+    val classInJar = for {
       outputJar <- finalJarOutput
       outputDir <- Some(output).collect { case s: SingleOutput => s.getOutputDirectory }
       relativeClass <- IO.relativize(outputDir, realClassFile)
     } yield {
-      JarUtils.JaredClass(outputJar, relativeClass).toFile
+      JarUtils.ClassInJar(outputJar, relativeClass).toFile
     }
-    jaredClass.getOrElse(realClassFile)
+    classInJar.getOrElse(realClassFile)
   }
 
   private[this] def urlAsFile(url: URL, log: Logger, finalJarOutput: Option[File]): Option[File] =
@@ -223,7 +223,7 @@ private[sbt] object Analyze {
       //
       // .contains does not compile with 2.10
       if (finalJarOutput.exists(_ == file)) {
-        JarUtils.JaredClass.fromURL(url, file).toFile
+        JarUtils.ClassInJar.fromURL(url, file).toFile
       } else {
         file
       }

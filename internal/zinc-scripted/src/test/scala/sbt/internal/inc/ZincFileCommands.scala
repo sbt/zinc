@@ -64,13 +64,13 @@ class ZincFileCommands(baseDirectory: File) extends FileCommands(baseDirectory) 
    */
   private def pathFold[A](path: String)(
       transformPlain: File => A,
-      transformJared: JarUtils.JaredClass => A
+      transformJared: JarUtils.ClassInJar => A
   )(combine: (A, A) => A): A = {
     val jaredRes = {
       val relBasePath = "target/classes"
       IO.relativize(new File(relBasePath), new File(path)).map { relClass =>
         val jar = Paths.get(baseDirectory.toString, relBasePath, "output.jar").toFile
-        transformJared(JarUtils.JaredClass(jar, relClass))
+        transformJared(JarUtils.ClassInJar(jar, relClass))
       }
     }
     val regularRes = transformPlain(fromString(path))

@@ -22,7 +22,7 @@ object JarUtils {
   /** Represents a path to a class file located inside a jar, relative to this jar */
   type RelClass = String
 
-  /** `JaredClass` is an identifier for a class located inside a jar.
+  /** `ClassInJar` is an identifier for a class located inside a jar.
    * For plain class files it is enough to simply use the actual file
    * system path. A class in a jar is identified as a path to the jar
    * and path to the class within that jar (`RelClass`). Those two values
@@ -35,13 +35,13 @@ object JarUtils {
    * The resulting identifier would be:
    * "C:\develop\zinc\target\output.jar!sbt\internal\inc\Compile.class"
    */
-  class JaredClass(override val toString: String) extends AnyVal {
+  class ClassInJar(override val toString: String) extends AnyVal {
 
     def relClass: RelClass = toJarAndRelClass._2
 
     def toJarAndRelClass: (File, RelClass) = {
       val Array(jar, cls) = toString.split("!")
-      // JaredClass stores RelClass part with File.separatorChar, however actual paths in zips always use '/'
+      // ClassInJar stores RelClass part with File.separatorChar, however actual paths in zips always use '/'
       val relClass = cls.replace('\\', '/')
       (new File(jar), relClass)
     }
@@ -54,25 +54,24 @@ object JarUtils {
 
   }
 
-  object JaredClass {
+  object ClassInJar {
 
     /**
-     * The base constructor for `JaredClass`
+     * The base constructor for `ClassInJar`
      * @param jar the jar file
      * @param cls the relative path to class within the jar
-     * @return a proper JaredClass identified by given jar and path to class
+     * @return a proper ClassInJar identified by given jar and path to class
      */
-    def apply(jar: File, cls: RelClass): JaredClass = {
+    def apply(jar: File, cls: RelClass): ClassInJar = {
       // This identifier will be stored as a java.io.File. Its constructor will normalize slashes
       // which means that the identifier to be consistent should at all points have consistent
       // slashes for safe comparisons, especially in sets or maps.
       val relClass = if (File.separatorChar == '/') cls else cls.replace('/', File.separatorChar)
-      new JaredClass(s"$jar!$relClass")
+      new ClassInJar(s"$jar!$relClass")
     }
 
-    // Converts URL to JaredClass but reuses the jar file extracted at the call site to avoid recomputing.
     /**
-     * Converts an URL to a class in a jar to `JaredClass`. The method is rather trivial
+     * Converts an URL to a class in a jar to `ClassInJar`. The method is rather trivial
      * as it also takes precomputed path to the jar that it logically should extract itself.
      * However as it is computed at the callsite anyway, to avoid recomputation it is passed
      * as a parameter/
@@ -80,20 +79,20 @@ object JarUtils {
      * As an example, given a URL:
      * "jar:file:///C:/develop/zinc/target/output.jar!/sbt/internal/inc/Compile.class"
      * and a file: "C:\develop\zinc\target\output.jar"
-     * it will create a `JaredClass` represented as:
+     * it will create a `ClassInJar` represented as:
      * "C:\develop\zinc\target\output.jar!sbt\internal\inc\Compile.class"
      *
      * @param url url to a class inside a jar
      * @param jar a jar file where the class is located in
-     * @return the class inside a jar represented as `JaredClass`
+     * @return the class inside a jar represented as `ClassInJar`
      */
-    def fromURL(url: URL, jar: File): JaredClass = {
+    def fromURL(url: URL, jar: File): ClassInJar = {
       val Array(_, cls) = url.getPath.split("!/")
       apply(jar, cls)
     }
 
-    /** Initialized `JaredClass` based on its serialized value stored inside a file */
-    def fromFile(f: File): JaredClass = new JaredClass(f.toString)
+    /** Initialized `ClassInJar` based on its serialized value stored inside a file */
+    def fromFile(f: File): ClassInJar = new ClassInJar(f.toString)
   }
 
   /**
@@ -141,12 +140,12 @@ object JarUtils {
 
   /**
    * Reads all timestamps from given jar file. Returns a function that
-   * allows to access them by `JaredClass` wrapped in `File`.
+   * allows to access them by `ClassInJar` wrapped in `File`.
    */
   def readStamps(jar: File): File => Long = {
     val stamps = new IndexBasedZipFsOps.CachedStamps(jar)
     file =>
-      stamps.getStamp(JaredClass.fromFile(file).relClass)
+      stamps.getStamp(ClassInJar.fromFile(file).relClass)
   }
 
   /**
@@ -221,8 +220,8 @@ object JarUtils {
 
   val prevJarPrefix: String = "prev-jar"
 
-  /** Checks if given file stores a JaredClass */
-  def isJaredClass(file: File): Boolean = {
+  /** Checks if given file stores a ClassInJar */
+  def isClassInJar(file: File): Boolean = {
     file.toString.split("!") match {
       case Array(jar, _) => jar.endsWith(".jar")
       case _             => false
@@ -273,7 +272,7 @@ object JarUtils {
   }
 
   /** Reads timestamp of given jared class */
-  def readModifiedTime(jc: JaredClass): Long = {
+  def readModifiedTime(jc: ClassInJar): Long = {
     val (jar, cls) = jc.toJarAndRelClass
     if (jar.exists()) {
       withZipFile(jar) { zip =>
@@ -283,7 +282,7 @@ object JarUtils {
   }
 
   /** Checks if given jared class exists */
-  def exists(jc: JaredClass): Boolean = {
+  def exists(jc: ClassInJar): Boolean = {
     val (jar, cls) = jc.toJarAndRelClass
     jar.exists() && {
       withZipFile(jar)(zip => zip.getEntry(cls) != null)

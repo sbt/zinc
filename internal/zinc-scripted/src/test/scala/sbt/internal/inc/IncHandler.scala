@@ -350,8 +350,8 @@ case class ProjectStructure(
     def products(srcFile: String): Set[String] = {
       val productFiles = analysis.relations.products(baseDirectory / srcFile)
       productFiles.map { file =>
-        if (JarUtils.isJaredClass(file)) {
-          JarUtils.JaredClass.fromFile(file).relClass
+        if (JarUtils.isClassInJar(file)) {
+          JarUtils.ClassInJar.fromFile(file).relClass
         } else {
           relativeClassDir(file).getPath.replace('\\', '/')
         }
@@ -366,10 +366,10 @@ case class ProjectStructure(
 
   def checkNoGeneratedClassFiles(): Unit = {
     val allClassFiles = generatedClassFiles.get
-    val allJaredClassFiles = outputJar.toSeq.flatMap(JarUtils.listFiles).filter(_.endsWith(".class"))
-    if (allClassFiles.nonEmpty || allJaredClassFiles.nonEmpty)
+    val allClassesInJar = outputJar.toSeq.flatMap(JarUtils.listFiles).filter(_.endsWith(".class"))
+    if (allClassFiles.nonEmpty || allClassesInJar.nonEmpty)
       sys.error(
-        s"Classes existed:\n\t${allClassFiles.mkString("\n\t")} \n\t${allJaredClassFiles.mkString("\n\t")}")
+        s"Classes existed:\n\t${allClassFiles.mkString("\n\t")} \n\t${allClassesInJar.mkString("\n\t")}")
   }
 
   def checkDependencies(i: IncInstance, className: String, expected: List[String]): Unit = {
