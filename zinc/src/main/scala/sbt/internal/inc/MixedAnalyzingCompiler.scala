@@ -305,7 +305,8 @@ object MixedAnalyzingCompiler {
     // it will be compiled to a temporary directory (with deterministic name)
     // and then added to the final jar. This temporary directory has to be
     // available for sbt.internal.inc.classfile.Analyze to work correctly.
-    val tempJavacOutput = JarUtils.getOutputJar(currentSetup.output).map(JarUtils.javacTempOutput).toSeq
+    val tempJavacOutput =
+      JarUtils.getOutputJar(currentSetup.output).map(JarUtils.javacTempOutput).toSeq
     val absClasspath = classpath.map(_.getAbsoluteFile)
     val cArgs =
       new CompilerArguments(compiler.scalaInstance, compiler.classpathOptions)
