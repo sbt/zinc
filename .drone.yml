@@ -2,8 +2,8 @@ matrix:
   CI_SCALA_VERSION:
     - 2.12.7
   JDK_HOME:
-    - /usr/share/jvm/jdk8
-    - /usr/share/jvm/jdk11
+    - /usr/share/jvm/jdk8/bin
+    - /usr/share/jvm/jdk11/bin
 
 clone:
   git:
@@ -32,8 +32,8 @@ pipeline:
       ref: [ refs/heads/1.x, refs/tags/*, refs/pull/*/head ]
     commands:
       - export DRONE_DIR="/drone"
-      - export JAVA_HOME="${JDK_HOME}"
-      - export PATH="$JAVA_HOME:$PATH"      
+      - export JAVA_HOME="${JDK_HOME}" 
+      - export PATH="${JDK_HOME}:${PATH}"      
       - java -version
       - git fetch --tags && git log | head -n 20
       - ./bin/run-ci.sh
