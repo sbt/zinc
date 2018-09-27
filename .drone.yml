@@ -32,7 +32,8 @@ pipeline:
       ref: [ refs/heads/1.x, refs/tags/*, refs/pull/*/head ]
     commands:
       - export DRONE_DIR="/drone"
-      - export JAVA_HOME="$JDK_HOME"
+      - export JAVA_HOME="${JDK_HOME}"
+      - echo "$JAVA_HOME"      
       - java -version
       - git fetch --tags && git log | head -n 20
       - ./bin/run-ci.sh
