@@ -12,7 +12,6 @@ public final class Parameterized extends xsbti.api.Type {
     public static Parameterized of(Type _baseType, Type[] _typeArguments) {
         return new Parameterized(_baseType, _typeArguments);
     }
-    
     private Type baseType;
     private Type[] typeArguments;
     protected Parameterized(Type _baseType, Type[] _typeArguments) {
@@ -20,6 +19,7 @@ public final class Parameterized extends xsbti.api.Type {
         baseType = _baseType;
         typeArguments = _typeArguments;
     }
+    
     public Type baseType() {
         return this.baseType;
     }

@@ -26,6 +26,7 @@ object AnalyzedClassFormats {
                 apiHash: Int,
                 nameHashes: Array[NameHash],
                 hasMacro: Boolean) =>
+            val _ = ev0.toString
             AnalyzedClass.of(
               compilationTimestamp,
               name,

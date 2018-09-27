@@ -12,7 +12,6 @@ public final class TypeParameter implements java.io.Serializable {
     public static TypeParameter of(String _id, Annotation[] _annotations, TypeParameter[] _typeParameters, Variance _variance, Type _lowerBound, Type _upperBound) {
         return new TypeParameter(_id, _annotations, _typeParameters, _variance, _lowerBound, _upperBound);
     }
-    
     private String id;
     private Annotation[] annotations;
     private TypeParameter[] typeParameters;
@@ -28,6 +27,7 @@ public final class TypeParameter implements java.io.Serializable {
         lowerBound = _lowerBound;
         upperBound = _upperBound;
     }
+    
     public String id() {
         return this.id;
     }

@@ -12,7 +12,6 @@ public final class InternalDependency implements java.io.Serializable {
     public static InternalDependency of(String _sourceClassName, String _targetClassName, xsbti.api.DependencyContext _context) {
         return new InternalDependency(_sourceClassName, _targetClassName, _context);
     }
-    
     private String sourceClassName;
     private String targetClassName;
     private xsbti.api.DependencyContext context;
@@ -22,6 +21,7 @@ public final class InternalDependency implements java.io.Serializable {
         targetClassName = _targetClassName;
         context = _context;
     }
+    
     public String sourceClassName() {
         return this.sourceClassName;
     }

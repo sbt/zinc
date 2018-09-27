@@ -12,7 +12,6 @@ public final class AnnotationArgument implements java.io.Serializable {
     public static AnnotationArgument of(String _name, String _value) {
         return new AnnotationArgument(_name, _value);
     }
-    
     private String name;
     private String value;
     protected AnnotationArgument(String _name, String _value) {
@@ -20,6 +19,7 @@ public final class AnnotationArgument implements java.io.Serializable {
         name = _name;
         value = _value;
     }
+    
     public String name() {
         return this.name;
     }

@@ -13,13 +13,9 @@ public final class Inputs implements java.io.Serializable {
     public static Inputs of(xsbti.compile.Compilers _compilers, xsbti.compile.CompileOptions _options, xsbti.compile.Setup _setup, xsbti.compile.PreviousResult _previousResult) {
         return new Inputs(_compilers, _options, _setup, _previousResult);
     }
-    /** Return the Scala and Java compilers to use for compilation. */
     private xsbti.compile.Compilers compilers;
-    /** Return the compilation options, such as the sources and classpath to use. */
     private xsbti.compile.CompileOptions options;
-    /** Represent the configuration of incremental compilation. */
     private xsbti.compile.Setup setup;
-    /** Represent tha latest result of incremental compilation. */
     private xsbti.compile.PreviousResult previousResult;
     protected Inputs(xsbti.compile.Compilers _compilers, xsbti.compile.CompileOptions _options, xsbti.compile.Setup _setup, xsbti.compile.PreviousResult _previousResult) {
         super();
@@ -28,15 +24,19 @@ public final class Inputs implements java.io.Serializable {
         setup = _setup;
         previousResult = _previousResult;
     }
+    /** Return the Scala and Java compilers to use for compilation. */
     public xsbti.compile.Compilers compilers() {
         return this.compilers;
     }
+    /** Return the compilation options, such as the sources and classpath to use. */
     public xsbti.compile.CompileOptions options() {
         return this.options;
     }
+    /** Represent the configuration of incremental compilation. */
     public xsbti.compile.Setup setup() {
         return this.setup;
     }
+    /** Represent tha latest result of incremental compilation. */
     public xsbti.compile.PreviousResult previousResult() {
         return this.previousResult;
     }

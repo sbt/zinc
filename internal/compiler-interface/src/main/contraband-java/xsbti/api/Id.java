@@ -12,12 +12,12 @@ public final class Id extends xsbti.api.PathComponent {
     public static Id of(String _id) {
         return new Id(_id);
     }
-    
     private String id;
     protected Id(String _id) {
         super();
         id = _id;
     }
+    
     public String id() {
         return this.id;
     }

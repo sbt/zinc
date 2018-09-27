@@ -6,12 +6,12 @@
 package xsbti.api;
 public abstract class ParameterizedDefinition extends xsbti.api.ClassDefinition {
     
-    
     private TypeParameter[] typeParameters;
     protected ParameterizedDefinition(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters) {
         super(_name, _access, _modifiers, _annotations);
         typeParameters = _typeParameters;
     }
+    
     public TypeParameter[] typeParameters() {
         return this.typeParameters;
     }

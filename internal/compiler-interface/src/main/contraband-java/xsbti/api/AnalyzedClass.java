@@ -18,7 +18,6 @@ public final class AnalyzedClass implements java.io.Serializable {
     public static AnalyzedClass of(long _compilationTimestamp, String _name, xsbti.api.Lazy<Companions> _api, int _apiHash, NameHash[] _nameHashes, boolean _hasMacro, int _extraHash) {
         return new AnalyzedClass(_compilationTimestamp, _name, _api, _apiHash, _nameHashes, _hasMacro, _extraHash);
     }
-    
     private long compilationTimestamp;
     private String name;
     private xsbti.api.Lazy<Companions> api;
@@ -46,6 +45,7 @@ public final class AnalyzedClass implements java.io.Serializable {
         hasMacro = _hasMacro;
         extraHash = _extraHash;
     }
+    
     public long compilationTimestamp() {
         return this.compilationTimestamp;
     }

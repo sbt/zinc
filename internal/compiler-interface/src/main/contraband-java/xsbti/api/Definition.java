@@ -6,7 +6,6 @@
 package xsbti.api;
 public abstract class Definition implements java.io.Serializable {
     
-    
     private String name;
     private Access access;
     private Modifiers modifiers;
@@ -18,6 +17,7 @@ public abstract class Definition implements java.io.Serializable {
         modifiers = _modifiers;
         annotations = _annotations;
     }
+    
     public String name() {
         return this.name;
     }

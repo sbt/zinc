@@ -13,7 +13,6 @@ public final class PreviousResult implements java.io.Serializable {
     public static PreviousResult of(java.util.Optional<xsbti.compile.CompileAnalysis> _analysis, java.util.Optional<xsbti.compile.MiniSetup> _setup) {
         return new PreviousResult(_analysis, _setup);
     }
-    
     private java.util.Optional<xsbti.compile.CompileAnalysis> analysis;
     private java.util.Optional<xsbti.compile.MiniSetup> setup;
     protected PreviousResult(java.util.Optional<xsbti.compile.CompileAnalysis> _analysis, java.util.Optional<xsbti.compile.MiniSetup> _setup) {
@@ -21,6 +20,7 @@ public final class PreviousResult implements java.io.Serializable {
         analysis = _analysis;
         setup = _setup;
     }
+    
     public java.util.Optional<xsbti.compile.CompileAnalysis> analysis() {
         return this.analysis;
     }

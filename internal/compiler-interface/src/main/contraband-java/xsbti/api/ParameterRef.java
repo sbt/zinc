@@ -12,12 +12,12 @@ public final class ParameterRef extends xsbti.api.Type {
     public static ParameterRef of(String _id) {
         return new ParameterRef(_id);
     }
-    
     private String id;
     protected ParameterRef(String _id) {
         super();
         id = _id;
     }
+    
     public String id() {
         return this.id;
     }

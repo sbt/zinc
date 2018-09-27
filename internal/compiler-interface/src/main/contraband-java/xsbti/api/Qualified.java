@@ -6,12 +6,12 @@
 package xsbti.api;
 public abstract class Qualified extends xsbti.api.Access {
     
-    
     private Qualifier qualifier;
     protected Qualified(Qualifier _qualifier) {
         super();
         qualifier = _qualifier;
     }
+    
     public Qualifier qualifier() {
         return this.qualifier;
     }

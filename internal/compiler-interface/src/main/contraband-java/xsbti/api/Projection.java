@@ -12,7 +12,6 @@ public final class Projection extends xsbti.api.Type {
     public static Projection of(Type _prefix, String _id) {
         return new Projection(_prefix, _id);
     }
-    
     private Type prefix;
     private String id;
     protected Projection(Type _prefix, String _id) {
@@ -20,6 +19,7 @@ public final class Projection extends xsbti.api.Type {
         prefix = _prefix;
         id = _id;
     }
+    
     public Type prefix() {
         return this.prefix;
     }

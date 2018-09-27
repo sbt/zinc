@@ -12,12 +12,12 @@ public final class Singleton extends xsbti.api.Type {
     public static Singleton of(Path _path) {
         return new Singleton(_path);
     }
-    
     private Path path;
     protected Singleton(Path _path) {
         super();
         path = _path;
     }
+    
     public Path path() {
         return this.path;
     }

@@ -9,7 +9,7 @@ def mimaSettings: Seq[Setting[_]] = Seq(
   mimaPreviousArtifacts := Set(
     "1.0.0", "1.0.1", "1.0.2", "1.0.3", "1.0.4", "1.0.5",
     "1.1.0", "1.1.1", "1.1.2", "1.1.3",
-    "1.2.0",
+    "1.2.0", "1.2.1", "1.2.2",
   ) map (version =>
     organization.value %% moduleName.value % version
       cross (if (crossPaths.value) CrossVersion.binary else CrossVersion.disabled)
@@ -17,7 +17,7 @@ def mimaSettings: Seq[Setting[_]] = Seq(
 )
 
 def buildLevelSettings: Seq[Setting[_]] = Seq(
-  git.baseVersion := "1.2.1",
+  git.baseVersion := "1.3.0",
   // https://github.com/sbt/sbt-git/issues/109
   // Workaround from https://github.com/sbt/sbt-git/issues/92#issuecomment-161853239
   git.gitUncommittedChanges := {
@@ -90,8 +90,6 @@ def compilerVersionDependentScalacOptions: Seq[Setting[_]] = Seq(
         old filterNot Set(
           "-Xfatal-warnings",
           "-deprecation",
-          "-Ywarn-unused",
-          "-Ywarn-unused-import",
           "-YdisableFlatCpCaching",
         )
     }
@@ -202,6 +200,11 @@ lazy val zincPersist = (project in internalPath / "zinc-persist")
     name := "zinc Persist",
     libraryDependencies += sbinary,
     compileOrder := sbt.CompileOrder.Mixed,
+    Compile / scalacOptions ++= (scalaVersion.value match {
+      case VersionNumber(Seq(2, 12, _*), _, _) =>
+        List("-Ywarn-unused:-imports,-locals,-implicits,-explicits,-privates")
+      case _ => Nil
+    }),
     PB.targets in Compile := List(scalapb.gen() -> (sourceManaged in Compile).value),
     mimaSettings,
     mimaBinaryIssueFilters ++= {
@@ -472,6 +475,13 @@ lazy val compilerBridgeTemplate: Project = (project in internalPath / "compiler-
     baseSettings,
     noSourcesForTemplate,
     compilerVersionDependentScalacOptions,
+    // We need this for import Compat._
+    Compile / scalacOptions --= Seq("-Ywarn-unused-import", "-Xfatal-warnings"),
+    Compile / scalacOptions ++= (scalaVersion.value match {
+      case VersionNumber(Seq(2, 12, _*), _, _) =>
+        List("-Ywarn-unused:-imports,-locals,-implicits,-explicits,-privates")
+      case _ => Nil
+    }),
     libraryDependencies += scalaCompiler.value % "provided",
     autoScalaLibrary := false,
     // precompiledSettings,

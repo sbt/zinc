@@ -131,7 +131,6 @@ class ZincInvalidationProfiler extends InvalidationProfiler {
       }
     }
 
-    private final var initial: Option[zprof.InitialChanges] = None
     def registerInitial(changes: InitialChanges): Unit = {
       import scala.collection.JavaConverters._
       val fileChanges = changes.internalSrc
@@ -140,14 +139,13 @@ class ZincInvalidationProfiler extends InvalidationProfiler {
         removed = toStringTableIndices(toPathStrings(fileChanges.getRemoved.asScala)).toList,
         modified = toStringTableIndices(toPathStrings(fileChanges.getChanged.asScala)).toList
       )
-      initial = Some(
-        zprof.InitialChanges(
-          changes = Some(profChanges),
-          removedProducts = toStringTableIndices(toPathStrings(changes.removedProducts)).toList,
-          binaryDependencies = toStringTableIndices(toPathStrings(changes.binaryDeps)).toList,
-          externalChanges = toApiChanges(changes.external).toList
-        )
+      zprof.InitialChanges(
+        changes = Some(profChanges),
+        removedProducts = toStringTableIndices(toPathStrings(changes.removedProducts)).toList,
+        binaryDependencies = toStringTableIndices(toPathStrings(changes.binaryDeps)).toList,
+        externalChanges = toApiChanges(changes.external).toList
       )
+      ()
     }
 
     private final var currentEvents: List[zprof.InvalidationEvent] = Nil

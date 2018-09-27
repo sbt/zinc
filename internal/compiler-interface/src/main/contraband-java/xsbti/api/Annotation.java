@@ -12,7 +12,6 @@ public final class Annotation implements java.io.Serializable {
     public static Annotation of(Type _base, AnnotationArgument[] _arguments) {
         return new Annotation(_base, _arguments);
     }
-    
     private Type base;
     private AnnotationArgument[] arguments;
     protected Annotation(Type _base, AnnotationArgument[] _arguments) {
@@ -20,6 +19,7 @@ public final class Annotation implements java.io.Serializable {
         base = _base;
         arguments = _arguments;
     }
+    
     public Type base() {
         return this.base;
     }

@@ -13,21 +13,21 @@ public final class Compilers implements java.io.Serializable {
     public static Compilers of(xsbti.compile.ScalaCompiler _scalac, xsbti.compile.JavaTools _javaTools) {
         return new Compilers(_scalac, _javaTools);
     }
-    /**
-     * A `ScalaCompiler`.
-     * It should be cached by the client if desired.
-     */
     private xsbti.compile.ScalaCompiler scalac;
-    /** Tool chain of Java. */
     private xsbti.compile.JavaTools javaTools;
     protected Compilers(xsbti.compile.ScalaCompiler _scalac, xsbti.compile.JavaTools _javaTools) {
         super();
         scalac = _scalac;
         javaTools = _javaTools;
     }
+    /**
+     * A `ScalaCompiler`.
+     * It should be cached by the client if desired.
+     */
     public xsbti.compile.ScalaCompiler scalac() {
         return this.scalac;
     }
+    /** Tool chain of Java. */
     public xsbti.compile.JavaTools javaTools() {
         return this.javaTools;
     }

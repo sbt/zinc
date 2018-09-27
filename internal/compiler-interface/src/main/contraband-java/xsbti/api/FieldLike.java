@@ -6,12 +6,12 @@
 package xsbti.api;
 public abstract class FieldLike extends xsbti.api.ClassDefinition {
     
-    
     private Type tpe;
     protected FieldLike(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, Type _tpe) {
         super(_name, _access, _modifiers, _annotations);
         tpe = _tpe;
     }
+    
     public Type tpe() {
         return this.tpe;
     }

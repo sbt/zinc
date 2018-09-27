@@ -12,7 +12,6 @@ public final class ParameterList implements java.io.Serializable {
     public static ParameterList of(MethodParameter[] _parameters, boolean _isImplicit) {
         return new ParameterList(_parameters, _isImplicit);
     }
-    
     private MethodParameter[] parameters;
     private boolean isImplicit;
     protected ParameterList(MethodParameter[] _parameters, boolean _isImplicit) {
@@ -20,6 +19,7 @@ public final class ParameterList implements java.io.Serializable {
         parameters = _parameters;
         isImplicit = _isImplicit;
     }
+    
     public MethodParameter[] parameters() {
         return this.parameters;
     }

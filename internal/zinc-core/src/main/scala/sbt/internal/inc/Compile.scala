@@ -148,7 +148,7 @@ private final class AnalysisCallback(
       .map { case (label, map) => label + "\n\t" + map.mkString("\n\t") }
       .mkString("\n")
 
-  final case class ApiInfo(
+  case class ApiInfo(
       publicHash: HashAPI.Hash,
       extraHash: HashAPI.Hash,
       classLike: ClassLike

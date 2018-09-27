@@ -12,7 +12,6 @@ public final class Constant extends xsbti.api.Type {
     public static Constant of(Type _baseType, String _value) {
         return new Constant(_baseType, _value);
     }
-    
     private Type baseType;
     private String value;
     protected Constant(Type _baseType, String _value) {
@@ -20,6 +19,7 @@ public final class Constant extends xsbti.api.Type {
         baseType = _baseType;
         value = _value;
     }
+    
     public Type baseType() {
         return this.baseType;
     }

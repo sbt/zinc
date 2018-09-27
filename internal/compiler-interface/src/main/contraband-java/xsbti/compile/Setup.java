@@ -13,21 +13,12 @@ public final class Setup implements java.io.Serializable {
     public static Setup of(xsbti.compile.PerClasspathEntryLookup _perClasspathEntryLookup, boolean _skip, java.io.File _cacheFile, xsbti.compile.GlobalsCache _cache, xsbti.compile.IncOptions _incrementalCompilerOptions, xsbti.Reporter _reporter, java.util.Optional<xsbti.compile.CompileProgress> _progress, xsbti.T2<String, String>[] _extra) {
         return new Setup(_perClasspathEntryLookup, _skip, _cacheFile, _cache, _incrementalCompilerOptions, _reporter, _progress, _extra);
     }
-    /** Provides a lookup of data structures and operations associated with a single classpath entry. */
     private xsbti.compile.PerClasspathEntryLookup perClasspathEntryLookup;
-    /** If true, no sources are actually compiled and the Analysis from the previous compilation is returned. */
     private boolean skip;
-    /**
-     * The file used to cache information across compilations.
-     * This file can be removed to force a full recompilation.
-     * The file should be unique and not shared between compilations.
-     */
     private java.io.File cacheFile;
     private xsbti.compile.GlobalsCache cache;
     private xsbti.compile.IncOptions incrementalCompilerOptions;
-    /** The reporter that should be used to report scala compilation to. */
     private xsbti.Reporter reporter;
-    /** Optionally provide progress indication. */
     private java.util.Optional<xsbti.compile.CompileProgress> progress;
     private xsbti.T2<String, String>[] extra;
     protected Setup(xsbti.compile.PerClasspathEntryLookup _perClasspathEntryLookup, boolean _skip, java.io.File _cacheFile, xsbti.compile.GlobalsCache _cache, xsbti.compile.IncOptions _incrementalCompilerOptions, xsbti.Reporter _reporter, java.util.Optional<xsbti.compile.CompileProgress> _progress, xsbti.T2<String, String>[] _extra) {
@@ -41,12 +32,19 @@ public final class Setup implements java.io.Serializable {
         progress = _progress;
         extra = _extra;
     }
+    /** Provides a lookup of data structures and operations associated with a single classpath entry. */
     public xsbti.compile.PerClasspathEntryLookup perClasspathEntryLookup() {
         return this.perClasspathEntryLookup;
     }
+    /** If true, no sources are actually compiled and the Analysis from the previous compilation is returned. */
     public boolean skip() {
         return this.skip;
     }
+    /**
+     * The file used to cache information across compilations.
+     * This file can be removed to force a full recompilation.
+     * The file should be unique and not shared between compilations.
+     */
     public java.io.File cacheFile() {
         return this.cacheFile;
     }
@@ -56,9 +54,11 @@ public final class Setup implements java.io.Serializable {
     public xsbti.compile.IncOptions incrementalCompilerOptions() {
         return this.incrementalCompilerOptions;
     }
+    /** The reporter that should be used to report scala compilation to. */
     public xsbti.Reporter reporter() {
         return this.reporter;
     }
+    /** Optionally provide progress indication. */
     public java.util.Optional<xsbti.compile.CompileProgress> progress() {
         return this.progress;
     }

@@ -12,12 +12,12 @@ public final class Super extends xsbti.api.PathComponent {
     public static Super of(Path _qualifier) {
         return new Super(_qualifier);
     }
-    
     private Path qualifier;
     protected Super(Path _qualifier) {
         super();
         qualifier = _qualifier;
     }
+    
     public Path qualifier() {
         return this.qualifier;
     }

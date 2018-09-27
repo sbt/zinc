@@ -12,7 +12,6 @@ public final class ClassLike extends xsbti.api.Definition {
     public static ClassLike of(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, DefinitionType _definitionType, xsbti.api.Lazy<Type> _selfType, xsbti.api.Lazy<Structure> _structure, String[] _savedAnnotations, Type[] _childrenOfSealedClass, boolean _topLevel, TypeParameter[] _typeParameters) {
         return new ClassLike(_name, _access, _modifiers, _annotations, _definitionType, _selfType, _structure, _savedAnnotations, _childrenOfSealedClass, _topLevel, _typeParameters);
     }
-    
     private DefinitionType definitionType;
     private xsbti.api.Lazy<Type> selfType;
     private xsbti.api.Lazy<Structure> structure;
@@ -30,6 +29,7 @@ public final class ClassLike extends xsbti.api.Definition {
         topLevel = _topLevel;
         typeParameters = _typeParameters;
     }
+    
     public DefinitionType definitionType() {
         return this.definitionType;
     }

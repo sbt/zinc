@@ -12,7 +12,6 @@ public final class TypeDeclaration extends xsbti.api.TypeMember {
     public static TypeDeclaration of(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters, Type _lowerBound, Type _upperBound) {
         return new TypeDeclaration(_name, _access, _modifiers, _annotations, _typeParameters, _lowerBound, _upperBound);
     }
-    
     private Type lowerBound;
     private Type upperBound;
     protected TypeDeclaration(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters, Type _lowerBound, Type _upperBound) {
@@ -20,6 +19,7 @@ public final class TypeDeclaration extends xsbti.api.TypeMember {
         lowerBound = _lowerBound;
         upperBound = _upperBound;
     }
+    
     public Type lowerBound() {
         return this.lowerBound;
     }

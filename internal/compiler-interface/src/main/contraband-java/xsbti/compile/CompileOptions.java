@@ -25,30 +25,14 @@ public final class CompileOptions implements java.io.Serializable {
     public static CompileOptions of(java.io.File[] _classpath, java.io.File[] _sources, java.io.File _classesDirectory, String[] _scalacOptions, String[] _javacOptions, int _maxErrors, java.util.function.Function<xsbti.Position, xsbti.Position> _sourcePositionMapper, xsbti.compile.CompileOrder _order, java.util.Optional<java.io.File> _temporaryClassesDirectory) {
         return new CompileOptions(_classpath, _sources, _classesDirectory, _scalacOptions, _javacOptions, _maxErrors, _sourcePositionMapper, _order, _temporaryClassesDirectory);
     }
-    /**
-     * The classpath to use for compilation.
-     * This will be modified according to the ClasspathOptions used to configure the ScalaCompiler.
-     */
     private java.io.File[] classpath;
-    /**
-     * All sources that should be recompiled.
-     * This should include Scala and Java sources, which are identified by their extension.
-     */
     private java.io.File[] sources;
     private java.io.File classesDirectory;
-    /** The options to pass to the Scala compiler other than the sources and classpath to use. */
     private String[] scalacOptions;
-    /** The options to pass to the Java compiler other than the sources and classpath to use. */
     private String[] javacOptions;
     private int maxErrors;
     private java.util.function.Function<xsbti.Position, xsbti.Position> sourcePositionMapper;
-    /** Controls the order in which Java and Scala sources are compiled. */
     private xsbti.compile.CompileOrder order;
-    /**
-     * Points to a temporary classes directory where the compiler can put compilation products
-     * of any kind. The lifetime of these compilation products is short and the temporary
-     * classes directory only needs to exist during one incremental compiler cycle.
-     */
     private java.util.Optional<java.io.File> temporaryClassesDirectory;
     protected CompileOptions() {
         super();
@@ -86,18 +70,28 @@ public final class CompileOptions implements java.io.Serializable {
         order = _order;
         temporaryClassesDirectory = _temporaryClassesDirectory;
     }
+    /**
+     * The classpath to use for compilation.
+     * This will be modified according to the ClasspathOptions used to configure the ScalaCompiler.
+     */
     public java.io.File[] classpath() {
         return this.classpath;
     }
+    /**
+     * All sources that should be recompiled.
+     * This should include Scala and Java sources, which are identified by their extension.
+     */
     public java.io.File[] sources() {
         return this.sources;
     }
     public java.io.File classesDirectory() {
         return this.classesDirectory;
     }
+    /** The options to pass to the Scala compiler other than the sources and classpath to use. */
     public String[] scalacOptions() {
         return this.scalacOptions;
     }
+    /** The options to pass to the Java compiler other than the sources and classpath to use. */
     public String[] javacOptions() {
         return this.javacOptions;
     }
@@ -107,9 +101,15 @@ public final class CompileOptions implements java.io.Serializable {
     public java.util.function.Function<xsbti.Position, xsbti.Position> sourcePositionMapper() {
         return this.sourcePositionMapper;
     }
+    /** Controls the order in which Java and Scala sources are compiled. */
     public xsbti.compile.CompileOrder order() {
         return this.order;
     }
+    /**
+     * Points to a temporary classes directory where the compiler can put compilation products
+     * of any kind. The lifetime of these compilation products is short and the temporary
+     * classes directory only needs to exist during one incremental compiler cycle.
+     */
     public java.util.Optional<java.io.File> temporaryClassesDirectory() {
         return this.temporaryClassesDirectory;
     }

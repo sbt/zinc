@@ -17,30 +17,10 @@ public final class ClasspathOptions implements java.io.Serializable {
     public static ClasspathOptions of(boolean _bootLibrary, boolean _compiler, boolean _extra, boolean _autoBoot, boolean _filterLibrary) {
         return new ClasspathOptions(_bootLibrary, _compiler, _extra, _autoBoot, _filterLibrary);
     }
-    /**
-     * If true, includes the Scala library on the boot classpath.
-     * This should usually be true.
-     */
     private boolean bootLibrary;
-    /**
-     * If true, includes the Scala compiler on the standard classpath.
-     * This is typically false and is instead managed by the build tool or environment.
-     */
     private boolean compiler;
-    /**
-     * If true, includes extra jars from the Scala instance on the standard classpath.
-     * This is typically false and is instead managed by the build tool or environment.
-     */
     private boolean extra;
-    /**
-     * If true, automatically configures the boot classpath.
-     * This should usually be true.
-     */
     private boolean autoBoot;
-    /**
-     * If true, the Scala library jar is filtered from the standard classpath.
-     * This should usually be true because the library should be included on the boot classpath of the Scala compiler and not the standard classpath.
-     */
     private boolean filterLibrary;
     protected ClasspathOptions(boolean _bootLibrary, boolean _compiler, boolean _extra, boolean _autoBoot, boolean _filterLibrary) {
         super();
@@ -50,18 +30,38 @@ public final class ClasspathOptions implements java.io.Serializable {
         autoBoot = _autoBoot;
         filterLibrary = _filterLibrary;
     }
+    /**
+     * If true, includes the Scala library on the boot classpath.
+     * This should usually be true.
+     */
     public boolean bootLibrary() {
         return this.bootLibrary;
     }
+    /**
+     * If true, includes the Scala compiler on the standard classpath.
+     * This is typically false and is instead managed by the build tool or environment.
+     */
     public boolean compiler() {
         return this.compiler;
     }
+    /**
+     * If true, includes extra jars from the Scala instance on the standard classpath.
+     * This is typically false and is instead managed by the build tool or environment.
+     */
     public boolean extra() {
         return this.extra;
     }
+    /**
+     * If true, automatically configures the boot classpath.
+     * This should usually be true.
+     */
     public boolean autoBoot() {
         return this.autoBoot;
     }
+    /**
+     * If true, the Scala library jar is filtered from the standard classpath.
+     * This should usually be true because the library should be included on the boot classpath of the Scala compiler and not the standard classpath.
+     */
     public boolean filterLibrary() {
         return this.filterLibrary;
     }

@@ -12,7 +12,6 @@ public final class Companions implements java.io.Serializable {
     public static Companions of(ClassLike _classApi, ClassLike _objectApi) {
         return new Companions(_classApi, _objectApi);
     }
-    
     private ClassLike classApi;
     private ClassLike objectApi;
     protected Companions(ClassLike _classApi, ClassLike _objectApi) {
@@ -20,6 +19,7 @@ public final class Companions implements java.io.Serializable {
         classApi = _classApi;
         objectApi = _objectApi;
     }
+    
     public ClassLike classApi() {
         return this.classApi;
     }

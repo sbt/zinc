@@ -12,7 +12,6 @@ public final class NameHash implements java.io.Serializable {
     public static NameHash of(String _name, xsbti.UseScope _scope, int _hash) {
         return new NameHash(_name, _scope, _hash);
     }
-    
     private String name;
     private xsbti.UseScope scope;
     private int hash;
@@ -22,6 +21,7 @@ public final class NameHash implements java.io.Serializable {
         scope = _scope;
         hash = _hash;
     }
+    
     public String name() {
         return this.name;
     }
