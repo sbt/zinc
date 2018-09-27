@@ -26,14 +26,14 @@ pipeline:
       - /drone/.git
 
   tests:
-    image: scalacenter/scala-docs:1.4
+    image: scalacenter/scala-docs:1.5
     group: build
     when:
       ref: [ refs/heads/1.x, refs/tags/*, refs/pull/*/head ]
     commands:
       - export DRONE_DIR="/drone"
       - export JAVA_HOME="${JDK_HOME}"
-      - echo "$JAVA_HOME"      
+      - export PATH="$JAVA_HOME:PATH"      
       - java -version
       - git fetch --tags && git log | head -n 20
       - ./bin/run-ci.sh
