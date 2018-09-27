@@ -259,7 +259,7 @@ private[inc] abstract class IncrementalCommon(
 
     val removedProducts: Set[File] = lookup.removedProducts(previousAnalysis).getOrElse {
       val currentProductsStamps =
-        STJ.getOutputJar(output).fold(stamps.product _)(Stamper.forLastModifiedInJar)
+        JarUtils.getOutputJar(output).fold(stamps.product _)(Stamper.forLastModifiedInJar)
       previous.allProducts
         .filter(p => !equivS.equiv(previous.product(p), currentProductsStamps(p)))
         .toSet

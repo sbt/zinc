@@ -241,7 +241,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         case None           => Analysis.empty
       }
 
-      val compileStraightToJar = STJ.isEnabled(output)
+      val compileStraightToJar = JarUtils.isCompilingToJar(output)
 
       // otherwise jars on classpath will not be closed, especially prev jar.
       if (compileStraightToJar) sys.props.put("scala.classpath.closeZip", "true")
@@ -249,12 +249,12 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       val extraScalacOptions = {
         val scalaVersion = scalaCompiler.scalaInstance.version
         if (compileStraightToJar && scalaVersion.startsWith("2.12")) {
-          STJ.scalacOptions
+          JarUtils.scalacOptions
         } else Seq.empty
       }
 
       val extraJavacOptions = if (compileStraightToJar) {
-        STJ.javacOptions
+        JarUtils.javacOptions
       } else Seq.empty
 
       val config = MixedAnalyzingCompiler.makeConfig(

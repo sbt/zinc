@@ -82,7 +82,7 @@ object ClassFileManager {
     new DeleteClassFileManagerForJar(outputJar)
 
   def deleteImmediately(output: Output): XClassFileManager = {
-    val outputJar = STJ.getOutputJar(output)
+    val outputJar = JarUtils.getOutputJar(output)
     outputJar.fold(deleteImmediately)(deleteImmediatelyFromJar)
   }
 
@@ -101,7 +101,7 @@ object ClassFileManager {
   }
 
   def transactional(output: Output, tempDir: File, logger: sbt.util.Logger): XClassFileManager = {
-    val outputJar = STJ.getOutputJar(output)
+    val outputJar = JarUtils.getOutputJar(output)
     outputJar.fold(transactional(tempDir, logger))(transactionalForJar)
   }
 
@@ -156,8 +156,8 @@ object ClassFileManager {
 
   private final class DeleteClassFileManagerForJar(outputJar: File) extends XClassFileManager {
     override def delete(classes: Array[File]): Unit = {
-      val relClasses = classes.map(c => STJ.JaredClass.fromFile(c).relClass)
-      STJ.removeFromJar(outputJar, relClasses)
+      val relClasses = classes.map(c => JarUtils.JaredClass.fromFile(c).relClass)
+      JarUtils.removeFromJar(outputJar, relClasses)
     }
     override def generated(classes: Array[File]): Unit = ()
     override def complete(success: Boolean): Unit = ()
@@ -176,18 +176,18 @@ object ClassFileManager {
    */
   private final class TransactionalClassFileManagerForJar(outputJar: File)
       extends XClassFileManager {
-    private val backedUpIndex = Some(outputJar).filter(_.exists()).map(STJ.stashIndex)
+    private val backedUpIndex = Some(outputJar).filter(_.exists()).map(JarUtils.stashIndex)
 
     override def delete(jaredClasses: Array[File]): Unit = {
-      val classes = jaredClasses.map(c => STJ.JaredClass.fromFile(c).relClass)
-      STJ.removeFromJar(outputJar, classes)
+      val classes = jaredClasses.map(c => JarUtils.JaredClass.fromFile(c).relClass)
+      JarUtils.removeFromJar(outputJar, classes)
     }
 
     override def generated(classes: Array[File]): Unit = ()
 
     override def complete(success: Boolean): Unit = {
       if (!success) {
-        backedUpIndex.foreach(index => STJ.unstashIndex(outputJar, index))
+        backedUpIndex.foreach(index => JarUtils.unstashIndex(outputJar, index))
       }
     }
   }

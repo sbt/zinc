@@ -68,7 +68,7 @@ final class MixedAnalyzingCompiler(
     /** Compile Scala sources. */
     def compileScala(): Unit =
       if (scalaSrcs.nonEmpty) {
-        STJ.withPreviousJar(output) { extraClasspath =>
+        JarUtils.withPreviousJar(output) { extraClasspath =>
           val sources = if (config.currentSetup.order == Mixed) incSrc else scalaSrcs
           val arguments = cArgs(Nil,
                                 toAbsolute(extraClasspath) ++ absClasspath,
@@ -101,9 +101,9 @@ final class MixedAnalyzingCompiler(
             )
           val joptions = config.currentSetup.options.javacOptions
 
-          STJ.getOutputJar(output) match {
+          JarUtils.getOutputJar(output) match {
             case Some(outputJar) =>
-              val outputDir = STJ.javacTempOutput(outputJar)
+              val outputDir = JarUtils.javacTempOutput(outputJar)
               IO.createDirectory(outputDir)
               javac.compile(javaSrcs,
                             joptions,
@@ -153,7 +153,7 @@ final class MixedAnalyzingCompiler(
     }
 
     if (compiledClasses.nonEmpty) {
-      STJ.includeInJar(outputJar, compiledClasses)
+      JarUtils.includeInJar(outputJar, compiledClasses)
     }
     IO.delete(outputDir)
   }
@@ -305,7 +305,7 @@ object MixedAnalyzingCompiler {
     // it will be compiled to a temporary directory (with deterministic name)
     // and then added to the final jar. This temporary directory has to be
     // available for sbt.internal.inc.classfile.Analyze to work correctly.
-    val tempJavacOutput = STJ.getOutputJar(currentSetup.output).map(STJ.javacTempOutput).toSeq
+    val tempJavacOutput = JarUtils.getOutputJar(currentSetup.output).map(JarUtils.javacTempOutput).toSeq
     val absClasspath = classpath.map(_.getAbsoluteFile)
     val cArgs =
       new CompilerArguments(compiler.scalaInstance, compiler.classpathOptions)

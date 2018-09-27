@@ -10,15 +10,14 @@ import scala.collection.JavaConverters._
 import sbt.io.syntax.URL
 import xsbti.compile.{ Output, SingleOutput }
 
-/** STJ stands for Straight to Jar compilation.
+/**
+ * This is a utility class that provides a set of functions that
+ * are used to implement straight to jar compilation.
  *
- *  This is a utility object that provides a set of functions
- *  that are used to implement this feature.
- *
- *  [[xsbt.STJ]] is a class that has similar purpose and
+ *  [[xsbt.JarUtils]] is a class that has similar purpose and
  *  duplicates some of the code, as it is difficult to share it.
  */
-object STJ {
+object JarUtils {
 
   /** Represents a path to a class file located inside a jar, relative to this jar */
   type RelClass = String
@@ -181,7 +180,7 @@ object STJ {
    * is simply reverted (moved to output jar path).
    *
    * If the previous output does not exist or the output is not a jar
-   * at all (STJ feature is disabled) this function runs a normal
+   * at all (JarUtils feature is disabled) this function runs a normal
    * compilation.
    *
    * @param output output for scalac compilation
@@ -203,7 +202,7 @@ object STJ {
         }
 
         if (outputJar.exists()) {
-          STJ.mergeJars(into = prevJar, from = outputJar)
+          JarUtils.mergeJars(into = prevJar, from = outputJar)
         }
         IO.move(prevJar, outputJar)
         result
@@ -234,7 +233,7 @@ object STJ {
    * Determines if Straight to Jar compilations is enabled
    * by inspecting if compilation output is a jar file
    */
-  def isEnabled(output: Output): Boolean = {
+  def isCompilingToJar(output: Output): Boolean = {
     getOutputJar(output).isDefined
   }
 

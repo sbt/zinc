@@ -366,7 +366,7 @@ private final class AnalysisCallback(
 
   def addProductsAndDeps(base: Analysis): Analysis = {
     val currentProductsStamps =
-      STJ.getOutputJar(output).fold(stampReader.product _)(Stamper.forLastModifiedInJar)
+      JarUtils.getOutputJar(output).fold(stampReader.product _)(Stamper.forLastModifiedInJar)
     (base /: srcs) {
       case (a, src) =>
         val stamp = stampReader.source(src)

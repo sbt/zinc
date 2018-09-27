@@ -39,11 +39,11 @@ class ZincFileCommands(baseDirectory: File) extends FileCommands(baseDirectory) 
   }
 
   private def exists(path: String): Boolean = {
-    pathFold(path)(_.exists(), STJ.exists)(_ || _)
+    pathFold(path)(_.exists(), JarUtils.exists)(_ || _)
   }
 
   private def getModifiedTimeOrZero(path: String): Long = {
-    pathFold(path)(IO.getModifiedTimeOrZero, STJ.readModifiedTime)(_ max _)
+    pathFold(path)(IO.getModifiedTimeOrZero, JarUtils.readModifiedTime)(_ max _)
   }
 
   /**
@@ -64,13 +64,13 @@ class ZincFileCommands(baseDirectory: File) extends FileCommands(baseDirectory) 
    */
   private def pathFold[A](path: String)(
       transformPlain: File => A,
-      transformJared: STJ.JaredClass => A
+      transformJared: JarUtils.JaredClass => A
   )(combine: (A, A) => A): A = {
     val jaredRes = {
       val relBasePath = "target/classes"
       IO.relativize(new File(relBasePath), new File(path)).map { relClass =>
         val jar = Paths.get(baseDirectory.toString, relBasePath, "output.jar").toFile
-        transformJared(STJ.JaredClass(jar, relClass))
+        transformJared(JarUtils.JaredClass(jar, relClass))
       }
     }
     val regularRes = transformPlain(fromString(path))
