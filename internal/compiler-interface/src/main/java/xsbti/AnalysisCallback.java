@@ -10,6 +10,7 @@ package xsbti;
 import xsbti.api.DependencyContext;
 import java.io.File;
 import java.util.EnumSet;
+import java.util.Optional;
 
 public interface AnalysisCallback {
     /**
@@ -172,4 +173,13 @@ public interface AnalysisCallback {
      * phase defined by <code>xsbt-analyzer</code> should be added.
      */
     boolean enabled();
+
+    /**
+     * Returns path to a jar generated in previous compilation if it exists
+     * and compilation to jar is enabled.
+     *
+     * @see sbt.internal.inc.JarUtils#withPreviousJar for more information.
+     */
+    Optional<File> previousJar();
+
 }

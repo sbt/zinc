@@ -2,8 +2,9 @@ package xsbti
 
 import java.io.File
 import java.util
+import java.util.Optional
 
-import xsbti.api.{ ClassLike, DependencyContext }
+import xsbti.api.{ DependencyContext, ClassLike }
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -77,6 +78,9 @@ class TestCallback extends AnalysisCallback {
   override def dependencyPhaseCompleted(): Unit = {}
 
   override def apiPhaseCompleted(): Unit = {}
+
+  override def previousJar(): Optional[File] = Optional.empty[File]
+
 }
 
 object TestCallback {

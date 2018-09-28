@@ -6,9 +6,10 @@ import java.io.File
 import java.util.UUID
 
 import scala.collection.JavaConverters._
-
 import sbt.io.syntax.URL
+import xsbti.AnalysisCallback
 import xsbti.compile.{ Output, SingleOutput }
+import sbt.util.InterfaceUtil.toOption
 
 /**
  * This is a utility class that provides a set of functions that
@@ -183,35 +184,36 @@ object JarUtils {
    * compilation.
    *
    * @param output output for scalac compilation
+   * @param callback analysis callback used to set previus jar
    * @param compile function that given extra classpath for compiler runs the compilation
    */
-  def withPreviousJar[A](output: Output)(compile: /*extra classpath: */ Seq[File] => A): A = {
-    getOutputJar(output)
-      .filter(_.exists())
-      .map { outputJar =>
-        val prevJar = createPrevJarPath()
-        IO.move(outputJar, prevJar)
+  def withPreviousJar[A](output: Output, callback: AnalysisCallback)(
+      compile: /*extra classpath: */ Seq[File] => A): A = {
+    (for {
+      outputJar <- getOutputJar(output)
+      prevJar <- toOption(callback.previousJar())
+    } yield {
+      IO.move(outputJar, prevJar)
 
-        val result = try {
-          compile(Seq(prevJar))
-        } catch {
-          case e: Exception =>
-            IO.move(prevJar, outputJar)
-            throw e
-        }
+      val result = try {
+        compile(Seq(prevJar))
+      } catch {
+        case e: Exception =>
+          IO.move(prevJar, outputJar)
+          throw e
+      }
 
-        if (outputJar.exists()) {
-          JarUtils.mergeJars(into = prevJar, from = outputJar)
-        }
-        IO.move(prevJar, outputJar)
-        result
+      if (outputJar.exists()) {
+        JarUtils.mergeJars(into = prevJar, from = outputJar)
       }
-      .getOrElse {
-        compile(Nil)
-      }
+      IO.move(prevJar, outputJar)
+      result
+    }).getOrElse {
+      compile(Nil)
+    }
   }
 
-  private def createPrevJarPath(): File = {
+  def createPrevJarPath(): File = {
     val tempDir =
       sys.props.get("zinc.compile-to-jar.tmp-dir").map(new File(_)).getOrElse(IO.temporaryDirectory)
     val prevJarName = s"$prevJarPrefix-${UUID.randomUUID()}.jar"

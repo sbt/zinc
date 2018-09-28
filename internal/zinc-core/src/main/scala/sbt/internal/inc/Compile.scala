@@ -10,7 +10,7 @@ package internal
 package inc
 
 import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
-import xsbt.api.{ APIUtil, HashAPI, NameHashing }
+import xsbt.api.{ APIUtil, NameHashing, HashAPI }
 import xsbti.api._
 import xsbti.compile.{
   ClassFileManager => XClassFileManager,
@@ -23,14 +23,12 @@ import xsbti.{ Position, Problem, Severity, UseScope }
 import sbt.util.Logger
 import sbt.util.InterfaceUtil.jo2o
 import java.io.File
-import java.net.URL
 import java.util
+import java.util.Optional
+import sbt.internal.inc.JavaInterfaceUtil.EnrichOption
 
-import sbt.io.IO
 import xsbti.api.DependencyContext
 import xsbti.compile.analysis.ReadStamps
-
-import scala.util.Try
 
 /**
  * Helper methods for running incremental compilation.  All this is responsible for is
@@ -176,6 +174,12 @@ private final class AnalysisCallback(
   private[this] val binaryClassName = new HashMap[File, String]
   // source files containing a macro def.
   private[this] val macroClasses = Set[String]()
+  private[this] val prevJar = {
+    JarUtils
+      .getOutputJar(output)
+      .filter(_.exists())
+      .map(_ => JarUtils.createPrevJarPath())
+  }
 
   private def add[A, B](map: Map[A, Set[B]], a: A, b: B): Unit = {
     map.getOrElseUpdate(a, new HashSet[B]) += b
@@ -409,4 +413,7 @@ private final class AnalysisCallback(
   override def dependencyPhaseCompleted(): Unit = {}
 
   override def apiPhaseCompleted(): Unit = {}
+
+  override def previousJar(): Optional[File] = prevJar.toOptional
+
 }
