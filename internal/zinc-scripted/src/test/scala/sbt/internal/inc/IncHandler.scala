@@ -370,11 +370,12 @@ case class ProjectStructure(
   }
 
   def checkNoGeneratedClassFiles(): Unit = {
-    val allClassFiles = generatedClassFiles.get
+    val allPlainClassFiles = generatedClassFiles.get.map(_.toString)
     val allClassesInJar = outputJar.toSeq.flatMap(JarUtils.listFiles).filter(_.endsWith(".class"))
-    if (allClassFiles.nonEmpty || allClassesInJar.nonEmpty)
-      sys.error(
-        s"Classes existed:\n\t${allClassFiles.mkString("\n\t")} \n\t${allClassesInJar.mkString("\n\t")}")
+    if (allPlainClassFiles.nonEmpty || allClassesInJar.nonEmpty) {
+      val allClassFiles = allPlainClassFiles ++ allClassesInJar
+      sys.error(s"Classes existed:\n\t${allClassFiles.mkString("\n\t")}")
+    }
   }
 
   def checkDependencies(i: IncInstance, className: String, expected: List[String]): Unit = {
