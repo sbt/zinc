@@ -11,6 +11,7 @@ package inc
 package javac
 
 import java.io.File
+import java.net.URLClassLoader
 
 import sbt.internal.inc.classfile.Analyze
 import sbt.internal.inc.classpath.ClasspathUtilities
@@ -131,9 +132,6 @@ final class AnalyzingJavaCompiler private[sbt] (
         (classesFinder, classesFinder.get, srcs)
       }
 
-      // Construct class loader to analyze dependencies of generated class files
-      val loader = ClasspathUtilities.toLoader(searchClasspath)
-
       // Record progress for java compilation
       val javaCompilationPhase = "Java compilation"
       progressOpt.map { progress =>
@@ -179,11 +177,23 @@ final class AnalyzingJavaCompiler private[sbt] (
         progress.advance(1, 2)
       }
 
+      // Construct class loader to analyze dependencies of generated class files
+      val loader = ClasspathUtilities.toLoader(searchClasspath)
+
       timed(javaAnalysisPhase, log) {
         for ((classesFinder, oldClasses, srcs) <- memo) {
           val newClasses = Set(classesFinder.get: _*) -- oldClasses
           Analyze(newClasses.toSeq, srcs, log, output, finalJarOutput)(callback, loader, readAPI)
         }
+      }
+
+      // After using the classloader it should be closed. Otherwise it will keep the accessed
+      // jars open. Especially, when zinc is compiling directly to jar, that jar will be locked
+      // not allowing to change it in further compilation cycles (on Windows).
+      // This also affects jars in the classpath that come from dependency resolution.
+      loader match {
+        case u: URLClassLoader => u.close()
+        case _                 => ()
       }
 
       // Report that we reached the end
