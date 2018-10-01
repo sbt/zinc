@@ -204,7 +204,7 @@ object ClassToAPI {
 
   /** TODO: over time, ClassToAPI should switch the majority of access to the classfile parser */
   private[this] def classFileForClass(c: Class[_]): ClassFile =
-    classfile.Parser.apply(IO.classfileLocation(c))
+    classfile.Parser.apply(c)
 
   @inline private[this] def lzyS[T <: AnyRef](t: T): xsbti.api.Lazy[T] = SafeLazyProxy.strict(t)
   @inline final def lzy[T <: AnyRef](t: => T): xsbti.api.Lazy[T] = SafeLazyProxy(t)
