@@ -836,6 +836,7 @@ lazy val otherRootSettings = Seq(
   Scripted.scriptedPrescripted := { (_: File) => () },
   Scripted.scriptedUnpublished := scriptedUnpublishedTask.evaluated,
   Scripted.scriptedSource := (sourceDirectory in zinc).value / "sbt-test",
+  Scripted.scriptedCompileToJar := false,
   publishAll := {
     val _ = (publishLocal).all(ScopeFilter(inAnyProject)).value
   }
@@ -850,6 +851,7 @@ def scriptedTask: Def.Initialize[InputTask[Unit]] = Def.inputTask {
     scriptedSource.value,
     result,
     scriptedBufferLog.value,
+    scriptedCompileToJar.value,
     scriptedPrescripted.value
   )
 }
@@ -862,6 +864,7 @@ def scriptedUnpublishedTask: Def.Initialize[InputTask[Unit]] = Def.inputTask {
     scriptedSource.value,
     result,
     scriptedBufferLog.value,
+    scriptedCompileToJar.value,
     scriptedPrescripted.value
   )
 }

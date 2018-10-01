@@ -9,21 +9,19 @@ import sbt.io.{ AllPassFilter, NameFilter }
 import scala.language.reflectiveCalls
 
 object ScriptedMain {
-  def main(args: Array[String]): Unit = {
-    val (isUserDefined, buffer) = args.lastOption match {
-      case Some(last) =>
-        if (last == "true") (true, true)
-        else if (last == "false") (true, false)
-        else (false, true)
-      case None => (false, true)
+  private val DisableBuffering = "--no-buffer"
+  private val CompileToJar = "--to-jar"
+  private val Flags = Set(DisableBuffering, CompileToJar)
 
-    }
+  def main(args: Array[String]): Unit = {
+    val compileToJar = args.contains(CompileToJar)
+    val disableBuffering = args.contains(DisableBuffering)
+    val argsToParse = args.filterNot(Flags.contains)
 
     val sourceDir = BuildInfo.sourceDirectory.toPath.resolve("sbt-test").toFile
-    val argsToParse = if (isUserDefined) args.init else args
     val tests = detectScriptedTests(sourceDir)
     val parsed = argsToParse.toList.flatMap(arg => parseScripted(tests, sourceDir, arg))
-    runScripted(sourceDir, parsed, buffer)
+    runScripted(sourceDir, parsed, buffer = !disableBuffering, compileToJar)
   }
 
   private def detectScriptedTests(scriptedBase: File): Map[String, Set[String]] = {
@@ -65,6 +63,7 @@ object ScriptedMain {
     def run(
         resourceBaseDirectory: File,
         bufferLog: Boolean,
+        compileToJar: Boolean,
         tests: Array[String]
     ): Unit
   }
@@ -73,7 +72,8 @@ object ScriptedMain {
   def runScripted(
       source: File,
       args: Seq[String],
-      buffer: Boolean
+      buffer: Boolean,
+      compileToJar: Boolean
   ): Unit = {
     println(s"About to run tests: ${args.mkString("\n * ", "\n * ", "\n")}")
     // Force Log4J to not use a thread context classloader otherwise it throws a CCE
@@ -82,7 +82,7 @@ object ScriptedMain {
     val loader = ClasspathUtilities.toLoader(classpath)
     val bridgeClass = Class.forName("sbt.inc.MainScriptedRunner", true, loader)
     val bridge = bridgeClass.newInstance.asInstanceOf[IncScriptedRunner]
-    try bridge.run(source, buffer, args.toArray)
+    try bridge.run(source, buffer, compileToJar, args.toArray)
     catch { case ite: java.lang.reflect.InvocationTargetException => throw ite.getCause }
   }
 

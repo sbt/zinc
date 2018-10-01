@@ -9,10 +9,15 @@ import sbt.util.Logger
 import scala.collection.parallel.ParSeq
 
 class IncScriptedRunner {
-  def run(resourceBaseDirectory: File, bufferLog: Boolean, tests: Array[String]): Unit = {
+  def run(
+      resourceBaseDirectory: File,
+      bufferLog: Boolean,
+      compileToJar: Boolean,
+      tests: Array[String]
+  ): Unit = {
     IO.withTemporaryDirectory { tempDir =>
       // Create a global temporary directory to store the bridge et al
-      val handlers = new IncScriptedHandlers(tempDir)
+      val handlers = new IncScriptedHandlers(tempDir, compileToJar)
       ScriptedRunnerImpl.run(resourceBaseDirectory, bufferLog, tests, handlers, 4)
     }
   }

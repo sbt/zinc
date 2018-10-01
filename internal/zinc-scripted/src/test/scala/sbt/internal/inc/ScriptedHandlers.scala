@@ -16,7 +16,7 @@ class SleepingHandler(val handler: StatementHandler, delay: Long) extends Statem
   override def finish(state: State) = handler.finish(state)
 }
 
-class IncScriptedHandlers(globalCacheDir: File) extends HandlersProvider {
+class IncScriptedHandlers(globalCacheDir: File, compileToJar: Boolean) extends HandlersProvider {
   def getHandlers(config: ScriptConfig): Map[Char, StatementHandler] = Map(
     '$' -> new SleepingHandler(new ZincFileCommands(config.testDirectory()), 500),
     '#' -> CommentHandler,
@@ -26,7 +26,7 @@ class IncScriptedHandlers(globalCacheDir: File) extends HandlersProvider {
           case x: ManagedLogger => x
           case _                => sys.error("Expected ManagedLogger")
         }
-      new IncHandler(config.testDirectory(), globalCacheDir, logger)
+      new IncHandler(config.testDirectory(), globalCacheDir, logger, compileToJar)
     }
   )
 }

@@ -49,7 +49,7 @@ final case class Build(projects: Seq[Project])
 
 final case class IncInstance(si: xsbti.compile.ScalaInstance, cs: XCompilers)
 
-class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogger)
+class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogger, compileToJar: Boolean)
     extends BridgeProviderSpecification
     with StatementHandler {
 
@@ -76,7 +76,8 @@ class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogger)
       val in = p.in.getOrElse(directory / p.name)
       val version = p.scalaVersion.getOrElse(scala.util.Properties.versionNumberString)
       val deps = p.dependsOn.toVector.flatten
-      val project = ProjectStructure(p.name, deps, in, scriptedLog, lookupProject, version)
+      val project =
+        ProjectStructure(p.name, deps, in, scriptedLog, lookupProject, version, compileToJar)
       buildStructure(p.name) = project
     }
   }
@@ -223,10 +224,9 @@ case class ProjectStructure(
     baseDirectory: File,
     scriptedLog: ManagedLogger,
     lookupProject: String => ProjectStructure,
-    scalaVersion: String
+    scalaVersion: String,
+    compileToJar: Boolean
 ) extends BridgeProviderSpecification {
-
-  val useStraightToJar = false
 
   val compiler = new IncrementalCompilerImpl
   val maxErrors = 100
@@ -241,7 +241,7 @@ case class ProjectStructure(
   }
   val targetDir = baseDirectory / "target"
   val classesDir = targetDir / "classes"
-  val outputJar = if (useStraightToJar) Some(classesDir / "output.jar") else None
+  val outputJar = if (compileToJar) Some(classesDir / "output.jar") else None
   val generatedClassFiles = classesDir ** "*.class"
   val scalaSourceDirectory = baseDirectory / "src" / "main" / "scala"
   val javaSourceDirectory = baseDirectory / "src" / "main" / "java"
