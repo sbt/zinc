@@ -346,14 +346,19 @@ case class ProjectStructure(
 
   def checkProducts(i: IncInstance, src: String, expected: List[String]): Unit = {
     val analysis = compile(i)
+
+    def isWindows: Boolean = sys.props("os.name").toLowerCase.startsWith("win")
     def relativeClassDir(f: File): File = f.relativeTo(classesDir) getOrElse f
+    def normalizePath(path: String): String = {
+      if (isWindows) path.replace('\\', '/') else path
+    }
     def products(srcFile: String): Set[String] = {
       val productFiles = analysis.relations.products(baseDirectory / srcFile)
       productFiles.map { file =>
         if (JarUtils.isClassInJar(file)) {
           JarUtils.ClassInJar.fromFile(file).relClass
         } else {
-          relativeClassDir(file).getPath.replace('\\', '/')
+          normalizePath(relativeClassDir(file).getPath)
         }
       }
     }
