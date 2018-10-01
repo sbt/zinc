@@ -23,6 +23,15 @@ import sbt.io.Using
 import Constants._
 
 private[sbt] object Parser {
+  def apply(clazz: Class[_]): ClassFile = {
+    val name = clazz.getName.replace('.', '/') + ".class"
+    val url = sbt.io.IO.classfileLocation(clazz)
+    val isJar = url.getProtocol == "jar"
+    val sanitized =
+      new URL(if (isJar) "jar" else "file", "", s"${url.getFile}${if (isJar) "!" else ""}/$name")
+    apply(sanitized)
+  }
+
   def apply(file: File): ClassFile =
     Using.fileInputStream(file)(parse(file.toString)).right.get
 

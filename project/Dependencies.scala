@@ -7,7 +7,7 @@ object Dependencies {
   val scala212 = "2.12.6"
   val scala213 = "2.13.0-M2"
 
-  private val ioVersion = "1.2.0"
+  private val ioVersion = "1.2.2-SNAPSHOT"
   private val utilVersion = "1.2.1"
   private val lmVersion = "1.2.0"
 
