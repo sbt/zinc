@@ -262,16 +262,7 @@ object JarUtils {
 
   /** Lists class file entries in jar e.g. sbt/internal/inc/JarUtils.class */
   def listClassFiles(jar: File): Seq[String] = {
-//    IndexBasedZipFsOps.listEntries(jar).filter(_.endsWith(".class"))
-    withZipFile(jar) { zip =>
-      zip
-        .entries()
-        .asScala
-        .filterNot(_.isDirectory)
-        .map(_.getName)
-        .filter(_.endsWith(".class"))
-        .toList
-    }
+    IndexBasedZipFsOps.listEntries(jar).filter(_.endsWith(".class"))
   }
 
   object OutputJarContent {
