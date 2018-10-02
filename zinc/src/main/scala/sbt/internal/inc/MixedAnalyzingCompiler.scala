@@ -68,7 +68,7 @@ final class MixedAnalyzingCompiler(
     /** Compile Scala sources. */
     def compileScala(): Unit =
       if (scalaSrcs.nonEmpty) {
-        JarUtils.withPreviousJar(output, callback) { extraClasspath =>
+        JarUtils.withPreviousJar(output) { extraClasspath =>
           val sources = if (config.currentSetup.order == Mixed) incSrc else scalaSrcs
           val arguments = cArgs(Nil,
                                 toAbsolute(extraClasspath) ++ absClasspath,
@@ -154,6 +154,7 @@ final class MixedAnalyzingCompiler(
 
     if (compiledClasses.nonEmpty) {
       JarUtils.includeInJar(outputJar, compiledClasses)
+      JarUtils.OutputJarContent.addClasses(compiledClasses.map(_._2).toSet)
     }
     IO.delete(outputDir)
   }

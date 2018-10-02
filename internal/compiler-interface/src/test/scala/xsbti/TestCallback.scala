@@ -79,8 +79,7 @@ class TestCallback extends AnalysisCallback {
 
   override def apiPhaseCompleted(): Unit = {}
 
-  override def previousJar(): Optional[File] = Optional.empty[File]
-
+  override def classesInJar(): util.Set[String] = java.util.Collections.emptySet()
 }
 
 object TestCallback {

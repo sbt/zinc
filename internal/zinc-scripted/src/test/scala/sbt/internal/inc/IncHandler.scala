@@ -371,7 +371,7 @@ case class ProjectStructure(
 
   def checkNoGeneratedClassFiles(): Unit = {
     val allPlainClassFiles = generatedClassFiles.get.map(_.toString)
-    val allClassesInJar = outputJar.toSeq.flatMap(JarUtils.listFiles).filter(_.endsWith(".class"))
+    val allClassesInJar = outputJar.toSeq.filter(_.exists()).flatMap(JarUtils.listClassFiles)
     if (allPlainClassFiles.nonEmpty || allClassesInJar.nonEmpty) {
       val allClassFiles = allPlainClassFiles ++ allClassesInJar
       sys.error(s"Classes existed:\n\t${allClassFiles.mkString("\n\t")}")

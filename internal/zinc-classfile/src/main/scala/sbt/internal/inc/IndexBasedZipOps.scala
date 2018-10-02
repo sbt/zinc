@@ -115,6 +115,12 @@ abstract class IndexBasedZipOps extends CreateZip {
     writeCentralDir(zipFile.toPath, centralDir)
   }
 
+  def listEntries(zipFile: File): Seq[String] = {
+    val centralDir = readCentralDir(zipFile)
+    val headers = getHeaders(centralDir)
+    headers.map(getFileName)
+  }
+
   /**
    * Represents the central directory (index) of a zip file. It must contain the start offset
    * (where it is located in the zip file) and list of headers

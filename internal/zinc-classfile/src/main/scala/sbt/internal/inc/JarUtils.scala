@@ -187,33 +187,31 @@ object JarUtils {
    * @param callback analysis callback used to set previus jar
    * @param compile function that given extra classpath for compiler runs the compilation
    */
-  def withPreviousJar[A](output: Output, callback: AnalysisCallback)(
-      compile: /*extra classpath: */ Seq[File] => A): A = {
-    (for {
-      outputJar <- getOutputJar(output)
-      prevJar <- toOption(callback.previousJar())
-    } yield {
-      IO.move(outputJar, prevJar)
+  def withPreviousJar[A](output: Output)(compile: /*extra classpath: */ Seq[File] => A): A = {
+    getOutputJar(output).filter(_.exists()) match {
+      case Some(outputJar) =>
+        val prevJar = createPrevJarPath()
+        IO.move(outputJar, prevJar)
 
-      val result = try {
-        compile(Seq(prevJar))
-      } catch {
-        case e: Exception =>
-          IO.move(prevJar, outputJar)
-          throw e
-      }
+        val result = try {
+          compile(Seq(prevJar))
+        } catch {
+          case e: Exception =>
+            IO.move(prevJar, outputJar)
+            throw e
+        }
 
-      if (outputJar.exists()) {
-        JarUtils.mergeJars(into = prevJar, from = outputJar)
-      }
-      IO.move(prevJar, outputJar)
-      result
-    }).getOrElse {
-      compile(Nil)
+        if (outputJar.exists()) {
+          JarUtils.mergeJars(into = prevJar, from = outputJar)
+        }
+        IO.move(prevJar, outputJar)
+        result
+      case None =>
+        compile(Nil)
     }
   }
 
-  def createPrevJarPath(): File = {
+  private def createPrevJarPath(): File = {
     val tempDir =
       sys.props.get("zinc.compile-to-jar.tmp-dir").map(new File(_)).getOrElse(IO.temporaryDirectory)
     val prevJarName = s"$prevJarPrefix-${UUID.randomUUID()}.jar"
@@ -262,17 +260,66 @@ object JarUtils {
     outputJar.toPath.resolveSibling(outDirName).toFile
   }
 
-  /* Methods below are only used for test code. They are not optimized for performance. */
-
-  /** Lists file entries in jars (no directories) */
-  def listFiles(jar: File): Seq[String] = {
-    if (jar.exists()) {
-      withZipFile(jar) { zip =>
-        zip.entries().asScala.filterNot(_.isDirectory).map(_.getName).toList
-      }
-    } else Seq.empty
+  /** Lists class file entries in jar e.g. sbt/internal/inc/JarUtils.class */
+  def listClassFiles(jar: File): Seq[String] = {
+//    IndexBasedZipFsOps.listEntries(jar).filter(_.endsWith(".class"))
+    withZipFile(jar) { zip =>
+      zip
+        .entries()
+        .asScala
+        .filterNot(_.isDirectory)
+        .map(_.getName)
+        .filter(_.endsWith(".class"))
+        .toList
+    }
   }
 
+  object OutputJarContent {
+    private var content: Option[Content] = None
+    private var shouldReadJar: Boolean = false
+
+    def reset(output: Output): Unit = {
+      content = JarUtils.getOutputJar(output).map(new Content(_))
+      content.foreach { content =>
+        content.update()
+        shouldReadJar = false
+      }
+    }
+
+    def dependencyPhaseCompleted(): Unit = {
+      shouldReadJar = true
+    }
+
+    def scalacRunCompleted(): Unit = {
+      shouldReadJar = false
+    }
+
+    def addClasses(classes: Set[RelClass]): Unit = {
+      content.foreach(_.include(classes))
+    }
+
+    def get(): Set[RelClass] = {
+      content.fold(Set.empty[RelClass]) { content =>
+        if (shouldReadJar) content.update()
+        shouldReadJar = false
+        content.get()
+      }
+    }
+
+    private class Content(outputJar: File) {
+      private var content: Set[RelClass] = Set.empty
+      def get(): Set[RelClass] = content
+      def include(classes: Set[RelClass]): Unit = content ++= classes
+      def update(): Unit = {
+        if (outputJar.exists()) {
+          content = JarUtils.listClassFiles(outputJar).toSet
+        }
+      }
+    }
+
+  }
+
+  /* Methods below are only used for test code. They are not optimized for performance. */
   /** Reads timestamp of given jared class */
   def readModifiedTime(jc: ClassInJar): Long = {
     val (jar, cls) = jc.toJarAndRelClass

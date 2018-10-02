@@ -8,9 +8,9 @@
 package xsbti;
 
 import xsbti.api.DependencyContext;
+
 import java.io.File;
 import java.util.EnumSet;
-import java.util.Optional;
 
 public interface AnalysisCallback {
     /**
@@ -175,11 +175,9 @@ public interface AnalysisCallback {
     boolean enabled();
 
     /**
-     * Returns path to a jar generated in previous compilation if it exists
-     * and compilation to jar is enabled.
-     *
-     * @see sbt.internal.inc.JarUtils#withPreviousJar for more information.
+     * Returns paths to classes that are currently in jar.
+     * Format is "xsbti/AnalysisCallback.class".
      */
-    Optional<File> previousJar();
+    java.util.Set<String> classesInJar();
 
 }

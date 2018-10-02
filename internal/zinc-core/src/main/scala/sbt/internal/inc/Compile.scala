@@ -13,20 +13,18 @@ import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
 import xsbt.api.{ APIUtil, NameHashing, HashAPI }
 import xsbti.api._
 import xsbti.compile.{
-  ClassFileManager => XClassFileManager,
-  CompileAnalysis,
+  Output,
   DependencyChanges,
   IncOptions,
-  Output
+  CompileAnalysis,
+  ClassFileManager => XClassFileManager
 }
-import xsbti.{ Position, Problem, Severity, UseScope }
+import xsbti.{ Position, UseScope, Problem, Severity }
 import sbt.util.Logger
 import sbt.util.InterfaceUtil.jo2o
 import java.io.File
 import java.util
-import java.util.Optional
-import sbt.internal.inc.JavaInterfaceUtil.EnrichOption
-
+import scala.collection.JavaConverters._
 import xsbti.api.DependencyContext
 import xsbti.compile.analysis.ReadStamps
 
@@ -66,6 +64,7 @@ object IncrementalCompile {
     val internalSourceToClassNamesMap: File => Set[String] = (f: File) =>
       previous.relations.classNames(f)
     val externalAPI = getExternalAPI(lookup)
+    JarUtils.OutputJarContent.reset(output)
     try {
       Incremental.compile(
         sources,
@@ -174,12 +173,6 @@ private final class AnalysisCallback(
   private[this] val binaryClassName = new HashMap[File, String]
   // source files containing a macro def.
   private[this] val macroClasses = Set[String]()
-  private[this] val prevJar = {
-    JarUtils
-      .getOutputJar(output)
-      .filter(_.exists())
-      .map(_ => JarUtils.createPrevJarPath())
-  }
 
   private def add[A, B](map: Map[A, Set[B]], a: A, b: B): Unit = {
     map.getOrElseUpdate(a, new HashSet[B]) += b
@@ -312,8 +305,10 @@ private final class AnalysisCallback(
 
   override def enabled(): Boolean = options.enabled
 
-  def get: Analysis =
+  def get: Analysis = {
+    JarUtils.OutputJarContent.scalacRunCompleted()
     addUsedNames(addCompilation(addProductsAndDeps(Analysis.empty)))
+  }
 
   def getOrNil[A, B](m: collection.Map[A, Seq[B]], a: A): Seq[B] = m.get(a).toList.flatten
   def addCompilation(base: Analysis): Analysis =
@@ -410,10 +405,14 @@ private final class AnalysisCallback(
     }
   }
 
-  override def dependencyPhaseCompleted(): Unit = {}
+  override def dependencyPhaseCompleted(): Unit = {
+    JarUtils.OutputJarContent.dependencyPhaseCompleted()
+  }
 
   override def apiPhaseCompleted(): Unit = {}
 
-  override def previousJar(): Optional[File] = prevJar.toOptional
+  override def classesInJar(): java.util.Set[String] = {
+    JarUtils.OutputJarContent.get().asJava
+  }
 
 }
