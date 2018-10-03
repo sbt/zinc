@@ -136,14 +136,9 @@ object JarUtils {
     IndexBasedZipFsOps.mergeArchives(into, from)
   }
 
-  /**
-   * Reads all timestamps from given jar file. Returns a function that
-   * allows to access them by `ClassInJar` wrapped in `File`.
-   */
-  def readStamps(jar: File): File => Long = {
-    val stamps = new IndexBasedZipFsOps.CachedStamps(jar)
-    file =>
-      stamps.getStamp(ClassInJar.fromFile(file).relClass)
+  /** Lists class file entries in jar e.g. sbt/internal/inc/JarUtils.class */
+  def listClassFiles(jar: File): Seq[String] = {
+    IndexBasedZipFsOps.listEntries(jar).filter(_.endsWith(".class"))
   }
 
   /**
@@ -153,6 +148,16 @@ object JarUtils {
     if (jarFile.exists()) {
       IndexBasedZipFsOps.removeEntries(jarFile, classes)
     }
+  }
+
+  /**
+   * Reads all timestamps from given jar file. Returns a function that
+   * allows to access them by `ClassInJar` wrapped in `File`.
+   */
+  def readStamps(jar: File): File => Long = {
+    val stamps = new IndexBasedZipFsOps.CachedStamps(jar)
+    file =>
+      stamps.getStamp(ClassInJar.fromFile(file).relClass)
   }
 
   /**
@@ -209,6 +214,13 @@ object JarUtils {
   }
 
   private var tempDir: File = _
+
+  /**
+   * Ensures that temporary directory exists.
+   *
+   * @param temporaryClassesDirectory path to temporary directory for classes.
+   *                                  If not specified, a default will be used.
+   */
   def setupTempClassesDir(temporaryClassesDirectory: Option[File]): Unit = {
     temporaryClassesDirectory match {
       case Some(dir) =>
@@ -266,11 +278,37 @@ object JarUtils {
     outputJar.toPath.resolveSibling(outDirName).toFile
   }
 
-  /** Lists class file entries in jar e.g. sbt/internal/inc/JarUtils.class */
-  def listClassFiles(jar: File): Seq[String] = {
-    IndexBasedZipFsOps.listEntries(jar).filter(_.endsWith(".class"))
-  }
-
+  /**
+   * This object provides access to current content of output jar.
+   * It is prepared to be accessed from zinc's custom compiler
+   * phases. With some assumptions on how it works the content
+   * can be read and cached only when necessary.
+   *
+   * Implementation details:
+   * The content has to be `reset` before each zinc run. This
+   * sets the output and reads the current contents of output
+   * jar if it exists. The next reading will be necessary
+   * in xsbt-analyzer phase which is after jvm phase, so the
+   * jar with new contents will appear. To figure out that it
+   * is in that place, a call to `dependencyPhaseCompleted` is
+   * expected. As content is not accessed between dependency
+   * and analysis phases, we can be sure that we are after jvm.
+   * The contents of jar will not change until next scalac run
+   * (except for javac case) so we should not read the content.
+   * This is ensured by a call to `scalacRunCompleted` method.
+   * After scalac run, it is possible that javac will run, and
+   * its output will be added to the output jar. To have consistent
+   * state, after adding those classes `addClasses` should be called.
+   * Thanks to this we know what is the content of prev jar during
+   * the compilation, without the need to actually read it.
+   * The completion of next dependency phase will trigger reading
+   * the output jar again. Note that at the point of reading we
+   * have both prev jar and new output jar with just compiled classes
+   * so the contents of those (currently stored and just read) have
+   * bo be combined. Last thing to do is track class deletions
+   * while pruning between iterations, which is done through
+   * `removeClasses` method.
+   */
   object OutputJarContent {
     private var content: Option[Content] = None
     private var shouldReadJar: Boolean = false
@@ -292,7 +330,11 @@ object JarUtils {
     }
 
     def addClasses(classes: Set[RelClass]): Unit = {
-      content.foreach(_.include(classes))
+      content.foreach(_.add(classes))
+    }
+
+    def removeClasses(classes: Set[RelClass]): Unit = {
+      content.foreach(_.remove(classes))
     }
 
     def get(): Set[RelClass] = {
@@ -306,10 +348,11 @@ object JarUtils {
     private class Content(outputJar: File) {
       private var content: Set[RelClass] = Set.empty
       def get(): Set[RelClass] = content
-      def include(classes: Set[RelClass]): Unit = content ++= classes
+      def add(classes: Set[RelClass]): Unit = content ++= classes
+      def remove(classes: Set[RelClass]): Unit = content --= classes
       def update(): Unit = {
         if (outputJar.exists()) {
-          content = JarUtils.listClassFiles(outputJar).toSet
+          content ++= JarUtils.listClassFiles(outputJar).toSet
         }
       }
     }
