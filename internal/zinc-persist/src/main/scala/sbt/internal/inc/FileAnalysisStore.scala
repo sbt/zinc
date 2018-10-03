@@ -11,7 +11,7 @@ package inc
 
 import java.io._
 import java.util.Optional
-import java.util.zip.{ ZipEntry, ZipInputStream, Deflater, ZipOutputStream }
+import java.util.zip.{ ZipEntry, ZipInputStream }
 
 import com.google.protobuf.{ CodedInputStream, CodedOutputStream }
 import sbt.internal.inc.binary.BinaryAnalysisFormat
@@ -45,8 +45,6 @@ object FileAnalysisStore {
 
     private final val format = new BinaryAnalysisFormat(readWriteMappers)
     private final val TmpEnding = ".tmp"
-    private final val useCompression =
-      sys.props.get("zinc.binary-file-store.use-compression").map(_ == "true").getOrElse(true)
 
     /**
      * Get `CompileAnalysis` and `MiniSetup` instances for current `Analysis`.
@@ -84,11 +82,6 @@ object FileAnalysisStore {
 
       val outputStream = new FileOutputStream(tmpAnalysisFile)
       Using.zipOutputStream(outputStream) { outputStream =>
-        if (!useCompression) {
-          outputStream.setMethod(ZipOutputStream.DEFLATED)
-          outputStream.setLevel(Deflater.NO_COMPRESSION)
-        }
-
         val protobufWriter = CodedOutputStream.newInstance(outputStream)
         outputStream.putNextEntry(new ZipEntry(analysisFileName))
         format.write(protobufWriter, analysis, setup)
