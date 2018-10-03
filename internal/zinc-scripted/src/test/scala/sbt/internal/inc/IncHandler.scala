@@ -435,7 +435,8 @@ case class ProjectStructure(
                              CompileOrder.Mixed,
                              cs,
                              setup,
-                             previousResult)
+                             previousResult,
+                             Optional.empty())
     val result = compiler.compile(in, scriptedLog)
     val analysis = result.analysis match { case a: Analysis => a }
     cachedStore.set(AnalysisContents.create(analysis, result.setup))

@@ -312,6 +312,12 @@
           "default": "xsbti.compile.CompileOrder.Mixed",
           "doc": "Controls the order in which Java and Scala sources are compiled.",
           "since": "0.1.0"
+        },
+        {
+          "name": "temporaryClassesDirectory",
+          "type": "java.util.Optional<java.io.File>",
+          "default": "java.util.Optional.empty()",
+          "since": "1.3.0"
         }
       ]
     },

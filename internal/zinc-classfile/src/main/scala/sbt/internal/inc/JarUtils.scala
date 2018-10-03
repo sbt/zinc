@@ -5,11 +5,8 @@ import java.util.zip.ZipFile
 import java.io.File
 import java.util.UUID
 
-import scala.collection.JavaConverters._
 import sbt.io.syntax.URL
-import xsbti.AnalysisCallback
 import xsbti.compile.{ Output, SingleOutput }
-import sbt.util.InterfaceUtil.toOption
 
 /**
  * This is a utility class that provides a set of functions that
@@ -211,9 +208,18 @@ object JarUtils {
     }
   }
 
+  private var tempDir: File = _
+  def setupTempClassesDir(temporaryClassesDirectory: Option[File]): Unit = {
+    temporaryClassesDirectory match {
+      case Some(dir) =>
+        IO.createDirectory(dir)
+        tempDir = dir
+      case None =>
+        tempDir = new File(IO.temporaryDirectory, "zinc_temp_classes_dir")
+    }
+  }
+
   private def createPrevJarPath(): File = {
-    val tempDir =
-      sys.props.get("zinc.compile-to-jar.tmp-dir").map(new File(_)).getOrElse(IO.temporaryDirectory)
     val prevJarName = s"$prevJarPrefix-${UUID.randomUUID()}.jar"
     tempDir.toPath.resolve(prevJarName).toFile
   }

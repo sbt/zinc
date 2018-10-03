@@ -79,6 +79,8 @@ public interface IncrementalCompiler {
      *                 the current compilation progress.
      * @param incrementalOptions An Instance of {@link IncOptions} that
      *                           configures the incremental compiler behaviour.
+     * @param temporaryClassesDirectory A directory where incremental compiler
+     *                                  will put temporary class files or jars.
      * @param extra An array of sbt tuples with extra options.
      * @param logger An instance of {@link Logger} that logs Zinc output.
      *
@@ -104,6 +106,7 @@ public interface IncrementalCompiler {
                           java.lang.Boolean skip,
                           Optional<CompileProgress> progress,
                           IncOptions incrementalOptions,
+                          Optional<File> temporaryClassesDirectory,
                           T2<String, String>[] extra,
                           Logger logger);
 }

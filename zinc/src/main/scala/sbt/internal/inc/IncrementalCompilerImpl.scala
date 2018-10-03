@@ -65,6 +65,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       order,
       skip,
       incrementalCompilerOptions,
+      temporaryClassesDirectory.toOption,
       extraOptions
     )(logger)
   }
@@ -96,6 +97,8 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
    *                                the current compilation progress.
    * @param incrementalOptions      An Instance of [[IncOptions]] that configures
    *                                the incremental compiler behaviour.
+   * @param temporaryClassesDirectory A directory where incremental compiler
+   *                                  will put temporary class files or jars.
    * @param extra                   An array of sbt tuples with extra options.
    * @param logger An instance of [[Logger]] that logs Zinc output.
    * @return An instance of [[xsbti.compile.CompileResult]] that holds
@@ -121,8 +124,9 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       skip: java.lang.Boolean,
       progress: Optional[xsbti.compile.CompileProgress],
       incrementalOptions: xsbti.compile.IncOptions,
+      temporaryClassesDirectory: Optional[File],
       extra: Array[xsbti.T2[String, String]],
-      logger: xsbti.Logger
+      logger: xsbti.Logger,
   ) = {
     val extraInScala = extra.toList.map(_.toScalaTuple)
     compileIncrementally(
@@ -142,6 +146,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       compileOrder,
       skip: Boolean,
       incrementalOptions,
+      temporaryClassesDirectory.toOption,
       extraInScala
     )(logger)
   }
@@ -233,7 +238,8 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       compileOrder: CompileOrder = Mixed,
       skip: Boolean = false,
       incrementalOptions: IncOptions,
-      extra: List[(String, String)]
+      temporaryClassesDirectory: Option[File],
+      extra: List[(String, String)],
   )(implicit logger: Logger): CompileResult = {
     handleCompilationError(sources, output, logger) {
       val prev = previousAnalysis match {
@@ -278,6 +284,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       )
       if (skip) CompileResult.of(prev, config.currentSetup, false)
       else {
+        JarUtils.setupTempClassesDir(temporaryClassesDirectory)
         val (analysis, changed) = compileInternal(
           MixedAnalyzingCompiler(config)(logger),
           equivCompileSetup(
@@ -364,7 +371,8 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       order: CompileOrder,
       compilers: Compilers,
       setup: Setup,
-      pr: PreviousResult
+      pr: PreviousResult,
+      temporaryClassesDirectory: Optional[File]
   ): Inputs = {
     val compileOptions = {
       CompileOptions.of(
@@ -375,7 +383,8 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         javacOptions,
         maxErrors,
         foldMappers(sourcePositionMappers),
-        order
+        order,
+        temporaryClassesDirectory
       )
     }
     inputs(compileOptions, compilers, setup, pr)
