@@ -13,6 +13,4 @@ sbt -Dfile.encoding=UTF-8 \
   "$PROJECT_ROOT/test:compile" \
   crossTestBridges \
   "publishBridges" \
-  "$PROJECT_ROOT/test" \
-  "zincScripted/test:run" \
-  "zincScripted/test:run --to-jar"
+  "$PROJECT_ROOT/test"

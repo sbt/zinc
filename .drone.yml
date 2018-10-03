@@ -31,6 +31,24 @@ pipeline:
       - git fetch --tags && git log | head -n 20
       - ./bin/run-ci.sh
 
+  scripted_normal:
+    group: scripted
+    image: scalacenter/scala-docs:1.3
+    when:
+      ref: [ refs/heads/1.x, refs/tags/*, refs/pull/*/head ]
+    commands:
+    - export DRONE_DIR="/drone"
+    - ./bin/run-ci-scripted.sh
+
+  scripted_to_jar:
+    group: scripted
+    image: scalacenter/scala-docs:1.3
+    when:
+      ref: [ refs/heads/1.x, refs/tags/*, refs/pull/*/head ]
+    commands:
+    - export DRONE_DIR="/drone"
+    - ./bin/run-ci-scripted-to-jar.sh
+
   rebuild_cache:
     image: appleboy/drone-sftp-cache
     when:
