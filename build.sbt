@@ -164,7 +164,12 @@ lazy val zinc = (project in file("zinc"))
   .configure(addBaseSettingsAndTestDeps)
   .settings(
     name := "zinc",
-    mimaSettings
+    mimaSettings,
+    mimaBinaryIssueFilters ++= Seq(
+      exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCompilerImpl.compileIncrementally"),
+      exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCompilerImpl.inputs"),
+      exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCompilerImpl.compile")
+    )
   )
 
 lazy val zincTesting = (project in internalPath / "zinc-testing")
@@ -393,7 +398,9 @@ lazy val compilerInterface212 = (project in internalPath / "compiler-interface")
         exclude[ReversedMissingMethodProblem]("xsbti.compile.ScalaInstance.loaderLibraryOnly"),
         exclude[DirectMissingMethodProblem]("xsbti.api.AnalyzedClass.of"),
         exclude[DirectMissingMethodProblem]("xsbti.api.AnalyzedClass.create"),
-        exclude[ReversedMissingMethodProblem]("xsbti.AnalysisCallback.classesInJar")
+        exclude[ReversedMissingMethodProblem]("xsbti.AnalysisCallback.classesInJar"),
+        exclude[ReversedMissingMethodProblem]("xsbti.compile.IncrementalCompiler.compile"),
+        exclude[DirectMissingMethodProblem]("xsbti.compile.IncrementalCompiler.compile")
       )
     },
   )
