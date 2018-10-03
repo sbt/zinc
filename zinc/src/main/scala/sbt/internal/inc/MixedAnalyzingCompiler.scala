@@ -70,10 +70,8 @@ final class MixedAnalyzingCompiler(
       if (scalaSrcs.nonEmpty) {
         JarUtils.withPreviousJar(output) { extraClasspath =>
           val sources = if (config.currentSetup.order == Mixed) incSrc else scalaSrcs
-          val arguments = cArgs(Nil,
-                                toAbsolute(extraClasspath) ++ absClasspath,
-                                None,
-                                config.currentSetup.options.scalacOptions)
+          val cp = toAbsolute(extraClasspath) ++ absClasspath
+          val arguments = cArgs(Nil, cp, None, config.currentSetup.options.scalacOptions)
           timed("Scala compilation", log) {
             config.compiler.compile(
               sources.toArray,

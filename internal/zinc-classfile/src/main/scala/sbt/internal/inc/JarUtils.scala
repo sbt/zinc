@@ -189,28 +189,50 @@ object JarUtils {
    * @param callback analysis callback used to set previus jar
    * @param compile function that given extra classpath for compiler runs the compilation
    */
-  def withPreviousJar[A](output: Output)(compile: /*extra classpath: */ Seq[File] => A): A = {
-    getOutputJar(output).filter(_.exists()) match {
-      case Some(outputJar) =>
-        val prevJar = createPrevJarPath()
-        IO.move(outputJar, prevJar)
-
-        val result = try {
+  def withPreviousJar(output: Output)(compile: /*extra classpath: */ Seq[File] => Unit): Unit = {
+    preparePreviousJar(output) match {
+      case Some((prevJar, outputJar)) =>
+        try {
           compile(Seq(prevJar))
         } catch {
           case e: Exception =>
             IO.move(prevJar, outputJar)
             throw e
         }
-
-        if (outputJar.exists()) {
-          JarUtils.mergeJars(into = prevJar, from = outputJar)
-        }
-        IO.move(prevJar, outputJar)
-        result
+        cleanupPreviousJar(prevJar, outputJar)
       case None =>
         compile(Nil)
     }
+  }
+
+  /**
+   * If compilation to jar is enabled and previous jar existed
+   * will prepare the prev jar, i.e. move the existing output
+   * to temporary location. It will return tuple of the path
+   * to moved prev jar and path to output jar.
+   * The returned prev jar file should be added to the classpath
+   * of the compiler.
+   */
+  def preparePreviousJar(output: Output): Option[(File, File)] = {
+    getOutputJar(output)
+      .filter(_.exists())
+      .map { outputJar =>
+        val prevJar = createPrevJarPath()
+        IO.move(outputJar, prevJar)
+        (prevJar, outputJar)
+      }
+  }
+
+  /**
+   * Performs cleanup after successful compilation that involved
+   * previous jar. It merges the previous jar with the new output
+   * and puts the merged file back into output jar path.
+   * */
+  def cleanupPreviousJar(prevJar: File, outputJar: File): Unit = {
+    if (outputJar.exists()) {
+      JarUtils.mergeJars(into = prevJar, from = outputJar)
+    }
+    IO.move(prevJar, outputJar)
   }
 
   private var tempDir: File = _
