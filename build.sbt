@@ -398,7 +398,7 @@ lazy val compilerInterface212 = (project in internalPath / "compiler-interface")
         exclude[ReversedMissingMethodProblem]("xsbti.compile.ScalaInstance.loaderLibraryOnly"),
         exclude[DirectMissingMethodProblem]("xsbti.api.AnalyzedClass.of"),
         exclude[DirectMissingMethodProblem]("xsbti.api.AnalyzedClass.create"),
-        exclude[ReversedMissingMethodProblem]("xsbti.AnalysisCallback.classesInJar"),
+        exclude[ReversedMissingMethodProblem]("xsbti.AnalysisCallback.classesInOutputJar"),
         exclude[ReversedMissingMethodProblem]("xsbti.compile.IncrementalCompiler.compile"),
         exclude[DirectMissingMethodProblem]("xsbti.compile.IncrementalCompiler.compile")
       )

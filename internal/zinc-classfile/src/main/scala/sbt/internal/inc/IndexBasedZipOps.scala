@@ -32,7 +32,7 @@ abstract class IndexBasedZipOps extends CreateZip {
    * an argument is only used to initialize the cache and is later ignored.
    * This is enough as stamps are only read from the output jar.
    */
-  class CachedStamps(zip: File) {
+  final class CachedStamps(zip: File) {
     private val cachedNameToTimestamp: Map[String, Long] = initializeCache(zip)
 
     def getStamp(entry: String): Long = {

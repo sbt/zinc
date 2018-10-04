@@ -317,6 +317,11 @@
           "name": "temporaryClassesDirectory",
           "type": "java.util.Optional<java.io.File>",
           "default": "java.util.Optional.empty()",
+          "doc": [
+            "Points to a temporary classes directory where the compiler can put compilation products",
+            "of any kind. The lifetime of these compilation products is short and the temporary",
+            "classes directory only needs to exist during one incremental compiler cycle."
+          ],
           "since": "1.3.0"
         }
       ]

@@ -146,8 +146,7 @@ object Stamper {
     tryStamp(new LastModified(IO.getModifiedTimeOrZero(toStamp)))
   def forLastModifiedInJar(jar: File): File => XStamp = {
     val stamps = JarUtils.readStamps(jar)
-    file: File =>
-      new LastModified(stamps(file))
+    (file: File) => new LastModified(stamps(file))
   }
 }
 

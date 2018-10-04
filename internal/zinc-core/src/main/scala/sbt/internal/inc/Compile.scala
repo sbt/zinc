@@ -10,23 +10,24 @@ package internal
 package inc
 
 import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
-import xsbt.api.{ APIUtil, NameHashing, HashAPI }
+import xsbt.api.{ APIUtil, HashAPI, NameHashing }
 import xsbti.api._
 import xsbti.compile.{
-  Output,
+  CompileAnalysis,
   DependencyChanges,
   IncOptions,
-  CompileAnalysis,
+  Output,
   ClassFileManager => XClassFileManager
 }
-import xsbti.{ Position, UseScope, Problem, Severity }
+import xsbti.{ Position, Problem, Severity, UseScope }
 import sbt.util.Logger
 import sbt.util.InterfaceUtil.jo2o
 import java.io.File
 import java.util
+
 import scala.collection.JavaConverters._
 import xsbti.api.DependencyContext
-import xsbti.compile.analysis.ReadStamps
+import xsbti.compile.analysis.{ ReadStamps, Stamp }
 
 /**
  * Helper methods for running incremental compilation.  All this is responsible for is
@@ -363,9 +364,15 @@ private final class AnalysisCallback(
     )
   }
 
+  def createStamperForProducts(): File => Stamp = {
+    JarUtils.getOutputJar(output) match {
+      case Some(outputJar) => Stamper.forLastModifiedInJar(outputJar)
+      case None            => stampReader.product _
+    }
+  }
+
   def addProductsAndDeps(base: Analysis): Analysis = {
-    val currentProductsStamps =
-      JarUtils.getOutputJar(output).fold(stampReader.product _)(Stamper.forLastModifiedInJar)
+    val stampProduct = createStamperForProducts()
     (base /: srcs) {
       case (a, src) =>
         val stamp = stampReader.source(src)
@@ -376,7 +383,7 @@ private final class AnalysisCallback(
                                         getOrNil(mainClasses, src))
         val binaries = binaryDeps.getOrElse(src, Nil: Iterable[File])
         val localProds = localClasses.getOrElse(src, Nil: Iterable[File]) map { classFile =>
-          val classFileStamp = currentProductsStamps(classFile)
+          val classFileStamp = stampProduct(classFile)
           LocalProduct(classFile, classFileStamp)
         }
         val binaryToSrcClassName = (classNames.getOrElse(src, Set.empty) map {
@@ -385,7 +392,7 @@ private final class AnalysisCallback(
         val nonLocalProds = nonLocalClasses.getOrElse(src, Nil: Iterable[(File, String)]) map {
           case (classFile, binaryClassName) =>
             val srcClassName = binaryToSrcClassName(binaryClassName)
-            val classFileStamp = currentProductsStamps(classFile)
+            val classFileStamp = stampProduct(classFile)
             NonLocalProduct(srcClassName, binaryClassName, classFile, classFileStamp)
         }
 
@@ -411,7 +418,7 @@ private final class AnalysisCallback(
 
   override def apiPhaseCompleted(): Unit = {}
 
-  override def classesInJar(): java.util.Set[String] = {
+  override def classesInOutputJar(): java.util.Set[String] = {
     JarUtils.OutputJarContent.get().asJava
   }
 

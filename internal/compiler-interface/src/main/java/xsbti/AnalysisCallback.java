@@ -175,9 +175,27 @@ public interface AnalysisCallback {
     boolean enabled();
 
     /**
-     * Returns paths to classes that are currently in jar.
-     * Format is "xsbti/AnalysisCallback.class".
+     * Return class files in output jar at a given point in time.
+     *
+     * When straight-to-jar compilation is enabled, the following entrypoint
+     * in the analysis callback tells the compiler which classes can be found
+     * in the jar used as a compilation target (where all class files will be
+     * store). The entrypoint will return all the paths to class files in Zinc
+     * format, an example would be `xsbti/AnalysisCallback.class`.
+     *
+     * This entrypoint serves two main purposes:
+     *
+     * 1. Before the dependency phase is run, it returns the class files found
+     *    in the jar previous to the current compilation.
+     * 2. After dependency has run, when called again, it returns the class
+     *    files written by the compiler in genbcode.
+     *
+     * The second purpose is required because the compiler cannot communicate
+     * us via an internal programmatic API which files has written in genbcode
+     * and therefore we need to pay the price of opening the jar again to figure
+     * it out. If the compiler is to expose an entry point for this data, we
+     * can repurpose `classesInOutputJar` to only do 1).
      */
-    java.util.Set<String> classesInJar();
+    java.util.Set<String> classesInOutputJar();
 
 }

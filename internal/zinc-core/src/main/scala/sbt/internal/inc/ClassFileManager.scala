@@ -156,7 +156,7 @@ object ClassFileManager {
 
   private final class DeleteClassFileManagerForJar(outputJar: File) extends XClassFileManager {
     override def delete(classes: Array[File]): Unit = {
-      val relClasses = classes.map(c => JarUtils.ClassInJar.fromFile(c).relClass)
+      val relClasses = classes.map(c => JarUtils.ClassInJar.fromFile(c).toClassFilePath)
       JarUtils.OutputJarContent.removeClasses(relClasses.toSet)
       JarUtils.removeFromJar(outputJar, relClasses)
     }
@@ -180,7 +180,7 @@ object ClassFileManager {
     private val backedUpIndex = Some(outputJar).filter(_.exists()).map(JarUtils.stashIndex)
 
     override def delete(classesInJar: Array[File]): Unit = {
-      val classes = classesInJar.map(c => JarUtils.ClassInJar.fromFile(c).relClass)
+      val classes = classesInJar.map(c => JarUtils.ClassInJar.fromFile(c).toClassFilePath)
       JarUtils.removeFromJar(outputJar, classes)
       JarUtils.OutputJarContent.removeClasses(classes.toSet)
     }

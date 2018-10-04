@@ -32,6 +32,9 @@ private[sbt] object Analyze {
       loader: ClassLoader,
       readAPI: (File, Seq[Class[_]]) => Set[(String, String)]): Unit = {
     val sourceMap = sources.toSet[File].groupBy(_.getName)
+    // For performance reasons, precompute these as they are static throughout this analysis
+    val outputJarOrNull: File = finalJarOutput.getOrElse(null)
+    val singleOutputOrNull: File = output.getSingleOutput.orElse(null)
 
     def load(tpe: String, errMsg: => Option[String]): Option[Class[_]] = {
       if (tpe.endsWith("module-info")) None
@@ -73,7 +76,11 @@ private[sbt] object Analyze {
 
       val srcClassName = loadEnclosingClass(loadedClass)
 
-      val finalClassFile = resolveFinalClassFile(newClass, output, finalJarOutput)
+      val finalClassFile = {
+        if (singleOutputOrNull == null || outputJarOrNull == null) newClass
+        else resolveFinalClassFile(newClass, singleOutputOrNull, outputJarOrNull, log)
+      }
+
       srcClassName match {
         case Some(className) =>
           analysis.generatedNonLocalClass(source, finalClassFile, binaryClassName, className)
@@ -130,7 +137,11 @@ private[sbt] object Analyze {
               } else {
                 val cachedOrigin = classfilesCache.get(onBinaryName)
                 for (file <- cachedOrigin.orElse(loadFromClassloader())) {
-                  val binaryFile = resolveFinalClassFile(file, output, finalJarOutput)
+                  val binaryFile = {
+                    if (singleOutputOrNull == null || outputJarOrNull == null) file
+                    else resolveFinalClassFile(file, singleOutputOrNull, outputJarOrNull, log)
+                  }
+
                   analysis.binaryDependency(binaryFile,
                                             onBinaryName,
                                             fromClassName,
@@ -183,29 +194,30 @@ private[sbt] object Analyze {
   }
 
   /**
-   * When Straight to Jar compilation is enabled, classes are compiled to a temporary directory
-   * because javac cannot compile to jar directly.The paths to class files that can be observed
+   * When straight-to-jar compilation is enabled, classes are compiled to a temporary directory
+   * because javac cannot compile to jar directly. The paths to class files that can be observed
    * here through the file system or class loaders are located in temporary output directory for
    * javac. As this output will be eventually included in the output jar (`finalJarOutput`), the
    * analysis (products) have to be changed accordingly.
-   * This method will do a conversion from
-   *   "/develop/zinc/target/output.jar-javac-output/sbt/internal/inc/Compile.class"
-   * to
-   *   "/develop/zinc/target/output.jar!/sbt/internal/inc/Compile.class"
-   * given finalJarOutput = Some("/develop/zinc/target/output.jar")
-   * and output = "/develop/zinc/target/output.jar-javac-output"
+   *
+   * Given `finalJarOutput = Some("/develop/zinc/target/output.jar")` and
+   * `output = "/develop/zinc/target/output.jar-javac-output"`, this method turns
+   *   `/develop/zinc/target/output.jar-javac-output/sbt/internal/inc/Compile.class`
+   * into
+   *   `/develop/zinc/target/output.jar!/sbt/internal/inc/Compile.class`
    */
-  private def resolveFinalClassFile(realClassFile: File,
-                                    output: Output,
-                                    finalJarOutput: Option[File]): File = {
-    val classInJar = for {
-      outputJar <- finalJarOutput
-      outputDir <- Some(output).collect { case s: SingleOutput => s.getOutputDirectory }
-      relativeClass <- IO.relativize(outputDir, realClassFile)
-    } yield {
-      JarUtils.ClassInJar(outputJar, relativeClass).toFile
+  private def resolveFinalClassFile(
+      realClassFile: File,
+      outputDir: File,
+      outputJar: File,
+      log: Logger
+  ): File = {
+    IO.relativize(outputDir, realClassFile) match {
+      case Some(relativeClass) => JarUtils.ClassInJar(outputJar, relativeClass).toFile
+      case None =>
+        log.error(s"Class file $realClassFile is not relative to $outputDir")
+        realClassFile
     }
-    classInJar.getOrElse(realClassFile)
   }
 
   private[this] def urlAsFile(url: URL, log: Logger, finalJarOutput: Option[File]): Option[File] =
@@ -218,10 +230,7 @@ private[sbt] object Analyze {
 
   private def urlAsFile(url: URL, finalJarOutput: Option[File]): Option[File] = {
     IO.urlAsFile(url).map { file =>
-      // IO.urlAsFile removes the information about class in jar. If we are looking at a class
-      // compiled to jar, this information needs to be added back.
-      //
-      // .contains does not compile with 2.10
+      // IO.urlAsFile removes the class reference in the jar url, let's add it back.
       if (finalJarOutput.exists(_ == file)) {
         JarUtils.ClassInJar.fromURL(url, file).toFile
       } else {
@@ -266,8 +275,7 @@ private[sbt] object Analyze {
   private def findSource(sourceNameMap: Map[String, Iterable[File]],
                          pkg: List[String],
                          sourceFileName: String): List[File] =
-    refine((sourceNameMap get sourceFileName).toList.flatten.map { x =>
-      (x, x.getParentFile)
+    refine((sourceNameMap get sourceFileName).toList.flatten.map { x => (x, x.getParentFile)
     }, pkg.reverse)
 
   @tailrec private def refine(sources: List[(File, File)], pkgRev: List[String]): List[File] = {

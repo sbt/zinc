@@ -356,7 +356,7 @@ case class ProjectStructure(
       val productFiles = analysis.relations.products(baseDirectory / srcFile)
       productFiles.map { file =>
         if (JarUtils.isClassInJar(file)) {
-          JarUtils.ClassInJar.fromFile(file).relClass
+          JarUtils.ClassInJar.fromFile(file).toClassFilePath
         } else {
           normalizePath(relativeClassDir(file).getPath)
         }

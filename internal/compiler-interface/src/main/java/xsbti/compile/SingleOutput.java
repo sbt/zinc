@@ -16,13 +16,15 @@ import java.util.Optional;
  */
 public interface SingleOutput extends Output {
     /**
-     * Return the directory where class files should be generated.
+     * Return the **directory or jar** where class files should be generated
+     * and written to. The method name is a misnamer since it can return a
+     * jar file when straight-to-jar compilation is enabled.
      * <p>
-     * Incremental compilation manages the class files in this directory, so
-     * don't play with this directory out of the Zinc API. Zinc already takes
-     * care of deleting classes before every compilation run.
+     * Incremental compilation manages the class files in this file, so don't
+     * play with this directory out of the Zinc API. Zinc already takes care
+     * of deleting classes before every compilation run.
      * <p>
-     * This directory must be exclusively used for one set of sources.
+     * This file or directory must be exclusively used for one set of sources.
      */
     public File getOutputDirectory();
 

@@ -18,7 +18,7 @@ import xsbti.compile.{ Output, SingleOutput }
 object JarUtils {
 
   /** Represents a path to a class file located inside a jar, relative to this jar */
-  type RelClass = String
+  type ClassFilePath = String
 
   /** `ClassInJar` is an identifier for a class located inside a jar.
    * For plain class files it is enough to simply use the actual file
@@ -34,14 +34,12 @@ object JarUtils {
    * "C:\develop\zinc\target\output.jar!sbt\internal\inc\Compile.class"
    */
   class ClassInJar(override val toString: String) extends AnyVal {
-
-    def relClass: RelClass = toJarAndRelClass._2
-
-    def toJarAndRelClass: (File, RelClass) = {
+    def toClassFilePath: ClassFilePath = splitJarReference._2
+    def splitJarReference: (File, ClassFilePath) = {
       val Array(jar, cls) = toString.split("!")
       // ClassInJar stores RelClass part with File.separatorChar, however actual paths in zips always use '/'
-      val relClass = cls.replace('\\', '/')
-      (new File(jar), relClass)
+      val classFilePath = cls.replace('\\', '/')
+      (new File(jar), classFilePath)
     }
 
     /**
@@ -54,18 +52,21 @@ object JarUtils {
 
   object ClassInJar {
 
+    private val forwardSlash = File.separatorChar == '/'
+
     /**
      * The base constructor for `ClassInJar`
+     *
      * @param jar the jar file
      * @param cls the relative path to class within the jar
      * @return a proper ClassInJar identified by given jar and path to class
      */
-    def apply(jar: File, cls: RelClass): ClassInJar = {
+    def apply(jar: File, cls: ClassFilePath): ClassInJar = {
       // This identifier will be stored as a java.io.File. Its constructor will normalize slashes
       // which means that the identifier to be consistent should at all points have consistent
       // slashes for safe comparisons, especially in sets or maps.
-      val relClass = if (File.separatorChar == '/') cls else cls.replace('/', File.separatorChar)
-      new ClassInJar(s"$jar!$relClass")
+      val classFilePath = if (forwardSlash) cls else cls.replace('/', File.separatorChar)
+      new ClassInJar(s"$jar!$classFilePath")
     }
 
     /**
@@ -125,7 +126,7 @@ object JarUtils {
   /**
    * Adds plain files to specified jar file. See [[sbt.internal.inc.IndexBasedZipOps#includeInArchive]] for details.
    */
-  def includeInJar(jar: File, files: Seq[(File, RelClass)]): Unit = {
+  def includeInJar(jar: File, files: Seq[(File, ClassFilePath)]): Unit = {
     IndexBasedZipFsOps.includeInArchive(jar, files)
   }
 
@@ -144,7 +145,7 @@ object JarUtils {
   /**
    * Removes specified entries from a jar file.
    */
-  def removeFromJar(jarFile: File, classes: Iterable[RelClass]): Unit = {
+  def removeFromJar(jarFile: File, classes: Iterable[ClassFilePath]): Unit = {
     if (jarFile.exists()) {
       IndexBasedZipFsOps.removeEntries(jarFile, classes)
     }
@@ -156,8 +157,7 @@ object JarUtils {
    */
   def readStamps(jar: File): File => Long = {
     val stamps = new IndexBasedZipFsOps.CachedStamps(jar)
-    file =>
-      stamps.getStamp(ClassInJar.fromFile(file).relClass)
+    file => stamps.getStamp(ClassInJar.fromFile(file).toClassFilePath)
   }
 
   /**
@@ -351,16 +351,16 @@ object JarUtils {
       shouldReadJar = false
     }
 
-    def addClasses(classes: Set[RelClass]): Unit = {
+    def addClasses(classes: Set[ClassFilePath]): Unit = {
       content.foreach(_.add(classes))
     }
 
-    def removeClasses(classes: Set[RelClass]): Unit = {
+    def removeClasses(classes: Set[ClassFilePath]): Unit = {
       content.foreach(_.remove(classes))
     }
 
-    def get(): Set[RelClass] = {
-      content.fold(Set.empty[RelClass]) { content =>
+    def get(): Set[ClassFilePath] = {
+      content.fold(Set.empty[ClassFilePath]) { content =>
         if (shouldReadJar) content.update()
         shouldReadJar = false
         content.get()
@@ -368,10 +368,10 @@ object JarUtils {
     }
 
     private class Content(outputJar: File) {
-      private var content: Set[RelClass] = Set.empty
-      def get(): Set[RelClass] = content
-      def add(classes: Set[RelClass]): Unit = content ++= classes
-      def remove(classes: Set[RelClass]): Unit = content --= classes
+      private var content: Set[ClassFilePath] = Set.empty
+      def get(): Set[ClassFilePath] = content
+      def add(classes: Set[ClassFilePath]): Unit = content ++= classes
+      def remove(classes: Set[ClassFilePath]): Unit = content --= classes
       def update(): Unit = {
         if (outputJar.exists()) {
           content ++= JarUtils.listClassFiles(outputJar).toSet
@@ -384,7 +384,7 @@ object JarUtils {
   /* Methods below are only used for test code. They are not optimized for performance. */
   /** Reads timestamp of given jared class */
   def readModifiedTime(jc: ClassInJar): Long = {
-    val (jar, cls) = jc.toJarAndRelClass
+    val (jar, cls) = jc.splitJarReference
     if (jar.exists()) {
       withZipFile(jar) { zip =>
         Option(zip.getEntry(cls)).map(_.getLastModifiedTime.toMillis).getOrElse(0)
@@ -394,7 +394,7 @@ object JarUtils {
 
   /** Checks if given jared class exists */
   def exists(jc: ClassInJar): Boolean = {
-    val (jar, cls) = jc.toJarAndRelClass
+    val (jar, cls) = jc.splitJarReference
     jar.exists() && {
       withZipFile(jar)(zip => zip.getEntry(cls) != null)
     }
