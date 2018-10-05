@@ -44,6 +44,11 @@ public final class CompileOptions implements java.io.Serializable {
     private java.util.function.Function<xsbti.Position, xsbti.Position> sourcePositionMapper;
     /** Controls the order in which Java and Scala sources are compiled. */
     private xsbti.compile.CompileOrder order;
+    /**
+     * Points to a temporary classes directory where the compiler can put compilation products
+     * of any kind. The lifetime of these compilation products is short and the temporary
+     * classes directory only needs to exist during one incremental compiler cycle.
+     */
     private java.util.Optional<java.io.File> temporaryClassesDirectory;
     protected CompileOptions() {
         super();

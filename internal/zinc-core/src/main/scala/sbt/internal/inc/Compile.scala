@@ -56,7 +56,9 @@ object IncrementalCompile {
       previous0: CompileAnalysis,
       output: Output,
       log: Logger,
-      options: IncOptions): (Boolean, Analysis) = {
+      options: IncOptions,
+      outputJarContent: JarUtils.OutputJarContent
+  ): (Boolean, Analysis) = {
     val previous = previous0 match { case a: Analysis => a }
     val current =
       Stamps.initial(Stamper.forLastModified, Stamper.forHash, Stamper.forLastModified)
@@ -65,7 +67,6 @@ object IncrementalCompile {
     val internalSourceToClassNamesMap: File => Set[String] = (f: File) =>
       previous.relations.classNames(f)
     val externalAPI = getExternalAPI(lookup)
-    JarUtils.OutputJarContent.reset(output)
     try {
       Incremental.compile(
         sources,
@@ -78,10 +79,12 @@ object IncrementalCompile {
                                      externalAPI,
                                      current,
                                      output,
-                                     options),
+                                     options,
+                                     outputJarContent),
         log,
         options,
-        output
+        output,
+        outputJarContent
       )
     } catch {
       case _: xsbti.CompileCancelled =>
@@ -110,7 +113,8 @@ private object AnalysisCallback {
       externalAPI: (File, String) => Option[AnalyzedClass],
       current: ReadStamps,
       output: Output,
-      options: IncOptions
+      options: IncOptions,
+      outputJarContent: JarUtils.OutputJarContent
   ) {
     def build(): AnalysisCallback = {
       new AnalysisCallback(
@@ -119,7 +123,8 @@ private object AnalysisCallback {
         externalAPI,
         current,
         output,
-        options
+        options,
+        outputJarContent
       )
     }
   }
@@ -131,7 +136,8 @@ private final class AnalysisCallback(
     externalAPI: (File, String) => Option[AnalyzedClass],
     stampReader: ReadStamps,
     output: Output,
-    options: IncOptions
+    options: IncOptions,
+    outputJarContent: JarUtils.OutputJarContent
 ) extends xsbti.AnalysisCallback {
 
   private[this] val compilation: Compilation = Compilation(output)
@@ -307,7 +313,7 @@ private final class AnalysisCallback(
   override def enabled(): Boolean = options.enabled
 
   def get: Analysis = {
-    JarUtils.OutputJarContent.scalacRunCompleted()
+    outputJarContent.scalacRunCompleted()
     addUsedNames(addCompilation(addProductsAndDeps(Analysis.empty)))
   }
 
@@ -413,13 +419,13 @@ private final class AnalysisCallback(
   }
 
   override def dependencyPhaseCompleted(): Unit = {
-    JarUtils.OutputJarContent.dependencyPhaseCompleted()
+    outputJarContent.dependencyPhaseCompleted()
   }
 
   override def apiPhaseCompleted(): Unit = {}
 
   override def classesInOutputJar(): java.util.Set[String] = {
-    JarUtils.OutputJarContent.get().asJava
+    outputJarContent.get().asJava
   }
 
 }

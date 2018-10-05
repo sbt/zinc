@@ -28,7 +28,8 @@ final class MixedAnalyzingCompiler(
     val scalac: xsbti.compile.ScalaCompiler,
     val javac: AnalyzingJavaCompiler,
     val config: CompileConfiguration,
-    val log: Logger
+    val log: Logger,
+    outputJarContent: JarUtils.OutputJarContent
 ) {
 
   private[this] val absClasspath = toAbsolute(config.classpath)
@@ -152,7 +153,7 @@ final class MixedAnalyzingCompiler(
 
     if (compiledClasses.nonEmpty) {
       JarUtils.includeInJar(outputJar, compiledClasses)
-      JarUtils.OutputJarContent.addClasses(compiledClasses.map(_._2).toSet)
+      outputJarContent.addClasses(compiledClasses.map(_._2).toSet)
     }
     IO.delete(outputDir)
   }
@@ -221,6 +222,7 @@ object MixedAnalyzingCompiler {
       compileOrder: CompileOrder = Mixed,
       skip: Boolean = false,
       incrementalCompilerOptions: IncOptions,
+      outputJarContent: JarUtils.OutputJarContent,
       extra: List[(String, String)]
   ): CompileConfiguration = {
     val lookup = incrementalCompilerOptions.externalHooks().getExternalLookup
@@ -259,7 +261,8 @@ object MixedAnalyzingCompiler {
       reporter,
       skip,
       cache,
-      incrementalCompilerOptions
+      incrementalCompilerOptions,
+      outputJarContent
     )
   }
 
@@ -276,7 +279,8 @@ object MixedAnalyzingCompiler {
       reporter: Reporter,
       skip: Boolean,
       cache: GlobalsCache,
-      incrementalCompilerOptions: IncOptions
+      incrementalCompilerOptions: IncOptions,
+      outputJarContent: JarUtils.OutputJarContent
   ): CompileConfiguration = {
     new CompileConfiguration(
       sources,
@@ -290,7 +294,8 @@ object MixedAnalyzingCompiler {
       compiler,
       javac,
       cache,
-      incrementalCompilerOptions
+      incrementalCompilerOptions,
+      outputJarContent
     )
   }
 
@@ -338,7 +343,8 @@ object MixedAnalyzingCompiler {
         searchClasspath
       ),
       config,
-      log
+      log,
+      outputJarContent
     )
   }
 

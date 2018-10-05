@@ -47,6 +47,7 @@ object Incremental {
    * @param callbackBuilder The builder that builds callback where we report dependency issues.
    * @param log  The log where we write debugging information
    * @param options  Incremental compilation options
+   * @param outputJarContent Object that holds cached content of output jar
    * @param profiler An implementation of an invalidation profiler, empty by default.
    * @param equivS  The means of testing whether two "Stamps" are the same.
    * @return
@@ -62,6 +63,7 @@ object Incremental {
       log: sbt.util.Logger,
       options: IncOptions,
       output: Output,
+      outputJarContent: JarUtils.OutputJarContent,
       profiler: InvalidationProfiler = InvalidationProfiler.empty
   )(implicit equivS: Equiv[XStamp]): (Boolean, Analysis) = {
     val previous = previous0 match { case a: Analysis => a }
@@ -82,7 +84,7 @@ object Incremental {
         incremental.log.debug(
           "All initially invalidated classes: " + initialInvClasses + "\n" +
             "All initially invalidated sources:" + initialInvSources + "\n")
-    val analysis = manageClassfiles(options, output) { classfileManager =>
+    val analysis = manageClassfiles(options, output, outputJarContent) { classfileManager =>
       incremental.cycle(initialInvClasses,
                         initialInvSources,
                         sources,
@@ -125,16 +127,21 @@ object Incremental {
 
   private[sbt] def prune(invalidatedSrcs: Set[File],
                          previous0: CompileAnalysis,
-                         output: Output): Analysis = {
+                         output: Output,
+                         outputJarContent: JarUtils.OutputJarContent): Analysis = {
     val previous = previous0.asInstanceOf[Analysis]
-    IncrementalCommon.pruneClassFilesOfInvalidations(invalidatedSrcs,
-                                                     previous,
-                                                     ClassFileManager.deleteImmediately(output))
+    IncrementalCommon.pruneClassFilesOfInvalidations(
+      invalidatedSrcs,
+      previous,
+      ClassFileManager.deleteImmediately(output, outputJarContent))
   }
 
-  private[this] def manageClassfiles[T](options: IncOptions, output: Output)(
-      run: XClassFileManager => T): T = {
-    val classfileManager = ClassFileManager.getClassFileManager(options, output)
+  private[this] def manageClassfiles[T](
+      options: IncOptions,
+      output: Output,
+      outputJarContent: JarUtils.OutputJarContent
+  )(run: XClassFileManager => T): T = {
+    val classfileManager = ClassFileManager.getClassFileManager(options, output, outputJarContent)
     val result = try run(classfileManager)
     catch {
       case e: Throwable =>

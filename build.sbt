@@ -168,7 +168,11 @@ lazy val zinc = (project in file("zinc"))
     mimaBinaryIssueFilters ++= Seq(
       exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCompilerImpl.compileIncrementally"),
       exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCompilerImpl.inputs"),
-      exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCompilerImpl.compile")
+      exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCompilerImpl.compile"),
+      exclude[DirectMissingMethodProblem]("sbt.internal.inc.MixedAnalyzingCompiler.config"),
+      exclude[DirectMissingMethodProblem]("sbt.internal.inc.MixedAnalyzingCompiler.makeConfig"),
+      exclude[DirectMissingMethodProblem]("sbt.internal.inc.MixedAnalyzingCompiler.this"),
+      exclude[DirectMissingMethodProblem]("sbt.internal.inc.CompileConfiguration.this")
     )
   )
 
@@ -287,7 +291,10 @@ lazy val zincCore = (project in internalPath / "zinc-core")
         exclude[ReversedMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.invalidateClassesInternally"),
         exclude[ReversedMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.invalidateClassesExternally"),
         exclude[ReversedMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.findAPIChange"),
-        exclude[IncompatibleMethTypeProblem]("sbt.internal.inc.Incremental.prune")
+        exclude[IncompatibleMethTypeProblem]("sbt.internal.inc.Incremental.prune"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCompile.apply"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.AnalysisCallback#Builder.this"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.AnalysisCallback.this")
       )
     }
   )

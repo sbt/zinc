@@ -275,7 +275,8 @@ private[sbt] object Analyze {
   private def findSource(sourceNameMap: Map[String, Iterable[File]],
                          pkg: List[String],
                          sourceFileName: String): List[File] =
-    refine((sourceNameMap get sourceFileName).toList.flatten.map { x => (x, x.getParentFile)
+    refine((sourceNameMap get sourceFileName).toList.flatten.map { x =>
+      (x, x.getParentFile)
     }, pkg.reverse)
 
   @tailrec private def refine(sources: List[(File, File)], pkgRev: List[String]): List[File] = {

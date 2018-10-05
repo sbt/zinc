@@ -157,7 +157,8 @@ object JarUtils {
    */
   def readStamps(jar: File): File => Long = {
     val stamps = new IndexBasedZipFsOps.CachedStamps(jar)
-    file => stamps.getStamp(ClassInJar.fromFile(file).toClassFilePath)
+    file =>
+      stamps.getStamp(ClassInJar.fromFile(file).toClassFilePath)
   }
 
   /**
@@ -301,10 +302,11 @@ object JarUtils {
   }
 
   /**
-   * This object provides access to current content of output jar.
+   * The returned `OutputJarContent` object provides access
+   * to current content of output jar.
    * It is prepared to be accessed from zinc's custom compiler
    * phases. With some assumptions on how it works the content
-   * can be read and cached only when necessary.
+   * can be cached and read only when necessary.
    *
    * Implementation details:
    * The content has to be `reset` before each zinc run. This
@@ -331,17 +333,34 @@ object JarUtils {
    * while pruning between iterations, which is done through
    * `removeClasses` method.
    */
-  object OutputJarContent {
-    private var content: Option[Content] = None
+  def createOutputJarContent(output: Output): OutputJarContent = {
+    getOutputJar(output) match {
+      case Some(jar) => new ValidOutputJarContent(jar)
+      case None      => NoOutputJar
+    }
+  }
+
+  sealed abstract class OutputJarContent {
+    def dependencyPhaseCompleted(): Unit
+    def scalacRunCompleted(): Unit
+    def addClasses(classes: Set[ClassFilePath]): Unit
+    def removeClasses(classes: Set[ClassFilePath]): Unit
+    def get(): Set[ClassFilePath]
+  }
+
+  private object NoOutputJar extends OutputJarContent {
+    def dependencyPhaseCompleted(): Unit = ()
+    def scalacRunCompleted(): Unit = ()
+    def addClasses(classes: Set[ClassFilePath]): Unit = ()
+    def removeClasses(classes: Set[ClassFilePath]): Unit = ()
+    def get(): Set[ClassFilePath] = Set.empty
+  }
+
+  private class ValidOutputJarContent(outputJar: File) extends OutputJarContent {
+    private var content: Set[ClassFilePath] = Set.empty
     private var shouldReadJar: Boolean = false
 
-    def reset(output: Output): Unit = {
-      content = JarUtils.getOutputJar(output).map(new Content(_))
-      content.foreach { content =>
-        content.update()
-        shouldReadJar = false
-      }
-    }
+    update()
 
     def dependencyPhaseCompleted(): Unit = {
       shouldReadJar = true
@@ -352,33 +371,24 @@ object JarUtils {
     }
 
     def addClasses(classes: Set[ClassFilePath]): Unit = {
-      content.foreach(_.add(classes))
+      content ++= classes
     }
 
     def removeClasses(classes: Set[ClassFilePath]): Unit = {
-      content.foreach(_.remove(classes))
+      content --= classes
     }
 
     def get(): Set[ClassFilePath] = {
-      content.fold(Set.empty[ClassFilePath]) { content =>
-        if (shouldReadJar) content.update()
-        shouldReadJar = false
-        content.get()
-      }
+      if (shouldReadJar) update()
+      shouldReadJar = false
+      content
     }
 
-    private class Content(outputJar: File) {
-      private var content: Set[ClassFilePath] = Set.empty
-      def get(): Set[ClassFilePath] = content
-      def add(classes: Set[ClassFilePath]): Unit = content ++= classes
-      def remove(classes: Set[ClassFilePath]): Unit = content --= classes
-      def update(): Unit = {
-        if (outputJar.exists()) {
-          content ++= JarUtils.listClassFiles(outputJar).toSet
-        }
+    private def update(): Unit = {
+      if (outputJar.exists()) {
+        content ++= JarUtils.listClassFiles(outputJar).toSet
       }
     }
-
   }
 
   /* Methods below are only used for test code. They are not optimized for performance. */

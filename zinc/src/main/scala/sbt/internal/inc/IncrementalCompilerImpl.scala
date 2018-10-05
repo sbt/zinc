@@ -263,6 +263,8 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         JarUtils.javacOptions
       } else Seq.empty
 
+      val outputJarContent = JarUtils.createOutputJarContent(output)
+
       val config = MixedAnalyzingCompiler.makeConfig(
         scalaCompiler,
         javaCompiler,
@@ -280,6 +282,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         compileOrder,
         skip,
         incrementalOptions,
+        outputJarContent,
         extra
       )
       if (skip) CompileResult.of(prev, config.currentSetup, false)
@@ -319,9 +322,9 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
           previousAnalysis
         else if (!equivPairs.equiv(previous.extra, currentSetup.extra))
           Analysis.empty
-        else Incremental.prune(srcsSet, previousAnalysis, output)
+        else Incremental.prune(srcsSet, previousAnalysis, output, outputJarContent)
       case None =>
-        Incremental.prune(srcsSet, previousAnalysis, output)
+        Incremental.prune(srcsSet, previousAnalysis, output, outputJarContent)
     }
 
     // Run the incremental compilation
@@ -332,7 +335,8 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       analysis,
       output,
       log,
-      incOptions
+      incOptions,
+      outputJarContent
     )
     compile.swap
   }

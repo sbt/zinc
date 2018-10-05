@@ -9,8 +9,9 @@ package sbt.inc.cached
 
 import java.nio.file.{ Path, Paths }
 import java.io.File
+
 import sbt.inc.{ BaseCompilerSpec, SourceFiles }
-import sbt.internal.inc.{ Analysis, CompileOutput, MixedAnalyzingCompiler }
+import sbt.internal.inc.{ CompileOutput, Analysis, MixedAnalyzingCompiler, JarUtils }
 import sbt.io.IO
 
 class CachedHashingSpec extends BaseCompilerSpec {
@@ -35,13 +36,14 @@ class CachedHashingSpec extends BaseCompilerSpec {
       val javac = compilers.javaTools.javac
       val scalac = compilers.scalac
       val giganticClasspath = file(sys.props("user.home"))./(".ivy2").**("*.jar").get.take(500)
+      val output = CompileOutput(options.classesDirectory)
 
       def genConfig = MixedAnalyzingCompiler.makeConfig(
         scalac,
         javac,
         options.sources,
         giganticClasspath,
-        CompileOutput(options.classesDirectory),
+        output,
         setup.cache,
         setup.progress.toOption,
         options.scalacOptions,
@@ -53,6 +55,7 @@ class CachedHashingSpec extends BaseCompilerSpec {
         options.order,
         setup.skip,
         setup.incrementalCompilerOptions,
+        JarUtils.createOutputJarContent(output),
         setup.extra.toList.map(_.toScalaTuple)
       )
 
@@ -77,13 +80,14 @@ class CachedHashingSpec extends BaseCompilerSpec {
       val javac = compilers.javaTools.javac
       val scalac = compilers.scalac
       val fakeLibraryJar = tempDir / "lib" / "foo.jar"
+      val output = CompileOutput(options.classesDirectory)
 
       def genConfig = MixedAnalyzingCompiler.makeConfig(
         scalac,
         javac,
         options.sources,
         List(fakeLibraryJar),
-        CompileOutput(options.classesDirectory),
+        output,
         setup.cache,
         setup.progress.toOption,
         options.scalacOptions,
@@ -95,6 +99,7 @@ class CachedHashingSpec extends BaseCompilerSpec {
         options.order,
         setup.skip,
         setup.incrementalCompilerOptions,
+        JarUtils.createOutputJarContent(output),
         setup.extra.toList.map(_.toScalaTuple)
       )
 
