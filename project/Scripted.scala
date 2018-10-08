@@ -15,6 +15,7 @@ object Scripted {
         "Saves you some time when only your test has changed")
   val scriptedSource = settingKey[File]("")
   val scriptedPrescripted = taskKey[File => Unit]("")
+  val scriptedCompileToJar = settingKey[Boolean]("Compile directly to jar in scripted tests")
 
   import sbt.complete._
   import DefaultParsers._
@@ -65,7 +66,7 @@ object Scripted {
 
   // Interface to cross class loader
   type IncScriptedRunner = {
-    def run(resourceBaseDirectory: File, bufferLog: Boolean, tests: Array[String]): Unit
+    def run(resourceBaseDirectory: File, bufferLog: Boolean, compileToJar: Boolean, tests: Array[String]): Unit
   }
 
   def doScripted(scriptedSbtClasspath: Seq[Attributed[File]],
@@ -73,6 +74,7 @@ object Scripted {
                  sourcePath: File,
                  args: Seq[String],
                  bufferLog: Boolean,
+                 compileToJar: Boolean,
                  prescripted: File => Unit): Unit = {
     System.err.println(s"About to run tests: ${args.mkString("\n * ", "\n * ", "\n")}")
     // Force Log4J to not use a thread context classloader otherwise it throws a CCE
@@ -83,7 +85,7 @@ object Scripted {
     val bridge = bridgeClass.newInstance.asInstanceOf[IncScriptedRunner]
     // val launcherVmOptions = Array("-XX:MaxPermSize=256M") // increased after a failure in scripted source-dependencies/macro
     try {
-      bridge.run(sourcePath, bufferLog, args.toArray)
+      bridge.run(sourcePath, bufferLog, compileToJar, args.toArray)
     } catch { case ite: java.lang.reflect.InvocationTargetException => throw ite.getCause }
   }
 }

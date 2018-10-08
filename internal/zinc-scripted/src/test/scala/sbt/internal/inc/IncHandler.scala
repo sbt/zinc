@@ -31,7 +31,7 @@ import java.lang.reflect.Method
 import java.lang.reflect.Modifier.{ isPublic, isStatic }
 import java.util.{ Optional, Properties }
 
-import sbt.internal.inc.classpath.{ ClassLoaderCache, ClasspathUtilities }
+import sbt.internal.inc.classpath.{ ClassLoaderCache, ClasspathUtilities, ClasspathFilter }
 import sbt.internal.scripted.{ StatementHandler, TestFailed }
 import sbt.internal.util.ManagedLogger
 import sjsonnew.support.scalajson.unsafe.{ Converter, Parser => JsonParser }
@@ -49,7 +49,7 @@ final case class Build(projects: Seq[Project])
 
 final case class IncInstance(si: xsbti.compile.ScalaInstance, cs: XCompilers)
 
-class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogger)
+class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogger, compileToJar: Boolean)
     extends BridgeProviderSpecification
     with StatementHandler {
 
@@ -76,7 +76,8 @@ class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogger)
       val in = p.in.getOrElse(directory / p.name)
       val version = p.scalaVersion.getOrElse(scala.util.Properties.versionNumberString)
       val deps = p.dependsOn.toVector.flatten
-      val project = ProjectStructure(p.name, deps, in, scriptedLog, lookupProject, version)
+      val project =
+        ProjectStructure(p.name, deps, in, scriptedLog, lookupProject, version, compileToJar)
       buildStructure(p.name) = project
     }
   }
@@ -88,7 +89,9 @@ class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogger)
       implicit val projectFormat =
         caseClass(Project.apply _, Project.unapply _)("name", "dependsOn", "in", "scalaVersion")
       implicit val buildFormat = caseClass(Build.apply _, Build.unapply _)("projects")
-      val json = JsonParser.parseFromFile(directory / "build.json").get
+      // Do not parseFromFile as it leaves file open, causing problems on Windows.
+      val channel = new FileInputStream(directory / "build.json").getChannel
+      val json = JsonParser.parseFromChannel(channel).get
       Converter.fromJsonUnsafe[Build](json)
     } else Build(projects = Vector(Project(name = RootIdentifier).copy(in = Some(directory))))
   }
@@ -165,12 +168,21 @@ class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogger)
         val analysis = p.compile(i)
         p.discoverMainClasses(Some(analysis.apis)) match {
           case Seq(mainClassName) =>
-            val classpath: Array[File] = (i.si.allJars :+ p.classesDir) map { _.getAbsoluteFile }
+            val classpath: Array[File] =
+              ((i.si.allJars :+ p.classesDir) ++ p.outputJar).map(_.getAbsoluteFile)
             val loader = ClasspathUtilities.makeLoader(classpath, i.si, directory)
-            val main = p.getMainMethod(mainClassName, loader)
-            p.invokeMain(loader, main, params)
-          case _ =>
-            throw new TestFailed("Found more than one main class.")
+            try {
+              val main = p.getMainMethod(mainClassName, loader)
+              p.invokeMain(loader, main, params)
+            } finally {
+              loader match {
+                case f: ClasspathFilter => f.close()
+              }
+            }
+          case Seq() =>
+            throw new TestFailed(s"Did not find any main class")
+          case s =>
+            throw new TestFailed(s"Found more than one main class: $s")
         }
     },
     noArgs("package") { case (p, i) => p.packageBin(i) },
@@ -212,8 +224,10 @@ case class ProjectStructure(
     baseDirectory: File,
     scriptedLog: ManagedLogger,
     lookupProject: String => ProjectStructure,
-    scalaVersion: String
+    scalaVersion: String,
+    compileToJar: Boolean
 ) extends BridgeProviderSpecification {
+
   val compiler = new IncrementalCompilerImpl
   val maxErrors = 100
   class PerClasspathEntryLookupImpl(
@@ -227,6 +241,7 @@ case class ProjectStructure(
   }
   val targetDir = baseDirectory / "target"
   val classesDir = targetDir / "classes"
+  val outputJar = if (compileToJar) Some(classesDir / "output.jar") else None
   val generatedClassFiles = classesDir ** "*.class"
   val scalaSourceDirectory = baseDirectory / "src" / "main" / "scala"
   val javaSourceDirectory = baseDirectory / "src" / "main" / "java"
@@ -261,7 +276,9 @@ case class ProjectStructure(
     f1 orElse { case _ => None }
   }
   def dependsOnRef: Vector[ProjectStructure] = dependsOn map { lookupProject(_) }
-  def internalClasspath: Vector[File] = dependsOnRef map { _.classesDir }
+  def internalClasspath: Vector[File] = dependsOnRef flatMap { proj =>
+    Vector(proj.classesDir) ++ proj.outputJar
+  }
 
   def checkSame(i: IncInstance): Unit =
     cachedStore.get.toOption match {
@@ -329,10 +346,21 @@ case class ProjectStructure(
 
   def checkProducts(i: IncInstance, src: String, expected: List[String]): Unit = {
     val analysis = compile(i)
+
+    def isWindows: Boolean = sys.props("os.name").toLowerCase.startsWith("win")
     def relativeClassDir(f: File): File = f.relativeTo(classesDir) getOrElse f
+    def normalizePath(path: String): String = {
+      if (isWindows) path.replace('\\', '/') else path
+    }
     def products(srcFile: String): Set[String] = {
       val productFiles = analysis.relations.products(baseDirectory / srcFile)
-      productFiles.map(relativeClassDir).map(_.getPath)
+      productFiles.map { file =>
+        if (JarUtils.isClassInJar(file)) {
+          JarUtils.ClassInJar.fromFile(file).toClassFilePath
+        } else {
+          normalizePath(relativeClassDir(file).getPath)
+        }
+      }
     }
     def assertClasses(expected: Set[String], actual: Set[String]) =
       assert(expected == actual, s"Expected $expected products, got $actual")
@@ -342,9 +370,12 @@ case class ProjectStructure(
   }
 
   def checkNoGeneratedClassFiles(): Unit = {
-    val allClassFiles = generatedClassFiles.get.mkString("\n\t")
-    if (!allClassFiles.isEmpty)
-      sys.error(s"Classes existed:\n\t$allClassFiles")
+    val allPlainClassFiles = generatedClassFiles.get.map(_.toString)
+    val allClassesInJar = outputJar.toSeq.filter(_.exists()).flatMap(JarUtils.listClassFiles)
+    if (allPlainClassFiles.nonEmpty || allClassesInJar.nonEmpty) {
+      val allClassFiles = allPlainClassFiles ++ allClassesInJar
+      sys.error(s"Classes existed:\n\t${allClassFiles.mkString("\n\t")}")
+    }
   }
 
   def checkDependencies(i: IncInstance, className: String, expected: List[String]): Unit = {
@@ -392,11 +423,11 @@ case class ProjectStructure(
       extra
     )
 
-    val classpath =
-      (i.si.allJars.toList ++ (unmanagedJars :+ classesDir) ++ internalClasspath).toArray
+    val output = outputJar.getOrElse(classesDir)
+    val classpath = (i.si.allJars.toList ++ (unmanagedJars :+ output) ++ internalClasspath).toArray
     val in = compiler.inputs(classpath,
                              sources.toArray,
-                             classesDir,
+                             output,
                              scalacOptions,
                              Array(),
                              maxErrors,
@@ -404,7 +435,8 @@ case class ProjectStructure(
                              CompileOrder.Mixed,
                              cs,
                              setup,
-                             previousResult)
+                             previousResult,
+                             Optional.empty())
     val result = compiler.compile(in, scriptedLog)
     val analysis = result.analysis match { case a: Analysis => a }
     cachedStore.set(AnalysisContents.create(analysis, result.setup))
@@ -414,17 +446,22 @@ case class ProjectStructure(
 
   def packageBin(i: IncInstance): Unit = {
     compile(i)
-    val jar = targetDir / s"$name.jar"
-    val manifest = new Manifest
-    val sources =
-      (classesDir ** -DirectoryFilter).get flatMap {
-        case x =>
-          IO.relativize(classesDir, x) match {
-            case Some(path) => List((x, path))
-            case _          => Nil
+    val targetJar = targetDir / s"$name.jar"
+    outputJar match {
+      case Some(currentJar) =>
+        IO.copy(Seq(currentJar -> targetJar))
+        ()
+      case None =>
+        val manifest = new Manifest
+        val sources =
+          (classesDir ** -DirectoryFilter).get flatMap { x =>
+            IO.relativize(classesDir, x) match {
+              case Some(path) => List((x, path))
+              case _          => Nil
+            }
           }
-      }
-    IO.jar(sources, jar, manifest)
+        IO.jar(sources, targetJar, manifest)
+    }
   }
 
   def unrecognizedArguments(commandName: String, args: List[String]): Unit =

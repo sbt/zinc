@@ -72,4 +72,5 @@ public interface ReadStamps {
      * @see xsbti.compile.analysis.ReadStamps#product(File)
      */
     public Map<File, Stamp> getAllProductStamps();
+
 }

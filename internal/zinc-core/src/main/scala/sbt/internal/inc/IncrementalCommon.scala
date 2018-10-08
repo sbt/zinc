@@ -14,7 +14,12 @@ import java.io.File
 import sbt.util.Logger
 import xsbt.api.APIUtil
 import xsbti.api.AnalyzedClass
-import xsbti.compile.{ DependencyChanges, IncOptions, ClassFileManager => XClassFileManager }
+import xsbti.compile.{
+  DependencyChanges,
+  IncOptions,
+  Output,
+  ClassFileManager => XClassFileManager
+}
 import xsbti.compile.analysis.{ ReadStamps, Stamp => XStamp }
 
 import scala.annotation.tailrec
@@ -234,7 +239,8 @@ private[inc] abstract class IncrementalCommon(
       sources: Set[File],
       previousAnalysis: Analysis,
       stamps: ReadStamps,
-      lookup: Lookup
+      lookup: Lookup,
+      output: Output
   )(implicit equivS: Equiv[XStamp]): InitialChanges = {
     import IncrementalCommon.{ isBinaryModified, findExternalAnalyzedClass }
     val previous = previousAnalysis.stamps
@@ -251,8 +257,12 @@ private[inc] abstract class IncrementalCommon(
       }
     }
 
-    val removedProducts = lookup.removedProducts(previousAnalysis).getOrElse {
-      previous.allProducts.filter(p => !equivS.equiv(previous.product(p), stamps.product(p))).toSet
+    val removedProducts: Set[File] = lookup.removedProducts(previousAnalysis).getOrElse {
+      val currentProductsStamps =
+        JarUtils.getOutputJar(output).fold(stamps.product _)(Stamper.forLastModifiedInJar)
+      previous.allProducts
+        .filter(p => !equivS.equiv(previous.product(p), currentProductsStamps(p)))
+        .toSet
     }
 
     val changedBinaries: Set[File] = lookup.changedBinaries(previousAnalysis).getOrElse {

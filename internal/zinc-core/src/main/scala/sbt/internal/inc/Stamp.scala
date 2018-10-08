@@ -141,9 +141,14 @@ object Stamper {
     catch { case _: IOException => EmptyStamp }
   }
 
-  val forHash = (toStamp: File) => tryStamp(Hash.ofFile(toStamp))
-  val forLastModified = (toStamp: File) =>
+  val forHash: File => XStamp = (toStamp: File) => tryStamp(Hash.ofFile(toStamp))
+  val forLastModified: File => XStamp = (toStamp: File) =>
     tryStamp(new LastModified(IO.getModifiedTimeOrZero(toStamp)))
+  def forLastModifiedInJar(jar: File): File => XStamp = {
+    val stamps = JarUtils.readStamps(jar)
+    (file: File) =>
+      new LastModified(stamps(file))
+  }
 }
 
 object Stamps {
@@ -241,6 +246,7 @@ private class InitialStamps(prodStamp: File => XStamp,
                             binStamp: File => XStamp)
     extends ReadStamps {
   import collection.mutable.{ HashMap, Map }
+
   // cached stamps for files that do not change during compilation
   private val sources: Map[File, XStamp] = new HashMap
   private val binaries: Map[File, XStamp] = new HashMap

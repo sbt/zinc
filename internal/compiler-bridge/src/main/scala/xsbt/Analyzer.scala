@@ -7,7 +7,10 @@
 
 package xsbt
 
+import java.io.File
+
 import scala.tools.nsc.Phase
+import scala.collection.JavaConverters._
 
 object Analyzer {
   def name = "xsbt-analyzer"
@@ -22,15 +25,39 @@ final class Analyzer(val global: CallbackGlobal) extends LocateClassFile {
       "Finds concrete instances of provided superclasses, and application entry points."
     def name = Analyzer.name
 
+    /**
+     * When straight-to-jar compilation is enabled, returns the classes
+     * that are found in the jar of the last compilation. This method
+     * gets the existing classes from the analysis callback and adapts
+     * it for consumption in the compiler bridge.
+     *
+     * It's lazy because it triggers a read of the zip, which may be
+     * unnecessary if there are no local classes in a compilation unit.
+     */
+    private lazy val classesWrittenByGenbcode: Set[String] = {
+      JarUtils.outputJar match {
+        case Some(jar) =>
+          val classes = global.callback.classesInOutputJar().asScala
+          classes.map(JarUtils.classNameInJar(jar, _)).toSet
+        case None => Set.empty
+      }
+    }
+
     def apply(unit: CompilationUnit): Unit = {
       if (!unit.isJava) {
         val sourceFile = unit.source.file.file
         for (iclass <- unit.icode) {
           val sym = iclass.symbol
-          val outputDir = settings.outputDirs.outputDirFor(sym.sourceFile).file
+          lazy val outputDir = settings.outputDirs.outputDirFor(sym.sourceFile).file
           def addGenerated(separatorRequired: Boolean): Unit = {
-            val classFile = fileForClass(outputDir, sym, separatorRequired)
-            if (classFile.exists()) {
+            val locatedClass = {
+              JarUtils.outputJar match {
+                case Some(outputJar) => locateClassInJar(sym, outputJar, separatorRequired)
+                case None            => locatePlainClassFile(sym, separatorRequired)
+              }
+            }
+
+            locatedClass.foreach { classFile =>
               assert(sym.isClass, s"${sym.fullName} is not a class")
               // Use own map of local classes computed before lambdalift to ascertain class locality
               if (localToNonLocalClass.isLocal(sym).getOrElse(true)) {
@@ -48,6 +75,19 @@ final class Analyzer(val global: CallbackGlobal) extends LocateClassFile {
             addGenerated(false)
         }
       }
+    }
+
+    private def locatePlainClassFile(sym: Symbol, separatorRequired: Boolean): Option[File] = {
+      val outputDir = settings.outputDirs.outputDirFor(sym.sourceFile).file
+      val classFile = fileForClass(outputDir, sym, separatorRequired)
+      if (classFile.exists()) Some(classFile) else None
+    }
+
+    private def locateClassInJar(sym: Symbol, jar: File, sepRequired: Boolean): Option[File] = {
+      val classFile = pathToClassFile(sym, sepRequired)
+      val classInJar = JarUtils.classNameInJar(jar, classFile)
+      if (!classesWrittenByGenbcode.contains(classInJar)) None
+      else Some(new File(classInJar))
     }
   }
 }

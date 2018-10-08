@@ -110,7 +110,7 @@ object MiniSetupUtil {
     new Equiv[MiniOptions] {
       def equiv(a: MiniOptions, b: MiniOptions) = {
         equivScalacOpts.equiv(a.scalacOptions, b.scalacOptions) &&
-        (a.javacOptions sameElements b.javacOptions)
+        equivJavacOptions.equiv(a.javacOptions, b.javacOptions)
       }
     }
   }
@@ -128,6 +128,13 @@ object MiniSetupUtil {
   }
 
   def equivScalacOptions(ignoredRegexes: Array[String]): Equiv[Array[String]] = {
+    equivCompilerOptions(ignoredRegexes)
+  }
+
+  // ignoring -d as it is overridden anyway
+  val equivJavacOptions: Equiv[Array[String]] = equivCompilerOptions(Array("-d .*"))
+
+  def equivCompilerOptions(ignoredRegexes: Array[String]): Equiv[Array[String]] = {
     def groupWithParams(opts: Array[String]): Set[String] = {
       def isParam(s: String) = !s.startsWith("-")
       def recur(opts: List[String], res: Set[String]): Set[String] = opts match {

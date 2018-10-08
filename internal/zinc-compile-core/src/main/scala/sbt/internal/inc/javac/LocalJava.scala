@@ -12,6 +12,9 @@ package inc
 package javac
 
 import java.io.{ File, OutputStream, PrintWriter, Writer }
+import java.nio.charset.Charset
+import java.util.Locale
+
 import javax.tools.JavaFileManager.Location
 import javax.tools.JavaFileObject.Kind
 import javax.tools.{
@@ -19,7 +22,9 @@ import javax.tools.{
   ForwardingJavaFileManager,
   ForwardingJavaFileObject,
   JavaFileManager,
-  JavaFileObject
+  JavaFileObject,
+  StandardJavaFileManager,
+  DiagnosticListener
 }
 
 import sbt.internal.util.LoggerWriter
@@ -126,8 +131,6 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
     val logWriter = new PrintWriter(logger)
     log.debug("Attempting to call " + compiler + " directly...")
     val diagnostics = new DiagnosticsReporter(reporter)
-    val fileManager = compiler.getStandardFileManager(diagnostics, null, null)
-    val jfiles = fileManager.getJavaFileObjectsFromFiles(sources.toList.asJava)
 
     /* Local Java compiler doesn't accept `-J<flag>` options, strip them. */
     val (invalidOptions, cleanedOptions) = options partition (_ startsWith "-J")
@@ -136,6 +139,15 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
       log.warn(invalidOptions.mkString("\t", ", ", ""))
     }
 
+    val fileManager = {
+      if (cleanedOptions.contains("-XDuseOptimizedZip=false")) {
+        fileManagerWithoutOptimizedZips(diagnostics)
+      } else {
+        compiler.getStandardFileManager(diagnostics, null, null)
+      }
+    }
+
+    val jfiles = fileManager.getJavaFileObjectsFromFiles(sources.toList.asJava)
     val customizedFileManager = {
       val maybeClassFileManager = incToolOptions.classFileManager()
       if (incToolOptions.useCustomizedFileManager && maybeClassFileManager.isPresent)
@@ -160,9 +172,41 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
        * to javac's behaviour, we report fail compilation from diagnostics. */
       compileSuccess = success && !diagnostics.hasErrors
     } finally {
+      customizedFileManager.close()
       logger.flushLines(if (compileSuccess) Level.Warn else Level.Error)
     }
     compileSuccess
+  }
+
+  /**
+   * Rewrite of [[javax.tools.JavaCompiler.getStandardFileManager]] method that also sets
+   * useOptimizedZip=false flag. With forked javac adding this option to arguments just works.
+   * Here, as `FileManager` is created before `CompilationTask` options do not get passed
+   * properly. Also there is no access to `com.sun.tools.javac` classes, hence the reflection...
+   */
+  private def fileManagerWithoutOptimizedZips(
+      diagnostics: DiagnosticsReporter): StandardJavaFileManager = {
+    val classLoader = compiler.getClass.getClassLoader
+    val contextClass = Class.forName("com.sun.tools.javac.util.Context", true, classLoader)
+    val optionsClass = Class.forName("com.sun.tools.javac.util.Options", true, classLoader)
+    val javacFileManagerClass =
+      Class.forName("com.sun.tools.javac.file.JavacFileManager", true, classLoader)
+
+    val `Options.instance` = optionsClass.getMethod("instance", contextClass)
+    val `context.put` = contextClass.getMethod("put", classOf[Class[_]], classOf[Object])
+    val `options.put` = optionsClass.getMethod("put", classOf[String], classOf[String])
+    val `new JavacFileManager` =
+      javacFileManagerClass.getConstructor(contextClass, classOf[Boolean], classOf[Charset])
+
+    val context = contextClass.newInstance().asInstanceOf[AnyRef]
+    `context.put`.invoke(context, classOf[Locale], null)
+    `context.put`.invoke(context, classOf[DiagnosticListener[_]], diagnostics)
+    val options = `Options.instance`.invoke(null, context)
+    `options.put`.invoke(options, "useOptimizedZip", "false")
+
+    `new JavacFileManager`
+      .newInstance(context, Boolean.box(true), null)
+      .asInstanceOf[StandardJavaFileManager]
   }
 }
 

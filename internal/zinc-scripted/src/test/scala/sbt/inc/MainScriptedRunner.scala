@@ -10,16 +10,22 @@ import xsbti.compile.CompilerBridgeProvider
 import sbt.util.Logger
 
 final class MainScriptedRunner {
-  def run(resourceBaseDirectory: File, bufferLog: Boolean, tests: Array[String]): Unit = {
+  def run(
+      resourceBaseDirectory: File,
+      bufferLog: Boolean,
+      compileToJar: Boolean,
+      tests: Array[String]
+  ): Unit = {
     IO.withTemporaryDirectory { tempDir =>
       // Create a global temporary directory to store the bridge et al
-      val handlers = new MainScriptedHandlers(tempDir)
+      val handlers = new MainScriptedHandlers(tempDir, compileToJar)
       ScriptedRunnerImpl.run(resourceBaseDirectory, bufferLog, tests, handlers, 4)
     }
   }
 }
 
-final class MainScriptedHandlers(tempDir: File) extends IncScriptedHandlers(tempDir) {
+final class MainScriptedHandlers(tempDir: File, compileToJar: Boolean)
+    extends IncScriptedHandlers(tempDir, compileToJar) {
   // Create a provider that uses the bridges from the classes directory of the projects
   val provider: CompilerBridgeProvider = {
     val compilerBridge210 = ScalaBridge(
@@ -56,7 +62,7 @@ final class MainScriptedHandlers(tempDir: File) extends IncScriptedHandlers(temp
           case x: ManagedLogger => x
           case _                => sys.error("Expected ManagedLogger")
         }
-      new BloopIncHandler(config.testDirectory(), tempDir, provider, logger)
+      new BloopIncHandler(config.testDirectory(), tempDir, provider, logger, compileToJar)
     }
   )
 }
@@ -65,7 +71,8 @@ final class BloopIncHandler(
     directory: File,
     cacheDir: File,
     provider: CompilerBridgeProvider,
-    logger: ManagedLogger
-) extends IncHandler(directory, cacheDir, logger) {
+    logger: ManagedLogger,
+    compileToJar: Boolean
+) extends IncHandler(directory, cacheDir, logger, compileToJar) {
   override def getZincProvider(targetDir: File, log: Logger): CompilerBridgeProvider = provider
 }

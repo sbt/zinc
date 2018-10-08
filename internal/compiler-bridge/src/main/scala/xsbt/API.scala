@@ -96,7 +96,7 @@ final class API(val global: CallbackGlobal) extends Compat with GlobalHelpers wi
    *
    * This method only takes care of non-local classes because local classes have no
    * relevance in the correctness of the algorithm and can be registered after genbcode.
-   * Local classes are only used to contruct the relations of products and to produce
+   * Local classes are only used to construct the relations of products and to produce
    * the list of generated files + stamps, but names referring to local classes **never**
    * show up in the name hashes of classes' APIs, hence never considered for name hashing.
    *
@@ -116,9 +116,17 @@ final class API(val global: CallbackGlobal) extends Compat with GlobalHelpers wi
       def registerProductNames(names: FlattenedNames): Unit = {
         // Guard against a local class in case it surreptitiously leaks here
         if (!symbol.isLocalClass) {
-          val classFileName = s"${names.binaryName}.class"
-          val outputDir = global.settings.outputDirs.outputDirFor(sourceFile).file
-          val classFile = new java.io.File(outputDir, classFileName)
+          val pathToClassFile = s"${names.binaryName}.class"
+          val classFile = {
+            JarUtils.outputJar match {
+              case Some(outputJar) =>
+                new java.io.File(JarUtils.classNameInJar(outputJar, pathToClassFile))
+              case None =>
+                val outputDir = global.settings.outputDirs.outputDirFor(sourceFile).file
+                new java.io.File(outputDir, pathToClassFile)
+            }
+          }
+
           val zincClassName = names.className
           val srcClassName = classNameAsString(symbol)
           callback.generatedNonLocalClass(sourceJavaFile, classFile, zincClassName, srcClassName)

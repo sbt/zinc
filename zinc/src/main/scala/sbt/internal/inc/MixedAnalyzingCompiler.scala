@@ -10,17 +10,17 @@ package internal
 package inc
 
 import java.io.File
-import java.lang.ref.{ Reference, SoftReference }
+import java.lang.ref.{ SoftReference, Reference }
 import java.util.Optional
 
-import inc.javac.AnalyzingJavaCompiler
 import xsbti.{ Reporter, AnalysisCallback => XAnalysisCallback }
 import xsbti.compile.CompileOrder._
 import xsbti.compile._
-import sbt.io.IO
+import sbt.io.{ IO, DirectoryFilter }
 import sbt.util.{ InterfaceUtil, Logger }
 import sbt.internal.inc.JavaInterfaceUtil.EnrichOption
 import sbt.internal.inc.caching.ClasspathCache
+import sbt.internal.inc.javac.AnalyzingJavaCompiler
 import xsbti.compile.{ ClassFileManager => XClassFileManager }
 
 /** An instance of an analyzing compiler that can run both javac + scalac. */
@@ -28,17 +28,15 @@ final class MixedAnalyzingCompiler(
     val scalac: xsbti.compile.ScalaCompiler,
     val javac: AnalyzingJavaCompiler,
     val config: CompileConfiguration,
-    val log: Logger
+    val log: Logger,
+    outputJarContent: JarUtils.OutputJarContent
 ) {
 
-  import config._
-  import currentSetup._
-
-  private[this] val absClasspath = classpath.map(_.getAbsoluteFile)
+  private[this] val absClasspath = toAbsolute(config.classpath)
 
   /** Mechanism to work with compiler arguments. */
   private[this] val cArgs =
-    new CompilerArguments(compiler.scalaInstance, compiler.classpathOptions)
+    new CompilerArguments(config.compiler.scalaInstance, config.compiler.classpathOptions)
 
   /**
    * Compiles the given Java/Scala files.
@@ -54,33 +52,40 @@ final class MixedAnalyzingCompiler(
       callback: XAnalysisCallback,
       classfileManager: XClassFileManager
   ): Unit = {
+    val output = config.currentSetup.output
     val outputDirs = outputDirectories(output)
     outputDirs.foreach { d =>
-      if (!d.getPath.endsWith(".jar"))
+      if (d.getName.endsWith(".jar"))
+        IO.createDirectory(d.getParentFile)
+      else {
         IO.createDirectory(d)
+      }
     }
 
-    val incSrc = sources.filter(include)
+    val incSrc = config.sources.filter(include)
     val (javaSrcs, scalaSrcs) = incSrc.partition(javaOnly)
     logInputs(log, javaSrcs.size, scalaSrcs.size, outputDirs)
 
     /** Compile Scala sources. */
     def compileScala(): Unit =
       if (scalaSrcs.nonEmpty) {
-        val sources = if (order == Mixed) incSrc else scalaSrcs
-        val arguments = cArgs(Nil, absClasspath, None, options.scalacOptions)
-        timed("Scala compilation", log) {
-          compiler.compile(
-            sources.toArray,
-            changes,
-            arguments.toArray,
-            output,
-            callback,
-            reporter,
-            config.cache,
-            log,
-            progress.toOptional
-          )
+        JarUtils.withPreviousJar(output) { extraClasspath =>
+          val sources = if (config.currentSetup.order == Mixed) incSrc else scalaSrcs
+          val cp = toAbsolute(extraClasspath) ++ absClasspath
+          val arguments = cArgs(Nil, cp, None, config.currentSetup.options.scalacOptions)
+          timed("Scala compilation", log) {
+            config.compiler.compile(
+              sources.toArray,
+              changes,
+              arguments.toArray,
+              output,
+              callback,
+              config.reporter,
+              config.cache,
+              log,
+              config.progress.toOptional
+            )
+          }
         }
       }
 
@@ -91,26 +96,42 @@ final class MixedAnalyzingCompiler(
           val incToolOptions =
             IncToolOptions.of(
               Optional.of(classfileManager),
-              incOptions.useCustomizedFileManager()
+              config.incOptions.useCustomizedFileManager()
             )
-          val joptions = options.javacOptions().toArray[String]
-          javac.compile(
-            javaSrcs,
-            joptions,
-            output,
-            callback,
-            incToolOptions,
-            reporter,
-            log,
-            progress
-          )
+          val joptions = config.currentSetup.options.javacOptions
+
+          JarUtils.getOutputJar(output) match {
+            case Some(outputJar) =>
+              val outputDir = JarUtils.javacTempOutput(outputJar)
+              IO.createDirectory(outputDir)
+              javac.compile(javaSrcs,
+                            joptions,
+                            CompileOutput(outputDir),
+                            Some(outputJar),
+                            callback,
+                            incToolOptions,
+                            config.reporter,
+                            log,
+                            config.progress)
+              putJavacOutputInJar(outputJar, outputDir)
+            case None =>
+              javac.compile(javaSrcs,
+                            joptions,
+                            output,
+                            finalJarOutput = None,
+                            callback,
+                            incToolOptions,
+                            config.reporter,
+                            log,
+                            config.progress)
+          }
         }
       }
     }
 
     /* `Mixed` order defaults to `ScalaThenJava` behaviour.
      * See https://github.com/sbt/zinc/issues/234. */
-    if (order == JavaThenScala) {
+    if (config.currentSetup.order == JavaThenScala) {
       compileJava(); compileScala()
     } else {
       compileScala(); compileJava()
@@ -118,6 +139,27 @@ final class MixedAnalyzingCompiler(
 
     if (javaSrcs.size + scalaSrcs.size > 0)
       log.info("Done compiling.")
+  }
+
+  private def putJavacOutputInJar(outputJar: File, outputDir: File): Unit = {
+    import sbt.io.syntax._
+    val compiledClasses = (outputDir ** -DirectoryFilter).get.flatMap { classFile =>
+      IO.relativize(outputDir, classFile) match {
+        case Some(relPath) =>
+          List((classFile, relPath))
+        case _ => Nil
+      }
+    }
+
+    if (compiledClasses.nonEmpty) {
+      JarUtils.includeInJar(outputJar, compiledClasses)
+      outputJarContent.addClasses(compiledClasses.map(_._2).toSet)
+    }
+    IO.delete(outputDir)
+  }
+
+  private def toAbsolute(extraClasspath: Seq[File]) = {
+    extraClasspath.map(_.getAbsoluteFile)
   }
 
   private[this] def outputDirectories(output: Output): Seq[File] = {
@@ -180,6 +222,7 @@ object MixedAnalyzingCompiler {
       compileOrder: CompileOrder = Mixed,
       skip: Boolean = false,
       incrementalCompilerOptions: IncOptions,
+      outputJarContent: JarUtils.OutputJarContent,
       extra: List[(String, String)]
   ): CompileConfiguration = {
     val lookup = incrementalCompilerOptions.externalHooks().getExternalLookup
@@ -218,7 +261,8 @@ object MixedAnalyzingCompiler {
       reporter,
       skip,
       cache,
-      incrementalCompilerOptions
+      incrementalCompilerOptions,
+      outputJarContent
     )
   }
 
@@ -235,7 +279,8 @@ object MixedAnalyzingCompiler {
       reporter: Reporter,
       skip: Boolean,
       cache: GlobalsCache,
-      incrementalCompilerOptions: IncOptions
+      incrementalCompilerOptions: IncOptions,
+      outputJarContent: JarUtils.OutputJarContent
   ): CompileConfiguration = {
     new CompileConfiguration(
       sources,
@@ -249,7 +294,8 @@ object MixedAnalyzingCompiler {
       compiler,
       javac,
       cache,
-      incrementalCompilerOptions
+      incrementalCompilerOptions,
+      outputJarContent
     )
   }
 
@@ -259,13 +305,19 @@ object MixedAnalyzingCompiler {
   ): (Seq[File], String => Option[File]) = {
     import config._
     import currentSetup._
+    // If we are compiling straight to jar, as javac does not support this,
+    // it will be compiled to a temporary directory (with deterministic name)
+    // and then added to the final jar. This temporary directory has to be
+    // available for sbt.internal.inc.classfile.Analyze to work correctly.
+    val tempJavacOutput =
+      JarUtils.getOutputJar(currentSetup.output).map(JarUtils.javacTempOutput).toSeq
     val absClasspath = classpath.map(_.getAbsoluteFile)
     val cArgs =
       new CompilerArguments(compiler.scalaInstance, compiler.classpathOptions)
     val searchClasspath = explicitBootClasspath(options.scalacOptions) ++ withBootclasspath(
       cArgs,
       absClasspath
-    )
+    ) ++ tempJavacOutput
     (searchClasspath, Locate.entry(searchClasspath, perClasspathEntryLookup))
   }
 
@@ -291,7 +343,8 @@ object MixedAnalyzingCompiler {
         searchClasspath
       ),
       config,
-      log
+      log,
+      outputJarContent
     )
   }
 

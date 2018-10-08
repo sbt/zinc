@@ -14,6 +14,8 @@ import scala.tools.nsc._
 import io.AbstractFile
 import java.io.File
 
+import scala.reflect.io.PlainFile
+
 /** Defines the interface of the incremental compiler hiding implementation details. */
 sealed abstract class CallbackGlobal(settings: Settings,
                                      reporter: reporters.Reporter,
@@ -37,6 +39,8 @@ sealed abstract class CallbackGlobal(settings: Settings,
       case multi: MultipleOutput => multi.getOutputGroups.toStream map (_.getOutputDirectory)
     }
   }
+
+  lazy val JarUtils = new JarUtils(outputDirs)
 
   /**
    * Defines the sbt phase in which the dependency analysis is performed.
@@ -134,19 +138,44 @@ sealed class ZincCompiler(settings: Settings, dreporter: DelegatingReporter, out
 
   private final val fqnsToAssociatedFiles = perRunCaches.newMap[String, (AbstractFile, Boolean)]()
 
-  /** Returns the associated file of a fully qualified name and whether it's on the classpath. */
+  /**
+   * Returns the associated file of a fully qualified name and whether it's on the classpath.
+   * Note that the abstract file returned must exist.
+   */
   def findAssociatedFile(fqn: String): Option[(AbstractFile, Boolean)] = {
-    def getOutputClass(name: String): Option[AbstractFile] = {
-      // This could be improved if a hint where to look is given.
-      val className = name.replace('.', '/') + ".class"
-      outputDirs.map(new File(_, className)).find((_.exists)).map((AbstractFile.getFile(_)))
+    def findOnPreviousCompilationProducts(name: String): Option[AbstractFile] = {
+      // This class file path is relative to the output jar/directory and computed from class name
+      val classFilePath = name.replace('.', '/') + ".class"
+
+      JarUtils.outputJar match {
+        case Some(outputJar) =>
+          if (!callback.classesInOutputJar().contains(classFilePath)) None
+          else {
+            /*
+             * Important implementation detail: `classInJar` has the format of `$JAR!$CLASS_REF`
+             * which is, of course, a path to a file that does not exist. This file path is
+             * interpreted especially by Zinc to decompose the format under straight-to-jar
+             * compilation. For this strategy to work, `PlainFile` must **not** check that
+             * this file does exist or not because, if it does, it will return `null` in
+             * `processExternalDependency` and the dependency will not be correctly registered.
+             * If scalac breaks this contract (the check for existence is done when creating
+             * a normal reflect file but not a plain file), Zinc will not work correctly.
+             */
+            Some(new PlainFile(JarUtils.classNameInJar(outputJar, classFilePath)))
+          }
+
+        case None => // The compiler outputs class files in a classes directory (the default)
+          // This lookup could be improved if a hint where to look is given.
+          outputDirs.map(new File(_, classFilePath)).find(_.exists()).map(AbstractFile.getFile(_))
+      }
     }
 
     def findOnClassPath(name: String): Option[AbstractFile] =
       classPath.findClass(name).flatMap(_.binary.asInstanceOf[Option[AbstractFile]])
 
     fqnsToAssociatedFiles.get(fqn).orElse {
-      val newResult = getOutputClass(fqn).map(f => (f, true))
+      val newResult = findOnPreviousCompilationProducts(fqn)
+        .map(f => (f, true))
         .orElse(findOnClassPath(fqn).map(f => (f, false)))
       newResult.foreach(res => fqnsToAssociatedFiles.put(fqn, res))
       newResult

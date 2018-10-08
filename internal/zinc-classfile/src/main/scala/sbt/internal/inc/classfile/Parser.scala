@@ -11,7 +11,10 @@ package inc
 package classfile
 
 import java.net.URL
-import java.io.{ DataInputStream, File, InputStream }
+import java.io.{ BufferedInputStream, InputStream, File, DataInputStream }
+
+import sbt.internal.io.ErrorHandling
+
 import scala.annotation.switch
 import sbt.io.Using
 
@@ -27,7 +30,15 @@ private[sbt] object Parser {
     Using.fileInputStream(file)(parse(file.toString)).right.get
 
   def apply(url: URL): ClassFile =
-    Using.urlInputStream(url)(parse(url.toString)).right.get
+    usingUrlInputStreamWithoutCaching(url)(parse(url.toString)).right.get
+
+  // JarURLConnection with caching enabled will never close the jar
+  private val usingUrlInputStreamWithoutCaching = Using.resource((u: URL) =>
+    ErrorHandling.translate("Error opening " + u + ": ") {
+      val urlConnection = u.openConnection()
+      urlConnection.setUseCaches(false)
+      new BufferedInputStream(urlConnection.getInputStream())
+  })
 
   private def parse(readableName: String)(is: InputStream): Either[String, ClassFile] =
     Right(parseImpl(readableName, is))

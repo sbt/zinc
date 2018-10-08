@@ -49,5 +49,6 @@ final class CompileConfiguration(
     val compiler: xsbti.compile.ScalaCompiler,
     val javac: xsbti.compile.JavaCompiler,
     val cache: GlobalsCache,
-    val incOptions: IncOptions
+    val incOptions: IncOptions,
+    val outputJarContent: JarUtils.OutputJarContent
 )

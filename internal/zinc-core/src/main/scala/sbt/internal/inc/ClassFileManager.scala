@@ -15,11 +15,12 @@ import java.util.Optional
 
 import collection.mutable
 import xsbti.compile.{
-  ClassFileManager => XClassFileManager,
-  ClassFileManagerType,
-  DeleteImmediatelyManagerType,
   IncOptions,
-  TransactionalManagerType
+  DeleteImmediatelyManagerType,
+  TransactionalManagerType,
+  ClassFileManagerType,
+  ClassFileManager => XClassFileManager,
+  Output
 }
 
 object ClassFileManager {
@@ -42,6 +43,33 @@ object ClassFileManager {
     xsbti.compile.WrappedClassFileManager.of(internal, external.toOptional)
   }
 
+  def getDefaultClassFileManager(
+      classFileManagerType: Optional[ClassFileManagerType],
+      output: Output,
+      outputJarContent: JarUtils.OutputJarContent
+  ): XClassFileManager = {
+    if (classFileManagerType.isPresent) {
+      classFileManagerType.get match {
+        case _: DeleteImmediatelyManagerType => deleteImmediately(output, outputJarContent)
+        case m: TransactionalManagerType =>
+          transactional(output, outputJarContent, m.backupDirectory, m.logger)
+      }
+    } else deleteImmediately(output, outputJarContent)
+  }
+
+  def getClassFileManager(
+      options: IncOptions,
+      output: Output,
+      outputJarContent: JarUtils.OutputJarContent
+  ): XClassFileManager = {
+    import sbt.internal.inc.JavaInterfaceUtil.{ EnrichOptional, EnrichOption }
+    val internal =
+      getDefaultClassFileManager(options.classfileManagerType, output, outputJarContent)
+    val external = Option(options.externalHooks())
+      .flatMap(ext => ext.getExternalClassFileManager.toOption)
+    xsbti.compile.WrappedClassFileManager.of(internal, external.toOptional)
+  }
+
   private final class DeleteClassFileManager extends XClassFileManager {
     override def delete(classes: Array[File]): Unit =
       IO.deleteFilesEmptyDirs(classes)
@@ -56,6 +84,16 @@ object ClassFileManager {
    */
   def deleteImmediately: XClassFileManager = new DeleteClassFileManager
 
+  def deleteImmediatelyFromJar(outputJar: File,
+                               outputJarContent: JarUtils.OutputJarContent): XClassFileManager =
+    new DeleteClassFileManagerForJar(outputJar, outputJarContent)
+
+  def deleteImmediately(output: Output,
+                        outputJarContent: JarUtils.OutputJarContent): XClassFileManager = {
+    val outputJar = JarUtils.getOutputJar(output)
+    outputJar.fold(deleteImmediately)(deleteImmediatelyFromJar(_, outputJarContent))
+  }
+
   /**
    * Constructs a transactional [[ClassFileManager]] implementation that restores class
    * files to the way they were before compilation if there is an error. Otherwise, it
@@ -65,6 +103,21 @@ object ClassFileManager {
    */
   def transactional(tempDir0: File, logger: sbt.util.Logger): XClassFileManager =
     new TransactionalClassFileManager(tempDir0, logger)
+
+  def transactionalForJar(outputJar: File,
+                          outputJarContent: JarUtils.OutputJarContent): XClassFileManager = {
+    new TransactionalClassFileManagerForJar(outputJar, outputJarContent)
+  }
+
+  def transactional(
+      output: Output,
+      outputJarContent: JarUtils.OutputJarContent,
+      tempDir: File,
+      logger: sbt.util.Logger
+  ): XClassFileManager = {
+    val outputJar = JarUtils.getOutputJar(output)
+    outputJar.fold(transactional(tempDir, logger))(transactionalForJar(_, outputJarContent))
+  }
 
   private final class TransactionalClassFileManager(tempDir0: File, logger: sbt.util.Logger)
       extends XClassFileManager {
@@ -112,6 +165,51 @@ object ClassFileManager {
       val target = File.createTempFile("sbt", ".class", tempDir)
       IO.move(c, target)
       target
+    }
+  }
+
+  private final class DeleteClassFileManagerForJar(
+      outputJar: File,
+      outputJarContent: JarUtils.OutputJarContent
+  ) extends XClassFileManager {
+    override def delete(classes: Array[File]): Unit = {
+      val relClasses = classes.map(c => JarUtils.ClassInJar.fromFile(c).toClassFilePath)
+      outputJarContent.removeClasses(relClasses.toSet)
+      JarUtils.removeFromJar(outputJar, relClasses)
+    }
+    override def generated(classes: Array[File]): Unit = ()
+    override def complete(success: Boolean): Unit = ()
+  }
+
+  /**
+   * Version of [[sbt.internal.inc.ClassFileManager.TransactionalClassFileManager]]
+   * that works when sources are compiled directly to a jar file.
+   *
+   * Before compilation the index is read from the output jar if it exists
+   * and after failed compilation it is reverted. This implementation relies
+   * on the fact that nothing is actually removed from jar during incremental
+   * compilation. Files are only removed from index or new files are appended
+   * and potential overwrite is also handled by replacing index entry. For this
+   * reason the old index with offsets to old files will still be valid.
+   */
+  private final class TransactionalClassFileManagerForJar(
+      outputJar: File,
+      outputJarContent: JarUtils.OutputJarContent
+  ) extends XClassFileManager {
+    private val backedUpIndex = Some(outputJar).filter(_.exists()).map(JarUtils.stashIndex)
+
+    override def delete(classesInJar: Array[File]): Unit = {
+      val classes = classesInJar.map(c => JarUtils.ClassInJar.fromFile(c).toClassFilePath)
+      JarUtils.removeFromJar(outputJar, classes)
+      outputJarContent.removeClasses(classes.toSet)
+    }
+
+    override def generated(classes: Array[File]): Unit = ()
+
+    override def complete(success: Boolean): Unit = {
+      if (!success) {
+        backedUpIndex.foreach(index => JarUtils.unstashIndex(outputJar, index))
+      }
     }
   }
 }

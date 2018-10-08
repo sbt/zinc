@@ -13,11 +13,11 @@ import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
 import xsbt.api.{ APIUtil, HashAPI, NameHashing }
 import xsbti.api._
 import xsbti.compile.{
-  ClassFileManager => XClassFileManager,
   CompileAnalysis,
   DependencyChanges,
   IncOptions,
-  Output
+  Output,
+  ClassFileManager => XClassFileManager
 }
 import xsbti.{ Position, Problem, Severity, UseScope }
 import sbt.util.Logger
@@ -25,8 +25,9 @@ import sbt.util.InterfaceUtil.jo2o
 import java.io.File
 import java.util
 
+import scala.collection.JavaConverters._
 import xsbti.api.DependencyContext
-import xsbti.compile.analysis.ReadStamps
+import xsbti.compile.analysis.{ ReadStamps, Stamp }
 
 /**
  * Helper methods for running incremental compilation.  All this is responsible for is
@@ -55,9 +56,12 @@ object IncrementalCompile {
       previous0: CompileAnalysis,
       output: Output,
       log: Logger,
-      options: IncOptions): (Boolean, Analysis) = {
+      options: IncOptions,
+      outputJarContent: JarUtils.OutputJarContent
+  ): (Boolean, Analysis) = {
     val previous = previous0 match { case a: Analysis => a }
-    val current = Stamps.initial(Stamper.forLastModified, Stamper.forHash, Stamper.forLastModified)
+    val current =
+      Stamps.initial(Stamper.forLastModified, Stamper.forHash, Stamper.forLastModified)
     val internalBinaryToSourceClassName = (binaryClassName: String) =>
       previous.relations.productClassName.reverse(binaryClassName).headOption
     val internalSourceToClassNamesMap: File => Set[String] = (f: File) =>
@@ -75,9 +79,12 @@ object IncrementalCompile {
                                      externalAPI,
                                      current,
                                      output,
-                                     options),
+                                     options,
+                                     outputJarContent),
         log,
-        options
+        options,
+        output,
+        outputJarContent
       )
     } catch {
       case _: xsbti.CompileCancelled =>
@@ -106,16 +113,20 @@ private object AnalysisCallback {
       externalAPI: (File, String) => Option[AnalyzedClass],
       current: ReadStamps,
       output: Output,
-      options: IncOptions
+      options: IncOptions,
+      outputJarContent: JarUtils.OutputJarContent
   ) {
-    def build(): AnalysisCallback = new AnalysisCallback(
-      internalBinaryToSourceClassName,
-      internalSourceToClassNamesMap,
-      externalAPI,
-      current,
-      output,
-      options
-    )
+    def build(): AnalysisCallback = {
+      new AnalysisCallback(
+        internalBinaryToSourceClassName,
+        internalSourceToClassNamesMap,
+        externalAPI,
+        current,
+        output,
+        options,
+        outputJarContent
+      )
+    }
   }
 }
 
@@ -125,7 +136,8 @@ private final class AnalysisCallback(
     externalAPI: (File, String) => Option[AnalyzedClass],
     stampReader: ReadStamps,
     output: Output,
-    options: IncOptions
+    options: IncOptions,
+    outputJarContent: JarUtils.OutputJarContent
 ) extends xsbti.AnalysisCallback {
 
   private[this] val compilation: Compilation = Compilation(output)
@@ -300,8 +312,10 @@ private final class AnalysisCallback(
 
   override def enabled(): Boolean = options.enabled
 
-  def get: Analysis =
+  def get: Analysis = {
+    outputJarContent.scalacRunCompleted()
     addUsedNames(addCompilation(addProductsAndDeps(Analysis.empty)))
+  }
 
   def getOrNil[A, B](m: collection.Map[A, Seq[B]], a: A): Seq[B] = m.get(a).toList.flatten
   def addCompilation(base: Analysis): Analysis =
@@ -356,7 +370,15 @@ private final class AnalysisCallback(
     )
   }
 
-  def addProductsAndDeps(base: Analysis): Analysis =
+  def createStamperForProducts(): File => Stamp = {
+    JarUtils.getOutputJar(output) match {
+      case Some(outputJar) => Stamper.forLastModifiedInJar(outputJar)
+      case None            => stampReader.product _
+    }
+  }
+
+  def addProductsAndDeps(base: Analysis): Analysis = {
+    val stampProduct = createStamperForProducts()
     (base /: srcs) {
       case (a, src) =>
         val stamp = stampReader.source(src)
@@ -367,7 +389,7 @@ private final class AnalysisCallback(
                                         getOrNil(mainClasses, src))
         val binaries = binaryDeps.getOrElse(src, Nil: Iterable[File])
         val localProds = localClasses.getOrElse(src, Nil: Iterable[File]) map { classFile =>
-          val classFileStamp = stampReader.product(classFile)
+          val classFileStamp = stampProduct(classFile)
           LocalProduct(classFile, classFileStamp)
         }
         val binaryToSrcClassName = (classNames.getOrElse(src, Set.empty) map {
@@ -376,7 +398,7 @@ private final class AnalysisCallback(
         val nonLocalProds = nonLocalClasses.getOrElse(src, Nil: Iterable[(File, String)]) map {
           case (classFile, binaryClassName) =>
             val srcClassName = binaryToSrcClassName(binaryClassName)
-            val classFileStamp = stampReader.product(classFile)
+            val classFileStamp = stampProduct(classFile)
             NonLocalProduct(srcClassName, binaryClassName, classFile, classFileStamp)
         }
 
@@ -394,8 +416,16 @@ private final class AnalysisCallback(
                     externalDeps,
                     binDeps)
     }
+  }
 
-  override def dependencyPhaseCompleted(): Unit = {}
+  override def dependencyPhaseCompleted(): Unit = {
+    outputJarContent.dependencyPhaseCompleted()
+  }
 
   override def apiPhaseCompleted(): Unit = {}
+
+  override def classesInOutputJar(): java.util.Set[String] = {
+    outputJarContent.get().asJava
+  }
+
 }

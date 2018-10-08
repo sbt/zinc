@@ -165,6 +165,15 @@ lazy val zinc = (project in file("zinc"))
   .settings(
     name := "zinc",
     mimaSettings,
+    mimaBinaryIssueFilters ++= Seq(
+      exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCompilerImpl.compileIncrementally"),
+      exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCompilerImpl.inputs"),
+      exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCompilerImpl.compile"),
+      exclude[DirectMissingMethodProblem]("sbt.internal.inc.MixedAnalyzingCompiler.config"),
+      exclude[DirectMissingMethodProblem]("sbt.internal.inc.MixedAnalyzingCompiler.makeConfig"),
+      exclude[DirectMissingMethodProblem]("sbt.internal.inc.MixedAnalyzingCompiler.this"),
+      exclude[DirectMissingMethodProblem]("sbt.internal.inc.CompileConfiguration.this")
+    )
   )
 
 lazy val zincTesting = (project in internalPath / "zinc-testing")
@@ -281,7 +290,11 @@ lazy val zincCore = (project in internalPath / "zinc-core")
         exclude[ReversedMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.findClassDependencies"),
         exclude[ReversedMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.invalidateClassesInternally"),
         exclude[ReversedMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.invalidateClassesExternally"),
-        exclude[ReversedMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.findAPIChange")
+        exclude[ReversedMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.findAPIChange"),
+        exclude[IncompatibleMethTypeProblem]("sbt.internal.inc.Incremental.prune"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCompile.apply"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.AnalysisCallback#Builder.this"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.AnalysisCallback.this")
       )
     }
   )
@@ -391,7 +404,10 @@ lazy val compilerInterface212 = (project in internalPath / "compiler-interface")
         exclude[ReversedMissingMethodProblem]("xsbti.compile.ExternalHooks#Lookup.hashClasspath"),
         exclude[ReversedMissingMethodProblem]("xsbti.compile.ScalaInstance.loaderLibraryOnly"),
         exclude[DirectMissingMethodProblem]("xsbti.api.AnalyzedClass.of"),
-        exclude[DirectMissingMethodProblem]("xsbti.api.AnalyzedClass.create")
+        exclude[DirectMissingMethodProblem]("xsbti.api.AnalyzedClass.create"),
+        exclude[ReversedMissingMethodProblem]("xsbti.AnalysisCallback.classesInOutputJar"),
+        exclude[ReversedMissingMethodProblem]("xsbti.compile.IncrementalCompiler.compile"),
+        exclude[DirectMissingMethodProblem]("xsbti.compile.IncrementalCompiler.compile")
       )
     },
   )
@@ -745,7 +761,10 @@ lazy val zincClassfile212 = zincClassfileTemplate
   .settings(
     scalaVersion := scala212,
     crossScalaVersions := Seq(scala212),
-    target := (target in zincClassfileTemplate).value.getParentFile / "target-2.12"
+    target := (target in zincClassfileTemplate).value.getParentFile / "target-2.12",
+    mimaBinaryIssueFilters ++= Seq(
+      exclude[DirectMissingMethodProblem]("sbt.internal.inc.classfile.Analyze.apply")
+    )
   )
 
 // re-implementation of scripted engine
@@ -831,6 +850,7 @@ lazy val otherRootSettings = Seq(
   Scripted.scriptedPrescripted := { (_: File) => () },
   Scripted.scriptedUnpublished := scriptedUnpublishedTask.evaluated,
   Scripted.scriptedSource := (sourceDirectory in zinc).value / "sbt-test",
+  Scripted.scriptedCompileToJar := false,
   publishAll := {
     val _ = (publishLocal).all(ScopeFilter(inAnyProject)).value
   }
@@ -845,6 +865,7 @@ def scriptedTask: Def.Initialize[InputTask[Unit]] = Def.inputTask {
     scriptedSource.value,
     result,
     scriptedBufferLog.value,
+    scriptedCompileToJar.value,
     scriptedPrescripted.value
   )
 }
@@ -857,6 +878,7 @@ def scriptedUnpublishedTask: Def.Initialize[InputTask[Unit]] = Def.inputTask {
     scriptedSource.value,
     result,
     scriptedBufferLog.value,
+    scriptedCompileToJar.value,
     scriptedPrescripted.value
   )
 }
