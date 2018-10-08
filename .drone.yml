@@ -1,6 +1,9 @@
 matrix:
   CI_SCALA_VERSION:
     - 2.12.6
+  RUN_SCRIPTED:
+    - ./bin/run-ci-scripted.sh
+    - ./bin/run-ci-scripted-to-jar.sh
 
 clone:
   git:
@@ -30,24 +33,7 @@ pipeline:
       - export DRONE_DIR="/drone"
       - git fetch --tags && git log | head -n 20
       - ./bin/run-ci.sh
-
-  scripted_normal:
-    group: scripted
-    image: scalacenter/scala-docs:1.3
-    when:
-      ref: [ refs/heads/1.x, refs/tags/*, refs/pull/*/head ]
-    commands:
-    - export DRONE_DIR="/drone"
-    - ./bin/run-ci-scripted.sh
-
-  scripted_to_jar:
-    group: scripted
-    image: scalacenter/scala-docs:1.3
-    when:
-      ref: [ refs/heads/1.x, refs/tags/*, refs/pull/*/head ]
-    commands:
-    - export DRONE_DIR="/drone"
-    - ./bin/run-ci-scripted-to-jar.sh
+      - ${RUN_SCRIPTED}
 
   rebuild_cache:
     image: appleboy/drone-sftp-cache
