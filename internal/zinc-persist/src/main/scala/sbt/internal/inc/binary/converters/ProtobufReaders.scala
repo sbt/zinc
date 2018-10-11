@@ -542,8 +542,8 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) 
     val name = analyzedClass.name
     val api = mkLazy(analyzedClass.api.read(fromCompanions, ExpectedCompanionsInAnalyzedClass))
     val apiHash = analyzedClass.apiHash
-    // Default on api hash to avoid issues when comparing hashes from two different analysis formats
-    val extraHash = if (currentVersion == schema.Version.V1) apiHash else analyzedClass.extraHash
+    // Default to 0 to avoid issues when comparing hashes from two different analysis formats
+    val extraHash = if (currentVersion == schema.Version.V1) 0 else analyzedClass.extraHash
     val nameHashes = analyzedClass.nameHashes.toZincArray(fromNameHash)
     val hasMacro = analyzedClass.hasMacro
     AnalyzedClass.of(compilationTimestamp, name, api, apiHash, nameHashes, hasMacro, extraHash)
