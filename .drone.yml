@@ -1,6 +1,6 @@
 matrix:
   CI_SCALA_VERSION:
-    - 2.12.6
+    - 2.12.7
   RUN_SCRIPTED:
     - ./bin/run-ci-scripted.sh
     - ./bin/run-ci-scripted-to-jar.sh

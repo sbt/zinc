@@ -1,21 +1,38 @@
-package xsbt
+package sbt
+package internal
+package inc
 
-import xsbti.TestCallback.ExtractedClassDependencies
-import xsbti.compile.SingleOutput
 import java.io.File
+import java.net.URLClassLoader
 import java.nio.file.Files
 
-import xsbti._
-import sbt.io.IO.withTemporaryDirectory
+import sbt.internal.inc.classpath.ClassLoaderCache
+import sbt.io.IO
+import sbt.io.syntax._
+import xsbti.compile._
+import sbt.util.Logger
+import xsbti.TestCallback.ExtractedClassDependencies
+import xsbti.{ TestCallback, UseScope }
 import xsbti.api.ClassLike
-import sbt.internal.util.ConsoleLogger
 import xsbti.api.DependencyContext._
 
 /**
  * Provides common functionality needed for unit tests that require compiling
  * source code using Scala compiler.
  */
-class ScalaCompilerForUnitTesting {
+trait CompilingSpecification extends BridgeProviderSpecification {
+  def scalaVersion =
+    sys.props
+      .get("zinc.build.compilerbridge.scalaVersion")
+      .getOrElse(sys.error("zinc.build.compilerbridge.scalaVersion property not found"))
+  def maxErrors = 100
+
+  def scalaCompiler(instance: xsbti.compile.ScalaInstance, bridgeJar: File): AnalyzingCompiler = {
+    val bridgeProvider = ZincUtil.constantBridgeProvider(instance, bridgeJar)
+    val classpath = ClasspathOptionsUtil.boot
+    val cache = Some(new ClassLoaderCache(new URLClassLoader(Array())))
+    new AnalyzingCompiler(instance, bridgeProvider, classpath, _ => (), cache)
+  }
 
   /**
    * Compiles given source code using Scala compiler and returns API representation
@@ -134,37 +151,45 @@ class ScalaCompilerForUnitTesting {
    * The sequence of temporary files corresponding to passed snippets and analysis
    * callback is returned as a result.
    */
-  private[xsbt] def compileSrcs(
+  def compileSrcs(
       groupedSrcs: List[List[String]],
       reuseCompilerInstance: Boolean
   ): (Seq[File], TestCallback) = {
-    withTemporaryDirectory { temp =>
+    IO.withTemporaryDirectory { tempDir =>
+      val targetDir = tempDir / "target"
       val analysisCallback = new TestCallback
-      val classesDir = new File(temp, "classes")
-      classesDir.mkdir()
-
-      lazy val commonCompilerInstance =
-        prepareCompiler(classesDir, analysisCallback, classesDir.toString)
-
+      targetDir.mkdir()
+      val cache =
+        if (reuseCompilerInstance) new CompilerCache(1)
+        else CompilerCache.fresh
       val files = for ((compilationUnit, unitId) <- groupedSrcs.zipWithIndex) yield {
-        // use a separate instance of the compiler for each group of sources to
-        // have an ability to test for bugs in instability between source and pickled
-        // representation of types
-        val compiler =
-          if (reuseCompilerInstance) commonCompilerInstance
-          else
-            prepareCompiler(classesDir, analysisCallback, classesDir.toString)
-        val run = new compiler.Run
         val srcFiles = compilationUnit.zipWithIndex map {
           case (src, i) =>
             val fileName = s"Test-$unitId-$i.scala"
-            prepareSrcFile(temp, fileName, src)
+            prepareSrcFile(tempDir, fileName, src)
         }
-        val srcFilePaths = srcFiles.map(srcFile => srcFile.getAbsolutePath).toList
-
-        run.compile(srcFilePaths)
-
-        srcFilePaths.foreach(f => new File(f).delete)
+        val sources = srcFiles.toArray
+        val noLogger = Logger.Null
+        val compilerBridge = getCompilerBridge(tempDir, noLogger, scalaVersion)
+        val si = scalaInstance(scalaVersion, tempDir, noLogger)
+        val sc = scalaCompiler(si, compilerBridge)
+        val cp = si.allJars ++ Array(targetDir)
+        val emptyChanges: DependencyChanges = new DependencyChanges {
+          val modifiedBinaries = new Array[File](0)
+          val modifiedClasses = new Array[String](0)
+          def isEmpty = true
+        }
+        sc.apply(
+          sources = sources,
+          changes = emptyChanges,
+          classpath = cp,
+          singleOutput = targetDir,
+          options = Array(),
+          callback = analysisCallback,
+          maximumErrors = maxErrors,
+          cache = cache,
+          log = log
+        )
         srcFiles
       }
 
@@ -181,44 +206,13 @@ class ScalaCompilerForUnitTesting {
     }
   }
 
-  private[xsbt] def compileSrcs(srcs: String*): (Seq[File], TestCallback) = {
+  def compileSrcs(srcs: String*): (Seq[File], TestCallback) = {
     compileSrcs(List(srcs.toList), reuseCompilerInstance = true)
   }
 
   private def prepareSrcFile(baseDir: File, fileName: String, src: String): File = {
     val srcFile = new File(baseDir, fileName)
-    sbt.io.IO.write(srcFile, src)
+    IO.write(srcFile, src)
     srcFile
   }
-
-  private[xsbt] def prepareCompiler(outputDir: File,
-                                    analysisCallback: AnalysisCallback,
-                                    classpath: String = "."): ZincCompiler = {
-    val args = Array.empty[String]
-    object output extends SingleOutput {
-      def getOutputDirectory: File = outputDir
-      override def toString = s"SingleOutput($getOutputDirectory)"
-    }
-    val weakLog = new WeakLog(ConsoleLogger(), ConsoleReporter)
-    val cachedCompiler = new CachedCompiler0(args, output, weakLog)
-    val settings = cachedCompiler.settings
-    settings.classpath.value = classpath
-    settings.usejavacp.value = true
-    val delegatingReporter = DelegatingReporter(settings, ConsoleReporter)
-    val compiler = cachedCompiler.compiler
-    compiler.set(analysisCallback, delegatingReporter)
-    compiler
-  }
-
-  private object ConsoleReporter extends Reporter {
-    def reset(): Unit = ()
-    def hasErrors: Boolean = false
-    def hasWarnings: Boolean = false
-    def printWarnings(): Unit = ()
-    def problems: Array[Problem] = Array.empty
-    def log(problem: Problem): Unit = println(problem.message())
-    def comment(pos: Position, msg: String): Unit = ()
-    def printSummary(): Unit = ()
-  }
-
 }
