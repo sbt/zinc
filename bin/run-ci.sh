@@ -11,7 +11,7 @@ sbt -Dfile.encoding=UTF-8 \
   test:scalafmt::test \
   whitesourceCheckPolicies \
   "$PROJECT_ROOT/test:compile" \
-  crossTestBridges \
   "publishBridges" \
+  crossTestBridges \
   "$PROJECT_ROOT/test" \
   "zincScripted/test:run"

@@ -55,7 +55,9 @@ final class ScriptedBridgeProvider(
   override def fetchScalaInstance(scalaVersion: String, logger: Logger): ScalaInstance = {
     bridges.find(_.version == scalaVersion) match {
       case None =>
-        sys.error(s"Missing $scalaVersion in supported versions ${bridges.map(_.version).mkString}")
+        sys.error(s"""Missing $scalaVersion in supported versions ${bridges
+          .map(_.version)
+          .mkString(",")}""")
       case Some(bridge) =>
         import sbt.internal.inc.ScalaInstance
         val jars = bridge.jars.toArray
