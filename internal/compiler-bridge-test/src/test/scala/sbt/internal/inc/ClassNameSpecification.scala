@@ -1,11 +1,12 @@
-package xsbt
+package sbt
+package internal
+package inc
 
 import java.io.File
-
 import org.scalactic.source.Position
-import sbt.internal.inc.UnitSpec
 
-class ClassNameSpecification extends UnitSpec {
+class ClassNameSpecification extends CompilingSpecification {
+
   "ClassName" should "create correct binary names for top level object" in {
     expectBinaryClassNames("object A", Set("A" -> "A", "A" -> "A$"))
   }
@@ -86,7 +87,6 @@ class ClassNameSpecification extends UnitSpec {
   }
 
   it should "handle names of anonymous functions" in {
-    val scalaVersion = scala.util.Properties.versionNumberString
     expectBinaryClassNames(
       "object A { val a: Unit = { println((a: String) => a) }}",
       Set(
@@ -197,6 +197,7 @@ class ClassNameSpecification extends UnitSpec {
   }
 
   it should "not create binary names for local classes" in {
+    pending
     val src = """
       |class Container {
       |  def foo = {
@@ -236,8 +237,7 @@ class ClassNameSpecification extends UnitSpec {
       expectedNames: Set[(String, String)],
       expectedLocalNames: Set[String] = Set.empty
   )(implicit p: Position): Unit = {
-    val compilerForTesting = new ScalaCompilerForUnitTesting
-    val (Seq(tempSrcFile), analysisCallback) = compilerForTesting.compileSrcs(src)
+    val (Seq(tempSrcFile), analysisCallback) = this.compileSrcs(src)
     val binaryClassNames = analysisCallback.classNames(tempSrcFile).toSet
     val generatedProducts = analysisCallback.productClassesToSources.keySet.toSet
 
