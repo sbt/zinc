@@ -47,6 +47,10 @@ private final class IncrementalNameHashing(log: sbt.util.Logger, options: IncOpt
         } else {
           // if the extra hash does not match up, but the API is "same" we can ignore it.
           // see also https://github.com/sbt/sbt/issues/4441
+          debug(s"""different extra api hashes for non-traits:
+               |  `${a.name}`: ${a.extraHash()}
+               |  `${b.name}`: ${b.extraHash()}
+             """.stripMargin)
           None
         }
       }
