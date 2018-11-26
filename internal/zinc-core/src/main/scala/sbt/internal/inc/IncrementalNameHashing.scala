@@ -61,13 +61,9 @@ private[inc] class IncrementalNameHashingCommon(
         if (isATrait && isBTrait) {
           Some(TraitPrivateMembersModified(className))
         } else {
-          // As we don't cover more cases here, we protect ourselves from a potential programming error
-          sys.error(
-            s"""A fatal error happened in `SameAPI`: different extra api hashes for no traits!
-               |  `${a.name}`: ${a.extraHash()}
-               |  `${b.name}`: ${b.extraHash()}
-             """.stripMargin
-          )
+          // if the extra hash does not match up, but the API is "same" we can ignore it.
+          // see also https://github.com/sbt/sbt/issues/4441
+          None
         }
       }
     } else {
