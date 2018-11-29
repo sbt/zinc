@@ -214,9 +214,7 @@ private[sbt] object Analyze {
   ): File = {
     IO.relativize(outputDir, realClassFile) match {
       case Some(relativeClass) => JarUtils.ClassInJar(outputJar, relativeClass).toFile
-      case None =>
-        log.error(s"Class file $realClassFile is not relative to $outputDir")
-        realClassFile
+      case None => realClassFile
     }
   }
 
