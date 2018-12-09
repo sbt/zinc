@@ -49,7 +49,7 @@ final case class Build(projects: Seq[Project])
 
 final case class IncInstance(si: xsbti.compile.ScalaInstance, cs: XCompilers)
 
-final class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogger)
+class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogger)
     extends BridgeProviderSpecification
     with StatementHandler {
 
