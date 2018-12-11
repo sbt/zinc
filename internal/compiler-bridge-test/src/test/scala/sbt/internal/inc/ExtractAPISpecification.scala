@@ -1,17 +1,17 @@
-package xsbt
+package sbt
+package internal
+package inc
 
 import xsbti.api._
 import xsbt.api.SameAPI
-import sbt.internal.inc.UnitSpec
 
-class ExtractAPISpecification extends UnitSpec {
+class ExtractAPISpecification extends CompilingSpecification {
 
   "ExtractAPI" should "give stable names to members of existential types in method signatures" in stableExistentialNames()
 
   it should "extract children of a sealed class" in {
     def compileAndGetFooClassApi(src: String): ClassLike = {
-      val compilerForTesting = new ScalaCompilerForUnitTesting
-      val apis = compilerForTesting.extractApisFromSrc(src)
+      val apis = extractApisFromSrc(src)
       val FooApi = apis.find(_.name() == "Foo").get
       FooApi
     }
@@ -31,8 +31,7 @@ class ExtractAPISpecification extends UnitSpec {
 
   it should "extract correctly the definition type of a package object" in {
     val src = "package object foo".stripMargin
-    val compilerForTesting = new ScalaCompilerForUnitTesting
-    val apis = compilerForTesting.extractApisFromSrc(src)
+    val apis = extractApisFromSrc(src)
     val Seq(fooClassApi) = apis.toSeq
     assert(fooClassApi.definitionType === DefinitionType.PackageModule)
   }
@@ -42,8 +41,7 @@ class ExtractAPISpecification extends UnitSpec {
       """class A {
         |  class B
         |}""".stripMargin
-    val compilerForTesting = new ScalaCompilerForUnitTesting
-    val apis = compilerForTesting.extractApisFromSrc(src).map(c => c.name -> c).toMap
+    val apis = extractApisFromSrc(src).map(c => c.name -> c).toMap
     assert(apis.keys === Set("A", "A.B"))
   }
 
@@ -53,15 +51,13 @@ class ExtractAPISpecification extends UnitSpec {
         |class B
         |class C { def foo: Unit = { class Inner2 extends B } }
         |class D { def foo: Unit = { new B {} } }""".stripMargin
-    val compilerForTesting = new ScalaCompilerForUnitTesting
-    val apis = compilerForTesting.extractApisFromSrc(src).map(c => c.name -> c).toMap
+    val apis = extractApisFromSrc(src).map(c => c.name -> c).toMap
     assert(apis.keys === Set("A", "B", "C", "D"))
   }
 
   it should "extract flat (without members) api for a nested class" in {
     def compileAndGetFooClassApi(src: String): ClassLike = {
-      val compilerForTesting = new ScalaCompilerForUnitTesting
-      val apis = compilerForTesting.extractApisFromSrc(src)
+      val apis = extractApisFromSrc(src)
       val FooApi = apis.find(_.name() == "Foo").get
       FooApi
     }
@@ -85,15 +81,13 @@ class ExtractAPISpecification extends UnitSpec {
       """private class A
         |class B { private class Inner1 extends A }
         |""".stripMargin
-    val compilerForTesting = new ScalaCompilerForUnitTesting
-    val apis = compilerForTesting.extractApisFromSrc(src).map(c => c.name -> c).toMap
+    val apis = extractApisFromSrc(src).map(c => c.name -> c).toMap
     assert(apis.keys === Set("A", "B", "B.Inner1"))
   }
 
   def stableExistentialNames(): Unit = {
     def compileAndGetFooMethodApi(src: String): Def = {
-      val compilerForTesting = new ScalaCompilerForUnitTesting
-      val sourceApi = compilerForTesting.extractApisFromSrc(src)
+      val sourceApi = extractApisFromSrc(src)
       val FooApi = sourceApi.find(_.name() == "Foo").get
       val fooMethodApi = FooApi.structure().declared().find(_.name == "foo").get
       fooMethodApi.asInstanceOf[Def]
@@ -138,10 +132,8 @@ class ExtractAPISpecification extends UnitSpec {
         |  class Foo extends Namers
         |}
         |""".stripMargin
-    val compilerForTesting = new ScalaCompilerForUnitTesting
     val apis =
-      compilerForTesting.extractApisFromSrcs(reuseCompilerInstance = false)(List(src1, src2),
-                                                                            List(src2))
+      extractApisFromSrcs(reuseCompilerInstance = false)(List(src1, src2), List(src2))
     val _ :: src2Api1 :: src2Api2 :: Nil = apis.toList
     val namerApi1 = selectNamer(src2Api1)
     val namerApi2 = selectNamer(src2Api2)
@@ -155,8 +147,7 @@ class ExtractAPISpecification extends UnitSpec {
          |}
          |class B extends A[Int]
       """.stripMargin
-    val compilerForTesting = new ScalaCompilerForUnitTesting
-    val apis = compilerForTesting.extractApisFromSrc(src).map(a => a.name -> a).toMap
+    val apis = extractApisFromSrc(src).map(a => a.name -> a).toMap
     assert(apis.keySet === Set("A", "A.AA", "B", "B.AA"))
     assert(apis("A.AA") !== apis("B.AA"))
   }
@@ -170,8 +161,7 @@ class ExtractAPISpecification extends UnitSpec {
          |  }
          |}
       """.stripMargin
-    val compilerForTesting = new ScalaCompilerForUnitTesting
-    val apis = compilerForTesting.extractApisFromSrc(src).map(a => a.name -> a).toMap
+    val apis = extractApisFromSrc(src).map(a => a.name -> a).toMap
     assert(apis.keySet === Set("abc.package", "abc.BuildInfoKey", "abc.BuildInfoKey.Entry"))
   }
 
@@ -190,12 +180,9 @@ class ExtractAPISpecification extends UnitSpec {
     val srcC6 = "class C6 extends AnyRef with X { self: X with Y => }"
     val srcC7 = "class C7 { _ => }"
     val srcC8 = "class C8 { self => }"
-    val compilerForTesting = new ScalaCompilerForUnitTesting
-    val apis = compilerForTesting
-      .extractApisFromSrcs(reuseCompilerInstance = true)(
-        List(srcX, srcY, srcC1, srcC2, srcC3, srcC4, srcC5, srcC6, srcC7, srcC8)
-      )
-      .map(_.head)
+    val apis = extractApisFromSrcs(reuseCompilerInstance = true)(
+      List(srcX, srcY, srcC1, srcC2, srcC3, srcC4, srcC5, srcC6, srcC7, srcC8)
+    ).map(_.head)
     val emptyType = EmptyType.of()
     def hasSelfType(c: ClassLike): Boolean =
       c.selfType != emptyType

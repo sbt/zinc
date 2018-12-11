@@ -1,9 +1,10 @@
-package xsbt
+package sbt
+package internal
+package inc
 
 import xsbti.TestCallback.ExtractedClassDependencies
-import sbt.internal.inc.UnitSpec
 
-class DependencySpecification extends UnitSpec {
+class DependencySpecification extends CompilingSpecification {
 
   "Dependency phase" should "extract class dependencies from public members" in {
     val classDependencies = extractClassDependenciesPublic
@@ -80,10 +81,7 @@ class DependencySpecification extends UnitSpec {
     val srcFoo =
       "object Outer {\n  class Inner { type Xyz }\n\n  type TypeInner = Inner { type Xyz = Int }\n}"
     val srcBar = "object Bar {\n  def bar: Outer.TypeInner = null\n}"
-
-    val compilerForTesting = new ScalaCompilerForUnitTesting
-    val classDependencies =
-      compilerForTesting.extractDependenciesFromSrcs(srcFoo, srcBar)
+    val classDependencies = extractDependenciesFromSrcs(srcFoo, srcBar)
 
     val memberRef = classDependencies.memberRef
     val inheritance = classDependencies.inheritance
@@ -100,9 +98,7 @@ class DependencySpecification extends UnitSpec {
         |}""".stripMargin
     val srcB = "object B"
 
-    val compilerForTesting = new ScalaCompilerForUnitTesting
-    val classDependencies =
-      compilerForTesting.extractDependenciesFromSrcs(srcA, srcB)
+    val classDependencies = extractDependenciesFromSrcs(srcA, srcB)
 
     val memberRef = classDependencies.memberRef
     val inheritance = classDependencies.inheritance
@@ -119,9 +115,7 @@ class DependencySpecification extends UnitSpec {
         |}""".stripMargin
     val srcB = "class B"
 
-    val compilerForTesting = new ScalaCompilerForUnitTesting
-    val classDependencies =
-      compilerForTesting.extractDependenciesFromSrcs(srcA, srcB)
+    val classDependencies = extractDependenciesFromSrcs(srcA, srcB)
 
     val memberRef = classDependencies.memberRef
     val inheritance = classDependencies.inheritance
@@ -154,10 +148,7 @@ class DependencySpecification extends UnitSpec {
       """.stripMargin
     val srcH = "class H { import abc.A }"
 
-    val compilerForTesting = new ScalaCompilerForUnitTesting
-    val deps = compilerForTesting
-      .extractDependenciesFromSrcs(srcA, srcB, srcC, srcD, srcE, srcF, srcG, srcH)
-      .memberRef
+    val deps = extractDependenciesFromSrcs(srcA, srcB, srcC, srcD, srcE, srcF, srcG, srcH).memberRef
 
     assert(deps("A") === Set.empty)
     assert(deps("B") === Set("abc.A", "abc.A.Inner"))
@@ -173,8 +164,8 @@ class DependencySpecification extends UnitSpec {
     val srcA = "class A"
     val srcB = "class B extends D[A]"
     val srcC = """|class C {
-		  |  def a: A = null
-		  |}""".stripMargin
+  	  |  def a: A = null
+  	  |}""".stripMargin
     val srcD = "class D[T]"
     val srcE = "trait E[T]"
     val srcF = "trait F extends A with E[D[B]] { self: G.MyC => }"
@@ -184,9 +175,8 @@ class DependencySpecification extends UnitSpec {
     // E verifies the core type gets pulled out
     val srcH = "trait H extends G.T[Int] with (E[Int] @unchecked)"
 
-    val compilerForTesting = new ScalaCompilerForUnitTesting
     val classDependencies =
-      compilerForTesting.extractDependenciesFromSrcs(srcA, srcB, srcC, srcD, srcE, srcF, srcG, srcH)
+      extractDependenciesFromSrcs(srcA, srcB, srcC, srcD, srcE, srcF, srcG, srcH)
     classDependencies
   }
 
@@ -197,9 +187,8 @@ class DependencySpecification extends UnitSpec {
     val srcD = "class D { def foo: Unit = { class Inner2 extends B } }"
     val srcE = "class E { def foo: Unit = { new B {} } }"
 
-    val compilerForTesting = new ScalaCompilerForUnitTesting
     val classDependencies =
-      compilerForTesting.extractDependenciesFromSrcs(srcA, srcB, srcC, srcD, srcE)
+      extractDependenciesFromSrcs(srcA, srcB, srcC, srcD, srcE)
     classDependencies
   }
 
@@ -209,30 +198,28 @@ class DependencySpecification extends UnitSpec {
     val srcC = "trait C extends B"
     val srcD = "class D extends C"
 
-    val compilerForTesting = new ScalaCompilerForUnitTesting
     val classDependencies =
-      compilerForTesting.extractDependenciesFromSrcs(srcA, srcB, srcC, srcD)
+      extractDependenciesFromSrcs(srcA, srcB, srcC, srcD)
     classDependencies
   }
 
   private def extractClassDependenciesFromMacroArgument: ExtractedClassDependencies = {
     val srcA = "class A { println(B.printTree(C.foo)) }"
     val srcB = """
-			|import scala.language.experimental.macros
-			|import scala.reflect.macros._
-			|object B {
-			|  def printTree(arg: Any) = macro printTreeImpl
-			|  def printTreeImpl(c: Context)(arg: c.Expr[Any]): c.Expr[String] = {
-			|    val argStr = arg.tree.toString
-			|    val literalStr = c.universe.Literal(c.universe.Constant(argStr))
-			|    c.Expr[String](literalStr)
-			|  }
-			|}""".stripMargin
+  		|import scala.language.experimental.macros
+  		|import scala.reflect.macros._
+  		|object B {
+  		|  def printTree(arg: Any) = macro printTreeImpl
+  		|  def printTreeImpl(c: Context)(arg: c.Expr[Any]): c.Expr[String] = {
+  		|    val argStr = arg.tree.toString
+  		|    val literalStr = c.universe.Literal(c.universe.Constant(argStr))
+  		|    c.Expr[String](literalStr)
+  		|  }
+  		|}""".stripMargin
     val srcC = "object C { val foo = 1 }"
 
-    val compilerForTesting = new ScalaCompilerForUnitTesting
     val classDependencies =
-      compilerForTesting.extractDependenciesFromSrcs(List(List(srcB, srcC), List(srcA)))
+      extractDependenciesFromSrcs(List(List(srcB, srcC), List(srcA)))
     classDependencies
   }
 

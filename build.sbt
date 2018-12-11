@@ -511,6 +511,8 @@ lazy val compilerBridge213 = compilerBridgeTemplate
  * (Zinc API Info, which transitively depends on IO).
  */
 lazy val compilerBridgeTestTemplate = (project in internalPath / "compiler-bridge-test")
+  .dependsOn(zinc % "compile->compile;test->test",
+    compilerInterface212 % "test->test")
   .settings(
     name := "Compiler Bridge Test",
     baseSettings,
@@ -518,47 +520,44 @@ lazy val compilerBridgeTestTemplate = (project in internalPath / "compiler-bridg
     // we need to fork because in unit tests we set usejavacp = true which means
     // we are expecting all of our dependencies to be on classpath so Scala compiler
     // can use them while constructing its own classpath for compilation
-    fork in Test := true,
+    Test / fork := true,
     // needed because we fork tests and tests are ran in parallel so we have multiple Scala
     // compiler instances that are memory hungry
     javaOptions in Test += "-Xmx1G",
-    libraryDependencies += scalaCompiler.value,
+    scalaVersion := scala212,
+    crossScalaVersions := Seq(scala212),
     skip in publish := true,
-    autoScalaLibrary := false,
   )
 
 lazy val compilerBridgeTest210 = compilerBridgeTestTemplate
   .withId("compilerBridgeTest210")
-  .dependsOn(compilerInterface210 % "test->test")
-  .dependsOn(compilerBridge210, zincApiInfo210 % "test->test")
   .settings(
-    scalaVersion := scala210,
-    crossScalaVersions := Seq(scala210),
-    target := (target in compilerBridgeTestTemplate).value.getParentFile / "target-2.10",
-    skip in publish := true
+    Test / javaOptions += s"-Dzinc.build.compilerbridge.scalaVersion=${scala210}",
+    Test / parallelExecution := false,
+    target := (target in compilerBridgeTestTemplate).value.getParentFile / "target-2.10"
   )
 
 lazy val compilerBridgeTest211 = compilerBridgeTestTemplate
   .withId("compilerBridgeTest211")
-  .dependsOn(compilerInterface211 % "test->test")
-  .dependsOn(compilerBridge211, zincApiInfo211 % "test->test")
   .settings(
-    scalaVersion := scala211,
-    crossScalaVersions := Seq(scala211),
-    target := (target in compilerBridgeTestTemplate).value.getParentFile / "target-2.11",
-    skip in publish := true
+    Test / javaOptions += s"-Dzinc.build.compilerbridge.scalaVersion=${scala211}",
+    target := (target in compilerBridgeTestTemplate).value.getParentFile / "target-2.11"
   )
 
 lazy val compilerBridgeTest212 = compilerBridgeTestTemplate
   .withId("compilerBridgeTest212")
-  .dependsOn(compilerInterface212 % "test->test")
-  .dependsOn(compilerBridge212, zincApiInfo212 % "test->test")
   .settings(
-    scalaVersion := scala212,
-    crossScalaVersions := Seq(scala212),
-    target := (target in compilerBridgeTestTemplate).value.getParentFile / "target-2.12",
-    skip in publish := true
+    Test / javaOptions += s"-Dzinc.build.compilerbridge.scalaVersion=${scala212}",
+    target := (target in compilerBridgeTestTemplate).value.getParentFile / "target-2.12"
   )
+
+lazy val compilerBridgeTest213 = compilerBridgeTestTemplate
+  .withId("compilerBridgeTest213")
+  .settings(
+    Test / javaOptions += s"-Dzinc.build.compilerbridge.scalaVersion=${scala213}",
+    target := (target in compilerBridgeTestTemplate).value.getParentFile / "target-2.13"
+  )
+
 
 val scalaPartialVersion = Def setting (CrossVersion partialVersion scalaVersion.value)
 
@@ -601,25 +600,6 @@ lazy val zincApiInfoTemplate = (project in internalPath / "zinc-apiinfo")
     }
   )
 
-lazy val zincApiInfo210 = zincApiInfoTemplate
-  .withId("zincApiInfo210")
-  .dependsOn(compilerInterface210, zincClassfile210 % "compile;test->test")
-  .settings(
-    scalaVersion := scala210,
-    crossScalaVersions := Seq(scala210),
-    target := (target in zincApiInfoTemplate).value.getParentFile / "target-2.10"
-  )
-
-lazy val zincApiInfo211 = zincApiInfoTemplate
-  .withId("zincApiInfo211")
-  .dependsOn(compilerInterface211, compilerBridge211)
-  .dependsOn(zincClassfile211 % "compile;test->test")
-  .settings(
-    scalaVersion := scala211,
-    crossScalaVersions := Seq(scala211),
-    target := (target in zincApiInfoTemplate).value.getParentFile / "target-2.11"
-  )
-
 lazy val zincApiInfo212 = zincApiInfoTemplate
   .withId("zincApiInfo212")
   .dependsOn(compilerInterface212, compilerBridge212)
@@ -646,24 +626,6 @@ lazy val zincClasspathTemplate = (project in internalPath / "zinc-classpath")
   )
   .configure(addSbtIO)
 
-lazy val zincClasspath210 = zincClasspathTemplate
-  .withId("zincClasspath210")
-  .dependsOn(compilerInterface210)
-  .settings(
-    scalaVersion := scala210,
-    crossScalaVersions := Seq(scala210),
-    target := (target in zincClasspathTemplate).value.getParentFile / "target-2.10"
-  )
-
-lazy val zincClasspath211 = zincClasspathTemplate
-  .withId("zincClasspath211")
-  .dependsOn(compilerInterface211)
-  .settings(
-    scalaVersion := scala211,
-    crossScalaVersions := Seq(scala211),
-    target := (target in zincClasspathTemplate).value.getParentFile / "target-2.11"
-  )
-
 lazy val zincClasspath212 = zincClasspathTemplate
   .withId("zincClasspath212")
   .dependsOn(compilerInterface212)
@@ -684,24 +646,6 @@ lazy val zincClassfileTemplate = (project in internalPath / "zinc-classfile")
   )
   .configure(addSbtIO, addSbtUtilLogging)
 
-lazy val zincClassfile210 = zincClassfileTemplate
-  .withId("zincClassfile210")
-  .dependsOn(compilerInterface210 % "compile;test->test")
-  .settings(
-    scalaVersion := scala210,
-    crossScalaVersions := Seq(scala210),
-    target := (target in zincClassfileTemplate).value.getParentFile / "target-2.10"
-  )
-
-lazy val zincClassfile211 = zincClassfileTemplate
-  .withId("zincClassfile211")
-  .dependsOn(compilerInterface211 % "compile;test->test")
-  .settings(
-    scalaVersion := scala211,
-    crossScalaVersions := Seq(scala211),
-    target := (target in zincClassfileTemplate).value.getParentFile / "target-2.11"
-  )
-
 lazy val zincClassfile212 = zincClassfileTemplate
   .withId("zincClassfile212")
   .dependsOn(compilerInterface212 % "compile;test->test")
@@ -714,27 +658,40 @@ lazy val zincClassfile212 = zincClassfileTemplate
 // re-implementation of scripted engine
 lazy val zincScripted = (project in internalPath / "zinc-scripted")
   .dependsOn(zinc, zincIvyIntegration % "test->test")
+  .dependsOn(compilerBridge210, compilerBridge211, compilerBridge212, compilerBridge213)
+  .enablePlugins(BuildInfoPlugin)
+  .settings(sbtbuildinfo.BuildInfoPlugin.buildInfoScopedSettings(Test))
   .settings(
     minimalSettings,
     noPublish,
     name := "zinc Scripted",
+    // Only generate build info for tests
+    buildInfo in Compile := Nil,
+    buildInfoPackage in Test := "sbt.internal.inc",
+    buildInfoKeys in Test := {
+      val bridgeKeys = List[BuildInfoKey](
+        BuildInfoKey.map(scalaVersion in compilerBridge210) { case (_, v) => "scalaVersion210" -> v },
+        BuildInfoKey.map(scalaInstance in compilerBridge210) { case (k, v) => "scalaJars210" -> v.allJars.toList },
+        BuildInfoKey.map(classDirectory in Compile in compilerBridge210) { case (k, v) => "classDirectory210" -> v },
+        BuildInfoKey.map(scalaVersion in compilerBridge211) { case (_, v) => "scalaVersion211" -> v },
+        BuildInfoKey.map(scalaInstance in compilerBridge211) { case (k, v) => "scalaJars211" -> v.allJars.toList },
+        BuildInfoKey.map(classDirectory in Compile in compilerBridge211) { case (k, v) => "classDirectory211" -> v },
+        BuildInfoKey.map(scalaVersion in compilerBridge212) { case (_, v) => "scalaVersion212" -> v },
+        BuildInfoKey.map(scalaInstance in compilerBridge212) { case (k, v) => "scalaJars212" -> v.allJars.toList },
+        BuildInfoKey.map(classDirectory in Compile in compilerBridge212) { case (k, v) => "classDirectory212" -> v },
+        BuildInfoKey.map(scalaVersion in compilerBridge213) { case (_, v) => "scalaVersion213" -> v },
+        BuildInfoKey.map(scalaInstance in compilerBridge213) { case (k, v) => "scalaJars213" -> v.allJars.toList },
+        BuildInfoKey.map(classDirectory in Compile in compilerBridge213) { case (k, v) => "classDirectory213" -> v },
+      )
+
+      Seq[BuildInfoKey](
+        sourceDirectory in zinc,
+        classDirectory in Test,
+        BuildInfoKey.map(dependencyClasspath in Test) { case (k, v) => "classpath" -> v.seq.map(_.data) }
+      ) ++ bridgeKeys
+    }
   )
   .configure(addSbtUtilScripted)
-
-// re-implementation of scripted engine as a standalone main
-lazy val bloopScripted = (project in internalPath / "zinc-scripted-bloop")
-  .dependsOn(zinc, zincScripted % "compile->test")
-  .settings(
-    minimalSettings,
-    noPublish,
-    name := "zinc Scripted Bloop",
-    scalaVersion := scala212,
-    crossScalaVersions := List(scala212),
-    libraryDependencies ++= List(
-      "org.scala-sbt" %% "completion" % sbtVersion.value,
-      "ch.epfl.scala" %% "bloop-config" % "1.0.0-M9",
-    )
-  )
 
 lazy val crossTestBridges = {
   Command.command("crossTestBridges") { state =>
@@ -742,6 +699,7 @@ lazy val crossTestBridges = {
       s"${compilerBridgeTest210.id}/test",
       s"${compilerBridgeTest211.id}/test",
       s"${compilerBridgeTest212.id}/test",
+      s"${compilerBridgeTest213.id}/test",
     )
 
     publishCommands ::: state

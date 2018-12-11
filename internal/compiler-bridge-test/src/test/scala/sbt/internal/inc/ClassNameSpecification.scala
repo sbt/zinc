@@ -1,14 +1,13 @@
-package xsbt
+package sbt
+package internal
+package inc
 
-import sbt.internal.inc.UnitSpec
-
-class ClassNameSpecification extends UnitSpec {
+class ClassNameSpecification extends CompilingSpecification {
 
   "ClassName" should "create correct binary names for top level object" in {
     val src = "object A"
 
-    val compilerForTesting = new ScalaCompilerForUnitTesting
-    val binaryClassNames = compilerForTesting.extractBinaryClassNamesFromSrc(src)
+    val binaryClassNames = this.extractBinaryClassNamesFromSrc(src)
 
     assert(binaryClassNames === Set("A" -> "A", "A" -> "A$"))
   }
@@ -16,8 +15,7 @@ class ClassNameSpecification extends UnitSpec {
   it should "create binary names for top level companions" in {
     val src = "class A; object A"
 
-    val compilerForTesting = new ScalaCompilerForUnitTesting
-    val binaryClassNames = compilerForTesting.extractBinaryClassNamesFromSrc(src)
+    val binaryClassNames = this.extractBinaryClassNamesFromSrc(src)
 
     assert(binaryClassNames === Set("A" -> "A", "A" -> "A$"))
   }
@@ -34,8 +32,7 @@ class ClassNameSpecification extends UnitSpec {
          |}
       """.stripMargin
 
-    val compilerForTesting = new ScalaCompilerForUnitTesting
-    val binaryClassNames = compilerForTesting.extractBinaryClassNamesFromSrc(src)
+    val binaryClassNames = this.extractBinaryClassNamesFromSrc(src)
 
     assert(
       binaryClassNames === Set("A" -> "A$",
@@ -51,14 +48,14 @@ class ClassNameSpecification extends UnitSpec {
       """|trait A
       """.stripMargin
 
-    val compilerForTesting = new ScalaCompilerForUnitTesting
-    val binaryClassNames = compilerForTesting.extractBinaryClassNamesFromSrc(src)
+    val binaryClassNames = this.extractBinaryClassNamesFromSrc(src)
 
     // we do not track $impl classes because nobody can depend on them directly
     assert(binaryClassNames === Set("A" -> "A"))
   }
 
   it should "not create binary names for local classes" in {
+    pending
     val src = """
       |class Container {
       |  def foo = {
@@ -72,8 +69,7 @@ class ClassNameSpecification extends UnitSpec {
       |
       |trait T
       |""".stripMargin
-    val compilerForTesting = new ScalaCompilerForUnitTesting
-    val binaryClassNames = compilerForTesting.extractBinaryClassNamesFromSrc(src)
+    val binaryClassNames = this.extractBinaryClassNamesFromSrc(src)
     assert(binaryClassNames === Set("Container" -> "Container", "T" -> "T"))
   }
 

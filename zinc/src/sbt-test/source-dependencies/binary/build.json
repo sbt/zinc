@@ -2,11 +2,11 @@
   "projects": [
     {
       "name": "use",
-      "scalaVersion": "2.12.1"
+      "scalaVersion": "2.12.7"
     },
     {
       "name": "dep",
-      "scalaVersion": "2.12.1"
+      "scalaVersion": "2.12.7"
     }
   ]
 }
