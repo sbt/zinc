@@ -148,48 +148,50 @@ private final class AnalysisCallback(
       .map { case (label, map) => label + "\n\t" + map.mkString("\n\t") }
       .mkString("\n")
 
-  import collection.mutable.{ HashMap, HashSet, ListBuffer, Map, Set }
-
   final case class ApiInfo(
       publicHash: HashAPI.Hash,
       extraHash: HashAPI.Hash,
       classLike: ClassLike
   )
 
-  private[this] val srcs = Set[File]()
-  private[this] val classApis = new HashMap[String, ApiInfo]
-  private[this] val objectApis = new HashMap[String, ApiInfo]
-  private[this] val classPublicNameHashes = new HashMap[String, Array[NameHash]]
-  private[this] val objectPublicNameHashes = new HashMap[String, Array[NameHash]]
-  private[this] val usedNames = new HashMap[String, Set[UsedName]]
-  private[this] val unreporteds = new HashMap[File, ListBuffer[Problem]]
-  private[this] val reporteds = new HashMap[File, ListBuffer[Problem]]
-  private[this] val mainClasses = new HashMap[File, ListBuffer[String]]
-  private[this] val binaryDeps = new HashMap[File, Set[File]]
-  // source file to set of generated (class file, binary class name); only non local classes are stored here
-  private[this] val nonLocalClasses = new HashMap[File, Set[(File, String)]]
-  private[this] val localClasses = new HashMap[File, Set[File]]
-  // mapping between src class name and binary (flat) class name for classes generated from src file
-  private[this] val classNames = new HashMap[File, Set[(String, String)]]
-  // generated class file to its source class name
-  private[this] val classToSource = new HashMap[File, String]
-  // internal source dependencies
-  private[this] val intSrcDeps = new HashMap[String, Set[InternalDependency]]
-  // external source dependencies
-  private[this] val extSrcDeps = new HashMap[String, Set[ExternalDependency]]
-  private[this] val binaryClassName = new HashMap[File, String]
-  // source files containing a macro def.
-  private[this] val macroClasses = Set[String]()
+  import java.util.concurrent.{ ConcurrentLinkedQueue, ConcurrentHashMap }
+  import scala.collection.concurrent.TrieMap
 
-  private def add[A, B](map: Map[A, Set[B]], a: A, b: B): Unit = {
-    map.getOrElseUpdate(a, new HashSet[B]) += b
-    ()
-  }
+  private type ConcurrentSet[A] = ConcurrentHashMap.KeySetView[A, java.lang.Boolean]
+
+  private[this] val srcs = ConcurrentHashMap.newKeySet[File]()
+  private[this] val classApis = new TrieMap[String, ApiInfo]
+  private[this] val objectApis = new TrieMap[String, ApiInfo]
+  private[this] val classPublicNameHashes = new TrieMap[String, Array[NameHash]]
+  private[this] val objectPublicNameHashes = new TrieMap[String, Array[NameHash]]
+  private[this] val usedNames = new TrieMap[String, ConcurrentSet[UsedName]]
+  private[this] val unreporteds = new TrieMap[File, ConcurrentLinkedQueue[Problem]]
+  private[this] val reporteds = new TrieMap[File, ConcurrentLinkedQueue[Problem]]
+  private[this] val mainClasses = new TrieMap[File, ConcurrentLinkedQueue[String]]
+  private[this] val binaryDeps = new TrieMap[File, ConcurrentSet[File]]
+
+  // source file to set of generated (class file, binary class name); only non local classes are stored here
+  private[this] val nonLocalClasses = new TrieMap[File, ConcurrentSet[(File, String)]]
+  private[this] val localClasses = new TrieMap[File, ConcurrentSet[File]]
+  // mapping between src class name and binary (flat) class name for classes generated from src file
+  private[this] val classNames = new TrieMap[File, ConcurrentSet[(String, String)]]
+  // generated class file to its source class name
+  private[this] val classToSource = new TrieMap[File, String]
+  // internal source dependencies
+  private[this] val intSrcDeps = new TrieMap[String, ConcurrentSet[InternalDependency]]
+  // external source dependencies
+  private[this] val extSrcDeps = new TrieMap[String, ConcurrentSet[ExternalDependency]]
+  private[this] val binaryClassName = new TrieMap[File, String]
+  // source files containing a macro def.
+  private[this] val macroClasses = ConcurrentHashMap.newKeySet[String]()
+
+  private def add[A, B](map: TrieMap[A, ConcurrentSet[B]], a: A, b: B): Unit =
+    map.getOrElseUpdate(a, ConcurrentHashMap.newKeySet[B]()).add(b)
 
   def startSource(source: File): Unit = {
     assert(!srcs.contains(source),
            s"The startSource can be called only once per source file: $source")
-    srcs += source
+    srcs.add(source)
     ()
   }
 
@@ -200,7 +202,9 @@ private final class AnalysisCallback(
               reported: Boolean): Unit = {
     for (source <- jo2o(pos.sourceFile)) {
       val map = if (reported) reporteds else unreporteds
-      map.getOrElseUpdate(source, ListBuffer.empty) += Logger.problem(category, pos, msg, severity)
+      map
+        .getOrElseUpdate(source, new ConcurrentLinkedQueue)
+        .add(Logger.problem(category, pos, msg, severity))
     }
   }
 
@@ -282,7 +286,7 @@ private final class AnalysisCallback(
     import xsbt.api.{ APIUtil, HashAPI }
     val className = classApi.name
     if (APIUtil.isScalaSourceName(sourceFile.getName) && APIUtil.hasMacro(classApi))
-      macroClasses += className
+      macroClasses.add(className)
     val shouldMinimize = !Incremental.apiDebug(options)
     val savedClassApi = if (shouldMinimize) APIUtil.minimize(classApi) else classApi
     val apiHash: HashAPI.Hash = HashAPI(classApi)
@@ -303,7 +307,7 @@ private final class AnalysisCallback(
   }
 
   def mainClass(sourceFile: File, className: String): Unit = {
-    mainClasses.getOrElseUpdate(sourceFile, ListBuffer.empty) += className
+    mainClasses.getOrElseUpdate(sourceFile, new ConcurrentLinkedQueue).add(className)
     ()
   }
 
@@ -322,7 +326,8 @@ private final class AnalysisCallback(
     base.copy(compilations = base.compilations.add(compilation))
   def addUsedNames(base: Analysis): Analysis = (base /: usedNames) {
     case (a, (className, names)) =>
-      (a /: names) {
+      import scala.collection.JavaConverters._
+      (a /: names.asScala) {
         case (a, name) => a.copy(relations = a.relations.addUsedName(className, name))
       }
   }
@@ -378,32 +383,45 @@ private final class AnalysisCallback(
   }
 
   def addProductsAndDeps(base: Analysis): Analysis = {
+    import scala.collection.JavaConverters._
     val stampProduct = createStamperForProducts()
-    (base /: srcs) {
+    (base /: srcs.asScala) {
       case (a, src) =>
         val stamp = stampReader.source(src)
-        val classesInSrc = classNames.getOrElse(src, Set.empty).map(_._1)
+        val classesInSrc = classNames
+          .getOrElse(src, ConcurrentHashMap.newKeySet[(String, String)]())
+          .asScala
+          .map(_._1)
         val analyzedApis = classesInSrc.map(analyzeClass)
-        val info = SourceInfos.makeInfo(getOrNil(reporteds, src),
-                                        getOrNil(unreporteds, src),
-                                        getOrNil(mainClasses, src))
-        val binaries = binaryDeps.getOrElse(src, Nil: Iterable[File])
-        val localProds = localClasses.getOrElse(src, Nil: Iterable[File]) map { classFile =>
+        val info = SourceInfos.makeInfo(
+          getOrNil(reporteds.mapValues { _.asScala.toSeq }, src),
+          getOrNil(unreporteds.mapValues { _.asScala.toSeq }, src),
+          getOrNil(mainClasses.mapValues { _.asScala.toSeq }, src)
+        )
+        val binaries = binaryDeps.getOrElse(src, ConcurrentHashMap.newKeySet[File]).asScala
+        val localProds = localClasses
+          .getOrElse(src, ConcurrentHashMap.newKeySet[File]())
+          .asScala map { classFile =>
           val classFileStamp = stampProduct(classFile)
           LocalProduct(classFile, classFileStamp)
         }
-        val binaryToSrcClassName = (classNames.getOrElse(src, Set.empty) map {
-          case (srcClassName, binaryClassName) => (binaryClassName, srcClassName)
-        }).toMap
-        val nonLocalProds = nonLocalClasses.getOrElse(src, Nil: Iterable[(File, String)]) map {
+        val binaryToSrcClassName =
+          (classNames.getOrElse(src, ConcurrentHashMap.newKeySet[(String, String)]()).asScala map {
+            case (srcClassName, binaryClassName) => (binaryClassName, srcClassName)
+          }).toMap
+        val nonLocalProds = nonLocalClasses
+          .getOrElse(src, ConcurrentHashMap.newKeySet[(File, String)]())
+          .asScala map {
           case (classFile, binaryClassName) =>
             val srcClassName = binaryToSrcClassName(binaryClassName)
             val classFileStamp = stampProduct(classFile)
             NonLocalProduct(srcClassName, binaryClassName, classFile, classFileStamp)
         }
 
-        val internalDeps = classesInSrc.flatMap(cls => intSrcDeps.getOrElse(cls, Set.empty))
-        val externalDeps = classesInSrc.flatMap(cls => extSrcDeps.getOrElse(cls, Set.empty))
+        val internalDeps = classesInSrc.flatMap(cls =>
+          intSrcDeps.getOrElse(cls, ConcurrentHashMap.newKeySet[InternalDependency]()).asScala)
+        val externalDeps = classesInSrc.flatMap(cls =>
+          extSrcDeps.getOrElse(cls, ConcurrentHashMap.newKeySet[ExternalDependency]()).asScala)
         val binDeps = binaries.map(d => (d, binaryClassName(d), stampReader binary d))
 
         a.addSource(src,
