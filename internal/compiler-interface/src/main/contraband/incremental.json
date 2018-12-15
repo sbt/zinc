@@ -184,6 +184,16 @@
           "default": "xsbti.compile.IncOptions.defaultIgnoredScalacOptions()",
           "doc": "Array of regexes that will be used to determine if scalac options should be ignored if they change",
           "since": "1.3.0"
+        },
+        {
+          "name": "strictMode",
+          "type": "boolean",
+          "default": "xsbti.compile.IncOptions.defaultStrictMode()",
+          "doc": [
+            "Enable assertions and other runtime checks that are otherwise disabled.",
+            "Can be useful for debugging incremental compilation issues."
+          ],
+          "since": "1.2.6"
         }
       ],
       "extra": [
@@ -244,6 +254,9 @@
         "}",
         "public static boolean defaultLogRecompileOnMacro() {",
         "    return true;",
+        "}",
+        "public static boolean defaultStrictMode() {",
+        "    return false;",
         "}"
       ]
     },

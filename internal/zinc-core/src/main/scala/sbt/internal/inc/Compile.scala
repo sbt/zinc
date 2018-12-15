@@ -189,8 +189,10 @@ private final class AnalysisCallback(
     map.getOrElseUpdate(a, ConcurrentHashMap.newKeySet[B]()).add(b)
 
   def startSource(source: File): Unit = {
-    assert(!srcs.contains(source),
-           s"The startSource can be called only once per source file: $source")
+    if (options.strictMode()) {
+      assert(!srcs.contains(source),
+             s"The startSource can be called only once per source file: $source")
+    }
     srcs.add(source)
     ()
   }
