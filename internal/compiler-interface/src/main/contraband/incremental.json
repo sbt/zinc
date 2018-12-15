@@ -183,7 +183,7 @@
           "type": "String[]",
           "default": "xsbti.compile.IncOptions.defaultIgnoredScalacOptions()",
           "doc": "Array of regexes that will be used to determine if scalac options should be ignored if they change",
-          "since": "1.3.0"
+          "since": "1.2.0"
         },
         {
           "name": "strictMode",
