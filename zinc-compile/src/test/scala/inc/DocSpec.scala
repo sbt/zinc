@@ -3,6 +3,7 @@ package inc
 
 import java.io.File
 
+import sbt.inc.Doc.JavadocGenerationFailed
 import sbt.io.IO
 import sbt.internal.inc.javac.{ JavaCompiler, JavaTools, Javadoc }
 import sbt.internal.inc.javac.JavaCompilerSpec
@@ -42,6 +43,22 @@ class DocSpec extends UnitSpec {
       }
     }
   }
+  it should "throw when generating javadoc fails" in {
+    assertThrows[JavadocGenerationFailed] {
+      IO.withTemporaryDirectory { cacheDir =>
+        IO.withTemporaryDirectory { out =>
+          val javadoc = Doc.cachedJavadoc("Foo", CacheStoreFactory(cacheDir), local)
+          javadoc.run(List(knownSampleBadFile),
+                      Nil,
+                      out,
+                      Nil,
+                      IncToolOptionsUtil.defaultIncToolOptions(),
+                      log,
+                      reporter)
+        }
+      }
+    }
+  }
 
   def local =
     JavaTools(
@@ -51,4 +68,6 @@ class DocSpec extends UnitSpec {
   lazy val reporter = new ManagedLoggedReporter(10, log)
   def knownSampleGoodFile =
     new File(classOf[JavaCompilerSpec].getResource("good.java").toURI)
+  def knownSampleBadFile =
+    new File(classOf[JavaCompilerSpec].getResource("bad.java").toURI)
 }
