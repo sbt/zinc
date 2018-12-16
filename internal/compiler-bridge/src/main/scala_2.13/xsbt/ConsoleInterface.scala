@@ -47,7 +47,6 @@ class ConsoleInterface {
               if (loader eq null) super.parentClassLoader
               else loader
           }
-          intp.setContextClassLoader()
         } else
           super.createInterpreter(interpreterSettings)
 
