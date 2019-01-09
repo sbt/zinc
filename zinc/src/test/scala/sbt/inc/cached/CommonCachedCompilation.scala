@@ -91,7 +91,12 @@ abstract class CommonCachedCompilation(name: String)
     remoteProject =
       ProjectSetup(basePath, SetupCommons.baseSourceMapping, SetupCommons.baseCpMapping)
     remoteCompilerSetup = remoteProject.createCompiler()
-    remoteAnalysisStore = FileAnalysisStore.binary(remoteProject.defaultStoreLocation)
+
+    // NB: We instantiate a `CompilationCache` here in order to get access to the
+    // appropriate mappers for the compilation.
+    val mappers =
+      remoteCacheProvider().findCache(None).get.mappers(basePath.toFile)
+    remoteAnalysisStore = FileAnalysisStore.binary(remoteProject.defaultStoreLocation, mappers)
 
     val result = remoteCompilerSetup.doCompileWithStore(remoteAnalysisStore)
     assert(result.hasModified)
