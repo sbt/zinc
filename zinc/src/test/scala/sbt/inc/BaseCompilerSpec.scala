@@ -14,7 +14,7 @@ import java.util.Optional
 
 import sbt.internal.inc._
 import sbt.internal.inc.classpath.ClassLoaderCache
-import sbt.io.IO
+import sbt.io.{ IO, CopyOptions }
 import sbt.io.syntax._
 import sbt.util.{ InterfaceUtil, Logger }
 import xsbti.compile.{ ScalaInstance => _, _ }
@@ -24,6 +24,9 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
 
   val scalaVersion = scala.util.Properties.versionNumberString
   val maxErrors = 100
+
+  private[this] val copyOptions =
+    CopyOptions().withPreserveLastModified(true).withPreserveExecutable(true)
 
   case class MockedLookup(am: File => Optional[CompileAnalysis]) extends PerClasspathEntryLookup {
     override def analysis(classpathEntry: File): Optional[CompileAnalysis] =
@@ -53,7 +56,7 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
       sourceFile <- sourceFiles
     } yield {
       val targetFile = sourceRoot.resolve(sourceFile).toFile
-      IO.copyFile(fromResource(sourcesPrefix)(sourceFile), targetFile)
+      IO.copyFile(fromResource(sourcesPrefix)(sourceFile), targetFile, copyOptions)
       targetFile
     }
     val classpathBase = baseLocation.resolve("bin")
@@ -67,7 +70,7 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
         existingFile.toFile
       case jarPath =>
         val newJar = classpathBase.resolve(jarPath).toFile
-        IO.copyFile(fromResource(binPrefix)(jarPath), newJar)
+        IO.copyFile(fromResource(binPrefix)(jarPath), newJar, copyOptions)
         newJar
     }
 
