@@ -17,56 +17,39 @@ import java.nio.file.Path
 import sbt.internal.inc._
 import sbt.internal.inc.mappers.MapperUtils
 import sbt.io.IO
-import xsbti.compile.analysis.{ ReadMapper, ReadWriteMappers, Stamp, WriteMapper }
+import xsbti.compile.analysis.ReadWriteMappers
 import xsbti.compile.{ CompileAnalysis, MiniSetup }
 
+// TODO(jvican): Consider removing this interface or at least document it.
 trait CompilationCache {
-  // TODO(jvican): Consider removing this interface or at least document it.
+  def mappers(projectLocation: File): ReadWriteMappers
   def loadCache(projectLocation: File): Option[(CompileAnalysis, MiniSetup)]
 }
 
 case class ProjectRebasedCache(remoteRoot: Path, cacheLocation: Path) extends CompilationCache {
+
+  override def mappers(projectLocation: File) =
+    ReadWriteMappers.getMachineIndependentMappers(projectLocation.toPath)
+
   override def loadCache(projectLocation: File): Option[(CompileAnalysis, MiniSetup)] = {
     import JavaInterfaceUtil.EnrichOptional
     import scala.collection.JavaConverters._
     val projectLocationPath = projectLocation.toPath
-    val readMapper = new RebaseReadWriteMapper(remoteRoot, projectLocationPath)
-    val writeMapper = new RebaseReadWriteMapper(projectLocationPath, remoteRoot)
-    val mappers = new ReadWriteMappers(readMapper, writeMapper)
-    val store = FileAnalysisStore.binary(cacheLocation.toFile, mappers)
+    val store = FileAnalysisStore.binary(cacheLocation.toFile, mappers(projectLocation))
     store.get().toOption match {
       case Some(analysisContents) =>
         val originalAnalysis = analysisContents.getAnalysis
         val originalSetup = analysisContents.getMiniSetup
         val allProductsStamps = originalAnalysis.readStamps().getAllProductStamps.keySet.asScala
-        allProductsStamps.foreach { (originalFile: File) =>
-          val targetFile = writeMapper.mapProductFile(originalFile)
-          IO.copyFile(targetFile, originalFile, preserveLastModified = true)
+        allProductsStamps.foreach { (targetFile: File) =>
+          // NB: Analysis has already been rewritten to align with the target location of the
+          // project. We rewrite the path back to the cache location here to find our input file.
+          val originalFile = MapperUtils.rebase(targetFile, projectLocationPath, remoteRoot)
+          IO.copyFile(originalFile, targetFile, preserveLastModified = true)
         }
 
         Some(originalAnalysis -> originalSetup)
       case _ => None
     }
-  }
-
-  final class RebaseReadWriteMapper(from: Path, to: Path) extends ReadMapper with WriteMapper {
-    private def rebase(file: File): File = MapperUtils.rebase(file, from, to)
-
-    override def mapSourceFile(sourceFile: File): File = rebase(sourceFile)
-    override def mapBinaryFile(binaryFile: File): File = rebase(binaryFile)
-    override def mapProductFile(productFile: File): File = rebase(productFile)
-
-    override def mapClasspathEntry(classpathEntry: File): File = rebase(classpathEntry)
-    override def mapJavacOption(javacOption: String): String = identity(javacOption)
-    override def mapScalacOption(scalacOption: String): String = identity(scalacOption)
-
-    override def mapOutputDir(outputDir: File): File = rebase(outputDir)
-    override def mapSourceDir(sourceDir: File): File = rebase(sourceDir)
-
-    override def mapProductStamp(file: File, productStamp: Stamp): Stamp = identity(productStamp)
-    override def mapSourceStamp(file: File, sourceStamp: Stamp): Stamp = identity(sourceStamp)
-    override def mapBinaryStamp(file: File, binaryStamp: Stamp): Stamp = identity(binaryStamp)
-
-    override def mapMiniSetup(miniSetup: MiniSetup): MiniSetup = identity(miniSetup)
   }
 }

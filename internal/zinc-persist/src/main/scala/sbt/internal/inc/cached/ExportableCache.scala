@@ -36,6 +36,9 @@ class ExportableCache(val cacheLocation: Path, cleanOutputMode: CleanOutputMode 
     case _ => throw new RuntimeException("Only single output is supported")
   }
 
+  override def mappers(projectLocation: File) =
+    ReadWriteMappers.getMachineIndependentMappers(projectLocation.toPath)
+
   override def loadCache(projectLocation: File): Option[(CompileAnalysis, MiniSetup)] = {
     val mappers = ReadWriteMappers.getMachineIndependentMappers(projectLocation.toPath)
     val store = FileAnalysisStore.binary(analysisFile.toFile, mappers)

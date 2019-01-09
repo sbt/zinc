@@ -22,8 +22,11 @@ class ExportedCacheSpec extends CommonCachedCompilation("Exported Cache") {
 
   var cacheLocation: Path = _
   override protected def beforeAll(): Unit = {
+    cacheLocation = IO
+      .createUniqueDirectory(new java.io.File("target").getAbsoluteFile)
+      .toPath
+      .resolve("exported-cache")
     super.beforeAll()
-    cacheLocation = remoteProject.baseLocation.resolveSibling("cache")
     val remoteCache = new ExportableCache(cacheLocation)
 
     remoteCache.exportCache(remoteProject.baseLocation.toFile, remoteAnalysisStore) match {
