@@ -55,14 +55,15 @@ object Doc {
                   incToolOptions: IncToolOptions,
                   log: Logger,
                   reporter: Reporter): Unit = {
-            doc.javadoc.run(
+            val success = doc.javadoc.run(
               (sources filter javaSourcesOnly).toArray,
               JavaCompilerArguments(sources, classpath, Some(outputDirectory), options).toArray,
               incToolOptions,
               reporter,
               log
             )
-            ()
+            if (success) ()
+            else throw new JavadocGenerationFailed()
           }
         }
       )
@@ -120,7 +121,13 @@ object Doc {
     }
   private[sbt] val javaSourcesOnly: File => Boolean = _.getName.endsWith(".java")
 
+  class JavadocGenerationFailed extends Exception
+
   trait JavaDoc {
+
+    /**
+     * @throws JavadocGenerationFailed when generating javadoc fails
+     */
     def run(sources: List[File],
             classpath: List[File],
             outputDirectory: File,
