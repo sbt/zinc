@@ -28,6 +28,14 @@ import java.nio.file.Path;
 public interface WriteMapper extends GenericMapper {
 
     /**
+     * @param binaryFile A binary file existing in the stored relations.
+     * @return True to store the binary file in the analysis, false to filter it.
+     */
+    default boolean acceptBinaryFile(File binaryFile) {
+        return true;
+    }
+
+    /**
      * Defines a mapper that writes a machine-independent analysis file.
      *
      * An analysis file is machine independent if all the paths are relative and no

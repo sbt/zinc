@@ -47,8 +47,8 @@ final class ProtobufWriters(mapper: WriteMapper) {
   def toStamps(stamps: Stamps): schema.Stamps = {
     // Note that boilerplate here is inteded, abstraction is expensive
     def toBinarySchemaMap(data: Map[File, Stamp]): Map[String, schema.Stamps.StampType] = {
-      data.map {
-        case (binaryFile, stamp) =>
+      data.collect {
+        case (binaryFile, stamp) if mapper.acceptBinaryFile(binaryFile) =>
           val newBinaryFile = mapper.mapBinaryFile(binaryFile)
           val newPath = toStringPath(newBinaryFile)
           val newBinaryStamp = mapper.mapBinaryStamp(binaryFile, stamp)
@@ -604,6 +604,10 @@ final class ProtobufWriters(mapper: WriteMapper) {
   private final val sourceFileToString = (f: File) => toStringPath(mapper.mapSourceFile(f))
   private final val productFileToString = (f: File) => toStringPath(mapper.mapProductFile(f))
 
+  private final val binaryFileAccept = (f: File) => mapper.acceptBinaryFile(f)
+  private final val allFileAccept = (_: File) => true
+  private final val allStringAccept = (_: String) => true
+
   def toRelations(relations: Relations): schema.Relations = {
     import sbt.internal.util.Relation
 
@@ -625,26 +629,56 @@ final class ProtobufWriters(mapper: WriteMapper) {
     def toMap[K, V](
         relation: Relation[K, V],
         fk: K => String,
-        fv: V => String
+        fv: V => String,
+        kFilter: K => Boolean,
+        vFilter: V => Boolean
     ): Map[String, schema.Values] = {
-      relation.forwardMap.map {
-        case (k, vs) =>
-          val fileValues = schema.Values(values = vs.iterator.map(fv).toList)
+      relation.forwardMap.collect {
+        case (k, vs) if kFilter(k) =>
+          val fileValues = schema.Values(values = vs.iterator.collect {
+            case v if vFilter(v) => fv(v)
+          }.toList)
           fk(k) -> fileValues
       }
     }
 
-    val srcProd = toMap(relations.srcProd, sourceFileToString, productFileToString)
-    val libraryDep = toMap(relations.libraryDep, sourceFileToString, binaryFileToString)
-    val libraryClassName = toMap(relations.libraryClassName, binaryFileToString, stringId)
-    val memberRefInternal = toMap(relations.memberRef.internal, stringId, stringId)
-    val memberRefExternal = toMap(relations.memberRef.external, stringId, stringId)
-    val inheritanceInternal = toMap(relations.inheritance.internal, stringId, stringId)
-    val inheritanceExternal = toMap(relations.inheritance.external, stringId, stringId)
-    val localInheritanceInternal = toMap(relations.localInheritance.internal, stringId, stringId)
-    val localInheritanceExternal = toMap(relations.localInheritance.external, stringId, stringId)
-    val classes = toMap(relations.classes, sourceFileToString, stringId)
-    val productClassName = toMap(relations.productClassName, stringId, stringId)
+    val srcProd = toMap(relations.srcProd,
+                        sourceFileToString,
+                        productFileToString,
+                        allFileAccept,
+                        allFileAccept)
+    val libraryDep = toMap(relations.libraryDep,
+                           sourceFileToString,
+                           binaryFileToString,
+                           allFileAccept,
+                           binaryFileAccept)
+    val libraryClassName = toMap(relations.libraryClassName,
+                                 binaryFileToString,
+                                 stringId,
+                                 binaryFileAccept,
+                                 allStringAccept)
+    val memberRefInternal =
+      toMap(relations.memberRef.internal, stringId, stringId, allStringAccept, allStringAccept)
+    val memberRefExternal =
+      toMap(relations.memberRef.external, stringId, stringId, allStringAccept, allStringAccept)
+    val inheritanceInternal =
+      toMap(relations.inheritance.internal, stringId, stringId, allStringAccept, allStringAccept)
+    val inheritanceExternal =
+      toMap(relations.inheritance.external, stringId, stringId, allStringAccept, allStringAccept)
+    val localInheritanceInternal = toMap(relations.localInheritance.internal,
+                                         stringId,
+                                         stringId,
+                                         allStringAccept,
+                                         allStringAccept)
+    val localInheritanceExternal = toMap(relations.localInheritance.external,
+                                         stringId,
+                                         stringId,
+                                         allStringAccept,
+                                         allStringAccept)
+    val classes =
+      toMap(relations.classes, sourceFileToString, stringId, allFileAccept, allStringAccept)
+    val productClassName =
+      toMap(relations.productClassName, stringId, stringId, allStringAccept, allStringAccept)
     val names = toUsedNamesMap(relations.names)
     val memberRef = Some(
       schema.ClassDependencies(

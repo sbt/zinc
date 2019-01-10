@@ -21,6 +21,10 @@ import xsbti.compile.analysis.{ RootPaths, Stamp, WriteMapper }
 final class NaiveRelativeWriteMapper(rootProjectPath: Path) extends WriteMapper {
   private def makeRelative(file: File): File = MapperUtils.makeRelative(file, rootProjectPath)
 
+  private[this] val javaHome = System.getProperty("java.home")
+
+  override def acceptBinaryFile(binaryFile: File) = !binaryFile.toString.startsWith(javaHome)
+
   override def mapSourceFile(sourceFile: File): File = makeRelative(sourceFile)
   override def mapBinaryFile(binaryFile: File): File = makeRelative(binaryFile)
   override def mapProductFile(productFile: File): File = makeRelative(productFile)
@@ -44,6 +48,10 @@ final class RelativeWriteMapper(rootPaths: RootPaths) extends WriteMapper {
   private final val sourcesRoot = rootPaths.getSourcesRootPath.toPath
   private final val librariesRoot = rootPaths.getLibrariesRootPath.toPath
   private final val productsRoot = rootPaths.getProductsRootPath.toPath
+
+  private[this] val javaHome = System.getProperty("java.home")
+
+  override def acceptBinaryFile(binaryFile: File) = !binaryFile.toString.startsWith(javaHome)
 
   override def mapSourceFile(sourceFile: File): File = makeRelative(sourceFile, sourcesRoot)
   override def mapBinaryFile(binaryFile: File): File = makeRelative(binaryFile, librariesRoot)
