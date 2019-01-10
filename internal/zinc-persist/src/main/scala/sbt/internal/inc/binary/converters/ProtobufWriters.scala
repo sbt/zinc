@@ -598,8 +598,12 @@ final class ProtobufWriters(mapper: WriteMapper) {
     )
   }
 
-  private final val fileToString = (f: File) => toStringPath(f)
   private final val stringId = identity[String] _
+
+  private final val binaryFileToString = (f: File) => toStringPath(mapper.mapBinaryFile(f))
+  private final val sourceFileToString = (f: File) => toStringPath(mapper.mapSourceFile(f))
+  private final val productFileToString = (f: File) => toStringPath(mapper.mapProductFile(f))
+
   def toRelations(relations: Relations): schema.Relations = {
     import sbt.internal.util.Relation
 
@@ -630,16 +634,16 @@ final class ProtobufWriters(mapper: WriteMapper) {
       }
     }
 
-    val srcProd = toMap(relations.srcProd, fileToString, fileToString)
-    val libraryDep = toMap(relations.libraryDep, fileToString, fileToString)
-    val libraryClassName = toMap(relations.libraryClassName, fileToString, stringId)
+    val srcProd = toMap(relations.srcProd, sourceFileToString, productFileToString)
+    val libraryDep = toMap(relations.libraryDep, sourceFileToString, binaryFileToString)
+    val libraryClassName = toMap(relations.libraryClassName, binaryFileToString, stringId)
     val memberRefInternal = toMap(relations.memberRef.internal, stringId, stringId)
     val memberRefExternal = toMap(relations.memberRef.external, stringId, stringId)
     val inheritanceInternal = toMap(relations.inheritance.internal, stringId, stringId)
     val inheritanceExternal = toMap(relations.inheritance.external, stringId, stringId)
     val localInheritanceInternal = toMap(relations.localInheritance.internal, stringId, stringId)
     val localInheritanceExternal = toMap(relations.localInheritance.external, stringId, stringId)
-    val classes = toMap(relations.classes, fileToString, stringId)
+    val classes = toMap(relations.classes, sourceFileToString, stringId)
     val productClassName = toMap(relations.productClassName, stringId, stringId)
     val names = toUsedNamesMap(relations.names)
     val memberRef = Some(
