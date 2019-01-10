@@ -21,6 +21,9 @@ object MapperUtils {
   private final val RELATIVE_MARKER = "\u2603\u2603\u2603"
   private final val MARKER_LENGTH = RELATIVE_MARKER.length()
 
+  private final def relativeWriteError(file: File, from: Path) =
+    s"Path $file is not located below path $from, and so cannot be safely relativized to it."
+
   private final def relativeReadError(path: String) =
     s"Unexpected path $path was not written by a relative write mapper. Paths have to start with $RELATIVE_MARKER"
 
@@ -44,6 +47,9 @@ object MapperUtils {
    */
   private[inc] def makeRelative(file: File, from: Path): File = {
     val relativePath = from.relativize(file.toPath)
+    if (relativePath.startsWith("..")) {
+      throw new RelativePathAssumptionBroken(relativeWriteError(file, from))
+    }
     new File(s"$RELATIVE_MARKER${relativePath}")
   }
 
