@@ -6,3 +6,5 @@ ProblemFilters.exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.conv
 ProblemFilters.exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufReaders.fromApis")
 ProblemFilters.exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufReaders.fromApisFile")
 ProblemFilters.exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufReaders.fromAnalyzedClass")
+ProblemFilters.exclude[MissingClassProblem]("sbt.internal.inc.cached.ProjectRebasedCache$RebaseReadWriteMapper")
+ProblemFilters.exclude[ReversedMissingMethodProblem]("sbt.internal.inc.cached.CompilationCache.mappers")

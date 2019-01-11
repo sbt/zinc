@@ -319,6 +319,8 @@ lazy val zincPersist = (project in internalPath / "zinc-persist")
         exclude[IncompatibleSignatureProblem]("sbt.internal.inc.schema.AnalyzedClass.unapply"),
         exclude[IncompatibleSignatureProblem]("sbt.internal.inc.schema.Version.values"),
         exclude[IncompatibleSignatureProblem]("sbt.internal.inc.schema.Position.unapply"),
+        exclude[MissingClassProblem]("sbt.internal.inc.cached.*"),
+        exclude[ReversedMissingMethodProblem]("sbt.internal.inc.cached.*"),
       )
     }
   )
