@@ -12,8 +12,9 @@ package inc
 package javac
 
 import java.io.{ File, InputStream, OutputStream, PrintWriter, Writer }
-import java.nio.charset.Charset
 import java.util.Locale
+import java.nio.{ ByteBuffer, CharBuffer }
+import java.nio.charset.{ Charset, CodingErrorAction }
 
 import javax.tools.JavaFileManager.Location
 import javax.tools.JavaFileObject.Kind
@@ -37,8 +38,6 @@ import xsbti.compile.{
   JavaCompiler => XJavaCompiler,
   Javadoc => XJavadoc
 }
-
-import scala.tools.nsc.interpreter.WriterOutputStream
 
 /**
  * Define helper methods that will try to instantiate the Java toolchain
@@ -126,8 +125,8 @@ final class LocalJavadoc() extends XJavadoc {
     val nonJArgs = options.filterNot(_.startsWith("-J"))
     val allArguments = nonJArgs ++ sources.map(_.getAbsolutePath)
     val javacLogger = new JavacLogger(log, reporter, cwd)
-    val errorWriter = new WriterOutputStream(new ProcessLoggerWriter(javacLogger, Level.Error))
-    val infoWriter = new WriterOutputStream(new ProcessLoggerWriter(javacLogger, Level.Info))
+    val errorWriter = new WriterOutputStream(new PrintWriter(new ProcessLoggerWriter(javacLogger, Level.Error)))
+    val infoWriter = new WriterOutputStream(new PrintWriter(new ProcessLoggerWriter(javacLogger, Level.Info)))
     var exitCode = -1
     try {
       exitCode = LocalJava.javadoc(allArguments, null, infoWriter, errorWriter)
@@ -281,4 +280,34 @@ final class WriteReportingJavaFileObject(
     classFileManager.generated(Array(new File(javaFileObject.toUri)))
     super.openOutputStream()
   }
+}
+
+/**
+ * Converts Writer to OutputStream
+ * Code adapted from scala.tools.nsc.interpreter.WriterOutputStream
+ */
+class WriterOutputStream(writer: Writer) extends OutputStream {
+  private val decoder = Charset.defaultCharset.newDecoder
+  decoder.onMalformedInput(CodingErrorAction.REPLACE)
+  decoder.onUnmappableCharacter(CodingErrorAction.REPLACE)
+
+  private val byteBuffer = ByteBuffer.allocate(64)
+  private val charBuffer = CharBuffer.allocate(64)
+
+  override def write(b: Int): Unit = {
+    byteBuffer.put(b.toByte)
+    byteBuffer.flip()
+    decoder.decode(byteBuffer, charBuffer, /*endOfInput=*/ false)
+    if (byteBuffer.remaining == 0) byteBuffer.clear()
+    if (charBuffer.position() > 0) {
+      charBuffer.flip()
+      writer.write(charBuffer.toString)
+      charBuffer.clear()
+    }
+  }
+  override def close(): Unit = {
+    decoder.decode(byteBuffer, charBuffer, /*endOfInput=*/ true)
+    decoder.flush(charBuffer)
+  }
+  override def toString: String = charBuffer.toString
 }
