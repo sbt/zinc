@@ -102,7 +102,7 @@ object JarUtils {
    * that changes between compilation runs (incremental compilation cycles).
    * Caching may hide those changes and lead into incorrect results.
    */
-  val scalacOptions = Set("-YdisableFlatCpCaching")
+  val scalacOptions: Set[ClassFilePath] = Set("-YdisableFlatCpCaching")
 
   /**
    * Options that have to be specified when running javac in order
@@ -111,7 +111,7 @@ object JarUtils {
    * -XDuseOptimizedZip=false holds jars open that causes problems
    * with locks on Windows.
    */
-  val javacOptions = Set("-XDuseOptimizedZip=false")
+  val javacOptions: Set[ClassFilePath] = Set("-XDuseOptimizedZip=false")
 
   /** Reads current index of a jar file to allow restoring it later with `unstashIndex` */
   def stashIndex(jar: File): IndexBasedZipFsOps.CentralDir = {
