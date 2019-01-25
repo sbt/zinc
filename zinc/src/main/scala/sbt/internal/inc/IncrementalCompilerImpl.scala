@@ -317,12 +317,16 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
     val srcsSet = sources.toSet
     val analysis = previousSetup match {
       case Some(previous) =>
-        // Return an empty analysis if values of extra have changed
-        if (equiv.equiv(previous, currentSetup))
-          previousAnalysis
-        else if (!equivPairs.equiv(previous.extra, currentSetup.extra))
+        if (compileToJarSwitchedOn(mixedCompiler.config)) {
           Analysis.empty
-        else Incremental.prune(srcsSet, previousAnalysis, output, outputJarContent)
+        } else if (equiv.equiv(previous, currentSetup)) {
+          previousAnalysis
+          // Return an empty analysis if values of extra have changed
+        } else if (!equivPairs.equiv(previous.extra, currentSetup.extra)) {
+          Analysis.empty
+        } else {
+          Incremental.prune(srcsSet, previousAnalysis, output, outputJarContent)
+        }
       case None =>
         Incremental.prune(srcsSet, previousAnalysis, output, outputJarContent)
     }
@@ -339,6 +343,20 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       outputJarContent
     )
     compile.swap
+  }
+
+  private def compileToJarSwitchedOn(config: CompileConfiguration): Boolean = {
+    def isCompilingToJar = JarUtils.isCompilingToJar(config.currentSetup.output)
+    def previousCompilationWasToJar = config.previousAnalysis match {
+      case analysis: Analysis =>
+        analysis.relations.allProducts.headOption match {
+          case Some(product) => JarUtils.isClassInJar(product)
+          case None          => true // we can assume it was, as it doesn't matter if there were no products
+        }
+      case _ => true
+    }
+
+    isCompilingToJar && !previousCompilationWasToJar
   }
 
   def setup(
