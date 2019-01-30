@@ -137,8 +137,10 @@ final class MixedAnalyzingCompiler(
       compileScala(); compileJava()
     }
 
-    if (javaSrcs.size + scalaSrcs.size > 0)
-      log.info("Done compiling.")
+    if (javaSrcs.size + scalaSrcs.size > 0) {
+      val targets = outputDirs.map(_.getAbsolutePath).mkString(",")
+      log.info(s"Done compiling to $targets .")
+    }
   }
 
   private def putJavacOutputInJar(outputJar: File, outputDir: File): Unit = {
