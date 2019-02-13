@@ -472,6 +472,21 @@ def noSourcesForTemplate: Seq[Setting[_]] = inBoth(
   },
 )
 
+val disableBloop: Seq[Setting[_]] = List(
+  bloopGenerate in Compile := {
+    val isProjectStub = Keys.thisProject.value.id.contains("Template")
+    val generatedFile = (bloopGenerate in Compile).value
+    if (isProjectStub) generatedFile.foreach(f => IO.delete(f))
+    generatedFile
+  },
+  bloopGenerate in Test := {
+    val isProjectStub = Keys.thisProject.value.id.contains("Template")
+    val generatedFile = (bloopGenerate in Test).value
+    if (isProjectStub) generatedFile.foreach(f => IO.delete(f))
+    generatedFile
+  }
+)
+
 /**
  * Compiler-side interface to compiler that is compiled against the compiler being used either in advance or on the fly.
  * Includes API and Analyzer phases that extract source API and relationships.
@@ -484,6 +499,7 @@ def noSourcesForTemplate: Seq[Setting[_]] = inBoth(
 lazy val compilerBridgeTemplate: Project = (project in internalPath / "compiler-bridge")
   .settings(
     baseSettings,
+    disableBloop,
     noSourcesForTemplate,
     compilerVersionDependentScalacOptions,
     // We need this for import Compat._
@@ -576,7 +592,9 @@ lazy val compilerBridge213 = compilerBridgeTemplate
   .settings(
     scalaVersion := scala213,
     crossScalaVersions := Seq(scala213),
-    target := (target in compilerBridgeTemplate).value.getParentFile / "target-2.13"
+    target := (target in compilerBridgeTemplate).value.getParentFile / "target-2.13",
+    bloopGenerate in Compile := None,
+    bloopGenerate in Test := None,
   )
 
 /**
@@ -590,6 +608,7 @@ lazy val compilerBridgeTestTemplate = (project in internalPath / "compiler-bridg
   .settings(
     name := "Compiler Bridge Test",
     baseSettings,
+    disableBloop,
     compilerVersionDependentScalacOptions,
     // we need to fork because in unit tests we set usejavacp = true which means
     // we are expecting all of our dependencies to be on classpath so Scala compiler
@@ -644,6 +663,7 @@ lazy val zincApiInfoTemplate = (project in internalPath / "zinc-apiinfo")
   .settings(
     name := "zinc ApiInfo",
     compilerVersionDependentScalacOptions,
+    disableBloop,
     noSourcesForTemplate,
     mimaSettings,
     mimaBinaryIssueFilters ++= {
@@ -692,6 +712,7 @@ lazy val zincClasspathTemplate = (project in internalPath / "zinc-classpath")
     name := "zinc Classpath",
     compilerVersionDependentScalacOptions,
     libraryDependencies ++= Seq(scalaCompiler.value, launcherInterface),
+    disableBloop,
     noSourcesForTemplate,
     mimaSettings,
     mimaBinaryIssueFilters ++= Seq(
@@ -717,6 +738,7 @@ lazy val zincClassfileTemplate = (project in internalPath / "zinc-classfile")
     name := "zinc Classfile",
     compilerVersionDependentScalacOptions,
     mimaSettings,
+    disableBloop,
     noSourcesForTemplate,
   )
   .configure(addSbtIO, addSbtUtilLogging)
