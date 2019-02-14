@@ -6,6 +6,7 @@ package javac
 import java.io.File
 import java.net.URLClassLoader
 import java.util.Optional
+import scala.collection.mutable.HashSet
 
 import xsbt.api.SameAPI
 import xsbti.{ Problem, Severity }
@@ -45,6 +46,11 @@ class JavaCompilerSpec extends UnitSpec with DiagrammedAssertions {
     assert(good.exists)
   }
 
+  def dealiasSymlinks(xs: HashSet[File]): HashSet[String] =
+    xs map { x =>
+      x.getCanonicalPath
+    }
+
   def works(compiler: XJavaTools, forked: Boolean = false) = IO.withTemporaryDirectory { out =>
     val classfileManager = new CollectingClassFileManager()
     val (result, _) = compile(
@@ -60,7 +66,9 @@ class JavaCompilerSpec extends UnitSpec with DiagrammedAssertions {
     assert(result)
     val classfile = new File(out, "good.class")
     assert(classfile.exists)
-    assert(classfileManager.generatedClasses == (if (forked) Set() else Set(classfile)))
+    assert(
+      dealiasSymlinks(classfileManager.generatedClasses) ==
+        (if (forked) HashSet() else dealiasSymlinks(HashSet(classfile))))
 
     val cl = new URLClassLoader(Array(out.toURI.toURL))
     val clazzz = cl.loadClass("good")
@@ -71,7 +79,12 @@ class JavaCompilerSpec extends UnitSpec with DiagrammedAssertions {
   def findsErrors(compiler: XJavaTools) = {
     val (result, problems) = compile(compiler, Seq(knownSampleErrorFile), Seq("-deprecation"))
     assert(result == false)
-    assert(problems.size == 6)
+    assert(problems.size == {
+      sys.props("java.specification.version") match {
+        case "1.8" | "9" => 6
+        case _           => 5
+      }
+    })
     val importWarn = warnOnLine(lineno = 1, lineContent = Some("java.rmi.RMISecurityException"))
     val enclosingError = errorOnLine(lineno = 14, message = Some("not an enclosing class: C.D"))
     val beAnExpectedError =
@@ -84,7 +97,13 @@ class JavaCompilerSpec extends UnitSpec with DiagrammedAssertions {
   def findsDocErrors(compiler: XJavaTools) = IO.withTemporaryDirectory { out =>
     val (result, problems) =
       doc(compiler, Seq(knownSampleErrorFile), Seq("-d", out.getAbsolutePath))
-    assert(result)
+    // exit code for `javadoc` commandline is JDK dependent
+    assert(result == {
+      sys.props("java.specification.version") match {
+        case "1.8" | "9" => true
+        case _           => false
+      }
+    })
     assert(problems.size == 2)
     val beAnExpectedError = List(errorOnLine(3), errorOnLine(4)) reduce (_ or _)
     problems foreach { p =>
