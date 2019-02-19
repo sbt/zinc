@@ -14,7 +14,7 @@ import sbt.internal.inc.classpath.ClassLoaderCache
 import xsbti.compile._
 
 class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
-  val scalaVersion = "2.11.8"
+  val scalaVersion = "2.12.8"
   val compiler = new IncrementalCompilerImpl // IncrementalCompilerUtil.defaultIncrementalCompiler
   val maxErrors = 100
 
@@ -37,7 +37,7 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       IO.copyFile(dependerFile0, dependerFile, false)
       val depender2File = sub1Directory / "src" / "Depender2.scala"
       IO.copyFile(depender2File0, depender2File, false)
-      val binarySampleFile = sub1Directory / "lib" / "sample-binary_2.11-0.1.jar"
+      val binarySampleFile = sub1Directory / "lib" / "sample-binary_2.12-0.1.jar"
       IO.copyFile(binarySampleFile0, binarySampleFile)
       val sources = Array(dependerFile)
       // uncomment this to see the debug log
@@ -225,4 +225,41 @@ package test.pkg
 object Ext1 {
   val x = 1
 }
+
+object Ext2 {
+  val x = 2
+}
+
+object Ext3 {
+  val x = 3
+}
+
+object Ext4 {
+  val x = 4
+}
+
+object Ext5 {
+  val x = 5
+}
+
+object Ext6 {
+  val x = 6
+}
+
+object Ext7 {
+  val x = 7
+}
+
+object Ext8 {
+  val x = 8
+}
+
+object Ext9 {
+  val x = 9
+}
+
+object Ext10 {
+  val x = 10
+}
+
  */
