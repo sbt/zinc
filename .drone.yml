@@ -31,7 +31,7 @@ pipeline:
       - /drone/.git
 
   tests:
-    image: scalacenter/scala-docs:1.5
+    image: eed3si9n/scala-docs:1.6-M2
     group: build
     when:
       ref: [ refs/heads/1.x, refs/tags/*, refs/pull/*/head ]
