@@ -306,10 +306,12 @@ class WriterOutputStream(writer: Writer) extends OutputStream {
       writer.write(charBuffer.toString)
       charBuffer.clear()
     }
+    ()
   }
   override def close(): Unit = {
     decoder.decode(byteBuffer, charBuffer, /*endOfInput=*/ true)
     decoder.flush(charBuffer)
+    ()
   }
   override def toString: String = charBuffer.toString
 }

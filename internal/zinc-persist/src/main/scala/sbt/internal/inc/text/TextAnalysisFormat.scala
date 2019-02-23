@@ -16,13 +16,14 @@ import xsbti.{ T2, UseScope }
 import xsbti.api._
 import xsbti.compile._
 import xsbti.compile.analysis.{ ReadWriteMappers, SourceInfo, Stamp }
+import com.github.ghik.silencer.silent
 
 // A text-based serialization format for Analysis objects.
 // This code has been tuned for high performance, and therefore has non-idiomatic areas.
 // Please refrain from making changes that significantly degrade read/write performance on large analysis files.
 object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMappers)
 
-class TextAnalysisFormat(val mappers: ReadWriteMappers)
+@silent class TextAnalysisFormat(val mappers: ReadWriteMappers)
     extends FormatCommons
     with RelationsTextFormat {
 
@@ -43,9 +44,10 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
     asProduct3(read)(a => (a.name(), a.scope().name(), a.hash()))
   }
   private implicit val companionsFomrat: Format[Companions] = CompanionsFormat
-  private implicit def problemFormat: Format[Problem] =
+  private implicit def problemFormat: Format[Problem] = {
     asProduct4(problem)(p => (p.category, p.position, p.message, p.severity))
-  private implicit def positionFormat: Format[Position] =
+  }
+  private implicit def positionFormat: Format[Position] = {
     asProduct7(position)(
       p =>
         (jo2o(p.line),
@@ -55,6 +57,7 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
          jo2o(p.pointerSpace),
          jo2o(p.sourcePath),
          jo2o(p.sourceFile)))
+  }
   private implicit val severityFormat: Format[Severity] =
     wrap[Severity, Byte](_.ordinal.toByte, b => Severity.values.apply(b.toInt))
   private implicit val integerFormat: Format[Integer] =

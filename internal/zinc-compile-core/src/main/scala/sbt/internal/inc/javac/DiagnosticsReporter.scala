@@ -45,7 +45,7 @@ final class DiagnosticsReporter(reporter: Reporter) extends DiagnosticListener[J
     val msg = d.getMessage(null)
     val pos: xsbti.Position = PositionImpl(d)
     if (severity == Severity.Error) errorEncountered = true
-    reporter.log(problem("", pos, msg, severity))
+    reporter.log(problem("", pos, msg, severity, None))
   }
 }
 

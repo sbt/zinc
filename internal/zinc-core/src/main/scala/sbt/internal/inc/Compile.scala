@@ -20,14 +20,14 @@ import xsbti.compile.{
   ClassFileManager => XClassFileManager
 }
 import xsbti.{ Position, Problem, Severity, UseScope }
-import sbt.util.Logger
+import sbt.util.{ InterfaceUtil, Logger }
 import sbt.util.InterfaceUtil.jo2o
 import java.io.File
 import java.util
 
 import scala.collection.JavaConverters._
 import xsbti.api.DependencyContext
-import xsbti.compile.analysis.{ ReadStamps, Stamp }
+import xsbti.compile.analysis.ReadStamps
 
 /**
  * Helper methods for running incremental compilation.  All this is responsible for is
@@ -185,8 +185,10 @@ private final class AnalysisCallback(
   // source files containing a macro def.
   private[this] val macroClasses = ConcurrentHashMap.newKeySet[String]()
 
-  private def add[A, B](map: TrieMap[A, ConcurrentSet[B]], a: A, b: B): Unit =
+  private def add[A, B](map: TrieMap[A, ConcurrentSet[B]], a: A, b: B): Unit = {
     map.getOrElseUpdate(a, ConcurrentHashMap.newKeySet[B]()).add(b)
+    ()
+  }
 
   def startSource(source: File): Unit = {
     if (options.strictMode()) {
@@ -206,7 +208,7 @@ private final class AnalysisCallback(
       val map = if (reported) reporteds else unreporteds
       map
         .getOrElseUpdate(source, new ConcurrentLinkedQueue)
-        .add(Logger.problem(category, pos, msg, severity))
+        .add(InterfaceUtil.problem(category, pos, msg, severity, None))
     }
   }
 
@@ -377,7 +379,7 @@ private final class AnalysisCallback(
     )
   }
 
-  def createStamperForProducts(): File => Stamp = {
+  def createStamperForProducts(): File => xsbti.compile.analysis.Stamp = {
     JarUtils.getOutputJar(output) match {
       case Some(outputJar) => Stamper.forLastModifiedInJar(outputJar)
       case None            => stampReader.product _

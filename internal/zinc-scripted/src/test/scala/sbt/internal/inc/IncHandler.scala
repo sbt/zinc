@@ -16,12 +16,12 @@ import xsbti.compile.{
   ClasspathOptionsUtil,
   CompileAnalysis,
   CompileOrder,
-  CompilerCache,
   DefinesClass,
   IncOptions,
   IncOptionsUtil,
   PerClasspathEntryLookup,
   PreviousResult,
+  CompilerCache => XCompilerCache,
   Compilers => XCompilers
 }
 import sbt.io.IO
@@ -416,7 +416,7 @@ case class ProjectStructure(
       lookup,
       skip = false,
       cacheFile,
-      cache = CompilerCache.fresh,
+      cache = XCompilerCache.fresh,
       initializedIncOptions,
       reporter,
       optionProgress = None,

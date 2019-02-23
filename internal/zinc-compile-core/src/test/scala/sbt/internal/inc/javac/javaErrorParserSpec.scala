@@ -4,7 +4,6 @@ package inc
 package javac
 
 import org.scalatest.DiagrammedAssertions
-import sbt.util.Logger
 import sbt.internal.util.ConsoleLogger
 
 class JavaErrorParserSpec extends UnitSpec with DiagrammedAssertions {
@@ -41,9 +40,9 @@ class JavaErrorParserSpec extends UnitSpec with DiagrammedAssertions {
     parser.parse(parser.fileAndLineNo, sampleWindowsMessage) match {
       case parser.Success((file, _), _) => file shouldBe (windowsFile)
       case parser.Error(msg, next) =>
-        assert(false, s"Error to parse: $msg, ${next.pos.longString}")
+        assert(false, "Error to parse: " + msg + ", " + next.pos.longString)
       case parser.Failure(msg, next) =>
-        assert(false, s"Failed to parse: $msg, ${next.pos.longString}")
+        assert(false, "Failed to parse: " + msg + ", " + next.pos.longString)
     }
   }
 

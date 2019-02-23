@@ -11,9 +11,10 @@ import sbt.internal.util.Relation
 import xsbti.api._
 import xsbti.UseScope
 import xsbti.api.DependencyContext._
-import xsbti.compile.analysis.Stamp
+import xsbti.compile.analysis.{ Stamp => AStamp }
 
 import scala.collection.immutable.TreeMap
+import com.github.ghik.silencer.silent
 
 /**
  * Scalacheck generators for Analysis objects and their substructures.
@@ -61,7 +62,7 @@ trait AnalysisGenerators {
     } yield new File(s"$RootFilePath/" + path.mkString("/"))
   }
 
-  def genStamp: Gen[Stamp] = const(EmptyStamp)
+  def genStamp: Gen[AStamp] = const(EmptyStamp)
 
   def zipMap[A, B](a: Seq[A], b: Seq[B]): Map[A, B] = a.zip(b).toMap
 
@@ -168,7 +169,8 @@ trait AnalysisGenerators {
       )
     }
 
-  def genSubRClassDependencies(src: Relations.ClassDependencies): Gen[Relations.ClassDependencies] =
+  @silent def genSubRClassDependencies(
+      src: Relations.ClassDependencies): Gen[Relations.ClassDependencies] =
     for {
       internal <- someOf(src.internal.all.toList)
       external <- someOf(src.external.all.toList)
