@@ -14,11 +14,11 @@ import java.util.function.Supplier;
 
 /**
  * Defines a util interface to get Scala compilers and the default implementation
- * of the Scala incremental compiler if only {@link IncrementalCompiler} is required.
+ * of the Scala incremental compiler if only IncrementalCompiler is required.
  */
 public interface ZincCompilerUtil {
     /**
-     * @return Return the default implementation of {@link IncrementalCompiler}.
+     * @return Return the default implementation of IncrementalCompiler.
      */
     public static IncrementalCompiler defaultIncrementalCompiler() {
         return sbt.internal.inc.ZincUtil.defaultIncrementalCompiler();

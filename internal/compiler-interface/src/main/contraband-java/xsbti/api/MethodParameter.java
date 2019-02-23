@@ -12,7 +12,6 @@ public final class MethodParameter implements java.io.Serializable {
     public static MethodParameter of(String _name, Type _tpe, boolean _hasDefault, ParameterModifier _modifier) {
         return new MethodParameter(_name, _tpe, _hasDefault, _modifier);
     }
-    
     private String name;
     private Type tpe;
     private boolean hasDefault;
@@ -24,6 +23,7 @@ public final class MethodParameter implements java.io.Serializable {
         hasDefault = _hasDefault;
         modifier = _modifier;
     }
+    
     public String name() {
         return this.name;
     }

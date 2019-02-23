@@ -56,14 +56,14 @@ object LoggedReporter {
 }
 
 /**
- * Defines a logger that uses event logging provided by a [[ManagedLogger]].
+ * Defines a logger that uses event logging provided by a ManagedLogger.
  *
  * This functionality can be use by anyone that wants to get support for event
  * logging and use an underlying, controlled logger under the hood.
  *
  * The [[ManagedLoggedReporter]] exists for those users that do not want to set
  * up the passed logger. Event logging requires registration of codects to
- * serialize and deserialize [[Problem]]s. This reporter makes sure to initialize
+ * serialize and deserialize `Problem`s. This reporter makes sure to initialize
  * the managed logger so that users do not need to take care of this cumbersome process.
  *
  * @param maximumErrors The maximum errors.
@@ -121,11 +121,15 @@ class LoggedReporter(
 
   override def log(problem0: Problem): Unit = {
     import sbt.util.InterfaceUtil
-    val (category, position, message, severity) =
-      (problem0.category, problem0.position, problem0.message, problem0.severity)
+    val (category, position, message, severity, rendered) =
+      (problem0.category, problem0.position, problem0.message, problem0.severity, problem0.rendered)
     // Note: positions in reported errors can be fixed with `sourcePositionMapper`.
     val transformedPos: Position = sourcePositionMapper(position)
-    val problem = InterfaceUtil.problem(category, transformedPos, message, severity)
+    val problem = InterfaceUtil.problem(category,
+                                        transformedPos,
+                                        message,
+                                        severity,
+                                        InterfaceUtil.jo2o(rendered))
     allProblems += problem
     severity match {
       case Warn | Error =>

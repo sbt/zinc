@@ -12,7 +12,6 @@ public final class Def extends xsbti.api.ParameterizedDefinition {
     public static Def of(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters, ParameterList[] _valueParameters, Type _returnType) {
         return new Def(_name, _access, _modifiers, _annotations, _typeParameters, _valueParameters, _returnType);
     }
-    
     private ParameterList[] valueParameters;
     private Type returnType;
     protected Def(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters, ParameterList[] _valueParameters, Type _returnType) {
@@ -20,6 +19,7 @@ public final class Def extends xsbti.api.ParameterizedDefinition {
         valueParameters = _valueParameters;
         returnType = _returnType;
     }
+    
     public ParameterList[] valueParameters() {
         return this.valueParameters;
     }

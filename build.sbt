@@ -9,7 +9,7 @@ def mimaSettings: Seq[Setting[_]] = Seq(
   mimaPreviousArtifacts := Set(
     "1.0.0", "1.0.1", "1.0.2", "1.0.3", "1.0.4", "1.0.5",
     "1.1.0", "1.1.1", "1.1.2", "1.1.3",
-    "1.2.0",
+    "1.2.0", "1.2.1", "1.2.2",
   ) map (version =>
     organization.value %% moduleName.value % version
       cross (if (crossPaths.value) CrossVersion.binary else CrossVersion.disabled)
@@ -17,7 +17,7 @@ def mimaSettings: Seq[Setting[_]] = Seq(
 )
 
 def buildLevelSettings: Seq[Setting[_]] = Seq(
-  git.baseVersion := "1.2.1",
+  git.baseVersion := "1.3.0",
   // https://github.com/sbt/sbt-git/issues/109
   // Workaround from https://github.com/sbt/sbt-git/issues/92#issuecomment-161853239
   git.gitUncommittedChanges := {
@@ -57,7 +57,7 @@ def buildLevelSettings: Seq[Setting[_]] = Seq(
   homepage := Some(url("https://github.com/sbt/zinc")),
   developers +=
     Developer("jvican", "Jorge Vicente Cantero", "@jvican", url("https://github.com/jvican")),
-  scalafmtOnCompile in Sbt := false,
+  scalafmtOnCompile := true,
 )
 
 def commonSettings: Seq[Setting[_]] = Seq(
@@ -90,8 +90,6 @@ def compilerVersionDependentScalacOptions: Seq[Setting[_]] = Seq(
         old filterNot Set(
           "-Xfatal-warnings",
           "-deprecation",
-          "-Ywarn-unused",
-          "-Ywarn-unused-import",
           "-YdisableFlatCpCaching",
         )
     }
@@ -201,7 +199,16 @@ lazy val zincPersist = (project in internalPath / "zinc-persist")
   .settings(
     name := "zinc Persist",
     libraryDependencies += sbinary,
+    libraryDependencies ++= (scalaVersion.value match {
+      case v if v.startsWith("2.12.") => List(compilerPlugin(silencerPlugin))
+      case _                          => List()
+    }),
     compileOrder := sbt.CompileOrder.Mixed,
+    Compile / scalacOptions ++= (scalaVersion.value match {
+      case VersionNumber(Seq(2, 12, _*), _, _) =>
+        List("-Ywarn-unused:-imports,-locals,-implicits,-explicits,-privates")
+      case _ => Nil
+    }),
     PB.targets in Compile := List(scalapb.gen() -> (sourceManaged in Compile).value),
     mimaSettings,
     mimaBinaryIssueFilters ++= {
@@ -221,6 +228,8 @@ lazy val zincPersist = (project in internalPath / "zinc-persist")
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.AnalyzedClass.this"),
         exclude[ReversedMissingMethodProblem]("sbt.internal.inc.schema.Version.isV11"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufReaders.this"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Problem.*"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Problem#ProblemLens.rendered"),
 
         // Added {start,end}{Offset,Line,Column}
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Position.apply"),
@@ -356,7 +365,7 @@ lazy val zincCompileCore = (project in internalPath / "zinc-compile-core")
         // PositionImpl is a private class only invoked in the same source.
         exclude[FinalClassProblem]("sbt.internal.inc.javac.DiagnosticsReporter$PositionImpl"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.javac.DiagnosticsReporter#PositionImpl.this"),
-
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.javac.JavaProblem.rendered"),
 
         // Renamed vals in a private[sbt] class
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.javac.DiagnosticsReporter#PositionImpl.endPosition"),
@@ -472,6 +481,13 @@ lazy val compilerBridgeTemplate: Project = (project in internalPath / "compiler-
     baseSettings,
     noSourcesForTemplate,
     compilerVersionDependentScalacOptions,
+    // We need this for import Compat._
+    Compile / scalacOptions --= Seq("-Ywarn-unused-import", "-Xfatal-warnings"),
+    Compile / scalacOptions ++= (scalaVersion.value match {
+      case VersionNumber(Seq(2, 12, _*), _, _) =>
+        List("-Ywarn-unused:-imports,-locals,-implicits,-explicits,-privates")
+      case _ => Nil
+    }),
     libraryDependencies += scalaCompiler.value % "provided",
     autoScalaLibrary := false,
     // precompiledSettings,
@@ -721,6 +737,7 @@ lazy val zincScripted = (project in internalPath / "zinc-scripted")
     minimalSettings,
     noPublish,
     name := "zinc Scripted",
+    libraryDependencies ++= log4jDependencies,
     // Only generate build info for tests
     buildInfo in Compile := Nil,
     buildInfoPackage in Test := "sbt.internal.inc",

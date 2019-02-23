@@ -354,7 +354,6 @@ case class BenchmarkProject(
   }
 
   // Left for compatibility
-  import ZincBenchmark.TryEnrich
   def writeBuildInfo(projectDir: File, sharedDir: File): WriteBuildInfo = {
     def persistBuildInfo(subproject: String, stateFile: File): Result[Unit] = {
       val filename = CompilationInfo.generateOutputFile(subproject)

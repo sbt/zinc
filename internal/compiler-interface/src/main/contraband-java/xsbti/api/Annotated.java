@@ -12,7 +12,6 @@ public final class Annotated extends xsbti.api.Type {
     public static Annotated of(Type _baseType, Annotation[] _annotations) {
         return new Annotated(_baseType, _annotations);
     }
-    
     private Type baseType;
     private Annotation[] annotations;
     protected Annotated(Type _baseType, Annotation[] _annotations) {
@@ -20,6 +19,7 @@ public final class Annotated extends xsbti.api.Type {
         baseType = _baseType;
         annotations = _annotations;
     }
+    
     public Type baseType() {
         return this.baseType;
     }

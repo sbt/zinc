@@ -20,7 +20,7 @@ import xsbti.api.DependencyContext
 import xsbti.api.DependencyContext._
 import sbt.io.IO
 import sbt.util.Logger
-import xsbti.compile.{ Output, SingleOutput }
+import xsbti.compile.Output
 
 private[sbt] object Analyze {
   def apply[T](newClasses: Seq[File],

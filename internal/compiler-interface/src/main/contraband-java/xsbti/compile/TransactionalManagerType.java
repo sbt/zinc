@@ -17,7 +17,6 @@ public final class TransactionalManagerType extends xsbti.compile.ClassFileManag
     public static TransactionalManagerType of(java.io.File _backupDirectory, xsbti.Logger _logger) {
         return new TransactionalManagerType(_backupDirectory, _logger);
     }
-    
     private java.io.File backupDirectory;
     private xsbti.Logger logger;
     protected TransactionalManagerType(java.io.File _backupDirectory, xsbti.Logger _logger) {
@@ -25,6 +24,7 @@ public final class TransactionalManagerType extends xsbti.compile.ClassFileManag
         backupDirectory = _backupDirectory;
         logger = _logger;
     }
+    
     public java.io.File backupDirectory() {
         return this.backupDirectory;
     }

@@ -12,7 +12,7 @@ import java.util.Optional;
 /**
  * Defines utilities to get classfile managers from the types.
  * <p>
- * One can have access to the classfile manager types from {@link IncOptions}.
+ * One can have access to the classfile manager types from IncOptions.
  */
 public final class ClassFileManagerUtil {
     /**

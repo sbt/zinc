@@ -12,7 +12,6 @@ public final class FileHash implements java.io.Serializable {
     public static FileHash of(java.io.File _file, int _hash) {
         return new FileHash(_file, _hash);
     }
-    
     private java.io.File file;
     private int hash;
     protected FileHash(java.io.File _file, int _hash) {
@@ -20,6 +19,7 @@ public final class FileHash implements java.io.Serializable {
         file = _file;
         hash = _hash;
     }
+    
     public java.io.File file() {
         return this.file;
     }

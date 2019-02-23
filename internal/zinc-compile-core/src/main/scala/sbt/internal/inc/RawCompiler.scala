@@ -31,7 +31,7 @@ class RawCompiler(val scalaInstance: XScalaInstance, cp: ClasspathOptions, log: 
    * Run the compiler with the usual compiler inputs.
    *
    * This method supports both Scalac and Dotty. To use a concrete compiler,
-   * you need to pass the [[ScalaInstance]] associated with it.
+   * you need to pass the `ScalaInstance` associated with it.
    *
    * @param sources The sources to be compiled.
    * @param classpath The classpath to be used at compile time.
@@ -43,7 +43,7 @@ class RawCompiler(val scalaInstance: XScalaInstance, cp: ClasspathOptions, log: 
             outputDirectory: File,
             options: Seq[String]): Unit = {
 
-    /** Run the compiler and get the reporter attached to it. */
+    // Run the compiler and get the reporter attached to it.
     def getReporter(fqn: String, args: Array[String], isDotty: Boolean): AnyRef = {
       val mainClass = Class.forName(fqn, true, scalaInstance.loader)
       val process = mainClass.getMethod("process", classOf[Array[String]])
@@ -81,8 +81,8 @@ class RawCompiler(val scalaInstance: XScalaInstance, cp: ClasspathOptions, log: 
   }
 
   /**
-   * Return the correct compiler arguments for the given [[ScalaInstance]]
-   * and [[ClasspathOptions]]. Keep in mind that these compiler arguments are
+   * Return the correct compiler arguments for the given `ScalaInstance`
+   * and `ClasspathOptions`. Keep in mind that these compiler arguments are
    * specific to a concrete Scala version.
    */
   def compilerArguments = new CompilerArguments(scalaInstance, cp)

@@ -14,15 +14,15 @@ import java.io.File
 
 /**
  * Define helpers to create [[CompileOutput]] to pass to the incremental
- * compiler. Both [[SingleOutput]] and [[MultipleOutput]] are supported.
+ * compiler. Both `SingleOutput` and `MultipleOutput` are supported.
  */
 object CompileOutput {
 
   /**
-   * Create a [[SingleOutput]].
+   * Create a `SingleOutput`.
    *
    * @param dir The directory where you want the compiler to store class files.
-   * @return An instance of [[SingleOutput]] that stores contents in <code>dir</code>.
+   * @return An instance of `SingleOutput` that stores contents in <code>dir</code>.
    */
   def apply(dir: File): Output = new SingleOutput {
     def getOutputDirectory = dir
@@ -30,11 +30,11 @@ object CompileOutput {
   }
 
   /**
-   * Create a [[MultipleOutput]]. This method is useful when you want to
+   * Create a `MultipleOutput`. This method is useful when you want to
    * compile several sources and store them in different output directories.
    *
    * @param groups A collection of tuples mapping from a source dir to an output dir.
-   * @return An instance of [[MultipleOutput]].
+   * @return An instance of `MultipleOutput`.
    */
   def apply(groups: (File, File)*): Output = new MultipleOutput {
     def getOutputGroups = groups.toArray map {

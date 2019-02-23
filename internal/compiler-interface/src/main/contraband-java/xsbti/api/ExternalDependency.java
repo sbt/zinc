@@ -12,7 +12,6 @@ public final class ExternalDependency implements java.io.Serializable {
     public static ExternalDependency of(String _sourceClassName, String _targetProductClassName, xsbti.api.AnalyzedClass _targetClass, xsbti.api.DependencyContext _context) {
         return new ExternalDependency(_sourceClassName, _targetProductClassName, _targetClass, _context);
     }
-    
     private String sourceClassName;
     private String targetProductClassName;
     private xsbti.api.AnalyzedClass targetClass;
@@ -24,6 +23,7 @@ public final class ExternalDependency implements java.io.Serializable {
         targetClass = _targetClass;
         context = _context;
     }
+    
     public String sourceClassName() {
         return this.sourceClassName;
     }

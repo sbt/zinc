@@ -12,12 +12,12 @@ public final class IdQualifier extends xsbti.api.Qualifier {
     public static IdQualifier of(String _value) {
         return new IdQualifier(_value);
     }
-    
     private String value;
     protected IdQualifier(String _value) {
         super();
         value = _value;
     }
+    
     public String value() {
         return this.value;
     }

@@ -12,12 +12,12 @@ public final class TypeAlias extends xsbti.api.TypeMember {
     public static TypeAlias of(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters, Type _tpe) {
         return new TypeAlias(_name, _access, _modifiers, _annotations, _typeParameters, _tpe);
     }
-    
     private Type tpe;
     protected TypeAlias(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters, Type _tpe) {
         super(_name, _access, _modifiers, _annotations, _typeParameters);
         tpe = _tpe;
     }
+    
     public Type tpe() {
         return this.tpe;
     }

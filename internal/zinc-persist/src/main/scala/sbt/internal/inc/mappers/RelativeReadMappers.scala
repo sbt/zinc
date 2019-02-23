@@ -14,7 +14,6 @@ import xsbti.compile.MiniSetup
 import xsbti.compile.analysis.{ ReadMapper, RootPaths, Stamp }
 
 // Please see docs about the implementation in the WriteMapper interface
-/** @inheritdoc */
 final class NaiveRelativeReadMapper(rootProjectPath: Path) extends ReadMapper {
   private def reconstructRelative(file: File): File =
     MapperUtils.reconstructRelative(file, rootProjectPath)

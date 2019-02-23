@@ -12,7 +12,6 @@ public final class Existential extends xsbti.api.Type {
     public static Existential of(Type _baseType, TypeParameter[] _clause) {
         return new Existential(_baseType, _clause);
     }
-    
     private Type baseType;
     private TypeParameter[] clause;
     protected Existential(Type _baseType, TypeParameter[] _clause) {
@@ -20,6 +19,7 @@ public final class Existential extends xsbti.api.Type {
         baseType = _baseType;
         clause = _clause;
     }
+    
     public Type baseType() {
         return this.baseType;
     }

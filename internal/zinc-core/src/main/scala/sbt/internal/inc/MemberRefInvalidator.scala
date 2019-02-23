@@ -82,7 +82,7 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
   }
 
   // Left for compatibility
-  private class InvalidateDueToMacroDefinition(memberRef: Relation[String, String])
+  private[inc] class InvalidateDueToMacroDefinition(memberRef: Relation[String, String])
       extends (String => Set[String]) {
     def apply(from: String): Set[String] = {
       val invalidated = memberRef.reverse(from)

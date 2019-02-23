@@ -18,8 +18,8 @@ import sbt.io.syntax._
 
 /**
  * Construct the list of compiler arguments that are passed to the Scala
- * compiler based on the current [[xsbti.compile.ScalaInstance]] and the
- * user-defined [[xsbti.compile.ClasspathOptions]].
+ * compiler based on the current `xsbti.compile.ScalaInstance` and the
+ * user-defined `xsbti.compile.ClasspathOptions`.
  *
  * This is required because Scala compiler arguments change depending on
  * the Scala version, e.g. the jars for the Scala library and the Scala
@@ -70,7 +70,9 @@ final class CompilerArguments(
   def finishClasspath(classpath: Seq[File]): Seq[File] = {
     val filteredClasspath = filterLibrary(classpath)
     val extraCompiler = include(cpOptions.compiler, scalaInstance.compilerJar)
-    val extraClasspath = include(cpOptions.extra, scalaInstance.otherJars(): _*)
+    val otherJars = scalaInstance.allJars().toList diff List(scalaInstance.compilerJar,
+                                                             scalaInstance.libraryJar)
+    val extraClasspath = include(cpOptions.extra, otherJars: _*)
     filteredClasspath ++ extraCompiler ++ extraClasspath
   }
 

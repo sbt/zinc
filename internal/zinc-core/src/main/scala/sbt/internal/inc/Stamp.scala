@@ -23,7 +23,7 @@ import scala.util.matching.Regex
  * Provides a richer interface to read and write stamps associated with files.
  *
  * This interface is meant for internal use and is Scala idiomatic. It implements the
- * Java interface [[ReadStamps]] that is exposed in the [[xsbti.compile.CompileAnalysis]].
+ * Java interface `ReadStamps` that is exposed in the `xsbti.compile.CompileAnalysis`.
  */
 trait Stamps extends ReadStamps {
   def allSources: collection.Set[File]

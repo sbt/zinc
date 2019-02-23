@@ -12,7 +12,6 @@ public final class ReporterConfig implements java.io.Serializable {
     public static ReporterConfig of(String _loggerName, int _maximumErrors, boolean _useColor, java.util.function.Function<String, Boolean>[] _msgFilters, java.util.function.Function<java.nio.file.Path, Boolean>[] _fileFilters, java.util.logging.Level _logLevel, java.util.function.Function<Position, Position> _positionMapper) {
         return new ReporterConfig(_loggerName, _maximumErrors, _useColor, _msgFilters, _fileFilters, _logLevel, _positionMapper);
     }
-    
     private String loggerName;
     private int maximumErrors;
     private boolean useColor;
@@ -30,6 +29,7 @@ public final class ReporterConfig implements java.io.Serializable {
         logLevel = _logLevel;
         positionMapper = _positionMapper;
     }
+    
     public String loggerName() {
         return this.loggerName;
     }

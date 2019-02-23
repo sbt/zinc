@@ -12,12 +12,12 @@ public final class Package implements java.io.Serializable {
     public static Package of(String _name) {
         return new Package(_name);
     }
-    
     private String name;
     protected Package(String _name) {
         super();
         name = _name;
     }
+    
     public String name() {
         return this.name;
     }

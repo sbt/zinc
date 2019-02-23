@@ -39,8 +39,7 @@ object ScriptedRunnerImpl {
     val scriptedTests = get(tests, resourceBaseDirectory, globalLogger)
     val scriptedRunners = runner.batchScriptedRunner(scriptedTests, instances)
     val parallelRunners = scriptedRunners.toParArray
-    // Using this deprecated value for 2.11 support
-    val pool = new scala.concurrent.forkjoin.ForkJoinPool(instances)
+    val pool = new java.util.concurrent.ForkJoinPool(instances)
     parallelRunners.tasksupport = new scala.collection.parallel.ForkJoinTaskSupport(pool)
     runAllInParallel(parallelRunners)
     globalLogger.info(s"Log files can be found at ${logsDir.getAbsolutePath}")

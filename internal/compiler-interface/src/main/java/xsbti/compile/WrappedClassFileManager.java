@@ -16,14 +16,11 @@ import java.util.Optional;
  * other one being the external classfile manager (a customizable, build tool-defined
  * class file manager to control which class files should be notified/removed/generated
  * aside from the ones covered by the internal classfile manager).
- *
- * @param internal Compiler classfile manager.
- * @param external Build tool (or external) classfile manager the complements the internal one.
  */
 public class WrappedClassFileManager implements ClassFileManager {
   private ClassFileManager internal;
   private Optional<ClassFileManager> external;
-  
+
   public static WrappedClassFileManager of(ClassFileManager internal, Optional<ClassFileManager> external) {
       return new WrappedClassFileManager(internal, external);
   }

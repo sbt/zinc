@@ -13,7 +13,6 @@ public final class CompileResult implements java.io.Serializable {
     public static CompileResult of(xsbti.compile.CompileAnalysis _analysis, xsbti.compile.MiniSetup _setup, boolean _hasModified) {
         return new CompileResult(_analysis, _setup, _hasModified);
     }
-    
     private xsbti.compile.CompileAnalysis analysis;
     private xsbti.compile.MiniSetup setup;
     private boolean hasModified;
@@ -23,6 +22,7 @@ public final class CompileResult implements java.io.Serializable {
         setup = _setup;
         hasModified = _hasModified;
     }
+    
     public xsbti.compile.CompileAnalysis analysis() {
         return this.analysis;
     }

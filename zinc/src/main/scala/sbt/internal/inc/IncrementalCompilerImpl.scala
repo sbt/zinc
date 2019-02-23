@@ -23,21 +23,21 @@ import sbt.internal.inc.MiniSetupUtil._
 class IncrementalCompilerImpl extends IncrementalCompiler {
 
   /**
-   * Performs an incremental compilation based on [[xsbti.compile.Inputs]].
+   * Performs an incremental compilation based on xsbti.compile.Inputs.
    *
-   * This is a Scala implementation of [[xsbti.compile.IncrementalCompiler]],
+   * This is a Scala implementation of xsbti.compile.IncrementalCompiler,
    * check the docs for more information on the specification of this method.
    *
-   * @param in An instance of [[xsbti.compile.Inputs]] that collect all the
+   * @param in An instance of xsbti.compile.Inputs that collect all the
    *           inputs required to run the compiler (from sources and classpath,
    *           to compilation order, previous results, current setup, etc).
-   * @param logger An instance of [[xsbti.Logger]] to log Zinc output.
+   * @param logger An instance of `xsbti.Logger` to log Zinc output.
    *
-   * @return An instance of [[xsbti.compile.CompileResult]] that holds
+   * @return An instance of `xsbti.compile.CompileResult` that holds
    *         information about the results of the compilation. The returned
-   *         [[xsbti.compile.CompileResult]] must be used for subsequent
+   *         `xsbti.compile.CompileResult` must be used for subsequent
    *         compilations that depend on the same inputs, check its api and its
-   *         field [[xsbti.compile.CompileAnalysis]].
+   *         field `xsbti.compile.CompileAnalysis`.
    */
   override def compile(in: Inputs, logger: Logger): CompileResult = {
     val config = in.options()
@@ -72,16 +72,16 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
 
   /**
    *
-   * Performs an incremental compilation based on [[xsbti.compile.Inputs]].
+   * Performs an incremental compilation based on xsbti.compile.Inputs.
    *
-   * This is a Scala implementation of [[xsbti.compile.IncrementalCompiler]],
+   * This is a Scala implementation of xsbti.compile.IncrementalCompiler,
    * check the docs for more information on the specification of this method.
    *
    * @param scalaCompiler The Scala compiler to compile Scala sources.
    * @param javaCompiler The Java compiler to compile Java sources.
    * @param sources An array of Java and Scala source files to be compiled.
    * @param classpath An array of files representing classpath entries.
-   * @param output An instance of [[Output]] to store the compiler outputs.
+   * @param output An instance of `Output` to store the compiler outputs.
    * @param cache                   Directory where previous cached compilers are stored.
    * @param scalaOptions            An array of options/settings for the Scala compiler.
    * @param javaOptions             An array of options for the Java compiler.
@@ -89,23 +89,23 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
    * @param previousSetup           Optional previous incremental compilation setup.
    * @param perClasspathEntryLookup Lookup of data structures and operations
    *                                for a given classpath entry.
-   * @param reporter                An instance of [[Reporter]] to report compiler output.
+   * @param reporter                An instance of `Reporter` to report compiler output.
    * @param compileOrder            The order in which Java and Scala sources should
    *                                be compiled.
    * @param skip                    Flag to ignore this compilation run and return previous one.
-   * @param progress                An instance of [[CompileProgress]] to keep track of
+   * @param progress                An instance of `CompileProgress` to keep track of
    *                                the current compilation progress.
-   * @param incrementalOptions      An Instance of [[IncOptions]] that configures
+   * @param incrementalOptions      An Instance of `IncOptions` that configures
    *                                the incremental compiler behaviour.
    * @param temporaryClassesDirectory A directory where incremental compiler
    *                                  will put temporary class files or jars.
    * @param extra                   An array of sbt tuples with extra options.
-   * @param logger An instance of [[Logger]] that logs Zinc output.
-   * @return An instance of [[xsbti.compile.CompileResult]] that holds
+   * @param logger An instance of `Logger` that logs Zinc output.
+   * @return An instance of `xsbti.compile.CompileResult` that holds
    *         information about the results of the compilation. The returned
-   *         [[xsbti.compile.CompileResult]] must be used for subsequent
+   *         `xsbti.compile.CompileResult` must be used for subsequent
    *         compilations that depend on the same inputs, check its api and its
-   *         field [[xsbti.compile.CompileAnalysis]].
+   *         field `xsbti.compile.CompileAnalysis`.
    */
   override def compile(
       scalaCompiler: xsbti.compile.ScalaCompiler,

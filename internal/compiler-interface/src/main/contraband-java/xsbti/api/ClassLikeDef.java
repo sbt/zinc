@@ -12,12 +12,12 @@ public final class ClassLikeDef extends xsbti.api.ParameterizedDefinition {
     public static ClassLikeDef of(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters, DefinitionType _definitionType) {
         return new ClassLikeDef(_name, _access, _modifiers, _annotations, _typeParameters, _definitionType);
     }
-    
     private DefinitionType definitionType;
     protected ClassLikeDef(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters, DefinitionType _definitionType) {
         super(_name, _access, _modifiers, _annotations, _typeParameters);
         definitionType = _definitionType;
     }
+    
     public DefinitionType definitionType() {
         return this.definitionType;
     }

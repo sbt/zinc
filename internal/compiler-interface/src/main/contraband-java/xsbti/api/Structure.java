@@ -12,7 +12,6 @@ public final class Structure extends xsbti.api.Type {
     public static Structure of(xsbti.api.Lazy<Type[]> _parents, xsbti.api.Lazy<ClassDefinition[]> _declared, xsbti.api.Lazy<ClassDefinition[]> _inherited) {
         return new Structure(_parents, _declared, _inherited);
     }
-    
     private xsbti.api.Lazy<Type[]> parents;
     private xsbti.api.Lazy<ClassDefinition[]> declared;
     private xsbti.api.Lazy<ClassDefinition[]> inherited;
@@ -22,6 +21,7 @@ public final class Structure extends xsbti.api.Type {
         declared = _declared;
         inherited = _inherited;
     }
+    
     public Type[] parents() {
         return this.parents.get();
     }

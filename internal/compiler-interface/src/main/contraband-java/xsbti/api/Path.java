@@ -12,12 +12,12 @@ public final class Path implements java.io.Serializable {
     public static Path of(PathComponent[] _components) {
         return new Path(_components);
     }
-    
     private PathComponent[] components;
     protected Path(PathComponent[] _components) {
         super();
         components = _components;
     }
+    
     public PathComponent[] components() {
         return this.components;
     }

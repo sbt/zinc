@@ -13,14 +13,8 @@ public final class MiniOptions implements java.io.Serializable {
     public static MiniOptions of(FileHash[] _classpathHash, String[] _scalacOptions, String[] _javacOptions) {
         return new MiniOptions(_classpathHash, _scalacOptions, _javacOptions);
     }
-    /**
-     * The classpath to use for compilation.
-     * This will be modified according to the ClasspathOptions used to configure the ScalaCompiler.
-     */
     private FileHash[] classpathHash;
-    /** The options to pass to the Scala compiler other than the sources and classpath to use. */
     private String[] scalacOptions;
-    /** The options to pass to the Java compiler other than the sources and classpath to use. */
     private String[] javacOptions;
     protected MiniOptions(FileHash[] _classpathHash, String[] _scalacOptions, String[] _javacOptions) {
         super();
@@ -28,12 +22,18 @@ public final class MiniOptions implements java.io.Serializable {
         scalacOptions = _scalacOptions;
         javacOptions = _javacOptions;
     }
+    /**
+     * The classpath to use for compilation.
+     * This will be modified according to the ClasspathOptions used to configure the ScalaCompiler.
+     */
     public FileHash[] classpathHash() {
         return this.classpathHash;
     }
+    /** The options to pass to the Scala compiler other than the sources and classpath to use. */
     public String[] scalacOptions() {
         return this.scalacOptions;
     }
+    /** The options to pass to the Java compiler other than the sources and classpath to use. */
     public String[] javacOptions() {
         return this.javacOptions;
     }

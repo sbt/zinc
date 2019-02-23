@@ -12,8 +12,6 @@ import xsbti.compile.Output
 import scala.runtime.ScalaRunTime
 
 /**
- * @inheritdoc
- *
  * Note that this implementation of the interface is part of the public Zinc Scala API.
  */
 final class Compilation(startTime: Long, output: Output)

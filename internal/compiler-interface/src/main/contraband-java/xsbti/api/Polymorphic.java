@@ -12,7 +12,6 @@ public final class Polymorphic extends xsbti.api.Type {
     public static Polymorphic of(Type _baseType, TypeParameter[] _parameters) {
         return new Polymorphic(_baseType, _parameters);
     }
-    
     private Type baseType;
     private TypeParameter[] parameters;
     protected Polymorphic(Type _baseType, TypeParameter[] _parameters) {
@@ -20,6 +19,7 @@ public final class Polymorphic extends xsbti.api.Type {
         baseType = _baseType;
         parameters = _parameters;
     }
+    
     public Type baseType() {
         return this.baseType;
     }

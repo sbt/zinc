@@ -2,7 +2,6 @@ package xsbti
 
 import java.io.File
 import java.util
-import java.util.Optional
 
 import xsbti.api.{ DependencyContext, ClassLike }
 

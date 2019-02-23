@@ -11,7 +11,7 @@ import java.util.function.Supplier
 
 /**
  * Proxy `SafeLazy` functionality from the Java implementation
- * implementation in [[xsbt.api.SafeLazy]] to Scala helpers.
+ * implementation in xsbt.api.SafeLazy to Scala helpers.
  *
  * The implementation of these helpers are not reused between each
  * other because they create intermediate anonymous functions and

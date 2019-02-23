@@ -8,7 +8,7 @@
 package xsbti.compile;
 
 /**
- * Defines helpers to create {@link GlobalsCache}.
+ * Defines helpers to create GlobalsCache.
  */
 public interface CompilerCache {
     /**

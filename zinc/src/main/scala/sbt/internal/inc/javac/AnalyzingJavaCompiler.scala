@@ -24,9 +24,9 @@ import sbt.util.Logger
 
 /**
  * Define a Java compiler that reports on any discovered source dependencies or
- * APIs found via the incremental compilation and [[AnalysisCallback]].
+ * APIs found via the incremental compilation and `AnalysisCallback`.
  *
- * Note that this compiler does not implement a [[CachedCompilerProvider]]
+ * Note that this compiler does not implement a `CachedCompilerProvider`
  * because the Java compiler can easily be initialized via reflection.
  *
  * @param javac An instance of a Java compiler.
@@ -160,7 +160,7 @@ final class AnalyzingJavaCompiler private[sbt] (
         }
       }
 
-      /** Read the API information from [[Class]] to analyze dependencies. */
+      // Read the API information from [[Class]] to analyze dependencies.
       def readAPI(source: File, classes: Seq[Class[_]]): Set[(String, String)] = {
         val (apis, mainClasses, inherits) = ClassToAPI.process(classes)
         apis.foreach(callback.api(source, _))
@@ -205,7 +205,7 @@ final class AnalyzingJavaCompiler private[sbt] (
 
   /**
    * Compile some java code using the current configured compiler. This
-   * implements a method from [[JavaCompiler]] that will **not** perform
+   * implements a method from `JavaCompiler` that will **not** perform
    * incremental compilation of any way.
    *
    * @note Don't use if you want incremental compilation.

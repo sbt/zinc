@@ -61,7 +61,7 @@ import static sbt.internal.inc.zip.ZipUtils.*;
  */
 
 /**
- * Modified implementation of [[com.sun.nio.zipfs.ZipFileSystem]] that allows to:
+ * Modified implementation of com.sun.nio.zipfs.ZipFileSystem that allows to:
  * read index (central directory), modify it and write at specified offset.
  *
  * The changes focus on making public whatever is required and remove what is not.

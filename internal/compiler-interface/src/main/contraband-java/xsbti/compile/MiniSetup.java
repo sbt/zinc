@@ -13,7 +13,6 @@ public final class MiniSetup implements java.io.Serializable {
     public static MiniSetup of(xsbti.compile.Output _output, xsbti.compile.MiniOptions _options, String _compilerVersion, xsbti.compile.CompileOrder _order, boolean _storeApis, xsbti.T2<String, String>[] _extra) {
         return new MiniSetup(_output, _options, _compilerVersion, _order, _storeApis, _extra);
     }
-    
     private xsbti.compile.Output output;
     private xsbti.compile.MiniOptions options;
     private String compilerVersion;
@@ -29,6 +28,7 @@ public final class MiniSetup implements java.io.Serializable {
         storeApis = _storeApis;
         extra = _extra;
     }
+    
     public xsbti.compile.Output output() {
         return this.output;
     }

@@ -4,11 +4,11 @@ import sbt.contraband.ContrabandPlugin.autoImport._
 object Dependencies {
   val scala210 = "2.10.7"
   val scala211 = "2.11.12"
-  val scala212 = "2.12.7"
+  val scala212 = "2.12.8"
   val scala213 = "2.13.0-M5"
 
   private val ioVersion = "1.3.0-M4"
-  private val utilVersion = "1.2.1"
+  private val utilVersion = "1.3.0-M4"
   private val lmVersion = "1.2.0"
 
   private val sbtIO = "org.scala-sbt" %% "io" % ioVersion
@@ -77,6 +77,7 @@ object Dependencies {
 
   val parserCombinator = "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.5"
   val sbinary = "org.scala-sbt" %% "sbinary" % "0.4.4"
+  val silencerPlugin = "com.github.ghik" %% "silencer-plugin" % "1.2"
   val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.14.0"
   val scalatest = "org.scalatest" %% "scalatest" % "3.0.5"
   val junit = "junit" % "junit" % "4.11"
@@ -86,6 +87,13 @@ object Dependencies {
   val sjsonnewScalaJson = Def.setting {
     "com.eed3si9n" %% "sjson-new-scalajson" % contrabandSjsonNewVersion.value
   }
+
+  def log4jVersion = "2.11.2"
+  val log4jApi = "org.apache.logging.log4j" % "log4j-api" % log4jVersion
+  val log4jCore = "org.apache.logging.log4j" % "log4j-core" % log4jVersion
+  val log4jSlf4jImpl = "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion
+  // specify all of log4j modules to prevent misalignment
+  val log4jDependencies = Vector(log4jApi, log4jCore, log4jSlf4jImpl)
 
   def addTestDependencies(p: Project): Project =
     p.settings(
