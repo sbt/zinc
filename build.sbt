@@ -737,6 +737,7 @@ lazy val zincScripted = (project in internalPath / "zinc-scripted")
     minimalSettings,
     noPublish,
     name := "zinc Scripted",
+    libraryDependencies ++= log4jDependencies,
     // Only generate build info for tests
     buildInfo in Compile := Nil,
     buildInfoPackage in Test := "sbt.internal.inc",
