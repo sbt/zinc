@@ -198,7 +198,7 @@ class ZincInvalidationProfiler extends InvalidationProfiler {
 
 /**
  * Defines the interface of a profiler. This interface is used in the guts of
- * [[IncrementalCommon]] and [[IncrementalNameHashing]]. A profiler of a run
+ * `IncrementalCommon` and `IncrementalNameHashing`. A profiler of a run
  * is instantiated afresh in `Incremental.compile` and then added to the profiler
  * instance managed by the client.
  */

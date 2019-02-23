@@ -17,7 +17,7 @@ import sbt.internal.inc.classpath.ClasspathUtilities
 
 /**
  * A Scala instance encapsulates all the information that is bound to a concrete
- * Scala version, like the [[java.lang.ClassLoader loader]] or all the JARs
+ * Scala version, like the `java.lang.ClassLoader` or all the JARs
  * required for Scala compilation: library jar, compiler jar and others.
  *
  *

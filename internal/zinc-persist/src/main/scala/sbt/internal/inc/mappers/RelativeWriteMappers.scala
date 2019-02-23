@@ -14,7 +14,6 @@ import xsbti.compile.MiniSetup
 import xsbti.compile.analysis.{ RootPaths, Stamp, WriteMapper }
 
 // Please see docs about the implementation in the WriteMapper interface
-/** @inheritdoc */
 final class NaiveRelativeWriteMapper(rootProjectPath: Path) extends WriteMapper {
   private def makeRelative(file: File): File = MapperUtils.makeRelative(file, rootProjectPath)
 

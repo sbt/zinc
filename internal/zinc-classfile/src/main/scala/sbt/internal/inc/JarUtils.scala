@@ -12,7 +12,7 @@ import xsbti.compile.{ Output, SingleOutput }
  * This is a utility class that provides a set of functions that
  * are used to implement straight to jar compilation.
  *
- *  [[xsbt.JarUtils]] is a class that has similar purpose and
+ * xsbt.JarUtils is a class that has similar purpose and
  *  duplicates some of the code, as it is difficult to share it.
  */
 object JarUtils {
@@ -43,8 +43,8 @@ object JarUtils {
     }
 
     /**
-     * Wraps the string value inside a [[java.io.File]] object.
-     * File is needed to e.g. be compatible with [[xsbti.compile.analysis.ReadStamps]] interface.
+     * Wraps the string value inside a java.io.File object.
+     * File is needed to e.g. be compatible with `xsbti.compile.analysis.ReadStamps` interface.
      */
     def toFile: File = new File(toString)
 

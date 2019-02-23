@@ -8,7 +8,7 @@
 package xsbti.compile;
 
 /**
- * Abstract over the creation of {@link ClasspathOptions} by providing methods
+ * Abstract over the creation of `ClasspathOptions` by providing methods
  * that create typical classpath options based on the desired use-case.
  */
 public interface ClasspathOptionsUtil {

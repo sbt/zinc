@@ -12,27 +12,27 @@ import sbt.internal.inc.ConcreteAnalysisContents;
 /**
  * Defines an analysis file that contains information about every incremental compile.
  *
- * This information can be persisted using an {@link AnalysisStore}.
+ * This information can be persisted using an AnalysisStore.
  */
 public interface AnalysisContents {
     /**
-     * Returns an instance of {@link AnalysisContents} backed up by the default implementation.
+     * Returns an instance of AnalysisContents backed up by the default implementation.
      *
-     * @param analysis An instance of {@link CompileAnalysis}.
-     * @param setup An instance of {@link MiniSetup}.
-     * @return An instance of {@link AnalysisContents}.
+     * @param analysis An instance of CompileAnalysis.
+     * @param setup An instance of MiniSetup.
+     * @return An instance of AnalysisContents.
      */
     static AnalysisContents create(CompileAnalysis analysis, MiniSetup setup) {
         return new ConcreteAnalysisContents(analysis, setup);
     }
 
     /**
-     * @return An instance of {@link CompileAnalysis}.
+     * @return An instance of CompileAnalysis.
      */
     CompileAnalysis getAnalysis();
 
     /**
-     * @return An instance of {@link MiniSetup}.
+     * @return An instance of MiniSetup.
      */
     MiniSetup getMiniSetup();
 }

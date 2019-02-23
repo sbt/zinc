@@ -11,7 +11,7 @@ import java.io.File;
 
 /**
  * A Scala instance encapsulates all the information that is bound to a concrete
- * Scala version, like the {@link ClassLoader loader} or all the JARs required
+ * Scala version, like the ClassLoader or all the JARs required
  * for Scala compilation: library jar, compiler jar and others.
  *
  * Both a `ClassLoader` and the jars are required because the compiler's

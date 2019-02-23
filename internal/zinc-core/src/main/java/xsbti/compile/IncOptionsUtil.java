@@ -15,7 +15,7 @@ import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
- * Define a helper class to instantiate {@link IncOptions}.
+ * Define a helper class to instantiate IncOptions.
  */
 public class IncOptionsUtil {
   /*

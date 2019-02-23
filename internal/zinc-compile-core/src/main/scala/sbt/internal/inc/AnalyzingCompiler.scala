@@ -22,7 +22,7 @@ import xsbti.{ AnalysisCallback, Reporter, ReporterUtil, Logger => xLogger }
 import xsbti.compile._
 
 /**
- * Implement a cached incremental [[ScalaCompiler]] that has been instrumented
+ * Implement a cached incremental `ScalaCompiler` that has been instrumented
  * with the dependency analysis plugin to do incremental compilation.
  *
  * @param scalaInstance The Scala instance to be used for the compiler.
@@ -314,7 +314,7 @@ object AnalyzingCompiler {
     def keepIfSource(files: Set[File]): Set[File] =
       if (files.exists(isSource)) files else Set()
 
-    /** Generate jar from compilation dirs, the resources and a target name. */
+    // Generate jar from compilation dirs, the resources and a target name.
     def generateJar(outputDir: File, dir: File, resources: Seq[File], targetJar: File) = {
       import sbt.io.Path._
       copy(resources.pair(rebase(dir, outputDir)))
@@ -322,7 +322,7 @@ object AnalyzingCompiler {
       zip(toBeZipped, targetJar)
     }
 
-    /** Handle the compilation failure of the Scala compiler. */
+    // Handle the compilation failure of the Scala compiler.
     def handleCompilationError(compilation: => Unit) = {
       try compilation
       catch {

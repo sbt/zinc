@@ -658,10 +658,10 @@ object IncrementalCommon {
   }
 
   /**
-   * Find the external [[AnalyzedClass]] (from another analysis) given a class name.
+   * Find the external `AnalyzedClass` (from another analysis) given a class name.
    *
    * @param lookup An instance that provides access to classpath or external project queries.
-   * @return The [[AnalyzedClass]] associated with the given class name.
+   * @return The `AnalyzedClass` associated with the given class name.
    */
   def findExternalAnalyzedClass(lookup: Lookup)(binaryClassName: String): AnalyzedClass = {
     val maybeInternalAPI = for {

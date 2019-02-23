@@ -16,7 +16,7 @@ import sbt.internal.inc.classpath.ClassLoaderCache
 import xsbti.compile.{ JavaTools => XJavaTools, _ }
 
 /**
- * Define a private implementation of the static methods forwarded from [[ZincCompilerUtil]].
+ * Define a private implementation of the static methods forwarded from `ZincCompilerUtil`.
  */
 object ZincUtil {
 
@@ -31,7 +31,7 @@ object ZincUtil {
    * This Scala compiler is useful to create your own instance of incremental
    * compilation.
    *
-   * @see [[IncrementalCompiler]] for more details on creating your custom
+   * @see IncrementalCompiler for more details on creating your custom
    *     incremental compiler.
    *
    * @param scalaInstance The Scala instance to be used.
@@ -62,7 +62,7 @@ object ZincUtil {
    * This Scala compiler is useful to create your own instance of incremental
    * compilation.
    *
-   * @see [[IncrementalCompiler]] for more details on creating your custom
+   * @see IncrementalCompiler for more details on creating your custom
    *     incremental compiler.
    *
    * @param scalaInstance The Scala instance to be used.

@@ -66,7 +66,7 @@ final class MixedAnalyzingCompiler(
     val (javaSrcs, scalaSrcs) = incSrc.partition(javaOnly)
     logInputs(log, javaSrcs.size, scalaSrcs.size, outputDirs)
 
-    /** Compile Scala sources. */
+    // Compile Scala sources.
     def compileScala(): Unit =
       if (scalaSrcs.nonEmpty) {
         JarUtils.withPreviousJar(output) { extraClasspath =>
@@ -89,7 +89,7 @@ final class MixedAnalyzingCompiler(
         }
       }
 
-    /** Compile java and run analysis. */
+    // Compile java and run analysis.
     def compileJava(): Unit = {
       if (javaSrcs.nonEmpty) {
         timed("Java compilation + analysis", log) {
@@ -199,8 +199,8 @@ final class MixedAnalyzingCompiler(
 
 /**
  * Define helpers to create a wrapper around a Scala incremental compiler
- * [[xsbti.compile.ScalaCompiler]] and a Java incremental compiler
- * [[xsbti.compile.JavaCompiler]]. Note that the wrapper delegates to the
+ * `xsbti.compile.ScalaCompiler` and a Java incremental compiler
+ * `xsbti.compile.JavaCompiler`. Note that the wrapper delegates to the
  * implementation of both compilers and only instructs how to run a cycle
  * of cross Java-Scala compilation.
  */

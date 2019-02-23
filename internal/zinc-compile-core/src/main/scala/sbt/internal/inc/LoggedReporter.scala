@@ -56,14 +56,14 @@ object LoggedReporter {
 }
 
 /**
- * Defines a logger that uses event logging provided by a [[ManagedLogger]].
+ * Defines a logger that uses event logging provided by a ManagedLogger.
  *
  * This functionality can be use by anyone that wants to get support for event
  * logging and use an underlying, controlled logger under the hood.
  *
  * The [[ManagedLoggedReporter]] exists for those users that do not want to set
  * up the passed logger. Event logging requires registration of codects to
- * serialize and deserialize [[Problem]]s. This reporter makes sure to initialize
+ * serialize and deserialize `Problem`s. This reporter makes sure to initialize
  * the managed logger so that users do not need to take care of this cumbersome process.
  *
  * @param maximumErrors The maximum errors.
