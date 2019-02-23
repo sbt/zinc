@@ -1,4 +1,5 @@
-addSbtPlugin("org.scala-sbt" % "sbt-houserules" % "0.3.8")
+addSbtPlugin("org.scala-sbt" % "sbt-houserules" % "0.3.9")
+addSbtPlugin("com.geirsson" % "sbt-scalafmt" % "1.5.1")
 addSbtPlugin("org.scala-sbt" % "sbt-contraband" % "0.4.1")
 addSbtPlugin("pl.project13.scala" % "sbt-jmh" % "0.3.3")
 addSbtPlugin("de.heikoseeberger" % "sbt-header" % "3.0.2")

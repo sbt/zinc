@@ -57,7 +57,7 @@ def buildLevelSettings: Seq[Setting[_]] = Seq(
   homepage := Some(url("https://github.com/sbt/zinc")),
   developers +=
     Developer("jvican", "Jorge Vicente Cantero", "@jvican", url("https://github.com/jvican")),
-  scalafmtOnCompile in Sbt := false,
+  scalafmtOnCompile := true,
 )
 
 def commonSettings: Seq[Setting[_]] = Seq(
