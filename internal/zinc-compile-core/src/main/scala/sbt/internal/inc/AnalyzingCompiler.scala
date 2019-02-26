@@ -86,8 +86,15 @@ final class AnalyzingCompiler(
       progressOpt: Optional[CompileProgress]
   ): Unit = {
     val cached = cache(options, output, !changes.isEmpty, this, log, reporter)
-    val progress = if (progressOpt.isPresent) progressOpt.get else IgnoreProgress
-    compile(sources, changes, callback, log, reporter, progress, cached)
+    try {
+      val progress = if (progressOpt.isPresent) progressOpt.get else IgnoreProgress
+      compile(sources, changes, callback, log, reporter, progress, cached)
+    } finally {
+      cached match {
+        case c: java.io.Closeable => c.close()
+        case _                    =>
+      }
+    }
   }
 
   def compile(
