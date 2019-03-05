@@ -9,16 +9,19 @@ package sbt
 package internal
 package inc
 
+import java.io.File
 import java.util
 
-import xsbti.{ Reporter, Logger => xLogger }
-import xsbti.compile.{ CachedCompiler, CachedCompilerProvider, GlobalsCache, Output }
+import xsbti.{ AnalysisCallback, Reporter, Logger => xLogger }
+import xsbti.compile._
 import sbt.util.InterfaceUtil.{ toSupplier => f0 }
 
 /**
  * Manage a number of <code>maxInstance</code> of cached Scala compilers.
  * @param maxInstances The maximum number to be cached.
  */
+// TODO Remove this class and associated code in SBT/Zinc.
+// This is unfinished business from https://github.com/sbt/zinc/issues/340
 final class CompilerCache(val maxInstances: Int) extends GlobalsCache {
 
   /** Define a least-recently used cache indexed by a generated key. */
@@ -44,8 +47,23 @@ final class CompilerCache(val maxInstances: Int) extends GlobalsCache {
     cache.get(key) match {
       case null =>
         log.debug(f0(s"Compiler cache miss. $key "))
-        val newCompiler: CachedCompiler =
-          c.newCachedCompiler(args, output, log, reporter)
+        val compiler = c.newCachedCompiler(args, output, log, reporter)
+        val newCompiler: CachedCompiler = new CachedCompiler with java.io.Closeable {
+          override def commandArguments(sources: Array[File]): Array[String] = {
+            compiler.commandArguments(sources)
+          }
+          override def run(sources: Array[File],
+                           changes: DependencyChanges,
+                           callback: AnalysisCallback,
+                           logger: xLogger,
+                           delegate: Reporter,
+                           progress: CompileProgress): Unit = {
+            compiler.run(sources, changes, callback, logger, delegate, progress)
+          }
+          override def close(): Unit = {
+            // Dont' close the underlying Global.
+          }
+        }
         cache.put(key, newCompiler)
         newCompiler
       case cachedCompiler =>
