@@ -154,10 +154,10 @@ private[sbt] object Parser {
       case ConstantClass | ConstantString => new Constant(tag, in.readUnsignedShort())
       case ConstantField | ConstantMethod | ConstantInterfaceMethod | ConstantNameAndType =>
         new Constant(tag, in.readUnsignedShort(), in.readUnsignedShort())
-      case ConstantInteger => new Constant(tag, new java.lang.Integer(in.readInt()))
-      case ConstantFloat   => new Constant(tag, new java.lang.Float(in.readFloat()))
-      case ConstantLong    => new Constant(tag, new java.lang.Long(in.readLong()))
-      case ConstantDouble  => new Constant(tag, new java.lang.Double(in.readDouble()))
+      case ConstantInteger => new Constant(tag, java.lang.Integer.valueOf(in.readInt()))
+      case ConstantFloat   => new Constant(tag, java.lang.Float.valueOf(in.readFloat()))
+      case ConstantLong    => new Constant(tag, java.lang.Long.valueOf(in.readLong()))
+      case ConstantDouble  => new Constant(tag, java.lang.Double.valueOf(in.readDouble()))
       case ConstantUTF8    => new Constant(tag, in.readUTF())
       // TODO: proper support
       case ConstantMethodHandle =>

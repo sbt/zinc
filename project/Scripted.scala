@@ -82,7 +82,7 @@ object Scripted {
     val noJLine = new classpath.FilteredLoader(scriptedSbtInstance.loader, "jline." :: Nil)
     val loader = classpath.ClasspathUtilities.toLoader(scriptedSbtClasspath.files, noJLine)
     val bridgeClass = Class.forName("sbt.internal.inc.IncScriptedRunner", true, loader)
-    val bridge = bridgeClass.newInstance.asInstanceOf[IncScriptedRunner]
+    val bridge = bridgeClass.getDeclaredConstructor().newInstance().asInstanceOf[IncScriptedRunner]
     // val launcherVmOptions = Array("-XX:MaxPermSize=256M") // increased after a failure in scripted source-dependencies/macro
     try {
       bridge.run(sourcePath, bufferLog, compileToJar, args.toArray)

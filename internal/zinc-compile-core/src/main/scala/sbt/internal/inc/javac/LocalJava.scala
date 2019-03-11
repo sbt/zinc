@@ -225,7 +225,7 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
     val `new JavacFileManager` =
       javacFileManagerClass.getConstructor(contextClass, classOf[Boolean], classOf[Charset])
 
-    val context = contextClass.newInstance().asInstanceOf[AnyRef]
+    val context = contextClass.getDeclaredConstructor().newInstance().asInstanceOf[AnyRef]
     `context.put`.invoke(context, classOf[Locale], null)
     `context.put`.invoke(context, classOf[DiagnosticListener[_]], diagnostics)
     val options = `Options.instance`.invoke(null, context)

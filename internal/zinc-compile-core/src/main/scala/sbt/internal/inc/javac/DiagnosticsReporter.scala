@@ -120,7 +120,7 @@ object DiagnosticsReporter {
               case (Some(diagnosticSource), Some(position: java.lang.Long)) =>
                 // See com.sun.tools.javac.util.DiagnosticSource
                 val getLineMethod = diagnosticSource.getClass.getMethod("getLine", Integer.TYPE)
-                invoke(diagnosticSource, getLineMethod, new Integer(position.intValue()))
+                invoke(diagnosticSource, getLineMethod, Integer.valueOf(position.intValue()))
                   .map(_.toString)
               case _ => None
             }
