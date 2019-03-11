@@ -22,9 +22,6 @@ private[sbt] object Base64 {
 private[sbt] object Java89Encoder {}
 
 private[sbt] class Java89Encoder extends Base64 {
-
-  import Java89Encoder._
-
   def encode(bytes: Array[Byte]): String =
     java.util.Base64.getEncoder.encodeToString(bytes)
 

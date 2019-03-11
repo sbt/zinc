@@ -227,7 +227,8 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) 
     val compileOrder = fromCompileOrder(miniSetup.compileOrder)
     val storeApis = miniSetup.storeApis
     val extra = miniSetup.extra.map(fromStringTuple).toArray
-    val original = MiniSetup.of(output, miniOptions, compilerVersion, compileOrder, storeApis, extra)
+    val original =
+      MiniSetup.of(output, miniOptions, compilerVersion, compileOrder, storeApis, extra)
     mapper.mapMiniSetup(original)
   }
 
