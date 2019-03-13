@@ -78,7 +78,9 @@ def commonSettings: Seq[Setting[_]] = Seq(
   scalacOptions ++= Seq(
     "-YdisableFlatCpCaching",
     "-target:jvm-1.8",
-  )
+  ),
+  // Override the version that scalapb depends on
+  dependencyOverrides += "com.google.protobuf" % "protobuf-java" % "3.7.0"
 )
 
 def compilerVersionDependentScalacOptions: Seq[Setting[_]] = Seq(
