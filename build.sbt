@@ -666,7 +666,8 @@ lazy val zincApiInfoTemplate = (project in internalPath / "zinc-apiinfo")
          exclude[DirectMissingMethodProblem]("xsbt.api.HashAPI.hashStructure0"),
          exclude[DirectMissingMethodProblem]("xsbt.api.HashAPI.hashStructure"),
          exclude[DirectMissingMethodProblem]("xsbt.api.HashAPI.hashDefinitions"),
-         exclude[DirectMissingMethodProblem]("xsbt.api.HashAPI.this")
+         exclude[DirectMissingMethodProblem]("xsbt.api.HashAPI.this"),
+         exclude[DirectMissingMethodProblem]("sbt.internal.inc.ClassToAPI.handleMalformedNameOf*"),
       )
     }
   )

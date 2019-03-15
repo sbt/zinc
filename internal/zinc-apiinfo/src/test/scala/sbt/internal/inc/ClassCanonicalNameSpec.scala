@@ -15,7 +15,7 @@ package p2 { object x { class y { object z; class z } } }
 package p3 { class x { object y { object z; class z } } }
 package p4 { class x { class y { object z; class z } } }
 
-class ClassCanonicalNameSpec extends FlatSpec with Matchers {
+class ClassCanonicalNameSpec extends FlatSpec with Matchers with DiagrammedAssertions {
   "ClassToAPI.classCanonicalName" should """return "" for null""" in
     assert(getCustomCanonicalName(null) === "")
 
@@ -24,14 +24,15 @@ class ClassCanonicalNameSpec extends FlatSpec with Matchers {
   def checkRef(expected: Expected, x: AnyRef) = checkClass(expected, x.getClass, "ref")
   def checkClass(expected: Expected, c: Class[_], classSource: String) = {
     import expected._
-    it should f"for $nesting%-5s ($classSource) return $canonicalClassName" in assert(
-      getCustomCanonicalName(c) === canonicalClassName &&
-        getNativeCanonicalName(c) === nativeCanonicalClassName
-    )
+    it should f"for $nesting%-5s ($classSource) return $canonicalClassName" in {
+      assert(getCustomCanonicalName(c) === canonicalClassName)
+
+      // c.getCanonicalName is JDK implementation specific
+      // assert(getNativeCanonicalName(c) === nativeCanonicalClassName)
+    }
   }
 
   def getCustomCanonicalName(c: Class[_]) = strip(ClassToAPI.classCanonicalName(c))
-  def getNativeCanonicalName(c: Class[_]) = strip(handleMalformed(c.getCanonicalName))
 
   // Yes, that's the only way to write these types.
   import scala.language.existentials
@@ -81,33 +82,23 @@ class ClassCanonicalNameSpec extends FlatSpec with Matchers {
   object CO extends Expected("x.y$")
   object CC extends Expected("x.y")
 
-  object OOO extends Expected("x.y$$z$", nativeClassNameIsMalformed = true)
-  object OOC extends Expected("x.y$$z", nativeClassNameIsMalformed = true)
+  object OOO extends Expected("x.y$.z$")
+  object OOC extends Expected("x.y$.z")
   object OCO extends Expected("x.y.z$")
   object OCC extends Expected("x.y.z")
-  object COO extends Expected("x.y$$z$", nativeClassNameIsMalformed = true)
-  object COC extends Expected("x.y$$z", nativeClassNameIsMalformed = true)
+  object COO extends Expected("x.y$.z$")
+  object COC extends Expected("x.y$.z")
   object CCO extends Expected("x.y.z$")
   object CCC extends Expected("x.y.z")
 
   class Expected(
-      val canonicalClassName: String,
-      val nativeClassNameIsMalformed: Boolean = false
+      val canonicalClassName: String
   ) {
     val nesting = {
       val n0 = getClass.getSimpleName stripSuffix "$"
       Seq(n0, "-" * (n0.length - 1)).flatMap(_.zipWithIndex).sortBy(_._2).map(_._1).mkString
     }
-
-    val nativeCanonicalClassName =
-      if (nativeClassNameIsMalformed) "Malformed class name" else canonicalClassName
   }
-
-  def handleMalformed(s: => String) =
-    try s
-    catch {
-      case e: InternalError if e.getMessage == "Malformed class name" => "Malformed class name"
-    }
 
   // Strip the shared prefix to the class name
   def strip(s: String) = {
