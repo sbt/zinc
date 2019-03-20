@@ -8,7 +8,7 @@ object TestResource {
   def fooSampleFile0 =
     new File(classOf[TestResource].getResource("Foo.scala").toURI)
   def binarySampleFile0 =
-    new File(classOf[TestResource].getResource("sample-binary_2.11-0.1.jar").toURI)
+    new File(classOf[TestResource].getResource("sample-binary_2.12-0.1.jar").toURI)
   def dependerFile0 =
     new File(classOf[TestResource].getResource("Depender.scala").toURI)
   def depender2File0 =

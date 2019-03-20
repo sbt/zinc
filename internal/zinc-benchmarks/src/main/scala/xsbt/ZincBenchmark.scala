@@ -218,7 +218,7 @@ private[xsbt] object ZincBenchmark {
     private val ExpectedFileType = "out"
 
     private def generateTaskName(sbtProject: String) =
-      s"$TaskNamePrefix-$sbtProject"
+      s"$TaskNamePrefix$sbtProject"
 
     def generateOutputFile(sbtProject: String) =
       s"${generateTaskName(sbtProject)}.$ExpectedFileType"
@@ -280,7 +280,7 @@ private[xsbt] object ZincBenchmark {
         }
       }
 
-      val readState = Try(IO.read(stateFile).lines.toList).toEither
+      val readState = Try(IO.read(stateFile).linesIterator.toList).toEither
       readState.right.flatMap { stateLines =>
         val init: Result[List[ReadBuildInfo]] = Right(Nil)
         stateLines.foldLeft(init) { (acc, line) =>
@@ -316,9 +316,9 @@ private[xsbt] object ZincBenchmark {
     ): Result[Unit] = {
       import scala.sys.process._
       val taskName = generateTaskName(sbtProject)
-      val scalaVersion = scala.util.Properties.scalaPropOrElse("version.number", "2.12.1")
+      val scalaVersion = scala.util.Properties.scalaPropOrElse("version.number", "2.13.0-M5")
       val sbtExecutable = if (scala.util.Properties.isWin) "cmd /c sbt.bat" else "sbt"
-      val sbt = Try(Process(s"$sbtExecutable ++$scalaVersion $taskName", atDir).!).toEither
+      val sbt = Try(Process(s"$sbtExecutable ++$scalaVersion! $taskName", atDir).!).toEither
       sbt.right.flatMap { _ =>
         val buildOutputFilepath = buildOutputFile.getAbsolutePath
         Try {

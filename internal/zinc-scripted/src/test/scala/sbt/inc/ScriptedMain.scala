@@ -81,7 +81,7 @@ object ScriptedMain {
     val classpath = BuildInfo.test_classDirectory +: BuildInfo.classpath
     val loader = ClasspathUtilities.toLoader(classpath)
     val bridgeClass = Class.forName("sbt.inc.MainScriptedRunner", true, loader)
-    val bridge = bridgeClass.newInstance.asInstanceOf[IncScriptedRunner]
+    val bridge = bridgeClass.getDeclaredConstructor().newInstance().asInstanceOf[IncScriptedRunner]
     try bridge.run(source, buffer, compileToJar, args.toArray)
     catch { case ite: java.lang.reflect.InvocationTargetException => throw ite.getCause }
   }

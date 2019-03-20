@@ -232,6 +232,7 @@ lazy val zincPersist = (project in internalPath / "zinc-persist")
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufReaders.this"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Problem.*"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Problem#ProblemLens.rendered"),
+        exclude[MissingClassProblem]("sbt.internal.inc.text.Java678Encoder"),
 
         // Added {start,end}{Offset,Line,Column}
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Position.apply"),
@@ -769,28 +770,38 @@ lazy val zincScripted = (project in internalPath / "zinc-scripted")
   )
   .configure(addSbtUtilScripted)
 
+def isJava8: Boolean = sys.props("java.specification.version") == "1.8"
+
 lazy val crossTestBridges = {
   Command.command("crossTestBridges") { state =>
-    val publishCommands = List(
-      s"${compilerBridgeTest210.id}/test",
-      s"${compilerBridgeTest211.id}/test",
-      s"${compilerBridgeTest212.id}/test",
-      s"${compilerBridgeTest213.id}/test",
-    )
+    val java8Only =
+      if (isJava8) List(
+        s"${compilerBridgeTest210.id}/test",
+        s"${compilerBridgeTest211.id}/test")
+      else Nil
+    val testCommands =
+      java8Only :::
+      List(
+        s"${compilerBridgeTest212.id}/test",
+        s"${compilerBridgeTest213.id}/test")
 
-    publishCommands ::: state
+    testCommands ::: state
   }
 }
 
 lazy val publishBridges = {
   Command.command("publishBridges") { state =>
-    val publishCommands = List(
-      s"${compilerInterface212.id}/publishLocal",
-      s"${compilerBridge210.id}/publishLocal",
-      s"${compilerBridge211.id}/publishLocal",
-      s"${compilerBridge212.id}/publishLocal",
-      s"${compilerBridge213.id}/publishLocal"
-    )
+    val java8Only =
+      if (isJava8) List(
+        s"${compilerBridge210.id}/publishLocal",
+        s"${compilerBridge211.id}/publishLocal")
+      else Nil
+    val publishCommands =
+      List(s"${compilerInterface212.id}/publishLocal") :::
+      java8Only :::
+      List(
+        s"${compilerBridge212.id}/publishLocal",
+        s"${compilerBridge213.id}/publishLocal")
 
     publishCommands ::: state
   }

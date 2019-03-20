@@ -239,7 +239,7 @@ final class AnalyzingCompiler(
       log: Logger
   )(argTypes: Class[_]*)(args: AnyRef*): AnyRef = {
     val interfaceClass = getInterfaceClass(interfaceClassName, log)
-    val interface = interfaceClass.newInstance.asInstanceOf[AnyRef]
+    val interface = interfaceClass.getDeclaredConstructor().newInstance().asInstanceOf[AnyRef]
     val method = interfaceClass.getMethod(methodName, argTypes: _*)
     try method.invoke(interface, args: _*)
     catch {
