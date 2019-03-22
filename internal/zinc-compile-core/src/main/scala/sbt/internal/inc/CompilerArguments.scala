@@ -123,7 +123,7 @@ final class CompilerArguments(
       (IO.parseClasspath(System.getProperty(k, "")) * "*.jar").get)
 
   private[this] def include(flag: Boolean, jars: File*) =
-    if (flag || ScalaInstance.isDotty(scalaInstance.version)) jars
+    if (flag) jars
     else Nil
 
   private[this] def abs(files: Seq[File]) =
