@@ -22,6 +22,7 @@ import sbt.internal.inc.JavaInterfaceUtil.EnrichOption
 import sbt.internal.inc.caching.ClasspathCache
 import sbt.internal.inc.javac.AnalyzingJavaCompiler
 import xsbti.compile.{ ClassFileManager => XClassFileManager }
+import sbt.internal.util.ConsoleAppender
 
 /** An instance of an analyzing compiler that can run both javac + scalac. */
 final class MixedAnalyzingCompiler(
@@ -137,8 +138,10 @@ final class MixedAnalyzingCompiler(
       compileScala(); compileJava()
     }
 
-    if (javaSrcs.size + scalaSrcs.size > 0)
-      log.info("Done compiling.")
+    if (javaSrcs.size + scalaSrcs.size > 0) {
+      if (ConsoleAppender.showProgress) log.debug("Done compiling.")
+      else log.info("Done compiling.")
+    }
   }
 
   private def putJavacOutputInJar(outputJar: File, outputDir: File): Unit = {
