@@ -79,8 +79,10 @@ def commonSettings: Seq[Setting[_]] = Seq(
     "-YdisableFlatCpCaching",
     "-target:jvm-1.8",
   ),
-  // Override the version that scalapb depends on
-  dependencyOverrides += "com.google.protobuf" % "protobuf-java" % "3.7.0"
+  // Override the version that scalapb depends on. This adds an explicit dependency on
+  // protobuf-java. This will cause sbt to evict the older version that is used by
+  // scalapb-runtime.
+  libraryDependencies += "com.google.protobuf" % "protobuf-java" % "3.7.0"
 )
 
 def compilerVersionDependentScalacOptions: Seq[Setting[_]] = Seq(
