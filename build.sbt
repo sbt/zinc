@@ -528,13 +528,13 @@ lazy val compilerBridgeTemplate: Project = (project in internalPath / "compiler-
       case (2, y) if y >= 13            => new File(scalaSource.value.getPath + "_2.13")
     }.toList),
     // Use a bootstrap compiler bridge to compile the compiler bridge.
-    scalaCompilerBridgeSource := {
-      val old = scalaCompilerBridgeSource.value
-      scalaVersion.value match {
-        case x if x startsWith "2.13." => ("org.scala-sbt" % "compiler-bridge_2.13.0-M2" % "1.1.0-M1-bootstrap2" % Compile).sources()
-        case _ => old
-      }
-    },
+    // scalaCompilerBridgeSource := {
+    //   val old = scalaCompilerBridgeSource.value
+    //   scalaVersion.value match {
+    //     case x if x startsWith "2.13." => ("org.scala-sbt" % "compiler-bridge_2.13.0-M2" % "1.1.0-M1-bootstrap2" % Compile).sources()
+    //     case _ => old
+    //   }
+    // },
     cleanSbtBridge := {
       val sbtV = sbtVersion.value
       val sbtOrg = "org.scala-sbt"
