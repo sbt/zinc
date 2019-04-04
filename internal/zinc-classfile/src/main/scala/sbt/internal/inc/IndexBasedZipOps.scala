@@ -140,10 +140,12 @@ abstract class IndexBasedZipOps extends CreateZip {
   }
 
   private def removeEntries(path: Path, toRemove: Set[String]): Unit = {
-    val centralDir = readCentralDir(path)
-    removeEntriesFromCentralDir(centralDir, toRemove)
-    val writeOffset = truncateCentralDir(centralDir, path)
-    finalizeZip(centralDir, path, writeOffset)
+    if (toRemove.nonEmpty) {
+      val centralDir = readCentralDir(path)
+      removeEntriesFromCentralDir(centralDir, toRemove)
+      val writeOffset = truncateCentralDir(centralDir, path)
+      finalizeZip(centralDir, path, writeOffset)
+    }
   }
 
   private def removeEntriesFromCentralDir(centralDir: CentralDir, toRemove: Set[String]): Unit = {
