@@ -1,0 +1,7 @@
+> compile
+
+$ copy-file changes/Before.scala Before.scala
+$ copy-file changes/ProblemUser.scala ProblemUser.scala
+$ copy-file changes/Wrapper.scala Wrapper.scala
+
+> compile

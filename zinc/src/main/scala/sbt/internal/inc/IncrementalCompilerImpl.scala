@@ -331,18 +331,31 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         Incremental.prune(srcsSet, previousAnalysis, output, outputJarContent)
     }
 
-    // Run the incremental compilation
-    val compile = IncrementalCompile(
-      srcsSet,
-      lookup,
-      mixedCompiler.compile,
-      analysis,
-      output,
-      log,
-      incOptions,
-      outputJarContent
-    )
-    compile.swap
+    def runIncrementalCompilation(analysis: CompileAnalysis) = {
+      val compile = IncrementalCompile(
+        srcsSet,
+        lookup,
+        mixedCompiler.compile,
+        analysis,
+        output,
+        log,
+        incOptions,
+        outputJarContent
+      )
+      compile.swap
+    }
+
+    def recoverableFailure(e: CompileFailed): Boolean = {
+      e.problems.exists(_.message.contains("A full rebuild may help"))
+    }
+
+    try {
+      runIncrementalCompilation(analysis)
+    } catch {
+      case e: CompileFailed if recoverableFailure(e) =>
+        mixedCompiler.config.reporter.reset()
+        runIncrementalCompilation(Analysis.empty)
+    }
   }
 
   private def compileToJarSwitchedOn(config: CompileConfiguration): Boolean = {
