@@ -546,6 +546,7 @@ lazy val compilerBridgeTemplate: Project = (project in internalPath / "compiler-
       val targetsToDelete = List(
         // We cannot use the target key, it's not scoped in `ThisBuild` nor `Global`.
         (baseDirectory in ThisBuild).value / "target" / "zinc-components",
+        (baseDirectory in ThisBuild).value / "internal" / "compiler-bridge-test" / "target" / "zinc-components",
         file(home) / ".ivy2/cache" / sbtOrg / artifactName,
         file(home) / ".sbt/boot" / s"scala-$sbtScalaVersion" / sbtOrg / "sbt" / sbtV / artifactName
       )
