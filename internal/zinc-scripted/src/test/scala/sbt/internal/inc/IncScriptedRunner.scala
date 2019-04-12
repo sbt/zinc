@@ -8,6 +8,7 @@ import sbt.util.Logger
 
 import scala.collection.parallel.ParSeq
 
+// WARNING: called via reflection
 class IncScriptedRunner {
   def run(
       resourceBaseDirectory: File,

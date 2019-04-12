@@ -8,12 +8,15 @@ import xsbti.compile.CompilerBridgeProvider
 
 case class ScalaBridge(version: String, jars: Seq[File], classesDir: File)
 
-final class ScriptedBridgeProvider(
+final class ConstantBridgeProvider(
     bridges: List[ScalaBridge],
     tempDir: File
 ) extends CompilerBridgeProvider {
 
   import xsbti.compile.ScalaInstance
+
+  final val binSeparator = "-bin_"
+  final val javaClassVersion = System.getProperty("java.class.version")
 
   /** Get the location of the compiled Scala compiler bridge for a concrete Scala version. */
   override def fetchCompiledBridge(instance: ScalaInstance, logger: Logger): File = {
@@ -34,7 +37,6 @@ final class ScriptedBridgeProvider(
         sys.error(s"Missing $scalaVersion in supported versions ${bridges.map(_.version).mkString}")
       case Some(bridge) =>
         val targetJar: File = {
-          import sbt.internal.inc.ZincComponentCompiler.{ binSeparator, javaClassVersion }
           val id = s"scriptedCompilerBridge$binSeparator${bridge.version}__$javaClassVersion.jar"
           tempDir.toPath.resolve(id).toFile
         }
