@@ -49,7 +49,7 @@ object RawURL {
 /** A ClassLoader that looks up resource requests in a `Map` prior to the base ClassLoader's resource lookups. */
 trait RawResources extends FixedResources {
 
-  /** The map from resource paths to the raw String content to provide via the URL returned by [[findResource]] or [[findResources]]. */
+  /** The map from resource paths to the raw String content to provide via the URL returned by [[sbt.internal.inc.classpath.FixedResources!.findResource(s:String)*]] or [[findResources]]. */
   protected def resources: Map[String, String]
   override protected final val resourceURL = resources.transform(RawURL.apply)
 }
@@ -57,7 +57,7 @@ trait RawResources extends FixedResources {
 /** A ClassLoader that looks up resource requests in a `Map` prior to the base ClassLoader's resource lookups. */
 trait FixedResources extends ClassLoader {
 
-  /** The map from resource paths to URL to provide in [[findResource]] and [[findResources]]. */
+  /** The map from resource paths to URL to provide in [[sbt.internal.inc.classpath.FixedResources!.findResource(s:String)*]] and [[findResources]]. */
   protected def resourceURL: Map[String, URL]
 
   override def findResource(s: String): URL = resourceURL.getOrElse(s, super.findResource(s))
