@@ -58,30 +58,6 @@ abstract class CommonCachedCompilation(name: String)
 
   def remoteCacheProvider(): CacheProvider
 
-  /**
-   * Redefine what `currentManaged` is based on the project base location.
-   *
-   * The `lib_managed` folder stores all the cached libraries. It's an equivalent of
-   * `.ivy2` or `.coursier`. The analysis file provides simple read and write mappers
-   * that turn all paths relative to a **concrete position**.
-   *
-   * Note that the assumption that all paths can be made relative to a concrete position
-   * is not correct. There is no guarantee that the paths of the caches, the artifacts,
-   * the classpath entries, the outputs, et cetera share the same prefix.
-   *
-   * Such assumption is broken in our test infrastructure: `lib_managed` does not share
-   * the same prefix, and without redefining it, it fails. Note that this is a conscious
-   * design decision of the relative read and write mappers. They are focused on simplicity.
-   * Build tools that need more careful handling of paths should create their own read and
-   * write mappers.
-   *
-   * @return The file where all the libraries are stored.
-   */
-  override def currentManaged: File = {
-    import sbt.io.syntax.fileToRichFile
-    remoteProject.baseLocation.toFile./("target/lib_managed")
-  }
-
   override protected def beforeAll(): Unit = {
     //don't use temp dir because it might end up on different drive (on windows) and this later fails in sbt.internal.inc.binary.converters.ProtobufWriters due to inability to relativize paths
     val basePath =

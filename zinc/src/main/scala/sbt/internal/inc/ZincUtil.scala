@@ -10,51 +10,38 @@ package sbt.internal.inc
 import java.io.File
 import java.net.URLClassLoader
 
-import sbt.librarymanagement.{ DependencyResolution, ModuleID }
 import sbt.internal.inc.javac.JavaTools
 import sbt.internal.inc.classpath.ClassLoaderCache
 import xsbti.compile.{ JavaTools => XJavaTools, _ }
 
-/**
- * Define a private implementation of the static methods forwarded from `ZincCompilerUtil`.
- */
+/** Define a private implementation of the static methods forwarded from `ZincCompilerUtil`. */
 object ZincUtil {
+  import xsbti.compile.ScalaInstance
 
-  /**
-   * Return a fully-fledged, default incremental compiler ready to use.
-   */
-  def defaultIncrementalCompiler: IncrementalCompiler =
-    new IncrementalCompilerImpl
+  /** Return a fully-fledged, default incremental compiler ready to use. */
+  def defaultIncrementalCompiler: IncrementalCompiler = new IncrementalCompilerImpl
 
   /**
    * Instantiate a Scala compiler that is instrumented to analyze dependencies.
    * This Scala compiler is useful to create your own instance of incremental
    * compilation.
    *
-   * @see IncrementalCompiler for more details on creating your custom
-   *     incremental compiler.
+   * @see IncrementalCompiler for more details on creating your custom incremental compiler.
    *
    * @param scalaInstance The Scala instance to be used.
-   * @param compilerBridgeJar The jar file or directory of the compiler bridge compiled for the given scala instance.
-   * @param classpathOptions The options of all the classpath that the
-   *                         compiler takes in.
+   * @param compilerBridgeJar The jar file or directory of the compiler bridge compiled for the
+   *                          given scala instance.
+   * @param classpathOptions The options of all the classpath that the compiler takes in.
    * @return A Scala compiler ready to be used.
    */
   def scalaCompiler(
-      scalaInstance: xsbti.compile.ScalaInstance,
+      scalaInstance: ScalaInstance,
       compilerBridgeJar: File,
       classpathOptions: ClasspathOptions
   ): AnalyzingCompiler = {
     val bridgeProvider = constantBridgeProvider(scalaInstance, compilerBridgeJar)
-    val emptyHandler = (_: Seq[String]) => ()
     val loader = Some(new ClassLoaderCache(new URLClassLoader(Array())))
-    new AnalyzingCompiler(
-      scalaInstance,
-      bridgeProvider,
-      classpathOptions,
-      emptyHandler,
-      loader
-    )
+    new AnalyzingCompiler(scalaInstance, bridgeProvider, classpathOptions, _ => (), loader)
   }
 
   /**
@@ -62,60 +49,19 @@ object ZincUtil {
    * This Scala compiler is useful to create your own instance of incremental
    * compilation.
    *
-   * @see IncrementalCompiler for more details on creating your custom
-   *     incremental compiler.
+   * @see IncrementalCompiler for more details on creating your custom incremental compiler.
    *
    * @param scalaInstance The Scala instance to be used.
-   * @param compilerBridgeJar The jar file or directory of the compiler bridge compiled for the given scala instance.
+   * @param compilerBridgeJar The jar file or directory of the compiler bridge compiled for the
+   *                          given scala instance.
    * @return A Scala compiler ready to be used.
    */
-  def scalaCompiler(
-      scalaInstance: xsbti.compile.ScalaInstance,
-      compilerBridgeJar: File
-  ): AnalyzingCompiler = {
-    val optionsUtil = ClasspathOptionsUtil.boot
-    scalaCompiler(scalaInstance, compilerBridgeJar, optionsUtil)
+  def scalaCompiler(scalaInstance: ScalaInstance, compilerBridgeJar: File): AnalyzingCompiler = {
+    scalaCompiler(scalaInstance, compilerBridgeJar, ClasspathOptionsUtil.boot)
   }
-
-  /**
-   * Instantiate a Scala compiler that is instrumented to analyze dependencies.
-   * This Scala compiler is useful to create your own instance of incremental
-   * compilation.
-   */
-  def scalaCompiler(
-      scalaInstance: xsbti.compile.ScalaInstance,
-      classpathOptions: ClasspathOptions,
-      globalLock: xsbti.GlobalLock,
-      componentProvider: xsbti.ComponentProvider,
-      secondaryCacheDir: Option[File],
-      dependencyResolution: DependencyResolution,
-      compilerBridgeSource: ModuleID,
-      scalaJarsTarget: File,
-      log: xsbti.Logger
-  ): AnalyzingCompiler = {
-    val componentManager =
-      new ZincComponentManager(globalLock, componentProvider, secondaryCacheDir, log)
-    val bridgeProvider =
-      ZincComponentCompiler.interfaceProvider(compilerBridgeSource,
-                                              componentManager,
-                                              dependencyResolution,
-                                              scalaJarsTarget)
-    val emptyHandler = (_: Seq[String]) => ()
-    val loader = Some(new ClassLoaderCache(new URLClassLoader(Array())))
-    new AnalyzingCompiler(
-      scalaInstance,
-      bridgeProvider,
-      classpathOptions,
-      emptyHandler,
-      loader
-    )
-  }
-
-  def getDefaultBridgeModule(scalaVersion: String): ModuleID =
-    ZincComponentCompiler.getDefaultBridgeModule(scalaVersion)
 
   def compilers(
-      instance: xsbti.compile.ScalaInstance,
+      instance: ScalaInstance,
       classpathOptions: ClasspathOptions,
       javaHome: Option[File],
       scalac: ScalaCompiler
@@ -126,7 +72,9 @@ object ZincUtil {
     Compilers.of(scalac, javaTools)
   }
 
-  def constantBridgeProvider(scalaInstance: xsbti.compile.ScalaInstance,
-                             compilerBridgeJar: File): xsbti.compile.CompilerBridgeProvider =
+  def constantBridgeProvider(
+      scalaInstance: ScalaInstance,
+      compilerBridgeJar: File,
+  ): CompilerBridgeProvider =
     ZincCompilerUtil.constantBridgeProvider(scalaInstance, compilerBridgeJar)
 }

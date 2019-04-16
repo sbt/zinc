@@ -160,12 +160,33 @@ lazy val zinc = (project in file("zinc"))
     zincPersist,
     zincCompileCore,
     zincClassfile212,
-    zincIvyIntegration % "compile->compile;test->test",
     zincTesting % Test
   )
   .configure(addBaseSettingsAndTestDeps)
+  .enablePlugins(BuildInfoPlugin)
+  .settings(sbtbuildinfo.BuildInfoPlugin.buildInfoScopedSettings(Test))
   .settings(
     name := "zinc",
+    buildInfo in Compile := Nil, // Only generate build info for tests
+    buildInfoPackage in Test := "sbt.internal.inc",
+    buildInfoObject in Test := "ZincBuildInfo",
+    buildInfoKeys in Test := {
+      val bridgeKeys = List[BuildInfoKey](
+        BuildInfoKey.map(scalaVersion in compilerBridge210) { case (_, v) => "scalaVersion210" -> v },
+        BuildInfoKey.map(scalaInstance in compilerBridge210) { case (k, v) => "scalaJars210" -> v.allJars.toList },
+        BuildInfoKey.map(classDirectory in Compile in compilerBridge210) { case (k, v) => "classDirectory210" -> v },
+        BuildInfoKey.map(scalaVersion in compilerBridge211) { case (_, v) => "scalaVersion211" -> v },
+        BuildInfoKey.map(scalaInstance in compilerBridge211) { case (k, v) => "scalaJars211" -> v.allJars.toList },
+        BuildInfoKey.map(classDirectory in Compile in compilerBridge211) { case (k, v) => "classDirectory211" -> v },
+        BuildInfoKey.map(scalaVersion in compilerBridge212) { case (_, v) => "scalaVersion212" -> v },
+        BuildInfoKey.map(scalaInstance in compilerBridge212) { case (k, v) => "scalaJars212" -> v.allJars.toList },
+        BuildInfoKey.map(classDirectory in Compile in compilerBridge212) { case (k, v) => "classDirectory212" -> v },
+        BuildInfoKey.map(scalaVersion in compilerBridge213) { case (_, v) => "scalaVersion213" -> v },
+        BuildInfoKey.map(scalaInstance in compilerBridge213) { case (k, v) => "scalaJars213" -> v.allJars.toList },
+        BuildInfoKey.map(classDirectory in Compile in compilerBridge213) { case (k, v) => "classDirectory213" -> v },
+      )
+      bridgeKeys
+    },
     mimaSettings,
     mimaBinaryIssueFilters ++= Seq(
       exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCompilerImpl.compileIncrementally"),
@@ -174,11 +195,14 @@ lazy val zinc = (project in file("zinc"))
       exclude[DirectMissingMethodProblem]("sbt.internal.inc.MixedAnalyzingCompiler.config"),
       exclude[DirectMissingMethodProblem]("sbt.internal.inc.MixedAnalyzingCompiler.makeConfig"),
       exclude[DirectMissingMethodProblem]("sbt.internal.inc.MixedAnalyzingCompiler.this"),
-      exclude[DirectMissingMethodProblem]("sbt.internal.inc.CompileConfiguration.this")
+      exclude[DirectMissingMethodProblem]("sbt.internal.inc.CompileConfiguration.this"),
+      exclude[DirectMissingMethodProblem]("sbt.internal.inc.ZincUtil.getDefaultBridgeModule"),
+      exclude[DirectMissingMethodProblem]("sbt.internal.inc.ZincUtil.scalaCompiler"),
     )
   )
 
 lazy val zincTesting = (project in internalPath / "zinc-testing")
+  .dependsOn(compilerInterface212)
   .settings(
     minimalSettings,
     noPublish,
@@ -735,7 +759,7 @@ lazy val zincClassfile212 = zincClassfileTemplate
 
 // re-implementation of scripted engine
 lazy val zincScripted = (project in internalPath / "zinc-scripted")
-  .dependsOn(zinc, zincIvyIntegration % "test->test")
+  .dependsOn(zinc % "compile;test->test")
   .dependsOn(compilerBridge210, compilerBridge211, compilerBridge212, compilerBridge213)
   .enablePlugins(BuildInfoPlugin)
   .settings(sbtbuildinfo.BuildInfoPlugin.buildInfoScopedSettings(Test))
@@ -748,26 +772,11 @@ lazy val zincScripted = (project in internalPath / "zinc-scripted")
     buildInfo in Compile := Nil,
     buildInfoPackage in Test := "sbt.internal.inc",
     buildInfoKeys in Test := {
-      val bridgeKeys = List[BuildInfoKey](
-        BuildInfoKey.map(scalaVersion in compilerBridge210) { case (_, v) => "scalaVersion210" -> v },
-        BuildInfoKey.map(scalaInstance in compilerBridge210) { case (k, v) => "scalaJars210" -> v.allJars.toList },
-        BuildInfoKey.map(classDirectory in Compile in compilerBridge210) { case (k, v) => "classDirectory210" -> v },
-        BuildInfoKey.map(scalaVersion in compilerBridge211) { case (_, v) => "scalaVersion211" -> v },
-        BuildInfoKey.map(scalaInstance in compilerBridge211) { case (k, v) => "scalaJars211" -> v.allJars.toList },
-        BuildInfoKey.map(classDirectory in Compile in compilerBridge211) { case (k, v) => "classDirectory211" -> v },
-        BuildInfoKey.map(scalaVersion in compilerBridge212) { case (_, v) => "scalaVersion212" -> v },
-        BuildInfoKey.map(scalaInstance in compilerBridge212) { case (k, v) => "scalaJars212" -> v.allJars.toList },
-        BuildInfoKey.map(classDirectory in Compile in compilerBridge212) { case (k, v) => "classDirectory212" -> v },
-        BuildInfoKey.map(scalaVersion in compilerBridge213) { case (_, v) => "scalaVersion213" -> v },
-        BuildInfoKey.map(scalaInstance in compilerBridge213) { case (k, v) => "scalaJars213" -> v.allJars.toList },
-        BuildInfoKey.map(classDirectory in Compile in compilerBridge213) { case (k, v) => "classDirectory213" -> v },
-      )
-
       Seq[BuildInfoKey](
         sourceDirectory in zinc,
         classDirectory in Test,
-        BuildInfoKey.map(dependencyClasspath in Test) { case (k, v) => "classpath" -> v.seq.map(_.data) }
-      ) ++ bridgeKeys
+        BuildInfoKey.map(dependencyClasspath in Test) { case (_, v) => "classpath" -> v.seq.map(_.data) }
+      )
     }
   )
   .configure(addSbtUtilScripted)
