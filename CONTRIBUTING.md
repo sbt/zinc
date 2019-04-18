@@ -76,7 +76,7 @@ Zinc depends on concrete versions of sbt 1.0 modules. If you want to run Zinc
 with a newer version of them, you can do it with:
 
 ```
-$ sbt -Dsbtio.path=../io -Dsbtutil.path=../util -Dsbtlm.path=../librarymanagement
+$ sbt -Dsbtio.path=../io -Dsbtutil.path=../util
 ```
 
 ## Signing the CLA

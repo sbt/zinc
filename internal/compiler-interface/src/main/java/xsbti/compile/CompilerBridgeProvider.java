@@ -14,8 +14,9 @@ import java.io.File;
  * Defines an interface for users to get the compiler bridge for a given Scala version.
  * <p>
  * The implementors of this interface will retrieve the compiler bridge following different
- * mechanisms. By default, Zinc uses ivy to resolve the sources for a given Scala version,
- * compile them and then define the sbt component, which is reused across different sbt projects.
+ * mechanisms. For example, sbt implements this to use LM to resolve the sources for a given Scala
+ * version, which Zinc then compiles and defines an sbt component, which is reused across different
+ * sbt projects.
  */
 public interface CompilerBridgeProvider {
     /**

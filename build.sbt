@@ -131,7 +131,6 @@ lazy val zincRoot: Project = (project in file("."))
     zincTesting,
     zincPersist,
     zincCore,
-    zincIvyIntegration,
     zincCompile,
     zincCompileCore,
     compilerInterface212,
@@ -209,7 +208,7 @@ lazy val zincTesting = (project in internalPath / "zinc-testing")
     name := "zinc Testing",
     libraryDependencies ++= Seq(scalaCheck, scalatest, junit, sjsonnewScalaJson.value)
   )
-  .configure(addSbtLmCore, addSbtLmIvy)
+  .configure(addSbtIO, addSbtUtilLogging)
 
 lazy val zincCompile = (project in file("zinc-compile"))
   .dependsOn(zincCompileCore, zincCompileCore % "test->test")
@@ -353,20 +352,6 @@ lazy val zincBenchmarks = (project in internalPath / "zinc-benchmarks")
     crossScalaVersions := Seq(scala212),
     javaOptions in Test ++= List("-Xmx600M", "-Xms600M"),
   )
-
-lazy val zincIvyIntegration = (project in internalPath / "zinc-ivy-integration")
-  .dependsOn(zincCompileCore, zincTesting % Test)
-  .settings(
-    baseSettings,
-    name := "zinc Ivy Integration",
-    compileOrder := sbt.CompileOrder.ScalaThenJava,
-    mimaSettings,
-    test in Test := {
-      // Test in ivy integration needs the published compiler bridges to work
-      (test in Test).value
-    }
-  )
-  .configure(addSbtLmCore, addSbtLmIvyTest)
 
 // sbt-side interface to compiler.  Calls compiler-side interface reflectively
 lazy val zincCompileCore = (project in internalPath / "zinc-compile-core")
