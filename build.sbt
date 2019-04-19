@@ -527,14 +527,6 @@ lazy val compilerBridgeTemplate: Project = (project in internalPath / "compiler-
       case (2, y) if y == 11 || y == 12 => new File(scalaSource.value.getPath + "_2.11-12")
       case (2, y) if y >= 13            => new File(scalaSource.value.getPath + "_2.13")
     }.toList),
-    // Use a bootstrap compiler bridge to compile the compiler bridge.
-    scalaCompilerBridgeSource := {
-      val old = scalaCompilerBridgeSource.value
-      scalaVersion.value match {
-        case x if x startsWith "2.13." => ("org.scala-sbt" % "compiler-bridge_2.13.0-M2" % "1.1.0-M1-bootstrap2" % Compile).sources()
-        case _ => old
-      }
-    },
     cleanSbtBridge := {
       val sbtV = sbtVersion.value
       val sbtOrg = "org.scala-sbt"
@@ -554,6 +546,7 @@ lazy val compilerBridgeTemplate: Project = (project in internalPath / "compiler-
       val targetsToDelete = List(
         // We cannot use the target key, it's not scoped in `ThisBuild` nor `Global`.
         (baseDirectory in ThisBuild).value / "target" / "zinc-components",
+        (baseDirectory in ThisBuild).value / "internal" / "compiler-bridge-test" / "target" / "zinc-components",
         file(home) / ".ivy2/cache" / sbtOrg / artifactName,
         file(home) / ".sbt/boot" / s"scala-$sbtScalaVersion" / sbtOrg / "sbt" / sbtV / artifactName
       )
@@ -600,6 +593,8 @@ lazy val compilerBridge213 = compilerBridgeTemplate
   .settings(
     scalaVersion := scala213,
     crossScalaVersions := Seq(scala213),
+    // remove the following after 2.13.0 is released
+    scalaBinaryVersion := "2.13",
     target := (target in compilerBridgeTemplate).value.getParentFile / "target-2.13"
   )
 

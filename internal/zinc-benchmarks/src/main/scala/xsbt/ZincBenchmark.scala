@@ -316,7 +316,7 @@ private[xsbt] object ZincBenchmark {
     ): Result[Unit] = {
       import scala.sys.process._
       val taskName = generateTaskName(sbtProject)
-      val scalaVersion = scala.util.Properties.scalaPropOrElse("version.number", "2.13.0-M5")
+      val scalaVersion = scala.util.Properties.scalaPropOrElse("version.number", "2.13.0-RC1")
       val sbtExecutable = if (scala.util.Properties.isWin) "cmd /c sbt.bat" else "sbt"
       val sbt = Try(Process(s"$sbtExecutable ++$scalaVersion! $taskName", atDir).!).toEither
       sbt.right.flatMap { _ =>
