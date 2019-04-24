@@ -74,7 +74,7 @@ def commonSettings: Seq[Setting[_]] = Seq(
   javacOptions in compile ++= Seq("-Xlint", "-Xlint:-serial"),
   crossScalaVersions := Seq(scala212),
   publishArtifact in Test := false,
-  commands ++= Seq(publishBridges, crossTestBridges),
+  commands ++= Seq(crossTestBridges),
   scalacOptions ++= Seq(
     "-YdisableFlatCpCaching",
     "-target:jvm-1.8",
@@ -777,24 +777,6 @@ lazy val crossTestBridges = {
         s"${compilerBridgeTest213.id}/test")
 
     testCommands ::: state
-  }
-}
-
-lazy val publishBridges = {
-  Command.command("publishBridges") { state =>
-    val java8Only =
-      if (isJava8) List(
-        s"${compilerBridge210.id}/publishLocal",
-        s"${compilerBridge211.id}/publishLocal")
-      else Nil
-    val publishCommands =
-      List(s"${compilerInterface212.id}/publishLocal") :::
-      java8Only :::
-      List(
-        s"${compilerBridge212.id}/publishLocal",
-        s"${compilerBridge213.id}/publishLocal")
-
-    publishCommands ::: state
   }
 }
 

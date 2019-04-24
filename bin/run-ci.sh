@@ -10,7 +10,6 @@ sbt -Dfile.encoding=UTF-8 \
   scalafmtCheck \
   whitesourceCheckPolicies \
   "$PROJECT_ROOT/test:compile" \
-  "publishBridges" \
   crossTestBridges \
   "$PROJECT_ROOT/test" \
   "zincScripted/test:run"
