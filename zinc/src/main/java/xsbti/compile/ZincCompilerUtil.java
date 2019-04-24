@@ -33,7 +33,6 @@ public interface ZincCompilerUtil {
      * @param classpathOptions  The options of all the classpath that the
      *                          compiler takes in.
      * @return A Scala compiler with the given configuration.
-     * @see ZincBridgeProvider Utility to get the Scala instance using ivy.
      */
     public static ScalaCompiler scalaCompiler(ScalaInstance scalaInstance,
                                               File compilerBridgeJar,
@@ -48,7 +47,6 @@ public interface ZincCompilerUtil {
      * @param scalaInstance     The Scala instance to be used.
      * @param compilerBridgeJar The jar file of the compiler bridge.
      * @return A Scala compiler with the given configuration.
-     * @see ZincBridgeProvider Utility to get the Scala instance using ivy.
      */
     public static ScalaCompiler scalaCompiler(ScalaInstance scalaInstance,
                                               File compilerBridgeJar) {

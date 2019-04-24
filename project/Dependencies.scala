@@ -9,7 +9,6 @@ object Dependencies {
 
   private val ioVersion = "1.3.0-M4"
   private val utilVersion = "1.3.0-M4"
-  private val lmVersion = "1.2.0"
 
   private val sbtIO = "org.scala-sbt" %% "io" % ioVersion
 
@@ -19,9 +18,6 @@ object Dependencies {
   private val utilTracking = "org.scala-sbt" %% "util-tracking" % utilVersion
   private val utilInterface = "org.scala-sbt" % "util-interface" % utilVersion
   private val utilScripted = "org.scala-sbt" %% "util-scripted" % utilVersion
-
-  private val libraryManagementCore = "org.scala-sbt" %% "librarymanagement-core" % lmVersion
-  private val libraryManagementIvy = "org.scala-sbt" %% "librarymanagement-ivy" % lmVersion
 
   val launcherInterface = "org.scala-sbt" % "launcher-interface" % "1.0.0"
 
@@ -41,15 +37,12 @@ object Dependencies {
       c: Option[Configuration] = None
   ) =
     path match {
-      case Some(f) =>
-        p dependsOn c.fold[ClasspathDep[ProjectReference]](ProjectRef(file(f), projectName))(
-          ProjectRef(file(f), projectName) % _)
-      case None => p settings (libraryDependencies += c.fold(m)(m % _))
+      case Some(f) => p dependsOn ClasspathDependency(ProjectRef(file(f), projectName), c.map(_.name))
+      case None    => p settings (libraryDependencies += m.withConfigurations(c.map(_.name)))
     }
 
   lazy val sbtIoPath = getSbtModulePath("sbtio.path", "sbt/io")
   lazy val sbtUtilPath = getSbtModulePath("sbtutil.path", "sbt/util")
-  lazy val sbtLmPath = getSbtModulePath("sbtlm.path", "sbt/librarymanagement")
 
   def addSbtIO(p: Project): Project = addSbtModule(p, sbtIoPath, "io", sbtIO)
 
@@ -65,12 +58,6 @@ object Dependencies {
     addSbtModule(p, sbtUtilPath, "utilScripted", utilScripted, Some(Test))
   def addSbtUtilTracking(p: Project): Project =
     addSbtModule(p, sbtUtilPath, "utilTracking", utilTracking)
-
-  def addSbtLmCore(p: Project): Project =
-    addSbtModule(p, sbtLmPath, "lmCore", libraryManagementCore)
-  def addSbtLmIvy(p: Project): Project = addSbtModule(p, sbtLmPath, "lmIvy", libraryManagementIvy)
-  def addSbtLmIvyTest(p: Project): Project =
-    addSbtModule(p, sbtLmPath, "lmIvy", libraryManagementIvy, Some(Test))
 
   val scalaLibrary = Def.setting { "org.scala-lang" % "scala-library" % scalaVersion.value }
   val scalaCompiler = Def.setting { "org.scala-lang" % "scala-compiler" % scalaVersion.value }
