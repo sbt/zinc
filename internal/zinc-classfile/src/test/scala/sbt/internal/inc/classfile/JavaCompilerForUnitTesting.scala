@@ -10,8 +10,8 @@ import javax.tools.{ StandardLocation, ToolProvider }
 import sbt.io.IO
 import sbt.internal.util.ConsoleLogger
 import xsbti.api.DependencyContext._
-import xsbti.{ AnalysisCallback, TestCallback }
-import xsbti.TestCallback.ExtractedClassDependencies
+import xsbti.AnalysisCallback
+import TestCallback.ExtractedClassDependencies
 import xsbti.compile.SingleOutput
 
 import scala.collection.JavaConverters._

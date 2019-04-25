@@ -11,6 +11,7 @@ import java.io.File
 
 import org.eclipse.jgit.api.{ CloneCommand, Git }
 import sbt.internal.util.ConsoleLogger
+import sbt.internal.inc.TestCallback
 import sbt.io.{ IO, RichFile }
 import xsbt.ZincBenchmark.CompilationInfo
 import xsbti._
@@ -113,7 +114,7 @@ private[xsbt] object ZincBenchmark {
   ): Generator = () => {
     IO.delete(targetDir)
     IO.createDirectory(targetDir)
-    val callback: xsbti.TestCallback = new xsbti.TestCallback {
+    val callback: TestCallback = new TestCallback {
       override def enabled: Boolean = zincEnabled
     }
     val compiler = prepareCompiler(targetDir, callback, compilationInfo)

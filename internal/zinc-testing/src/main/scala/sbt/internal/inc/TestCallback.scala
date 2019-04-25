@@ -1,8 +1,9 @@
-package xsbti
+package sbt.internal.inc
 
 import java.io.File
 import java.util
 
+import xsbti._
 import xsbti.api.{ DependencyContext, ClassLike }
 
 import scala.collection.mutable.ArrayBuffer
