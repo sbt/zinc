@@ -11,8 +11,8 @@ import sbt.io.IO
 import sbt.io.syntax._
 import xsbti.compile._
 import sbt.util.Logger
-import xsbti.TestCallback.ExtractedClassDependencies
-import xsbti.{ TestCallback, UseScope }
+import TestCallback.ExtractedClassDependencies
+import xsbti.UseScope
 import xsbti.api.ClassLike
 import xsbti.api.DependencyContext._
 

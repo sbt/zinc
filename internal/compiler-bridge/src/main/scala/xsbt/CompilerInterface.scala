@@ -14,7 +14,7 @@ import scala.collection.mutable
 import Log.debug
 import java.io.File
 
-final class CompilerInterface {
+final class CompilerInterface extends xsbti.CompilerInterface1 {
   def newCompiler(options: Array[String],
                   output: Output,
                   initialLog: Logger,

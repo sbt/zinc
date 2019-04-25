@@ -2,7 +2,7 @@ package sbt
 package internal
 package inc
 
-import xsbti.TestCallback.ExtractedClassDependencies
+import TestCallback.ExtractedClassDependencies
 
 class DependencySpecification extends CompilingSpecification {
 

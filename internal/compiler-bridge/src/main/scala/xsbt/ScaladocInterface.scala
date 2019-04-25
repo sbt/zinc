@@ -10,7 +10,7 @@ package xsbt
 import xsbti.Logger
 import Log.debug
 
-class ScaladocInterface {
+class ScaladocInterface extends xsbti.ScaladocInterface1 {
   def run(args: Array[String], log: Logger, delegate: xsbti.Reporter) =
     (new Runner(args, log, delegate)).run
 }

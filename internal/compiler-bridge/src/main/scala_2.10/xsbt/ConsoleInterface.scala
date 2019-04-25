@@ -12,7 +12,7 @@ import scala.tools.nsc.interpreter.{ ILoop, IMain, InteractiveReader, NamedParam
 import scala.tools.nsc.reporters.Reporter
 import scala.tools.nsc.{ GenericRunnerCommand, Settings }
 
-class ConsoleInterface {
+class ConsoleInterface extends xsbti.ConsoleInterface1 {
   def commandArguments(
       args: Array[String],
       bootClasspathString: String,
@@ -29,7 +29,7 @@ class ConsoleInterface {
       cleanupCommands: String,
       loader: ClassLoader,
       bindNames: Array[String],
-      bindValues: Array[Any],
+      bindValues: Array[AnyRef],
       log: Logger
   ): Unit = {
     lazy val interpreterSettings = MakeSettings.sync(args.toList, log)

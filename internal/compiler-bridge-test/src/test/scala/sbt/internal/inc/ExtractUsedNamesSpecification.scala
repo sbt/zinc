@@ -283,7 +283,7 @@ class ExtractUsedNamesSpecification extends CompilingSpecification with Diagramm
     findPatMatUsages(notUsedInPatternMatch) shouldEqual Set()
     ()
   }
-  */
+   */
 
   /**
    * Standard names that appear in every compilation unit that has any class

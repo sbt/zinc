@@ -9,7 +9,7 @@ object Dependencies {
 
   private val ioVersion = "1.3.0-M4"
   private val utilVersion = "1.3.0-M4"
-  private val interfaceVersion = "1.3.0-X3"
+  private val interfaceVersion = "1.3.0-X4"
 
   val compilerInterface = "org.scala-sbt" % "compiler-interface" % interfaceVersion
 
