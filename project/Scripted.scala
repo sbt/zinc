@@ -11,8 +11,9 @@ import scala.language.reflectiveCalls
 object Scripted {
   def scriptedPath = file("scripted")
   val publishLocalBinAll = taskKey[Unit]("")
-  val scriptedUnpublished = inputKey[Unit]("Execute scripted without publishing sbt first. " +
-        "Saves you some time when only your test has changed")
+  val scriptedUnpublished = inputKey[Unit](
+    "Execute scripted without publishing sbt first. " +
+      "Saves you some time when only your test has changed")
   val scriptedSource = settingKey[File]("")
   val scriptedPrescripted = taskKey[File => Unit]("")
   val scriptedCompileToJar = settingKey[Boolean]("Compile directly to jar in scripted tests")
@@ -66,7 +67,10 @@ object Scripted {
 
   // Interface to cross class loader
   type IncScriptedRunner = {
-    def run(resourceBaseDirectory: File, bufferLog: Boolean, compileToJar: Boolean, tests: Array[String]): Unit
+    def run(resourceBaseDirectory: File,
+            bufferLog: Boolean,
+            compileToJar: Boolean,
+            tests: Array[String]): Unit
   }
 
   def doScripted(scriptedSbtClasspath: Seq[Attributed[File]],

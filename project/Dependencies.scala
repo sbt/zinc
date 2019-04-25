@@ -40,8 +40,9 @@ object Dependencies {
       c: Option[Configuration] = None
   ) =
     path match {
-      case Some(f) => p dependsOn ClasspathDependency(ProjectRef(file(f), projectName), c.map(_.name))
-      case None    => p settings (libraryDependencies += m.withConfigurations(c.map(_.name)))
+      case Some(f) =>
+        p dependsOn ClasspathDependency(ProjectRef(file(f), projectName), c.map(_.name))
+      case None => p settings (libraryDependencies += m.withConfigurations(c.map(_.name)))
     }
 
   lazy val sbtIoPath = getSbtModulePath("sbtio.path", "sbt/io")
