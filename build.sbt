@@ -29,43 +29,12 @@ ThisBuild / version := {
 ThisBuild / licenses := List(("Apache-2.0", url("https://www.apache.org/licenses/LICENSE-2.0")))
 ThisBuild / scalafmtOnCompile := !(Global / insideCI).value
 ThisBuild / Test / scalafmtOnCompile := !(Global / insideCI).value
-
-def buildLevelSettings: Seq[Setting[_]] = Seq(
-  // https://github.com/sbt/sbt-git/issues/109
-  // Workaround from https://github.com/sbt/sbt-git/issues/92#issuecomment-161853239
-  git.gitUncommittedChanges := {
-    val statusCommands = Seq(
-      Seq("diff-index", "--cached", "HEAD"),
-      Seq("diff-index", "HEAD"),
-      Seq("diff-files"),
-      Seq("ls-files", "--exclude-standard", "--others")
-    )
-    // can't use git.runner.value because it's a task
-    val runner = com.typesafe.sbt.git.ConsoleGitRunner
-    val dir = baseDirectory.value
-    // sbt/zinc#334 Seemingly "git status" resets some stale metadata.
-    runner("status")(dir, com.typesafe.sbt.git.NullLogger)
-    val uncommittedChanges = statusCommands flatMap { c =>
-      val res = runner(c: _*)(dir, com.typesafe.sbt.git.NullLogger)
-      if (res.isEmpty) Nil else Seq(c -> res)
-    }
-
-    val un = uncommittedChanges.nonEmpty
-    if (un) {
-      uncommittedChanges foreach {
-        case (cmd, res) =>
-          sLog.value debug s"""Uncommitted changes found via "${cmd mkString " "}":\n${res}"""
-      }
-    }
-    un
-  },
-  bintrayPackage := "zinc",
-  scmInfo := Some(ScmInfo(url("https://github.com/sbt/zinc"), "git@github.com:sbt/zinc.git")),
-  description := "Incremental compiler of Scala",
-  homepage := Some(url("https://github.com/sbt/zinc")),
-  developers +=
-    Developer("jvican", "Jorge Vicente Cantero", "@jvican", url("https://github.com/jvican")),
-)
+ThisBuild / bintrayPackage := "zinc"
+ThisBuild / scmInfo := Some(ScmInfo(url("https://github.com/sbt/zinc"), "git@github.com:sbt/zinc.git"))
+ThisBuild / description := "Incremental compiler of Scala"
+ThisBuild / homepage := Some(url("https://github.com/sbt/zinc"))
+ThisBuild / developers +=
+  Developer("jvican", "Jorge Vicente Cantero", "@jvican", url("https://github.com/jvican"))
 
 def commonSettings: Seq[Setting[_]] = Seq(
   scalaVersion := scala212,
@@ -152,7 +121,6 @@ lazy val zincRoot: Project = (project in file("."))
     zincScripted
   )
   .settings(
-    inThisBuild(buildLevelSettings),
     minimalSettings,
     otherRootSettings,
     noPublish,
@@ -862,11 +830,38 @@ def customCommands: Seq[Setting[_]] = Seq(
   }
 )
 
-inThisBuild(Seq(
-  whitesourceProduct                   := "Lightbend Reactive Platform",
-  whitesourceAggregateProjectName      := "sbt-zinc-master",
-  whitesourceAggregateProjectToken     := "4b57f35176864c6397b872277d51bc27b89503de0f1742b8bc4dfa2e33b95c5c",
-  whitesourceIgnoredScopes             += "scalafmt",
-  whitesourceFailOnError               := sys.env.contains("WHITESOURCE_PASSWORD"), // fail if pwd is present
-  whitesourceForceCheckAllDependencies := true,
-))
+// https://github.com/sbt/sbt-git/issues/109
+// Workaround from https://github.com/sbt/sbt-git/issues/92#issuecomment-161853239
+ThisBuild / git.gitUncommittedChanges := {
+  val statusCommands = Seq(
+    Seq("diff-index", "--cached", "HEAD"),
+    Seq("diff-index", "HEAD"),
+    Seq("diff-files"),
+    Seq("ls-files", "--exclude-standard", "--others")
+  )
+  // can't use git.runner.value because it's a task
+  val runner = com.typesafe.sbt.git.ConsoleGitRunner
+  val dir = baseDirectory.value
+  // sbt/zinc#334 Seemingly "git status" resets some stale metadata.
+  runner("status")(dir, com.typesafe.sbt.git.NullLogger)
+  val uncommittedChanges = statusCommands flatMap { c =>
+    val res = runner(c: _*)(dir, com.typesafe.sbt.git.NullLogger)
+    if (res.isEmpty) Nil else Seq(c -> res)
+  }
+
+  val un = uncommittedChanges.nonEmpty
+  if (un) {
+    uncommittedChanges foreach {
+      case (cmd, res) =>
+        sLog.value debug s"""Uncommitted changes found via "${cmd mkString " "}":\n${res}"""
+    }
+  }
+  un
+}
+
+ThisBuild / whitesourceProduct                   := "Lightbend Reactive Platform"
+ThisBuild / whitesourceAggregateProjectName      := "sbt-zinc-master"
+ThisBuild / whitesourceAggregateProjectToken     := "4b57f35176864c6397b872277d51bc27b89503de0f1742b8bc4dfa2e33b95c5c"
+ThisBuild / whitesourceIgnoredScopes             += "scalafmt"
+ThisBuild / whitesourceFailOnError               := sys.env.contains("WHITESOURCE_PASSWORD") // fail if pwd is present
+ThisBuild / whitesourceForceCheckAllDependencies := true
