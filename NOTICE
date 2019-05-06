@@ -10,6 +10,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 This product includes software developed by
+- ZipFileSystem developed by Oracle and/or its affiliates under BSD 3-Clause license
 - ScalaJSON developed by Matthew de Detrich under BSD 3-Clause license
 - sjson-new developed by Eugene Yokota under Apache 2.0 license
 - Protocol Buffers developed by Google, Inc. under BSD 3-Clause license
