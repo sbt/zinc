@@ -35,6 +35,8 @@ ThisBuild / description := "Incremental compiler of Scala"
 ThisBuild / homepage := Some(url("https://github.com/sbt/zinc"))
 ThisBuild / developers +=
   Developer("jvican", "Jorge Vicente Cantero", "@jvican", url("https://github.com/jvican"))
+// Remove all additional repository other than Maven Central from POM
+ThisBuild / pomIncludeRepository := { _ => false }
 
 def commonSettings: Seq[Setting[_]] = Seq(
   scalaVersion := scala212,
