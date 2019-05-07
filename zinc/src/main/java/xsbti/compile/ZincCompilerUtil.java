@@ -12,6 +12,8 @@ import xsbti.Logger;
 import java.io.File;
 import java.util.function.Supplier;
 
+import sbt.internal.inc.ZincUtil;
+
 /**
  * Defines a util interface to get Scala compilers and the default implementation
  * of the Scala incremental compiler if only IncrementalCompiler is required.
@@ -21,7 +23,7 @@ public interface ZincCompilerUtil {
      * @return Return the default implementation of IncrementalCompiler.
      */
     public static IncrementalCompiler defaultIncrementalCompiler() {
-        return sbt.internal.inc.ZincUtil.defaultIncrementalCompiler();
+        return ZincUtil.defaultIncrementalCompiler();
     }
 
     /**
@@ -37,7 +39,7 @@ public interface ZincCompilerUtil {
     public static ScalaCompiler scalaCompiler(ScalaInstance scalaInstance,
                                               File compilerBridgeJar,
                                               ClasspathOptions classpathOptions) {
-        return sbt.internal.inc.ZincUtil.scalaCompiler(scalaInstance, compilerBridgeJar, classpathOptions);
+        return ZincUtil.scalaCompiler(scalaInstance, compilerBridgeJar, classpathOptions);
     }
 
     /**
@@ -50,7 +52,7 @@ public interface ZincCompilerUtil {
      */
     public static ScalaCompiler scalaCompiler(ScalaInstance scalaInstance,
                                               File compilerBridgeJar) {
-        return sbt.internal.inc.ZincUtil.scalaCompiler(scalaInstance, compilerBridgeJar);
+        return ZincUtil.scalaCompiler(scalaInstance, compilerBridgeJar);
     }
 
     /**
