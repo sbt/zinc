@@ -63,7 +63,7 @@ public interface ZincCompilerUtil {
      * This method is useful for external build tools that want full control over the retrieval
      * and compilation of the compiler bridge, as well as the Scala instance to be used.
      *
-     * @param file The jar or directory of the compiled Scala bridge.
+     * @param compilerBridgeJar The jar or directory of the compiled Scala bridge.
      * @return A provider that always returns the same compiled bridge.
      */
     public static CompilerBridgeProvider constantBridgeProvider(ScalaInstance scalaInstance,
