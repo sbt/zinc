@@ -23,9 +23,7 @@ import sbt.internal.inc.ZincUtil;
  * of the Scala incremental compiler if only IncrementalCompiler is required.
  */
 public interface ZincCompilerUtil {
-    /**
-     * @return Return the default implementation of IncrementalCompiler.
-     */
+    /** @return Return the default implementation of IncrementalCompiler. */
     public static IncrementalCompiler defaultIncrementalCompiler() {
         return ZincUtil.defaultIncrementalCompiler();
     }
@@ -40,9 +38,11 @@ public interface ZincCompilerUtil {
      *                          compiler takes in.
      * @return A Scala compiler with the given configuration.
      */
-    public static ScalaCompiler scalaCompiler(ScalaInstance scalaInstance,
-                                              File compilerBridgeJar,
-                                              ClasspathOptions classpathOptions) {
+    public static ScalaCompiler scalaCompiler(
+        ScalaInstance scalaInstance,
+        File compilerBridgeJar,
+        ClasspathOptions classpathOptions
+    ) {
         return ZincUtil.scalaCompiler(scalaInstance, compilerBridgeJar, classpathOptions);
     }
 
@@ -54,8 +54,10 @@ public interface ZincCompilerUtil {
      * @param compilerBridgeJar The jar file of the compiler bridge.
      * @return A Scala compiler with the given configuration.
      */
-    public static ScalaCompiler scalaCompiler(ScalaInstance scalaInstance,
-                                              File compilerBridgeJar) {
+    public static ScalaCompiler scalaCompiler(
+        ScalaInstance scalaInstance,
+        File compilerBridgeJar
+    ) {
         return ZincUtil.scalaCompiler(scalaInstance, compilerBridgeJar);
     }
 
@@ -68,8 +70,10 @@ public interface ZincCompilerUtil {
      * @param compilerBridgeJar The jar or directory of the compiled Scala bridge.
      * @return A provider that always returns the same compiled bridge.
      */
-    public static CompilerBridgeProvider constantBridgeProvider(ScalaInstance scalaInstance,
-                                                         File compilerBridgeJar) {
+    public static CompilerBridgeProvider constantBridgeProvider(
+        ScalaInstance scalaInstance,
+        File compilerBridgeJar
+    ) {
         return new CompilerBridgeProvider() {
             @Override
             public File fetchCompiledBridge(ScalaInstance scalaInstance, Logger logger) {
