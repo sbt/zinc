@@ -74,13 +74,15 @@ object Scripted {
     ): Unit
   }
 
-  def doScripted(scriptedSbtClasspath: Seq[Attributed[File]],
-                 scriptedSbtInstance: ScalaInstance,
-                 sourcePath: File,
-                 args: Seq[String],
-                 bufferLog: Boolean,
-                 compileToJar: Boolean,
-                 prescripted: File => Unit): Unit = {
+  def doScripted(
+      scriptedSbtClasspath: Seq[Attributed[File]],
+      scriptedSbtInstance: ScalaInstance,
+      sourcePath: File,
+      args: Seq[String],
+      bufferLog: Boolean,
+      compileToJar: Boolean,
+      prescripted: File => Unit,
+  ): Unit = {
     System.err.println(s"About to run tests: ${args.mkString("\n * ", "\n * ", "\n")}")
     // Force Log4J to not use a thread context classloader otherwise it throws a CCE
     sys.props(org.apache.logging.log4j.util.LoaderUtil.IGNORE_TCCL_PROPERTY) = "true"
