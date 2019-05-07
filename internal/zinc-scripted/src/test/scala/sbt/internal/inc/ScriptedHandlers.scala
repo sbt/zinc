@@ -21,11 +21,7 @@ class IncScriptedHandlers(globalCacheDir: File, compileToJar: Boolean) extends H
     '$' -> new SleepingHandler(new ZincFileCommands(config.testDirectory()), 500),
     '#' -> CommentHandler,
     '>' -> {
-      val logger: ManagedLogger =
-        config.logger() match {
-          case x: ManagedLogger => x
-          case _                => sys.error("Expected ManagedLogger")
-        }
+      val logger = config.logger().asInstanceOf[ManagedLogger]
       new IncHandler(config.testDirectory(), globalCacheDir, logger, compileToJar)
     }
   )
