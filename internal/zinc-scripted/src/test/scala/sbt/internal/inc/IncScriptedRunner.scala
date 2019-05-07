@@ -57,7 +57,7 @@ object ScriptedRunnerImpl {
     if (errors.nonEmpty) throw new ScriptedFailure(errors) else ()
 
   def runAllInParallel(tests: ParSeq[TestRunner]): Unit = {
-    reportErrors(tests.flatMap(test => test.apply().flatten.toSeq).toList)
+    reportErrors(tests.flatMap(test => test.apply().flatten).toList)
   }
 
   def get(tests: Seq[String], baseDirectory: File, log: Logger): Seq[ScriptedTest] =

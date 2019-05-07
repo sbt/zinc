@@ -319,7 +319,7 @@ object AnalyzingCompiler {
   ): Unit = {
     val isSource = (f: File) => isSourceName(f.getName)
     def keepIfSource(files: Set[File]): Set[File] =
-      if (files.exists(isSource)) files else Set()
+      if (files.exists(isSource)) files else Set.empty
 
     // Generate jar from compilation dirs, the resources and a target name.
     def generateJar(outputDir: File, dir: File, resources: Seq[File], targetJar: File) = {
@@ -341,9 +341,11 @@ object AnalyzingCompiler {
 
     withTemporaryDirectory { dir =>
       // Extract the sources to be compiled
-      val extractedSources = (Set[File]() /: sourceJars) { (extracted, sourceJar) =>
-        extracted ++ keepIfSource(unzip(sourceJar, dir))
-      }.toSeq
+      val extractedSources = sourceJars
+        .foldLeft(Set.empty[File]) { (extracted, sourceJar) =>
+          extracted ++ keepIfSource(unzip(sourceJar, dir))
+        }
+        .toSeq
       val (sourceFiles, resources) = extractedSources.partition(isSource)
       withTemporaryDirectory { outputDirectory =>
         val scalaVersion = compiler.scalaInstance.actualVersion
