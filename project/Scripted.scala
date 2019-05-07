@@ -65,8 +65,13 @@ object Scripted {
   }
 
   // Interface to cross class loader
-  type IncScriptedRunner = {
-    def run(resourceBaseDirectory: File, bufferLog: Boolean, compileToJar: Boolean, tests: Array[String]): Unit
+  type MainScriptedRunner = {
+    def run(
+        resourceBaseDirectory: File,
+        bufferLog: Boolean,
+        compileToJar: Boolean,
+        tests: Array[String],
+    ): Unit
   }
 
   def doScripted(scriptedSbtClasspath: Seq[Attributed[File]],
@@ -81,8 +86,8 @@ object Scripted {
     sys.props(org.apache.logging.log4j.util.LoaderUtil.IGNORE_TCCL_PROPERTY) = "true"
     val noJLine = new classpath.FilteredLoader(scriptedSbtInstance.loader, "jline." :: Nil)
     val loader = classpath.ClasspathUtilities.toLoader(scriptedSbtClasspath.files, noJLine)
-    val bridgeClass = Class.forName("sbt.internal.inc.IncScriptedRunner", true, loader)
-    val bridge = bridgeClass.getDeclaredConstructor().newInstance().asInstanceOf[IncScriptedRunner]
+    val bridgeClass = Class.forName("sbt.inc.MainScriptedRunner", true, loader)
+    val bridge = bridgeClass.getDeclaredConstructor().newInstance().asInstanceOf[MainScriptedRunner]
     // val launcherVmOptions = Array("-XX:MaxPermSize=256M") // increased after a failure in scripted source-dependencies/macro
     try {
       bridge.run(sourcePath, bufferLog, compileToJar, args.toArray)
