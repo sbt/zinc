@@ -16,6 +16,8 @@ def mimaSettings: Seq[Setting[_]] = Seq(
   ),
 )
 
+ThisBuild / licenses := List(("Apache-2.0", url("https://www.apache.org/licenses/LICENSE-2.0")))
+
 def buildLevelSettings: Seq[Setting[_]] = Seq(
   git.baseVersion := "1.3.0",
   // https://github.com/sbt/sbt-git/issues/109

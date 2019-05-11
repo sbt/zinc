@@ -1,0 +1,26 @@
+Zinc
+Copyright 2011 -, Lightbend, Inc.
+Copyright 2008 - 2010, Mark Harrah
+
+Licensed under the Apache License, Version 2.0 (the "License").
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+This product includes software developed by
+- ZipFileSystem developed by Oracle and/or its affiliates under BSD 3-Clause license
+- ScalaJSON developed by Matthew de Detrich under BSD 3-Clause license
+- sjson-new developed by Eugene Yokota under Apache 2.0 license
+- Protocol Buffers developed by Google, Inc. under BSD 3-Clause license
+- FastParse developed by Li Haoyi under MIT License
+- SourceCode developed by Li Haoyi under MIT License
+- LMAX Disruptor developed by LMAX Ltd. under Apache 2.0 license
+- File tree views developed by Ethan Atkins under MIT License
+- ScalaPB developed by Nadav S. Samet under Apache 2.0 license
+- JLine developed by Jason Dillon, Guillaume Nodet, and Marc Prud'hommeaux under BSD 3-Clause license
+- Java Native Access (JNA) developed by Timothy Wall dual-licensed under LGPL 2.1 or later and Apache 2.0 license
+- Apache Log4j 2 developed by The Apache Software Foundation under Apache 2.0 license
+- Scala compiler developed by EPFL and Lightbend under Apache 2.0 license
+- Jawn developed by Erik Osheim under MIT License

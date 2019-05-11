@@ -1,3 +1,14 @@
+/*
+ * Zinc - The incremental compiler for Scala.
+ * Copyright Lightbend, Inc. and Mark Harrah
+ *
+ * Licensed under Apache License 2.0
+ * (http://www.apache.org/licenses/LICENSE-2.0).
+ *
+ * See the NOTICE file distributed with this work for
+ * additional information regarding copyright ownership.
+ */
+
 package sbt
 package internal
 package inc
@@ -85,10 +96,10 @@ class JavaCompilerSpec extends UnitSpec with DiagrammedAssertions {
         case _           => 5
       }
     })
-    val importWarn = warnOnLine(lineno = 1, lineContent = Some("java.rmi.RMISecurityException"))
-    val enclosingError = errorOnLine(lineno = 14, message = Some("not an enclosing class: C.D"))
+    val importWarn = warnOnLine(lineno = 12, lineContent = Some("java.rmi.RMISecurityException"))
+    val enclosingError = errorOnLine(lineno = 25, message = Some("not an enclosing class: C.D"))
     val beAnExpectedError =
-      List(importWarn, errorOnLine(3), errorOnLine(4), warnOnLine(7), enclosingError) reduce (_ or _)
+      List(importWarn, errorOnLine(14), errorOnLine(15), warnOnLine(18), enclosingError) reduce (_ or _)
     problems foreach { p =>
       p should beAnExpectedError
     }
@@ -105,7 +116,7 @@ class JavaCompilerSpec extends UnitSpec with DiagrammedAssertions {
       }
     })
     assert(problems.size == 2)
-    val beAnExpectedError = List(errorOnLine(3), errorOnLine(4)) reduce (_ or _)
+    val beAnExpectedError = List(errorOnLine(14), errorOnLine(15)) reduce (_ or _)
     problems foreach { p =>
       p should beAnExpectedError
     }
