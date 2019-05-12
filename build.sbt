@@ -27,8 +27,8 @@ ThisBuild / version := {
   }
 }
 ThisBuild / licenses := List(("Apache-2.0", url("https://www.apache.org/licenses/LICENSE-2.0")))
-ThisBuild / scalafmtOnCompile := true
-ThisBuild / Test / scalafmtOnCompile := true
+ThisBuild / scalafmtOnCompile := !(Global / insideCI).value
+ThisBuild / Test / scalafmtOnCompile := !(Global / insideCI).value
 
 def buildLevelSettings: Seq[Setting[_]] = Seq(
   // https://github.com/sbt/sbt-git/issues/109
