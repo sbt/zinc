@@ -16,10 +16,19 @@ def mimaSettings: Seq[Setting[_]] = Seq(
   ),
 )
 
+ThisBuild / git.baseVersion := "1.3.0"
+ThisBuild / version := {
+  val old = (ThisBuild / version).value
+  nightlyVersion match {
+    case Some(v) => v
+    case _ =>
+      if (old contains "SNAPSHOT") git.baseVersion.value + "-SNAPSHOT"
+      else old
+  }
+}
 ThisBuild / licenses := List(("Apache-2.0", url("https://www.apache.org/licenses/LICENSE-2.0")))
 
 def buildLevelSettings: Seq[Setting[_]] = Seq(
-  git.baseVersion := "1.3.0",
   // https://github.com/sbt/sbt-git/issues/109
   // Workaround from https://github.com/sbt/sbt-git/issues/92#issuecomment-161853239
   git.gitUncommittedChanges := {
@@ -47,11 +56,6 @@ def buildLevelSettings: Seq[Setting[_]] = Seq(
       }
     }
     un
-  },
-  version := {
-    val v = version.value
-    if (v contains "SNAPSHOT") git.baseVersion.value + "-SNAPSHOT"
-    else v
   },
   bintrayPackage := "zinc",
   scmInfo := Some(ScmInfo(url("https://github.com/sbt/zinc"), "git@github.com:sbt/zinc.git")),

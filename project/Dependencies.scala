@@ -2,13 +2,15 @@ import sbt._, Keys._
 import sbt.contraband.ContrabandPlugin.autoImport._
 
 object Dependencies {
+  def nightlyVersion: Option[String] = sys.props.get("sbt.build.version")
+
   val scala210 = "2.10.7"
   val scala211 = "2.11.12"
   val scala212 = "2.12.8"
   val scala213 = "2.13.0-RC1"
 
-  private val ioVersion = "1.3.0-M4"
-  private val utilVersion = "1.3.0-M4"
+  private val ioVersion = nightlyVersion.getOrElse("1.3.0-M10")
+  private val utilVersion = nightlyVersion.getOrElse("1.3.0-M6")
 
   private val sbtIO = "org.scala-sbt" %% "io" % ioVersion
 
@@ -62,11 +64,11 @@ object Dependencies {
   val scalaLibrary = Def.setting { "org.scala-lang" % "scala-library" % scalaVersion.value }
   val scalaCompiler = Def.setting { "org.scala-lang" % "scala-compiler" % scalaVersion.value }
 
-  val parserCombinator = "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.5"
+  val parserCombinator = "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2"
   val sbinary = "org.scala-sbt" %% "sbinary" % "0.4.4"
   val silencerPlugin = "com.github.ghik" %% "silencer-plugin" % "1.2"
   val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.14.0"
-  val scalatest = "org.scalatest" %% "scalatest" % "3.0.5"
+  val scalatest = "org.scalatest" %% "scalatest" % "3.0.6-SNAP5"
   val junit = "junit" % "junit" % "4.11"
   val sjsonnew = Def.setting {
     "com.eed3si9n" %% "sjson-new-core" % contrabandSjsonNewVersion.value
