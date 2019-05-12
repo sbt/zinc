@@ -27,6 +27,8 @@ ThisBuild / version := {
   }
 }
 ThisBuild / licenses := List(("Apache-2.0", url("https://www.apache.org/licenses/LICENSE-2.0")))
+ThisBuild / scalafmtOnCompile := true
+ThisBuild / Test / scalafmtOnCompile := true
 
 def buildLevelSettings: Seq[Setting[_]] = Seq(
   // https://github.com/sbt/sbt-git/issues/109
@@ -63,7 +65,6 @@ def buildLevelSettings: Seq[Setting[_]] = Seq(
   homepage := Some(url("https://github.com/sbt/zinc")),
   developers +=
     Developer("jvican", "Jorge Vicente Cantero", "@jvican", url("https://github.com/jvican")),
-  scalafmtOnCompile := true,
 )
 
 def commonSettings: Seq[Setting[_]] = Seq(
