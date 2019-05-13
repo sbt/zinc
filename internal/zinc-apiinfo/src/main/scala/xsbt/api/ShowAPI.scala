@@ -58,8 +58,9 @@ object ShowAPI {
         else " self: " + showNestedType(cl.selfType) + " =>"
 
       cl.structure.parents.map(showNestedType).mkString("", " with ", " {") + showSelf +
-        lines(truncateDecls(cl.structure.inherited).map(d =>
-          "^inherited^ " + showNestedDefinition(d))) +
+        lines(
+          truncateDecls(cl.structure.inherited).map(d => "^inherited^ " + showNestedDefinition(d))
+        ) +
         lines(truncateDecls(cl.structure.declared).map(showNestedDefinition)) +
         "}"
     }
@@ -103,10 +104,12 @@ object ShowAPI {
   private def space(s: String) = if (s.isEmpty) s else s + " "
   private def showMonoDef(d: Definition, label: String)(implicit nesting: Int): String =
     space(showAnnotations(d.annotations)) + space(showAccess(d.access)) + space(
-      showModifiers(d.modifiers)) + space(label) + d.name
+      showModifiers(d.modifiers)
+    ) + space(label) + d.name
 
   private def showPolyDef(d: ParameterizedDefinition, label: String)(
-      implicit nesting: Int): String =
+      implicit nesting: Int
+  ): String =
     showMonoDef(d, label) + showTypeParameters(d.typeParameters)
 
   private def showTypeParameters(tps: Seq[TypeParameter])(implicit nesting: Int): String =
@@ -115,7 +118,8 @@ object ShowAPI {
 
   private def showTypeParameter(tp: TypeParameter)(implicit nesting: Int): String =
     showAnnotations(tp.annotations) + " " + showVariance(tp.variance) + tp.id + showTypeParameters(
-      tp.typeParameters) + " " + showBounds(tp.lowerBound, tp.upperBound)
+      tp.typeParameters
+    ) + " " + showBounds(tp.lowerBound, tp.upperBound)
 
   private def showAnnotations(as: Seq[Annotation])(implicit nesting: Int) =
     as.map(showAnnotation).mkString(" ")
@@ -132,11 +136,14 @@ object ShowAPI {
     ps.map(
         pl =>
           pl.parameters
-            .map(mp =>
-              mp.name + ": " + showParameterModifier(showType(mp.tpe), mp.modifier) + (if (mp.hasDefault)
-                                                                                         "= ..."
-                                                                                       else ""))
-            .mkString(if (pl.isImplicit) "(implicit " else "(", ", ", ")"))
+            .map(
+              mp =>
+                mp.name + ": " + showParameterModifier(showType(mp.tpe), mp.modifier) + (if (mp.hasDefault)
+                                                                                           "= ..."
+                                                                                         else "")
+            )
+            .mkString(if (pl.isImplicit) "(implicit " else "(", ", ", ")")
+      )
       .mkString("")
 
   private def showParameterModifier(base: String, pm: ParameterModifier): String = pm match {

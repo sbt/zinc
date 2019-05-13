@@ -24,8 +24,8 @@ sealed trait FileValueCache[T] {
 }
 
 private[this] final class FileValueCache0[T](getStamp: File => XStamp, make: File => T)(
-    implicit equiv: Equiv[XStamp])
-    extends FileValueCache[T] {
+    implicit equiv: Equiv[XStamp]
+) extends FileValueCache[T] {
   private[this] val backing = new ConcurrentHashMap[File, FileCache]
 
   def clear(): Unit = backing.clear()

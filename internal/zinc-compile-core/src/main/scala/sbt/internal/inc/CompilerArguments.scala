@@ -74,8 +74,10 @@ final class CompilerArguments(
   def finishClasspath(classpath: Seq[File]): Seq[File] = {
     val filteredClasspath = filterLibrary(classpath)
     val extraCompiler = include(cpOptions.compiler, scalaInstance.compilerJar)
-    val otherJars = scalaInstance.allJars().toList diff List(scalaInstance.compilerJar,
-                                                             scalaInstance.libraryJar)
+    val otherJars = scalaInstance.allJars().toList diff List(
+      scalaInstance.compilerJar,
+      scalaInstance.libraryJar
+    )
     val extraClasspath = include(cpOptions.extra, otherJars: _*)
     filteredClasspath ++ extraCompiler ++ extraClasspath
   }
@@ -123,8 +125,9 @@ final class CompilerArguments(
     bootClasspath(hasLibrary(classpath))
 
   def extClasspath: Seq[File] =
-    List("java.ext.dirs", "scala.ext.dirs").flatMap(k =>
-      (IO.parseClasspath(System.getProperty(k, "")) * "*.jar").get)
+    List("java.ext.dirs", "scala.ext.dirs").flatMap(
+      k => (IO.parseClasspath(System.getProperty(k, "")) * "*.jar").get
+    )
 
   private[this] def include(flag: Boolean, jars: File*) =
     if (flag) jars

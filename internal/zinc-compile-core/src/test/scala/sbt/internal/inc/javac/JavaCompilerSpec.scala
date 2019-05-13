@@ -79,7 +79,8 @@ class JavaCompilerSpec extends UnitSpec with DiagrammedAssertions {
     assert(classfile.exists)
     assert(
       dealiasSymlinks(classfileManager.generatedClasses) ==
-        (if (forked) HashSet() else dealiasSymlinks(HashSet(classfile))))
+        (if (forked) HashSet() else dealiasSymlinks(HashSet(classfile)))
+    )
 
     val cl = new URLClassLoader(Array(out.toURI.toURL))
     val clazzz = cl.loadClass("good")
@@ -129,10 +130,12 @@ class JavaCompilerSpec extends UnitSpec with DiagrammedAssertions {
   def analyzeStaticDifference(typeName: String, left: String, right: String): Unit =
     analyzeStaticDifference(typeName, left, typeName, right)
 
-  def analyzeStaticDifference(leftType: String,
-                              left: String,
-                              rightType: String,
-                              right: String): Unit = {
+  def analyzeStaticDifference(
+      leftType: String,
+      left: String,
+      rightType: String,
+      right: String
+  ): Unit = {
     def compileWithPrimitive(templateType: String, templateValue: String) =
       IO.withTemporaryDirectory { out =>
         // copy the input file to a temporary location and change the templateValue
@@ -221,22 +224,24 @@ class JavaCompilerSpec extends UnitSpec with DiagrammedAssertions {
     }
   }
 
-  def compile(c: XJavaTools,
-              sources: Seq[File],
-              args: Seq[String],
-              incToolOptions: IncToolOptions = IncToolOptionsUtil.defaultIncToolOptions())
-    : (Boolean, Array[Problem]) = {
+  def compile(
+      c: XJavaTools,
+      sources: Seq[File],
+      args: Seq[String],
+      incToolOptions: IncToolOptions = IncToolOptionsUtil.defaultIncToolOptions()
+  ): (Boolean, Array[Problem]) = {
     val log = LogExchange.logger("JavaCompilerSpec")
     val reporter = new ManagedLoggedReporter(10, log)
     val result = c.javac.run(sources.toArray, args.toArray, incToolOptions, reporter, log)
     (result, reporter.problems)
   }
 
-  def doc(c: XJavaTools,
-          sources: Seq[File],
-          args: Seq[String],
-          incToolOptions: IncToolOptions = IncToolOptionsUtil.defaultIncToolOptions())
-    : (Boolean, Array[Problem]) = {
+  def doc(
+      c: XJavaTools,
+      sources: Seq[File],
+      args: Seq[String],
+      incToolOptions: IncToolOptions = IncToolOptionsUtil.defaultIncToolOptions()
+  ): (Boolean, Array[Problem]) = {
     val log = LogExchange.logger("JavaCompilerSpec")
     val reporter = new ManagedLoggedReporter(10, log)
     val result = c.javadoc.run(sources.toArray, args.toArray, incToolOptions, reporter, log)

@@ -21,10 +21,12 @@ import sbt.internal.io.Resources
 import sbt.internal.util.{ ConsoleAppender, ConsoleOut, ManagedLogger, TraceEvent }
 import sbt.util.{ Level, LogExchange }
 
-final class ScriptedTests(resourceBaseDirectory: File,
-                          bufferLog: Boolean,
-                          handlersProvider: HandlersProvider,
-                          logsDir: File) {
+final class ScriptedTests(
+    resourceBaseDirectory: File,
+    bufferLog: Boolean,
+    handlersProvider: HandlersProvider,
+    logsDir: File
+) {
   import sbt.io.syntax._
   import ScriptedTests._
 

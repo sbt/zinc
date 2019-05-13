@@ -120,19 +120,23 @@ object LocalJava {
 
 /** Implementation of javadoc tool which attempts to run it locally (in-class). */
 final class LocalJavadoc() extends XJavadoc {
-  override def run(sources: Array[File],
-                   options: Array[String],
-                   incToolOptions: IncToolOptions,
-                   reporter: Reporter,
-                   log: XLogger): Boolean = {
+  override def run(
+      sources: Array[File],
+      options: Array[String],
+      incToolOptions: IncToolOptions,
+      reporter: Reporter,
+      log: XLogger
+  ): Boolean = {
     val cwd = new File(new File(".").getAbsolutePath).getCanonicalFile
     val nonJArgs = options.filterNot(_.startsWith("-J"))
     val allArguments = nonJArgs ++ sources.map(_.getAbsolutePath)
     val javacLogger = new JavacLogger(log, reporter, cwd)
     val errorWriter = new WriterOutputStream(
-      new PrintWriter(new ProcessLoggerWriter(javacLogger, Level.Error)))
+      new PrintWriter(new ProcessLoggerWriter(javacLogger, Level.Error))
+    )
     val infoWriter = new WriterOutputStream(
-      new PrintWriter(new ProcessLoggerWriter(javacLogger, Level.Info)))
+      new PrintWriter(new ProcessLoggerWriter(javacLogger, Level.Info))
+    )
     var exitCode = -1
     try {
       exitCode = LocalJava.javadoc(allArguments, null, infoWriter, errorWriter)
@@ -151,11 +155,13 @@ final class LocalJavadoc() extends XJavadoc {
  * resident Java compiler.
  */
 final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaCompiler {
-  override def run(sources: Array[File],
-                   options: Array[String],
-                   incToolOptions: IncToolOptions,
-                   reporter: Reporter,
-                   log0: XLogger): Boolean = {
+  override def run(
+      sources: Array[File],
+      options: Array[String],
+      incToolOptions: IncToolOptions,
+      reporter: Reporter,
+      log0: XLogger
+  ): Boolean = {
     val log: Logger = log0
     import collection.JavaConverters._
     val logger = new LoggerWriter(log)
@@ -189,12 +195,14 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
     var compileSuccess = false
     try {
       val success = compiler
-        .getTask(logWriter,
-                 customizedFileManager,
-                 diagnostics,
-                 cleanedOptions.toList.asJava,
-                 null,
-                 jfiles)
+        .getTask(
+          logWriter,
+          customizedFileManager,
+          diagnostics,
+          cleanedOptions.toList.asJava,
+          null,
+          jfiles
+        )
         .call()
 
       /* Double check success variables for the Java compiler.
@@ -216,7 +224,8 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
    * properly. Also there is no access to `com.sun.tools.javac` classes, hence the reflection...
    */
   private def fileManagerWithoutOptimizedZips(
-      diagnostics: DiagnosticsReporter): StandardJavaFileManager = {
+      diagnostics: DiagnosticsReporter
+  ): StandardJavaFileManager = {
     val classLoader = compiler.getClass.getClassLoader
     val contextClass = Class.forName("com.sun.tools.javac.util.Context", true, classLoader)
     val optionsClass = Class.forName("com.sun.tools.javac.util.Options", true, classLoader)

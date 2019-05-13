@@ -44,9 +44,11 @@ trait Stamps extends ReadStamps {
   def filter(prod: File => Boolean, removeSources: Iterable[File], bin: File => Boolean): Stamps
 
   def ++(o: Stamps): Stamps
-  def groupBy[K](prod: Map[K, File => Boolean],
-                 sourcesGrouping: File => K,
-                 bin: Map[K, File => Boolean]): Map[K, Stamps]
+  def groupBy[K](
+      prod: Map[K, File => Boolean],
+      sourcesGrouping: File => K,
+      bin: Map[K, File => Boolean]
+  ): Map[K, Stamps]
 }
 
 private[sbt] sealed abstract class StampBase extends XStamp {
@@ -141,7 +143,9 @@ object Stamp {
 
 object Stamper {
   private def tryStamp(g: => XStamp): XStamp = {
-    try { g } // TODO: Double check correctness. Why should we not report an exception here?
+    try {
+      g
+    } // TODO: Double check correctness. Why should we not report an exception here?
     catch { case _: IOException => EmptyStamp }
   }
 
@@ -150,8 +154,7 @@ object Stamper {
     tryStamp(new LastModified(IO.getModifiedTimeOrZero(toStamp)))
   def forLastModifiedInJar(jar: File): File => XStamp = {
     val stamps = JarUtils.readStamps(jar)
-    (file: File) =>
-      new LastModified(stamps(file))
+    (file: File) => new LastModified(stamps(file))
   }
 }
 
@@ -163,9 +166,11 @@ object Stamps {
    * stamp is calculated separately on demand.
    * The stamp for a product is always recalculated.
    */
-  def initial(prodStamp: File => XStamp,
-              srcStamp: File => XStamp,
-              binStamp: File => XStamp): ReadStamps =
+  def initial(
+      prodStamp: File => XStamp,
+      srcStamp: File => XStamp,
+      binStamp: File => XStamp
+  ): ReadStamps =
     new InitialStamps(prodStamp, srcStamp, binStamp)
 
   def empty: Stamps = {
@@ -173,18 +178,21 @@ object Stamps {
     val eSt = TreeMap.empty[File, XStamp]
     apply(eSt, eSt, eSt)
   }
-  def apply(products: Map[File, XStamp],
-            sources: Map[File, XStamp],
-            binaries: Map[File, XStamp]): Stamps =
+  def apply(
+      products: Map[File, XStamp],
+      sources: Map[File, XStamp],
+      binaries: Map[File, XStamp]
+  ): Stamps =
     new MStamps(products, sources, binaries)
 
   def merge(stamps: Traversable[Stamps]): Stamps = (Stamps.empty /: stamps)(_ ++ _)
 }
 
-private class MStamps(val products: Map[File, XStamp],
-                      val sources: Map[File, XStamp],
-                      val binaries: Map[File, XStamp])
-    extends Stamps {
+private class MStamps(
+    val products: Map[File, XStamp],
+    val sources: Map[File, XStamp],
+    val binaries: Map[File, XStamp]
+) extends Stamps {
 
   import scala.collection.JavaConverters.mapAsJavaMapConverter
   override def getAllBinaryStamps: util.Map[File, XStamp] =
@@ -213,9 +221,11 @@ private class MStamps(val products: Map[File, XStamp],
   def filter(prod: File => Boolean, removeSources: Iterable[File], bin: File => Boolean): Stamps =
     new MStamps(products.filterKeys(prod), sources -- removeSources, binaries.filterKeys(bin))
 
-  def groupBy[K](prod: Map[K, File => Boolean],
-                 f: File => K,
-                 bin: Map[K, File => Boolean]): Map[K, Stamps] = {
+  def groupBy[K](
+      prod: Map[K, File => Boolean],
+      f: File => K,
+      bin: Map[K, File => Boolean]
+  ): Map[K, Stamps] = {
     val sourcesMap: Map[K, Map[File, XStamp]] = sources.groupBy(x => f(x._1))
 
     val constFalse = (f: File) => false
@@ -240,15 +250,18 @@ private class MStamps(val products: Map[File, XStamp],
   override lazy val hashCode: Int = (products :: sources :: binaries :: Nil).hashCode
 
   override def toString: String =
-    "Stamps for: %d products, %d sources, %d binaries".format(products.size,
-                                                              sources.size,
-                                                              binaries.size)
+    "Stamps for: %d products, %d sources, %d binaries".format(
+      products.size,
+      sources.size,
+      binaries.size
+    )
 }
 
-private class InitialStamps(prodStamp: File => XStamp,
-                            srcStamp: File => XStamp,
-                            binStamp: File => XStamp)
-    extends ReadStamps {
+private class InitialStamps(
+    prodStamp: File => XStamp,
+    srcStamp: File => XStamp,
+    binStamp: File => XStamp
+) extends ReadStamps {
   import collection.mutable.{ HashMap, Map }
 
   // cached stamps for files that do not change during compilation

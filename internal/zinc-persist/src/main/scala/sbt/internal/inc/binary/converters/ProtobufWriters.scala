@@ -564,8 +564,9 @@ final class ProtobufWriters(mapper: WriteMapper) {
     }
   }
 
-  def toAnalyzedClass(shouldStoreApis: Boolean)(
-      analyzedClass: AnalyzedClass): schema.AnalyzedClass = {
+  def toAnalyzedClass(
+      shouldStoreApis: Boolean
+  )(analyzedClass: AnalyzedClass): schema.AnalyzedClass = {
     def toCompanions(companions: Companions): schema.Companions = {
       val classApi = Some(toClassLike(companions.classApi()))
       val objectApi = Some(toClassLike(companions.objectApi()))
@@ -645,17 +646,20 @@ final class ProtobufWriters(mapper: WriteMapper) {
       schema.ClassDependencies(
         internal = memberRefInternal,
         external = memberRefExternal
-      ))
+      )
+    )
     val inheritance = Some(
       schema.ClassDependencies(
         internal = inheritanceInternal,
         external = inheritanceExternal
-      ))
+      )
+    )
     val localInheritance = Some(
       schema.ClassDependencies(
         internal = localInheritanceInternal,
         external = localInheritanceExternal
-      ))
+      )
+    )
     schema.Relations(
       srcProd = srcProd,
       libraryDep = libraryDep,
@@ -676,9 +680,11 @@ final class ProtobufWriters(mapper: WriteMapper) {
     schema.APIs(internal = internal, external = external)
   }
 
-  def toApisFile(apis0: APIs,
-                 version: schema.Version,
-                 shouldStoreApis: Boolean): schema.APIsFile = {
+  def toApisFile(
+      apis0: APIs,
+      version: schema.Version,
+      shouldStoreApis: Boolean
+  ): schema.APIsFile = {
     val apis = Some(toApis(apis0, shouldStoreApis))
     schema.APIsFile(version = version, apis = apis)
   }
@@ -696,9 +702,11 @@ final class ProtobufWriters(mapper: WriteMapper) {
     )
   }
 
-  def toAnalysisFile(analysis0: Analysis,
-                     miniSetup0: MiniSetup,
-                     version: schema.Version): schema.AnalysisFile = {
+  def toAnalysisFile(
+      analysis0: Analysis,
+      miniSetup0: MiniSetup,
+      version: schema.Version
+  ): schema.AnalysisFile = {
     val analysis = Some(toAnalysis(analysis0))
     val miniSetup = Some(toMiniSetup(miniSetup0))
     schema.AnalysisFile(version = version, analysis = analysis, miniSetup = miniSetup)

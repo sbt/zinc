@@ -63,7 +63,8 @@ class NameHashing(optimizedSealed: Boolean) {
       groupedBySimpleName.mapValues(hashLocatedDefinitions(_, location, includeSealedChildren))
     hashes.toIterable
       .map({ case (name: String, hash: Int) => NameHash.of(name, useScope, hash) })(
-        collection.breakOut)
+        collection.breakOut
+      )
   }
 
   private def hashLocatedDefinitions(

@@ -122,7 +122,8 @@ class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogger, co
   }
 
   def onIncInstance(i: Option[IncInstance], p: ProjectStructure)(
-      run: IncInstance => Unit): IncInstance = {
+      run: IncInstance => Unit
+  ): IncInstance = {
     val instance = i.getOrElse(onNewIncInstance(p))
     run(instance)
     instance
@@ -325,8 +326,10 @@ case class ProjectStructure(
       recompiledClasses.toSet
     }
     def recompiledClassesInIteration(iteration: Int, classNames: Set[String]) = {
-      assert(recompiledClasses(iteration) == classNames,
-             "%s != %s".format(recompiledClasses(iteration), classNames))
+      assert(
+        recompiledClasses(iteration) == classNames,
+        "%s != %s".format(recompiledClasses(iteration), classNames)
+      )
     }
 
     assert(step < allCompilations.size.toInt)
@@ -409,7 +412,8 @@ case class ProjectStructure(
     val transactional: Optional[xsbti.compile.ClassFileManagerType] =
       Optional.of(
         xsbti.compile.TransactionalManagerType
-          .of(targetDir / "classes.bak", sbt.util.Logger.Null))
+          .of(targetDir / "classes.bak", sbt.util.Logger.Null)
+      )
     // We specify the class file manager explicitly even though it's noew possible
     // to specify it in the incremental option property file (this is the default for sbt)
     val properties = loadIncProperties(baseDirectory / "incOptions.properties")
@@ -420,7 +424,8 @@ case class ProjectStructure(
     val reporter = new ManagedLoggedReporter(maxErrors, scriptedLog)
     val extra = Array(t2(("key", "value")))
     val previousResult = prev(
-      Option(properties.getProperty("alwaysLoadAnalysis")).exists(_.toBoolean))
+      Option(properties.getProperty("alwaysLoadAnalysis")).exists(_.toBoolean)
+    )
     val initializedIncOptions =
       incOptions.withClassfileManagerType(transactional).withStoreApis(storeApis)
     val setup = compiler.setup(
@@ -436,18 +441,20 @@ case class ProjectStructure(
 
     val output = outputJar.getOrElse(classesDir)
     val classpath = (i.si.allJars.toList ++ (unmanagedJars :+ output) ++ internalClasspath).toArray
-    val in = compiler.inputs(classpath,
-                             sources.toArray,
-                             output,
-                             scalacOptions,
-                             Array(),
-                             maxErrors,
-                             Array(),
-                             CompileOrder.Mixed,
-                             cs,
-                             setup,
-                             previousResult,
-                             Optional.empty())
+    val in = compiler.inputs(
+      classpath,
+      sources.toArray,
+      output,
+      scalacOptions,
+      Array(),
+      maxErrors,
+      Array(),
+      CompileOrder.Mixed,
+      cs,
+      setup,
+      previousResult,
+      Optional.empty()
+    )
     val result = compiler.compile(in, scriptedLog)
     val analysis = result.analysis match { case a: Analysis => a }
     cachedStore.set(AnalysisContents.create(analysis, result.setup))
@@ -480,7 +487,8 @@ case class ProjectStructure(
 
   def acceptsNoArguments(commandName: String, args: List[String]): Unit =
     scriptError(
-      "Command '" + commandName + "' does not accept arguments (found '" + spaced(args) + "').")
+      "Command '" + commandName + "' does not accept arguments (found '" + spaced(args) + "')."
+    )
 
   def spaced[T](l: Seq[T]): String = l.mkString(" ")
 
@@ -518,7 +526,9 @@ case class ProjectStructure(
     val currentThread = Thread.currentThread
     val oldLoader = Thread.currentThread.getContextClassLoader
     currentThread.setContextClassLoader(loader)
-    try { main.invoke(null, options.toArray[String]); () } finally {
+    try {
+      main.invoke(null, options.toArray[String]); ()
+    } finally {
       currentThread.setContextClassLoader(oldLoader)
     }
     ()
@@ -573,11 +583,14 @@ case class ProjectStructure(
     val problems = getProblems() filter (_.severity == severity)
     problems lift index match {
       case Some(problem) =>
-        assert(problem.message contains expected,
-               s"""'${problem.message}' doesn't contain '$expected'.""")
+        assert(
+          problem.message contains expected,
+          s"""'${problem.message}' doesn't contain '$expected'."""
+        )
       case None =>
         throw new TestFailed(
-          s"Problem not found: $index (there are ${problems.length} problem with severity $severity).")
+          s"Problem not found: $index (there are ${problems.length} problem with severity $severity)."
+        )
     }
     ()
   }
@@ -592,5 +605,6 @@ object IncHandler {
     synchronized(scriptedCompilerCache.put(scalaVersion, cached))
 
   private[internal] final val classLoaderCache = Some(
-    new ClassLoaderCache(new URLClassLoader(Array())))
+    new ClassLoaderCache(new URLClassLoader(Array()))
+  )
 }

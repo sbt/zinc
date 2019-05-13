@@ -135,23 +135,28 @@ trait RelationsTextFormat extends FormatCommons {
             DependencyByMemberRef -> mri.asInstanceOf[Relation[String, String]],
             DependencyByInheritance -> ii.asInstanceOf[Relation[String, String]],
             LocalDependencyByInheritance -> lii.asInstanceOf[Relation[String, String]]
-          ))
+          )
+        )
         val external = ExternalDependencies(
           Map(
             DependencyByMemberRef -> mre.asInstanceOf[Relation[String, String]],
             DependencyByInheritance -> ie.asInstanceOf[Relation[String, String]],
             LocalDependencyByInheritance -> lie.asInstanceOf[Relation[String, String]]
-          ))
-        Relations.make(srcProd,
-                       binaryDep,
-                       libraryClassName,
-                       internal,
-                       external,
-                       classes,
-                       names,
-                       binaryClassName)
+          )
+        )
+        Relations.make(
+          srcProd,
+          binaryDep,
+          libraryClassName,
+          internal,
+          external,
+          classes,
+          names,
+          binaryClassName
+        )
       case _ =>
         throw new java.io.IOException(
-          s"Expected to read ${allRelations.length} relations but read ${relations.length}.")
+          s"Expected to read ${allRelations.length} relations but read ${relations.length}."
+        )
     }
 }

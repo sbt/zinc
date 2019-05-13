@@ -45,8 +45,8 @@ object JavaCompilerForUnitTesting {
   }
 
   def compileJavaSrcs(srcs: (String, String)*)(
-      readAPI: (AnalysisCallback, File, Seq[Class[_]]) => Set[(String, String)])
-    : (Seq[File], TestCallback) = {
+      readAPI: (AnalysisCallback, File, Seq[Class[_]]) => Set[(String, String)]
+  ): (Seq[File], TestCallback) = {
     IO.withTemporaryDirectory { temp =>
       val srcFiles = srcs.map {
         case (fileName, src) => prepareSrcFile(temp, fileName, src)
@@ -78,7 +78,8 @@ object JavaCompilerForUnitTesting {
       Analyze(classFiles, srcFiles, logger, output, finalJarOutput = None)(
         analysisCallback,
         classloader,
-        readAPI(analysisCallback, _, _))
+        readAPI(analysisCallback, _, _)
+      )
       (srcFiles, analysisCallback)
     }
   }

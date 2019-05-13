@@ -19,10 +19,11 @@ import sbt.util.Level
 import scala.sys.process.ProcessLogger
 
 /** Delegates a stream into a process logger. Mimics LoggerWriter, but for the ProcessLogger interface which differs. */
-private class ProcessLoggerWriter(delegate: ProcessLogger,
-                                  level: Level.Value,
-                                  nl: String = System.getProperty("line.separator"))
-    extends java.io.Writer {
+private class ProcessLoggerWriter(
+    delegate: ProcessLogger,
+    level: Level.Value,
+    nl: String = System.getProperty("line.separator")
+) extends java.io.Writer {
   private[this] val buffer = new StringBuilder
   override def close() = flush()
   override def flush(): Unit =

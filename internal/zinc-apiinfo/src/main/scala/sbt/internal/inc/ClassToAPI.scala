@@ -27,7 +27,8 @@ object ClassToAPI {
 
   // (api, public inherited classes)
   def process(
-      classes: Seq[Class[_]]): (Seq[api.ClassLike], Seq[String], Set[(Class[_], Class[_])]) = {
+      classes: Seq[Class[_]]
+  ): (Seq[api.ClassLike], Seq[String], Set[(Class[_], Class[_])]) = {
     val cmap = emptyClassMap
     classes.foreach(toDefinitions(cmap)) // force recording of class definitions
     cmap.lz.foreach(_.get()) // force thunks to ensure all inherited dependencies are recorded
@@ -39,8 +40,9 @@ object ClassToAPI {
   }
 
   // Avoiding implicit allocation.
-  private def arrayMap[T <: AnyRef, U <: AnyRef: reflect.ClassTag](xs: Array[T])(
-      f: T => U): Array[U] = {
+  private def arrayMap[T <: AnyRef, U <: AnyRef: reflect.ClassTag](
+      xs: Array[T]
+  )(f: T => U): Array[U] = {
     val len = xs.length
     var i = 0
     val res = new Array[U](len)
@@ -71,11 +73,13 @@ object ClassToAPI {
     }
   }
   def emptyClassMap: ClassMap =
-    new ClassMap(new mutable.HashMap,
-                 new mutable.HashSet,
-                 new mutable.ListBuffer,
-                 new mutable.HashSet,
-                 new mutable.HashSet)
+    new ClassMap(
+      new mutable.HashMap,
+      new mutable.HashSet,
+      new mutable.ListBuffer,
+      new mutable.HashSet,
+      new mutable.HashSet
+    )
 
   /**
    * Returns the canonical name given a class based on https://docs.oracle.com/javase/specs/jls/se11/html/jls-6.html#jls-6.7
@@ -129,30 +133,34 @@ object ClassToAPI {
     val name = classCanonicalName(c)
     val tpe = if (Modifier.isInterface(c.getModifiers)) Trait else ClassDef
     lazy val (static, instance) = structure(c, enclPkg, cmap)
-    val cls = api.ClassLike.of(name,
-                               acc,
-                               mods,
-                               annots,
-                               tpe,
-                               lzyS(Empty),
-                               lzy(instance, cmap),
-                               emptyStringArray,
-                               children.toArray,
-                               topLevel,
-                               typeParameters(typeParameterTypes(c)))
+    val cls = api.ClassLike.of(
+      name,
+      acc,
+      mods,
+      annots,
+      tpe,
+      lzyS(Empty),
+      lzy(instance, cmap),
+      emptyStringArray,
+      children.toArray,
+      topLevel,
+      typeParameters(typeParameterTypes(c))
+    )
     val clsDef =
       api.ClassLikeDef.of(name, acc, mods, annots, typeParameters(typeParameterTypes(c)), tpe)
-    val stat = api.ClassLike.of(name,
-                                acc,
-                                mods,
-                                annots,
-                                Module,
-                                lzyS(Empty),
-                                lzy(static, cmap),
-                                emptyStringArray,
-                                emptyTypeArray,
-                                topLevel,
-                                emptyTypeParameterArray)
+    val stat = api.ClassLike.of(
+      name,
+      acc,
+      mods,
+      annots,
+      Module,
+      lzyS(Empty),
+      lzy(static, cmap),
+      emptyStringArray,
+      emptyTypeArray,
+      topLevel,
+      emptyTypeParameterArray
+    )
     val statDef = api.ClassLikeDef.of(name, acc, mods, annots, emptyTypeParameterArray, Module)
     val defs = cls :: stat :: Nil
     val defsEmptyMembers = clsDef :: statDef :: Nil
@@ -165,7 +173,8 @@ object ClassToAPI {
               Modifier.isStatic(meth.getModifiers) &&
               meth.getParameterTypes.length == 1 &&
               meth.getParameterTypes.head == classOf[Array[String]] &&
-              meth.getReturnType == java.lang.Void.TYPE)) {
+              meth.getReturnType == java.lang.Void.TYPE
+        )) {
       cmap.mainClasses += name
     }
 
@@ -173,20 +182,24 @@ object ClassToAPI {
   }
 
   /** Returns the (static structure, instance structure, inherited classes) for `c`. */
-  def structure(c: Class[_],
-                enclPkg: Option[String],
-                cmap: ClassMap): (api.Structure, api.Structure) = {
+  def structure(
+      c: Class[_],
+      enclPkg: Option[String],
+      cmap: ClassMap
+  ): (api.Structure, api.Structure) = {
     lazy val cf = classFileForClass(c)
     val methods = mergeMap(c, c.getDeclaredMethods, c.getMethods, methodToDef(enclPkg))
     val fields = mergeMap(c, c.getDeclaredFields, c.getFields, fieldToDef(c, cf, enclPkg))
     val constructors =
       mergeMap(c, c.getDeclaredConstructors, c.getConstructors, constructorToDef(enclPkg))
-    val classes = merge[Class[_]](c,
-                                  c.getDeclaredClasses,
-                                  c.getClasses,
-                                  toDefinitions(cmap),
-                                  (_: Seq[Class[_]]).partition(isStatic),
-                                  _.getEnclosingClass != c)
+    val classes = merge[Class[_]](
+      c,
+      c.getDeclaredClasses,
+      c.getClasses,
+      toDefinitions(cmap),
+      (_: Seq[Class[_]]).partition(isStatic),
+      _.getEnclosingClass != c
+    )
     val all = methods ++ fields ++ constructors ++ classes
     val parentJavaTypes = allSuperTypes(c)
     if (!Modifier.isPrivate(c.getModifiers))
@@ -194,9 +207,11 @@ object ClassToAPI {
     val parentTypes = types(parentJavaTypes)
     val instanceStructure =
       api.Structure.of(lzyS(parentTypes), lzyS(all.declared.toArray), lzyS(all.inherited.toArray))
-    val staticStructure = api.Structure.of(lzyEmptyTpeArray,
-                                           lzyS(all.staticDeclared.toArray),
-                                           lzyS(all.staticInherited.toArray))
+    val staticStructure = api.Structure.of(
+      lzyEmptyTpeArray,
+      lzyS(all.staticDeclared.toArray),
+      lzyS(all.staticInherited.toArray)
+    )
     (staticStructure, instanceStructure)
   }
 
@@ -337,16 +352,18 @@ object ClassToAPI {
       enclPkg
     )
 
-  def defLike[T <: GenericDeclaration](name: String,
-                                       mods: Int,
-                                       annots: Array[Annotation],
-                                       tps: Array[TypeVariable[T]],
-                                       paramAnnots: Array[Array[Annotation]],
-                                       paramTypes: Array[Type],
-                                       retType: Option[Type],
-                                       exceptions: Array[Type],
-                                       varArgs: Boolean,
-                                       enclPkg: Option[String]): api.Def = {
+  def defLike[T <: GenericDeclaration](
+      name: String,
+      mods: Int,
+      annots: Array[Annotation],
+      tps: Array[TypeVariable[T]],
+      paramAnnots: Array[Array[Annotation]],
+      paramTypes: Array[Type],
+      retType: Option[Type],
+      exceptions: Array[Type],
+      varArgs: Boolean,
+      enclPkg: Option[String]
+  ): api.Def = {
     val varArgPosition = if (varArgs) paramTypes.length - 1 else -1
     val isVarArg = List.tabulate(paramTypes.length)(_ == varArgPosition)
     val pa = (paramAnnots, paramTypes, isVarArg).zipped map {
@@ -354,61 +371,75 @@ object ClassToAPI {
     }
     val params = api.ParameterList.of(pa, false)
     val ret = retType match { case Some(rt) => reference(rt); case None => Empty }
-    api.Def.of(name,
-               access(mods, enclPkg),
-               modifiers(mods),
-               annotations(annots) ++ exceptionAnnotations(exceptions),
-               typeParameters(tps),
-               Array(params),
-               ret)
+    api.Def.of(
+      name,
+      access(mods, enclPkg),
+      modifiers(mods),
+      annotations(annots) ++ exceptionAnnotations(exceptions),
+      typeParameters(tps),
+      Array(params),
+      ret
+    )
   }
 
   def exceptionAnnotations(exceptions: Array[Type]): Array[api.Annotation] =
     if (exceptions.length == 0) emptyAnnotationArray
     else
-      arrayMap(exceptions)(t =>
-        api.Annotation.of(Throws, Array(api.AnnotationArgument.of("value", t.toString))))
+      arrayMap(exceptions)(
+        t => api.Annotation.of(Throws, Array(api.AnnotationArgument.of("value", t.toString)))
+      )
 
   def parameter(annots: Array[Annotation], parameter: Type, varArgs: Boolean): api.MethodParameter =
     api.MethodParameter.of(
       "",
       annotated(reference(parameter), annots),
       false,
-      if (varArgs) api.ParameterModifier.Repeated else api.ParameterModifier.Plain)
+      if (varArgs) api.ParameterModifier.Repeated else api.ParameterModifier.Plain
+    )
 
   def annotated(t: api.Type, annots: Array[Annotation]): api.Type = (
     if (annots.length == 0) t
     else api.Annotated.of(t, annotations(annots))
   )
 
-  case class Defs(declared: Seq[api.ClassDefinition],
-                  inherited: Seq[api.ClassDefinition],
-                  staticDeclared: Seq[api.ClassDefinition],
-                  staticInherited: Seq[api.ClassDefinition]) {
+  case class Defs(
+      declared: Seq[api.ClassDefinition],
+      inherited: Seq[api.ClassDefinition],
+      staticDeclared: Seq[api.ClassDefinition],
+      staticInherited: Seq[api.ClassDefinition]
+  ) {
     def ++(o: Defs) =
-      Defs(declared ++ o.declared,
-           inherited ++ o.inherited,
-           staticDeclared ++ o.staticDeclared,
-           staticInherited ++ o.staticInherited)
+      Defs(
+        declared ++ o.declared,
+        inherited ++ o.inherited,
+        staticDeclared ++ o.staticDeclared,
+        staticInherited ++ o.staticInherited
+      )
   }
-  def mergeMap[T <: Member](of: Class[_],
-                            self: Seq[T],
-                            public: Seq[T],
-                            f: T => api.ClassDefinition): Defs =
+  def mergeMap[T <: Member](
+      of: Class[_],
+      self: Seq[T],
+      public: Seq[T],
+      f: T => api.ClassDefinition
+  ): Defs =
     merge[T](of, self, public, x => f(x) :: Nil, splitStatic, _.getDeclaringClass != of)
 
-  def merge[T](of: Class[_],
-               self: Seq[T],
-               public: Seq[T],
-               f: T => Seq[api.ClassDefinition],
-               splitStatic: Seq[T] => (Seq[T], Seq[T]),
-               isInherited: T => Boolean): Defs = {
+  def merge[T](
+      of: Class[_],
+      self: Seq[T],
+      public: Seq[T],
+      f: T => Seq[api.ClassDefinition],
+      splitStatic: Seq[T] => (Seq[T], Seq[T]),
+      isInherited: T => Boolean
+  ): Defs = {
     val (selfStatic, selfInstance) = splitStatic(self)
     val (inheritedStatic, inheritedInstance) = splitStatic(public filter isInherited)
-    Defs(selfInstance flatMap f,
-         inheritedInstance flatMap f,
-         selfStatic flatMap f,
-         inheritedStatic flatMap f)
+    Defs(
+      selfInstance flatMap f,
+      inheritedInstance flatMap f,
+      selfStatic flatMap f,
+      inheritedStatic flatMap f
+    )
   }
 
   def splitStatic[T <: Member](defs: Seq[T]): (Seq[T], Seq[T]) =
@@ -418,17 +449,20 @@ object ClassToAPI {
   def isStatic(a: Member): Boolean = Modifier.isStatic(a.getModifiers)
 
   def typeParameters[T <: GenericDeclaration](
-      tps: Array[TypeVariable[T]]): Array[api.TypeParameter] =
+      tps: Array[TypeVariable[T]]
+  ): Array[api.TypeParameter] =
     if (tps.length == 0) emptyTypeParameterArray
     else arrayMap(tps)(typeParameter)
 
   def typeParameter[T <: GenericDeclaration](tp: TypeVariable[T]): api.TypeParameter =
-    api.TypeParameter.of(typeVariable(tp),
-                         emptyAnnotationArray,
-                         emptyTypeParameterArray,
-                         api.Variance.Invariant,
-                         NothingRef,
-                         upperBounds(tp.getBounds))
+    api.TypeParameter.of(
+      typeVariable(tp),
+      emptyAnnotationArray,
+      emptyTypeParameterArray,
+      api.Variance.Invariant,
+      NothingRef,
+      upperBounds(tp.getBounds)
+    )
 
   // needs to be stable across compilations
   def typeVariable[T <: GenericDeclaration](tv: TypeVariable[T]): String =

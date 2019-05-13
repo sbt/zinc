@@ -94,11 +94,14 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
     debug(sameDefinitions(byName(avalues), byName(bvalues)), "Value definitions differed") &&
     debug(sameDefinitions(byName(atypes), byName(btypes)), "Type definitions differed")
   }
-  def sameDefinitions(a: scala.collection.Map[String, List[Definition]],
-                      b: scala.collection.Map[String, List[Definition]]): Boolean =
+  def sameDefinitions(
+      a: scala.collection.Map[String, List[Definition]],
+      b: scala.collection.Map[String, List[Definition]]
+  ): Boolean =
     debug(
       sameStrings(a.keySet, b.keySet),
-      "\tDefinition strings differed (a: " + (a.keySet -- b.keySet) + ", b: " + (b.keySet -- a.keySet) + ")") &&
+      "\tDefinition strings differed (a: " + (a.keySet -- b.keySet) + ", b: " + (b.keySet -- a.keySet) + ")"
+    ) &&
       zippedEntries(a, b).forall(tupled(sameNamedDefinitions))
 
   /**
@@ -122,7 +125,8 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
     }
     debug(
       a.length == b.length,
-      "\t\tLength differed for " + a.headOption.map(_.name).getOrElse("empty")) && sameDefs(a, b)
+      "\t\tLength differed for " + a.headOption.map(_.name).getOrElse("empty")
+    ) && sameDefs(a, b)
   }
 
   /** Checks that the two definitions are the same, other than their name.*/
@@ -176,8 +180,10 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
     sameSeq(a, b)(sameAnnotation)
   def sameAnnotation(a: Annotation, b: Annotation): Boolean =
     debug(sameType(a.base, b.base), "Annotation base type differed") &&
-      debug(sameAnnotationArguments(a.arguments, b.arguments),
-            "Annotation arguments differed (" + a + ") and (" + b + ")")
+      debug(
+        sameAnnotationArguments(a.arguments, b.arguments),
+        "Annotation arguments differed (" + a + ") and (" + b + ")"
+      )
   def sameAnnotationArguments(a: Seq[AnnotationArgument], b: Seq[AnnotationArgument]): Boolean =
     argumentMap(a) == argumentMap(b)
   def argumentMap(a: Seq[AnnotationArgument]): Map[String, String] =
@@ -193,12 +199,16 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
     }
 
   def sameParameterizedDefinition(a: ParameterizedDefinition, b: ParameterizedDefinition): Boolean =
-    debug(sameTypeParameters(a.typeParameters, b.typeParameters),
-          "Different type parameters for " + a.name) &&
+    debug(
+      sameTypeParameters(a.typeParameters, b.typeParameters),
+      "Different type parameters for " + a.name
+    ) &&
       sameParameterizedSpecificAPI(a, b)
 
-  def sameParameterizedSpecificAPI(a: ParameterizedDefinition,
-                                   b: ParameterizedDefinition): Boolean =
+  def sameParameterizedSpecificAPI(
+      a: ParameterizedDefinition,
+      b: ParameterizedDefinition
+  ): Boolean =
     (a, b) match {
       case (da: Def, db: Def)                         => sameDefSpecificAPI(da, db)
       case (ca: ClassLikeDef, cb: ClassLikeDef)       => sameClassLikeDefSpecificAPI(ca, cb)
@@ -208,8 +218,10 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
     }
 
   def sameDefSpecificAPI(a: Def, b: Def): Boolean =
-    debug(sameValueParameters(a.valueParameters, b.valueParameters),
-          "Different def value parameters for " + a.name) &&
+    debug(
+      sameValueParameters(a.valueParameters, b.valueParameters),
+      "Different def value parameters for " + a.name
+    ) &&
       debug(sameType(a.returnType, b.returnType), "Different def return type for " + a.name)
   def sameAliasSpecificAPI(a: TypeAlias, b: TypeAlias): Boolean =
     debug(sameType(a.tpe, b.tpe), "Different alias type for " + a.name)
@@ -219,7 +231,8 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
   def sameFieldSpecificAPI(a: FieldLike, b: FieldLike): Boolean =
     debug(
       sameFieldCategory(a, b),
-      "Different field categories (" + a.name + "=" + a.getClass.getName + " -- " + a.name + "=" + a.getClass.getName + ")") &&
+      "Different field categories (" + a.name + "=" + a.getClass.getName + " -- " + a.name + "=" + a.getClass.getName + ")"
+    ) &&
       debug(sameType(a.tpe, b.tpe), "Different field type for " + a.name)
 
   def sameFieldCategory(a: FieldLike, b: FieldLike): Boolean =
@@ -287,8 +300,10 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
         debug(sameParameterized(pa, pb), "Different parameterized")
       case (sa: Singleton, sb: Singleton) => debug(sameSingleton(sa, sb), "Different singleton")
       case (ca: Constant, cb: Constant) =>
-        debug(sameConstantType(ca, cb),
-              "Different constant types: " + DefaultShowAPI(ca) + " and " + DefaultShowAPI(cb))
+        debug(
+          sameConstantType(ca, cb),
+          "Different constant types: " + DefaultShowAPI(ca) + " and " + DefaultShowAPI(cb)
+        )
       case (aa: Annotated, ab: Annotated) =>
         debug(sameAnnotatedType(aa, ab), "Different annotated types")
       case (sa: Structure, sb: Structure) =>
@@ -330,7 +345,8 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
   def differentCategory(label: String, a: AnyRef, b: AnyRef): Boolean =
     debug(
       flag = false,
-      "Different category of " + label + " (" + a.getClass.getName + " and " + b.getClass.getName + ") for (" + a + " and " + b + ")")
+      "Different category of " + label + " (" + a.getClass.getName + " and " + b.getClass.getName + ") for (" + a + " and " + b + ")"
+    )
 
   def sameParameterized(a: Parameterized, b: Parameterized): Boolean =
     sameType(a.baseType, b.baseType) &&
@@ -359,8 +375,10 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
     a.id == b.id
 
   // precondition: a.keySet == b.keySet
-  protected def zippedEntries[A, B](a: scala.collection.Map[A, B],
-                                    b: scala.collection.Map[A, B]): Iterable[(B, B)] =
+  protected def zippedEntries[A, B](
+      a: scala.collection.Map[A, B],
+      b: scala.collection.Map[A, B]
+  ): Iterable[(B, B)] =
     for ((key, avalue) <- a) yield (avalue, b(key))
 
   def sameStrings(a: scala.collection.Set[String], b: scala.collection.Set[String]): Boolean =

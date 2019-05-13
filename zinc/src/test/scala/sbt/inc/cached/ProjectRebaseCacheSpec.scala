@@ -19,9 +19,11 @@ class ProjectRebaseCacheSpec extends CommonCachedCompilation("Project based cach
 
   override def remoteCacheProvider() = new CacheProvider {
     override def findCache(
-        previous: Option[(CompileAnalysis, MiniSetup)]): Option[CompilationCache] =
+        previous: Option[(CompileAnalysis, MiniSetup)]
+    ): Option[CompilationCache] =
       Some(
-        ProjectRebasedCache(remoteProject.baseLocation, remoteProject.defaultStoreLocation.toPath))
+        ProjectRebasedCache(remoteProject.baseLocation, remoteProject.defaultStoreLocation.toPath)
+      )
   }
 
 }

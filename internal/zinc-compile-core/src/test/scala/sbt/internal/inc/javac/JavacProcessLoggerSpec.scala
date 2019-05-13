@@ -39,7 +39,8 @@ class JavaProcessLoggerSpec extends UnitSpec {
                                   |throw new java.rmi.RMISecurityException("O NOES");
                                   |^
                                   |"""
-      ).mkString("\n"))
+      ).mkString("\n")
+    )
 
     javacLogger.flush("javac", 0)
 
@@ -62,7 +63,8 @@ class JavaProcessLoggerSpec extends UnitSpec {
       """/home/someone/Test.java:8: warning: [deprecation] RMISecurityException(java.lang.String) in java.rmi.RMISecurityException has been deprecated
                                   |throw new java.rmi.RMISecurityException("O NOES");
                                   |^
-                                  |""")
+                                  |"""
+    )
 
     javacLogger.flush("javac", 0)
 

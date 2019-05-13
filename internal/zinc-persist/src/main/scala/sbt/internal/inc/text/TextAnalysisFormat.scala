@@ -54,13 +54,16 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
   private implicit def positionFormat: Format[Position] = {
     asProduct7(position)(
       p =>
-        (jo2o(p.line),
-         p.lineContent,
-         jo2o(p.offset),
-         jo2o(p.pointer),
-         jo2o(p.pointerSpace),
-         jo2o(p.sourcePath),
-         jo2o(p.sourceFile)))
+        (
+          jo2o(p.line),
+          p.lineContent,
+          jo2o(p.offset),
+          jo2o(p.pointer),
+          jo2o(p.pointerSpace),
+          jo2o(p.sourcePath),
+          jo2o(p.sourceFile)
+        )
+    )
   }
   private implicit val severityFormat: Format[Severity] =
     wrap[Severity, Byte](_.ordinal.toByte, b => Severity.values.apply(b.toInt))
@@ -72,7 +75,8 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
     wrap[SourceInfo, (Seq[Problem], Seq[Problem], Seq[String])](
       si => (si.getReportedProblems, si.getUnreportedProblems, si.getMainClasses), {
         case (a, b, c) => SourceInfos.makeInfo(a, b, c)
-      })
+      }
+    )
   private implicit def fileHashFormat: Format[FileHash] =
     asProduct2((file: File, hash: Int) => FileHash.of(file, hash))(h => (h.file, h.hash))
   private implicit def seqFormat[T](implicit optionFormat: Format[T]): Format[Seq[T]] =
@@ -143,7 +147,8 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
       if (version != currentVersion) {
         throw new ReadException(
           "File uses format version %s, but we are compatible with version %s only."
-            .format(version, currentVersion))
+            .format(version, currentVersion)
+        )
       }
     }
   }
@@ -186,10 +191,12 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
     )
 
     def write(out: Writer, stamps: Stamps): Unit = {
-      def doWriteMap(header: String,
-                     m: Map[File, Stamp],
-                     keyMapper: Mapper[File],
-                     valueMapper: ContextAwareMapper[File, Stamp]) = {
+      def doWriteMap(
+          header: String,
+          m: Map[File, Stamp],
+          keyMapper: Mapper[File],
+          valueMapper: ContextAwareMapper[File, Stamp]
+      ) = {
         val pairsToWrite = m.map(kv => (kv._1, valueMapper.write(kv._1, m(kv._1))))
         writePairs(out)(header, pairsToWrite.toSeq, keyMapper.write, identity[String])
       }
@@ -201,9 +208,11 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
 
     def read(in: BufferedReader): Stamps = {
       import scala.collection.immutable.TreeMap
-      def doReadMap(expectedHeader: String,
-                    keyMapper: Mapper[File],
-                    valueMapper: ContextAwareMapper[File, Stamp]): TreeMap[File, Stamp] = {
+      def doReadMap(
+          expectedHeader: String,
+          keyMapper: Mapper[File],
+          valueMapper: ContextAwareMapper[File, Stamp]
+      ): TreeMap[File, Stamp] = {
         TreeMap(readMappedPairs(in)(expectedHeader, keyMapper.read, valueMapper.read).toSeq: _*)
       }
 
@@ -225,16 +234,20 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
     val analyzedClassToString = ObjectStringifier.objToString[AnalyzedClass] _
 
     def write(out: Writer, apis: APIs): Unit = {
-      writeMap(out)(Headers.internal,
-                    apis.internal,
-                    identity[String],
-                    analyzedClassToString,
-                    inlineVals = false)
-      writeMap(out)(Headers.external,
-                    apis.external,
-                    identity[String],
-                    analyzedClassToString,
-                    inlineVals = false)
+      writeMap(out)(
+        Headers.internal,
+        apis.internal,
+        identity[String],
+        analyzedClassToString,
+        inlineVals = false
+      )
+      writeMap(out)(
+        Headers.external,
+        apis.external,
+        identity[String],
+        analyzedClassToString,
+        inlineVals = false
+      )
       FormatTimer.close("bytes -> base64")
       FormatTimer.close("byte copy")
       FormatTimer.close("sbinary write")
@@ -276,19 +289,25 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
       write(out, internal, external)
     }
 
-    def write(out: Writer,
-              internal: Map[String, Companions],
-              external: Map[String, Companions]): Unit = {
-      writeMap(out)(Headers.internal,
-                    internal,
-                    identity[String],
-                    companionsToString,
-                    inlineVals = false)
-      writeMap(out)(Headers.external,
-                    external,
-                    identity[String],
-                    companionsToString,
-                    inlineVals = false)
+    def write(
+        out: Writer,
+        internal: Map[String, Companions],
+        external: Map[String, Companions]
+    ): Unit = {
+      writeMap(out)(
+        Headers.internal,
+        internal,
+        identity[String],
+        companionsToString,
+        inlineVals = false
+      )
+      writeMap(out)(
+        Headers.external,
+        external,
+        identity[String],
+        companionsToString,
+        inlineVals = false
+      )
     }
 
     def read(in: BufferedReader): (Map[String, Companions], Map[String, Companions]) = {
@@ -307,11 +326,13 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
     val sourceInfoToString = ObjectStringifier.objToString[SourceInfo] _
 
     def write(out: Writer, infos: SourceInfos): Unit =
-      writeMap(out)(Headers.infos,
-                    infos.allInfos,
-                    sourcesMapper.write,
-                    sourceInfoToString,
-                    inlineVals = false)
+      writeMap(out)(
+        Headers.infos,
+        infos.allInfos,
+        sourcesMapper.write,
+        sourceInfoToString,
+        inlineVals = false
+      )
     def read(in: BufferedReader): SourceInfos =
       SourceInfos.of(readMap(in)(Headers.infos, sourcesMapper.read, stringToSourceInfo))
   }
@@ -379,8 +400,10 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
           val ignored = s.getOutputDirectory
           (singleOutputMode, Map(ignored -> s.getOutputDirectory))
         case m: MultipleOutput =>
-          (multipleOutputMode,
-           m.getOutputGroups.map(x => x.getSourceDirectory -> x.getOutputDirectory).toMap)
+          (
+            multipleOutputMode,
+            m.getOutputGroups.map(x => x.getSourceDirectory -> x.getOutputDirectory).toMap
+          )
       }
 
       val mappedClasspathHash = setup.options.classpathHash
@@ -445,7 +468,11 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
       val baos = new ByteArrayOutputStream()
       val out = new sbinary.JavaOutput(baos)
       FormatTimer.aggregate("sbinary write") {
-        try { fmt.writes(out, o) } finally { baos.close() }
+        try {
+          fmt.writes(out, o)
+        } finally {
+          baos.close()
+        }
       }
       val bytes = FormatTimer.aggregate("byte copy") { baos.toByteArray }
       FormatTimer.aggregate("bytes -> base64") { Base64.factory().encode(bytes) }

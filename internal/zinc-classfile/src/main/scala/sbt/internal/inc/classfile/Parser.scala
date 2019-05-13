@@ -37,12 +37,14 @@ private[sbt] object Parser {
     usingUrlInputStreamWithoutCaching(url)(parse(url.toString)).right.get
 
   // JarURLConnection with caching enabled will never close the jar
-  private val usingUrlInputStreamWithoutCaching = Using.resource((u: URL) =>
-    ErrorHandling.translate("Error opening " + u + ": ") {
-      val urlConnection = u.openConnection()
-      urlConnection.setUseCaches(false)
-      new BufferedInputStream(urlConnection.getInputStream())
-  })
+  private val usingUrlInputStreamWithoutCaching = Using.resource(
+    (u: URL) =>
+      ErrorHandling.translate("Error opening " + u + ": ") {
+        val urlConnection = u.openConnection()
+        urlConnection.setUseCaches(false)
+        new BufferedInputStream(urlConnection.getInputStream())
+      }
+  )
 
   private def parse(readableName: String)(is: InputStream): Either[String, ClassFile] =
     Right(parseImpl(readableName, is))
@@ -89,10 +91,12 @@ private[sbt] object Parser {
         else Some(toUTF8(index))
       }
       private def parseFieldOrMethodInfo() =
-        FieldOrMethodInfo(in.readUnsignedShort(),
-                          toString(in.readUnsignedShort()),
-                          toString(in.readUnsignedShort()),
-                          array(in.readUnsignedShort())(parseAttribute()))
+        FieldOrMethodInfo(
+          in.readUnsignedShort(),
+          toString(in.readUnsignedShort()),
+          toString(in.readUnsignedShort()),
+          array(in.readUnsignedShort())(parseAttribute())
+        )
       private def parseAttribute() = {
         val nameIndex = in.readUnsignedShort()
         val name = if (nameIndex == -1) None else Some(toUTF8(nameIndex))

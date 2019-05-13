@@ -55,7 +55,8 @@ abstract class IndexBasedZipOps extends CreateZip {
         val centralDir = readCentralDir(zipFile.toPath)
         val headers = getHeaders(centralDir)
         headers.map(header => getFileName(header) -> getLastModifiedTime(header))(
-          collection.breakOut)
+          collection.breakOut
+        )
       } else {
         Map.empty
       }
@@ -290,7 +291,11 @@ sealed trait CreateZip {
       val zipOut = new ZipOutputStream(fileOut)
       zipOut.setMethod(ZipOutputStream.DEFLATED)
       zipOut.setLevel(Deflater.NO_COMPRESSION)
-      try { f(zipOut) } finally { zipOut.close() }
+      try {
+        f(zipOut)
+      } finally {
+        zipOut.close()
+      }
     }
   }
 

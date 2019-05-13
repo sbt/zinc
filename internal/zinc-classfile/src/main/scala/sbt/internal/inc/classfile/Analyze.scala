@@ -27,14 +27,17 @@ import sbt.util.Logger
 import xsbti.compile.Output
 
 private[sbt] object Analyze {
-  def apply[T](newClasses: Seq[File],
-               sources: Seq[File],
-               log: Logger,
-               output: Output,
-               finalJarOutput: Option[File])(
+  def apply[T](
+      newClasses: Seq[File],
+      sources: Seq[File],
+      log: Logger,
+      output: Output,
+      finalJarOutput: Option[File]
+  )(
       analysis: xsbti.AnalysisCallback,
       loader: ClassLoader,
-      readAPI: (File, Seq[Class[_]]) => Set[(String, String)]): Unit = {
+      readAPI: (File, Seq[Class[_]]) => Set[(String, String)]
+  ): Unit = {
     val sourceMap = sources.toSet[File].groupBy(_.getName)
     // For performance reasons, precompute these as they are static throughout this analysis
     val outputJarOrNull: File = finalJarOutput.getOrElse(null)
@@ -66,8 +69,10 @@ private[sbt] object Analyze {
          _ <- classFile.sourceFile orElse guessSourceName(newClass.getName);
          source <- guessSourcePath(sourceMap, classFile, log);
          binaryClassName = classFile.className;
-         loadedClass <- load(binaryClassName,
-                             Some("Error reading API from class file: " + binaryClassName))) {
+         loadedClass <- load(
+           binaryClassName,
+           Some("Error reading API from class file: " + binaryClassName)
+         )) {
       binaryClassNameToLoadedClass.update(binaryClassName, loadedClass)
 
       def loadEnclosingClass(clazz: Class[_]): Option[String] = {
@@ -122,9 +127,11 @@ private[sbt] object Analyze {
         nonLocalSourceName.orElse(localClassesToSources.get(className))
       }
 
-      def processDependency(onBinaryName: String,
-                            context: DependencyContext,
-                            fromBinaryName: String): Unit = {
+      def processDependency(
+          onBinaryName: String,
+          context: DependencyContext,
+          fromBinaryName: String
+      ): Unit = {
         def loadFromClassloader(): Option[File] = {
           for {
             url <- Option(loader.getResource(classNameToClassFile(onBinaryName)))
@@ -146,22 +153,27 @@ private[sbt] object Analyze {
                     else resolveFinalClassFile(file, singleOutputOrNull, outputJarOrNull, log)
                   }
 
-                  analysis.binaryDependency(binaryFile,
-                                            onBinaryName,
-                                            fromClassName,
-                                            source,
-                                            context)
+                  analysis.binaryDependency(
+                    binaryFile,
+                    onBinaryName,
+                    fromClassName,
+                    source,
+                    context
+                  )
                 }
               }
             }
           case None => // It could be a stale class file, ignore
         }
       }
-      def processDependencies(binaryClassNames: Iterable[String],
-                              context: DependencyContext,
-                              fromBinaryClassName: String): Unit =
-        binaryClassNames.foreach(binaryClassName =>
-          processDependency(binaryClassName, context, fromBinaryClassName))
+      def processDependencies(
+          binaryClassNames: Iterable[String],
+          context: DependencyContext,
+          fromBinaryClassName: String
+      ): Unit =
+        binaryClassNames.foreach(
+          binaryClassName => processDependency(binaryClassName, context, fromBinaryClassName)
+        )
 
       // Get all references to types in a given class file (via constant pool)
       val typesInSource = classFiles.map(cf => cf.className -> cf.types).toMap
@@ -242,7 +254,9 @@ private[sbt] object Analyze {
   }
 
   private def trapAndLog(log: Logger)(execute: => Unit): Unit = {
-    try { execute } catch { case e: Throwable => log.trace(e); log.error(e.toString) }
+    try {
+      execute
+    } catch { case e: Throwable => log.trace(e); log.error(e.toString) }
   }
   private def guessSourceName(name: String) = Some(takeToDollar(trimClassExt(name)))
   private def takeToDollar(name: String) = {
@@ -255,9 +269,11 @@ private[sbt] object Analyze {
   private def classNameToClassFile(name: String) = name.replace('.', '/') + ClassExt
   private def binaryToSourceName(loadedClass: Class[_]): Option[String] =
     Option(loadedClass.getCanonicalName)
-  private def guessSourcePath(sourceNameMap: Map[String, Set[File]],
-                              classFile: ClassFile,
-                              log: Logger) = {
+  private def guessSourcePath(
+      sourceNameMap: Map[String, Set[File]],
+      classFile: ClassFile,
+      log: Logger
+  ) = {
     val classNameParts = classFile.className.split("""\.""")
     val pkg = classNameParts.init
     val simpleClassName = classNameParts.last
@@ -269,14 +285,17 @@ private[sbt] object Analyze {
       case _ :: Nil => ()
       case _ =>
         log.warn(
-          "Multiple sources matched for class " + classFile.className + ": " + candidates.mkString(
-            ", "))
+          "Multiple sources matched for class " + classFile.className + ": " + candidates
+            .mkString(", ")
+        )
     }
     candidates
   }
-  private def findSource(sourceNameMap: Map[String, Iterable[File]],
-                         pkg: List[String],
-                         sourceFileName: String): List[File] =
+  private def findSource(
+      sourceNameMap: Map[String, Iterable[File]],
+      pkg: List[String],
+      sourceFileName: String
+  ): List[File] =
     refine((sourceNameMap get sourceFileName).toList.flatten.map { x =>
       (x, x.getParentFile)
     }, pkg.reverse)

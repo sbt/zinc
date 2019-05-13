@@ -101,11 +101,13 @@ trait BinaryAnalysisFormatSpecificationHelpers { self: Properties =>
   private def mapInfos(a: SourceInfos): Map[File, (Seq[Problem], Seq[Problem], Seq[String])] =
     a.allInfos.map {
       case (f, infos) =>
-        f -> ((
-                infos.getReportedProblems.toList,
-                infos.getUnreportedProblems.toList,
-                infos.getMainClasses.toList
-              ))
+        f -> (
+          (
+            infos.getReportedProblems.toList,
+            infos.getUnreportedProblems.toList,
+            infos.getMainClasses.toList
+          )
+        )
     }
 
   private def compareOutputs(left: Output, right: Output): Prop = {

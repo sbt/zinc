@@ -109,26 +109,30 @@ final class MixedAnalyzingCompiler(
             case Some(outputJar) =>
               val outputDir = JarUtils.javacTempOutput(outputJar)
               IO.createDirectory(outputDir)
-              javac.compile(javaSrcs,
-                            joptions,
-                            CompileOutput(outputDir),
-                            Some(outputJar),
-                            callback,
-                            incToolOptions,
-                            config.reporter,
-                            log,
-                            config.progress)
+              javac.compile(
+                javaSrcs,
+                joptions,
+                CompileOutput(outputDir),
+                Some(outputJar),
+                callback,
+                incToolOptions,
+                config.reporter,
+                log,
+                config.progress
+              )
               putJavacOutputInJar(outputJar, outputDir)
             case None =>
-              javac.compile(javaSrcs,
-                            joptions,
-                            output,
-                            finalJarOutput = None,
-                            callback,
-                            incToolOptions,
-                            config.reporter,
-                            log,
-                            config.progress)
+              javac.compile(
+                javaSrcs,
+                joptions,
+                output,
+                finalJarOutput = None,
+                callback,
+                incToolOptions,
+                config.reporter,
+                log,
+                config.progress
+              )
           }
         }
       }

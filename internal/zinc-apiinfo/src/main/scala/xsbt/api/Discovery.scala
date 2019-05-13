@@ -34,12 +34,15 @@ class Discovery(baseClasses: Set[String], annotations: Set[String]) {
   def discover(c: ClassLike): Discovered = {
     val onClass = Discovery.findAnnotations(c.annotations, annotations)
     val onDefs = Discovery.defAnnotations(c.structure, annotations) ++ c.savedAnnotations.filter(
-      annotations)
+      annotations
+    )
     val module = isModule(c)
-    new Discovered(bases(c.name, c.structure.parents),
-                   onClass ++ onDefs,
-                   module && hasMainMethod(c),
-                   module)
+    new Discovered(
+      bases(c.name, c.structure.parents),
+      onClass ++ onDefs,
+      module && hasMainMethod(c),
+      module
+    )
   }
 
   def bases(own: String, c: Seq[Type]): Set[String] =
@@ -48,7 +51,8 @@ class Discovery(baseClasses: Set[String], annotations: Set[String]) {
 }
 object Discovery {
   def apply(subclasses: Set[String], annotations: Set[String])(
-      definitions: Seq[Definition]): Seq[(Definition, Discovered)] = {
+      definitions: Seq[Definition]
+  ): Seq[(Definition, Discovered)] = {
     val d = new Discovery(subclasses, annotations)
     d(definitions)
   }
@@ -80,7 +84,8 @@ object Discovery {
     d match {
       case d: Def =>
         d.name == "main" && isPublic(d) && isConcrete(d) && isUnit(d.returnType) && isStringArray(
-          d.valueParameters)
+          d.valueParameters
+        )
       case _ => false
     }
   def isStringArray(vp: IndexedSeq[ParameterList]): Boolean =
@@ -89,7 +94,8 @@ object Discovery {
     params.length == 1 && isStringArray(params(0))
   def isStringArray(p: MethodParameter): Boolean =
     (p.modifier == ParameterModifier.Plain || p.modifier == ParameterModifier.Repeated) && isStringArray(
-      p.tpe)
+      p.tpe
+    )
   def isStringArray(t: Type): Boolean =
     isParameterized(t, "scala.Array", "java.lang.String") // doesn't handle scala.this#Predef#String, should API phase dealias?
 

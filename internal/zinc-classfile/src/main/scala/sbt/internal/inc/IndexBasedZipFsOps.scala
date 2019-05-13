@@ -61,8 +61,10 @@ object IndexBasedZipFsOps extends IndexBasedZipOps {
     header.getLastModifiedTime
   }
 
-  override protected def writeCentralDir(centralDir: CentralDir,
-                                         outputStream: OutputStream): Unit = {
+  override protected def writeCentralDir(
+      centralDir: CentralDir,
+      outputStream: OutputStream
+  ): Unit = {
     centralDir.dump(outputStream)
   }
 }

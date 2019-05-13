@@ -168,8 +168,7 @@ object JarUtils {
    */
   def readStamps(jar: File): File => Long = {
     val stamps = new IndexBasedZipFsOps.CachedStamps(jar)
-    file =>
-      stamps.getStamp(ClassInJar.fromFile(file).toClassFilePath)
+    file => stamps.getStamp(ClassInJar.fromFile(file).toClassFilePath)
   }
 
   /**
