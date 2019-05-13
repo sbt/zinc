@@ -193,6 +193,7 @@ lazy val zinc = (project in file("zinc"))
       )
       bridgeKeys
     },
+    Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
     mimaSettings,
     mimaBinaryIssueFilters ++= Seq(
       exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCompilerImpl.compileIncrementally"),
@@ -244,6 +245,7 @@ lazy val zincPersist = (project in internalPath / "zinc-persist")
       case _ => Nil
     }),
     PB.targets in Compile := List(scalapb.gen() -> (sourceManaged in Compile).value),
+    Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
     mimaSettings,
     mimaBinaryIssueFilters ++= {
       import com.typesafe.tools.mima.core._
