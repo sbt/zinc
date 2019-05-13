@@ -7,13 +7,24 @@ def internalPath = file("internal")
 
 def mimaSettings: Seq[Setting[_]] = Seq(
   mimaPreviousArtifacts := Set(
-    "1.0.0", "1.0.1", "1.0.2", "1.0.3", "1.0.4", "1.0.5",
-    "1.1.0", "1.1.1", "1.1.2", "1.1.3",
-    "1.2.0", "1.2.1", "1.2.2",
-  ) map (version =>
-    organization.value %% moduleName.value % version
-      cross (if (crossPaths.value) CrossVersion.binary else CrossVersion.disabled)
-  ),
+    "1.0.0",
+    "1.0.1",
+    "1.0.2",
+    "1.0.3",
+    "1.0.4",
+    "1.0.5",
+    "1.1.0",
+    "1.1.1",
+    "1.1.2",
+    "1.1.3",
+    "1.2.0",
+    "1.2.1",
+    "1.2.2",
+  ) map (
+      version =>
+        organization.value %% moduleName.value % version
+          cross (if (crossPaths.value) CrossVersion.binary else CrossVersion.disabled)
+    ),
 )
 
 ThisBuild / git.baseVersion := "1.3.0"
@@ -29,43 +40,18 @@ ThisBuild / version := {
 ThisBuild / licenses := List(("Apache-2.0", url("https://www.apache.org/licenses/LICENSE-2.0")))
 ThisBuild / scalafmtOnCompile := !(Global / insideCI).value
 ThisBuild / Test / scalafmtOnCompile := !(Global / insideCI).value
-
-def buildLevelSettings: Seq[Setting[_]] = Seq(
-  // https://github.com/sbt/sbt-git/issues/109
-  // Workaround from https://github.com/sbt/sbt-git/issues/92#issuecomment-161853239
-  git.gitUncommittedChanges := {
-    val statusCommands = Seq(
-      Seq("diff-index", "--cached", "HEAD"),
-      Seq("diff-index", "HEAD"),
-      Seq("diff-files"),
-      Seq("ls-files", "--exclude-standard", "--others")
-    )
-    // can't use git.runner.value because it's a task
-    val runner = com.typesafe.sbt.git.ConsoleGitRunner
-    val dir = baseDirectory.value
-    // sbt/zinc#334 Seemingly "git status" resets some stale metadata.
-    runner("status")(dir, com.typesafe.sbt.git.NullLogger)
-    val uncommittedChanges = statusCommands flatMap { c =>
-      val res = runner(c: _*)(dir, com.typesafe.sbt.git.NullLogger)
-      if (res.isEmpty) Nil else Seq(c -> res)
-    }
-
-    val un = uncommittedChanges.nonEmpty
-    if (un) {
-      uncommittedChanges foreach {
-        case (cmd, res) =>
-          sLog.value debug s"""Uncommitted changes found via "${cmd mkString " "}":\n${res}"""
-      }
-    }
-    un
-  },
-  bintrayPackage := "zinc",
-  scmInfo := Some(ScmInfo(url("https://github.com/sbt/zinc"), "git@github.com:sbt/zinc.git")),
-  description := "Incremental compiler of Scala",
-  homepage := Some(url("https://github.com/sbt/zinc")),
-  developers +=
-    Developer("jvican", "Jorge Vicente Cantero", "@jvican", url("https://github.com/jvican")),
+ThisBuild / bintrayPackage := "zinc"
+ThisBuild / scmInfo := Some(
+  ScmInfo(url("https://github.com/sbt/zinc"), "git@github.com:sbt/zinc.git")
 )
+ThisBuild / description := "Incremental compiler of Scala"
+ThisBuild / homepage := Some(url("https://github.com/sbt/zinc"))
+ThisBuild / developers +=
+  Developer("jvican", "Jorge Vicente Cantero", "@jvican", url("https://github.com/jvican"))
+// Remove all additional repository other than Maven Central from POM
+ThisBuild / pomIncludeRepository := { _ =>
+  false
+}
 
 def commonSettings: Seq[Setting[_]] = Seq(
   scalaVersion := scala212,
@@ -75,7 +61,8 @@ def commonSettings: Seq[Setting[_]] = Seq(
   resolvers += "bintray-sbt-maven-releases" at "https://dl.bintray.com/sbt/maven-releases/",
   resolvers += Resolver.url(
     "bintray-sbt-ivy-snapshots",
-    new URL("https://dl.bintray.com/sbt/ivy-snapshots/"))(Resolver.ivyStylePatterns),
+    new URL("https://dl.bintray.com/sbt/ivy-snapshots/")
+  )(Resolver.ivyStylePatterns),
   // concurrentRestrictions in Global += Util.testExclusiveRestriction,
   testOptions += Tests.Argument(TestFrameworks.ScalaCheck, "-w", "1"),
   javacOptions in compile ++= Seq("-Xlint", "-Xlint:-serial"),
@@ -96,7 +83,12 @@ def compilerVersionDependentScalacOptions: Seq[Setting[_]] = Seq(
   scalacOptions := {
     val old = scalacOptions.value
     scalaBinaryVersion.value match {
-      case "2.12" => old ++ List("-opt-inline-from:<sources>", "-opt:l:inline", "-Yopt-inline-heuristics:at-inline-annotated")
+      case "2.12" =>
+        old ++ List(
+          "-opt-inline-from:<sources>",
+          "-opt:l:inline",
+          "-Yopt-inline-heuristics:at-inline-annotated"
+        )
       case _ =>
         old filterNot Set(
           "-Xfatal-warnings",
@@ -152,7 +144,6 @@ lazy val zincRoot: Project = (project in file("."))
     zincScripted
   )
   .settings(
-    inThisBuild(buildLevelSettings),
     minimalSettings,
     otherRootSettings,
     noPublish,
@@ -178,25 +169,51 @@ lazy val zinc = (project in file("zinc"))
     buildInfoObject in Test := "ZincBuildInfo",
     buildInfoKeys in Test := {
       val bridgeKeys = List[BuildInfoKey](
-        BuildInfoKey.map(scalaVersion in compilerBridge210) { case (_, v) => "scalaVersion210" -> v },
-        BuildInfoKey.map(scalaInstance in compilerBridge210) { case (k, v) => "scalaJars210" -> v.allJars.toList },
-        BuildInfoKey.map(classDirectory in Compile in compilerBridge210) { case (k, v) => "classDirectory210" -> v },
-        BuildInfoKey.map(scalaVersion in compilerBridge211) { case (_, v) => "scalaVersion211" -> v },
-        BuildInfoKey.map(scalaInstance in compilerBridge211) { case (k, v) => "scalaJars211" -> v.allJars.toList },
-        BuildInfoKey.map(classDirectory in Compile in compilerBridge211) { case (k, v) => "classDirectory211" -> v },
-        BuildInfoKey.map(scalaVersion in compilerBridge212) { case (_, v) => "scalaVersion212" -> v },
-        BuildInfoKey.map(scalaInstance in compilerBridge212) { case (k, v) => "scalaJars212" -> v.allJars.toList },
-        BuildInfoKey.map(classDirectory in Compile in compilerBridge212) { case (k, v) => "classDirectory212" -> v },
-        BuildInfoKey.map(scalaVersion in compilerBridge213) { case (_, v) => "scalaVersion213" -> v },
-        BuildInfoKey.map(scalaInstance in compilerBridge213) { case (k, v) => "scalaJars213" -> v.allJars.toList },
-        BuildInfoKey.map(classDirectory in Compile in compilerBridge213) { case (k, v) => "classDirectory213" -> v },
+        BuildInfoKey.map(scalaVersion in compilerBridge210) {
+          case (_, v) => "scalaVersion210" -> v
+        },
+        BuildInfoKey.map(scalaInstance in compilerBridge210) {
+          case (k, v) => "scalaJars210" -> v.allJars.toList
+        },
+        BuildInfoKey.map(classDirectory in Compile in compilerBridge210) {
+          case (k, v) => "classDirectory210" -> v
+        },
+        BuildInfoKey.map(scalaVersion in compilerBridge211) {
+          case (_, v) => "scalaVersion211" -> v
+        },
+        BuildInfoKey.map(scalaInstance in compilerBridge211) {
+          case (k, v) => "scalaJars211" -> v.allJars.toList
+        },
+        BuildInfoKey.map(classDirectory in Compile in compilerBridge211) {
+          case (k, v) => "classDirectory211" -> v
+        },
+        BuildInfoKey.map(scalaVersion in compilerBridge212) {
+          case (_, v) => "scalaVersion212" -> v
+        },
+        BuildInfoKey.map(scalaInstance in compilerBridge212) {
+          case (k, v) => "scalaJars212" -> v.allJars.toList
+        },
+        BuildInfoKey.map(classDirectory in Compile in compilerBridge212) {
+          case (k, v) => "classDirectory212" -> v
+        },
+        BuildInfoKey.map(scalaVersion in compilerBridge213) {
+          case (_, v) => "scalaVersion213" -> v
+        },
+        BuildInfoKey.map(scalaInstance in compilerBridge213) {
+          case (k, v) => "scalaJars213" -> v.allJars.toList
+        },
+        BuildInfoKey.map(classDirectory in Compile in compilerBridge213) {
+          case (k, v) => "classDirectory213" -> v
+        },
       )
       bridgeKeys
     },
     Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
     mimaSettings,
     mimaBinaryIssueFilters ++= Seq(
-      exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCompilerImpl.compileIncrementally"),
+      exclude[DirectMissingMethodProblem](
+        "sbt.internal.inc.IncrementalCompilerImpl.compileIncrementally"
+      ),
       exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCompilerImpl.inputs"),
       exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCompilerImpl.compile"),
       exclude[DirectMissingMethodProblem]("sbt.internal.inc.MixedAnalyzingCompiler.config"),
@@ -251,23 +268,40 @@ lazy val zincPersist = (project in internalPath / "zinc-persist")
       import com.typesafe.tools.mima.core._
       import com.typesafe.tools.mima.core.ProblemFilters._
       Seq(
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.BinaryAnalysisFormat.writeAPIs"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.BinaryAnalysisFormat.readAPIs"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufWriters.toApisFile"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufWriters.toApis"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufWriters.toAnalyzedClass"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufReaders.fromApis"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufReaders.fromApisFile"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufReaders.fromAnalyzedClass"),
+        exclude[DirectMissingMethodProblem](
+          "sbt.internal.inc.binary.BinaryAnalysisFormat.writeAPIs"
+        ),
+        exclude[DirectMissingMethodProblem](
+          "sbt.internal.inc.binary.BinaryAnalysisFormat.readAPIs"
+        ),
+        exclude[DirectMissingMethodProblem](
+          "sbt.internal.inc.binary.converters.ProtobufWriters.toApisFile"
+        ),
+        exclude[DirectMissingMethodProblem](
+          "sbt.internal.inc.binary.converters.ProtobufWriters.toApis"
+        ),
+        exclude[DirectMissingMethodProblem](
+          "sbt.internal.inc.binary.converters.ProtobufWriters.toAnalyzedClass"
+        ),
+        exclude[DirectMissingMethodProblem](
+          "sbt.internal.inc.binary.converters.ProtobufReaders.fromApis"
+        ),
+        exclude[DirectMissingMethodProblem](
+          "sbt.internal.inc.binary.converters.ProtobufReaders.fromApisFile"
+        ),
+        exclude[DirectMissingMethodProblem](
+          "sbt.internal.inc.binary.converters.ProtobufReaders.fromAnalyzedClass"
+        ),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.AnalyzedClass.apply"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.AnalyzedClass.copy"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.AnalyzedClass.this"),
         exclude[ReversedMissingMethodProblem]("sbt.internal.inc.schema.Version.isV11"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.binary.converters.ProtobufReaders.this"),
+        exclude[DirectMissingMethodProblem](
+          "sbt.internal.inc.binary.converters.ProtobufReaders.this"
+        ),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Problem.*"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Problem#ProblemLens.rendered"),
         exclude[MissingClassProblem]("sbt.internal.inc.text.Java678Encoder"),
-
         // Added {start,end}{Offset,Line,Column}
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Position.apply"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Position.copy"),
@@ -305,9 +339,15 @@ lazy val zincCore = (project in internalPath / "zinc-core")
       List(
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalNameHashing.allDeps"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalNameHashing.sameAPI"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalNameHashing.invalidateClass"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalNameHashing.invalidateByExternal"),
-        exclude[DirectAbstractMethodProblem]("sbt.internal.inc.IncrementalCommon.invalidatedPackageObjects"),
+        exclude[DirectMissingMethodProblem](
+          "sbt.internal.inc.IncrementalNameHashing.invalidateClass"
+        ),
+        exclude[DirectMissingMethodProblem](
+          "sbt.internal.inc.IncrementalNameHashing.invalidateByExternal"
+        ),
+        exclude[DirectAbstractMethodProblem](
+          "sbt.internal.inc.IncrementalCommon.invalidatedPackageObjects"
+        ),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalNameHashing.this"),
         exclude[MissingClassProblem]("sbt.internal.inc.ClassToSourceMapper"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.Incremental.compile"),
@@ -316,26 +356,50 @@ lazy val zincCore = (project in internalPath / "zinc-core")
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.sameClass"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.allDeps"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.sameAPI"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.invalidateIntermediate"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.invalidateByAllExternal"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.invalidateDuplicates"),
+        exclude[DirectMissingMethodProblem](
+          "sbt.internal.inc.IncrementalCommon.invalidateIntermediate"
+        ),
+        exclude[DirectMissingMethodProblem](
+          "sbt.internal.inc.IncrementalCommon.invalidateByAllExternal"
+        ),
+        exclude[DirectMissingMethodProblem](
+          "sbt.internal.inc.IncrementalCommon.invalidateDuplicates"
+        ),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.transitiveDeps"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.invalidateClass"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.externalBinaryModified"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.invalidateIncremental"),
+        exclude[DirectMissingMethodProblem](
+          "sbt.internal.inc.IncrementalCommon.externalBinaryModified"
+        ),
+        exclude[DirectMissingMethodProblem](
+          "sbt.internal.inc.IncrementalCommon.invalidateIncremental"
+        ),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.changedInitial"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.transitiveDeps$default$2"),
+        exclude[DirectMissingMethodProblem](
+          "sbt.internal.inc.IncrementalCommon.transitiveDeps$default$2"
+        ),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.orTrue"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.invalidateByExternal"),
+        exclude[DirectMissingMethodProblem](
+          "sbt.internal.inc.IncrementalCommon.invalidateByExternal"
+        ),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.wrappedLog"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.shortcutSameClass"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.orEmpty"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.changedIncremental"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.currentExternalAPI"),
+        exclude[DirectMissingMethodProblem](
+          "sbt.internal.inc.IncrementalCommon.changedIncremental"
+        ),
+        exclude[DirectMissingMethodProblem](
+          "sbt.internal.inc.IncrementalCommon.currentExternalAPI"
+        ),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.this"),
-        exclude[ReversedMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.findClassDependencies"),
-        exclude[ReversedMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.invalidateClassesInternally"),
-        exclude[ReversedMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.invalidateClassesExternally"),
+        exclude[ReversedMissingMethodProblem](
+          "sbt.internal.inc.IncrementalCommon.findClassDependencies"
+        ),
+        exclude[ReversedMissingMethodProblem](
+          "sbt.internal.inc.IncrementalCommon.invalidateClassesInternally"
+        ),
+        exclude[ReversedMissingMethodProblem](
+          "sbt.internal.inc.IncrementalCommon.invalidateClassesExternally"
+        ),
         exclude[ReversedMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.findAPIChange"),
         exclude[IncompatibleMethTypeProblem]("sbt.internal.inc.Incremental.prune"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCompile.apply"),
@@ -387,13 +451,20 @@ lazy val zincCompileCore = (project in internalPath / "zinc-compile-core")
       Seq(
         // PositionImpl is a private class only invoked in the same source.
         exclude[FinalClassProblem]("sbt.internal.inc.javac.DiagnosticsReporter$PositionImpl"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.javac.DiagnosticsReporter#PositionImpl.this"),
+        exclude[DirectMissingMethodProblem](
+          "sbt.internal.inc.javac.DiagnosticsReporter#PositionImpl.this"
+        ),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.javac.JavaProblem.rendered"),
-
         // Renamed vals in a private[sbt] class
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.javac.DiagnosticsReporter#PositionImpl.endPosition"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.javac.DiagnosticsReporter#PositionImpl.startPosition"),
-        exclude[IncompatibleMethTypeProblem]("sbt.internal.inc.javac.DiagnosticsReporter#PositionImpl.this"),
+        exclude[DirectMissingMethodProblem](
+          "sbt.internal.inc.javac.DiagnosticsReporter#PositionImpl.endPosition"
+        ),
+        exclude[DirectMissingMethodProblem](
+          "sbt.internal.inc.javac.DiagnosticsReporter#PositionImpl.startPosition"
+        ),
+        exclude[IncompatibleMethTypeProblem](
+          "sbt.internal.inc.javac.DiagnosticsReporter#PositionImpl.this"
+        ),
       )
     },
   )
@@ -606,8 +677,7 @@ lazy val compilerBridge213 = compilerBridgeTemplate
  * (Zinc API Info, which transitively depends on IO).
  */
 lazy val compilerBridgeTestTemplate = (project in internalPath / "compiler-bridge-test")
-  .dependsOn(zinc % "compile->compile;test->test",
-    compilerInterface212 % "test->test")
+  .dependsOn(zinc % "compile->compile;test->test", compilerInterface212 % "test->test")
   .settings(
     name := "Compiler Bridge Test",
     baseSettings,
@@ -653,7 +723,6 @@ lazy val compilerBridgeTest213 = compilerBridgeTestTemplate
     target := (target in compilerBridgeTestTemplate).value.getParentFile / "target-2.13"
   )
 
-
 val scalaPartialVersion = Def setting (CrossVersion partialVersion scalaVersion.value)
 
 def inBoth(ss: Setting[_]*): Seq[Setting[_]] = Seq(Compile, Test) flatMap (inConfig(_)(ss))
@@ -671,27 +740,27 @@ lazy val zincApiInfoTemplate = (project in internalPath / "zinc-apiinfo")
       import com.typesafe.tools.mima.core._
       import com.typesafe.tools.mima.core.ProblemFilters._
       Seq(
-         exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashTypeParameters"),
-         exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashAnnotations"),
-         exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashParameters"),
-         exclude[DirectMissingMethodProblem]("xsbt.api.HashAPI.hashDefinitionsWithExtraHashes"),
-         exclude[DirectMissingMethodProblem]("xsbt.api.HashAPI.hashSeq"),
-         exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashValueParameters"),
-         exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashAnnotationArguments"),
-         exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashTypes"),
-         exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitTypeParameters"),
-         exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitDefinitions"),
-         exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitAnnotationArguments"),
-         exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitAnnotations"),
-         exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitValueParameters"),
-         exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitParameters"),
-         exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitTypes"),
-         exclude[DirectMissingMethodProblem]("xsbt.api.HashAPI.apply"),
-         exclude[DirectMissingMethodProblem]("xsbt.api.HashAPI.hashStructure0"),
-         exclude[DirectMissingMethodProblem]("xsbt.api.HashAPI.hashStructure"),
-         exclude[DirectMissingMethodProblem]("xsbt.api.HashAPI.hashDefinitions"),
-         exclude[DirectMissingMethodProblem]("xsbt.api.HashAPI.this"),
-         exclude[DirectMissingMethodProblem]("sbt.internal.inc.ClassToAPI.handleMalformedNameOf*"),
+        exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashTypeParameters"),
+        exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashAnnotations"),
+        exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashParameters"),
+        exclude[DirectMissingMethodProblem]("xsbt.api.HashAPI.hashDefinitionsWithExtraHashes"),
+        exclude[DirectMissingMethodProblem]("xsbt.api.HashAPI.hashSeq"),
+        exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashValueParameters"),
+        exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashAnnotationArguments"),
+        exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashTypes"),
+        exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitTypeParameters"),
+        exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitDefinitions"),
+        exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitAnnotationArguments"),
+        exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitAnnotations"),
+        exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitValueParameters"),
+        exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitParameters"),
+        exclude[IncompatibleMethTypeProblem]("xsbt.api.Visit.visitTypes"),
+        exclude[DirectMissingMethodProblem]("xsbt.api.HashAPI.apply"),
+        exclude[DirectMissingMethodProblem]("xsbt.api.HashAPI.hashStructure0"),
+        exclude[DirectMissingMethodProblem]("xsbt.api.HashAPI.hashStructure"),
+        exclude[DirectMissingMethodProblem]("xsbt.api.HashAPI.hashDefinitions"),
+        exclude[DirectMissingMethodProblem]("xsbt.api.HashAPI.this"),
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.ClassToAPI.handleMalformedNameOf*"),
       )
     }
   )
@@ -717,7 +786,9 @@ lazy val zincClasspathTemplate = (project in internalPath / "zinc-classpath")
     mimaSettings,
     mimaBinaryIssueFilters ++= Seq(
       // Changed the signature of a private[sbt] method
-      exclude[DirectMissingMethodProblem]("sbt.internal.inc.classpath.ClasspathUtilities.compilerPlugins"),
+      exclude[DirectMissingMethodProblem](
+        "sbt.internal.inc.classpath.ClasspathUtilities.compilerPlugins"
+      ),
     ),
   )
   .configure(addSbtIO)
@@ -772,7 +843,9 @@ lazy val zincScripted = (project in internalPath / "zinc-scripted")
       Seq[BuildInfoKey](
         sourceDirectory in zinc,
         classDirectory in Test,
-        BuildInfoKey.map(dependencyClasspath in Test) { case (_, v) => "classpath" -> v.seq.map(_.data) }
+        BuildInfoKey.map(dependencyClasspath in Test) {
+          case (_, v) => "classpath" -> v.seq.map(_.data)
+        }
       )
     }
   )
@@ -783,15 +856,11 @@ def isJava8: Boolean = sys.props("java.specification.version") == "1.8"
 lazy val crossTestBridges = {
   Command.command("crossTestBridges") { state =>
     val java8Only =
-      if (isJava8) List(
-        s"${compilerBridgeTest210.id}/test",
-        s"${compilerBridgeTest211.id}/test")
+      if (isJava8) List(s"${compilerBridgeTest210.id}/test", s"${compilerBridgeTest211.id}/test")
       else Nil
     val testCommands =
       java8Only :::
-      List(
-        s"${compilerBridgeTest212.id}/test",
-        s"${compilerBridgeTest213.id}/test")
+        List(s"${compilerBridgeTest212.id}/test", s"${compilerBridgeTest213.id}/test")
 
     testCommands ::: state
   }
@@ -813,7 +882,9 @@ addCommandAlias(
 lazy val otherRootSettings = Seq(
   scriptedBufferLog := true,
   scripted := scriptedTask.evaluated,
-  Scripted.scriptedPrescripted := { (_: File) => () },
+  Scripted.scriptedPrescripted := { (_: File) =>
+    ()
+  },
   Scripted.scriptedUnpublished := scriptedUnpublishedTask.evaluated,
   Scripted.scriptedSource := (sourceDirectory in zinc).value / "sbt-test",
   Scripted.scriptedCompileToJar := false,
@@ -862,11 +933,38 @@ def customCommands: Seq[Setting[_]] = Seq(
   }
 )
 
-inThisBuild(Seq(
-  whitesourceProduct                   := "Lightbend Reactive Platform",
-  whitesourceAggregateProjectName      := "sbt-zinc-master",
-  whitesourceAggregateProjectToken     := "4b57f35176864c6397b872277d51bc27b89503de0f1742b8bc4dfa2e33b95c5c",
-  whitesourceIgnoredScopes             += "scalafmt",
-  whitesourceFailOnError               := sys.env.contains("WHITESOURCE_PASSWORD"), // fail if pwd is present
-  whitesourceForceCheckAllDependencies := true,
-))
+// https://github.com/sbt/sbt-git/issues/109
+// Workaround from https://github.com/sbt/sbt-git/issues/92#issuecomment-161853239
+ThisBuild / git.gitUncommittedChanges := {
+  val statusCommands = Seq(
+    Seq("diff-index", "--cached", "HEAD"),
+    Seq("diff-index", "HEAD"),
+    Seq("diff-files"),
+    Seq("ls-files", "--exclude-standard", "--others")
+  )
+  // can't use git.runner.value because it's a task
+  val runner = com.typesafe.sbt.git.ConsoleGitRunner
+  val dir = baseDirectory.value
+  // sbt/zinc#334 Seemingly "git status" resets some stale metadata.
+  runner("status")(dir, com.typesafe.sbt.git.NullLogger)
+  val uncommittedChanges = statusCommands flatMap { c =>
+    val res = runner(c: _*)(dir, com.typesafe.sbt.git.NullLogger)
+    if (res.isEmpty) Nil else Seq(c -> res)
+  }
+
+  val un = uncommittedChanges.nonEmpty
+  if (un) {
+    uncommittedChanges foreach {
+      case (cmd, res) =>
+        sLog.value debug s"""Uncommitted changes found via "${cmd mkString " "}":\n${res}"""
+    }
+  }
+  un
+}
+
+ThisBuild / whitesourceProduct := "Lightbend Reactive Platform"
+ThisBuild / whitesourceAggregateProjectName := "sbt-zinc-master"
+ThisBuild / whitesourceAggregateProjectToken := "4b57f35176864c6397b872277d51bc27b89503de0f1742b8bc4dfa2e33b95c5c"
+ThisBuild / whitesourceIgnoredScopes += "scalafmt"
+ThisBuild / whitesourceFailOnError := sys.env.contains("WHITESOURCE_PASSWORD") // fail if pwd is present
+ThisBuild / whitesourceForceCheckAllDependencies := true
