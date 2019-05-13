@@ -6,8 +6,9 @@ PROJECT_ROOT="zincRoot"
 sbt -Dfile.encoding=UTF-8 \
   -J-XX:ReservedCodeCacheSize=512M \
   -J-Xms1024M -J-Xmx4096M -J-server \
+  "+compilerHelloworld/compile" \
   "$PROJECT_ROOT/mimaReportBinaryIssues" \
-  scalafmtCheck \
+  scalafmtCheckAll \
   whitesourceCheckPolicies \
   "$PROJECT_ROOT/test:compile" \
   crossTestBridges \

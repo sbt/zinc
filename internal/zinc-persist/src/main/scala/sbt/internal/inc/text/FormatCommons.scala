@@ -95,21 +95,22 @@ trait FormatCommons {
     writeMap(out)(header, m, identity[String] _, t2s)
   }
 
-  protected def writeMap[K, V](out: Writer)(
-      header: String,
-      m: Map[K, V],
-      k2s: K => String,
-      v2s: V => String,
-      inlineVals: Boolean = true)(implicit ord: Ordering[K]): Unit =
+  protected def writeMap[K, V](
+      out: Writer
+  )(header: String, m: Map[K, V], k2s: K => String, v2s: V => String, inlineVals: Boolean = true)(
+      implicit ord: Ordering[K]
+  ): Unit =
     writePairs(out)(header, m.keys.toSeq.sorted map { k =>
       (k, (m(k)))
     }, k2s, v2s, inlineVals)
 
-  protected def writePairs[K, V](out: Writer)(header: String,
-                                              s: Seq[(K, V)],
-                                              k2s: K => String,
-                                              v2s: V => String,
-                                              inlineVals: Boolean = true): Unit = {
+  protected def writePairs[K, V](out: Writer)(
+      header: String,
+      s: Seq[(K, V)],
+      k2s: K => String,
+      v2s: V => String,
+      inlineVals: Boolean = true
+  ): Unit = {
     writeHeader(out, header)
     writeSize(out, s.size)
     s foreach {
@@ -134,13 +135,13 @@ trait FormatCommons {
     (readPairs(in)(expectedHeader, identity[String], s2t).toSeq.sortBy(_._1) map (_._2))
 
   protected def readPairs[K, V](
-      in: BufferedReader)(expectedHeader: String, s2k: String => K, s2v: String => V) =
+      in: BufferedReader
+  )(expectedHeader: String, s2k: String => K, s2v: String => V) =
     readMappedPairs(in)(expectedHeader, s2k, (_: K, s) => s2v(s))
 
-  protected def readMappedPairs[K, V](in: BufferedReader)(
-      expectedHeader: String,
-      s2k: String => K,
-      s2v: (K, String) => V): Traversable[(K, V)] = {
+  protected def readMappedPairs[K, V](
+      in: BufferedReader
+  )(expectedHeader: String, s2k: String => K, s2v: (K, String) => V): Traversable[(K, V)] = {
     def toPair(s: String): (K, V) = {
       if (s == null) throw new EOFException
       val p = s.indexOf(" -> ")

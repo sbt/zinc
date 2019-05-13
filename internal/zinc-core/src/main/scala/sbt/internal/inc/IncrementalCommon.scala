@@ -158,7 +158,8 @@ private[inc] abstract class IncrementalCommon(
       if (invalidated.size <= allSources.size * recompileAllFraction) invalidated
       else {
         log.debug(
-          s"Recompiling all sources: number of invalidated sources > ${recompileAllFraction * 100.00}% of all sources")
+          s"Recompiling all sources: number of invalidated sources > ${recompileAllFraction * 100.00}% of all sources"
+        )
         allSources ++ invalidated // Union because `all` doesn't contain removed sources
       }
     }
@@ -348,8 +349,10 @@ private[inc] abstract class IncrementalCommon(
    * Because the intermediate steps do not pull in cycles, this result includes the initial classes
    * if they are part of a cycle containing newly invalidated classes.
    */
-  def transitiveDependencies(dependsOnClass: String => Set[String],
-                             initial: Set[String]): Set[String] = {
+  def transitiveDependencies(
+      dependsOnClass: String => Set[String],
+      initial: Set[String]
+  ): Set[String] = {
     val transitiveWithInitial = IncrementalCommon.transitiveDeps(initial, log)(dependsOnClass)
     val transitivePartial =
       includeTransitiveInitialInvalidations(initial, transitiveWithInitial, dependsOnClass)
@@ -413,9 +416,11 @@ private[inc] abstract class IncrementalCommon(
    * Invalidates inheritance dependencies, transitively.  Then, invalidates direct dependencies.  Finally, excludes initial dependencies not
    * included in a cycle with newly invalidated classes.
    */
-  def invalidateClasses(previous: Relations,
-                        changes: APIChanges,
-                        isScalaClass: String => Boolean): Set[String] = {
+  def invalidateClasses(
+      previous: Relations,
+      changes: APIChanges,
+      isScalaClass: String => Boolean
+  ): Set[String] = {
     includeTransitiveInitialInvalidations(
       changes.allModified.toSet,
       changes.apiChanges.flatMap(invalidateClassesInternally(previous, _, isScalaClass)).toSet,
@@ -454,7 +459,8 @@ private[inc] abstract class IncrementalCommon(
     val includedInitialInvalidations = newTransitiveInvalidations & previousInvalidations
 
     log.debug(
-      "Previously invalidated, but (transitively) depend on new invalidations:\n\t" + includedInitialInvalidations)
+      "Previously invalidated, but (transitively) depend on new invalidations:\n\t" + includedInitialInvalidations
+    )
     newInvalidations ++ includedInitialInvalidations
   }
 

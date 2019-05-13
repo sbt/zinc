@@ -16,10 +16,11 @@ import java.util.Optional
 
 import xsbti.compile.{ AnalysisContents, AnalysisStore }
 
-case class CacheAwareStore(localStore: AnalysisStore,
-                           cacheProvider: CacheProvider,
-                           projectLocation: File)
-    extends AnalysisStore {
+case class CacheAwareStore(
+    localStore: AnalysisStore,
+    cacheProvider: CacheProvider,
+    projectLocation: File
+) extends AnalysisStore {
   override def set(analysisFile: AnalysisContents): Unit =
     localStore.set(analysisFile)
 

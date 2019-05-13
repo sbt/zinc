@@ -19,7 +19,8 @@ object APIUtil {
     def x(b: Boolean, bit: Int) = if (b) 1 << bit else 0
     (x(isAbstract, 0) | x(isOverride, 1) | x(isFinal, 2) | x(isSealed, 3) | x(isImplicit, 4) | x(
       isLazy,
-      5) | x(isMacro, 6)).toByte
+      5
+    ) | x(isMacro, 6)).toByte
   }
   val byteToModifiers = (b: Byte) => {
     def x(bit: Int) = (b & (1 << bit)) != 0
@@ -78,11 +79,15 @@ object APIUtil {
   }
 
   def minimizeStructure(s: Structure, isModule: Boolean): Structure =
-    Structure.of(lzy(s.parents),
-                 filterDefinitions(s.declared, isModule),
-                 filterDefinitions(s.inherited, isModule))
-  def filterDefinitions(ds: Array[ClassDefinition],
-                        isModule: Boolean): Lazy[Array[ClassDefinition]] =
+    Structure.of(
+      lzy(s.parents),
+      filterDefinitions(s.declared, isModule),
+      filterDefinitions(s.inherited, isModule)
+    )
+  def filterDefinitions(
+      ds: Array[ClassDefinition],
+      isModule: Boolean
+  ): Lazy[Array[ClassDefinition]] =
     lzy(if (isModule) ds filter Discovery.isMainMethod else Array())
 
   def isNonPrivate(d: Definition): Boolean = isNonPrivate(d.access)
@@ -97,17 +102,19 @@ object APIUtil {
     new Modifiers(false, false, false, false, false, false, false, false)
   private val emptyStructure = Structure.of(lzy(Array.empty), lzy(Array.empty), lzy(Array.empty))
   def emptyClassLike(name: String, definitionType: DefinitionType): ClassLike =
-    xsbti.api.ClassLike.of(name,
-                           Public.of(),
-                           emptyModifiers,
-                           Array.empty,
-                           definitionType,
-                           lzy(emptyType),
-                           lzy(emptyStructure),
-                           Array.empty,
-                           Array.empty,
-                           true,
-                           Array.empty)
+    xsbti.api.ClassLike.of(
+      name,
+      Public.of(),
+      emptyModifiers,
+      Array.empty,
+      definitionType,
+      lzy(emptyType),
+      lzy(emptyStructure),
+      Array.empty,
+      Array.empty,
+      true,
+      Array.empty
+    )
 
   private[this] def lzy[T <: AnyRef](t: T): Lazy[T] = SafeLazyProxy.strict(t)
 

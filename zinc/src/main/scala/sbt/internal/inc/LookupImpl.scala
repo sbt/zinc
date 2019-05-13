@@ -63,8 +63,10 @@ class LookupImpl(compileConfiguration: CompileConfiguration, previousSetup: Opti
   override def removedProducts(previousAnalysis: CompileAnalysis): Option[Set[File]] =
     externalLookup.flatMap(_.removedProducts(previousAnalysis))
 
-  override def shouldDoIncrementalCompilation(changedClasses: Set[String],
-                                              analysis: CompileAnalysis): Boolean =
+  override def shouldDoIncrementalCompilation(
+      changedClasses: Set[String],
+      analysis: CompileAnalysis
+  ): Boolean =
     externalLookup.forall(_.shouldDoIncrementalCompilation(changedClasses, analysis))
 
   override def hashClasspath(classpath: Array[File]): Optional[Array[FileHash]] =

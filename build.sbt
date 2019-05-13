@@ -16,10 +16,21 @@ def mimaSettings: Seq[Setting[_]] = Seq(
   ),
 )
 
+ThisBuild / git.baseVersion := "1.3.0"
+ThisBuild / version := {
+  val old = (ThisBuild / version).value
+  nightlyVersion match {
+    case Some(v) => v
+    case _ =>
+      if (old contains "SNAPSHOT") git.baseVersion.value + "-SNAPSHOT"
+      else old
+  }
+}
 ThisBuild / licenses := List(("Apache-2.0", url("https://www.apache.org/licenses/LICENSE-2.0")))
+ThisBuild / scalafmtOnCompile := !(Global / insideCI).value
+ThisBuild / Test / scalafmtOnCompile := !(Global / insideCI).value
 
 def buildLevelSettings: Seq[Setting[_]] = Seq(
-  git.baseVersion := "1.3.0",
   // https://github.com/sbt/sbt-git/issues/109
   // Workaround from https://github.com/sbt/sbt-git/issues/92#issuecomment-161853239
   git.gitUncommittedChanges := {
@@ -48,18 +59,12 @@ def buildLevelSettings: Seq[Setting[_]] = Seq(
     }
     un
   },
-  version := {
-    val v = version.value
-    if (v contains "SNAPSHOT") git.baseVersion.value + "-SNAPSHOT"
-    else v
-  },
   bintrayPackage := "zinc",
   scmInfo := Some(ScmInfo(url("https://github.com/sbt/zinc"), "git@github.com:sbt/zinc.git")),
   description := "Incremental compiler of Scala",
   homepage := Some(url("https://github.com/sbt/zinc")),
   developers +=
     Developer("jvican", "Jorge Vicente Cantero", "@jvican", url("https://github.com/jvican")),
-  scalafmtOnCompile := true,
 )
 
 def commonSettings: Seq[Setting[_]] = Seq(
@@ -188,6 +193,7 @@ lazy val zinc = (project in file("zinc"))
       )
       bridgeKeys
     },
+    Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
     mimaSettings,
     mimaBinaryIssueFilters ++= Seq(
       exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCompilerImpl.compileIncrementally"),
@@ -239,6 +245,7 @@ lazy val zincPersist = (project in internalPath / "zinc-persist")
       case _ => Nil
     }),
     PB.targets in Compile := List(scalapb.gen() -> (sourceManaged in Compile).value),
+    Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
     mimaSettings,
     mimaBinaryIssueFilters ++= {
       import com.typesafe.tools.mima.core._
@@ -391,6 +398,14 @@ lazy val zincCompileCore = (project in internalPath / "zinc-compile-core")
     },
   )
   .configure(addSbtUtilLogging, addSbtIO, addSbtUtilControl)
+
+lazy val compilerHelloworld = (project in internalPath / "helloworld")
+  .settings(
+    name := "Compiler Hello world",
+    scalaVersion := scala212,
+    crossScalaVersions := Seq(scala212, scala210, scala211, scala213),
+    publish / skip := true
+  )
 
 // defines Java structures used across Scala versions, such as the API structures and relationships extracted by
 //   the analysis compiler phases and passed back to sbt.  The API structures are defined in a simple

@@ -52,13 +52,15 @@ object Doc {
       prepare(
         label + " Java API documentation",
         new JavaDoc {
-          def run(sources: List[File],
-                  classpath: List[File],
-                  outputDirectory: File,
-                  options: List[String],
-                  incToolOptions: IncToolOptions,
-                  log: Logger,
-                  reporter: Reporter): Unit = {
+          def run(
+              sources: List[File],
+              classpath: List[File],
+              outputDirectory: File,
+              options: List[String],
+              incToolOptions: IncToolOptions,
+              log: Logger,
+              reporter: Reporter
+          ): Unit = {
             val success = doc.javadoc.run(
               (sources filter javaSourcesOnly).toArray,
               JavaCompilerArguments(sources, classpath, Some(outputDirectory), options).toArray,
@@ -74,13 +76,15 @@ object Doc {
     )
   private[sbt] def prepare(description: String, doDoc: JavaDoc): JavaDoc =
     new JavaDoc {
-      def run(sources: List[File],
-              classpath: List[File],
-              outputDirectory: File,
-              options: List[String],
-              incToolOptions: IncToolOptions,
-              log: Logger,
-              reporter: Reporter): Unit =
+      def run(
+          sources: List[File],
+          classpath: List[File],
+          outputDirectory: File,
+          options: List[String],
+          incToolOptions: IncToolOptions,
+          log: Logger,
+          reporter: Reporter
+      ): Unit =
         if (sources.isEmpty) log.info("No sources available, skipping " + description + "...")
         else {
           log.info(description.capitalize + " to " + outputDirectory.absolutePath + "...")
@@ -90,18 +94,22 @@ object Doc {
     }
   private[sbt] def cached(storeFactory: CacheStoreFactory, doDoc: JavaDoc): JavaDoc =
     new JavaDoc {
-      def run(sources: List[File],
-              classpath: List[File],
-              outputDirectory: File,
-              options: List[String],
-              incToolOptions: IncToolOptions,
-              log: Logger,
-              reporter: Reporter): Unit = {
-        val inputs = Inputs(filesInfoToList(hash(sources.toSet)),
-                            filesInfoToList(lastModified(classpath.toSet)),
-                            classpath,
-                            outputDirectory,
-                            options)
+      def run(
+          sources: List[File],
+          classpath: List[File],
+          outputDirectory: File,
+          options: List[String],
+          incToolOptions: IncToolOptions,
+          log: Logger,
+          reporter: Reporter
+      ): Unit = {
+        val inputs = Inputs(
+          filesInfoToList(hash(sources.toSet)),
+          filesInfoToList(lastModified(classpath.toSet)),
+          classpath,
+          outputDirectory,
+          options
+        )
         val cachedDoc = inputChanged(storeFactory make "inputs") { (inChanged, in: Inputs) =>
           inputChanged(storeFactory make "output") { (outChanged, outputs: List[PlainFileInfo]) =>
             if (inChanged || outChanged) {
@@ -114,11 +122,13 @@ object Doc {
         cachedDoc(inputs)(filesInfoToList(exists(outputDirectory.allPaths.get.toSet)))
       }
     }
-  private[this] final case class Inputs(hfi: List[HashFileInfo],
-                                        mfi: List[ModifiedFileInfo],
-                                        classpaths: List[File],
-                                        outputDirectory: File,
-                                        options: List[String])
+  private[this] final case class Inputs(
+      hfi: List[HashFileInfo],
+      mfi: List[ModifiedFileInfo],
+      classpaths: List[File],
+      outputDirectory: File,
+      options: List[String]
+  )
   private[sbt] def filesInfoToList[A <: FileInfo](info: FilesInfo[A]): List[A] =
     info.files.toList sortBy { x =>
       x.file.getAbsolutePath
@@ -132,12 +142,14 @@ object Doc {
     /**
      * @throws JavadocGenerationFailed when generating javadoc fails
      */
-    def run(sources: List[File],
-            classpath: List[File],
-            outputDirectory: File,
-            options: List[String],
-            incToolOptions: IncToolOptions,
-            log: Logger,
-            reporter: Reporter): Unit
+    def run(
+        sources: List[File],
+        classpath: List[File],
+        outputDirectory: File,
+        options: List[String],
+        incToolOptions: IncToolOptions,
+        log: Logger,
+        reporter: Reporter
+    ): Unit
   }
 }

@@ -78,13 +78,15 @@ object IncrementalCompile {
         previous,
         current,
         compile,
-        new AnalysisCallback.Builder(internalBinaryToSourceClassName,
-                                     internalSourceToClassNamesMap,
-                                     externalAPI,
-                                     current,
-                                     output,
-                                     options,
-                                     outputJarContent),
+        new AnalysisCallback.Builder(
+          internalBinaryToSourceClassName,
+          internalSourceToClassNamesMap,
+          externalAPI,
+          current,
+          output,
+          options,
+          outputJarContent
+        ),
         log,
         options,
         output,
@@ -105,7 +107,7 @@ object IncrementalCompile {
           val sourceClassName =
             analysis.relations.productClassName.reverse(binaryClassName).headOption
           sourceClassName flatMap analysis.apis.internal.get
-    }
+      }
 }
 
 private object AnalysisCallback {
@@ -196,18 +198,22 @@ private final class AnalysisCallback(
 
   def startSource(source: File): Unit = {
     if (options.strictMode()) {
-      assert(!srcs.contains(source),
-             s"The startSource can be called only once per source file: $source")
+      assert(
+        !srcs.contains(source),
+        s"The startSource can be called only once per source file: $source"
+      )
     }
     srcs.add(source)
     ()
   }
 
-  def problem(category: String,
-              pos: Position,
-              msg: String,
-              severity: Severity,
-              reported: Boolean): Unit = {
+  def problem(
+      category: String,
+      pos: Position,
+      msg: String,
+      severity: Severity,
+      reported: Boolean
+  ): Unit = {
     for (source <- jo2o(pos.sourceFile)) {
       val map = if (reported) reporteds else unreporteds
       map
@@ -221,28 +227,34 @@ private final class AnalysisCallback(
       add(intSrcDeps, sourceClassName, InternalDependency.of(sourceClassName, onClassName, context))
   }
 
-  private[this] def externalBinaryDependency(binary: File,
-                                             className: String,
-                                             source: File,
-                                             context: DependencyContext): Unit = {
+  private[this] def externalBinaryDependency(
+      binary: File,
+      className: String,
+      source: File,
+      context: DependencyContext
+  ): Unit = {
     binaryClassName.put(binary, className)
     add(binaryDeps, source, binary)
   }
 
-  private[this] def externalSourceDependency(sourceClassName: String,
-                                             targetBinaryClassName: String,
-                                             targetClass: AnalyzedClass,
-                                             context: DependencyContext): Unit = {
+  private[this] def externalSourceDependency(
+      sourceClassName: String,
+      targetBinaryClassName: String,
+      targetClass: AnalyzedClass,
+      context: DependencyContext
+  ): Unit = {
     val dependency =
       ExternalDependency.of(sourceClassName, targetBinaryClassName, targetClass, context)
     add(extSrcDeps, sourceClassName, dependency)
   }
 
-  def binaryDependency(classFile: File,
-                       onBinaryClassName: String,
-                       fromClassName: String,
-                       fromSourceFile: File,
-                       context: DependencyContext) =
+  def binaryDependency(
+      classFile: File,
+      onBinaryClassName: String,
+      fromClassName: String,
+      fromSourceFile: File,
+      context: DependencyContext
+  ) =
     internalBinaryToSourceClassName(onBinaryClassName) match {
       case Some(dependsOn) => // dependsOn is a source class name
         // dependency is a product of a source not included in this compilation
@@ -258,11 +270,13 @@ private final class AnalysisCallback(
         }
     }
 
-  private[this] def externalDependency(classFile: File,
-                                       onBinaryName: String,
-                                       sourceClassName: String,
-                                       sourceFile: File,
-                                       context: DependencyContext): Unit =
+  private[this] def externalDependency(
+      classFile: File,
+      onBinaryName: String,
+      sourceClassName: String,
+      sourceFile: File,
+      context: DependencyContext
+  ): Unit =
     externalAPI(classFile, onBinaryName) match {
       case Some(api) =>
         // dependency is a product of a source in another project
@@ -273,10 +287,12 @@ private final class AnalysisCallback(
         externalBinaryDependency(classFile, onBinaryName, sourceFile, context)
     }
 
-  def generatedNonLocalClass(source: File,
-                             classFile: File,
-                             binaryClassName: String,
-                             srcClassName: String): Unit = {
+  def generatedNonLocalClass(
+      source: File,
+      classFile: File,
+      binaryClassName: String,
+      srcClassName: String
+  ): Unit = {
     //println(s"Generated non local class ${source}, ${classFile}, ${binaryClassName}, ${srcClassName}")
     add(nonLocalClasses, source, (classFile, binaryClassName))
     add(classNames, source, (srcClassName, binaryClassName))
@@ -426,21 +442,27 @@ private final class AnalysisCallback(
             NonLocalProduct(srcClassName, binaryClassName, classFile, classFileStamp)
         }
 
-        val internalDeps = classesInSrc.flatMap(cls =>
-          intSrcDeps.getOrElse(cls, ConcurrentHashMap.newKeySet[InternalDependency]()).asScala)
-        val externalDeps = classesInSrc.flatMap(cls =>
-          extSrcDeps.getOrElse(cls, ConcurrentHashMap.newKeySet[ExternalDependency]()).asScala)
+        val internalDeps = classesInSrc.flatMap(
+          cls =>
+            intSrcDeps.getOrElse(cls, ConcurrentHashMap.newKeySet[InternalDependency]()).asScala
+        )
+        val externalDeps = classesInSrc.flatMap(
+          cls =>
+            extSrcDeps.getOrElse(cls, ConcurrentHashMap.newKeySet[ExternalDependency]()).asScala
+        )
         val binDeps = binaries.map(d => (d, binaryClassName(d), stampReader binary d))
 
-        a.addSource(src,
-                    analyzedApis,
-                    stamp,
-                    info,
-                    nonLocalProds,
-                    localProds,
-                    internalDeps,
-                    externalDeps,
-                    binDeps)
+        a.addSource(
+          src,
+          analyzedApis,
+          stamp,
+          info,
+          nonLocalProds,
+          localProds,
+          internalDeps,
+          externalDeps,
+          binDeps
+        )
     }
   }
 

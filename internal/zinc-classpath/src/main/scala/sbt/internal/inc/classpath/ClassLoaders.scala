@@ -53,7 +53,9 @@ final class SelfFirstLoader(classpath: Seq[URL], parent: ClassLoader)
     extends LoaderBase(classpath, parent) {
   @throws(classOf[ClassNotFoundException])
   override final def doLoadClass(className: String): Class[_] = {
-    try { findClass(className) } catch {
+    try {
+      findClass(className)
+    } catch {
       case _: ClassNotFoundException => defaultLoadClass(className)
     }
   }
@@ -164,9 +166,11 @@ final class IncludePackagesFilter(include: Iterable[String]) extends PackageFilt
  * If `tempDirectory` is unique to the class loader, this ensures that the class loader gets a unique path for
  * the native library and avoids the restriction on a native library being loaded by a single class loader.
  */
-final class NativeCopyConfig(val tempDirectory: File,
-                             val explicitLibraries: Seq[File],
-                             val searchPaths: Seq[File])
+final class NativeCopyConfig(
+    val tempDirectory: File,
+    val explicitLibraries: Seq[File],
+    val searchPaths: Seq[File]
+)
 
 /**
  * Loads native libraries from a temporary location in order to work around the jvm native library uniqueness restriction.

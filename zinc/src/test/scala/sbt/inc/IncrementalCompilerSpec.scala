@@ -63,8 +63,10 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
       assert(!result2.hasModified)
 
       val result3 =
-        compilerSetup.doCompileWithStore(fileStore,
-                                         _.withSetup(compilerSetup.setup.withExtra(Array())))
+        compilerSetup.doCompileWithStore(
+          fileStore,
+          _.withSetup(compilerSetup.setup.withExtra(Array()))
+        )
       assert(result3.hasModified)
     }
   }

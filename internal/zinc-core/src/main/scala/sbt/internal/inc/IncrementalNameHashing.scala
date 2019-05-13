@@ -92,13 +92,15 @@ private[inc] class IncrementalNameHashingCommon(
     val modifiedBinaryClassName = externalAPIChange.modifiedClass
     val invalidationReason = memberRefInvalidator.invalidationReason(externalAPIChange)
     log.debug(
-      s"$invalidationReason\nAll member reference dependencies will be considered within this context.")
+      s"$invalidationReason\nAll member reference dependencies will be considered within this context."
+    )
     // Propagate inheritance dependencies transitively.
     // This differs from normal because we need the initial crossing from externals to classes in this project.
     val externalInheritanceR = relations.inheritance.external
     val byExternalInheritance = externalInheritanceR.reverse(modifiedBinaryClassName)
     log.debug(
-      s"Files invalidated by inheriting from (external) $modifiedBinaryClassName: $byExternalInheritance; now invalidating by inheritance (internally).")
+      s"Files invalidated by inheriting from (external) $modifiedBinaryClassName: $byExternalInheritance; now invalidating by inheritance (internally)."
+    )
     val transitiveInheritance = byExternalInheritance flatMap { className =>
       invalidateByInheritance(relations, className)
     }

@@ -72,26 +72,30 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
         .withApiDebug(true)
 
       val reporter = new ManagedLoggedReporter(maxErrors, log)
-      val setup = compiler.setup(lookup,
-                                 skip = false,
-                                 cacheFile,
-                                 CompilerCache.fresh,
-                                 incOptions,
-                                 reporter,
-                                 None,
-                                 Array())
-      val in = compiler.inputs(cp,
-                               sources,
-                               targetDir,
-                               Array(),
-                               Array(),
-                               maxErrors,
-                               Array(),
-                               CompileOrder.Mixed,
-                               cs,
-                               setup,
-                               prev0,
-                               Optional.empty())
+      val setup = compiler.setup(
+        lookup,
+        skip = false,
+        cacheFile,
+        CompilerCache.fresh,
+        incOptions,
+        reporter,
+        None,
+        Array()
+      )
+      val in = compiler.inputs(
+        cp,
+        sources,
+        targetDir,
+        Array(),
+        Array(),
+        maxErrors,
+        Array(),
+        CompileOrder.Mixed,
+        cs,
+        setup,
+        prev0,
+        Optional.empty()
+      )
       // This registers `test.pkg.Ext1` as the class name on the binary stamp
       val result0 = compiler.compile(in, log)
       val contents = AnalysisContents.create(result0.analysis(), result0.setup())
@@ -102,18 +106,20 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
         case _ => sys.error("previous is not found")
       }
       val sources1 = Array(dependerFile, depender2File)
-      val in1 = compiler.inputs(cp,
-                                sources1,
-                                targetDir,
-                                Array(),
-                                Array(),
-                                maxErrors,
-                                Array(),
-                                CompileOrder.Mixed,
-                                cs,
-                                setup,
-                                prev1,
-                                Optional.empty())
+      val in1 = compiler.inputs(
+        cp,
+        sources1,
+        targetDir,
+        Array(),
+        Array(),
+        maxErrors,
+        Array(),
+        CompileOrder.Mixed,
+        cs,
+        setup,
+        prev1,
+        Optional.empty()
+      )
       // This registers `test.pkg.Ext2` as the class name on the binary stamp,
       // which means `test.pkg.Ext1` is no longer in the stamp.
       val result1 = compiler.compile(in1, log)
@@ -132,26 +138,30 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
         },
         Locate.definesClass
       )
-      val setup2 = compiler.setup(lookup2,
-                                  skip = false,
-                                  cacheFile2,
-                                  CompilerCache.fresh,
-                                  incOptions,
-                                  reporter,
-                                  None,
-                                  Array())
-      val in2 = compiler.inputs(cp2,
-                                sources2,
-                                targetDir2,
-                                Array(),
-                                Array(),
-                                maxErrors,
-                                Array(),
-                                CompileOrder.Mixed,
-                                cs,
-                                setup2,
-                                emptyPrev,
-                                Optional.empty())
+      val setup2 = compiler.setup(
+        lookup2,
+        skip = false,
+        cacheFile2,
+        CompilerCache.fresh,
+        incOptions,
+        reporter,
+        None,
+        Array()
+      )
+      val in2 = compiler.inputs(
+        cp2,
+        sources2,
+        targetDir2,
+        Array(),
+        Array(),
+        maxErrors,
+        Array(),
+        CompileOrder.Mixed,
+        cs,
+        setup2,
+        emptyPrev,
+        Optional.empty()
+      )
       val result2 = compiler.compile(in2, log)
       fileStore2.set(AnalysisContents.create(result2.analysis(), result2.setup()))
 
@@ -172,26 +182,30 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
         },
         Locate.definesClass
       )
-      val setup3 = compiler.setup(lookup3,
-                                  skip = false,
-                                  cacheFile,
-                                  CompilerCache.fresh,
-                                  incOptions,
-                                  reporter,
-                                  None,
-                                  Array())
-      val in3 = compiler.inputs(cp,
-                                sources3,
-                                targetDir,
-                                Array(),
-                                Array(),
-                                maxErrors,
-                                Array(),
-                                CompileOrder.Mixed,
-                                cs,
-                                setup3,
-                                prev,
-                                Optional.empty())
+      val setup3 = compiler.setup(
+        lookup3,
+        skip = false,
+        cacheFile,
+        CompilerCache.fresh,
+        incOptions,
+        reporter,
+        None,
+        Array()
+      )
+      val in3 = compiler.inputs(
+        cp,
+        sources3,
+        targetDir,
+        Array(),
+        Array(),
+        maxErrors,
+        Array(),
+        CompileOrder.Mixed,
+        cs,
+        setup3,
+        prev,
+        Optional.empty()
+      )
       val result3 = compiler.compile(in3, log)
       val a3 = result3.analysis match { case a: Analysis => a }
       fileStore.set(AnalysisContents.create(a3, result3.setup))

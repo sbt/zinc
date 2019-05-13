@@ -28,17 +28,21 @@ object ClasspathUtilities {
   def toLoader(paths: Seq[File], parent: ClassLoader): ClassLoader =
     new URLClassLoader(Path.toURLs(paths), parent)
 
-  def toLoader(paths: Seq[File],
-               parent: ClassLoader,
-               resourceMap: Map[String, String]): ClassLoader =
+  def toLoader(
+      paths: Seq[File],
+      parent: ClassLoader,
+      resourceMap: Map[String, String]
+  ): ClassLoader =
     new URLClassLoader(Path.toURLs(paths), parent) with RawResources {
       override def resources = resourceMap
     }
 
-  def toLoader(paths: Seq[File],
-               parent: ClassLoader,
-               resourceMap: Map[String, String],
-               nativeTemp: File): ClassLoader =
+  def toLoader(
+      paths: Seq[File],
+      parent: ClassLoader,
+      resourceMap: Map[String, String],
+      nativeTemp: File
+  ): ClassLoader =
     new URLClassLoader(Path.toURLs(paths), parent) with RawResources with NativeCopyLoader {
       override def resources = resourceMap
       override val config = new NativeCopyConfig(nativeTemp, paths, javaLibraryPaths)
@@ -67,8 +71,10 @@ object ClasspathUtilities {
   final val AppClassPath = "app.class.path"
   final val BootClassPath = "boot.class.path"
 
-  def createClasspathResources(classpath: Seq[File],
-                               instance: ScalaInstance): Map[String, String] = {
+  def createClasspathResources(
+      classpath: Seq[File],
+      instance: ScalaInstance
+  ): Map[String, String] = {
     createClasspathResources(classpath, Array(instance.libraryJar))
   }
 
@@ -88,16 +94,20 @@ object ClasspathUtilities {
     filterByClasspath(classpath, makeLoader(classpath, instance.loaderLibraryOnly, instance))
 
   def makeLoader(classpath: Seq[File], instance: ScalaInstance, nativeTemp: File): ClassLoader =
-    filterByClasspath(classpath,
-                      makeLoader(classpath, instance.loaderLibraryOnly, instance, nativeTemp))
+    filterByClasspath(
+      classpath,
+      makeLoader(classpath, instance.loaderLibraryOnly, instance, nativeTemp)
+    )
 
   def makeLoader(classpath: Seq[File], parent: ClassLoader, instance: ScalaInstance): ClassLoader =
     toLoader(classpath, parent, createClasspathResources(classpath, instance))
 
-  def makeLoader(classpath: Seq[File],
-                 parent: ClassLoader,
-                 instance: ScalaInstance,
-                 nativeTemp: File): ClassLoader =
+  def makeLoader(
+      classpath: Seq[File],
+      parent: ClassLoader,
+      instance: ScalaInstance,
+      nativeTemp: File
+  ): ClassLoader =
     toLoader(classpath, parent, createClasspathResources(classpath, instance), nativeTemp)
 
   private[sbt] def printSource(c: Class[_]) =

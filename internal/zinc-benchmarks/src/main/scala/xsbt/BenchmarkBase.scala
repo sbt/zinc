@@ -67,7 +67,8 @@ class BenchmarkBase {
     sbt.io.IO.write(argsFile, argsFileContents)
     val shortSha = _project.hash.take(7)
     println(
-      s"\nCompiling {${_project.repo}@${shortSha}}/${_subprojectToRun} using: @${argsFile.getAbsolutePath}")
+      s"\nCompiling {${_project.repo}@${shortSha}}/${_subprojectToRun} using: @${argsFile.getAbsolutePath}"
+    )
   }
 
   @TearDown(Level.Trial)

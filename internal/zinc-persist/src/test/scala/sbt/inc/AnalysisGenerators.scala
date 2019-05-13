@@ -87,37 +87,46 @@ trait AnalysisGenerators {
       prodStamps <- listOfN(prod.length, genStamp)
       srcStamps <- listOfN(src.length, genStamp)
       binStamps <- listOfN(bin.length, genStamp)
-    } yield
-      Stamps(zipTreeMap(prod, prodStamps), zipTreeMap(src, srcStamps), zipTreeMap(bin, binStamps))
+    } yield Stamps(
+      zipTreeMap(prod, prodStamps),
+      zipTreeMap(src, srcStamps),
+      zipTreeMap(bin, binStamps)
+    )
   }
 
   private[this] val emptyStructure = Structure.of(lzy(Array()), lzy(Array()), lzy(Array()))
 
   // We need "proper" definitions with specific class names, as groupBy use these to pick a representative top-level class when splitting.
   private[this] def makeClassLike(name: String, definitionType: DefinitionType): ClassLike =
-    ClassLike.of(name,
-                 Public.of(),
-                 APIs.emptyModifiers,
-                 Array(),
-                 definitionType,
-                 lzy(EmptyType.of()),
-                 lzy(emptyStructure),
-                 Array(),
-                 Array(),
-                 true,
-                 Array())
+    ClassLike.of(
+      name,
+      Public.of(),
+      APIs.emptyModifiers,
+      Array(),
+      definitionType,
+      lzy(EmptyType.of()),
+      lzy(emptyStructure),
+      Array(),
+      Array(),
+      true,
+      Array()
+    )
 
   private[this] def makeCompanions(name: String): Companions =
-    Companions.of(makeClassLike(name, DefinitionType.ClassDef),
-                  makeClassLike(name, DefinitionType.Module))
+    Companions.of(
+      makeClassLike(name, DefinitionType.ClassDef),
+      makeClassLike(name, DefinitionType.Module)
+    )
 
   private[this] def lzy[T <: AnyRef](x: T) = SafeLazyProxy.strict(x)
 
   def genNameHashes(defns: Seq[String]): Gen[Array[NameHash]] =
     for {
       names <- const(defns.toArray)
-      scopes <- listOfN(defns.size,
-                        oneOf(Seq(UseScope.Default, UseScope.Implicit, UseScope.PatMatTarget)))
+      scopes <- listOfN(
+        defns.size,
+        oneOf(Seq(UseScope.Default, UseScope.Implicit, UseScope.PatMatTarget))
+      )
       (name, scope) <- names zip scopes
     } yield NameHash.of(name, scope, (name, scope).hashCode())
 
@@ -181,7 +190,8 @@ trait AnalysisGenerators {
     }
 
   @silent def genSubRClassDependencies(
-      src: Relations.ClassDependencies): Gen[Relations.ClassDependencies] =
+      src: Relations.ClassDependencies
+  ): Gen[Relations.ClassDependencies] =
     for {
       internal <- someOf(src.internal.all.toList)
       external <- someOf(src.external.all.toList)
@@ -222,22 +232,25 @@ trait AnalysisGenerators {
           DependencyByMemberRef -> memberRef.internal,
           DependencyByInheritance -> inheritance.internal,
           LocalDependencyByInheritance -> localInheritance.internal
-        ))
+        )
+      )
       external <- ExternalDependencies(
         Map(
           DependencyByMemberRef -> memberRef.external,
           DependencyByInheritance -> inheritance.external,
           LocalDependencyByInheritance -> localInheritance.external
-        ))
-    } yield
-      Relations.make(srcProd,
-                     libraryDep,
-                     libraryClassName,
-                     internal,
-                     external,
-                     classes,
-                     names,
-                     productClassName)
+        )
+      )
+    } yield Relations.make(
+      srcProd,
+      libraryDep,
+      libraryClassName,
+      internal,
+      external,
+      classes,
+      names,
+      productClassName
+    )
 
   def genAnalysis: Gen[Analysis] =
     for {

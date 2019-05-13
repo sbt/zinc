@@ -33,30 +33,38 @@ class TestCallback extends AnalysisCallback {
   def usedNames = usedNamesAndScopes.mapValues(_.map(_.name))
 
   def startSource(source: File): Unit = {
-    assert(!apis.contains(source),
-           s"The startSource can be called only once per source file: $source")
+    assert(
+      !apis.contains(source),
+      s"The startSource can be called only once per source file: $source"
+    )
     apis(source) = Set.empty
   }
 
-  def classDependency(onClassName: String,
-                      sourceClassName: String,
-                      context: DependencyContext): Unit = {
+  def classDependency(
+      onClassName: String,
+      sourceClassName: String,
+      context: DependencyContext
+  ): Unit = {
     if (onClassName != sourceClassName)
       classDependencies += ((onClassName, sourceClassName, context))
     ()
   }
-  def binaryDependency(onBinary: File,
-                       onBinaryClassName: String,
-                       fromClassName: String,
-                       fromSourceFile: File,
-                       context: DependencyContext): Unit = {
+  def binaryDependency(
+      onBinary: File,
+      onBinaryClassName: String,
+      fromClassName: String,
+      fromSourceFile: File,
+      context: DependencyContext
+  ): Unit = {
     binaryDependencies += ((onBinary, onBinaryClassName, fromClassName, context))
     ()
   }
-  def generatedNonLocalClass(sourceFile: File,
-                             classFile: File,
-                             binaryClassName: String,
-                             srcClassName: String): Unit = {
+  def generatedNonLocalClass(
+      sourceFile: File,
+      classFile: File,
+      binaryClassName: String,
+      srcClassName: String
+  ): Unit = {
     productClassesToSources += ((classFile, sourceFile))
     classNames(sourceFile) += ((srcClassName, binaryClassName))
     ()
@@ -79,11 +87,13 @@ class TestCallback extends AnalysisCallback {
 
   override def enabled(): Boolean = true
 
-  def problem(category: String,
-              pos: xsbti.Position,
-              message: String,
-              severity: xsbti.Severity,
-              reported: Boolean): Unit = ()
+  def problem(
+      category: String,
+      pos: xsbti.Position,
+      message: String,
+      severity: xsbti.Severity,
+      reported: Boolean
+  ): Unit = ()
 
   override def dependencyPhaseCompleted(): Unit = {}
 
@@ -93,18 +103,22 @@ class TestCallback extends AnalysisCallback {
 }
 
 object TestCallback {
-  case class ExtractedClassDependencies(memberRef: Map[String, Set[String]],
-                                        inheritance: Map[String, Set[String]],
-                                        localInheritance: Map[String, Set[String]])
+  case class ExtractedClassDependencies(
+      memberRef: Map[String, Set[String]],
+      inheritance: Map[String, Set[String]],
+      localInheritance: Map[String, Set[String]]
+  )
   object ExtractedClassDependencies {
     def fromPairs(
         memberRefPairs: Seq[(String, String)],
         inheritancePairs: Seq[(String, String)],
         localInheritancePairs: Seq[(String, String)]
     ): ExtractedClassDependencies = {
-      ExtractedClassDependencies(pairsToMultiMap(memberRefPairs),
-                                 pairsToMultiMap(inheritancePairs),
-                                 pairsToMultiMap(localInheritancePairs))
+      ExtractedClassDependencies(
+        pairsToMultiMap(memberRefPairs),
+        pairsToMultiMap(inheritancePairs),
+        pairsToMultiMap(localInheritancePairs)
+      )
     }
 
     private def pairsToMultiMap[A, B](pairs: Seq[(A, B)]): Map[A, Set[B]] = {

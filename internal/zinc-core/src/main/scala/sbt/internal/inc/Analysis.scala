@@ -58,30 +58,36 @@ trait Analysis extends CompileAnalysis {
   /** Drops all analysis information for `sources` naively, i.e., doesn't externalize internal deps on removed files. */
   def --(sources: Iterable[File]): Analysis
 
-  def copy(stamps: Stamps = stamps,
-           apis: APIs = apis,
-           relations: Relations = relations,
-           infos: SourceInfos = infos,
-           compilations: Compilations = compilations): Analysis
+  def copy(
+      stamps: Stamps = stamps,
+      apis: APIs = apis,
+      relations: Relations = relations,
+      infos: SourceInfos = infos,
+      compilations: Compilations = compilations
+  ): Analysis
 
-  def addSource(src: File,
-                apis: Iterable[AnalyzedClass],
-                stamp: XStamp,
-                info: SourceInfo,
-                nonLocalProducts: Iterable[NonLocalProduct],
-                localProducts: Iterable[LocalProduct],
-                internalDeps: Iterable[InternalDependency],
-                externalDeps: Iterable[ExternalDependency],
-                binaryDeps: Iterable[(File, String, XStamp)]): Analysis
+  def addSource(
+      src: File,
+      apis: Iterable[AnalyzedClass],
+      stamp: XStamp,
+      info: SourceInfo,
+      nonLocalProducts: Iterable[NonLocalProduct],
+      localProducts: Iterable[LocalProduct],
+      internalDeps: Iterable[InternalDependency],
+      externalDeps: Iterable[ExternalDependency],
+      binaryDeps: Iterable[(File, String, XStamp)]
+  ): Analysis
 
   override lazy val toString = Analysis.summary(this)
 }
 
 object Analysis {
-  case class NonLocalProduct(className: String,
-                             binaryClassName: String,
-                             classFile: File,
-                             classFileStamp: XStamp)
+  case class NonLocalProduct(
+      className: String,
+      binaryClassName: String,
+      classFile: File,
+      classFileStamp: XStamp
+  )
   case class LocalProduct(classFile: File, classFileStamp: XStamp)
   lazy val Empty: Analysis =
     new MAnalysis(Stamps.empty, APIs.empty, Relations.empty, SourceInfos.empty, Compilations.empty)
@@ -118,18 +124,21 @@ object Analysis {
     }
 
 }
-private class MAnalysis(val stamps: Stamps,
-                        val apis: APIs,
-                        val relations: Relations,
-                        val infos: SourceInfos,
-                        val compilations: Compilations)
-    extends Analysis {
+private class MAnalysis(
+    val stamps: Stamps,
+    val apis: APIs,
+    val relations: Relations,
+    val infos: SourceInfos,
+    val compilations: Compilations
+) extends Analysis {
   def ++(o: Analysis): Analysis =
-    new MAnalysis(stamps ++ o.stamps,
-                  apis ++ o.apis,
-                  relations ++ o.relations,
-                  infos ++ o.infos,
-                  compilations ++ o.compilations)
+    new MAnalysis(
+      stamps ++ o.stamps,
+      apis ++ o.apis,
+      relations ++ o.relations,
+      infos ++ o.infos,
+      compilations ++ o.compilations
+    )
 
   def --(sources: Iterable[File]): Analysis = {
     val newRelations = relations -- sources
@@ -142,22 +151,26 @@ private class MAnalysis(val stamps: Stamps,
     new MAnalysis(newStamps, newAPIs, newRelations, newInfos, compilations)
   }
 
-  def copy(stamps: Stamps,
-           apis: APIs,
-           relations: Relations,
-           infos: SourceInfos,
-           compilations: Compilations = compilations): Analysis =
+  def copy(
+      stamps: Stamps,
+      apis: APIs,
+      relations: Relations,
+      infos: SourceInfos,
+      compilations: Compilations = compilations
+  ): Analysis =
     new MAnalysis(stamps, apis, relations, infos, compilations)
 
-  def addSource(src: File,
-                apis: Iterable[AnalyzedClass],
-                stamp: XStamp,
-                info: SourceInfo,
-                nonLocalProducts: Iterable[NonLocalProduct],
-                localProducts: Iterable[LocalProduct],
-                internalDeps: Iterable[InternalDependency],
-                externalDeps: Iterable[ExternalDependency],
-                binaryDeps: Iterable[(File, String, XStamp)]): Analysis = {
+  def addSource(
+      src: File,
+      apis: Iterable[AnalyzedClass],
+      stamp: XStamp,
+      info: SourceInfo,
+      nonLocalProducts: Iterable[NonLocalProduct],
+      localProducts: Iterable[LocalProduct],
+      internalDeps: Iterable[InternalDependency],
+      externalDeps: Iterable[ExternalDependency],
+      binaryDeps: Iterable[(File, String, XStamp)]
+  ): Analysis = {
 
     val newStamps = {
       val nonLocalProductStamps =

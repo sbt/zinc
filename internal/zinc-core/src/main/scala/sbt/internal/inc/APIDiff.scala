@@ -26,10 +26,12 @@ private[inc] class APIDiff {
   /**
    * Generates an unified diff between textual representations of `api1` and `api2`.
    */
-  def generateApiDiff(fileName: String,
-                      api1: Companions,
-                      api2: Companions,
-                      contextSize: Int): String = {
+  def generateApiDiff(
+      fileName: String,
+      api1: Companions,
+      api2: Companions,
+      contextSize: Int
+  ): String = {
     val api1Str = DefaultShowAPI(api1.classApi) + "\n" + DefaultShowAPI(api1.objectApi)
     val api2Str = DefaultShowAPI(api2.classApi) + "\n" + DefaultShowAPI(api2.objectApi)
     DiffUtil.mkColoredCodeDiff(api1Str, api2Str, printDiffDel = true)
@@ -218,9 +220,11 @@ private[inc] class APIDiff {
       Array.tabulate(y.length + 1)(j => score(x.length)(j))
     }
 
-    private def needlemanWunsch(x: Array[String],
-                                y: Array[String],
-                                builder: mutable.ArrayBuilder[Patch]): Unit = {
+    private def needlemanWunsch(
+        x: Array[String],
+        y: Array[String],
+        builder: mutable.ArrayBuilder[Patch]
+    ): Unit = {
       def similarity(a: String, b: String) = if (a == b) 2 else -1
       val d = 1
       val score = Array.tabulate(x.length + 1, y.length + 1) { (i, j) =>

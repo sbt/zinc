@@ -91,10 +91,14 @@ trait ExternalLookup extends ExternalHooks.Lookup {
    * Used to provide information from external tools into sbt (e.g. IDEs)
    * @return API changes
    */
-  def shouldDoIncrementalCompilation(changedClasses: Set[String],
-                                     analysis: CompileAnalysis): Boolean
-  override def shouldDoIncrementalCompilation(changedClasses: util.Set[String],
-                                              previousAnalysis: CompileAnalysis): Boolean = {
+  def shouldDoIncrementalCompilation(
+      changedClasses: Set[String],
+      analysis: CompileAnalysis
+  ): Boolean
+  override def shouldDoIncrementalCompilation(
+      changedClasses: util.Set[String],
+      previousAnalysis: CompileAnalysis
+  ): Boolean = {
     import scala.collection.JavaConverters._
     shouldDoIncrementalCompilation(changedClasses.iterator().asScala.toSet, previousAnalysis)
   }
@@ -104,7 +108,9 @@ trait NoopExternalLookup extends ExternalLookup {
   override def changedSources(previous: CompileAnalysis): Option[Changes[File]] = None
   override def changedBinaries(previous: CompileAnalysis): Option[Set[File]] = None
   override def removedProducts(previous: CompileAnalysis): Option[Set[File]] = None
-  override def shouldDoIncrementalCompilation(changedClasses: Set[String],
-                                              analysis: CompileAnalysis): Boolean = true
+  override def shouldDoIncrementalCompilation(
+      changedClasses: Set[String],
+      analysis: CompileAnalysis
+  ): Boolean = true
   override def hashClasspath(classpath: Array[File]): Optional[Array[FileHash]] = Optional.empty()
 }

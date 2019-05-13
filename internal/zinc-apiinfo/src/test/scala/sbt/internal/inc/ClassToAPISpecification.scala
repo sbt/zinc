@@ -79,17 +79,21 @@ class ClassToAPISpecification extends UnitSpec {
 
   private case class Companions(name: String, classApi: ClassLike, objectApi: ClassLike)
 
-  private def findDeclaredInnerClass(classApi: ClassLike,
-                                     innerClassName: String,
-                                     defType: DefinitionType): Option[ClassLikeDef] = {
+  private def findDeclaredInnerClass(
+      classApi: ClassLike,
+      innerClassName: String,
+      defType: DefinitionType
+  ): Option[ClassLikeDef] = {
     classApi.structure.declared.collectFirst({
       case c: ClassLikeDef if c.name == innerClassName && c.definitionType == defType => c
     })
   }
 
-  def readAPI(callback: AnalysisCallback,
-              source: File,
-              classes: Seq[Class[_]]): Set[(String, String)] = {
+  def readAPI(
+      callback: AnalysisCallback,
+      source: File,
+      classes: Seq[Class[_]]
+  ): Set[(String, String)] = {
     val (apis, mainClasses, inherits) = ClassToAPI.process(classes)
     apis.foreach(callback.api(source, _))
     mainClasses.foreach(callback.mainClass(source, _))

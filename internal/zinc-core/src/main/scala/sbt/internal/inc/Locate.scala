@@ -25,11 +25,12 @@ object Locate {
    * Left(true) means that the class was found, but it had no associated value
    * Left(false) means that the class was not found
    */
-  def value[S](classpath: Seq[File],
-               get: File => String => Option[S]): String => Either[Boolean, S] = {
+  def value[S](
+      classpath: Seq[File],
+      get: File => String => Option[S]
+  ): String => Either[Boolean, S] = {
     val gets = classpath.toStream.map(getValue(get))
-    className =>
-      find(className, gets)
+    className => find(className, gets)
   }
 
   def find[S](name: String, gets: Stream[String => Either[Boolean, S]]): Either[Boolean, S] =
@@ -49,16 +50,14 @@ object Locate {
     val entries = classpath.toStream.map { entry =>
       (entry, lookup.definesClass(entry))
     }
-    className =>
-      entries.collectFirst { case (entry, defines) if defines(className) => entry }
+    className => entries.collectFirst { case (entry, defines) if defines(className) => entry }
   }
   def resolve(f: File, className: String): File = if (f.isDirectory) classFile(f, className) else f
 
   def getValue[S](get: File => String => Option[S])(entry: File): String => Either[Boolean, S] = {
     val defClass = definesClass(entry)
     val getF = get(entry)
-    className =>
-      if (defClass(className)) getF(className).toRight(true) else Left(false)
+    className => if (defClass(className)) getF(className).toRight(true) else Left(false)
   }
 
   def definesClass(entry: File): DefinesClass =
@@ -76,7 +75,9 @@ object Locate {
   private class JarDefinesClass(entry: File) extends DefinesClass {
     import collection.JavaConverters._
     private val entries = {
-      val jar = try { new ZipFile(entry, ZipFile.OPEN_READ) } catch {
+      val jar = try {
+        new ZipFile(entry, ZipFile.OPEN_READ)
+      } catch {
         // ZipException doesn't include the file name :(
         case e: ZipException =>
           throw new RuntimeException("Error opening zip file: " + entry.getName, e)

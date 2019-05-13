@@ -51,10 +51,12 @@ private[sbt] trait ClassFile {
           nextConstant.value.getOrElse {
             throw new IllegalStateException(s"Empty UTF8 value in constant pool: $nextConstant")
           }
-        case constant @ Constant((ConstantFloat | ConstantLong | ConstantDouble | ConstantInteger),
-                                 _,
-                                 _,
-                                 ref) =>
+        case constant @ Constant(
+              (ConstantFloat | ConstantLong | ConstantDouble | ConstantInteger),
+              _,
+              _,
+              ref
+            ) =>
           ref.getOrElse {
             throw new IllegalStateException(s"Empty primitive value in constant pool: $constant")
           }
@@ -63,10 +65,12 @@ private[sbt] trait ClassFile {
       }
 }
 
-private[sbt] final case class Constant(tag: Byte,
-                                       nameIndex: Int,
-                                       typeIndex: Int,
-                                       value: Option[AnyRef]) {
+private[sbt] final case class Constant(
+    tag: Byte,
+    nameIndex: Int,
+    typeIndex: Int,
+    value: Option[AnyRef]
+) {
   def this(tag: Byte, nameIndex: Int, typeIndex: Int) = this(tag, nameIndex, typeIndex, None)
   def this(tag: Byte, nameIndex: Int) = this(tag, nameIndex, -1)
   def this(tag: Byte, value: AnyRef) = this(tag, -1, -1, Some(value))
@@ -77,10 +81,12 @@ private[sbt] final case class Constant(tag: Byte,
   override def hashCode: Int =
     37 * (37 * (37 * (37 * (17 + tag.##) + nameIndex.##) + typeIndex.##) + value.##)
 }
-private[sbt] final case class FieldOrMethodInfo(accessFlags: Int,
-                                                name: Option[String],
-                                                descriptor: Option[String],
-                                                attributes: IndexedSeq[AttributeInfo]) {
+private[sbt] final case class FieldOrMethodInfo(
+    accessFlags: Int,
+    name: Option[String],
+    descriptor: Option[String],
+    attributes: IndexedSeq[AttributeInfo]
+) {
   def isStatic = (accessFlags & ACC_STATIC) == ACC_STATIC
   def isPublic = (accessFlags & ACC_PUBLIC) == ACC_PUBLIC
   def isMain = isPublic && isStatic && descriptor.exists(_ == "([Ljava/lang/String;)V")

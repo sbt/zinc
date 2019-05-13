@@ -66,12 +66,14 @@ object ReflectUtilities {
    * This requires an available `Manifest` for `T` and depends on scalac implementation details to determine
    * what is a `val` using only Java reflection.
    */
-  def allVals[T](self: AnyRef)(
-      implicit mt: scala.reflect.Manifest[T]): immutable.SortedMap[String, T] =
+  def allVals[T](
+      self: AnyRef
+  )(implicit mt: scala.reflect.Manifest[T]): immutable.SortedMap[String, T] =
     allValsC(self, mt.runtimeClass).asInstanceOf[immutable.SortedMap[String, T]]
 }
 
 /** An exception to indicate that while traversing the `val`s for an instance of `className`, the `val` named `valName` was `null`. */
 final class UninitializedVal(val valName: String, val className: String)
     extends RuntimeException(
-      "val " + valName + " in class " + className + " was null.\nThis is probably an initialization problem and a 'lazy val' should be used.")
+      "val " + valName + " in class " + className + " was null.\nThis is probably an initialization problem and a 'lazy val' should be used."
+    )

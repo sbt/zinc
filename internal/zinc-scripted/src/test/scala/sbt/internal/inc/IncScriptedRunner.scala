@@ -19,22 +19,6 @@ import sbt.util.Logger
 
 import scala.collection.parallel.ParSeq
 
-// WARNING: called via reflection
-class IncScriptedRunner {
-  def run(
-      resourceBaseDirectory: File,
-      bufferLog: Boolean,
-      compileToJar: Boolean,
-      tests: Array[String]
-  ): Unit = {
-    IO.withTemporaryDirectory { tempDir =>
-      // Create a global temporary directory to store the bridge et al
-      val handlers = new IncScriptedHandlers(tempDir, compileToJar)
-      ScriptedRunnerImpl.run(resourceBaseDirectory, bufferLog, tests, handlers, 4)
-    }
-  }
-}
-
 object ScriptedRunnerImpl {
   type TestRunner = () => Seq[Option[String]]
 
@@ -68,7 +52,7 @@ object ScriptedRunnerImpl {
     if (errors.nonEmpty) throw new ScriptedFailure(errors) else ()
 
   def runAllInParallel(tests: ParSeq[TestRunner]): Unit = {
-    reportErrors(tests.flatMap(test => test.apply().flatten.toSeq).toList)
+    reportErrors(tests.flatMap(test => test.apply().flatten).toList)
   }
 
   def get(tests: Seq[String], baseDirectory: File, log: Logger): Seq[ScriptedTest] =

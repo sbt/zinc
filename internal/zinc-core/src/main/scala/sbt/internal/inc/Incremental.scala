@@ -87,17 +87,20 @@ object Incremental {
       else
         incremental.log.debug(
           "All initially invalidated classes: " + initialInvClasses + "\n" +
-            "All initially invalidated sources:" + initialInvSources + "\n")
+            "All initially invalidated sources:" + initialInvSources + "\n"
+        )
     val analysis = manageClassfiles(options, output, outputJarContent) { classfileManager =>
-      incremental.cycle(initialInvClasses,
-                        initialInvSources,
-                        sources,
-                        binaryChanges,
-                        lookup,
-                        previous,
-                        doCompile(compile, callbackBuilder, classfileManager),
-                        classfileManager,
-                        1)
+      incremental.cycle(
+        initialInvClasses,
+        initialInvSources,
+        sources,
+        binaryChanges,
+        lookup,
+        previous,
+        doCompile(compile, callbackBuilder, classfileManager),
+        classfileManager,
+        1
+      )
     }
     (initialInvClasses.nonEmpty || initialInvSources.nonEmpty, analysis)
   }
@@ -129,15 +132,18 @@ object Incremental {
   private[inc] def apiDebug(options: IncOptions): Boolean =
     options.apiDebug || java.lang.Boolean.getBoolean(apiDebugProp)
 
-  private[sbt] def prune(invalidatedSrcs: Set[File],
-                         previous0: CompileAnalysis,
-                         output: Output,
-                         outputJarContent: JarUtils.OutputJarContent): Analysis = {
+  private[sbt] def prune(
+      invalidatedSrcs: Set[File],
+      previous0: CompileAnalysis,
+      output: Output,
+      outputJarContent: JarUtils.OutputJarContent
+  ): Analysis = {
     val previous = previous0.asInstanceOf[Analysis]
     IncrementalCommon.pruneClassFilesOfInvalidations(
       invalidatedSrcs,
       previous,
-      ClassFileManager.deleteImmediately(output, outputJarContent))
+      ClassFileManager.deleteImmediately(output, outputJarContent)
+    )
   }
 
   private[this] def manageClassfiles[T](

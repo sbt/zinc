@@ -19,17 +19,21 @@ import xsbti.api.{ AnalyzedClass, NameHash, SafeLazyProxy }
 
 object AnalyzedClassFormats {
   // This will throw out API information intentionally.
-  def analyzedClassFormat(implicit ev0: Format[Compilation],
-                          ev1: Format[NameHash]): Format[AnalyzedClass] =
+  def analyzedClassFormat(
+      implicit ev0: Format[Compilation],
+      ev1: Format[NameHash]
+  ): Format[AnalyzedClass] =
     wrap[AnalyzedClass, (Long, String, Int, Array[NameHash], Boolean)](
       a => (a.compilationTimestamp(), a.name, a.apiHash, a.nameHashes, a.hasMacro),
       (x: (Long, String, Int, Array[NameHash], Boolean)) =>
         x match {
-          case (compilationTimestamp: Long,
-                name: String,
-                apiHash: Int,
-                nameHashes: Array[NameHash],
-                hasMacro: Boolean) =>
+          case (
+              compilationTimestamp: Long,
+              name: String,
+              apiHash: Int,
+              nameHashes: Array[NameHash],
+              hasMacro: Boolean
+              ) =>
             val _ = ev0.toString
             AnalyzedClass.of(
               compilationTimestamp,
@@ -40,6 +44,6 @@ object AnalyzedClassFormats {
               hasMacro,
               apiHash
             )
-      }
+        }
     )
 }

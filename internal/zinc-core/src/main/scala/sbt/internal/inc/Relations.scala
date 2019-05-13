@@ -262,8 +262,10 @@ trait Relations {
 object Relations {
 
   /** Tracks internal and external source dependencies for a specific dependency type, such as direct or inherited.*/
-  private[inc] final class ClassDependencies(val internal: Relation[String, String],
-                                             val external: Relation[String, String]) {
+  private[inc] final class ClassDependencies(
+      val internal: Relation[String, String],
+      val external: Relation[String, String]
+  ) {
     def addInternal(className: String, dependsOn: Iterable[String]): ClassDependencies =
       new ClassDependencies(internal + (className, dependsOn), external)
     def addExternal(className: String, dependsOn: Iterable[String]): ClassDependencies =
@@ -298,14 +300,16 @@ object Relations {
     productClassName = Relation.empty
   )
 
-  private[inc] def make(srcProd: Relation[File, File],
-                        libraryDep: Relation[File, File],
-                        libraryClassName: Relation[File, String],
-                        internalDependencies: InternalDependencies,
-                        externalDependencies: ExternalDependencies,
-                        classes: Relation[File, String],
-                        names: Relation[String, UsedName],
-                        productClassName: Relation[String, String]): Relations =
+  private[inc] def make(
+      srcProd: Relation[File, File],
+      libraryDep: Relation[File, File],
+      libraryClassName: Relation[File, String],
+      internalDependencies: InternalDependencies,
+      externalDependencies: ExternalDependencies,
+      classes: Relation[File, String],
+      names: Relation[String, UsedName],
+      productClassName: Relation[String, String]
+  ): Relations =
     new MRelationsNameHashing(
       srcProd,
       libraryDep,
@@ -316,8 +320,10 @@ object Relations {
       names,
       productClassName
     )
-  private[inc] def makeClassDependencies(internal: Relation[String, String],
-                                         external: Relation[String, String]): ClassDependencies =
+  private[inc] def makeClassDependencies(
+      internal: Relation[String, String],
+      external: Relation[String, String]
+  ): ClassDependencies =
     new ClassDependencies(internal, external)
 }
 
@@ -327,8 +333,10 @@ private[inc] object DependencyCollection {
    * Combine `m1` and `m2` such that the result contains all the dependencies they represent.
    * `m1` is expected to be smaller than `m2`.
    */
-  def joinMaps[T](m1: Map[DependencyContext, Relation[String, T]],
-                  m2: Map[DependencyContext, Relation[String, T]]) =
+  def joinMaps[T](
+      m1: Map[DependencyContext, Relation[String, T]],
+      m2: Map[DependencyContext, Relation[String, T]]
+  ) =
     m1.foldLeft(m2) {
       case (tmp, (key, values)) => tmp.updated(key, tmp.getOrElse(key, Relation.empty) ++ values)
     }
@@ -343,7 +351,8 @@ private[inc] object InternalDependencies {
 }
 
 private case class InternalDependencies(
-    dependencies: Map[DependencyContext, Relation[String, String]]) {
+    dependencies: Map[DependencyContext, Relation[String, String]]
+) {
 
   /**
    * Adds `dep` to the dependencies
@@ -354,7 +363,8 @@ private case class InternalDependencies(
         dep.context,
         dependencies
           .getOrElse(dep.context, Relation.empty) + (dep.sourceClassName, dep.targetClassName)
-      ))
+      )
+    )
 
   /**
    * Adds all `deps` to the dependencies
@@ -380,17 +390,20 @@ private[inc] object ExternalDependencies {
 }
 
 private case class ExternalDependencies(
-    dependencies: Map[DependencyContext, Relation[String, String]]) {
+    dependencies: Map[DependencyContext, Relation[String, String]]
+) {
 
   /**
    * Adds `dep` to the dependencies
    */
   def +(dep: ExternalDependency): ExternalDependencies =
-    ExternalDependencies(dependencies.updated(
-      dep.context,
-      dependencies
-        .getOrElse(dep.context, Relation.empty) + (dep.sourceClassName, dep.targetProductClassName)
-    ))
+    ExternalDependencies(
+      dependencies.updated(
+        dep.context,
+        dependencies
+          .getOrElse(dep.context, Relation.empty) + (dep.sourceClassName, dep.targetProductClassName)
+      )
+    )
 
   /**
    * Adds all `deps` to the dependencies
@@ -427,8 +440,8 @@ private[inc] case class FFRelationDescriptor(
 
 private[inc] case class FSRelationDescriptor(
     header: String,
-    selectCorresponding: Relations => Relation[File, String])
-    extends RelationDescriptor[File, String] {
+    selectCorresponding: Relations => Relation[File, String]
+) extends RelationDescriptor[File, String] {
   override def firstWrite(a: File): String = a.toString
   override def secondWrite(b: String): String = b
   override def firstRead(s: String): File = new File(s)
@@ -437,8 +450,8 @@ private[inc] case class FSRelationDescriptor(
 
 private[inc] case class SFRelationDescriptor(
     header: String,
-    selectCorresponding: Relations => Relation[String, File])
-    extends RelationDescriptor[String, File] {
+    selectCorresponding: Relations => Relation[String, File]
+) extends RelationDescriptor[String, File] {
   override def firstWrite(a: String): String = a
   override def secondWrite(b: File): String = b.toString
   override def firstRead(s: String): String = s
@@ -447,8 +460,8 @@ private[inc] case class SFRelationDescriptor(
 
 private[inc] case class SSRelationDescriptor(
     header: String,
-    selectCorresponding: Relations => Relation[String, String])
-    extends RelationDescriptor[String, String] {
+    selectCorresponding: Relations => Relation[String, String]
+) extends RelationDescriptor[String, String] {
   override def firstWrite(a: String): String = a
   override def secondWrite(b: String): String = b
   override def firstRead(s: String): String = s

@@ -16,8 +16,10 @@ import java.util
 import scala.reflect.ClassTag
 
 case class EnumSetSerializer[E <: Enum[E]: ClassTag](allValues: Array[E]) {
-  assert(allValues.size <= 6,
-         s"EnumSetSerializer can only support up to 6 values (but got $allValues).")
+  assert(
+    allValues.size <= 6,
+    s"EnumSetSerializer can only support up to 6 values (but got $allValues)."
+  )
 
   private val enumClass = implicitly[ClassTag[E]].runtimeClass.asInstanceOf[Class[E]]
 

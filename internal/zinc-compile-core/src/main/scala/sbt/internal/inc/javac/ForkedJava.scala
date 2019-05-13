@@ -29,12 +29,14 @@ import scala.sys.process.Process
 object ForkedJava {
 
   /** Helper method to launch programs. */
-  private[javac] def launch(javaHome: Option[File],
-                            program: String,
-                            sources: Seq[File],
-                            options: Seq[String],
-                            log: Logger,
-                            reporter: Reporter): Boolean = {
+  private[javac] def launch(
+      javaHome: Option[File],
+      program: String,
+      sources: Seq[File],
+      options: Seq[String],
+      log: Logger,
+      reporter: Reporter
+  ): Boolean = {
     val (jArgs, nonJArgs) = options.partition(_.startsWith("-J"))
     val allArguments = nonJArgs ++ sources.map(_.getAbsolutePath)
 
@@ -86,18 +88,22 @@ object ForkedJava {
 
 /** An implementation of compiling java which forks a Javac instance. */
 final class ForkedJavaCompiler(javaHome: Option[File]) extends XJavaCompiler {
-  def run(sources: Array[File],
-          options: Array[String],
-          incToolOptions: IncToolOptions,
-          reporter: Reporter,
-          log: XLogger): Boolean =
+  def run(
+      sources: Array[File],
+      options: Array[String],
+      incToolOptions: IncToolOptions,
+      reporter: Reporter,
+      log: XLogger
+  ): Boolean =
     ForkedJava.launch(javaHome, "javac", sources, options, log, reporter)
 }
 final class ForkedJavadoc(javaHome: Option[File]) extends XJavadoc {
-  def run(sources: Array[File],
-          options: Array[String],
-          incToolOptions: IncToolOptions,
-          reporter: Reporter,
-          log: XLogger): Boolean =
+  def run(
+      sources: Array[File],
+      options: Array[String],
+      incToolOptions: IncToolOptions,
+      reporter: Reporter,
+      log: XLogger
+  ): Boolean =
     ForkedJava.launch(javaHome, "javadoc", sources, options, log, reporter)
 }

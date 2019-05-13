@@ -27,10 +27,12 @@ object ModuleUtilities {
   }
 
   def getCheckedObject[T](className: String, loader: ClassLoader)(
-      implicit mf: reflect.ClassTag[T]): T =
+      implicit mf: reflect.ClassTag[T]
+  ): T =
     mf.runtimeClass.cast(getObject(className, loader)).asInstanceOf[T]
 
   def getCheckedObjects[T](classNames: Seq[String], loader: ClassLoader)(
-      implicit mf: reflect.ClassTag[T]): Seq[(String, T)] =
+      implicit mf: reflect.ClassTag[T]
+  ): Seq[(String, T)] =
     classNames.map(name => (name, getCheckedObject(name, loader)))
 }

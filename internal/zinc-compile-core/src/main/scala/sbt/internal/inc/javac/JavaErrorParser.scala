@@ -66,9 +66,8 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
   val JAVAC: Parser[String] = literal("javac")
   val SEMICOLON: Parser[String] = literal(":") | literal("\uff1a")
   val SYMBOL
-    : Parser[String] = allUntilChar(':') // We ignore whether it actually says "symbol" for i18n
-  val LOCATION
-    : Parser[String] = allUntilChar(':') // We ignore whether it actually says "location" for i18n.
+      : Parser[String] = allUntilChar(':') // We ignore whether it actually says "symbol" for i18n
+  val LOCATION: Parser[String] = allUntilChar(':') // We ignore whether it actually says "location" for i18n.
   val WARNING: Parser[String] = allUntilChar(':') ^? {
     case x if WARNING_PREFIXES.exists(x.trim.startsWith) => x
   }

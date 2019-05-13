@@ -90,11 +90,13 @@ class FilteredReporter(
       // Even if we don't display, we do want to register the problem
       import sbt.util.InterfaceUtil
       val transformedPos: Position = positionMapper(position)
-      val problem = InterfaceUtil.problem(category,
-                                          transformedPos,
-                                          message,
-                                          severity,
-                                          InterfaceUtil.jo2o(rendered))
+      val problem = InterfaceUtil.problem(
+        category,
+        transformedPos,
+        message,
+        severity,
+        InterfaceUtil.jo2o(rendered)
+      )
       allProblems += problem
       ()
     }

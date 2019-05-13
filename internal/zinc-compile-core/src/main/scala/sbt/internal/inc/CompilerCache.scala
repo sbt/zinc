@@ -56,12 +56,14 @@ final class CompilerCache(val maxInstances: Int) extends GlobalsCache {
           override def commandArguments(sources: Array[File]): Array[String] = {
             compiler.commandArguments(sources)
           }
-          override def run(sources: Array[File],
-                           changes: DependencyChanges,
-                           callback: AnalysisCallback,
-                           logger: xLogger,
-                           delegate: Reporter,
-                           progress: CompileProgress): Unit = {
+          override def run(
+              sources: Array[File],
+              changes: DependencyChanges,
+              callback: AnalysisCallback,
+              logger: xLogger,
+              delegate: Reporter,
+              progress: CompileProgress
+          ): Unit = {
             compiler.run(sources, changes, callback, logger, delegate, progress)
           }
           override def close(): Unit = {

@@ -62,15 +62,17 @@ final class AnalyzingJavaCompiler private[sbt] (
       log: XLogger,
       progressOpt: Option[CompileProgress]
   ): Unit = {
-    compile(sources,
-            options,
-            output,
-            finalJarOutput = None,
-            callback,
-            incToolOptions,
-            reporter,
-            log,
-            progressOpt)
+    compile(
+      sources,
+      options,
+      output,
+      finalJarOutput = None,
+      callback,
+      incToolOptions,
+      reporter,
+      log,
+      progressOpt
+    )
   }
 
   /**

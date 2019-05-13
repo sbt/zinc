@@ -34,7 +34,8 @@ class ExportedCacheSpec extends CommonCachedCompilation("Exported Cache") {
 
   override def remoteCacheProvider(): CacheProvider = new CacheProvider {
     override def findCache(
-        previous: Option[(CompileAnalysis, MiniSetup)]): Option[CompilationCache] =
+        previous: Option[(CompileAnalysis, MiniSetup)]
+    ): Option[CompilationCache] =
       Some(new ExportableCache(cacheLocation))
   }
 

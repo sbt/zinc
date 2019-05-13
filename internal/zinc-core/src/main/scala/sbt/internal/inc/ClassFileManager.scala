@@ -29,7 +29,8 @@ import xsbti.compile.{
 
 object ClassFileManager {
   def getDefaultClassFileManager(
-      classFileManagerType: Optional[ClassFileManagerType]): XClassFileManager = {
+      classFileManagerType: Optional[ClassFileManagerType]
+  ): XClassFileManager = {
     if (classFileManagerType.isPresent) {
       classFileManagerType.get match {
         case _: DeleteImmediatelyManagerType => new DeleteClassFileManager
@@ -88,12 +89,16 @@ object ClassFileManager {
    */
   def deleteImmediately: XClassFileManager = new DeleteClassFileManager
 
-  def deleteImmediatelyFromJar(outputJar: File,
-                               outputJarContent: JarUtils.OutputJarContent): XClassFileManager =
+  def deleteImmediatelyFromJar(
+      outputJar: File,
+      outputJarContent: JarUtils.OutputJarContent
+  ): XClassFileManager =
     new DeleteClassFileManagerForJar(outputJar, outputJarContent)
 
-  def deleteImmediately(output: Output,
-                        outputJarContent: JarUtils.OutputJarContent): XClassFileManager = {
+  def deleteImmediately(
+      output: Output,
+      outputJarContent: JarUtils.OutputJarContent
+  ): XClassFileManager = {
     val outputJar = JarUtils.getOutputJar(output)
     outputJar.fold(deleteImmediately)(deleteImmediatelyFromJar(_, outputJarContent))
   }
@@ -108,8 +113,10 @@ object ClassFileManager {
   def transactional(tempDir0: File, logger: sbt.util.Logger): XClassFileManager =
     new TransactionalClassFileManager(tempDir0, logger)
 
-  def transactionalForJar(outputJar: File,
-                          outputJarContent: JarUtils.OutputJarContent): XClassFileManager = {
+  def transactionalForJar(
+      outputJar: File,
+      outputJarContent: JarUtils.OutputJarContent
+  ): XClassFileManager = {
     new TransactionalClassFileManagerForJar(outputJar, outputJarContent)
   }
 

@@ -56,10 +56,12 @@ import xsbti.UseScope
  */
 private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolean) {
   private final val NoInvalidation = (_: String) => Set.empty[String]
-  def get(memberRef: Relation[String, String],
-          usedNames: Relation[String, UsedName],
-          apiChange: APIChange,
-          isScalaClass: String => Boolean): String => Set[String] = apiChange match {
+  def get(
+      memberRef: Relation[String, String],
+      usedNames: Relation[String, UsedName],
+      apiChange: APIChange,
+      isScalaClass: String => Boolean
+  ): String => Set[String] = apiChange match {
     case _: TraitPrivateMembersModified => NoInvalidation
     case _: APIChangeDueToMacroDefinition =>
       new InvalidateUnconditionally(memberRef)
@@ -93,7 +95,8 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
       if (invalidated.nonEmpty && logRecompileOnMacro) {
         log.info(
           s"Because $from contains a macro definition, the following dependencies are invalidated unconditionally:\n" +
-            formatInvalidated(invalidated))
+            formatInvalidated(invalidated)
+        )
       }
       invalidated
     }
@@ -106,7 +109,8 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
       if (invalidated.nonEmpty)
         log.debug(
           s"The following member ref dependencies of $from are invalidated:\n" +
-            formatInvalidated(invalidated))
+            formatInvalidated(invalidated)
+        )
       invalidated
     }
   }
@@ -133,7 +137,8 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
           val affectedNames = usedNames.forward(from).filter(modifiedNames.isModified)
           if (affectedNames.isEmpty) {
             log.debug(
-              s"None of the modified names appears in source file of $from. This dependency is not being considered for invalidation.")
+              s"None of the modified names appears in source file of $from. This dependency is not being considered for invalidation."
+            )
             false
           } else {
             log.debug(s"The following modified names cause invalidation of $from: $affectedNames")

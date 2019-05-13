@@ -52,8 +52,10 @@ class ExportableCache(val cacheLocation: Path, cleanOutputMode: CleanOutputMode 
     }
   }
 
-  private def updateStampsForImportedProducts(analysis: Analysis,
-                                              importedFiles: Set[File]): Analysis = {
+  private def updateStampsForImportedProducts(
+      analysis: Analysis,
+      importedFiles: Set[File]
+  ): Analysis = {
     val oldStamps = analysis.stamps
 
     val updatedProducts = oldStamps.products.map {
@@ -93,7 +95,8 @@ class ExportableCache(val cacheLocation: Path, cleanOutputMode: CleanOutputMode 
           case FailOnNonEmpty =>
             if (output.list().nonEmpty)
               throw new IllegalStateException(
-                s"Output directory: $output is not empty and cleanOutput is false")
+                s"Output directory: $output is not empty and cleanOutput is false"
+              )
           case CleanClasses =>
             val classFiles = PathFinder(output) ** "*.class"
             IO.delete(classFiles.get)

@@ -27,13 +27,15 @@ class DocSpec extends UnitSpec {
     IO.withTemporaryDirectory { cacheDir =>
       IO.withTemporaryDirectory { out =>
         val javadoc = Doc.cachedJavadoc("Foo", CacheStoreFactory(cacheDir), local)
-        javadoc.run(List(knownSampleGoodFile),
-                    Nil,
-                    out,
-                    Nil,
-                    IncToolOptionsUtil.defaultIncToolOptions(),
-                    log,
-                    reporter)
+        javadoc.run(
+          List(knownSampleGoodFile),
+          Nil,
+          out,
+          Nil,
+          IncToolOptionsUtil.defaultIncToolOptions(),
+          log,
+          reporter
+        )
         assert((new File(out, "index.html")).exists)
         assert((new File(out, "good.html")).exists)
       }
@@ -43,13 +45,15 @@ class DocSpec extends UnitSpec {
     IO.withTemporaryDirectory { cacheDir =>
       IO.withTemporaryDirectory { out =>
         val javadoc = Doc.cachedJavadoc("Foo", CacheStoreFactory(cacheDir), local)
-        javadoc.run(List(knownSampleGoodFile),
-                    Nil,
-                    out,
-                    Nil,
-                    IncToolOptionsUtil.defaultIncToolOptions(),
-                    log,
-                    reporter)
+        javadoc.run(
+          List(knownSampleGoodFile),
+          Nil,
+          out,
+          Nil,
+          IncToolOptionsUtil.defaultIncToolOptions(),
+          log,
+          reporter
+        )
         assert((new File(cacheDir, "inputs")).exists)
       }
     }
@@ -59,13 +63,15 @@ class DocSpec extends UnitSpec {
       IO.withTemporaryDirectory { cacheDir =>
         IO.withTemporaryDirectory { out =>
           val javadoc = Doc.cachedJavadoc("Foo", CacheStoreFactory(cacheDir), local)
-          javadoc.run(List(knownSampleBadFile),
-                      Nil,
-                      out,
-                      Nil,
-                      IncToolOptionsUtil.defaultIncToolOptions(),
-                      log,
-                      reporter)
+          javadoc.run(
+            List(knownSampleBadFile),
+            Nil,
+            out,
+            Nil,
+            IncToolOptionsUtil.defaultIncToolOptions(),
+            log,
+            reporter
+          )
         }
       }
     }

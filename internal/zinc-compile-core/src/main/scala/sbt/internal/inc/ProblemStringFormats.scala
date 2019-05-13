@@ -36,8 +36,7 @@ trait ProblemStringFormats {
           val lineContent = pos.lineContent
           if (!lineContent.isEmpty) {
             Vector(line1, lineContent) ++
-              (for { space <- jo2o(pos.pointerSpace) } yield
-                (space + "^")).toVector // pointer to the column position of the error/warning
+              (for { space <- jo2o(pos.pointerSpace) } yield (space + "^")).toVector // pointer to the column position of the error/warning
           } else Vector(line1)
       }
   }

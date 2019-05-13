@@ -165,9 +165,11 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) 
     val mainClasses = sourceInfo.mainClasses
     val reportedProblems = sourceInfo.reportedProblems.map(fromProblem)
     val unreportedProblems = sourceInfo.unreportedProblems.map(fromProblem)
-    SourceInfos.makeInfo(reported = reportedProblems,
-                         unreported = unreportedProblems,
-                         mainClasses = mainClasses)
+    SourceInfos.makeInfo(
+      reported = reportedProblems,
+      unreported = unreportedProblems,
+      mainClasses = mainClasses
+    )
   }
 
   def fromSourceInfos(sourceInfos0: schema.SourceInfos): SourceInfos = {
@@ -525,8 +527,9 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) 
     }
   }
 
-  def fromAnalyzedClass(shouldStoreApis: Boolean)(
-      analyzedClass: schema.AnalyzedClass): AnalyzedClass = {
+  def fromAnalyzedClass(
+      shouldStoreApis: Boolean
+  )(analyzedClass: schema.AnalyzedClass): AnalyzedClass = {
     def fromCompanions(companions: schema.Companions): Companions = {
       def expected(msg: String) = ReadersFeedback.expected(msg, Classes.Companions)
       val classApi = companions.classApi.read(fromClassLike, expected("class api"))
@@ -560,9 +563,11 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) 
   private final val stringId = identity[String] _
   private final val stringToFile = (path: String) => fromPathString(path)
   def fromRelations(relations: schema.Relations): Relations = {
-    def fromMap[K, V](map: Map[String, schema.Values],
-                      fk: String => K,
-                      fv: String => V): Relation[K, V] = {
+    def fromMap[K, V](
+        map: Map[String, schema.Values],
+        fk: String => K,
+        fv: String => V
+    ): Relation[K, V] = {
       val forwardMap = map.iterator.map {
         case (k, vs) =>
           val values = vs.values.iterator.map(fv).toSet
