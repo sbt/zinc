@@ -782,6 +782,9 @@ def customCommands: Seq[Setting[_]] = Seq(
   }
 )
 
+// Remove all additional repository other than Maven Central from POM
+ThisBuild / pomIncludeRepository := { _ => false }
+
 inThisBuild(Seq(
   whitesourceProduct                   := "Lightbend Reactive Platform",
   whitesourceAggregateProjectName      := "sbt-zinc-master",
