@@ -19,7 +19,7 @@ import java.util.Optional
 import java.io.File
 import javax.tools.{ Diagnostic, JavaFileObject, DiagnosticListener }
 import sbt.io.IO
-import sbt.util.InterfaceUtil.{ o2jo, jo2o }
+import sbt.util.InterfaceUtil.o2jo
 import xsbti.{ Severity, Reporter }
 import javax.tools.Diagnostic.NOPOS
 
@@ -110,41 +110,21 @@ object DiagnosticsReporter {
       val startOffset: Optional[Integer] = o2jo(checkNoPos(d.getStartPosition) map (_.toInt))
       val endOffset: Optional[Integer] = o2jo(checkNoPos(d.getEndPosition) map (_.toInt))
 
-      def lineContent: String = {
-        def getDiagnosticLine: Option[String] =
-          try {
-            def invoke(obj: Any, m: java.lang.reflect.Method, args: AnyRef*) =
-              Option(m.invoke(obj, args: _*))
-            // See com.sun.tools.javac.api.ClientCodeWrapper.DiagnosticSourceUnwrapper
-            val diagnostic = d.getClass.getField("d").get(d)
-            // See com.sun.tools.javac.util.JCDiagnostic#getDiagnosticSource
-            val getDiagnosticSource = diagnostic.getClass.getDeclaredMethod("getDiagnosticSource")
-            val getPosition = diagnostic.getClass.getDeclaredMethod("getPosition")
-            (invoke(diagnostic, getDiagnosticSource), invoke(diagnostic, getPosition)) match {
-              case (Some(diagnosticSource), Some(position: java.lang.Long)) =>
-                // See com.sun.tools.javac.util.DiagnosticSource
-                val getLineMethod = diagnosticSource.getClass.getMethod("getLine", Integer.TYPE)
-                invoke(diagnosticSource, getLineMethod, Integer.valueOf(position.intValue()))
-                  .map(_.toString)
-              case _ => None
+      def startPosition: Option[Long] = checkNoPos(d.getStartPosition)
+      def endPosition: Option[Long] = checkNoPos(d.getEndPosition)
+      // TODO - Is this pulling contents of the line correctly?
+      // Would be ok to just return null if this version of the JDK doesn't support grabbing
+      // source lines?
+      val lineContent: String =
+        source match {
+          case Some(source: JavaFileObject) =>
+            (Option(source.getCharContent(true)), startPosition, endPosition) match {
+              case (Some(cc), Some(start), Some(end)) =>
+                cc.subSequence(start.toInt, end.toInt).toString
+              case _ => ""
             }
-          } catch {
-            case _: ReflectiveOperationException => None
-          }
-
-        def getExpression: String =
-          source match {
-            case None => ""
-            case Some(source) =>
-              (Option(source.getCharContent(true)), jo2o(startOffset), jo2o(endOffset)) match {
-                case (Some(cc), Some(start), Some(end)) =>
-                  cc.subSequence(start, end).toString
-                case _ => ""
-              }
-          }
-
-        getDiagnosticLine.getOrElse(getExpression)
-      }
+          case _ => ""
+        }
 
       new PositionImpl(sourcePath, line, lineContent, offset, startOffset, endOffset)
     }
