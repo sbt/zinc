@@ -21,7 +21,6 @@ import java.util.HashMap
 import sbt.io.IO
 import scala.util.control.NonFatal
 
-// Hack for testing only
 final class ClassLoaderCache(val commonParent: ClassLoader) extends AutoCloseable {
   private[this] val delegate =
     new HashMap[List[File], Reference[CachedClassLoader]]
