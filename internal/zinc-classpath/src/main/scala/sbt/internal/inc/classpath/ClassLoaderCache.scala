@@ -19,9 +19,10 @@ import java.io.File
 import java.net.URLClassLoader
 import java.util.HashMap
 import sbt.io.IO
+import scala.util.control.NonFatal
 
 // Hack for testing only
-final class ClassLoaderCache(val commonParent: ClassLoader) {
+final class ClassLoaderCache(val commonParent: ClassLoader) extends AutoCloseable {
   private[this] val delegate =
     new HashMap[List[File], Reference[CachedClassLoader]]
 
@@ -51,6 +52,10 @@ final class ClassLoaderCache(val commonParent: ClassLoader) {
       val tstamps = files.map(IO.getModifiedTimeOrZero)
       getFromReference(files, tstamps, delegate.get(files), mkLoader)
     }
+
+  override def close(): Unit = {
+    delegate.values.forEach { _.get.close() }
+  }
 
   private[this] def getFromReference(
       files: List[File],
@@ -91,4 +96,11 @@ private[sbt] final class CachedClassLoader(
     val loader: ClassLoader,
     val files: List[File],
     val timestamps: List[Long]
-)
+) extends AutoCloseable {
+  override def close(): Unit = loader match {
+    case a: AutoCloseable =>
+      try a.close()
+      catch { case NonFatal(e) => e.printStackTrace() }
+    case _ =>
+  }
+}
