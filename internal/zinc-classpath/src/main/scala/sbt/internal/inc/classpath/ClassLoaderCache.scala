@@ -14,14 +14,51 @@ package internal
 package inc
 package classpath
 
-import java.lang.ref.{ Reference, SoftReference }
 import java.io.File
+import java.lang.ref.{ Reference, SoftReference }
 import java.net.URLClassLoader
 import java.util.HashMap
+
 import sbt.io.IO
+
 import scala.util.control.NonFatal
 
-final class ClassLoaderCache(val commonParent: ClassLoader) extends AutoCloseable {
+trait AbstractClassLoaderCache extends AutoCloseable {
+  def commonParent: ClassLoader
+  def apply(files: List[File]): ClassLoader
+
+  /**
+   * Returns a ClassLoader, as created by `mkLoader`.
+   *
+   * The returned ClassLoader may be cached from a previous call if the last modified time of all `files` is unchanged.
+   * This method is thread-safe.
+   */
+  def cachedCustomClassloader(
+      files: List[File],
+      mkLoader: () => ClassLoader
+  ): ClassLoader
+}
+final class ClassLoaderCache(private val abstractClassLoaderCache: AbstractClassLoaderCache)
+    extends AutoCloseable {
+  def this(commonParent: ClassLoader) = this(new ClassLoaderCacheImpl(commonParent))
+  def commonParent: ClassLoader = abstractClassLoaderCache.commonParent
+  override def close(): Unit = abstractClassLoaderCache.close()
+  def apply(files: List[File]): ClassLoader = abstractClassLoaderCache.apply(files)
+
+  /**
+   * Returns a ClassLoader, as created by `mkLoader`.
+   *
+   * The returned ClassLoader may be cached from a previous call if the last modified time of all `files` is unchanged.
+   * This method is thread-safe.
+   */
+  def cachedCustomClassloader(
+      files: List[File],
+      mkLoader: () => ClassLoader
+  ): ClassLoader = abstractClassLoaderCache.cachedCustomClassloader(files, mkLoader)
+}
+
+private final class ClassLoaderCacheImpl(val commonParent: ClassLoader)
+    extends AbstractClassLoaderCache {
   private[this] val delegate =
     new HashMap[List[File], Reference[CachedClassLoader]]
 
@@ -53,7 +90,8 @@ final class ClassLoaderCache(val commonParent: ClassLoader) extends AutoCloseabl
     }
 
   override def close(): Unit = {
-    delegate.values.forEach { _.get.close() }
+    delegate.values.forEach(v => Option(v.get).foreach(_.close()))
+    delegate.clear()
   }
 
   private[this] def getFromReference(
