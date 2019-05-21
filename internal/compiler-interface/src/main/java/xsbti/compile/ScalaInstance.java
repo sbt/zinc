@@ -32,23 +32,28 @@ public interface ScalaInstance {
 	 */
 	String version();
 
-	/** A class loader providing access to the classes and resources in the library and compiler jars. */
+	/** A class loader providing access to the classes and resources in all the jars of this Scala instance. */
 	ClassLoader loader();
 
-	/** A class loader providing access to the classes and resources in the library. */
+	/** A class loader providing access to the classes and resources in the library jars of this Scala instance. */
 	ClassLoader loaderLibraryOnly();
 
-	/** Only `jars` can be reliably provided for modularized Scala. */
-	File libraryJar();
+	/** Classpath entries that stores the Scala library classes. */
+	File[] libraryJars();
 
-	/** Only `jars` can be reliably provided for modularized Scala. */
+	/** @deprecated Use `libraryJars` instead (since 1.3.0). */
+	@Deprecated
+	default File libraryJar() {
+		return libraryJars()[0];
+	}
+
+	/** Classpath entry that stores the Scala compiler classes. */
 	File compilerJar();
 
-	/** @deprecated Only `jars` can be reliably provided for modularized Scala (since 0.13.0). */
-	@Deprecated
+	/** All the jars except `libraryJars` and `compilerJar`. */
 	File[] otherJars();
 
-	/** All jar files provided by this Scala instance. */
+	/** Classpath entries for the `loader`. */
 	File[] allJars();
 
 	/**

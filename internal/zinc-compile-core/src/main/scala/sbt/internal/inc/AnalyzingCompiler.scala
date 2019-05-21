@@ -357,9 +357,9 @@ object AnalyzingCompiler {
         log.info(msg)
         val start = System.currentTimeMillis
         handleCompilationError {
-          val scalaLibraryJar = compiler.scalaInstance.libraryJar
+          val scalaLibraryJars = compiler.scalaInstance.libraryJars
           val restClasspath = xsbtiJars.toSeq ++ sourceJars
-          val classpath = scalaLibraryJar +: restClasspath
+          val classpath = scalaLibraryJars ++ restClasspath
           compiler(sourceFiles, classpath, outputDirectory, "-nowarn" :: Nil)
 
           val end = (System.currentTimeMillis - start) / 1000.0

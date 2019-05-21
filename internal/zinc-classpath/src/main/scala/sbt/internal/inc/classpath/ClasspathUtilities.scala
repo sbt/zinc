@@ -75,7 +75,7 @@ object ClasspathUtilities {
       classpath: Seq[File],
       instance: ScalaInstance
   ): Map[String, String] = {
-    createClasspathResources(classpath, Array(instance.libraryJar))
+    createClasspathResources(classpath, instance.libraryJars)
   }
 
   def createClasspathResources(appPaths: Seq[File], bootPaths: Seq[File]): Map[String, String] = {

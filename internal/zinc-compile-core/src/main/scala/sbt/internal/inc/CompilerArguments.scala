@@ -74,10 +74,7 @@ final class CompilerArguments(
   def finishClasspath(classpath: Seq[File]): Seq[File] = {
     val filteredClasspath = filterLibrary(classpath)
     val extraCompiler = include(cpOptions.compiler, scalaInstance.compilerJar)
-    val otherJars = scalaInstance.allJars().toList diff List(
-      scalaInstance.compilerJar,
-      scalaInstance.libraryJar
-    )
+    val otherJars = scalaInstance.otherJars.toList
     val extraClasspath = include(cpOptions.extra, otherJars: _*)
     filteredClasspath ++ extraCompiler ++ extraClasspath
   }
@@ -103,7 +100,7 @@ final class CompilerArguments(
       val newBootPrefix =
         if (originalBoot.isEmpty) ""
         else originalBoot + File.pathSeparator
-      newBootPrefix + scalaInstance.libraryJar.getAbsolutePath
+      newBootPrefix + absString(scalaInstance.libraryJars)
     } else originalBoot
   }
 
@@ -147,7 +144,7 @@ final class CompilerArguments(
   private[this] val isScalaLibrary: File => Boolean = file => {
     val name = file.getName
     name.contains(ArtifactInfo.ScalaLibraryID) ||
-    name == scalaInstance.libraryJar.getName
+    scalaInstance.libraryJars.exists(_.getName == name)
   }
 }
 
@@ -161,5 +158,7 @@ object CompilerArguments {
   def absString(files: Seq[File]): String =
     abs(files).mkString(File.pathSeparator)
 
-  def absString(files: Set[File]): String = absString(files.toSeq)
+  def absString(files: Set[File]): String = absString(files.toList)
+
+  def absString(files: Array[File]): String = absString(files.toList)
 }

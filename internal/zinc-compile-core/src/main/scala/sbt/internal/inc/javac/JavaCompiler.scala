@@ -103,10 +103,9 @@ object JavaCompiler {
       case so: SingleOutput  => Some(so.getOutputDirectory)
       case _: MultipleOutput => None
     }
-    // TODO(jvican): Fix the `libraryJar` deprecation.
     val augmentedClasspath =
       if (!cpOptions.autoBoot) classpath
-      else classpath ++ Seq(scalaInstance.libraryJar)
+      else classpath ++ scalaInstance.libraryJars
     val javaCp = ClasspathOptionsUtil.javac(cpOptions.compiler)
     val compilerArgs = new CompilerArguments(scalaInstance, javaCp)
     compilerArgs(Array[File](), augmentedClasspath, target, options)
