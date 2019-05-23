@@ -29,24 +29,37 @@ import sbt.internal.inc.classpath.ClasspathUtilities
  * boot classpath requires the location of the library and compiler jar
  * on the classpath to compile any Scala program and macros.
  *
- * @param version Version used to obtain the Scala compiled classes.
- * @param loader Class loader used to load the Scala classes.
- * @param libraryJar Classpath entry that stores the Scala library classes.
- * @param compilerJar Classpath entry that stores the Scala compiler classes.
- * @param allJars Classpath entries for the `loader`.
- * @param explicitActual Classpath entry that stores the Scala compiler classes.
- *
- * @note A jar can actually be any valid classpath entry, not just a jar file.
+ * @see xsbti.compile.ScalaInstance
  */
 final class ScalaInstance(
     val version: String,
     val loader: ClassLoader,
     val loaderLibraryOnly: ClassLoader,
-    val libraryJar: File,
+    val libraryJars: Array[File],
     val compilerJar: File,
     val allJars: Array[File],
     val explicitActual: Option[String]
 ) extends xsbti.compile.ScalaInstance {
+
+  def this(
+      version: String,
+      loader: ClassLoader,
+      loaderLibraryOnly: ClassLoader,
+      libraryJar: File,
+      compilerJar: File,
+      allJars: Array[File],
+      explicitActual: Option[String]
+  ) {
+    this(
+      version,
+      loader,
+      loaderLibraryOnly,
+      Array(libraryJar),
+      compilerJar,
+      allJars,
+      explicitActual
+    )
+  }
 
   @deprecated("Use constructor with loaderLibraryOnly", "1.1.2")
   def this(
@@ -75,7 +88,7 @@ final class ScalaInstance(
    */
   def isManagedVersion = explicitActual.isDefined
 
-  def otherJars: Array[File] = allJars filter (f => f != libraryJar && f != compilerJar)
+  def otherJars: Array[File] = allJars.filterNot(f => compilerJar == f || libraryJars.contains(f))
 
   require(
     version.indexOf(' ') < 0,
@@ -96,7 +109,7 @@ final class ScalaInstance(
   /** Get the string representation of all the available jars. */
   private def jarStrings: String = {
     val other = otherJars.mkString(", ")
-    s"""library jar: $libraryJar, compiler jar: $compilerJar, other jars: $other"""
+    s"""library jars: $libraryJars, compiler jar: $compilerJar, other jars: $other"""
   }
 
   override def toString: String =
