@@ -14,14 +14,51 @@ package internal
 package inc
 package classpath
 
-import java.lang.ref.{ Reference, SoftReference }
 import java.io.File
+import java.lang.ref.{ Reference, SoftReference }
 import java.net.URLClassLoader
 import java.util.HashMap
+
 import sbt.io.IO
 
-// Hack for testing only
-final class ClassLoaderCache(val commonParent: ClassLoader) {
+import scala.util.control.NonFatal
+
+trait AbstractClassLoaderCache extends AutoCloseable {
+  def commonParent: ClassLoader
+  def apply(files: List[File]): ClassLoader
+
+  /**
+   * Returns a ClassLoader, as created by `mkLoader`.
+   *
+   * The returned ClassLoader may be cached from a previous call if the last modified time of all `files` is unchanged.
+   * This method is thread-safe.
+   */
+  def cachedCustomClassloader(
+      files: List[File],
+      mkLoader: () => ClassLoader
+  ): ClassLoader
+}
+final class ClassLoaderCache(private val abstractClassLoaderCache: AbstractClassLoaderCache)
+    extends AutoCloseable {
+  def this(commonParent: ClassLoader) = this(new ClassLoaderCacheImpl(commonParent))
+  def commonParent: ClassLoader = abstractClassLoaderCache.commonParent
+  override def close(): Unit = abstractClassLoaderCache.close()
+  def apply(files: List[File]): ClassLoader = abstractClassLoaderCache.apply(files)
+
+  /**
+   * Returns a ClassLoader, as created by `mkLoader`.
+   *
+   * The returned ClassLoader may be cached from a previous call if the last modified time of all `files` is unchanged.
+   * This method is thread-safe.
+   */
+  def cachedCustomClassloader(
+      files: List[File],
+      mkLoader: () => ClassLoader
+  ): ClassLoader = abstractClassLoaderCache.cachedCustomClassloader(files, mkLoader)
+}
+
+private final class ClassLoaderCacheImpl(val commonParent: ClassLoader)
+    extends AbstractClassLoaderCache {
   private[this] val delegate =
     new HashMap[List[File], Reference[CachedClassLoader]]
 
@@ -51,6 +88,11 @@ final class ClassLoaderCache(val commonParent: ClassLoader) {
       val tstamps = files.map(IO.getModifiedTimeOrZero)
       getFromReference(files, tstamps, delegate.get(files), mkLoader)
     }
+
+  override def close(): Unit = {
+    delegate.values.forEach(v => Option(v.get).foreach(_.close()))
+    delegate.clear()
+  }
 
   private[this] def getFromReference(
       files: List[File],
@@ -91,4 +133,11 @@ private[sbt] final class CachedClassLoader(
     val loader: ClassLoader,
     val files: List[File],
     val timestamps: List[Long]
-)
+) extends AutoCloseable {
+  override def close(): Unit = loader match {
+    case a: AutoCloseable =>
+      try a.close()
+      catch { case NonFatal(e) => e.printStackTrace() }
+    case _ =>
+  }
+}
