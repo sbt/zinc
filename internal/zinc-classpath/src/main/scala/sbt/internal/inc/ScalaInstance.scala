@@ -130,10 +130,9 @@ object ScalaInstance {
   val VersionPrefix = "version "
 
   /**
-   * Distinguish Dotty and Scala version given the version number.
-   * FIXME: This implementation assumes that dotty will be `0.x` for some time.
+   * Distinguish Dotty and Scala 2 version given the version number.
    */
-  def isDotty(version: String): Boolean = version.startsWith("0.")
+  def isDotty(version: String): Boolean = version.startsWith("0.") || version.startsWith("3.")
 
   /** Create a [[ScalaInstance]] from a given org, version and launcher. */
   def apply(org: String, version: String, launcher: xsbti.Launcher): ScalaInstance = {
