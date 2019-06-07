@@ -659,8 +659,6 @@ lazy val compilerBridge213 = compilerBridgeTemplate
   .settings(
     scalaVersion := scala213,
     crossScalaVersions := Seq(scala213),
-    // remove the following after 2.13.0 is released
-    scalaBinaryVersion := "2.13",
     target := (target in compilerBridgeTemplate).value.getParentFile / "target-2.13"
   )
 
