@@ -499,10 +499,22 @@ lazy val compilerBridge212 = compilerBridgeTemplate
 lazy val compilerBridge213 = compilerBridgeTemplate
   .withId("compilerBridge213")
   .dependsOn(compilerInterface213)
+  .disablePlugins(BintrayPlugin)
   .settings(
     scalaVersion := scala213,
     crossScalaVersions := Seq(scala213),
-    target := (target in compilerBridgeTemplate).value.getParentFile / "target-2.13"
+    target := (target in compilerBridgeTemplate).value.getParentFile / "target-2.13",
+    // remove the following after 2.13.0 is released
+    scalaBinaryVersion := "2.13",
+    // directly publish to Sonatype
+    // set ThisBuild / version := "1.2.5"
+    // set every isSnapshot := false
+    // compilerBridge213/publishSigned
+    publishTo := {
+      val nexus = "https://oss.sonatype.org/"
+      if (isSnapshot.value) Some("snapshots" at nexus + "content/repositories/snapshots")
+      else Some("releases" at nexus + "service/local/staging/deploy/maven2")
+    }
   )
 
 /**
