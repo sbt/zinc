@@ -83,7 +83,7 @@ public final class ReporterConfig implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.ReporterConfig".hashCode()) + loggerName().hashCode()) + (new Integer(maximumErrors())).hashCode()) + (new Boolean(useColor())).hashCode()) + java.util.Arrays.deepHashCode(msgFilters())) + java.util.Arrays.deepHashCode(fileFilters())) + logLevel().hashCode()) + positionMapper().hashCode());
+        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.ReporterConfig".hashCode()) + loggerName().hashCode()) + Integer.valueOf(maximumErrors()).hashCode()) + Boolean.valueOf(useColor()).hashCode()) + java.util.Arrays.deepHashCode(msgFilters())) + java.util.Arrays.deepHashCode(fileFilters())) + logLevel().hashCode()) + positionMapper().hashCode());
     }
     public String toString() {
         return "ReporterConfig("  + "loggerName: " + loggerName() + ", " + "maximumErrors: " + maximumErrors() + ", " + "useColor: " + useColor() + ", " + "msgFilters: " + msgFilters() + ", " + "fileFilters: " + fileFilters() + ", " + "logLevel: " + logLevel() + ", " + "positionMapper: " + positionMapper() + ")";

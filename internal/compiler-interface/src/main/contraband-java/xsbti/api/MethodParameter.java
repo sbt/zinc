@@ -59,7 +59,7 @@ public final class MethodParameter implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (17 + "xsbti.api.MethodParameter".hashCode()) + name().hashCode()) + tpe().hashCode()) + (new Boolean(hasDefault())).hashCode()) + modifier().hashCode());
+        return 37 * (37 * (37 * (37 * (37 * (17 + "xsbti.api.MethodParameter".hashCode()) + name().hashCode()) + tpe().hashCode()) + Boolean.valueOf(hasDefault()).hashCode()) + modifier().hashCode());
     }
     public String toString() {
         return "MethodParameter("  + "name: " + name() + ", " + "tpe: " + tpe() + ", " + "hasDefault: " + hasDefault() + ", " + "modifier: " + modifier() + ")";

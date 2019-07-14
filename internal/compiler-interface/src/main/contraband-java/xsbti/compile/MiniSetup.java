@@ -76,7 +76,7 @@ public final class MiniSetup implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.compile.MiniSetup".hashCode()) + output().hashCode()) + options().hashCode()) + compilerVersion().hashCode()) + order().hashCode()) + (new Boolean(storeApis())).hashCode()) + java.util.Arrays.deepHashCode(extra()));
+        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.compile.MiniSetup".hashCode()) + output().hashCode()) + options().hashCode()) + compilerVersion().hashCode()) + order().hashCode()) + Boolean.valueOf(storeApis()).hashCode()) + java.util.Arrays.deepHashCode(extra()));
     }
     public String toString() {
         return "MiniSetup("  + "output: " + output() + ", " + "options: " + options() + ", " + "compilerVersion: " + compilerVersion() + ", " + "order: " + order() + ", " + "storeApis: " + storeApis() + ", " + "extra: " + extra() + ")";

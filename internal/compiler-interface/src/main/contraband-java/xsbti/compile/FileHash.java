@@ -43,7 +43,7 @@ public final class FileHash implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (17 + "xsbti.compile.FileHash".hashCode()) + file().hashCode()) + (new Integer(hash())).hashCode());
+        return 37 * (37 * (37 * (17 + "xsbti.compile.FileHash".hashCode()) + file().hashCode()) + Integer.valueOf(hash()).hashCode());
     }
     public String toString() {
         return "FileHash("  + "file: " + file() + ", " + "hash: " + hash() + ")";
