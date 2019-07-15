@@ -51,7 +51,7 @@ public final class NameHash implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (17 + "xsbti.api.NameHash".hashCode()) + name().hashCode()) + scope().hashCode()) + (new Integer(hash())).hashCode());
+        return 37 * (37 * (37 * (37 * (17 + "xsbti.api.NameHash".hashCode()) + name().hashCode()) + scope().hashCode()) + Integer.valueOf(hash()).hashCode());
     }
     public String toString() {
         return "NameHash("  + "name: " + name() + ", " + "scope: " + scope() + ", " + "hash: " + hash() + ")";
