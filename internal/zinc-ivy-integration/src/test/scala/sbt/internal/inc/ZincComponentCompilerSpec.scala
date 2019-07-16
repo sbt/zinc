@@ -11,7 +11,7 @@ class ZincComponentCompilerSpec extends BridgeProviderSpecification {
   val scala2121 = "2.12.1"
   val scala2122 = "2.12.2"
   val scala2123 = "2.12.3"
-  val scala2130M2 = "2.13.0-M2"
+  val scala2130 = "2.13.0"
 
   val logger = ConsoleLogger()
   it should "compile the bridge for Scala 2.10.5 and 2.10.6" in {
@@ -30,7 +30,7 @@ class ZincComponentCompilerSpec extends BridgeProviderSpecification {
     IO.withTemporaryDirectory(t => getCompilerBridge(t, logger, scala2123) should exist)
   }
 
-  it should "compile the bridge for Scala 2.13.0-M2" in {
-    IO.withTemporaryDirectory(t => getCompilerBridge(t, logger, scala2130M2) should exist)
+  it should "compile the bridge for Scala 2.13.0" in {
+    IO.withTemporaryDirectory(t => getCompilerBridge(t, logger, scala2130) should exist)
   }
 }
