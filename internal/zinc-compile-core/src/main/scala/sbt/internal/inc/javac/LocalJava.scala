@@ -200,11 +200,6 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
  *
  * @param fileManager A manager for Java files.
  * @param classFileManager The instance that manages generated class files.
- *
- * @note `getFileForOutput` used by the annotation process for writing
- *       resources cannot be overridden because of a Javac SDK check.
- *       JDK8 has a hard-coded check against it that impedes wrapping
- *       `RegularFileObject` with other instances, e.g. `ForwardingFileObject`.
  */
 final class WriteReportingFileManager(
     fileManager: JavaFileManager,
@@ -219,6 +214,17 @@ final class WriteReportingFileManager(
     val output = super.getJavaFileForOutput(location, className, kind, sibling)
     new WriteReportingJavaFileObject(output, classFileManager)
   }
+
+  // Fixes #185, #684
+  override def isSameFile(a: FileObject, b: FileObject): Boolean = {
+    def unwrap(fo: FileObject): FileObject = {
+      fo match {
+        case wrapper: WriteReportingJavaFileObject => wrapper.javaFileObject
+        case notWrapped                            => notWrapped
+      }
+    }
+    super.isSameFile(unwrap(a), unwrap(b))
+  }
 }
 
 /**
@@ -228,7 +234,7 @@ final class WriteReportingFileManager(
  * @param classFileManager The instance that manages generated class files.
  */
 final class WriteReportingJavaFileObject(
-    javaFileObject: JavaFileObject,
+    val javaFileObject: JavaFileObject,
     var classFileManager: ClassFileManager
 ) extends ForwardingJavaFileObject[JavaFileObject](javaFileObject) {
   override def openWriter(): Writer = {
