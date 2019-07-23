@@ -598,6 +598,8 @@ class ExtractAPI[GlobalType <: Global](
           "sbt-api: Unexpected nullary method type " + in + " in " + in.owner
         )
         Constants.emptyType
+      case MethodType(_, _) =>
+        Constants.emptyType
       case _ =>
         reporter.warning(NoPosition, "sbt-api: Unhandled type " + t.getClass + " : " + t)
         Constants.emptyType
