@@ -64,7 +64,7 @@ def commonSettings: Seq[Setting[_]] = Seq(
     new URL("https://dl.bintray.com/sbt/ivy-snapshots/")
   )(Resolver.ivyStylePatterns),
   // concurrentRestrictions in Global += Util.testExclusiveRestriction,
-  testOptions += Tests.Argument(TestFrameworks.ScalaCheck, "-w", "1"),
+  testOptions += Tests.Argument(TestFrameworks.ScalaCheck, "-w", "1", "-verbosity", "2"),
   javacOptions in compile ++= Seq("-Xlint", "-Xlint:-serial"),
   crossScalaVersions := Seq(scala212),
   publishArtifact in Test := false,
