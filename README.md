@@ -22,7 +22,7 @@ change. The generated code should be identical to the output of a clean compile.
 [Scala IDE]: https://github.com/scala-ide/scala-ide
 [Maven Plugin]: https://github.com/random-maven/scalor-maven-plugin
 
-Originally this was project was part of [sbt][], referred to as the incremental compiler module of sbt.
+Originally this project was part of [sbt][], referred to as the incremental compiler module of sbt.
 
 To allow for build tools outside of sbt to use it, the project [typesafehub/zinc][] was created to re-export the
 whole of sbt to utilise the incremental compiler module.
