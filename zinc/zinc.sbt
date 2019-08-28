@@ -15,10 +15,12 @@ def relaxNon212: Seq[Setting[_]] = Seq(
     scalaBinaryVersion.value match {
       case "2.12" => old
       case _ =>
-        old filterNot Set("-Xfatal-warnings",
-                          "-deprecation",
-                          "-Ywarn-unused",
-                          "-Ywarn-unused-import")
+        old filterNot Set(
+          "-Xfatal-warnings",
+          "-deprecation",
+          "-Ywarn-unused",
+          "-Ywarn-unused-import"
+        )
     }
   }
 )
@@ -39,6 +41,8 @@ val jar1 = (project in resGenFile / "jar1") settings (projectSettings("jar"): _*
 val jar2 = (project in resGenFile / "jar2") settings (projectSettings("jar"): _*)
 val classesDep1 = (project in resGenFile / "classesDep1") settings (projectSettings("zip"): _*)
 
-resourceGenerators in Test ++= Seq((genTestResTask in jar1).taskValue,
-                                   (genTestResTask in jar2).taskValue,
-                                   (genTestResTask in classesDep1).taskValue)
+resourceGenerators in Test ++= Seq(
+  (genTestResTask in jar1).taskValue,
+  (genTestResTask in jar2).taskValue,
+  (genTestResTask in classesDep1).taskValue
+)

@@ -10,10 +10,12 @@ object Util {
     val lastCompilation = analysis.compilations.allCompilations.lastOption
     lastCompilation.map(_.getStartTime) getOrElse 0L
   }
-  def generateVersionFile(version: String,
-                          dir: File,
-                          s: TaskStreams,
-                          analysis0: CompileAnalysis): Seq[File] = {
+  def generateVersionFile(
+      version: String,
+      dir: File,
+      s: TaskStreams,
+      analysis0: CompileAnalysis
+  ): Seq[File] = {
     import java.util.{ Date, TimeZone }
     val analysis = analysis0 match { case a: sbt.internal.inc.Analysis => a }
     val formatter = new java.text.SimpleDateFormat("yyyyMMdd'T'HHmmss")

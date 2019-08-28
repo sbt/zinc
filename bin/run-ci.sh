@@ -8,6 +8,7 @@ sbt -Dfile.encoding=UTF-8 \
   -J-Xms1024M -J-Xmx4096M -J-server \
   "$PROJECT_ROOT/mimaReportBinaryIssues" \
   scalafmtCheckAll \
+  scalafmtSbtCheck \
   whitesourceCheckPolicies \
   "$PROJECT_ROOT/test:compile" \
   crossTestBridges \
