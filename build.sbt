@@ -418,8 +418,8 @@ lazy val zincBenchmarks = (project in internalPath / "zinc-benchmarks")
     noPublish,
     name := "Benchmarks of Zinc and the compiler bridge",
     libraryDependencies ++= Seq(
-      "org.eclipse.jgit" % "org.eclipse.jgit" % "4.6.0.201612231935-r",
-      "net.openhft" % "affinity" % "3.0.6"
+      "org.eclipse.jgit" % "org.eclipse.jgit" % "5.4.2.201908231537-r",
+      "net.openhft" % "affinity" % "3.1.11"
     ),
     scalaVersion := scala212,
     crossScalaVersions := Seq(scala212),
