@@ -21,7 +21,7 @@ object Dependencies {
   private val utilInterface = "org.scala-sbt" % "util-interface" % utilVersion
   private val utilScripted = "org.scala-sbt" %% "util-scripted" % utilVersion
 
-  val launcherInterface = "org.scala-sbt" % "launcher-interface" % "1.0.0"
+  val launcherInterface = "org.scala-sbt" % "launcher-interface" % "1.1.3"
 
   def getSbtModulePath(key: String, name: String) = {
     val localProps = new java.util.Properties()
@@ -68,10 +68,10 @@ object Dependencies {
 
   val parserCombinator = "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2"
   val sbinary = "org.scala-sbt" %% "sbinary" % "0.4.4"
-  val silencerPlugin = "com.github.ghik" %% "silencer-plugin" % "1.2"
+  val silencerPlugin = "com.github.ghik" %% "silencer-plugin" % "1.4.2"
   val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.14.0"
   val scalatest = "org.scalatest" %% "scalatest" % "3.0.8"
-  val junit = "junit" % "junit" % "4.11"
+  val junit = "junit" % "junit" % "4.12"
   val sjsonnew = Def.setting {
     "com.eed3si9n" %% "sjson-new-core" % contrabandSjsonNewVersion.value
   }
