@@ -20,6 +20,7 @@ def mimaSettings: Seq[Setting[_]] = Seq(
     "1.2.0",
     "1.2.1",
     "1.2.2",
+    "1.3.0",
   ) map (
       version =>
         organization.value %% moduleName.value % version
@@ -52,6 +53,7 @@ ThisBuild / developers +=
 ThisBuild / pomIncludeRepository := { _ =>
   false
 }
+ThisBuild / mimaPreviousArtifacts := Set.empty
 
 def commonSettings: Seq[Setting[_]] = Seq(
   scalaVersion := scala212,
@@ -307,11 +309,16 @@ lazy val zincPersist = (project in internalPath / "zinc-persist")
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Position.apply"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Position.copy"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Position.this"),
-
         // Added Problem#reported
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Problem.apply"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Problem.copy"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Problem.this"),
+        exclude[IncompatibleSignatureProblem]("sbt.internal.inc.schema.Problem.unapply"),
+        exclude[IncompatibleSignatureProblem]("sbt.internal.inc.schema.Position.unapply"),
+        exclude[IncompatibleSignatureProblem]("sbt.internal.inc.schema.AnalyzedClass.unapply"),
+        exclude[IncompatibleSignatureProblem]("sbt.internal.inc.schema.AnalyzedClass.unapply"),
+        exclude[IncompatibleSignatureProblem]("sbt.internal.inc.schema.Version.values"),
+        exclude[IncompatibleSignatureProblem]("sbt.internal.inc.schema.Position.unapply"),
       )
     }
   )
@@ -410,7 +417,8 @@ lazy val zincCore = (project in internalPath / "zinc-core")
         exclude[IncompatibleMethTypeProblem]("sbt.internal.inc.Incremental.prune"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCompile.apply"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.AnalysisCallback#Builder.this"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.AnalysisCallback.this")
+        exclude[DirectMissingMethodProblem]("sbt.internal.inc.AnalysisCallback.this"),
+        exclude[IncompatibleSignatureProblem]("sbt.internal.inc.MiniSetupUtil.equivCompileSetup"),
       )
     }
   )
