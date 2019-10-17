@@ -317,7 +317,6 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       log: Logger
   ): (Analysis, Boolean) = {
     import mixedCompiler.config._
-    import mixedCompiler.config.currentSetup.output
     val lookup = new LookupImpl(mixedCompiler.config, previousSetup)
     val srcsSet = sources.toSet
     val analysis = previousSetup match {
@@ -351,7 +350,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
   }
 
   private def compileToJarSwitchedOn(config: CompileConfiguration): Boolean = {
-    def isCompilingToJar = JarUtils.isCompilingToJar(config.currentSetup.output)
+    def isCompilingToJar = JarUtils.isCompilingToJar(config.output)
     def previousCompilationWasToJar = config.previousAnalysis match {
       case analysis: Analysis =>
         analysis.relations.allProducts.headOption match {

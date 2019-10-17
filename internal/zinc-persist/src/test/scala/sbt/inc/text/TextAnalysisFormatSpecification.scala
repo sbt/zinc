@@ -161,7 +161,6 @@ trait BaseTextAnalysisFormatTest { self: Properties =>
 
   // Compare two analyses with useful labelling when they aren't equal.
   protected def compare(left: MiniSetup, right: MiniSetup): Prop = {
-    ("OUTPUT EQUAL" |: compareOutputs(left.output(), right.output())) &&
     ("OPTIONS EQUAL" |: left.options() =? right.options()) &&
     ("COMPILER VERSION EQUAL" |: left.compilerVersion() == right.compilerVersion) &&
     ("COMPILE ORDER EQUAL" |: left.order() =? right.order()) &&

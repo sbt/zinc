@@ -41,18 +41,14 @@ object MiniSetupUtil {
 
   /* Define first because `Equiv[CompileOrder.value]` dominates `Equiv[MiniSetup]`. */
   implicit def equivCompileSetup(equivOpts: Equiv[MiniOptions])(
-      implicit equivOutput: Equiv[APIOutput],
-      equivComp: Equiv[String]
+      implicit equivComp: Equiv[String]
   ): Equiv[MiniSetup] = {
     new Equiv[MiniSetup] {
       def equiv(a: MiniSetup, b: MiniSetup) = {
-        def sameOutput = equivOutput.equiv(a.output, b.output)
         def sameOptions = equivOpts.equiv(a.options, b.options)
         def sameCompiler = equivComp.equiv(a.compilerVersion, b.compilerVersion)
         def sameOrder = a.order == b.order
         def sameExtra = equivPairs.equiv(a.extra, b.extra)
-
-        sameOutput &&
         sameOptions &&
         sameCompiler &&
         sameOrder &&

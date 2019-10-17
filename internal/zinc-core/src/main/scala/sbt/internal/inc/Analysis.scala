@@ -17,7 +17,7 @@ import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
 import java.io.File
 
 import xsbti.api.{ AnalyzedClass, ExternalDependency, InternalDependency }
-import xsbti.compile.CompileAnalysis
+import xsbti.compile.{ CompileAnalysis, SingleOutput, Output }
 import xsbti.compile.analysis.{
   ReadCompilations,
   ReadSourceInfos,
@@ -123,6 +123,9 @@ object Analysis {
       case x => Some(x.toString + " " + prefix + plural)
     }
 
+  lazy val dummyOutput: Output = new SingleOutput {
+    def getOutputDirectory: File = new File("/tmp/dummy")
+  }
 }
 private class MAnalysis(
     val stamps: Stamps,

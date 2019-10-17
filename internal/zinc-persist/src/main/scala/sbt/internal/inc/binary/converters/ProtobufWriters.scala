@@ -235,7 +235,7 @@ final class ProtobufWriters(mapper: WriteMapper) {
 
   def toMiniSetup(miniSetup0: MiniSetup): schema.MiniSetup = {
     val miniSetup = mapper.mapMiniSetup(miniSetup0)
-    val output = toMiniSetupOutput(miniSetup.output())
+    val output = toMiniSetupOutput(Analysis.dummyOutput)
     val miniOptions = Some(toMiniOptions(miniSetup.options()))
     val compilerVersion = miniSetup.compilerVersion()
     val compileOrder = toCompileOrder(miniSetup.order())

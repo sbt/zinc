@@ -57,7 +57,7 @@ final class MixedAnalyzingCompiler(
       callback: XAnalysisCallback,
       classfileManager: XClassFileManager
   ): Unit = {
-    val output = config.currentSetup.output
+    val output = config.output
     val outputDirs = outputDirectories(output)
     outputDirs.foreach { d =>
       if (d.getName.endsWith(".jar"))
@@ -248,7 +248,7 @@ object MixedAnalyzingCompiler {
       } else doHash
 
     val compileSetup = MiniSetup.of(
-      output,
+      output, // MiniSetup gets persisted into Analysis so don't use this
       MiniOptions.of(
         classpathHash,
         options.toArray,
@@ -262,6 +262,7 @@ object MixedAnalyzingCompiler {
     config(
       sources,
       classpath,
+      output,
       compileSetup,
       progress,
       previousAnalysis,
@@ -280,6 +281,7 @@ object MixedAnalyzingCompiler {
   def config(
       sources: Seq[File],
       classpath: Seq[File],
+      output: Output,
       setup: MiniSetup,
       progress: Option[CompileProgress],
       previousAnalysis: CompileAnalysis,
@@ -296,6 +298,7 @@ object MixedAnalyzingCompiler {
     new CompileConfiguration(
       sources,
       classpath,
+      output,
       previousAnalysis,
       previousSetup,
       setup,
@@ -321,7 +324,7 @@ object MixedAnalyzingCompiler {
     // and then added to the final jar. This temporary directory has to be
     // available for sbt.internal.inc.classfile.Analyze to work correctly.
     val tempJavacOutput =
-      JarUtils.getOutputJar(currentSetup.output).map(JarUtils.javacTempOutput).toSeq
+      JarUtils.getOutputJar(config.output).map(JarUtils.javacTempOutput).toSeq
     val absClasspath = classpath.map(_.getAbsoluteFile)
     val cArgs =
       new CompilerArguments(compiler.scalaInstance, compiler.classpathOptions)

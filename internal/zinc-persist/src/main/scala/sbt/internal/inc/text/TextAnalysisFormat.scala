@@ -398,7 +398,7 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
 
     def write(out: Writer, setup0: MiniSetup): Unit = {
       val setup = writeMapper.mapMiniSetup(setup0)
-      val (mode, outputAsMap) = setup.output match {
+      val (mode, outputAsMap) = Analysis.dummyOutput match {
         case s: SingleOutput =>
           // just to be compatible with multipleOutputMode
           val ignored = s.getOutputDirectory
@@ -455,7 +455,7 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
       }
 
       val original = MiniSetup.of(
-        output,
+        output, // note: this is a dummy value
         MiniOptions.of(classpathHash.toArray, compileOptions.toArray, javacOptions.toArray),
         compilerVersion,
         xsbti.compile.CompileOrder.valueOf(compileOrder),

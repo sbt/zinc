@@ -22,6 +22,7 @@ import xsbti.compile.{
   GlobalsCache,
   IncOptions,
   MiniSetup,
+  Output,
   PerClasspathEntryLookup
 }
 
@@ -44,6 +45,7 @@ import xsbti.compile.{
 final class CompileConfiguration(
     val sources: Seq[File],
     val classpath: Seq[File],
+    val output: Output,
     val previousAnalysis: CompileAnalysis,
     val previousSetup: Option[MiniSetup],
     val currentSetup: MiniSetup,
