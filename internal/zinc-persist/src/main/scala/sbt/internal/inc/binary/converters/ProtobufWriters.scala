@@ -642,21 +642,27 @@ final class ProtobufWriters(mapper: WriteMapper) {
       }
     }
 
-    val srcProd = toMap(relations.srcProd,
-                        sourceFileToString,
-                        productFileToString,
-                        allFileAccept,
-                        allFileAccept)
-    val libraryDep = toMap(relations.libraryDep,
-                           sourceFileToString,
-                           binaryFileToString,
-                           allFileAccept,
-                           binaryFileAccept)
-    val libraryClassName = toMap(relations.libraryClassName,
-                                 binaryFileToString,
-                                 stringId,
-                                 binaryFileAccept,
-                                 allStringAccept)
+    val srcProd = toMap(
+      relations.srcProd,
+      sourceFileToString,
+      productFileToString,
+      allFileAccept,
+      allFileAccept
+    )
+    val libraryDep = toMap(
+      relations.libraryDep,
+      sourceFileToString,
+      binaryFileToString,
+      allFileAccept,
+      binaryFileAccept
+    )
+    val libraryClassName = toMap(
+      relations.libraryClassName,
+      binaryFileToString,
+      stringId,
+      binaryFileAccept,
+      allStringAccept
+    )
     val memberRefInternal =
       toMap(relations.memberRef.internal, stringId, stringId, allStringAccept, allStringAccept)
     val memberRefExternal =
@@ -665,16 +671,20 @@ final class ProtobufWriters(mapper: WriteMapper) {
       toMap(relations.inheritance.internal, stringId, stringId, allStringAccept, allStringAccept)
     val inheritanceExternal =
       toMap(relations.inheritance.external, stringId, stringId, allStringAccept, allStringAccept)
-    val localInheritanceInternal = toMap(relations.localInheritance.internal,
-                                         stringId,
-                                         stringId,
-                                         allStringAccept,
-                                         allStringAccept)
-    val localInheritanceExternal = toMap(relations.localInheritance.external,
-                                         stringId,
-                                         stringId,
-                                         allStringAccept,
-                                         allStringAccept)
+    val localInheritanceInternal = toMap(
+      relations.localInheritance.internal,
+      stringId,
+      stringId,
+      allStringAccept,
+      allStringAccept
+    )
+    val localInheritanceExternal = toMap(
+      relations.localInheritance.external,
+      stringId,
+      stringId,
+      allStringAccept,
+      allStringAccept
+    )
     val classes =
       toMap(relations.classes, sourceFileToString, stringId, allFileAccept, allStringAccept)
     val productClassName =
