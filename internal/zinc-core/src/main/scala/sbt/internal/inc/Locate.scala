@@ -108,7 +108,7 @@ object Locate {
   }
 
   def subDirectory(base: File, parts: Seq[String]): File =
-    (base /: parts)((b, p) => new File(b, p))
+    parts.foldLeft(base)((b, p) => new File(b, p))
 
   def components(className: String): (Seq[String], String) = {
     assume(!className.isEmpty)

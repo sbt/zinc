@@ -279,7 +279,7 @@ case class ProjectStructure(
     val f0: PartialFunction[File, Option[CompileAnalysis]] = {
       case x if x.getAbsoluteFile == classesDir.getAbsoluteFile => prev().analysis.toOption
     }
-    val f1 = (f0 /: dependsOnRef) { (acc, dep) =>
+    val f1 = dependsOnRef.foldLeft(f0) { (acc, dep) =>
       acc orElse {
         case x if x.getAbsoluteFile == dep.classesDir.getAbsoluteFile =>
           dep.prev().analysis.toOption
