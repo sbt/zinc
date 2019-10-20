@@ -51,7 +51,12 @@ ThisBuild / developers := List(
   Developer("harrah", "Mark Harrah", "@harrah", url("https://github.com/harrah")),
   Developer("eed3si9n", "Eugene Yokota", "@eed3si9n", url("http://eed3si9n.com/")),
   Developer("dwijnand", "Dale Wijnand", "@dwijnand", url("https://github.com/dwijnand")),
-  Developer("gkossakowski", "Grzegorz Kossakowski", "@gkossakowski", url("https://github.com/gkossakowski")),
+  Developer(
+    "gkossakowski",
+    "Grzegorz Kossakowski",
+    "@gkossakowski",
+    url("https://github.com/gkossakowski")
+  ),
   Developer("jvican", "Jorge Vicente Cantero", "@jvican", url("https://github.com/jvican")),
   Developer("Duhemm", "Martin Duhem", "@Duhemm", url("https://github.com/Duhemm")),
 )
