@@ -28,16 +28,16 @@ def mimaSettings: Seq[Setting[_]] = Seq(
     ),
 )
 
-ThisBuild / git.baseVersion := "1.3.0"
 ThisBuild / version := {
   val old = (ThisBuild / version).value
   nightlyVersion match {
     case Some(v) => v
     case _ =>
-      if (old contains "SNAPSHOT") git.baseVersion.value + "-SNAPSHOT"
+      if ((ThisBuild / isSnapshot).value) "1.3.0-SNAPSHOT"
       else old
   }
 }
+ThisBuild / organization := "org.scala-sbt"
 ThisBuild / licenses := List(("Apache-2.0", url("https://www.apache.org/licenses/LICENSE-2.0")))
 ThisBuild / scalafmtOnCompile := !(Global / insideCI).value
 ThisBuild / Test / scalafmtOnCompile := !(Global / insideCI).value
@@ -47,8 +47,20 @@ ThisBuild / scmInfo := Some(
 )
 ThisBuild / description := "Incremental compiler of Scala"
 ThisBuild / homepage := Some(url("https://github.com/sbt/zinc"))
-ThisBuild / developers +=
-  Developer("jvican", "Jorge Vicente Cantero", "@jvican", url("https://github.com/jvican"))
+ThisBuild / developers := List(
+  Developer("harrah", "Mark Harrah", "@harrah", url("https://github.com/harrah")),
+  Developer("eed3si9n", "Eugene Yokota", "@eed3si9n", url("http://eed3si9n.com/")),
+  Developer("dwijnand", "Dale Wijnand", "@dwijnand", url("https://github.com/dwijnand")),
+  Developer(
+    "gkossakowski",
+    "Grzegorz Kossakowski",
+    "@gkossakowski",
+    url("https://github.com/gkossakowski")
+  ),
+  Developer("jvican", "Jorge Vicente Cantero", "@jvican", url("https://github.com/jvican")),
+  Developer("Duhemm", "Martin Duhem", "@Duhemm", url("https://github.com/Duhemm")),
+)
+
 // Remove all additional repository other than Maven Central from POM
 ThisBuild / pomIncludeRepository := { _ =>
   false
@@ -885,6 +897,7 @@ addCommandAlias(
 )
 
 lazy val otherRootSettings = Seq(
+  mimaPreviousArtifacts := Set.empty,
   scriptedBufferLog := true,
   scripted := scriptedTask.evaluated,
   Scripted.scriptedPrescripted := { (_: File) =>
@@ -937,35 +950,6 @@ def customCommands: Seq[Setting[_]] = Seq(
       state
   }
 )
-
-// https://github.com/sbt/sbt-git/issues/109
-// Workaround from https://github.com/sbt/sbt-git/issues/92#issuecomment-161853239
-ThisBuild / git.gitUncommittedChanges := {
-  val statusCommands = Seq(
-    Seq("diff-index", "--cached", "HEAD"),
-    Seq("diff-index", "HEAD"),
-    Seq("diff-files"),
-    Seq("ls-files", "--exclude-standard", "--others")
-  )
-  // can't use git.runner.value because it's a task
-  val runner = com.typesafe.sbt.git.ConsoleGitRunner
-  val dir = baseDirectory.value
-  // sbt/zinc#334 Seemingly "git status" resets some stale metadata.
-  runner("status")(dir, com.typesafe.sbt.git.NullLogger)
-  val uncommittedChanges = statusCommands flatMap { c =>
-    val res = runner(c: _*)(dir, com.typesafe.sbt.git.NullLogger)
-    if (res.isEmpty) Nil else Seq(c -> res)
-  }
-
-  val un = uncommittedChanges.nonEmpty
-  if (un) {
-    uncommittedChanges foreach {
-      case (cmd, res) =>
-        sLog.value debug s"""Uncommitted changes found via "${cmd mkString " "}":\n${res}"""
-    }
-  }
-  un
-}
 
 ThisBuild / whitesourceProduct := "Lightbend Reactive Platform"
 ThisBuild / whitesourceAggregateProjectName := "sbt-zinc-master"

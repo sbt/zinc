@@ -71,7 +71,7 @@ class ExtractUsedNamesSpecification extends CompilingSpecification with Diagramm
     // TODO: Find out what's making these types appear in 2.10
     // They don't come from type dependency traverser, but from `addSymbol`
     val versionDependentNames =
-      if (scalaVersion.contains("2.10")) Set("Nothing", "Any") else Set()
+      if (scalaVersion.startsWith("2.10")) Set("Nothing", "Any") else Set()
     val namesA = standardNames ++ Set("A") ++ versionDependentNames
     val namesAX = standardNames ++ Set("X", "x", "T", "A")
     val namesB = Set("B", "A", "Int", "A;init;", "scala")

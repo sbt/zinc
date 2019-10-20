@@ -185,7 +185,7 @@ object Stamps {
   ): Stamps =
     new MStamps(products, sources, binaries)
 
-  def merge(stamps: Traversable[Stamps]): Stamps = (Stamps.empty /: stamps)(_ ++ _)
+  def merge(stamps: Traversable[Stamps]): Stamps = stamps.foldLeft(Stamps.empty)(_ ++ _)
 }
 
 private class MStamps(
