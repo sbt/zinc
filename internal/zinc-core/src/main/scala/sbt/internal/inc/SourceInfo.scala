@@ -37,7 +37,8 @@ object SourceInfos {
       mainClasses: Seq[String]
   ): SourceInfo =
     new UnderlyingSourceInfo(reported, unreported, mainClasses)
-  def merge(infos: Traversable[SourceInfos]): SourceInfos = (SourceInfos.empty /: infos)(_ ++ _)
+  def merge(infos: Traversable[SourceInfos]): SourceInfos =
+    infos.foldLeft(SourceInfos.empty)(_ ++ _)
 }
 
 private final class MSourceInfos(val allInfos: Map[File, SourceInfo]) extends SourceInfos {
