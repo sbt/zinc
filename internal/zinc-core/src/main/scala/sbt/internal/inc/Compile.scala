@@ -348,10 +348,10 @@ private final class AnalysisCallback(
   def getOrNil[A, B](m: collection.Map[A, Seq[B]], a: A): Seq[B] = m.get(a).toList.flatten
   def addCompilation(base: Analysis): Analysis =
     base.copy(compilations = base.compilations.add(compilation))
-  def addUsedNames(base: Analysis): Analysis = (base /: usedNames) {
+  def addUsedNames(base: Analysis): Analysis = usedNames.foldLeft(base) {
     case (a, (className, names)) =>
       import scala.collection.JavaConverters._
-      (a /: names.asScala) {
+      names.asScala.foldLeft(a) {
         case (a, name) => a.copy(relations = a.relations.addUsedName(className, name))
       }
   }
@@ -409,7 +409,7 @@ private final class AnalysisCallback(
   def addProductsAndDeps(base: Analysis): Analysis = {
     import scala.collection.JavaConverters._
     val stampProduct = createStamperForProducts()
-    (base /: srcs.asScala) {
+    srcs.asScala.foldLeft(base) {
       case (a, src) =>
         val stamp = stampReader.source(src)
         val classesInSrc = classNames

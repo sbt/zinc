@@ -469,7 +469,7 @@ object ClassToAPI {
     name(tv.getGenericDeclaration) + " " + tv.getName
 
   def reduceHash(in: Array[Byte]): Int =
-    (0 /: in)((acc, b) => (acc * 43) ^ b)
+    in.foldLeft(0)((acc, b) => (acc * 43) ^ b)
 
   def name(gd: GenericDeclaration): String =
     gd match {

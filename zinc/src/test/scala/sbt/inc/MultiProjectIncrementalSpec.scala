@@ -25,7 +25,7 @@ import sbt.internal.inc.classpath.ClassLoaderCache
 import xsbti.compile._
 
 class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
-  val scalaVersion = "2.12.8"
+  val scalaVersion = "2.12.10"
   val compiler = new IncrementalCompilerImpl // IncrementalCompilerUtil.defaultIncrementalCompiler
   val maxErrors = 100
 
