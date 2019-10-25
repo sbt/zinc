@@ -11,7 +11,7 @@
 
 package xsbti.compile;
 
-import java.io.File;
+import xsbti.VirtualFileRef;
 
 /**
  * Define the changes that can occur to the dependencies of a given compilation run.
@@ -24,7 +24,7 @@ public interface DependencyChanges {
      * Return the modified binaries since the last compilation run.
      * These modified binaries are either class files or jar files.
      */
-	File[] modifiedBinaries();
+	VirtualFileRef[] modifiedLibraries();
 
 	/**
 	 * Return the modified class names since the last compilation run.

@@ -12,23 +12,18 @@
 package sbt.inc
 
 import java.io.File
+import java.nio.file.{ Files, Path }
 
 import sbt.io.syntax._
-import sbt.io.IO
 import sbt.util.Logger
+import xsbti.{ FileConverter, VirtualFile }
 import xsbti.compile.{ IncToolOptions, JavaTools }
+import sbt.internal.inc.CompileOutput
 import sbt.internal.inc.javac.JavaCompilerArguments
 import sbt.util.Tracked.inputChanged
-import sbt.util.{
-  CacheStoreFactory,
-  FileInfo,
-  FilesInfo,
-  HashFileInfo,
-  ModifiedFileInfo,
-  PlainFileInfo
-}
+import sbt.util.{ CacheStoreFactory, FileInfo, FilesInfo, ModifiedFileInfo, PlainFileInfo }
 import sbt.util.CacheImplicits._
-import sbt.util.FileInfo.{ exists, hash, lastModified }
+import sbt.util.FileInfo.{ exists, lastModified }
 import exists._
 import sjsonnew._
 import xsbti.Reporter
@@ -36,9 +31,9 @@ import xsbti.Reporter
 object Doc {
   private[this] implicit val IsoInputs = LList.iso(
     { in: Inputs =>
-      ("getOutputDirectory", in.outputDirectory) :*: LNil
+      ("getOutputDirectory", in.outputDirectory.toFile) :*: LNil
     }, { in: File :*: LNil =>
-      Inputs(Nil, Nil, Nil, in.head, Nil)
+      Inputs(Nil, Nil, Nil, in.head.toPath, Nil)
     }
   )
 
@@ -53,9 +48,10 @@ object Doc {
         label + " Java API documentation",
         new JavaDoc {
           def run(
-              sources: List[File],
-              classpath: List[File],
-              outputDirectory: File,
+              sources: List[VirtualFile],
+              classpath: List[VirtualFile],
+              converter: FileConverter,
+              outputDirectory: Path,
               options: List[String],
               incToolOptions: IncToolOptions,
               log: Logger,
@@ -63,7 +59,8 @@ object Doc {
           ): Unit = {
             val success = doc.javadoc.run(
               (sources filter javaSourcesOnly).toArray,
-              JavaCompilerArguments(sources, classpath, Some(outputDirectory), options).toArray,
+              JavaCompilerArguments(Nil, classpath, options).toArray,
+              CompileOutput(outputDirectory),
               incToolOptions,
               reporter,
               log
@@ -77,9 +74,10 @@ object Doc {
   private[sbt] def prepare(description: String, doDoc: JavaDoc): JavaDoc =
     new JavaDoc {
       def run(
-          sources: List[File],
-          classpath: List[File],
-          outputDirectory: File,
+          sources: List[VirtualFile],
+          classpath: List[VirtualFile],
+          converter: FileConverter,
+          outputDirectory: Path,
           options: List[String],
           incToolOptions: IncToolOptions,
           log: Logger,
@@ -87,25 +85,40 @@ object Doc {
       ): Unit =
         if (sources.isEmpty) log.info("No sources available, skipping " + description + "...")
         else {
-          log.info(description.capitalize + " to " + outputDirectory.absolutePath + "...")
-          doDoc.run(sources, classpath, outputDirectory, options, incToolOptions, log, reporter)
+          log.info(
+            description.capitalize + " to " + outputDirectory.toAbsolutePath.toString + "..."
+          )
+          doDoc.run(
+            sources,
+            classpath,
+            converter,
+            outputDirectory,
+            options,
+            incToolOptions,
+            log,
+            reporter
+          )
           log.info(description.capitalize + " successful.")
         }
     }
   private[sbt] def cached(storeFactory: CacheStoreFactory, doDoc: JavaDoc): JavaDoc =
     new JavaDoc {
       def run(
-          sources: List[File],
-          classpath: List[File],
-          outputDirectory: File,
+          sources: List[VirtualFile],
+          classpath: List[VirtualFile],
+          converter: FileConverter,
+          outputDirectory: Path,
           options: List[String],
           incToolOptions: IncToolOptions,
           log: Logger,
           reporter: Reporter
       ): Unit = {
+        val cp = classpath.map(converter.toPath).map(_.toFile)
         val inputs = Inputs(
-          filesInfoToList(hash(sources.toSet)),
-          filesInfoToList(lastModified(classpath.toSet)),
+          sources map { x =>
+            VHashFileInfo(x, x.contentHash)
+          },
+          filesInfoToList(lastModified(cp.toSet)),
           classpath,
           outputDirectory,
           options
@@ -113,27 +126,41 @@ object Doc {
         val cachedDoc = inputChanged(storeFactory make "inputs") { (inChanged, in: Inputs) =>
           inputChanged(storeFactory make "output") { (outChanged, outputs: List[PlainFileInfo]) =>
             if (inChanged || outChanged) {
-              IO.delete(outputDirectory)
-              IO.createDirectory(outputDirectory)
-              doDoc.run(sources, classpath, outputDirectory, options, incToolOptions, log, reporter)
-            } else log.debug("Doc uptodate: " + outputDirectory.getAbsolutePath)
+              if (Files.exists(outputDirectory)) {
+                sbt.io.IO.delete(outputDirectory.toFile)
+              }
+              Files.createDirectories(outputDirectory)
+              doDoc.run(
+                sources,
+                classpath,
+                converter,
+                outputDirectory,
+                options,
+                incToolOptions,
+                log,
+                reporter
+              )
+            } else log.debug("Doc uptodate: " + outputDirectory.toAbsolutePath.toString)
           }
         }
-        cachedDoc(inputs)(filesInfoToList(exists(outputDirectory.allPaths.get.toSet)))
+        cachedDoc(inputs)(filesInfoToList(exists(outputDirectory.toFile.allPaths.get.toSet)))
       }
     }
+
+  private[this] final case class VHashFileInfo(file: VirtualFile, contentHash: Long)
+
   private[this] final case class Inputs(
-      hfi: List[HashFileInfo],
+      hfi: List[VHashFileInfo],
       mfi: List[ModifiedFileInfo],
-      classpaths: List[File],
-      outputDirectory: File,
+      classpaths: List[VirtualFile],
+      outputDirectory: Path,
       options: List[String]
   )
   private[sbt] def filesInfoToList[A <: FileInfo](info: FilesInfo[A]): List[A] =
     info.files.toList sortBy { x =>
       x.file.getAbsolutePath
     }
-  private[sbt] val javaSourcesOnly: File => Boolean = _.getName.endsWith(".java")
+  private[sbt] val javaSourcesOnly: VirtualFile => Boolean = _.name.endsWith(".java")
 
   class JavadocGenerationFailed extends Exception
 
@@ -143,9 +170,10 @@ object Doc {
      * @throws JavadocGenerationFailed when generating javadoc fails
      */
     def run(
-        sources: List[File],
-        classpath: List[File],
-        outputDirectory: File,
+        sources: List[VirtualFile],
+        classpath: List[VirtualFile],
+        converter: FileConverter,
+        outputDirectory: Path,
         options: List[String],
         incToolOptions: IncToolOptions,
         log: Logger,

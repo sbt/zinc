@@ -15,22 +15,22 @@ package inc
 
 import java.io.File
 
-import xsbti.UseScope
+import xsbti.{ UseScope, VirtualFileRef }
 import xsbti.api.NameHash
 import xsbti.compile.Changes
 import xsbti.compile.analysis.{ Stamp => XStamp }
 
 final case class InitialChanges(
-    internalSrc: Changes[File],
-    removedProducts: Set[File],
-    binaryDeps: Set[File],
+    internalSrc: Changes[VirtualFileRef],
+    removedProducts: Set[VirtualFileRef],
+    libraryDeps: Set[VirtualFileRef],
     external: APIChanges
 ) {
 
   def isEmpty: Boolean =
     internalSrc.isEmpty &&
       removedProducts.isEmpty &&
-      binaryDeps.isEmpty &&
+      libraryDeps.isEmpty &&
       external.apiChanges.isEmpty
 }
 
@@ -107,6 +107,10 @@ abstract class UnderlyingChanges[A] extends Changes[A] {
   override def getRemoved: java.util.Set[A] = removed.asJava
   override def getUnmodified: java.util.Set[A] = unmodified.asJava
   override def isEmpty = added.isEmpty && removed.isEmpty && changed.isEmpty
+
+  override def toString: String = {
+    s"""Changes(added = $added, removed = $removed, changed = $changed, unmodified = ...)""".stripMargin
+  }
 }
 
 sealed abstract class Change(val file: File)

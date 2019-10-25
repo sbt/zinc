@@ -11,7 +11,7 @@
 
 package xsbti.compile;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.io.Serializable;
 import java.util.Optional;
 
@@ -47,5 +47,5 @@ public interface Output extends Serializable {
      *
      * @see xsbti.compile.SingleOutput
      */
-    public Optional<File> getSingleOutput();
+    public Optional<Path> getSingleOutput();
 }

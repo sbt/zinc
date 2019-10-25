@@ -244,9 +244,10 @@ class ClassNameSpecification extends CompilingSpecification {
     if (binaryClassNames === expectedNames) {
       val paths = (expectedLocalNames.map(n => s"${n}.class") ++
         expectedNames.map(n => s"${n._2.replace('.', File.separatorChar)}.class"))
-      val generatedProductNames = generatedProducts.map(_.getName)
+      val generatedProductNames = generatedProducts.map(_.getFileName.toString)
       val missing = {
-        val ms = generatedProducts.map(gn => gn -> paths.find(p => gn.getAbsolutePath.endsWith(p)))
+        val ms = generatedProducts
+          .map(gn => gn -> paths.find(p => gn.toAbsolutePath.endsWith(p)))
         ms.filter(_._2.isEmpty).map(_._1)
       }
 

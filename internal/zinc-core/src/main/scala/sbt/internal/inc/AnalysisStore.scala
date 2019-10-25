@@ -27,6 +27,8 @@ object AnalysisStore {
       lastStore
     }
 
+    override def unsafeGet: AnalysisContents = get().get
+
     override def set(analysisFile: AnalysisContents): Unit = {
       backing.set(analysisFile)
       lastStore = Optional.of(analysisFile)
@@ -38,6 +40,8 @@ object AnalysisStore {
     override def get(): Optional[AnalysisContents] = synchronized {
       backing.get()
     }
+
+    override def unsafeGet: AnalysisContents = backing.unsafeGet
 
     override def set(analysisFile: AnalysisContents): Unit = synchronized {
       backing.set(analysisFile)

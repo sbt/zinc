@@ -11,10 +11,8 @@
 
 package sbt.inc
 
-import java.io.File
-
 import sbt.io.IO
-
+import xsbti.VirtualFile
 import xsbti.compile.ClassFileManager
 import xsbti.compile.IncOptions
 
@@ -25,10 +23,10 @@ class ClassFileManagerHookSpec extends BaseCompilerSpec {
 
       var callbackCalled = 0
       val myClassFileManager = new ClassFileManager {
-        override def delete(classes: Array[File]): Unit = {
+        override def delete(classes: Array[VirtualFile]): Unit = {
           callbackCalled += 1
         }
-        override def generated(classes: Array[File]): Unit = {
+        override def generated(classes: Array[VirtualFile]): Unit = {
           callbackCalled += 1
         }
         override def complete(success: Boolean): Unit = {

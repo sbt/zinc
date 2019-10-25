@@ -14,7 +14,7 @@ package internal
 package inc
 
 import java.lang.reflect.InvocationTargetException
-import java.io.File
+import java.nio.file.Path
 import java.net.URLClassLoader
 import java.util.Optional
 
@@ -22,7 +22,14 @@ import sbt.util.Logger
 import sbt.io.syntax._
 import sbt.internal.inc.classpath.ClassLoaderCache
 import sbt.internal.util.ManagedLogger
-import xsbti.{ AnalysisCallback, Reporter, ReporterUtil, Logger => xLogger }
+import xsbti.{
+  AnalysisCallback,
+  PathBasedFile,
+  Reporter,
+  ReporterUtil,
+  Logger => xLogger,
+  VirtualFile
+}
 import xsbti.compile._
 
 /**
@@ -58,10 +65,10 @@ final class AnalyzingCompiler(
     )
 
   def apply(
-      sources: Array[File],
+      sources: Array[VirtualFile],
       changes: DependencyChanges,
-      classpath: Array[File],
-      singleOutput: File,
+      classpath: Array[VirtualFile],
+      singleOutput: Path,
       options: Array[String],
       callback: AnalysisCallback,
       maximumErrors: Int,
@@ -69,7 +76,7 @@ final class AnalyzingCompiler(
       log: ManagedLogger
   ): Unit = {
     val compArgs = new CompilerArguments(scalaInstance, classpathOptions)
-    val arguments = compArgs(Nil, classpath, None, options)
+    val arguments = compArgs.makeArguments(Nil, classpath, options)
     val output = CompileOutput(singleOutput)
     val basicReporterConfig = ReporterUtil.getDefaultReporterConfig()
     val reporterConfig = basicReporterConfig.withMaximumErrors(maximumErrors)
@@ -79,7 +86,7 @@ final class AnalyzingCompiler(
   }
 
   def compile(
-      sources: Array[File],
+      sources: Array[VirtualFile],
       changes: DependencyChanges,
       options: Array[String],
       output: Output,
@@ -102,7 +109,7 @@ final class AnalyzingCompiler(
   }
 
   def compile(
-      sources: Array[File],
+      sources: Array[VirtualFile],
       changes: DependencyChanges,
       callback: AnalysisCallback,
       log: xLogger,
@@ -110,9 +117,9 @@ final class AnalyzingCompiler(
       progress: CompileProgress,
       compiler: CachedCompiler
   ): Unit = {
-    onArgsHandler(compiler.commandArguments(sources))
+    // onArgsHandler(compiler.commandArguments(sources))
     call("xsbt.CompilerInterface", "run", log)(
-      classOf[Array[File]],
+      classOf[Array[VirtualFile]],
       classOf[DependencyChanges],
       classOf[AnalysisCallback],
       classOf[xLogger],
@@ -147,9 +154,9 @@ final class AnalyzingCompiler(
   }
 
   def doc(
-      sources: Seq[File],
-      classpath: Seq[File],
-      outputDirectory: File,
+      sources: Seq[VirtualFile],
+      classpath: Seq[VirtualFile],
+      outputDirectory: Path,
       options: Seq[String],
       maximumErrors: Int,
       log: ManagedLogger
@@ -159,27 +166,28 @@ final class AnalyzingCompiler(
   }
 
   def doc(
-      sources: Seq[File],
-      classpath: Seq[File],
-      outputDirectory: File,
+      sources: Seq[VirtualFile],
+      classpath: Seq[VirtualFile],
+      outputDirectory: Path,
       options: Seq[String],
       log: Logger,
       reporter: Reporter
   ): Unit = {
     val compArgs = new CompilerArguments(scalaInstance, classpathOptions)
     val arguments =
-      compArgs(sources, classpath, Some(outputDirectory), options)
+      compArgs.makeArguments(Nil, classpath, Some(outputDirectory), options)
     onArgsHandler(arguments)
     call("xsbt.ScaladocInterface", "run", log)(
+      classOf[Array[VirtualFile]],
       classOf[Array[String]],
       classOf[xLogger],
       classOf[Reporter]
-    )(arguments.toArray[String], log, reporter)
+    )(sources.toArray, arguments.toArray[String], log, reporter)
     ()
   }
 
   def console(
-      classpath: Seq[File],
+      classpath: Seq[VirtualFile],
       options: Seq[String],
       initialCommands: String,
       cleanupCommands: String,
@@ -212,16 +220,19 @@ final class AnalyzingCompiler(
     ()
   }
 
-  private[this] def consoleClasspaths(classpath: Seq[File]): (String, String) = {
+  private[this] def consoleClasspaths(classpath: Seq[VirtualFile]): (String, String) = {
     val arguments = new CompilerArguments(scalaInstance, classpathOptions)
-    val classpathString = CompilerArguments.absString(arguments.finishClasspath(classpath))
+    val cp = classpath map {
+      case x: PathBasedFile => x.toPath
+    }
+    val classpathString = CompilerArguments.absString(arguments.finishClasspath(cp))
     val bootClasspath =
-      if (classpathOptions.autoBoot) arguments.createBootClasspathFor(classpath) else ""
+      if (classpathOptions.autoBoot) arguments.createBootClasspathFor(cp) else ""
     (classpathString, bootClasspath)
   }
 
   def consoleCommandArguments(
-      classpath: Seq[File],
+      classpath: Seq[VirtualFile],
       options: Seq[String],
       log: Logger
   ): Seq[String] = {
@@ -314,15 +325,15 @@ object AnalyzingCompiler {
    * Scala version is installed in your system).
    */
   def compileSources(
-      sourceJars: Iterable[File],
-      targetJar: File,
-      xsbtiJars: Iterable[File],
+      sourceJars: Iterable[Path],
+      targetJar: Path,
+      xsbtiJars: Iterable[Path],
       id: String,
       compiler: RawCompiler,
       log: Logger
   ): Unit = {
-    val isSource = (f: File) => isSourceName(f.getName)
-    def keepIfSource(files: Set[File]): Set[File] =
+    val isSource = (f: Path) => isSourceName(f.getFileName.toString)
+    def keepIfSource(files: Set[Path]): Set[Path] =
       if (files.exists(isSource)) files else Set.empty
 
     // Generate jar from compilation dirs, the resources and a target name.
@@ -345,9 +356,9 @@ object AnalyzingCompiler {
 
     withTemporaryDirectory { dir =>
       // Extract the sources to be compiled
-      val extractedSources = sourceJars
-        .foldLeft(Set.empty[File]) { (extracted, sourceJar) =>
-          extracted ++ keepIfSource(unzip(sourceJar, dir))
+      val extractedSources: Seq[Path] = sourceJars
+        .foldLeft(Set.empty[Path]) { (extracted, sourceJar) =>
+          extracted ++ keepIfSource(unzip(sourceJar.toFile, dir).map(_.toPath))
         }
         .toSeq
       val (sourceFiles, resources) = extractedSources.partition(isSource)
@@ -359,15 +370,17 @@ object AnalyzingCompiler {
         handleCompilationError {
           val scalaLibraryJars = compiler.scalaInstance.libraryJars
           val restClasspath = xsbtiJars.toSeq ++ sourceJars
-          val classpath = scalaLibraryJars ++ restClasspath
-          compiler(sourceFiles, classpath, outputDirectory, "-nowarn" :: Nil)
+          val classpath = scalaLibraryJars.map(_.toPath) ++ restClasspath
+          val vs = sourceFiles.map(PlainVirtualFile(_))
+          val cp = classpath.map(PlainVirtualFile(_))
+          compiler(vs, cp, outputDirectory.toPath, "-nowarn" :: Nil)
 
           val end = (System.currentTimeMillis - start) / 1000.0
           log.info(s"  Compilation completed in ${end}s.")
         }
 
         // Create a jar out of the generated class files
-        generateJar(outputDirectory, dir, resources, targetJar)
+        generateJar(outputDirectory, dir, resources.map(_.toFile), targetJar.toFile)
       }
     }
   }

@@ -13,12 +13,18 @@ package sbt
 package inc
 
 import java.io.File
+import java.nio.file.Paths
 
 import sbt.inc.Doc.JavadocGenerationFailed
 import sbt.io.IO
 import sbt.internal.inc.javac.{ JavaCompiler, JavaTools, Javadoc }
 import sbt.internal.inc.javac.JavaCompilerSpec
-import sbt.internal.inc.{ ManagedLoggedReporter, UnitSpec }
+import sbt.internal.inc.{
+  ManagedLoggedReporter,
+  UnitSpec,
+  PlainVirtualFile,
+  PlainVirtualFileConverter
+}
 import xsbti.compile.IncToolOptionsUtil
 import sbt.util.CacheStoreFactory
 
@@ -28,9 +34,10 @@ class DocSpec extends UnitSpec {
       IO.withTemporaryDirectory { out =>
         val javadoc = Doc.cachedJavadoc("Foo", CacheStoreFactory(cacheDir), local)
         javadoc.run(
-          List(knownSampleGoodFile),
+          List(PlainVirtualFile(knownSampleGoodFile)),
           Nil,
-          out,
+          PlainVirtualFileConverter.converter,
+          out.toPath,
           Nil,
           IncToolOptionsUtil.defaultIncToolOptions(),
           log,
@@ -46,9 +53,10 @@ class DocSpec extends UnitSpec {
       IO.withTemporaryDirectory { out =>
         val javadoc = Doc.cachedJavadoc("Foo", CacheStoreFactory(cacheDir), local)
         javadoc.run(
-          List(knownSampleGoodFile),
+          List(PlainVirtualFile(knownSampleGoodFile)),
           Nil,
-          out,
+          PlainVirtualFileConverter.converter,
+          out.toPath,
           Nil,
           IncToolOptionsUtil.defaultIncToolOptions(),
           log,
@@ -64,9 +72,10 @@ class DocSpec extends UnitSpec {
         IO.withTemporaryDirectory { out =>
           val javadoc = Doc.cachedJavadoc("Foo", CacheStoreFactory(cacheDir), local)
           javadoc.run(
-            List(knownSampleBadFile),
+            List(PlainVirtualFile(knownSampleBadFile)),
             Nil,
-            out,
+            PlainVirtualFileConverter.converter,
+            out.toPath,
             Nil,
             IncToolOptionsUtil.defaultIncToolOptions(),
             log,
@@ -84,7 +93,7 @@ class DocSpec extends UnitSpec {
     )
   lazy val reporter = new ManagedLoggedReporter(10, log)
   def knownSampleGoodFile =
-    new File(classOf[JavaCompilerSpec].getResource("good.java").toURI)
+    Paths.get(classOf[JavaCompilerSpec].getResource("good.java").toURI)
   def knownSampleBadFile =
-    new File(classOf[JavaCompilerSpec].getResource("bad.java").toURI)
+    Paths.get(classOf[JavaCompilerSpec].getResource("bad.java").toURI)
 }

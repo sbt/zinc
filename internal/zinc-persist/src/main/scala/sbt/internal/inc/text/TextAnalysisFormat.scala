@@ -12,11 +12,12 @@
 package sbt.internal.inc.text
 
 import java.io._
+import java.nio.file.{ Path, Paths }
 
 import sbt.internal.inc._
 import sbt.util.InterfaceUtil
 import sbt.util.InterfaceUtil.{ jo2o, position, problem }
-import xsbti.{ T2, UseScope }
+import xsbti.{ T2, UseScope, VirtualFileRef }
 import xsbti.api._
 import xsbti.compile._
 import xsbti.compile.analysis.{ ReadWriteMappers, SourceInfo, Stamp }
@@ -81,8 +82,10 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
         case (a, b, c) => SourceInfos.makeInfo(a, b, c)
       }
     )
+  private implicit val pathFormat: Format[Path] =
+    wrap[Path, String](_.toString, s => Paths.get(s))
   private implicit def fileHashFormat: Format[FileHash] =
-    asProduct2((file: File, hash: Int) => FileHash.of(file, hash))(h => (h.file, h.hash))
+    asProduct2((file: Path, hash: Int) => FileHash.of(file, hash))(h => (h.file, h.hash))
   private implicit def seqFormat[T](implicit optionFormat: Format[T]): Format[Seq[T]] =
     viaSeq[Seq[T], T](x => x)
   private def t2[A1, A2](a1: A1, a2: A2): T2[A1, A2] = InterfaceUtil.t2(a1 -> a2)
@@ -158,18 +161,18 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
   }
 
   override def productsMapper = Mapper(
-    (str: String) => readMapper.mapProductFile(Mapper.forFile.read(str)),
-    (file: File) => Mapper.forFile.write(writeMapper.mapProductFile(file))
+    (str: String) => readMapper.mapProductFile(Mapper.forFileV.read(str)),
+    (file: VirtualFileRef) => Mapper.forFileV.write(writeMapper.mapProductFile(file))
   )
 
   override def sourcesMapper = Mapper(
-    (str: String) => readMapper.mapSourceFile(Mapper.forFile.read(str)),
-    (file: File) => Mapper.forFile.write(writeMapper.mapSourceFile(file))
+    (str: String) => readMapper.mapSourceFile(Mapper.forFileV.read(str)),
+    (file: VirtualFileRef) => Mapper.forFileV.write(writeMapper.mapSourceFile(file))
   )
 
   override def binariesMapper = Mapper(
-    (str: String) => readMapper.mapBinaryFile(Mapper.forFile.read(str)),
-    (file: File) => Mapper.forFile.write(writeMapper.mapBinaryFile(file))
+    (str: String) => readMapper.mapBinaryFile(Mapper.forFileV.read(str)),
+    (file: VirtualFileRef) => Mapper.forFileV.write(writeMapper.mapBinaryFile(file))
   )
 
   private[this] object StampsF {
@@ -179,19 +182,25 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
       val binaries = "binary stamps"
     }
 
-    final val productsStampsMapper = ContextAwareMapper[File, Stamp](
-      (f: File, str: String) => readMapper.mapProductStamp(f, Mapper.forStamp.read(f, str)),
-      (f: File, stamp: Stamp) => Mapper.forStamp.write(f, writeMapper.mapProductStamp(f, stamp))
+    final val productsStampsMapper = ContextAwareMapper[VirtualFileRef, Stamp](
+      (f: VirtualFileRef, str: String) =>
+        readMapper.mapProductStamp(f, Mapper.forStampV.read(f, str)),
+      (f: VirtualFileRef, stamp: Stamp) =>
+        Mapper.forStampV.write(f, writeMapper.mapProductStamp(f, stamp))
     )
 
-    final val sourcesStampsMapper = ContextAwareMapper[File, Stamp](
-      (f: File, str: String) => readMapper.mapSourceStamp(f, Mapper.forStamp.read(f, str)),
-      (f: File, stamp: Stamp) => Mapper.forStamp.write(f, writeMapper.mapSourceStamp(f, stamp))
+    final val sourcesStampsMapper = ContextAwareMapper[VirtualFileRef, Stamp](
+      (f: VirtualFileRef, str: String) =>
+        readMapper.mapSourceStamp(f, Mapper.forStampV.read(f, str)),
+      (f: VirtualFileRef, stamp: Stamp) =>
+        Mapper.forStampV.write(f, writeMapper.mapSourceStamp(f, stamp))
     )
 
-    final val binariesStampsMapper = ContextAwareMapper[File, Stamp](
-      (f: File, str: String) => readMapper.mapBinaryStamp(f, Mapper.forStamp.read(f, str)),
-      (f: File, stamp: Stamp) => Mapper.forStamp.write(f, writeMapper.mapBinaryStamp(f, stamp))
+    final val binariesStampsMapper = ContextAwareMapper[VirtualFileRef, Stamp](
+      (f: VirtualFileRef, str: String) =>
+        readMapper.mapBinaryStamp(f, Mapper.forStampV.read(f, str)),
+      (f: VirtualFileRef, stamp: Stamp) =>
+        Mapper.forStampV.write(f, writeMapper.mapBinaryStamp(f, stamp))
     )
 
     def write(out: Writer, stamps: Stamps): Unit = {
@@ -204,10 +213,19 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
         val pairsToWrite = m.map(kv => (kv._1, valueMapper.write(kv._1, m(kv._1))))
         writePairs(out)(header, pairsToWrite.toSeq, keyMapper.write, identity[String])
       }
+      def doWriteMapV(
+          header: String,
+          m: Map[VirtualFileRef, Stamp],
+          keyMapper: Mapper[VirtualFileRef],
+          valueMapper: ContextAwareMapper[VirtualFileRef, Stamp]
+      ) = {
+        val pairsToWrite = m.map(kv => (kv._1, valueMapper.write(kv._1, m(kv._1))))
+        writePairs(out)(header, pairsToWrite.toSeq, keyMapper.write, identity[String])
+      }
 
-      doWriteMap(Headers.products, stamps.products, productsMapper, productsStampsMapper)
-      doWriteMap(Headers.sources, stamps.sources, sourcesMapper, sourcesStampsMapper)
-      doWriteMap(Headers.binaries, stamps.binaries, binariesMapper, binariesStampsMapper)
+      doWriteMapV(Headers.products, stamps.products, productsMapper, productsStampsMapper)
+      doWriteMapV(Headers.sources, stamps.sources, sourcesMapper, sourcesStampsMapper)
+      doWriteMapV(Headers.binaries, stamps.libraries, binariesMapper, binariesStampsMapper)
     }
 
     def read(in: BufferedReader): Stamps = {
@@ -219,12 +237,20 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
       ): TreeMap[File, Stamp] = {
         TreeMap(readMappedPairs(in)(expectedHeader, keyMapper.read, valueMapper.read).toSeq: _*)
       }
+      def doReadMapV(
+          expectedHeader: String,
+          keyMapper: Mapper[VirtualFileRef],
+          valueMapper: ContextAwareMapper[VirtualFileRef, Stamp]
+      ): TreeMap[VirtualFileRef, Stamp] = {
+        import VirtualFileUtil._
+        TreeMap(readMappedPairs(in)(expectedHeader, keyMapper.read, valueMapper.read).toSeq: _*)
+      }
 
-      val products = doReadMap(Headers.products, productsMapper, productsStampsMapper)
-      val sources = doReadMap(Headers.sources, sourcesMapper, sourcesStampsMapper)
-      val binaries = doReadMap(Headers.binaries, binariesMapper, binariesStampsMapper)
+      val products = doReadMapV(Headers.products, productsMapper, productsStampsMapper)
+      val sources = doReadMapV(Headers.sources, sourcesMapper, sourcesStampsMapper)
+      val libraries = doReadMapV(Headers.binaries, binariesMapper, binariesStampsMapper)
 
-      Stamps(products, sources, binaries)
+      Stamps(products, sources, libraries)
     }
   }
 
@@ -322,6 +348,7 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
   }
 
   private[this] object SourceInfosF {
+    import VirtualFileUtil._
     object Headers {
       val infos = "source infos"
     }
@@ -341,6 +368,7 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
       SourceInfos.of(readMap(in)(Headers.infos, sourcesMapper.read, stringToSourceInfo))
   }
 
+  // Path is no serializable, so this is currently stubbed.
   private[this] object CompilationsF {
     object Headers {
       val compilations = "compilations"
@@ -350,11 +378,9 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
     val compilationToString = ObjectStringifier.objToString[Compilation] _
 
     def write(out: Writer, compilations: Compilations): Unit =
-      writeSeq(out)(Headers.compilations, compilations.allCompilations, compilationToString)
+      writeSeq(out)(Headers.compilations, Nil, compilationToString)
 
-    def read(in: BufferedReader): Compilations = Compilations.of(
-      readSeq[Compilation](in)(Headers.compilations, stringToCompilation)
-    )
+    def read(in: BufferedReader): Compilations = Compilations.of(Nil)
   }
 
   private[this] object MiniSetupF {
@@ -377,13 +403,13 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
     val fileHashToString = ObjectStringifier.objToString[FileHash] _
 
     final val sourceDirMapper = Mapper(
-      (str: String) => readMapper.mapSourceDir(Mapper.forFile.read(str)),
-      (file: File) => Mapper.forFile.write(writeMapper.mapSourceDir(file))
+      (str: String) => readMapper.mapSourceDir(Mapper.forPath.read(str)),
+      (file: Path) => Mapper.forPath.write(writeMapper.mapSourceDir(file))
     )
 
     final val outputDirMapper = Mapper(
-      (str: String) => readMapper.mapOutputDir(Mapper.forFile.read(str)),
-      (file: File) => Mapper.forFile.write(writeMapper.mapOutputDir(file))
+      (str: String) => readMapper.mapOutputDir(Mapper.forPath.read(str)),
+      (file: Path) => Mapper.forPath.write(writeMapper.mapOutputDir(file))
     )
 
     final val soptionsMapper = Mapper(
@@ -398,7 +424,7 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
 
     def write(out: Writer, setup0: MiniSetup): Unit = {
       val setup = writeMapper.mapMiniSetup(setup0)
-      val (mode, outputAsMap) = setup.output match {
+      val (mode, outputAsMap) = Analysis.dummyOutput match {
         case s: SingleOutput =>
           // just to be compatible with multipleOutputMode
           val ignored = s.getOutputDirectory
@@ -446,7 +472,7 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
             case `singleOutputMode` => CompileOutput(outputAsMap.values.head)
             case `multipleOutputMode` =>
               val groups = outputAsMap.iterator.map {
-                case (src: File, out: File) => CompileOutput.outputGroup(src, out)
+                case (src: Path, out: Path) => CompileOutput.outputGroup(src, out)
               }
               CompileOutput(groups.toArray)
             case str: String => throw new ReadException("Unrecognized output mode: " + str)
@@ -455,7 +481,7 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
       }
 
       val original = MiniSetup.of(
-        output,
+        output, // note: this is a dummy value
         MiniOptions.of(classpathHash.toArray, compileOptions.toArray, javacOptions.toArray),
         compilerVersion,
         xsbti.compile.CompileOrder.valueOf(compileOrder),

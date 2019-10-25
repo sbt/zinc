@@ -14,6 +14,7 @@ package xsbti;
 import xsbti.api.DependencyContext;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.EnumSet;
 
 public interface AnalysisCallback {
@@ -21,7 +22,8 @@ public interface AnalysisCallback {
      * Set the source file mapped to a concrete {@link AnalysisCallback}.
      * @param source Source file mapped to this instance of {@link AnalysisCallback}.
      */
-    void startSource(File source);
+    void startSource(VirtualFile source);
+    // startSource needs to be VirtualFile because it needs to read the stamp.
 
     /**
      * Indicate that the class <code>sourceClassName</code> depends on the
@@ -69,10 +71,10 @@ public interface AnalysisCallback {
      *
      * @see xsbti.api.DependencyContext for more information on the context.
      */
-    void binaryDependency(File onBinaryEntry,
+    void binaryDependency(Path onBinaryEntry,
                           String onBinaryClassName,
                           String fromClassName,
-                          File fromSourceFile,
+                          VirtualFileRef fromSourceFile,
                           DependencyContext context);
 
     /**
@@ -92,8 +94,8 @@ public interface AnalysisCallback {
      *                        section 13.1 of the Java Language Specification.
      * @param srcClassName Class name as defined in <code>source</code>.
      */
-    void generatedNonLocalClass(File source,
-                                File classFile,
+    void generatedNonLocalClass(VirtualFileRef source,
+                                Path classFile,
                                 String binaryClassName,
                                 String srcClassName);
 
@@ -105,7 +107,7 @@ public interface AnalysisCallback {
      * @param source File that produced <code>classFile</code>.
      * @param classFile File product of compilation of <code>source</code>.
      */
-    void generatedLocalClass(File source, File classFile);
+    void generatedLocalClass(VirtualFileRef source, Path classFile);
 
     /**
      * Register a public API entry coming from a given source file.
@@ -113,7 +115,7 @@ public interface AnalysisCallback {
      * @param sourceFile Source file where <code>classApi</code> comes from.
      * @param classApi The extracted public class API.
      */
-    void api(File sourceFile, xsbti.api.ClassLike classApi);
+    void api(VirtualFileRef sourceFile, xsbti.api.ClassLike classApi);
 
     /**
      * Register a class containing an entry point coming from a given source file.
@@ -127,7 +129,7 @@ public interface AnalysisCallback {
      * @param sourceFile Source file where <code>className</code> is defined.
      * @param className A class containing an entry point.
      */
-    void mainClass(File sourceFile, String className);
+    void mainClass(VirtualFileRef sourceFile, String className);
 
     /**
      * Register the use of a <code>name</code> from a given source class name.

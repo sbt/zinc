@@ -13,8 +13,9 @@ package sbt
 package internal
 package inc
 
-import java.io.File
+import java.nio.file.Path
 import sbt.internal.util.FeedbackProvidedException
+import xsbti.VirtualFile
 import xsbti.compile.{ ClasspathOptions, ScalaInstance => XScalaInstance }
 
 /**
@@ -43,9 +44,9 @@ class RawCompiler(val scalaInstance: XScalaInstance, cp: ClasspathOptions, log: 
    * @param options The auxiliary options to Scala compilers.
    */
   def apply(
-      sources: Seq[File],
-      classpath: Seq[File],
-      outputDirectory: File,
+      sources: Seq[VirtualFile],
+      classpath: Seq[VirtualFile],
+      outputDirectory: Path,
       options: Seq[String]
   ): Unit = {
 
@@ -62,7 +63,7 @@ class RawCompiler(val scalaInstance: XScalaInstance, cp: ClasspathOptions, log: 
     import scala.tools.nsc.Main.{ process => _, reporter => _ }
     val uniqueCompilerVersion = scalaInstance.actualVersion
     val compilerOut = Some(outputDirectory)
-    val arguments = compilerArguments(sources, classpath, compilerOut, options)
+    val arguments = compilerArguments.makeArguments(sources, classpath, compilerOut, options)
     val args = arguments.toArray
 
     log.debug(

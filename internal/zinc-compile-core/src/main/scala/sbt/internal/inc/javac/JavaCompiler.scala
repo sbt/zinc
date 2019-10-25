@@ -15,18 +15,16 @@ package internal
 package inc
 package javac
 
-import java.io.File
+import java.nio.file.Path
 
+import xsbti.VirtualFile
 import xsbti.compile.{
   ClasspathOptions,
   ClasspathOptionsUtil,
   JavaCompiler => XJavacompiler,
   JavaTools => XJavaTools,
   Javadoc => XJavadoc,
-  MultipleOutput,
-  Output,
-  ScalaInstance,
-  SingleOutput
+  ScalaInstance
 }
 
 /** Factory methods for getting a java toolchain. */
@@ -54,7 +52,7 @@ object JavaTools {
   def directOrFork(
       instance: ScalaInstance,
       options: ClasspathOptions,
-      javaHome: Option[File]
+      javaHome: Option[Path]
   ): XJavaTools = {
     val (javaCompiler, javaDoc) = javaHome match {
       case Some(_) =>
@@ -80,7 +78,7 @@ object JavaCompiler {
   }
 
   /** Returns a local compiler that will fork javac when needed. */
-  def fork(javaHome: Option[File] = None): XJavacompiler =
+  def fork(javaHome: Option[Path] = None): XJavacompiler =
     new ForkedJavaCompiler(javaHome)
 
   /**
@@ -88,27 +86,17 @@ object JavaCompiler {
    * passed to a [[JavaCompiler]] from the current configuration.
    */
   def commandArguments(
-      classpath: Seq[File],
-      output: Output,
+      classpath: Seq[VirtualFile],
       options: Seq[String],
       scalaInstance: ScalaInstance,
       cpOptions: ClasspathOptions
   ): Seq[String] = {
-    /* Oracle Javac doesn't support multiple output directories
-     * However, we use multiple output directories in case the
-     * user provides their own Javac compiler that can indeed
-     * make use of it (e.g. the Eclipse compiler does this via EJC).
-     * See https://github.com/sbt/zinc/issues/163. */
-    val target = output match {
-      case so: SingleOutput  => Some(so.getOutputDirectory)
-      case _: MultipleOutput => None
-    }
-    val augmentedClasspath =
+    val augmentedClasspath: Seq[VirtualFile] =
       if (!cpOptions.autoBoot) classpath
-      else classpath ++ scalaInstance.libraryJars
+      else classpath ++ scalaInstance.libraryJars.map(_.toPath).map(PlainVirtualFile(_))
     val javaCp = ClasspathOptionsUtil.javac(cpOptions.compiler)
     val compilerArgs = new CompilerArguments(scalaInstance, javaCp)
-    compilerArgs(Array[File](), augmentedClasspath, target, options)
+    compilerArgs.makeArguments(Nil, augmentedClasspath, options)
   }
 }
 
@@ -122,6 +110,6 @@ object Javadoc {
   }
 
   /** Returns a local compiler that will fork javac when needed. */
-  def fork(javaHome: Option[File] = None): XJavadoc =
+  def fork(javaHome: Option[Path] = None): XJavadoc =
     new ForkedJavadoc(javaHome)
 }

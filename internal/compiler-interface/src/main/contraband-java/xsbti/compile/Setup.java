@@ -7,21 +7,21 @@ package xsbti.compile;
 /** Configures incremental recompilation. */
 public final class Setup implements java.io.Serializable {
     
-    public static Setup create(xsbti.compile.PerClasspathEntryLookup _perClasspathEntryLookup, boolean _skip, java.io.File _cacheFile, xsbti.compile.GlobalsCache _cache, xsbti.compile.IncOptions _incrementalCompilerOptions, xsbti.Reporter _reporter, java.util.Optional<xsbti.compile.CompileProgress> _progress, xsbti.T2<String, String>[] _extra) {
+    public static Setup create(xsbti.compile.PerClasspathEntryLookup _perClasspathEntryLookup, boolean _skip, java.nio.file.Path _cacheFile, xsbti.compile.GlobalsCache _cache, xsbti.compile.IncOptions _incrementalCompilerOptions, xsbti.Reporter _reporter, java.util.Optional<xsbti.compile.CompileProgress> _progress, xsbti.T2<String, String>[] _extra) {
         return new Setup(_perClasspathEntryLookup, _skip, _cacheFile, _cache, _incrementalCompilerOptions, _reporter, _progress, _extra);
     }
-    public static Setup of(xsbti.compile.PerClasspathEntryLookup _perClasspathEntryLookup, boolean _skip, java.io.File _cacheFile, xsbti.compile.GlobalsCache _cache, xsbti.compile.IncOptions _incrementalCompilerOptions, xsbti.Reporter _reporter, java.util.Optional<xsbti.compile.CompileProgress> _progress, xsbti.T2<String, String>[] _extra) {
+    public static Setup of(xsbti.compile.PerClasspathEntryLookup _perClasspathEntryLookup, boolean _skip, java.nio.file.Path _cacheFile, xsbti.compile.GlobalsCache _cache, xsbti.compile.IncOptions _incrementalCompilerOptions, xsbti.Reporter _reporter, java.util.Optional<xsbti.compile.CompileProgress> _progress, xsbti.T2<String, String>[] _extra) {
         return new Setup(_perClasspathEntryLookup, _skip, _cacheFile, _cache, _incrementalCompilerOptions, _reporter, _progress, _extra);
     }
     private xsbti.compile.PerClasspathEntryLookup perClasspathEntryLookup;
     private boolean skip;
-    private java.io.File cacheFile;
+    private java.nio.file.Path cacheFile;
     private xsbti.compile.GlobalsCache cache;
     private xsbti.compile.IncOptions incrementalCompilerOptions;
     private xsbti.Reporter reporter;
     private java.util.Optional<xsbti.compile.CompileProgress> progress;
     private xsbti.T2<String, String>[] extra;
-    protected Setup(xsbti.compile.PerClasspathEntryLookup _perClasspathEntryLookup, boolean _skip, java.io.File _cacheFile, xsbti.compile.GlobalsCache _cache, xsbti.compile.IncOptions _incrementalCompilerOptions, xsbti.Reporter _reporter, java.util.Optional<xsbti.compile.CompileProgress> _progress, xsbti.T2<String, String>[] _extra) {
+    protected Setup(xsbti.compile.PerClasspathEntryLookup _perClasspathEntryLookup, boolean _skip, java.nio.file.Path _cacheFile, xsbti.compile.GlobalsCache _cache, xsbti.compile.IncOptions _incrementalCompilerOptions, xsbti.Reporter _reporter, java.util.Optional<xsbti.compile.CompileProgress> _progress, xsbti.T2<String, String>[] _extra) {
         super();
         perClasspathEntryLookup = _perClasspathEntryLookup;
         skip = _skip;
@@ -45,7 +45,7 @@ public final class Setup implements java.io.Serializable {
      * This file can be removed to force a full recompilation.
      * The file should be unique and not shared between compilations.
      */
-    public java.io.File cacheFile() {
+    public java.nio.file.Path cacheFile() {
         return this.cacheFile;
     }
     public xsbti.compile.GlobalsCache cache() {
@@ -71,7 +71,7 @@ public final class Setup implements java.io.Serializable {
     public Setup withSkip(boolean skip) {
         return new Setup(perClasspathEntryLookup, skip, cacheFile, cache, incrementalCompilerOptions, reporter, progress, extra);
     }
-    public Setup withCacheFile(java.io.File cacheFile) {
+    public Setup withCacheFile(java.nio.file.Path cacheFile) {
         return new Setup(perClasspathEntryLookup, skip, cacheFile, cache, incrementalCompilerOptions, reporter, progress, extra);
     }
     public Setup withCache(xsbti.compile.GlobalsCache cache) {

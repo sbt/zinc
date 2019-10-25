@@ -13,7 +13,7 @@ package sbt
 package internal
 package inc
 
-import java.io.{ File, FileInputStream }
+import java.nio.file.{ Files, Path, Paths }
 import java.net.URLClassLoader
 import java.util.jar.Manifest
 
@@ -21,7 +21,7 @@ import sbt.util.Logger
 import sbt.util.InterfaceUtil._
 import sbt.internal.inc.JavaInterfaceUtil.{ EnrichOption, EnrichOptional }
 import xsbt.api.Discovery
-import xsbti.{ Problem, Severity }
+import xsbti.{ FileConverter, Problem, Severity, VirtualFileRef, VirtualFile }
 import xsbti.compile.{
   AnalysisContents,
   ClasspathOptionsUtil,
@@ -42,7 +42,7 @@ import java.lang.reflect.Method
 import java.lang.reflect.Modifier.{ isPublic, isStatic }
 import java.util.{ Optional, Properties }
 
-import sbt.internal.inc.classpath.{ ClassLoaderCache, ClasspathUtilities, ClasspathFilter }
+import sbt.internal.inc.classpath.{ ClassLoaderCache, ClasspathUtil, ClasspathFilter }
 import sbt.internal.scripted.{ StatementHandler, TestFailed }
 import sbt.internal.util.ManagedLogger
 import sjsonnew.support.scalajson.unsafe.{ Converter, Parser => JsonParser }
@@ -53,14 +53,14 @@ import scala.collection.mutable
 final case class Project(
     name: String,
     dependsOn: Option[Vector[String]] = None,
-    in: Option[File] = None,
+    in: Option[Path] = None,
     scalaVersion: Option[String] = None
 )
 final case class Build(projects: Seq[Project])
 
 final case class IncInstance(si: xsbti.compile.ScalaInstance, cs: XCompilers)
 
-class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogger, compileToJar: Boolean)
+class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, compileToJar: Boolean)
     extends BridgeProviderSpecification
     with StatementHandler {
 
@@ -79,30 +79,54 @@ class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogger, co
     buildStructure.clear()
     ()
   }
+  val localBoot = Paths.get(sys.props("user.home")).resolve(".sbt").resolve("boot")
+  val javaHome = Paths.get(sys.props("java.home"))
+  val localCoursierCache = Vector(
+    Paths.get(sys.props("user.home")).resolve(".coursier").resolve("cache"),
+    Paths.get(sys.props("user.home")).resolve(".cache").resolve("coursier")
+  )
+  def rootPaths: Vector[Path] = Vector(directory, localBoot, javaHome) ++ localCoursierCache
+  val converter = new MappedFileConverter(rootPaths, true)
 
   val buildStructure: mutable.Map[String, ProjectStructure] = mutable.Map.empty
   def initBuildStructure(): Unit = {
     val build = initBuild
     build.projects.foreach { p =>
-      val in = p.in.getOrElse(directory / p.name)
+      val in: Path = p.in.getOrElse(directory / p.name)
       val version = p.scalaVersion.getOrElse(scala.util.Properties.versionNumberString)
       val deps = p.dependsOn.toVector.flatten
       val project =
-        ProjectStructure(p.name, deps, in, scriptedLog, lookupProject, version, compileToJar)
+        ProjectStructure(
+          p.name,
+          deps,
+          in,
+          converter,
+          scriptedLog,
+          lookupProject,
+          version,
+          compileToJar
+        )
       buildStructure(p.name) = project
     }
   }
 
   final val RootIdentifier = "root"
   def initBuild: Build = {
-    if ((directory / "build.json").exists) {
+    if (Files.exists(directory / "build.json")) {
       import sjsonnew._, BasicJsonProtocol._
+      implicit val pathFormat = IsoString.iso[Path](_.toString, Paths.get(_))
       implicit val projectFormat =
         caseClass(Project.apply _, Project.unapply _)("name", "dependsOn", "in", "scalaVersion")
       implicit val buildFormat = caseClass(Build.apply _, Build.unapply _)("projects")
       // Do not parseFromFile as it leaves file open, causing problems on Windows.
-      val channel = new FileInputStream(directory / "build.json").getChannel
-      val json = JsonParser.parseFromChannel(channel).get
+      val json = {
+        val channel = Files.newByteChannel(directory / "build.json")
+        try {
+          JsonParser.parseFromChannel(channel).get
+        } finally {
+          channel.close()
+        }
+      }
       Converter.fromJsonUnsafe[Build](json)
     } else Build(projects = Vector(Project(name = RootIdentifier).copy(in = Some(directory))))
   }
@@ -147,7 +171,7 @@ class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogger, co
   }
 
   private final val unit = (_: Seq[String]) => ()
-  def scalaCompiler(instance: xsbti.compile.ScalaInstance, bridgeJar: File): AnalyzingCompiler = {
+  def scalaCompiler(instance: xsbti.compile.ScalaInstance, bridgeJar: Path): AnalyzingCompiler = {
     val bridgeProvider = ZincUtil.constantBridgeProvider(instance, bridgeJar)
     val classpath = ClasspathOptionsUtil.boot
     new AnalyzingCompiler(instance, bridgeProvider, classpath, unit, IncHandler.classLoaderCache)
@@ -180,9 +204,9 @@ class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogger, co
         val analysis = p.compile(i)
         p.discoverMainClasses(Some(analysis.apis)) match {
           case Seq(mainClassName) =>
-            val classpath: Array[File] =
-              ((i.si.allJars :+ p.classesDir) ++ p.outputJar).map(_.getAbsoluteFile)
-            val loader = ClasspathUtilities.makeLoader(classpath, i.si, directory)
+            val classpath: Array[Path] =
+              ((i.si.allJars.map(_.toPath) :+ p.classesDir) ++ p.outputJar).map(_.toAbsolutePath)
+            val loader = ClasspathUtil.makeLoader(classpath, i.si, directory)
             try {
               val main = p.getMainMethod(mainClassName, loader)
               p.invokeMain(loader, main, params)
@@ -233,38 +257,43 @@ class IncHandler(directory: File, cacheDir: File, scriptedLog: ManagedLogger, co
 case class ProjectStructure(
     name: String,
     dependsOn: Vector[String],
-    baseDirectory: File,
+    baseDirectory: Path,
+    converter: FileConverter,
     scriptedLog: ManagedLogger,
     lookupProject: String => ProjectStructure,
     scalaVersion: String,
-    compileToJar: Boolean
+    compileToJar: Boolean,
 ) extends BridgeProviderSpecification {
 
   val compiler = new IncrementalCompilerImpl
   val maxErrors = 100
   class PerClasspathEntryLookupImpl(
-      am: File => Option[CompileAnalysis],
-      definesClassLookup: File => DefinesClass
+      am: VirtualFile => Option[CompileAnalysis],
+      definesClassLookup: VirtualFile => DefinesClass
   ) extends PerClasspathEntryLookup {
-    override def analysis(classpathEntry: File): Optional[CompileAnalysis] =
+    override def analysis(classpathEntry: VirtualFile): Optional[CompileAnalysis] =
       am(classpathEntry).toOptional
-    override def definesClass(classpathEntry: File): DefinesClass =
+    override def definesClass(classpathEntry: VirtualFile): DefinesClass =
       definesClassLookup(classpathEntry)
   }
   val targetDir = baseDirectory / "target"
   val classesDir = targetDir / "classes"
   val outputJar = if (compileToJar) Some(classesDir / "output.jar") else None
-  val generatedClassFiles = classesDir ** "*.class"
+  val output = outputJar.getOrElse(classesDir)
+  val generatedClassFiles = classesDir.toFile ** "*.class"
   val scalaSourceDirectory = baseDirectory / "src" / "main" / "scala"
   val javaSourceDirectory = baseDirectory / "src" / "main" / "java"
-  def scalaSources: List[File] =
-    (scalaSourceDirectory ** "*.scala").get.toList ++
-      (baseDirectory * "*.scala").get.toList
-  def javaSources: List[File] =
-    (javaSourceDirectory ** "*.java").get.toList ++
-      (baseDirectory * "*.java").get.toList
+  def scalaSources: List[Path] =
+    ((scalaSourceDirectory.toFile ** "*.scala").get.toList ++
+      (baseDirectory.toFile * "*.scala").get.toList)
+      .map(_.toPath)
+  def javaSources: List[Path] =
+    ((javaSourceDirectory.toFile ** "*.java").get.toList ++
+      (baseDirectory.toFile * "*.java").get.toList)
+      .map(_.toPath)
+  val stamper = Stamps.timeWrapLibraryStamps(converter)
   val cacheFile = baseDirectory / "target" / "inc_compile.zip"
-  val fileStore = FileAnalysisStore.binary(cacheFile)
+  val fileStore = FileAnalysisStore.binary(cacheFile.toFile)
   val cachedStore = AnalysisStore.cached(fileStore)
   def prev(useCachedAnalysis: Boolean = true) = {
     val store = if (useCachedAnalysis) cachedStore else fileStore
@@ -274,21 +303,23 @@ case class ProjectStructure(
       case _ => compiler.emptyPreviousResult
     }
   }
-  def unmanagedJars: List[File] = (baseDirectory / "lib" ** "*.jar").get.toList
-  def lookupAnalysis: File => Option[CompileAnalysis] = {
-    val f0: PartialFunction[File, Option[CompileAnalysis]] = {
-      case x if x.getAbsoluteFile == classesDir.getAbsoluteFile => prev().analysis.toOption
+  def unmanagedJars: List[Path] =
+    ((baseDirectory / "lib").toFile ** "*.jar").get.toList.map(_.toPath)
+  def lookupAnalysis: VirtualFile => Option[CompileAnalysis] = {
+    val f0: PartialFunction[VirtualFile, Option[CompileAnalysis]] = {
+      case x if converter.toPath(x).toAbsolutePath == classesDir.toAbsolutePath =>
+        prev().analysis.toOption
     }
     val f1 = dependsOnRef.foldLeft(f0) { (acc, dep) =>
       acc orElse {
-        case x if x.getAbsoluteFile == dep.classesDir.getAbsoluteFile =>
+        case x if converter.toPath(x).toAbsolutePath == dep.classesDir.toAbsolutePath =>
           dep.prev().analysis.toOption
       }
     }
     f1 orElse { case _ => None }
   }
   def dependsOnRef: Vector[ProjectStructure] = dependsOn map { lookupProject(_) }
-  def internalClasspath: Vector[File] = dependsOnRef flatMap { proj =>
+  def internalClasspath: Vector[Path] = dependsOnRef flatMap { proj =>
     Vector(proj.classesDir) ++ proj.outputJar
   }
 
@@ -304,7 +335,7 @@ case class ProjectStructure(
       case _ => ()
     }
 
-  def clean(): Unit = IO.delete(classesDir)
+  def clean(): Unit = IO.delete(classesDir.toFile)
 
   def checkNumberOfCompilerIterations(i: IncInstance, expected: Int): Unit = {
     val analysis = compile(i)
@@ -328,7 +359,8 @@ case class ProjectStructure(
     def recompiledClassesInIteration(iteration: Int, classNames: Set[String]) = {
       assert(
         recompiledClasses(iteration) == classNames,
-        "%s != %s".format(recompiledClasses(iteration), classNames)
+        s"""${recompiledClasses(iteration)} != $classNames
+           |allCompilations = ${allCompilations.mkString("\n  ")}""".stripMargin
       )
     }
 
@@ -339,10 +371,13 @@ case class ProjectStructure(
 
   def checkClasses(i: IncInstance, src: String, expected: List[String]): Unit = {
     val analysis = compile(i)
-    def classes(src: String): Set[String] = analysis.relations.classNames(baseDirectory / src)
+    def classes(src: String): Set[String] =
+      analysis.relations.classNames(converter.toVirtualFile(baseDirectory / src))
     def assertClasses(expected: Set[String], actual: Set[String]) =
-      assert(expected == actual, s"Expected $expected classes, got $actual")
-
+      assert(
+        expected == actual,
+        s"Expected $expected classes, got $actual \n\n" + analysis.relations
+      )
     assertClasses(expected.toSet, classes(src))
     ()
   }
@@ -350,9 +385,12 @@ case class ProjectStructure(
   def checkMainClasses(i: IncInstance, src: String, expected: List[String]): Unit = {
     val analysis = compile(i)
     def mainClasses(src: String): Set[String] =
-      analysis.infos.get(baseDirectory / src).getMainClasses.toSet
+      analysis.infos.get(converter.toVirtualFile(baseDirectory / src)).getMainClasses.toSet
     def assertClasses(expected: Set[String], actual: Set[String]) =
-      assert(expected == actual, s"Expected $expected classes, got $actual")
+      assert(
+        expected == actual,
+        s"Expected $expected classes, got $actual\n\n" + analysis.infos.allInfos
+      )
 
     assertClasses(expected.toSet, mainClasses(src))
     ()
@@ -361,19 +399,20 @@ case class ProjectStructure(
   def checkProducts(i: IncInstance, src: String, expected: List[String]): Unit = {
     val analysis = compile(i)
 
-    def isWindows: Boolean = sys.props("os.name").toLowerCase.startsWith("win")
-    def relativeClassDir(f: File): File = f.relativeTo(classesDir) getOrElse f
-    def normalizePath(path: String): String = {
-      if (isWindows) path.replace('\\', '/') else path
-    }
+    // def isWindows: Boolean = sys.props("os.name").toLowerCase.startsWith("win")
+    // def relativeClassDir(f: File): File = f.relativeTo(classesDir) getOrElse f
+    // def normalizePath(path: String): String = {
+    //   if (isWindows) path.replace('\\', '/') else path
+    // }
     def products(srcFile: String): Set[String] = {
-      val productFiles = analysis.relations.products(baseDirectory / srcFile)
-      productFiles.map { file =>
-        if (JarUtils.isClassInJar(file)) {
-          JarUtils.ClassInJar.fromFile(file).toClassFilePath
-        } else {
-          normalizePath(relativeClassDir(file).getPath)
-        }
+      val productFiles = analysis.relations.products(converter.toVirtualFile(baseDirectory / src))
+      productFiles.map { file: VirtualFileRef =>
+        // if (JarUtils.isClassInJar(file)) {
+        //   JarUtils.ClassInJar.fromPath(output.toPath).toClassFilePath
+        // } else {
+        //   normalizePath(relativeClassDir(file).getPath)
+        // }
+        file.id
       }
     }
     def assertClasses(expected: Set[String], actual: Set[String]) =
@@ -384,12 +423,18 @@ case class ProjectStructure(
   }
 
   def checkNoGeneratedClassFiles(): Unit = {
-    val allPlainClassFiles = generatedClassFiles.get.map(_.toString)
-    val allClassesInJar = outputJar.toSeq.filter(_.exists()).flatMap(JarUtils.listClassFiles)
-    if (allPlainClassFiles.nonEmpty || allClassesInJar.nonEmpty) {
-      val allClassFiles = allPlainClassFiles ++ allClassesInJar
-      sys.error(s"Classes existed:\n\t${allClassFiles.mkString("\n\t")}")
-    }
+    val allPlainClassFiles = generatedClassFiles.get.toList.map(_.toString)
+    val allClassesInJar: List[String] = outputJar.toList
+      .filter(Files.exists(_))
+      .flatMap(p => JarUtils.listClassFiles(p.toFile))
+    if (allPlainClassFiles.nonEmpty || allClassesInJar.nonEmpty)
+      sys.error(
+        s"""classes exists: allPlainClassFiles = ${allPlainClassFiles
+             .mkString("\n * ", "\n * ", "")}
+                   |
+                   |allClassesInJar = $allClassesInJar""".stripMargin
+      )
+    else ()
   }
 
   def checkDependencies(i: IncInstance, className: String, expected: List[String]): Unit = {
@@ -408,11 +453,12 @@ case class ProjectStructure(
     }
     import i._
     val sources = scalaSources ++ javaSources
+    val vs = sources.toList.map(converter.toVirtualFile)
     val lookup = new PerClasspathEntryLookupImpl(lookupAnalysis, Locate.definesClass)
     val transactional: Optional[xsbti.compile.ClassFileManagerType] =
       Optional.of(
         xsbti.compile.TransactionalManagerType
-          .of(targetDir / "classes.bak", sbt.util.Logger.Null)
+          .of((targetDir / "classes.bak").toFile, sbt.util.Logger.Null)
       )
     // We specify the class file manager explicitly even though it's noew possible
     // to specify it in the incremental option property file (this is the default for sbt)
@@ -439,11 +485,12 @@ case class ProjectStructure(
       extra
     )
 
-    val output = outputJar.getOrElse(classesDir)
-    val classpath = (i.si.allJars.toList ++ (unmanagedJars :+ output) ++ internalClasspath).toArray
+    val classpath: Seq[Path] =
+      (i.si.allJars.toList.map(_.toPath) ++ (unmanagedJars :+ output) ++ internalClasspath)
+    val cp = classpath.map(converter.toVirtualFile)
     val in = compiler.inputs(
-      classpath,
-      sources.toArray,
+      cp.toArray,
+      vs.toArray,
       output,
       scalacOptions,
       Array(),
@@ -453,7 +500,9 @@ case class ProjectStructure(
       cs,
       setup,
       previousResult,
-      Optional.empty()
+      Optional.empty(),
+      converter,
+      stamper
     )
     val result = compiler.compile(in, scriptedLog)
     val analysis = result.analysis match { case a: Analysis => a }
@@ -467,18 +516,18 @@ case class ProjectStructure(
     val targetJar = targetDir / s"$name.jar"
     outputJar match {
       case Some(currentJar) =>
-        IO.copy(Seq(currentJar -> targetJar))
+        IO.copy(Seq(currentJar.toFile -> targetJar.toFile))
         ()
       case None =>
         val manifest = new Manifest
         val sources =
-          (classesDir ** -DirectoryFilter).get flatMap { x =>
-            IO.relativize(classesDir, x) match {
+          (classesDir.toFile ** -DirectoryFilter).get flatMap { x =>
+            IO.relativize(classesDir.toFile, x) match {
               case Some(path) => List((x, path))
               case _          => Nil
             }
           }
-        IO.jar(sources, targetJar, manifest, Some(0L))
+        IO.jar(sources, targetJar.toFile, manifest, Some(0L))
     }
   }
 
@@ -534,10 +583,15 @@ case class ProjectStructure(
     ()
   }
 
-  def loadIncProperties(src: File): Properties = {
-    if (src.exists()) {
+  def loadIncProperties(src: Path): Properties = {
+    if (Files.exists(src)) {
       val properties = new Properties()
-      properties.load(new FileInputStream(src))
+      val stream = Files.newInputStream(src)
+      try {
+        properties.load(stream)
+      } finally {
+        stream.close()
+      }
       properties
     } else new Properties()
   }
@@ -572,7 +626,7 @@ case class ProjectStructure(
   def checkMessages(expected: Int, severity: Severity): Unit = {
     val messages = getProblems() filter (_.severity == severity)
     assert(
-      messages.length == expected,
+      messages.toList.length == expected,
       s"""Expected $expected messages with severity $severity but ${messages.length} found:
                                            |${messages mkString "\n"}""".stripMargin
     )
@@ -597,7 +651,7 @@ case class ProjectStructure(
 }
 
 object IncHandler {
-  type Cached = (File, xsbti.compile.ScalaInstance)
+  type Cached = (Path, xsbti.compile.ScalaInstance)
   private[this] final val scriptedCompilerCache = new mutable.WeakHashMap[String, Cached]()
   def getCompilerCacheFor(scalaVersion: String): Option[Cached] =
     synchronized(scriptedCompilerCache.get(scalaVersion))

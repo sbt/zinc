@@ -13,7 +13,7 @@ package sbt
 package internal
 package inc
 
-import java.io.File
+import java.nio.file.Path
 
 import xsbti.T2
 import xsbti.compile.{
@@ -41,18 +41,14 @@ object MiniSetupUtil {
 
   /* Define first because `Equiv[CompileOrder.value]` dominates `Equiv[MiniSetup]`. */
   implicit def equivCompileSetup(equivOpts: Equiv[MiniOptions])(
-      implicit equivOutput: Equiv[APIOutput],
-      equivComp: Equiv[String]
+      implicit equivComp: Equiv[String]
   ): Equiv[MiniSetup] = {
     new Equiv[MiniSetup] {
       def equiv(a: MiniSetup, b: MiniSetup) = {
-        def sameOutput = equivOutput.equiv(a.output, b.output)
         def sameOptions = equivOpts.equiv(a.options, b.options)
         def sameCompiler = equivComp.equiv(a.compilerVersion, b.compilerVersion)
         def sameOrder = a.order == b.order
         def sameExtra = equivPairs.equiv(a.extra, b.extra)
-
-        sameOutput &&
         sameOptions &&
         sameCompiler &&
         sameOrder &&
@@ -79,9 +75,9 @@ object MiniSetupUtil {
     }
   }
 
-  implicit val equivFile: Equiv[File] = {
-    new Equiv[File] {
-      def equiv(a: File, b: File) = a.getAbsoluteFile == b.getAbsoluteFile
+  implicit val equivFile: Equiv[Path] = {
+    new Equiv[Path] {
+      def equiv(a: Path, b: Path) = a.toAbsolutePath == b.toAbsolutePath
     }
   }
 

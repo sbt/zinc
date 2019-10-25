@@ -13,6 +13,7 @@ package sbt.internal.inc.text
 
 import java.io.{ BufferedReader, File, Writer }
 import java.nio.file.Paths
+import xsbti.VirtualFileRef
 
 // Very simple timer for timing repeated code sections.
 // TODO: Temporary. Remove once we've milked all available performance gains.
@@ -64,6 +65,12 @@ trait FormatCommons {
     } catch {
       case e: Exception => sys.error(e.getMessage + ": " + s)
     }
+  }
+  val fileVToString: VirtualFileRef => String = { f: VirtualFileRef =>
+    f.id
+  }
+  val stringToFileV: String => VirtualFileRef = { s: String =>
+    VirtualFileRef.of(s)
   }
 
   protected def writeHeader(out: Writer, header: String): Unit = out.write(header + ":\n")

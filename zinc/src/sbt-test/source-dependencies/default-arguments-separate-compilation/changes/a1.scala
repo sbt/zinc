@@ -7,5 +7,7 @@ trait Foo {
 object Foo {
   class Bar(
       a: Int = 0,
-  )
+  ) {
+    override def toString(): String = s"Bar($a)"
+  }
 }

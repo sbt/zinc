@@ -43,16 +43,16 @@ abstract class IndexBasedZipOps extends CreateZip {
    * an argument is only used to initialize the cache and is later ignored.
    * This is enough as stamps are only read from the output jar.
    */
-  final class CachedStamps(zip: File) {
+  final class CachedStamps(zip: Path) {
     private val cachedNameToTimestamp: Map[String, Long] = initializeCache(zip)
 
     def getStamp(entry: String): Long = {
       cachedNameToTimestamp.getOrElse(entry, 0)
     }
 
-    private def initializeCache(zipFile: File): Map[String, Long] = {
-      if (zipFile.exists()) {
-        val centralDir = readCentralDir(zipFile.toPath)
+    private def initializeCache(zipFile: Path): Map[String, Long] = {
+      if (Files.exists(zipFile)) {
+        val centralDir = readCentralDir(zipFile)
         val headers = getHeaders(centralDir)
         headers.map(header => getFileName(header) -> getLastModifiedTime(header))(
           collection.breakOut

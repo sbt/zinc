@@ -6,7 +6,9 @@ trait Foo {
 
 object Foo {
   class Bar(
-      a: Int = 0,
-      b: Int = 0,
-  )
+      a: Int = 1,
+      b: Int = 1,
+  ) {
+    override def toString(): String = s"Bar($a, $b)"
+  }
 }

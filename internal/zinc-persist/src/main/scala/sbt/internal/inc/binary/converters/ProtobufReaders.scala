@@ -11,13 +11,12 @@
 
 package sbt.internal.inc.binary.converters
 
-import java.io.File
-
+import java.nio.file.{ Path, Paths }
 import sbt.internal.inc.Relations.ClassDependencies
 import sbt.internal.inc._
 import sbt.internal.inc.binary.converters.ProtobufDefaults.EmptyLazyCompanions
 import sbt.util.InterfaceUtil
-import xsbti.{ Position, Problem, Severity, T2, UseScope }
+import xsbti.{ Position, Problem, Severity, T2, UseScope, VirtualFileRef }
 import xsbti.compile.{ CompileOrder, FileHash, MiniOptions, MiniSetup, Output, OutputGroup }
 import xsbti.compile.analysis.{ Compilation, ReadMapper, SourceInfo, Stamp }
 import sbt.internal.inc.binary.converters.ProtobufDefaults.Feedback.StringToException
@@ -29,14 +28,16 @@ import xsbti.api._
 import ProtobufDefaults.{ MissingString, MissingInt }
 
 final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) {
-  def fromPathString(path: String): File = {
-    java.nio.file.Paths.get(path).toFile
+  def fromPathString(path: String): Path = Paths.get(path)
+  def fromPathStringV(path: String): VirtualFileRef = {
+    VirtualFileRef.of(path)
   }
 
   def fromStampType(stampType: schema.Stamps.StampType): Stamp = {
     import sbt.internal.inc.{ EmptyStamp, LastModified, Hash }
     stampType.`type` match {
       case schema.Stamps.StampType.Type.Empty            => EmptyStamp
+      case schema.Stamps.StampType.Type.FarmHash(h)      => FarmHash.fromLong(h.hash)
       case schema.Stamps.StampType.Type.Hash(h)          => Hash.unsafeFromString(h.hash) // fair assumption
       case schema.Stamps.StampType.Type.LastModified(lm) => new LastModified(lm.millis)
     }
@@ -44,10 +45,12 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) 
 
   def fromStamps(stamps: schema.Stamps): Stamps = {
     // Note that boilerplate here is inteded, abstraction is expensive
-    def fromBinarySchemaMap(stamps: Map[String, schema.Stamps.StampType]): Map[File, Stamp] = {
+    def fromBinarySchemaMap(
+        stamps: Map[String, schema.Stamps.StampType]
+    ): Map[VirtualFileRef, Stamp] = {
       stamps.map {
         case (path, schemaStamp) =>
-          val file = fromPathString(path)
+          val file = fromPathStringV(path)
           val newFile = mapper.mapBinaryFile(file)
           val stamp = fromStampType(schemaStamp)
           val newStamp = mapper.mapBinaryStamp(newFile, stamp)
@@ -55,10 +58,12 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) 
       }
     }
 
-    def fromSourceSchemaMap(stamps: Map[String, schema.Stamps.StampType]): Map[File, Stamp] = {
+    def fromSourceSchemaMap(
+        stamps: Map[String, schema.Stamps.StampType]
+    ): Map[VirtualFileRef, Stamp] = {
       stamps.map {
         case (path, schemaStamp) =>
-          val file = fromPathString(path)
+          val file = fromPathStringV(path)
           val newFile = mapper.mapSourceFile(file)
           val stamp = fromStampType(schemaStamp)
           val newStamp = mapper.mapSourceStamp(newFile, stamp)
@@ -66,10 +71,12 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) 
       }
     }
 
-    def fromProductSchemaMap(stamps: Map[String, schema.Stamps.StampType]): Map[File, Stamp] = {
+    def fromProductSchemaMap(
+        stamps: Map[String, schema.Stamps.StampType]
+    ): Map[VirtualFileRef, Stamp] = {
       stamps.map {
         case (path, schemaStamp) =>
-          val file = fromPathString(path)
+          val file = fromPathStringV(path)
           val newFile = mapper.mapProductFile(file)
           val stamp = fromStampType(schemaStamp)
           val newStamp = mapper.mapProductStamp(newFile, stamp)
@@ -77,13 +84,13 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) 
       }
     }
 
-    val binaries = fromBinarySchemaMap(stamps.binaryStamps)
+    val libraries = fromBinarySchemaMap(stamps.binaryStamps)
     val sources = fromSourceSchemaMap(stamps.sourceStamps)
     val products = fromProductSchemaMap(stamps.productStamps)
     Stamps(
-      binaries = binaries,
+      products = products,
       sources = sources,
-      products = products
+      libraries = libraries,
     )
   }
 
@@ -129,7 +136,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) 
       pointer0 = fromInt(position.pointer),
       pointerSpace0 = fromString(position.pointerSpace),
       sourcePath0 = fromString(position.sourcePath),
-      sourceFile0 = fromString(position.sourceFilepath).map(fromPathString),
+      sourceFile0 = fromString(position.sourceFilepath).map(fromPathString).map(_.toFile),
       startOffset0 = fromInt(position.startOffset),
       endOffset0 = fromInt(position.endOffset),
       startLine0 = fromInt(position.startLine),
@@ -179,7 +186,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) 
   def fromSourceInfos(sourceInfos0: schema.SourceInfos): SourceInfos = {
     val sourceInfos = sourceInfos0.sourceInfos.iterator.map {
       case (path, value) =>
-        val file = mapper.mapSourceFile(fromPathString(path))
+        val file = mapper.mapSourceFile(fromPathStringV(path))
         val sourceInfo = fromSourceInfo(value)
         file -> sourceInfo
     }
@@ -238,7 +245,14 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) 
     val storeApis = miniSetup.storeApis
     val extra = miniSetup.extra.map(fromStringTuple).toArray
     val original =
-      MiniSetup.of(output, miniOptions, compilerVersion, compileOrder, storeApis, extra)
+      MiniSetup.of(
+        output, // note this is a dummy value
+        miniOptions,
+        compilerVersion,
+        compileOrder,
+        storeApis,
+        extra
+      )
     mapper.mapMiniSetup(original)
   }
 
@@ -252,7 +266,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) 
       option.fold(errorMessage.!!)(from)
   }
 
-  def fromPath(path: schema.Path): Path = {
+  def fromPath(path: schema.Path): xsbti.api.Path = {
     def fromPathComponent(pathComponent: schema.Path.PathComponent): PathComponent = {
       import ReadersFeedback.ExpectedPathInSuper
       import schema.Path.{ PathComponent => SchemaPath }
@@ -267,7 +281,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) 
       }
     }
     val components = path.components.toZincArray(fromPathComponent)
-    Path.of(components)
+    xsbti.api.Path.of(components)
   }
 
   def fromAnnotation(annotation: schema.Annotation): Annotation = {
@@ -566,6 +580,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) 
 
   private final val stringId = identity[String] _
   private final val stringToFile = (path: String) => fromPathString(path)
+  private final val stringToVFile = (path: String) => fromPathStringV(path)
   def fromRelations(relations: schema.Relations): Relations = {
     def fromMap[K, V](
         map: Map[String, schema.Values],
@@ -599,14 +614,14 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) 
 
     def expected(msg: String) = ReadersFeedback.expected(msg, Classes.Relations)
 
-    val srcProd = fromMap(relations.srcProd, stringToFile, stringToFile)
-    val libraryDep = fromMap(relations.libraryDep, stringToFile, stringToFile)
-    val libraryClassName = fromMap(relations.libraryClassName, stringToFile, stringId)
+    val srcProd = fromMap(relations.srcProd, stringToVFile, stringToVFile)
+    val libraryDep = fromMap(relations.libraryDep, stringToVFile, stringToVFile)
+    val libraryClassName = fromMap(relations.libraryClassName, stringToVFile, stringId)
     val memberRef = relations.memberRef.read(fromClassDependencies, expected("member refs"))
     val inheritance = relations.inheritance.read(fromClassDependencies, expected("inheritance"))
     val localInheritance =
       relations.localInheritance.read(fromClassDependencies, expected("local inheritance"))
-    val classes = fromMap(relations.classes, stringToFile, stringId)
+    val classes = fromMap(relations.classes, stringToVFile, stringId)
     val productClassName = fromMap(relations.productClassName, stringId, stringId)
     val names = fromUsedNamesMap(relations.names)
     val internal = InternalDependencies(

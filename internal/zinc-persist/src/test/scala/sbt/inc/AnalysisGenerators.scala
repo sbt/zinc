@@ -20,7 +20,7 @@ import Arbitrary._
 import Gen._
 import sbt.internal.util.Relation
 import xsbti.api._
-import xsbti.UseScope
+import xsbti.{ UseScope, VirtualFile, VirtualFileRef }
 import xsbti.api.DependencyContext._
 import xsbti.compile.analysis.{ Stamp => AStamp }
 
@@ -66,31 +66,44 @@ trait AnalysisGenerators {
     } yield (c :: cs).mkString
 
   protected def RootFilePath: String = "/temp"
+  protected val rootPaths = List(new File(s"$RootFilePath/").toPath())
+  val converter = new MappedFileConverter(rootPaths, false)
   def genFile: Gen[File] = {
     for {
       n <- choose(2, maxPathLen) // Paths have at least 2 segments.
       path <- listOfN(n, genFilePathSegment)
     } yield new File(s"$RootFilePath/" + path.mkString("/"))
   }
+  def genFileVRef: Gen[VirtualFileRef] =
+    genFile map { x =>
+      VirtualFileRef.of(x.toPath.toString)
+    }
+  def genFileV: Gen[VirtualFile] =
+    genFile map { x =>
+      converter.toVirtualFile(x.toPath)
+    }
 
   def genStamp: Gen[AStamp] = const(EmptyStamp)
 
   def zipMap[A, B](a: Seq[A], b: Seq[B]): Map[A, B] = a.zip(b).toMap
 
   def genStamps(rel: Relations): Gen[Stamps] = {
-    def zipTreeMap[B](a: Seq[File], b: Seq[B]): Map[File, B] = TreeMap(a.zip(b): _*)
+    import VirtualFileUtil._
+    def zipTreeMapV[B](a: Seq[VirtualFileRef], b: Seq[B]): Map[VirtualFileRef, B] =
+      TreeMap(a.zip(b): _*)
+
     val prod = rel.allProducts.toList
     val src = rel.allSources.toList
-    val bin = rel.allLibraryDeps.toList
+    val lib = rel.allLibraryDeps.toList
 
     for {
       prodStamps <- listOfN(prod.length, genStamp)
       srcStamps <- listOfN(src.length, genStamp)
-      binStamps <- listOfN(bin.length, genStamp)
+      libStamps <- listOfN(lib.length, genStamp)
     } yield Stamps(
-      zipTreeMap(prod, prodStamps),
-      zipTreeMap(src, srcStamps),
-      zipTreeMap(bin, binStamps)
+      zipTreeMapV(prod, prodStamps),
+      zipTreeMapV(src, srcStamps),
+      zipTreeMapV(lib, libStamps)
     )
   }
 
@@ -160,14 +173,16 @@ trait AnalysisGenerators {
     } yield APIs(zipMap(internal, internalSources), zipMap(external, externalSources))
   }
 
-  def genRelation[T](g: Gen[T])(srcs: List[File]): Gen[Relation[File, T]] =
+  val genStringRelation = genVirtualFileRefRelation[String](unique(identifier)) _
+
+  def genVirtualFileRefRelation[T](
+      g: Gen[T]
+  )(srcs: List[VirtualFileRef]): Gen[Relation[VirtualFileRef, T]] =
     for {
       n <- choose(1, maxRelatives)
       entries <- listOfN(srcs.length, containerOfN[Set, T](n, g))
     } yield Relation.reconstruct(zipMap(srcs, entries))
-
-  val genFileRelation = genRelation[File](unique(genFile)) _
-  val genStringRelation = genRelation[String](unique(identifier)) _
+  val genFileVORefRelation = genVirtualFileRefRelation[VirtualFileRef](unique(genFileVRef)) _
 
   def genStringStringRelation(num: Int): Gen[Relation[String, String]] =
     for {
@@ -216,11 +231,11 @@ trait AnalysisGenerators {
   def genRelationsNameHashing: Gen[Relations] =
     for {
       numSrcs <- choose(0, maxSources)
-      srcs <- listOfN(numSrcs, genFile)
+      srcs <- listOfN(numSrcs, genFileVRef)
       productClassName <- genStringStringRelation(numSrcs)
-      libraryClassName <- genStringRelation(srcs)
-      srcProd <- genFileRelation(srcs)
-      libraryDep <- genFileRelation(srcs)
+      srcProd <- genFileVORefRelation(srcs)
+      libraryDep <- genFileVORefRelation(srcs)
+      libraryClassName <- genStringRelation(libraryDep._2s.toList)
       classNames = productClassName._1s.toList
       memberRef <- genRClassDependencies(classNames)
       inheritance <- genSubRClassDependencies(memberRef)

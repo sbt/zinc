@@ -104,13 +104,23 @@ object DiagnosticsReporter {
         }
 
       val source: Option[JavaFileObject] = Option(d.getSource)
-      val sourcePath: Option[String] = source.map { obj =>
-        val uri = obj.toUri
-        if (uri.isAbsolute)
-          IO.urlAsFile(uri.toURL).map(_.getAbsolutePath).getOrElse(uri.toString)
-        else
-          uri.toString
-      }
+
+      // see also LocalJava.scala
+      val sourcePath: Option[String] =
+        source match {
+          case Some(obj) =>
+            val uri = obj.toUri
+            if (uri.getScheme == "file")
+              Some(
+                IO.urlAsFile(uri.toURL)
+                  .map(_.getAbsolutePath)
+                  .getOrElse(uri.toString)
+              )
+            else if (uri.getScheme == "vf")
+              Some(LocalJava.fromUri(uri).id)
+            else Some(uri.toString)
+          case _ => None
+        }
       val line: Optional[Integer] = o2jo(checkNoPos(d.getLineNumber) map (_.toInt))
       val offset: Optional[Integer] = o2jo(checkNoPos(d.getPosition) map (_.toInt))
       val startOffset: Optional[Integer] = o2jo(checkNoPos(d.getStartPosition) map (_.toInt))
