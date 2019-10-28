@@ -15,8 +15,10 @@ import xsbti.compile.AnalysisStore
 import sbt.internal.inc.{ AnalysisStore => _, _ }
 import sbt.io.IO
 import sbt.io.syntax._
+import sbt.util.Level
 
 class IncrementalCompilerSpec extends BaseCompilerSpec {
+  override val logLevel = Level.Debug
 
   "incremental compiler" should "compile" in {
     IO.withTemporaryDirectory { tempDir =>
