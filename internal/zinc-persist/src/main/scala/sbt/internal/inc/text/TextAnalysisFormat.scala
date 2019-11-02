@@ -443,12 +443,12 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
       val output = outputDirMode match {
         case Some(s) =>
           s match {
-            case `singleOutputMode` => new ConcreteSingleOutput(outputAsMap.values.head)
+            case `singleOutputMode` => CompileOutput(outputAsMap.values.head)
             case `multipleOutputMode` =>
               val groups = outputAsMap.iterator.map {
-                case (src: File, out: File) => new SimpleOutputGroup(src, out)
+                case (src: File, out: File) => CompileOutput.outputGroup(src, out)
               }
-              new ConcreteMultipleOutput(groups.toArray)
+              CompileOutput(groups.toArray)
             case str: String => throw new ReadException("Unrecognized output mode: " + str)
           }
         case None => throw new ReadException("No output mode specified")

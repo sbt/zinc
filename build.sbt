@@ -255,7 +255,7 @@ lazy val zincCompile = (project in file("zinc-compile"))
 
 // Persists the incremental data structures using Protobuf
 lazy val zincPersist = (project in internalPath / "zinc-persist")
-  .dependsOn(zincCore, zincCore % "test->test")
+  .dependsOn(zincCore, zincCompileCore, zincCore % "test->test")
   .configure(addBaseSettingsAndTestDeps)
   .settings(
     name := "zinc Persist",

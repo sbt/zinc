@@ -92,7 +92,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) 
     val sourceDir = mapper.mapSourceDir(sourcePath)
     val targetPath = fromPathString(outputGroup.targetPath)
     val targetDir = mapper.mapOutputDir(targetPath)
-    SimpleOutputGroup(sourceDir, targetDir)
+    CompileOutput.outputGroup(sourceDir, targetDir)
   }
 
   def fromCompilationOutput(output: schema.Compilation.Output): Output = {
@@ -101,10 +101,10 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) 
       case CompilationOutput.SingleOutput(single) =>
         val target = fromPathString(single.target)
         val outputDir = mapper.mapOutputDir(target)
-        new ConcreteSingleOutput(outputDir)
+        CompileOutput(outputDir)
       case CompilationOutput.MultipleOutput(multiple) =>
         val groups = multiple.outputGroups.iterator.map(fromOutputGroup).toArray
-        new ConcreteMultipleOutput(groups)
+        CompileOutput(groups)
       case CompilationOutput.Empty =>
         ReadersFeedback.ExpectedOutputInCompilationOutput.!!
     }
@@ -219,10 +219,10 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) 
       case MiniSetupOutput.SingleOutput(single) =>
         val targetDir = fromPathString(single.target)
         val outputDir = mapper.mapOutputDir(targetDir)
-        new ConcreteSingleOutput(outputDir)
+        CompileOutput(outputDir)
       case MiniSetupOutput.MultipleOutput(multiple) =>
         val groups = multiple.outputGroups.iterator.map(fromOutputGroup).toArray
-        new ConcreteMultipleOutput(groups)
+        CompileOutput(groups)
       case MiniSetupOutput.Empty =>
         ReadersFeedback.ExpectedOutputInCompilationOutput.!!
     }
