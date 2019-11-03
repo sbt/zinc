@@ -196,12 +196,15 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
     private var _currentNonLocalClass: Symbol = _
     private var _isLocalSource: Boolean = false
 
-    @inline def resolveNonLocalClass(from: Symbol): (Symbol, Boolean) = {
+    @inline private def resolveNonLocalClass(from: Symbol): Symbol = {
       val fromClass = enclOrModuleClass(from)
-      if (fromClass == NoSymbol || fromClass.hasPackageFlag) (fromClass, false)
-      else {
+      if (fromClass == NoSymbol || fromClass.hasPackageFlag) {
+        _isLocalSource = false
+        fromClass
+      } else {
         val nonLocal = localToNonLocalClass.resolveNonLocal(fromClass)
-        (nonLocal, fromClass != nonLocal)
+        _isLocalSource = fromClass != nonLocal
+        nonLocal
       }
     }
 
@@ -224,24 +227,21 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
       if (_currentDependencySource == null) {
         // First time we access it, initialize it
         _currentDependencySource = currentOwner
-        val (nonLocalClass, isLocal) = resolveNonLocalClass(currentOwner)
+        val nonLocalClass = resolveNonLocalClass(currentOwner)
         _currentNonLocalClass = nonLocalClass
-        _isLocalSource = isLocal
         nonLocalClass
       } else {
         // Check if cached is equally referential
         if (_currentDependencySource == currentOwner) _currentNonLocalClass
         else {
           // Check they resolve to the same nonLocalClass. If so, spare writes.
-          val (nonLocalClass, isLocal) = resolveNonLocalClass(currentOwner)
+          val nonLocalClass = resolveNonLocalClass(currentOwner)
           if (_currentNonLocalClass == nonLocalClass) {
             // Resolution can be the same, but the origin affects `isLocal`
-            _isLocalSource = isLocal
             _currentNonLocalClass
           } else {
             _currentDependencySource = _currentDependencySource
             _currentNonLocalClass = nonLocalClass
-            _isLocalSource = isLocal
             _currentNonLocalClass
           }
         }
