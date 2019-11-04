@@ -43,6 +43,9 @@ package sbt.internal.inc.zip;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Date;
+import java.time.Instant;
+import java.time.ZonedDateTime;
+import java.time.ZoneId;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -97,27 +100,28 @@ class ZipUtils {
      * Converts DOS time to Java time (number of milliseconds since epoch).
      */
     static long dosToJavaTime(long dtime) {
-        Date d = new Date((int)(((dtime >> 25) & 0x7f) + 80),
-                (int)(((dtime >> 21) & 0x0f) - 1),
-                (int)((dtime >> 16) & 0x1f),
-                (int)((dtime >> 11) & 0x1f),
-                (int)((dtime >> 5) & 0x3f),
-                (int)((dtime << 1) & 0x3e));
-        return d.getTime();
+        ZonedDateTime d = ZonedDateTime.of(
+          (int)(((dtime >> 25) & 0x7f) + 1980), // year
+          (int)(((dtime >> 21) & 0x0f)), // month
+          (int)((dtime >> 16) & 0x1f), // day
+          (int)((dtime >> 11) & 0x1f), // hour
+          (int)((dtime >> 5) & 0x3f), // min
+          (int)((dtime << 1) & 0x3e), // seconds
+          0, // nanos
+          ZoneId.systemDefault()
+        );
+        return d.toInstant().toEpochMilli();
     }
 
     /*
      * Converts Java time to DOS time.
      */
     static long javaToDosTime(long time) {
-        Date d = new Date(time);
-        int year = d.getYear() + 1900;
-        if (year < 1980) {
-            return (1 << 21) | (1 << 16);
-        }
-        return (year - 1980) << 25 | (d.getMonth() + 1) << 21 |
-                d.getDate() << 16 | d.getHours() << 11 | d.getMinutes() << 5 |
-                d.getSeconds() >> 1;
+        Instant i = Instant.ofEpochMilli(time);
+        ZonedDateTime d = ZonedDateTime.ofInstant(i, ZoneId.systemDefault());
+        return (d.getYear() - 1980) << 25 | (d.getMonthValue()) << 21 |
+                d.getDayOfMonth() << 16 | d.getHour() << 11 | d.getMinute() << 5 |
+                d.getSecond() >> 1;
     }
 
 
