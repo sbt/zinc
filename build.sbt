@@ -86,11 +86,7 @@ def commonSettings: Seq[Setting[_]] = Seq(
   scalacOptions ++= Seq(
     "-YdisableFlatCpCaching",
     "-target:jvm-1.8",
-  ),
-  // Override the version that scalapb depends on. This adds an explicit dependency on
-  // protobuf-java. This will cause sbt to evict the older version that is used by
-  // scalapb-runtime.
-  libraryDependencies += "com.google.protobuf" % "protobuf-java" % "3.7.0"
+  )
 )
 
 def compilerVersionDependentScalacOptions: Seq[Setting[_]] = Seq(
@@ -325,12 +321,17 @@ lazy val zincPersist = (project in internalPath / "zinc-persist")
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Problem.apply"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Problem.copy"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Problem.this"),
-        exclude[IncompatibleSignatureProblem]("sbt.internal.inc.schema.Problem.unapply"),
-        exclude[IncompatibleSignatureProblem]("sbt.internal.inc.schema.Position.unapply"),
-        exclude[IncompatibleSignatureProblem]("sbt.internal.inc.schema.AnalyzedClass.unapply"),
-        exclude[IncompatibleSignatureProblem]("sbt.internal.inc.schema.AnalyzedClass.unapply"),
-        exclude[IncompatibleSignatureProblem]("sbt.internal.inc.schema.Version.values"),
-        exclude[IncompatibleSignatureProblem]("sbt.internal.inc.schema.Position.unapply"),
+        // Upgraded scalapb
+        exclude[FinalClassProblem]("sbt.internal.inc.schema.*"),
+        exclude[IncompatibleMethTypeProblem]("sbt.internal.inc.schema.*"),
+        exclude[IncompatibleMethTypeProblem]("sbt.internal.inc.zprof.*"),
+        exclude[IncompatibleResultTypeProblem]("sbt.internal.inc.schema.*"),
+        exclude[IncompatibleResultTypeProblem]("sbt.internal.inc.zprof.*"),
+        exclude[IncompatibleSignatureProblem]("sbt.internal.inc.schema.*"),
+        exclude[IncompatibleSignatureProblem]("sbt.internal.inc.zprof.*"),
+        exclude[InheritedNewAbstractMethodProblem]("sbt.internal.inc.schema.*"),
+        exclude[MissingTypesProblem]("sbt.internal.inc.schema.*"),
+        exclude[MissingTypesProblem]("sbt.internal.inc.zprof.*"),
       )
     }
   )
@@ -431,6 +432,11 @@ lazy val zincCore = (project in internalPath / "zinc-core")
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.AnalysisCallback#Builder.this"),
         exclude[DirectMissingMethodProblem]("sbt.internal.inc.AnalysisCallback.this"),
         exclude[IncompatibleSignatureProblem]("sbt.internal.inc.MiniSetupUtil.equivCompileSetup"),
+        // Upgraded scalapb
+        exclude[IncompatibleMethTypeProblem]("sbt.internal.inc.zprof.*"),
+        exclude[IncompatibleResultTypeProblem]("sbt.internal.inc.zprof.*"),
+        exclude[IncompatibleSignatureProblem]("sbt.internal.inc.zprof.*"),
+        exclude[MissingTypesProblem]("sbt.internal.inc.zprof.*"),
       )
     }
   )
