@@ -106,7 +106,7 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
         file -> other.defaultClassesDir.toPath.relativize(file.toPath).toString
       }
       val dest = baseLocation.resolve("bin").resolve(s"${other.baseLocation.getFileName}.jar")
-      IO.zip(mapping, dest.toFile)
+      IO.zip(mapping, dest.toFile, Some(0L))
 
       copy(
         classPath = classPath :+ dest,

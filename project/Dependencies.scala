@@ -9,7 +9,7 @@ object Dependencies {
   val scala212 = "2.12.10"
   val scala213 = "2.13.1"
 
-  private val ioVersion = nightlyVersion.getOrElse("1.3.0")
+  private val ioVersion = nightlyVersion.getOrElse("1.4.0-M2")
   private val utilVersion = nightlyVersion.getOrElse("1.3.0")
 
   private val sbtIO = "org.scala-sbt" %% "io" % ioVersion

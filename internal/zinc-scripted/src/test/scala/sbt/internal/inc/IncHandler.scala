@@ -478,7 +478,7 @@ case class ProjectStructure(
               case _          => Nil
             }
           }
-        IO.jar(sources, targetJar, manifest)
+        IO.jar(sources, targetJar, manifest, Some(0L))
     }
   }
 
