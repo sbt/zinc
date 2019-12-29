@@ -38,7 +38,7 @@ final class ConstantBridgeProvider(
       import sbt.io.syntax._
       import sbt.io.Path._
       val toBeZipped = outputDir.allPaths.pair(relativeTo(outputDir), errorIfNone = true)
-      zip(toBeZipped, targetJar)
+      zip(toBeZipped, targetJar, Some(0L))
       targetJar
     }
 

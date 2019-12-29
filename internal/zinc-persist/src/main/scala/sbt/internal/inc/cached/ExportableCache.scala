@@ -123,6 +123,6 @@ class ExportableCache(val cacheLocation: Path, cleanOutputMode: CleanOutputMode 
       classFile -> mapping
     }
 
-    IO.zip(entries, classesZipFile.toFile)
+    IO.zip(entries, classesZipFile.toFile, Some(0L))
   }
 }

@@ -330,7 +330,7 @@ object AnalyzingCompiler {
       import sbt.io.Path._
       copy(resources.pair(rebase(dir, outputDir)))
       val toBeZipped = outputDir.allPaths.pair(relativeTo(outputDir), errorIfNone = false)
-      zip(toBeZipped, targetJar)
+      zip(toBeZipped, targetJar, Some(0L))
     }
 
     // Handle the compilation failure of the Scala compiler.
