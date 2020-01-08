@@ -108,8 +108,9 @@ final class ScalaInstance(
 
   /** Get the string representation of all the available jars. */
   private def jarStrings: String = {
+    val libs = libraryJars.mkString(", ")
     val other = otherJars.mkString(", ")
-    s"""library jars: $libraryJars, compiler jar: $compilerJar, other jars: $other"""
+    s"""library jars: $libs, compiler jar: $compilerJar, other jars: $other"""
   }
 
   override def toString: String =
