@@ -151,18 +151,17 @@ lazy val zincRoot: Project = (project in file("."))
     compilerBridge211,
     compilerBridge212,
     compilerBridge213,
-    zincBenchmarks,
     zincApiInfo212,
     zincClasspath212,
     zincClassfile212,
-    zincScripted
   )
   .settings(
     minimalSettings,
     otherRootSettings,
     noPublish,
     name := "zinc Root",
-    customCommands
+    customCommands,
+    crossScalaVersions := Nil,
   )
 
 lazy val zinc = (project in file("zinc"))
