@@ -870,7 +870,8 @@ lazy val zincScripted = (project in internalPath / "zinc-scripted")
           case (_, v) => "classpath" -> v.seq.map(_.data)
         }
       )
-    }
+    },
+    conflictWarning := ConflictWarning.disable,
   )
   .configure(addSbtUtilScripted)
 
