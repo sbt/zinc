@@ -720,11 +720,17 @@ object IncrementalCommon {
       addedSources.filterNot(_.isAbsolute).toList match {
         case first :: more =>
           val fileStrings = more match {
-            case Nil      => first.toString
-            case x :: Nil => s"$first and $x"
-            case _        => s"$first and ${more.size} others"
+            case Nil      => s"${first.toString} was"
+            case x :: Nil => s"$first and $x were"
+            case _        => s"$first and ${more.size} others were"
           }
-          sys.error(s"Expected absolute source files instead of ${fileStrings}.")
+
+          val errorMsg =
+            s"""File paths fed to the compiler are required to be absolute, but
+              |${fileStrings} not. Please check whether you've configured your
+              |build system correctly.""".stripMargin
+
+          sys.error(errorMsg)
         case Nil => ()
       }
     }
