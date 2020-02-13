@@ -255,7 +255,7 @@ lazy val zincCompile = (project in file("zinc-compile"))
 
 // Persists the incremental data structures using Protobuf
 lazy val zincPersist = (project in internalPath / "zinc-persist")
-  .dependsOn(zincCore, zincCore % "test->test")
+  .dependsOn(zincCore, zincCompileCore, zincCore % "test->test")
   .configure(addBaseSettingsAndTestDeps)
   .settings(
     name := "zinc Persist",
@@ -273,66 +273,7 @@ lazy val zincPersist = (project in internalPath / "zinc-persist")
     PB.targets in Compile := List(scalapb.gen() -> (sourceManaged in Compile).value),
     Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
     mimaSettings,
-    mimaBinaryIssueFilters ++= {
-      import com.typesafe.tools.mima.core._
-      import com.typesafe.tools.mima.core.ProblemFilters._
-      Seq(
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.binary.BinaryAnalysisFormat.writeAPIs"
-        ),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.binary.BinaryAnalysisFormat.readAPIs"
-        ),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.binary.converters.ProtobufWriters.toApisFile"
-        ),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.binary.converters.ProtobufWriters.toApis"
-        ),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.binary.converters.ProtobufWriters.toAnalyzedClass"
-        ),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.binary.converters.ProtobufReaders.fromApis"
-        ),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.binary.converters.ProtobufReaders.fromApisFile"
-        ),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.binary.converters.ProtobufReaders.fromAnalyzedClass"
-        ),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.AnalyzedClass.apply"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.AnalyzedClass.copy"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.AnalyzedClass.this"),
-        exclude[ReversedMissingMethodProblem]("sbt.internal.inc.schema.Version.isV11"),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.binary.converters.ProtobufReaders.this"
-        ),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Problem.*"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Problem#ProblemLens.rendered"),
-        exclude[MissingClassProblem]("sbt.internal.inc.text.Java678Encoder"),
-        // Added {start,end}{Offset,Line,Column}
-        // Added Position#{start,end}{Offset,Line,Column}
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Position.apply"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Position.copy"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Position.this"),
-        // Added Problem#reported
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Problem.apply"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Problem.copy"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Problem.this"),
-        // Upgraded scalapb
-        exclude[FinalClassProblem]("sbt.internal.inc.schema.*"),
-        exclude[IncompatibleMethTypeProblem]("sbt.internal.inc.schema.*"),
-        exclude[IncompatibleMethTypeProblem]("sbt.internal.inc.zprof.*"),
-        exclude[IncompatibleResultTypeProblem]("sbt.internal.inc.schema.*"),
-        exclude[IncompatibleResultTypeProblem]("sbt.internal.inc.zprof.*"),
-        exclude[IncompatibleSignatureProblem]("sbt.internal.inc.schema.*"),
-        exclude[IncompatibleSignatureProblem]("sbt.internal.inc.zprof.*"),
-        exclude[InheritedNewAbstractMethodProblem]("sbt.internal.inc.schema.*"),
-        exclude[MissingTypesProblem]("sbt.internal.inc.schema.*"),
-        exclude[MissingTypesProblem]("sbt.internal.inc.zprof.*"),
-      )
-    }
+    mimaBinaryIssueFilters ++= Util.excludeInternalProblems,
   )
 
 // Implements the core functionality of detecting and propagating changes incrementally.
@@ -358,86 +299,7 @@ lazy val zincCore = (project in internalPath / "zinc-core")
     compileOrder := sbt.CompileOrder.Mixed,
     mimaSettings,
     PB.targets in Compile := List(scalapb.gen() -> (sourceManaged in Compile).value),
-    mimaBinaryIssueFilters ++= {
-      import com.typesafe.tools.mima.core._
-      import com.typesafe.tools.mima.core.ProblemFilters._
-      List(
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalNameHashing.allDeps"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalNameHashing.sameAPI"),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.IncrementalNameHashing.invalidateClass"
-        ),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.IncrementalNameHashing.invalidateByExternal"
-        ),
-        exclude[DirectAbstractMethodProblem](
-          "sbt.internal.inc.IncrementalCommon.invalidatedPackageObjects"
-        ),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalNameHashing.this"),
-        exclude[MissingClassProblem]("sbt.internal.inc.ClassToSourceMapper"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.Incremental.compile"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.Incremental.prune"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.changes"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.sameClass"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.allDeps"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.sameAPI"),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.IncrementalCommon.invalidateIntermediate"
-        ),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.IncrementalCommon.invalidateByAllExternal"
-        ),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.IncrementalCommon.invalidateDuplicates"
-        ),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.transitiveDeps"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.invalidateClass"),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.IncrementalCommon.externalBinaryModified"
-        ),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.IncrementalCommon.invalidateIncremental"
-        ),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.changedInitial"),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.IncrementalCommon.transitiveDeps$default$2"
-        ),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.orTrue"),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.IncrementalCommon.invalidateByExternal"
-        ),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.wrappedLog"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.shortcutSameClass"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.orEmpty"),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.IncrementalCommon.changedIncremental"
-        ),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.IncrementalCommon.currentExternalAPI"
-        ),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.this"),
-        exclude[ReversedMissingMethodProblem](
-          "sbt.internal.inc.IncrementalCommon.findClassDependencies"
-        ),
-        exclude[ReversedMissingMethodProblem](
-          "sbt.internal.inc.IncrementalCommon.invalidateClassesInternally"
-        ),
-        exclude[ReversedMissingMethodProblem](
-          "sbt.internal.inc.IncrementalCommon.invalidateClassesExternally"
-        ),
-        exclude[ReversedMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.findAPIChange"),
-        exclude[IncompatibleMethTypeProblem]("sbt.internal.inc.Incremental.prune"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCompile.apply"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.AnalysisCallback#Builder.this"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.AnalysisCallback.this"),
-        exclude[IncompatibleSignatureProblem]("sbt.internal.inc.MiniSetupUtil.equivCompileSetup"),
-        // Upgraded scalapb
-        exclude[IncompatibleMethTypeProblem]("sbt.internal.inc.zprof.*"),
-        exclude[IncompatibleResultTypeProblem]("sbt.internal.inc.zprof.*"),
-        exclude[IncompatibleSignatureProblem]("sbt.internal.inc.zprof.*"),
-        exclude[MissingTypesProblem]("sbt.internal.inc.zprof.*"),
-      )
-    }
+    mimaBinaryIssueFilters ++= Util.excludeInternalProblems,
   )
   .configure(addSbtIO, addSbtUtilLogging, addSbtUtilRelation)
 

@@ -64,4 +64,6 @@ private final class UnderlyingSourceInfo(
   override def getReportedProblems: Array[Problem] = reportedProblems.toArray
   override def getUnreportedProblems: Array[Problem] = unreportedProblems.toArray
   override def getMainClasses: Array[String] = mainClasses.toArray
+  override def toString: String =
+    s"SourceInfo($reportedProblems, $unreportedProblems, $mainClasses)"
 }
