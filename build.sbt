@@ -397,11 +397,31 @@ lazy val compilerInterface212 = (project in internalPath / "compiler-interface")
       import com.typesafe.tools.mima.core._
       import com.typesafe.tools.mima.core.ProblemFilters._
       Seq(
-        exclude[IncompatibleMethTypeProblem]("xsbti.*"),
-        exclude[ReversedMissingMethodProblem]("xsbti.*"),
-        exclude[DirectMissingMethodProblem]("xsbti.*"),
-        exclude[IncompatibleSignatureProblem]("xsbti.*"),
-        exclude[IncompatibleResultTypeProblem]("xsbti.*"),
+        // 1.4.0 changed to VirtualFile. These should be internal to Zinc.
+        exclude[Problem]("xsbti.AnalysisCallback.*"),
+        exclude[Problem]("xsbti.compile.PerClasspathEntryLookup.*"),
+        exclude[Problem]("xsbti.compile.ExternalHooks*"),
+        exclude[Problem]("xsbti.compile.FileHash.*"),
+        exclude[Problem]("xsbti.compile.Output.*"),
+        exclude[Problem]("xsbti.compile.OutputGroup.*"),
+        exclude[Problem]("xsbti.compile.SingleOutput.*"),
+        exclude[Problem]("xsbti.compile.MultipleOutput.*"),
+        exclude[Problem]("xsbti.compile.CachedCompiler.*"),
+        exclude[Problem]("xsbti.compile.ClassFileManager.*"),
+        exclude[Problem]("xsbti.compile.WrappedClassFileManager.*"),
+        exclude[Problem]("xsbti.compile.DependencyChanges.*"),
+        exclude[Problem]("xsbti.compile.ScalaCompiler.*"),
+        exclude[Problem]("xsbti.compile.JavaTool.*"),
+        exclude[Problem]("xsbti.compile.JavaTool.*"),
+        exclude[Problem]("xsbti.compile.analysis.ReadSourceInfos.*"),
+        exclude[Problem]("xsbti.compile.analysis.ReadStamps.*"),
+        // This is a breaking change
+        exclude[Problem]("xsbti.compile.CompileOptions.*"),
+        // new API points
+        exclude[DirectMissingMethodProblem]("xsbti.compile.IncrementalCompiler.compile"),
+        exclude[ReversedMissingMethodProblem]("xsbti.compile.IncrementalCompiler.compile"),
+        exclude[ReversedMissingMethodProblem]("xsbti.compile.ScalaInstance.loaderLibraryOnly"),
+        exclude[ReversedMissingMethodProblem]("xsbti.compile.ScalaInstance.libraryJars"),
       )
     },
   )

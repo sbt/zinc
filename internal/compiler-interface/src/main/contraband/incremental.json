@@ -526,7 +526,7 @@
           "doc": "If true, no sources are actually compiled and the Analysis from the previous compilation is returned."
         },
         {
-          "name": "cacheFile",
+          "name": "cachePath",
           "type": "java.nio.file.Path",
           "doc": [
             "The file used to cache information across compilations.",
@@ -556,6 +556,20 @@
           "name": "extra",
           "type": "xsbti.T2<String, String>*"
         }
+      ],
+      "extra": [
+        "public java.io.File cacheFile() {",
+        "    return this.cachePath.toFile();",
+        "}",
+        "public Setup withCacheFile(java.io.File cacheFile) {",
+        "    return this.withCachePath(cacheFile.toPath());",
+        "}",
+        "public static Setup create(xsbti.compile.PerClasspathEntryLookup _perClasspathEntryLookup, boolean _skip, java.io.File _cacheFile, xsbti.compile.GlobalsCache _cache, xsbti.compile.IncOptions _incrementalCompilerOptions, xsbti.Reporter _reporter, java.util.Optional<xsbti.compile.CompileProgress> _progress, xsbti.T2<String, String>[] _extra) {",
+        "    return new Setup(_perClasspathEntryLookup, _skip, _cacheFile.toPath(), _cache, _incrementalCompilerOptions, _reporter, _progress, _extra);",
+        "}",
+        "public static Setup of(xsbti.compile.PerClasspathEntryLookup _perClasspathEntryLookup, boolean _skip, java.io.File _cacheFile, xsbti.compile.GlobalsCache _cache, xsbti.compile.IncOptions _incrementalCompilerOptions, xsbti.Reporter _reporter, java.util.Optional<xsbti.compile.CompileProgress> _progress, xsbti.T2<String, String>[] _extra) {",
+        "    return new Setup(_perClasspathEntryLookup, _skip, _cacheFile.toPath(), _cache, _incrementalCompilerOptions, _reporter, _progress, _extra);",
+        "}"
       ]
     },
     {
