@@ -44,8 +44,8 @@ public final class SafeLazy {
 
   private static final class Impl<T> extends xsbti.api.AbstractLazy<T> {
     private Supplier<T> thunk = null;
-    private transient volatile boolean initialized;
-    private transient T result = null;
+    private volatile boolean initialized;
+    private T result = null;
 
     Impl(Supplier<T> thunk) {
       this.thunk = thunk;
