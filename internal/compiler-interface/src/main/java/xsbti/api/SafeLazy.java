@@ -42,30 +42,30 @@ public final class SafeLazy {
     });
   }
 
+  private static final class Thunky<T> {
+    final Supplier<T> thunk;
+    final T result;
+    Thunky(Supplier<T> thunk, T result) {
+      this.thunk = thunk;
+      this.result = result;
+    }
+  }
+
   private static final class Impl<T> extends xsbti.api.AbstractLazy<T> {
-    private Supplier<T> thunk = null;
-    private T result = null;
+    private Thunky<T> thunky;
 
     Impl(Supplier<T> thunk) {
-      this.thunk = thunk;
+      this.thunky = new Thunky(thunk, null);
     }
 
-    /**
-     * Return cached result or force lazy evaluation.
-     *
-     * Don't call it in a multi-threaded environment.
-     */
-    public synchronized T get() {
-      if (thunk == null) return result;
-      else {
-        result = thunk.get();
-
-        thunk = null; // also allows it to be GC'ed
-
-        return result;
+    public T get() {
+      Thunky<T> t = thunky;
+      if (t.result == null) {
+        T r = t.thunk.get();
+        t = new Thunky(null, r);
+        thunky = t;
       }
+      return t.result;
     }
   }
 }
-
-
