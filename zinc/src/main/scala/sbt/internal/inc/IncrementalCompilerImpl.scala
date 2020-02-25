@@ -167,7 +167,8 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
     try {
       compilerRun
     } catch {
-      case e: CompileFailed => throw e // just ignore
+      case e: CompileFailed        => throw e // just ignore
+      case e: InterruptedException => throw e // just ignore
       case e: Throwable =>
         val ex = e // For Intellij debugging purpose
         val numberSources = s"${sources.length} sources"
