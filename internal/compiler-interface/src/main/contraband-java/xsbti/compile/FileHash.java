@@ -6,27 +6,27 @@
 package xsbti.compile;
 public final class FileHash implements java.io.Serializable {
     
-    public static FileHash create(java.io.File _file, int _hash) {
+    public static FileHash create(java.nio.file.Path _file, int _hash) {
         return new FileHash(_file, _hash);
     }
-    public static FileHash of(java.io.File _file, int _hash) {
+    public static FileHash of(java.nio.file.Path _file, int _hash) {
         return new FileHash(_file, _hash);
     }
-    private java.io.File file;
+    private java.nio.file.Path file;
     private int hash;
-    protected FileHash(java.io.File _file, int _hash) {
+    protected FileHash(java.nio.file.Path _file, int _hash) {
         super();
         file = _file;
         hash = _hash;
     }
     
-    public java.io.File file() {
+    public java.nio.file.Path file() {
         return this.file;
     }
     public int hash() {
         return this.hash;
     }
-    public FileHash withFile(java.io.File file) {
+    public FileHash withFile(java.nio.file.Path file) {
         return new FileHash(file, hash);
     }
     public FileHash withHash(int hash) {

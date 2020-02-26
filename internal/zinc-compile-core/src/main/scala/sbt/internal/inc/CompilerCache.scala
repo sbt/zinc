@@ -19,6 +19,7 @@ import java.util
 import xsbti.{ AnalysisCallback, Reporter, Logger => xLogger }
 import xsbti.compile._
 import sbt.util.InterfaceUtil.{ toSupplier => f0 }
+import xsbti.VirtualFile
 
 /**
  * Manage a number of <code>maxInstance</code> of cached Scala compilers.
@@ -57,7 +58,7 @@ final class CompilerCache(val maxInstances: Int) extends GlobalsCache {
             compiler.commandArguments(sources)
           }
           override def run(
-              sources: Array[File],
+              sources: Array[VirtualFile],
               changes: DependencyChanges,
               callback: AnalysisCallback,
               logger: xLogger,

@@ -11,22 +11,22 @@
 
 package sbt.inc
 
-import java.io.File
+import java.nio.file.Paths
 
 object TestResource {
   def knownSampleGoodFile0 =
-    new File(getClass.getClassLoader.getResource("sources/Good.scala").toURI)
+    Paths.get(getClass.getClassLoader.getResource("sources/Good.scala").toURI)
   def fooSampleFile0 =
-    new File(classOf[TestResource].getResource("Foo.scala").toURI)
+    Paths.get(classOf[TestResource].getResource("Foo.scala").toURI)
   def binarySampleFile0 =
-    new File(classOf[TestResource].getResource("sample-binary_2.12-0.1.jar").toURI)
+    Paths.get(classOf[TestResource].getResource("sample-binary_2.12-0.1.jar").toURI)
   def dependerFile0 =
-    new File(classOf[TestResource].getResource("Depender.scala").toURI)
+    Paths.get(classOf[TestResource].getResource("Depender.scala").toURI)
   def depender2File0 =
-    new File(classOf[TestResource].getResource("Depender2.scala").toURI)
+    Paths.get(classOf[TestResource].getResource("Depender2.scala").toURI)
   def ext1File0 =
-    new File(classOf[TestResource].getResource("Ext1.scala").toURI)
+    Paths.get(classOf[TestResource].getResource("Ext1.scala").toURI)
   def ext2File0 =
-    new File(classOf[TestResource].getResource("Ext2.scala").toURI)
+    Paths.get(classOf[TestResource].getResource("Ext2.scala").toURI)
 }
 class TestResource

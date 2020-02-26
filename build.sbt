@@ -79,6 +79,7 @@ def commonSettings: Seq[Setting[_]] = Seq(
   )(Resolver.ivyStylePatterns),
   // concurrentRestrictions in Global += Util.testExclusiveRestriction,
   testOptions += Tests.Argument(TestFrameworks.ScalaCheck, "-w", "1", "-verbosity", "2"),
+  testFrameworks += new TestFramework("verify.runner.Framework"),
   javacOptions in compile ++= Seq("-Xlint", "-Xlint:-serial"),
   crossScalaVersions := Seq(scala212),
   publishArtifact in Test := false,
@@ -147,6 +148,7 @@ lazy val zincRoot: Project = (project in file("."))
     compilerBridge211,
     compilerBridge212,
     compilerBridge213,
+    // zincBenchmarks,
     zincApiInfo212,
     zincClasspath212,
     zincClassfile212,
@@ -164,7 +166,6 @@ lazy val zinc = (project in file("zinc"))
   .dependsOn(
     zincCore,
     zincPersist,
-    zincCompileCore,
     zincClassfile212,
     zincTesting % Test
   )
@@ -220,17 +221,12 @@ lazy val zinc = (project in file("zinc"))
     Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
     mimaSettings,
     mimaBinaryIssueFilters ++= Seq(
-      exclude[DirectMissingMethodProblem](
-        "sbt.internal.inc.IncrementalCompilerImpl.compileIncrementally"
-      ),
-      exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCompilerImpl.inputs"),
-      exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCompilerImpl.compile"),
-      exclude[DirectMissingMethodProblem]("sbt.internal.inc.MixedAnalyzingCompiler.config"),
-      exclude[DirectMissingMethodProblem]("sbt.internal.inc.MixedAnalyzingCompiler.makeConfig"),
-      exclude[DirectMissingMethodProblem]("sbt.internal.inc.MixedAnalyzingCompiler.this"),
-      exclude[DirectMissingMethodProblem]("sbt.internal.inc.CompileConfiguration.this"),
-      exclude[DirectMissingMethodProblem]("sbt.internal.inc.ZincUtil.getDefaultBridgeModule"),
-      exclude[DirectMissingMethodProblem]("sbt.internal.inc.ZincUtil.scalaCompiler"),
+      exclude[DirectMissingMethodProblem]("sbt.internal.*"),
+      exclude[IncompatibleSignatureProblem]("sbt.internal.*"),
+      exclude[IncompatibleMethTypeProblem]("sbt.internal.*"),
+      exclude[ReversedMissingMethodProblem]("sbt.internal.*"),
+      exclude[MissingClassProblem]("sbt.internal.*"),
+      exclude[IncompatibleResultTypeProblem]("sbt.internal.*"),
     )
   )
 
@@ -250,6 +246,17 @@ lazy val zincCompile = (project in file("zinc-compile"))
   .settings(
     name := "zinc Compile",
     mimaSettings,
+    mimaBinaryIssueFilters ++= {
+      import com.typesafe.tools.mima.core._
+      import com.typesafe.tools.mima.core.ProblemFilters._
+      Seq(
+        exclude[IncompatibleSignatureProblem]("sbt.inc.Doc*"),
+        exclude[IncompatibleResultTypeProblem]("sbt.inc.Doc*"),
+        exclude[IncompatibleMethTypeProblem]("sbt.inc.Doc*"),
+        exclude[DirectMissingMethodProblem]("sbt.inc.Doc*"),
+        exclude[ReversedMissingMethodProblem]("sbt.inc.Doc*"),
+      )
+    },
   )
   .configure(addSbtUtilTracking)
 
@@ -274,12 +281,17 @@ lazy val zincPersist = (project in internalPath / "zinc-persist")
     Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
     mimaSettings,
     mimaBinaryIssueFilters ++= Util.excludeInternalProblems,
+    mimaBinaryIssueFilters ++= Seq(
+      exclude[IncompatibleMethTypeProblem]("xsbti.*"),
+      exclude[ReversedMissingMethodProblem]("xsbti.*"),
+    ),
   )
 
 // Implements the core functionality of detecting and propagating changes incrementally.
 //   Defines the data structures for representing file fingerprints and relationships and the overall source analysis
 lazy val zincCore = (project in internalPath / "zinc-core")
   .dependsOn(
+    zincCompileCore,
     zincApiInfo212,
     zincClasspath212,
     compilerInterface212,
@@ -300,6 +312,10 @@ lazy val zincCore = (project in internalPath / "zinc-core")
     mimaSettings,
     PB.targets in Compile := List(scalapb.gen() -> (sourceManaged in Compile).value),
     mimaBinaryIssueFilters ++= Util.excludeInternalProblems,
+    mimaBinaryIssueFilters ++= Seq(
+      exclude[IncompatibleMethTypeProblem]("xsbti.*"),
+      exclude[ReversedMissingMethodProblem]("xsbti.*"),
+    ),
   )
   .configure(addSbtIO, addSbtUtilLogging, addSbtUtilRelation)
 
@@ -332,34 +348,18 @@ lazy val zincCompileCore = (project in internalPath / "zinc-compile-core")
   .configure(addBaseSettingsAndTestDeps)
   .settings(
     name := "zinc Compile Core",
-    libraryDependencies ++= Seq(scalaCompiler.value % Test, launcherInterface, parserCombinator),
+    libraryDependencies ++= Seq(
+      scalaCompiler.value % Test,
+      launcherInterface,
+      parserCombinator,
+      zeroAllocationHashing
+    ),
     unmanagedJars in Test := Seq(packageSrc in compilerBridge212 in Compile value).classpath,
     managedSourceDirectories in Compile +=
       baseDirectory.value / "src" / "main" / "contraband-java",
     sourceManaged in (Compile, generateContrabands) := baseDirectory.value / "src" / "main" / "contraband-java",
     mimaSettings,
-    mimaBinaryIssueFilters ++= {
-      import com.typesafe.tools.mima.core._
-      import com.typesafe.tools.mima.core.ProblemFilters._
-      Seq(
-        // PositionImpl is a private class only invoked in the same source.
-        exclude[FinalClassProblem]("sbt.internal.inc.javac.DiagnosticsReporter$PositionImpl"),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.javac.DiagnosticsReporter#PositionImpl.this"
-        ),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.javac.JavaProblem.rendered"),
-        // Renamed vals in a private[sbt] class
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.javac.DiagnosticsReporter#PositionImpl.endPosition"
-        ),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.javac.DiagnosticsReporter#PositionImpl.startPosition"
-        ),
-        exclude[IncompatibleMethTypeProblem](
-          "sbt.internal.inc.javac.DiagnosticsReporter#PositionImpl.this"
-        ),
-      )
-    },
+    mimaBinaryIssueFilters ++= Util.excludeInternalProblems,
   )
   .configure(addSbtUtilLogging, addSbtIO, addSbtUtilControl)
 
@@ -397,14 +397,31 @@ lazy val compilerInterface212 = (project in internalPath / "compiler-interface")
       import com.typesafe.tools.mima.core._
       import com.typesafe.tools.mima.core.ProblemFilters._
       Seq(
-        exclude[ReversedMissingMethodProblem]("xsbti.compile.ExternalHooks#Lookup.hashClasspath"),
-        exclude[ReversedMissingMethodProblem]("xsbti.compile.ScalaInstance.loaderLibraryOnly"),
-        exclude[ReversedMissingMethodProblem]("xsbti.compile.ScalaInstance.libraryJars"), // Added in 1.3.0
-        exclude[DirectMissingMethodProblem]("xsbti.api.AnalyzedClass.of"),
-        exclude[DirectMissingMethodProblem]("xsbti.api.AnalyzedClass.create"),
-        exclude[ReversedMissingMethodProblem]("xsbti.AnalysisCallback.classesInOutputJar"),
+        // 1.4.0 changed to VirtualFile. These should be internal to Zinc.
+        exclude[Problem]("xsbti.AnalysisCallback.*"),
+        exclude[Problem]("xsbti.compile.PerClasspathEntryLookup.*"),
+        exclude[Problem]("xsbti.compile.ExternalHooks*"),
+        exclude[Problem]("xsbti.compile.FileHash.*"),
+        exclude[Problem]("xsbti.compile.Output.*"),
+        exclude[Problem]("xsbti.compile.OutputGroup.*"),
+        exclude[Problem]("xsbti.compile.SingleOutput.*"),
+        exclude[Problem]("xsbti.compile.MultipleOutput.*"),
+        exclude[Problem]("xsbti.compile.CachedCompiler.*"),
+        exclude[Problem]("xsbti.compile.ClassFileManager.*"),
+        exclude[Problem]("xsbti.compile.WrappedClassFileManager.*"),
+        exclude[Problem]("xsbti.compile.DependencyChanges.*"),
+        exclude[Problem]("xsbti.compile.ScalaCompiler.*"),
+        exclude[Problem]("xsbti.compile.JavaTool.*"),
+        exclude[Problem]("xsbti.compile.JavaTool.*"),
+        exclude[Problem]("xsbti.compile.analysis.ReadSourceInfos.*"),
+        exclude[Problem]("xsbti.compile.analysis.ReadStamps.*"),
+        // This is a breaking change
+        exclude[Problem]("xsbti.compile.CompileOptions.*"),
+        // new API points
+        exclude[DirectMissingMethodProblem]("xsbti.compile.IncrementalCompiler.compile"),
         exclude[ReversedMissingMethodProblem]("xsbti.compile.IncrementalCompiler.compile"),
-        exclude[DirectMissingMethodProblem]("xsbti.compile.IncrementalCompiler.compile")
+        exclude[ReversedMissingMethodProblem]("xsbti.compile.ScalaInstance.loaderLibraryOnly"),
+        exclude[ReversedMissingMethodProblem]("xsbti.compile.ScalaInstance.libraryJars"),
       )
     },
   )
@@ -668,12 +685,7 @@ lazy val zincClasspathTemplate = (project in internalPath / "zinc-classpath")
     libraryDependencies ++= Seq(scalaCompiler.value, launcherInterface),
     noSourcesForTemplate,
     mimaSettings,
-    mimaBinaryIssueFilters ++= Seq(
-      // Changed the signature of a private[sbt] method
-      exclude[DirectMissingMethodProblem](
-        "sbt.internal.inc.classpath.ClasspathUtilities.compilerPlugins"
-      ),
-    ),
+    mimaBinaryIssueFilters ++= Util.excludeInternalProblems,
   )
   .configure(addSbtIO)
 
@@ -693,6 +705,7 @@ lazy val zincClassfileTemplate = (project in internalPath / "zinc-classfile")
     name := "zinc Classfile",
     compilerVersionDependentScalacOptions,
     mimaSettings,
+    mimaBinaryIssueFilters ++= Util.excludeInternalProblems,
     noSourcesForTemplate,
   )
   .configure(addSbtIO, addSbtUtilLogging)
@@ -704,9 +717,6 @@ lazy val zincClassfile212 = zincClassfileTemplate
     scalaVersion := scala212,
     crossScalaVersions := Seq(scala212),
     target := (target in zincClassfileTemplate).value.getParentFile / "target-2.12",
-    mimaBinaryIssueFilters ++= Seq(
-      exclude[DirectMissingMethodProblem]("sbt.internal.inc.classfile.Analyze.apply")
-    )
   )
 
 // re-implementation of scripted engine

@@ -13,11 +13,14 @@ package sbt
 package internal
 package inc
 
+import java.io.File
 import java.io.{ File, IOException }
 import java.util
 import java.util.Optional
+import java.nio.file.Path
 
 import sbt.io.{ Hash => IOHash, IO }
+import xsbti.{ FileConverter, VirtualFile, VirtualFileRef }
 import xsbti.compile.analysis.{ ReadStamps, Stamp => XStamp }
 
 import scala.collection.immutable.TreeMap
@@ -30,24 +33,28 @@ import scala.util.matching.Regex
  * Java interface `ReadStamps` that is exposed in the `xsbti.compile.CompileAnalysis`.
  */
 trait Stamps extends ReadStamps {
-  def allSources: collection.Set[File]
-  def allBinaries: collection.Set[File]
-  def allProducts: collection.Set[File]
+  def allSources: collection.Set[VirtualFileRef]
+  def allLibraries: collection.Set[VirtualFileRef]
+  def allProducts: collection.Set[VirtualFileRef]
 
-  def sources: Map[File, XStamp]
-  def binaries: Map[File, XStamp]
-  def products: Map[File, XStamp]
-  def markSource(src: File, s: XStamp): Stamps
-  def markBinary(bin: File, className: String, s: XStamp): Stamps
-  def markProduct(prod: File, s: XStamp): Stamps
+  def sources: Map[VirtualFileRef, XStamp]
+  def libraries: Map[VirtualFileRef, XStamp]
+  def products: Map[VirtualFileRef, XStamp]
+  def markSource(src: VirtualFileRef, s: XStamp): Stamps
+  def markLibrary(bin: VirtualFileRef, className: String, s: XStamp): Stamps
+  def markProduct(prod: VirtualFileRef, s: XStamp): Stamps
 
-  def filter(prod: File => Boolean, removeSources: Iterable[File], bin: File => Boolean): Stamps
+  def filter(
+      prod: VirtualFileRef => Boolean,
+      removeSources: Iterable[VirtualFileRef],
+      lib: VirtualFileRef => Boolean
+  ): Stamps
 
   def ++(o: Stamps): Stamps
   def groupBy[K](
-      prod: Map[K, File => Boolean],
-      sourcesGrouping: File => K,
-      bin: Map[K, File => Boolean]
+      prod: Map[K, VirtualFileRef => Boolean],
+      sourcesGrouping: VirtualFileRef => K,
+      lib: Map[K, VirtualFileRef => Boolean]
   ): Map[K, Stamps]
 }
 
@@ -63,6 +70,35 @@ private[sbt] sealed abstract class StampBase extends XStamp {
 trait WithPattern { protected def Pattern: Regex }
 
 import java.lang.{ Long => BoxedLong }
+
+/** Define the hash of the file contents. It's a typical stamp for compilation sources. */
+final class FarmHash private (val hashValue: Long) extends StampBase {
+  override def writeStamp: String = s"farm(${BoxedLong.toHexString(hashValue)})"
+  override def getValueId: Int = hashValue.##
+  override def getHash: Optional[String] = Optional.of(BoxedLong.toHexString(hashValue))
+  override def getLastModified: Optional[BoxedLong] = Optional.empty[BoxedLong]
+}
+
+object FarmHash {
+  private val Pattern = """farm\(((?:[0-9a-fA-F])+)\)""".r
+  def fromLong(hashValue: Long): FarmHash = new FarmHash(hashValue)
+
+  def ofFile(f: VirtualFile): FarmHash =
+    fromLong(f.contentHash)
+
+  def ofPath(path: Path): FarmHash =
+    fromLong(HashUtil.farmHash(path))
+
+  def fromString(s: String): Option[FarmHash] = {
+    val m = Pattern.pattern matcher s
+    if (m.matches()) Some(FarmHash.fromLong(BoxedLong.parseUnsignedLong(m.group(1), 16)))
+    else None
+  }
+
+  object FromString {
+    def unapply(s: String): Option[FarmHash] = fromString(s)
+  }
+}
 
 /** Define the hash of the file contents. It's a typical stamp for compilation sources. */
 final class Hash private (val hexHash: String) extends StampBase {
@@ -118,7 +154,8 @@ object Stamp {
   private final val maxModificationDifferenceInMillis = 100L
   implicit val equivStamp: Equiv[XStamp] = new Equiv[XStamp] {
     def equiv(a: XStamp, b: XStamp) = (a, b) match {
-      case (h1: Hash, h2: Hash) => h1.hexHash == h2.hexHash
+      case (h1: FarmHash, h2: FarmHash) => h1.hashValue == h2.hashValue
+      case (h1: Hash, h2: Hash)         => h1.hexHash == h2.hexHash
       // Windows is handling this differently sometimes...
       case (lm1: LastModified, lm2: LastModified) =>
         lm1.value == lm2.value ||
@@ -132,6 +169,7 @@ object Stamp {
 
   def fromString(s: String): XStamp = s match {
     case EmptyStamp.Value            => EmptyStamp
+    case FarmHash.FromString(hash)   => hash
     case Hash.FromString(hash)       => hash
     case LastModified.Pattern(value) => new LastModified(java.lang.Long.parseLong(value))
     case _ =>
@@ -139,6 +177,10 @@ object Stamp {
   }
 
   def getStamp(map: Map[File, XStamp], src: File): XStamp = map.getOrElse(src, EmptyStamp)
+  def getVStamp(map: Map[VirtualFileRef, XStamp], src: VirtualFile): XStamp =
+    map.getOrElse(src, EmptyStamp)
+  def getVOStamp(map: Map[VirtualFileRef, XStamp], src: VirtualFileRef): XStamp =
+    map.getOrElse(src, EmptyStamp)
 }
 
 object Stamper {
@@ -149,12 +191,75 @@ object Stamper {
     catch { case _: IOException => EmptyStamp }
   }
 
-  val forHash: File => XStamp = (toStamp: File) => tryStamp(Hash.ofFile(toStamp))
-  val forLastModified: File => XStamp = (toStamp: File) =>
-    tryStamp(new LastModified(IO.getModifiedTimeOrZero(toStamp)))
-  def forLastModifiedInJar(jar: File): File => XStamp = {
-    val stamps = JarUtils.readStamps(jar)
-    (file: File) => new LastModified(stamps(file))
+  val forContentHash: VirtualFile => XStamp = (toStamp: VirtualFile) =>
+    tryStamp(FarmHash.ofFile(toStamp))
+
+  val forFarmHashP: Path => XStamp = (toStamp: Path) => tryStamp(FarmHash.ofPath(toStamp))
+
+  val forLastModifiedP: Path => XStamp = (toStamp: Path) =>
+    tryStamp(new LastModified(IO.getModifiedTimeOrZero(toStamp.toFile)))
+
+  def forLastModifiedInRootPaths(converter: FileConverter): VirtualFileRef => XStamp = {
+    (toStamp: VirtualFileRef) =>
+      {
+        val p = converter.toPath(toStamp)
+        JarUtils.getJarInClassInJar(p) match {
+          case Some(outputJar) =>
+            tryStamp {
+              val stamps = JarUtils.readStamps(outputJar)
+              val result = new LastModified(stamps(p))
+              result
+            }
+          case _ =>
+            tryStamp {
+              val result = new LastModified(IO.getModifiedTimeOrZero(p.toFile))
+              result
+            }
+        }
+      }
+  }
+
+  def forHashInRootPaths(converter: FileConverter): VirtualFileRef => XStamp = {
+    (toStamp: VirtualFileRef) =>
+      {
+        toStamp.name match {
+          case "rt.jar" => EmptyStamp
+          case _ =>
+            val p = converter.toPath(toStamp)
+            JarUtils.getJarInClassInJar(p) match {
+              case Some(outputJar) =>
+                tryStamp {
+                  FarmHash.ofPath(outputJar)
+                }
+              case _ =>
+                tryStamp {
+                  FarmHash.ofPath(p)
+                }
+            }
+        }
+      }
+  }
+
+  private[sbt] def timeWrap(
+      cache: collection.mutable.Map[VirtualFileRef, (Long, XStamp)],
+      converter: FileConverter,
+      getStamp: VirtualFileRef => XStamp
+  ): VirtualFileRef => XStamp = { key: VirtualFileRef =>
+    val p = converter.toPath(key)
+    val ts = try {
+      IO.getModifiedTimeOrZero(p.toFile)
+    } catch {
+      case _: Throwable => 0L
+    }
+    synchronized {
+      cache.get(key) match {
+        case Some((ts1, value)) if ts == ts1 && ts > 0 => value
+        case _ =>
+          val value = getStamp(key)
+          cache.put(key, (ts, value))
+          value
+      }
+    }
   }
 }
 
@@ -167,117 +272,199 @@ object Stamps {
    * The stamp for a product is always recalculated.
    */
   def initial(
-      prodStamp: File => XStamp,
-      srcStamp: File => XStamp,
-      binStamp: File => XStamp
+      prodStamp: VirtualFileRef => XStamp,
+      srcStamp: VirtualFile => XStamp,
+      libStamp: VirtualFileRef => XStamp
   ): ReadStamps =
-    new InitialStamps(prodStamp, srcStamp, binStamp)
+    new InitialStamps(uncachedStamps(prodStamp, srcStamp, libStamp))
+
+  def initial(underlying: ReadStamps): ReadStamps = new InitialStamps(underlying)
+
+  def timeWrapLibraryStamps(underlying: ReadStamps, converter: FileConverter): ReadStamps =
+    new TimeWrapLibraryStamps(underlying, converter)
+
+  def timeWrapLibraryStamps(converter: FileConverter): ReadStamps =
+    new TimeWrapLibraryStamps(uncachedStamps(converter), converter)
+
+  def uncachedStamps(converter: FileConverter): ReadStamps =
+    uncachedStamps(
+      Stamper.forHashInRootPaths(converter),
+      Stamper.forContentHash,
+      Stamper.forHashInRootPaths(converter)
+    )
+
+  def uncachedStamps(
+      prodStamp: VirtualFileRef => XStamp,
+      srcStamp: VirtualFile => XStamp,
+      libStamp: VirtualFileRef => XStamp
+  ): ReadStamps =
+    new UncachedStamps(prodStamp, srcStamp, libStamp)
 
   def empty: Stamps = {
     // Use a TreeMap to avoid sorting when serializing
-    val eSt = TreeMap.empty[File, XStamp]
+    import VirtualFileUtil._
+    val eSt = TreeMap.empty[VirtualFileRef, XStamp]
     apply(eSt, eSt, eSt)
   }
   def apply(
-      products: Map[File, XStamp],
-      sources: Map[File, XStamp],
-      binaries: Map[File, XStamp]
+      products: Map[VirtualFileRef, XStamp],
+      sources: Map[VirtualFileRef, XStamp],
+      libraries: Map[VirtualFileRef, XStamp]
   ): Stamps =
-    new MStamps(products, sources, binaries)
+    new MStamps(products, sources, libraries)
 
   def merge(stamps: Traversable[Stamps]): Stamps = stamps.foldLeft(Stamps.empty)(_ ++ _)
 }
 
 private class MStamps(
-    val products: Map[File, XStamp],
-    val sources: Map[File, XStamp],
-    val binaries: Map[File, XStamp]
+    val products: Map[VirtualFileRef, XStamp],
+    val sources: Map[VirtualFileRef, XStamp],
+    val libraries: Map[VirtualFileRef, XStamp]
 ) extends Stamps {
 
   import scala.collection.JavaConverters.mapAsJavaMapConverter
-  override def getAllBinaryStamps: util.Map[File, XStamp] =
-    mapAsJavaMapConverter(binaries).asJava
-  override def getAllProductStamps: util.Map[File, XStamp] =
+  override def getAllLibraryStamps: util.Map[VirtualFileRef, XStamp] =
+    mapAsJavaMapConverter(libraries).asJava
+  override def getAllProductStamps: util.Map[VirtualFileRef, XStamp] =
     mapAsJavaMapConverter(products).asJava
-  override def getAllSourceStamps: util.Map[File, XStamp] =
+  override def getAllSourceStamps: util.Map[VirtualFileRef, XStamp] =
     mapAsJavaMapConverter(sources).asJava
 
-  def allSources: collection.Set[File] = sources.keySet
-  def allBinaries: collection.Set[File] = binaries.keySet
-  def allProducts: collection.Set[File] = products.keySet
+  def allSources: collection.Set[VirtualFileRef] = sources.keySet
+  def allLibraries: collection.Set[VirtualFileRef] = libraries.keySet
+  def allProducts: collection.Set[VirtualFileRef] = products.keySet
 
   def ++(o: Stamps): Stamps =
-    new MStamps(products ++ o.products, sources ++ o.sources, binaries ++ o.binaries)
+    new MStamps(products ++ o.products, sources ++ o.sources, libraries ++ o.libraries)
 
-  def markSource(src: File, s: XStamp): Stamps =
-    new MStamps(products, sources.updated(src, s), binaries)
-
-  def markBinary(bin: File, className: String, s: XStamp): Stamps =
-    new MStamps(products, sources, binaries.updated(bin, s))
-
-  def markProduct(prod: File, s: XStamp): Stamps =
-    new MStamps(products.updated(prod, s), sources, binaries)
-
-  def filter(prod: File => Boolean, removeSources: Iterable[File], bin: File => Boolean): Stamps =
-    new MStamps(products.filterKeys(prod), sources -- removeSources, binaries.filterKeys(bin))
-
-  def groupBy[K](
-      prod: Map[K, File => Boolean],
-      f: File => K,
-      bin: Map[K, File => Boolean]
-  ): Map[K, Stamps] = {
-    val sourcesMap: Map[K, Map[File, XStamp]] = sources.groupBy(x => f(x._1))
-
-    val constFalse = (f: File) => false
-    def kStamps(k: K): Stamps = new MStamps(
-      products.filterKeys(prod.getOrElse(k, constFalse)),
-      sourcesMap.getOrElse(k, Map.empty[File, XStamp]),
-      binaries.filterKeys(bin.getOrElse(k, constFalse))
-    )
-
-    (for (k <- prod.keySet ++ sourcesMap.keySet ++ bin.keySet) yield (k, kStamps(k))).toMap
+  def markSource(src: VirtualFileRef, s: XStamp): Stamps = {
+    // sys.error(s"markSource($src, $s)")
+    new MStamps(products, sources.updated(src, s), libraries)
   }
 
-  override def product(prod: File) = Stamp.getStamp(products, prod)
-  override def source(src: File) = Stamp.getStamp(sources, src)
-  override def binary(bin: File) = Stamp.getStamp(binaries, bin)
+  def markLibrary(lib: VirtualFileRef, className: String, s: XStamp): Stamps =
+    new MStamps(products, sources, libraries.updated(lib, s))
+
+  def markProduct(prod: VirtualFileRef, s: XStamp): Stamps =
+    new MStamps(products.updated(prod, s), sources, libraries)
+
+  def filter(
+      prod: VirtualFileRef => Boolean,
+      removeSources: Iterable[VirtualFileRef],
+      lib: VirtualFileRef => Boolean
+  ): Stamps =
+    new MStamps(products.filterKeys(prod), {
+      val rs = removeSources.toSet
+      Map(sources.toSeq.filter {
+        case (file, stamp) => !rs(file)
+      }: _*)
+    }, libraries.filterKeys(lib))
+
+  def groupBy[K](
+      prod: Map[K, VirtualFileRef => Boolean],
+      f: VirtualFileRef => K,
+      lib: Map[K, VirtualFileRef => Boolean]
+  ): Map[K, Stamps] = {
+    val sourcesMap: Map[K, Map[VirtualFileRef, XStamp]] = sources.groupBy(x => f(x._1))
+
+    val constFalse = (f: VirtualFileRef) => false
+    def kStamps(k: K): Stamps = new MStamps(
+      products.filterKeys(prod.getOrElse(k, constFalse)),
+      sourcesMap.getOrElse(k, Map.empty[VirtualFileRef, XStamp]),
+      libraries.filterKeys(lib.getOrElse(k, constFalse))
+    )
+
+    (for (k <- prod.keySet ++ sourcesMap.keySet ++ lib.keySet) yield (k, kStamps(k))).toMap
+  }
+
+  override def product(prod: VirtualFileRef) = Stamp.getVOStamp(products, prod)
+  override def source(src: VirtualFile) = Stamp.getVStamp(sources, src)
+  override def library(lib: VirtualFileRef) = Stamp.getVOStamp(libraries, lib)
 
   override def equals(other: Any): Boolean = other match {
-    case o: MStamps => products == o.products && sources == o.sources && binaries == o.binaries
+    case o: MStamps => products == o.products && sources == o.sources && libraries == o.libraries
     case _          => false
   }
 
-  override lazy val hashCode: Int = (products :: sources :: binaries :: Nil).hashCode
+  override lazy val hashCode: Int = (products :: sources :: libraries :: Nil).hashCode
 
   override def toString: String =
-    "Stamps for: %d products, %d sources, %d binaries".format(
+    "Stamps for: %d products, %d sources, %d libraries".format(
       products.size,
       sources.size,
-      binaries.size
-    )
+      libraries.size
+    ) + " " + sources.toString
 }
 
+/**
+ * Stamp cache used for a single compilation.
+ *
+ * @param underlying
+ */
 private class InitialStamps(
-    prodStamp: File => XStamp,
-    srcStamp: File => XStamp,
-    binStamp: File => XStamp
+    underlying: ReadStamps
 ) extends ReadStamps {
   import collection.mutable.{ HashMap, Map }
 
   // cached stamps for files that do not change during compilation
-  private val sources: Map[File, XStamp] = new HashMap
-  private val binaries: Map[File, XStamp] = new HashMap
+  private val sources: Map[VirtualFileRef, XStamp] = new HashMap
+  private val libraries: Map[VirtualFileRef, XStamp] = new HashMap
 
   import scala.collection.JavaConverters.mapAsJavaMapConverter
-  override def getAllBinaryStamps: util.Map[File, XStamp] =
-    mapAsJavaMapConverter(binaries).asJava
-  override def getAllSourceStamps: util.Map[File, XStamp] =
+  override def getAllLibraryStamps: util.Map[VirtualFileRef, XStamp] =
+    mapAsJavaMapConverter(libraries).asJava
+  override def getAllSourceStamps: util.Map[VirtualFileRef, XStamp] =
     mapAsJavaMapConverter(sources).asJava
-  override def getAllProductStamps: util.Map[File, XStamp] = new util.HashMap()
+  override def getAllProductStamps: util.Map[VirtualFileRef, XStamp] =
+    new util.HashMap()
 
-  override def product(prod: File): XStamp = prodStamp(prod)
-  override def source(src: File): XStamp =
-    synchronized { sources.getOrElseUpdate(src, srcStamp(src)) }
-  override def binary(bin: File): XStamp =
-    synchronized { binaries.getOrElseUpdate(bin, binStamp(bin)) }
+  override def product(prod: VirtualFileRef): XStamp = underlying.product(prod)
+  override def source(src: VirtualFile): XStamp =
+    synchronized { sources.getOrElseUpdate(src, underlying.source(src)) }
+  override def library(lib: VirtualFileRef): XStamp =
+    synchronized { libraries.getOrElseUpdate(lib, underlying.library(lib)) }
+}
+
+private class TimeWrapLibraryStamps(
+    underlying: ReadStamps,
+    converter: FileConverter
+) extends ReadStamps {
+  import collection.mutable.{ HashMap, Map }
+
+  // cached stamps for files that do not change during compilation
+  private val libraries: Map[VirtualFileRef, (Long, XStamp)] = new HashMap
+
+  import scala.collection.JavaConverters.mapAsJavaMapConverter
+  override def getAllLibraryStamps: util.Map[VirtualFileRef, XStamp] =
+    mapAsJavaMapConverter(libraries map { case (k, (_, v2)) => (k, v2) }).asJava
+  override def getAllSourceStamps: util.Map[VirtualFileRef, XStamp] =
+    underlying.getAllSourceStamps
+  override def getAllProductStamps: util.Map[VirtualFileRef, XStamp] =
+    underlying.getAllProductStamps
+
+  override def product(prod: VirtualFileRef): XStamp = underlying.product(prod)
+  override def source(src: VirtualFile): XStamp = underlying.source(src)
+  val library0 = Stamper.timeWrap(libraries, converter, underlying.library(_))
+  override def library(lib: VirtualFileRef): XStamp = library0(lib)
+}
+
+/**
+ * Creates a raw stamper without caching.
+ */
+private class UncachedStamps(
+    prodStamp: VirtualFileRef => XStamp,
+    srcStamp: VirtualFile => XStamp,
+    libStamp: VirtualFileRef => XStamp
+) extends ReadStamps {
+  import VirtualFileUtil._
+  import scala.collection.JavaConverters.mapAsJavaMapConverter
+  val eSt = mapAsJavaMapConverter(TreeMap.empty[VirtualFileRef, XStamp]).asJava
+
+  override def getAllLibraryStamps: util.Map[VirtualFileRef, XStamp] = eSt
+  override def getAllSourceStamps: util.Map[VirtualFileRef, XStamp] = eSt
+  override def getAllProductStamps: util.Map[VirtualFileRef, XStamp] = eSt
+
+  override def product(prod: VirtualFileRef): XStamp = prodStamp(prod)
+  override def source(src: VirtualFile): XStamp = srcStamp(src)
+  override def library(lib: VirtualFileRef): XStamp = libStamp(lib)
 }

@@ -17,7 +17,7 @@ import java.io.File
 import xsbti.ArtifactInfo.ScalaOrganization
 import sbt.io.IO
 import scala.language.reflectiveCalls
-import sbt.internal.inc.classpath.ClasspathUtilities
+import sbt.internal.inc.classpath.ClasspathUtil
 
 /**
  * A Scala instance encapsulates all the information that is bound to a concrete
@@ -73,7 +73,7 @@ final class ScalaInstance(
     this(
       version,
       loader,
-      ClasspathUtilities.rootLoader,
+      ClasspathUtil.rootLoader,
       libraryJar,
       compilerJar,
       allJars,
@@ -172,7 +172,7 @@ object ScalaInstance {
     val libraryJar = findOrCrash(jars, "scala-library.jar")
     val compilerJar = findOrCrash(jars, "scala-compiler.jar")
     def fallbackClassLoaders = {
-      val l = ClasspathUtilities.toLoader(Vector(libraryJar))
+      val l = ClasspathUtil.toLoader(Vector(libraryJar.toPath))
       val c = scalaLoader(l)(jars.toVector filterNot { _ == libraryJar })
       (c, l)
     }
@@ -273,11 +273,11 @@ object ScalaInstance {
   }
 
   private def scalaLibraryLoader(launcher: xsbti.Launcher): Seq[File] => ClassLoader = { jars =>
-    ClasspathUtilities.toLoader(jars, launcher.topLoader)
+    ClasspathUtil.toLoader(jars.map(_.toPath), launcher.topLoader)
   }
 
   private def scalaLoader(parent: ClassLoader): Seq[File] => ClassLoader = { jars =>
-    ClasspathUtilities.toLoader(jars, parent)
+    ClasspathUtil.toLoader(jars.map(_.toPath), parent)
   }
 }
 

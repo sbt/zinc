@@ -11,9 +11,10 @@
 
 package sbt.inc
 
+import java.nio.file.Path
 import java.io.File
 
-import sbt.internal.inc.classpath.ClasspathUtilities
+import sbt.internal.inc.classpath.ClasspathUtil
 import xsbti.Logger
 import xsbti.compile.CompilerBridgeProvider
 
@@ -21,7 +22,7 @@ case class ScalaBridge(version: String, jars: Seq[File], classesDir: File)
 
 final class ConstantBridgeProvider(
     bridges: List[ScalaBridge],
-    tempDir: File
+    tempDir: Path
 ) extends CompilerBridgeProvider {
 
   import xsbti.compile.ScalaInstance
@@ -49,7 +50,7 @@ final class ConstantBridgeProvider(
       case Some(bridge) =>
         val targetJar: File = {
           val id = s"scriptedCompilerBridge$binSeparator${bridge.version}__$javaClassVersion.jar"
-          tempDir.toPath.resolve(id).toFile
+          tempDir.resolve(id).toFile
         }
 
         generateJar(bridge.classesDir, targetJar)
@@ -78,9 +79,9 @@ final class ConstantBridgeProvider(
 
         val libraryJar = jars.filter(_.getName.contains("scala-library")).head
         val compilerJar = jars.filter(_.getName.contains("scala-compiler")).head
-        val libraryL = ClasspathUtilities.toLoader(Vector(libraryJar))
+        val libraryL = ClasspathUtil.toLoader(Vector(libraryJar.toPath))
         val missingJars = jars.toVector filterNot { _ == libraryJar }
-        val loader = ClasspathUtilities.toLoader(missingJars, libraryL)
+        val loader = ClasspathUtil.toLoader(missingJars.map(_.toPath), libraryL)
         new ScalaInstance(scalaVersion, loader, libraryL, libraryJar, compilerJar, jars, None)
     }
   }

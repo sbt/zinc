@@ -11,18 +11,18 @@
 
 package sbt.inc
 
-import java.io.File
 import java.net.URLClassLoader
 import java.util.Optional
+import java.nio.file.{ Files, Path, Paths, StandardCopyOption }
 
 import sbt.internal.inc.{ ScalaInstance => _, FileAnalysisStore => _, AnalysisStore => _, _ }
 import sbt.io.IO
-import sbt.io.syntax._
 import sbt.util.Logger
 import JavaInterfaceUtil.{ EnrichOption, EnrichOptional }
 import TestResource._
 import sbt.internal.inc.classpath.ClassLoaderCache
 import xsbti.compile._
+import xsbti.VirtualFile
 
 class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
   val scalaVersion = "2.12.10"
@@ -31,25 +31,33 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
 
   "incremental compiler" should "detect shadowing" in {
     IO.withTemporaryDirectory { tempDir =>
+      val localBoot = Paths.get(sys.props("user.home")).resolve(".sbt").resolve("boot")
+      val javaHome = Paths.get(sys.props("java.home"))
+      val rootPaths = Vector(tempDir.toPath, localBoot, javaHome)
+      val converter = new MappedFileConverter(rootPaths, true)
+
       // Second subproject
-      val sub2Directory = tempDir / "sub2"
-      IO.createDirectory(sub2Directory)
+      val sub2Directory = tempDir.toPath / "sub2"
+      Files.createDirectories(sub2Directory)
+      Files.createDirectories(sub2Directory / "src")
       val targetDir2 = sub2Directory / "target"
       val cacheFile2 = targetDir2 / "inc_compile.zip"
-      val fileStore2 = AnalysisStore.getCachedStore(FileAnalysisStore.getDefault(cacheFile2))
+      val fileStore2 = AnalysisStore.getCachedStore(FileAnalysisStore.getDefault(cacheFile2.toFile))
 
       // Prepare the initial compilation
-      val sub1Directory = tempDir / "sub1"
-      IO.createDirectory(sub1Directory)
+      val sub1Directory = tempDir.toPath / "sub1"
+      Files.createDirectories(sub1Directory)
+      Files.createDirectories(sub1Directory / "src")
+      Files.createDirectories(sub1Directory / "lib")
       val targetDir = sub1Directory / "target"
       val cacheFile = targetDir / "inc_compile.zip"
-      val fileStore = AnalysisStore.getCachedStore(FileAnalysisStore.getDefault(cacheFile))
+      val fileStore = AnalysisStore.getCachedStore(FileAnalysisStore.getDefault(cacheFile.toFile))
       val dependerFile = sub1Directory / "src" / "Depender.scala"
-      IO.copyFile(dependerFile0, dependerFile, false)
+      Files.copy(dependerFile0, dependerFile, StandardCopyOption.REPLACE_EXISTING)
       val depender2File = sub1Directory / "src" / "Depender2.scala"
-      IO.copyFile(depender2File0, depender2File, false)
+      Files.copy(depender2File0, depender2File, StandardCopyOption.REPLACE_EXISTING)
       val binarySampleFile = sub1Directory / "lib" / "sample-binary_2.12-0.1.jar"
-      IO.copyFile(binarySampleFile0, binarySampleFile)
+      Files.copy(binarySampleFile0, binarySampleFile, StandardCopyOption.REPLACE_EXISTING)
       val sources = Array(dependerFile)
       // uncomment this to see the debug log
       // log.setLevel(Level.Debug)
@@ -59,18 +67,22 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       val sc = scalaCompiler(si, compilerBridge)
       val cs = compiler.compilers(si, ClasspathOptionsUtil.boot, None, sc)
       val prev0 = compiler.emptyPreviousResult
-      val cp = si.allJars ++ Array(targetDir, targetDir2, binarySampleFile)
+      val cp: Vector[VirtualFile] =
+        (si.allJars.toVector.map(_.toPath) ++ Vector(targetDir, targetDir2, binarySampleFile))
+          .map(PlainVirtualFile(_))
       val lookup = new PerClasspathEntryLookupImpl(
         {
-          case x if x.getAbsoluteFile == targetDir.getAbsoluteFile => prev0.analysis.toOption
-          case _                                                   => None
+          case x if converter.toPath(x).toAbsolutePath == targetDir.toAbsolutePath =>
+            prev0.analysis.toOption
+          case _ => None
         },
         Locate.definesClass
       )
       val incOptions = IncOptions
         .of()
         .withApiDebug(true)
-
+      val stamper = Stamps.timeWrapLibraryStamps(converter)
+      val vs = sources map converter.toVirtualFile
       val reporter = new ManagedLoggedReporter(maxErrors, log)
       val setup = compiler.setup(
         lookup,
@@ -83,8 +95,8 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
         Array()
       )
       val in = compiler.inputs(
-        cp,
-        sources,
+        cp.toArray,
+        vs,
         targetDir,
         Array(),
         Array(),
@@ -94,7 +106,9 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
         cs,
         setup,
         prev0,
-        Optional.empty()
+        Optional.empty(),
+        converter,
+        stamper
       )
       // This registers `test.pkg.Ext1` as the class name on the binary stamp
       val result0 = compiler.compile(in, log)
@@ -106,9 +120,10 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
         case _ => sys.error("previous is not found")
       }
       val sources1 = Array(dependerFile, depender2File)
+      val vs1 = sources1 map converter.toVirtualFile
       val in1 = compiler.inputs(
-        cp,
-        sources1,
+        cp.toArray,
+        vs1,
         targetDir,
         Array(),
         Array(),
@@ -118,7 +133,9 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
         cs,
         setup,
         prev1,
-        Optional.empty()
+        Optional.empty(),
+        converter,
+        stamper
       )
       // This registers `test.pkg.Ext2` as the class name on the binary stamp,
       // which means `test.pkg.Ext1` is no longer in the stamp.
@@ -127,14 +144,17 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
 
       // Second subproject
       val ext1File = sub2Directory / "src" / "Ext1.scala"
-      IO.copyFile(ext1File0, ext1File, false)
+      Files.copy(ext1File0, ext1File, StandardCopyOption.REPLACE_EXISTING)
       val sources2 = Array(ext1File)
+      val vs2 = sources2 map converter.toVirtualFile
       val emptyPrev = compiler.emptyPreviousResult
-      val cp2 = si.allJars ++ Array(targetDir2)
+      val cp2: Vector[VirtualFile] = (si.allJars.toVector.map(_.toPath) ++ Vector(targetDir2))
+        .map(PlainVirtualFile(_))
       val lookup2 = new PerClasspathEntryLookupImpl(
         {
-          case x if x.getAbsoluteFile == targetDir2.getAbsoluteFile => emptyPrev.analysis.toOption
-          case _                                                    => None
+          case x if converter.toPath(x).toAbsolutePath == targetDir2.toAbsolutePath =>
+            emptyPrev.analysis.toOption
+          case _ => None
         },
         Locate.definesClass
       )
@@ -149,8 +169,8 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
         Array()
       )
       val in2 = compiler.inputs(
-        cp2,
-        sources2,
+        cp2.toArray,
+        vs2,
         targetDir2,
         Array(),
         Array(),
@@ -160,15 +180,18 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
         cs,
         setup2,
         emptyPrev,
-        Optional.empty()
+        Optional.empty(),
+        converter,
+        stamper
       )
       val result2 = compiler.compile(in2, log)
       fileStore2.set(AnalysisContents.create(result2.analysis(), result2.setup()))
 
       // Actual test
       val knownSampleGoodFile = sub1Directory / "src" / "Good.scala"
-      IO.copyFile(knownSampleGoodFile0, knownSampleGoodFile, false)
+      Files.copy(knownSampleGoodFile0, knownSampleGoodFile, StandardCopyOption.REPLACE_EXISTING)
       val sources3 = Array(knownSampleGoodFile, dependerFile, depender2File)
+      val vs3 = sources3 map converter.toVirtualFile
       val prev = fileStore.get.toOption match {
         case Some(contents) =>
           PreviousResult.of(Optional.of(contents.getAnalysis), Optional.of(contents.getMiniSetup))
@@ -176,9 +199,11 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       }
       val lookup3 = new PerClasspathEntryLookupImpl(
         {
-          case x if x.getAbsoluteFile == targetDir.getAbsoluteFile  => prev.analysis.toOption
-          case x if x.getAbsoluteFile == targetDir2.getAbsoluteFile => Some(result2.analysis)
-          case _                                                    => None
+          case x if converter.toPath(x).toAbsolutePath == targetDir.toAbsolutePath =>
+            prev.analysis.toOption
+          case x if converter.toPath(x).toAbsolutePath == targetDir2.toAbsolutePath =>
+            Some(result2.analysis)
+          case _ => None
         },
         Locate.definesClass
       )
@@ -193,8 +218,8 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
         Array()
       )
       val in3 = compiler.inputs(
-        cp,
-        sources3,
+        cp.toArray,
+        vs3,
         targetDir,
         Array(),
         Array(),
@@ -204,7 +229,9 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
         cs,
         setup3,
         prev,
-        Optional.empty()
+        Optional.empty(),
+        converter,
+        stamper
       )
       val result3 = compiler.compile(in3, log)
       val a3 = result3.analysis match { case a: Analysis => a }
@@ -225,7 +252,7 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
     }
   }
 
-  def scalaCompiler(instance: ScalaInstance, bridgeJar: File): AnalyzingCompiler = {
+  def scalaCompiler(instance: ScalaInstance, bridgeJar: Path): AnalyzingCompiler = {
     val bridgeProvider = ZincUtil.constantBridgeProvider(instance, bridgeJar)
     val classpath = ClasspathOptionsUtil.boot
     val cache = Some(new ClassLoaderCache(new URLClassLoader(Array())))
@@ -234,12 +261,12 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
 }
 
 class PerClasspathEntryLookupImpl(
-    am: File => Option[CompileAnalysis],
-    definesClassLookup: File => DefinesClass
+    am: VirtualFile => Option[CompileAnalysis],
+    definesClassLookup: VirtualFile => DefinesClass
 ) extends PerClasspathEntryLookup {
-  override def analysis(classpathEntry: File): Optional[CompileAnalysis] =
+  override def analysis(classpathEntry: VirtualFile): Optional[CompileAnalysis] =
     am(classpathEntry).toOptional
-  override def definesClass(classpathEntry: File): DefinesClass =
+  override def definesClass(classpathEntry: VirtualFile): DefinesClass =
     definesClassLookup(classpathEntry)
 }
 

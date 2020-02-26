@@ -11,10 +11,7 @@
 
 package sbt.internal.inc
 
-import java.io.File
-
-import xsbti.UseScope
-
+import xsbti.{ UseScope, VirtualFileRef }
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
@@ -105,8 +102,8 @@ class ZincInvalidationProfiler extends InvalidationProfiler {
       compilationDurationNanos = durationNanos
     }
 
-    private def toPathStrings(files: Iterable[File]): Iterable[String] =
-      files.map(_.getAbsolutePath)
+    private def toPathStrings(files: Iterable[VirtualFileRef]): Iterable[String] =
+      files.map(_.id)
 
     def toApiChanges(changes: APIChanges): Iterable[zprof.ApiChange] = {
       def toUsedNames(names: Iterable[UsedName]): Iterable[zprof.UsedName] = {
@@ -153,7 +150,7 @@ class ZincInvalidationProfiler extends InvalidationProfiler {
       zprof.InitialChanges(
         changes = Some(profChanges),
         removedProducts = toStringTableIndices(toPathStrings(changes.removedProducts)).toList,
-        binaryDependencies = toStringTableIndices(toPathStrings(changes.binaryDeps)).toList,
+        binaryDependencies = toStringTableIndices(toPathStrings(changes.libraryDeps)).toList,
         externalChanges = toApiChanges(changes.external).toList
       )
       ()
@@ -180,8 +177,8 @@ class ZincInvalidationProfiler extends InvalidationProfiler {
     def registerCycle(
         invalidatedClasses: Iterable[String],
         invalidatedPackageObjects: Iterable[String],
-        initialSources: Iterable[File],
-        invalidatedSources: Iterable[File],
+        initialSources: Iterable[VirtualFileRef],
+        invalidatedSources: Iterable[VirtualFileRef],
         recompiledClasses: Iterable[String],
         changesAfterRecompilation: APIChanges,
         nextInvalidations: Iterable[String],
@@ -233,8 +230,8 @@ abstract class RunProfiler {
   def registerCycle(
       invalidatedClasses: Iterable[String],
       invalidatedPackageObjects: Iterable[String],
-      initialSources: Iterable[File],
-      invalidatedSources: Iterable[File],
+      initialSources: Iterable[VirtualFileRef],
+      invalidatedSources: Iterable[VirtualFileRef],
       recompiledClasses: Iterable[String],
       changesAfterRecompilation: APIChanges,
       nextInvalidations: Iterable[String],
@@ -256,8 +253,8 @@ object RunProfiler {
     def registerCycle(
         invalidatedClasses: Iterable[String],
         invalidatedPackageObjects: Iterable[String],
-        initialSources: Iterable[File],
-        invalidatedSources: Iterable[File],
+        initialSources: Iterable[VirtualFileRef],
+        invalidatedSources: Iterable[VirtualFileRef],
         recompiledClasses: Iterable[String],
         changesAfterRecompilation: APIChanges,
         nextInvalidations: Iterable[String],

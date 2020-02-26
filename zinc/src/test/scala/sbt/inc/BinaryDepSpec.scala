@@ -30,7 +30,7 @@ class BinaryDepSpec extends BaseCompilerSpec {
         case analysis: Analysis =>
           // We should not depend on jar creating from project that we depend on (since we've got analysis for it)
           analysis.relations.libraryDep._2s
-            .filter(_.toPath.startsWith(tempDir.toPath)) shouldBe 'empty
+            .filter(_.id.startsWith(tempDir.toPath.toString)) shouldBe 'empty
 
       }
     }

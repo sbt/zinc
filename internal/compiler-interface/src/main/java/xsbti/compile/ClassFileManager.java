@@ -11,7 +11,7 @@
 
 package xsbti.compile;
 
-import java.io.File;
+import xsbti.VirtualFile;
 
 /**
  * Represent the interface to manage the generated class files by the
@@ -29,7 +29,7 @@ public interface ClassFileManager {
      *                returns normally, as well as any empty ancestor
      *                directories of deleted files.
      */
-    void delete(File[] classes);
+    void delete(VirtualFile[] classes);
 
     /** Called once per compilation step with the class files generated during that step. */
     /**
@@ -41,7 +41,7 @@ public interface ClassFileManager {
      *
      * @param classes The generated class files by the immediate compilation run.
      */
-    void generated(File[] classes);
+    void generated(VirtualFile[] classes);
 
     /** Called once at the end of the whole compilation run, with `success`
      * indicating whether compilation succeeded (true) or not (false). */

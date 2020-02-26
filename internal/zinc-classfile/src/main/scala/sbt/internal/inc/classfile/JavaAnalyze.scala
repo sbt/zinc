@@ -20,28 +20,32 @@ import scala.annotation.tailrec
 import java.io.File
 import java.net.URL
 
+import xsbti.{ VirtualFile, VirtualFileRef }
 import xsbti.api.DependencyContext
 import xsbti.api.DependencyContext._
 import sbt.io.IO
 import sbt.util.Logger
 import xsbti.compile.Output
+import java.nio.file.Path
 
-private[sbt] object Analyze {
+private[sbt] object JavaAnalyze {
   def apply[T](
-      newClasses: Seq[File],
-      sources: Seq[File],
+      newClasses: Seq[Path],
+      sources: Seq[VirtualFile],
       log: Logger,
       output: Output,
-      finalJarOutput: Option[File]
+      finalJarOutput: Option[Path]
   )(
       analysis: xsbti.AnalysisCallback,
       loader: ClassLoader,
-      readAPI: (File, Seq[Class[_]]) => Set[(String, String)]
+      readAPI: (VirtualFileRef, Seq[Class[_]]) => Set[(String, String)]
   ): Unit = {
-    val sourceMap = sources.toSet[File].groupBy(_.getName)
+    val sourceMap = sources
+      .toSet[VirtualFile]
+      .groupBy(_.name)
     // For performance reasons, precompute these as they are static throughout this analysis
-    val outputJarOrNull: File = finalJarOutput.getOrElse(null)
-    val singleOutputOrNull: File = output.getSingleOutput.orElse(null)
+    val outputJarOrNull: Path = finalJarOutput.getOrElse(null)
+    val singleOutputOrNull: Path = output.getSingleOutput.orElse(null)
 
     def load(tpe: String, errMsg: => Option[String]): Option[Class[_]] = {
       if (tpe.endsWith("module-info")) None
@@ -54,25 +58,27 @@ private[sbt] object Analyze {
     }
 
     val classNames = mutable.Set.empty[String]
-    val sourceToClassFiles = mutable.HashMap[File, Buffer[ClassFile]](
-      sources zip Seq.fill(sources.size)(new ArrayBuffer[ClassFile]): _*
+    val sourceToClassFiles = mutable.HashMap[VirtualFile, Buffer[ClassFile]](
+      sources.map(vf => vf -> new ArrayBuffer[ClassFile]): _*
     )
 
     val binaryClassNameToLoadedClass = new mutable.HashMap[String, Class[_]]
 
-    val classfilesCache = mutable.Map.empty[String, File]
+    val classfilesCache = mutable.Map.empty[String, Path]
 
     // parse class files and assign classes to sources.  This must be done before dependencies, since the information comes
     // as class->class dependencies that must be mapped back to source->class dependencies using the source+class assignment
-    for (newClass <- newClasses;
-         classFile = Parser(newClass);
-         _ <- classFile.sourceFile orElse guessSourceName(newClass.getName);
-         source <- guessSourcePath(sourceMap, classFile, log);
-         binaryClassName = classFile.className;
-         loadedClass <- load(
-           binaryClassName,
-           Some("Error reading API from class file: " + binaryClassName)
-         )) {
+    for {
+      newClass <- newClasses
+      classFile = Parser(newClass)
+      _ <- classFile.sourceFile orElse guessSourceName(newClass.getFileName.toString)
+      source <- guessSourcePath(sourceMap, classFile, log)
+      binaryClassName = classFile.className
+      loadedClass <- load(
+        binaryClassName,
+        Some("Error reading API from class file: " + binaryClassName)
+      )
+    } {
       binaryClassNameToLoadedClass.update(binaryClassName, loadedClass)
 
       def loadEnclosingClass(clazz: Class[_]): Option[String] = {
@@ -85,11 +91,11 @@ private[sbt] object Analyze {
 
       val srcClassName = loadEnclosingClass(loadedClass)
 
-      val finalClassFile = {
+      val finalClassFile: Path = {
         if (singleOutputOrNull == null || outputJarOrNull == null) newClass
-        else resolveFinalClassFile(newClass, singleOutputOrNull, outputJarOrNull, log)
+        else
+          resolveFinalClassFile(newClass, singleOutputOrNull, outputJarOrNull, log)
       }
-
       srcClassName match {
         case Some(className) =>
           analysis.generatedNonLocalClass(source, finalClassFile, binaryClassName, className)
@@ -132,7 +138,7 @@ private[sbt] object Analyze {
           context: DependencyContext,
           fromBinaryName: String
       ): Unit = {
-        def loadFromClassloader(): Option[File] = {
+        def loadFromClassloader(): Option[Path] = {
           for {
             url <- Option(loader.getResource(classNameToClassFile(onBinaryName)))
             file <- urlAsFile(url, log, finalJarOutput)
@@ -148,11 +154,11 @@ private[sbt] object Analyze {
               } else {
                 val cachedOrigin = classfilesCache.get(onBinaryName)
                 for (file <- cachedOrigin.orElse(loadFromClassloader())) {
-                  val binaryFile = {
+                  val binaryFile: Path = {
                     if (singleOutputOrNull == null || outputJarOrNull == null) file
-                    else resolveFinalClassFile(file, singleOutputOrNull, outputJarOrNull, log)
+                    else
+                      resolveFinalClassFile(file, singleOutputOrNull, outputJarOrNull, log)
                   }
-
                   analysis.binaryDependency(
                     binaryFile,
                     onBinaryName,
@@ -223,18 +229,19 @@ private[sbt] object Analyze {
    *   `/develop/zinc/target/output.jar!/sbt/internal/inc/Compile.class`
    */
   private def resolveFinalClassFile(
-      realClassFile: File,
-      outputDir: File,
-      outputJar: File,
+      realClassFile: Path,
+      outputDir: Path,
+      outputJar: Path,
       log: Logger
-  ): File = {
-    IO.relativize(outputDir, realClassFile) match {
-      case Some(relativeClass) => JarUtils.ClassInJar(outputJar, relativeClass).toFile
+  ): Path = {
+    def toFile(p: Path): File = if (p == null) null else p.toFile
+    IO.relativize(toFile(outputDir), toFile(realClassFile)) match {
+      case Some(relativeClass) => JarUtils.ClassInJar(outputJar, relativeClass).toPath
       case None                => realClassFile
     }
   }
 
-  private[this] def urlAsFile(url: URL, log: Logger, finalJarOutput: Option[File]): Option[File] =
+  private[this] def urlAsFile(url: URL, log: Logger, finalJarOutput: Option[Path]): Option[Path] =
     try urlAsFile(url, finalJarOutput)
     catch {
       case e: Exception =>
@@ -242,13 +249,14 @@ private[sbt] object Analyze {
         None
     }
 
-  private def urlAsFile(url: URL, finalJarOutput: Option[File]): Option[File] = {
+  private def urlAsFile(url: URL, finalJarOutput: Option[Path]): Option[Path] = {
     IO.urlAsFile(url).map { file =>
+      val p = file.toPath
       // IO.urlAsFile removes the class reference in the jar url, let's add it back.
-      if (finalJarOutput.exists(_ == file)) {
-        JarUtils.ClassInJar.fromURL(url, file).toFile
+      if (finalJarOutput.exists(_ == p)) {
+        JarUtils.ClassInJar.fromURL(url, p).toPath
       } else {
-        file
+        p
       }
     }
   }
@@ -269,11 +277,16 @@ private[sbt] object Analyze {
   private def classNameToClassFile(name: String) = name.replace('.', '/') + ClassExt
   private def binaryToSourceName(loadedClass: Class[_]): Option[String] =
     Option(loadedClass.getCanonicalName)
+
+  /*
+   * given mapping between getName and sources, try to guess
+   * where the *.class file is coming from.
+   */
   private def guessSourcePath(
-      sourceNameMap: Map[String, Set[File]],
+      sourceNameMap: Map[String, Set[VirtualFile]],
       classFile: ClassFile,
       log: Logger
-  ) = {
+  ): List[VirtualFile] = {
     val classNameParts = classFile.className.split("""\.""")
     val pkg = classNameParts.init
     val simpleClassName = classNameParts.last
@@ -291,40 +304,40 @@ private[sbt] object Analyze {
     }
     candidates
   }
+
   private def findSource(
-      sourceNameMap: Map[String, Iterable[File]],
+      sourceNameMap: Map[String, Iterable[VirtualFile]],
       pkg: List[String],
       sourceFileName: String
-  ): List[File] =
-    refine((sourceNameMap get sourceFileName).toList.flatten.map { x =>
-      (x, x.getParentFile)
-    }, pkg.reverse)
+  ): List[VirtualFile] = {
 
-  @tailrec private def refine(sources: List[(File, File)], pkgRev: List[String]): List[File] = {
-    def make = sources.map(_._1)
-    if (sources.isEmpty || sources.tail.isEmpty)
-      make
-    else
-      pkgRev match {
-        case Nil => shortest(make)
-        case x :: xs =>
-          val retain = sources flatMap {
-            case (src, pre) =>
-              if (pre != null && pre.getName == x)
-                (src, pre.getParentFile) :: Nil
-              else
-                Nil
-          }
-          refine(retain, xs)
-      }
-  }
-  private def shortest(files: List[File]): List[File] =
-    if (files.isEmpty) files
-    else {
-      val fs = files.groupBy(distanceToRoot(0))
-      fs(fs.keys.min)
+    @tailrec def refine(
+        sources: List[(VirtualFile, List[String])],
+        pkgRev: List[String]
+    ): List[VirtualFile] = {
+      def make = sources.map(_._1)
+      if (sources.isEmpty || sources.tail.isEmpty) make
+      else
+        pkgRev match {
+          case Nil => shortest(make)
+          case x :: xs =>
+            val retain = sources flatMap {
+              case (src, `x` :: presRev) => (src, presRev) :: Nil
+              case _                     => Nil
+            }
+            refine(retain, xs)
+        }
     }
+    def shortest(files: List[VirtualFile]): List[VirtualFile] =
+      if (files.isEmpty) files
+      else {
+        val fs = files.groupBy(x => x.names.size)
+        fs(fs.keys.min)
+      }
 
-  private def distanceToRoot(acc: Int)(file: File): Int =
-    if (file == null) acc else distanceToRoot(acc + 1)(file.getParentFile)
+    refine((sourceNameMap get sourceFileName).toList.flatten map { x =>
+      (x, x.names.toList.reverse.drop(1))
+    }, pkg.reverse)
+  }
+
 }

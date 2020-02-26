@@ -11,7 +11,7 @@
 
 package xsbti.compile;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.io.Serializable;
 
 /**
@@ -24,7 +24,7 @@ public interface OutputGroup extends Serializable {
      * Note that source directories should uniquely identify the group
      * for a certain source file.
      */
-    public File getSourceDirectory();
+    public Path getSourceDirectory();
 
     /**
      * Return the directory where class files should be generated.
@@ -35,5 +35,5 @@ public interface OutputGroup extends Serializable {
      * <p>
      * This directory must be exclusively used for one set of sources.
      */
-    public File getOutputDirectory();
+    public Path getOutputDirectory();
 }

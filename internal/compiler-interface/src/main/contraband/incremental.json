@@ -12,8 +12,8 @@
           "target": "Java",
           "type": "record",
           "doc": [
-           "Constructs a minimal ClassfileManager that immediately deletes class files when requested.",
-           "This is the default classfile manager if no type is provided in incremental options."
+            "Constructs a minimal ClassfileManager that immediately deletes class files when requested.",
+            "This is the default classfile manager if no type is provided in incremental options."
           ]
         },
         {
@@ -27,8 +27,14 @@
             "keeps the successfully generated class files from the new compilation."
           ],
           "fields": [
-            { "name": "backupDirectory", "type": "java.io.File" },
-            { "name": "logger",          "type": "xsbti.Logger" }
+            {
+              "name": "backupDirectory",
+              "type": "java.io.File"
+            },
+            {
+              "name": "logger",
+              "type": "xsbti.Logger"
+            }
           ]
         }
       ]
@@ -194,6 +200,12 @@
             "Can be useful for debugging incremental compilation issues."
           ],
           "since": "1.2.6"
+        },
+        {
+          "name": "allowMachinePath",
+          "type": "boolean",
+          "default": "xsbti.compile.IncOptions.defaultAllowMachinePath()",
+          "since": "1.4.0"
         }
       ],
       "extra": [
@@ -257,6 +269,9 @@
         "}",
         "public static boolean defaultStrictMode() {",
         "    return false;",
+        "}",
+        "public static boolean defaultAllowMachinePath() {",
+        "    return true;",
         "}"
       ]
     },
@@ -269,8 +284,8 @@
       "fields": [
         {
           "name": "classpath",
-          "type": "java.io.File*",
-          "default": "new java.io.File[0]",
+          "type": "xsbti.VirtualFile*",
+          "default": "new xsbti.VirtualFile[0]",
           "doc": [
             "The classpath to use for compilation.",
             "This will be modified according to the ClasspathOptions used to configure the ScalaCompiler."
@@ -279,8 +294,8 @@
         },
         {
           "name": "sources",
-          "type": "java.io.File*",
-          "default": "new java.io.File[0]",
+          "type": "xsbti.VirtualFile*",
+          "default": "new xsbti.VirtualFile[0]",
           "doc": [
             "All sources that should be recompiled.",
             "This should include Scala and Java sources, which are identified by their extension."
@@ -289,8 +304,8 @@
         },
         {
           "name": "classesDirectory",
-          "type": "java.io.File",
-          "default": "new java.io.File(\"classes\")",
+          "type": "java.nio.file.Path",
+          "default": "java.nio.file.Paths.get(\"classes\")",
           "since": "0.1.0"
         },
         {
@@ -328,7 +343,7 @@
         },
         {
           "name": "temporaryClassesDirectory",
-          "type": "java.util.Optional<java.io.File>",
+          "type": "java.util.Optional<java.nio.file.Path>",
           "default": "java.util.Optional.empty()",
           "doc": [
             "Points to a temporary classes directory where the compiler can put compilation products",
@@ -336,6 +351,20 @@
             "classes directory only needs to exist during one incremental compiler cycle."
           ],
           "since": "1.3.0"
+        },
+        {
+          "name": "converter",
+          "type": "java.util.Optional<xsbti.FileConverter>",
+          "default": "java.util.Optional.empty()",
+          "doc": "FileConverter to convert between Path and VirtualFileRef.",
+          "since": "1.4.0"
+        },
+        {
+          "name": "stamper",
+          "type": "java.util.Optional<xsbti.compile.analysis.ReadStamps>",
+          "default": "java.util.Optional.empty()",
+          "doc": "ReadStamps to calculate timestamp or hash.",
+          "since": "1.4.0"
         }
       ]
     },
@@ -345,8 +374,14 @@
       "target": "Java",
       "type": "record",
       "fields": [
-        { "name": "file", "type": "java.io.File" },
-        { "name": "hash", "type": "int"    }
+        {
+          "name": "file",
+          "type": "java.nio.file.Path"
+        },
+        {
+          "name": "hash",
+          "type": "int"
+        }
       ]
     },
     {
@@ -409,12 +444,30 @@
       "type": "record",
       "doc": "This is used as part of CompileResult.",
       "fields": [
-        { "name": "output",          "type": "xsbti.compile.Output"       },
-        { "name": "options",         "type": "xsbti.compile.MiniOptions"  },
-        { "name": "compilerVersion", "type": "String"                     },
-        { "name": "order",           "type": "xsbti.compile.CompileOrder" },
-        { "name": "storeApis",       "type": "boolean"                    },
-        { "name": "extra",           "type": "xsbti.T2<String, String>*"  }
+        {
+          "name": "output",
+          "type": "xsbti.compile.Output"
+        },
+        {
+          "name": "options",
+          "type": "xsbti.compile.MiniOptions"
+        },
+        {
+          "name": "compilerVersion",
+          "type": "String"
+        },
+        {
+          "name": "order",
+          "type": "xsbti.compile.CompileOrder"
+        },
+        {
+          "name": "storeApis",
+          "type": "boolean"
+        },
+        {
+          "name": "extra",
+          "type": "xsbti.T2<String, String>*"
+        }
       ]
     },
     {
@@ -424,9 +477,18 @@
       "type": "record",
       "doc": "The result of running the incremental compilation.",
       "fields": [
-        { "name": "analysis",    "type": "xsbti.compile.CompileAnalysis" },
-        { "name": "setup",       "type": "xsbti.compile.MiniSetup"       },
-        { "name": "hasModified", "type": "boolean"                       }
+        {
+          "name": "analysis",
+          "type": "xsbti.compile.CompileAnalysis"
+        },
+        {
+          "name": "setup",
+          "type": "xsbti.compile.MiniSetup"
+        },
+        {
+          "name": "hasModified",
+          "type": "boolean"
+        }
       ]
     },
     {
@@ -436,8 +498,14 @@
       "type": "record",
       "doc": "The previous source dependency analysis result from compilation.",
       "fields": [
-        { "name": "analysis", "type": "java.util.Optional<xsbti.compile.CompileAnalysis>" },
-        { "name": "setup",    "type": "java.util.Optional<xsbti.compile.MiniSetup>"       }
+        {
+          "name": "analysis",
+          "type": "java.util.Optional<xsbti.compile.CompileAnalysis>"
+        },
+        {
+          "name": "setup",
+          "type": "java.util.Optional<xsbti.compile.MiniSetup>"
+        }
       ]
     },
     {
@@ -458,16 +526,22 @@
           "doc": "If true, no sources are actually compiled and the Analysis from the previous compilation is returned."
         },
         {
-          "name": "cacheFile",
-          "type": "java.io.File",
+          "name": "cachePath",
+          "type": "java.nio.file.Path",
           "doc": [
             "The file used to cache information across compilations.",
             "This file can be removed to force a full recompilation.",
             "The file should be unique and not shared between compilations."
           ]
         },
-        { "name": "cache",                      "type": "xsbti.compile.GlobalsCache" },
-        { "name": "incrementalCompilerOptions", "type": "xsbti.compile.IncOptions"   },
+        {
+          "name": "cache",
+          "type": "xsbti.compile.GlobalsCache"
+        },
+        {
+          "name": "incrementalCompilerOptions",
+          "type": "xsbti.compile.IncOptions"
+        },
         {
           "name": "reporter",
           "type": "xsbti.Reporter",
@@ -478,7 +552,24 @@
           "type": "java.util.Optional<xsbti.compile.CompileProgress>",
           "doc": "Optionally provide progress indication."
         },
-        { "name": "extra", "type": "xsbti.T2<String, String>*" }
+        {
+          "name": "extra",
+          "type": "xsbti.T2<String, String>*"
+        }
+      ],
+      "extra": [
+        "public java.io.File cacheFile() {",
+        "    return this.cachePath.toFile();",
+        "}",
+        "public Setup withCacheFile(java.io.File cacheFile) {",
+        "    return this.withCachePath(cacheFile.toPath());",
+        "}",
+        "public static Setup create(xsbti.compile.PerClasspathEntryLookup _perClasspathEntryLookup, boolean _skip, java.io.File _cacheFile, xsbti.compile.GlobalsCache _cache, xsbti.compile.IncOptions _incrementalCompilerOptions, xsbti.Reporter _reporter, java.util.Optional<xsbti.compile.CompileProgress> _progress, xsbti.T2<String, String>[] _extra) {",
+        "    return new Setup(_perClasspathEntryLookup, _skip, _cacheFile.toPath(), _cache, _incrementalCompilerOptions, _reporter, _progress, _extra);",
+        "}",
+        "public static Setup of(xsbti.compile.PerClasspathEntryLookup _perClasspathEntryLookup, boolean _skip, java.io.File _cacheFile, xsbti.compile.GlobalsCache _cache, xsbti.compile.IncOptions _incrementalCompilerOptions, xsbti.Reporter _reporter, java.util.Optional<xsbti.compile.CompileProgress> _progress, xsbti.T2<String, String>[] _extra) {",
+        "    return new Setup(_perClasspathEntryLookup, _skip, _cacheFile.toPath(), _cache, _incrementalCompilerOptions, _reporter, _progress, _extra);",
+        "}"
       ]
     },
     {

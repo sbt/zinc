@@ -1,2 +1,2 @@
 > compile
-> checkProducts A.scala: A.class A$.class
+> checkProducts A.scala: ${0}/target/classes/A.class ${0}/target/classes/A$.class

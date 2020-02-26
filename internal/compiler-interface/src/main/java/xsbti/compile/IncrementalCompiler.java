@@ -14,9 +14,13 @@ package xsbti.compile;
 import xsbti.Logger;
 import xsbti.Reporter;
 import xsbti.T2;
+import xsbti.FileConverter;
+import xsbti.VirtualFile;
+import xsbti.compile.analysis.ReadStamps;
 
 import java.io.File;
 import java.util.Optional;
+import java.nio.file.Path;
 
 /*
 * This API is subject to change.
@@ -86,6 +90,8 @@ public interface IncrementalCompiler {
      * @param temporaryClassesDirectory A directory where incremental compiler
      *                                  can put temporary class files or jars.
      * @param extra An array of sbt tuples with extra options.
+     * @param converter FileConverter to convert between Path and VirtualFileRef.
+     * @param stamper Stamper creates timestamp or hash.
      * @param logger An instance of {@link Logger} that logs Zinc output.
      *
      *
@@ -94,8 +100,8 @@ public interface IncrementalCompiler {
      */
     CompileResult compile(ScalaCompiler scalaCompiler,
                           JavaCompiler javaCompiler,
-                          File[] sources,
-                          File[] classpath,
+                          VirtualFile[] sources,
+                          VirtualFile[] classpath,
                           Output output,
                           GlobalsCache globalsCache,
                           String[] scalacOptions,
@@ -110,7 +116,67 @@ public interface IncrementalCompiler {
                           java.lang.Boolean skip,
                           Optional<CompileProgress> progress,
                           IncOptions incrementalOptions,
-                          Optional<File> temporaryClassesDirectory,
+                          Optional<Path> temporaryClassesDirectory,
                           T2<String, String>[] extra,
+                          FileConverter converter,
+                          ReadStamps stamper,
+                          Logger logger);
+
+    /**
+     * Performs an incremental compilation given its configuration.
+     *
+     * @param scalaCompiler The Scala compiler to compile Scala sources.
+     * @param javaCompiler The Java compiler to compile Java sources.
+     * @param sources An array of Java and Scala source files to be compiled.
+     * @param classpath An array of files representing classpath entries.
+     * @param output An instance of {@link Output} to store the compiler outputs.
+     * @param globalsCache Directory where previous cached compilers are stored.
+     * @param scalacOptions An array of options/settings for the Scala compiler.
+     * @param javacOptions An array of options for the Java compiler.
+     * @param previousAnalysis Optional previous incremental compilation analysis.
+     * @param previousSetup Optional previous incremental compilation setup.
+     * @param perClasspathEntryLookup Lookup of data structures and operations
+     *                                for a given classpath entry.
+     * @param reporter An instance of {@link Reporter} to report compiler output.
+     * @param compileOrder The order in which Java and Scala sources should
+     *                     be compiled.
+     * @param skip Flag to ignore this compilation run and return previous one.
+     * @param progress An instance of {@link CompileProgress} to keep track of
+     *                 the current compilation progress.
+     * @param incrementalOptions An Instance of {@link IncOptions} that
+     *                           configures the incremental compiler behaviour.
+     * @param temporaryClassesDirectory A directory where incremental compiler
+     *                                  can put temporary class files or jars.
+     * @param extra An array of sbt tuples with extra options.
+     * @param converter FileConverter to convert between Path and VirtualFileRef.
+     * @param stamper Stamper creates timestamp or hash.
+     * @param logger An instance of {@link Logger} that logs Zinc output.
+     *
+     *
+     * @return An instance of {@link CompileResult} that holds information
+     * about the results of the compilation.
+     */
+    CompileResult compile(ScalaCompiler scalaCompiler,
+                          JavaCompiler javaCompiler,
+                          Path[] sources,
+                          Path[] classpath,
+                          Output output,
+                          GlobalsCache globalsCache,
+                          String[] scalacOptions,
+                          String[] javacOptions,
+                          Optional<CompileAnalysis> previousAnalysis,
+                          Optional<MiniSetup> previousSetup,
+                          PerClasspathEntryLookup perClasspathEntryLookup,
+                          Reporter reporter,
+                          CompileOrder compileOrder,
+                          // Has to be boxed to override in Scala,
+                          // this is a bug of the Scala compiler 2.12
+                          java.lang.Boolean skip,
+                          Optional<CompileProgress> progress,
+                          IncOptions incrementalOptions,
+                          Optional<Path> temporaryClassesDirectory,
+                          T2<String, String>[] extra,
+                          FileConverter converter,
+                          ReadStamps stamper,
                           Logger logger);
 }

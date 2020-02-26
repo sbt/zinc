@@ -13,10 +13,8 @@ package sbt
 package internal
 package inc
 
-import java.io.File
-
 import sbt.internal.inc.classfile.JavaCompilerForUnitTesting
-import xsbti.AnalysisCallback
+import xsbti.{ AnalysisCallback, VirtualFileRef }
 import xsbti.api.{ ClassLike, ClassLikeDef, DefinitionType }
 
 class ClassToAPISpecification extends UnitSpec {
@@ -91,7 +89,7 @@ class ClassToAPISpecification extends UnitSpec {
 
   def readAPI(
       callback: AnalysisCallback,
-      source: File,
+      source: VirtualFileRef,
       classes: Seq[Class[_]]
   ): Set[(String, String)] = {
     val (apis, mainClasses, inherits) = ClassToAPI.process(classes)

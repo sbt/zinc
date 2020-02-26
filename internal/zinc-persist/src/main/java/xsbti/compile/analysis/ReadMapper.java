@@ -13,9 +13,9 @@ package xsbti.compile.analysis;
 
 import sbt.internal.inc.mappers.NaiveRelativeReadMapper;
 import sbt.internal.inc.mappers.RelativeReadMapper;
+import xsbti.VirtualFileRef;
 import xsbti.compile.MiniSetup;
 
-import java.io.File;
 import java.nio.file.Path;
 
 /**
@@ -90,32 +90,32 @@ public interface ReadMapper extends GenericMapper {
     static ReadMapper getEmptyMapper() {
         return new ReadMapper() {
             @Override
-            public File mapSourceFile(File sourceFile) {
+            public VirtualFileRef mapSourceFile(VirtualFileRef sourceFile) {
                 return sourceFile;
             }
 
             @Override
-            public File mapBinaryFile(File binaryFile) {
+            public VirtualFileRef mapBinaryFile(VirtualFileRef binaryFile) {
                 return binaryFile;
             }
 
             @Override
-            public File mapProductFile(File productFile) {
+            public VirtualFileRef mapProductFile(VirtualFileRef productFile) {
                 return productFile;
             }
 
             @Override
-            public File mapOutputDir(File outputDir) {
+            public Path mapOutputDir(Path outputDir) {
                 return outputDir;
             }
 
             @Override
-            public File mapSourceDir(File sourceDir) {
+            public Path mapSourceDir(Path sourceDir) {
                 return sourceDir;
             }
 
             @Override
-            public File mapClasspathEntry(File classpathEntry) {
+            public Path mapClasspathEntry(Path classpathEntry) {
                 return classpathEntry;
             }
 
@@ -130,17 +130,17 @@ public interface ReadMapper extends GenericMapper {
             }
 
             @Override
-            public Stamp mapBinaryStamp(File file, Stamp binaryStamp) {
+            public Stamp mapBinaryStamp(VirtualFileRef file, Stamp binaryStamp) {
                 return binaryStamp;
             }
 
             @Override
-            public Stamp mapSourceStamp(File file, Stamp sourceStamp) {
+            public Stamp mapSourceStamp(VirtualFileRef file, Stamp sourceStamp) {
                 return sourceStamp;
             }
 
             @Override
-            public Stamp mapProductStamp(File file, Stamp productStamp) {
+            public Stamp mapProductStamp(VirtualFileRef file, Stamp productStamp) {
                 return productStamp;
             }
 

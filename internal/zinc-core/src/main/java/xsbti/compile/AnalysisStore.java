@@ -62,6 +62,12 @@ public interface AnalysisStore {
     Optional<AnalysisContents> get();
 
     /**
+     * Gets an {@link AnalysisContents} from the underlying store.
+     *
+     */
+    AnalysisContents unsafeGet();
+
+    /**
      * Sets an {@link AnalysisContents} to the underlying store.
      *
      * The contents of the analysis file are necessary for subsequent incremental compiles

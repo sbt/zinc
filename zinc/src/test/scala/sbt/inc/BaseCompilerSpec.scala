@@ -21,6 +21,7 @@ import sbt.internal.inc.classpath.ClassLoaderCache
 import sbt.io.IO
 import sbt.io.syntax._
 import sbt.util.{ InterfaceUtil, Logger }
+import xsbti.{ FileConverter, VirtualFile }
 import xsbti.compile.{ ScalaInstance => _, _ }
 import xsbti.compile.FileAnalysisStore
 
@@ -29,11 +30,12 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
   val scalaVersion = scala.util.Properties.versionNumberString
   val maxErrors = 100
 
-  case class MockedLookup(am: File => Optional[CompileAnalysis]) extends PerClasspathEntryLookup {
-    override def analysis(classpathEntry: File): Optional[CompileAnalysis] =
+  case class MockedLookup(am: VirtualFile => Optional[CompileAnalysis])
+      extends PerClasspathEntryLookup {
+    override def analysis(classpathEntry: VirtualFile): Optional[CompileAnalysis] =
       am(classpathEntry)
 
-    override def definesClass(classpathEntry: File): DefinesClass =
+    override def definesClass(classpathEntry: VirtualFile): DefinesClass =
       Locate.definesClass(classpathEntry)
   }
 
@@ -41,7 +43,8 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
       baseLocation: Path,
       sources: Map[Path, Seq[Path]],
       classPath: Seq[Path],
-      analysisForCp: Map[File, File] = Map.empty
+      analysisForCp: Map[VirtualFile, Path] = Map.empty,
+      outputToJar: Boolean = false,
   ) {
     private def fromResource(prefix: Path)(path: Path): File = {
       val fullPath = prefix.resolve(path).toString()
@@ -50,46 +53,53 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
         .getOrElse(throw new NoSuchElementException(s"Missing resource $fullPath"))
     }
 
+    private val localBoot = Paths.get(sys.props("user.home")).resolve(".sbt").resolve("boot")
+    private val javaHome = Paths.get(sys.props("java.home"))
     private val sourcesPrefix = Paths.get("sources")
     private val binPrefix = Paths.get("bin")
 
-    val allSources: Iterable[File] = for {
-      (sourcePath, sourceFiles) <- sources
-      sourceRoot = baseLocation.resolve(sourcePath)
+    val allSources: Iterable[Path] = for {
+      (destinationPath, sourceFiles) <- sources
+      destinationRoot = baseLocation.resolve(destinationPath)
       sourceFile <- sourceFiles
     } yield {
-      val targetFile = sourceRoot.resolve(sourceFile).toFile
+      val targetFile = destinationRoot.resolve(sourceFile).toFile
       IO.copyFile(fromResource(sourcesPrefix)(sourceFile), targetFile)
-      targetFile
+      targetFile.toPath
     }
     val classpathBase = baseLocation.resolve("bin")
-
-    val allClasspath = classPath.map {
-      case zippedClassesPath if zippedClassesPath.getFileName.toString.endsWith(".zip") =>
+    val rootPaths = Vector(baseLocation, localBoot, javaHome)
+    val converter = new MappedFileConverter(rootPaths, true)
+    val allClasspath: Seq[VirtualFile] = (classPath map {
+      case zippedClassesPath if zippedClassesPath.toString.endsWith(".zip") =>
         val target = classpathBase.resolve(zippedClassesPath.toString.dropRight(4)).toFile
         IO.unzip(fromResource(binPrefix)(zippedClassesPath), target)
-        target
+        target.toPath
       case existingFile if existingFile.isAbsolute && Files.exists(existingFile) =>
-        existingFile.toFile
+        existingFile
       case jarPath =>
         val newJar = classpathBase.resolve(jarPath).toFile
         IO.copyFile(fromResource(binPrefix)(jarPath), newJar)
-        newJar
-    }
+        newJar.toPath
+    }).map(converter.toVirtualFile(_))
 
-    val defaultClassesDir = baseLocation.resolve("classes").toFile
+    val defaultClassesDir: Path = baseLocation.resolve("classes")
+    val output: Path =
+      if (outputToJar) baseLocation.resolve("target").resolve("output.jar")
+      else defaultClassesDir
 
-    def defaultStoreLocation: File = baseLocation.resolve("inc_data.zip").toFile
+    def defaultStoreLocation: Path = baseLocation.resolve("inc_data.zip")
 
     def createCompiler() =
       CompilerSetup(
-        defaultClassesDir,
-        baseLocation.toFile,
-        allSources.toArray,
+        output,
+        baseLocation,
+        allSources.toVector map converter.toVirtualFile,
         allClasspath,
         IncOptions.of(),
         analysisForCp,
-        defaultStoreLocation
+        defaultStoreLocation,
+        converter,
       )
 
     def update(source: Path)(change: String => String): Unit = {
@@ -101,16 +111,16 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
     }
 
     def dependsOnJarFrom(other: ProjectSetup): ProjectSetup = {
-      val sources = other.defaultClassesDir ** "*.class"
+      val sources = other.defaultClassesDir.toFile ** "*.class"
       val mapping = sources.get.map { file =>
-        file -> other.defaultClassesDir.toPath.relativize(file.toPath).toString
+        file -> other.defaultClassesDir.relativize(file.toPath).toString
       }
       val dest = baseLocation.resolve("bin").resolve(s"${other.baseLocation.getFileName}.jar")
       IO.zip(mapping, dest.toFile, Some(0L))
-
+      val vdest = PlainVirtualFile(dest)
       copy(
         classPath = classPath :+ dest,
-        analysisForCp = analysisForCp + (dest.toFile -> other.defaultStoreLocation)
+        analysisForCp = analysisForCp + (vdest -> other.defaultStoreLocation)
       )
     }
   }
@@ -125,21 +135,22 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
       )
   }
 
-  def scalaCompiler(instance: xsbti.compile.ScalaInstance, bridgeJar: File): AnalyzingCompiler = {
-    val bridgeProvider = ZincUtil.constantBridgeProvider(instance, bridgeJar)
+  def scalaCompiler(instance: xsbti.compile.ScalaInstance, bridgeJar: Path): AnalyzingCompiler = {
+    val bridgeProvider = ZincUtil.constantBridgeProvider(instance, bridgeJar.toFile)
     val classpath = ClasspathOptionsUtil.boot
     val cache = Some(new ClassLoaderCache(new URLClassLoader(Array())))
     new AnalyzingCompiler(instance, bridgeProvider, classpath, _ => (), cache)
   }
 
   case class CompilerSetup(
-      classesDir: File,
-      tempDir: File,
-      sources: Array[File],
-      classpath: Seq[File],
+      output: Path,
+      tempDir: Path,
+      sources: Seq[VirtualFile],
+      classpath: Seq[VirtualFile],
       incOptions: IncOptions,
-      analysisForCp: Map[File, File],
-      analysisStoreLocation: File
+      analysisForCp: Map[VirtualFile, Path],
+      analysisStoreLocation: Path,
+      converter: FileConverter
   ) {
     val noLogger = Logger.Null
     val compiler = new IncrementalCompilerImpl
@@ -149,10 +160,10 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
     val sc = scalaCompiler(si, compilerBridge)
     val cs = compiler.compilers(si, ClasspathOptionsUtil.boot, None, sc)
 
-    private def analysis(forEntry: File): Optional[CompileAnalysis] = {
+    private def analysis(forEntry: VirtualFile): Optional[CompileAnalysis] = {
       analysisForCp.get(forEntry) match {
         case Some(analysisStore) =>
-          val content = FileAnalysisStore.getDefault(analysisStore).get()
+          val content = FileAnalysisStore.getDefault(analysisStore.toFile).get()
           if (content.isPresent) Optional.of(content.get().getAnalysis)
           else Optional.empty()
         case _ =>
@@ -161,7 +172,8 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
     }
 
     val lookup = MockedLookup(analysis)
-    val reporter = new ManagedLoggedReporter(maxErrors, log)
+    val mapper = VirtualFileUtil.sourcePositionMapper(converter)
+    val reporter = new ManagedLoggedReporter(maxErrors, log, mapper)
     val extra = Array(InterfaceUtil.t2(("key", "value")))
 
     var lastCompiledUnits: Set[String] = Set.empty
@@ -174,7 +186,7 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
     val setup = compiler.setup(
       lookup,
       skip = false,
-      tempDir / "inc_compile",
+      tempDir.resolve("inc_compile"),
       CompilerCache.fresh,
       incOptions,
       reporter,
@@ -182,10 +194,16 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
       extra
     )
     val prev = compiler.emptyPreviousResult
+    val cp = Vector(converter.toVirtualFile(output)) ++
+      (si.allJars map { x =>
+        converter.toVirtualFile(x.toPath)
+      }) ++
+      classpath.toVector
+    val stamper = Stamps.timeWrapLibraryStamps(converter)
     val in = compiler.inputs(
-      Array(classesDir) ++ si.allJars ++ classpath,
-      sources,
-      classesDir,
+      cp.toArray,
+      sources.toArray,
+      output,
       Array(),
       Array(),
       maxErrors,
@@ -194,7 +212,9 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
       cs,
       setup,
       prev,
-      Optional.empty()
+      Optional.empty(),
+      converter,
+      stamper
     )
 
     def doCompile(newInputs: Inputs => Inputs = identity): CompileResult = {
@@ -203,7 +223,7 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
     }
 
     def doCompileWithStore(
-        store: AnalysisStore = FileAnalysisStore.getDefault(analysisStoreLocation),
+        store: AnalysisStore = FileAnalysisStore.getDefault(analysisStoreLocation.toFile),
         newInputs: Inputs => Inputs = identity
     ): CompileResult = {
       import JavaInterfaceUtil.EnrichOptional

@@ -11,8 +11,8 @@
 
 package xsbti.compile;
 
-import java.io.File;
 import java.util.Optional;
+import xsbti.VirtualFile;
 
 /**
  * Defines a classfile manager that composes the operation of two classfile manager,
@@ -36,7 +36,7 @@ public class WrappedClassFileManager implements ClassFileManager {
   }
 
   @Override
-  public void delete(File[] classes) {
+  public void delete(VirtualFile[] classes) {
     // Avoid Java 8 syntax to accommodate Scala 2.10
     if (external.isPresent()) {
       external.get().delete(classes);
@@ -54,7 +54,7 @@ public class WrappedClassFileManager implements ClassFileManager {
   }
 
   @Override
-  public void generated(File[] classes) {
+  public void generated(VirtualFile[] classes) {
     // Avoid Java 8 syntax to accommodate Scala 2.10
     if (external.isPresent()) {
       external.get().generated(classes);

@@ -71,6 +71,8 @@ object FileAnalysisStore {
       nestedRead.flatten.toOptional
     }
 
+    override def unsafeGet: AnalysisContents = get.get
+
     /**
      * Write the zipped analysis contents into a temporary file before
      * overwriting the old analysis file and avoiding data race conditions.
@@ -124,10 +126,10 @@ object FileAnalysisStore {
 
     def get(): Optional[AnalysisContents] = {
       import JavaInterfaceUtil.EnrichOption
-      allCatch.opt(getUncaught()).toOptional
+      allCatch.opt(unsafeGet()).toOptional
     }
 
-    def getUncaught(): AnalysisContents =
+    def unsafeGet(): AnalysisContents =
       Using.zipInputStream(new FileInputStream(file)) { inputStream =>
         lookupEntry(inputStream, analysisFileName)
         val writer = new BufferedReader(new InputStreamReader(inputStream, IO.utf8))

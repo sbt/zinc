@@ -15,11 +15,12 @@ package internal
 package inc
 package javac
 
-import java.io.{ File, InputStream, OutputStream, PrintWriter, Writer }
+import java.net.{ URI, URLClassLoader }
+import java.io.{ InputStream, OutputStream, PrintWriter, Writer }
 import java.util.Locale
 import java.nio.{ ByteBuffer, CharBuffer }
 import java.nio.charset.{ Charset, CodingErrorAction }
-
+import java.nio.file.{ Files, Path, Paths }
 import javax.tools.JavaFileManager.Location
 import javax.tools.JavaFileObject.Kind
 import javax.tools.{
@@ -28,6 +29,7 @@ import javax.tools.{
   ForwardingJavaFileObject,
   JavaFileManager,
   JavaFileObject,
+  SimpleJavaFileObject,
   StandardJavaFileManager,
   DiagnosticListener
 }
@@ -35,12 +37,13 @@ import sbt.internal.util.LoggerWriter
 import sbt.util.{ Level, Logger }
 
 import scala.util.control.NonFatal
-import xsbti.{ Reporter, Logger => XLogger }
+import xsbti.{ Reporter, Logger => XLogger, PathBasedFile, VirtualFile, VirtualFileRef }
 import xsbti.compile.{
   ClassFileManager,
   IncToolOptions,
   JavaCompiler => XJavaCompiler,
-  Javadoc => XJavadoc
+  Javadoc => XJavadoc,
+  Output
 }
 
 /**
@@ -54,15 +57,80 @@ object LocalJava {
   def hasLocalJavadoc: Boolean = javadocTool.isDefined
 
   private[this] val javadocClass = "com.sun.tools.javadoc.Main"
+  private[this] val sunStandard = "com.sun.tools.doclets.standard.Standard"
+  private[this] val standardDoclet = "jdk.javadoc.doclet.StandardDoclet"
 
   /** Get the javadoc tool. */
-  private[this] def javadocTool: Option[javax.tools.DocumentationTool] = {
+  private[javac] def javadocTool: Option[javax.tools.DocumentationTool] = {
     try {
       Option(javax.tools.ToolProvider.getSystemDocumentationTool)
     } catch {
       case NonFatal(_) => None
     }
   }
+
+  private[this] lazy val toolsJar: Option[Path] = {
+    val javaHome: Path = Paths.get(sys.props("java.home"))
+    val tools0 = javaHome.resolve("lib").resolve("tools.jar")
+    val tools1 = javaHome.getParent.resolve("lib").resolve("tools.jar")
+    val tools2 = javaHome.resolve("jmods").resolve("jdk.javadoc.jmod")
+    javaHome match {
+      case _ if Files.exists(tools0) => Some(tools0)
+      case _ if Files.exists(tools1) => Some(tools1)
+      case _ if Files.exists(tools2) => Some(tools2)
+      case _                         => None
+    }
+  }
+  private[this] lazy val toolsJarClassLoader: Option[URLClassLoader] =
+    toolsJar map { jar =>
+      new URLClassLoader(Array(jar.toUri.toURL))
+    }
+  private[javac] lazy val standardDocletClass: Option[Class[_]] =
+    try {
+      toolsJarClassLoader flatMap { cl =>
+        Option(cl.loadClass(standardDoclet)): Option[Class[_]]
+      }
+    } catch {
+      case NonFatal(_) => None
+    }
+  private[javac] def javadocViaTask(
+      compilationUnits: Array[JavaFileObject],
+      options: Array[String],
+      out: PrintWriter,
+      diagnosticLister: DiagnosticListener[JavaFileObject]
+  ): Int = {
+    (javadocTool, standardDocletClass) match {
+      case (Some(m), Some(clz)) =>
+        import scala.collection.JavaConverters._
+        val task = m.getTask(
+          out,
+          null,
+          diagnosticLister,
+          clz,
+          options.toList.asJava,
+          compilationUnits.toList.asJava
+        )
+        if (task.call) 0
+        else -1
+      case _ =>
+        System.err.println(JavadocFailure)
+        -1
+    }
+  }
+
+  private[javac] def javadocViaRun(
+      args: Array[String],
+      in: InputStream,
+      out: OutputStream,
+      err: OutputStream
+  ): Int =
+    javadocTool match {
+      case Some(m) =>
+        m.run(in, out, err, args: _*)
+      case _ =>
+        System.err.println(JavadocFailure)
+        -1
+    }
 
   /** Get the javadoc execute method reflectively from current class loader. */
   private[this] def javadocMethod = {
@@ -80,23 +148,8 @@ object LocalJava {
     }
   }
 
-  private val JavadocFailure: String =
+  private[javac] val JavadocFailure: String =
     "Unable to reflectively invoke javadoc, class not present on the current class loader."
-
-  private[javac] def javadoc(
-      args: Array[String],
-      in: InputStream,
-      out: OutputStream,
-      err: OutputStream
-  ): Int = {
-    javadocTool match {
-      case Some(m) =>
-        m.run(in, out, err, args: _*)
-      case _ =>
-        System.err.println(JavadocFailure)
-        -1
-    }
-  }
 
   /** A mechanism to call the javadoc tool via reflection. */
   @deprecated("use javadoc instead", "")
@@ -108,45 +161,115 @@ object LocalJava {
   ): Int = {
     javadocMethod match {
       case Some(m) =>
-        val stdClass = "com.sun.tools.doclets.standard.Standard"
-        val run = m.invoke(null, "javadoc", err, warn, notice, stdClass, args)
+        val run = m.invoke(null, "javadoc", err, warn, notice, sunStandard, args)
         run.asInstanceOf[java.lang.Integer].intValue
       case _ =>
         System.err.println(JavadocFailure)
         -1
     }
   }
+
+  private[javac] def toFileObject(vf: VirtualFile): JavaFileObject =
+    new VJavaFileObject(vf, toUri(vf))
+  private[javac] class VJavaFileObject(val underlying: VirtualFile, uri: URI)
+      extends SimpleJavaFileObject(uri, JavaFileObject.Kind.SOURCE) {
+    // println(uri.toString)
+    override def openInputStream: InputStream = underlying.input
+    override def getName: String = underlying.name
+    override def toString: String = underlying.id
+    override def getCharContent(ignoreEncodingErrors: Boolean): CharSequence = {
+      val in = underlying.input
+      try {
+        sbt.io.IO.readStream(in)
+      } finally {
+        in.close()
+      }
+    }
+  }
+
+  private[sbt] def toUri(vf: VirtualFile): URI =
+    new URI(
+      "vf:/tmp/" + vf.id
+        .replaceAllLiterally("$", "%24")
+        .replaceAllLiterally("{", "%7B")
+        .replaceAllLiterally("}", "%7D")
+        .replaceAllLiterally(" ", "%20")
+    )
+
+  private[sbt] def fromUri(uri: URI): VirtualFileRef =
+    if (uri.getScheme != "vf") sys.error(s"invalid URI for VirtualFileRef: $uri")
+    else {
+      val part = uri.getSchemeSpecificPart.stripPrefix("/tmp/")
+      val id = part
+        .replaceAllLiterally("%24", "$")
+        .replaceAllLiterally("%7B", "{")
+        .replaceAllLiterally("%7D", "}")
+        .replaceAllLiterally("%20", " ")
+      VirtualFileRef.of(id)
+    }
 }
 
 /** Implementation of javadoc tool which attempts to run it locally (in-class). */
 final class LocalJavadoc() extends XJavadoc {
   override def run(
-      sources: Array[File],
+      sources: Array[VirtualFile],
       options: Array[String],
+      output: Output,
       incToolOptions: IncToolOptions,
       reporter: Reporter,
       log: XLogger
   ): Boolean = {
-    val cwd = new File(new File(".").getAbsolutePath).getCanonicalFile
     val nonJArgs = options.filterNot(_.startsWith("-J"))
-    val allArguments = nonJArgs ++ sources.map(_.getAbsolutePath)
-    val javacLogger = new JavacLogger(log, reporter, cwd)
-    val errorWriter = new WriterOutputStream(
-      new PrintWriter(new ProcessLoggerWriter(javacLogger, Level.Error))
-    )
-    val infoWriter = new WriterOutputStream(
-      new PrintWriter(new ProcessLoggerWriter(javacLogger, Level.Info))
-    )
-    var exitCode = -1
-    try {
-      exitCode = LocalJava.javadoc(allArguments, null, infoWriter, errorWriter)
-    } finally {
-      errorWriter.close()
-      infoWriter.close()
-      javacLogger.flush("javadoc", exitCode)
+    val outputOption = CompilerArguments.outputOption(output)
+    val allOptions = outputOption.toArray ++ nonJArgs
+    val diagnostics = new DiagnosticsReporter(reporter)
+    val logger = new LoggerWriter(log)
+    val logWriter = new PrintWriter(logger)
+    var compileSuccess = false
+    val useTask = LocalJava.standardDocletClass.isDefined
+    if (useTask) {
+      val jfiles = sources.toList.map(LocalJava.toFileObject)
+      try {
+        val exitCode = LocalJava.javadocViaTask(
+          jfiles.toArray,
+          allOptions,
+          logWriter,
+          diagnostics
+        )
+        compileSuccess = exitCode == 0
+      } finally {
+        logWriter.close()
+        logger.flushLines(if (compileSuccess) Level.Warn else Level.Error)
+      }
+    } else {
+      val cwd = Paths.get(".").toAbsolutePath
+      val pathSources = sources map {
+        case x: PathBasedFile => x.toPath.toAbsolutePath.toString
+        case _ =>
+          sys.error(
+            s"falling back to javax.tools.DocumentationTool#run, which does not support virtual files but found " + sources
+              .mkString(", ")
+          )
+      }
+      val allArguments = allOptions ++ pathSources
+      val javacLogger = new JavacLogger(log, reporter, cwd.toFile)
+      val errorWriter = new WriterOutputStream(
+        new PrintWriter(new ProcessLoggerWriter(javacLogger, Level.Error))
+      )
+      val infoWriter = new WriterOutputStream(
+        new PrintWriter(new ProcessLoggerWriter(javacLogger, Level.Info))
+      )
+      var exitCode: Int = -1
+      try {
+        exitCode = LocalJava.javadocViaRun(allArguments, null, infoWriter, errorWriter)
+      } finally {
+        errorWriter.close()
+        infoWriter.close()
+        javacLogger.flush("javadoc", exitCode)
+      }
+      compileSuccess = exitCode == 0
     }
-    // We return true or false, depending on success.
-    exitCode == 0
+    compileSuccess
   }
 }
 
@@ -156,8 +279,9 @@ final class LocalJavadoc() extends XJavadoc {
  */
 final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaCompiler {
   override def run(
-      sources: Array[File],
+      sources: Array[VirtualFile],
       options: Array[String],
+      output: Output,
       incToolOptions: IncToolOptions,
       reporter: Reporter,
       log0: XLogger
@@ -175,6 +299,7 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
       log.warn("Javac is running in 'local' mode. These flags have been removed:")
       log.warn(invalidOptions.mkString("\t", ", ", ""))
     }
+    val outputOption = CompilerArguments.outputOption(output)
 
     val fileManager = {
       if (cleanedOptions.contains("-XDuseOptimizedZip=false")) {
@@ -184,7 +309,7 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
       }
     }
 
-    val jfiles = fileManager.getJavaFileObjectsFromFiles(sources.toList.asJava)
+    val jfiles = sources.toList.map(LocalJava.toFileObject)
     val customizedFileManager = {
       val maybeClassFileManager = incToolOptions.classFileManager()
       if (incToolOptions.useCustomizedFileManager && maybeClassFileManager.isPresent)
@@ -199,9 +324,9 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
           logWriter,
           customizedFileManager,
           diagnostics,
-          cleanedOptions.toList.asJava,
+          (outputOption ++ cleanedOptions).toList.asJava,
           null,
-          jfiles
+          jfiles.asJava
         )
         .call()
 
@@ -223,7 +348,7 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
    * Here, as `FileManager` is created before `CompilationTask` options do not get passed
    * properly. Also there is no access to `com.sun.tools.javac` classes, hence the reflection...
    */
-  private def fileManagerWithoutOptimizedZips(
+  private[sbt] def fileManagerWithoutOptimizedZips(
       diagnostics: DiagnosticsReporter
   ): StandardJavaFileManager = {
     val classLoader = compiler.getClass.getClassLoader
@@ -293,12 +418,12 @@ final class WriteReportingJavaFileObject(
     var classFileManager: ClassFileManager
 ) extends ForwardingJavaFileObject[JavaFileObject](javaFileObject) {
   override def openWriter(): Writer = {
-    classFileManager.generated(Array(new File(javaFileObject.toUri)))
+    classFileManager.generated(Array(PlainVirtualFile(Paths.get(javaFileObject.toUri))))
     super.openWriter()
   }
 
   override def openOutputStream(): OutputStream = {
-    classFileManager.generated(Array(new File(javaFileObject.toUri)))
+    classFileManager.generated(Array(PlainVirtualFile(Paths.get(javaFileObject.toUri))))
     super.openOutputStream()
   }
 }

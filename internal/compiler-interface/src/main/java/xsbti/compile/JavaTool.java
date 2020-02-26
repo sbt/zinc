@@ -13,8 +13,7 @@ package xsbti.compile;
 
 import xsbti.Logger;
 import xsbti.Reporter;
-
-import java.io.File;
+import xsbti.VirtualFile;
 
 /**
  * Represent a bare metal interface around one of the java tools, either
@@ -37,8 +36,9 @@ public interface JavaTool {
    *
    * @return true if no errors, false otherwise.
    */
-  boolean run(File[] sources,
+  boolean run(VirtualFile[] sources,
               String[] options,
+              Output output,
               IncToolOptions incToolOptions,
               Reporter reporter,
               Logger log);

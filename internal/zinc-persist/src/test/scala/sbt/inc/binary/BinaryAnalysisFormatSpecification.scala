@@ -12,6 +12,7 @@
 package sbt.inc.binary
 
 import java.io.File
+import java.nio.file.{ Path, Paths }
 
 import org.scalacheck.Prop._
 import org.scalacheck._
@@ -21,7 +22,7 @@ import sbt.io.IO
 import sbt.util.InterfaceUtil._
 import xsbti.api._
 import xsbti.compile.{ FileAnalysisStore => _, _ }
-import xsbti.{ Problem, T2 }
+import xsbti.{ Problem, T2, VirtualFileRef }
 
 object BinaryAnalysisFormatSpecification
     extends Properties("BinaryAnalysisFormat")
@@ -34,19 +35,30 @@ object BinaryAnalysisFormatSpecification
   val simpleAnalysis: Analysis = {
     import AnalysisGenerators._
     def f(s: String) = new File(s"$RootFilePath/$s")
+    def vf(s: String) = VirtualFileRef.of(s)
     val aScala = f("A.scala")
     val aClass = genClass("A").sample.get
     val cClass = genClass("C").sample.get
-    val stamp = EmptyStamp
+    val stamp = FarmHash.fromLong(1)
     val infos = SourceInfos.makeInfo(Nil, Nil, Nil)
 
     val apis = Seq(aClass)
-    val products = NonLocalProduct("A", "A", f("A.class"), stamp) ::
-      NonLocalProduct("A$", "A$", f("A$.class"), stamp) :: Nil
-    val binDeps = (f("x.jar"), "x", stamp) :: Nil
+    val products = NonLocalProduct("A", "A", vf("A.class"), stamp) ::
+      NonLocalProduct("A$", "A$", vf("A$.class"), stamp) :: Nil
+    val libDeps = (vf("x.jar"), "x", stamp) :: Nil
     val memberDep = DependencyContext.DependencyByMemberRef
     val extDeps = ExternalDependency.of("A", "C", cClass, memberDep) :: Nil
-    Analysis.empty.addSource(aScala, apis, stamp, infos, products, Nil, Nil, extDeps, binDeps)
+    Analysis.empty.addSource(
+      VirtualFileRef.of(aScala.toString),
+      apis,
+      stamp,
+      infos,
+      products,
+      Nil,
+      Nil,
+      extDeps,
+      libDeps
+    )
   }
 
   property("Write and read simple Analysis") = {
@@ -62,7 +74,7 @@ trait BinaryAnalysisFormatSpecificationHelpers { self: Properties =>
   val storeApis = true
   def RootFilePath: String = "/dummy"
   def dummyOutput = new xsbti.compile.SingleOutput {
-    def getOutputDirectory: java.io.File = new java.io.File(RootFilePath)
+    def getOutputDirectory: Path = Paths.get(RootFilePath)
   }
 
   private final val ScalaVersion = "2.10.4"
@@ -98,7 +110,9 @@ trait BinaryAnalysisFormatSpecificationHelpers { self: Properties =>
     ("Whole Analysis" |: left =? right)
   }
 
-  private def mapInfos(a: SourceInfos): Map[File, (Seq[Problem], Seq[Problem], Seq[String])] =
+  private def mapInfos(
+      a: SourceInfos
+  ): Map[VirtualFileRef, (Seq[Problem], Seq[Problem], Seq[String])] =
     a.allInfos.map {
       case (f, infos) =>
         f -> (
@@ -123,7 +137,6 @@ trait BinaryAnalysisFormatSpecificationHelpers { self: Properties =>
 
   // Compare two analyses with useful labelling when they aren't equal.
   protected def compare(left: MiniSetup, right: MiniSetup): Prop = {
-    ("OUTPUT EQUAL" |: compareOutputs(left.output(), right.output())) &&
     ("OPTIONS EQUAL" |: left.options() =? right.options()) &&
     ("COMPILER VERSION EQUAL" |: left.compilerVersion() == right.compilerVersion) &&
     ("COMPILE ORDER EQUAL" |: left.order() =? right.order()) &&

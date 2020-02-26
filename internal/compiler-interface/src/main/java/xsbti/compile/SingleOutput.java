@@ -11,7 +11,7 @@
 
 package xsbti.compile;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.util.Optional;
 
 /**
@@ -30,10 +30,10 @@ public interface SingleOutput extends Output {
      * <p>
      * This file or directory must be exclusively used for one set of sources.
      */
-    public File getOutputDirectory();
+    public Path getOutputDirectory();
 
     @Override
-    public default Optional<File> getSingleOutput() {
+    public default Optional<Path> getSingleOutput() {
         return Optional.of(getOutputDirectory());
     }
 

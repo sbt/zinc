@@ -12,6 +12,7 @@
 package sbt.inc.text
 
 import java.io.{ BufferedReader, File, StringReader, StringWriter }
+import java.nio.file.{ Path, Paths }
 
 import org.scalacheck.Prop._
 import org.scalacheck._
@@ -22,7 +23,7 @@ import sbt.io.IO
 import sbt.util.InterfaceUtil._
 import xsbti.api._
 import xsbti.compile.{ FileAnalysisStore => _, _ }
-import xsbti.{ Problem, T2 }
+import xsbti.{ Problem, T2, VirtualFileRef }
 
 object TextAnalysisFormatSpecification
     extends Properties("TextAnalysisFormat")
@@ -31,12 +32,11 @@ object TextAnalysisFormatSpecification
   override val analysisGenerators: AnalysisGenerators = AnalysisGenerators
   override def format = TextAnalysisFormat
   override def checkAnalysis(analysis: Analysis): Prop = {
-    import JavaInterfaceUtil.EnrichOptional
     // Note: we test writing to the file directly to reuse `FileBasedStore` as it is written
     val readContents = IO.withTemporaryFile("analysis", "test") { tempAnalysisFile =>
       val fileBasedStore = FileAnalysisStore.text(tempAnalysisFile, format)
       fileBasedStore.set(AnalysisContents.create(analysis, commonSetup))
-      fileBasedStore.get().toOption.getOrElse(sys.error(""))
+      fileBasedStore.unsafeGet()
     }
     val readAnalysis = readContents.getAnalysis match { case a: Analysis => a }
     compare(analysis, readAnalysis) && compare(commonSetup, readContents.getMiniSetup)
@@ -52,7 +52,7 @@ trait BaseTextAnalysisFormatTest { self: Properties =>
   val storeApis = true
   def RootFilePath: String = "/dummy"
   def dummyOutput = new xsbti.compile.SingleOutput {
-    def getOutputDirectory: java.io.File = new java.io.File(RootFilePath)
+    def getOutputDirectory: Path = Paths.get(RootFilePath)
   }
 
   val commonSetup = MiniSetup.of(
@@ -93,16 +93,18 @@ trait BaseTextAnalysisFormatTest { self: Properties =>
 
     import analysisGenerators._
     def f(s: String) = new File(s"$RootFilePath/$s")
+    def vf(s: String) = VirtualFileRef.of(s)
     val aScala = f("A.scala")
     val aClass = genClass("A").sample.get
     val cClass = genClass("C").sample.get
     val absent = EmptyStamp
+    val stamp = FarmHash.fromLong(1)
     val sourceInfos = SourceInfos.makeInfo(Nil, Nil, Nil)
 
     var analysis = Analysis.empty
-    val products = NonLocalProduct("A", "A", f("A.class"), absent) ::
-      NonLocalProduct("A$", "A$", f("A$.class"), absent) :: Nil
-    val binaryDeps = (f("x.jar"), "x", absent) :: Nil
+    val products = NonLocalProduct("A", "A", vf("A.class"), stamp) ::
+      NonLocalProduct("A$", "A$", vf("A$.class"), stamp) :: Nil
+    val libraryDeps = (vf("x.jar"), "x", stamp) :: Nil
     val externalDeps = ExternalDependency.of(
       "A",
       "C",
@@ -110,16 +112,19 @@ trait BaseTextAnalysisFormatTest { self: Properties =>
       DependencyContext.DependencyByMemberRef
     ) :: Nil
     analysis = analysis.addSource(
-      aScala,
+      VirtualFileRef.of(aScala.toString),
       Seq(aClass),
-      absent,
+      stamp,
       sourceInfos,
       products,
       Nil,
       Nil,
       externalDeps,
-      binaryDeps
+      libraryDeps
     )
+    val compilations0 = analysis.compilations
+    val compilations1 = compilations0.add(Compilation(1L, dummyOutput))
+    analysis = analysis.copy(compilations = compilations1)
 
     checkAnalysis(analysis)
   }
@@ -136,7 +141,9 @@ trait BaseTextAnalysisFormatTest { self: Properties =>
     ("Whole Analysis" |: left =? right)
   }
 
-  private def mapInfos(a: SourceInfos): Map[File, (Seq[Problem], Seq[Problem], Seq[String])] =
+  private def mapInfos(
+      a: SourceInfos
+  ): Map[VirtualFileRef, (Seq[Problem], Seq[Problem], Seq[String])] =
     a.allInfos.map {
       case (f, infos) =>
         f -> (
@@ -161,7 +168,6 @@ trait BaseTextAnalysisFormatTest { self: Properties =>
 
   // Compare two analyses with useful labelling when they aren't equal.
   protected def compare(left: MiniSetup, right: MiniSetup): Prop = {
-    ("OUTPUT EQUAL" |: compareOutputs(left.output(), right.output())) &&
     ("OPTIONS EQUAL" |: left.options() =? right.options()) &&
     ("COMPILER VERSION EQUAL" |: left.compilerVersion() == right.compilerVersion) &&
     ("COMPILE ORDER EQUAL" |: left.order() =? right.order()) &&
