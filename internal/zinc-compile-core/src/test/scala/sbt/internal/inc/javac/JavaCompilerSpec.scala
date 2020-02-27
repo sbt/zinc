@@ -22,7 +22,12 @@ import scala.collection.mutable.HashSet
 
 import xsbt.api.SameAPI
 import xsbti.{ PathBasedFile, Problem, Severity }
-import xsbti.compile.{ IncToolOptions, IncToolOptionsUtil, JavaTools => XJavaTools }
+import xsbti.compile.{
+  ClassFileManager,
+  IncToolOptions,
+  IncToolOptionsUtil,
+  JavaTools => XJavaTools
+}
 import sbt.io.IO
 import sbt.util.LogExchange
 import org.scalatest.matchers._
@@ -72,7 +77,7 @@ class JavaCompilerSpec extends UnitSpec with DiagrammedAssertions {
       out.toPath,
       incToolOptions = IncToolOptionsUtil
         .defaultIncToolOptions()
-        .withClassFileManager(Optional.of(classfileManager))
+        .withClassFileManager(Optional.of(classfileManager: ClassFileManager))
         .withUseCustomizedFileManager(true)
     )
 

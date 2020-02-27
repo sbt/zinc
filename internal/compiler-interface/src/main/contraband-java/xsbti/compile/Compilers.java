@@ -21,7 +21,7 @@ public final class Compilers implements java.io.Serializable {
         javaTools = _javaTools;
     }
     /**
-     * A `ScalaCompiler`.
+     * A ScalaCompiler.
      * It should be cached by the client if desired.
      */
     public xsbti.compile.ScalaCompiler scalac() {

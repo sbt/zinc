@@ -7,16 +7,16 @@ package xsbti.compile;
 /** Compilation options. This is used as part of CompileSetup. */
 public final class MiniOptions implements java.io.Serializable {
     
-    public static MiniOptions create(FileHash[] _classpathHash, String[] _scalacOptions, String[] _javacOptions) {
+    public static MiniOptions create(xsbti.compile.FileHash[] _classpathHash, String[] _scalacOptions, String[] _javacOptions) {
         return new MiniOptions(_classpathHash, _scalacOptions, _javacOptions);
     }
-    public static MiniOptions of(FileHash[] _classpathHash, String[] _scalacOptions, String[] _javacOptions) {
+    public static MiniOptions of(xsbti.compile.FileHash[] _classpathHash, String[] _scalacOptions, String[] _javacOptions) {
         return new MiniOptions(_classpathHash, _scalacOptions, _javacOptions);
     }
-    private FileHash[] classpathHash;
+    private xsbti.compile.FileHash[] classpathHash;
     private String[] scalacOptions;
     private String[] javacOptions;
-    protected MiniOptions(FileHash[] _classpathHash, String[] _scalacOptions, String[] _javacOptions) {
+    protected MiniOptions(xsbti.compile.FileHash[] _classpathHash, String[] _scalacOptions, String[] _javacOptions) {
         super();
         classpathHash = _classpathHash;
         scalacOptions = _scalacOptions;
@@ -26,7 +26,7 @@ public final class MiniOptions implements java.io.Serializable {
      * The classpath to use for compilation.
      * This will be modified according to the ClasspathOptions used to configure the ScalaCompiler.
      */
-    public FileHash[] classpathHash() {
+    public xsbti.compile.FileHash[] classpathHash() {
         return this.classpathHash;
     }
     /** The options to pass to the Scala compiler other than the sources and classpath to use. */
@@ -37,7 +37,7 @@ public final class MiniOptions implements java.io.Serializable {
     public String[] javacOptions() {
         return this.javacOptions;
     }
-    public MiniOptions withClasspathHash(FileHash[] classpathHash) {
+    public MiniOptions withClasspathHash(xsbti.compile.FileHash[] classpathHash) {
         return new MiniOptions(classpathHash, scalacOptions, javacOptions);
     }
     public MiniOptions withScalacOptions(String[] scalacOptions) {

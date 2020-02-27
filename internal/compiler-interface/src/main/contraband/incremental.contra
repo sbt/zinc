@@ -1,0 +1,370 @@
+package xsbti.compile
+@target(Java)
+
+## Represents all configuration options for the incremental compiler itself and
+## not the underlying Java/Scala compiler.
+type IncOptions {
+  ## After which step include whole transitive closure of invalidated source files.
+  transitiveStep: Int! = raw"xsbti.compile.IncOptions.defaultTransitiveStep()"
+  @since("0.1.0")
+
+  ## What's the fraction of invalidated source files when we switch to recompiling
+  ## all files and giving up incremental compilation altogether. That's useful in
+  ## cases when probability that we end up recompiling most of source files but
+  ## in multiple steps is high. Multi-step incremental recompilation is slower
+  ## than recompiling everything in one step.
+  recompileAllFraction: Double! = raw"xsbti.compile.IncOptions.defaultRecompileAllFraction()"
+  @since("0.1.0.")
+
+  ## Print very detailed information about relations, such as dependencies between source files.
+  relationsDebug: Boolean! = raw"xsbti.compile.IncOptions.defaultRelationsDebug()"
+  @since("0.1.0.")
+
+  ## Enable tools for debugging API changes.
+  apiDebug: Boolean! = raw"xsbti.compile.IncOptions.defaultApiDebug()"
+  @since("0.1.0.")
+
+  ## Controls context size (in lines) displayed when diffs are produced for textual API
+  ## representation.
+  ##
+  ## This option is used only when <code>apiDebug == true</code>.
+  apiDiffContextSize: Int! = raw"xsbti.compile.IncOptions.defaultApiDiffContextSize()"
+  @since("0.1.0")
+
+  ## The directory where we dump textual representation of APIs. This method might be called
+  ## only if apiDebug returns true. This is unused option at the moment as the needed functionality
+  ## is not implemented yet.
+  apiDumpDirectory: java.io.File = raw"xsbti.compile.IncOptions.defaultApiDumpDirectory()"
+  @since("0.1.0")
+
+  ## ClassfileManager that will handle class file deletion and addition during a single incremental compilation run.
+  classfileManagerType: xsbti.compile.ClassFileManagerType = raw"xsbti.compile.IncOptions.defaultClassFileManagerType()"
+  @since("0.1.0")
+
+  ## Option to turn on customized file manager that tracks generated class files for transactional rollbacks.
+  ## Using customized file manager may conflict with some libraries, this option allows user to decide
+  ## whether to use.
+  useCustomizedFileManager: Boolean! = raw"xsbti.compile.IncOptions.defaultUseCustomizedFileManager()"
+  @since("0.1.0")
+
+  ## Determines whether incremental compiler should recompile all dependencies of a file
+  ## that contains a macro definition.
+  recompileOnMacroDef: Boolean = raw"xsbti.compile.IncOptions.defaultRecompileOnMacroDef()"
+  @since("0.1.0")
+
+  ## Determines whether optimized approach for invalidating sealed classes/trait is used.
+  ## Turning this on may cause undercompilation in case of macros that are based sealed
+  ## trait/class children enumeration.
+  useOptimizedSealed: Boolean! = raw"xsbti.compile.IncOptions.defaultUseOptimizedSealed()"
+  @since("0.1.0")
+
+  ## Determines whether incremental compiler stores apis alongside analysis.
+  storeApis: Boolean! = raw"xsbti.compile.IncOptions.defaultStoreApis()"
+  @since("0.1.0")
+
+  ## Determines whether incremental compilation is enabled.
+  enabled: Boolean! = raw"xsbti.compile.IncOptions.defaultEnabled()"
+  @since("0.1.0")
+
+  ## Extra options
+  extra: raw"java.util.Map<String, String>"! = raw"xsbti.compile.IncOptions.defaultExtra()"
+  @since("0.1.0")
+
+  ## Determines whether to log information on file recompiled due to a transitive macro change
+  logRecompileOnMacro: Boolean! = raw"xsbti.compile.IncOptions.defaultLogRecompileOnMacro()"
+  @since("0.1.0")
+
+  ## External hooks that allows clients e.g. IDEs to interacts with compilation internals
+  externalHooks: xsbti.compile.ExternalHooks! = raw"xsbti.compile.IncOptions.defaultExternal()"
+  @since("0.1.0")
+
+  ## Array of regexes that will be used to determine if scalac options should be ignored if they change
+  ignoredScalacOptions: [String] = raw"xsbti.compile.IncOptions.defaultIgnoredScalacOptions()"
+  @since("1.2.0")
+
+  ## Enable assertions and other runtime checks that are otherwise disabled.
+  ## Can be useful for debugging incremental compilation issues.
+  strictMode: Boolean! = raw"xsbti.compile.IncOptions.defaultStrictMode()"
+  @since("1.2.6")
+
+  ## When set to true, this makes the mapped file converter strict,
+  ## so no paths will include machine-specific absolute path.
+  allowMachinePath: Boolean! = raw"xsbti.compile.IncOptions.defaultAllowMachinePath()"
+  @since("1.4.0")
+
+  #x public static int defaultTransitiveStep() {
+  #x     return 3;
+  #x }
+  #x public static double defaultRecompileAllFraction() {
+  #x     return 0.5;
+  #x }
+  #x public static boolean defaultRelationsDebug() {
+  #x     return false;
+  #x }
+  #x public static boolean defaultApiDebug() {
+  #x     return false;
+  #x }
+  #x public static int defaultApiDiffContextSize() {
+  #x     return 5;
+  #x }
+  #x public static java.util.Optional<java.io.File> defaultApiDumpDirectory() {
+  #x     return java.util.Optional.empty();
+  #x }
+  #x public static java.util.Optional<ClassFileManagerType> defaultClassFileManagerType() {
+  #x     return java.util.Optional.empty();
+  #x }
+  #x public static java.util.Optional<Boolean> defaultRecompileOnMacroDef() {
+  #x     return java.util.Optional.empty();
+  #x }
+  #x public static boolean defaultUseOptimizedSealed() {
+  #x     return false;
+  #x }
+  #x public static boolean defaultRecompileOnMacroDefImpl() {
+  #x     return true;
+  #x }
+  #x public static boolean getRecompileOnMacroDef(IncOptions options) {
+  #x     if (options.recompileOnMacroDef().isPresent()) {
+  #x         return options.recompileOnMacroDef().get();
+  #x     } else {
+  #x         return defaultRecompileOnMacroDefImpl();
+  #x     }
+  #x }
+  #x public static boolean defaultUseCustomizedFileManager() {
+  #x     return false;
+  #x }
+  #x public static boolean defaultStoreApis() {
+  #x     return true;
+  #x }
+  #x public static boolean defaultEnabled() {
+  #x     return true;
+  #x }
+  #x public static java.util.Map<String, String> defaultExtra() {
+  #x     return new java.util.HashMap<String, String>();
+  #x }
+  #x public static ExternalHooks defaultExternal() {
+  #x     return new DefaultExternalHooks(java.util.Optional.empty(), java.util.Optional.empty());
+  #x }
+  #x public static String[] defaultIgnoredScalacOptions() {
+  #x     return new String[0];
+  #x }
+  #x public static boolean defaultLogRecompileOnMacro() {
+  #x     return true;
+  #x }
+  #x public static boolean defaultStrictMode() {
+  #x     return false;
+  #x }
+  #x public static boolean defaultAllowMachinePath() {
+  #x     return true;
+  #x }
+}
+
+## Compilation options
+type CompileOptions {
+  ## The classpath to use for compilation.
+  ## This will be modified according to the ClasspathOptions used to configure the ScalaCompiler.
+  classpath: [xsbti.VirtualFile] = raw"new xsbti.VirtualFile[0]"
+  @since("0.1.0")
+
+  ## All sources that should be recompiled.
+  ## This should include Scala and Java sources, which are identified by their extension.
+  sources: [xsbti.VirtualFile] = raw"new xsbti.VirtualFile[0]"
+  @since("0.1.0")
+
+  classesDirectory: java.nio.file.Path! = raw"java.nio.file.Paths.get(\"classes\")"
+  @since("0.1.0")
+
+  ## The options to pass to the Scala compiler other than the sources and classpath to use.
+  scalacOptions: [String] = raw"new String[0]"
+  @since("0.1.0")
+
+  ## The options to pass to the Java compiler other than the sources and classpath to use.
+  javacOptions: [String] = raw"new String[0]"
+  @since("0.1.0")
+
+  maxErrors: Int! = 100
+  @since("0.1.0")
+
+  sourcePositionMapper: raw"java.util.function.Function<xsbti.Position, xsbti.Position>"! = raw"new java.util.function.Function<xsbti.Position, xsbti.Position>() { public xsbti.Position apply(xsbti.Position a) { return a; } }"
+  @since("0.1.0")
+
+  ## Controls the order in which Java and Scala sources are compiled.
+  order: xsbti.compile.CompileOrder! = raw"xsbti.compile.CompileOrder.Mixed"
+  @since("0.1.0")
+
+  ## Points to a temporary classes directory where the compiler can put compilation products
+  ## of any kind. The lifetime of these compilation products is short and the temporary
+  ## classes directory only needs to exist during one incremental compiler cycle.
+  temporaryClassesDirectory: java.nio.file.Path
+  @since("1.3.0")
+
+  ## FileConverter to convert between Path and VirtualFileRef.
+  converter: xsbti.FileConverter
+  @since("1.4.0")
+
+  ## ReadStamps to calculate timestamp or hash.
+  stamper: xsbti.compile.analysis.ReadStamps
+  @since("1.4.0")
+}
+
+## This is used as part of CompileResult.
+type MiniSetup {
+  output: xsbti.compile.Output!
+  options: xsbti.compile.MiniOptions!
+  compilerVersion: String!
+  order: xsbti.compile.CompileOrder!
+  storeApis: Boolean!
+  extra: [raw"xsbti.T2<String, String>"]
+}
+
+## Configures incremental recompilation.
+type Setup {
+  ## Provides a lookup of data structures and operations associated with a single classpath entry.
+  perClasspathEntryLookup: xsbti.compile.PerClasspathEntryLookup!
+
+  ## If true, no sources are actually compiled and the Analysis from the previous compilation is returned.
+  skip: Boolean!
+
+  ## The file used to cache information across compilations.
+  ## This file can be removed to force a full recompilation.
+  ## The file should be unique and not shared between compilations.
+  cachePath: java.nio.file.Path!
+
+  cache: xsbti.compile.GlobalsCache!
+
+  incrementalCompilerOptions: xsbti.compile.IncOptions!
+
+  ## The reporter that should be used to report scala compilation to.
+  reporter: xsbti.Reporter!
+
+  ## Optionally provide progress indication.
+  progress: xsbti.compile.CompileProgress
+
+  extra: [raw"xsbti.T2<String, String>"]
+
+  #x public java.io.File cacheFile() {
+  #x     return this.cachePath.toFile();
+  #x }
+  #x public Setup withCacheFile(java.io.File cacheFile) {
+  #x     return this.withCachePath(cacheFile.toPath());
+  #x }
+  #x public static Setup create(xsbti.compile.PerClasspathEntryLookup _perClasspathEntryLookup, boolean _skip, java.io.File _cacheFile, xsbti.compile.GlobalsCache _cache, xsbti.compile.IncOptions _incrementalCompilerOptions, xsbti.Reporter _reporter, java.util.Optional<xsbti.compile.CompileProgress> _progress, xsbti.T2<String, String>[] _extra) {
+  #x     return new Setup(_perClasspathEntryLookup, _skip, _cacheFile.toPath(), _cache, _incrementalCompilerOptions, _reporter, _progress, _extra);
+  #x }
+  #x public static Setup of(xsbti.compile.PerClasspathEntryLookup _perClasspathEntryLookup, boolean _skip, java.io.File _cacheFile, xsbti.compile.GlobalsCache _cache, xsbti.compile.IncOptions _incrementalCompilerOptions, xsbti.Reporter _reporter, java.util.Optional<xsbti.compile.CompileProgress> _progress, xsbti.T2<String, String>[] _extra) {
+  #x     return new Setup(_perClasspathEntryLookup, _skip, _cacheFile.toPath(), _cache, _incrementalCompilerOptions, _reporter, _progress, _extra);
+  #x }
+}
+
+interface ClassFileManagerType {
+}
+
+## Constructs a minimal ClassfileManager that immediately deletes class files when requested.
+## This is the default classfile manager if no type is provided in incremental options.
+type DeleteImmediatelyManagerType implements ClassFileManagerType {
+
+}
+
+## Constructs a transactional ClassFileManager implementation that restores class
+## files to the way they were before compilation if there is an error. Otherwise, it
+## keeps the successfully generated class files from the new compilation.
+type TransactionalManagerType implements ClassFileManagerType {
+  backupDirectory: java.io.File!
+  logger: xsbti.Logger!
+}
+
+type FileHash {
+  file: java.nio.file.Path!
+  hash: Int!
+}
+
+## Compilation options. This is used as part of CompileSetup.
+type MiniOptions {
+  ## The classpath to use for compilation.
+  ## This will be modified according to the ClasspathOptions used to configure the ScalaCompiler.
+  classpathHash: [xsbti.compile.FileHash]
+
+  ## The options to pass to the Scala compiler other than the sources and classpath to use.
+  scalacOptions: [String]
+
+  ## The options to pass to the Java compiler other than the sources and classpath to use.
+  javacOptions: [String]
+}
+
+## Define the component that manages the generated class files and defines the
+## configuration options for an incremental compiler. This component is used by
+## any Java compiler that implements {@link xsbti.compile.JavaTools} and they
+## should return empty values by default because the incremental tool options
+## are not enabled for Java tools, they are only enabled for Scala's incremental
+## compiler.
+type IncToolOptions {
+  ## Define a component that manages the generated class files in every compilation cycle.
+  classFileManager: xsbti.compile.ClassFileManager
+
+  ## Flag that enables use of a customized {@link xsbti.compile.ClassFileManager}.
+  useCustomizedFileManager: Boolean!
+}
+
+## The previous source dependency analysis result from compilation.
+type PreviousResult {
+  analysis: xsbti.compile.CompileAnalysis
+  setup: xsbti.compile.MiniSetup
+}
+
+
+## The result of running the incremental compilation.
+type CompileResult {
+  analysis: xsbti.compile.CompileAnalysis!
+  setup: xsbti.compile.MiniSetup!
+  hasModified: Boolean!
+}
+
+## Configures a single compilation of a single set of sources.
+type Inputs {
+  ## Return the Scala and Java compilers to use for compilation.
+  compilers: xsbti.compile.Compilers!
+
+  ## Return the compilation options, such as the sources and classpath to use.
+  options: xsbti.compile.CompileOptions!
+
+  ## Represent the configuration of incremental compilation.
+  setup: xsbti.compile.Setup!
+
+  ## Represent tha latest result of incremental compilation.
+  previousResult: xsbti.compile.PreviousResult!
+}
+
+## The instances of Scalac/Javac used to compile the current project.
+type Compilers {
+  ## A ScalaCompiler.
+  ## It should be cached by the client if desired.
+  scalac: xsbti.compile.ScalaCompiler!
+
+  ## Tool chain of Java.
+  javaTools: xsbti.compile.JavaTools!
+}
+
+## Define modifications to classpaths based on the {@link ScalaInstance} used for
+## compilation. This class tells how to instrument the classpaths given certain Scala
+## compiler-related parameters. Usually, values are all false for Java compilation.
+type ClasspathOptions {
+  ## If true, includes the Scala library on the boot classpath.
+  ## This should usually be true.
+  bootLibrary: Boolean!
+
+  ## If true, includes the Scala compiler on the standard classpath.
+  ## This is typically false and is instead managed by the build tool or environment.
+  compiler: Boolean!
+
+  ## If true, includes extra jars from the Scala instance on the standard classpath.
+  ## This is typically false and is instead managed by the build tool or environment.
+  extra: Boolean!
+
+  ## If true, automatically configures the boot classpath.
+  ## This should usually be true.
+  autoBoot: Boolean!
+
+  ## If true, the Scala library jar is filtered from the standard classpath.
+  ## This should usually be true because the library should be included on the boot
+  ## classpath of the Scala compiler and not the standard classpath.
+  filterLibrary: Boolean!
+}

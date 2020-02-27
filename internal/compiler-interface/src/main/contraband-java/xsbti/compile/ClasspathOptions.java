@@ -60,7 +60,8 @@ public final class ClasspathOptions implements java.io.Serializable {
     }
     /**
      * If true, the Scala library jar is filtered from the standard classpath.
-     * This should usually be true because the library should be included on the boot classpath of the Scala compiler and not the standard classpath.
+     * This should usually be true because the library should be included on the boot
+     * classpath of the Scala compiler and not the standard classpath.
      */
     public boolean filterLibrary() {
         return this.filterLibrary;
