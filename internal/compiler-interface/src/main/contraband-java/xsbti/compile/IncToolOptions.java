@@ -1,5 +1,5 @@
 /**
- * This code is generated using [[http://www.scala-sbt.org/contraband/ sbt-contraband]].
+ * This code is generated using [[https://www.scala-sbt.org/contraband/ sbt-contraband]].
  */
 
 // DO NOT EDIT MANUALLY
@@ -20,11 +20,22 @@ public final class IncToolOptions implements java.io.Serializable {
     public static IncToolOptions of(java.util.Optional<xsbti.compile.ClassFileManager> _classFileManager, boolean _useCustomizedFileManager) {
         return new IncToolOptions(_classFileManager, _useCustomizedFileManager);
     }
+    public static IncToolOptions create(xsbti.compile.ClassFileManager _classFileManager, boolean _useCustomizedFileManager) {
+        return new IncToolOptions(_classFileManager, _useCustomizedFileManager);
+    }
+    public static IncToolOptions of(xsbti.compile.ClassFileManager _classFileManager, boolean _useCustomizedFileManager) {
+        return new IncToolOptions(_classFileManager, _useCustomizedFileManager);
+    }
     private java.util.Optional<xsbti.compile.ClassFileManager> classFileManager;
     private boolean useCustomizedFileManager;
     protected IncToolOptions(java.util.Optional<xsbti.compile.ClassFileManager> _classFileManager, boolean _useCustomizedFileManager) {
         super();
         classFileManager = _classFileManager;
+        useCustomizedFileManager = _useCustomizedFileManager;
+    }
+    protected IncToolOptions(xsbti.compile.ClassFileManager _classFileManager, boolean _useCustomizedFileManager) {
+        super();
+        classFileManager = java.util.Optional.<xsbti.compile.ClassFileManager>ofNullable(_classFileManager);
         useCustomizedFileManager = _useCustomizedFileManager;
     }
     /** Define a component that manages the generated class files in every compilation cycle. */
@@ -37,6 +48,9 @@ public final class IncToolOptions implements java.io.Serializable {
     }
     public IncToolOptions withClassFileManager(java.util.Optional<xsbti.compile.ClassFileManager> classFileManager) {
         return new IncToolOptions(classFileManager, useCustomizedFileManager);
+    }
+    public IncToolOptions withClassFileManager(xsbti.compile.ClassFileManager classFileManager) {
+        return new IncToolOptions(java.util.Optional.<xsbti.compile.ClassFileManager>ofNullable(classFileManager), useCustomizedFileManager);
     }
     public IncToolOptions withUseCustomizedFileManager(boolean useCustomizedFileManager) {
         return new IncToolOptions(classFileManager, useCustomizedFileManager);

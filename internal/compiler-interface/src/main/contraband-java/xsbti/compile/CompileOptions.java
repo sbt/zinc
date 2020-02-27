@@ -1,5 +1,5 @@
 /**
- * This code is generated using [[http://www.scala-sbt.org/contraband/ sbt-contraband]].
+ * This code is generated using [[https://www.scala-sbt.org/contraband/ sbt-contraband]].
  */
 
 // DO NOT EDIT MANUALLY
@@ -25,10 +25,22 @@ public final class CompileOptions implements java.io.Serializable {
     public static CompileOptions of(xsbti.VirtualFile[] _classpath, xsbti.VirtualFile[] _sources, java.nio.file.Path _classesDirectory, String[] _scalacOptions, String[] _javacOptions, int _maxErrors, java.util.function.Function<xsbti.Position, xsbti.Position> _sourcePositionMapper, xsbti.compile.CompileOrder _order, java.util.Optional<java.nio.file.Path> _temporaryClassesDirectory) {
         return new CompileOptions(_classpath, _sources, _classesDirectory, _scalacOptions, _javacOptions, _maxErrors, _sourcePositionMapper, _order, _temporaryClassesDirectory);
     }
+    public static CompileOptions create(xsbti.VirtualFile[] _classpath, xsbti.VirtualFile[] _sources, java.nio.file.Path _classesDirectory, String[] _scalacOptions, String[] _javacOptions, int _maxErrors, java.util.function.Function<xsbti.Position, xsbti.Position> _sourcePositionMapper, xsbti.compile.CompileOrder _order, java.nio.file.Path _temporaryClassesDirectory) {
+        return new CompileOptions(_classpath, _sources, _classesDirectory, _scalacOptions, _javacOptions, _maxErrors, _sourcePositionMapper, _order, _temporaryClassesDirectory);
+    }
+    public static CompileOptions of(xsbti.VirtualFile[] _classpath, xsbti.VirtualFile[] _sources, java.nio.file.Path _classesDirectory, String[] _scalacOptions, String[] _javacOptions, int _maxErrors, java.util.function.Function<xsbti.Position, xsbti.Position> _sourcePositionMapper, xsbti.compile.CompileOrder _order, java.nio.file.Path _temporaryClassesDirectory) {
+        return new CompileOptions(_classpath, _sources, _classesDirectory, _scalacOptions, _javacOptions, _maxErrors, _sourcePositionMapper, _order, _temporaryClassesDirectory);
+    }
     public static CompileOptions create(xsbti.VirtualFile[] _classpath, xsbti.VirtualFile[] _sources, java.nio.file.Path _classesDirectory, String[] _scalacOptions, String[] _javacOptions, int _maxErrors, java.util.function.Function<xsbti.Position, xsbti.Position> _sourcePositionMapper, xsbti.compile.CompileOrder _order, java.util.Optional<java.nio.file.Path> _temporaryClassesDirectory, java.util.Optional<xsbti.FileConverter> _converter, java.util.Optional<xsbti.compile.analysis.ReadStamps> _stamper) {
         return new CompileOptions(_classpath, _sources, _classesDirectory, _scalacOptions, _javacOptions, _maxErrors, _sourcePositionMapper, _order, _temporaryClassesDirectory, _converter, _stamper);
     }
     public static CompileOptions of(xsbti.VirtualFile[] _classpath, xsbti.VirtualFile[] _sources, java.nio.file.Path _classesDirectory, String[] _scalacOptions, String[] _javacOptions, int _maxErrors, java.util.function.Function<xsbti.Position, xsbti.Position> _sourcePositionMapper, xsbti.compile.CompileOrder _order, java.util.Optional<java.nio.file.Path> _temporaryClassesDirectory, java.util.Optional<xsbti.FileConverter> _converter, java.util.Optional<xsbti.compile.analysis.ReadStamps> _stamper) {
+        return new CompileOptions(_classpath, _sources, _classesDirectory, _scalacOptions, _javacOptions, _maxErrors, _sourcePositionMapper, _order, _temporaryClassesDirectory, _converter, _stamper);
+    }
+    public static CompileOptions create(xsbti.VirtualFile[] _classpath, xsbti.VirtualFile[] _sources, java.nio.file.Path _classesDirectory, String[] _scalacOptions, String[] _javacOptions, int _maxErrors, java.util.function.Function<xsbti.Position, xsbti.Position> _sourcePositionMapper, xsbti.compile.CompileOrder _order, java.nio.file.Path _temporaryClassesDirectory, xsbti.FileConverter _converter, xsbti.compile.analysis.ReadStamps _stamper) {
+        return new CompileOptions(_classpath, _sources, _classesDirectory, _scalacOptions, _javacOptions, _maxErrors, _sourcePositionMapper, _order, _temporaryClassesDirectory, _converter, _stamper);
+    }
+    public static CompileOptions of(xsbti.VirtualFile[] _classpath, xsbti.VirtualFile[] _sources, java.nio.file.Path _classesDirectory, String[] _scalacOptions, String[] _javacOptions, int _maxErrors, java.util.function.Function<xsbti.Position, xsbti.Position> _sourcePositionMapper, xsbti.compile.CompileOrder _order, java.nio.file.Path _temporaryClassesDirectory, xsbti.FileConverter _converter, xsbti.compile.analysis.ReadStamps _stamper) {
         return new CompileOptions(_classpath, _sources, _classesDirectory, _scalacOptions, _javacOptions, _maxErrors, _sourcePositionMapper, _order, _temporaryClassesDirectory, _converter, _stamper);
     }
     private xsbti.VirtualFile[] classpath;
@@ -52,9 +64,9 @@ public final class CompileOptions implements java.io.Serializable {
         maxErrors = 100;
         sourcePositionMapper = new java.util.function.Function<xsbti.Position, xsbti.Position>() { public xsbti.Position apply(xsbti.Position a) { return a; } };
         order = xsbti.compile.CompileOrder.Mixed;
-        temporaryClassesDirectory = java.util.Optional.empty();
-        converter = java.util.Optional.empty();
-        stamper = java.util.Optional.empty();
+        temporaryClassesDirectory = java.util.Optional.<java.nio.file.Path>empty();
+        converter = java.util.Optional.<xsbti.FileConverter>empty();
+        stamper = java.util.Optional.<xsbti.compile.analysis.ReadStamps>empty();
     }
     protected CompileOptions(xsbti.VirtualFile[] _classpath, xsbti.VirtualFile[] _sources, java.nio.file.Path _classesDirectory, String[] _scalacOptions, String[] _javacOptions, int _maxErrors, java.util.function.Function<xsbti.Position, xsbti.Position> _sourcePositionMapper, xsbti.compile.CompileOrder _order) {
         super();
@@ -66,9 +78,9 @@ public final class CompileOptions implements java.io.Serializable {
         maxErrors = _maxErrors;
         sourcePositionMapper = _sourcePositionMapper;
         order = _order;
-        temporaryClassesDirectory = java.util.Optional.empty();
-        converter = java.util.Optional.empty();
-        stamper = java.util.Optional.empty();
+        temporaryClassesDirectory = java.util.Optional.<java.nio.file.Path>empty();
+        converter = java.util.Optional.<xsbti.FileConverter>empty();
+        stamper = java.util.Optional.<xsbti.compile.analysis.ReadStamps>empty();
     }
     protected CompileOptions(xsbti.VirtualFile[] _classpath, xsbti.VirtualFile[] _sources, java.nio.file.Path _classesDirectory, String[] _scalacOptions, String[] _javacOptions, int _maxErrors, java.util.function.Function<xsbti.Position, xsbti.Position> _sourcePositionMapper, xsbti.compile.CompileOrder _order, java.util.Optional<java.nio.file.Path> _temporaryClassesDirectory) {
         super();
@@ -81,8 +93,22 @@ public final class CompileOptions implements java.io.Serializable {
         sourcePositionMapper = _sourcePositionMapper;
         order = _order;
         temporaryClassesDirectory = _temporaryClassesDirectory;
-        converter = java.util.Optional.empty();
-        stamper = java.util.Optional.empty();
+        converter = java.util.Optional.<xsbti.FileConverter>empty();
+        stamper = java.util.Optional.<xsbti.compile.analysis.ReadStamps>empty();
+    }
+    protected CompileOptions(xsbti.VirtualFile[] _classpath, xsbti.VirtualFile[] _sources, java.nio.file.Path _classesDirectory, String[] _scalacOptions, String[] _javacOptions, int _maxErrors, java.util.function.Function<xsbti.Position, xsbti.Position> _sourcePositionMapper, xsbti.compile.CompileOrder _order, java.nio.file.Path _temporaryClassesDirectory) {
+        super();
+        classpath = _classpath;
+        sources = _sources;
+        classesDirectory = _classesDirectory;
+        scalacOptions = _scalacOptions;
+        javacOptions = _javacOptions;
+        maxErrors = _maxErrors;
+        sourcePositionMapper = _sourcePositionMapper;
+        order = _order;
+        temporaryClassesDirectory = java.util.Optional.<java.nio.file.Path>ofNullable(_temporaryClassesDirectory);
+        converter = java.util.Optional.<xsbti.FileConverter>empty();
+        stamper = java.util.Optional.<xsbti.compile.analysis.ReadStamps>empty();
     }
     protected CompileOptions(xsbti.VirtualFile[] _classpath, xsbti.VirtualFile[] _sources, java.nio.file.Path _classesDirectory, String[] _scalacOptions, String[] _javacOptions, int _maxErrors, java.util.function.Function<xsbti.Position, xsbti.Position> _sourcePositionMapper, xsbti.compile.CompileOrder _order, java.util.Optional<java.nio.file.Path> _temporaryClassesDirectory, java.util.Optional<xsbti.FileConverter> _converter, java.util.Optional<xsbti.compile.analysis.ReadStamps> _stamper) {
         super();
@@ -97,6 +123,20 @@ public final class CompileOptions implements java.io.Serializable {
         temporaryClassesDirectory = _temporaryClassesDirectory;
         converter = _converter;
         stamper = _stamper;
+    }
+    protected CompileOptions(xsbti.VirtualFile[] _classpath, xsbti.VirtualFile[] _sources, java.nio.file.Path _classesDirectory, String[] _scalacOptions, String[] _javacOptions, int _maxErrors, java.util.function.Function<xsbti.Position, xsbti.Position> _sourcePositionMapper, xsbti.compile.CompileOrder _order, java.nio.file.Path _temporaryClassesDirectory, xsbti.FileConverter _converter, xsbti.compile.analysis.ReadStamps _stamper) {
+        super();
+        classpath = _classpath;
+        sources = _sources;
+        classesDirectory = _classesDirectory;
+        scalacOptions = _scalacOptions;
+        javacOptions = _javacOptions;
+        maxErrors = _maxErrors;
+        sourcePositionMapper = _sourcePositionMapper;
+        order = _order;
+        temporaryClassesDirectory = java.util.Optional.<java.nio.file.Path>ofNullable(_temporaryClassesDirectory);
+        converter = java.util.Optional.<xsbti.FileConverter>ofNullable(_converter);
+        stamper = java.util.Optional.<xsbti.compile.analysis.ReadStamps>ofNullable(_stamper);
     }
     /**
      * The classpath to use for compilation.
@@ -176,11 +216,20 @@ public final class CompileOptions implements java.io.Serializable {
     public CompileOptions withTemporaryClassesDirectory(java.util.Optional<java.nio.file.Path> temporaryClassesDirectory) {
         return new CompileOptions(classpath, sources, classesDirectory, scalacOptions, javacOptions, maxErrors, sourcePositionMapper, order, temporaryClassesDirectory, converter, stamper);
     }
+    public CompileOptions withTemporaryClassesDirectory(java.nio.file.Path temporaryClassesDirectory) {
+        return new CompileOptions(classpath, sources, classesDirectory, scalacOptions, javacOptions, maxErrors, sourcePositionMapper, order, java.util.Optional.<java.nio.file.Path>ofNullable(temporaryClassesDirectory), converter, stamper);
+    }
     public CompileOptions withConverter(java.util.Optional<xsbti.FileConverter> converter) {
         return new CompileOptions(classpath, sources, classesDirectory, scalacOptions, javacOptions, maxErrors, sourcePositionMapper, order, temporaryClassesDirectory, converter, stamper);
     }
+    public CompileOptions withConverter(xsbti.FileConverter converter) {
+        return new CompileOptions(classpath, sources, classesDirectory, scalacOptions, javacOptions, maxErrors, sourcePositionMapper, order, temporaryClassesDirectory, java.util.Optional.<xsbti.FileConverter>ofNullable(converter), stamper);
+    }
     public CompileOptions withStamper(java.util.Optional<xsbti.compile.analysis.ReadStamps> stamper) {
         return new CompileOptions(classpath, sources, classesDirectory, scalacOptions, javacOptions, maxErrors, sourcePositionMapper, order, temporaryClassesDirectory, converter, stamper);
+    }
+    public CompileOptions withStamper(xsbti.compile.analysis.ReadStamps stamper) {
+        return new CompileOptions(classpath, sources, classesDirectory, scalacOptions, javacOptions, maxErrors, sourcePositionMapper, order, temporaryClassesDirectory, converter, java.util.Optional.<xsbti.compile.analysis.ReadStamps>ofNullable(stamper));
     }
     public boolean equals(Object obj) {
         if (this == obj) {

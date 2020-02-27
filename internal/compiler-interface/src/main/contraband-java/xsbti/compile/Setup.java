@@ -1,5 +1,5 @@
 /**
- * This code is generated using [[http://www.scala-sbt.org/contraband/ sbt-contraband]].
+ * This code is generated using [[https://www.scala-sbt.org/contraband/ sbt-contraband]].
  */
 
 // DO NOT EDIT MANUALLY
@@ -24,6 +24,12 @@ public final class Setup implements java.io.Serializable {
     public static Setup of(xsbti.compile.PerClasspathEntryLookup _perClasspathEntryLookup, boolean _skip, java.nio.file.Path _cachePath, xsbti.compile.GlobalsCache _cache, xsbti.compile.IncOptions _incrementalCompilerOptions, xsbti.Reporter _reporter, java.util.Optional<xsbti.compile.CompileProgress> _progress, xsbti.T2<String, String>[] _extra) {
         return new Setup(_perClasspathEntryLookup, _skip, _cachePath, _cache, _incrementalCompilerOptions, _reporter, _progress, _extra);
     }
+    public static Setup create(xsbti.compile.PerClasspathEntryLookup _perClasspathEntryLookup, boolean _skip, java.nio.file.Path _cachePath, xsbti.compile.GlobalsCache _cache, xsbti.compile.IncOptions _incrementalCompilerOptions, xsbti.Reporter _reporter, xsbti.compile.CompileProgress _progress, xsbti.T2<String, String>[] _extra) {
+        return new Setup(_perClasspathEntryLookup, _skip, _cachePath, _cache, _incrementalCompilerOptions, _reporter, _progress, _extra);
+    }
+    public static Setup of(xsbti.compile.PerClasspathEntryLookup _perClasspathEntryLookup, boolean _skip, java.nio.file.Path _cachePath, xsbti.compile.GlobalsCache _cache, xsbti.compile.IncOptions _incrementalCompilerOptions, xsbti.Reporter _reporter, xsbti.compile.CompileProgress _progress, xsbti.T2<String, String>[] _extra) {
+        return new Setup(_perClasspathEntryLookup, _skip, _cachePath, _cache, _incrementalCompilerOptions, _reporter, _progress, _extra);
+    }
     private xsbti.compile.PerClasspathEntryLookup perClasspathEntryLookup;
     private boolean skip;
     private java.nio.file.Path cachePath;
@@ -41,6 +47,17 @@ public final class Setup implements java.io.Serializable {
         incrementalCompilerOptions = _incrementalCompilerOptions;
         reporter = _reporter;
         progress = _progress;
+        extra = _extra;
+    }
+    protected Setup(xsbti.compile.PerClasspathEntryLookup _perClasspathEntryLookup, boolean _skip, java.nio.file.Path _cachePath, xsbti.compile.GlobalsCache _cache, xsbti.compile.IncOptions _incrementalCompilerOptions, xsbti.Reporter _reporter, xsbti.compile.CompileProgress _progress, xsbti.T2<String, String>[] _extra) {
+        super();
+        perClasspathEntryLookup = _perClasspathEntryLookup;
+        skip = _skip;
+        cachePath = _cachePath;
+        cache = _cache;
+        incrementalCompilerOptions = _incrementalCompilerOptions;
+        reporter = _reporter;
+        progress = java.util.Optional.<xsbti.compile.CompileProgress>ofNullable(_progress);
         extra = _extra;
     }
     /** Provides a lookup of data structures and operations associated with a single classpath entry. */
@@ -96,6 +113,9 @@ public final class Setup implements java.io.Serializable {
     }
     public Setup withProgress(java.util.Optional<xsbti.compile.CompileProgress> progress) {
         return new Setup(perClasspathEntryLookup, skip, cachePath, cache, incrementalCompilerOptions, reporter, progress, extra);
+    }
+    public Setup withProgress(xsbti.compile.CompileProgress progress) {
+        return new Setup(perClasspathEntryLookup, skip, cachePath, cache, incrementalCompilerOptions, reporter, java.util.Optional.<xsbti.compile.CompileProgress>ofNullable(progress), extra);
     }
     public Setup withExtra(xsbti.T2<String, String>[] extra) {
         return new Setup(perClasspathEntryLookup, skip, cachePath, cache, incrementalCompilerOptions, reporter, progress, extra);

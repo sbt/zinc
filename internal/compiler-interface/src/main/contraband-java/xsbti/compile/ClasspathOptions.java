@@ -1,5 +1,5 @@
 /**
- * This code is generated using [[http://www.scala-sbt.org/contraband/ sbt-contraband]].
+ * This code is generated using [[https://www.scala-sbt.org/contraband/ sbt-contraband]].
  */
 
 // DO NOT EDIT MANUALLY
@@ -60,7 +60,8 @@ public final class ClasspathOptions implements java.io.Serializable {
     }
     /**
      * If true, the Scala library jar is filtered from the standard classpath.
-     * This should usually be true because the library should be included on the boot classpath of the Scala compiler and not the standard classpath.
+     * This should usually be true because the library should be included on the boot
+     * classpath of the Scala compiler and not the standard classpath.
      */
     public boolean filterLibrary() {
         return this.filterLibrary;
