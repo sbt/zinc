@@ -15,6 +15,7 @@ package inc
 
 import xsbti.{ FileConverter, Reporter, VirtualFile }
 import xsbti.compile.{
+  AnalysisStore,
   CompileAnalysis,
   CompileProgress,
   GlobalsCache,
@@ -59,5 +60,6 @@ final class CompileConfiguration(
     val output: Output,
     val outputJarContent: JarUtils.OutputJarContent,
     val earlyOutput: Option[Output],
+    val earlyAnalysisStore: Option[AnalysisStore],
     val stampReader: ReadStamps,
 )

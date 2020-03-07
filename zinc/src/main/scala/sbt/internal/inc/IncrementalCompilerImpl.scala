@@ -62,6 +62,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       classpath,
       CompileOutput(classesDirectory),
       earlyOutput.toOption,
+      earlyAnalysisStore.toOption,
       cache,
       progress().toOption,
       scalacOptions,
@@ -124,6 +125,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       classpath: Array[VirtualFile],
       output: xsbti.compile.Output,
       earlyOutput: Optional[xsbti.compile.Output],
+      earlyAnalysisStore: Optional[AnalysisStore],
       cache: xsbti.compile.GlobalsCache,
       scalaOptions: Array[String],
       javaOptions: Array[String],
@@ -149,6 +151,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       classpath.toSeq,
       output,
       earlyOutput.toOption,
+      earlyAnalysisStore.toOption,
       cache,
       progress.toOption,
       scalaOptions.toSeq,
@@ -211,6 +214,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       classpath: Array[Path],
       output: xsbti.compile.Output,
       earlyOutput: Optional[xsbti.compile.Output],
+      earlyAnalysisStore: Optional[AnalysisStore],
       cache: xsbti.compile.GlobalsCache,
       scalaOptions: Array[String],
       javaOptions: Array[String],
@@ -238,6 +242,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       cp,
       output,
       earlyOutput.toOption,
+      earlyAnalysisStore.toOption,
       cache,
       progress.toOption,
       scalaOptions.toSeq,
@@ -334,6 +339,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       classpath: Seq[VirtualFile],
       output: Output,
       earlyOutput: Option[Output],
+      earlyAnalysisStore: Option[AnalysisStore],
       cache: GlobalsCache,
       progress: Option[CompileProgress] = None,
       scalaOptions: Seq[String] = Nil,
@@ -393,6 +399,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         output,
         outputJarContent,
         earlyOutput,
+        earlyAnalysisStore,
         stampReader,
         extra
       )
@@ -457,6 +464,8 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       output,
       outputJarContent,
       earlyOutput,
+      earlyAnalysisStore,
+      progress,
       log
     )(mixedCompiler.compile)
     compile.swap
@@ -483,12 +492,21 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       cache: GlobalsCache,
       incOptions: IncOptions,
       reporter: Reporter,
-      optionProgress: Option[CompileProgress],
+      progress: Option[CompileProgress],
+      earlyAnalysisStore: Option[AnalysisStore],
       extra: Array[T2[String, String]]
-  ): Setup = {
-    val progress = optionProgress.toOptional
-    Setup.of(lookup, skip, cacheFile, cache, incOptions, reporter, progress, extra)
-  }
+  ): Setup =
+    Setup.of(
+      lookup,
+      skip,
+      cacheFile,
+      cache,
+      incOptions,
+      reporter,
+      progress.toOptional,
+      earlyAnalysisStore.toOptional,
+      extra
+    )
 
   def inputs(
       options: CompileOptions,

@@ -34,8 +34,15 @@ public interface CompileProgress {
 	 *
 	 * @param current The current progress.
 	 * @param total The total of the progress that has to be achieved.
+	 * @param prevPhase The name of the previous phase.
+	 * @param nextPhase The name of the next phase.
 	 *
 	 * @return Whether the user has cancelled compilation or not.
 	 */
-	boolean advance(int current, int total);
+	boolean advance(int current, int total, String prevPhase, String nextPhase);
+
+	/**
+	 * Called when early output is created mid-compilation.
+	 */
+	void earlyOutputComplete();
 }

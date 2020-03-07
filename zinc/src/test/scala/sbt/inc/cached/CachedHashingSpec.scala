@@ -79,6 +79,7 @@ class CachedHashingSpec extends BaseCompilerSpec {
           output,
           JarUtils.createOutputJarContent(output),
           options.earlyOutput.toOption,
+          setup.earlyAnalysisStore.toOption,
           options.stamper.toOption.get,
           setup.extra.toList.map(_.toScalaTuple)
         )

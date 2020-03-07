@@ -390,6 +390,7 @@ object AnalyzingCompiler {
 }
 
 private[this] object IgnoreProgress extends CompileProgress {
-  def startUnit(phase: String, unitPath: String): Unit = ()
-  def advance(current: Int, total: Int) = true
+  override def startUnit(phase: String, unitPath: String): Unit = ()
+  override def advance(current: Int, total: Int, prevPhase: String, nextPhase: String) = true
+  override def earlyOutputComplete = ()
 }

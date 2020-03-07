@@ -94,6 +94,7 @@ case class TestProjectSetup(
   val earlyOutput: Path = baseLocation.resolve("target").resolve("early-output.jar")
 
   def defaultStoreLocation: Path = baseLocation.resolve("inc_data.zip")
+  def defaultEarlyStoreLocation: Path = baseLocation.resolve("early_inc_data.zip")
 
   def createCompiler(
       scalaVersion: String,
@@ -114,6 +115,7 @@ case class TestProjectSetup(
       IncOptions.of(),
       analysisForCp,
       defaultStoreLocation,
+      defaultEarlyStoreLocation,
       converter,
       log
     )
@@ -170,6 +172,7 @@ object TestProjectSetup {
       incOptions: IncOptions,
       analysisForCp: Map[VirtualFile, Path],
       analysisStoreLocation: Path,
+      earlyAnalysisStoreLocation: Path,
       converter: FileConverter,
       log: ManagedLogger
   ) {
@@ -197,9 +200,14 @@ object TestProjectSetup {
 
     var lastCompiledUnits: Set[String] = Set.empty
     val progress = new CompileProgress {
-      override def advance(current: Int, total: Int): Boolean = true
-
+      override def advance(
+          current: Int,
+          total: Int,
+          prevPhaseName: String,
+          nextPhaseName: String
+      ): Boolean = true
       override def startUnit(phase: String, unitPath: String): Unit = lastCompiledUnits += unitPath
+      override def earlyOutputComplete(): Unit = ()
     }
 
     val setup = compiler.setup(
@@ -210,6 +218,7 @@ object TestProjectSetup {
       incOptions,
       reporter,
       Some(progress),
+      Some(FileAnalysisStore.getDefault(earlyAnalysisStoreLocation.toFile)),
       extra
     )
     val prev = compiler.emptyPreviousResult

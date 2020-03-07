@@ -14,6 +14,7 @@ package xsbti
 import java.nio.file.Path
 import java.util
 
+import xsbti.compile.PickleData
 import xsbti.api.{ DependencyContext, ClassLike }
 
 import scala.collection.mutable.ArrayBuffer

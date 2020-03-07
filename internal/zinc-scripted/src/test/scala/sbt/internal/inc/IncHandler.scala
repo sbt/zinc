@@ -25,6 +25,7 @@ import xsbt.api.Discovery
 import xsbti.{ FileConverter, Problem, Severity, VirtualFileRef, VirtualFile }
 import xsbti.compile.{
   AnalysisContents,
+  AnalysisStore,
   ClasspathOptionsUtil,
   CompileAnalysis,
   CompileOrder,
@@ -55,6 +56,7 @@ import scala.collection.mutable
 import scala.concurrent.{ Await, Future, Promise }
 import scala.concurrent.duration._
 import scala.util.control.NonFatal
+import scala.util.Success
 
 final case class Project(
     name: String,
@@ -569,14 +571,11 @@ case class ProjectStructure(
       override def startUnit(phase: String, unitPath: String): Unit = {
         // println(s"[zinc] start $phase $unitPath")
       }
-      override def advance(current: Int, total: Int) = true
-      /*
       override def advance(current: Int, total: Int, prevPhase: String, nextPhase: String) = true
       override def earlyOutputComplete = {
         println(s"early output is done for $name!")
         notifyEarlyOutput.complete(Success(()))
       }
-     */
     }
     val setup = incrementalCompiler.setup(
       entryLookup,
@@ -586,8 +585,8 @@ case class ProjectStructure(
       incOptions,
       reporter,
       Some(progress),
-      // earlyAnalysisStore = Some(earlyAnalysisStore),
-      extra
+      earlyAnalysisStore = Some(earlyAnalysisStore),
+      extra = extra
     )
 
     val paths = (i.si.allJars.toList.map(_.toPath) ++ (unmanagedJars :+ output) ++ internalCp)

@@ -20,24 +20,19 @@ import sbt.util.{ InterfaceUtil, Level, Logger }
 import sbt.util.InterfaceUtil.jo2o
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import xsbti.{
-  FileConverter,
-  PickleData,
-  Position,
-  Problem,
-  Severity,
-  UseScope,
-  VirtualFile,
-  VirtualFileRef
-}
+import xsbti.{ FileConverter, Position, Problem, Severity, UseScope, VirtualFile, VirtualFileRef }
 import xsbt.api.{ APIUtil, HashAPI, NameHashing }
 import xsbti.api._
 import xsbti.compile.{
+  AnalysisContents,
+  AnalysisStore,
   CompileAnalysis,
+  CompileProgress,
   DependencyChanges,
   IncOptions,
   MiniSetup,
   Output,
+  PickleData,
   ClassFileManager => XClassFileManager
 }
 import xsbti.compile.analysis.{ ReadStamps, Stamp => XStamp }
@@ -79,7 +74,7 @@ object Incremental {
         partialAnalysis: Analysis
     ): CompileCycleResult
 
-    // def previousAnalysisPruned: Analysis
+    def previousAnalysisPruned: Analysis
 
     /**
      * @return true when the compilation cycle is compiling all the sources; false, otherwise.
@@ -135,6 +130,8 @@ object Incremental {
       output: Output,
       outputJarContent: JarUtils.OutputJarContent,
       earlyOutput: Option[Output],
+      earlyAnalysisStore: Option[AnalysisStore],
+      progress: Option[CompileProgress],
       log: Logger
   )(
       compile: (
@@ -175,6 +172,8 @@ object Incremental {
           output,
           outputJarContent,
           earlyOutput,
+          earlyAnalysisStore,
+          progress,
           log
         ),
         incremental,
@@ -232,7 +231,6 @@ object Incremental {
       options: IncOptions,
       output: Output,
       outputJarContent: JarUtils.OutputJarContent,
-      // earlyOutput: Option[Output],
       log: sbt.util.Logger
   )(implicit equivS: Equiv[XStamp]): (Boolean, Analysis) = {
     log.debug("IncrementalCompile.incrementalCompile")
@@ -362,6 +360,8 @@ private object AnalysisCallback {
       output: Output,
       outputJarContent: JarUtils.OutputJarContent,
       earlyOutput: Option[Output],
+      earlyAnalysisStore: Option[AnalysisStore],
+      progress: Option[CompileProgress],
       log: Logger
   ) {
     def build(incHandler: Incremental.IncrementalCallback): AnalysisCallback = {
@@ -377,6 +377,8 @@ private object AnalysisCallback {
         lookup,
         output,
         earlyOutput,
+        earlyAnalysisStore,
+        progress,
         incHandler,
         log
       )
@@ -396,6 +398,8 @@ private final class AnalysisCallback(
     lookup: Lookup,
     output: Output,
     earlyOutput: Option[Output],
+    earlyAnalysisStore: Option[AnalysisStore],
+    progress: Option[CompileProgress],
     incHandler: Incremental.IncrementalCallback,
     log: Logger
 ) extends xsbti.AnalysisCallback {
@@ -629,6 +633,9 @@ private final class AnalysisCallback(
     gotten = true
     outputJarContent.scalacRunCompleted()
     val a = getAnalysis
+    if (invalidationResults.isEmpty) {
+      writeEarlyArtifacts(incHandler.previousAnalysisPruned)
+    }
     incHandler.completeCycle(invalidationResults, a)
   }
 
@@ -794,7 +801,9 @@ private final class AnalysisCallback(
   }
 
   private def writeEarlyArtifacts(merged: Analysis): Unit = {
-    lookup.storeEarlyAnalysis(merged, currentSetup)
+    earlyAnalysisStore map { store =>
+      store.set(AnalysisContents.create(merged, currentSetup))
+    }
     for {
       earlyO <- earlyOutput
       pickleJarPath <- jo2o(earlyO.getSingleOutput())
@@ -805,7 +814,9 @@ private final class AnalysisCallback(
         .flatMap(merged.relations.classNames)
       // .map(JarUtils.ClassInJar.fromVirtualFileRef(_).toClassFilePath)
       PickleJar.write(pickleJarPath, pklData, knownClasses, log)
-      // hooks.picklesComplete()
+      progress map { p =>
+        p.earlyOutputComplete()
+      }
     }
     ()
   }

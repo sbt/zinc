@@ -59,12 +59,6 @@ public interface ExternalHooks {
         boolean shouldDoIncrementalCompilation(Set<String> changedClasses, CompileAnalysis previousAnalysis);
 
         Optional<FileHash[]> hashClasspath(VirtualFile[] classpath);
-
-        /**
-         * For build pipelining support, this provides a hook for the build tool
-         * to store Analysis information mid-compilation.
-         */
-        void storeEarlyAnalysis(CompileAnalysis earlyAnalysis, MiniSetup setup);
     }
 
     interface GetProvenance {

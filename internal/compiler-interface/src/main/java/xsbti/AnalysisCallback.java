@@ -12,6 +12,7 @@
 package xsbti;
 
 import xsbti.api.DependencyContext;
+import xsbti.compile.PickleData;
 
 import java.io.File;
 import java.nio.file.Path;

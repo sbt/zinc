@@ -30,10 +30,22 @@ public interface AnalysisStore {
      * {@link AnalysisStore#get()} is used.
      *
      * @param analysisStore The underlying analysis store that knows how to read/write contents.
-     * @return An instance of a cached {@link AnalysisStore}.
      */
     static AnalysisStore getCachedStore(AnalysisStore analysisStore) {
-        return sbt.internal.inc.AnalysisStore.cached(analysisStore);
+        return new CachedAnalysisStore(analysisStore);
+    }
+
+    /**
+     * Returns an analysis store whose last contents are kept in-memory.
+     *
+     * There will be only one memory reference to an analysis files. Previous contents
+     * will be discarded as {@link AnalysisStore#set(AnalysisContents)} or
+     * {@link AnalysisStore#get()} is used.
+     *
+     * @param analysisStore The underlying analysis store that knows how to read/write contents.
+     */
+    static AnalysisStore cached(AnalysisStore analysisStore) {
+        return getCachedStore(analysisStore);
     }
 
     /**
@@ -42,10 +54,20 @@ public interface AnalysisStore {
      * Thread-safety is achieved by synchronizing in the object.
      *
      * @param analysisStore The underlying analysis store that knows how to read/write contents.
-     * @return An instance of a thread-safe {@link AnalysisStore}.
      */
     static AnalysisStore getThreadSafeStore(AnalysisStore analysisStore) {
-        return sbt.internal.inc.AnalysisStore.sync(analysisStore);
+        return new SyncedAnalysisStore(analysisStore);
+    }
+
+    /**
+     * Returns a synchronized analysis store that is thread-safe.
+     *
+     * Thread-safety is achieved by synchronizing in the object.
+     *
+     * @param analysisStore The underlying analysis store that knows how to read/write contents.
+     */
+    static AnalysisStore sync(AnalysisStore analysisStore) {
+        return getThreadSafeStore(analysisStore);
     }
 
     /**
@@ -75,8 +97,49 @@ public interface AnalysisStore {
      * compile and lets the incremental compiler decide what needs or needs not to be recompiled.
      *
      * This method is called after every incremental compile.
-     *
-     * @return An instance of {@link AnalysisContents}.
      */
     void set(AnalysisContents analysisContents);
+
+    final class CachedAnalysisStore implements AnalysisStore {
+        private AnalysisStore underlying;
+        private Optional<AnalysisContents> lastStore = Optional.empty();
+        
+        CachedAnalysisStore(AnalysisStore underlying) {
+            this.underlying = underlying;
+        }
+
+        public Optional<AnalysisContents> get() {
+            if (!lastStore.isPresent()) {
+                lastStore = underlying.get();
+            }
+            return lastStore;
+        }
+        public AnalysisContents unsafeGet() {
+            return get().get();
+        }
+        public void set(AnalysisContents analysisContents) {
+            underlying.set(analysisContents);
+            lastStore = Optional.of(analysisContents);
+        }
+    }
+
+    final class SyncedAnalysisStore implements AnalysisStore {
+        private AnalysisStore underlying;
+        SyncedAnalysisStore(AnalysisStore underlying) {
+            this.underlying = underlying;
+        }
+        public Optional<AnalysisContents> get() {
+            synchronized(this) {
+                return underlying.get();
+            }
+        }
+        public AnalysisContents unsafeGet() {
+            return get().get();
+        }
+        public void set(AnalysisContents analysisContents) {
+            synchronized(this) {
+                underlying.set(analysisContents);
+            }
+        }
+    }
 }

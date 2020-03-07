@@ -5,8 +5,9 @@
 // DO NOT EDIT MANUALLY
 package xsbti.compile;
 /** The result of running the incremental compilation. */
-public final class CompileResult implements java.io.Serializable {
-    
+public final class CompileResult implements xsbti.compile.AnalysisContents, java.io.Serializable {
+    public xsbti.compile.CompileAnalysis getAnalysis() { return this.analysis; }
+    public xsbti.compile.MiniSetup getMiniSetup() { return this.setup; }
     public static CompileResult create(xsbti.compile.CompileAnalysis _analysis, xsbti.compile.MiniSetup _setup, boolean _hasModified) {
         return new CompileResult(_analysis, _setup, _hasModified);
     }

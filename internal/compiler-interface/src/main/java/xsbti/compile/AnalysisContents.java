@@ -11,8 +11,6 @@
 
 package xsbti.compile;
 
-import sbt.internal.inc.ConcreteAnalysisContents;
-
 /**
  * Defines an analysis file that contains information about every incremental compile.
  *
@@ -27,7 +25,7 @@ public interface AnalysisContents {
      * @return An instance of AnalysisContents.
      */
     static AnalysisContents create(CompileAnalysis analysis, MiniSetup setup) {
-        return new ConcreteAnalysisContents(analysis, setup);
+        return CompileResult.of(analysis, setup, false);
     }
 
     /**

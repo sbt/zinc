@@ -26,7 +26,7 @@ import java.nio.file.attribute.{ BasicFileAttributes, FileTime }
 import java.time.Instant
 
 import sbt.util.Logger
-import xsbti.PickleData
+import xsbti.compile.PickleData
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 

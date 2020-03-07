@@ -16,7 +16,7 @@ import java.util.Optional
 import java.nio.file.{ Files, Path, Paths, StandardCopyOption }
 import java.io.{ InputStream, ByteArrayInputStream }
 
-import sbt.internal.inc.{ ScalaInstance => _, FileAnalysisStore => _, AnalysisStore => _, _ }
+import sbt.internal.inc.{ ScalaInstance => _, FileAnalysisStore => _, _ }
 import sbt.io.IO
 import sbt.util.{ Level, Logger }
 import JavaInterfaceUtil.EnrichOptional
@@ -42,6 +42,9 @@ class VirtualFileIncrementalSpec extends BridgeProviderSpecification {
       val earlyOutput = targetDir / "early-output.jar"
       val cacheFile = targetDir / "inc_compile.zip"
       val fileStore = AnalysisStore.getCachedStore(FileAnalysisStore.getDefault(cacheFile.toFile))
+      val earlyCacheFile = targetDir / "early" / "inc_compile.zip"
+      val earlyAnalysisStore =
+        AnalysisStore.getCachedStore(FileAnalysisStore.getDefault(earlyCacheFile.toFile))
       val dependerFile: VirtualFile =
         StringVirtualFile("src/Depender.scala", """package test.pkg
 
@@ -94,7 +97,8 @@ object Depender2 {
         CompilerCache.fresh,
         incOptions,
         reporter,
-        None,
+        progress = None,
+        earlyAnalysisStore = Some(earlyAnalysisStore),
         Array()
       )
       val in = compiler.inputs(

@@ -64,6 +64,22 @@ final class MixedAnalyzingCompiler(
       changes: DependencyChanges,
       callback: XAnalysisCallback,
       classfileManager: XClassFileManager
+  ): Unit = compile(include, changes, callback, classfileManager, config.progress)
+
+  /**
+   * Compiles the given Java/Scala files.
+   *
+   * @param include          The files to compile right now
+   * @param changes          A list of dependency changes.
+   * @param callback         The callback where we report dependency issues.
+   * @param classfileManager The component that manages generated class files.
+   */
+  def compile(
+      include: Set[VirtualFile],
+      changes: DependencyChanges,
+      callback: XAnalysisCallback,
+      classfileManager: XClassFileManager,
+      progress: Option[CompileProgress]
   ): Unit = {
     val output = config.output
     val outputDirs = outputDirectories(output)
@@ -102,7 +118,7 @@ final class MixedAnalyzingCompiler(
               config.reporter,
               config.cache,
               log,
-              config.progress.toOptional
+              progress.toOptional
             )
           }
         }
@@ -248,6 +264,7 @@ object MixedAnalyzingCompiler {
       output: Output,
       outputJarContent: JarUtils.OutputJarContent,
       earlyOutput: Option[Output],
+      earlyAnalysisStore: Option[AnalysisStore],
       stamper: ReadStamps,
       extra: List[(String, String)]
   ): CompileConfiguration = {
@@ -292,6 +309,7 @@ object MixedAnalyzingCompiler {
       output,
       outputJarContent,
       earlyOutput,
+      earlyAnalysisStore,
       stamper
     )
   }
@@ -314,6 +332,7 @@ object MixedAnalyzingCompiler {
       output: Output,
       outputJarContent: JarUtils.OutputJarContent,
       earlyOutput: Option[Output],
+      earlyAnalysisStore: Option[AnalysisStore],
       stamper: ReadStamps,
   ): CompileConfiguration = {
     new CompileConfiguration(
@@ -333,6 +352,7 @@ object MixedAnalyzingCompiler {
       output,
       outputJarContent,
       earlyOutput,
+      earlyAnalysisStore,
       stamper
     )
   }

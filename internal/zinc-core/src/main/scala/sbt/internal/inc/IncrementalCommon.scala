@@ -236,6 +236,8 @@ private[inc] abstract class IncrementalCommon(
         classFileManager.generated(products.toArray)
         results
       }
+
+      override val previousAnalysisPruned = pruned
     }
   }
 

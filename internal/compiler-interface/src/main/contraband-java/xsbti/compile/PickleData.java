@@ -3,7 +3,7 @@
  */
 
 // DO NOT EDIT MANUALLY
-package xsbti;
+package xsbti.compile;
 /** A wrapper around PickleBuffer https://github.com/scala/scala/blob/v2.13.1/src/reflect/scala/reflect/internal/pickling/PickleBuffer.scala */
 public final class PickleData implements java.io.Serializable {
     
@@ -68,7 +68,7 @@ public final class PickleData implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.PickleData".hashCode()) + underlying().hashCode()) + fqcn().hashCode()) + java.util.Arrays.hashCode(data())) + Integer.valueOf(writeIndex()).hashCode()) + path().hashCode());
+        return 37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.compile.PickleData".hashCode()) + underlying().hashCode()) + fqcn().hashCode()) + java.util.Arrays.hashCode(data())) + Integer.valueOf(writeIndex()).hashCode()) + path().hashCode());
     }
     public String toString() {
         return "PickleData("  + "underlying: " + underlying() + ", " + "fqcn: " + fqcn() + ", " + "data: " + data() + ", " + "writeIndex: " + writeIndex() + ", " + "path: " + path() + ")";

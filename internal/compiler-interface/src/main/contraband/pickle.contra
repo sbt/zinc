@@ -1,4 +1,4 @@
-package xsbti
+package xsbti.compile
 @target(Java)
 
 ## A wrapper around PickleBuffer https://github.com/scala/scala/blob/v2.13.1/src/reflect/scala/reflect/internal/pickling/PickleBuffer.scala
