@@ -4,7 +4,7 @@
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public final class Public extends xsbti.api.Access {
+public final class Public extends xsbti.api.Access implements java.io.Serializable {
     
     public static Public create() {
         return new Public();

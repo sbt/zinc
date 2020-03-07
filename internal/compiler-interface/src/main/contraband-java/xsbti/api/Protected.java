@@ -4,7 +4,7 @@
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public final class Protected extends xsbti.api.Qualified {
+public final class Protected extends xsbti.api.Qualified implements java.io.Serializable {
     
     public static Protected create(Qualifier _qualifier) {
         return new Protected(_qualifier);

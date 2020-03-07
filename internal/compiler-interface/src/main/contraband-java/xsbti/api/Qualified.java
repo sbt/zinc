@@ -4,7 +4,7 @@
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public abstract class Qualified extends xsbti.api.Access {
+public abstract class Qualified extends xsbti.api.Access implements java.io.Serializable {
     
     private Qualifier qualifier;
     protected Qualified(Qualifier _qualifier) {

@@ -4,7 +4,7 @@
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public final class Unqualified extends xsbti.api.Qualifier {
+public final class Unqualified extends xsbti.api.Qualifier implements java.io.Serializable {
     
     public static Unqualified create() {
         return new Unqualified();

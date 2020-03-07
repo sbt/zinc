@@ -4,7 +4,7 @@
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public abstract class ParameterizedDefinition extends xsbti.api.ClassDefinition {
+public abstract class ParameterizedDefinition extends xsbti.api.ClassDefinition implements java.io.Serializable {
     
     private TypeParameter[] typeParameters;
     protected ParameterizedDefinition(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters) {

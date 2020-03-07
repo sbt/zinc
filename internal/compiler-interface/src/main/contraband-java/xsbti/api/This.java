@@ -4,7 +4,7 @@
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public final class This extends xsbti.api.PathComponent {
+public final class This extends xsbti.api.PathComponent implements java.io.Serializable {
     
     public static This create() {
         return new This();

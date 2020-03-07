@@ -4,7 +4,7 @@
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public final class TypeDeclaration extends xsbti.api.TypeMember {
+public final class TypeDeclaration extends xsbti.api.TypeMember implements java.io.Serializable {
     
     public static TypeDeclaration create(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters, Type _lowerBound, Type _upperBound) {
         return new TypeDeclaration(_name, _access, _modifiers, _annotations, _typeParameters, _lowerBound, _upperBound);

@@ -4,7 +4,7 @@
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public final class Polymorphic extends xsbti.api.Type {
+public final class Polymorphic extends xsbti.api.Type implements java.io.Serializable {
     
     public static Polymorphic create(Type _baseType, TypeParameter[] _parameters) {
         return new Polymorphic(_baseType, _parameters);

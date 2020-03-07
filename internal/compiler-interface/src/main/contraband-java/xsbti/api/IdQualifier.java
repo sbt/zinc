@@ -4,7 +4,7 @@
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public final class IdQualifier extends xsbti.api.Qualifier {
+public final class IdQualifier extends xsbti.api.Qualifier implements java.io.Serializable {
     
     public static IdQualifier create(String _value) {
         return new IdQualifier(_value);

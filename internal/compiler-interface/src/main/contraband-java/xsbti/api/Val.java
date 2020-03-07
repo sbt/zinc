@@ -4,7 +4,7 @@
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public final class Val extends xsbti.api.FieldLike {
+public final class Val extends xsbti.api.FieldLike implements java.io.Serializable {
     
     public static Val create(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, Type _tpe) {
         return new Val(_name, _access, _modifiers, _annotations, _tpe);

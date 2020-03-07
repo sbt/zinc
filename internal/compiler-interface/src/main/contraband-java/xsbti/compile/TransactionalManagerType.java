@@ -9,7 +9,7 @@ package xsbti.compile;
  * files to the way they were before compilation if there is an error. Otherwise, it
  * keeps the successfully generated class files from the new compilation.
  */
-public final class TransactionalManagerType extends xsbti.compile.ClassFileManagerType {
+public final class TransactionalManagerType extends xsbti.compile.ClassFileManagerType implements java.io.Serializable {
     
     public static TransactionalManagerType create(java.io.File _backupDirectory, xsbti.Logger _logger) {
         return new TransactionalManagerType(_backupDirectory, _logger);

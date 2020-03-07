@@ -8,7 +8,7 @@ package xsbti.compile;
  * Constructs a minimal ClassfileManager that immediately deletes class files when requested.
  * This is the default classfile manager if no type is provided in incremental options.
  */
-public final class DeleteImmediatelyManagerType extends xsbti.compile.ClassFileManagerType {
+public final class DeleteImmediatelyManagerType extends xsbti.compile.ClassFileManagerType implements java.io.Serializable {
     
     public static DeleteImmediatelyManagerType create() {
         return new DeleteImmediatelyManagerType();

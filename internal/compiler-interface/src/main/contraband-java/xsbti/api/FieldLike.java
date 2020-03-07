@@ -4,7 +4,7 @@
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public abstract class FieldLike extends xsbti.api.ClassDefinition {
+public abstract class FieldLike extends xsbti.api.ClassDefinition implements java.io.Serializable {
     
     private Type tpe;
     protected FieldLike(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, Type _tpe) {

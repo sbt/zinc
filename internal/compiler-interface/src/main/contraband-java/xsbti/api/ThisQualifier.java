@@ -4,7 +4,7 @@
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public final class ThisQualifier extends xsbti.api.Qualifier {
+public final class ThisQualifier extends xsbti.api.Qualifier implements java.io.Serializable {
     
     public static ThisQualifier create() {
         return new ThisQualifier();

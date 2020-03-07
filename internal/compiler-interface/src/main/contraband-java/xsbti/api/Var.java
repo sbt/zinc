@@ -4,7 +4,7 @@
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public final class Var extends xsbti.api.FieldLike {
+public final class Var extends xsbti.api.FieldLike implements java.io.Serializable {
     
     public static Var create(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, Type _tpe) {
         return new Var(_name, _access, _modifiers, _annotations, _tpe);
