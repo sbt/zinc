@@ -4,7 +4,7 @@
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public final class EmptyType extends xsbti.api.Type {
+public final class EmptyType extends xsbti.api.Type implements java.io.Serializable {
     
     public static EmptyType create() {
         return new EmptyType();

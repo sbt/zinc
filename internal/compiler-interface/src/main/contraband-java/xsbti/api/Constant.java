@@ -4,7 +4,7 @@
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public final class Constant extends xsbti.api.Type {
+public final class Constant extends xsbti.api.Type implements java.io.Serializable {
     
     public static Constant create(Type _baseType, String _value) {
         return new Constant(_baseType, _value);

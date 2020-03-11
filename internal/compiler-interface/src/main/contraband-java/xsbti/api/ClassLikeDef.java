@@ -4,7 +4,7 @@
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public final class ClassLikeDef extends xsbti.api.ParameterizedDefinition {
+public final class ClassLikeDef extends xsbti.api.ParameterizedDefinition implements java.io.Serializable {
     
     public static ClassLikeDef create(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters, DefinitionType _definitionType) {
         return new ClassLikeDef(_name, _access, _modifiers, _annotations, _typeParameters, _definitionType);

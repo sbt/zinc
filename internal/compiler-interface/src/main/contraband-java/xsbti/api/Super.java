@@ -4,7 +4,7 @@
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public final class Super extends xsbti.api.PathComponent {
+public final class Super extends xsbti.api.PathComponent implements java.io.Serializable {
     
     public static Super create(Path _qualifier) {
         return new Super(_qualifier);

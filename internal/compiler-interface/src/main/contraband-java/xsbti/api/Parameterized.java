@@ -4,7 +4,7 @@
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public final class Parameterized extends xsbti.api.Type {
+public final class Parameterized extends xsbti.api.Type implements java.io.Serializable {
     
     public static Parameterized create(Type _baseType, Type[] _typeArguments) {
         return new Parameterized(_baseType, _typeArguments);

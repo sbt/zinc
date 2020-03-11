@@ -4,7 +4,7 @@
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public final class Singleton extends xsbti.api.Type {
+public final class Singleton extends xsbti.api.Type implements java.io.Serializable {
     
     public static Singleton create(Path _path) {
         return new Singleton(_path);

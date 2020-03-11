@@ -4,7 +4,7 @@
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public abstract class ClassDefinition extends xsbti.api.Definition {
+public abstract class ClassDefinition extends xsbti.api.Definition implements java.io.Serializable {
     
     
     protected ClassDefinition(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations) {

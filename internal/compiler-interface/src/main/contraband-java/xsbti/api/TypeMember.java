@@ -4,7 +4,7 @@
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public abstract class TypeMember extends xsbti.api.ParameterizedDefinition {
+public abstract class TypeMember extends xsbti.api.ParameterizedDefinition implements java.io.Serializable {
     
     
     protected TypeMember(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters) {

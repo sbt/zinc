@@ -4,7 +4,7 @@
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public final class Id extends xsbti.api.PathComponent {
+public final class Id extends xsbti.api.PathComponent implements java.io.Serializable {
     
     public static Id create(String _id) {
         return new Id(_id);

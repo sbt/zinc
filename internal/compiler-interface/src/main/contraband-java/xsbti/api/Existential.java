@@ -4,7 +4,7 @@
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public final class Existential extends xsbti.api.Type {
+public final class Existential extends xsbti.api.Type implements java.io.Serializable {
     
     public static Existential create(Type _baseType, TypeParameter[] _clause) {
         return new Existential(_baseType, _clause);

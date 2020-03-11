@@ -4,7 +4,7 @@
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public final class Annotated extends xsbti.api.Type {
+public final class Annotated extends xsbti.api.Type implements java.io.Serializable {
     
     public static Annotated create(Type _baseType, Annotation[] _annotations) {
         return new Annotated(_baseType, _annotations);

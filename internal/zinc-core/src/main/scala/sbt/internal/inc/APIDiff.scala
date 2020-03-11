@@ -34,7 +34,7 @@ private[inc] class APIDiff {
   ): String = {
     val api1Str = DefaultShowAPI(api1.classApi) + "\n" + DefaultShowAPI(api1.objectApi)
     val api2Str = DefaultShowAPI(api2.classApi) + "\n" + DefaultShowAPI(api2.objectApi)
-    DiffUtil.mkColoredCodeDiff(api1Str, api2Str, printDiffDel = true)
+    DiffUtil.mkColoredCodeDiff(api2Str, api1Str, printDiffDel = true)
   }
 
   /**
