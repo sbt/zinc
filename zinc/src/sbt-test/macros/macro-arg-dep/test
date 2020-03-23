@@ -1,4 +1,4 @@
-> compile
+> macro-client/compile
 
 # remove `Foo.str` which is an argument to a macro
 $ copy-file macro-client/changes/Foo.scala macro-client/Foo.scala
@@ -7,6 +7,7 @@ $ copy-file macro-client/changes/Foo.scala macro-client/Foo.scala
 # `Foo.str`
 -> macro-client/compile
 
-> clean
+> macro-provider/clean
+> macro-client/clean
 
--> compile
+-> macro-client/compile

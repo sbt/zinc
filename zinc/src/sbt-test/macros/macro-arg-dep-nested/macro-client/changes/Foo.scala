@@ -1,3 +1,4 @@
-package macro
+package example
+
 object Foo {
 }

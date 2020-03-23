@@ -1,4 +1,4 @@
-package macros
+package example
 
 object Client {
   val a = 1
