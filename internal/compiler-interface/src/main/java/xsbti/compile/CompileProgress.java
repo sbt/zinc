@@ -42,7 +42,10 @@ public interface CompileProgress {
 	boolean advance(int current, int total, String prevPhase, String nextPhase);
 
 	/**
-	 * Called when early output is created mid-compilation.
+	 * Called when early output is created mid-compilation, or
+	 * was ready to be created but needed to bail out because macros were found.
+	 *
+	 * @param success True if output is written; false otherwise.
 	 */
-	void earlyOutputComplete();
+	void earlyOutputComplete(boolean success);
 }

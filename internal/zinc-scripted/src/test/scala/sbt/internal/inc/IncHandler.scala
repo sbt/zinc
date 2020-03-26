@@ -71,7 +71,7 @@ final case class IncState(
     si: XScalaInstance,
     cs: XCompilers,
     number: Int,
-    compilations: mutable.Map[ProjectStructure, (Future[Analysis], Future[Unit])]
+    compilations: mutable.Map[ProjectStructure, (Future[Analysis], Future[Boolean])]
 ) {
   def inc: IncState = copy(number = number + 1, compilations = mutable.Map.empty)
 }
@@ -494,9 +494,9 @@ case class ProjectStructure(
     }
 
   def compile(i: IncState): Future[Analysis] = startCompilation(i)._1
-  def earlyArtifact(i: IncState): Future[Unit] = startCompilation(i)._2
+  def earlyArtifact(i: IncState): Future[Boolean] = startCompilation(i)._2
 
-  def startCompilation(i: IncState): (Future[Analysis], Future[Unit]) = synchronized {
+  def startCompilation(i: IncState): (Future[Analysis], Future[Boolean]) = synchronized {
     def traditionalLookupAnalysis: VirtualFile => Option[CompileAnalysis] = {
       val f0: PartialFunction[VirtualFile, Option[CompileAnalysis]] = {
         case x if converter.toPath(x).toAbsolutePath == classesDir.toAbsolutePath =>
@@ -527,11 +527,11 @@ case class ProjectStructure(
     }
 
     i.compilations.get(this).getOrElse {
-      val notifyEarlyOutput: Promise[Unit] = Promise[Unit]()
+      val notifyEarlyOutput: Promise[Boolean] = Promise[Boolean]()
       if (incOptions.pipelining) {
         // future of early outputs
         val earlyDeps: Future[Seq[Path]] = Future.traverse(dependsOnRef) { dep =>
-          dep.earlyArtifact(i).map(_ => dep.earlyOutput)
+          dep.earlyArtifact(i).map(success => if (success) dep.earlyOutput else dep.output)
         }
         val futureAnalysis = earlyDeps.map { internalCp =>
           doCompile(i, notifyEarlyOutput, internalCp, pipelinedLookupAnalysis)
@@ -568,7 +568,7 @@ case class ProjectStructure(
   // whereas for pipelining, you'd get an early JAR.
   private def doCompile(
       i: IncState,
-      notifyEarlyOutput: Promise[Unit],
+      notifyEarlyOutput: Promise[Boolean],
       internalCp: Seq[Path],
       lookupAnalysis: VirtualFile => Option[CompileAnalysis]
   ): Analysis = {
@@ -584,9 +584,13 @@ case class ProjectStructure(
         // scriptedLog.debug(s"[zinc] start $phase $unitPath")
       }
       override def advance(current: Int, total: Int, prevPhase: String, nextPhase: String) = true
-      override def earlyOutputComplete = {
-        scriptedLog.info(s"[progress] early output is done for $name!")
-        notifyEarlyOutput.complete(Success(()))
+      override def earlyOutputComplete(success: Boolean) = {
+        if (success) {
+          scriptedLog.info(s"[progress] early output is done for $name!")
+        } else {
+          scriptedLog.info(s"[progress] early output can't be made for $name because macros!")
+        }
+        notifyEarlyOutput.complete(Success(success))
       }
     }
     val setup = incrementalCompiler.setup(

@@ -631,10 +631,24 @@ private final class AnalysisCallback(
   def getOnce: CompileCycleResult = {
     assert(!gotten, "can't call AnalysisCallback#getOnce more than once")
     gotten = true
+    // notify that early artifact writing is not going to happen because of macros
+    def notifyEarlyArifactFailure(): Unit =
+      if (!writtenEarlyArtifacts) {
+        progress foreach { p =>
+          p.earlyOutputComplete(false)
+        }
+      }
     outputJarContent.scalacRunCompleted()
     val a = getAnalysis
-    if (invalidationResults.isEmpty) {
-      writeEarlyArtifacts(incHandler.previousAnalysisPruned)
+    if (options.pipelining) {
+      invalidationResults match {
+        case None =>
+          val early = incHandler.previousAnalysisPruned
+          if (!hasAnyMacro(early)) writeEarlyArtifacts(early)
+          else notifyEarlyArifactFailure()
+        case Some(CompileCycleResult(false, _, _)) => notifyEarlyArifactFailure()
+        case _                                     => ()
+      }
     }
     // assert(writtenEarlyArtifacts, s"early artifact $earlyOutput hasn't been written")
     incHandler.completeCycle(invalidationResults, a)
@@ -767,12 +781,14 @@ private final class AnalysisCallback(
       val a = getAnalysis
       val CompileCycleResult(continue, invalidations, merged) =
         incHandler.mergeAndInvalidate(a, false)
-      assert(
-        !continue && invalidations.isEmpty,
-        "everything was supposed to be invalidated already"
-      )
-      invalidationResults = Some(CompileCycleResult.empty)
-      writeEarlyArtifacts(merged)
+      if (!hasAnyMacro(merged)) {
+        assert(
+          !continue && invalidations.isEmpty,
+          "everything was supposed to be invalidated already"
+        )
+        invalidationResults = Some(CompileCycleResult.empty)
+        writeEarlyArtifacts(merged)
+      }
     }
   }
 
@@ -784,7 +800,7 @@ private final class AnalysisCallback(
       // Store invalidations and continuation decision; the analysis will be computed again after Analyze phase.
       invalidationResults = Some(CompileCycleResult(continue, invalidations, Analysis.empty))
       // If there will be no more compilation cycles, store the early analysis file and update the pickle jar
-      if (options.pipelining && !continue) {
+      if (options.pipelining && !continue && !hasAnyMacro(merged)) {
         writeEarlyArtifacts(merged)
       }
     }
@@ -800,6 +816,9 @@ private final class AnalysisCallback(
       pklData ++= data
     }
   }
+
+  def hasAnyMacro(merged: Analysis): Boolean =
+    merged.apis.internal.values.exists(p => p.hasMacro)
 
   private[this] var writtenEarlyArtifacts: Boolean = false
   private def writeEarlyArtifacts(merged: Analysis): Unit = {
@@ -818,10 +837,9 @@ private final class AnalysisCallback(
         .flatMap(extractProductPath)
       PickleJar.write(pickleJarPath, pklData, knownProducts, log)
     }
-    progress map { p =>
-      p.earlyOutputComplete()
+    progress foreach { p =>
+      p.earlyOutputComplete(true)
     }
-    ()
   }
 
   private def extractProductPath(product: VirtualFileRef): Option[String] = {

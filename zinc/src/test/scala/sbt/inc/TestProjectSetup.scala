@@ -207,7 +207,7 @@ object TestProjectSetup {
           nextPhaseName: String
       ): Boolean = true
       override def startUnit(phase: String, unitPath: String): Unit = lastCompiledUnits += unitPath
-      override def earlyOutputComplete(): Unit = ()
+      override def earlyOutputComplete(success: Boolean): Unit = ()
     }
 
     val setup = compiler.setup(
