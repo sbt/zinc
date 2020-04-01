@@ -194,7 +194,9 @@ final class AnalyzingJavaCompiler private[sbt] (
       val loader = ClasspathUtil.toLoader(searchClasspath.map(converter.toPath))
 
       timed(javaAnalysisPhase, log) {
-        for ((classesFinder, oldClasses, srcs) <- memo) {
+        for {
+          (classesFinder, oldClasses, srcs) <- memo
+        } {
           val newClasses = Set(classesFinder.get: _*) -- oldClasses
           JavaAnalyze(newClasses.toSeq.map(_.toPath), srcs, log, output, finalJarOutput)(
             callback,

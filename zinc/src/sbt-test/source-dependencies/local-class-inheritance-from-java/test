@@ -9,8 +9,8 @@ $ copy-file changes/A2.java A.java
 # on C and C's public interface is not affected by changes to A
 > checkRecompilations 0 D
 # A is explicitly changed
-> checkRecompilations 1 A
+> checkRecompilations 1
 # B is recompiled because it depends by inheritance on A
 # C is recompiled because it depends by local inheritance on B but its
 # dependencies (D) are not recompiled
-> checkRecompilations 2 B C
+> checkRecompilations 2 A B C

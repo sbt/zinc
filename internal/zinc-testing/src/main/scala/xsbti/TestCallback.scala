@@ -112,6 +112,8 @@ class TestCallback extends AnalysisCallback {
 
   override def classesInOutputJar(): util.Set[String] = java.util.Collections.emptySet()
 
+  override def isPickleJava: Boolean = false
+
   override def pickleData(data: Array[PickleData]): Unit = ()
 }
 

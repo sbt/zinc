@@ -75,6 +75,10 @@ private[inc] abstract class IncrementalCommon(
       output: Output,
       cycleNum: Int
   ) {
+    lazy val javaSources: Set[VirtualFileRef] = allSources
+      .filter(_.name.endsWith(".java"))
+      .map(_.asInstanceOf[VirtualFileRef])
+
     def hasNext: Boolean = invalidatedClasses.nonEmpty || initialChangedSources.nonEmpty
     def next: CycleState = {
       // Compute all the invalidated classes by aggregating invalidated package objects
@@ -128,6 +132,10 @@ private[inc] abstract class IncrementalCommon(
       val nextInvalidations = result.nextInvalidations
       val current = result.analysis
 
+      val nextChangedSources: Set[VirtualFileRef] =
+        if (continue) javaSources
+        else Set.empty
+
       // Return immediate analysis as all sources have been recompiled
       if (invalidatedSources == allSources)
         CycleState(
@@ -146,7 +154,7 @@ private[inc] abstract class IncrementalCommon(
       else {
         CycleState(
           if (continue) nextInvalidations else Set.empty,
-          Set.empty,
+          nextChangedSources,
           allSources,
           converter,
           IncrementalCommon.emptyChanges,

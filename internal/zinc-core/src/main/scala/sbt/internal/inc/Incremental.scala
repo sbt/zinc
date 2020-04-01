@@ -178,6 +178,7 @@ object Incremental {
         ),
         incremental,
         options,
+        currentSetup,
         output,
         outputJarContent,
         log
@@ -229,6 +230,7 @@ object Incremental {
       callbackBuilder: AnalysisCallback.Builder,
       incremental: IncrementalCommon,
       options: IncOptions,
+      currentSetup: MiniSetup,
       output: Output,
       outputJarContent: JarUtils.OutputJarContent,
       log: sbt.util.Logger
@@ -243,9 +245,22 @@ object Incremental {
       val modifiedClasses = initialChanges.external.allModified.toArray
       def isEmpty = modifiedLibraries.isEmpty && modifiedClasses.isEmpty
     }
-    val (initialInvClasses, initialInvSources) =
+    val (initialInvClasses, initialInvSources0) =
       incremental.invalidateInitial(previous.relations, initialChanges)
-    if (initialInvClasses.nonEmpty || initialInvSources.nonEmpty)
+
+    // If there's any compilation at all, invalidate all java sources too, so we have access to their type information.
+    val javaSources: Set[VirtualFileRef] = sources
+      .filter(_.name.endsWith(".java"))
+      .map(_.asInstanceOf[VirtualFileRef])
+    val isPickleJava = currentSetup.options.scalacOptions.contains("-Ypickle-java")
+    assert(
+      javaSources.isEmpty || !options.pipelining || isPickleJava,
+      s"-Ypickle-java must be included into scalacOptions if pipelining is enabled with Java sources"
+    )
+    val initialInvSources =
+      if (initialInvSources0.nonEmpty) initialInvSources0 ++ javaSources
+      else Set.empty[VirtualFileRef]
+    if (initialInvClasses.nonEmpty || initialInvSources.nonEmpty) {
       if (initialInvSources == sources)
         incremental.log.debug(s"all ${initialInvSources.size} sources are invalidated")
       else
@@ -253,6 +268,7 @@ object Incremental {
           "All initially invalidated classes: " + initialInvClasses + "\n" +
             "All initially invalidated sources:" + initialInvSources + "\n"
         )
+    }
     val analysis = manageClassfiles(options, converter, output, outputJarContent) {
       classfileManager =>
         incremental.cycle(
@@ -295,7 +311,7 @@ object Incremental {
       // to report its own analysis individually.
       val callback = callbackBuilder.build(incHandler)
       compile(srcs, changes, callback, classFileManager)
-      callback.getOnce
+      callback.getCycleResultOnce
     }
   }
 
@@ -466,6 +482,10 @@ private final class AnalysisCallback(
     ()
   }
 
+  override def isPickleJava: Boolean = {
+    currentSetup.options.scalacOptions.contains("-Ypickle-java")
+  }
+
   def startSource(source: VirtualFile): Unit = {
     if (options.strictMode()) {
       assert(
@@ -628,8 +648,8 @@ private final class AnalysisCallback(
   override def enabled(): Boolean = options.enabled
 
   private[this] var gotten: Boolean = false
-  def getOnce: CompileCycleResult = {
-    assert(!gotten, "can't call AnalysisCallback#getOnce more than once")
+  def getCycleResultOnce: CompileCycleResult = {
+    assert(!gotten, "can't call AnalysisCallback#getCycleResultOnce more than once")
     gotten = true
     // notify that early artifact writing is not going to happen because of macros
     def notifyEarlyArifactFailure(): Unit =

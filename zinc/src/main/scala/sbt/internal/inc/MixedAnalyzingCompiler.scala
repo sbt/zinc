@@ -94,10 +94,11 @@ final class MixedAnalyzingCompiler(
     val incSrc = config.sources.filter(include)
     val (javaSrcs, scalaSrcs) = incSrc.partition(javaOnly(_))
     logInputs(log, javaSrcs.size, scalaSrcs.size, outputDirs)
+    val isPickleJava = config.incOptions.pipelining && javaSrcs.nonEmpty
 
     // Compile Scala sources.
     def compileScala(): Unit =
-      if (scalaSrcs.nonEmpty) {
+      if (scalaSrcs.nonEmpty || isPickleJava) {
         JarUtils.withPreviousJar(output) { extraClasspath: Seq[Path] =>
           val sources =
             if (config.currentSetup.order == Mixed) incSrc

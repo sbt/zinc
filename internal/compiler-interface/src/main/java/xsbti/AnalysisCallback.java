@@ -209,4 +209,9 @@ public interface AnalysisCallback {
      * Pass new pickle data as of this point.
      */
     void pickleData(PickleData[] data);
+
+    /**
+     * Returns true if -Ypickle-java is on.
+     */
+    boolean isPickleJava();
 }
