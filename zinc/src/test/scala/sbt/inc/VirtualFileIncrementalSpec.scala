@@ -28,7 +28,7 @@ import xsbti.compile._
 class VirtualFileIncrementalSpec extends BridgeProviderSpecification {
   import VirtualFileIncrementalSpec._
   override val logLevel = Level.Debug
-  val scalaVersion = "2.12.10"
+  val scalaVersion = "2.12.11"
   val compiler = new IncrementalCompilerImpl // IncrementalCompilerUtil.defaultIncrementalCompiler
   val maxErrors = 100
 
