@@ -47,8 +47,9 @@ trait CompilingSpecification extends BridgeProviderSpecification {
    * Compiles given source code using Scala compiler and returns API representation
    * extracted by ExtractAPI class.
    */
-  def extractApisFromSrcs(reuseCompilerInstance: Boolean)(
-      srcs: List[String]*): Seq[Set[ClassLike]] = {
+  def extractApisFromSrcs(
+      reuseCompilerInstance: Boolean
+  )(srcs: List[String]*): Seq[Set[ClassLike]] = {
     val (tempSrcFiles, analysisCallback) = compileSrcs(srcs.toList, reuseCompilerInstance)
     tempSrcFiles.map(analysisCallback.apis)
   }

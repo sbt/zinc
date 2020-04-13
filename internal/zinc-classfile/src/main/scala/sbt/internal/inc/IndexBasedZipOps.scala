@@ -18,6 +18,7 @@ import java.util.UUID
 import java.util.zip.{ Deflater, ZipOutputStream, ZipEntry }
 
 import sbt.io.{ IO, Using }
+import scala.collection.immutable.Seq
 
 /**
  * Provides efficient implementation of operations on zip files * that are
@@ -54,9 +55,7 @@ abstract class IndexBasedZipOps extends CreateZip {
       if (zipFile.exists()) {
         val centralDir = readCentralDir(zipFile.toPath)
         val headers = getHeaders(centralDir)
-        headers.map(header => getFileName(header) -> getLastModifiedTime(header))(
-          collection.breakOut
-        )
+        Map(headers.map(header => getFileName(header) -> getLastModifiedTime(header)): _*)
       } else {
         Map.empty
       }

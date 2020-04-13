@@ -86,10 +86,11 @@ object ModifiedNames {
     val changed = (xs union ys) diff (xs intersect ys)
     val modifiedNames: Set[UsedName] = changed
       .groupBy(_.name)
-      .map {
+      .map({
         case (name, nameHashes) =>
           UsedName(name, nameHashes.map(_.scope()))
-      }(collection.breakOut)
+      })
+      .toSet
 
     ModifiedNames(modifiedNames)
   }

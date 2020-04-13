@@ -191,7 +191,7 @@ private[sbt] object Analyze {
 
       // Read API of non-local classes and process dependencies by inheritance
       val nonLocalInherited: Map[String, Set[String]] =
-        readInheritanceDependencies(nonLocalClasses)
+        readInheritanceDependencies(nonLocalClasses.toSeq).toMap
       nonLocalInherited foreach {
         case (className, inheritanceDeps) =>
           processDependencies(inheritanceDeps, DependencyByInheritance, className)
@@ -201,7 +201,7 @@ private[sbt] object Analyze {
       val localClasses =
         localClassesOrStale.filter(cls => localClassesToSources.contains(cls.getName))
       val localInherited: Map[String, Set[String]] =
-        readInheritanceDependencies(localClasses)
+        readInheritanceDependencies(localClasses.toSeq).toMap
       localInherited foreach {
         case (className, inheritanceDeps) =>
           processDependencies(inheritanceDeps, LocalDependencyByInheritance, className)

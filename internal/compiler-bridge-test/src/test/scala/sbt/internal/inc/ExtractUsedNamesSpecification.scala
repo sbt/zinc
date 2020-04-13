@@ -125,25 +125,29 @@ class ExtractUsedNamesSpecification extends CompilingSpecification with Diagramm
     val expectedNames_lista = standardNames ++ Set("Test_lista", "x", "B", "lista", "List", "A")
     val expectedNames_at = standardNames ++ Set("Test_at", "x", "B", "at", "A", "T", "X0", "X1")
     val expectedNames_as = standardNames ++ Set("Test_as", "x", "B", "as", "S", "Y")
-    val expectedNames_foo = standardNames ++ Set("Test_foo",
-                                                 "x",
-                                                 "B",
-                                                 "foo",
-                                                 "M",
-                                                 "N",
-                                                 "Predef",
-                                                 "???",
-                                                 "Nothing")
-    val expectedNames_bar = standardNames ++ Set("Test_bar",
-                                                 "x",
-                                                 "B",
-                                                 "bar",
-                                                 "Param",
-                                                 "P1",
-                                                 "P0",
-                                                 "Predef",
-                                                 "???",
-                                                 "Nothing")
+    val expectedNames_foo = standardNames ++ Set(
+      "Test_foo",
+      "x",
+      "B",
+      "foo",
+      "M",
+      "N",
+      "Predef",
+      "???",
+      "Nothing"
+    )
+    val expectedNames_bar = standardNames ++ Set(
+      "Test_bar",
+      "x",
+      "B",
+      "bar",
+      "Param",
+      "P1",
+      "P0",
+      "Predef",
+      "???",
+      "Nothing"
+    )
     assert(usedNames("Test_lista") === expectedNames_lista)
     assert(usedNames("Test_at") === expectedNames_at)
     assert(usedNames("Test_as") === expectedNames_as)
@@ -159,16 +163,18 @@ class ExtractUsedNamesSpecification extends CompilingSpecification with Diagramm
       |}
       """.stripMargin
     val usedNames = extractUsedNamesFromSrc(srcFoo)
-    val expectedNames = standardNames ++ Seq("Double",
-                                             "Foo",
-                                             "T",
-                                             "foo",
-                                             "scala",
-                                             "language",
-                                             "existentials",
-                                             "Nothing",
-                                             "???",
-                                             "Predef")
+    val expectedNames = standardNames ++ Seq(
+      "Double",
+      "Foo",
+      "T",
+      "foo",
+      "scala",
+      "language",
+      "existentials",
+      "Nothing",
+      "???",
+      "Predef"
+    )
     assert(usedNames("Foo") === expectedNames)
   }
 
@@ -283,7 +289,7 @@ class ExtractUsedNamesSpecification extends CompilingSpecification with Diagramm
     findPatMatUsages(notUsedInPatternMatch) shouldEqual Set()
     ()
   }
-  */
+   */
 
   /**
    * Standard names that appear in every compilation unit that has any class

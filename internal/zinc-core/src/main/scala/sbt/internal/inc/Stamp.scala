@@ -219,7 +219,11 @@ private class MStamps(
     new MStamps(products.updated(prod, s), sources, binaries)
 
   def filter(prod: File => Boolean, removeSources: Iterable[File], bin: File => Boolean): Stamps =
-    new MStamps(products.filterKeys(prod), sources -- removeSources, binaries.filterKeys(bin))
+    new MStamps(
+      products.filterKeys(prod).toMap,
+      sources -- removeSources,
+      binaries.filterKeys(bin).toMap
+    )
 
   def groupBy[K](
       prod: Map[K, File => Boolean],
@@ -230,9 +234,9 @@ private class MStamps(
 
     val constFalse = (f: File) => false
     def kStamps(k: K): Stamps = new MStamps(
-      products.filterKeys(prod.getOrElse(k, constFalse)),
+      products.filterKeys(prod.getOrElse(k, constFalse)).toMap,
       sourcesMap.getOrElse(k, Map.empty[File, XStamp]),
-      binaries.filterKeys(bin.getOrElse(k, constFalse))
+      binaries.filterKeys(bin.getOrElse(k, constFalse)).toMap
     )
 
     (for (k <- prod.keySet ++ sourcesMap.keySet ++ bin.keySet) yield (k, kStamps(k))).toMap

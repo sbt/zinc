@@ -50,6 +50,7 @@ object ClasspathCache {
       }
     }
 
+    import scala.collection.parallel._
     classpath.toParArray.map(fromCacheOrHash).toArray
   }
 }

@@ -138,7 +138,7 @@ object JarUtils {
    * Adds plain files to specified jar file. See [[sbt.internal.inc.IndexBasedZipOps#includeInArchive]] for details.
    */
   def includeInJar(jar: File, files: Seq[(File, ClassFilePath)]): Unit = {
-    IndexBasedZipFsOps.includeInArchive(jar, files)
+    IndexBasedZipFsOps.includeInArchive(jar, files.toVector)
   }
 
   /**

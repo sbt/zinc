@@ -19,10 +19,10 @@ import xsbti.compile.CompilerBridgeProvider
 class BridgeProviderSpecification extends UnitSpec with AbstractBridgeProviderTestkit {
   val bridges: List[ScalaBridge] = {
     import sbt.internal.inc.ZincBuildInfo._
-    val compilerBridge210 = ScalaBridge(scalaVersion210, scalaJars210, classDirectory210)
-    val compilerBridge211 = ScalaBridge(scalaVersion211, scalaJars211, classDirectory211)
-    val compilerBridge212 = ScalaBridge(scalaVersion212, scalaJars212, classDirectory212)
-    val compilerBridge213 = ScalaBridge(scalaVersion213, scalaJars213, classDirectory213)
+    val compilerBridge210 = ScalaBridge(scalaVersion210, scalaJars210.toList, classDirectory210)
+    val compilerBridge211 = ScalaBridge(scalaVersion211, scalaJars211.toList, classDirectory211)
+    val compilerBridge212 = ScalaBridge(scalaVersion212, scalaJars212.toList, classDirectory212)
+    val compilerBridge213 = ScalaBridge(scalaVersion213, scalaJars213.toList, classDirectory213)
     List(compilerBridge210, compilerBridge211, compilerBridge212, compilerBridge213)
   }
 

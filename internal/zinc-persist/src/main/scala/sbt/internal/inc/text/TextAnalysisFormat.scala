@@ -21,6 +21,7 @@ import xsbti.api._
 import xsbti.compile._
 import xsbti.compile.analysis.{ ReadWriteMappers, SourceInfo, Stamp }
 import com.github.ghik.silencer.silent
+import scala.collection.Seq
 
 // A text-based serialization format for Analysis objects.
 // This code has been tuned for high performance, and therefore has non-idiomatic areas.
@@ -78,7 +79,7 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
   private implicit def infoFormat: Format[SourceInfo] =
     wrap[SourceInfo, (Seq[Problem], Seq[Problem], Seq[String])](
       si => (si.getReportedProblems, si.getUnreportedProblems, si.getMainClasses), {
-        case (a, b, c) => SourceInfos.makeInfo(a, b, c)
+        case (a, b, c) => SourceInfos.makeInfo(a.toVector, b.toVector, c.toVector)
       }
     )
   private implicit def fileHashFormat: Format[FileHash] =

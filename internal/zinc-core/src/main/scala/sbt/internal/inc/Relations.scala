@@ -377,7 +377,12 @@ private case class InternalDependencies(
    * Removes all dependencies from `sources` to another file from the dependencies
    */
   def --(classes: Iterable[String]): InternalDependencies = {
-    InternalDependencies(dependencies.mapValues(_ -- classes).filter(_._2.size > 0))
+    InternalDependencies(
+      dependencies
+        .mapValues(_ -- classes)
+        .filter(_._2.size > 0)
+        .toMap
+    )
   }
 }
 
@@ -416,7 +421,12 @@ private case class ExternalDependencies(
    * Removes all dependencies from `sources` to another file from the dependencies
    */
   def --(classNames: Iterable[String]): ExternalDependencies =
-    ExternalDependencies(dependencies.mapValues(_ -- classNames).filter(_._2.size > 0))
+    ExternalDependencies(
+      dependencies
+        .mapValues(_ -- classNames)
+        .filter(_._2.size > 0)
+        .toMap
+    )
 }
 
 private[inc] sealed trait RelationDescriptor[A, B] {

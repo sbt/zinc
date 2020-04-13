@@ -71,7 +71,9 @@ class ExtractUsedNamesPerformanceSpecification
     assert(diffAndSort(usedNames("acme.Tupler")) === diffAndSort(expectedNamesForTupler))
     assert(
       diffAndSort(usedNames("acme.TuplerInstances.<refinement>")) === diffAndSort(
-        expectedNamesForRefinement))
+        expectedNamesForRefinement
+      )
+    )
     assert(diffAndSort(usedNames("acme.DepFn1")) === diffAndSort(expectedNamesForDepFn1))
     assert(diffAndSort(usedNames("acme.HList")) === diffAndSort(expectedNamesForHList))
     // Todo
@@ -97,9 +99,11 @@ class ExtractUsedNamesPerformanceSpecification
       Set("Tupler", "AnyRef", "L", "Out0", "scala", "HList", "Object")
     val expectedNamesForTuplerInstancesRefinement = Set("Out0")
     assert(
-      usedNames("TuplerInstances") -- scalaDiff === expectedNamesForTuplerInstances -- scalaDiff)
+      usedNames("TuplerInstances") -- scalaDiff === expectedNamesForTuplerInstances -- scalaDiff
+    )
     assert(
-      usedNames("TuplerInstances.<refinement>") -- scalaDiff === expectedNamesForTuplerInstancesRefinement -- scalaDiff)
+      usedNames("TuplerInstances.<refinement>") -- scalaDiff === expectedNamesForTuplerInstancesRefinement -- scalaDiff
+    )
   }
 
   it should "correctly collect used names from macro extension" in {

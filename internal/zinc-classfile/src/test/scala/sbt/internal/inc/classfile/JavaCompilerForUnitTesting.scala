@@ -32,15 +32,21 @@ object JavaCompilerForUnitTesting {
   def extractDependenciesFromSrcs(srcs: (String, String)*): ExtractedClassDependencies = {
     val (_, testCallback) = compileJavaSrcs(srcs: _*)((_, _, classes) => extractParents(classes))
 
-    val memberRefDeps = testCallback.classDependencies collect {
-      case (target, src, DependencyByMemberRef) => (src, target)
-    }
-    val inheritanceDeps = testCallback.classDependencies collect {
-      case (target, src, DependencyByInheritance) => (src, target)
-    }
-    val localInheritanceDeps = testCallback.classDependencies collect {
-      case (target, src, LocalDependencyByInheritance) => (src, target)
-    }
+    val memberRefDeps = testCallback.classDependencies
+      .collect({
+        case (target, src, DependencyByMemberRef) => (src, target)
+      })
+      .toSeq
+    val inheritanceDeps = testCallback.classDependencies
+      .collect({
+        case (target, src, DependencyByInheritance) => (src, target)
+      })
+      .toSeq
+    val localInheritanceDeps = testCallback.classDependencies
+      .collect({
+        case (target, src, LocalDependencyByInheritance) => (src, target)
+      })
+      .toSeq
     ExtractedClassDependencies.fromPairs(memberRefDeps, inheritanceDeps, localInheritanceDeps)
   }
 
