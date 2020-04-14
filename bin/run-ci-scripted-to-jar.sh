@@ -6,4 +6,4 @@ PROJECT_ROOT="zincRoot"
 sbt -Dfile.encoding=UTF-8 \
   -J-XX:ReservedCodeCacheSize=512M \
   -J-Xms1024M -J-Xmx2048M -J-server \
-  "zincScripted/test:run --to-jar"
+  "zincScriptedJVM2_12/test:run --to-jar"

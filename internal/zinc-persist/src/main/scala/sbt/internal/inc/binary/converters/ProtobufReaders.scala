@@ -608,7 +608,8 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) 
     }
 
     def fromUsedNamesMap(map: Map[String, schema.UsedNames]): Relation[String, UsedName] = {
-      val forwardMap = map.mapValues(values => values.usedNames.iterator.map(fromUsedName).toSet)
+      val forwardMap =
+        map.mapValues(values => values.usedNames.iterator.map(fromUsedName).toSet).toMap
       Relation.reconstruct(forwardMap)
     }
 
@@ -651,8 +652,8 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) 
   }
 
   def fromApis(shouldStoreApis: Boolean)(apis: schema.APIs): APIs = {
-    val internal = apis.internal.mapValues(fromAnalyzedClass(shouldStoreApis: Boolean))
-    val external = apis.external.mapValues(fromAnalyzedClass(shouldStoreApis: Boolean))
+    val internal = apis.internal.mapValues(fromAnalyzedClass(shouldStoreApis: Boolean)).toMap
+    val external = apis.external.mapValues(fromAnalyzedClass(shouldStoreApis: Boolean)).toMap
     APIs(internal = internal, external = external)
   }
 

@@ -63,7 +63,8 @@ object MiniSetupUtil {
           a: Array[T2[String, String]]
       ): Set[(String, String)] = {
         a.filterNot(_.get1 startsWith "info.")
-          .map(v => v.get1() -> v.get2())(collection.breakOut)
+          .map(v => v.get1() -> v.get2())
+          .toSet
       }
 
       def equiv(

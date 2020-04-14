@@ -139,7 +139,7 @@ object TestCallback {
           acc.addBinding(key, value)
       }
       // convert all collections to immutable variants
-      multiMap.toMap.mapValues(_.toSet).withDefaultValue(Set.empty)
+      multiMap.toMap.mapValues(_.toSet).toMap.withDefaultValue(Set.empty)
     }
   }
 }

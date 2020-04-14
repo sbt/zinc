@@ -72,7 +72,7 @@ class ZincInvalidationProfiler extends InvalidationProfiler {
    */
   def toProfile: zprof.Profile = zprof.Profile(
     runs = runs,
-    stringTable = stringTable
+    stringTable = stringTable.toSeq
   )
 
   private[inc] class ZincProfilerImplementation extends RunProfiler {

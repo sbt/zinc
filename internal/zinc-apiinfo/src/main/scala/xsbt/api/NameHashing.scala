@@ -62,9 +62,8 @@ class NameHashing(optimizedSealed: Boolean) {
     val hashes =
       groupedBySimpleName.mapValues(hashLocatedDefinitions(_, location, includeSealedChildren))
     hashes.toIterable
-      .map({ case (name: String, hash: Int) => NameHash.of(name, useScope, hash) })(
-        collection.breakOut
-      )
+      .map({ case (name: String, hash: Int) => NameHash.of(name, useScope, hash) })
+      .toArray
   }
 
   private def hashLocatedDefinitions(
@@ -122,7 +121,9 @@ class NameHashing(optimizedSealed: Boolean) {
 object NameHashing {
   def merge(nm1: Array[NameHash], nm2: Array[NameHash]): Array[NameHash] = {
     import scala.collection.mutable.Map
-    val m: Map[(String, UseScope), Int] = Map(nm1.map(nh => (nh.name, nh.scope) -> nh.hash): _*)
+    val m: Map[(String, UseScope), Int] = Map(
+      nm1.toSeq.map(nh => (nh.name, nh.scope) -> nh.hash): _*
+    )
     for (nh <- nm2) {
       val key = (nh.name, nh.scope())
       if (!m.contains(key))
@@ -133,7 +134,7 @@ object NameHashing {
         m(key) = Set(existingHash, nh.hash).hashCode()
       }
     }
-    m.map { case ((name, scope), hash) => NameHash.of(name, scope, hash) }(collection.breakOut)
+    m.map({ case ((name, scope), hash) => NameHash.of(name, scope, hash) }).toArray
   }
 
   private case class LocatedDefinition(location: Location, definition: Definition)

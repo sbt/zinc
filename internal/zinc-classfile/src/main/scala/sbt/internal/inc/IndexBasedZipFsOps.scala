@@ -17,6 +17,7 @@ import java.nio.file.Path
 import sbt.internal.inc.zip.ZipCentralDir
 
 import scala.collection.JavaConverters._
+import scala.collection.immutable.Seq
 
 /**
  * The concrete implementation of [[sbt.internal.inc.IndexBasedZipOps]]
@@ -39,7 +40,7 @@ object IndexBasedZipFsOps extends IndexBasedZipOps {
   }
 
   override protected def getHeaders(centralDir: CentralDir): Seq[Header] = {
-    centralDir.getHeaders.asScala
+    centralDir.getHeaders.asScala.toVector
   }
   override protected def setHeaders(centralDir: CentralDir, headers: Seq[Header]): Unit = {
     centralDir.setHeaders(new java.util.ArrayList[Header](headers.asJava))

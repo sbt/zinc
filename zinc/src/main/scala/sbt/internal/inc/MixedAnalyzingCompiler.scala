@@ -440,8 +440,8 @@ object MixedAnalyzingCompiler {
   def staticCachedStore(analysisFile: Path, useTextAnalysis: Boolean): AnalysisStore = {
     import xsbti.compile.AnalysisStore
     val fileStore =
-      if (useTextAnalysis) FileAnalysisStore.text(analysisFile.toFile)
-      else FileAnalysisStore.binary(analysisFile.toFile)
+      if (useTextAnalysis) sbt.internal.inc.FileAnalysisStore.text(analysisFile.toFile)
+      else sbt.internal.inc.FileAnalysisStore.binary(analysisFile.toFile)
     val cachedStore = AnalysisStore.getCachedStore(fileStore)
     staticCache(analysisFile, AnalysisStore.getThreadSafeStore(cachedStore))
   }

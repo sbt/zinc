@@ -24,10 +24,12 @@ class NameHashingSpecification extends UnitSpec {
       nameHashes.filter(_.scope() == s)
 
     def namesIn(s: UseScope): Set[String] =
-      nameHashes.collect {
-        case nameHash if nameHash.scope() == s =>
-          nameHash.name()
-      }(collection.breakOut)
+      nameHashes
+        .collect({
+          case nameHash if nameHash.scope() == s =>
+            nameHash.name()
+        })
+        .toSet
 
     def forNameIn(s: UseScope, name: String): NameHash =
       nameHashes.find(nameHash => nameHash.scope() == s && nameHash.name() == name).get

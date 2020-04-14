@@ -355,10 +355,10 @@ private final class AnalysisCallback(
         }
 
         classApis(className) = ApiInfo(apiHash, extraApiHash, savedClassApi)
-        classPublicNameHashes(className) = nameHashes
+        classPublicNameHashes(className) = nameHashes.toArray
       case DefinitionType.Module | DefinitionType.PackageModule =>
         objectApis(className) = ApiInfo(apiHash, apiHash, savedClassApi)
-        objectPublicNameHashes(className) = nameHashes
+        objectPublicNameHashes(className) = nameHashes.toArray
     }
   }
 
@@ -443,9 +443,9 @@ private final class AnalysisCallback(
           .map(_._1)
         val analyzedApis = classesInSrc.map(analyzeClass)
         val info = SourceInfos.makeInfo(
-          getOrNil(reporteds.mapValues { _.asScala.toSeq }, src),
-          getOrNil(unreporteds.mapValues { _.asScala.toSeq }, src),
-          getOrNil(mainClasses.mapValues { _.asScala.toSeq }, src)
+          getOrNil(reporteds.mapValues({ _.asScala.toSeq }).toMap, src),
+          getOrNil(unreporteds.mapValues({ _.asScala.toSeq }).toMap, src),
+          getOrNil(mainClasses.mapValues({ _.asScala.toSeq }).toMap, src)
         )
         val libraries: collection.mutable.Set[VirtualFile] =
           libraryDeps.getOrElse(src, ConcurrentHashMap.newKeySet[VirtualFile]).asScala

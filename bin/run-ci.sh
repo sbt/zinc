@@ -13,4 +13,4 @@ sbt -Dfile.encoding=UTF-8 \
   "$PROJECT_ROOT/test:compile" \
   crossTestBridges \
   "$PROJECT_ROOT/test" \
-  "zincScripted/test:run"
+  "zincScriptedJVM2_12/test:run"

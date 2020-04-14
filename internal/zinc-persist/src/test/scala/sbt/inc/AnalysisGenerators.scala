@@ -189,14 +189,14 @@ trait AnalysisGenerators {
       n <- choose(1, if (num == 0) 1 else num)
       fwd <- listOfN(n, unique(identifier))
       prv <- listOfN(n, unique(identifier))
-    } yield Relation.reconstruct(zipMap(fwd, prv).mapValues(x => Set(x)))
+    } yield Relation.reconstruct(zipMap(fwd, prv).mapValues(x => Set(x)).toMap)
 
   def genRClassDependencies(classNames: List[String]): Gen[Relations.ClassDependencies] =
     for {
       internal <- listOfN(classNames.length, someOf(classNames))
       external <- listOfN(classNames.length, someOf(classNames))
     } yield {
-      def toForwardMap(targets: Seq[Seq[String]]): Map[String, Set[String]] =
+      def toForwardMap(targets: Seq[scala.collection.Seq[String]]): Map[String, Set[String]] =
         (classNames zip (targets map { _.toSet }) map { case (a, b) => (a, b - a) }).toMap
       Relations.makeClassDependencies(
         Relation.reconstruct(toForwardMap(internal)),
@@ -240,7 +240,7 @@ trait AnalysisGenerators {
       memberRef <- genRClassDependencies(classNames)
       inheritance <- genSubRClassDependencies(memberRef)
       localInheritance <- genSubRClassDependencies(memberRef)
-      classes = Relation.reconstruct(zipMap(srcs, classNames).mapValues(x => Set(x)))
+      classes = Relation.reconstruct(zipMap(srcs, classNames).mapValues(x => Set(x)).toMap)
       names <- genUsedNames(classNames)
       internal <- InternalDependencies(
         Map(
