@@ -1,10 +1,10 @@
 /**
- * This code is generated using [[http://www.scala-sbt.org/contraband/ sbt-contraband]].
+ * This code is generated using [[https://www.scala-sbt.org/contraband/ sbt-contraband]].
  */
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public final class Val extends xsbti.api.FieldLike {
+public final class Val extends xsbti.api.FieldLike implements java.io.Serializable {
     
     public static Val create(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, Type _tpe) {
         return new Val(_name, _access, _modifiers, _annotations, _tpe);

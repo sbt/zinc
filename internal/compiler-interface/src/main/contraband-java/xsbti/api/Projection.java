@@ -1,10 +1,10 @@
 /**
- * This code is generated using [[http://www.scala-sbt.org/contraband/ sbt-contraband]].
+ * This code is generated using [[https://www.scala-sbt.org/contraband/ sbt-contraband]].
  */
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public final class Projection extends xsbti.api.Type {
+public final class Projection extends xsbti.api.Type implements java.io.Serializable {
     
     public static Projection create(Type _prefix, String _id) {
         return new Projection(_prefix, _id);

@@ -1,5 +1,5 @@
-package macro
+package example
 
 object Client {
-	Provider.printTree(Foo.str)
+  Provider.printTree(Foo.str)
 }

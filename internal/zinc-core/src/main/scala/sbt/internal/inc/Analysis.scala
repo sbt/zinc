@@ -14,10 +14,11 @@ package internal
 package inc
 
 import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
-import java.io.File
+import java.nio.file.{ Path, Paths }
 
+import xsbti.VirtualFileRef
 import xsbti.api.{ AnalyzedClass, ExternalDependency, InternalDependency }
-import xsbti.compile.CompileAnalysis
+import xsbti.compile.{ CompileAnalysis, SingleOutput, Output }
 import xsbti.compile.analysis.{
   ReadCompilations,
   ReadSourceInfos,
@@ -56,7 +57,7 @@ trait Analysis extends CompileAnalysis {
   def ++(other: Analysis): Analysis
 
   /** Drops all analysis information for `sources` naively, i.e., doesn't externalize internal deps on removed files. */
-  def --(sources: Iterable[File]): Analysis
+  def --(sources: Iterable[VirtualFileRef]): Analysis
 
   def copy(
       stamps: Stamps = stamps,
@@ -67,7 +68,7 @@ trait Analysis extends CompileAnalysis {
   ): Analysis
 
   def addSource(
-      src: File,
+      src: VirtualFileRef,
       apis: Iterable[AnalyzedClass],
       stamp: XStamp,
       info: SourceInfo,
@@ -75,7 +76,7 @@ trait Analysis extends CompileAnalysis {
       localProducts: Iterable[LocalProduct],
       internalDeps: Iterable[InternalDependency],
       externalDeps: Iterable[ExternalDependency],
-      binaryDeps: Iterable[(File, String, XStamp)]
+      libraryDeps: Iterable[(VirtualFileRef, String, XStamp)]
   ): Analysis
 
   override lazy val toString = Analysis.summary(this)
@@ -85,26 +86,26 @@ object Analysis {
   case class NonLocalProduct(
       className: String,
       binaryClassName: String,
-      classFile: File,
+      classFile: VirtualFileRef,
       classFileStamp: XStamp
   )
-  case class LocalProduct(classFile: File, classFileStamp: XStamp)
+  case class LocalProduct(classFile: VirtualFileRef, classFileStamp: XStamp)
   lazy val Empty: Analysis =
     new MAnalysis(Stamps.empty, APIs.empty, Relations.empty, SourceInfos.empty, Compilations.empty)
   def empty: Analysis =
     new MAnalysis(Stamps.empty, APIs.empty, Relations.empty, SourceInfos.empty, Compilations.empty)
 
   def summary(a: Analysis): String = {
-    def sourceFileForClass(className: String): File =
+    def sourceFileForClass(className: String): VirtualFileRef =
       a.relations.definesClass(className).headOption.getOrElse {
         sys.error(s"Can't find source file for $className")
       }
     def isJavaClass(className: String): Boolean =
-      sourceFileForClass(className).getName.endsWith(".java")
+      sourceFileForClass(className).id.endsWith(".java")
     val (j, s) = a.apis.allInternalClasses.partition(isJavaClass)
     val c = a.stamps.allProducts
     val ext = a.apis.allExternals
-    val jars = a.relations.allLibraryDeps.filter(_.getName.endsWith(".jar"))
+    val jars = a.relations.allLibraryDeps.filter(_.id.endsWith(".jar"))
     val unreportedCount = a.infos.allInfos.values.map(_.getUnreportedProblems.length).sum
     val sections =
       counted("Scala source", "", "s", s.size) ++
@@ -123,6 +124,9 @@ object Analysis {
       case x => Some(x.toString + " " + prefix + plural)
     }
 
+  lazy val dummyOutput: Output = new SingleOutput {
+    def getOutputDirectory: Path = Paths.get("/tmp/dummy")
+  }
 }
 private class MAnalysis(
     val stamps: Stamps,
@@ -140,7 +144,7 @@ private class MAnalysis(
       compilations ++ o.compilations
     )
 
-  def --(sources: Iterable[File]): Analysis = {
+  def --(sources: Iterable[VirtualFileRef]): Analysis = {
     val newRelations = relations -- sources
     def keep[T](f: (Relations, T) => Set[_]): T => Boolean = f(newRelations, _).nonEmpty
 
@@ -161,7 +165,7 @@ private class MAnalysis(
     new MAnalysis(stamps, apis, relations, infos, compilations)
 
   def addSource(
-      src: File,
+      src: VirtualFileRef,
       apis: Iterable[AnalyzedClass],
       stamp: XStamp,
       info: SourceInfo,
@@ -169,7 +173,7 @@ private class MAnalysis(
       localProducts: Iterable[LocalProduct],
       internalDeps: Iterable[InternalDependency],
       externalDeps: Iterable[ExternalDependency],
-      binaryDeps: Iterable[(File, String, XStamp)]
+      libraryDeps: Iterable[(VirtualFileRef, String, XStamp)]
   ): Analysis = {
 
     val newStamps = {
@@ -184,9 +188,9 @@ private class MAnalysis(
           tmpStamps.markProduct(localProduct.classFile, localProduct.classFileStamp)
       }
 
-      binaryDeps.foldLeft(allProductStamps) {
+      libraryDeps.foldLeft(allProductStamps) {
         case (tmpStamps, (toBinary, className, binStamp)) =>
-          tmpStamps.markBinary(toBinary, className, binStamp)
+          tmpStamps.markLibrary(toBinary, className, binStamp)
       }
     }
 
@@ -203,7 +207,7 @@ private class MAnalysis(
     val classes = nonLocalProducts.map(p => p.className -> p.binaryClassName)
 
     val newRelations =
-      relations.addSource(src, allProducts, classes, internalDeps, externalDeps, binaryDeps)
+      relations.addSource(src, allProducts, classes, internalDeps, externalDeps, libraryDeps)
 
     copy(newStamps, newAPIs, newRelations, infos.add(src, info))
   }

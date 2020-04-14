@@ -1,3 +1,0 @@
-package macros
-object Foo {
-}

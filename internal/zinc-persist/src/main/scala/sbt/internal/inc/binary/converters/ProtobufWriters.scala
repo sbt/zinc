@@ -12,9 +12,10 @@
 package sbt.internal.inc.binary.converters
 
 import java.io.File
+import java.nio.file.Path
 
 import sbt.internal.inc._
-import xsbti.{ Position, Problem, Severity, T2, UseScope }
+import xsbti.{ Position, Problem, Severity, T2, UseScope, VirtualFileRef }
 import xsbti.compile.analysis.{ SourceInfo, Stamp, WriteMapper }
 import sbt.internal.inc.binary.converters.ProtobufDefaults.Feedback.{ Writers => WritersFeedback }
 import sbt.internal.inc.binary.converters.ProtobufDefaults.WritersConstants
@@ -34,10 +35,17 @@ final class ProtobufWriters(mapper: WriteMapper) {
   def toStringPath(file: File): String = {
     file.toPath.toString
   }
+  def toStringPath(file: Path): String = {
+    file.toString
+  }
+  def toStringPathV(file: VirtualFileRef): String = {
+    file.id
+  }
 
   def toStampType(stamp: Stamp): schema.Stamps.StampType = {
     val s0 = schema.Stamps.StampType()
     stamp match {
+      case hash: FarmHash   => s0.withFarmHash(schema.FarmHash(hash = hash.hashValue))
       case hash: Hash       => s0.withHash(schema.Hash(hash = hash.hexHash))
       case lm: LastModified => s0.withLastModified(schema.LastModified(millis = lm.value))
       case _: Stamp         => s0
@@ -46,40 +54,46 @@ final class ProtobufWriters(mapper: WriteMapper) {
 
   def toStamps(stamps: Stamps): schema.Stamps = {
     // Note that boilerplate here is inteded, abstraction is expensive
-    def toBinarySchemaMap(data: Map[File, Stamp]): Map[String, schema.Stamps.StampType] = {
+    def toBinarySchemaMap(
+        data: Map[VirtualFileRef, Stamp]
+    ): Map[String, schema.Stamps.StampType] = {
       data.map {
         case (binaryFile, stamp) =>
           val newBinaryFile = mapper.mapBinaryFile(binaryFile)
-          val newPath = toStringPath(newBinaryFile)
+          val newPath = toStringPathV(newBinaryFile)
           val newBinaryStamp = mapper.mapBinaryStamp(binaryFile, stamp)
           val newStamp = toStampType(newBinaryStamp)
           newPath -> newStamp
       }
     }
 
-    def toSourceSchemaMap(data: Map[File, Stamp]): Map[String, schema.Stamps.StampType] = {
+    def toSourceSchemaMap(
+        data: Map[VirtualFileRef, Stamp]
+    ): Map[String, schema.Stamps.StampType] = {
       data.map {
         case (sourceFile, stamp) =>
           val newSourceFile = mapper.mapSourceFile(sourceFile)
-          val newPath = toStringPath(newSourceFile)
+          val newPath = toStringPathV(newSourceFile)
           val newSourceStamp = mapper.mapSourceStamp(sourceFile, stamp)
           val newStamp = toStampType(newSourceStamp)
           newPath -> newStamp
       }
     }
 
-    def toProductSchemaMap(data: Map[File, Stamp]): Map[String, schema.Stamps.StampType] = {
+    def toProductSchemaMap(
+        data: Map[VirtualFileRef, Stamp]
+    ): Map[String, schema.Stamps.StampType] = {
       data.map {
         case (productFile, stamp) =>
           val newProductFile = mapper.mapProductFile(productFile)
-          val newPath = toStringPath(newProductFile)
+          val newPath = toStringPathV(newProductFile)
           val newProductStamp = mapper.mapProductStamp(productFile, stamp)
           val newStamp = toStampType(newProductStamp)
           newPath -> newStamp
       }
     }
 
-    val binaryStamps = toBinarySchemaMap(stamps.binaries)
+    val binaryStamps = toBinarySchemaMap(stamps.libraries)
     val sourceStamps = toSourceSchemaMap(stamps.sources)
     val productStamps = toProductSchemaMap(stamps.products)
     schema.Stamps(
@@ -179,7 +193,7 @@ final class ProtobufWriters(mapper: WriteMapper) {
   def toSourceInfos(sourceInfos0: SourceInfos): schema.SourceInfos = {
     val sourceInfos = sourceInfos0.allInfos.map {
       case (file, sourceInfo0) =>
-        toStringPath(mapper.mapSourceFile(file)) -> toSourceInfo(sourceInfo0)
+        toStringPathV(mapper.mapSourceFile(file)) -> toSourceInfo(sourceInfo0)
     }
     schema.SourceInfos(sourceInfos = sourceInfos)
   }
@@ -235,7 +249,7 @@ final class ProtobufWriters(mapper: WriteMapper) {
 
   def toMiniSetup(miniSetup0: MiniSetup): schema.MiniSetup = {
     val miniSetup = mapper.mapMiniSetup(miniSetup0)
-    val output = toMiniSetupOutput(miniSetup.output())
+    val output = toMiniSetupOutput(Analysis.dummyOutput)
     val miniOptions = Some(toMiniOptions(miniSetup.options()))
     val compilerVersion = miniSetup.compilerVersion()
     val compileOrder = toCompileOrder(miniSetup.order())
@@ -256,7 +270,7 @@ final class ProtobufWriters(mapper: WriteMapper) {
       array.iterator.map(f).toList
   }
 
-  def toPath(path: Path): schema.Path = {
+  def toPath(path: xsbti.api.Path): schema.Path = {
     def toPathComponent(pathComponent: PathComponent): schema.Path.PathComponent = {
       import schema.Path.{ PathComponent => SchemaPath }
       import SchemaPath.{ Component => SchemaComponent }
@@ -599,6 +613,7 @@ final class ProtobufWriters(mapper: WriteMapper) {
   }
 
   private final val fileToString = (f: File) => toStringPath(f)
+  private final val fileVToString = (f: VirtualFileRef) => toStringPathV(f)
   private final val stringId = identity[String] _
   def toRelations(relations: Relations): schema.Relations = {
     import sbt.internal.util.Relation
@@ -632,16 +647,16 @@ final class ProtobufWriters(mapper: WriteMapper) {
       }
     }
 
-    val srcProd = toMap(relations.srcProd, fileToString, fileToString)
-    val libraryDep = toMap(relations.libraryDep, fileToString, fileToString)
-    val libraryClassName = toMap(relations.libraryClassName, fileToString, stringId)
+    val srcProd = toMap(relations.srcProd, fileVToString, fileVToString)
+    val libraryDep = toMap(relations.libraryDep, fileVToString, fileVToString)
+    val libraryClassName = toMap(relations.libraryClassName, fileVToString, stringId)
     val memberRefInternal = toMap(relations.memberRef.internal, stringId, stringId)
     val memberRefExternal = toMap(relations.memberRef.external, stringId, stringId)
     val inheritanceInternal = toMap(relations.inheritance.internal, stringId, stringId)
     val inheritanceExternal = toMap(relations.inheritance.external, stringId, stringId)
     val localInheritanceInternal = toMap(relations.localInheritance.internal, stringId, stringId)
     val localInheritanceExternal = toMap(relations.localInheritance.external, stringId, stringId)
-    val classes = toMap(relations.classes, fileToString, stringId)
+    val classes = toMap(relations.classes, fileVToString, stringId)
     val productClassName = toMap(relations.productClassName, stringId, stringId)
     val names = toUsedNamesMap(relations.names)
     val memberRef = Some(

@@ -1,10 +1,10 @@
 /**
- * This code is generated using [[http://www.scala-sbt.org/contraband/ sbt-contraband]].
+ * This code is generated using [[https://www.scala-sbt.org/contraband/ sbt-contraband]].
  */
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public abstract class FieldLike extends xsbti.api.ClassDefinition {
+public abstract class FieldLike extends xsbti.api.ClassDefinition implements java.io.Serializable {
     
     private Type tpe;
     protected FieldLike(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, Type _tpe) {

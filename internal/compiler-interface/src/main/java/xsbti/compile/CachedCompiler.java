@@ -14,6 +14,7 @@ package xsbti.compile;
 import xsbti.AnalysisCallback;
 import xsbti.Logger;
 import xsbti.Reporter;
+import xsbti.VirtualFile;
 import java.io.File;
 
 /**
@@ -21,7 +22,6 @@ import java.io.File;
  *
  * This cached compiler hides the implementation of a compiler by just
  * defining two operations: {@link #commandArguments(File[])} and
- * {@link #run(File[], DependencyChanges, AnalysisCallback, Logger, Reporter, CompileProgress)}.
  *
  */
 public interface CachedCompiler {
@@ -45,5 +45,5 @@ public interface CachedCompiler {
 	 * @param delegate The reporter that informs on the compiler's output.
 	 * @param progress The compiler progress associated with a Scala compiler.
 	 */
-	void run(File[] sources, DependencyChanges changes, AnalysisCallback callback, Logger logger, Reporter delegate, CompileProgress progress);
+	void run(VirtualFile[] sources, DependencyChanges changes, AnalysisCallback callback, Logger logger, Reporter delegate, CompileProgress progress);
 }

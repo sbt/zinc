@@ -11,7 +11,7 @@
 
 package xsbti.compile;
 
-import java.io.File;
+import xsbti.VirtualFile;
 import java.util.Optional;
 
 /**
@@ -33,7 +33,7 @@ public interface PerClasspathEntryLookup {
      *
      * @return An optional instance of {@link CompileAnalysis}.
      */
-    Optional<CompileAnalysis> analysis(File classpathEntry);
+    Optional<CompileAnalysis> analysis(VirtualFile classpathEntry);
 
     /**
      * Provide an instance of {@link DefinesClass} that will allow you to
@@ -42,5 +42,5 @@ public interface PerClasspathEntryLookup {
      * @return Instance of {@link DefinesClass} that will allow you to query
      *         information for a given classpath entry.
      */
-    DefinesClass definesClass(File classpathEntry);
+    DefinesClass definesClass(VirtualFile classpathEntry);
 }

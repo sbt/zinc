@@ -1,10 +1,10 @@
 /**
- * This code is generated using [[http://www.scala-sbt.org/contraband/ sbt-contraband]].
+ * This code is generated using [[https://www.scala-sbt.org/contraband/ sbt-contraband]].
  */
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public final class Super extends xsbti.api.PathComponent {
+public final class Super extends xsbti.api.PathComponent implements java.io.Serializable {
     
     public static Super create(Path _qualifier) {
         return new Super(_qualifier);

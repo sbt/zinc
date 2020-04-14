@@ -12,6 +12,7 @@
 package sbt.internal.inc
 
 import java.io.File
+import java.nio.file.Path
 import java.net.URLClassLoader
 
 import sbt.internal.inc.javac.JavaTools
@@ -40,7 +41,7 @@ object ZincUtil {
    */
   def scalaCompiler(
       scalaInstance: ScalaInstance,
-      compilerBridgeJar: File,
+      compilerBridgeJar: Path,
       classpathOptions: ClasspathOptions
   ): AnalyzingCompiler = {
     val bridgeProvider = constantBridgeProvider(scalaInstance, compilerBridgeJar)
@@ -58,16 +59,60 @@ object ZincUtil {
    * @param scalaInstance The Scala instance to be used.
    * @param compilerBridgeJar The jar file or directory of the compiler bridge compiled for the
    *                          given scala instance.
+   * @param classpathOptions The options of all the classpath that the compiler takes in.
+   * @return A Scala compiler ready to be used.
+   */
+  def scalaCompiler(
+      scalaInstance: ScalaInstance,
+      compilerBridgeJar: File,
+      classpathOptions: ClasspathOptions
+  ): AnalyzingCompiler =
+    scalaCompiler(scalaInstance, compilerBridgeJar.toPath, classpathOptions)
+
+  /**
+   * Instantiate a Scala compiler that is instrumented to analyze dependencies.
+   * This Scala compiler is useful to create your own instance of incremental
+   * compilation.
+   *
+   * @see IncrementalCompiler for more details on creating your custom incremental compiler.
+   *
+   * @param scalaInstance The Scala instance to be used.
+   * @param compilerBridgeJar The jar file or directory of the compiler bridge compiled for the
+   *                          given scala instance.
+   * @return A Scala compiler ready to be used.
+   */
+  def scalaCompiler(scalaInstance: ScalaInstance, compilerBridgeJar: Path): AnalyzingCompiler = {
+    scalaCompiler(scalaInstance, compilerBridgeJar, ClasspathOptionsUtil.boot)
+  }
+
+  /**
+   * Instantiate a Scala compiler that is instrumented to analyze dependencies.
+   * This Scala compiler is useful to create your own instance of incremental
+   * compilation.
+   *
+   * @see IncrementalCompiler for more details on creating your custom incremental compiler.
+   *
+   * @param scalaInstance The Scala instance to be used.
+   * @param compilerBridgeJar The jar file or directory of the compiler bridge compiled for the
+   *                          given scala instance.
    * @return A Scala compiler ready to be used.
    */
   def scalaCompiler(scalaInstance: ScalaInstance, compilerBridgeJar: File): AnalyzingCompiler = {
-    scalaCompiler(scalaInstance, compilerBridgeJar, ClasspathOptionsUtil.boot)
+    scalaCompiler(scalaInstance, compilerBridgeJar.toPath, ClasspathOptionsUtil.boot)
   }
+
+  // def compilers(
+  //     instance: ScalaInstance,
+  //     classpathOptions: ClasspathOptions,
+  //     javaHome: Option[File],
+  //     scalac: ScalaCompiler
+  // ): Compilers =
+  //   compilers(JavaTools.directOrFork(instance, classpathOptions, javaHome.map(_.toPath)), scalac)
 
   def compilers(
       instance: ScalaInstance,
       classpathOptions: ClasspathOptions,
-      javaHome: Option[File],
+      javaHome: Option[Path],
       scalac: ScalaCompiler
   ): Compilers =
     compilers(JavaTools.directOrFork(instance, classpathOptions, javaHome), scalac)
@@ -75,6 +120,12 @@ object ZincUtil {
   def compilers(javaTools: XJavaTools, scalac: ScalaCompiler): Compilers = {
     Compilers.of(scalac, javaTools)
   }
+
+  def constantBridgeProvider(
+      scalaInstance: ScalaInstance,
+      compilerBridgeJar: Path,
+  ): CompilerBridgeProvider =
+    ZincCompilerUtil.constantBridgeProvider(scalaInstance, compilerBridgeJar.toFile)
 
   def constantBridgeProvider(
       scalaInstance: ScalaInstance,

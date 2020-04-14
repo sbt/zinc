@@ -1,10 +1,10 @@
 /**
- * This code is generated using [[http://www.scala-sbt.org/contraband/ sbt-contraband]].
+ * This code is generated using [[https://www.scala-sbt.org/contraband/ sbt-contraband]].
  */
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public final class Structure extends xsbti.api.Type {
+public final class Structure extends xsbti.api.Type implements java.io.Serializable {
     
     public static Structure create(xsbti.api.Lazy<Type[]> _parents, xsbti.api.Lazy<ClassDefinition[]> _declared, xsbti.api.Lazy<ClassDefinition[]> _inherited) {
         return new Structure(_parents, _declared, _inherited);

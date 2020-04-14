@@ -14,18 +14,27 @@ package internal
 package inc
 
 import java.io.File
+import java.nio.file.{ Files, Path }
 import java.lang.ref.{ SoftReference, Reference }
 import java.util.Optional
 
-import xsbti.{ Reporter, AnalysisCallback => XAnalysisCallback }
-import xsbti.compile.CompileOrder._
+import xsbti.{
+  FileConverter,
+  Reporter,
+  AnalysisCallback => XAnalysisCallback,
+  VirtualFile,
+  VirtualFileRef
+}
 import xsbti.compile._
+import xsbti.compile.CompileOrder._
+import xsbti.compile.{ ClassFileManager => XClassFileManager }
+import xsbti.compile.analysis.ReadStamps
 import sbt.io.{ IO, DirectoryFilter }
 import sbt.util.{ InterfaceUtil, Logger }
 import sbt.internal.inc.JavaInterfaceUtil.EnrichOption
+import sbt.internal.inc.VirtualFileUtil.toAbsolute
 import sbt.internal.inc.caching.ClasspathCache
 import sbt.internal.inc.javac.AnalyzingJavaCompiler
-import xsbti.compile.{ ClassFileManager => XClassFileManager }
 import sbt.internal.util.ConsoleAppender
 
 /** An instance of an analyzing compiler that can run both javac + scalac. */
@@ -36,8 +45,7 @@ final class MixedAnalyzingCompiler(
     val log: Logger,
     outputJarContent: JarUtils.OutputJarContent
 ) {
-
-  private[this] val absClasspath = toAbsolute(config.classpath)
+  private[this] val absClasspath = config.classpath.map(toAbsolute(_))
 
   /** Mechanism to work with compiler arguments. */
   private[this] val cArgs =
@@ -52,32 +60,38 @@ final class MixedAnalyzingCompiler(
    * @param classfileManager The component that manages generated class files.
    */
   def compile(
-      include: Set[File],
+      include: Set[VirtualFile],
       changes: DependencyChanges,
       callback: XAnalysisCallback,
       classfileManager: XClassFileManager
   ): Unit = {
-    val output = config.currentSetup.output
+    val output = config.output
     val outputDirs = outputDirectories(output)
     outputDirs.foreach { d =>
-      if (d.getName.endsWith(".jar"))
-        IO.createDirectory(d.getParentFile)
+      if (d.toString.endsWith(".jar"))
+        Files.createDirectories(d.getParent)
       else {
-        IO.createDirectory(d)
+        Files.createDirectories(d)
       }
     }
 
     val incSrc = config.sources.filter(include)
-    val (javaSrcs, scalaSrcs) = incSrc.partition(javaOnly)
+    val (javaSrcs, scalaSrcs) = incSrc.partition(javaOnly(_))
     logInputs(log, javaSrcs.size, scalaSrcs.size, outputDirs)
 
     // Compile Scala sources.
     def compileScala(): Unit =
       if (scalaSrcs.nonEmpty) {
-        JarUtils.withPreviousJar(output) { extraClasspath =>
-          val sources = if (config.currentSetup.order == Mixed) incSrc else scalaSrcs
-          val cp = toAbsolute(extraClasspath) ++ absClasspath
-          val arguments = cArgs(Nil, cp, None, config.currentSetup.options.scalacOptions)
+        JarUtils.withPreviousJar(output) { extraClasspath: Seq[Path] =>
+          val sources =
+            if (config.currentSetup.order == Mixed) incSrc
+            else scalaSrcs
+
+          val cp: Seq[VirtualFile] = (extraClasspath map { x =>
+            config.converter.toVirtualFile(x.toAbsolutePath)
+          }) ++ absClasspath
+          val arguments =
+            cArgs.makeArguments(Nil, cp, config.currentSetup.options.scalacOptions)
           timed("Scala compilation", log) {
             config.compiler.compile(
               sources.toArray,
@@ -108,9 +122,10 @@ final class MixedAnalyzingCompiler(
           JarUtils.getOutputJar(output) match {
             case Some(outputJar) =>
               val outputDir = JarUtils.javacTempOutput(outputJar)
-              IO.createDirectory(outputDir)
+              Files.createDirectories(outputDir)
               javac.compile(
                 javaSrcs,
+                config.converter,
                 joptions,
                 CompileOutput(outputDir),
                 Some(outputJar),
@@ -120,10 +135,11 @@ final class MixedAnalyzingCompiler(
                 log,
                 config.progress
               )
-              putJavacOutputInJar(outputJar, outputDir)
+              putJavacOutputInJar(outputJar.toFile, outputDir.toFile)
             case None =>
               javac.compile(
                 javaSrcs,
+                config.converter,
                 joptions,
                 output,
                 finalJarOutput = None,
@@ -169,11 +185,7 @@ final class MixedAnalyzingCompiler(
     IO.delete(outputDir)
   }
 
-  private def toAbsolute(extraClasspath: Seq[File]) = {
-    extraClasspath.map(_.getAbsoluteFile)
-  }
-
-  private[this] def outputDirectories(output: Output): Seq[File] = {
+  private[this] def outputDirectories(output: Output): Seq[Path] = {
     output match {
       case single: SingleOutput => List(single.getOutputDirectory)
       case mult: MultipleOutput => mult.getOutputGroups map (_.getOutputDirectory)
@@ -193,19 +205,19 @@ final class MixedAnalyzingCompiler(
       log: Logger,
       javaCount: Int,
       scalaCount: Int,
-      outputDirs: Seq[File]
+      outputDirs: Seq[Path]
   ): Unit = {
     val scalaMsg = Analysis.counted("Scala source", "", "s", scalaCount)
     val javaMsg = Analysis.counted("Java source", "", "s", javaCount)
     val combined = scalaMsg ++ javaMsg
     if (combined.nonEmpty) {
-      val targets = outputDirs.map(_.getAbsolutePath).mkString(",")
+      val targets = outputDirs.map(_.toAbsolutePath).mkString(",")
       log.info(combined.mkString("Compiling ", " and ", s" to $targets ..."))
     }
   }
 
   /** Returns true if the file is java. */
-  private[this] def javaOnly(f: File) = f.getName.endsWith(".java")
+  private[this] def javaOnly(f: VirtualFileRef): Boolean = f.id.endsWith(".java")
 }
 
 /**
@@ -219,8 +231,9 @@ object MixedAnalyzingCompiler {
   def makeConfig(
       scalac: xsbti.compile.ScalaCompiler,
       javac: xsbti.compile.JavaCompiler,
-      sources: Seq[File],
-      classpath: Seq[File],
+      sources: Seq[VirtualFile],
+      converter: FileConverter, // this is needed to thaw ref back to path for stamping
+      classpath: Seq[VirtualFile],
       output: Output,
       cache: GlobalsCache,
       progress: Option[CompileProgress] = None,
@@ -234,12 +247,13 @@ object MixedAnalyzingCompiler {
       skip: Boolean = false,
       incrementalCompilerOptions: IncOptions,
       outputJarContent: JarUtils.OutputJarContent,
+      stamper: ReadStamps,
       extra: List[(String, String)]
   ): CompileConfiguration = {
     val lookup = incrementalCompilerOptions.externalHooks().getExternalLookup
 
     def doHash: Array[FileHash] =
-      ClasspathCache.hashClasspath(classpath)
+      ClasspathCache.hashClasspath(classpath.map(converter.toPath))
 
     val classpathHash =
       if (lookup.isPresent) {
@@ -248,7 +262,7 @@ object MixedAnalyzingCompiler {
       } else doHash
 
     val compileSetup = MiniSetup.of(
-      output,
+      output, // MiniSetup gets persisted into Analysis so don't use this
       MiniOptions.of(
         classpathHash,
         options.toArray,
@@ -261,7 +275,9 @@ object MixedAnalyzingCompiler {
     )
     config(
       sources,
+      converter,
       classpath,
+      output,
       compileSetup,
       progress,
       previousAnalysis,
@@ -273,13 +289,16 @@ object MixedAnalyzingCompiler {
       skip,
       cache,
       incrementalCompilerOptions,
-      outputJarContent
+      outputJarContent,
+      stamper
     )
   }
 
   def config(
-      sources: Seq[File],
-      classpath: Seq[File],
+      sources: Seq[VirtualFile],
+      converter: FileConverter,
+      classpath: Seq[VirtualFile],
+      output: Output,
       setup: MiniSetup,
       progress: Option[CompileProgress],
       previousAnalysis: CompileAnalysis,
@@ -291,11 +310,14 @@ object MixedAnalyzingCompiler {
       skip: Boolean,
       cache: GlobalsCache,
       incrementalCompilerOptions: IncOptions,
-      outputJarContent: JarUtils.OutputJarContent
+      outputJarContent: JarUtils.OutputJarContent,
+      stamper: ReadStamps,
   ): CompileConfiguration = {
     new CompileConfiguration(
       sources,
+      converter,
       classpath,
+      output,
       previousAnalysis,
       previousSetup,
       setup,
@@ -306,14 +328,15 @@ object MixedAnalyzingCompiler {
       javac,
       cache,
       incrementalCompilerOptions,
-      outputJarContent
+      outputJarContent,
+      stamper
     )
   }
 
   /** Returns the search classpath (for dependencies) and a function which can also do so. */
   def searchClasspathAndLookup(
       config: CompileConfiguration
-  ): (Seq[File], String => Option[File]) = {
+  ): (Seq[VirtualFile], String => Option[VirtualFile]) = {
     import config._
     import currentSetup._
     // If we are compiling straight to jar, as javac does not support this,
@@ -321,19 +344,26 @@ object MixedAnalyzingCompiler {
     // and then added to the final jar. This temporary directory has to be
     // available for sbt.internal.inc.classfile.Analyze to work correctly.
     val tempJavacOutput =
-      JarUtils.getOutputJar(currentSetup.output).map(JarUtils.javacTempOutput).toSeq
-    val absClasspath = classpath.map(_.getAbsoluteFile)
+      JarUtils
+        .getOutputJar(config.output)
+        .map(JarUtils.javacTempOutput)
+        .toSeq
+        .map(converter.toVirtualFile(_))
+    val absClasspath = classpath.map(toAbsolute(_))
     val cArgs =
       new CompilerArguments(compiler.scalaInstance, compiler.classpathOptions)
-    val searchClasspath = explicitBootClasspath(options.scalacOptions) ++ withBootclasspath(
-      cArgs,
-      absClasspath
-    ) ++ tempJavacOutput
+    val searchClasspath
+        : Seq[VirtualFile] = explicitBootClasspath(options.scalacOptions, converter) ++
+      withBootclasspath(
+        cArgs,
+        absClasspath,
+        converter
+      ) ++ tempJavacOutput
     (searchClasspath, Locate.entry(searchClasspath, perClasspathEntryLookup))
   }
 
   /** Returns a "lookup file for a given class name" function. */
-  def classPathLookup(config: CompileConfiguration): String => Option[File] =
+  def classPathLookup(config: CompileConfiguration): String => Option[VirtualFile] =
     searchClasspathAndLookup(config)._2
 
   def apply(config: CompileConfiguration)(
@@ -361,26 +391,34 @@ object MixedAnalyzingCompiler {
 
   def withBootclasspath(
       args: CompilerArguments,
-      classpath: Seq[File]
-  ): Seq[File] = {
-    args.bootClasspathFor(classpath) ++ args.extClasspath ++
-      args.finishClasspath(classpath)
+      classpath: Seq[VirtualFile],
+      converter: FileConverter
+  ): Seq[VirtualFile] = {
+    val cp: Seq[Path] = classpath.map(converter.toPath)
+    args.bootClasspathFor(cp).map(converter.toVirtualFile(_)) ++
+      args.extClasspath.map(PlainVirtualFile(_)) ++
+      args.finishClasspath(cp).map(converter.toVirtualFile(_))
   }
 
-  private[this] def explicitBootClasspath(options: Seq[String]): Seq[File] = {
+  private[this] def explicitBootClasspath(
+      options: Seq[String],
+      converter: FileConverter
+  ): Seq[VirtualFile] = {
     options
       .dropWhile(_ != CompilerArguments.BootClasspathOption)
       .slice(1, 2)
       .headOption
       .toList
       .flatMap(IO.parseClasspath)
+      .map(_.toPath)
+      .map(converter.toVirtualFile(_))
   }
 
   private[this] val cache =
-    new collection.mutable.HashMap[File, Reference[AnalysisStore]]
+    new collection.mutable.HashMap[Path, Reference[AnalysisStore]]
 
   private def staticCache(
-      file: File,
+      file: Path,
       backing: => AnalysisStore
   ): AnalysisStore = {
     synchronized {
@@ -399,11 +437,11 @@ object MixedAnalyzingCompiler {
    *
    * Note: This method will be deprecated after Zinc 1.1.
    */
-  def staticCachedStore(analysisFile: File, useTextAnalysis: Boolean): AnalysisStore = {
+  def staticCachedStore(analysisFile: Path, useTextAnalysis: Boolean): AnalysisStore = {
     import xsbti.compile.AnalysisStore
     val fileStore =
-      if (useTextAnalysis) sbt.internal.inc.FileAnalysisStore.text(analysisFile)
-      else sbt.internal.inc.FileAnalysisStore.binary(analysisFile)
+      if (useTextAnalysis) sbt.internal.inc.FileAnalysisStore.text(analysisFile.toFile)
+      else sbt.internal.inc.FileAnalysisStore.binary(analysisFile.toFile)
     val cachedStore = AnalysisStore.getCachedStore(fileStore)
     staticCache(analysisFile, AnalysisStore.getThreadSafeStore(cachedStore))
   }

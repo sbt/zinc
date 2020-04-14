@@ -4,7 +4,7 @@ package inc
 
 import java.io.File
 import java.net.URLClassLoader
-import java.nio.file.Files
+import java.nio.file.{ Files, Path, Paths }
 
 import sbt.internal.inc.classpath.ClassLoaderCache
 import sbt.io.IO
@@ -12,7 +12,7 @@ import sbt.io.syntax._
 import xsbti.compile._
 import sbt.util.Logger
 import xsbti.TestCallback.ExtractedClassDependencies
-import xsbti.{ TestCallback, UseScope }
+import xsbti.{ TestCallback, UseScope, VirtualFile, VirtualFileRef }
 import xsbti.api.ClassLike
 import xsbti.api.DependencyContext._
 
@@ -27,7 +27,7 @@ trait CompilingSpecification extends BridgeProviderSpecification {
       .getOrElse(sys.error("zinc.build.compilerbridge.scalaVersion property not found"))
   def maxErrors = 100
 
-  def scalaCompiler(instance: xsbti.compile.ScalaInstance, bridgeJar: File): AnalyzingCompiler = {
+  def scalaCompiler(instance: xsbti.compile.ScalaInstance, bridgeJar: Path): AnalyzingCompiler = {
     val bridgeProvider = ZincUtil.constantBridgeProvider(instance, bridgeJar)
     val classpath = ClasspathOptionsUtil.boot
     val cache = Some(new ClassLoaderCache(new URLClassLoader(Array())))
@@ -136,6 +136,13 @@ trait CompilingSpecification extends BridgeProviderSpecification {
     extractDependenciesFromSrcs(List(srcs.toList))
   }
 
+  val localBoot = Paths.get(sys.props("user.home")).resolve(".sbt").resolve("boot")
+  val javaHome = Paths.get(sys.props("java.home"))
+  val localCoursierCache = Vector(
+    Paths.get(sys.props("user.home")).resolve(".coursier").resolve("cache"),
+    Paths.get(sys.props("user.home")).resolve(".cache").resolve("coursier")
+  )
+
   /**
    * Compiles given source code snippets written to temporary files. Each snippet is
    * written to a separate temporary file.
@@ -155,36 +162,42 @@ trait CompilingSpecification extends BridgeProviderSpecification {
   def compileSrcs(
       groupedSrcs: List[List[String]],
       reuseCompilerInstance: Boolean
-  ): (Seq[File], TestCallback) = {
+  ): (Seq[VirtualFile], TestCallback) = {
     IO.withTemporaryDirectory { tempDir =>
+      val rootPaths
+          : Vector[Path] = Vector(tempDir.toPath, localBoot, javaHome) ++ localCoursierCache
+      val converter = new MappedFileConverter(rootPaths, false)
       val targetDir = tempDir / "target"
       val analysisCallback = new TestCallback
       targetDir.mkdir()
       val cache =
         if (reuseCompilerInstance) new CompilerCache(1)
         else CompilerCache.fresh
-      val files = for ((compilationUnit, unitId) <- groupedSrcs.zipWithIndex) yield {
+      val files = for {
+        (compilationUnit, unitId) <- groupedSrcs.zipWithIndex
+      } yield {
         val srcFiles = compilationUnit.zipWithIndex map {
           case (src, i) =>
             val fileName = s"Test-$unitId-$i.scala"
-            prepareSrcFile(tempDir, fileName, src)
+            val f = prepareSrcFile(tempDir, fileName, src)
+            converter.toVirtualFile(f.toPath)
         }
         val sources = srcFiles.toArray
         val noLogger = Logger.Null
-        val compilerBridge = getCompilerBridge(tempDir, noLogger, scalaVersion)
-        val si = scalaInstance(scalaVersion, tempDir, noLogger)
+        val compilerBridge = getCompilerBridge(tempDir.toPath, noLogger, scalaVersion)
+        val si = scalaInstance(scalaVersion, tempDir.toPath, noLogger)
         val sc = scalaCompiler(si, compilerBridge)
-        val cp = si.allJars ++ Array(targetDir)
+        val cp = (si.allJars ++ Array(targetDir)).map(_.toPath).map(converter.toVirtualFile)
         val emptyChanges: DependencyChanges = new DependencyChanges {
-          val modifiedBinaries = new Array[File](0)
-          val modifiedClasses = new Array[String](0)
-          def isEmpty = true
+          override val modifiedLibraries = new Array[VirtualFileRef](0)
+          override val modifiedClasses = new Array[String](0)
+          override def isEmpty = true
         }
         sc.apply(
           sources = sources,
           changes = emptyChanges,
           classpath = cp,
-          singleOutput = targetDir,
+          singleOutput = targetDir.toPath,
           options = Array(),
           callback = analysisCallback,
           maximumErrors = maxErrors,
@@ -196,18 +209,18 @@ trait CompilingSpecification extends BridgeProviderSpecification {
 
       // Make sure that the analysis doesn't lie about the class files that are written
       analysisCallback.productClassesToSources.keySet.foreach { classFile =>
-        if (classFile.exists()) ()
+        if (Files.exists(classFile)) ()
         else {
-          val cfs = Files.list(classFile.toPath.getParent).toArray.mkString("\n")
-          sys.error(s"Class file '${classFile.getAbsolutePath}' doesn't exist! Found:\n$cfs")
+          val cfs = Files.list(classFile.getParent).toArray.mkString("\n")
+          sys.error(s"Class file '${classFile}' doesn't exist! Found:\n$cfs")
         }
       }
 
-      (files.flatten, analysisCallback)
+      (files.flatten map { converter.toVirtualFile(_) }, analysisCallback)
     }
   }
 
-  def compileSrcs(srcs: String*): (Seq[File], TestCallback) = {
+  def compileSrcs(srcs: String*): (Seq[VirtualFile], TestCallback) = {
     compileSrcs(List(srcs.toList), reuseCompilerInstance = true)
   }
 

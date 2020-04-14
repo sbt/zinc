@@ -13,9 +13,8 @@ package sbt
 package internal
 package inc
 
-import java.io.File
-
 import sbt.util.{ Level, Logger }
+import xsbti.{ FileConverter, VirtualFile }
 import xsbti.compile.analysis.{ ReadStamps, Stamp => XStamp }
 import xsbti.compile.{
   ClassFileManager => XClassFileManager,
@@ -42,6 +41,7 @@ object Incremental {
    * Runs the incremental compiler algorithm.
    *
    * @param sources   The sources to compile
+   * @param converter FileConverter to convert between Path and VirtualFileRef.
    * @param lookup
    *              An instance of the `Lookup` that implements looking up both classpath elements
    *              and Analysis object instances by a binary class name.
@@ -58,11 +58,17 @@ object Incremental {
    *         A flag of whether or not compilation completed successfully, and the resulting dependency analysis object.
    */
   def compile(
-      sources: Set[File],
+      sources: Set[VirtualFile],
+      converter: FileConverter,
       lookup: Lookup,
       previous0: CompileAnalysis,
       current: ReadStamps,
-      compile: (Set[File], DependencyChanges, xsbti.AnalysisCallback, XClassFileManager) => Unit,
+      compile: (
+          Set[VirtualFile],
+          DependencyChanges,
+          xsbti.AnalysisCallback,
+          XClassFileManager
+      ) => Unit,
       callbackBuilder: AnalysisCallback.Builder,
       log: sbt.util.Logger,
       options: IncOptions,
@@ -70,20 +76,23 @@ object Incremental {
       outputJarContent: JarUtils.OutputJarContent,
       profiler: InvalidationProfiler = InvalidationProfiler.empty
   )(implicit equivS: Equiv[XStamp]): (Boolean, Analysis) = {
+    log.debug("Incremental.compile")
     val previous = previous0 match { case a: Analysis => a }
     val runProfiler = profiler.profileRun
     val incremental: IncrementalCommon = new IncrementalNameHashing(log, options, runProfiler)
     val initialChanges =
-      incremental.detectInitialChanges(sources, previous, current, lookup, output)
+      incremental.detectInitialChanges(sources, previous, current, lookup, converter, output)
+    log.debug(s"> initialChanges = $initialChanges")
     val binaryChanges = new DependencyChanges {
-      val modifiedBinaries = initialChanges.binaryDeps.toArray
+      val modifiedLibraries = initialChanges.libraryDeps.toArray
       val modifiedClasses = initialChanges.external.allModified.toArray
-      def isEmpty = modifiedBinaries.isEmpty && modifiedClasses.isEmpty
+      def isEmpty = modifiedLibraries.isEmpty && modifiedClasses.isEmpty
     }
     val (initialInvClasses, initialInvSources) =
       incremental.invalidateInitial(previous.relations, initialChanges)
     if (initialInvClasses.nonEmpty || initialInvSources.nonEmpty)
-      if (initialInvSources == sources) incremental.log.debug("All sources are invalidated.")
+      if (initialInvSources == sources)
+        incremental.log.debug(s"all ${initialInvSources.size} sources are invalidated")
       else
         incremental.log.debug(
           "All initially invalidated classes: " + initialInvClasses + "\n" +
@@ -94,11 +103,13 @@ object Incremental {
         initialInvClasses,
         initialInvSources,
         sources,
+        converter,
         binaryChanges,
         lookup,
         previous,
         doCompile(compile, callbackBuilder, classfileManager),
         classfileManager,
+        output,
         1
       )
     }
@@ -109,10 +120,15 @@ object Incremental {
    * Compilation unit in each compile cycle.
    */
   def doCompile(
-      compile: (Set[File], DependencyChanges, xsbti.AnalysisCallback, XClassFileManager) => Unit,
+      compile: (
+          Set[VirtualFile],
+          DependencyChanges,
+          xsbti.AnalysisCallback,
+          XClassFileManager
+      ) => Unit,
       callbackBuilder: AnalysisCallback.Builder,
       classFileManager: XClassFileManager
-  )(srcs: Set[File], changes: DependencyChanges): Analysis = {
+  )(srcs: Set[VirtualFile], changes: DependencyChanges): Analysis = {
     // Note `ClassFileManager` is shared among multiple cycles in the same incremental compile run,
     // in order to rollback entirely if transaction fails. `AnalysisCallback` is used by each cycle
     // to report its own analysis individually.
@@ -133,16 +149,18 @@ object Incremental {
     options.apiDebug || java.lang.Boolean.getBoolean(apiDebugProp)
 
   private[sbt] def prune(
-      invalidatedSrcs: Set[File],
+      invalidatedSrcs: Set[VirtualFile],
       previous0: CompileAnalysis,
       output: Output,
-      outputJarContent: JarUtils.OutputJarContent
+      outputJarContent: JarUtils.OutputJarContent,
+      converter: FileConverter
   ): Analysis = {
     val previous = previous0.asInstanceOf[Analysis]
     IncrementalCommon.pruneClassFilesOfInvalidations(
       invalidatedSrcs,
       previous,
-      ClassFileManager.deleteImmediately(output, outputJarContent)
+      ClassFileManager.deleteImmediately(output, outputJarContent),
+      converter
     )
   }
 

@@ -14,8 +14,8 @@ package xsbti.compile;
 import xsbti.AnalysisCallback;
 import xsbti.Logger;
 import xsbti.Reporter;
+import xsbti.VirtualFile;
 
-import java.io.File;
 import java.util.Optional;
 
 /**
@@ -46,7 +46,7 @@ public interface ScalaCompiler {
 	 * @param progress Where to report the file being currently compiled.
 	 * @param compiler The actual compiler that will perform the compilation step.
 	 */
-	void compile(File[] sources,
+	void compile(VirtualFile[] sources,
 	             DependencyChanges changes,
 	             AnalysisCallback callback,
 	             Logger log,
@@ -72,7 +72,7 @@ public interface ScalaCompiler {
 	 * @param progressOpt The progress interface in which the Scala compiler
 	 *                    will report on the file being compiled.
 	 */
-	void compile(File[] sources,
+	void compile(VirtualFile[] sources,
 	             DependencyChanges changes,
 	             String[] options,
 	             Output output,

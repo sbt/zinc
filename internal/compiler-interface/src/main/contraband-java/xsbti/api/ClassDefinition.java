@@ -1,10 +1,10 @@
 /**
- * This code is generated using [[http://www.scala-sbt.org/contraband/ sbt-contraband]].
+ * This code is generated using [[https://www.scala-sbt.org/contraband/ sbt-contraband]].
  */
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public abstract class ClassDefinition extends xsbti.api.Definition {
+public abstract class ClassDefinition extends xsbti.api.Definition implements java.io.Serializable {
     
     
     protected ClassDefinition(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations) {

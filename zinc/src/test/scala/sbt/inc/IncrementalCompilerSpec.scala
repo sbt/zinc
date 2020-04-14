@@ -15,17 +15,20 @@ import xsbti.compile.AnalysisStore
 import sbt.internal.inc.{ AnalysisStore => _, _ }
 import sbt.io.IO
 import sbt.io.syntax._
+import java.nio.file.Files
+import sbt.util.Level
 
 class IncrementalCompilerSpec extends BaseCompilerSpec {
+  override val logLevel = Level.Debug
 
   "incremental compiler" should "compile" in {
     IO.withTemporaryDirectory { tempDir =>
       val projectSetup = ProjectSetup.simple(tempDir.toPath, Seq(SourceFiles.Good))
 
       val result = projectSetup.createCompiler().doCompile()
-      val expectedOuts = List(projectSetup.defaultClassesDir / "pkg" / "Good$.class")
+      val expectedOuts = List(projectSetup.defaultClassesDir.resolve("pkg").resolve("Good$.class"))
       expectedOuts foreach { f =>
-        assert(f.exists, s"$f does not exist.")
+        assert(Files.exists(f), s"$f does not exist.")
       }
       val a = result.analysis match { case a: Analysis => a }
       assert(a.stamps.allSources.nonEmpty)
@@ -43,6 +46,20 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
         compilerSetup.doCompile(_.withPreviousResult(compilerSetup.compiler.previousResult(result)))
 
       assert(!result2.hasModified)
+    }
+  }
+
+  it should "compile Java code" in {
+    IO.withTemporaryDirectory { tempDir =>
+      val projectSetup = ProjectSetup.simple(tempDir.toPath, Seq(SourceFiles.NestedJavaClasses))
+
+      val result = projectSetup.createCompiler().doCompile()
+      val expectedOuts = List(projectSetup.defaultClassesDir.resolve("NestedJavaClasses.class"))
+      expectedOuts foreach { f =>
+        assert(Files.exists(f), s"$f does not exist.")
+      }
+      val a = result.analysis match { case a: Analysis => a }
+      assert(a.stamps.allSources.nonEmpty)
     }
   }
 

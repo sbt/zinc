@@ -1,10 +1,10 @@
 /**
- * This code is generated using [[http://www.scala-sbt.org/contraband/ sbt-contraband]].
+ * This code is generated using [[https://www.scala-sbt.org/contraband/ sbt-contraband]].
  */
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public final class ClassLike extends xsbti.api.Definition {
+public final class ClassLike extends xsbti.api.Definition implements java.io.Serializable {
     
     public static ClassLike create(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, DefinitionType _definitionType, xsbti.api.Lazy<Type> _selfType, xsbti.api.Lazy<Structure> _structure, String[] _savedAnnotations, Type[] _childrenOfSealedClass, boolean _topLevel, TypeParameter[] _typeParameters) {
         return new ClassLike(_name, _access, _modifiers, _annotations, _definitionType, _selfType, _structure, _savedAnnotations, _childrenOfSealedClass, _topLevel, _typeParameters);

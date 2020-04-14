@@ -11,17 +11,18 @@
 
 package sbt.internal.inc.text
 
-import java.io.{ BufferedReader, File, Writer }
+import java.io.{ BufferedReader, Writer }
 
 import sbt.internal.inc.{ ExternalDependencies, InternalDependencies, Relations, UsedName }
 import sbt.internal.util.Relation
+import xsbti.VirtualFileRef
 import xsbti.api.DependencyContext._
 
 trait RelationsTextFormat extends FormatCommons {
 
-  def sourcesMapper: Mapper[File]
-  def binariesMapper: Mapper[File]
-  def productsMapper: Mapper[File]
+  def sourcesMapper: Mapper[VirtualFileRef]
+  def binariesMapper: Mapper[VirtualFileRef]
+  def productsMapper: Mapper[VirtualFileRef]
 
   private case class Descriptor[A, B](
       header: String,
@@ -123,10 +124,10 @@ trait RelationsTextFormat extends FormatCommons {
   private def construct(relations: List[Relation[_, _]]) =
     relations match {
       case p :: bin :: lcn :: mri :: mre :: ii :: ie :: lii :: lie :: cn :: un :: bcn :: Nil =>
-        val srcProd = p.asInstanceOf[Relation[File, File]]
-        val binaryDep = bin.asInstanceOf[Relation[File, File]]
-        val libraryClassName = lcn.asInstanceOf[Relation[File, String]]
-        val classes = cn.asInstanceOf[Relation[File, String]]
+        val srcProd = p.asInstanceOf[Relation[VirtualFileRef, VirtualFileRef]]
+        val libraryDep = bin.asInstanceOf[Relation[VirtualFileRef, VirtualFileRef]]
+        val libraryClassName = lcn.asInstanceOf[Relation[VirtualFileRef, String]]
+        val classes = cn.asInstanceOf[Relation[VirtualFileRef, String]]
         val names = un.asInstanceOf[Relation[String, UsedName]]
         val binaryClassName = bcn.asInstanceOf[Relation[String, String]]
 
@@ -146,7 +147,7 @@ trait RelationsTextFormat extends FormatCommons {
         )
         Relations.make(
           srcProd,
-          binaryDep,
+          libraryDep,
           libraryClassName,
           internal,
           external,

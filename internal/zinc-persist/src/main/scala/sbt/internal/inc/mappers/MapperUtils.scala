@@ -11,14 +11,13 @@
 
 package sbt.internal.inc.mappers
 
-import java.io.File
-import java.nio.file.Path
+import java.nio.file.{ Path, Paths }
 
 import xsbti.compile.analysis.Stamp
 
 object MapperUtils {
-  private[inc] def rebase(target: File, from: Path, to: Path): File = {
-    to.resolve(from.relativize(target.toPath)).toFile
+  private[inc] def rebase(target: Path, from: Path, to: Path): Path = {
+    to.resolve(from.relativize(target))
   }
 
   /** Defines a marker that tells the utils that the relativized path is empty. */
@@ -46,9 +45,9 @@ object MapperUtils {
    *
    * @return A relativized file with a special prefix to denote the path is relative.
    */
-  private[inc] def makeRelative(file: File, from: Path): File = {
-    val relativePath = from.relativize(file.toPath)
-    new File(s"$RELATIVE_MARKER${relativePath}")
+  private[inc] def makeRelative(file: Path, from: Path): Path = {
+    val relativePath = from.relativize(file)
+    Paths.get(s"$RELATIVE_MARKER${relativePath}")
   }
 
   /**
@@ -60,17 +59,17 @@ object MapperUtils {
    *
    * @return An absolute path from a relativized file by [[makeRelative()]].
    */
-  private[inc] def reconstructRelative(file: File, from: Path): File = {
-    val filePath = file.toPath.toString
+  private[inc] def reconstructRelative(file: Path, from: Path): Path = {
+    val filePath = file.toString
     if (filePath.startsWith(RELATIVE_MARKER)) {
       val cleanPath = filePath.drop(MARKER_LENGTH)
-      from.resolve(cleanPath).toFile()
+      from.resolve(cleanPath)
     } else throw new RelativePathAssumptionBroken(relativeReadError(filePath))
   }
 
   private final class RelativePathAssumptionBroken(msg: String) extends Exception(msg)
 
-  private[inc] def recomputeModificationDate(previouslyStampedFile: File): Stamp = {
-    sbt.internal.inc.Stamper.forLastModified(previouslyStampedFile)
+  private[inc] def recomputeModificationDate(previouslyStampedFile: Path): Stamp = {
+    sbt.internal.inc.Stamper.forLastModifiedP(previouslyStampedFile)
   }
 }

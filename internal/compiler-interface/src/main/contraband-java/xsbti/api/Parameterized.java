@@ -1,10 +1,10 @@
 /**
- * This code is generated using [[http://www.scala-sbt.org/contraband/ sbt-contraband]].
+ * This code is generated using [[https://www.scala-sbt.org/contraband/ sbt-contraband]].
  */
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public final class Parameterized extends xsbti.api.Type {
+public final class Parameterized extends xsbti.api.Type implements java.io.Serializable {
     
     public static Parameterized create(Type _baseType, Type[] _typeArguments) {
         return new Parameterized(_baseType, _typeArguments);

@@ -39,7 +39,7 @@ ThisBuild / version := {
   nightlyVersion match {
     case Some(v) => v
     case _ =>
-      if ((ThisBuild / isSnapshot).value) "1.3.0-SNAPSHOT"
+      if ((ThisBuild / isSnapshot).value) "1.4.0-SNAPSHOT"
       else old
   }
 }
@@ -84,6 +84,7 @@ def commonSettings: Seq[Setting[_]] = Seq(
   )(Resolver.ivyStylePatterns),
   // concurrentRestrictions in Global += Util.testExclusiveRestriction,
   testOptions += Tests.Argument(TestFrameworks.ScalaCheck, "-w", "1", "-verbosity", "2"),
+  testFrameworks += new TestFramework("verify.runner.Framework"),
   javacOptions in compile ++= Seq("-Xlint", "-Xlint:-serial"),
   publishArtifact in Test := false,
   commands ++= Seq(crossTestBridges),
@@ -219,17 +220,12 @@ lazy val zinc = (projectMatrix in file("zinc"))
     Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
     mimaSettings,
     mimaBinaryIssueFilters ++= Seq(
-      exclude[DirectMissingMethodProblem](
-        "sbt.internal.inc.IncrementalCompilerImpl.compileIncrementally"
-      ),
-      exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCompilerImpl.inputs"),
-      exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCompilerImpl.compile"),
-      exclude[DirectMissingMethodProblem]("sbt.internal.inc.MixedAnalyzingCompiler.config"),
-      exclude[DirectMissingMethodProblem]("sbt.internal.inc.MixedAnalyzingCompiler.makeConfig"),
-      exclude[DirectMissingMethodProblem]("sbt.internal.inc.MixedAnalyzingCompiler.this"),
-      exclude[DirectMissingMethodProblem]("sbt.internal.inc.CompileConfiguration.this"),
-      exclude[DirectMissingMethodProblem]("sbt.internal.inc.ZincUtil.getDefaultBridgeModule"),
-      exclude[DirectMissingMethodProblem]("sbt.internal.inc.ZincUtil.scalaCompiler"),
+      exclude[DirectMissingMethodProblem]("sbt.internal.*"),
+      exclude[IncompatibleSignatureProblem]("sbt.internal.*"),
+      exclude[IncompatibleMethTypeProblem]("sbt.internal.*"),
+      exclude[ReversedMissingMethodProblem]("sbt.internal.*"),
+      exclude[MissingClassProblem]("sbt.internal.*"),
+      exclude[IncompatibleResultTypeProblem]("sbt.internal.*"),
     )
   )
   .jvmPlatform(scalaVersions = List(scala212, scala213))
@@ -262,13 +258,24 @@ lazy val zincCompile = (projectMatrix in file("zinc-compile"))
   .settings(
     name := "zinc Compile",
     mimaSettings,
+    mimaBinaryIssueFilters ++= {
+      import com.typesafe.tools.mima.core._
+      import com.typesafe.tools.mima.core.ProblemFilters._
+      Seq(
+        exclude[IncompatibleSignatureProblem]("sbt.inc.Doc*"),
+        exclude[IncompatibleResultTypeProblem]("sbt.inc.Doc*"),
+        exclude[IncompatibleMethTypeProblem]("sbt.inc.Doc*"),
+        exclude[DirectMissingMethodProblem]("sbt.inc.Doc*"),
+        exclude[ReversedMissingMethodProblem]("sbt.inc.Doc*"),
+      )
+    },
   )
   .jvmPlatform(scalaVersions = List(scala212, scala213))
   .configure(addBaseSettingsAndTestDeps, addSbtUtilTracking)
 
 // Persists the incremental data structures using Protobuf
 lazy val zincPersist = (projectMatrix in internalPath / "zinc-persist")
-  .dependsOn(zincCore, zincCore % "test->test")
+  .dependsOn(zincCore, zincCompileCore, zincCore % "test->test")
   .settings(
     name := "zinc Persist",
     libraryDependencies += sbinary,
@@ -293,66 +300,11 @@ lazy val zincPersist = (projectMatrix in internalPath / "zinc-persist")
     PB.targets in Compile := List(scalapb.gen() -> (sourceManaged in Compile).value),
     Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
     mimaSettings,
-    mimaBinaryIssueFilters ++= {
-      import com.typesafe.tools.mima.core._
-      import com.typesafe.tools.mima.core.ProblemFilters._
-      Seq(
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.binary.BinaryAnalysisFormat.writeAPIs"
-        ),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.binary.BinaryAnalysisFormat.readAPIs"
-        ),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.binary.converters.ProtobufWriters.toApisFile"
-        ),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.binary.converters.ProtobufWriters.toApis"
-        ),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.binary.converters.ProtobufWriters.toAnalyzedClass"
-        ),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.binary.converters.ProtobufReaders.fromApis"
-        ),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.binary.converters.ProtobufReaders.fromApisFile"
-        ),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.binary.converters.ProtobufReaders.fromAnalyzedClass"
-        ),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.AnalyzedClass.apply"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.AnalyzedClass.copy"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.AnalyzedClass.this"),
-        exclude[ReversedMissingMethodProblem]("sbt.internal.inc.schema.Version.isV11"),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.binary.converters.ProtobufReaders.this"
-        ),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Problem.*"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Problem#ProblemLens.rendered"),
-        exclude[MissingClassProblem]("sbt.internal.inc.text.Java678Encoder"),
-        // Added {start,end}{Offset,Line,Column}
-        // Added Position#{start,end}{Offset,Line,Column}
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Position.apply"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Position.copy"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Position.this"),
-        // Added Problem#reported
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Problem.apply"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Problem.copy"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.schema.Problem.this"),
-        // Upgraded scalapb
-        exclude[FinalClassProblem]("sbt.internal.inc.schema.*"),
-        exclude[IncompatibleMethTypeProblem]("sbt.internal.inc.schema.*"),
-        exclude[IncompatibleMethTypeProblem]("sbt.internal.inc.zprof.*"),
-        exclude[IncompatibleResultTypeProblem]("sbt.internal.inc.schema.*"),
-        exclude[IncompatibleResultTypeProblem]("sbt.internal.inc.zprof.*"),
-        exclude[IncompatibleSignatureProblem]("sbt.internal.inc.schema.*"),
-        exclude[IncompatibleSignatureProblem]("sbt.internal.inc.zprof.*"),
-        exclude[InheritedNewAbstractMethodProblem]("sbt.internal.inc.schema.*"),
-        exclude[MissingTypesProblem]("sbt.internal.inc.schema.*"),
-        exclude[MissingTypesProblem]("sbt.internal.inc.zprof.*"),
-      )
-    }
+    mimaBinaryIssueFilters ++= Util.excludeInternalProblems,
+    mimaBinaryIssueFilters ++= Seq(
+      exclude[IncompatibleMethTypeProblem]("xsbti.*"),
+      exclude[ReversedMissingMethodProblem]("xsbti.*"),
+    ),
   )
   .jvmPlatform(scalaVersions = List(scala212, scala213))
   .configure(addBaseSettingsAndTestDeps)
@@ -361,6 +313,7 @@ lazy val zincPersist = (projectMatrix in internalPath / "zinc-persist")
 //   Defines the data structures for representing file fingerprints and relationships and the overall source analysis
 lazy val zincCore = (projectMatrix in internalPath / "zinc-core")
   .dependsOn(
+    zincCompileCore,
     zincApiInfo,
     zincClasspath,
     compilerInterface,
@@ -379,86 +332,11 @@ lazy val zincCore = (projectMatrix in internalPath / "zinc-core")
     compileOrder := sbt.CompileOrder.Mixed,
     mimaSettings,
     PB.targets in Compile := List(scalapb.gen() -> (sourceManaged in Compile).value),
-    mimaBinaryIssueFilters ++= {
-      import com.typesafe.tools.mima.core._
-      import com.typesafe.tools.mima.core.ProblemFilters._
-      List(
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalNameHashing.allDeps"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalNameHashing.sameAPI"),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.IncrementalNameHashing.invalidateClass"
-        ),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.IncrementalNameHashing.invalidateByExternal"
-        ),
-        exclude[DirectAbstractMethodProblem](
-          "sbt.internal.inc.IncrementalCommon.invalidatedPackageObjects"
-        ),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalNameHashing.this"),
-        exclude[MissingClassProblem]("sbt.internal.inc.ClassToSourceMapper"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.Incremental.compile"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.Incremental.prune"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.changes"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.sameClass"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.allDeps"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.sameAPI"),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.IncrementalCommon.invalidateIntermediate"
-        ),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.IncrementalCommon.invalidateByAllExternal"
-        ),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.IncrementalCommon.invalidateDuplicates"
-        ),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.transitiveDeps"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.invalidateClass"),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.IncrementalCommon.externalBinaryModified"
-        ),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.IncrementalCommon.invalidateIncremental"
-        ),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.changedInitial"),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.IncrementalCommon.transitiveDeps$default$2"
-        ),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.orTrue"),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.IncrementalCommon.invalidateByExternal"
-        ),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.wrappedLog"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.shortcutSameClass"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.orEmpty"),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.IncrementalCommon.changedIncremental"
-        ),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.IncrementalCommon.currentExternalAPI"
-        ),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.this"),
-        exclude[ReversedMissingMethodProblem](
-          "sbt.internal.inc.IncrementalCommon.findClassDependencies"
-        ),
-        exclude[ReversedMissingMethodProblem](
-          "sbt.internal.inc.IncrementalCommon.invalidateClassesInternally"
-        ),
-        exclude[ReversedMissingMethodProblem](
-          "sbt.internal.inc.IncrementalCommon.invalidateClassesExternally"
-        ),
-        exclude[ReversedMissingMethodProblem]("sbt.internal.inc.IncrementalCommon.findAPIChange"),
-        exclude[IncompatibleMethTypeProblem]("sbt.internal.inc.Incremental.prune"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.IncrementalCompile.apply"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.AnalysisCallback#Builder.this"),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.AnalysisCallback.this"),
-        exclude[IncompatibleSignatureProblem]("sbt.internal.inc.MiniSetupUtil.equivCompileSetup"),
-        // Upgraded scalapb
-        exclude[IncompatibleMethTypeProblem]("sbt.internal.inc.zprof.*"),
-        exclude[IncompatibleResultTypeProblem]("sbt.internal.inc.zprof.*"),
-        exclude[IncompatibleSignatureProblem]("sbt.internal.inc.zprof.*"),
-        exclude[MissingTypesProblem]("sbt.internal.inc.zprof.*"),
-      )
-    }
+    mimaBinaryIssueFilters ++= Util.excludeInternalProblems,
+    mimaBinaryIssueFilters ++= Seq(
+      exclude[IncompatibleMethTypeProblem]("xsbti.*"),
+      exclude[ReversedMissingMethodProblem]("xsbti.*"),
+    ),
   )
   .jvmPlatform(scalaVersions = List(scala212, scala213))
   .configure(addBaseSettingsAndTestDeps, addSbtIO, addSbtUtilLogging, addSbtUtilRelation)
@@ -491,33 +369,17 @@ lazy val zincCompileCore = (projectMatrix in internalPath / "zinc-compile-core")
   )
   .settings(
     name := "zinc Compile Core",
-    libraryDependencies ++= Seq(scalaCompiler.value % Test, launcherInterface, parserCombinator),
+    libraryDependencies ++= Seq(
+      scalaCompiler.value % Test,
+      launcherInterface,
+      parserCombinator,
+      zeroAllocationHashing
+    ),
     unmanagedJars in Test := Seq(packageSrc in compilerBridge212 in Compile value).classpath,
     managedSourceDirectories in Compile += (Compile / generateContrabands / sourceManaged).value,
     Compile / generateContrabands / sourceManaged := (internalPath / "zinc-compile-core" / "src" / "main" / "contraband-java").getAbsoluteFile,
     mimaSettings,
-    mimaBinaryIssueFilters ++= {
-      import com.typesafe.tools.mima.core._
-      import com.typesafe.tools.mima.core.ProblemFilters._
-      Seq(
-        // PositionImpl is a private class only invoked in the same source.
-        exclude[FinalClassProblem]("sbt.internal.inc.javac.DiagnosticsReporter$PositionImpl"),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.javac.DiagnosticsReporter#PositionImpl.this"
-        ),
-        exclude[DirectMissingMethodProblem]("sbt.internal.inc.javac.JavaProblem.rendered"),
-        // Renamed vals in a private[sbt] class
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.javac.DiagnosticsReporter#PositionImpl.endPosition"
-        ),
-        exclude[DirectMissingMethodProblem](
-          "sbt.internal.inc.javac.DiagnosticsReporter#PositionImpl.startPosition"
-        ),
-        exclude[IncompatibleMethTypeProblem](
-          "sbt.internal.inc.javac.DiagnosticsReporter#PositionImpl.this"
-        ),
-      )
-    },
+    mimaBinaryIssueFilters ++= Util.excludeInternalProblems,
   )
   .jvmPlatform(scalaVersions = List(scala212, scala213))
   .configure(addBaseSettingsAndTestDeps, addSbtUtilLogging, addSbtIO, addSbtUtilControl)
@@ -556,14 +418,31 @@ lazy val compilerInterface = (projectMatrix in internalPath / "compiler-interfac
       import com.typesafe.tools.mima.core._
       import com.typesafe.tools.mima.core.ProblemFilters._
       Seq(
-        exclude[ReversedMissingMethodProblem]("xsbti.compile.ExternalHooks#Lookup.hashClasspath"),
-        exclude[ReversedMissingMethodProblem]("xsbti.compile.ScalaInstance.loaderLibraryOnly"),
-        exclude[ReversedMissingMethodProblem]("xsbti.compile.ScalaInstance.libraryJars"), // Added in 1.3.0
-        exclude[DirectMissingMethodProblem]("xsbti.api.AnalyzedClass.of"),
-        exclude[DirectMissingMethodProblem]("xsbti.api.AnalyzedClass.create"),
-        exclude[ReversedMissingMethodProblem]("xsbti.AnalysisCallback.classesInOutputJar"),
+        // 1.4.0 changed to VirtualFile. These should be internal to Zinc.
+        exclude[Problem]("xsbti.AnalysisCallback.*"),
+        exclude[Problem]("xsbti.compile.PerClasspathEntryLookup.*"),
+        exclude[Problem]("xsbti.compile.ExternalHooks*"),
+        exclude[Problem]("xsbti.compile.FileHash.*"),
+        exclude[Problem]("xsbti.compile.Output.*"),
+        exclude[Problem]("xsbti.compile.OutputGroup.*"),
+        exclude[Problem]("xsbti.compile.SingleOutput.*"),
+        exclude[Problem]("xsbti.compile.MultipleOutput.*"),
+        exclude[Problem]("xsbti.compile.CachedCompiler.*"),
+        exclude[Problem]("xsbti.compile.ClassFileManager.*"),
+        exclude[Problem]("xsbti.compile.WrappedClassFileManager.*"),
+        exclude[Problem]("xsbti.compile.DependencyChanges.*"),
+        exclude[Problem]("xsbti.compile.ScalaCompiler.*"),
+        exclude[Problem]("xsbti.compile.JavaTool.*"),
+        exclude[Problem]("xsbti.compile.JavaTool.*"),
+        exclude[Problem]("xsbti.compile.analysis.ReadSourceInfos.*"),
+        exclude[Problem]("xsbti.compile.analysis.ReadStamps.*"),
+        // This is a breaking change
+        exclude[Problem]("xsbti.compile.CompileOptions.*"),
+        // new API points
+        exclude[DirectMissingMethodProblem]("xsbti.compile.IncrementalCompiler.compile"),
         exclude[ReversedMissingMethodProblem]("xsbti.compile.IncrementalCompiler.compile"),
-        exclude[DirectMissingMethodProblem]("xsbti.compile.IncrementalCompiler.compile")
+        exclude[ReversedMissingMethodProblem]("xsbti.compile.ScalaInstance.loaderLibraryOnly"),
+        exclude[ReversedMissingMethodProblem]("xsbti.compile.ScalaInstance.libraryJars"),
       )
     },
   )
@@ -738,12 +617,7 @@ lazy val zincClasspath = (projectMatrix in internalPath / "zinc-classpath")
     compilerVersionDependentScalacOptions,
     libraryDependencies ++= Seq(scalaCompiler.value, launcherInterface),
     mimaSettings,
-    mimaBinaryIssueFilters ++= Seq(
-      // Changed the signature of a private[sbt] method
-      exclude[DirectMissingMethodProblem](
-        "sbt.internal.inc.classpath.ClasspathUtilities.compilerPlugins"
-      ),
-    ),
+    mimaBinaryIssueFilters ++= Util.excludeInternalProblems,
   )
   .jvmPlatform(scalaVersions = List(scala212, scala213))
   .configure(addBaseSettingsAndTestDeps, addSbtIO)
@@ -764,7 +638,8 @@ lazy val zincClassfile = (projectMatrix in internalPath / "zinc-classfile")
       exclude[IncompatibleMethTypeProblem]("sbt.internal.inc.IndexBasedZipOps.*"),
       exclude[IncompatibleResultTypeProblem]("sbt.internal.inc.IndexBasedZipOps.*"),
       exclude[ReversedMissingMethodProblem]("sbt.internal.inc.IndexBasedZipOps.*"),
-    )
+    ),
+    mimaBinaryIssueFilters ++= Util.excludeInternalProblems,
   )
   .jvmPlatform(scalaVersions = List(scala212, scala213))
   .configure(addBaseSettingsAndTestDeps, addSbtIO, addSbtUtilLogging)

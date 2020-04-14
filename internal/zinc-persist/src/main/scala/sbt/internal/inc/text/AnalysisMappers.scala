@@ -12,18 +12,22 @@
 package sbt.internal.inc.text
 
 import java.io.File
+import java.nio.file.{ Path, Paths }
 
 import sbt.internal.inc.UsedName
-import xsbti.UseScope
+import xsbti.{ UseScope, VirtualFileRef }
 import xsbti.compile.analysis.Stamp
 
 case class Mapper[V](read: String => V, write: V => String)
 case class ContextAwareMapper[C, V](read: (C, String) => V, write: (C, V) => String)
 
 object Mapper {
+  val forPath: Mapper[Path] = Mapper(Paths.get(_), _.toString)
   val forFile: Mapper[File] = Mapper(FormatCommons.stringToFile, FormatCommons.fileToString)
+  val forFileV: Mapper[VirtualFileRef] =
+    Mapper(FormatCommons.stringToFileV, FormatCommons.fileVToString)
   val forString: Mapper[String] = Mapper(identity, identity)
-  val forStamp: ContextAwareMapper[File, Stamp] =
+  val forStampV: ContextAwareMapper[VirtualFileRef, Stamp] =
     ContextAwareMapper((_, v) => sbt.internal.inc.Stamp.fromString(v), (_, s) => s.toString)
   val forUsedName: Mapper[UsedName] = {
     val enumSetSerializer = EnumSetSerializer(UseScope.values())

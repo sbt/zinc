@@ -79,7 +79,7 @@ object ScriptedMain {
     ): Unit
   }
 
-  import sbt.internal.inc.classpath.ClasspathUtilities
+  import sbt.internal.inc.classpath.ClasspathUtil
   def runScripted(
       source: File,
       args: Seq[String],
@@ -90,7 +90,7 @@ object ScriptedMain {
     // Force Log4J to not use a thread context classloader otherwise it throws a CCE
     sys.props(org.apache.logging.log4j.util.LoaderUtil.IGNORE_TCCL_PROPERTY) = "true"
     val classpath = BuildInfo.test_classDirectory +: BuildInfo.classpath
-    val loader = ClasspathUtilities.toLoader(classpath)
+    val loader = ClasspathUtil.toLoader(classpath)
     val bridgeClass = Class.forName("sbt.inc.MainScriptedRunner", true, loader)
     val bridge = bridgeClass.getDeclaredConstructor().newInstance().asInstanceOf[MainScriptedRunner]
     try bridge.run(source, buffer, compileToJar, args.toArray)

@@ -14,6 +14,8 @@ package sbt.inc
 object SourceFiles {
   val Good = "Good.scala"
   val Foo = "Foo.scala"
+  val NestedJavaClasses = "NestedJavaClasses.java"
+
   object Naha {
     val ClientWithImplicitUsed = "ClientWithImplicitUsed.scala"
     val ClientWithImplicitNotUsed = "ClientWithImplicitNotUsed.scala"

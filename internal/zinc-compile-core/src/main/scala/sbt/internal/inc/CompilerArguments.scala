@@ -13,9 +13,10 @@ package sbt
 package internal
 package inc
 
-import xsbti.ArtifactInfo
+import xsbti.{ ArtifactInfo, PathBasedFile, VirtualFile }
+import xsbti.compile.{ MultipleOutput, Output, SingleOutput }
 import scala.util
-import java.io.File
+import java.nio.file.Path
 import CompilerArguments.{ absString, BootClasspathOption }
 import sbt.io.IO
 import sbt.io.syntax._
@@ -43,26 +44,46 @@ final class CompilerArguments(
     scalaInstance: xsbti.compile.ScalaInstance,
     cpOptions: xsbti.compile.ClasspathOptions
 ) {
-  def apply(
-      sources: Seq[File],
-      classpath: Seq[File],
-      outputDirectory: Option[File],
+  def makeArguments(
+      sources: Seq[VirtualFile],
+      classpath: Seq[VirtualFile],
+      output: Option[Path],
+      options: Seq[String]
+  ): Seq[String] =
+    CompilerArguments.outputOption(output) ++
+      makeArguments(sources, classpath, options)
+
+  def makeArguments(
+      sources: Seq[VirtualFile],
+      classpath: Seq[VirtualFile],
+      output: Output,
+      options: Seq[String]
+  ): Seq[String] =
+    CompilerArguments.outputOption(output) ++
+      makeArguments(sources, classpath, options)
+
+  def makeArguments(
+      sources: Seq[VirtualFile],
+      classpath: Seq[VirtualFile],
       options: Seq[String]
   ): Seq[String] = {
     /* Add dummy to avoid Scalac misbehaviour for empty classpath (as of 2.9.1). */
     def dummy: String = "dummy_" + Integer.toHexString(util.Random.nextInt)
 
     checkScalaHomeUnset()
-    val compilerClasspath = finishClasspath(classpath)
+    val cp = classpath map {
+      case x: PathBasedFile => x.toPath
+    }
+    val compilerClasspath = finishClasspath(cp)
     val stringClasspath =
       if (compilerClasspath.isEmpty) dummy
       else absString(compilerClasspath)
     val classpathOption = Seq("-classpath", stringClasspath)
-    val outputOption: Seq[String] = outputDirectory
-      .map(output => List("-d", output.getAbsolutePath))
-      .getOrElse(Nil)
-    val bootClasspath = bootClasspathOption(hasLibrary(classpath))
-    options ++ outputOption ++ bootClasspath ++ classpathOption ++ abs(sources)
+    val bootClasspath = bootClasspathOption(hasLibrary(cp))
+    val sources1 = sources map {
+      case x: PathBasedFile => x.toPath
+    }
+    options ++ bootClasspath ++ classpathOption ++ abs(sources1)
   }
 
   /**
@@ -71,15 +92,15 @@ final class CompilerArguments(
    * @param classpath The classpath seed to be modified.
    * @return A classpath ready to be passed to the Scala compiler.
    */
-  def finishClasspath(classpath: Seq[File]): Seq[File] = {
+  def finishClasspath(classpath: Seq[Path]): Seq[Path] = {
     val filteredClasspath = filterLibrary(classpath)
-    val extraCompiler = include(cpOptions.compiler, scalaInstance.compilerJar)
-    val otherJars = scalaInstance.otherJars.toList
+    val extraCompiler = include(cpOptions.compiler, scalaInstance.compilerJar.toPath)
+    val otherJars = scalaInstance.otherJars.toList.map(_.toPath)
     val extraClasspath = include(cpOptions.extra, otherJars: _*)
     filteredClasspath ++ extraCompiler ++ extraClasspath
   }
 
-  def createBootClasspathFor(classpath: Seq[File]): String =
+  def createBootClasspathFor(classpath: Seq[Path]): String =
     createBootClasspath(hasLibrary(classpath) || cpOptions.compiler || cpOptions.extra)
 
   /**
@@ -99,39 +120,39 @@ final class CompilerArguments(
     if (addLibrary) {
       val newBootPrefix =
         if (originalBoot.isEmpty) ""
-        else originalBoot + File.pathSeparator
-      newBootPrefix + absString(scalaInstance.libraryJars)
+        else originalBoot + java.io.File.pathSeparator
+      newBootPrefix + absString(scalaInstance.libraryJars.map(_.toPath))
     } else originalBoot
   }
 
-  def filterLibrary(classpath: Seq[File]) =
+  def filterLibrary(classpath: Seq[Path]) =
     if (!cpOptions.filterLibrary) classpath
     else classpath.filterNot(isScalaLibrary)
 
-  def hasLibrary(classpath: Seq[File]) = classpath.exists(isScalaLibrary)
+  def hasLibrary(classpath: Seq[Path]) = classpath.exists(isScalaLibrary)
 
   def bootClasspathOption(addLibrary: Boolean): Seq[String] =
     if (!cpOptions.autoBoot) Nil
     else Seq(BootClasspathOption, createBootClasspath(addLibrary))
 
-  def bootClasspath(addLibrary: Boolean): Seq[File] =
+  def bootClasspath(addLibrary: Boolean): Seq[Path] =
     if (!cpOptions.autoBoot) Nil
-    else IO.parseClasspath(createBootClasspath(addLibrary))
+    else IO.parseClasspath(createBootClasspath(addLibrary)).map(_.toPath)
 
-  def bootClasspathFor(classpath: Seq[File]) =
+  def bootClasspathFor(classpath: Seq[Path]) =
     bootClasspath(hasLibrary(classpath))
 
-  def extClasspath: Seq[File] =
+  def extClasspath: Seq[Path] =
     List("java.ext.dirs", "scala.ext.dirs").flatMap(
-      k => (IO.parseClasspath(System.getProperty(k, "")) * "*.jar").get
+      k => (IO.parseClasspath(System.getProperty(k, "")) * "*.jar").get.map(_.toPath)
     )
 
-  private[this] def include(flag: Boolean, jars: File*) =
+  private[this] def include(flag: Boolean, jars: Path*) =
     if (flag) jars
     else Nil
 
-  private[this] def abs(files: Seq[File]) =
-    files.map(_.getAbsolutePath).sortWith(_ < _)
+  private[this] def abs(files: Seq[Path]) =
+    files.map(_.toAbsolutePath.toString).sortWith(_ < _)
 
   private[this] def checkScalaHomeUnset(): Unit = {
     val scalaHome = System.getProperty("scala.home")
@@ -141,8 +162,8 @@ final class CompilerArguments(
     )
   }
 
-  private[this] val isScalaLibrary: File => Boolean = file => {
-    val name = file.getName
+  private[this] val isScalaLibrary: Path => Boolean = file => {
+    val name = file.getFileName.toString
     name.contains(ArtifactInfo.ScalaLibraryID) ||
     scalaInstance.libraryJars.exists(_.getName == name)
   }
@@ -151,14 +172,33 @@ final class CompilerArguments(
 object CompilerArguments {
   val BootClasspathOption = "-bootclasspath"
 
-  def abs(files: Seq[File]): List[String] = files.toList.map(_.getAbsolutePath)
+  def abs(files: Seq[Path]): List[String] = files.toList.map(_.toAbsolutePath.toString)
 
-  def abs(files: Set[File]): List[String] = abs(files.toList)
+  def abs(files: Set[Path]): List[String] = abs(files.toList)
 
-  def absString(files: Seq[File]): String =
-    abs(files).mkString(File.pathSeparator)
+  def absString(files: Seq[Path]): String =
+    abs(files).mkString(java.io.File.pathSeparator)
 
-  def absString(files: Set[File]): String = absString(files.toList)
+  def absString(files: Set[Path]): String = absString(files.toList)
 
-  def absString(files: Array[File]): String = absString(files.toList)
+  def absString(files: Array[Path]): String = absString(files.toList)
+
+  def outputOption(output: Output): Seq[String] = {
+    /* Oracle Javac doesn't support multiple output directories
+     * However, we use multiple output directories in case the
+     * user provides their own Javac compiler that can indeed
+     * make use of it (e.g. the Eclipse compiler does this via EJC).
+     * See https://github.com/sbt/zinc/issues/163. */
+    val target = output match {
+      case so: SingleOutput  => Some(so.getOutputDirectory)
+      case _: MultipleOutput => None
+    }
+    outputOption(target)
+  }
+
+  def outputOption(outputDirectory: Option[Path]): Seq[String] = {
+    outputDirectory
+      .map(output => List("-d", output.toAbsolutePath.toString))
+      .getOrElse(Nil)
+  }
 }

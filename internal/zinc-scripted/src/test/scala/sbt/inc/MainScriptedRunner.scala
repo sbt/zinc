@@ -26,7 +26,7 @@ final class MainScriptedRunner {
   ): Unit = {
     IO.withTemporaryDirectory { tempDir =>
       // Create a global temporary directory to store the bridge et al
-      val handlers = new IncScriptedHandlers(tempDir, compileToJar)
+      val handlers = new IncScriptedHandlers(tempDir.toPath, compileToJar)
       ScriptedRunnerImpl.run(resourceBaseDirectory, bufferLog, tests, handlers, 4)
     }
   }

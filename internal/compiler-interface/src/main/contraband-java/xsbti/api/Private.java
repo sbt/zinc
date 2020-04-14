@@ -1,10 +1,10 @@
 /**
- * This code is generated using [[http://www.scala-sbt.org/contraband/ sbt-contraband]].
+ * This code is generated using [[https://www.scala-sbt.org/contraband/ sbt-contraband]].
  */
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public final class Private extends xsbti.api.Qualified {
+public final class Private extends xsbti.api.Qualified implements java.io.Serializable {
     
     public static Private create(Qualifier _qualifier) {
         return new Private(_qualifier);

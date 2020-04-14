@@ -1,10 +1,10 @@
 /**
- * This code is generated using [[http://www.scala-sbt.org/contraband/ sbt-contraband]].
+ * This code is generated using [[https://www.scala-sbt.org/contraband/ sbt-contraband]].
  */
 
 // DO NOT EDIT MANUALLY
 package xsbti.api;
-public final class Def extends xsbti.api.ParameterizedDefinition {
+public final class Def extends xsbti.api.ParameterizedDefinition implements java.io.Serializable {
     
     public static Def create(String _name, Access _access, Modifiers _modifiers, Annotation[] _annotations, TypeParameter[] _typeParameters, ParameterList[] _valueParameters, Type _returnType) {
         return new Def(_name, _access, _modifiers, _annotations, _typeParameters, _valueParameters, _returnType);

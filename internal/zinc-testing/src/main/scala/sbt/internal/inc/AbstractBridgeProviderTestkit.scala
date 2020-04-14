@@ -11,25 +11,33 @@
 
 package sbt.internal.inc
 
-import java.io.File
-import sbt.io.IO
-import sbt.io.syntax._
+import java.nio.file.{ Files, FileAlreadyExistsException, Path, StandardCopyOption }
 import sbt.util.Logger
 import xsbti.compile.CompilerBridgeProvider
 
 trait AbstractBridgeProviderTestkit {
-  def getZincProvider(targetDir: File, log: Logger): CompilerBridgeProvider
+  def getZincProvider(targetDir: Path, log: Logger): CompilerBridgeProvider
 
-  def getCompilerBridge(targetDir: File, log: Logger, scalaVersion: String): File = {
+  def getCompilerBridge(targetDir: Path, log: Logger, scalaVersion: String): Path = {
     val provider = getZincProvider(targetDir, log)
     val scalaInstance = provider.fetchScalaInstance(scalaVersion, log)
-    val bridge = provider.fetchCompiledBridge(scalaInstance, log)
-    val target = targetDir / s"target-bridge-$scalaVersion.jar"
-    IO.copyFile(bridge, target)
+    val bridge = provider.fetchCompiledBridge(scalaInstance, log).toPath
+    val target = targetDir.resolve(s"target-bridge-$scalaVersion.jar")
+    if (!Files.exists(target)) {
+      try {
+        Files.copy(bridge, target, StandardCopyOption.REPLACE_EXISTING)
+      } catch {
+        case _: FileAlreadyExistsException => ()
+      }
+    }
     target
   }
 
   import xsbti.compile.ScalaInstance
-  def scalaInstance(scalaVersion: String, targetDir: File, logger: Logger): ScalaInstance =
+  def scalaInstance(scalaVersion: String, targetDir: Path, logger: Logger): ScalaInstance =
     getZincProvider(targetDir, logger).fetchScalaInstance(scalaVersion, logger)
+
+  implicit class RichPath(p: Path) {
+    def /(sub: String): Path = p.resolve(sub)
+  }
 }

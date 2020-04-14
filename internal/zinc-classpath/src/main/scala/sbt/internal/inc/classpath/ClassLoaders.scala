@@ -14,10 +14,9 @@ package internal
 package inc
 package classpath
 
-import java.io.File
+import java.nio.file.{ Files, Path, StandardCopyOption }
 import java.net.{ URL, URLClassLoader }
 import annotation.tailrec
-import sbt.io.IO
 
 /**
  * This is a starting point for defining a custom ClassLoader.  Override 'doLoadClass' to define
@@ -62,7 +61,7 @@ final class SelfFirstLoader(classpath: Seq[URL], parent: ClassLoader)
 }
 
 /** Doesn't load any classes itself, but instead verifies that all classes loaded through `parent` either come from `root` or `classpath`.*/
-final class ClasspathFilter(parent: ClassLoader, root: ClassLoader, classpath: Set[File])
+final class ClasspathFilter(parent: ClassLoader, root: ClassLoader, classpath: Set[Path])
     extends ClassLoader(parent) {
 
   def close(): Unit = {
@@ -79,7 +78,7 @@ final class ClasspathFilter(parent: ClassLoader, root: ClassLoader, classpath: S
         |  cp = $classpath
         |)""".stripMargin
 
-  private[this] val directories: Seq[File] = classpath.toSeq.filter(_.isDirectory)
+  private[this] val directories: Seq[Path] = classpath.toSeq.filter(Files.isDirectory(_))
   override def loadClass(className: String, resolve: Boolean): Class[_] = {
     val c = super.loadClass(className, resolve)
     if (includeLoader(c.getClassLoader, root) || fromClasspath(c))
@@ -94,9 +93,10 @@ final class ClasspathFilter(parent: ClassLoader, root: ClassLoader, classpath: S
   }
   private[this] def onClasspath(src: URL): Boolean =
     (src eq null) || (
-      IO.urlAsFile(src) match {
-        case Some(f) => classpath(f) || directories.exists(dir => IO.relativize(dir, f).isDefined)
-        case None    => false
+      ClasspathUtil.asFile(src).headOption match {
+        case Some(f) =>
+          classpath(f) || directories.exists(dir => ClasspathUtil.relativize(dir, f).isDefined)
+        case None => false
       }
     )
 
@@ -167,9 +167,9 @@ final class IncludePackagesFilter(include: Iterable[String]) extends PackageFilt
  * the native library and avoids the restriction on a native library being loaded by a single class loader.
  */
 final class NativeCopyConfig(
-    val tempDirectory: File,
-    val explicitLibraries: Seq[File],
-    val searchPaths: Seq[File]
+    val tempDirectory: Path,
+    val explicitLibraries: Seq[Path],
+    val searchPaths: Seq[Path]
 )
 
 /**
@@ -189,17 +189,18 @@ trait NativeCopyLoader extends ClassLoader {
 
   private[this] def findLibrary0(name: String): String = {
     val mappedName = System.mapLibraryName(name)
-    val explicit = explicitLibraries.filter(_.getName == mappedName).toStream
+    val explicit = explicitLibraries.filter(_.getFileName.toString == mappedName).toStream
     val search = searchPaths.toStream flatMap relativeLibrary(mappedName)
     (explicit ++ search).headOption.map(copy).orNull
   }
-  private[this] def relativeLibrary(mappedName: String)(base: File): Seq[File] = {
-    val f = new File(base, mappedName)
-    if (f.isFile) f :: Nil else Nil
+  private[this] def relativeLibrary(mappedName: String)(base: Path): Seq[Path] = {
+    val f = base.resolve(mappedName)
+    if (Files.isRegularFile(f)) f :: Nil
+    else Nil
   }
-  private[this] def copy(f: File): String = {
-    val target = new File(tempDirectory, f.getName)
-    IO.copyFile(f, target)
-    target.getAbsolutePath
+  private[this] def copy(f: Path): String = {
+    val target = tempDirectory.resolve(f.getFileName.toString)
+    Files.copy(f, target, StandardCopyOption.REPLACE_EXISTING)
+    target.toAbsolutePath.toString
   }
 }

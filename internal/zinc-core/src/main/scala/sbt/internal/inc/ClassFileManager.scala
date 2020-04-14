@@ -14,10 +14,11 @@ package internal
 package inc
 
 import sbt.io.IO
-import java.io.File
 import java.util.Optional
+import java.nio.file.{ Files, Path }
 
 import collection.mutable
+import xsbti.{ PathBasedFile, VirtualFile }
 import xsbti.compile.{
   IncOptions,
   DeleteImmediatelyManagerType,
@@ -35,7 +36,7 @@ object ClassFileManager {
       classFileManagerType.get match {
         case _: DeleteImmediatelyManagerType => new DeleteClassFileManager
         case m: TransactionalManagerType =>
-          transactional(m.backupDirectory, m.logger)
+          transactional(m.backupDirectory.toPath, m.logger)
       }
     } else new DeleteClassFileManager
   }
@@ -57,7 +58,7 @@ object ClassFileManager {
       classFileManagerType.get match {
         case _: DeleteImmediatelyManagerType => deleteImmediately(output, outputJarContent)
         case m: TransactionalManagerType =>
-          transactional(output, outputJarContent, m.backupDirectory, m.logger)
+          transactional(output, outputJarContent, m.backupDirectory.toPath, m.logger)
       }
     } else deleteImmediately(output, outputJarContent)
   }
@@ -76,11 +77,17 @@ object ClassFileManager {
   }
 
   private final class DeleteClassFileManager extends XClassFileManager {
-    override def delete(classes: Array[File]): Unit =
-      IO.deleteFilesEmptyDirs(classes)
-    override def generated(classes: Array[File]): Unit = ()
+    override def delete(classes: Array[VirtualFile]): Unit =
+      IO.deleteFilesEmptyDirs(classes.toVector.map(toPath).map(_.toFile))
+    override def generated(classes: Array[VirtualFile]): Unit = ()
     override def complete(success: Boolean): Unit = ()
   }
+
+  private def toPath(vf: VirtualFile): Path =
+    vf match {
+      case x: PathBasedFile => x.toPath
+      case x                => sys.error(s"${x.id} is not path-based")
+    }
 
   /**
    * Constructs a minimal [[ClassFileManager]] implementation that immediately deletes
@@ -90,7 +97,7 @@ object ClassFileManager {
   def deleteImmediately: XClassFileManager = new DeleteClassFileManager
 
   def deleteImmediatelyFromJar(
-      outputJar: File,
+      outputJar: Path,
       outputJarContent: JarUtils.OutputJarContent
   ): XClassFileManager =
     new DeleteClassFileManagerForJar(outputJar, outputJarContent)
@@ -110,11 +117,11 @@ object ClassFileManager {
    *
    * This is the default class file manager used by sbt, and makes sense in a lot of scenarios.
    */
-  def transactional(tempDir0: File, logger: sbt.util.Logger): XClassFileManager =
+  def transactional(tempDir0: Path, logger: sbt.util.Logger): XClassFileManager =
     new TransactionalClassFileManager(tempDir0, logger)
 
   def transactionalForJar(
-      outputJar: File,
+      outputJar: Path,
       outputJarContent: JarUtils.OutputJarContent
   ): XClassFileManager = {
     new TransactionalClassFileManagerForJar(outputJar, outputJarContent)
@@ -123,40 +130,42 @@ object ClassFileManager {
   def transactional(
       output: Output,
       outputJarContent: JarUtils.OutputJarContent,
-      tempDir: File,
+      tempDir: Path,
       logger: sbt.util.Logger
   ): XClassFileManager = {
     val outputJar = JarUtils.getOutputJar(output)
     outputJar.fold(transactional(tempDir, logger))(transactionalForJar(_, outputJarContent))
   }
 
-  private final class TransactionalClassFileManager(tempDir0: File, logger: sbt.util.Logger)
+  private final class TransactionalClassFileManager(tempDir0: Path, logger: sbt.util.Logger)
       extends XClassFileManager {
-    val tempDir = tempDir0.getCanonicalFile
-    IO.delete(tempDir)
-    IO.createDirectory(tempDir)
+    val tempDir = tempDir0.normalize
+    IO.delete(tempDir.toFile)
+    Files.createDirectories(tempDir)
     logger.debug(s"Created transactional ClassFileManager with tempDir = $tempDir")
 
-    private[this] val generatedClasses = new mutable.HashSet[File]
-    private[this] val movedClasses = new mutable.HashMap[File, File]
+    private[this] val generatedClasses = new mutable.HashSet[VirtualFile]
+    private[this] val movedClasses = new mutable.HashMap[VirtualFile, Path]
 
-    private def showFiles(files: Iterable[File]): String =
-      files.map(f => s"\t$f").mkString("\n")
+    private def showFiles(files: Iterable[VirtualFile]): String =
+      files.map(f => s"\t${f.id}").mkString("\n")
 
-    override def delete(classes: Array[File]): Unit = {
-      logger.debug(s"About to delete class files:\n${showFiles(classes)}")
+    override def delete(classes0: Array[VirtualFile]): Unit = {
+      logger.debug(s"About to delete class files:\n${showFiles(classes0)}")
       val toBeBackedUp =
-        classes.filter(c => c.exists && !movedClasses.contains(c) && !generatedClasses(c))
+        classes0.toVector.filter(
+          c => Files.exists(toPath(c)) && !movedClasses.contains(c) && !generatedClasses(c)
+        )
       logger.debug(s"We backup class files:\n${showFiles(toBeBackedUp)}")
-      for (c <- toBeBackedUp) {
+      for { c <- toBeBackedUp } {
         movedClasses.put(c, move(c))
       }
-      IO.deleteFilesEmptyDirs(classes)
+      IO.deleteFilesEmptyDirs(classes0.map(toPath).map(_.toFile))
     }
 
-    override def generated(classes: Array[File]): Unit = {
-      logger.debug(s"Registering generated classes:\n${showFiles(classes)}")
-      generatedClasses ++= classes
+    override def generated(classes0: Array[VirtualFile]): Unit = {
+      logger.debug(s"Registering generated classes:\n${showFiles(classes0)}")
+      generatedClasses ++= classes0
       ()
     }
 
@@ -164,31 +173,42 @@ object ClassFileManager {
       if (!success) {
         logger.debug("Rolling back changes to class files.")
         logger.debug(s"Removing generated classes:\n${showFiles(generatedClasses)}")
-        IO.deleteFilesEmptyDirs(generatedClasses)
+        IO.deleteFilesEmptyDirs(generatedClasses.toVector.map(toPath).map(_.toFile))
         logger.debug(s"Restoring class files: \n${showFiles(movedClasses.keys)}")
-        for ((orig, tmp) <- movedClasses) IO.move(tmp, orig)
+        for {
+          (orig, tmp) <- movedClasses
+        } {
+          if (Files.exists(tmp)) {
+            val origPath = toPath(orig)
+            if (!Files.exists(origPath.getParent)) {
+              Files.createDirectories(origPath.getParent)
+            } // if
+            Files.move(tmp, origPath)
+          } // if
+        }
       }
       logger.debug(s"Removing the temporary directory used for backing up class files: $tempDir")
-      IO.delete(tempDir)
+      IO.delete(tempDir.toFile)
     }
 
-    def move(c: File): File = {
-      val target = File.createTempFile("sbt", ".class", tempDir)
-      IO.move(c, target)
+    def move(c: VirtualFile): Path = {
+      val target = Files.createTempFile(tempDir, "sbt", ".class")
+      IO.move(toPath(c).toFile, target.toFile)
       target
     }
   }
 
   private final class DeleteClassFileManagerForJar(
-      outputJar: File,
+      outputJar: Path,
       outputJarContent: JarUtils.OutputJarContent
   ) extends XClassFileManager {
-    override def delete(classes: Array[File]): Unit = {
-      val relClasses = classes.map(c => JarUtils.ClassInJar.fromFile(c).toClassFilePath)
+    override def delete(classes0: Array[VirtualFile]): Unit = {
+      val classes = classes0.toVector.map(toPath)
+      val relClasses = classes.map(c => JarUtils.ClassInJar.fromPath(c).toClassFilePath)
       outputJarContent.removeClasses(relClasses.toSet)
       JarUtils.removeFromJar(outputJar, relClasses)
     }
-    override def generated(classes: Array[File]): Unit = ()
+    override def generated(classes: Array[VirtualFile]): Unit = ()
     override def complete(success: Boolean): Unit = ()
   }
 
@@ -204,18 +224,21 @@ object ClassFileManager {
    * reason the old index with offsets to old files will still be valid.
    */
   private final class TransactionalClassFileManagerForJar(
-      outputJar: File,
+      outputJar: Path,
       outputJarContent: JarUtils.OutputJarContent
   ) extends XClassFileManager {
-    private val backedUpIndex = Some(outputJar).filter(_.exists()).map(JarUtils.stashIndex)
+    private val backedUpIndex = Some(outputJar)
+      .filter(Files.exists(_))
+      .map(JarUtils.stashIndex)
 
-    override def delete(classesInJar: Array[File]): Unit = {
-      val classes = classesInJar.map(c => JarUtils.ClassInJar.fromFile(c).toClassFilePath)
+    override def delete(classesInJar: Array[VirtualFile]): Unit = {
+      val classes =
+        classesInJar.toVector.map(toPath).map(c => JarUtils.ClassInJar.fromPath(c).toClassFilePath)
       JarUtils.removeFromJar(outputJar, classes)
       outputJarContent.removeClasses(classes.toSet)
     }
 
-    override def generated(classes: Array[File]): Unit = ()
+    override def generated(classes: Array[VirtualFile]): Unit = ()
 
     override def complete(success: Boolean): Unit = {
       if (!success) {

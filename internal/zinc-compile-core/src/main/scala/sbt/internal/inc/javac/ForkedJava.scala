@@ -16,12 +16,12 @@ package inc
 package javac
 
 import java.io.File
-
+import java.nio.file.Path
 import sbt.io.syntax._
 import sbt.io.IO
 import sbt.util.Logger
-import xsbti.{ Reporter, Logger => XLogger }
-import xsbti.compile.{ IncToolOptions, JavaCompiler => XJavaCompiler, Javadoc => XJavadoc }
+import xsbti.{ PathBasedFile, Reporter, Logger => XLogger, VirtualFile }
+import xsbti.compile.{ IncToolOptions, JavaCompiler => XJavaCompiler, Javadoc => XJavadoc, Output }
 
 import scala.sys.process.Process
 
@@ -30,15 +30,21 @@ object ForkedJava {
 
   /** Helper method to launch programs. */
   private[javac] def launch(
-      javaHome: Option[File],
+      javaHome: Option[Path],
       program: String,
-      sources: Seq[File],
+      sources0: Seq[VirtualFile],
       options: Seq[String],
+      output: Output,
       log: Logger,
       reporter: Reporter
   ): Boolean = {
     val (jArgs, nonJArgs) = options.partition(_.startsWith("-J"))
-    val allArguments = nonJArgs ++ sources.map(_.getAbsolutePath)
+    val outputOption = CompilerArguments.outputOption(output)
+    // val sources: Seq[String] = sources0.map(converter.toPath).map(_.toAbsolutePath.toString)
+    val sources = sources0 map {
+      case x: PathBasedFile => x.toPath.toAbsolutePath.toString
+    }
+    val allArguments = outputOption ++ nonJArgs ++ sources
 
     withArgumentFile(allArguments) { argsFile =>
       val forkArgs = jArgs :+ s"@${normalizeSlash(argsFile.getAbsolutePath)}"
@@ -77,33 +83,34 @@ object ForkedJava {
   private def normalizeSlash(s: String) = s.replace(File.separatorChar, '/')
 
   /** create the executable name for java */
-  private[javac] def getJavaExecutable(javaHome: Option[File], name: String): String =
+  private[javac] def getJavaExecutable(javaHome: Option[Path], name: String): String =
     javaHome match {
-      case None     => name
+      case None => name
       case Some(jh) =>
-        // TODO - Was there any hackery for windows before?
-        (jh / "bin" / name).getAbsolutePath
+        jh.resolve("bin").resolve(name).toAbsolutePath.toString
     }
 }
 
 /** An implementation of compiling java which forks a Javac instance. */
-final class ForkedJavaCompiler(javaHome: Option[File]) extends XJavaCompiler {
+final class ForkedJavaCompiler(javaHome: Option[Path]) extends XJavaCompiler {
   def run(
-      sources: Array[File],
+      sources: Array[VirtualFile],
       options: Array[String],
+      output: Output,
       incToolOptions: IncToolOptions,
       reporter: Reporter,
       log: XLogger
   ): Boolean =
-    ForkedJava.launch(javaHome, "javac", sources, options, log, reporter)
+    ForkedJava.launch(javaHome, "javac", sources, options, output, log, reporter)
 }
-final class ForkedJavadoc(javaHome: Option[File]) extends XJavadoc {
+final class ForkedJavadoc(javaHome: Option[Path]) extends XJavadoc {
   def run(
-      sources: Array[File],
+      sources: Array[VirtualFile],
       options: Array[String],
+      output: Output,
       incToolOptions: IncToolOptions,
       reporter: Reporter,
       log: XLogger
   ): Boolean =
-    ForkedJava.launch(javaHome, "javadoc", sources, options, log, reporter)
+    ForkedJava.launch(javaHome, "javadoc", sources, options, output, log, reporter)
 }

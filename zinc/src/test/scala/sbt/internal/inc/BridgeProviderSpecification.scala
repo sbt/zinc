@@ -11,7 +11,7 @@
 
 package sbt.internal.inc
 
-import java.io.File
+import java.nio.file.Path
 import sbt.inc.{ ScalaBridge, ConstantBridgeProvider }
 import sbt.util.Logger
 import xsbti.compile.CompilerBridgeProvider
@@ -27,6 +27,6 @@ class BridgeProviderSpecification extends UnitSpec with AbstractBridgeProviderTe
   }
 
   // Create a provider that uses the bridges from the classes directory of the projects
-  def getZincProvider(targetDir: File, log: Logger): CompilerBridgeProvider =
+  def getZincProvider(targetDir: Path, log: Logger): CompilerBridgeProvider =
     new ConstantBridgeProvider(bridges, targetDir)
 }

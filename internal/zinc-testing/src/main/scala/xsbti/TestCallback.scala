@@ -11,7 +11,7 @@
 
 package xsbti
 
-import java.io.File
+import java.nio.file.Path
 import java.util
 
 import xsbti.api.{ DependencyContext, ClassLike }
@@ -22,17 +22,22 @@ class TestCallback extends AnalysisCallback {
   case class TestUsedName(name: String, scopes: util.EnumSet[UseScope])
 
   val classDependencies = new ArrayBuffer[(String, String, DependencyContext)]
-  val binaryDependencies = new ArrayBuffer[(File, String, String, DependencyContext)]
-  val productClassesToSources = scala.collection.mutable.Map.empty[File, File]
+  val binaryDependencies =
+    new ArrayBuffer[(Path, String, String, DependencyContext)]
+  val productClassesToSources =
+    scala.collection.mutable.Map.empty[Path, VirtualFileRef]
   val usedNamesAndScopes =
     scala.collection.mutable.Map.empty[String, Set[TestUsedName]].withDefaultValue(Set.empty)
   val classNames =
-    scala.collection.mutable.Map.empty[File, Set[(String, String)]].withDefaultValue(Set.empty)
-  val apis: scala.collection.mutable.Map[File, Set[ClassLike]] = scala.collection.mutable.Map.empty
+    scala.collection.mutable.Map
+      .empty[VirtualFileRef, Set[(String, String)]]
+      .withDefaultValue(Set.empty)
+  val apis: scala.collection.mutable.Map[VirtualFileRef, Set[ClassLike]] =
+    scala.collection.mutable.Map.empty
 
   def usedNames = usedNamesAndScopes.mapValues(_.map(_.name))
 
-  def startSource(source: File): Unit = {
+  override def startSource(source: VirtualFile): Unit = {
     assert(
       !apis.contains(source),
       s"The startSource can be called only once per source file: $source"
@@ -49,19 +54,21 @@ class TestCallback extends AnalysisCallback {
       classDependencies += ((onClassName, sourceClassName, context))
     ()
   }
-  def binaryDependency(
-      onBinary: File,
+
+  override def binaryDependency(
+      onBinary: Path,
       onBinaryClassName: String,
       fromClassName: String,
-      fromSourceFile: File,
+      fromSourceFile: VirtualFileRef,
       context: DependencyContext
   ): Unit = {
     binaryDependencies += ((onBinary, onBinaryClassName, fromClassName, context))
     ()
   }
-  def generatedNonLocalClass(
-      sourceFile: File,
-      classFile: File,
+
+  override def generatedNonLocalClass(
+      sourceFile: VirtualFileRef,
+      classFile: Path,
       binaryClassName: String,
       srcClassName: String
   ): Unit = {
@@ -70,7 +77,10 @@ class TestCallback extends AnalysisCallback {
     ()
   }
 
-  def generatedLocalClass(sourceFile: File, classFile: File): Unit = {
+  override def generatedLocalClass(
+      sourceFile: VirtualFileRef,
+      classFile: Path
+  ): Unit = {
     productClassesToSources += ((classFile, sourceFile))
     ()
   }
@@ -78,12 +88,12 @@ class TestCallback extends AnalysisCallback {
   def usedName(className: String, name: String, scopes: util.EnumSet[UseScope]): Unit =
     usedNamesAndScopes(className) += TestUsedName(name, scopes)
 
-  def api(source: File, api: ClassLike): Unit = {
+  override def api(source: VirtualFileRef, api: ClassLike): Unit = {
     apis(source) += api
     ()
   }
 
-  def mainClass(source: File, className: String): Unit = ()
+  override def mainClass(source: VirtualFileRef, className: String): Unit = ()
 
   override def enabled(): Boolean = true
 

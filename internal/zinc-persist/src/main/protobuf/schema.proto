@@ -14,11 +14,16 @@ message LastModified {
     int64 millis = 1;
 }
 
+message FarmHash {
+    int64 hash = 1;
+}
+
 message Stamps {
     message StampType {
         oneof type {
             Hash hash = 1;
             LastModified lastModified = 2;
+            FarmHash farmHash = 3;
         }
     }
 

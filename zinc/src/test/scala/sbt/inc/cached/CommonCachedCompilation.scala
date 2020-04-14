@@ -19,6 +19,7 @@ import sbt.internal.inc.cached.{ CacheAwareStore, CacheProvider }
 import sbt.internal.inc.{ Analysis, FileAnalysisStore }
 import sbt.io.IO
 import sbt.inc.BaseCompilerSpec
+import xsbti.VirtualFileRef
 import xsbti.compile.AnalysisStore
 
 abstract class CommonCachedCompilation(name: String)
@@ -71,7 +72,7 @@ abstract class CommonCachedCompilation(name: String)
     remoteProject =
       ProjectSetup(basePath, SetupCommons.baseSourceMapping, SetupCommons.baseCpMapping)
     remoteCompilerSetup = remoteProject.createCompiler()
-    remoteAnalysisStore = FileAnalysisStore.binary(remoteProject.defaultStoreLocation)
+    remoteAnalysisStore = FileAnalysisStore.binary(remoteProject.defaultStoreLocation.toFile)
 
     val result = remoteCompilerSetup.doCompileWithStore(remoteAnalysisStore)
     assert(result.hasModified)
@@ -91,13 +92,15 @@ abstract class CommonCachedCompilation(name: String)
     val prefix = tempDir.toPath.toString
 
     val stamps = analysis.stamps
-    val allStamps = stamps.sources.keySet ++ stamps.products.keySet ++ stamps.binaries.keySet
-    val outputs = analysis.compilations.allCompilations.map(_.getOutput.getSingleOutput.get)
-    val allFilesToMigrate = allStamps ++ outputs
+    // val productStamps = stamps.products.keySet
+    val fileStamps = stamps.libraries.keySet
+    // val vfileStamps = stamps.sources.keySet
+    // val outputs = analysis.compilations.allCompilations.map(_.getOutput.getSingleOutput.get)
+    val allFilesToMigrate = fileStamps // ++ outputs
 
     val globalTmpPrefix = tempDir.getParentFile.toPath.toString
-    def isGlobal(f: File): Boolean =
-      !f.toPath.toString.startsWith(globalTmpPrefix)
+    def isGlobal(f: VirtualFileRef): Boolean =
+      !f.id.toString.startsWith(globalTmpPrefix)
 
     allFilesToMigrate.filterNot(isGlobal).foreach { source =>
       source.toString should startWith(prefix)

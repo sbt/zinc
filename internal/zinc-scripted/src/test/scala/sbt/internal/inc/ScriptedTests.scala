@@ -11,7 +11,7 @@
 
 package sbt.internal.inc
 
-import java.io.File
+import java.nio.file.{ Files, Path }
 import java.util.concurrent.atomic.AtomicInteger
 
 import sbt.internal.scripted._
@@ -22,10 +22,11 @@ import sbt.internal.util.{ ConsoleAppender, ConsoleOut, ManagedLogger, TraceEven
 import sbt.util.{ Level, LogExchange }
 
 final class ScriptedTests(
-    resourceBaseDirectory: File,
+    resourceBaseDirectory: Path,
     bufferLog: Boolean,
+    outLevel: Level.Value,
     handlersProvider: HandlersProvider,
-    logsDir: File
+    logsDir: Path
 ) {
   import sbt.io.syntax._
   import ScriptedTests._
@@ -35,14 +36,14 @@ final class ScriptedTests(
 
   final val ScriptFilename = "test"
   final val PendingScriptFilename = "pending"
-  private val testResources = new Resources(resourceBaseDirectory)
+  private val testResources = new Resources(resourceBaseDirectory.toFile)
 
   private def createScriptedHandlers(
       label: String,
-      testDir: File,
+      testDir: Path,
       logger: ManagedLogger
   ): Map[Char, StatementHandler] = {
-    val scriptConfig = new ScriptConfig(label, testDir, logger)
+    val scriptConfig = new ScriptConfig(label, testDir.toFile, logger)
     handlersProvider.getHandlers(scriptConfig)
   }
 
@@ -55,15 +56,15 @@ final class ScriptedTests(
     val groupAndNameDirs = {
       for {
         ScriptedTest(group, name) <- testGroupAndNames
-        groupDir <- resourceBaseDirectory.*(group).get
-        testDir <- groupDir.*(name).get
+        groupDir <- resourceBaseDirectory.toFile.*(group).get.map(_.toPath)
+        testDir <- groupDir.toFile.*(name).get.map(_.toPath)
       } yield (groupDir, testDir)
     }
 
     val labelsAndDirs = groupAndNameDirs.map {
       case (groupDir, nameDir) =>
-        val groupName = groupDir.getName
-        val testName = nameDir.getName
+        val groupName = groupDir.getFileName.toString
+        val testName = nameDir.getFileName.toString
         val testDirectory = testResources.readOnlyResourceDirectory(groupName, testName)
         (groupName, testName) -> testDirectory
     }
@@ -74,31 +75,38 @@ final class ScriptedTests(
       val batchSize = if (batchSeed == 0) labelsAndDirs.size else batchSeed
       labelsAndDirs
         .grouped(batchSize)
-        .map(batch => () => IO.withTemporaryDirectory(runBatchedTests(batch, _)))
+        .map(
+          batch =>
+            () =>
+              IO.withTemporaryDirectory { tempDir =>
+                runBatchedTests(batch, tempDir.toPath)
+              }
+        )
         .toList
     }
   }
 
-  def createScriptedLogFile(loggerName: String): File = {
+  def createScriptedLogFile(loggerName: String): Path = {
     val name = s"$loggerName-${runIdGenerator.incrementAndGet}.log"
-    val logFile = logsDir./(name)
-    logFile.createNewFile()
+    val logFile = logsDir.resolve(name)
+    if (!Files.exists(logFile)) {
+      Files.createFile(logFile)
+    }
     logFile
   }
 
   import sbt.internal.util.BufferedAppender
-  case class ScriptedLogger(log: ManagedLogger, logFile: File, buffer: BufferedAppender)
+  case class ScriptedLogger(log: ManagedLogger, logFile: Path, buffer: BufferedAppender)
 
   private val BufferSize = 8192 // copied from IO since it's private
-  def rebindLogger(logger: ManagedLogger, logFile: File): ScriptedLogger = {
+  def rebindLogger(logger: ManagedLogger, logFile: Path): ScriptedLogger = {
     // Create buffered logger to a file that we will afterwards use.
     import java.io.{ BufferedWriter, FileWriter }
     val name = logger.name
-    val writer = new BufferedWriter(new FileWriter(logFile), BufferSize)
+    val writer = new BufferedWriter(new FileWriter(logFile.toFile), BufferSize)
     val fileOut = ConsoleOut.bufferedWriterOut(writer)
     val fileAppender = ConsoleAppender(name, fileOut, useFormat = false)
     val outAppender = BufferedAppender(ConsoleAppender())
-    val outLevel = if (bufferLog) Level.Info else Level.Debug
     val appenders = (fileAppender -> Level.Debug) :: (outAppender -> outLevel) :: Nil
     LogExchange.unbindLoggerAppenders(name)
     LogExchange.bindLoggerAppenders(name, appenders)
@@ -125,7 +133,7 @@ final class ScriptedTests(
    */
   private def runBatchedTests(
       groupedTests: Seq[((String, String), File)],
-      batchTmpDir: File
+      batchTmpDir: Path
   ): Seq[Option[String]] = {
     val runner = new BatchScriptRunner
     val batchId = s"initial-batch-${batchIdGenerator.incrementAndGet()}"
@@ -145,7 +153,7 @@ final class ScriptedTests(
 
           println(s"Running $label")
           // Copy test's contents
-          IO.copyDirectory(originalDir, batchTmpDir)
+          IO.copyDirectory(originalDir, batchTmpDir.toFile)
 
           // Reset the state of `IncHandler` between every scripted run
           runner.cleanUpHandlers(seqHandlers, states)
@@ -154,7 +162,7 @@ final class ScriptedTests(
           // Run the test and delete files (except global that holds local scala jars)
           val runTest = () => commonRunTest(label, batchTmpDir, handlers, runner, states, logger)
           val result = runOrHandleDisabled(label, batchTmpDir, runTest, logger)
-          IO.delete(batchTmpDir.*("*" -- "global").get)
+          IO.delete(batchTmpDir.toFile.*("*" -- "global").get)
           result
       }
     }
@@ -165,11 +173,11 @@ final class ScriptedTests(
 
   private def runOrHandleDisabled(
       label: String,
-      testDirectory: File,
+      testDirectory: Path,
       runTest: () => Option[String],
       logger: ScriptedLogger
   ): Option[String] = {
-    val existsDisabled = new File(testDirectory, "disabled").isFile
+    val existsDisabled = Files.isRegularFile(testDirectory.resolve("disabled"))
     if (!existsDisabled) runTest()
     else {
       logger.log.info(s"D $label [DISABLED]")
@@ -183,7 +191,7 @@ final class ScriptedTests(
   private val PendingLabel = "[PENDING]"
   private def commonRunTest(
       label: String,
-      testDirectory: File,
+      testDirectory: Path,
       handlers: Map[Char, StatementHandler],
       runner: BatchScriptRunner,
       states: BatchScriptRunner.States,
@@ -193,9 +201,10 @@ final class ScriptedTests(
     if (bufferLog) buffer.record()
 
     val (file, pending) = {
-      val normal = new File(testDirectory, ScriptFilename)
-      val pending = new File(testDirectory, PendingScriptFilename)
-      if (pending.isFile) (pending, true) else (normal, false)
+      val normal = testDirectory.resolve(ScriptFilename)
+      val pending = testDirectory.resolve(PendingScriptFilename)
+      if (Files.isRegularFile(pending)) (pending, true)
+      else (normal, false)
     }
 
     def testFailed(t: Throwable): Option[String] = {
@@ -221,7 +230,7 @@ final class ScriptedTests(
       .andFinally(buffer.stopBuffer())
       .apply {
         val parser = new TestScriptParser(handlers)
-        val handlersAndStatements = parser.parse(file)
+        val handlersAndStatements = parser.parse(file.toFile)
         runner.apply(handlersAndStatements, states)
 
         // Handle successful tests
@@ -240,5 +249,5 @@ final class ScriptedTests(
 
 object ScriptedTests {
   type TestRunner = () => Seq[Option[String]]
-  val emptyCallback: File => Unit = _ => ()
+  val emptyCallback: Path => Unit = _ => ()
 }

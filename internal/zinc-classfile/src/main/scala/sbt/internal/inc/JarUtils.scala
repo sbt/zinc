@@ -13,11 +13,13 @@ package sbt.internal.inc
 
 import sbt.io.IO
 import java.util.zip.ZipFile
+import java.nio.file.{ Files, Path }
 import java.io.File
 import java.util.UUID
 
 import sbt.io.syntax.URL
 import xsbti.compile.{ Output, SingleOutput }
+import java.nio.file.{ Files, Path, Paths }
 
 /**
  * This is a utility class that provides a set of functions that
@@ -59,6 +61,7 @@ object JarUtils {
      */
     def toFile: File = new File(toString)
 
+    def toPath: Path = Paths.get(toString)
   }
 
   object ClassInJar {
@@ -72,7 +75,7 @@ object JarUtils {
      * @param cls the relative path to class within the jar
      * @return a proper ClassInJar identified by given jar and path to class
      */
-    def apply(jar: File, cls: ClassFilePath): ClassInJar = {
+    def apply(jar: Path, cls: ClassFilePath): ClassInJar = {
       // This identifier will be stored as a java.io.File. Its constructor will normalize slashes
       // which means that the identifier to be consistent should at all points have consistent
       // slashes for safe comparisons, especially in sets or maps.
@@ -96,13 +99,19 @@ object JarUtils {
      * @param jar a jar file where the class is located in
      * @return the class inside a jar represented as `ClassInJar`
      */
-    def fromURL(url: URL, jar: File): ClassInJar = {
-      val Array(_, cls) = url.getPath.split("!/")
-      apply(jar, cls)
+    def fromURL(url: URL, jar: Path): ClassInJar = {
+      val path = url.getPath
+      if (!path.contains("!")) sys.error(s"unexpected URL $url that does not include '!'")
+      else {
+        val Array(_, cls) = url.getPath.split("!")
+        apply(jar, cls)
+      }
     }
 
     /** Initialized `ClassInJar` based on its serialized value stored inside a file */
     def fromFile(f: File): ClassInJar = new ClassInJar(f.toString)
+
+    def fromPath(p: Path): ClassInJar = new ClassInJar(p.toString)
   }
 
   /**
@@ -125,13 +134,13 @@ object JarUtils {
   val javacOptions: Set[ClassFilePath] = Set("-XDuseOptimizedZip=false")
 
   /** Reads current index of a jar file to allow restoring it later with `unstashIndex` */
-  def stashIndex(jar: File): IndexBasedZipFsOps.CentralDir = {
-    IndexBasedZipFsOps.readCentralDir(jar)
+  def stashIndex(jar: Path): IndexBasedZipFsOps.CentralDir = {
+    IndexBasedZipFsOps.readCentralDir(jar.toFile)
   }
 
   /** Replaces index in given jar file with specified one */
-  def unstashIndex(jar: File, index: IndexBasedZipFsOps.CentralDir): Unit = {
-    IndexBasedZipFsOps.writeCentralDir(jar, index)
+  def unstashIndex(jar: Path, index: IndexBasedZipFsOps.CentralDir): Unit = {
+    IndexBasedZipFsOps.writeCentralDir(jar.toFile, index)
   }
 
   /**
@@ -156,9 +165,9 @@ object JarUtils {
   /**
    * Removes specified entries from a jar file.
    */
-  def removeFromJar(jarFile: File, classes: Iterable[ClassFilePath]): Unit = {
-    if (jarFile.exists()) {
-      IndexBasedZipFsOps.removeEntries(jarFile, classes)
+  def removeFromJar(jarFile: Path, classes: Iterable[ClassFilePath]): Unit = {
+    if (Files.exists(jarFile)) {
+      IndexBasedZipFsOps.removeEntries(jarFile.toFile, classes)
     }
   }
 
@@ -166,9 +175,11 @@ object JarUtils {
    * Reads all timestamps from given jar file. Returns a function that
    * allows to access them by `ClassInJar` wrapped in `File`.
    */
-  def readStamps(jar: File): File => Long = {
+  def readStamps(jar: Path): Path => Long = {
     val stamps = new IndexBasedZipFsOps.CachedStamps(jar)
-    file => stamps.getStamp(ClassInJar.fromFile(file).toClassFilePath)
+    file =>
+      val u = file.toUri.toURL
+      stamps.getStamp(ClassInJar.fromURL(u, jar).toClassFilePath)
   }
 
   /**
@@ -200,11 +211,11 @@ object JarUtils {
    * @param callback analysis callback used to set previus jar
    * @param compile function that given extra classpath for compiler runs the compilation
    */
-  def withPreviousJar(output: Output)(compile: /*extra classpath: */ Seq[File] => Unit): Unit = {
+  def withPreviousJar(output: Output)(compile: /*extra classpath: */ Seq[Path] => Unit): Unit = {
     preparePreviousJar(output) match {
       case Some((prevJar, outputJar)) =>
         try {
-          compile(Seq(prevJar))
+          compile(Seq(prevJar.toPath))
         } catch {
           case e: Exception =>
             IO.move(prevJar, outputJar)
@@ -226,11 +237,12 @@ object JarUtils {
    */
   def preparePreviousJar(output: Output): Option[(File, File)] = {
     getOutputJar(output)
-      .filter(_.exists())
+      .filter(Files.exists(_))
       .map { outputJar =>
         val prevJar = createPrevJarPath()
-        IO.move(outputJar, prevJar)
-        (prevJar, outputJar)
+        val out = outputJar.toFile
+        IO.move(out, prevJar)
+        (prevJar, out)
       }
   }
 
@@ -246,7 +258,7 @@ object JarUtils {
     IO.move(prevJar, outputJar)
   }
 
-  private var tempDir: File = _
+  private var tempDir: Path = _
 
   /**
    * Ensures that temporary directory exists.
@@ -254,19 +266,19 @@ object JarUtils {
    * @param temporaryClassesDirectory path to temporary directory for classes.
    *                                  If not specified, a default will be used.
    */
-  def setupTempClassesDir(temporaryClassesDirectory: Option[File]): Unit = {
+  def setupTempClassesDir(temporaryClassesDirectory: Option[Path]): Unit = {
     temporaryClassesDirectory match {
       case Some(dir) =>
-        IO.createDirectory(dir)
+        Files.createDirectories(dir)
         tempDir = dir
       case None =>
-        tempDir = new File(IO.temporaryDirectory, "zinc_temp_classes_dir")
+        tempDir = (new File(IO.temporaryDirectory, "zinc_temp_classes_dir")).toPath
     }
   }
 
   private def createPrevJarPath(): File = {
     val prevJarName = s"$prevJarPrefix-${UUID.randomUUID()}.jar"
-    tempDir.toPath.resolve(prevJarName).toFile
+    tempDir.resolve(prevJarName).toFile
   }
 
   val prevJarPrefix: String = "prev-jar"
@@ -280,6 +292,16 @@ object JarUtils {
   }
 
   /**
+   * Return JAR component of class-in-jar notation.
+   */
+  def getJarInClassInJar(path: Path): Option[Path] = {
+    path.toString.split("!") match {
+      case Array(jar, _) if jar.toString.endsWith(".jar") => Some(Paths.get(jar))
+      case _                                              => None
+    }
+  }
+
+  /**
    * Determines if Straight to Jar compilations is enabled
    * by inspecting if compilation output is a jar file
    */
@@ -288,10 +310,10 @@ object JarUtils {
   }
 
   /** Extracts a jar file from the output if it is set to be a single jar. */
-  def getOutputJar(output: Output): Option[File] = {
+  def getOutputJar(output: Output): Option[Path] = {
     output match {
       case s: SingleOutput =>
-        Some(s.getOutputDirectory).filter(_.getName.endsWith(".jar"))
+        Some(s.getOutputDirectory).filter(_.toString.endsWith(".jar"))
       case _ => None
     }
   }
@@ -305,10 +327,10 @@ object JarUtils {
    * of this method has to be deterministic as it is called from different places
    * independently.
    */
-  def javacTempOutput(outputJar: File): File = {
-    val outJarName = outputJar.getName
+  def javacTempOutput(outputJar: Path): Path = {
+    val outJarName = outputJar.getFileName.toString
     val outDirName = outJarName + "-javac-output"
-    outputJar.toPath.resolveSibling(outDirName).toFile
+    outputJar.resolveSibling(outDirName)
   }
 
   /**
@@ -366,7 +388,7 @@ object JarUtils {
     def get(): Set[ClassFilePath] = Set.empty
   }
 
-  private class ValidOutputJarContent(outputJar: File) extends OutputJarContent {
+  private class ValidOutputJarContent(outputJar: Path) extends OutputJarContent {
     private var content: Set[ClassFilePath] = Set.empty
     private var shouldReadJar: Boolean = false
 
@@ -395,8 +417,8 @@ object JarUtils {
     }
 
     private def update(): Unit = {
-      if (outputJar.exists()) {
-        content ++= JarUtils.listClassFiles(outputJar).toSet
+      if (Files.exists(outputJar)) {
+        content ++= JarUtils.listClassFiles(outputJar.toFile).toSet
       }
     }
   }

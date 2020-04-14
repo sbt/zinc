@@ -13,22 +13,23 @@ package sbt
 package internal
 package inc
 
-import java.io.File
-
-import xsbti.Reporter
+import xsbti.{ FileConverter, Reporter, VirtualFile }
 import xsbti.compile.{
   CompileAnalysis,
   CompileProgress,
   GlobalsCache,
   IncOptions,
   MiniSetup,
+  Output,
   PerClasspathEntryLookup
 }
+import xsbti.compile.analysis.ReadStamps
 
 /**
  * Configuration used for running an analyzing compiler (a compiler which can extract dependencies between source files and JARs).
  *
  * @param sources
+ * @param converter
  * @param classpath
  * @param previousAnalysis
  * @param previousSetup
@@ -42,8 +43,10 @@ import xsbti.compile.{
  * @param incOptions
  */
 final class CompileConfiguration(
-    val sources: Seq[File],
-    val classpath: Seq[File],
+    val sources: Seq[VirtualFile],
+    val converter: FileConverter,
+    val classpath: Seq[VirtualFile],
+    val output: Output,
     val previousAnalysis: CompileAnalysis,
     val previousSetup: Option[MiniSetup],
     val currentSetup: MiniSetup,
@@ -54,5 +57,6 @@ final class CompileConfiguration(
     val javac: xsbti.compile.JavaCompiler,
     val cache: GlobalsCache,
     val incOptions: IncOptions,
-    val outputJarContent: JarUtils.OutputJarContent
+    val outputJarContent: JarUtils.OutputJarContent,
+    val stampReader: ReadStamps,
 )

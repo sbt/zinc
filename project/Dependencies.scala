@@ -72,12 +72,14 @@ object Dependencies {
   val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.14.0"
   val scalatest = "org.scalatest" %% "scalatest" % "3.0.8"
   val junit = "junit" % "junit" % "4.12"
+  val verify = "com.eed3si9n.verify" %% "verify" % "0.2.0"
   val sjsonnew = Def.setting {
     "com.eed3si9n" %% "sjson-new-core" % contrabandSjsonNewVersion.value
   }
   val sjsonnewScalaJson = Def.setting {
     "com.eed3si9n" %% "sjson-new-scalajson" % contrabandSjsonNewVersion.value
   }
+  val zeroAllocationHashing = "net.openhft" % "zero-allocation-hashing" % "0.10.1"
 
   def log4jVersion = "2.11.2"
   val log4jApi = "org.apache.logging.log4j" % "log4j-api" % log4jVersion
@@ -91,6 +93,7 @@ object Dependencies {
       libraryDependencies ++= Seq(
         scalaCheck % Test,
         scalatest % Test,
+        verify % Test,
         junit % Test
       )
     )

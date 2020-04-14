@@ -36,4 +36,6 @@ case class CacheAwareStore(
       case None                    => Empty
     }
   }
+
+  override def unsafeGet: AnalysisContents = get.get
 }

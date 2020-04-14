@@ -1,4 +1,4 @@
-package macros
+package example
 
 import scala.language.experimental.macros
 import scala.reflect.macros.Context

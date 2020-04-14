@@ -14,23 +14,23 @@ package internal
 package inc
 package javac
 
-import java.io.File
+import xsbti.{ PathBasedFile, VirtualFile }
 import CompilerArguments.{ absString, abs }
 
 // Intended to be used with sbt.internal.inc.javac.JavaTools.
 private[sbt] object JavaCompilerArguments {
   def apply(
-      sources: List[File],
-      classpath: List[File],
-      outputDirectory: Option[File],
+      sources: List[VirtualFile],
+      classpath: List[VirtualFile],
       options: List[String]
   ): List[String] = {
-    val classpathOption = List("-classpath", absString(classpath))
-    val outputOption =
-      outputDirectory match {
-        case Some(out) => List("-d", out.getAbsolutePath)
-        case _         => Nil
-      }
-    options ::: outputOption ::: classpathOption ::: abs(sources)
+    val cp = classpath map {
+      case x: PathBasedFile => x.toPath
+    }
+    val sources1 = sources map {
+      case x: PathBasedFile => x.toPath
+    }
+    val classpathOption = List("-classpath", absString(cp))
+    options ::: classpathOption ::: abs(sources1)
   }
 }

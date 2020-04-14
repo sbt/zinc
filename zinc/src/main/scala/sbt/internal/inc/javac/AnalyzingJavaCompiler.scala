@@ -14,13 +14,20 @@ package internal
 package inc
 package javac
 
-import java.io.File
+import java.nio.file.Path
 import java.net.URLClassLoader
 
-import sbt.internal.inc.classfile.Analyze
-import sbt.internal.inc.classpath.ClasspathUtilities
+import sbt.internal.inc.classfile.JavaAnalyze
+import sbt.internal.inc.classpath.ClasspathUtil
 import xsbti.compile._
-import xsbti.{ AnalysisCallback, Reporter => XReporter, Logger => XLogger }
+import xsbti.{
+  AnalysisCallback,
+  FileConverter,
+  Reporter => XReporter,
+  Logger => XLogger,
+  VirtualFile,
+  VirtualFileRef
+}
 import sbt.io.PathFinder
 
 import sbt.util.InterfaceUtil
@@ -44,36 +51,36 @@ import sbt.util.Logger
  */
 final class AnalyzingJavaCompiler private[sbt] (
     val javac: xsbti.compile.JavaCompiler,
-    val classpath: Seq[File],
+    val classpath: Seq[VirtualFile],
     val scalaInstance: xsbti.compile.ScalaInstance,
     val classpathOptions: ClasspathOptions,
-    val classLookup: (String => Option[File]),
-    val searchClasspath: Seq[File]
+    val classLookup: (String => Option[VirtualFile]),
+    val searchClasspath: Seq[VirtualFile]
 ) extends JavaCompiler {
 
-  // for compatibility
-  def compile(
-      sources: Seq[File],
-      options: Seq[String],
-      output: Output,
-      callback: AnalysisCallback,
-      incToolOptions: IncToolOptions,
-      reporter: XReporter,
-      log: XLogger,
-      progressOpt: Option[CompileProgress]
-  ): Unit = {
-    compile(
-      sources,
-      options,
-      output,
-      finalJarOutput = None,
-      callback,
-      incToolOptions,
-      reporter,
-      log,
-      progressOpt
-    )
-  }
+  // // for compatibility
+  // def compile(
+  //     sources: Seq[File],
+  //     options: Seq[String],
+  //     output: Output,
+  //     callback: AnalysisCallback,
+  //     incToolOptions: IncToolOptions,
+  //     reporter: XReporter,
+  //     log: XLogger,
+  //     progressOpt: Option[CompileProgress]
+  // ): Unit = {
+  //   compile(
+  //     sources,
+  //     options,
+  //     output,
+  //     finalJarOutput = None,
+  //     callback,
+  //     incToolOptions,
+  //     reporter,
+  //     log,
+  //     progressOpt
+  //   )
+  // }
 
   /**
    * Compile some java code using the current configured compiler.
@@ -90,37 +97,36 @@ final class AnalyzingJavaCompiler private[sbt] (
    *                    back what files are currently under compilation.
    */
   def compile(
-      sources: Seq[File],
+      sources: Seq[VirtualFile],
+      converter: FileConverter, // this is needed to thaw ref back to path for stamping
       options: Seq[String],
       output: Output,
-      finalJarOutput: Option[File],
+      finalJarOutput: Option[Path],
       callback: AnalysisCallback,
       incToolOptions: IncToolOptions,
       reporter: XReporter,
       log: XLogger,
       progressOpt: Option[CompileProgress]
   ): Unit = {
-    // Helper for finding the ancestor of two files
-    @annotation.tailrec
-    def ancestor(f1: File, f2: File): Boolean = {
-      if (f2 eq null) false
-      else if (f1 == f2) true
-      else ancestor(f1, f2.getParentFile)
-    }
+    val sourceDirs = collection.mutable.Map.empty[Path, VirtualFileRef]
 
     if (sources.nonEmpty) {
       // Make the classpath absolute for Java compilation
-      val absClasspath = classpath.map(_.getAbsoluteFile)
+      val absClasspath = classpath.map(VirtualFileUtil.toAbsolute)
 
       // Outline chunks of compiles so that .class files end up in right location
-      val chunks: Map[Option[File], Seq[File]] = output match {
+      val chunks: Map[Option[Path], Seq[VirtualFile]] = output match {
         case single: SingleOutput =>
-          Map(Some(single.getOutputDirectory) -> sources)
+          Map(Option(single.getOutputDirectory) -> sources)
         case multi: MultipleOutput =>
           sources.groupBy { src =>
             multi.getOutputGroups
               .find { out =>
-                ancestor(out.getSourceDirectory, src)
+                val sourceDir: VirtualFileRef = sourceDirs.getOrElseUpdate(
+                  out.getSourceDirectory,
+                  converter.toVirtualFile(out.getSourceDirectory)
+                )
+                src.id.startsWith(sourceDir.id)
               }
               .map(_.getOutputDirectory)
           }
@@ -128,13 +134,13 @@ final class AnalyzingJavaCompiler private[sbt] (
 
       // Report warnings about source files that have no output directory
       chunks.get(None) foreach { srcs =>
-        val culpritPaths = srcs.map(_.getAbsolutePath).mkString(", ")
+        val culpritPaths = srcs.map(_.id).mkString(", ")
         log.error(InterfaceUtil.toSupplier(s"No output directory mapped for: $culpritPaths"))
       }
 
       // Memoize the known class files in the Javac output directory
-      val memo = for ((Some(outputDirectory), srcs) <- chunks) yield {
-        val classesFinder = PathFinder(outputDirectory) ** "*.class"
+      val memo = for { (Some(outputDirectory), srcs) <- chunks } yield {
+        val classesFinder = PathFinder(outputDirectory.toFile) ** "*.class"
         (classesFinder, classesFinder.get, srcs)
       }
 
@@ -148,14 +154,14 @@ final class AnalyzingJavaCompiler private[sbt] (
       timed(javaCompilationPhase, log) {
         val args = sbt.internal.inc.javac.JavaCompiler.commandArguments(
           absClasspath,
-          output,
           options,
           scalaInstance,
           classpathOptions
         )
-        val javaSources = sources.sortBy(_.getAbsolutePath).toArray
+        val javaSources: Array[VirtualFile] =
+          sources.sortBy(_.id).toArray
         val success =
-          javac.run(javaSources, args.toArray, incToolOptions, reporter, log)
+          javac.run(javaSources, args.toArray, output, incToolOptions, reporter, log)
         if (!success) {
           /* Assume that no Scalac problems are reported for a Javac-related
            * reporter. This relies on the incremental compiler will not run
@@ -167,7 +173,7 @@ final class AnalyzingJavaCompiler private[sbt] (
       }
 
       // Read the API information from [[Class]] to analyze dependencies.
-      def readAPI(source: File, classes: Seq[Class[_]]): Set[(String, String)] = {
+      def readAPI(source: VirtualFileRef, classes: Seq[Class[_]]): Set[(String, String)] = {
         val (apis, mainClasses, inherits) = ClassToAPI.process(classes)
         apis.foreach(callback.api(source, _))
         mainClasses.foreach(callback.mainClass(source, _))
@@ -182,14 +188,17 @@ final class AnalyzingJavaCompiler private[sbt] (
         progress.startUnit(javaAnalysisPhase, "")
         progress.advance(1, 2)
       }
-
       // Construct class loader to analyze dependencies of generated class files
-      val loader = ClasspathUtilities.toLoader(searchClasspath)
+      val loader = ClasspathUtil.toLoader(searchClasspath.map(converter.toPath))
 
       timed(javaAnalysisPhase, log) {
         for ((classesFinder, oldClasses, srcs) <- memo) {
           val newClasses = Set(classesFinder.get: _*) -- oldClasses
-          Analyze(newClasses.toSeq, srcs, log, output, finalJarOutput)(callback, loader, readAPI)
+          JavaAnalyze(newClasses.toSeq.map(_.toPath), srcs, log, output, finalJarOutput)(
+            callback,
+            loader,
+            readAPI
+          )
         }
       }
 
@@ -223,12 +232,13 @@ final class AnalyzingJavaCompiler private[sbt] (
    * @param log       A place where we can log debugging/error messages.
    */
   override def run(
-      sources: Array[File],
+      sources: Array[VirtualFile],
       options: Array[String],
+      output: Output,
       incToolOptions: IncToolOptions,
       reporter: XReporter,
       log: XLogger
-  ): Boolean = javac.run(sources, options, incToolOptions, reporter, log)
+  ): Boolean = javac.run(sources, options, output, incToolOptions, reporter, log)
 
   /** Time how long it takes to run various compilation tasks. */
   private[this] def timed[T](label: String, log: Logger)(t: => T): T = {

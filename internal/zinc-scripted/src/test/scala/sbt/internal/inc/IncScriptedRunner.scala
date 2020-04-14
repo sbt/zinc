@@ -15,7 +15,7 @@ import java.io.File
 
 import sbt.internal.scripted.{ HandlersProvider, ListTests, ScriptedTest }
 import sbt.io.IO
-import sbt.util.Logger
+import sbt.util.{ Level, Logger }
 
 import scala.collection.parallel.ParSeq
 
@@ -30,28 +30,39 @@ object ScriptedRunnerImpl {
       instances: Int
   ): Unit = {
     val globalLogger = newLogger
-    val logsDir = newScriptedLogsDir
-    val runner = new ScriptedTests(resourceBaseDirectory, bufferLog, handlersProvider, logsDir)
+    val logsDir = newScriptedLogsDir.toPath
+    val outLevel = Level.Debug // if (bufferLog) Level.Info else Level.Debug
+    val runner =
+      new ScriptedTests(
+        resourceBaseDirectory.toPath,
+        bufferLog,
+        outLevel,
+        handlersProvider,
+        logsDir
+      )
     val scriptedTests = get(tests, resourceBaseDirectory, globalLogger)
     val scriptedRunners = runner.batchScriptedRunner(scriptedTests, instances)
     val parallelRunners = scriptedRunners.toParArray
     val pool = new java.util.concurrent.ForkJoinPool(instances)
     parallelRunners.tasksupport = new scala.collection.parallel.ForkJoinTaskSupport(pool)
-    runAllInParallel(parallelRunners)
-    globalLogger.info(s"Log files can be found at ${logsDir.getAbsolutePath}")
+    runAllInParallel(parallelRunners, scriptedTests.size)
+    globalLogger.info(s"Log files can be found at ${logsDir.toAbsolutePath}")
   }
 
-  private val nl = IO.Newline
-  private val nlt = nl + "\t"
-  class ScriptedFailure(tests: Seq[String]) extends RuntimeException(tests.mkString(nlt, nlt, nl)) {
-    // We are not interested in the stack trace here, only the failing tests
-    override def fillInStackTrace = this
-  }
+  def runAllInParallel(tests: ParSeq[TestRunner], size: Int): Unit = {
+    val nl = IO.Newline
+    val nlt = nl + "\t"
+    class ScriptedFailure(tests: Seq[String])
+        extends RuntimeException(
+          s"""${tests.size} (out of $size) scripted tests failed:
+             |${tests.mkString(nlt, nlt, nl)}""".stripMargin
+        ) {
+      // We are not interested in the stack trace here, only the failing tests
+      override def fillInStackTrace = this
+    }
+    def reportErrors(errors: Seq[String]): Unit =
+      if (errors.nonEmpty) throw new ScriptedFailure(errors) else ()
 
-  private def reportErrors(errors: Seq[String]): Unit =
-    if (errors.nonEmpty) throw new ScriptedFailure(errors) else ()
-
-  def runAllInParallel(tests: ParSeq[TestRunner]): Unit = {
     reportErrors(tests.flatMap(test => test.apply().flatten).toList)
   }
 

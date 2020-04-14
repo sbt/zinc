@@ -69,7 +69,11 @@ private[sbt] object BatchScriptRunner {
 
   // Should be used instead of sbt.internal.scripted.TestException that doesn't show failed command
   final class PreciseScriptedError(st: Statement, msg: String, e: Throwable)
-      extends RuntimeException(s"$msg: '${st.command} ${st.arguments.mkString(" ")}'", e) {
+      extends RuntimeException(
+        s"""$msg: '${st.command}${if (st.arguments.nonEmpty) st.arguments.mkString(" ", " ", "")
+        else ""}'""",
+        e
+      ) {
     override def fillInStackTrace = e
   }
 }
