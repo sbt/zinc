@@ -10,4 +10,4 @@ libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.9.3"
 addSbtPlugin("com.lightbend" % "sbt-whitesource" % "0.1.16")
 addSbtPlugin("com.eed3si9n" % "sbt-buildinfo" % "0.9.0")
 addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "0.6.1")
-addSbtPlugin("com.eed3si9n" % "sbt-projectmatrix" % "0.5.0")
+addSbtPlugin("com.eed3si9n" % "sbt-projectmatrix" % "0.5.1")
