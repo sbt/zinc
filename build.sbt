@@ -3,7 +3,14 @@ import Dependencies._
 import localzinc.Scripted, Scripted._
 import com.typesafe.tools.mima.core._, ProblemFilters._
 
-def internalPath = file("internal")
+def zincRootPath: File = {
+  sys.props.get("sbtzinc.path") match {
+    case Some(x) => file(x).getCanonicalFile
+    case _       => file(".").getCanonicalFile
+  }
+}
+
+def internalPath = zincRootPath / "internal"
 
 def mimaSettings: Seq[Setting[_]] = Seq(
   mimaPreviousArtifacts := {
@@ -156,7 +163,7 @@ lazy val zincRoot: Project = (project in file("."))
     crossScalaVersions := Nil,
   )
 
-lazy val zinc = (projectMatrix in file("zinc"))
+lazy val zinc = (projectMatrix in (zincRootPath / "zinc"))
   .dependsOn(
     zincCore,
     zincPersist,
@@ -231,7 +238,7 @@ lazy val zinc = (projectMatrix in file("zinc"))
   .jvmPlatform(scalaVersions = List(scala212, scala213))
   .configure(addBaseSettingsAndTestDeps)
 
-def resGenFile = (file("zinc") / "resGenerator").getAbsoluteFile
+def resGenFile = (zincRootPath / "zinc" / "resGenerator").getAbsoluteFile
 
 lazy val jar1 = (project in resGenFile / "jar1")
   .settings(sampleProjectSettings("jar"))
@@ -253,7 +260,7 @@ lazy val zincTesting = (projectMatrix in internalPath / "zinc-testing")
   .jvmPlatform(scalaVersions = List(scala212, scala213))
   .configure(addSbtIO, addSbtUtilLogging)
 
-lazy val zincCompile = (projectMatrix in file("zinc-compile"))
+lazy val zincCompile = (projectMatrix in zincRootPath / "zinc-compile")
   .dependsOn(zincCompileCore, zincCompileCore % "test->test")
   .settings(
     name := "zinc Compile",
