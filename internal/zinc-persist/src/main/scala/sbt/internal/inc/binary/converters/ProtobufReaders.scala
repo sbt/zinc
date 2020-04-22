@@ -582,17 +582,35 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) 
   private final val stringToFile = (path: String) => fromPathString(path)
   private final val stringToVFile = (path: String) => fromPathStringV(path)
   def fromRelations(relations: schema.Relations): Relations = {
+    import scala.collection.{ mutable, immutable }
+
     def fromMap[K, V](
         map: Map[String, schema.Values],
         fk: String => K,
         fv: String => V
     ): Relation[K, V] = {
-      val forwardMap = map.iterator.map {
-        case (k, vs) =>
-          val values = vs.values.iterator.map(fv).toSet
-          fk(k) -> values
+      val forward = mutable.HashMap[K, mutable.Builder[V, immutable.Set[V]]]()
+      val reverse = mutable.HashMap[V, mutable.Builder[K, immutable.Set[K]]]()
+      for ((kString, vs) <- map) {
+        if (!vs.values.isEmpty) {
+          val k = fk(kString)
+          val vsBuilder = forward.getOrElseUpdate(k, immutable.Set.newBuilder[V])
+          for (vString <- vs.values) {
+            val v = fv(vString)
+            vsBuilder += v
+            reverse.getOrElseUpdate(v, immutable.Set.newBuilder[K]) += k
+          }
+        }
       }
-      Relation.reconstruct(forwardMap.toMap)
+      Relation.make[K, V](toImmutable(forward), toImmutable(reverse))
+    }
+    def toImmutable[A, B](
+        map: mutable.Map[A, mutable.Builder[B, immutable.Set[B]]]
+    ): immutable.Map[A, immutable.Set[B]] = {
+      val builder = immutable.Map.newBuilder[A, immutable.Set[B]]
+      for ((a, setBuilder) <- map)
+        builder += (a -> setBuilder.result())
+      builder.result()
     }
 
     def fromClassDependencies(classDependencies: schema.ClassDependencies): ClassDependencies = {
@@ -608,9 +626,20 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) 
     }
 
     def fromUsedNamesMap(map: Map[String, schema.UsedNames]): Relation[String, UsedName] = {
-      val forwardMap =
-        map.mapValues(values => values.usedNames.iterator.map(fromUsedName).toSet).toMap
-      Relation.reconstruct(forwardMap)
+      import scala.collection.{ mutable, immutable }
+      val forward = mutable.HashMap[String, mutable.Builder[UsedName, immutable.Set[UsedName]]]()
+      val reverse = mutable.HashMap[UsedName, mutable.Builder[String, immutable.Set[String]]]()
+      for ((k, used) <- map) {
+        if (!used.usedNames.isEmpty) {
+          val usedNameBuilder = forward.getOrElseUpdate(k, immutable.Set.newBuilder[UsedName])
+          for (schemaUsedName <- used.usedNames) {
+            val usedName = fromUsedName(schemaUsedName)
+            usedNameBuilder += usedName
+            reverse.getOrElseUpdate(usedName, immutable.Set.newBuilder[String]) += k
+          }
+        }
+      }
+      Relation.make(toImmutable(forward), toImmutable(reverse))
     }
 
     def expected(msg: String) = ReadersFeedback.expected(msg, Classes.Relations)
