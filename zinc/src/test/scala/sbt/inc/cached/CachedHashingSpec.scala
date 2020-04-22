@@ -23,6 +23,9 @@ import sbt.internal.inc.{
 import sbt.io.IO
 
 class CachedHashingSpec extends BaseCompilerSpec {
+  lazy val isWindows: Boolean =
+    sys.props("os.name").toLowerCase(java.util.Locale.ENGLISH).contains("windows")
+
   def timeMs[R](block: => R): Long = {
     val t0 = System.nanoTime()
     block // call-by-name
@@ -76,10 +79,12 @@ class CachedHashingSpec extends BaseCompilerSpec {
 
       val hashingTime = timeMs(genConfig)
       val cachedHashingTime = timeMs(genConfig)
-      assert(
-        cachedHashingTime < (hashingTime * 0.50),
-        s"Cache jar didn't work: $cachedHashingTime is >= than 50% of $hashingTime."
-      )
+      if (isWindows) assert(true)
+      else
+        assert(
+          cachedHashingTime < (hashingTime * 0.50),
+          s"Cache jar didn't work: $cachedHashingTime is >= than 50% of $hashingTime."
+        )
     }
   }
 
