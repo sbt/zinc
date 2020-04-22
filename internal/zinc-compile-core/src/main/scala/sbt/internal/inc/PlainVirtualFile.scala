@@ -17,7 +17,9 @@ import java.io.InputStream
 import java.nio.file.{ Files, Path, Paths }
 import xsbti.{ BasicVirtualFileRef, FileConverter, PathBasedFile, VirtualFileRef, VirtualFile }
 
-class PlainVirtualFile(path: Path) extends BasicVirtualFileRef(path.toString) with PathBasedFile {
+class PlainVirtualFile(path: Path)
+    extends BasicVirtualFileRef(path.toString.replace('\\', '/'))
+    with PathBasedFile {
   override def contentHash: Long = HashUtil.farmHash(path)
   override def name(): String = path.getFileName.toString
   override def input(): InputStream = Files.newInputStream(path)
