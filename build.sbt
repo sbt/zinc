@@ -311,6 +311,7 @@ lazy val zincPersist = (projectMatrix in internalPath / "zinc-persist")
     mimaBinaryIssueFilters ++= Seq(
       exclude[IncompatibleMethTypeProblem]("xsbti.*"),
       exclude[ReversedMissingMethodProblem]("xsbti.*"),
+      exclude[IncompatibleTemplateDefProblem]("sbt.internal.inc.schema.*"),
     ),
   )
   .jvmPlatform(scalaVersions = List(scala212, scala213))
