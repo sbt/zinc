@@ -22,10 +22,14 @@ case class UsedName private (name: String, scopes: java.util.EnumSet[UseScope]) 
 object UsedName {
 
   def apply(name: String, scopes: Iterable[UseScope] = Nil): UsedName = {
-    val escapedName = escapeControlChars(name)
     val useScopes = java.util.EnumSet.noneOf(classOf[UseScope])
     scopes.foreach(useScopes.add)
-    UsedName(escapedName, useScopes)
+    UsedName.make(name, useScopes)
+  }
+
+  def make(name: String, useScopes: java.util.EnumSet[UseScope]): UsedName = {
+    val escapedName = escapeControlChars(name)
+    new UsedName(escapedName, useScopes)
   }
 
   private def escapeControlChars(name: String) = {

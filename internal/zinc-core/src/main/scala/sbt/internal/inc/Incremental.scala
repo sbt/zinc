@@ -605,7 +605,7 @@ private final class AnalysisCallback(
   private[this] val objectApis = new TrieMap[String, ApiInfo]
   private[this] val classPublicNameHashes = new TrieMap[String, Array[NameHash]]
   private[this] val objectPublicNameHashes = new TrieMap[String, Array[NameHash]]
-  private[this] val usedNames = new TrieMap[String, ConcurrentSet[UsedName]]
+  private[this] val usedNames = new RelationBuilder[String, UsedName]
   private[this] val unreporteds = new TrieMap[VirtualFileRef, ConcurrentLinkedQueue[Problem]]
   private[this] val reporteds = new TrieMap[VirtualFileRef, ConcurrentLinkedQueue[Problem]]
   private[this] val mainClasses = new TrieMap[VirtualFileRef, ConcurrentLinkedQueue[String]]
@@ -842,7 +842,9 @@ private final class AnalysisCallback(
   }
 
   def usedName(className: String, name: String, useScopes: EnumSet[UseScope]) =
-    add(usedNames, className, UsedName(name, useScopes))
+    usedNames.synchronized {
+      usedNames(className) = UsedName.make(name, useScopes)
+    }
 
   override def enabled(): Boolean = options.enabled
 
@@ -886,12 +888,9 @@ private final class AnalysisCallback(
   def getOrNil[A, B](m: collection.Map[A, Seq[B]], a: A): Seq[B] = m.get(a).toList.flatten
   def addCompilation(base: Analysis): Analysis =
     base.copy(compilations = base.compilations.add(compilation))
-  def addUsedNames(base: Analysis): Analysis = usedNames.foldLeft(base) {
-    case (a, (className, names)) =>
-      import scala.collection.JavaConverters._
-      names.asScala.foldLeft(a) {
-        case (a, name) => a.copy(relations = a.relations.addUsedName(className, name))
-      }
+  def addUsedNames(base: Analysis): Analysis = {
+    assert(base.relations.names.size == 0)
+    base.copy(relations = base.relations.addUsedNames(usedNames.result()))
   }
 
   private def companionsWithHash(className: String): (Companions, HashAPI.Hash, HashAPI.Hash) = {

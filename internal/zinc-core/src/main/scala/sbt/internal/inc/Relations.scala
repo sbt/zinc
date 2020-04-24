@@ -140,7 +140,7 @@ trait Relations {
       deps: Iterable[(VirtualFileRef, String, XStamp)]
   ): Relations
 
-  private[inc] def addUsedName(className: String, name: UsedName): Relations
+  private[inc] def addUsedNames(data: Relation[String, UsedName]): Relations
 
   /** Concatenates the two relations. Acts naively, i.e., doesn't internalize external deps on added files. */
   def ++(o: Relations): Relations
@@ -637,7 +637,7 @@ private class MRelationsNameHashing(
       productClassName = productClassName
     )
 
-  override private[inc] def addUsedName(className: String, name: UsedName): Relations =
+  private[inc] def addUsedNames(data: Relation[String, UsedName]): Relations = {
     new MRelationsNameHashing(
       srcProd,
       libraryDep,
@@ -645,9 +645,10 @@ private class MRelationsNameHashing(
       internalDependencies = internalDependencies,
       externalDependencies = externalDependencies,
       classes,
-      names = names + (className, name),
+      names = if (names.forwardMap.isEmpty) data else names ++ data,
       productClassName = productClassName
     )
+  }
 
   override def inheritance: ClassDependencies =
     new ClassDependencies(
