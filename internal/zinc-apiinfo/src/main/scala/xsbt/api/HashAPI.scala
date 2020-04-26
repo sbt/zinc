@@ -145,13 +145,25 @@ final class HashAPI private (
   }
   final def hashSymmetric[T](ts: TraversableOnce[T], hashF: T => Unit): Unit = {
     val current = hash
-    val hashes = ts.toList.map { t =>
-      hash = 1
-      hashF(t)
-      finalizeHash
+    val tsHash: Hash = ts match {
+      case ts: collection.Iterable[T] =>
+        // Avoid creation of a temporary collection and avoid boxing of hashCodes by passing
+        // this iterator to `unorderedHash`. It returns itself each time with a different hashCode.
+        class HashIterator(delegate: Iterator[T]) extends Iterator[AnyRef] {
+          override def hasNext: Boolean = delegate.hasNext
+          def next(): AnyRef = { hash = 1; hashF(delegate.next()); this }
+          override def hashCode: Int = finalizeHash
+        }
+        unorderedHash(new HashIterator(ts.iterator))
+      case _ =>
+        unorderedHash(ts.toList.map { t =>
+          hash = 1
+          hashF(t)
+          finalizeHash
+        })
     }
     hash = current
-    extend(unorderedHash(hashes))
+    extend(tsHash)
   }
 
   @inline final def extend(a: Hash): Unit = {
