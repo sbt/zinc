@@ -687,15 +687,20 @@ def isJava8: Boolean = sys.props("java.specification.version") == "1.8"
 
 lazy val crossTestBridges = {
   Command.command("crossTestBridges") { state =>
-    // val java8Only =
-    //   if (isJava8) List(s"${compilerBridgeTest210.id}/test", s"${compilerBridgeTest211.id}/test")
-    //   else Nil
-    // val testCommands =
-    //   java8Only :::
-    //     List(s"${compilerBridgeTest212.id}/test", s"${compilerBridgeTest213.id}/test")
-    val testCommands = List(s"${compilerBridgeTest.id}/test")
+    val java8Only =
+      if (isJava8)
+        List(
+          s"${compilerBridge210.id}/publishLocal",
+          s"${compilerBridge211.id}/publishLocal",
+        )
+      else Nil
+    val testCommands =
+      java8Only ::: List(
+        s"${compilerBridge212.id}/publishLocal",
+        s"${compilerBridge213.id}/publishLocal",
+        s"${compilerBridgeTest.id}/test",
+      )
     testCommands ::: state
-    state
   }
 }
 
