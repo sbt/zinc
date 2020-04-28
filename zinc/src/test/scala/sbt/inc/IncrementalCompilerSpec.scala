@@ -24,14 +24,21 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
   "incremental compiler" should "compile" in {
     IO.withTemporaryDirectory { tempDir =>
       val projectSetup = ProjectSetup.simple(tempDir.toPath, Seq(SourceFiles.Good))
-
-      val result = projectSetup.createCompiler().doCompile()
-      val expectedOuts = List(projectSetup.defaultClassesDir.resolve("pkg").resolve("Good$.class"))
-      expectedOuts foreach { f =>
-        assert(Files.exists(f), s"$f does not exist.")
+      val compiler = projectSetup.createCompiler()
+      try {
+        val result = projectSetup.createCompiler().doCompile()
+        val expectedOuts =
+          List(projectSetup.defaultClassesDir.resolve("pkg").resolve("Good$.class"))
+        expectedOuts foreach { f =>
+          assert(Files.exists(f), s"$f does not exist.")
+        }
+        val a = result.analysis match {
+          case a: Analysis => a
+        }
+        assert(a.stamps.allSources.nonEmpty)
+      } finally {
+        compiler.close()
       }
-      val a = result.analysis match { case a: Analysis => a }
-      assert(a.stamps.allSources.nonEmpty)
     }
   }
 
@@ -40,12 +47,18 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
       val projectSetup =
         ProjectSetup.simple(tempDir.toPath, Seq(SourceFiles.Good, SourceFiles.Foo))
       val compilerSetup = projectSetup.createCompiler()
+      try {
 
-      val result = compilerSetup.doCompile()
-      val result2 =
-        compilerSetup.doCompile(_.withPreviousResult(compilerSetup.compiler.previousResult(result)))
+        val result = compilerSetup.doCompile()
+        val result2 =
+          compilerSetup.doCompile(
+            _.withPreviousResult(compilerSetup.compiler.previousResult(result))
+          )
 
-      assert(!result2.hasModified)
+        assert(!result2.hasModified)
+      } finally {
+        compilerSetup.close()
+      }
     }
   }
 
@@ -53,13 +66,20 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
     IO.withTemporaryDirectory { tempDir =>
       val projectSetup = ProjectSetup.simple(tempDir.toPath, Seq(SourceFiles.NestedJavaClasses))
 
-      val result = projectSetup.createCompiler().doCompile()
-      val expectedOuts = List(projectSetup.defaultClassesDir.resolve("NestedJavaClasses.class"))
-      expectedOuts foreach { f =>
-        assert(Files.exists(f), s"$f does not exist.")
+      val compiler = projectSetup.createCompiler()
+      try {
+        val result = compiler.doCompile()
+        val expectedOuts = List(projectSetup.defaultClassesDir.resolve("NestedJavaClasses.class"))
+        expectedOuts foreach { f =>
+          assert(Files.exists(f), s"$f does not exist.")
+        }
+        val a = result.analysis match {
+          case a: Analysis => a
+        }
+        assert(a.stamps.allSources.nonEmpty)
+      } finally {
+        compiler.close()
       }
-      val a = result.analysis match { case a: Analysis => a }
-      assert(a.stamps.allSources.nonEmpty)
     }
   }
 

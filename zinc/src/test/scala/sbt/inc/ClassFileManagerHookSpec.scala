@@ -40,7 +40,8 @@ class ClassFileManagerHookSpec extends BaseCompilerSpec {
 
       val compiler =
         setup.createCompiler().copy(incOptions = incOptions.withExternalHooks(newExternalHooks))
-      compiler.doCompile()
+      try compiler.doCompile()
+      finally compiler.close()
 
       callbackCalled.shouldEqual(3)
     }

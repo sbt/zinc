@@ -16,7 +16,6 @@ import java.nio.file.Paths
 import sbt.io.IO
 
 class NameHashingCompilerSpec extends BaseCompilerSpec {
-
   def testIncrementalCompilation(
       changes: Seq[(String, String => String)],
       transitiveChanges: Set[String],

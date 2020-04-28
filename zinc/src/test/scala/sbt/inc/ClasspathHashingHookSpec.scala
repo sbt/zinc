@@ -35,10 +35,14 @@ class ClasspathHashingHookSpec extends BaseCompilerSpec {
       val hooks = new DefaultExternalHooks(Optional.of(lookup), Optional.empty())
       val compiler =
         setup.createCompiler().copy(incOptions = IncOptions.of().withExternalHooks(hooks))
-      val result = compiler.doCompile()
+      try {
+        val result = compiler.doCompile()
 
-      result.setup().options().classpathHash().foreach { original =>
-        original shouldEqual hashFile(setup.converter.toVirtualFile(original.file()))
+        result.setup().options().classpathHash().foreach { original =>
+          original shouldEqual hashFile(setup.converter.toVirtualFile(original.file()))
+        }
+      } finally {
+        compiler.close()
       }
     }
   }

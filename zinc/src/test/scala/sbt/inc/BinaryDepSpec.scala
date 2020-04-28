@@ -19,19 +19,29 @@ class BinaryDepSpec extends BaseCompilerSpec {
     IO.withTemporaryDirectory { tempDir =>
       val basePath = tempDir.toPath.resolve("base")
       val baseSetup = ProjectSetup.simple(basePath, Seq("foo/NoopMacro.scala"))
-      baseSetup.createCompiler().doCompileWithStore()
+      val compiler = baseSetup.createCompiler()
+      try {
+        compiler.doCompileWithStore()
 
-      val projPath = tempDir.toPath.resolve("proj")
-      val projectSetup =
-        ProjectSetup.simple(projPath, Seq("NoopMacroUsed.scala")).dependsOnJarFrom(baseSetup)
+        val projPath = tempDir.toPath.resolve("proj")
+        val projectSetup =
+          ProjectSetup.simple(projPath, Seq("NoopMacroUsed.scala")).dependsOnJarFrom(baseSetup)
 
-      val result = projectSetup.createCompiler().doCompile()
-      result.analysis() match {
-        case analysis: Analysis =>
-          // We should not depend on jar creating from project that we depend on (since we've got analysis for it)
-          analysis.relations.libraryDep._2s
-            .filter(_.id.startsWith(tempDir.toPath.toString)) shouldBe 'empty
+        val compiler2 = projectSetup.createCompiler()
+        try {
+          val result = compiler2.doCompile()
+          result.analysis() match {
+            case analysis: Analysis =>
+              // We should not depend on jar creating from project that we depend on (since we've got analysis for it)
+              analysis.relations.libraryDep._2s
+                .filter(_.id.startsWith(tempDir.toPath.toString)) shouldBe 'empty
 
+          }
+        } finally {
+          compiler2.close()
+        }
+      } finally {
+        compiler.close()
       }
     }
   }
