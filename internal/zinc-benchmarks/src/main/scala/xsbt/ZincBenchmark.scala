@@ -134,7 +134,7 @@ private[xsbt] object ZincBenchmark {
       compilationInfo: CompilationInfo
   ): ZincCompiler = {
     object output extends SingleOutput {
-      def getOutputDirectory: File = outputDir
+      def getOutputDirectory = outputDir.toPath
       override def toString = s"SingleOutput($getOutputDirectory)"
     }
     val args = compilationInfo.scalacOptions
