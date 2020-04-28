@@ -98,20 +98,21 @@ object Incremental {
           "All initially invalidated classes: " + initialInvClasses + "\n" +
             "All initially invalidated sources:" + initialInvSources + "\n"
         )
-    val analysis = manageClassfiles(options, output, outputJarContent) { classfileManager =>
-      incremental.cycle(
-        initialInvClasses,
-        initialInvSources,
-        sources,
-        converter,
-        binaryChanges,
-        lookup,
-        previous,
-        doCompile(compile, callbackBuilder, classfileManager),
-        classfileManager,
-        output,
-        1
-      )
+    val analysis = manageClassfiles(options, converter, output, outputJarContent) {
+      classfileManager =>
+        incremental.cycle(
+          initialInvClasses,
+          initialInvSources,
+          sources,
+          converter,
+          binaryChanges,
+          lookup,
+          previous,
+          doCompile(compile, callbackBuilder, classfileManager),
+          classfileManager,
+          output,
+          1
+        )
     }
     (initialInvClasses.nonEmpty || initialInvSources.nonEmpty, analysis)
   }
@@ -166,10 +167,12 @@ object Incremental {
 
   private[this] def manageClassfiles[T](
       options: IncOptions,
+      converter: FileConverter,
       output: Output,
       outputJarContent: JarUtils.OutputJarContent
   )(run: XClassFileManager => T): T = {
-    val classfileManager = ClassFileManager.getClassFileManager(options, output, outputJarContent)
+    val classfileManager =
+      ClassFileManager.getClassFileManager(options, converter, output, outputJarContent)
     val result = try run(classfileManager)
     catch {
       case e: Throwable =>

@@ -14,11 +14,12 @@ package internal
 package inc
 
 import sbt.io.IO
+import java.io.File
 import java.util.Optional
 import java.nio.file.{ Files, Path }
 
 import collection.mutable
-import xsbti.{ PathBasedFile, VirtualFile }
+import xsbti.{ FileConverter, PathBasedFile, VirtualFile }
 import xsbti.compile.{
   IncOptions,
   DeleteImmediatelyManagerType,
@@ -41,14 +42,6 @@ object ClassFileManager {
     } else new DeleteClassFileManager
   }
 
-  def getClassFileManager(options: IncOptions): XClassFileManager = {
-    import sbt.internal.inc.JavaInterfaceUtil.{ EnrichOptional, EnrichOption }
-    val internal = getDefaultClassFileManager(options.classfileManagerType)
-    val external = Option(options.externalHooks())
-      .flatMap(ext => ext.getExternalClassFileManager.toOption)
-    xsbti.compile.WrappedClassFileManager.of(internal, external.toOptional)
-  }
-
   def getDefaultClassFileManager(
       classFileManagerType: Optional[ClassFileManagerType],
       output: Output,
@@ -65,6 +58,7 @@ object ClassFileManager {
 
   def getClassFileManager(
       options: IncOptions,
+      converter: FileConverter,
       output: Output,
       outputJarContent: JarUtils.OutputJarContent
   ): XClassFileManager = {
@@ -72,8 +66,58 @@ object ClassFileManager {
     val internal =
       getDefaultClassFileManager(options.classfileManagerType, output, outputJarContent)
     val external = Option(options.externalHooks())
-      .flatMap(ext => ext.getExternalClassFileManager.toOption)
+      .flatMap(
+        ext =>
+          ext.getExternalClassFileManager.toOption
+            .map(cm => (new DelegatingClassFileManager(cm, converter): XClassFileManager))
+      )
     xsbti.compile.WrappedClassFileManager.of(internal, external.toOptional)
+  }
+
+  private type XClassFileManager13 = {
+    def delete(classes: Array[File]): Unit
+    def generated(classes: Array[File]): Unit
+  }
+
+  /**
+   * Workaround for Zinc 1.4.0 breaking changes.
+   * This provides reflective fallback to Zinc 1.3.x XClassFileManager.
+   */
+  private final class DelegatingClassFileManager(
+      underlying: XClassFileManager,
+      converter: FileConverter
+  ) extends XClassFileManager {
+
+    import scala.language.reflectiveCalls
+    override def delete(classes: Array[VirtualFile]): Unit =
+      try {
+        underlying.delete(classes)
+      } catch {
+        case _: AbstractMethodError =>
+          underlying
+            .asInstanceOf[XClassFileManager13]
+            .delete(classes.map(vf => converter.toPath(vf).toFile))
+      }
+
+    override def generated(classes: Array[VirtualFile]): Unit =
+      try {
+        underlying.generated(classes)
+      } catch {
+        case _: AbstractMethodError =>
+          underlying
+            .asInstanceOf[XClassFileManager13]
+            .generated(classes.map(vf => converter.toPath(vf).toFile))
+      }
+
+    override def complete(success: Boolean): Unit = underlying.complete(success)
+
+    def containsMethod(x: AnyRef, name: String, params: java.lang.Class[_]*) =
+      try {
+        x.getClass.getMethod(name, params: _*)
+        true
+      } catch {
+        case _: NoSuchMethodException => false
+      }
   }
 
   private final class DeleteClassFileManager extends XClassFileManager {
