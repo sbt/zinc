@@ -25,8 +25,8 @@ class ScalacBenchmark extends BenchmarkBase {
 class ColdScalacBenchmark extends ScalacBenchmark {
   _subprojectToRun = _project.subprojects.head
   @Benchmark
-  override def compile(): Unit = {
-    super.compile()
+  override def action(): Unit = {
+    super.action()
   }
 }
 
@@ -39,8 +39,8 @@ class ColdScalacBenchmark extends ScalacBenchmark {
 class WarmScalacBenchmark extends ScalacBenchmark {
   _subprojectToRun = _project.subprojects.head
   @Benchmark
-  override def compile(): Unit = {
-    super.compile()
+  override def action(): Unit = {
+    super.action()
   }
 }
 
@@ -53,7 +53,7 @@ class WarmScalacBenchmark extends ScalacBenchmark {
 class HotScalacBenchmark extends ScalacBenchmark {
   _subprojectToRun = _project.subprojects.head
   @Benchmark
-  override def compile(): Unit = {
-    super.compile()
+  override def action(): Unit = {
+    super.action()
   }
 }

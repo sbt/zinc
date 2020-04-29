@@ -14,11 +14,14 @@ package xsbt
 import net.openhft.affinity.AffinityLock
 import org.openjdk.jmh.annotations._
 import java.io.File
+import sbt.inc.TestProjectSetup
+import sbt.internal.inc.BridgeProviderSpecification
+import sbt.util.Logger
 
 import xsbt.ZincBenchmark.CompilationInfo
 
 @State(Scope.Benchmark)
-class BenchmarkBase {
+class BenchmarkBase extends BridgeProviderSpecification {
   /* Necessary data to run a benchmark. */
   @Param(Array("")) var _tempDir: String = _
   var _project: BenchmarkProject = _
@@ -28,8 +31,9 @@ class BenchmarkBase {
 
   /* Data filled in by the benchmark setup. */
   var _dir: File = _
-  var _setup: ProjectSetup = _
-  var _subprojectsSetup: List[ProjectSetup] = _
+  var _setup: TestProjectSetup = _
+  var _compilerSetup: TestProjectSetup.CompilerSetup = _
+  var _subprojectsSetup: List[TestProjectSetup] = _
 
   /* Java thread affinity (install JNA to run this benchmark). */
   var _lock: AffinityLock = _
@@ -41,27 +45,34 @@ class BenchmarkBase {
     assert(_project != null, "_project is null, set it.")
     assert(_subprojectToRun != null, "_subprojectToRun is null, set it.")
 
-    _dir = new File(_tempDir)
+    _dir = (new File(_tempDir)).getCanonicalFile
     assert(_dir.exists(), s"Unexpected inexistent directory ${_tempDir}")
 
     val compiler = new ZincBenchmark(_project, zincEnabled = this.zincEnabled)
-    _subprojectsSetup = compiler.readSetup(_dir).getOrCrash
+    _subprojectsSetup = compiler.readSetup(new File(_dir, _project.repo)).getOrCrash
     assert(_subprojectsSetup.nonEmpty)
 
     val id = CompilationInfo.createIdentifierFor(_subprojectToRun, _project)
     _setup = _subprojectsSetup
       .find(p => p.subproject == id)
       .getOrElse(sys.error(s"No subproject ${_subprojectToRun} found."))
+
+    val noLogger = Logger.Null
+    val scalaVersion = ZincBenchmark.scalaVersion
+    val bridge = getCompilerBridge(_dir.toPath, noLogger, scalaVersion)
+    val si = scalaInstance(scalaVersion, _dir.toPath, noLogger)
+    _compilerSetup = _setup.createCompiler(scalaVersion, si, bridge, log)
     printCompilationDetails()
   }
 
   private def printCompilationDetails() = {
-    val info = _setup.compilationInfo
-
     val argsFile = new File(_tempDir, "compiler.args")
     val argsFileContents: String = {
-      val cpArgs = if (info.classpath.isEmpty) Nil else List("-cp", info.classpath)
-      val allArgs: List[String] = cpArgs ::: info.scalacOptions.toList ::: info.sources
+      val cpArgs =
+        if (_setup.classPath.isEmpty) Nil
+        else "-cp" :: _setup.classPath.mkString(File.pathSeparator) :: Nil
+      val allArgs: List[String] = cpArgs
+      // ::: info.scalacOptions.toList ::: info.sources
       allArgs.mkString("\n")
     }
     sbt.io.IO.write(argsFile, argsFileContents)
@@ -75,10 +86,14 @@ class BenchmarkBase {
   def tearDown(): Unit = {
     _lock.release()
     // Remove the directory where all the class files have been compiled
-    sbt.io.IO.delete(_setup.at)
+    _setup.sources.keys.toList map { x =>
+      sbt.io.IO.delete(x.toFile)
+    }
+    ()
   }
 
-  protected def compile(): Unit = {
-    _setup.compile()
+  protected def action(): Unit = {
+    _compilerSetup.doCompile()
+    ()
   }
 }

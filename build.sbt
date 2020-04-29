@@ -352,7 +352,7 @@ lazy val zincCore = (projectMatrix in internalPath / "zinc-core")
 
 lazy val zincBenchmarks = (projectMatrix in internalPath / "zinc-benchmarks")
   .dependsOn(compilerInterface % "compile->compile;compile->test")
-  .dependsOn(compilerBridge, zincCore, zincTesting % "compile->test")
+  .dependsOn(compilerBridge, zinc % "compile->test", zincTesting % "compile->test")
   .enablePlugins(JmhPlugin)
   .settings(
     noPublish,
@@ -711,7 +711,7 @@ tearDownBenchmarkResources in ThisBuild := { IO.delete(dir) }
 
 addCommandAlias(
   "runBenchmarks",
-  s""";zincBenchmarksJVM2_12/run $dirPath;zincBenchmarksJVM2_12/jmh:run -p _tempDir=$dirPath -prof gc;tearDownBenchmarkResources""".stripMargin
+  s""";${compilerBridge213.id}/packageBin;${compilerBridge212.id}/packageBin;zincBenchmarksJVM2_12/run $dirPath;zincBenchmarksJVM2_12/jmh:run -p _tempDir=$dirPath -prof gc;tearDownBenchmarkResources""".stripMargin
 )
 
 lazy val otherRootSettings = Seq(

@@ -9,6 +9,8 @@ matrix:
   include:
   - env: ADOPTOPENJDK=11
   - env: ADOPTOPENJDK=8
+  - env: ADOPTOPENJDK=11
+    script: sbt -Dfile.encoding=UTF-8 -J-XX:ReservedCodeCacheSize=512M -J-Xms1024M -J-Xmx2048M -J-server "runBenchmarks"
 
 before_install:
   # adding $HOME/.sdkman to cache would create an empty directory, which interferes with the initial installation

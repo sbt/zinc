@@ -13,17 +13,17 @@ package xsbt
 
 import java.io.File
 
-import xsbt.BenchmarkProjects.Scalac
+import xsbt.BenchmarkProjects.{ Scalac, Shapeless }
 
 object GlobalBenchmarkSetup {
 
   /** Update this list every time you add a new benchmark. */
-  val projects = List(Scalac)
+  val projects = List(Scalac, Shapeless)
 
   def runSetup(setupDir: File): (Int, String) = {
     val projectsPreparation = projects.map { project =>
       val benchmark = new ZincBenchmark(project)
-      project -> benchmark.writeSetup(setupDir)
+      project -> benchmark.writeSetup(new File(setupDir, project.repo))
     }
 
     val failedToPrepare = projectsPreparation.filter(_._2.isLeft)

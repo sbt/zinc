@@ -22,7 +22,7 @@ object BenchmarkProjects {
   object Scalac
       extends BenchmarkProject(
         "scala/scala",
-        "fa5ad9ac24b390a0863ed39796c3ab2e5760e2b4",
+        "e99c3fb8e383002d9bd96f7d43017cf999815872",
         List("library")
       )
 }

@@ -9,7 +9,7 @@
  * additional information regarding copyright ownership.
  */
 
-/*package xsbt
+package xsbt
 
 import java.util.concurrent.TimeUnit
 import org.openjdk.jmh.annotations._
@@ -25,8 +25,8 @@ class ShapelessBenchmark extends BenchmarkBase {
 class ColdShapelessBenchmark extends ShapelessBenchmark {
   _subprojectToRun = _project.subprojects.head // CoreJVM
   @Benchmark
-  override def compile(): Unit = {
-    super.compile()
+  override def action(): Unit = {
+    super.action()
   }
 }
 
@@ -39,8 +39,8 @@ class ColdShapelessBenchmark extends ShapelessBenchmark {
 class WarmShapelessBenchmark extends ShapelessBenchmark {
   _subprojectToRun = _project.subprojects.head // CoreJVM
   @Benchmark
-  override def compile(): Unit = {
-    super.compile()
+  override def action(): Unit = {
+    super.action()
   }
 }
 
@@ -53,7 +53,7 @@ class WarmShapelessBenchmark extends ShapelessBenchmark {
 class HotShapelessBenchmark extends ShapelessBenchmark {
   _subprojectToRun = _project.subprojects.head // CoreJVM
   @Benchmark
-  override def compile(): Unit = {
-    super.compile()
+  override def action(): Unit = {
+    super.action()
   }
-}*/
+}

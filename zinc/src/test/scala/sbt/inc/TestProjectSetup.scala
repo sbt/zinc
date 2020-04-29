@@ -32,14 +32,20 @@ case class TestProjectSetup(
     classPath: Seq[Path],
     analysisForCp: Map[VirtualFile, Path] = Map.empty,
     outputToJar: Boolean = false,
+    subproject: String = "unnamed",
+    scalacOptions: Seq[String] = Nil,
 ) {
   import TestProjectSetup._
 
   private def fromResource(prefix: Path)(path: Path): File = {
     val fullPath = prefix.resolve(path).toString()
-    Option(getClass.getClassLoader.getResource(fullPath))
-      .map(url => new File(url.toURI))
-      .getOrElse(throw new NoSuchElementException(s"Missing resource $fullPath"))
+    try {
+      Option(getClass.getClassLoader.getResource(fullPath))
+        .map(url => new File(url.toURI))
+        .getOrElse(throw new NoSuchElementException(s"Missing resource $fullPath"))
+    } catch {
+      case _: Throwable => sys.error(s"path = '$path' ($fullPath) not found")
+    }
   }
 
   private val localBoot = Paths.get(sys.props("user.home")).resolve(".sbt").resolve("boot")
@@ -53,7 +59,16 @@ case class TestProjectSetup(
     sourceFile <- sourceFiles
   } yield {
     val targetFile = destinationRoot.resolve(sourceFile).toFile
-    IO.copyFile(fromResource(sourcesPrefix)(sourceFile), targetFile)
+    val sourcePath = baseLocation.resolve(sourceFile)
+    if (sourceFile.toString == "") {
+      sys.error("unexpected blank sourceFile")
+    }
+    IO.copyFile(
+      if (sourcePath.isAbsolute && Files.exists(sourcePath)) sourcePath.toFile
+      else fromResource(sourcesPrefix)(sourceFile),
+      targetFile
+    )
+
     targetFile.toPath
   }
   val classpathBase = baseLocation.resolve("bin")
@@ -64,7 +79,7 @@ case class TestProjectSetup(
       val target = classpathBase.resolve(zippedClassesPath.toString.dropRight(4)).toFile
       IO.unzip(fromResource(binPrefix)(zippedClassesPath), target)
       target.toPath
-    case existingFile if existingFile.isAbsolute && Files.exists(existingFile) =>
+    case existingFile if Files.exists(existingFile) =>
       existingFile
     case jarPath =>
       val newJar = classpathBase.resolve(jarPath).toFile
@@ -93,6 +108,7 @@ case class TestProjectSetup(
       baseLocation,
       allSources.toVector map converter.toVirtualFile,
       allClasspath,
+      scalacOptions,
       IncOptions.of(),
       analysisForCp,
       defaultStoreLocation,
@@ -147,6 +163,7 @@ object TestProjectSetup {
       tempDir: Path,
       sources: Seq[VirtualFile],
       classpath: Seq[VirtualFile],
+      scalacOptions: Seq[String],
       incOptions: IncOptions,
       analysisForCp: Map[VirtualFile, Path],
       analysisStoreLocation: Path,
@@ -156,8 +173,6 @@ object TestProjectSetup {
     val maxErrors = 100
     val noLogger = Logger.Null
     val compiler = new IncrementalCompilerImpl
-    // val compilerBridge = getCompilerBridge(tempDir, noLogger, scalaVersion)
-    // val si = scalaInstance(scalaVersion, tempDir, noLogger)
     val sc = scalaCompiler(si, compilerBridge)
     val cs = compiler.compilers(si, ClasspathOptionsUtil.boot, None, sc)
 
@@ -205,7 +220,7 @@ object TestProjectSetup {
       cp.toArray,
       sources.toArray,
       output,
-      Array(),
+      scalacOptions.toArray,
       Array(),
       maxErrors,
       Array(),
