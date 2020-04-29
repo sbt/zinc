@@ -9,10 +9,10 @@
  * additional information regarding copyright ownership.
  */
 
-package sbt.inc.cached
+package sbt.inc
+package cached
 
 import java.nio.file.Paths
-import sbt.inc.{ BaseCompilerSpec, SourceFiles }
 import sbt.internal.inc.{
   CompileOutput,
   Analysis,
@@ -37,7 +37,7 @@ class CachedHashingSpec extends BaseCompilerSpec {
     IO.withTemporaryDirectory { tempDir =>
       val classes = Seq(SourceFiles.Good)
       val sources0 = Map(Paths.get("src") -> classes.map(path => Paths.get(path)))
-      val projectSetup = ProjectSetup(tempDir.toPath(), sources0, Nil)
+      val projectSetup = TestProjectSetup(tempDir.toPath(), sources0, Nil)
       val compiler = projectSetup.createCompiler()
 
       import compiler.in.{ setup, options, compilers, previousResult }
