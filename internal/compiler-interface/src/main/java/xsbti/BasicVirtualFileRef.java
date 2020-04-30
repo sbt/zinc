@@ -15,10 +15,12 @@ import java.util.Arrays;
 import java.util.ArrayList;
 
 public class BasicVirtualFileRef implements VirtualFileRef {
+    final private String id;
     final private String parent;
     final private String name;
 
     protected BasicVirtualFileRef(String _id) {
+        this.id = _id;
         int idx = _id.lastIndexOf('/');
         if (idx >= 0) {
           parent = _id.substring(0, idx + 1);
@@ -29,7 +31,9 @@ public class BasicVirtualFileRef implements VirtualFileRef {
     }
   
     public String id() {
-        return parent + name;
+        // https://github.com/sbt/zinc/issues/768
+        // keep the whole id as val
+        return this.id;
     }
 
     public String name() {
