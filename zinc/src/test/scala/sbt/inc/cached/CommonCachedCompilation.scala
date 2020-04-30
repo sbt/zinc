@@ -9,7 +9,8 @@
  * additional information regarding copyright ownership.
  */
 
-package sbt.inc.cached
+package sbt.inc
+package cached
 
 import java.io.File
 import java.nio.file.{ Files, Path, Paths }
@@ -18,7 +19,6 @@ import org.scalatest.BeforeAndAfterAll
 import sbt.internal.inc.cached.{ CacheAwareStore, CacheProvider }
 import sbt.internal.inc.{ Analysis, FileAnalysisStore }
 import sbt.io.IO
-import sbt.inc.BaseCompilerSpec
 import xsbti.VirtualFileRef
 import xsbti.compile.AnalysisStore
 
@@ -57,8 +57,8 @@ abstract class CommonCachedCompilation(name: String)
     val baseCpMapping: Seq[Path] = Seq(Bin.Jar1, Bin.Jar2, Bin.ClassesDir1)
   }
 
-  var remoteProject: ProjectSetup = _
-  var remoteCompilerSetup: CompilerSetup = _
+  var remoteProject: TestProjectSetup = _
+  var remoteCompilerSetup: TestProjectSetup.CompilerSetup = _
   var remoteAnalysisStore: AnalysisStore = _
 
   def remoteCacheProvider(): CacheProvider
@@ -70,7 +70,7 @@ abstract class CommonCachedCompilation(name: String)
     Files.createDirectory(basePath)
 
     remoteProject =
-      ProjectSetup(basePath, SetupCommons.baseSourceMapping, SetupCommons.baseCpMapping)
+      TestProjectSetup(basePath, SetupCommons.baseSourceMapping, SetupCommons.baseCpMapping)
     remoteCompilerSetup = remoteProject.createCompiler()
     remoteAnalysisStore = FileAnalysisStore.binary(remoteProject.defaultStoreLocation.toFile)
 
@@ -109,7 +109,11 @@ abstract class CommonCachedCompilation(name: String)
 
   it should "not run compilation in local project" in namedTempDir("localProject") { projectRoot =>
     val projectSetup =
-      ProjectSetup(projectRoot.toPath, SetupCommons.baseSourceMapping, SetupCommons.baseCpMapping)
+      TestProjectSetup(
+        projectRoot.toPath,
+        SetupCommons.baseSourceMapping,
+        SetupCommons.baseCpMapping
+      )
     val localStore = FileAnalysisStore.binary(new File(projectRoot, "inc_data.zip"))
     val cache = CacheAwareStore(localStore, remoteCacheProvider(), projectRoot)
 

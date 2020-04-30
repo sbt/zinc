@@ -9,7 +9,7 @@
  * additional information regarding copyright ownership.
  */
 
-/*package xsbt
+package xsbt
 
 import java.util.concurrent.TimeUnit
 import org.openjdk.jmh.annotations._
@@ -21,15 +21,16 @@ class ShapelessBenchmark extends BenchmarkBase {
 @State(Scope.Benchmark)
 @BenchmarkMode(Array(Mode.SingleShotTime))
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
-@Fork(value = 10, jvmArgs = Array("-XX:CICompilerCount=2"))
+@Fork(value = 5, jvmArgs = Array("-XX:CICompilerCount=2"))
 class ColdShapelessBenchmark extends ShapelessBenchmark {
   _subprojectToRun = _project.subprojects.head // CoreJVM
   @Benchmark
-  override def compile(): Unit = {
-    super.compile()
+  override def action(): Unit = {
+    super.action()
   }
 }
 
+/*
 @State(Scope.Benchmark)
 @BenchmarkMode(Array(Mode.SampleTime))
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
@@ -39,21 +40,22 @@ class ColdShapelessBenchmark extends ShapelessBenchmark {
 class WarmShapelessBenchmark extends ShapelessBenchmark {
   _subprojectToRun = _project.subprojects.head // CoreJVM
   @Benchmark
-  override def compile(): Unit = {
-    super.compile()
+  override def action(): Unit = {
+    super.action()
   }
 }
+ */
 
 @State(Scope.Benchmark)
 @BenchmarkMode(Array(Mode.SampleTime))
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
-@Warmup(iterations = 6, time = 10, timeUnit = TimeUnit.SECONDS)
-@Measurement(iterations = 6, time = 10, timeUnit = TimeUnit.SECONDS)
-@Fork(value = 3)
+@Warmup(iterations = 10, time = 10, timeUnit = TimeUnit.SECONDS)
+@Measurement(iterations = 5, time = 10, timeUnit = TimeUnit.SECONDS)
+@Fork(value = 1)
 class HotShapelessBenchmark extends ShapelessBenchmark {
   _subprojectToRun = _project.subprojects.head // CoreJVM
   @Benchmark
-  override def compile(): Unit = {
-    super.compile()
+  override def action(): Unit = {
+    super.action()
   }
-}*/
+}

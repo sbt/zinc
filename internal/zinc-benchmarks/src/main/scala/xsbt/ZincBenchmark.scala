@@ -12,31 +12,16 @@
 package xsbt
 
 import java.io.File
-
+import java.nio.file.{ Files, Path, Paths }
 import org.eclipse.jgit.api.{ CloneCommand, Git }
-import sbt.internal.util.ConsoleLogger
 import sbt.io.{ IO, RichFile }
+import sbt.inc.TestProjectSetup
 import xsbt.ZincBenchmark.CompilationInfo
-import xsbti._
-import xsbti.compile.SingleOutput
 
 import scala.util.Try
 
-/** Represent the setup for a concrete subproject of a `BenchmarkProject`. */
-case class ProjectSetup(
-    subproject: String,
-    at: File,
-    compilationInfo: CompilationInfo,
-    private val runGenerator: ZincBenchmark.Generator
-) {
-  def compile(): Unit = {
-    val run = runGenerator()
-    run.compile(compilationInfo.sources)
-  }
-}
-
 /** Consist of the setups for every subproject of a `ProjectBenchmark`. */
-case class ZincSetup(result: ZincBenchmark.Result[List[ProjectSetup]]) {
+case class ZincSetup(result: ZincBenchmark.Result[List[TestProjectSetup]]) {
   private def crash(throwable: Throwable) = {
     val message =
       s"""Unexpected error when setting up Zinc benchmarks:
@@ -46,7 +31,7 @@ case class ZincSetup(result: ZincBenchmark.Result[List[ProjectSetup]]) {
   }
 
   /** Crash at this point because JMH wants the list of setup runs. */
-  def getOrCrash: List[ProjectSetup] =
+  def getOrCrash: List[TestProjectSetup] =
     result.fold(crash, identity)
 }
 
@@ -75,11 +60,25 @@ private[xsbt] class ZincBenchmark(toCompile: BenchmarkProject, zincEnabled: Bool
           compilationInfo.copy(scalacOptions = currentOpts ++ UseJavaCpArg)
         }
       }
-
-      // Set up the compiler and store the current setup
-      val javaFile = new RichFile(compilationDir) / "benchmark-target"
-      val runGen = ZincBenchmark.setUpCompiler(buildInfo, javaFile, zincEnabled)
-      ProjectSetup(subproject, javaFile, buildInfo, runGen)
+      val output = (new RichFile(compilationDir) / "benchmark-target").toPath
+      val base = compilationDir.toPath
+      // the expected sources are relative
+      val sources = buildInfo.sources
+        .map(x => base.relativize(x))
+      val cp = buildInfo.classpath
+      cp.foreach(x => assert(Files.exists(x), s"$x does not exist"))
+      TestProjectSetup(
+        compilationDir.toPath,
+        Map(output -> sources),
+        cp,
+        Map.empty,
+        outputToJar = false,
+        subproject,
+        // ignore `buildInfo.scalacOptions` that was recovered from the build
+        // [info] [error] ## Exception when compiling 564 sources to /private/var/folders/hg/2602nfrs2958vnshglyl3srw0000gn/T/sbt_ed541eaf/scala/scala/classes
+        // [info] [error] scala.reflect.internal.Symbols$CyclicReference: illegal cyclic reference involving object Predef
+        List()
+      )
     }
 
     val targetProjects = toCompile.subprojects.map(
@@ -105,74 +104,11 @@ private[xsbt] class ZincBenchmark(toCompile: BenchmarkProject, zincEnabled: Bool
 }
 
 private[xsbt] object ZincBenchmark {
-  type Sources = List[String]
-  type Compiler = ZincCompiler
-  type Generator = () => ZincCompiler#Run
-
-  /** Set up the compiler to compile `sources` with -cp `classpath` at `targetDir`. */
-  def setUpCompiler(
-      compilationInfo: CompilationInfo,
-      targetDir: File,
-      zincEnabled: Boolean
-  ): Generator = () => {
-    IO.delete(targetDir)
-    IO.createDirectory(targetDir)
-    val callback: xsbti.TestCallback = new xsbti.TestCallback {
-      override def enabled: Boolean = zincEnabled
-    }
-    val compiler = prepareCompiler(targetDir, callback, compilationInfo)
-    new compiler.Run
-  }
-
-  /* ***************************************************** */
-  /* Copied over from `ScalaCompilerForUnitTesting.scala`  */
-  /* ***************************************************** */
-
-  def prepareCompiler(
-      outputDir: File,
-      analysisCallback: AnalysisCallback,
-      compilationInfo: CompilationInfo
-  ): ZincCompiler = {
-    object output extends SingleOutput {
-      def getOutputDirectory: File = outputDir
-      override def toString = s"SingleOutput($getOutputDirectory)"
-    }
-    val args = compilationInfo.scalacOptions
-    val classpath = compilationInfo.classpath
-    val weakLog = new WeakLog(ConsoleLogger(), ConsoleReporter)
-    val cachedCompiler = new CachedCompiler0(args, output, weakLog)
-    val settings = cachedCompiler.settings
-    settings.classpath.value = classpath
-    val delegatingReporter = DelegatingReporter(settings, ConsoleReporter)
-    val compiler: ZincCompiler = cachedCompiler.compiler
-    compiler.set(analysisCallback, delegatingReporter)
-    compiler
-  }
-
-  private object ConsoleReporter extends Reporter {
-    def reset(): Unit = ()
-    def hasErrors: Boolean = false
-    def hasWarnings: Boolean = false
-    def printWarnings(): Unit = ()
-    def problems: Array[Problem] = Array.empty
-    def log(problem: Problem): Unit = println(problem.message())
-    def comment(pos: Position, msg: String): Unit = ()
-    def printSummary(): Unit = ()
-  }
+  val scalaVersion = "2.13.1" // scala.util.Properties.scalaPropOrElse("version.number")
 
   /* ************************************************************* */
   /* Utils to programmatically instantiate Compiler from sbt setup  */
   /* ************************************************************* */
-
-  /** Enrich for < Scala 2.12.x compatibility. */
-  implicit class TryEnrich[T](t: Try[T]) {
-    def toEither: Either[Throwable, T] = {
-      t match {
-        case scala.util.Success(value) => Right(value)
-        case scala.util.Failure(e)     => Left(e)
-      }
-    }
-  }
 
   /**
    * Represent the build results for reading and writing build infos.
@@ -199,9 +135,9 @@ private[xsbt] object ZincBenchmark {
 
   /** Sbt classpath, scalac options and sources for a given subproject. */
   case class CompilationInfo(
-      classpath: String,
-      sources: List[String],
-      scalacOptions: Array[String]
+      classpath: List[Path],
+      sources: List[Path],
+      scalacOptions: List[String]
   )
 
   /** Helper to get the build info of a given sbt subproject. */
@@ -213,9 +149,16 @@ private[xsbt] object ZincBenchmark {
         sources: String,
         options: String
     ): CompilationInfo = {
-      val sourcesL = sources.split(" ").toList
-      val optionsL = options.split(" ")
-      CompilationInfo(classpath, sourcesL, optionsL)
+      val classpathL = classpath
+        .split(File.pathSeparator)
+        .toList
+        .map(Paths.get(_))
+      val sourcesL = sources
+        .split(" ")
+        .toList
+        .map(Paths.get(_))
+      val optionsL = options.split(" ").toList
+      CompilationInfo(classpathL, sourcesL, optionsL)
     }
 
     private val TaskNamePrefix = "getAllSourcesAndClasspath"
@@ -241,9 +184,9 @@ private[xsbt] object ZincBenchmark {
          |  Def.task {
          |    val file = new File("${outputFile.getAbsolutePath.replaceAllLiterally("\\", "/")}")
          |    val rawSources = (sources in Compile in project).value
-         |    val sourcesLine = rawSources.map(_.getAbsolutePath).mkString(" ")
+         |    val sourcesLine = rawSources.map(_.getCanonicalPath).mkString(" ")
          |    val rawClasspath = (dependencyClasspath in Compile in project).value
-         |    val classpathLine = rawClasspath.map(_.data.getAbsolutePath).mkString(java.io.File.pathSeparator)
+         |    val classpathLine = rawClasspath.map(_.data.getCanonicalPath).mkString(java.io.File.pathSeparator)
          |    val optionsLine = (scalacOptions in Compile in project).value.mkString(" ")
          |    IO.writeLines(file, Seq(sourcesLine, classpathLine, optionsLine))
          |  }
@@ -320,7 +263,6 @@ private[xsbt] object ZincBenchmark {
     ): Result[Unit] = {
       import scala.sys.process._
       val taskName = generateTaskName(sbtProject)
-      val scalaVersion = scala.util.Properties.scalaPropOrElse("version.number", "2.13.0-RC1")
       val sbtExecutable = if (scala.util.Properties.isWin) "cmd /c sbt.bat" else "sbt"
       val sbt = Try(Process(s"$sbtExecutable ++$scalaVersion! $taskName", atDir).!).toEither
       sbt.right.flatMap { _ =>

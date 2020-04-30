@@ -24,7 +24,7 @@ class NameHashingCompilerSpec extends BaseCompilerSpec {
   ) = {
     val nahaPath = Paths.get("naha")
     IO.withTemporaryDirectory { tempDir =>
-      val projectSetup = ProjectSetup(
+      val projectSetup = TestProjectSetup(
         tempDir.toPath,
         Map(nahaPath -> SourceFiles.Naha.all.map(nahaPath.resolve)),
         Nil

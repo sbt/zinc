@@ -145,6 +145,7 @@ lazy val zincRoot: Project = (project in file("."))
     compilerInterface.projectRefs ++
       compilerBridge.projectRefs ++
       zincApiInfo.projectRefs ++
+      zincBenchmarks.projectRefs ++
       zincClasspath.projectRefs ++
       zincClassfile.projectRefs ++
       zincCompileCore.projectRefs ++
@@ -349,21 +350,20 @@ lazy val zincCore = (projectMatrix in internalPath / "zinc-core")
   .jvmPlatform(scalaVersions = List(scala212, scala213))
   .configure(addBaseSettingsAndTestDeps, addSbtIO, addSbtUtilLogging, addSbtUtilRelation)
 
-// lazy val zincBenchmarks = (project in internalPath / "zinc-benchmarks")
-//   .dependsOn(compilerInterface % "compile->compile;compile->test")
-//   .dependsOn(compilerBridge212, zincCore, zincTesting % Test)
-//   .enablePlugins(JmhPlugin)
-//   .settings(
-//     noPublish,
-//     name := "Benchmarks of Zinc and the compiler bridge",
-//     libraryDependencies ++= Seq(
-//       "org.eclipse.jgit" % "org.eclipse.jgit" % "5.4.2.201908231537-r",
-//       "net.openhft" % "affinity" % "3.1.11"
-//     ),
-//     scalaVersion := scala212,
-//     crossScalaVersions := Seq(scala212),
-//     javaOptions in Test ++= List("-Xmx600M", "-Xms600M"),
-//   )
+lazy val zincBenchmarks = (projectMatrix in internalPath / "zinc-benchmarks")
+  .dependsOn(compilerInterface % "compile->compile;compile->test")
+  .dependsOn(compilerBridge, zinc % "compile->test", zincTesting % "compile->test")
+  .enablePlugins(JmhPlugin)
+  .settings(
+    noPublish,
+    name := "Benchmarks of Zinc and the compiler bridge",
+    libraryDependencies ++= Seq(
+      "org.eclipse.jgit" % "org.eclipse.jgit" % "5.4.2.201908231537-r",
+      "net.openhft" % "affinity" % "3.1.11"
+    ),
+    javaOptions in Test ++= List("-Xmx600M", "-Xms600M"),
+  )
+  .jvmPlatform(scalaVersions = List(scala212, scala213))
 
 // sbt-side interface to compiler.  Calls compiler-side interface reflectively
 lazy val zincCompileCore = (projectMatrix in internalPath / "zinc-compile-core")
@@ -711,10 +711,7 @@ tearDownBenchmarkResources in ThisBuild := { IO.delete(dir) }
 
 addCommandAlias(
   "runBenchmarks",
-  s""";zincBenchmarks/run $dirPath
-     |;zincBenchmarks/jmh:run -p _tempDir=$dirPath -prof gc
-     |;tearDownBenchmarkResources
-   """.stripMargin
+  s""";${compilerBridge213.id}/packageBin;${compilerBridge212.id}/packageBin;zincBenchmarksJVM2_12/run $dirPath;zincBenchmarksJVM2_12/jmh:run -p _tempDir=$dirPath -prof gc;tearDownBenchmarkResources""".stripMargin
 )
 
 lazy val otherRootSettings = Seq(
