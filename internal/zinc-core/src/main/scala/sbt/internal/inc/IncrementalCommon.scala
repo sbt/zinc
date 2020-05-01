@@ -375,20 +375,30 @@ private[inc] abstract class IncrementalCommon(
     val previousRelations = previousAnalysis.relations
 
     val sourceChanges: Changes[VirtualFileRef] = lookup.changedSources(previousAnalysis).getOrElse {
-      val previousSources: Set[VirtualFileRef] = previous.allSources.toSet
+      val previousSources = previous.allSources
 
       log.debug(s"previous = $previous")
       log.debug(s"current source = $sources")
 
       new UnderlyingChanges[VirtualFileRef] {
-        private val inBoth: Set[VirtualFile] =
-          sources.filter(previousSources(_))
-        val removed = previousSources -- inBoth
-        val added = (sources -- inBoth).map(x => x: VirtualFileRef)
-        val (changed0, unmodified0) =
-          inBoth.partition(f => !equivS.equiv(previous.source(f), stamps.source(f)))
-        val changed = changed0.map(x => x: VirtualFileRef)
-        val unmodified = unmodified0.map(x => x: VirtualFileRef)
+        val added0 = new java.util.HashSet[VirtualFileRef]
+        val changed0 = new java.util.HashSet[VirtualFileRef]
+        val removed0 = new java.util.HashSet[VirtualFileRef]
+        val unmodified0 = new java.util.HashSet[VirtualFileRef]
+        sources.foreach {
+          case f: VirtualFileRef if previousSources.contains(f) =>
+            if (equivS.equiv(previous.source(f), stamps.source(f))) unmodified0.add(f)
+            else changed0.add(f)
+          case f: VirtualFileRef => added0.add(f)
+        }
+        previousSources.foreach {
+          case f: VirtualFile => if (!sources.contains(f)) removed0.add(f)
+          case _              =>
+        }
+        val added = new WrappedSet(added0)
+        val changed = new WrappedSet(changed0)
+        val removed = new WrappedSet(removed0)
+        val unmodified = new WrappedSet(unmodified0)
       }
     }
 
