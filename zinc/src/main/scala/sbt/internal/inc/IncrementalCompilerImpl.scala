@@ -439,7 +439,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
     }
 
     // Run the incremental compilation
-    val compile = IncrementalCompile(
+    val compile = Incremental(
       srcsSet,
       converter,
       lookup,

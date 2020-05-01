@@ -25,8 +25,8 @@ import xsbti.compile.{
   ClassFileManager => XClassFileManager
 }
 import xsbti.compile.analysis.{ ReadStamps, Stamp => XStamp }
-
-import scala.annotation.tailrec
+import scala.collection.Iterator
+import Incremental.{ PrefixingLogger, apiDebug }
 
 /**
  * Defines the core logic to compile incrementally and apply the class invalidation after
@@ -49,32 +49,20 @@ private[inc] abstract class IncrementalCommon(
   private[this] def enableShallowLookup: Boolean =
     java.lang.Boolean.getBoolean("xsbt.skip.cp.lookup")
 
-  private[this] final val wrappedLog = new Incremental.PrefixingLogger("[inv] ")(log)
+  private[this] final val wrappedLog = new PrefixingLogger("[inv] ")(log)
   def debug(s: => String): Unit = if (options.relationsDebug) wrappedLog.debug(s) else ()
 
-  /**
-   * Compile a project as many times as it is required incrementally. This logic is the start
-   * point of the incremental compiler and the place where all the invalidation logic happens.
-   *
-   * The current logic does merge the compilation step and the analysis step, by making them
-   * execute sequentially. There are cases where, for performance reasons, build tools and
-   * users of Zinc may be interested in separating the two. If this is the case, the user needs
-   * to reimplement this logic by copy pasting this logic and relying on the utils defined
-   * in `IncrementalCommon`.
-   *
-   * @param invalidatedClasses The invalidated classes either initially or by a previous cycle.
-   * @param initialChangedSources The initial changed sources by the user, empty if previous cycle.
-   * @param allSources All the sources defined in the project and compiled in the first iteration.
-   * @param converter FileConverter to convert between Path and VirtualFileRef.
-   * @param binaryChanges The initially detected changes derived from [[InitialChanges]].
-   * @param lookup The lookup instance to query classpath and analysis information.
-   * @param previous The last analysis file known of this project.
-   * @param doCompile A function that compiles a project and returns an analysis file.
-   * @param classfileManager The manager that takes care of class files in compilation.
-   * @param cycleNum The counter of incremental compiler cycles.
-   * @return A fresh analysis file after all the incremental compiles have been run.
-   */
-  @tailrec final def cycle(
+  final def iterations(state0: CycleState): Iterator[CycleState] =
+    new Iterator[CycleState] {
+      var state: CycleState = state0
+      def hasNext: Boolean = state.hasNext
+      def next: CycleState = {
+        val n = state.next
+        state = n
+        n
+      }
+    }
+  case class CycleState(
       invalidatedClasses: Set[String],
       initialChangedSources: Set[VirtualFileRef],
       allSources: Set[VirtualFile],
@@ -86,9 +74,9 @@ private[inc] abstract class IncrementalCommon(
       classfileManager: XClassFileManager,
       output: Output,
       cycleNum: Int
-  ): Analysis = {
-    if (invalidatedClasses.isEmpty && initialChangedSources.isEmpty) previous
-    else {
+  ) {
+    def hasNext: Boolean = invalidatedClasses.nonEmpty || initialChangedSources.nonEmpty
+    def next: CycleState = {
       // Compute all the invalidated classes by aggregating invalidated package objects
       val invalidatedByPackageObjects =
         invalidatedPackageObjects(invalidatedClasses, previous.relations, previous.apis)
@@ -111,7 +99,20 @@ private[inc] abstract class IncrementalCommon(
         )
 
       // Return immediate analysis as all sources have been recompiled
-      if (invalidatedSources == allSources) current
+      if (invalidatedSources == allSources)
+        CycleState(
+          Set.empty,
+          Set.empty,
+          allSources,
+          converter,
+          IncrementalCommon.emptyChanges,
+          lookup,
+          current,
+          doCompile,
+          classfileManager,
+          output,
+          cycleNum + 1
+        )
       else {
         val recompiledClasses: Set[String] = {
           // Represents classes detected as changed externally and internally (by a previous cycle)
@@ -144,8 +145,7 @@ private[inc] abstract class IncrementalCommon(
           nextInvalidations,
           continue
         )
-
-        cycle(
+        CycleState(
           if (continue) nextInvalidations else Set.empty,
           Set.empty,
           allSources,
@@ -160,6 +160,61 @@ private[inc] abstract class IncrementalCommon(
         )
       }
     }
+  }
+
+  /**
+   * Compile a project as many times as it is required incrementally. This logic is the start
+   * point of the incremental compiler and the place where all the invalidation logic happens.
+   *
+   * The current logic does merge the compilation step and the analysis step, by making them
+   * execute sequentially. There are cases where, for performance reasons, build tools and
+   * users of Zinc may be interested in separating the two. If this is the case, the user needs
+   * to reimplement this logic by copy pasting this logic and relying on the utils defined
+   * in `IncrementalCommon`.
+   *
+   * @param invalidatedClasses The invalidated classes either initially or by a previous cycle.
+   * @param initialChangedSources The initial changed sources by the user, empty if previous cycle.
+   * @param allSources All the sources defined in the project and compiled in the first iteration.
+   * @param converter FileConverter to convert between Path and VirtualFileRef.
+   * @param binaryChanges The initially detected changes derived from [[InitialChanges]].
+   * @param lookup The lookup instance to query classpath and analysis information.
+   * @param previous The last analysis file known of this project.
+   * @param doCompile A function that compiles a project and returns an analysis file.
+   * @param classfileManager The manager that takes care of class files in compilation.
+   * @param cycleNum The counter of incremental compiler cycles.
+   * @return A fresh analysis file after all the incremental compiles have been run.
+   */
+  final def cycle(
+      invalidatedClasses: Set[String],
+      initialChangedSources: Set[VirtualFileRef],
+      allSources: Set[VirtualFile],
+      converter: FileConverter,
+      binaryChanges: DependencyChanges,
+      lookup: ExternalLookup,
+      previous: Analysis,
+      doCompile: (Set[VirtualFile], DependencyChanges) => Analysis,
+      classfileManager: XClassFileManager,
+      output: Output,
+      cycleNum: Int
+  ): Analysis = {
+    var s = CycleState(
+      invalidatedClasses,
+      initialChangedSources,
+      allSources,
+      converter,
+      binaryChanges,
+      lookup,
+      previous,
+      doCompile,
+      classfileManager,
+      output,
+      cycleNum
+    )
+    val it = iterations(s)
+    while (it.hasNext) {
+      s = it.next
+    }
+    s.previous
   }
 
   def mapInvalidationsToSources(
@@ -235,7 +290,7 @@ private[inc] abstract class IncrementalCommon(
     }
 
     val apiChanges = recompiledClasses.flatMap(name => classDiff(name, oldAPI(name), newAPI(name)))
-    if (Incremental.apiDebug(options) && apiChanges.nonEmpty) {
+    if (apiDebug(options) && apiChanges.nonEmpty) {
       logApiChanges(apiChanges, oldAPI, newAPI)
     }
     new APIChanges(apiChanges)
@@ -520,7 +575,7 @@ private[inc] abstract class IncrementalCommon(
   ): Unit = {
     val contextSize = options.apiDiffContextSize
     try {
-      val wrappedLog = new Incremental.PrefixingLogger("[diff] ")(log)
+      val wrappedLog = new PrefixingLogger("[diff] ")(log)
       val apiDiff = new APIDiff
       apiChanges foreach {
         case APIChangeDueToMacroDefinition(src) =>
