@@ -26,13 +26,7 @@ import xsbti.compile.{
 }
 import xsbti.compile.analysis.{ ReadStamps, Stamp => XStamp }
 import scala.collection.Iterator
-import Incremental.{
-  CompileCycle,
-  CompileCycleResult,
-  IncrementalCallback,
-  PrefixingLogger,
-  apiDebug
-}
+import Incremental.{ CompileCycle, CompileCycleResult, IncrementalCallback, PrefixingLogger }
 
 /**
  * Defines the core logic to compile incrementally and apply the class invalidation after
@@ -329,7 +323,9 @@ private[inc] abstract class IncrementalCommon(
       oldAPI: String => AnalyzedClass,
       newAPI: String => AnalyzedClass
   ): APIChanges = {
+    // log.debug(s"[zinc] detectAPIChanges(recompiledClasses = $recompiledClasses)")
     def classDiff(className: String, a: AnalyzedClass, b: AnalyzedClass): Option[APIChange] = {
+      // log.debug(s"[zinc] classDiff($className, ${a.name}, ${b.name})")
       if (a.compilationTimestamp() == b.compilationTimestamp() && (a.apiHash == b.apiHash)) None
       else {
         val hasMacro = a.hasMacro || b.hasMacro
@@ -338,9 +334,8 @@ private[inc] abstract class IncrementalCommon(
         } else findAPIChange(className, a, b)
       }
     }
-
     val apiChanges = recompiledClasses.flatMap(name => classDiff(name, oldAPI(name), newAPI(name)))
-    if (apiDebug(options) && apiChanges.nonEmpty) {
+    if (Incremental.apiDebug(options) && apiChanges.nonEmpty) {
       logApiChanges(apiChanges, oldAPI, newAPI)
     }
     new APIChanges(apiChanges)
@@ -408,7 +403,7 @@ private[inc] abstract class IncrementalCommon(
           .toSet
       }
 
-    val changedBinaries: Set[VirtualFileRef] = lookup.changedBinaries(previousAnalysis).getOrElse {
+    val changedLibraries: Set[VirtualFileRef] = lookup.changedBinaries(previousAnalysis).getOrElse {
       val detectChange =
         isLibraryModified(
           enableShallowLookup,
@@ -422,7 +417,7 @@ private[inc] abstract class IncrementalCommon(
       previous.allLibraries.filter(detectChange).toSet
     }
 
-    val externalApiChanges: APIChanges = {
+    val subprojectApiChanges: APIChanges = {
       val incrementalExternalChanges = {
         val previousAPIs = previousAnalysis.apis
         val externalFinder = lookupAnalyzedClass(_: String).getOrElse(APIs.emptyAnalyzedClass)
@@ -435,7 +430,8 @@ private[inc] abstract class IncrementalCommon(
       else incrementalExternalChanges
     }
 
-    val init = InitialChanges(sourceChanges, removedProducts, changedBinaries, externalApiChanges)
+    val init =
+      InitialChanges(sourceChanges, removedProducts, changedLibraries, subprojectApiChanges)
     profiler.registerInitial(init)
     // log.debug(s"initial changes: $init")
     init

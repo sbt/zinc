@@ -636,6 +636,7 @@ private final class AnalysisCallback(
     if (invalidationResults.isEmpty) {
       writeEarlyArtifacts(incHandler.previousAnalysisPruned)
     }
+    // assert(writtenEarlyArtifacts, s"early artifact $earlyOutput hasn't been written")
     incHandler.completeCycle(invalidationResults, a)
   }
 
@@ -800,7 +801,10 @@ private final class AnalysisCallback(
     }
   }
 
+  private[this] var writtenEarlyArtifacts: Boolean = false
   private def writeEarlyArtifacts(merged: Analysis): Unit = {
+    writtenEarlyArtifacts = true
+    // log.info(s"writeEarlyArtifacts to $earlyOutput")
     earlyAnalysisStore map { store =>
       store.set(AnalysisContents.create(merged, currentSetup))
     }
@@ -809,15 +813,25 @@ private final class AnalysisCallback(
       pickleJarPath <- jo2o(earlyO.getSingleOutput())
     } {
       // List classes defined in the files that were compiled in this run.
-      val knownClasses = merged.relations.allSources
+      val knownProducts = merged.relations.allSources
         .flatMap(merged.relations.products)
-        .flatMap(merged.relations.classNames)
-      // .map(JarUtils.ClassInJar.fromVirtualFileRef(_).toClassFilePath)
-      PickleJar.write(pickleJarPath, pklData, knownClasses, log)
-      progress map { p =>
-        p.earlyOutputComplete()
-      }
+        .flatMap(extractProductPath)
+      PickleJar.write(pickleJarPath, pklData, knownProducts, log)
+    }
+    progress map { p =>
+      p.earlyOutputComplete()
     }
     ()
+  }
+
+  private def extractProductPath(product: VirtualFileRef): Option[String] = {
+    jo2o(output.getSingleOutput) match {
+      case Some(so) if so.getFileName.toString.endsWith(".jar") =>
+        new JarUtils.ClassInJar(product.id).toClassFilePath
+      case Some(so) =>
+        val productPath = converter.toPath(product)
+        sbt.io.IO.relativize(so.toFile, productPath.toFile)
+      case _ => sys.error(s"unsupported output $output")
+    }
   }
 }

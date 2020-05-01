@@ -18,7 +18,6 @@ import java.io.File
 import java.util.UUID
 
 import sbt.io.syntax.URL
-import xsbti.VirtualFileRef
 import xsbti.compile.{ Output, SingleOutput }
 import java.nio.file.{ Files, Path, Paths }
 
@@ -48,12 +47,16 @@ object JarUtils {
    * "C:\develop\zinc\target\output.jar!sbt\internal\inc\Compile.class"
    */
   class ClassInJar(override val toString: String) extends AnyVal {
-    def toClassFilePath: ClassFilePath = splitJarReference._2
-    def splitJarReference: (File, ClassFilePath) = {
-      val Array(jar, cls) = toString.split("!")
-      // ClassInJar stores RelClass part with File.separatorChar, however actual paths in zips always use '/'
-      val classFilePath = cls.replace('\\', '/')
-      (new File(jar), classFilePath)
+    def toClassFilePath: Option[ClassFilePath] = splitJarReference._2
+    def splitJarReference: (File, Option[ClassFilePath]) = {
+      if (toString.contains("!")) {
+        val Array(jar, cls) = toString.split("!")
+        // ClassInJar stores RelClass part with File.separatorChar, however actual paths in zips always use '/'
+        val classFilePath = cls.replace('\\', '/')
+        (new File(jar), Some(classFilePath))
+      } else {
+        (new File(toString), None)
+      }
     }
 
     /**
@@ -113,9 +116,6 @@ object JarUtils {
     def fromFile(f: File): ClassInJar = new ClassInJar(f.toString)
 
     def fromPath(p: Path): ClassInJar = new ClassInJar(p.toString)
-
-    def fromVirtualFileRef(vf: VirtualFileRef): ClassInJar =
-      new ClassInJar(vf.id)
   }
 
   /**
@@ -183,7 +183,7 @@ object JarUtils {
     val stamps = new IndexBasedZipFsOps.CachedStamps(jar)
     file =>
       val u = file.toUri.toURL
-      stamps.getStamp(ClassInJar.fromURL(u, jar).toClassFilePath)
+      stamps.getStamp(ClassInJar.fromURL(u, jar).toClassFilePath.get)
   }
 
   /**
@@ -433,17 +433,19 @@ object JarUtils {
     val (jar, cls) = jc.splitJarReference
     if (jar.exists()) {
       withZipFile(jar) { zip =>
-        Option(zip.getEntry(cls)).map(_.getLastModifiedTime.toMillis).getOrElse(0)
+        Option(zip.getEntry(cls.get)).map(_.getLastModifiedTime.toMillis).getOrElse(0)
       }
     } else 0
   }
 
   /** Checks if given jared class exists */
   def exists(jc: ClassInJar): Boolean = {
-    val (jar, cls) = jc.splitJarReference
-    jar.exists() && {
-      withZipFile(jar)(zip => zip.getEntry(cls) != null)
-    }
+    val (jar, clsOpt) = jc.splitJarReference
+    jar.exists() &&
+    (clsOpt match {
+      case Some(cls) => withZipFile(jar)(zip => zip.getEntry(cls) != null)
+      case _         => true
+    })
   }
 
   private def withZipFile[A](zip: File)(f: ZipFile => A): A = {

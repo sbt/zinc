@@ -112,7 +112,8 @@ private class MAPIs(
   }
 
   override def toString: String =
-    "API(internal: %d, external: %d)".format(internal.size, external.size)
+    "APIs(internal: %d, subproject: %d)".format(internal.size, external.size)
+  // s"MAPIs(internal = $internal, external = $external)"
 
   private[this] def sorted[T](
       m: Map[T, AnalyzedClass]

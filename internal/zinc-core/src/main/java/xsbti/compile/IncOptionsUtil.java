@@ -42,6 +42,9 @@ public class IncOptionsUtil {
     public static final String TRANSACTIONAL_MANAGER_TYPE = "transactionalManagerType";
     public static final String TRANSACTIONAL_MANAGER_BASE_DIRECTORY = "transactionalManagerBaseDirectory";
     public static final String DELETE_IMMEDIATELY_MANAGER_TYPE = "deleteImmediatelyManagerType";
+    public static final String STORE_APIS = "storeApis";
+    public static final String ALLOW_MACHINE_PATH = "allowMachinePath";
+    public static final String PIPELINING = "pipelining";
     private static final String XSBTI_NOTHING = "NOTHING";
 
     // Small utility function for logging
@@ -147,6 +150,21 @@ public class IncOptionsUtil {
         if (values.containsKey(IGNORED_SCALAC_OPTIONS_KEY)) {
             logger.debug(f0("IGNORED_SCALAC_OPTIONS_KEY value was read."));
             base = base.withIgnoredScalacOptions(values.get(IGNORED_SCALAC_OPTIONS_KEY).split(" +"));
+        }
+
+        if (values.containsKey(STORE_APIS)) {
+            logger.debug(f0("STORE_APIS value was read."));
+            base = base.withStoreApis(Boolean.parseBoolean(values.get(STORE_APIS)));
+        }
+
+        if (values.containsKey(ALLOW_MACHINE_PATH)) {
+            logger.debug(f0("ALLOW_MACHINE_PATH value was read."));
+            base = base.withAllowMachinePath(Boolean.parseBoolean(values.get(ALLOW_MACHINE_PATH)));
+        }
+
+        if (values.containsKey(PIPELINING)) {
+            logger.debug(f0("PIPELINING value was read."));
+            base = base.withPipelining(Boolean.parseBoolean(values.get(PIPELINING)));
         }
 
         return base;

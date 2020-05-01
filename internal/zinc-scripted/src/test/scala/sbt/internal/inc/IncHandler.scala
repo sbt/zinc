@@ -275,10 +275,14 @@ case class ProjectStructure(
   import scala.concurrent.ExecutionContext.Implicits._
   val maxErrors = 100
   val targetDir = baseDirectory / "target"
+  // val targetDir = Paths.get("/tmp/pipelining") / name / "target"
   val classesDir = targetDir / "classes"
   val outputJar = if (compileToJar) Some(classesDir / "output.jar") else None
   val output = outputJar.getOrElse(classesDir)
-  val earlyOutput = targetDir / "early-output.jar"
+  val earlyOutput = targetDir / "early" / "output.jar"
+  if (!earlyOutput.toFile.getParentFile.exists()) {
+    earlyOutput.toFile.getParentFile.mkdirs()
+  }
   val generatedClassFiles = classesDir.toFile ** "*.class"
   val scalaSourceDirectory = baseDirectory / "src" / "main" / "scala"
   val javaSourceDirectory = baseDirectory / "src" / "main" / "java"
@@ -300,6 +304,26 @@ case class ProjectStructure(
   val earlyCacheFile = baseDirectory / "target" / "early" / "inc_compile.zip"
   val earlyAnalysisStore = FileAnalysisStore.binary(earlyCacheFile.toFile)
   // val earlyCachedStore = AnalysisStore.cached(fileStore)
+
+  // We specify the class file manager explicitly even though it's noew possible
+  // to specify it in the incremental option property file (this is the default for sbt)
+  val (incOptions, scalacOptions) = {
+    val properties = loadIncProperties(baseDirectory / "incOptions.properties")
+    val (incOptions0, sco) = loadIncOptions(properties)
+    val storeApis = Option(properties.getProperty("incOptions.storeApis"))
+      .map(_.toBoolean)
+      .getOrElse(incOptions0.storeApis())
+    val transactional: Optional[xsbti.compile.ClassFileManagerType] =
+      Optional.of(
+        xsbti.compile.TransactionalManagerType
+          .of((targetDir / "classes.bak").toFile, sbt.util.Logger.Null)
+      )
+    val incO =
+      incOptions0
+        .withClassfileManagerType(transactional)
+        .withStoreApis(storeApis)
+    (incO, sco)
+  }
 
   def prev(useCachedAnalysis: Boolean = true) = {
     val store = if (useCachedAnalysis) cachedStore else fileStore
@@ -504,14 +528,21 @@ case class ProjectStructure(
 
     i.compilations.get(this).getOrElse {
       val notifyEarlyOutput: Promise[Unit] = Promise[Unit]()
-      val pipelining = false
-      if (pipelining) {
+      if (incOptions.pipelining) {
+        // future of early outputs
         val earlyDeps: Future[Seq[Path]] = Future.traverse(dependsOnRef) { dep =>
           dep.earlyArtifact(i).map(_ => dep.earlyOutput)
         }
-        val f = earlyDeps.map { internalCp =>
+        val futureAnalysis = earlyDeps.map { internalCp =>
           doCompile(i, notifyEarlyOutput, internalCp, pipelinedLookupAnalysis)
         }
+        // wait for the full compilation from the dependencies
+        // during pipelining, downstream compilation may complete before the upstream
+        // to avoid deletion of directories etc, we need to wait for the upstream to finish
+        val f = for {
+          _ <- Future.traverse(dependsOnRef)(_.compile(i))
+          a <- futureAnalysis
+        } yield a
         i.compilations(this) = (f, notifyEarlyOutput.future)
         (f, notifyEarlyOutput.future)
       } else {
@@ -545,35 +576,16 @@ case class ProjectStructure(
     val sources = scalaSources ++ javaSources
     val vs = sources.toList.map(converter.toVirtualFile)
     val entryLookup = new PerClasspathEntryLookupImpl(lookupAnalysis, Locate.definesClass)
-    val transactional: Optional[xsbti.compile.ClassFileManagerType] =
-      Optional.of(
-        xsbti.compile.TransactionalManagerType
-          .of((targetDir / "classes.bak").toFile, sbt.util.Logger.Null)
-      )
-    // We specify the class file manager explicitly even though it's noew possible
-    // to specify it in the incremental option property file (this is the default for sbt)
-    val properties = loadIncProperties(baseDirectory / "incOptions.properties")
-    val (incOptions0, scalacOptions) = loadIncOptions(properties)
-    val storeApis = Option(properties.getProperty("incOptions.storeApis"))
-      .map(_.toBoolean)
-      .getOrElse(incOptions0.storeApis())
     val reporter = new ManagedLoggedReporter(maxErrors, scriptedLog)
     val extra = Array(t2(("key", "value")))
-    val previousResult = prev(
-      Option(properties.getProperty("alwaysLoadAnalysis")).exists(_.toBoolean)
-    )
-    val incOptions =
-      incOptions0
-        .withClassfileManagerType(transactional)
-        .withStoreApis(storeApis)
-
+    val previousResult = prev()
     val progress = new CompileProgress {
       override def startUnit(phase: String, unitPath: String): Unit = {
-        // println(s"[zinc] start $phase $unitPath")
+        // scriptedLog.debug(s"[zinc] start $phase $unitPath")
       }
       override def advance(current: Int, total: Int, prevPhase: String, nextPhase: String) = true
       override def earlyOutputComplete = {
-        println(s"early output is done for $name!")
+        scriptedLog.info(s"[progress] early output is done for $name!")
         notifyEarlyOutput.complete(Success(()))
       }
     }
@@ -611,7 +623,7 @@ case class ProjectStructure(
     val result = incrementalCompiler.compile(in, scriptedLog)
     val analysis = result.analysis match { case a: Analysis => a }
     cachedStore.set(AnalysisContents.create(analysis, result.setup))
-    scriptedLog.info(s"""Compilation done: ${sources.toList.mkString(", ")}""")
+    scriptedLog.info(s"""$name: compilation done: ${sources.toList.mkString(", ")}""")
     analysis
   }
 
@@ -694,16 +706,15 @@ case class ProjectStructure(
     val map = new java.util.HashMap[String, String]
     properties.asScala foreach { case (k: String, v: String) => map.put(k, v) }
 
-    val scalacOptions =
-      Option(map.get("scalac.options")).map(_.toString.split(" +")).getOrElse(Array.empty)
-
     val incOptions = {
       val opts = IncOptionsUtil.fromStringMap(map, scriptedLog)
       if (opts.recompileAllFraction() != IncOptions.defaultRecompileAllFraction()) opts
       else opts.withRecompileAllFraction(1.0)
     }
-
-    (incOptions, scalacOptions)
+    val scalacOptions: List[String] =
+      Option(map.get("scalac.options")).toList
+        .flatMap(_.toString.split(" +").toList)
+    (incOptions, scalacOptions.toArray)
   }
 
   def getProblems(): Seq[Problem] =
