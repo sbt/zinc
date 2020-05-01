@@ -142,7 +142,10 @@ trait CompilingSpecification extends BridgeProviderSpecification {
     Paths.get(sys.props("user.home")).resolve(".coursier").resolve("cache"),
     Paths.get(sys.props("user.home")).resolve(".cache").resolve("coursier"),
     Paths.get(sys.props("user.home"), "Library/Caches/Coursier/v1")
-  )
+  ) ++ sys.env
+    .get("LOCALAPPDATA")
+    .map(s => Paths.get(s.replace('\\', '/'), "Coursier/cache/v1"))
+    .toList
 
   /**
    * Compiles given source code snippets written to temporary files. Each snippet is
