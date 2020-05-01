@@ -3,7 +3,7 @@ group: stable
 
 language: scala
 
-scala: 2.12.10
+scala: 2.12.11
 
 matrix:
   include:

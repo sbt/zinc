@@ -1,12 +1,12 @@
 matrix:
   include:
-    - CI_SCALA_VERSION: 2.12.10
+    - CI_SCALA_VERSION: 2.12.11
       JDK_HOME: /usr/lib/jvm/jdk8/bin
       RUN_SCRIPTED: ./bin/run-ci-scripted.sh
-    - CI_SCALA_VERSION: 2.12.10
+    - CI_SCALA_VERSION: 2.12.11
       JDK_HOME: /usr/lib/jvm/jdk11/bin
       RUN_SCRIPTED: ./bin/run-ci-scripted.sh
-    - CI_SCALA_VERSION: 2.12.10
+    - CI_SCALA_VERSION: 2.12.11
       JDK_HOME: /usr/lib/jvm/jdk8/bin
       RUN_SCRIPTED: ./bin/run-ci-scripted-to-jar.sh
 

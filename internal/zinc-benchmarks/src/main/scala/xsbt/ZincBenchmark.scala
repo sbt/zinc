@@ -104,7 +104,7 @@ private[xsbt] class ZincBenchmark(toCompile: BenchmarkProject, zincEnabled: Bool
 }
 
 private[xsbt] object ZincBenchmark {
-  val scalaVersion = "2.13.1" // scala.util.Properties.scalaPropOrElse("version.number")
+  val scalaVersion = scala.util.Properties.versionNumberString
 
   /* ************************************************************* */
   /* Utils to programmatically instantiate Compiler from sbt setup  */

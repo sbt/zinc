@@ -555,6 +555,7 @@ lazy val compilerBridgeTest = (project in internalPath / "compiler-bridge-test")
   .settings(
     name := "Compiler Bridge Test",
     baseSettings,
+    scalaVersion := scala212,
     compilerVersionDependentScalacOptions,
     // we need to fork because in unit tests we set usejavacp = true which means
     // we are expecting all of our dependencies to be on classpath so Scala compiler
