@@ -5,11 +5,11 @@
       "dependsOn": [
         "macro-provider"
       ],
-      "scalaVersion": "2.13.1"
+      "scalaVersion": "2.13.2"
     },
     {
       "name": "macro-provider",
-      "scalaVersion": "2.13.1"
+      "scalaVersion": "2.13.2"
     }
   ]
 }
