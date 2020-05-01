@@ -140,7 +140,8 @@ trait CompilingSpecification extends BridgeProviderSpecification {
   val javaHome = Paths.get(sys.props("java.home"))
   val localCoursierCache = Vector(
     Paths.get(sys.props("user.home")).resolve(".coursier").resolve("cache"),
-    Paths.get(sys.props("user.home")).resolve(".cache").resolve("coursier")
+    Paths.get(sys.props("user.home")).resolve(".cache").resolve("coursier"),
+    Paths.get(sys.props("user.home"), "Library/Caches/Coursier/v1")
   )
 
   /**
