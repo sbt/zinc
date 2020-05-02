@@ -92,6 +92,10 @@ type IncOptions {
   allowMachinePath: Boolean! = raw"xsbti.compile.IncOptions.defaultAllowMachinePath()"
   @since("1.4.0")
 
+  ## Enables build pipelining at the module level.
+  pipelining: Boolean! = raw"xsbti.compile.IncOptions.defaultPipelining()"
+  @since("1.4.0")
+
   #x public static int defaultTransitiveStep() {
   #x     return 3;
   #x }
@@ -154,6 +158,9 @@ type IncOptions {
   #x     return false;
   #x }
   #x public static boolean defaultAllowMachinePath() {
+  #x     return true;
+  #x }
+  #x public static boolean defaultPipelining() {
   #x     return true;
   #x }
 }
