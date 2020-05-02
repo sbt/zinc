@@ -211,6 +211,10 @@ type CompileOptions {
   ## ReadStamps to calculate timestamp or hash.
   stamper: xsbti.compile.analysis.ReadStamps
   @since("1.4.0")
+
+  ## Output for pickle JAR used for build pipelining
+  earlyOutput: xsbti.compile.Output
+  @since("1.4.0")
 }
 
 ## This is used as part of CompileResult.

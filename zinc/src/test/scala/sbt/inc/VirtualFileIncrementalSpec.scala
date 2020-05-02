@@ -39,6 +39,7 @@ class VirtualFileIncrementalSpec extends BridgeProviderSpecification {
       Files.createDirectories(sub1Directory)
       Files.createDirectories(sub1Directory / "lib")
       val targetDir = sub1Directory / "target"
+      val earlyOutput = targetDir / "early-output.jar"
       val cacheFile = targetDir / "inc_compile.zip"
       val fileStore = AnalysisStore.getCachedStore(FileAnalysisStore.getDefault(cacheFile.toFile))
       val dependerFile: VirtualFile =
@@ -100,6 +101,7 @@ object Depender2 {
         cp.toArray,
         sources,
         classesDirectory = targetDir,
+        Some(earlyOutput),
         Array(),
         Array(),
         maxErrors,
@@ -120,6 +122,7 @@ object Depender2 {
       println((targetDir.toFile ** "*").get.toList.toString)
       val expectedOut = targetDir.resolve("test").resolve("pkg").resolve("Depender$.class")
       assert(Files.exists(expectedOut), s"$expectedOut does not exist")
+      assert(Files.exists(earlyOutput), s"$earlyOutput does not exist")
 
       val prev1 = fileStore.get.toOption match {
         case Some(contents) =>
@@ -131,6 +134,7 @@ object Depender2 {
         cp.toArray,
         sources1,
         targetDir,
+        Some(earlyOutput),
         Array(),
         Array(),
         maxErrors,
@@ -149,6 +153,7 @@ object Depender2 {
       fileStore.set(AnalysisContents.create(result1.analysis(), result1.setup()))
       val expectedOut1 = targetDir.resolve("test").resolve("pkg").resolve("Depender2$.class")
       assert(Files.exists(expectedOut), s"$expectedOut1 does not exist")
+      assert(Files.exists(earlyOutput), s"$earlyOutput does not exist")
     }
   }
 

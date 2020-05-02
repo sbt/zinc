@@ -110,6 +110,8 @@ class TestCallback extends AnalysisCallback {
   override def apiPhaseCompleted(): Unit = {}
 
   override def classesInOutputJar(): util.Set[String] = java.util.Collections.emptySet()
+
+  override def pickleData(data: Array[PickleData]): Unit = ()
 }
 
 object TestCallback {

@@ -19,13 +19,24 @@ import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
 import sbt.util.{ InterfaceUtil, Level, Logger }
 import sbt.util.InterfaceUtil.jo2o
 import scala.collection.JavaConverters._
-import xsbti.{ FileConverter, Position, Problem, Severity, UseScope, VirtualFile, VirtualFileRef }
+import scala.collection.mutable
+import xsbti.{
+  FileConverter,
+  PickleData,
+  Position,
+  Problem,
+  Severity,
+  UseScope,
+  VirtualFile,
+  VirtualFileRef
+}
 import xsbt.api.{ APIUtil, HashAPI, NameHashing }
 import xsbti.api._
 import xsbti.compile.{
   CompileAnalysis,
   DependencyChanges,
   IncOptions,
+  MiniSetup,
   Output,
   ClassFileManager => XClassFileManager
 }
@@ -47,6 +58,58 @@ object Incremental {
   }
 
   /**
+   * This is a callback from AnalysisCallback back up to Zinc code to
+   * perform mid-compilation.
+   *
+   * @param classFileManager
+   */
+  abstract class IncrementalCallback(classFileManager: XClassFileManager) {
+
+    /**
+     * Merge latest analysis as of pickling into pruned previous analysis, compute invalidations
+     * and decide whether we need another cycle.
+     */
+    def mergeAndInvalidate(partialAnalysis: Analysis, completingCycle: Boolean): CompileCycleResult
+
+    /**
+     * Merge latest analysis as of analyzer into pruned previous analysis and inform file manager.
+     */
+    def completeCycle(
+        prev: Option[CompileCycleResult],
+        partialAnalysis: Analysis
+    ): CompileCycleResult
+
+    // def previousAnalysisPruned: Analysis
+
+    /**
+     * @return true when the compilation cycle is compiling all the sources; false, otherwise.
+     */
+    def isFullCompilation: Boolean
+  }
+
+  sealed trait CompileCycle {
+    def run(
+        sources: Set[VirtualFile],
+        changes: DependencyChanges,
+        incHandler: IncrementalCallback
+    ): CompileCycleResult
+  }
+  case class CompileCycleResult(
+      continue: Boolean,
+      nextInvalidations: Set[String],
+      analysis: Analysis
+  )
+  object CompileCycleResult {
+    def apply(
+        continue: Boolean,
+        nextInvalidations: Set[String],
+        analysis: Analysis
+    ): CompileCycleResult =
+      new CompileCycleResult(continue, nextInvalidations, analysis)
+    def empty = CompileCycleResult(false, Set.empty, Analysis.empty)
+  }
+
+  /**
    * Runs the incremental compilation algorithm.
    *
    * @param sources The full set of input sources
@@ -65,18 +128,21 @@ object Incremental {
       sources: Set[VirtualFile],
       converter: FileConverter,
       lookup: Lookup,
+      previous0: CompileAnalysis,
+      options: IncOptions,
+      currentSetup: MiniSetup,
+      stamper: ReadStamps,
+      output: Output,
+      outputJarContent: JarUtils.OutputJarContent,
+      earlyOutput: Option[Output],
+      log: Logger
+  )(
       compile: (
           Set[VirtualFile],
           DependencyChanges,
           xsbti.AnalysisCallback,
           XClassFileManager
-      ) => Unit,
-      previous0: CompileAnalysis,
-      output: Output,
-      log: Logger,
-      options: IncOptions,
-      outputJarContent: JarUtils.OutputJarContent,
-      stamper: ReadStamps
+      ) => Unit
   ): (Boolean, Analysis) = {
     log.debug(s"[zinc] IncrementalCompile -----------")
     val previous = previous0 match { case a: Analysis => a }
@@ -86,6 +152,9 @@ object Incremental {
     val internalSourceToClassNamesMap: VirtualFile => Set[String] = (f: VirtualFile) =>
       previous.relations.classNames(f)
     val externalAPI = getExternalAPI(lookup)
+    val profiler = InvalidationProfiler.empty
+    val runProfiler = profiler.profileRun
+    val incremental: IncrementalCommon = new IncrementalNameHashing(log, options, runProfiler)
     try {
       incrementalCompile(
         sources,
@@ -99,16 +168,20 @@ object Incremental {
           internalSourceToClassNamesMap,
           externalAPI,
           currentStamper,
-          output,
           options,
-          outputJarContent,
+          currentSetup,
           converter,
+          lookup,
+          output,
+          outputJarContent,
+          earlyOutput,
           log
         ),
-        log,
+        incremental,
         options,
         output,
-        outputJarContent
+        outputJarContent,
+        log
       )
     } catch {
       case _: xsbti.CompileCancelled =>
@@ -155,16 +228,15 @@ object Incremental {
           XClassFileManager
       ) => Unit,
       callbackBuilder: AnalysisCallback.Builder,
-      log: sbt.util.Logger,
+      incremental: IncrementalCommon,
       options: IncOptions,
       output: Output,
       outputJarContent: JarUtils.OutputJarContent,
-      profiler: InvalidationProfiler = InvalidationProfiler.empty
+      // earlyOutput: Option[Output],
+      log: sbt.util.Logger
   )(implicit equivS: Equiv[XStamp]): (Boolean, Analysis) = {
     log.debug("IncrementalCompile.incrementalCompile")
     val previous = previous0 match { case a: Analysis => a }
-    val runProfiler = profiler.profileRun
-    val incremental: IncrementalCommon = new IncrementalNameHashing(log, options, runProfiler)
     val initialChanges =
       incremental.detectInitialChanges(sources, previous, current, lookup, converter, output)
     log.debug(s"> initialChanges = $initialChanges")
@@ -214,13 +286,19 @@ object Incremental {
       ) => Unit,
       callbackBuilder: AnalysisCallback.Builder,
       classFileManager: XClassFileManager
-  )(srcs: Set[VirtualFile], changes: DependencyChanges): Analysis = {
-    // Note `ClassFileManager` is shared among multiple cycles in the same incremental compile run,
-    // in order to rollback entirely if transaction fails. `AnalysisCallback` is used by each cycle
-    // to report its own analysis individually.
-    val callback = callbackBuilder.build()
-    compile(srcs, changes, callback, classFileManager)
-    callback.getOnce
+  ): CompileCycle = new CompileCycle {
+    override def run(
+        srcs: Set[VirtualFile],
+        changes: DependencyChanges,
+        incHandler: IncrementalCallback
+    ): CompileCycleResult = {
+      // Note `ClassFileManager` is shared among multiple cycles in the same incremental compile run,
+      // in order to rollback entirely if transaction fails. `AnalysisCallback` is used by each cycle
+      // to report its own analysis individually.
+      val callback = callbackBuilder.build(incHandler)
+      compile(srcs, changes, callback, classFileManager)
+      callback.getOnce
+    }
   }
 
   // the name of system property that was meant to enable debugging mode of incremental compiler but
@@ -277,22 +355,29 @@ private object AnalysisCallback {
       internalSourceToClassNamesMap: VirtualFile => Set[String],
       externalAPI: (VirtualFileRef, String) => Option[AnalyzedClass],
       stampReader: ReadStamps,
-      output: Output,
       options: IncOptions,
-      outputJarContent: JarUtils.OutputJarContent,
+      currentSetup: MiniSetup,
       converter: FileConverter,
+      lookup: Lookup,
+      output: Output,
+      outputJarContent: JarUtils.OutputJarContent,
+      earlyOutput: Option[Output],
       log: Logger
   ) {
-    def build(): AnalysisCallback = {
+    def build(incHandler: Incremental.IncrementalCallback): AnalysisCallback = {
       new AnalysisCallback(
         internalBinaryToSourceClassName,
         internalSourceToClassNamesMap,
         externalAPI,
         stampReader,
-        output,
         options,
+        currentSetup,
         outputJarContent,
         converter,
+        lookup,
+        output,
+        earlyOutput,
+        incHandler,
         log
       )
     }
@@ -304,12 +389,18 @@ private final class AnalysisCallback(
     internalSourceToClassNamesMap: VirtualFile => Set[String],
     externalAPI: (VirtualFileRef, String) => Option[AnalyzedClass],
     stampReader: ReadStamps,
-    output: Output,
     options: IncOptions,
+    currentSetup: MiniSetup,
     outputJarContent: JarUtils.OutputJarContent,
     converter: FileConverter,
+    lookup: Lookup,
+    output: Output,
+    earlyOutput: Option[Output],
+    incHandler: Incremental.IncrementalCallback,
     log: Logger
 ) extends xsbti.AnalysisCallback {
+  import Incremental.CompileCycleResult
+
   // This must have a unique value per AnalysisCallback
   private[this] val compileStartTime: Long = System.currentTimeMillis()
   private[this] val compilation: Compilation = Compilation(compileStartTime, output)
@@ -360,6 +451,11 @@ private final class AnalysisCallback(
   private[this] val binaryClassName = new TrieMap[VirtualFile, String]
   // source files containing a macro def.
   private[this] val macroClasses = ConcurrentHashMap.newKeySet[String]()
+
+  // Results of invalidation calculations (including whether to continue cycles) - the analysis at this point is
+  // not useful and so isn't included.
+  private[this] var invalidationResults: Option[CompileCycleResult] = None
+  private[this] val pklData: mutable.ArrayBuffer[PickleData] = new mutable.ArrayBuffer()
 
   private def add[A, B](map: TrieMap[A, ConcurrentSet[B]], a: A, b: B): Unit = {
     map.getOrElseUpdate(a, ConcurrentHashMap.newKeySet[B]()).add(b)
@@ -528,13 +624,17 @@ private final class AnalysisCallback(
   override def enabled(): Boolean = options.enabled
 
   private[this] var gotten: Boolean = false
-  def getOnce: Analysis = {
+  def getOnce: CompileCycleResult = {
     assert(!gotten, "can't call AnalysisCallback#getOnce more than once")
     gotten = true
     outputJarContent.scalacRunCompleted()
+    val a = getAnalysis
+    incHandler.completeCycle(invalidationResults, a)
+  }
+
+  private def getAnalysis: Analysis = {
     val analysis0 = addProductsAndDeps(Analysis.empty)
-    val analysis = addUsedNames(addCompilation(analysis0))
-    analysis
+    addUsedNames(addCompilation(analysis0))
   }
 
   def getOrNil[A, B](m: collection.Map[A, Seq[B]], a: A): Seq[B] = m.get(a).toList.flatten
@@ -652,14 +752,61 @@ private final class AnalysisCallback(
     }
   }
 
-  override def dependencyPhaseCompleted(): Unit = {
-    outputJarContent.dependencyPhaseCompleted()
+  override def apiPhaseCompleted(): Unit = {
+    // If we know we're done with cycles (presumably because all sources were invalidated) we can store early analysis
+    // and picke data now.  Otherwise, we need to wait for dependency information to decide if there are more cycles.
+    if (options.pipelining() && incHandler.isFullCompilation) {
+      val a = getAnalysis
+      val CompileCycleResult(continue, invalidations, merged) =
+        incHandler.mergeAndInvalidate(a, false)
+      assert(
+        !continue && invalidations.isEmpty,
+        "everything was supposed to be invalidated already"
+      )
+      invalidationResults = Some(CompileCycleResult.empty)
+      writeEarlyArtifacts(merged)
+    }
   }
 
-  override def apiPhaseCompleted(): Unit = {}
+  override def dependencyPhaseCompleted(): Unit = {
+    if (invalidationResults.isEmpty) {
+      val a = getAnalysis
+      val CompileCycleResult(continue, invalidations, merged) =
+        incHandler.mergeAndInvalidate(a, false)
+      // Store invalidations and continuation decision; the analysis will be computed again after Analyze phase.
+      invalidationResults = Some(CompileCycleResult(continue, invalidations, Analysis.empty))
+      // If there will be no more compilation cycles, store the early analysis file and update the pickle jar
+      if (options.pipelining && !continue) {
+        writeEarlyArtifacts(merged)
+      }
+    }
+    outputJarContent.dependencyPhaseCompleted()
+  }
 
   override def classesInOutputJar(): java.util.Set[String] = {
     outputJarContent.get().asJava
   }
 
+  override def pickleData(data: Array[PickleData]): Unit = {
+    if (options.pipelining && data.nonEmpty) {
+      pklData ++= data
+    }
+  }
+
+  private def writeEarlyArtifacts(merged: Analysis): Unit = {
+    lookup.storeEarlyAnalysis(merged, currentSetup)
+    for {
+      earlyO <- earlyOutput
+      pickleJarPath <- jo2o(earlyO.getSingleOutput())
+    } {
+      // List classes defined in the files that were compiled in this run.
+      val knownClasses = merged.relations.allSources
+        .flatMap(merged.relations.products)
+        .flatMap(merged.relations.classNames)
+      // .map(JarUtils.ClassInJar.fromVirtualFileRef(_).toClassFilePath)
+      PickleJar.write(pickleJarPath, pklData, knownClasses, log)
+      // hooks.picklesComplete()
+    }
+    ()
+  }
 }

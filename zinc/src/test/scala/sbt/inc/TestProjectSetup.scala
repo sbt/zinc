@@ -91,6 +91,7 @@ case class TestProjectSetup(
   val output: Path =
     if (outputToJar) baseLocation.resolve("target").resolve("output.jar")
     else defaultClassesDir
+  val earlyOutput: Path = baseLocation.resolve("target").resolve("early-output.jar")
 
   def defaultStoreLocation: Path = baseLocation.resolve("inc_data.zip")
 
@@ -105,6 +106,7 @@ case class TestProjectSetup(
       si,
       compilerBridge,
       output,
+      earlyOutput,
       baseLocation,
       allSources.toVector map converter.toVirtualFile,
       allClasspath,
@@ -160,6 +162,7 @@ object TestProjectSetup {
       si: xsbti.compile.ScalaInstance,
       compilerBridge: Path,
       output: Path,
+      earlyOutput: Path,
       tempDir: Path,
       sources: Seq[VirtualFile],
       classpath: Seq[VirtualFile],
@@ -220,6 +223,7 @@ object TestProjectSetup {
       cp.toArray,
       sources.toArray,
       output,
+      Some(earlyOutput),
       scalacOptions.toArray,
       Array(),
       maxErrors,

@@ -234,7 +234,6 @@ object MixedAnalyzingCompiler {
       sources: Seq[VirtualFile],
       converter: FileConverter, // this is needed to thaw ref back to path for stamping
       classpath: Seq[VirtualFile],
-      output: Output,
       cache: GlobalsCache,
       progress: Option[CompileProgress] = None,
       options: Seq[String] = Nil,
@@ -246,7 +245,9 @@ object MixedAnalyzingCompiler {
       compileOrder: CompileOrder = Mixed,
       skip: Boolean = false,
       incrementalCompilerOptions: IncOptions,
+      output: Output,
       outputJarContent: JarUtils.OutputJarContent,
+      earlyOutput: Option[Output],
       stamper: ReadStamps,
       extra: List[(String, String)]
   ): CompileConfiguration = {
@@ -277,7 +278,6 @@ object MixedAnalyzingCompiler {
       sources,
       converter,
       classpath,
-      output,
       compileSetup,
       progress,
       previousAnalysis,
@@ -289,7 +289,9 @@ object MixedAnalyzingCompiler {
       skip,
       cache,
       incrementalCompilerOptions,
+      output,
       outputJarContent,
+      earlyOutput,
       stamper
     )
   }
@@ -298,7 +300,6 @@ object MixedAnalyzingCompiler {
       sources: Seq[VirtualFile],
       converter: FileConverter,
       classpath: Seq[VirtualFile],
-      output: Output,
       setup: MiniSetup,
       progress: Option[CompileProgress],
       previousAnalysis: CompileAnalysis,
@@ -310,14 +311,15 @@ object MixedAnalyzingCompiler {
       skip: Boolean,
       cache: GlobalsCache,
       incrementalCompilerOptions: IncOptions,
+      output: Output,
       outputJarContent: JarUtils.OutputJarContent,
+      earlyOutput: Option[Output],
       stamper: ReadStamps,
   ): CompileConfiguration = {
     new CompileConfiguration(
       sources,
       converter,
       classpath,
-      output,
       previousAnalysis,
       previousSetup,
       setup,
@@ -328,7 +330,9 @@ object MixedAnalyzingCompiler {
       javac,
       cache,
       incrementalCompilerOptions,
+      output,
       outputJarContent,
+      earlyOutput,
       stamper
     )
   }

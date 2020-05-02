@@ -1,0 +1,11 @@
+package xsbti
+@target(Java)
+
+## A wrapper around PickleBuffer https://github.com/scala/scala/blob/v2.13.1/src/reflect/scala/reflect/internal/pickling/PickleBuffer.scala
+type PickleData {
+  underlying: raw"Object"!
+  fqcn: String!
+  data: [Byte]
+  writeIndex: Int!
+  path: java.nio.file.Path!
+}

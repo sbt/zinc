@@ -42,6 +42,7 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       Files.createDirectories(sub2Directory)
       Files.createDirectories(sub2Directory / "src")
       val targetDir2 = sub2Directory / "target"
+      val earlyOutput2 = targetDir2 / "early-output.jar"
       val cacheFile2 = targetDir2 / "inc_compile.zip"
       val fileStore2 = AnalysisStore.getCachedStore(FileAnalysisStore.getDefault(cacheFile2.toFile))
 
@@ -51,6 +52,7 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       Files.createDirectories(sub1Directory / "src")
       Files.createDirectories(sub1Directory / "lib")
       val targetDir = sub1Directory / "target"
+      val earlyOutput = targetDir / "early-output.jar"
       val cacheFile = targetDir / "inc_compile.zip"
       val fileStore = AnalysisStore.getCachedStore(FileAnalysisStore.getDefault(cacheFile.toFile))
       val dependerFile = sub1Directory / "src" / "Depender.scala"
@@ -99,6 +101,7 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
         cp.toArray,
         vs,
         targetDir,
+        Some(earlyOutput),
         Array(),
         Array(),
         maxErrors,
@@ -126,6 +129,7 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
         cp.toArray,
         vs1,
         targetDir,
+        Some(earlyOutput),
         Array(),
         Array(),
         maxErrors,
@@ -173,6 +177,7 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
         cp2.toArray,
         vs2,
         targetDir2,
+        Some(earlyOutput2),
         Array(),
         Array(),
         maxErrors,
@@ -222,6 +227,7 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
         cp.toArray,
         vs3,
         targetDir,
+        Some(earlyOutput),
         Array(),
         Array(),
         maxErrors,

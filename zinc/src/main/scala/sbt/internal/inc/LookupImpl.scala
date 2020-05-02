@@ -87,4 +87,9 @@ class LookupImpl(compileConfiguration: CompileConfiguration, previousSetup: Opti
 
   override def hashClasspath(classpath: Array[VirtualFile]): Optional[Array[FileHash]] =
     externalLookup.map(_.hashClasspath(classpath)).getOrElse(Optional.empty())
+
+  override def storeEarlyAnalysis(earlyAnalysis: CompileAnalysis, setup: MiniSetup): Unit = {
+    externalLookup.map(_.storeEarlyAnalysis(earlyAnalysis, setup))
+    ()
+  }
 }

@@ -596,7 +596,7 @@ case class ProjectStructure(
       cp.toArray,
       vs.toArray,
       output,
-      // Some(earlyOutput),
+      Some(earlyOutput),
       scalacOptions,
       javacOptions = Array(),
       maxErrors,

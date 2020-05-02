@@ -18,6 +18,7 @@ import java.io.File
 import java.util.UUID
 
 import sbt.io.syntax.URL
+import xsbti.VirtualFileRef
 import xsbti.compile.{ Output, SingleOutput }
 import java.nio.file.{ Files, Path, Paths }
 
@@ -112,6 +113,9 @@ object JarUtils {
     def fromFile(f: File): ClassInJar = new ClassInJar(f.toString)
 
     def fromPath(p: Path): ClassInJar = new ClassInJar(p.toString)
+
+    def fromVirtualFileRef(vf: VirtualFileRef): ClassInJar =
+      new ClassInJar(vf.id)
   }
 
   /**

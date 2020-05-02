@@ -61,6 +61,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       sources,
       classpath,
       CompileOutput(classesDirectory),
+      earlyOutput.toOption,
       cache,
       progress().toOption,
       scalacOptions,
@@ -75,7 +76,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       temporaryClassesDirectory.toOption,
       extraOptions,
       conv,
-      stamper.toOption.getOrElse(defaultStampReader)
+      stamper.toOption.getOrElse(defaultStampReader),
     )(logger)
   }
 
@@ -122,6 +123,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       sources: Array[VirtualFile],
       classpath: Array[VirtualFile],
       output: xsbti.compile.Output,
+      earlyOutput: Optional[xsbti.compile.Output],
       cache: xsbti.compile.GlobalsCache,
       scalaOptions: Array[String],
       javaOptions: Array[String],
@@ -146,6 +148,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       sources.toVector,
       classpath.toSeq,
       output,
+      earlyOutput.toOption,
       cache,
       progress.toOption,
       scalaOptions.toSeq,
@@ -207,6 +210,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       sources: Array[Path],
       classpath: Array[Path],
       output: xsbti.compile.Output,
+      earlyOutput: Optional[xsbti.compile.Output],
       cache: xsbti.compile.GlobalsCache,
       scalaOptions: Array[String],
       javaOptions: Array[String],
@@ -233,6 +237,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       vs,
       cp,
       output,
+      earlyOutput.toOption,
       cache,
       progress.toOption,
       scalaOptions.toSeq,
@@ -328,6 +333,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       sources: Seq[VirtualFile],
       classpath: Seq[VirtualFile],
       output: Output,
+      earlyOutput: Option[Output],
       cache: GlobalsCache,
       progress: Option[CompileProgress] = None,
       scalaOptions: Seq[String] = Nil,
@@ -373,7 +379,6 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         sources,
         converter,
         classpath,
-        output,
         cache,
         progress,
         scalaOptions ++ extraScalacOptions,
@@ -385,7 +390,9 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         compileOrder,
         skip,
         incrementalOptions,
+        output,
         outputJarContent,
+        earlyOutput,
         stampReader,
         extra
       )
@@ -443,14 +450,15 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       srcsSet,
       converter,
       lookup,
-      mixedCompiler.compile,
       analysis,
-      output,
-      log,
       incOptions,
-      outputJarContent,
+      currentSetup,
       stampReader,
-    )
+      output,
+      outputJarContent,
+      earlyOutput,
+      log
+    )(mixedCompiler.compile)
     compile.swap
   }
 
@@ -495,6 +503,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       classpath: Array[VirtualFile],
       sources: Array[VirtualFile],
       classesDirectory: Path,
+      earlyJarPath: Option[Path],
       scalacOptions: Array[String],
       javacOptions: Array[String],
       maxErrors: Int,
@@ -520,6 +529,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         temporaryClassesDirectory,
         Option(converter).toOptional,
         Option(stampReader).toOptional,
+        (earlyJarPath map { CompileOutput(_) }).toOptional,
       )
     }
     inputs(compileOptions, compilers, setup, pr)

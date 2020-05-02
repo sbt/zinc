@@ -204,4 +204,8 @@ public interface AnalysisCallback {
      */
     java.util.Set<String> classesInOutputJar();
 
+    /**
+     * Pass new pickle data as of this point.
+     */
+    void pickleData(PickleData[] data);
 }

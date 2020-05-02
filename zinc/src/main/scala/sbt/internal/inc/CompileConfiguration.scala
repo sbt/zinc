@@ -46,7 +46,6 @@ final class CompileConfiguration(
     val sources: Seq[VirtualFile],
     val converter: FileConverter,
     val classpath: Seq[VirtualFile],
-    val output: Output,
     val previousAnalysis: CompileAnalysis,
     val previousSetup: Option[MiniSetup],
     val currentSetup: MiniSetup,
@@ -57,6 +56,8 @@ final class CompileConfiguration(
     val javac: xsbti.compile.JavaCompiler,
     val cache: GlobalsCache,
     val incOptions: IncOptions,
+    val output: Output,
     val outputJarContent: JarUtils.OutputJarContent,
+    val earlyOutput: Option[Output],
     val stampReader: ReadStamps,
 )
