@@ -78,7 +78,9 @@ final class ClasspathFilter(parent: ClassLoader, root: ClassLoader, classpath: S
         |  cp = $classpath
         |)""".stripMargin
 
-  private[this] val directories: Seq[Path] = classpath.toSeq.filter(Files.isDirectory(_))
+  private[this] val directories: Seq[Path] = classpath.toSeq.filter { p =>
+    !p.toString.endsWith(".jar") && Files.isDirectory(p)
+  }
   override def loadClass(className: String, resolve: Boolean): Class[_] = {
     val c = super.loadClass(className, resolve)
     if (includeLoader(c.getClassLoader, root) || fromClasspath(c))
