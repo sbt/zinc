@@ -564,7 +564,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) 
 
     import SafeLazyProxy.{ strict => mkLazy }
     import ReadersFeedback.ExpectedCompanionsInAnalyzedClass
-    val compilationTimestamp = analyzedClass.compilationTimestamp
+    val compilationTs = analyzedClass.compilationTimestamp
     val name = analyzedClass.name
     val api =
       if (!shouldStoreApis) EmptyLazyCompanions
@@ -575,7 +575,8 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: schema.Version) 
     val extraHash = if (currentVersion == schema.Version.V1) 0 else analyzedClass.extraHash
     val nameHashes = analyzedClass.nameHashes.toZincArray(fromNameHash)
     val hasMacro = analyzedClass.hasMacro
-    AnalyzedClass.of(compilationTimestamp, name, api, apiHash, nameHashes, hasMacro, extraHash)
+    val provenance = analyzedClass.provenance.intern
+    AnalyzedClass.of(compilationTs, name, api, apiHash, nameHashes, hasMacro, extraHash, provenance)
   }
 
   private final val stringId = identity[String] _
