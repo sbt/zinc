@@ -11,6 +11,7 @@
 
 package xsbti.compile;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import xsbti.VirtualFileRef;
@@ -93,4 +94,9 @@ public interface ExternalHooks {
      * @return An instance of {@link ExternalHooks} with the specified lookup.
      */
     ExternalHooks withExternalLookup(Lookup externalLookup);
+
+    /**
+     * Until interface stabilizes, park experimental hooks here.
+     */
+    Map<String, Object> extraHooks();
 }

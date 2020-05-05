@@ -11,6 +11,9 @@
 
 package xsbti.compile;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 public class DefaultExternalHooks implements ExternalHooks {
@@ -44,5 +47,10 @@ public class DefaultExternalHooks implements ExternalHooks {
     @Override
     public ExternalHooks withExternalLookup(ExternalHooks.Lookup externalLookup) {
         return new DefaultExternalHooks(Optional.of(externalLookup), classFileManager);
+    }
+
+    @Override
+    public Map<String, Object> extraHooks() {
+        return Collections.unmodifiableMap(new HashMap<>());
     }
 }
