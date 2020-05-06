@@ -612,8 +612,10 @@ final class ProtobufWriters(mapper: WriteMapper) {
     )
   }
 
-  private final val fileToString = (f: File) => toStringPath(f)
-  private final val fileVToString = (f: VirtualFileRef) => toStringPathV(f)
+  private final val sourceToString = (f: VirtualFileRef) => toStringPathV(mapper.mapSourceFile(f))
+  private final val libraryToString = (f: VirtualFileRef) => toStringPathV(mapper.mapBinaryFile(f))
+  private final val prodToString = (f: VirtualFileRef) => toStringPathV(mapper.mapProductFile(f))
+
   private final val stringId = identity[String] _
   def toRelations(relations: Relations): schema.Relations = {
     import sbt.internal.util.Relation
@@ -647,16 +649,16 @@ final class ProtobufWriters(mapper: WriteMapper) {
       }
     }
 
-    val srcProd = toMap(relations.srcProd, fileVToString, fileVToString)
-    val libraryDep = toMap(relations.libraryDep, fileVToString, fileVToString)
-    val libraryClassName = toMap(relations.libraryClassName, fileVToString, stringId)
+    val srcProd = toMap(relations.srcProd, sourceToString, prodToString)
+    val libraryDep = toMap(relations.libraryDep, sourceToString, libraryToString)
+    val libraryClassName = toMap(relations.libraryClassName, libraryToString, stringId)
     val memberRefInternal = toMap(relations.memberRef.internal, stringId, stringId)
     val memberRefExternal = toMap(relations.memberRef.external, stringId, stringId)
     val inheritanceInternal = toMap(relations.inheritance.internal, stringId, stringId)
     val inheritanceExternal = toMap(relations.inheritance.external, stringId, stringId)
     val localInheritanceInternal = toMap(relations.localInheritance.internal, stringId, stringId)
     val localInheritanceExternal = toMap(relations.localInheritance.external, stringId, stringId)
-    val classes = toMap(relations.classes, fileVToString, stringId)
+    val classes = toMap(relations.classes, sourceToString, stringId)
     val productClassName = toMap(relations.productClassName, stringId, stringId)
     val names = toUsedNamesMap(relations.names)
     val memberRef = Some(
