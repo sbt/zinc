@@ -331,6 +331,7 @@ object Relations {
       names,
       productClassName
     )
+
   private[inc] def makeClassDependencies(
       internal: Relation[String, String],
       external: Relation[String, String]

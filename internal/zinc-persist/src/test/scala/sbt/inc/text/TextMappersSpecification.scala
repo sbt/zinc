@@ -11,37 +11,24 @@
 
 package sbt.inc.text
 
-import java.nio.file.Paths
-
-import org.scalacheck.{ Prop, Properties }
-import sbt.internal.inc._
+import org.scalacheck._
+import sbt.inc.AnalysisFormatHelpers._
+import sbt.inc.text.TextAnalysisFormatHelpers._
+import sbt.internal.inc.{ mappers => _, _ }
+import sbt.internal.inc.AnalysisGenerators._
 import sbt.internal.inc.text.TextAnalysisFormat
-import xsbti.compile.analysis.ReadWriteMappers
 
-import scala.util.Try
+object TextMappersSpecification extends Properties("TextMappers") {
+  property("round-trip empty") = forEmpty(check)
+  property("round-trip simple") = forSimple(check)
+  property("round-trip complex") = forComplex(check)
 
-object TextMappersSpecification extends Properties("TextMappers") with BaseTextAnalysisFormatTest {
+  private val mappedFormat = new TextAnalysisFormat(mappers)
 
-  override def RootFilePath = "/tmp/localProject"
-  private final val mappers: ReadWriteMappers =
-    ReadWriteMappers.getMachineIndependentMappers(Paths.get(RootFilePath))
-
-  override val analysisGenerators: AnalysisGenerators = new AnalysisGenerators {
-    override def RootFilePath = TextMappersSpecification.RootFilePath
-  }
-
-  override def format: TextAnalysisFormat = new TextAnalysisFormat(mappers)
-  override protected def checkAnalysis(analysis: Analysis): Prop = {
-    def checkFormatFail(readFormat: TextAnalysisFormat, writeFormat: TextAnalysisFormat): Prop = {
-      val analisisMatch: Boolean = Try {
-        val (newAnalysis, newSetup) = deserialize(serialize(analysis, writeFormat), readFormat)
-        newAnalysis != analysis && newSetup != commonSetup
-      }.getOrElse(false)
-      analisisMatch == false
-    }
-
-    //("READ mapped by standard" |: checkFormatFail(TextAnalysisFormat, format)) &&
-    ("READ standard by mapped" |: checkFormatFail(format, TextAnalysisFormat)) &&
-    super.checkAnalysis(analysis)
+  private def check(analysis: Analysis) = {
+    checkStoreRoundtrip(analysis, FileAnalysisStore.text(_, mappedFormat))
+    checkTextRoundtrip(analysis, mappedFormat, mappedFormat) &&
+    checkTextRoundtrip(analysis, mappedFormat, TextAnalysisFormat) &&
+    throws(checkTextRoundtrip(analysis, TextAnalysisFormat, mappedFormat))
   }
 }

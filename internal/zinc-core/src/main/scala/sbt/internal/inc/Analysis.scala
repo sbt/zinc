@@ -89,19 +89,20 @@ object Analysis {
       classFile: VirtualFileRef,
       classFileStamp: XStamp
   )
+
   case class LocalProduct(classFile: VirtualFileRef, classFileStamp: XStamp)
+
   lazy val Empty: Analysis =
     new MAnalysis(Stamps.empty, APIs.empty, Relations.empty, SourceInfos.empty, Compilations.empty)
-  def empty: Analysis =
-    new MAnalysis(Stamps.empty, APIs.empty, Relations.empty, SourceInfos.empty, Compilations.empty)
+
+  def empty: Analysis = Empty
 
   def summary(a: Analysis): String = {
     def sourceFileForClass(className: String): VirtualFileRef =
       a.relations.definesClass(className).headOption.getOrElse {
         sys.error(s"Can't find source file for $className")
       }
-    def isJavaClass(className: String): Boolean =
-      sourceFileForClass(className).id.endsWith(".java")
+    def isJavaClass(className: String) = sourceFileForClass(className).id.endsWith(".java")
     val (j, s) = a.apis.allInternalClasses.partition(isJavaClass)
     val c = a.stamps.allProducts
     val ext = a.apis.allExternals
@@ -120,14 +121,15 @@ object Analysis {
   def counted(prefix: String, single: String, plural: String, count: Int): Option[String] =
     count match {
       case 0 => None
-      case 1 => Some("1 " + prefix + single)
-      case x => Some(x.toString + " " + prefix + plural)
+      case 1 => Some(s"1 $prefix$single")
+      case x => Some(s"$x $prefix$plural")
     }
 
   lazy val dummyOutput: Output = new SingleOutput {
     def getOutputDirectory: Path = Paths.get("/tmp/dummy")
   }
 }
+
 private class MAnalysis(
     val stamps: Stamps,
     val apis: APIs,
@@ -149,8 +151,8 @@ private class MAnalysis(
     def keep[T](f: (Relations, T) => Set[_]): T => Boolean = f(newRelations, _).nonEmpty
 
     val classesInSrcs = sources.flatMap(relations.classNames)
-    val newAPIs = apis.removeInternal(classesInSrcs).filterExt(keep(_ usesExternal _))
-    val newStamps = stamps.filter(keep(_ produced _), sources, keep(_ usesLibrary _))
+    val newAPIs = apis.removeInternal(classesInSrcs).filterExt(keep(_.usesExternal(_)))
+    val newStamps = stamps.filter(keep(_.produced(_)), sources, keep(_.usesLibrary(_)))
     val newInfos = infos -- sources
     new MAnalysis(newStamps, newAPIs, newRelations, newInfos, compilations)
   }
@@ -175,39 +177,38 @@ private class MAnalysis(
       externalDeps: Iterable[ExternalDependency],
       libraryDeps: Iterable[(VirtualFileRef, String, XStamp)]
   ): Analysis = {
-
     val newStamps = {
-      val nonLocalProductStamps =
-        nonLocalProducts.foldLeft(stamps.markSource(src, stamp)) {
-          case (tmpStamps, nonLocalProduct) =>
-            tmpStamps.markProduct(nonLocalProduct.classFile, nonLocalProduct.classFileStamp)
-        }
+      val stamps0 = stamps.markSource(src, stamp)
 
-      val allProductStamps = localProducts.foldLeft(nonLocalProductStamps) {
-        case (tmpStamps, localProduct) =>
-          tmpStamps.markProduct(localProduct.classFile, localProduct.classFileStamp)
+      val stamps1 = nonLocalProducts.foldLeft(stamps0) { (acc, nonLocalProduct) =>
+        acc.markProduct(nonLocalProduct.classFile, nonLocalProduct.classFileStamp)
       }
 
-      libraryDeps.foldLeft(allProductStamps) {
-        case (tmpStamps, (toBinary, className, binStamp)) =>
-          tmpStamps.markLibrary(toBinary, className, binStamp)
+      val stamps2 = localProducts.foldLeft(stamps1) { (acc, localProduct) =>
+        acc.markProduct(localProduct.classFile, localProduct.classFileStamp)
+      }
+
+      libraryDeps.foldLeft(stamps2) {
+        case (acc, (toBinary, className, binStamp)) =>
+          acc.markLibrary(toBinary, className, binStamp)
       }
     }
 
-    val newInternalAPIs = apis.foldLeft(this.apis) {
-      case (tmpApis, analyzedClass) => tmpApis.markInternalAPI(analyzedClass.name, analyzedClass)
+    val newAPIs = {
+      val apis1 = apis.foldLeft(this.apis) { (acc, analyzedClass) =>
+        acc.markInternalAPI(analyzedClass.name, analyzedClass)
+      }
+
+      externalDeps.foldLeft(apis1) { (acc, extDep) =>
+        acc.markExternalAPI(extDep.targetProductClassName, extDep.targetClass)
+      }
     }
 
-    val newAPIs = externalDeps.foldLeft(newInternalAPIs) {
-      case (tmpApis, ed: ExternalDependency) =>
-        tmpApis.markExternalAPI(ed.targetProductClassName, ed.targetClass)
-    }
-
-    val allProducts = nonLocalProducts.map(_.classFile) ++ localProducts.map(_.classFile)
+    val products = nonLocalProducts.map(_.classFile) ++ localProducts.map(_.classFile)
     val classes = nonLocalProducts.map(p => p.className -> p.binaryClassName)
 
     val newRelations =
-      relations.addSource(src, allProducts, classes, internalDeps, externalDeps, libraryDeps)
+      relations.addSource(src, products, classes, internalDeps, externalDeps, libraryDeps)
 
     copy(newStamps, newAPIs, newRelations, infos.add(src, info))
   }
