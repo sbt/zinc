@@ -431,12 +431,9 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
           val ignored = s.getOutputDirectory
           (singleOutputMode, Map(ignored -> s.getOutputDirectory))
         case m: MultipleOutput =>
-          (
-            multipleOutputMode,
-            m.getOutputGroups.map(x => x.getSourceDirectory -> x.getOutputDirectory).toMap
-          )
+          val map = m.getOutputGroups.map(x => x.getSourceDirectory -> x.getOutputDirectory).toMap
+          (multipleOutputMode, map)
       }
-
       val mappedClasspathHash = setup.options.classpathHash
         .map(fh => fh.withFile(writeMapper.mapClasspathEntry(fh.file)))
       writeSeq(out)(Headers.outputMode, mode :: Nil, identity[String])

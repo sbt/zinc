@@ -24,8 +24,8 @@ object MapperUtils {
   private final val RELATIVE_MARKER = "\u2603\u2603\u2603"
   private final val MARKER_LENGTH = RELATIVE_MARKER.length()
 
-  private final def relativeReadError(path: String) =
-    s"Unexpected path $path was not written by a relative write mapper. Paths have to start with $RELATIVE_MARKER"
+  private final def relativeReadError(path: String, from: Path) =
+    s"Unexpected path $path was not written by a relative write mapper for root $from. Paths have to start with $RELATIVE_MARKER"
 
   /**
    * Makes a file relative to a path.
@@ -41,7 +41,7 @@ object MapperUtils {
    * in which case the resulting path is empty and the text format serializes it wrong (because
    * it assumes that the paths are non-empty). The marker helps us avoid this issue.
    *
-   * <note>This function is is strictly tied to [[reconstructRelative()], use them together. </note>
+   * <note>This function is is strictly tied to [[reconstructRelative()]], use them together.</note>
    *
    * @return A relativized file with a special prefix to denote the path is relative.
    */
@@ -64,7 +64,7 @@ object MapperUtils {
     if (filePath.startsWith(RELATIVE_MARKER)) {
       val cleanPath = filePath.drop(MARKER_LENGTH)
       from.resolve(cleanPath)
-    } else throw new RelativePathAssumptionBroken(relativeReadError(filePath))
+    } else throw new RelativePathAssumptionBroken(relativeReadError(filePath, from))
   }
 
   private final class RelativePathAssumptionBroken(msg: String) extends Exception(msg)

@@ -23,8 +23,7 @@ final class NaiveRelativeWriteMapper(rootProjectPath: Path) extends WriteMapper 
 
   override def mapSourceFile(sourceFile: VirtualFileRef): VirtualFileRef = sourceFile
   override def mapBinaryFile(binaryFile: VirtualFileRef): VirtualFileRef = binaryFile
-  override def mapProductFile(productFile: VirtualFileRef): VirtualFileRef =
-    productFile
+  override def mapProductFile(productFile: VirtualFileRef): VirtualFileRef = productFile
 
   override def mapClasspathEntry(classpathEntry: Path): Path = makeRelative(classpathEntry)
   override def mapJavacOption(javacOption: String): String = javacOption
@@ -33,8 +32,7 @@ final class NaiveRelativeWriteMapper(rootProjectPath: Path) extends WriteMapper 
   override def mapOutputDir(outputDir: Path): Path = makeRelative(outputDir)
   override def mapSourceDir(sourceDir: Path): Path = makeRelative(sourceDir)
 
-  override def mapProductStamp(file: VirtualFileRef, productStamp: Stamp): Stamp =
-    productStamp
+  override def mapProductStamp(file: VirtualFileRef, productStamp: Stamp): Stamp = productStamp
   override def mapSourceStamp(file: VirtualFileRef, sourceStamp: Stamp): Stamp = sourceStamp
   override def mapBinaryStamp(file: VirtualFileRef, binaryStamp: Stamp): Stamp = binaryStamp
 
@@ -48,15 +46,12 @@ final class RelativeWriteMapper(rootPaths: RootPaths) extends WriteMapper {
   private final val productsRoot = rootPaths.getProductsRootPath.toPath
 
   override def mapSourceFile(sourceFile: VirtualFileRef): VirtualFileRef = sourceFile
-  override def mapBinaryFile(binaryFile: VirtualFileRef): VirtualFileRef =
-    binaryFile
-  override def mapProductFile(productFile: VirtualFileRef): VirtualFileRef =
-    productFile
+  override def mapBinaryFile(binaryFile: VirtualFileRef): VirtualFileRef = binaryFile
+  override def mapProductFile(productFile: VirtualFileRef): VirtualFileRef = productFile
 
   /**
-   * This function makes a path relative to the libraries root, assuming that all
-   * the classpath entries are absolute (even compiler plugins) and they come from
-   * a unique place.
+   * Makes a path relative to the libraries root, assuming that all the classpath entries are
+   * absolute (even compiler plugins) and they come from a unique place.
    *
    * @param classpathEntry The classpath entry to be passed to the compiler.
    */

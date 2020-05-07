@@ -13,7 +13,6 @@ package sbt
 package internal
 package inc
 
-import java.io.File
 import java.io.{ File, IOException }
 import java.util
 import java.util.Optional
