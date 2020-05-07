@@ -187,14 +187,6 @@ private final class CachedCompiler0(args: Array[String], output: Output, initial
   }
 
   def processUnreportedWarnings(run: compiler.Run): Unit = {
-    // allConditionalWarnings and the ConditionalWarning class are only in 2.10+
-    final class CondWarnCompat(
-        val what: String,
-        val warnings: mutable.ListBuffer[(compiler.Position, String)]
-    )
-    implicit def compat(run: AnyRef): Compat = new Compat
-    final class Compat { def allConditionalWarnings = List[CondWarnCompat]() }
-
     val warnings = run.allConditionalWarnings
     if (warnings.nonEmpty)
       compiler.logUnreportedWarnings(warnings.map(cw => ("" /*cw.what*/, cw.warnings.toList)))
