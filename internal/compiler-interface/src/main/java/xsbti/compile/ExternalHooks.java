@@ -11,7 +11,7 @@
 
 package xsbti.compile;
 
-import java.util.Map;
+import java.nio.file.Path;
 import java.util.Optional;
 import java.util.Set;
 import xsbti.VirtualFileRef;
@@ -61,6 +61,15 @@ public interface ExternalHooks {
         Optional<FileHash[]> hashClasspath(VirtualFile[] classpath);
     }
 
+    interface GetProvenance {
+        String get(Path path);
+    }
+
+    enum NoProvenance implements GetProvenance {
+        INSTANCE;
+        @Override public String get(Path path) { return ""; }
+    }
+
     /**
      * Returns the implementation of a lookup mechanism to be used instead of
      * the internal lookup provided by the default implementation.
@@ -75,6 +84,8 @@ public interface ExternalHooks {
      * {@link ClassFileManager} defined in {@link IncOptions}.
      */
     Optional<ClassFileManager> getExternalClassFileManager();
+
+    default GetProvenance getProvenance() { return NoProvenance.INSTANCE; }
 
     /**
      * Returns an instance of hooks that executes the external passed class file manager.
@@ -95,8 +106,5 @@ public interface ExternalHooks {
      */
     ExternalHooks withExternalLookup(Lookup externalLookup);
 
-    /**
-     * Until interface stabilizes, park experimental hooks here.
-     */
-    Map<String, Object> extraHooks();
+    default ExternalHooks withGetProvenance(GetProvenance getProvenance) { return this; }
 }

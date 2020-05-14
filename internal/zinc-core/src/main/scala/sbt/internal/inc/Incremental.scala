@@ -25,7 +25,6 @@ import xsbti.api._
 import xsbti.compile.{
   CompileAnalysis,
   DependencyChanges,
-  ExternalHooks,
   IncOptions,
   Output,
   ClassFileManager => XClassFileManager
@@ -81,13 +80,12 @@ object Incremental {
   ): (Boolean, Analysis) = {
     log.debug(s"[zinc] IncrementalCompile -----------")
     val previous = previous0 match { case a: Analysis => a }
-    val externalHooks = options.externalHooks()
     val currentStamper = Stamps.initial(stamper)
     val internalBinaryToSourceClassName = (binaryClassName: String) =>
       previous.relations.productClassName.reverse(binaryClassName).headOption
     val internalSourceToClassNamesMap: VirtualFile => Set[String] = (f: VirtualFile) =>
       previous.relations.classNames(f)
-    val externalAPI = getExternalAPI(externalHooks, lookup)
+    val externalAPI = getExternalAPI(lookup)
     try {
       incrementalCompile(
         sources,
@@ -167,9 +165,8 @@ object Incremental {
     val previous = previous0 match { case a: Analysis => a }
     val runProfiler = profiler.profileRun
     val incremental: IncrementalCommon = new IncrementalNameHashing(log, options, runProfiler)
-    val hooks = options.externalHooks
     val initialChanges =
-      incremental.detectInitialChanges(sources, previous, current, lookup, converter, hooks, output)
+      incremental.detectInitialChanges(sources, previous, current, lookup, converter, output)
     log.debug(s"> initialChanges = $initialChanges")
     val binaryChanges = new DependencyChanges {
       val modifiedLibraries = initialChanges.libraryDeps.toArray
@@ -318,9 +315,7 @@ private final class AnalysisCallback(
   private[this] val compilation: Compilation = Compilation(compileStartTime, output)
 
   private val hooks = options.externalHooks
-
-  private val provenance =
-    jo2o(output.getSingleOutput).fold("")(Hooks.getProvenance(hooks)(_)).intern
+  private val provenance = jo2o(output.getSingleOutput).fold("")(hooks.getProvenance.get(_)).intern
 
   override def toString =
     (List("Class APIs", "Object APIs", "Library deps", "Products", "Source deps") zip

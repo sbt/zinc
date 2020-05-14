@@ -58,8 +58,13 @@ class LookupImpl(compileConfiguration: CompileConfiguration, previousSetup: Opti
 
   override def lookupAnalyzedClass(binaryClassName: String): Option[AnalyzedClass] = {
     externalLookup match { // not flatMap so that external lookup can fast-track returning None
-      case Some(externalLookup) => externalLookup.lookupAnalyzedClass(binaryClassName)
-      case _                    => super.lookupAnalyzedClass(binaryClassName)
+      case Some(externalLookup) =>
+        externalLookup.lookupAnalyzedClass(binaryClassName) match {
+          case Some(api) if api.provenance.isEmpty => // found but w/o provenance, so go slow route
+            super.lookupAnalyzedClass(binaryClassName)
+          case x => x // fast-track success: either found w/ provenance or not found at all
+        }
+      case _ => super.lookupAnalyzedClass(binaryClassName)
     }
   }
 

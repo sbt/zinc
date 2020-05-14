@@ -49,6 +49,7 @@ trait Lookup extends ExternalLookup {
   def lookupAnalysis(binaryClassName: String): Option[CompileAnalysis]
 
   def lookupAnalyzedClass(binaryClassName: String): Option[AnalyzedClass] = {
+    // This is the default, slow, route, via Analysis; overridden in LookupImpl for the fast-track.
     for {
       analysis0 <- lookupAnalysis(binaryClassName)
       analysis = analysis0 match { case a: Analysis => a }
@@ -71,6 +72,9 @@ trait ExternalLookup extends ExternalHooks.Lookup {
    * Find the external `AnalyzedClass` (from another analysis) given a class name.
    *
    * @return The `AnalyzedClass` associated with the given class name, if one is found.
+   *         Optional.empty() => Found class somewhere outside of project.  No analysis possible.
+   *         Optional.of(analyzed) if analyzed.provenance.isEmpty => Couldn't find it.
+   *         Optional.of(analyzed) => good
    */
   def lookupAnalyzedClass(binaryClassName: String): Option[AnalyzedClass]
 

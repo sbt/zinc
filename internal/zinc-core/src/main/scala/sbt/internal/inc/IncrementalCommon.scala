@@ -19,9 +19,7 @@ import xsbt.api.APIUtil
 import xsbti.api.AnalyzedClass
 import xsbti.compile.{
   Changes,
-  CompileAnalysis,
   DependencyChanges,
-  ExternalHooks,
   IncOptions,
   Output,
   ClassFileManager => XClassFileManager
@@ -325,14 +323,12 @@ private[inc] abstract class IncrementalCommon(
       stamps: ReadStamps,
       lookup: Lookup,
       converter: FileConverter,
-      hooks: ExternalHooks,
       output: Output
   )(implicit equivS: Equiv[XStamp]): InitialChanges = {
     import IncrementalCommon.isLibraryModified
     import lookup.lookupAnalyzedClass
     val previous = previousAnalysis.stamps
     val previousRelations = previousAnalysis.relations
-    val quickAPI: String => Option[AnalyzedClass] = Hooks.quickAPI(hooks)
 
     val sourceChanges: Changes[VirtualFileRef] = lookup.changedSources(previousAnalysis).getOrElse {
       val previousSources: Set[VirtualFileRef] = previous.allSources.toSet
@@ -379,12 +375,7 @@ private[inc] abstract class IncrementalCommon(
     val externalApiChanges: APIChanges = {
       val incrementalExternalChanges = {
         val previousAPIs = previousAnalysis.apis
-        val externalFinder = (binaryClassName: String) =>
-          (quickAPI(binaryClassName) match {
-            case Some(api) if api.provenance.isEmpty =>
-              lookupAnalyzedClass(binaryClassName) // found without a provenance, so looking it up
-            case x => x // fast-track success: either found w/ provenance or not found at all
-          }).getOrElse(APIs.emptyAnalyzedClass)
+        val externalFinder = lookupAnalyzedClass(_: String).getOrElse(APIs.emptyAnalyzedClass)
         detectAPIChanges(previousAPIs.allExternals, previousAPIs.externalAPI, externalFinder)
       }
 
