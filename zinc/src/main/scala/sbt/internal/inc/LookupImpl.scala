@@ -13,6 +13,7 @@ package sbt.internal.inc
 
 import java.util.Optional
 
+import xsbti.api.AnalyzedClass
 import xsbti.compile.{ Changes, CompileAnalysis, FileHash, MiniSetup }
 import xsbti.{ VirtualFile, VirtualFileRef }
 
@@ -54,6 +55,13 @@ class LookupImpl(compileConfiguration: CompileConfiguration, previousSetup: Opti
   lazy val externalLookup = Option(compileConfiguration.incOptions.externalHooks())
     .flatMap(ext => ext.getExternalLookup().toOption)
     .collect { case externalLookup: ExternalLookup => externalLookup }
+
+  override def lookupAnalyzedClass(binaryClassName: String): Option[AnalyzedClass] = {
+    externalLookup match { // not flatMap so that external lookup can fast-track returning None
+      case Some(externalLookup) => externalLookup.lookupAnalyzedClass(binaryClassName)
+      case _                    => super.lookupAnalyzedClass(binaryClassName)
+    }
+  }
 
   override def changedSources(previousAnalysis: CompileAnalysis): Option[Changes[VirtualFileRef]] =
     externalLookup.flatMap(_.changedSources(previousAnalysis))

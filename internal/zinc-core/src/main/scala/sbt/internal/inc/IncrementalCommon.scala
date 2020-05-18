@@ -325,7 +325,8 @@ private[inc] abstract class IncrementalCommon(
       converter: FileConverter,
       output: Output
   )(implicit equivS: Equiv[XStamp]): InitialChanges = {
-    import IncrementalCommon.{ isLibraryModified, findExternalAnalyzedClass }
+    import IncrementalCommon.isLibraryModified
+    import lookup.lookupAnalyzedClass
     val previous = previousAnalysis.stamps
     val previousRelations = previousAnalysis.relations
 
@@ -374,7 +375,7 @@ private[inc] abstract class IncrementalCommon(
     val externalApiChanges: APIChanges = {
       val incrementalExternalChanges = {
         val previousAPIs = previousAnalysis.apis
-        val externalFinder = findExternalAnalyzedClass(lookup) _
+        val externalFinder = lookupAnalyzedClass(_: String).getOrElse(APIs.emptyAnalyzedClass)
         detectAPIChanges(previousAPIs.allExternals, previousAPIs.externalAPI, externalFinder)
       }
 
@@ -765,21 +766,6 @@ object IncrementalCommon {
       if (skipClasspathLookup) compareStamps(binaryFile, binaryFile)
       else isLibraryChanged(binaryFile)
     }
-  }
-
-  /**
-   * Find the external `AnalyzedClass` (from another analysis) given a class name.
-   *
-   * @param lookup An instance that provides access to classpath or external project queries.
-   * @return The `AnalyzedClass` associated with the given class name.
-   */
-  def findExternalAnalyzedClass(lookup: Lookup)(binaryClassName: String): AnalyzedClass = {
-    val maybeInternalAPI = for {
-      analysis0 <- lookup.lookupAnalysis(binaryClassName)
-      analysis = analysis0 match { case a: Analysis => a }
-      className <- analysis.relations.productClassName.reverse(binaryClassName).headOption
-    } yield analysis.apis.internalAPI(className)
-    maybeInternalAPI.getOrElse(APIs.emptyAnalyzedClass)
   }
 
   def transitiveDeps[T](

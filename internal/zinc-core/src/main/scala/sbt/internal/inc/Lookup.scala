@@ -14,6 +14,7 @@ package sbt.internal.inc
 import java.util
 import java.util.Optional
 
+import xsbti.api.AnalyzedClass
 import xsbti.{ VirtualFileRef, VirtualFile }
 import xsbti.compile.{ Changes, CompileAnalysis, ExternalHooks, FileHash }
 
@@ -46,6 +47,15 @@ trait Lookup extends ExternalLookup {
    * @return
    */
   def lookupAnalysis(binaryClassName: String): Option[CompileAnalysis]
+
+  def lookupAnalyzedClass(binaryClassName: String): Option[AnalyzedClass] = {
+    for {
+      analysis0 <- lookupAnalysis(binaryClassName)
+      analysis = analysis0 match { case a: Analysis => a }
+      className <- analysis.relations.productClassName.reverse(binaryClassName).headOption
+      analyzedClass <- analysis.apis.internal.get(className)
+    } yield analyzedClass
+  }
 }
 
 /**
@@ -56,6 +66,13 @@ trait Lookup extends ExternalLookup {
 trait ExternalLookup extends ExternalHooks.Lookup {
   import sbt.internal.inc.JavaInterfaceUtil.EnrichOption
   import scala.collection.JavaConverters._
+
+  /**
+   * Find the external `AnalyzedClass` (from another analysis) given a class name.
+   *
+   * @return The `AnalyzedClass` associated with the given class name, if one is found.
+   */
+  def lookupAnalyzedClass(binaryClassName: String): Option[AnalyzedClass]
 
   /**
    * Used to provide information from external tools into sbt (e.g. IDEs)
@@ -111,6 +128,7 @@ trait ExternalLookup extends ExternalHooks.Lookup {
 }
 
 trait NoopExternalLookup extends ExternalLookup {
+  override def lookupAnalyzedClass(binaryClassName: String): Option[AnalyzedClass] = None
   override def changedSources(previous: CompileAnalysis): Option[Changes[VirtualFileRef]] = None
   override def changedBinaries(previous: CompileAnalysis): Option[Set[VirtualFileRef]] = None
   override def removedProducts(previous: CompileAnalysis): Option[Set[VirtualFileRef]] = None

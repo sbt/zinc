@@ -118,14 +118,9 @@ object Incremental {
         (false, previous)
     }
   }
+
   def getExternalAPI(lookup: Lookup): (VirtualFileRef, String) => Option[AnalyzedClass] =
-    (_: VirtualFileRef, binaryClassName: String) =>
-      lookup.lookupAnalysis(binaryClassName) flatMap {
-        case (analysis: Analysis) =>
-          val sourceClassName =
-            analysis.relations.productClassName.reverse(binaryClassName).headOption
-          sourceClassName flatMap analysis.apis.internal.get
-      }
+    (_: VirtualFileRef, binaryClassName: String) => lookup.lookupAnalyzedClass(binaryClassName)
 
   /**
    * Runs the incremental compiler algorithm.
