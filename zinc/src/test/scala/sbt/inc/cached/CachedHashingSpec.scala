@@ -14,13 +14,15 @@ package cached
 
 import java.nio.file.Paths
 import sbt.internal.inc.{
-  CompileOutput,
   Analysis,
-  MixedAnalyzingCompiler,
+  CompileOutput,
   JarUtils,
+  MixedAnalyzingCompiler,
   PlainVirtualFile
 }
 import sbt.io.IO
+
+import scala.collection.JavaConverters.asScalaIteratorConverter
 
 class CachedHashingSpec extends BaseCompilerSpec {
   lazy val isWindows: Boolean =
@@ -39,52 +41,58 @@ class CachedHashingSpec extends BaseCompilerSpec {
       val sources0 = Map(Paths.get("src") -> classes.map(path => Paths.get(path)))
       val projectSetup = TestProjectSetup(tempDir.toPath(), sources0, Nil)
       val compiler = projectSetup.createCompiler()
+      try {
+        import compiler.in.{ setup, options, compilers, previousResult }
+        import sbt.internal.inc.JavaInterfaceUtil._
 
-      import compiler.in.{ setup, options, compilers, previousResult }
-      import sbt.internal.inc.JavaInterfaceUtil._
-      import sbt.io.syntax.{ file, fileToRichFile, singleFileFinder }
+        val javac = compilers.javaTools.javac
+        val scalac = compilers.scalac
 
-      val javac = compilers.javaTools.javac
-      val scalac = compilers.scalac
-      val giganticClasspath =
-        file(sys.props("user.home"))
-          ./(".ivy2")
-          .**("*.jar")
-          .get
+        import java.nio.file._
+        val giganticClasspath = Files
+          .walk(Paths.get(sys.props("user.home"), ".ivy2"))
+          .iterator()
+          .asScala
+          .filter(_.getFileName.toString.endsWith(".jar"))
           .take(500)
-          .map(x => PlainVirtualFile(x.toPath))
-      val output = CompileOutput(options.classesDirectory)
-      def genConfig = MixedAnalyzingCompiler.makeConfig(
-        scalac,
-        javac,
-        options.sources,
-        options.converter.toOption.get,
-        giganticClasspath,
-        output,
-        setup.cache,
-        setup.progress.toOption,
-        options.scalacOptions,
-        options.javacOptions,
-        Analysis.empty,
-        previousResult.setup.toOption,
-        setup.perClasspathEntryLookup,
-        setup.reporter,
-        options.order,
-        setup.skip,
-        setup.incrementalCompilerOptions,
-        JarUtils.createOutputJarContent(output),
-        options.stamper.toOption.get,
-        setup.extra.toList.map(_.toScalaTuple)
-      )
+          .map(x => PlainVirtualFile(x))
+          .toVector
+        val output = CompileOutput(options.classesDirectory)
 
-      val hashingTime = timeMs(genConfig)
-      val cachedHashingTime = timeMs(genConfig)
-      if (isWindows) assert(true)
-      else
-        assert(
-          cachedHashingTime < (hashingTime * 0.50),
-          s"Cache jar didn't work: $cachedHashingTime is >= than 50% of $hashingTime."
+        def genConfig = MixedAnalyzingCompiler.makeConfig(
+          scalac,
+          javac,
+          options.sources,
+          options.converter.toOption.get,
+          giganticClasspath,
+          output,
+          setup.cache,
+          setup.progress.toOption,
+          options.scalacOptions,
+          options.javacOptions,
+          Analysis.empty,
+          previousResult.setup.toOption,
+          setup.perClasspathEntryLookup,
+          setup.reporter,
+          options.order,
+          setup.skip,
+          setup.incrementalCompilerOptions,
+          JarUtils.createOutputJarContent(output),
+          options.stamper.toOption.get,
+          setup.extra.toList.map(_.toScalaTuple)
         )
+
+        val hashingTime = timeMs(genConfig)
+        val cachedHashingTime = timeMs(genConfig)
+        if (isWindows) assert(true)
+        else
+          assert(
+            cachedHashingTime < (hashingTime * 0.50),
+            s"Cache jar didn't work: $cachedHashingTime is >= than 50% of $hashingTime."
+          )
+      } finally {
+        compiler.close()
+      }
     }
   }
 

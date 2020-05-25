@@ -79,8 +79,10 @@ abstract class CommonCachedCompilation(name: String)
     ()
   }
 
-  override protected def afterAll(): Unit =
+  override protected def afterAll(): Unit = {
     IO.delete(remoteProject.baseLocation.toFile.getParentFile)
+    if (remoteCompilerSetup != null) remoteCompilerSetup.close()
+  }
 
   it should "provide correct analysis for empty project" in IO.withTemporaryDirectory { tempDir =>
     val cache = remoteCacheProvider().findCache(None)
@@ -118,9 +120,13 @@ abstract class CommonCachedCompilation(name: String)
     val cache = CacheAwareStore(localStore, remoteCacheProvider(), projectRoot)
 
     val compiler = projectSetup.createCompiler()
-    val result = compiler.doCompileWithStore(cache)
+    try {
+      val result = compiler.doCompileWithStore(cache)
 
-    assert(!result.hasModified)
+      assert(!result.hasModified)
+    } finally {
+      compiler.close()
+    }
   }
 
   private def namedTempDir[T](name: String)(op: File => T): T = {

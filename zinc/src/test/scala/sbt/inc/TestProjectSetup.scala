@@ -259,6 +259,9 @@ object TestProjectSetup {
       store.set(AnalysisContents.create(newResult.analysis(), newResult.setup()))
       newResult
     }
+    def close(): Unit = {
+      sc.classLoaderCache.foreach(_.close())
+    }
   }
 
   case class MockedLookup(am: VirtualFile => Optional[CompileAnalysis])
