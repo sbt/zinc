@@ -393,6 +393,7 @@ message AnalyzedClass {
     repeated NameHash nameHashes = 5;
     bool hasMacro = 6;
     sint32 extraHash = 7;
+    string provenance = 8;
 }
 
 message APIs {

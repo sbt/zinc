@@ -113,6 +113,7 @@ object AnalysisGenerators {
       apiHash <- arbitrary[Int]
       hasMacro <- arbitrary[Boolean]
       nameHash <- genNameHash(name)
+      provenance <- arbitrary[String]
     } yield {
       AnalyzedClass.of(
         startTime,
@@ -121,7 +122,8 @@ object AnalysisGenerators {
         apiHash,
         Array(nameHash),
         hasMacro,
-        apiHash // The default is to use the public API hash
+        apiHash, // The default is to use the public API hash
+        provenance
       )
     }
 

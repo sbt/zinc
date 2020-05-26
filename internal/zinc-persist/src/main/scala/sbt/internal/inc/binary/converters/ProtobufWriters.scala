@@ -601,6 +601,7 @@ final class ProtobufWriters(mapper: WriteMapper) {
     val hasMacro = analyzedClass.hasMacro
     val name = analyzedClass.name()
     val nameHashes = analyzedClass.nameHashes().toSchemaList(toNameHash)
+    val provenance = analyzedClass.provenance
     schema.AnalyzedClass(
       compilationTimestamp = compilationTimestamp,
       name = name,
@@ -608,7 +609,8 @@ final class ProtobufWriters(mapper: WriteMapper) {
       apiHash = apiHash,
       nameHashes = nameHashes,
       hasMacro = hasMacro,
-      extraHash = extraHash
+      extraHash = extraHash,
+      provenance = provenance
     )
   }
 

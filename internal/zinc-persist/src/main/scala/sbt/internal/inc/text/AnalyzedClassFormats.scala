@@ -23,16 +23,17 @@ object AnalyzedClassFormats {
       implicit ev0: Format[Compilation],
       ev1: Format[NameHash]
   ): Format[AnalyzedClass] =
-    wrap[AnalyzedClass, (Long, String, Int, Array[NameHash], Boolean)](
-      a => (a.compilationTimestamp(), a.name, a.apiHash, a.nameHashes, a.hasMacro),
-      (x: (Long, String, Int, Array[NameHash], Boolean)) =>
+    wrap[AnalyzedClass, (Long, String, Int, Array[NameHash], Boolean, String)](
+      a => (a.compilationTimestamp(), a.name, a.apiHash, a.nameHashes, a.hasMacro, a.provenance),
+      (x: (Long, String, Int, Array[NameHash], Boolean, String)) =>
         x match {
           case (
               compilationTimestamp: Long,
               name: String,
               apiHash: Int,
               nameHashes: Array[NameHash],
-              hasMacro: Boolean
+              hasMacro: Boolean,
+              provenance: String
               ) =>
             val _ = ev0.toString
             AnalyzedClass.of(
@@ -42,7 +43,8 @@ object AnalyzedClassFormats {
               apiHash,
               nameHashes,
               hasMacro,
-              apiHash
+              apiHash,
+              provenance
             )
         }
     )

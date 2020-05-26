@@ -314,6 +314,9 @@ private final class AnalysisCallback(
   private[this] val compileStartTime: Long = System.currentTimeMillis()
   private[this] val compilation: Compilation = Compilation(compileStartTime, output)
 
+  private val hooks = options.externalHooks
+  private val provenance = jo2o(output.getSingleOutput).fold("")(hooks.getProvenance.get(_)).intern
+
   override def toString =
     (List("Class APIs", "Object APIs", "Library deps", "Products", "Source deps") zip
       List(classApis, objectApis, libraryDeps, nonLocalClasses, intSrcDeps))
@@ -581,7 +584,8 @@ private final class AnalysisCallback(
       apiHash,
       nameHashes,
       hasMacro,
-      extraHash
+      extraHash,
+      provenance
     )
   }
 

@@ -16,10 +16,20 @@ import java.util.Optional;
 public class DefaultExternalHooks implements ExternalHooks {
     private Optional<ExternalHooks.Lookup> lookup = Optional.empty();
     private Optional<ClassFileManager> classFileManager = Optional.empty();
+    private GetProvenance getProvenance = NoProvenance.INSTANCE;
 
-    public DefaultExternalHooks(Optional<ExternalHooks.Lookup> lookup, Optional<ClassFileManager> classFileManager) {
+    public DefaultExternalHooks(
+            Optional<ExternalHooks.Lookup> lookup,
+            Optional<ClassFileManager> classFileManager,
+            GetProvenance getProvenance
+    ) {
         this.lookup = lookup;
         this.classFileManager = classFileManager;
+        this.getProvenance = getProvenance;
+    }
+
+    public DefaultExternalHooks(Optional<ExternalHooks.Lookup> lookup, Optional<ClassFileManager> classFileManager) {
+        this(lookup, classFileManager, NoProvenance.INSTANCE);
     }
 
     @Override
@@ -32,17 +42,25 @@ public class DefaultExternalHooks implements ExternalHooks {
         return classFileManager;
     }
 
+    @Override public GetProvenance getProvenance() { return getProvenance; }
+
     @Override
     public ExternalHooks withExternalClassFileManager(ClassFileManager externalClassFileManager) {
         Optional<ClassFileManager> external = Optional.of(externalClassFileManager);
         Optional<ClassFileManager> mixedManager = classFileManager.isPresent()
             ? Optional.of(WrappedClassFileManager.of(classFileManager.get(), external))
             : external;
-        return new DefaultExternalHooks(lookup, mixedManager);
+        return new DefaultExternalHooks(lookup, mixedManager, getProvenance);
     }
 
     @Override
     public ExternalHooks withExternalLookup(ExternalHooks.Lookup externalLookup) {
-        return new DefaultExternalHooks(Optional.of(externalLookup), classFileManager);
+        Optional<Lookup> externalLookup1 = Optional.of(externalLookup);
+        return new DefaultExternalHooks(externalLookup1, classFileManager, getProvenance);
+    }
+
+    @Override
+    public ExternalHooks withGetProvenance(GetProvenance getProvenance) {
+        return new DefaultExternalHooks(lookup, classFileManager, getProvenance);
     }
 }
