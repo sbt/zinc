@@ -249,7 +249,7 @@ final class HashAPI private (
     hashTypeParameters(c.typeParameters)
     hashType(c.selfType)
     if (includeSealedChildren)
-      hashTypes(c.childrenOfSealedClass, includeDefinitions)
+      hashTypesSymmetric(c.childrenOfSealedClass, includeDefinitions)
 
     val isTrait = c.definitionType() == DefinitionType.Trait
     hashStructure(c.structure, includeDefinitions, isTrait)
@@ -341,6 +341,8 @@ final class HashAPI private (
 
   def hashTypes(ts: Array[Type], includeDefinitions: Boolean = true) =
     hashArray(ts, (t: Type) => hashType(t, includeDefinitions))
+  def hashTypesSymmetric(ts: Array[Type], includeDefinitions: Boolean = true) =
+    hashSymmetric(ts, hashType(_, includeDefinitions))
   def hashType(t: Type, includeDefinitions: Boolean = true): Unit =
     t match {
       case s: Structure     => hashStructure(s, includeDefinitions, false)
