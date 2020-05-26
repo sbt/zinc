@@ -712,7 +712,7 @@ tearDownBenchmarkResources in ThisBuild := { IO.delete(dir) }
 
 addCommandAlias(
   "runBenchmarks",
-  s""";${compilerBridge213.id}/packageBin;${compilerBridge212.id}/packageBin;zincBenchmarksJVM2_12/run $dirPath;zincBenchmarksJVM2_12/jmh:run -p _tempDir=$dirPath -prof gc;tearDownBenchmarkResources""".stripMargin
+  s""";${compilerBridge213.id}/packageBin;${compilerBridge212.id}/packageBin;zincBenchmarksJVM2_12/run $dirPath;zincBenchmarksJVM2_12/jmh:run -p _tempDir=$dirPath -prof gc -foe true;tearDownBenchmarkResources""".stripMargin
 )
 
 lazy val otherRootSettings = Seq(
