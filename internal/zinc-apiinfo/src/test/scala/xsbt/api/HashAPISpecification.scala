@@ -11,12 +11,14 @@
 
 package xsbt.api
 
-import xsbti.api.{ ClassLike, Def, DefinitionType, Var, Modifiers, TypeDeclaration, TypeAlias }
+import xsbti.api._
 import sbt.internal.inc.UnitSpec
 import xsbt.api.ClassLikeHelpers._
 
 class HashAPISpecification extends UnitSpec {
-  "The HashAPI specification" should "detect hash changes in private trait vars" in {
+  behavior of "The HashAPI specification"
+
+  it should "detect hash changes in private trait vars" in {
     val privateVar = Var.of("x", privateAccess, defaultMods, Array.empty, emptyType)
     val tWithPrivateMember = simpleTrait("Foo", List(privateVar))
     val tWithNothing = simpleTrait("Foo", Nil)
@@ -85,18 +87,26 @@ class HashAPISpecification extends UnitSpec {
     assertDifferentPrivateAPI(tWithPrivateMember, tWithNothing)
   }
 
+  it should "not detect hash changes in childrenOfSealedClass ordering" in {
+    val t = Projection.of(emptyType, "t")
+    val f = Projection.of(emptyType, "f")
+    val b = simpleTrait("Bool", Nil)
+    val x = b.withChildrenOfSealedClass(Array(f, t))
+    val y = b.withChildrenOfSealedClass(Array(t, f))
+    assertSamePrivateAPI(x, y) // was "-188164889 did not equal 992093599"
+  }
+
   def assertDifferentPrivateAPI(a: ClassLike, b: ClassLike): Unit = assertPrivateApi(true, a, b)
   def assertSamePrivateAPI(a: ClassLike, b: ClassLike): Unit = assertPrivateApi(false, a, b)
   def assertPrivateApi(isDifferent: Boolean, a: ClassLike, b: ClassLike): Unit = {
-    def hashWithPrivate(c: ClassLike): Int =
-      HashAPI.apply(_.hashAPI(c), includePrivateDefsInTrait = true)
-
+    def PrivateAPI(c: ClassLike): Int = HashAPI(_.hashAPI(c), includePrivateDefsInTrait = true)
     def checkOrder(a: ClassLike, b: ClassLike): Unit = {
-      // Check the the default Same API doesn't take private methods into account
-      assert(HashAPI.apply(a) == HashAPI.apply(b), s"HashAPI(${a}) != HashAPI(${b})")
-      val samePrivateHash = hashWithPrivate(a) == hashWithPrivate(b)
-      if (isDifferent) assert(!samePrivateHash, s"PrivateAPI(${a}) == PrivateAPI(${b})")
-      else assert(samePrivateHash, s"PrivateAPI(${a}) != PrivateAPI(${b})")
+      // Check the default Hash API doesn't take private methods into account
+      assert(HashAPI(a) == HashAPI(b), s"HashAPI(${a}) != HashAPI(${b})")
+      if (isDifferent)
+        assert(PrivateAPI(a) != PrivateAPI(b), s"PrivateAPI(${a}) == PrivateAPI(${b})")
+      else
+        assert(PrivateAPI(a) == PrivateAPI(b), s"PrivateAPI(${a}) != PrivateAPI(${b})")
       ()
     }
 
