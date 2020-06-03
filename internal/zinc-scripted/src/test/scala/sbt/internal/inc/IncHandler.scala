@@ -27,13 +27,15 @@ import xsbti.compile.{
   ClasspathOptionsUtil,
   CompileAnalysis,
   CompileOrder,
+  CompileProgress,
   DefinesClass,
   IncOptions,
   IncOptionsUtil,
   PerClasspathEntryLookup,
   PreviousResult,
   CompilerCache => XCompilerCache,
-  Compilers => XCompilers
+  Compilers => XCompilers,
+  ScalaInstance => XScalaInstance
 }
 import sbt.io.IO
 import sbt.io.syntax._
@@ -52,7 +54,6 @@ import scala.collection.mutable
 import scala.concurrent.{ Await, Future, Promise }
 import scala.concurrent.duration._
 import scala.util.control.NonFatal
-import xsbti.compile.CompileProgress
 
 final case class Project(
     name: String,
@@ -60,10 +61,11 @@ final case class Project(
     in: Option[Path] = None,
     scalaVersion: Option[String] = None
 )
+
 final case class Build(projects: Seq[Project])
 
 final case class IncState(
-    si: xsbti.compile.ScalaInstance,
+    si: XScalaInstance,
     cs: XCompilers,
     number: Int,
     compilations: mutable.Map[ProjectStructure, (Future[Analysis], Future[Unit])]
@@ -85,44 +87,45 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
     None
   }
 
-  def finish(state: State): Unit = {
-    // Required so that next projects re-read the project structure
-    buildStructure.clear()
-    ()
-  }
+  // Required so that next projects re-read the project structure
+  def finish(state: State): Unit = buildStructure.clear()
+
   val localBoot = Paths.get(sys.props("user.home")).resolve(".sbt").resolve("boot")
   val javaHome = Paths.get(sys.props("java.home"))
+
   val localCoursierCache = Vector(
     Paths.get(sys.props("user.home")).resolve(".coursier").resolve("cache"),
     Paths.get(sys.props("user.home")).resolve(".cache").resolve("coursier")
   )
+
   def rootPaths: Vector[Path] = Vector(directory, localBoot, javaHome) ++ localCoursierCache
   val converter = new MappedFileConverter(rootPaths, true)
 
   val buildStructure: mutable.Map[String, ProjectStructure] = mutable.Map.empty
+
   def initBuildStructure(): Unit = {
     val build = initBuild
     build.projects.foreach { p =>
       val in: Path = p.in.getOrElse(directory / p.name)
       val version = p.scalaVersion.getOrElse(scala.util.Properties.versionNumberString)
       val deps = p.dependsOn.toVector.flatten
-      val project =
-        ProjectStructure(
-          p.name,
-          deps,
-          in,
-          converter,
-          scriptedLog,
-          lookupProject,
-          version,
-          compileToJar,
-          incrementalCompiler
-        )
+      val project = ProjectStructure(
+        p.name,
+        deps,
+        in,
+        converter,
+        scriptedLog,
+        lookupProject,
+        version,
+        compileToJar,
+        incrementalCompiler
+      )
       buildStructure(p.name) = project
     }
   }
 
   final val RootIdentifier = "root"
+
   def initBuild: Build = {
     if (Files.exists(directory / "build.json")) {
       import sjsonnew._, BasicJsonProtocol._
@@ -133,11 +136,8 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
       // Do not parseFromFile as it leaves file open, causing problems on Windows.
       val json = {
         val channel = Files.newByteChannel(directory / "build.json")
-        try {
-          JsonParser.parseFromChannel(channel).get
-        } finally {
-          channel.close()
-        }
+        try JsonParser.parseFromChannel(channel).get
+        finally channel.close()
       }
       Converter.fromJsonUnsafe[Build](json)
     } else Build(projects = Vector(Project(name = RootIdentifier).copy(in = Some(directory))))
@@ -161,9 +161,8 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
       run: IncState => Future[Unit]
   ): IncState = {
     val instance = i.getOrElse(onNewIncState(p))
-    try {
-      Await.result(run(instance), 60.seconds)
-    } catch {
+    try Await.result(run(instance), 60.seconds)
+    catch {
       case NonFatal(e) =>
         instance.compilations.clear()
         throw e
@@ -172,29 +171,24 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
   }
 
   private final val noLogger = Logger.Null
+
   private[this] def onNewIncState(p: ProjectStructure): IncState = {
     val scalaVersion = p.scalaVersion
-    val (compilerBridge, si) = IncHandler.getCompilerCacheFor(scalaVersion) match {
-      case Some(alreadyInstantiated) =>
-        alreadyInstantiated
-      case None =>
-        val compilerBridge = getCompilerBridge(cacheDir, noLogger, scalaVersion)
-        val si = scalaInstance(scalaVersion, cacheDir, noLogger)
-        val toCache = (compilerBridge, si)
-        IncHandler.putCompilerCache(scalaVersion, toCache)
-        toCache
+    val (compilerBridge, si) = IncHandler.getCompilerCacheFor(scalaVersion).getOrElse {
+      val compilerBridge = getCompilerBridge(cacheDir, noLogger, scalaVersion)
+      val si = scalaInstance(scalaVersion, cacheDir, noLogger)
+      val toCache = (compilerBridge, si)
+      IncHandler.putCompilerCache(scalaVersion, toCache)
+      toCache
     }
     val analyzingCompiler = scalaCompiler(si, compilerBridge)
-    IncState(
-      si,
-      incrementalCompiler.compilers(si, ClasspathOptionsUtil.boot, None, analyzingCompiler),
-      0,
-      mutable.Map.empty
-    )
+    val cs = incrementalCompiler.compilers(si, ClasspathOptionsUtil.boot, None, analyzingCompiler)
+    IncState(si, cs, 0, mutable.Map.empty)
   }
 
   private final val unit = (_: Seq[String]) => ()
-  def scalaCompiler(instance: xsbti.compile.ScalaInstance, bridgeJar: Path): AnalyzingCompiler = {
+
+  def scalaCompiler(instance: XScalaInstance, bridgeJar: Path): AnalyzingCompiler = {
     val bridgeProvider = ZincUtil.constantBridgeProvider(instance, bridgeJar)
     val classpath = ClasspathOptionsUtil.boot
     new AnalyzingCompiler(instance, bridgeProvider, classpath, unit, IncHandler.classLoaderCache)
@@ -239,15 +233,13 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
     noArgs("checkNoClassFiles") { case (p, _) => p.checkNoGeneratedClassFiles() }
   )
 
-  private def dropRightColon(s: String) = if (s endsWith ":") s dropRight 1 else s
+  private def dropRightColon(s: String) = if (s endsWith ":") s.dropRight(1) else s
 
   private def onArgs(commandName: String)(
       pf: (ProjectStructure, List[String], IncState) ?=> Future[Unit]
   ): (String, IncCommand) =
     commandName ->
-      ((p, xs, i) => {
-        applyOrElse(pf, (p, xs, i), p.unrecognizedArguments(commandName, xs))
-      })
+      ((p, xs, i) => applyOrElse(pf, (p, xs, i), p.unrecognizedArguments(commandName, xs)))
 
   private def noArgs(commandName: String)(
       pf: (ProjectStructure, IncState) ?=> Future[Unit]
@@ -281,14 +273,17 @@ case class ProjectStructure(
   val generatedClassFiles = classesDir.toFile ** "*.class"
   val scalaSourceDirectory = baseDirectory / "src" / "main" / "scala"
   val javaSourceDirectory = baseDirectory / "src" / "main" / "java"
+
   def scalaSources: List[Path] =
-    ((scalaSourceDirectory.toFile ** "*.scala").get.toList ++
-      (baseDirectory.toFile * "*.scala").get.toList)
+    ((scalaSourceDirectory.toFile ** "*.scala").get ++ (baseDirectory.toFile * "*.scala").get)
       .map(_.toPath)
+      .toList
+
   def javaSources: List[Path] =
-    ((javaSourceDirectory.toFile ** "*.java").get.toList ++
-      (baseDirectory.toFile * "*.java").get.toList)
+    ((javaSourceDirectory.toFile ** "*.java").get ++ (baseDirectory.toFile * "*.java").get)
       .map(_.toPath)
+      .toList
+
   val stamper = Stamps.timeWrapLibraryStamps(converter)
   val cacheFile = baseDirectory / "target" / "inc_compile.zip"
   val fileStore = FileAnalysisStore.binary(cacheFile.toFile)
@@ -296,6 +291,7 @@ case class ProjectStructure(
   val earlyCacheFile = baseDirectory / "target" / "early" / "inc_compile.zip"
   val earlyAnalysisStore = FileAnalysisStore.binary(earlyCacheFile.toFile)
   // val earlyCachedStore = AnalysisStore.cached(fileStore)
+
   def prev(useCachedAnalysis: Boolean = true) = {
     val store = if (useCachedAnalysis) cachedStore else fileStore
     store.get.toOption match {
@@ -304,6 +300,7 @@ case class ProjectStructure(
       case _ => incrementalCompiler.emptyPreviousResult
     }
   }
+
   def earlyPreviousResult: PreviousResult = {
     val store = earlyAnalysisStore
     store.get.toOption match {
@@ -312,40 +309,38 @@ case class ProjectStructure(
       case _ => incrementalCompiler.emptyPreviousResult
     }
   }
+
   def unmanagedJars: List[Path] =
     ((baseDirectory / "lib").toFile ** "*.jar").get.toList.map(_.toPath)
-  def dependsOnRef: Vector[ProjectStructure] = dependsOn map { lookupProject(_) }
-  def internalClasspath: Vector[Path] = dependsOnRef flatMap { proj =>
-    Vector(proj.classesDir) ++ proj.outputJar
-  }
+
+  def dependsOnRef: Vector[ProjectStructure] = dependsOn.map(lookupProject(_))
+
+  def internalClasspath: Vector[Path] =
+    dependsOnRef.flatMap(proj => Vector(proj.classesDir) ++ proj.outputJar)
 
   def checkSame(i: IncState): Future[Unit] =
-    cachedStore.get.toOption match {
-      case Some(contents) =>
-        val prevAnalysis = contents.getAnalysis.asInstanceOf[Analysis]
-        compile(i) map { analysis =>
-          analysis.apis.internal foreach {
-            case (k, api) =>
-              assert(api.apiHash == prevAnalysis.apis.internalAPI(k).apiHash)
-          }
+    cachedStore.get.toOption.fold(Future.unit) { contents =>
+      val prevAnalysis = contents.getAnalysis.asInstanceOf[Analysis]
+      compile(i).map { analysis =>
+        analysis.apis.internal.foreach {
+          case (k, api) =>
+            assert(api.apiHash == prevAnalysis.apis.internalAPI(k).apiHash)
         }
-      case _ => Future { () }
+      }
     }
 
   def clean(): Future[Unit] = Future { IO.delete(classesDir.toFile) }
 
   def checkNumberOfCompilerIterations(i: IncState, expected: Int): Future[Unit] =
-    compile(i) map { analysis =>
-      assert(
-        (analysis.compilations.allCompilations.size: Int) == expected,
-        "analysis.compilations.allCompilations.size = %d (expected %d)"
-          .format(analysis.compilations.allCompilations.size, expected)
-      )
+    compile(i).map { analysis =>
+      val count = analysis.compilations.allCompilations.size
+      val msg = s"analysis.compilations.allCompilations.size = $count (expected $expected)"
+      assert(count == expected, msg)
       ()
     }
 
   def checkRecompilations(i: IncState, step: Int, expected: List[String]): Future[Unit] =
-    compile(i) map { analysis =>
+    compile(i).map { analysis =>
       val allCompilations = analysis.compilations.allCompilations
       val recompiledClasses: Seq[Set[String]] = allCompilations map { c =>
         val recompiledClasses = analysis.apis.internal.collect {
@@ -361,40 +356,38 @@ case class ProjectStructure(
         )
       }
 
-      assert(step < allCompilations.size.toInt)
+      assert(step < allCompilations.size)
       recompiledClassesInIteration(step, expected.toSet)
       ()
     }
 
   def checkClasses(i: IncState, src: String, expected: List[String]): Future[Unit] =
-    compile(i) map { analysis =>
+    compile(i).map { analysis =>
       def classes(src: String): Set[String] =
         analysis.relations.classNames(converter.toVirtualFile(baseDirectory / src))
-      def assertClasses(expected: Set[String], actual: Set[String]) =
-        assert(
-          expected == actual,
-          s"Expected $expected classes, got $actual \n\n" + analysis.relations
-        )
+      def assertClasses(expected: Set[String], actual: Set[String]) = {
+        val msg = s"Expected $expected classes, got $actual \n\n" + analysis.relations
+        assert(expected == actual, msg)
+      }
       assertClasses(expected.toSet, classes(src))
       ()
     }
 
   def checkMainClasses(i: IncState, src: String, expected: List[String]): Future[Unit] =
-    compile(i) map { analysis =>
+    compile(i).map { analysis =>
       def mainClasses(src: String): Set[String] =
         analysis.infos.get(converter.toVirtualFile(baseDirectory / src)).getMainClasses.toSet
-      def assertClasses(expected: Set[String], actual: Set[String]) =
-        assert(
-          expected == actual,
-          s"Expected $expected classes, got $actual\n\n" + analysis.infos.allInfos
-        )
+      def assertClasses(expected: Set[String], actual: Set[String]) = {
+        val msg = s"Expected $expected classes, got $actual\n\n" + analysis.infos.allInfos
+        assert(expected == actual, msg)
+      }
 
       assertClasses(expected.toSet, mainClasses(src))
       ()
     }
 
   def checkProducts(i: IncState, src: String, expected: List[String]): Future[Unit] =
-    compile(i) map { analysis =>
+    compile(i).map { analysis =>
       // def isWindows: Boolean = sys.props("os.name").toLowerCase.startsWith("win")
       // def relativeClassDir(f: File): File = f.relativeTo(classesDir) getOrElse f
       // def normalizePath(path: String): String = {
@@ -421,21 +414,20 @@ case class ProjectStructure(
   def checkNoGeneratedClassFiles(): Future[Unit] =
     Future {
       val allPlainClassFiles = generatedClassFiles.get.toList.map(_.toString)
-      val allClassesInJar: List[String] = outputJar.toList
-        .filter(Files.exists(_))
-        .flatMap(p => JarUtils.listClassFiles(p.toFile))
-      if (allPlainClassFiles.nonEmpty || allClassesInJar.nonEmpty)
+      val allClassesInJar: List[String] =
+        outputJar.toList.filter(Files.exists(_)).flatMap(p => JarUtils.listClassFiles(p.toFile))
+      if (allPlainClassFiles.nonEmpty || allClassesInJar.nonEmpty) {
+        val classfiles = allPlainClassFiles.mkString("\n * ", "\n * ", "")
         sys.error(
-          s"""classes exists: allPlainClassFiles = ${allPlainClassFiles
-               .mkString("\n * ", "\n * ", "")}
-                   |
-                   |allClassesInJar = $allClassesInJar""".stripMargin
+          s"""classes exists: allPlainClassFiles = $classfiles
+             |
+             |allClassesInJar = $allClassesInJar""".stripMargin
         )
-      else ()
+      }
     }
 
   def checkDependencies(i: IncState, className: String, expected: List[String]): Future[Unit] =
-    compile(i) map { analysis =>
+    compile(i).map { analysis =>
       def classDeps(cls: String): Set[String] = analysis.relations.internalClassDep.forward(cls)
       def assertDependencies(expected: Set[String], actual: Set[String]) =
         assert(expected == actual, s"Expected $expected dependencies, got $actual")
@@ -445,24 +437,17 @@ case class ProjectStructure(
     }
 
   def run(i: IncState, params: Seq[String]): Future[Unit] =
-    compile(i) map { analysis =>
+    compile(i).map { analysis =>
       discoverMainClasses(Some(analysis.apis)) match {
         case Seq(mainClassName) =>
-          val classpath: Array[Path] =
-            ((i.si.allJars.map(_.toPath) :+ classesDir) ++ outputJar).map(_.toAbsolutePath)
-          val loader = ClasspathUtil.makeLoader(classpath, i.si, baseDirectory)
-          try {
-            val main = getMainMethod(mainClassName, loader)
-            invokeMain(loader, main, params)
-          } finally {
-            loader match {
-              case f: ClasspathFilter => f.close()
-            }
+          val cp = ((i.si.allJars.map(_.toPath) :+ classesDir) ++ outputJar).map(_.toAbsolutePath)
+          val loader = ClasspathUtil.makeLoader(cp, i.si, baseDirectory)
+          try invokeMain(loader, getMainMethod(mainClassName, loader), params)
+          finally loader match {
+            case f: ClasspathFilter => f.close()
           }
-        case Seq() =>
-          throw new TestFailed(s"Did not find any main class")
-        case s =>
-          throw new TestFailed(s"Found more than one main class: $s")
+        case Seq() => throw new TestFailed(s"Did not find any main class")
+        case s     => throw new TestFailed(s"Found more than one main class: $s")
       }
     }
 
@@ -476,7 +461,7 @@ case class ProjectStructure(
           prev().analysis.toOption
       }
       val f1 = dependsOnRef.foldLeft(f0) { (acc, dep) =>
-        acc orElse {
+        acc.orElse {
           case x if converter.toPath(x).toAbsolutePath == dep.classesDir.toAbsolutePath =>
             dep.prev().analysis.toOption
         }
@@ -489,41 +474,36 @@ case class ProjectStructure(
           prev().analysis.toOption
       }
       val f1 = dependsOnRef.foldLeft(f0) { (acc, dep) =>
-        acc orElse {
+        acc.orElse {
           case x
               if (converter.toPath(x).toAbsolutePath == dep.classesDir.toAbsolutePath)
                 || (converter.toPath(x).toAbsolutePath == dep.earlyOutput.toAbsolutePath) =>
             dep.earlyPreviousResult.analysis().toOption
         }
       }
-      f1 orElse { case _ => None }
+      f1.orElse { case _ => None }
     }
 
-    i.compilations.get(this) match {
-      case Some(x) => x
-      case _ =>
-        val notifyEarlyOutput: Promise[Unit] = Promise[Unit]()
-        val pipelining = false
-        if (pipelining) {
-          val earlyDeps: Future[Seq[Path]] = Future.sequence(dependsOnRef map { dep =>
-            dep.earlyArtifact(i).map(_ => dep.earlyOutput)
-          })
-          val f = earlyDeps.map(
-            internapCp => doCompile(i, notifyEarlyOutput, internapCp, pipelinedLookupAnalysis)
-          )
-          i.compilations(this) = (f, notifyEarlyOutput.future)
-          (f, notifyEarlyOutput.future)
-        } else {
-          val fullDeps = Future.sequence(dependsOnRef map { dep =>
-            dep.compile(i)
-          })
-          val f =
-            fullDeps.map(
-              _ => doCompile(i, notifyEarlyOutput, internalClasspath, traditionalLookupAnalysis)
-            )
-          i.compilations(this) = (f, notifyEarlyOutput.future)
-          (f, notifyEarlyOutput.future)
+    i.compilations.get(this).getOrElse {
+      val notifyEarlyOutput: Promise[Unit] = Promise[Unit]()
+      val pipelining = false
+      if (pipelining) {
+        val earlyDeps: Future[Seq[Path]] = Future.traverse(dependsOnRef) { dep =>
+          dep.earlyArtifact(i).map(_ => dep.earlyOutput)
         }
+        val f = earlyDeps.map { internalCp =>
+          doCompile(i, notifyEarlyOutput, internalCp, pipelinedLookupAnalysis)
+        }
+        i.compilations(this) = (f, notifyEarlyOutput.future)
+        (f, notifyEarlyOutput.future)
+      } else {
+        val fullDeps = Future.traverse(dependsOnRef)(dep => dep.compile(i))
+        val f = fullDeps.map { _ =>
+          doCompile(i, notifyEarlyOutput, internalClasspath, traditionalLookupAnalysis)
+        }
+        i.compilations(this) = (f, notifyEarlyOutput.future)
+        (f, notifyEarlyOutput.future)
+      }
     }
   }
 
@@ -531,10 +511,8 @@ case class ProjectStructure(
       am: VirtualFile => Option[CompileAnalysis],
       definesClassLookup: VirtualFile => DefinesClass
   ) extends PerClasspathEntryLookup {
-    override def analysis(classpathEntry: VirtualFile): Optional[CompileAnalysis] =
-      am(classpathEntry).toOptional
-    override def definesClass(classpathEntry: VirtualFile): DefinesClass =
-      definesClassLookup(classpathEntry)
+    override def analysis(classpathEntry: VirtualFile) = am(classpathEntry).toOptional
+    override def definesClass(classpathEntry: VirtualFile) = definesClassLookup(classpathEntry)
   }
 
   // For traditional compilation, internalCp would be the target directory or output JAR,
@@ -596,9 +574,8 @@ case class ProjectStructure(
       extra
     )
 
-    val classpath: Seq[Path] =
-      (i.si.allJars.toList.map(_.toPath) ++ (unmanagedJars :+ output) ++ internalCp)
-    val cp = classpath.map(converter.toVirtualFile)
+    val paths = (i.si.allJars.toList.map(_.toPath) ++ (unmanagedJars :+ output) ++ internalCp)
+    val cp = paths.map(converter.toVirtualFile)
     val in = incrementalCompiler.inputs(
       cp.toArray,
       vs.toArray,
@@ -624,51 +601,43 @@ case class ProjectStructure(
   }
 
   def packageBin(i: IncState): Future[Unit] =
-    compile(i) map { _ =>
+    compile(i).map { _ =>
       val targetJar = targetDir / s"$name.jar"
       outputJar match {
         case Some(currentJar) =>
           IO.copy(Seq(currentJar.toFile -> targetJar.toFile))
           ()
         case None =>
-          val manifest = new Manifest
-          val sources =
-            (classesDir.toFile ** -DirectoryFilter).get flatMap { x =>
-              IO.relativize(classesDir.toFile, x) match {
-                case Some(path) => List((x, path))
-                case _          => Nil
-              }
+          val sources = (classesDir.toFile ** -DirectoryFilter).get.flatMap { f =>
+            IO.relativize(classesDir.toFile, f) match {
+              case Some(path) => List((f, path))
+              case _          => Nil
             }
-          IO.jar(sources, targetJar.toFile, manifest, Some(0L))
+          }
+          IO.jar(sources, targetJar.toFile, new Manifest, Some(0L))
       }
     }
 
   def unrecognizedArguments(commandName: String, args: List[String]): Future[Unit] =
-    scriptError("Unrecognized arguments for '" + commandName + "': '" + spaced(args) + "'.")
+    scriptError(s"Unrecognized arguments for '$commandName': '${spaced(args)}'.")
 
   def acceptsNoArguments(commandName: String, args: List[String]): Future[Unit] =
-    scriptError(
-      "Command '" + commandName + "' does not accept arguments (found '" + spaced(args) + "')."
-    )
+    scriptError(s"Command '$commandName' does not accept arguments (found '${spaced(args)}').")
 
   def spaced[T](l: Seq[T]): String = l.mkString(" ")
 
-  def scriptError(message: String): Future[Unit] = Future {
-    sys.error("Test script error: " + message)
-  }
+  def scriptError(message: String): Future[Unit] = Future(sys.error(s"Test script error: $message"))
 
-  def discoverMainClasses(apisOpt: Option[APIs]): Seq[String] =
-    apisOpt match {
-      case Some(apis) =>
-        def companionsApis(c: xsbti.api.Companions): Seq[xsbti.api.ClassLike] =
-          Seq(c.classApi, c.objectApi)
-        val allDefs = apis.internal.values.flatMap(x => companionsApis(x.api)).toSeq
-        Discovery
-          .applications(allDefs)
-          .collect({ case (definition, discovered) if discovered.hasMain => definition.name })
-          .sorted
-      case None => Nil
-    }
+  def discoverMainClasses(apisOpt: Option[APIs]): Seq[String] = apisOpt match {
+    case Some(apis) =>
+      def companionsApis(c: xsbti.api.Companions) = Seq(c.classApi, c.objectApi)
+      val allDefs = apis.internal.values.flatMap(x => companionsApis(x.api)).toSeq
+      val apps = Discovery.applications(allDefs).collect {
+        case (definition, discovered) if discovered.hasMain => definition.name
+      }
+      apps.sorted
+    case None => Nil
+  }
 
   // Taken from Run.scala in sbt/sbt
   def getMainMethod(mainClassName: String, loader: ClassLoader) = {
@@ -679,9 +648,9 @@ case class ProjectStructure(
     method.setAccessible(true)
     val modifiers = method.getModifiers
     if (!isPublic(modifiers))
-      throw new NoSuchMethodException(mainClassName + ".main is not public")
+      throw new NoSuchMethodException(s"$mainClassName.main is not public")
     if (!isStatic(modifiers))
-      throw new NoSuchMethodException(mainClassName + ".main is not static")
+      throw new NoSuchMethodException(s"$mainClassName.main is not static")
     method
   }
 
@@ -691,23 +660,18 @@ case class ProjectStructure(
     currentThread.setContextClassLoader(loader)
     try {
       main.invoke(null, options.toArray[String]); ()
-    } finally {
-      currentThread.setContextClassLoader(oldLoader)
-    }
+    } finally currentThread.setContextClassLoader(oldLoader)
     ()
   }
 
   def loadIncProperties(src: Path): Properties = {
+    val properties = new Properties()
     if (Files.exists(src)) {
-      val properties = new Properties()
       val stream = Files.newInputStream(src)
-      try {
-        properties.load(stream)
-      } finally {
-        stream.close()
-      }
-      properties
-    } else new Properties()
+      try properties.load(stream)
+      finally stream.close()
+    }
+    properties
   }
 
   def loadIncOptions(properties: Properties): (IncOptions, Array[String]) = {
@@ -732,31 +696,26 @@ case class ProjectStructure(
       case Some(analysisContents) =>
         val analysis = analysisContents.getAnalysis.asInstanceOf[Analysis]
         val allInfos = analysis.infos.allInfos.values.toSeq
-        allInfos flatMap (i => i.getReportedProblems ++ i.getUnreportedProblems)
-      case _ =>
-        Nil
+        allInfos.flatMap(i => i.getReportedProblems ++ i.getUnreportedProblems)
+      case _ => Nil
     }
 
   def checkMessages(expected: Int, severity: Severity): Future[Unit] =
     Future {
-      val messages = getProblems() filter (_.severity == severity)
-      assert(
-        messages.toList.length == expected,
-        s"""Expected $expected messages with severity $severity but ${messages.length} found:
-                                           |${messages mkString "\n"}""".stripMargin
-      )
+      val messages = getProblems().filter(_.severity == severity)
+      val m = s"""Expected $expected messages with severity $severity but ${messages.length} found:
+                 |${messages mkString "\n"}""".stripMargin
+      assert(messages.toList.length == expected, m)
       ()
     }
 
   def checkMessage(index: Int, expected: String, severity: Severity): Future[Unit] =
     Future {
-      val problems = getProblems() filter (_.severity == severity)
-      problems lift index match {
+      val problems = getProblems().filter(_.severity == severity)
+      problems.lift(index) match {
         case Some(problem) =>
-          assert(
-            problem.message contains expected,
-            s"""'${problem.message}' doesn't contain '$expected'."""
-          )
+          val msg = s"'${problem.message}' doesn't contain '$expected'."
+          assert(problem.message.contains(expected), msg)
         case None =>
           throw new TestFailed(
             s"Problem not found: $index (there are ${problems.length} problem with severity $severity)."
@@ -767,14 +726,15 @@ case class ProjectStructure(
 }
 
 object IncHandler {
-  type Cached = (Path, xsbti.compile.ScalaInstance)
+  type Cached = (Path, XScalaInstance)
   private[this] final val scriptedCompilerCache = new mutable.WeakHashMap[String, Cached]()
+
   def getCompilerCacheFor(scalaVersion: String): Option[Cached] =
     synchronized(scriptedCompilerCache.get(scalaVersion))
+
   def putCompilerCache(scalaVersion: String, cached: Cached): Option[Cached] =
     synchronized(scriptedCompilerCache.put(scalaVersion, cached))
 
-  private[internal] final val classLoaderCache = Some(
-    new ClassLoaderCache(new URLClassLoader(Array()))
-  )
+  private[internal] final val classLoaderCache =
+    Some(new ClassLoaderCache(new URLClassLoader(Array())))
 }

@@ -11,13 +11,12 @@
 
 package sbt.inc
 
-import java.io.File
+import java.nio.file.Path
 
-import sbt.internal.inc.BuildInfo
+import sbt.internal.inc._
+import sbt.internal.scripted.ScriptedTest
 import sbt.io.syntax._
-import sbt.io.{ AllPassFilter, NameFilter }
-
-import scala.language.reflectiveCalls
+import sbt.io.{ AllPassFilter, IO, NameFilter }
 
 object ScriptedMain {
   private val DisableBuffering = "--no-buffer"
@@ -29,18 +28,17 @@ object ScriptedMain {
     val disableBuffering = args.contains(DisableBuffering)
     val argsToParse = args.filterNot(Flags.contains)
 
-    val sourceDir = BuildInfo.sourceDirectory.toPath.resolve("sbt-test").toFile
-    val tests = detectScriptedTests(sourceDir)
+    val sourceDir = BuildInfo.sourceDirectory.toPath.resolve("sbt-test")
+    val tests = detectScriptedTests(sourceDir.toFile)
     val parsed = argsToParse.toList.flatMap(arg => parseScripted(tests, sourceDir, arg))
     runScripted(sourceDir, parsed, buffer = !disableBuffering, compileToJar)
   }
 
   private def detectScriptedTests(scriptedBase: File): Map[String, Set[String]] = {
     val scriptedFiles: NameFilter = ("test": NameFilter) | "pending"
-    val pairs = (scriptedBase * AllPassFilter * AllPassFilter * scriptedFiles).get map {
-      (f: File) =>
-        val p = f.getParentFile
-        (p.getParentFile.getName, p.getName)
+    val pairs = (scriptedBase * AllPassFilter * AllPassFilter * scriptedFiles).get.map { f =>
+      val p = f.getParentFile
+      (p.getParentFile.getName, p.getName)
     }
 
     pairs.groupBy(_._1).mapValues(_.map(_._2).toSet)
@@ -48,53 +46,39 @@ object ScriptedMain {
 
   private def parseScripted(
       testsMapping: Map[String, Set[String]],
-      scriptedBase: File,
+      scriptedBase: Path,
       toParse: String
-  ): Seq[String] = {
-    if (toParse.isEmpty) List()
-    else if (toParse == "*") List()
-    else {
-      toParse.split("/") match {
-        case Array(directory, _) if directory == "*" => List(toParse)
-        case Array(directory, target) =>
-          val directoryPath = scriptedBase.toPath.resolve(directory).toAbsolutePath
-          testsMapping.get(directory) match {
-            case Some(tests) if tests.isEmpty          => fail(s"No tests in ${directoryPath}")
-            case Some(_) if target == "*"              => List(toParse)
-            case Some(tests) if tests.contains(target) => List(toParse)
-            case Some(_)                               => fail(s"Missing test directory ${directoryPath.resolve(target)}")
-            case None                                  => fail(s"Missing parent directory ${directoryPath}")
-          }
-        case _ => fail("Expected only one '/' in the target scripted test(s).")
-      }
+  ): Option[ScriptedTest] = {
+    toParse.split("/").map(_.trim) match {
+      case Array("") | Array("*") => None
+      case Array("*", target)     => Some(ScriptedTest("*", target))
+      case Array(directory, target) =>
+        val directoryPath = scriptedBase.resolve(directory).toAbsolutePath
+        testsMapping.get(directory) match {
+          case Some(tests) if tests.isEmpty          => fail(s"No tests in ${directoryPath}")
+          case Some(_) if target == "*"              => Some(ScriptedTest(directory, target))
+          case Some(tests) if tests.contains(target) => Some(ScriptedTest(directory, target))
+          case Some(_)                               => fail(s"Missing test directory ${directoryPath.resolve(target)}")
+          case None                                  => fail(s"Missing parent directory ${directoryPath}")
+        }
+      case _ => fail("Expected only one '/' in the target scripted test(s).")
     }
   }
 
-  type MainScriptedRunner = {
-    def run(
-        resourceBaseDirectory: File,
-        bufferLog: Boolean,
-        compileToJar: Boolean,
-        tests: Array[String]
-    ): Unit
-  }
-
-  import sbt.internal.inc.classpath.ClasspathUtil
   def runScripted(
-      source: File,
-      args: Seq[String],
+      baseDir: Path,
+      tests: Seq[ScriptedTest],
       buffer: Boolean,
       compileToJar: Boolean
   ): Unit = {
-    println(s"About to run tests: ${args.mkString("\n * ", "\n * ", "\n")}")
+    println(s"About to run tests: ${tests.mkString("\n * ", "\n * ", "\n")}")
     // Force Log4J to not use a thread context classloader otherwise it throws a CCE
     sys.props(org.apache.logging.log4j.util.LoaderUtil.IGNORE_TCCL_PROPERTY) = "true"
-    val classpath = BuildInfo.test_classDirectory +: BuildInfo.classpath
-    val loader = ClasspathUtil.toLoader(classpath)
-    val bridgeClass = Class.forName("sbt.inc.MainScriptedRunner", true, loader)
-    val bridge = bridgeClass.getDeclaredConstructor().newInstance().asInstanceOf[MainScriptedRunner]
-    try bridge.run(source, buffer, compileToJar, args.toArray)
-    catch { case ite: java.lang.reflect.InvocationTargetException => throw ite.getCause }
+    IO.withTemporaryDirectory { tempDir =>
+      // Create a global temporary directory to store the bridge et al
+      val handlers = new IncScriptedHandlers(tempDir.toPath, compileToJar)
+      ScriptedRunnerImpl.run(baseDir, buffer, tests, handlers, 4)
+    }
   }
 
   private def fail(msg: String): Nothing = {

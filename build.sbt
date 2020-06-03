@@ -666,15 +666,7 @@ lazy val zincScripted = (projectMatrix in internalPath / "zinc-scripted")
     // Only generate build info for tests
     buildInfo in Compile := Nil,
     buildInfoPackage in Test := "sbt.internal.inc",
-    buildInfoKeys in Test := {
-      Seq[BuildInfoKey](
-        zinc212 / sourceDirectory,
-        Test / classDirectory,
-        BuildInfoKey.map(Test / dependencyClasspath) {
-          case (_, v) => "classpath" -> v.seq.map(_.data)
-        }
-      )
-    },
+    buildInfoKeys in Test := Seq[BuildInfoKey](zinc212 / sourceDirectory),
     conflictWarning := ConflictWarning.disable,
   )
   .jvmPlatform(scalaVersions = List(scala212))

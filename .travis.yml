@@ -9,7 +9,8 @@ matrix:
   include:
   - env: ADOPTOPENJDK=11
   - env: ADOPTOPENJDK=8
-  - env: ADOPTOPENJDK=11
+  - name: runBenchmarks
+    env: ADOPTOPENJDK=11
     script: sbt -Dfile.encoding=UTF-8 -J-XX:ReservedCodeCacheSize=512M -J-Xms1024M -J-Xmx2048M -J-server "runBenchmarks"
 
 before_install:
