@@ -136,7 +136,7 @@ final class ScriptedTests(
 
     try groupedTests.map {
       case ((group, name), originalDir) =>
-        val label = s"$group / $name"
+        val label = s"$group/$name"
         val loggerName = s"scripted-$group-$name.log"
         val logFile = createScriptedLogFile(loggerName)
         val logger = rebindLogger(batchLogger, logFile)
