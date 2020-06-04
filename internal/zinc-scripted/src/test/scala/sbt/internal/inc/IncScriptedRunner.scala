@@ -11,9 +11,10 @@
 
 package sbt.internal.inc
 
-import java.io.File
+import java.nio.file.Path
 
 import sbt.internal.scripted.{ HandlersProvider, ListTests, ScriptedTest }
+import sbt.io.syntax._
 import sbt.io.IO
 import sbt.util.{ Level, Logger }
 
@@ -21,72 +22,43 @@ import scala.collection.parallel.ParSeq
 
 object ScriptedRunnerImpl {
   type TestRunner = () => Seq[Option[String]]
+  private[this] val random = new java.util.Random()
 
   def run(
-      resourceBaseDirectory: File,
+      baseDir: Path,
       bufferLog: Boolean,
-      tests: Array[String],
+      tests: Seq[ScriptedTest],
       handlersProvider: HandlersProvider,
       instances: Int
   ): Unit = {
-    val globalLogger = newLogger
-    val logsDir = newScriptedLogsDir.toPath
+    val globalLogger = sbt.internal.util.ConsoleLogger()
+    val logsDir = IO.temporaryDirectory / s"scripted-logs-${Integer.toHexString(random.nextInt())}"
+    IO.createDirectory(logsDir)
     val outLevel = Level.Debug // if (bufferLog) Level.Info else Level.Debug
-    val runner =
-      new ScriptedTests(
-        resourceBaseDirectory.toPath,
-        bufferLog,
-        outLevel,
-        handlersProvider,
-        logsDir
-      )
-    val scriptedTests = get(tests, resourceBaseDirectory, globalLogger)
+    val runner = new ScriptedTests(baseDir, bufferLog, outLevel, handlersProvider, logsDir.toPath)
+    val scriptedTests = if (tests.isEmpty) listTests(baseDir, globalLogger) else tests
     val scriptedRunners = runner.batchScriptedRunner(scriptedTests, instances)
     val parallelRunners = scriptedRunners.toParArray
     val pool = new java.util.concurrent.ForkJoinPool(instances)
     parallelRunners.tasksupport = new scala.collection.parallel.ForkJoinTaskSupport(pool)
     runAllInParallel(parallelRunners, scriptedTests.size)
-    globalLogger.info(s"Log files can be found at ${logsDir.toAbsolutePath}")
+    globalLogger.info(s"Log files can be found at ${logsDir.absolutePath}")
   }
 
   def runAllInParallel(tests: ParSeq[TestRunner], size: Int): Unit = {
-    val nl = IO.Newline
-    val nlt = nl + "\t"
-    class ScriptedFailure(tests: Seq[String])
-        extends RuntimeException(
+    def reportErrors(tests: Seq[String]): Unit = {
+      if (tests.nonEmpty) {
+        val msg =
           s"""${tests.size} (out of $size) scripted tests failed:
-             |${tests.mkString(nlt, nlt, nl)}""".stripMargin
-        ) {
-      // We are not interested in the stack trace here, only the failing tests
-      override def fillInStackTrace = this
+             |${tests.mkString(s"${IO.Newline}\t", s"${IO.Newline}\t", IO.Newline)}""".stripMargin
+        object ScriptedFailure extends RuntimeException(msg, null, false, false)
+        throw ScriptedFailure
+      }
     }
-    def reportErrors(errors: Seq[String]): Unit =
-      if (errors.nonEmpty) throw new ScriptedFailure(errors) else ()
 
-    reportErrors(tests.flatMap(test => test.apply().flatten).toList)
+    reportErrors(tests.flatMap(test => test.apply()).flatten.toList)
   }
 
-  def get(tests: Seq[String], baseDirectory: File, log: Logger): Seq[ScriptedTest] =
-    if (tests.isEmpty) listTests(baseDirectory, log) else parseTests(tests)
-
-  def listTests(baseDirectory: File, log: Logger): Seq[ScriptedTest] =
-    (new ListTests(baseDirectory, _ => true, log)).listTests
-
-  def parseTests(in: Seq[String]): Seq[ScriptedTest] = for (testString <- in) yield {
-    testString.split("/").map(_.trim) match {
-      case Array(group, name) => ScriptedTest(group, name)
-      case elems =>
-        sys.error(s"Expected two arguments 'group/name', obtained ${elems.mkString("/")}")
-    }
-  }
-
-  private[sbt] def newLogger: Logger = sbt.internal.util.ConsoleLogger()
-
-  private[this] val random = new java.util.Random()
-  private[sbt] def newScriptedLogsDir: File = {
-    val randomName = "scripted-logs-" + java.lang.Integer.toHexString(random.nextInt)
-    val logsDir = new File(IO.temporaryDirectory, randomName)
-    IO.createDirectory(logsDir)
-    logsDir
-  }
+  def listTests(baseDir: Path, log: Logger): Seq[ScriptedTest] =
+    new ListTests(baseDir.toFile, _ => true, log).listTests
 }

@@ -15,9 +15,11 @@ import java.nio.file.{ Files, Path }
 import java.util.concurrent.atomic.AtomicInteger
 
 import sbt.internal.scripted._
+import sbt.io.syntax._
 import sbt.io.IO
 import sbt.io.FileFilter._
 import sbt.internal.io.Resources
+import sbt.internal.util.BufferedAppender
 import sbt.internal.util.{ ConsoleAppender, ConsoleOut, ManagedLogger, TraceEvent }
 import sbt.util.{ Level, LogExchange }
 
@@ -28,7 +30,6 @@ final class ScriptedTests(
     handlersProvider: HandlersProvider,
     logsDir: Path
 ) {
-  import sbt.io.syntax._
   import ScriptedTests._
 
   private[this] val batchIdGenerator: AtomicInteger = new AtomicInteger
@@ -48,18 +49,13 @@ final class ScriptedTests(
   }
 
   /** Returns a sequence of test runners that have to be applied in the call site. */
-  def batchScriptedRunner(
-      testGroupAndNames: Seq[ScriptedTest],
-      sbtInstances: Int
-  ): Seq[TestRunner] = {
+  def batchScriptedRunner(tests: Seq[ScriptedTest], instances: Int): Seq[TestRunner] = {
     // Test group and names may be file filters (like '*')
-    val groupAndNameDirs = {
-      for {
-        ScriptedTest(group, name) <- testGroupAndNames
-        groupDir <- resourceBaseDirectory.toFile.*(group).get.map(_.toPath)
-        testDir <- groupDir.toFile.*(name).get.map(_.toPath)
-      } yield (groupDir, testDir)
-    }
+    val groupAndNameDirs = for {
+      ScriptedTest(group, name) <- tests
+      groupDir <- resourceBaseDirectory.toFile.glob(group).get.map(_.toPath)
+      testDir <- groupDir.toFile.*(name).get.map(_.toPath)
+    } yield (groupDir, testDir)
 
     val labelsAndDirs = groupAndNameDirs.map {
       case (groupDir, nameDir) =>
@@ -71,17 +67,13 @@ final class ScriptedTests(
 
     if (labelsAndDirs.isEmpty) List()
     else {
-      val batchSeed = labelsAndDirs.size / sbtInstances
+      val batchSeed = labelsAndDirs.size / instances
       val batchSize = if (batchSeed == 0) labelsAndDirs.size else batchSeed
       labelsAndDirs
         .grouped(batchSize)
-        .map(
-          batch =>
-            () =>
-              IO.withTemporaryDirectory { tempDir =>
-                runBatchedTests(batch, tempDir.toPath)
-              }
-        )
+        .map { batch => () =>
+          IO.withTemporaryDirectory(tempDir => runBatchedTests(batch, tempDir.toPath))
+        }
         .toList
     }
   }
@@ -95,10 +87,10 @@ final class ScriptedTests(
     logFile
   }
 
-  import sbt.internal.util.BufferedAppender
   case class ScriptedLogger(log: ManagedLogger, logFile: Path, buffer: BufferedAppender)
 
   private val BufferSize = 8192 // copied from IO since it's private
+
   def rebindLogger(logger: ManagedLogger, logFile: Path): ScriptedLogger = {
     // Create buffered logger to a file that we will afterwards use.
     import java.io.{ BufferedWriter, FileWriter }
@@ -113,7 +105,7 @@ final class ScriptedTests(
     ScriptedLogger(logger, logFile, outAppender)
   }
 
-  private final def createBatchLogger(name: String): ManagedLogger = LogExchange.logger(name)
+  private def createBatchLogger(name: String): ManagedLogger = LogExchange.logger(name)
 
   /** Defines the batch execution of scripted tests.
    *
@@ -129,7 +121,6 @@ final class ScriptedTests(
    *
    * @param groupedTests The labels and directories of the tests to run.
    * @param batchTmpDir The common test directory.
-   * @param log The logger.
    */
   private def runBatchedTests(
       groupedTests: Seq[((String, String), File)],
@@ -143,32 +134,27 @@ final class ScriptedTests(
     val seqHandlers = handlers.values.toList
     runner.initStates(states, seqHandlers)
 
-    def runBatchTests = {
-      groupedTests.map {
-        case ((group, name), originalDir) =>
-          val label = s"$group / $name"
-          val loggerName = s"scripted-$group-$name.log"
-          val logFile = createScriptedLogFile(loggerName)
-          val logger = rebindLogger(batchLogger, logFile)
+    try groupedTests.map {
+      case ((group, name), originalDir) =>
+        val label = s"$group / $name"
+        val loggerName = s"scripted-$group-$name.log"
+        val logFile = createScriptedLogFile(loggerName)
+        val logger = rebindLogger(batchLogger, logFile)
 
-          println(s"Running $label")
-          // Copy test's contents
-          IO.copyDirectory(originalDir, batchTmpDir.toFile)
+        println(s"Running $label")
+        // Copy test's contents
+        IO.copyDirectory(originalDir, batchTmpDir.toFile)
 
-          // Reset the state of `IncHandler` between every scripted run
-          runner.cleanUpHandlers(seqHandlers, states)
-          runner.initStates(states, seqHandlers)
+        // Reset the state of `IncHandler` between every scripted run
+        runner.cleanUpHandlers(seqHandlers, states)
+        runner.initStates(states, seqHandlers)
 
-          // Run the test and delete files (except global that holds local scala jars)
-          val runTest = () => commonRunTest(label, batchTmpDir, handlers, runner, states, logger)
-          val result = runOrHandleDisabled(label, batchTmpDir, runTest, logger)
-          IO.delete(batchTmpDir.toFile.*("*" -- "global").get)
-          result
-      }
-    }
-
-    try runBatchTests
-    finally runner.cleanUpHandlers(seqHandlers, states)
+        // Run the test and delete files (except global that holds local scala jars)
+        val runTest = () => commonRunTest(label, batchTmpDir, handlers, runner, states, logger)
+        val result = runOrHandleDisabled(label, batchTmpDir, runTest, logger)
+        IO.delete(batchTmpDir.toFile.*("*" -- "global").get)
+        result
+    } finally runner.cleanUpHandlers(seqHandlers, states)
   }
 
   private def runOrHandleDisabled(
@@ -178,17 +164,16 @@ final class ScriptedTests(
       logger: ScriptedLogger
   ): Option[String] = {
     val existsDisabled = Files.isRegularFile(testDirectory.resolve("disabled"))
-    if (!existsDisabled) runTest()
-    else {
+    if (existsDisabled) {
       logger.log.info(s"D $label [DISABLED]")
       None
-    }
+    } else runTest()
   }
 
-  import BatchScriptRunner.PreciseScriptedError
   private val SuccessMark = s"${Console.GREEN + Console.BOLD}+${Console.RESET}"
   private val FailureMark = s"${Console.RED + Console.BOLD}x${Console.RESET}"
   private val PendingLabel = "[PENDING]"
+
   private def commonRunTest(
       label: String,
       testDirectory: Path,
@@ -225,13 +210,13 @@ final class ScriptedTests(
     }
 
     import scala.util.control.Exception.catching
-    catching(classOf[PreciseScriptedError])
+    catching(classOf[BatchScriptRunner.PreciseScriptedError])
       .withApply(testFailed)
       .andFinally(buffer.stopBuffer())
       .apply {
         val parser = new TestScriptParser(handlers)
         val handlersAndStatements = parser.parse(file.toFile)
-        runner.apply(handlersAndStatements, states)
+        runner.run(handlersAndStatements, states)
 
         // Handle successful tests
         if (bufferLog) buffer.clearBuffer()
