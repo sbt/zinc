@@ -15,23 +15,20 @@ package inc
 
 import java.io.InputStream
 import java.nio.file.{ Files, Path, Paths }
-import xsbti.{ BasicVirtualFileRef, FileConverter, PathBasedFile, VirtualFileRef, VirtualFile }
+import xsbti.{ BasicVirtualFileRef, FileConverter, PathBasedFile, VirtualFileRef }
 
-class PlainVirtualFile(path: Path) extends BasicVirtualFileRef(path.toString) with PathBasedFile {
+/** A virtual file reference, with an associated id (possibly encoded) and its true path. */
+final class PlainVirtualFile(id: String, path: Path)
+    extends BasicVirtualFileRef(id)
+    with PathBasedFile {
   override def contentHash: Long = HashUtil.farmHash(path)
-  override def name(): String = path.getFileName.toString
-  override def input(): InputStream = Files.newInputStream(path)
+  override def input: InputStream = Files.newInputStream(path)
   override def toPath: Path = path
 }
-object PlainVirtualFile {
-  def apply(path: Path): PlainVirtualFile = new PlainVirtualFile(path)
 
-  // This doesn't use FileConverter
-  def extractPath(vf: VirtualFile): Path =
-    vf match {
-      case x: PathBasedFile => x.toPath
-      case _                => sys.error(s"unsupported file: $vf (${vf.getClass})")
-    }
+object PlainVirtualFile {
+  def apply(id: String, path: Path): PlainVirtualFile = new PlainVirtualFile(id, path)
+  def apply(path: Path): PlainVirtualFile = apply(path.toString, path)
 }
 
 class PlainVirtualFileConverter extends FileConverter {
@@ -40,7 +37,7 @@ class PlainVirtualFileConverter extends FileConverter {
     case _                => Paths.get(ref.id)
   }
 
-  def toVirtualFile(path: Path): VirtualFile = PlainVirtualFile(path)
+  override def toVirtualFile(path: Path): PlainVirtualFile = PlainVirtualFile(path)
 }
 
 object PlainVirtualFileConverter {

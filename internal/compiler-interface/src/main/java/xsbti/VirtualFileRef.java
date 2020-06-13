@@ -36,7 +36,7 @@ package xsbti;
  * of the working directory, Coursier cache directory, etc.
  * Given the sequence of Scala and Java source files,
  * <code>MappedFileConverter</code> will create a sequence of
- * <code>MappedVirtualFile</code> whose <code>id</code> would look like
+ * <code>PlainVirtualFile</code> whose <code>id</code> would look like
  * <code>${BASE}/src/main/example/A.scala</code>.
  * </p>
  * <p>When Alice runs the compilation, <code>Analysis</code> file

@@ -13,34 +13,12 @@ package sbt
 package internal
 package inc
 
-import java.io.InputStream
-import java.nio.file.{ Files, Path, Paths }
-import xsbti.{ BasicVirtualFileRef, FileConverter, PathBasedFile, VirtualFile, VirtualFileRef }
-
-class MappedVirtualFile(encodedPath: String, rootPathsMap: Map[String, Path])
-    extends BasicVirtualFileRef(encodedPath)
-    with PathBasedFile {
-  private def path: Path = MappedVirtualFile.toPath(encodedPath, rootPathsMap)
-  override def contentHash: Long = HashUtil.farmHash(path)
-  override def input(): InputStream = Files.newInputStream(path)
-  override def toPath: Path = path
-}
-
-object MappedVirtualFile {
-  def apply(encodedPath: String, rootPaths: Map[String, Path]): MappedVirtualFile =
-    new MappedVirtualFile(encodedPath, rootPaths)
-
-  def toPath(encodedPath: String, rootPaths: Map[String, Path]): Path = {
-    rootPaths.toSeq.find { case (key, _) => encodedPath.startsWith(s"$${$key}/") } match {
-      case Some((key, p)) => p.resolve(encodedPath.stripPrefix(s"$${$key}/"))
-      case None           => Paths.get(encodedPath)
-    }
-  }
-}
+import java.nio.file.{ Path, Paths }
+import xsbti.{ FileConverter, PathBasedFile, VirtualFile, VirtualFileRef }
 
 class MappedFileConverter(rootPaths: Map[String, Path], allowMachinePath: Boolean)
     extends FileConverter {
-  val rootPaths2: Seq[(String, Path)] = rootPaths.toSeq.flatMap {
+  private val rootPaths2: Seq[(String, Path)] = rootPaths.toSeq.flatMap {
     case (key, rootPath) =>
       if (rootPath.startsWith("/var/") || rootPath.startsWith("/tmp/")) {
         val rootPath2 = Paths.get("/private").resolve(Paths.get("/").relativize(rootPath))
@@ -48,19 +26,23 @@ class MappedFileConverter(rootPaths: Map[String, Path], allowMachinePath: Boolea
       } else Seq(key -> rootPath)
   }
 
-  def toPath(ref: VirtualFileRef): Path = ref match {
+  override def toPath(ref: VirtualFileRef): Path = ref match {
     case x: PathBasedFile => x.toPath
-    case _                => MappedVirtualFile.toPath(ref.id, rootPaths)
+    case _ =>
+      rootPaths.toSeq.find { case (key, _) => ref.id.startsWith(s"$${$key}/") } match {
+        case Some((key, p)) => p.resolve(ref.id.stripPrefix(s"$${$key}/"))
+        case None           => Paths.get(ref.id)
+      }
   }
 
-  def toVirtualFile(path: Path): VirtualFile = {
+  override def toVirtualFile(path: Path): VirtualFile = {
     rootPaths2.find { case (_, rootPath) => path.startsWith(rootPath) } match {
       case Some((key, rootPath)) =>
-        MappedVirtualFile(s"$${$key}/${rootPath.relativize(path)}".replace('\\', '/'), rootPaths)
+        PlainVirtualFile(s"$${$key}/${rootPath.relativize(path)}".replace('\\', '/'), path)
       case _ =>
         path.getFileName.toString match {
-          case "rt.jar"              => DummyVirtualFile("rt.jar", path)
-          case _ if allowMachinePath => MappedVirtualFile(s"$path".replace('\\', '/'), rootPaths)
+          case "rt.jar"              => PlainVirtualFile("rt.jar", path)
+          case _ if allowMachinePath => PlainVirtualFile(s"$path".replace('\\', '/'), path)
           case _                     => sys.error(s"$path cannot be mapped using the root paths $rootPaths")
         }
     }
@@ -68,7 +50,6 @@ class MappedFileConverter(rootPaths: Map[String, Path], allowMachinePath: Boolea
 }
 
 object MappedFileConverter {
-  def empty: MappedFileConverter = new MappedFileConverter(Map(), true)
   def apply(rootPaths: Map[String, Path], allowMachinePath: Boolean): MappedFileConverter =
     new MappedFileConverter(rootPaths, allowMachinePath)
 }
