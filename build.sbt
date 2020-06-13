@@ -626,7 +626,24 @@ lazy val zincClasspath = (projectMatrix in internalPath / "zinc-classpath")
     compilerVersionDependentScalacOptions,
     libraryDependencies ++= Seq(scalaCompiler.value, launcherInterface),
     mimaSettings,
-    mimaBinaryIssueFilters ++= Util.excludeInternalProblems,
+    mimaBinaryIssueFilters ++= Seq(
+      // private[sbt]
+      exclude[DirectMissingMethodProblem](
+        "sbt.internal.inc.classpath.ClasspathUtilities.printSource"
+      ),
+      exclude[DirectMissingMethodProblem](
+        "sbt.internal.inc.classpath.ClasspathUtilities.compilerPlugins"
+      ),
+      exclude[DirectMissingMethodProblem]("sbt.internal.inc.classpath.ClasspathUtilities.asFile"),
+      exclude[IncompatibleSignatureProblem]("sbt.internal.inc.classpath.ClasspathFilter.this"),
+      exclude[IncompatibleResultTypeProblem](
+        "sbt.internal.inc.classpath.NativeCopyConfig.*"
+      ),
+      exclude[IncompatibleSignatureProblem](
+        "sbt.internal.inc.classpath.NativeCopyConfig.*"
+      ),
+      exclude[IncompatibleMethTypeProblem]("sbt.internal.inc.classpath.NativeCopyConfig.*"),
+    ),
   )
   .jvmPlatform(scalaVersions = List(scala212, scala213))
   .configure(addBaseSettingsAndTestDeps, addSbtIO)

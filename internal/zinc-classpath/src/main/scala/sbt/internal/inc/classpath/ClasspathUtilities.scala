@@ -258,6 +258,20 @@ object ClasspathUtilities {
   ): ClassLoader =
     ClasspathUtil.makeLoader(classpath.map(_.toPath), parent, instance, nativeTemp.toPath)
 
+  // This is used by sbt-assembly
+  @deprecated("internal", "1.4.0")
+  def isArchive(file: File): Boolean = ClasspathUtil.isArchive(file.toPath)
+
+  @deprecated("internal", "1.4.0")
+  def isArchive(file: File, contentFallback: Boolean): Boolean =
+    ClasspathUtil.isArchive(file.toPath, contentFallback)
+
+  @deprecated("internal", "1.4.0")
+  def isArchiveName(fileName: String) = ClasspathUtil.isArchiveName(fileName)
+
+  @deprecated("internal", "1.4.0")
+  def hasZipContent(file: File): Boolean = ClasspathUtil.hasZipContent(file.toPath)
+
   @deprecated("internal", "1.4.0")
   private[sbt] def filterByClasspath(classpath: Seq[File], loader: ClassLoader): ClassLoader =
     ClasspathUtil.filterByClasspath(classpath.map(_.toPath), loader)
