@@ -21,27 +21,27 @@ import java.io.InputStream;
  * and content hashing.
  * See also {@link VirtualFileRef}
  *
- * <p>One of the goals of this <i>virtual</i> file (as opposed to concrete file)
- * is abtraction from the machine and user specifics.
- * Previous <code>Analysis</code> file that records the relationships among
- * the incremental compilation stored the file names using <code>java.io.File</code>.
- * This prevented the <code>Analysis</code> information to be shared across machines
- * without manipulating the absolute paths in the file names.
+ * <p>One of the goals of this <i>virtual</i> file (as opposed to a concrete file)
+ * is to abstract from the machine and user specifics.
+ * Previous Zinc's <code>Analysis</code> metadata files
+ * stored file paths using <code>java.io.File</code>.
+ * This impeded them from being shared across machines
+ * without pre- and post-processing them appropriately.
  * </p>
- * <p>To create a <code>VirtualFile</code>, one way of doing so is creating
- * an instance of {@link FileConverter}, such as <code>MappedFileConverter</code>.
+ * <p>To create a <code>VirtualFile</code> you may use a {@link FileConverter},
+ * such as <code>MappedFileConverter</code>.
  * <code>MappedFileConverter</code> internally stores the root paths to the working directory,
- * Coursier cache etc, and it will create a <code>VirtualFile</code> with an <code>id</code>
+ * Coursier's cache, etc..., and it will create a <code>VirtualFile</code> with an <code>id</code>
  * that looks like <code>${BASE}/src/main/example/A.scala</code>.
  * </p>
- * <p>Note that <code>VirtualFile</code> can also be implemented with just plain Java objects
- * using <code>String</code> to represent the content, without "real" files.
+ * <p>A <code>VirtualFile</code> can also be created with plain <code>String</code>s
+ * to represent the content, without any "real" files.
  * </p>
- * <h3>ok, so how would the compiler compile this?</h3>
- * See <code>IncrementalCompile.scala</code>.
+ * <h3>OK, but how does the compiler compile these?</h3>
+ * See <code>IncrementalCompiler.java</code>.
  * At the top layer of Zinc, we are passing in the source files as a
  * sequence of {@link VirtualFile}s.
- * The files then gets wrapped by a datatype called <code>VirtualFileWrap</code>,
+ * The files then gets wrapped by a datatype called <code>AbstractZincFile</code>,
  * which extends <code>scala.reflect.io.AbstractFile</code>,
  * which the compiler is able to compile.
  */

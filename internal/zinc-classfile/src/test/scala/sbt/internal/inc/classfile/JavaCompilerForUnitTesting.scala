@@ -22,19 +22,16 @@ import java.nio.file.{ Files, Path }
 import sbt.io.IO
 import sbt.internal.util.ConsoleLogger
 import xsbti.api.DependencyContext._
-import xsbti.{ AnalysisCallback, TestCallback, VirtualFile, VirtualFileRef }
+import xsbti.{ AnalysisCallback, BasicVirtualFileRef, TestCallback, VirtualFile, VirtualFileRef }
 import xsbti.TestCallback.ExtractedClassDependencies
 import xsbti.compile.SingleOutput
 
 import scala.collection.JavaConverters._
 
 object JavaCompilerForUnitTesting {
-  private class TestVirtualFile(underlying: Path) extends VirtualFile {
-    override def contentHash(): Long = sbt.io.Hash(underlying.toFile).hashCode.toLong
-    override def id(): String = underlying.toString
-    override def name(): String = underlying.getFileName.toString
-    override def names(): Array[String] = id.split("/")
-    override def input(): InputStream = Files.newInputStream(underlying)
+  private class TestVirtualFile(p: Path) extends BasicVirtualFileRef(p.toString) with VirtualFile {
+    override def contentHash(): Long = sbt.io.Hash(p.toFile).hashCode.toLong
+    override def input(): InputStream = Files.newInputStream(p)
   }
 
   def extractDependenciesFromSrcs(srcs: (String, String)*): ExtractedClassDependencies = {

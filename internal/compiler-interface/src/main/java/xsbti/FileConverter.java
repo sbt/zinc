@@ -15,6 +15,10 @@ import java.nio.file.Path;
 
 public interface FileConverter {
     Path toPath(VirtualFileRef ref);
-    VirtualFile toVirtualFile(VirtualFileRef ref);
+
+    default VirtualFile toVirtualFile(VirtualFileRef ref) {
+        return ref instanceof VirtualFile ? ((VirtualFile) ref) : toVirtualFile(toPath(ref));
+    }
+
     VirtualFile toVirtualFile(Path path);
 }

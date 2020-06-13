@@ -76,7 +76,7 @@ package xsbti;
  * See <code>IncrementalCompile.scala</code>.
  * At the top layer of Zinc, we are passing in the source files as a
  * sequence of {@link VirtualFile}s.
- * The files then gets wrapped by a datatype called <code>VirtualFileWrap</code>,
+ * The files then gets wrapped by a datatype called <code>AbstractZincFile</code>,
  * which extends <code>scala.reflect.io.AbstractFile</code>,
  * which the compiler is able to compile.
  */
@@ -104,10 +104,5 @@ public interface VirtualFileRef {
    */
   public String name();
 
-  /*
-   * Returns "file name" for the file.
-   * Java files must end with ".java",
-   * and Scala files must end with ".scala".
-   */
   public String[] names();
 }

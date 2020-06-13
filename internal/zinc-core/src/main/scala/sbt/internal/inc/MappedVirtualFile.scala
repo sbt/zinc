@@ -20,20 +20,22 @@ import xsbti.{ BasicVirtualFileRef, FileConverter, PathBasedFile, VirtualFile, V
 class MappedVirtualFile(encodedPath: String, rootPathsMap: Map[String, Path])
     extends BasicVirtualFileRef(encodedPath)
     with PathBasedFile {
-  private def path: Path = {
-    rootPathsMap.toSeq.find { case (key, _) => encodedPath.startsWith(s"$${$key}/") } match {
-      case Some((key, p)) => p.resolve(encodedPath.stripPrefix(s"$${$key}/"))
-      case None           => Paths.get(encodedPath)
-    }
-  }
+  private def path: Path = MappedVirtualFile.toPath(encodedPath, rootPathsMap)
   override def contentHash: Long = HashUtil.farmHash(path)
   override def input(): InputStream = Files.newInputStream(path)
-  def toPath(): Path = path
+  override def toPath: Path = path
 }
 
 object MappedVirtualFile {
   def apply(encodedPath: String, rootPaths: Map[String, Path]): MappedVirtualFile =
     new MappedVirtualFile(encodedPath, rootPaths)
+
+  def toPath(encodedPath: String, rootPaths: Map[String, Path]): Path = {
+    rootPaths.toSeq.find { case (key, _) => encodedPath.startsWith(s"$${$key}/") } match {
+      case Some((key, p)) => p.resolve(encodedPath.stripPrefix(s"$${$key}/"))
+      case None           => Paths.get(encodedPath)
+    }
+  }
 }
 
 class MappedFileConverter(rootPaths: Map[String, Path], allowMachinePath: Boolean)
@@ -46,7 +48,11 @@ class MappedFileConverter(rootPaths: Map[String, Path], allowMachinePath: Boolea
       } else Seq(key -> rootPath)
   }
 
-  def toPath(ref: VirtualFileRef): Path = MappedVirtualFile(ref.id, rootPaths).toPath
+  def toPath(ref: VirtualFileRef): Path = ref match {
+    case x: PathBasedFile => x.toPath
+    case _                => MappedVirtualFile.toPath(ref.id, rootPaths)
+  }
+
   def toVirtualFile(path: Path): VirtualFile = {
     rootPaths2.find { case (_, rootPath) => path.startsWith(rootPath) } match {
       case Some((key, rootPath)) =>
@@ -59,7 +65,6 @@ class MappedFileConverter(rootPaths: Map[String, Path], allowMachinePath: Boolea
         }
     }
   }
-  def toVirtualFile(ref: VirtualFileRef): VirtualFile = MappedVirtualFile(ref.id, rootPaths)
 }
 
 object MappedFileConverter {
