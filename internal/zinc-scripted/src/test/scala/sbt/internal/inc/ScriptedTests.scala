@@ -165,14 +165,10 @@ final class ScriptedTests(
   ): Option[String] = {
     val existsDisabled = Files.isRegularFile(testDirectory.resolve("disabled"))
     if (existsDisabled) {
-      logger.log.info(s"D $label [DISABLED]")
+      logger.log.warn(s"${Console.YELLOW}${Console.BOLD}D${Console.RESET} $label [DISABLED]")
       None
     } else runTest()
   }
-
-  private val SuccessMark = s"${Console.GREEN + Console.BOLD}+${Console.RESET}"
-  private val FailureMark = s"${Console.RED + Console.BOLD}x${Console.RESET}"
-  private val PendingLabel = "[PENDING]"
 
   private def commonRunTest(
       label: String,
@@ -199,11 +195,11 @@ final class ScriptedTests(
         logger.logEvent(Level.Debug, TraceEvent("Debug", t, logger.channelName, logger.execId))
         buffer.clearBuffer()
 
-        logger.error(s"Pending cause: '${t.getMessage}'")
-        logger.error(s"$FailureMark $label $PendingLabel")
+        logger.warn(s"Pending cause: '${t.getMessage}'")
+        logger.warn(s"${Console.YELLOW}${Console.BOLD}x${Console.RESET} $label [PENDING]")
         None
       } else {
-        logger.error(s"$FailureMark $label")
+        logger.error(s"${Console.RED}${Console.BOLD}x${Console.RESET} $label")
         logger.trace(t)
         Some(label)
       }
@@ -221,11 +217,11 @@ final class ScriptedTests(
         // Handle successful tests
         if (bufferLog) buffer.clearBuffer()
         if (pending) {
-          logger.info(s"$SuccessMark $label $PendingLabel")
+          logger.info(s"${Console.RED}${Console.BOLD}+${Console.RESET} $label [PENDING]")
           logger.error(s" -> Pending test $label passed. Mark as passing to remove this failure.")
           Some(label)
         } else {
-          logger.info(s"$SuccessMark $label")
+          logger.info(s"${Console.GREEN}${Console.BOLD}+${Console.RESET} $label")
           None
         }
       }

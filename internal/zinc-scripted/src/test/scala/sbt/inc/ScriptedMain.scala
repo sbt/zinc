@@ -70,7 +70,10 @@ object ScriptedMain {
     val foundTests = detectScriptedTests(baseDir)
     val tests = testSpecs.toList.flatMap(arg => parseScripted(foundTests, baseDir, arg))
 
-    println(s"About to run tests: ${tests.mkString("\n * ", "\n * ", "\n")}")
+    if (tests.isEmpty)
+      println(s"About to run all scripted tests\n")
+    else
+      println(s"About to run tests: ${tests.mkString("\n * ", "\n * ", "\n")}")
 
     // Force Log4J to not use a thread context classloader otherwise it throws a CCE
     sys.props(org.apache.logging.log4j.util.LoaderUtil.IGNORE_TCCL_PROPERTY) = "true"
