@@ -72,7 +72,7 @@ case class TestProjectSetup(
     targetFile.toPath
   }
   val classpathBase = baseLocation.resolve("bin")
-  val rootPaths = Vector(baseLocation, localBoot, javaHome)
+  val rootPaths = Map("BASE" -> baseLocation, "SBT_BOOT" -> localBoot, "JAVA_HOME" -> javaHome)
   val converter = new MappedFileConverter(rootPaths, true)
   val allClasspath: Seq[VirtualFile] = (classPath map {
     case zippedClassesPath if zippedClassesPath.toString.endsWith(".zip") =>
