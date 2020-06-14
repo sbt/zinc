@@ -138,14 +138,16 @@ trait CompilingSpecification extends BridgeProviderSpecification {
 
   val localBoot = Paths.get(sys.props("user.home")).resolve(".sbt").resolve("boot")
   val javaHome = Paths.get(sys.props("java.home"))
-  val localCoursierCache = Vector(
-    Paths.get(sys.props("user.home")).resolve(".coursier").resolve("cache"),
-    Paths.get(sys.props("user.home")).resolve(".cache").resolve("coursier"),
-    Paths.get(sys.props("user.home"), "Library/Caches/Coursier/v1")
-  ) ++ sys.env
-    .get("LOCALAPPDATA")
-    .map(s => Paths.get(s.replace('\\', '/'), "Coursier/cache/v1"))
-    .toList
+  val localCoursierCache: Map[String, Path] = Map(
+    List(
+      "C_CACHE1" -> Paths.get(sys.props("user.home")).resolve(".coursier").resolve("cache"),
+      "C_CACHE2" -> Paths.get(sys.props("user.home")).resolve(".cache").resolve("coursier"),
+      "C_CACHE3" -> Paths.get(sys.props("user.home"), "Library/Caches/Coursier/v1")
+    ) ++ sys.env
+      .get("LOCALAPPDATA")
+      .map(s => "C_CACHE4" -> Paths.get(s.replace('\\', '/'), "Coursier/cache/v1"))
+      .toList: _*
+  )
 
   /**
    * Compiles given source code snippets written to temporary files. Each snippet is
@@ -168,8 +170,11 @@ trait CompilingSpecification extends BridgeProviderSpecification {
       reuseCompilerInstance: Boolean
   ): (Seq[VirtualFile], TestCallback) = {
     IO.withTemporaryDirectory { tempDir =>
-      val rootPaths
-          : Vector[Path] = Vector(tempDir.toPath, localBoot, javaHome) ++ localCoursierCache
+      val rootPaths: Map[String, Path] = Map(
+        "BASE" -> tempDir.toPath,
+        "SBT_BOOT" -> localBoot,
+        "JAVA_HOME" -> javaHome
+      ) ++ localCoursierCache
       val converter = new MappedFileConverter(rootPaths, false)
       val targetDir = tempDir / "target"
       val analysisCallback = new TestCallback

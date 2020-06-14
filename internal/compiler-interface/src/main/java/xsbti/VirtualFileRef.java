@@ -37,7 +37,7 @@ package xsbti;
  * Given the sequence of Scala and Java source files,
  * <code>MappedFileConverter</code> will create a sequence of
  * <code>MappedVirtualFile</code> whose <code>id</code> would look like
- * <code>${0}/src/main/example/A.scala</code>.
+ * <code>${BASE}/src/main/example/A.scala</code>.
  * </p>
  * <p>When Alice runs the compilation, <code>Analysis</code> file
  * will store the <code>VirtualFileRef</code> represented by
@@ -51,7 +51,7 @@ package xsbti;
  * <code>Analysis</code> file. The only difference would be that on
  * his machine the build tool would have created a slightly different
  * {@link FileConverter} with different base paths.
- * Because <code>${0}/src/main/example/A.scala</code> would still
+ * Because <code>${BASE}/src/main/example/A.scala</code> would still
  * be called the same, hopefully he can resume incremental compilation.
  * </p>
  *

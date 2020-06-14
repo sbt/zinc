@@ -32,7 +32,7 @@ import java.io.InputStream;
  * an instance of {@link FileConverter}, such as <code>MappedFileConverter</code>.
  * <code>MappedFileConverter</code> internally stores the root paths to the working directory,
  * Coursier cache etc, and it will create a <code>VirtualFile</code> with an <code>id</code>
- * that looks like <code>${0}/src/main/example/A.scala</code>.
+ * that looks like <code>${BASE}/src/main/example/A.scala</code>.
  * </p>
  * <p>Note that <code>VirtualFile</code> can also be implemented with just plain Java objects
  * using <code>String</code> to represent the content, without "real" files.

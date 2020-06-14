@@ -33,7 +33,8 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
     IO.withTemporaryDirectory { tempDir =>
       val localBoot = Paths.get(sys.props("user.home")).resolve(".sbt").resolve("boot")
       val javaHome = Paths.get(sys.props("java.home"))
-      val rootPaths = Vector(tempDir.toPath, localBoot, javaHome)
+      val rootPaths =
+        Map("BASE" -> tempDir.toPath, "SBT_BOOT" -> localBoot, "JAVA_HOME" -> javaHome)
       val converter = new MappedFileConverter(rootPaths, true)
 
       // Second subproject
