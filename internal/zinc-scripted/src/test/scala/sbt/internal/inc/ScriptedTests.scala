@@ -87,25 +87,28 @@ final class ScriptedTests(
     logFile
   }
 
-  case class ScriptedLogger(log: ManagedLogger, logFile: Path, buffer: BufferedAppender)
+  case class ScriptedLogger(log: ManagedLogger, buffer: BufferedAppender)
 
   private val BufferSize = 8192 // copied from IO since it's private
 
-  def rebindLogger(logger: ManagedLogger, logFile: Path): ScriptedLogger = {
+  def rebindLogger(logger: ScriptedLogger, logFile: Path): ScriptedLogger = {
     // Create buffered logger to a file that we will afterwards use.
     import java.io.{ BufferedWriter, FileWriter }
-    val name = logger.name
+    val name = logger.log.name
     val writer = new BufferedWriter(new FileWriter(logFile.toFile), BufferSize)
     val fileOut = ConsoleOut.bufferedWriterOut(writer)
     val fileAppender = ConsoleAppender(name, fileOut, useFormat = false)
-    val outAppender = BufferedAppender(ConsoleAppender())
-    val appenders = (fileAppender -> Level.Debug) :: (outAppender -> outLevel) :: Nil
-    LogExchange.unbindLoggerAppenders(name)
-    LogExchange.bindLoggerAppenders(name, appenders)
-    ScriptedLogger(logger, logFile, outAppender)
+    LogExchange.bindLoggerAppenders(name, List(fileAppender -> Level.Debug))
+    logger
   }
 
-  private def createBatchLogger(name: String): ManagedLogger = LogExchange.logger(name)
+  private def createBatchLogger(name: String): ScriptedLogger = {
+    val logger = LogExchange.logger(name)
+    val outAppender = BufferedAppender(ConsoleAppender())
+    LogExchange.unbindLoggerAppenders(name)
+    LogExchange.bindLoggerAppenders(name, List(outAppender -> outLevel))
+    ScriptedLogger(logger, outAppender)
+  }
 
   /** Defines the batch execution of scripted tests.
    *
@@ -129,7 +132,7 @@ final class ScriptedTests(
     val runner = new BatchScriptRunner
     val batchId = s"initial-batch-${batchIdGenerator.incrementAndGet()}"
     val batchLogger = createBatchLogger(batchId)
-    val handlers = createScriptedHandlers(batchId, batchTmpDir, batchLogger)
+    val handlers = createScriptedHandlers(batchId, batchTmpDir, batchLogger.log)
     val states = new BatchScriptRunner.States
     val seqHandlers = handlers.values.toList
     runner.initStates(states, seqHandlers)
@@ -178,7 +181,7 @@ final class ScriptedTests(
       states: BatchScriptRunner.States,
       scriptedLogger: ScriptedLogger
   ): Option[String] = {
-    val ScriptedLogger(logger, _, buffer) = scriptedLogger
+    val ScriptedLogger(logger, buffer) = scriptedLogger
     if (bufferLog) buffer.record()
 
     val (file, pending) = {
