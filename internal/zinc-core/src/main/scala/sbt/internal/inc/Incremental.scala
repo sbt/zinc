@@ -19,7 +19,6 @@ import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
 import sbt.util.{ InterfaceUtil, Level, Logger }
 import sbt.util.InterfaceUtil.jo2o
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 import xsbti.{ FileConverter, Position, Problem, Severity, UseScope, VirtualFile, VirtualFileRef }
 import xsbt.api.{ APIUtil, HashAPI, NameHashing }
 import xsbti.api._
@@ -32,7 +31,6 @@ import xsbti.compile.{
   IncOptions,
   MiniSetup,
   Output,
-  PickleData,
   ClassFileManager => XClassFileManager
 }
 import xsbti.compile.analysis.{ ReadStamps, Stamp => XStamp }
@@ -479,7 +477,6 @@ private final class AnalysisCallback(
   // Results of invalidation calculations (including whether to continue cycles) - the analysis at this point is
   // not useful and so isn't included.
   private[this] var invalidationResults: Option[CompileCycleResult] = None
-  private[this] val pklData: mutable.ArrayBuffer[PickleData] = new mutable.ArrayBuffer()
 
   private def add[A, B](map: TrieMap[A, ConcurrentSet[B]], a: A, b: B): Unit = {
     map.getOrElseUpdate(a, ConcurrentHashMap.newKeySet[B]()).add(b)
@@ -835,12 +832,6 @@ private final class AnalysisCallback(
     outputJarContent.get().asJava
   }
 
-  override def pickleData(data: Array[PickleData]): Unit = {
-    if (options.pipelining && data.nonEmpty) {
-      pklData ++= data
-    }
-  }
-
   def hasAnyMacro(merged: Analysis): Boolean =
     merged.apis.internal.values.exists(p => p.hasMacro)
 
@@ -859,7 +850,7 @@ private final class AnalysisCallback(
       val knownProducts = merged.relations.allSources
         .flatMap(merged.relations.products)
         .flatMap(extractProductPath)
-      PickleJar.write(pickleJarPath, pklData, knownProducts, currentSetup.compilerVersion, log)
+      PickleJar.write(pickleJarPath, knownProducts.toSet)
     }
     progress foreach { p =>
       p.earlyOutputComplete(true)

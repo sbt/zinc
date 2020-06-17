@@ -14,7 +14,6 @@ package xsbti
 import java.nio.file.Path
 import java.util
 
-import xsbti.compile.PickleData
 import xsbti.api.{ DependencyContext, ClassLike }
 
 import scala.collection.mutable.ArrayBuffer
@@ -113,8 +112,6 @@ class TestCallback extends AnalysisCallback {
   override def classesInOutputJar(): util.Set[String] = java.util.Collections.emptySet()
 
   override def isPickleJava: Boolean = false
-
-  override def pickleData(data: Array[PickleData]): Unit = ()
 }
 
 object TestCallback {
