@@ -435,7 +435,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       equivPairs: Equiv[Array[T2[String, String]]],
       log: Logger
   ): (Analysis, Boolean) = {
-    import mixedCompiler.config._
+    import mixedCompiler.config._, currentSetup.output
     val lookup = new LookupImpl(mixedCompiler.config, previousSetup)
     val srcsSet = mixedCompiler.config.sources.toSet
     val analysis = previousSetup match {
