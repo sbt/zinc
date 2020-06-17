@@ -1,8 +1,6 @@
 package localzinc
 
 import sbt._
-import Keys._
-import Def.Initialize
 import sbt.internal.inc.ScalaInstance
 import sbt.internal.inc.classpath
 
@@ -11,12 +9,7 @@ import scala.language.reflectiveCalls
 object Scripted {
   def scriptedPath = file("scripted")
   val publishLocalBinAll = taskKey[Unit]("")
-  val scriptedUnpublished = inputKey[Unit](
-    "Execute scripted without publishing sbt first. " +
-      "Saves you some time when only your test has changed"
-  )
   val scriptedSource = settingKey[File]("")
-  val scriptedPrescripted = taskKey[File => Unit]("")
   val scriptedCompileToJar = settingKey[Boolean]("Compile directly to jar in scripted tests")
 
   import sbt.complete._
@@ -67,12 +60,12 @@ object Scripted {
   }
 
   // Interface to cross class loader
-  type MainScriptedRunner = {
+  type ScriptedMain = {
     def run(
-        resourceBaseDirectory: File,
+        baseDir: File,
         bufferLog: Boolean,
         compileToJar: Boolean,
-        tests: Array[String],
+        testSpecs: Array[String],
     ): Unit
   }
 
@@ -83,16 +76,11 @@ object Scripted {
       args: Seq[String],
       bufferLog: Boolean,
       compileToJar: Boolean,
-      prescripted: File => Unit,
   ): Unit = {
-    System.err.println(s"About to run tests: ${args.mkString("\n * ", "\n * ", "\n")}")
-    // Force Log4J to not use a thread context classloader otherwise it throws a CCE
-    sys.props(org.apache.logging.log4j.util.LoaderUtil.IGNORE_TCCL_PROPERTY) = "true"
     val noJLine = new classpath.FilteredLoader(scriptedSbtInstance.loader, "jline." :: Nil)
     val loader = classpath.ClasspathUtilities.toLoader(scriptedSbtClasspath.files, noJLine)
-    val bridgeClass = Class.forName("sbt.inc.MainScriptedRunner", true, loader)
-    val bridge = bridgeClass.getDeclaredConstructor().newInstance().asInstanceOf[MainScriptedRunner]
-    // val launcherVmOptions = Array("-XX:MaxPermSize=256M") // increased after a failure in scripted source-dependencies/macro
+    val bridgeClass = Class.forName("sbt.inc.ScriptedMain$", true, loader)
+    val bridge = bridgeClass.getField("MODULE$").get(null).asInstanceOf[ScriptedMain]
     try {
       bridge.run(sourcePath, bufferLog, compileToJar, args.toArray)
     } catch { case ite: java.lang.reflect.InvocationTargetException => throw ite.getCause }
