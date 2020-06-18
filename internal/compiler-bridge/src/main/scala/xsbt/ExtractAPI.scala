@@ -241,7 +241,7 @@ class ExtractAPI[GlobalType <: Global](
       //  b) there is no way to distinguish them from user-defined methods
       if (b.hasGetter) {
         val annotations = collection.mutable.LinkedHashSet[xsbti.api.Annotation]()
-        def add(sym: Symbol) = {
+        def add(sym: Symbol) = if (sym != NoSymbol) {
           val anns = mkAnnotations(in, sym.annotations)
           var i = 0
           while (i < anns.length) {
@@ -252,7 +252,7 @@ class ExtractAPI[GlobalType <: Global](
         add(b)
         add(b.getterIn(b.enclClass))
         add(b.setterIn(b.enclClass))
-        annotations.toArray.distinct
+        annotations.toArray
       } else {
         if (b.annotations.isEmpty) ExtractAPI.emptyAnnotationArray
         else mkAnnotations(in, b.annotations)
