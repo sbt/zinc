@@ -19,6 +19,7 @@ import xsbti.{ Position, Problem, Severity, T2, UseScope, VirtualFileRef }
 import xsbti.compile.analysis.{ SourceInfo, Stamp, WriteMapper }
 import sbt.internal.inc.binary.converters.ProtobufDefaults.Feedback.{ Writers => WritersFeedback }
 import sbt.internal.inc.binary.converters.ProtobufDefaults.WritersConstants
+import scala.collection.JavaConverters._
 import xsbti.api.{ Private, _ }
 import xsbti.compile.{
   CompileOrder,
@@ -42,21 +43,34 @@ final class ProtobufWriters(mapper: WriteMapper) {
     file.id
   }
 
-  def toStampType(stamp: Stamp): schema.Stamps.StampType = {
-    val s0 = schema.Stamps.StampType()
+  def toStampType(stamp: Stamp): Schema.Stamps.StampType = {
+    val s0 = Schema.Stamps.StampType.newBuilder
     stamp match {
-      case hash: FarmHash   => s0.withFarmHash(schema.FarmHash(hash = hash.hashValue))
-      case hash: Hash       => s0.withHash(schema.Hash(hash = hash.hexHash))
-      case lm: LastModified => s0.withLastModified(schema.LastModified(millis = lm.value))
-      case _: Stamp         => s0
+      case hash: FarmHash =>
+        val x = Schema.FarmHash.newBuilder
+          .setHash(hash.hashValue)
+          .build
+        s0.setFarmHash(x)
+      case hash: Hash =>
+        val x = Schema.Hash.newBuilder
+          .setHash(hash.hexHash)
+          .build
+        s0.setHash(x)
+      case lm: LastModified =>
+        val x = Schema.LastModified.newBuilder
+          .setMillis(lm.value)
+          .build
+        s0.setLastModified(x)
+      case _: Stamp => s0
     }
+    s0.build
   }
 
-  def toStamps(stamps: Stamps): schema.Stamps = {
+  def toStamps(stamps: Stamps): Schema.Stamps = {
     // Note that boilerplate here is inteded, abstraction is expensive
     def toBinarySchemaMap(
         data: Map[VirtualFileRef, Stamp]
-    ): Map[String, schema.Stamps.StampType] = {
+    ): Map[String, Schema.Stamps.StampType] = {
       data.map {
         case (binaryFile, stamp) =>
           val newBinaryFile = mapper.mapBinaryFile(binaryFile)
@@ -69,7 +83,7 @@ final class ProtobufWriters(mapper: WriteMapper) {
 
     def toSourceSchemaMap(
         data: Map[VirtualFileRef, Stamp]
-    ): Map[String, schema.Stamps.StampType] = {
+    ): Map[String, Schema.Stamps.StampType] = {
       data.map {
         case (sourceFile, stamp) =>
           val newSourceFile = mapper.mapSourceFile(sourceFile)
@@ -82,7 +96,7 @@ final class ProtobufWriters(mapper: WriteMapper) {
 
     def toProductSchemaMap(
         data: Map[VirtualFileRef, Stamp]
-    ): Map[String, schema.Stamps.StampType] = {
+    ): Map[String, Schema.Stamps.StampType] = {
       data.map {
         case (productFile, stamp) =>
           val newProductFile = mapper.mapProductFile(productFile)
@@ -96,173 +110,186 @@ final class ProtobufWriters(mapper: WriteMapper) {
     val binaryStamps = toBinarySchemaMap(stamps.libraries)
     val sourceStamps = toSourceSchemaMap(stamps.sources)
     val productStamps = toProductSchemaMap(stamps.products)
-    schema.Stamps(
-      binaryStamps = binaryStamps,
-      sourceStamps = sourceStamps,
-      productStamps = productStamps
-    )
+
+    Schema.Stamps.newBuilder
+      .putAllBinaryStamps(binaryStamps.asJava)
+      .putAllSourceStamps(sourceStamps.asJava)
+      .putAllProductStamps(productStamps.asJava)
+      .build
   }
 
-  def toOutputGroup(outputGroup: OutputGroup): schema.OutputGroup = {
+  def toOutputGroup(outputGroup: OutputGroup): Schema.OutputGroup = {
     val newSource = mapper.mapSourceDir(outputGroup.getSourceDirectory)
     val newTarget = mapper.mapOutputDir(outputGroup.getOutputDirectory)
     val sourcePath = toStringPath(newSource)
     val targetPath = toStringPath(newTarget)
-    schema.OutputGroup(sourcePath = sourcePath, targetPath = targetPath)
+    Schema.OutputGroup.newBuilder
+      .setSourcePath(sourcePath)
+      .setTargetPath(targetPath)
+      .build
   }
 
-  def toCompilationOutput(output: Output): schema.Compilation.Output = {
-    import schema.Compilation.{ Output => CompilationOutput }
+  def setCompilationOutput(
+      output: Output,
+      builder: Schema.Compilation.Builder
+  ): Schema.Compilation.Builder = {
     output match {
       case single0: SingleOutput =>
         val newOutputDir = mapper.mapOutputDir(single0.getOutputDirectory)
         val targetPath = toStringPath(newOutputDir)
-        val single = schema.SingleOutput(target = targetPath)
-        CompilationOutput.SingleOutput(single)
+        val single = Schema.SingleOutput.newBuilder.setTarget(targetPath).build
+        builder.setSingleOutput(single)
       case multiple0: MultipleOutput =>
         val groups = multiple0.getOutputGroups.toSchemaList(toOutputGroup)
-        val multiple = schema.MultipleOutput(outputGroups = groups)
-        CompilationOutput.MultipleOutput(multiple)
+        val multiple = Schema.MultipleOutput.newBuilder.addAllOutputGroups(groups.asJava).build
+        builder.setMultipleOutput(multiple)
       case _ => sys.error(WritersFeedback.UnexpectedEmptyOutput)
     }
   }
 
-  def toCompilation(compilation: Compilation): schema.Compilation = {
+  def toCompilation(compilation: Compilation): Schema.Compilation = {
+    val builder = Schema.Compilation.newBuilder
     val startTimeMillis = compilation.getStartTime
-    val output = toCompilationOutput(compilation.getOutput)
-    schema.Compilation(startTimeMillis = startTimeMillis, output = output)
+    setCompilationOutput(compilation.getOutput, builder)
+      .setStartTimeMillis(startTimeMillis)
+      .build
   }
 
-  def toCompilations(compilations0: Compilations): schema.Compilations = {
+  def toCompilations(compilations0: Compilations): Schema.Compilations = {
     val compilations = compilations0.allCompilations.map(toCompilation)
-    schema.Compilations(compilations = compilations)
+    Schema.Compilations.newBuilder
+      .addAllCompilations(compilations.asJava)
+      .build
   }
 
   import ProtobufDefaults.{ MissingString, MissingInt }
   import sbt.internal.inc.JavaInterfaceUtil._
-  def toPosition(position: Position): schema.Position = {
-    schema.Position(
-      line = position.line.toOption.fold(MissingInt)(_.toInt),
-      offset = position.offset.toOption.fold(MissingInt)(_.toInt),
-      lineContent = position.lineContent,
-      pointer = position.pointer.toOption.fold(MissingInt)(_.toInt),
-      pointerSpace = position.pointerSpace.toOption.getOrElse(MissingString),
-      sourcePath = position.sourcePath.toOption.getOrElse(MissingString),
-      sourceFilepath = position.sourceFile.toOption.fold(MissingString)(toStringPath),
-      startOffset = position.startOffset.toOption.fold(MissingInt)(_.toInt),
-      endOffset = position.endOffset.toOption.fold(MissingInt)(_.toInt),
-      startLine = position.startLine.toOption.fold(MissingInt)(_.toInt),
-      startColumn = position.startColumn.toOption.fold(MissingInt)(_.toInt),
-      endLine = position.endLine.toOption.fold(MissingInt)(_.toInt),
-      endColumn = position.endColumn.toOption.fold(MissingInt)(_.toInt)
-    )
-  }
+  def toPosition(position: Position): Schema.Position =
+    Schema.Position.newBuilder
+      .setLine(position.line.toOption.fold(MissingInt)(_.toInt))
+      .setOffset(position.offset.toOption.fold(MissingInt)(_.toInt))
+      .setLineContent(position.lineContent)
+      .setPointer(position.pointer.toOption.fold(MissingInt)(_.toInt))
+      .setPointerSpace(position.pointerSpace.toOption.getOrElse(MissingString))
+      .setSourcePath(position.sourcePath.toOption.getOrElse(MissingString))
+      .setSourceFilepath(position.sourceFile.toOption.fold(MissingString)(toStringPath))
+      .setStartOffset(position.startOffset.toOption.fold(MissingInt)(_.toInt))
+      .setEndOffset(position.endOffset.toOption.fold(MissingInt)(_.toInt))
+      .setStartLine(position.startLine.toOption.fold(MissingInt)(_.toInt))
+      .setStartColumn(position.startColumn.toOption.fold(MissingInt)(_.toInt))
+      .setEndLine(position.endLine.toOption.fold(MissingInt)(_.toInt))
+      .setEndColumn(position.endColumn.toOption.fold(MissingInt)(_.toInt))
+      .build
 
-  def toSeverity(severity: Severity): schema.Severity = {
+  def toSeverity(severity: Severity): Schema.Severity =
     severity match {
-      case Severity.Info  => schema.Severity.INFO
-      case Severity.Warn  => schema.Severity.WARN
-      case Severity.Error => schema.Severity.ERROR
+      case Severity.Info  => Schema.Severity.INFO
+      case Severity.Warn  => Schema.Severity.WARN
+      case Severity.Error => Schema.Severity.ERROR
     }
-  }
 
-  def toProblem(problem: Problem): schema.Problem = {
+  def toProblem(problem: Problem): Schema.Problem = {
     val category = problem.category()
     val message = problem.message()
-    val position = Option(toPosition(problem.position()))
+    val position = toPosition(problem.position())
     val severity = toSeverity(problem.severity())
-    schema.Problem(
-      category = category,
-      message = message,
-      position = position,
-      severity = severity
-    )
+    Schema.Problem.newBuilder
+      .setCategory(category)
+      .setMessage(message)
+      .setPosition(position)
+      .setSeverity(severity)
+      .build
   }
 
-  def toSourceInfo(sourceInfo: SourceInfo): schema.SourceInfo = {
+  def toSourceInfo(sourceInfo: SourceInfo): Schema.SourceInfo = {
     val mainClasses = sourceInfo.getMainClasses
     val reportedProblems = sourceInfo.getReportedProblems.map(toProblem).toSeq
     val unreportedProblems = sourceInfo.getUnreportedProblems.map(toProblem).toSeq
-    schema.SourceInfo(
-      reportedProblems = reportedProblems,
-      unreportedProblems = unreportedProblems,
-      mainClasses = mainClasses
-    )
+    Schema.SourceInfo.newBuilder
+      .addAllReportedProblems(reportedProblems.asJava)
+      .addAllUnreportedProblems(unreportedProblems.asJava)
+      .addAllMainClasses(mainClasses.toIterable.asJava)
+      .build
   }
 
-  def toSourceInfos(sourceInfos0: SourceInfos): schema.SourceInfos = {
+  def toSourceInfos(sourceInfos0: SourceInfos): Schema.SourceInfos = {
     val sourceInfos = sourceInfos0.allInfos.map {
       case (file, sourceInfo0) =>
         toStringPathV(mapper.mapSourceFile(file)) -> toSourceInfo(sourceInfo0)
     }
-    schema.SourceInfos(sourceInfos = sourceInfos)
+    Schema.SourceInfos.newBuilder
+      .putAllSourceInfos(sourceInfos.asJava)
+      .build
   }
 
-  def toClasspathFileHash(fileHash: FileHash): schema.FileHash = {
+  def toClasspathFileHash(fileHash: FileHash): Schema.FileHash = {
     val newClasspathEntry = mapper.mapClasspathEntry(fileHash.file())
     val path = toStringPath(newClasspathEntry)
     val hash = fileHash.hash()
-    schema.FileHash(
-      path = path,
-      hash = hash
-    )
+    Schema.FileHash.newBuilder
+      .setPath(path)
+      .setHash(hash)
+      .build
   }
 
-  def toMiniOptions(miniOptions: MiniOptions): schema.MiniOptions = {
+  def toMiniOptions(miniOptions: MiniOptions): Schema.MiniOptions = {
     val classpathHash = miniOptions.classpathHash.map(toClasspathFileHash)
     val javacOptions = miniOptions.javacOptions().map(mapper.mapJavacOption)
     val scalacOptions = miniOptions.scalacOptions().map(mapper.mapScalacOption)
-    schema.MiniOptions(
-      classpathHash = classpathHash,
-      javacOptions = javacOptions,
-      scalacOptions = scalacOptions
-    )
+    Schema.MiniOptions.newBuilder
+      .addAllClasspathHash(classpathHash.toList.asJava)
+      .addAllJavacOptions(javacOptions.toList.asJava)
+      .addAllScalacOptions(scalacOptions.toList.asJava)
+      .build
   }
 
-  def toCompileOrder(compileOrder: CompileOrder): schema.CompileOrder = {
+  def toCompileOrder(compileOrder: CompileOrder): Schema.CompileOrder = {
     compileOrder match {
-      case CompileOrder.Mixed         => schema.CompileOrder.MIXED
-      case CompileOrder.JavaThenScala => schema.CompileOrder.JAVATHENSCALA
-      case CompileOrder.ScalaThenJava => schema.CompileOrder.SCALATHENJAVA
+      case CompileOrder.Mixed         => Schema.CompileOrder.MIXED
+      case CompileOrder.JavaThenScala => Schema.CompileOrder.JAVATHENSCALA
+      case CompileOrder.ScalaThenJava => Schema.CompileOrder.SCALATHENJAVA
     }
   }
 
-  def toStringTuple(tuple: T2[String, String]): schema.Tuple = {
-    schema.Tuple(first = tuple.get1(), second = tuple.get2())
+  def toStringTuple(tuple: T2[String, String]): Schema.Tuple = {
+    Schema.Tuple.newBuilder
+      .setFirst(tuple.get1())
+      .setSecond(tuple.get2())
+      .build
   }
 
-  def toMiniSetupOutput(output: Output): schema.MiniSetup.Output = {
-    import schema.MiniSetup.{ Output => CompilationOutput }
+  def setMiniSetupOutput(
+      output: Output,
+      builder: Schema.MiniSetup.Builder
+  ): Schema.MiniSetup.Builder =
     output match {
       case single0: SingleOutput =>
         val newOutputDir = mapper.mapOutputDir(single0.getOutputDirectory)
         val targetPath = toStringPath(newOutputDir)
-        val single = schema.SingleOutput(target = targetPath)
-        CompilationOutput.SingleOutput(single)
+        val single = Schema.SingleOutput.newBuilder.setTarget(targetPath).build
+        builder.setSingleOutput(single)
       case multiple0: MultipleOutput =>
         val groups = multiple0.getOutputGroups.toSchemaList(toOutputGroup)
-        val multiple = schema.MultipleOutput(outputGroups = groups)
-        CompilationOutput.MultipleOutput(multiple)
+        val multiple = Schema.MultipleOutput.newBuilder.addAllOutputGroups(groups.asJava).build
+        builder.setMultipleOutput(multiple)
       case _ => sys.error(WritersFeedback.UnexpectedEmptyOutput)
     }
-  }
 
-  def toMiniSetup(miniSetup0: MiniSetup): schema.MiniSetup = {
+  def toMiniSetup(miniSetup0: MiniSetup): Schema.MiniSetup = {
+    val builder = Schema.MiniSetup.newBuilder
     val miniSetup = mapper.mapMiniSetup(miniSetup0)
-    val output = toMiniSetupOutput(Analysis.dummyOutput)
-    val miniOptions = Some(toMiniOptions(miniSetup.options()))
+    val miniOptions = toMiniOptions(miniSetup.options())
     val compilerVersion = miniSetup.compilerVersion()
     val compileOrder = toCompileOrder(miniSetup.order())
     val storeApis = miniSetup.storeApis()
     val extra = miniSetup.extra().map(toStringTuple)
-    schema.MiniSetup(
-      output = output,
-      miniOptions = miniOptions,
-      compilerVersion = compilerVersion,
-      compileOrder = compileOrder,
-      storeApis = storeApis,
-      extra = extra
-    )
+    setMiniSetupOutput(Analysis.dummyOutput, builder)
+      .setMiniOptions(miniOptions)
+      .setCompilerVersion(compilerVersion)
+      .setCompileOrder(compileOrder)
+      .setStoreApis(storeApis)
+      .addAllExtra(extra.toList.asJava)
+      .build
   }
 
   implicit class EfficientTraverse[T](array: Array[T]) {
@@ -270,259 +297,285 @@ final class ProtobufWriters(mapper: WriteMapper) {
       array.iterator.map(f).toList
   }
 
-  def toPath(path: xsbti.api.Path): schema.Path = {
-    def toPathComponent(pathComponent: PathComponent): schema.Path.PathComponent = {
-      import schema.Path.{ PathComponent => SchemaPath }
-      import SchemaPath.{ Component => SchemaComponent }
-      val component = pathComponent match {
-        case c: Id    => SchemaComponent.Id(schema.Id(id = c.id))
-        case c: Super => SchemaComponent.Super(schema.Super(qualifier = Some(toPath(c.qualifier))))
-        case _: This  => SchemaComponent.This(WritersConstants.This)
+  def toPath(path: xsbti.api.Path): Schema.Path = {
+    def toPathComponent(pathComponent: PathComponent): Schema.Path.PathComponent = {
+      val builder0 = Schema.Path.PathComponent.newBuilder
+      val builder = pathComponent match {
+        case c: Id =>
+          builder0.setId(Schema.Id.newBuilder.setId(c.id).build)
+        case c: Super =>
+          builder0.setSuper(Schema.Super.newBuilder.setQualifier(toPath(c.qualifier)))
+        case _: This =>
+          builder0.setThis(WritersConstants.This)
       }
-      SchemaPath(component = component)
+      builder.build
     }
     val components = path.components().toSchemaList(toPathComponent)
-    schema.Path(components = components)
+    Schema.Path.newBuilder
+      .addAllComponents(components.asJava)
+      .build
   }
 
-  def toAnnotation(annotation: Annotation): schema.Annotation = {
-    def toAnnotationArgument(annotationArgument: AnnotationArgument): schema.AnnotationArgument = {
-      val name = annotationArgument.name()
-      val value = annotationArgument.value()
-      schema.AnnotationArgument(name = name, value = value)
-    }
+  def toAnnotation(annotation: Annotation): Schema.Annotation = {
+    def toAnnotationArgument(annotationArgument: AnnotationArgument): Schema.AnnotationArgument =
+      Schema.AnnotationArgument.newBuilder
+        .setName(annotationArgument.name())
+        .setValue(annotationArgument.value())
+        .build
 
     val arguments = annotation.arguments().toSchemaList(toAnnotationArgument)
-    val base = Some(toType(annotation.base()))
-    schema.Annotation(base = base, arguments = arguments)
+    val base = toType(annotation.base())
+    Schema.Annotation.newBuilder
+      .setBase(base)
+      .addAllArguments(arguments.asJava)
+      .build
   }
 
-  def toStructure(tpe: Structure): schema.Type.Structure = {
+  def toStructure(tpe: Structure): Schema.Type.Structure = {
     val declared = tpe.declared().toSchemaList(toClassDefinition)
     val inherited = tpe.inherited().toSchemaList(toClassDefinition)
     val parents = tpe.parents().toSchemaList(toType)
-    schema.Type.Structure(
-      declared = declared,
-      inherited = inherited,
-      parents = parents
-    )
+    Schema.Type.Structure.newBuilder
+      .addAllDeclared(declared.asJava)
+      .addAllInherited(inherited.asJava)
+      .addAllParents(parents.asJava)
+      .build
   }
 
-  def toType(`type`: Type): schema.Type = {
-    def toExistential(tpe: Existential): schema.Type.Existential = {
-      val baseType = Some(toType(tpe.baseType()))
+  def toType(`type`: Type): Schema.Type = {
+    def toExistential(tpe: Existential): Schema.Type.Existential = {
+      val baseType = toType(tpe.baseType())
       val clause = tpe.clause().toSchemaList(toTypeParameter)
-      schema.Type.Existential(baseType = baseType, clause = clause)
+      Schema.Type.Existential.newBuilder
+        .setBaseType(baseType)
+        .addAllClause(clause.asJava)
+        .build
     }
 
-    def toProjection(tpe: Projection): schema.Type.Projection = {
+    def toProjection(tpe: Projection): Schema.Type.Projection = {
       val id = tpe.id()
-      val prefix = Some(toType(tpe.prefix()))
-      schema.Type.Projection(id = id, prefix = prefix)
+      val prefix = toType(tpe.prefix())
+      Schema.Type.Projection.newBuilder
+        .setId(id)
+        .setPrefix(prefix)
+        .build
     }
 
-    def toPolymorphic(tpe: Polymorphic): schema.Type.Polymorphic = {
-      val baseType = Some(toType(tpe.baseType()))
+    def toPolymorphic(tpe: Polymorphic): Schema.Type.Polymorphic = {
+      val baseType = toType(tpe.baseType())
       val parameters = tpe.parameters().toSchemaList(toTypeParameter)
-      schema.Type.Polymorphic(baseType = baseType, typeParameters = parameters)
+      Schema.Type.Polymorphic.newBuilder
+        .setBaseType(baseType)
+        .addAllTypeParameters(parameters.asJava)
+        .build
     }
 
-    def toParameterRef(tpe: ParameterRef): schema.Type.ParameterRef = {
-      schema.Type.ParameterRef(id = tpe.id())
-    }
+    def toParameterRef(tpe: ParameterRef): Schema.Type.ParameterRef =
+      Schema.Type.ParameterRef.newBuilder
+        .setId(tpe.id())
+        .build
 
-    def toParameterized(tpe: Parameterized): schema.Type.Parameterized = {
-      val baseType = Some(toType(tpe.baseType()))
+    def toParameterized(tpe: Parameterized): Schema.Type.Parameterized = {
+      val baseType = toType(tpe.baseType())
       val typeArguments = tpe.typeArguments().toSchemaList(toType)
-      schema.Type.Parameterized(baseType = baseType, typeArguments = typeArguments)
+      Schema.Type.Parameterized.newBuilder
+        .setBaseType(baseType)
+        .addAllTypeArguments(typeArguments.asJava)
+        .build
     }
 
-    def toSingleton(tpe: Singleton): schema.Type.Singleton = {
-      val path = Some(toPath(tpe.path()))
-      schema.Type.Singleton(path = path)
-    }
+    def toSingleton(tpe: Singleton): Schema.Type.Singleton =
+      Schema.Type.Singleton.newBuilder
+        .setPath(toPath(tpe.path()))
+        .build
 
-    def toConstant(tpe: Constant): schema.Type.Constant = {
-      val baseType = Some(toType(tpe.baseType()))
+    def toConstant(tpe: Constant): Schema.Type.Constant = {
+      val baseType = toType(tpe.baseType())
       val value = tpe.value()
-      schema.Type.Constant(baseType = baseType, value = value)
+      Schema.Type.Constant.newBuilder
+        .setBaseType(baseType)
+        .setValue(value)
+        .build
     }
 
-    def toAnnotated(tpe: Annotated): schema.Type.Annotated = {
+    def toAnnotated(tpe: Annotated): Schema.Type.Annotated = {
       val annotations = tpe.annotations().toSchemaList(toAnnotation)
-      val baseType = Some(toType(tpe.baseType()))
-      schema.Type.Annotated(baseType = baseType, annotations = annotations)
+      val baseType = toType(tpe.baseType())
+      Schema.Type.Annotated.newBuilder
+        .setBaseType(baseType)
+        .addAllAnnotations(annotations.asJava)
+        .build
     }
 
-    val schemaType = `type` match {
-      case tpe: ParameterRef  => schema.Type.Value.ParameterRef(value = toParameterRef(tpe))
-      case tpe: Parameterized => schema.Type.Value.Parameterized(value = toParameterized(tpe))
-      case tpe: Structure     => schema.Type.Value.Structure(value = toStructure(tpe))
-      case tpe: Polymorphic   => schema.Type.Value.Polymorphic(value = toPolymorphic(tpe))
-      case tpe: Constant      => schema.Type.Value.Constant(value = toConstant(tpe))
-      case tpe: Existential   => schema.Type.Value.Existential(value = toExistential(tpe))
-      case tpe: Singleton     => schema.Type.Value.Singleton(value = toSingleton(tpe))
-      case tpe: Projection    => schema.Type.Value.Projection(value = toProjection(tpe))
-      case tpe: Annotated     => schema.Type.Value.Annotated(value = toAnnotated(tpe))
-      case _: EmptyType       => schema.Type.Value.EmptyType(value = WritersConstants.EmptyType)
+    val builder = Schema.Type.newBuilder
+    `type` match {
+      case tpe: ParameterRef  => builder.setParameterRef(toParameterRef(tpe))
+      case tpe: Parameterized => builder.setParameterized(toParameterized(tpe))
+      case tpe: Structure     => builder.setStructure(toStructure(tpe))
+      case tpe: Polymorphic   => builder.setPolymorphic(toPolymorphic(tpe))
+      case tpe: Constant      => builder.setConstant(toConstant(tpe))
+      case tpe: Existential   => builder.setExistential(toExistential(tpe))
+      case tpe: Singleton     => builder.setSingleton(toSingleton(tpe))
+      case tpe: Projection    => builder.setProjection(toProjection(tpe))
+      case tpe: Annotated     => builder.setAnnotated(toAnnotated(tpe))
+      case _: EmptyType       => builder.setEmptyType(WritersConstants.EmptyType)
     }
-
-    schema.Type(value = schemaType)
+    builder.build
   }
 
-  def toDefinitionType(definitionType: DefinitionType): schema.DefinitionType = {
+  def toDefinitionType(definitionType: DefinitionType): Schema.DefinitionType = {
     definitionType match {
-      case DefinitionType.ClassDef      => schema.DefinitionType.CLASSDEF
-      case DefinitionType.Module        => schema.DefinitionType.MODULE
-      case DefinitionType.Trait         => schema.DefinitionType.TRAIT
-      case DefinitionType.PackageModule => schema.DefinitionType.PACKAGEMODULE
+      case DefinitionType.ClassDef      => Schema.DefinitionType.CLASSDEF
+      case DefinitionType.Module        => Schema.DefinitionType.MODULE
+      case DefinitionType.Trait         => Schema.DefinitionType.TRAIT
+      case DefinitionType.PackageModule => Schema.DefinitionType.PACKAGEMODULE
     }
   }
 
-  def toAccess(access: Access): schema.Access = {
-    def toQualifier(qualifier: Qualifier): schema.Qualifier = {
+  def toAccess(access: Access): Schema.Access = {
+    def toQualifier(qualifier: Qualifier): Schema.Qualifier = {
       import WritersConstants.{ ThisQualifier, Unqualified }
-      import schema.Qualifier.{ Type => QualifierType }
-      val qualifierType = qualifier match {
-        case q: IdQualifier   => QualifierType.IdQualifier(value = schema.IdQualifier(q.value()))
-        case _: ThisQualifier => QualifierType.ThisQualifier(value = ThisQualifier)
-        case _: Unqualified   => QualifierType.Unqualified(value = Unqualified)
+      val builder = Schema.Qualifier.newBuilder
+      qualifier match {
+        case q: IdQualifier =>
+          builder.setIdQualifier(Schema.IdQualifier.newBuilder.setValue(q.value()).build)
+        case _: ThisQualifier => builder.setThisQualifier(ThisQualifier)
+        case _: Unqualified   => builder.setUnqualified(Unqualified)
       }
-      schema.Qualifier(`type` = qualifierType)
+      builder.build
     }
     import WritersConstants.PublicAccess
-    import schema.Access.{ Type => AccessType }
-    val accessType = access match {
-      case _: Public => AccessType.Public(value = PublicAccess)
+    val builder = Schema.Access.newBuilder
+    access match {
+      case _: Public => builder.setPublic(PublicAccess)
       case qualified: Qualified =>
-        val qualifier = Some(toQualifier(qualified.qualifier()))
+        val qualifier = toQualifier(qualified.qualifier())
         qualified match {
-          case _: Private   => AccessType.Private(schema.Private(qualifier = qualifier))
-          case _: Protected => AccessType.Protected(schema.Protected(qualifier = qualifier))
+          case _: Private =>
+            builder.setPrivate(Schema.Private.newBuilder.setQualifier(qualifier).build)
+          case _: Protected =>
+            builder.setProtected(Schema.Protected.newBuilder.setQualifier(qualifier).build)
         }
     }
-    schema.Access(`type` = accessType)
+    builder.build
   }
 
-  def toModifiers(modifiers: Modifiers): schema.Modifiers = {
-    schema.Modifiers(flags = modifiers.raw().toInt)
-  }
+  def toModifiers(modifiers: Modifiers): Schema.Modifiers =
+    Schema.Modifiers.newBuilder
+      .setFlags(modifiers.raw().toInt)
+      .build
 
-  def toClassDefinition(classDefinition: ClassDefinition): schema.ClassDefinition = {
+  def toClassDefinition(classDefinition: ClassDefinition): Schema.ClassDefinition = {
 
-    def toParameterList(parameterList: ParameterList): schema.ParameterList = {
-      def toMethodParameter(methodParameter: MethodParameter): schema.MethodParameter = {
-        def toParameterModifier(modifier: ParameterModifier): schema.ParameterModifier = {
+    def toParameterList(parameterList: ParameterList): Schema.ParameterList = {
+      def toMethodParameter(methodParameter: MethodParameter): Schema.MethodParameter = {
+        def toParameterModifier(modifier: ParameterModifier): Schema.ParameterModifier = {
           modifier match {
-            case ParameterModifier.Plain    => schema.ParameterModifier.PLAIN
-            case ParameterModifier.ByName   => schema.ParameterModifier.BYNAME
-            case ParameterModifier.Repeated => schema.ParameterModifier.REPEATED
+            case ParameterModifier.Plain    => Schema.ParameterModifier.PLAIN
+            case ParameterModifier.ByName   => Schema.ParameterModifier.BYNAME
+            case ParameterModifier.Repeated => Schema.ParameterModifier.REPEATED
           }
         }
         val name = methodParameter.name()
         val hasDefault = methodParameter.hasDefault()
-        val `type` = Some(toType(methodParameter.tpe()))
+        val `type` = toType(methodParameter.tpe())
         val modifier = toParameterModifier(methodParameter.modifier())
-        schema.MethodParameter(
-          name = name,
-          `type` = `type`,
-          hasDefault = hasDefault,
-          modifier = modifier
-        )
+        Schema.MethodParameter.newBuilder
+          .setName(name)
+          .setType(`type`)
+          .setHasDefault(hasDefault)
+          .setModifier(modifier)
+          .build
       }
 
       val parameters = parameterList.parameters().toSchemaList(toMethodParameter)
       val isImplicit = parameterList.isImplicit()
-      schema.ParameterList(parameters = parameters, isImplicit = isImplicit)
+      Schema.ParameterList.newBuilder
+        .addAllParameters(parameters.asJava)
+        .setIsImplicit(isImplicit)
+        .build
     }
 
-    import schema.ClassDefinition.{ Extra => DefType }
-    def toClassLikeDef(classLikeDef: ClassLikeDef): DefType.ClassLikeDef = {
+    def toClassLikeDef(classLikeDef: ClassLikeDef): Schema.ClassDefinition.ClassLikeDef = {
       val definitionType = toDefinitionType(classLikeDef.definitionType())
       val typeParameters = classLikeDef.typeParameters().toSchemaList(toTypeParameter)
-      DefType.ClassLikeDef(
-        schema.ClassDefinition.ClassLikeDef(
-          typeParameters = typeParameters,
-          definitionType = definitionType
-        )
-      )
+      Schema.ClassDefinition.ClassLikeDef.newBuilder
+        .addAllTypeParameters(typeParameters.asJava)
+        .setDefinitionType(definitionType)
+        .build
     }
 
-    def toValDef(valDef: Val): DefType.ValDef = {
-      val `type` = Some(toType(valDef.tpe))
-      DefType.ValDef(schema.ClassDefinition.Val(`type` = `type`))
-    }
+    def toValDef(valDef: Val): Schema.ClassDefinition.Val =
+      Schema.ClassDefinition.Val.newBuilder
+        .setType(toType(valDef.tpe))
+        .build
 
-    def toVarDef(varDef: Var): DefType.VarDef = {
-      val `type` = Some(toType(varDef.tpe))
-      DefType.VarDef(schema.ClassDefinition.Var(`type` = `type`))
-    }
+    def toVarDef(varDef: Var): Schema.ClassDefinition.Var =
+      Schema.ClassDefinition.Var.newBuilder
+        .setType(toType(varDef.tpe))
+        .build
 
-    def toDefDef(defDef: Def): DefType.DefDef = {
-      val returnType = Some(toType(defDef.returnType))
+    def toDefDef(defDef: Def): Schema.ClassDefinition.Def = {
+      val returnType = toType(defDef.returnType)
       val typeParameters = defDef.typeParameters().toSchemaList(toTypeParameter)
       val valueParameters = defDef.valueParameters().toSchemaList(toParameterList)
-      DefType.DefDef(
-        schema.ClassDefinition.Def(
-          typeParameters = typeParameters,
-          valueParameters = valueParameters,
-          returnType = returnType
-        )
-      )
+      Schema.ClassDefinition.Def.newBuilder
+        .addAllTypeParameters(typeParameters.asJava)
+        .addAllValueParameters(valueParameters.asJava)
+        .setReturnType(returnType)
+        .build
     }
 
-    def toTypeAlias(typeAlias: TypeAlias): DefType.TypeAlias = {
-      val `type` = Some(toType(typeAlias.tpe()))
+    def toTypeAlias(typeAlias: TypeAlias): Schema.ClassDefinition.TypeAlias = {
+      val `type` = toType(typeAlias.tpe())
       val typeParameters = typeAlias.typeParameters().toSchemaList(toTypeParameter)
-      DefType.TypeAlias(
-        schema.ClassDefinition.TypeAlias(
-          `type` = `type`,
-          typeParameters = typeParameters
-        )
-      )
+      Schema.ClassDefinition.TypeAlias.newBuilder
+        .setType(`type`)
+        .addAllTypeParameters(typeParameters.asJava)
+        .build
     }
 
-    def toTypeDeclaration(typeDeclaration: TypeDeclaration): DefType.TypeDeclaration = {
-      val lowerBound = Some(toType(typeDeclaration.lowerBound()))
-      val upperBound = Some(toType(typeDeclaration.upperBound()))
+    def toTypeDeclaration(
+        typeDeclaration: TypeDeclaration
+    ): Schema.ClassDefinition.TypeDeclaration = {
+      val lowerBound = toType(typeDeclaration.lowerBound())
+      val upperBound = toType(typeDeclaration.upperBound())
       val typeParameters = typeDeclaration.typeParameters().toSchemaList(toTypeParameter)
-      DefType.TypeDeclaration(
-        schema.ClassDefinition.TypeDeclaration(
-          lowerBound = lowerBound,
-          upperBound = upperBound,
-          typeParameters = typeParameters
-        )
-      )
+      Schema.ClassDefinition.TypeDeclaration.newBuilder
+        .setLowerBound(lowerBound)
+        .setUpperBound(upperBound)
+        .addAllTypeParameters(typeParameters.asJava)
+        .build
     }
 
+    val builder = Schema.ClassDefinition.newBuilder
     val name = classDefinition.name()
-    val access = Some(toAccess(classDefinition.access()))
-    val modifiers = Some(toModifiers(classDefinition.modifiers()))
+    val access = toAccess(classDefinition.access())
+    val modifiers = toModifiers(classDefinition.modifiers())
     val annotations = classDefinition.annotations().toSchemaList(toAnnotation)
-    val extra = classDefinition match {
-      case classLikeDef: ClassLikeDef       => toClassLikeDef(classLikeDef)
-      case valDef: Val                      => toValDef(valDef)
-      case varDef: Var                      => toVarDef(varDef)
-      case defDef: Def                      => toDefDef(defDef)
-      case typeAlias: TypeAlias             => toTypeAlias(typeAlias)
-      case typeDeclaration: TypeDeclaration => toTypeDeclaration(typeDeclaration)
+    classDefinition match {
+      case classLikeDef: ClassLikeDef => builder.setClassLikeDef(toClassLikeDef(classLikeDef))
+      case valDef: Val                => builder.setValDef(toValDef(valDef))
+      case varDef: Var                => builder.setVarDef(toVarDef(varDef))
+      case defDef: Def                => builder.setDefDef(toDefDef(defDef))
+      case typeAlias: TypeAlias       => builder.setTypeAlias(toTypeAlias(typeAlias))
+      case typeDeclaration: TypeDeclaration =>
+        builder.setTypeDeclaration(toTypeDeclaration(typeDeclaration))
     }
-
-    schema.ClassDefinition(
-      name = name,
-      access = access,
-      modifiers = modifiers,
-      annotations = annotations,
-      extra = extra
-    )
+    builder
+      .setName(name)
+      .setAccess(access)
+      .setModifiers(modifiers)
+      .addAllAnnotations(annotations.asJava)
+      .build
   }
 
-  def toTypeParameter(typeParameter: TypeParameter): schema.TypeParameter = {
-    def toVariance(variance: Variance): schema.Variance = {
+  def toTypeParameter(typeParameter: TypeParameter): Schema.TypeParameter = {
+    def toVariance(variance: Variance): Schema.Variance = {
       variance match {
-        case Variance.Invariant     => schema.Variance.INVARIANT
-        case Variance.Covariant     => schema.Variance.COVARIANT
-        case Variance.Contravariant => schema.Variance.CONTRAVARIANT
+        case Variance.Invariant     => Schema.Variance.INVARIANT
+        case Variance.Covariant     => Schema.Variance.COVARIANT
+        case Variance.Contravariant => Schema.Variance.CONTRAVARIANT
       }
     }
 
@@ -530,71 +583,77 @@ final class ProtobufWriters(mapper: WriteMapper) {
     val annotations = typeParameter.annotations().toSchemaList(toAnnotation)
     val typeParameters = typeParameter.typeParameters().toSchemaList(toTypeParameter)
     val variance = toVariance(typeParameter.variance())
-    val lowerBound = Some(toType(typeParameter.lowerBound()))
-    val upperBound = Some(toType(typeParameter.upperBound()))
-    schema.TypeParameter(
-      id = id,
-      annotations = annotations,
-      typeParameters = typeParameters,
-      variance = variance,
-      lowerBound = lowerBound,
-      upperBound = upperBound
-    )
+    val lowerBound = toType(typeParameter.lowerBound())
+    val upperBound = toType(typeParameter.upperBound())
+    Schema.TypeParameter.newBuilder
+      .setId(id)
+      .addAllAnnotations(annotations.asJava)
+      .addAllTypeParameters(typeParameters.asJava)
+      .setVariance(variance)
+      .setLowerBound(lowerBound)
+      .setUpperBound(upperBound)
+      .build
   }
 
-  def toClassLike(classLike: ClassLike): schema.ClassLike = {
+  def toClassLike(classLike: ClassLike): Schema.ClassLike = {
     val name = classLike.name()
-    val access = Some(toAccess(classLike.access()))
-    val modifiers = Some(toModifiers(classLike.modifiers()))
+    val access = toAccess(classLike.access())
+    val modifiers = toModifiers(classLike.modifiers())
     val annotations = classLike.annotations().toSchemaList(toAnnotation)
 
     val definitionType = toDefinitionType(classLike.definitionType())
-    val selfType = Some(toType(classLike.selfType()))
-    val structure = Some(toStructure(classLike.structure()))
+    val selfType = toType(classLike.selfType())
+    val structure = toStructure(classLike.structure())
     val savedAnnotations = classLike.savedAnnotations()
     val childrenOfSealedClass = classLike.childrenOfSealedClass().toSchemaList(toType)
     val topLevel = classLike.topLevel()
     val typeParameters = classLike.typeParameters().toSchemaList(toTypeParameter)
-    schema.ClassLike(
-      name = name,
-      access = access,
-      modifiers = modifiers,
-      annotations = annotations,
-      definitionType = definitionType,
-      selfType = selfType,
-      structure = structure,
-      savedAnnotations = savedAnnotations,
-      childrenOfSealedClass = childrenOfSealedClass,
-      topLevel = topLevel,
-      typeParameters = typeParameters
-    )
+    Schema.ClassLike.newBuilder
+      .setName(name)
+      .setAccess(access)
+      .setModifiers(modifiers)
+      .addAllAnnotations(annotations.asJava)
+      .setDefinitionType(definitionType)
+      .setSelfType(selfType)
+      .setStructure(structure)
+      .addAllSavedAnnotations(savedAnnotations.toList.asJava)
+      .addAllChildrenOfSealedClass(childrenOfSealedClass.toList.asJava)
+      .setTopLevel(topLevel)
+      .addAllTypeParameters(typeParameters.asJava)
+      .build
   }
 
-  def toUseScope(useScope: UseScope): schema.UseScope = {
+  def toUseScope(useScope: UseScope): Schema.UseScope = {
     useScope match {
-      case UseScope.Default      => schema.UseScope.DEFAULT
-      case UseScope.Implicit     => schema.UseScope.IMPLICIT
-      case UseScope.PatMatTarget => schema.UseScope.PATMAT
+      case UseScope.Default      => Schema.UseScope.DEFAULT
+      case UseScope.Implicit     => Schema.UseScope.IMPLICIT
+      case UseScope.PatMatTarget => Schema.UseScope.PATMAT
     }
   }
 
   def toAnalyzedClass(
       shouldStoreApis: Boolean
-  )(analyzedClass: AnalyzedClass): schema.AnalyzedClass = {
-    def toCompanions(companions: Companions): schema.Companions = {
-      val classApi = Some(toClassLike(companions.classApi()))
-      val objectApi = Some(toClassLike(companions.objectApi()))
-      schema.Companions(classApi = classApi, objectApi = objectApi)
+  )(analyzedClass: AnalyzedClass): Schema.AnalyzedClass = {
+    def toCompanions(companions: Companions): Schema.Companions = {
+      val classApi = toClassLike(companions.classApi())
+      val objectApi = toClassLike(companions.objectApi())
+      Schema.Companions.newBuilder
+        .setClassApi(classApi)
+        .setObjectApi(objectApi)
+        .build
     }
 
-    def toNameHash(nameHash: NameHash): schema.NameHash = {
+    def toNameHash(nameHash: NameHash): Schema.NameHash = {
       val name = nameHash.name()
       val hash = nameHash.hash()
       val scope = toUseScope(nameHash.scope())
-      schema.NameHash(name = name, scope = scope, hash = hash)
+      Schema.NameHash.newBuilder
+        .setName(name)
+        .setScope(scope)
+        .setHash(hash)
+        .build
     }
 
-    val companions = if (shouldStoreApis) Some(toCompanions(analyzedClass.api())) else None
     val apiHash = analyzedClass.apiHash()
     val extraHash = analyzedClass.extraHash()
     val compilationTimestamp = analyzedClass.compilationTimestamp()
@@ -602,16 +661,20 @@ final class ProtobufWriters(mapper: WriteMapper) {
     val name = analyzedClass.name()
     val nameHashes = analyzedClass.nameHashes().toSchemaList(toNameHash)
     val provenance = analyzedClass.provenance
-    schema.AnalyzedClass(
-      compilationTimestamp = compilationTimestamp,
-      name = name,
-      api = companions,
-      apiHash = apiHash,
-      nameHashes = nameHashes,
-      hasMacro = hasMacro,
-      extraHash = extraHash,
-      provenance = provenance
-    )
+
+    val builder0 = Schema.AnalyzedClass.newBuilder
+    val builder =
+      if (shouldStoreApis) builder0.setApi(toCompanions(analyzedClass.api()))
+      else builder0
+    builder
+      .setCompilationTimestamp(compilationTimestamp)
+      .setName(name)
+      .setApiHash(apiHash)
+      .addAllNameHashes(nameHashes.asJava)
+      .setHasMacro(hasMacro)
+      .setExtraHash(extraHash)
+      .setProvenance(provenance)
+      .build
   }
 
   private final val sourceToString = (f: VirtualFileRef) => toStringPathV(mapper.mapSourceFile(f))
@@ -619,22 +682,26 @@ final class ProtobufWriters(mapper: WriteMapper) {
   private final val prodToString = (f: VirtualFileRef) => toStringPathV(mapper.mapProductFile(f))
 
   private final val stringId = identity[String] _
-  def toRelations(relations: Relations): schema.Relations = {
+  def toRelations(relations: Relations): Schema.Relations = {
     import sbt.internal.util.Relation
 
-    def toUsedName(usedName: UsedName): schema.UsedName = {
-      import scala.collection.JavaConverters._
+    def toUsedName(usedName: UsedName): Schema.UsedName = {
       val name = usedName.name
       val javaIterator = usedName.scopes.iterator()
       val scopes = javaIterator.asScala.map(toUseScope).toList
-      schema.UsedName(name = name, scopes = scopes)
+      Schema.UsedName.newBuilder
+        .setName(name)
+        .addAllScopes(scopes.asJava)
+        .build
     }
 
-    def toUsedNamesMap(relation: Relation[String, UsedName]): Map[String, schema.UsedNames] = {
+    def toUsedNamesMap(relation: Relation[String, UsedName]): Map[String, Schema.UsedNames] = {
       relation.forwardMap
         .mapValues({ names =>
           val usedNames = names.iterator.map(toUsedName).toList
-          schema.UsedNames(usedNames = usedNames)
+          Schema.UsedNames.newBuilder
+            .addAllUsedNames(usedNames.asJava)
+            .build
         })
         .toMap
     }
@@ -643,10 +710,12 @@ final class ProtobufWriters(mapper: WriteMapper) {
         relation: Relation[K, V],
         fk: K => String,
         fv: V => String
-    ): Map[String, schema.Values] = {
+    ): Map[String, Schema.Values] = {
       relation.forwardMap.map {
         case (k, vs) =>
-          val fileValues = schema.Values(values = vs.iterator.map(fv).toList)
+          val fileValues = Schema.Values.newBuilder
+            .addAllValues(vs.iterator.map(fv).toList.asJava)
+            .build
           fk(k) -> fileValues
       }
     }
@@ -663,73 +732,70 @@ final class ProtobufWriters(mapper: WriteMapper) {
     val classes = toMap(relations.classes, sourceToString, stringId)
     val productClassName = toMap(relations.productClassName, stringId, stringId)
     val names = toUsedNamesMap(relations.names)
-    val memberRef = Some(
-      schema.ClassDependencies(
-        internal = memberRefInternal,
-        external = memberRefExternal
-      )
-    )
-    val inheritance = Some(
-      schema.ClassDependencies(
-        internal = inheritanceInternal,
-        external = inheritanceExternal
-      )
-    )
-    val localInheritance = Some(
-      schema.ClassDependencies(
-        internal = localInheritanceInternal,
-        external = localInheritanceExternal
-      )
-    )
-    schema.Relations(
-      srcProd = srcProd,
-      libraryDep = libraryDep,
-      libraryClassName = libraryClassName,
-      classes = classes,
-      productClassName = productClassName,
-      names = names,
-      memberRef = memberRef,
-      inheritance = inheritance,
-      localInheritance = localInheritance
-    )
+    val memberRef = Schema.ClassDependencies.newBuilder
+      .putAllInternal(memberRefInternal.asJava)
+      .putAllExternal(memberRefExternal.asJava)
+      .build
+
+    val inheritance = Schema.ClassDependencies.newBuilder
+      .putAllInternal(inheritanceInternal.asJava)
+      .putAllExternal(inheritanceExternal.asJava)
+      .build
+
+    val localInheritance = Schema.ClassDependencies.newBuilder
+      .putAllInternal(localInheritanceInternal.asJava)
+      .putAllExternal(localInheritanceExternal.asJava)
+      .build
+
+    Schema.Relations.newBuilder
+      .putAllSrcProd(srcProd.asJava)
+      .putAllLibraryDep(libraryDep.asJava)
+      .putAllLibraryClassName(libraryClassName.asJava)
+      .putAllClasses(classes.asJava)
+      .putAllProductClassName(productClassName.asJava)
+      .putAllNames(names.asJava)
+      .setMemberRef(memberRef)
+      .setInheritance(inheritance)
+      .setLocalInheritance(localInheritance)
+      .build
   }
 
-  def toApis(apis: APIs, shouldStoreApis: Boolean): schema.APIs = {
+  def toApis(apis: APIs, shouldStoreApis: Boolean): Schema.APIs = {
     val toAnalyzedClassSchema = toAnalyzedClass(shouldStoreApis) _
     val internal = apis.internal.mapValues(toAnalyzedClassSchema).toMap
     val external = apis.external.mapValues(toAnalyzedClassSchema).toMap
-    schema.APIs(internal = internal, external = external)
+    Schema.APIs.newBuilder
+      .putAllInternal(internal.asJava)
+      .putAllExternal(external.asJava)
+      .build
   }
 
   def toApisFile(
       apis0: APIs,
-      version: schema.Version,
+      version: Schema.Version,
       shouldStoreApis: Boolean
-  ): schema.APIsFile = {
-    val apis = Some(toApis(apis0, shouldStoreApis))
-    schema.APIsFile(version = version, apis = apis)
-  }
+  ): Schema.APIsFile =
+    Schema.APIsFile.newBuilder
+      .setVersion(version)
+      .setApis(toApis(apis0, shouldStoreApis))
+      .build
 
-  def toAnalysis(analysis: Analysis): schema.Analysis = {
-    val stamps = Some(toStamps(analysis.stamps))
-    val relations = Some(toRelations(analysis.relations))
-    val sourceInfos = Some(toSourceInfos(analysis.infos))
-    val compilations = Some(toCompilations(analysis.compilations))
-    schema.Analysis(
-      stamps = stamps,
-      relations = relations,
-      sourceInfos = sourceInfos,
-      compilations = compilations
-    )
-  }
+  def toAnalysis(analysis: Analysis): Schema.Analysis =
+    Schema.Analysis.newBuilder
+      .setStamps(toStamps(analysis.stamps))
+      .setRelations(toRelations(analysis.relations))
+      .setSourceInfos(toSourceInfos(analysis.infos))
+      .setCompilations(toCompilations(analysis.compilations))
+      .build
 
   def toAnalysisFile(
       analysis0: Analysis,
       miniSetup0: MiniSetup,
-      version: schema.Version
-  ): schema.AnalysisFile = {
-    val analysis = Some(toAnalysis(analysis0))
-    val miniSetup = Some(toMiniSetup(miniSetup0))
-    schema.AnalysisFile(version = version, analysis = analysis, miniSetup = miniSetup)
-  }
+      version: Schema.Version
+  ): Schema.AnalysisFile =
+    Schema.AnalysisFile.newBuilder
+      .setVersion(version)
+      .setAnalysis(toAnalysis(analysis0))
+      .setMiniSetup(toMiniSetup(miniSetup0))
+      .build
 }

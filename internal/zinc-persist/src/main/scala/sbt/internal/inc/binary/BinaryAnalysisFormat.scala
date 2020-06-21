@@ -13,12 +13,12 @@ package sbt.internal.inc.binary
 
 import com.google.protobuf.{ CodedInputStream, CodedOutputStream }
 import sbt.internal.inc.binary.converters.{ ProtobufReaders, ProtobufWriters }
-import sbt.internal.inc.{ Analysis, schema }
+import sbt.internal.inc.{ Analysis, Schema }
 import xsbti.compile.analysis.ReadWriteMappers
 import xsbti.compile.{ CompileAnalysis, MiniSetup }
 
 final class BinaryAnalysisFormat(mappers: ReadWriteMappers) {
-  private final val CurrentVersion = schema.Version.V1_1
+  private final val CurrentVersion = Schema.Version.V1_1
   private final val protobufWriters = new ProtobufWriters(mappers.getWriteMapper)
   private final val protobufReaders = new ProtobufReaders(mappers.getReadMapper, CurrentVersion)
 
@@ -42,7 +42,7 @@ final class BinaryAnalysisFormat(mappers: ReadWriteMappers) {
   }
 
   def read(reader: CodedInputStream): (CompileAnalysis, MiniSetup) = {
-    val protobufFile = schema.AnalysisFile.parseFrom(reader)
+    val protobufFile = Schema.AnalysisFile.parseFrom(reader)
     val (analysis, miniSetup, _) = protobufReaders.fromAnalysisFile(protobufFile)
     analysis -> miniSetup
   }
@@ -53,7 +53,7 @@ final class BinaryAnalysisFormat(mappers: ReadWriteMappers) {
       shouldStoreApis: Boolean
   ): CompileAnalysis = {
     val analysis = analysis0 match { case analysis: Analysis => analysis }
-    val protobufAPIsFile = schema.APIsFile.parseFrom(reader)
+    val protobufAPIsFile = Schema.APIsFile.parseFrom(reader)
     val (apis, _) = protobufReaders.fromApisFile(protobufAPIsFile, shouldStoreApis)
     analysis.copy(apis = apis)
   }

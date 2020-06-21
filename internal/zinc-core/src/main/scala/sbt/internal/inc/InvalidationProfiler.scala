@@ -12,6 +12,7 @@
 package sbt.internal.inc
 
 import xsbti.{ UseScope, VirtualFileRef }
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
@@ -26,13 +27,13 @@ import scala.collection.mutable.ArrayBuffer
  */
 abstract class InvalidationProfiler {
   def profileRun: RunProfiler
-  def registerRun(run: zprof.ZincRun): Unit
+  def registerRun(run: Zprof.ZincRun): Unit
 }
 
 object InvalidationProfiler {
   final val empty: InvalidationProfiler = new InvalidationProfiler {
     override def profileRun: RunProfiler = RunProfiler.empty
-    override def registerRun(run: zprof.ZincRun): Unit = ()
+    override def registerRun(run: Zprof.ZincRun): Unit = ()
   }
 }
 
@@ -52,8 +53,8 @@ class ZincInvalidationProfiler extends InvalidationProfiler {
 
   def profileRun: RunProfiler = new ZincProfilerImplementation
 
-  private final var runs: List[zprof.ZincRun] = Nil
-  def registerRun(run: zprof.ZincRun): Unit = {
+  private final var runs: List[Zprof.ZincRun] = Nil
+  def registerRun(run: Zprof.ZincRun): Unit = {
     runs = run :: runs
     ()
   }
@@ -70,10 +71,11 @@ class ZincInvalidationProfiler extends InvalidationProfiler {
    *
    * @return An immutable zprof profile that can be persisted via protobuf.
    */
-  def toProfile: zprof.Profile = zprof.Profile(
-    runs = runs,
-    stringTable = stringTable.toSeq
-  )
+  def toProfile: Zprof.Profile =
+    Zprof.Profile.newBuilder
+      .addAllRuns(runs.asJava)
+      .addAllStringTable(stringTable.toList.asJava)
+      .build
 
   private[inc] class ZincProfilerImplementation extends RunProfiler {
     private def toStringTableIndex(string: String): Int = {
@@ -92,8 +94,8 @@ class ZincInvalidationProfiler extends InvalidationProfiler {
       }
     }
 
-    private def toStringTableIndices(strings: Iterable[String]): Iterable[Int] =
-      strings.map(toStringTableIndex(_))
+    private def toStringTableIndices(strings: Iterable[String]): Iterable[java.lang.Integer] =
+      strings.map(x => (toStringTableIndex(x): java.lang.Integer))
 
     private final var compilationStartNanos: Long = 0L
     private final var compilationDurationNanos: Long = 0L
@@ -105,75 +107,89 @@ class ZincInvalidationProfiler extends InvalidationProfiler {
     private def toPathStrings(files: Iterable[VirtualFileRef]): Iterable[String] =
       files.map(_.id)
 
-    def toApiChanges(changes: APIChanges): Iterable[zprof.ApiChange] = {
-      def toUsedNames(names: Iterable[UsedName]): Iterable[zprof.UsedName] = {
+    def toApiChanges(changes: APIChanges): Iterable[Zprof.ApiChange] = {
+      def toUsedNames(names: Iterable[UsedName]): Iterable[Zprof.UsedName] = {
         import scala.collection.JavaConverters._
         names.map { name =>
           val scopes = name.scopes.asScala.map {
-            case UseScope.Default      => zprof.Scope(toStringTableIndex("default"))
-            case UseScope.Implicit     => zprof.Scope(toStringTableIndex("implicit"))
-            case UseScope.PatMatTarget => zprof.Scope(toStringTableIndex("patmat target"))
+            case UseScope.Default =>
+              Zprof.Scope.newBuilder.setKind(toStringTableIndex("default")).build
+            case UseScope.Implicit =>
+              Zprof.Scope.newBuilder.setKind(toStringTableIndex("implicit")).build
+            case UseScope.PatMatTarget =>
+              Zprof.Scope.newBuilder.setKind(toStringTableIndex("patmat target")).build
           }
-          zprof.UsedName(toStringTableIndex(name.name), scopes.toList)
+          Zprof.UsedName.newBuilder
+            .setName(toStringTableIndex(name.name))
+            .addAllScopes(scopes.toList.asJava)
+            .build
         }
       }
 
       changes.apiChanges.map {
         case change: APIChangeDueToMacroDefinition =>
-          zprof.ApiChange(
-            toStringTableIndex(change.modifiedClass),
-            "API change due to macro definition."
-          )
+          Zprof.ApiChange.newBuilder
+            .setModifiedClass(toStringTableIndex(change.modifiedClass))
+            .setReason("API change due to macro definition.")
+            .build
         case change: TraitPrivateMembersModified =>
-          zprof.ApiChange(
-            toStringTableIndex(change.modifiedClass),
-            s"API change due to existence of private trait members in modified class."
-          )
+          Zprof.ApiChange.newBuilder
+            .setModifiedClass(toStringTableIndex(change.modifiedClass))
+            .setReason(s"API change due to existence of private trait members in modified class.")
+            .build
         case NamesChange(modifiedClass, modifiedNames) =>
           val usedNames = toUsedNames(modifiedNames.names).toList
-          zprof.ApiChange(
-            toStringTableIndex(modifiedClass),
-            s"Standard API name change in modified class.",
-            usedNames = usedNames
-          )
+          Zprof.ApiChange.newBuilder
+            .setModifiedClass(toStringTableIndex(modifiedClass))
+            .setReason(s"Standard API name change in modified class.")
+            .addAllUsedNames(usedNames.asJava)
+            .build
       }
     }
 
     def registerInitial(changes: InitialChanges): Unit = {
-      import scala.collection.JavaConverters._
       val fileChanges = changes.internalSrc
-      val profChanges = zprof.Changes(
-        added = toStringTableIndices(toPathStrings(fileChanges.getAdded.asScala)).toList,
-        removed = toStringTableIndices(toPathStrings(fileChanges.getRemoved.asScala)).toList,
-        modified = toStringTableIndices(toPathStrings(fileChanges.getChanged.asScala)).toList
-      )
-      zprof.InitialChanges(
-        changes = Some(profChanges),
-        removedProducts = toStringTableIndices(toPathStrings(changes.removedProducts)).toList,
-        binaryDependencies = toStringTableIndices(toPathStrings(changes.libraryDeps)).toList,
-        externalChanges = toApiChanges(changes.external).toList
-      )
+      val profChanges = Zprof.Changes.newBuilder
+        .addAllAdded(
+          toStringTableIndices(toPathStrings(fileChanges.getAdded.asScala)).toList.asJava
+        )
+        .addAllRemoved(
+          toStringTableIndices(toPathStrings(fileChanges.getRemoved.asScala)).toList.asJava
+        )
+        .addAllModified(
+          toStringTableIndices(toPathStrings(fileChanges.getChanged.asScala)).toList.asJava
+        )
+        .build
+      Zprof.InitialChanges.newBuilder
+        .setChanges(profChanges)
+        .addAllRemovedProducts(
+          toStringTableIndices(toPathStrings(changes.removedProducts)).toList.asJava
+        )
+        .addAllBinaryDependencies(
+          toStringTableIndices(toPathStrings(changes.libraryDeps)).toList.asJava
+        )
+        .addAllExternalChanges(toApiChanges(changes.external).toList.asJava)
+        .build
       ()
     }
 
-    private final var currentEvents: List[zprof.InvalidationEvent] = Nil
+    private final var currentEvents: List[Zprof.InvalidationEvent] = Nil
     def registerEvent(
         kind: String,
         inputs: Iterable[String],
         outputs: Iterable[String],
         reason: String
     ): Unit = {
-      val event = zprof.InvalidationEvent(
-        kind = kind,
-        inputs = toStringTableIndices(inputs).toList,
-        outputs = toStringTableIndices(outputs).toList,
-        reason = reason
-      )
-
+      val event = Zprof.InvalidationEvent.newBuilder
+        .setKind(kind)
+        .addAllInputs(toStringTableIndices(inputs).toList.asJava)
+        .addAllOutputs(toStringTableIndices(outputs).toList.asJava)
+        .setReason(reason)
+        .build
       currentEvents = event :: currentEvents
     }
 
-    private final var cycles: List[zprof.CycleInvalidation] = Nil
+    private final var cycles: List[Zprof.CycleInvalidation] = Nil
     def registerCycle(
         invalidatedClasses: Iterable[String],
         invalidatedPackageObjects: Iterable[String],
@@ -184,19 +200,23 @@ class ZincInvalidationProfiler extends InvalidationProfiler {
         nextInvalidations: Iterable[String],
         shouldCompileIncrementally: Boolean
     ): Unit = {
-      val newCycle = zprof.CycleInvalidation(
-        invalidated = toStringTableIndices(invalidatedClasses).toList,
-        invalidatedByPackageObjects = toStringTableIndices(invalidatedPackageObjects).toList,
-        initialSources = toStringTableIndices(toPathStrings(initialSources)).toList,
-        invalidatedSources = toStringTableIndices(toPathStrings(invalidatedSources)).toList,
-        recompiledClasses = toStringTableIndices(recompiledClasses).toList,
-        changesAfterRecompilation = toApiChanges(changesAfterRecompilation).toList,
-        nextInvalidations = toStringTableIndices(nextInvalidations).toList,
-        startTimeNanos = compilationStartNanos,
-        compilationDurationNanos = compilationDurationNanos,
-        events = currentEvents,
-        shouldCompileIncrementally = shouldCompileIncrementally
-      )
+      val newCycle = Zprof.CycleInvalidation.newBuilder
+        .addAllInvalidated(toStringTableIndices(invalidatedClasses).toList.asJava)
+        .addAllInvalidatedByPackageObjects(
+          toStringTableIndices(invalidatedPackageObjects).toList.asJava
+        )
+        .addAllInitialSources(toStringTableIndices(toPathStrings(initialSources)).toList.asJava)
+        .addAllInvalidatedSources(
+          toStringTableIndices(toPathStrings(invalidatedSources)).toList.asJava
+        )
+        .addAllRecompiledClasses(toStringTableIndices(recompiledClasses).toList.asJava)
+        .addAllChangesAfterRecompilation(toApiChanges(changesAfterRecompilation).toList.asJava)
+        .addAllNextInvalidations(toStringTableIndices(nextInvalidations).toList.asJava)
+        .setStartTimeNanos(compilationStartNanos)
+        .setCompilationDurationNanos(compilationDurationNanos)
+        .addAllEvents(currentEvents.asJava)
+        .setShouldCompileIncrementally(shouldCompileIncrementally)
+        .build
 
       cycles = newCycle :: cycles
       ()
@@ -264,12 +284,9 @@ object RunProfiler {
 }
 
 trait InvalidationProfilerUtils {
-  // Define this so that we can provide default labels for events in protobuf-generate companion
-  implicit class InvalidationEventXCompanion(invalidationEvent: zprof.InvalidationEvent.type) {
-    final val LocalInheritanceKind = "local inheritance"
-    final val InheritanceKind = "inheritance"
-    final val MemberReferenceKind = "member reference"
-  }
+  final val LocalInheritanceKind = "local inheritance"
+  final val InheritanceKind = "inheritance"
+  final val MemberReferenceKind = "member reference"
 }
 
 // So that others users from outside [[IncrementalCommon]] can use the labels

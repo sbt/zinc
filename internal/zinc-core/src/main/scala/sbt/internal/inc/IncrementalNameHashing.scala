@@ -152,7 +152,7 @@ private[inc] class IncrementalNameHashingCommon(
     val modifiedClass = change.modifiedClass
     val transitiveInheritance = invalidateByInheritance(relations, modifiedClass)
     profiler.registerEvent(
-      zprof.InvalidationEvent.InheritanceKind,
+      InvalidationProfilerUtils.InheritanceKind,
       List(modifiedClass),
       transitiveInheritance,
       s"The invalidated class names inherit directly or transitively on ${modifiedClass}."
@@ -161,7 +161,7 @@ private[inc] class IncrementalNameHashingCommon(
     val localInheritance =
       transitiveInheritance.flatMap(invalidateByLocalInheritance(relations, _))
     profiler.registerEvent(
-      zprof.InvalidationEvent.LocalInheritanceKind,
+      InvalidationProfilerUtils.LocalInheritanceKind,
       transitiveInheritance,
       localInheritance,
       s"The invalidated class names inherit (via local inheritance) directly or transitively on ${modifiedClass}."
@@ -172,7 +172,7 @@ private[inc] class IncrementalNameHashingCommon(
       memberRefInvalidator.get(memberRefSrcDeps, relations.names, change, isScalaClass)
     val memberRef = transitiveInheritance flatMap memberRefInvalidation
     profiler.registerEvent(
-      zprof.InvalidationEvent.MemberReferenceKind,
+      InvalidationProfilerUtils.MemberReferenceKind,
       transitiveInheritance,
       memberRef,
       s"The invalidated class names refer directly or transitively to ${modifiedClass}."
