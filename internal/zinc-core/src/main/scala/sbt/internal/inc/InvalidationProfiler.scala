@@ -11,6 +11,7 @@
 
 package sbt.internal.inc
 
+import sbt.internal.prof.Zprof
 import xsbti.{ UseScope, VirtualFileRef }
 import scala.collection.JavaConverters._
 import scala.collection.mutable

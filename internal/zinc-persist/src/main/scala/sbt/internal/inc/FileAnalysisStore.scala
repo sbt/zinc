@@ -17,7 +17,7 @@ import java.io._
 import java.util.Optional
 import java.util.zip.{ ZipEntry, ZipInputStream }
 
-import com.google.protobuf.{ CodedInputStream, CodedOutputStream }
+import sbt.internal.shaded.com.google.protobuf.{ CodedInputStream, CodedOutputStream }
 import sbt.internal.inc.binary.BinaryAnalysisFormat
 import sbt.internal.inc.text.TextAnalysisFormat
 import sbt.io.{ IO, Using }

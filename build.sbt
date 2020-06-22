@@ -152,8 +152,8 @@ lazy val zincRoot: Project = (project in file("."))
       zincCompile.projectRefs ++
       zincCore.projectRefs ++
       zincPersist.projectRefs ++
-      zincPersistCore.projectRefs ++
-      zincProfCore.projectRefs ++
+      Seq(zincPersistCore: ProjectReference) ++
+      zincPersistCoreAssembly.projectRefs ++
       zincTesting.projectRefs ++
       zinc.projectRefs: _*
   )
@@ -285,7 +285,7 @@ lazy val zincCompile = (projectMatrix in zincRootPath / "zinc-compile")
 
 // Persists the incremental data structures using Protobuf
 lazy val zincPersist = (projectMatrix in internalPath / "zinc-persist")
-  .dependsOn(zincCore, zincCompileCore, zincPersistCore, zincCore % "test->test")
+  .dependsOn(zincCore, zincCompileCore, zincPersistCoreAssembly, zincCore % "test->test")
   .settings(
     name := "zinc Persist",
     libraryDependencies += sbinary,
@@ -319,26 +319,39 @@ lazy val zincPersist = (projectMatrix in internalPath / "zinc-persist")
   .jvmPlatform(scalaVersions = List(scala212, scala213))
   .configure(addBaseSettingsAndTestDeps)
 
-lazy val zincPersistCore = (projectMatrix in internalPath / "zinc-persist-core")
-  .enablePlugins(ProtobufPlugin)
+lazy val zincPersistCoreAssembly = (projectMatrix in internalPath / "zinc-persist-core-assembly")
   .jvmPlatform(autoScalaLibrary = false)
   .settings(
-    name := "zinc Persist Core",
+    name := "zinc-persist-core-assembly",
     crossPaths := false,
-    ProtobufConfig / protobufRunProtoc := { args =>
-      Protoc.runProtoc("-v390" +: args.toArray)
-    }
+    autoScalaLibrary := false,
+    exportJars := true,
+    Compile / packageBin := (zincPersistCore / Compile / assembly).value,
   )
 
-lazy val zincProfCore = (projectMatrix in internalPath / "zinc-prof-core")
+lazy val zincPersistCore = (project in internalPath / "zinc-persist-core")
   .enablePlugins(ProtobufPlugin)
-  .jvmPlatform(autoScalaLibrary = false)
   .settings(
-    name := "zinc Prof Core",
+    name := "zinc-persist-core",
     crossPaths := false,
+    autoScalaLibrary := false,
+    exportJars := true,
     ProtobufConfig / protobufRunProtoc := { args =>
       Protoc.runProtoc("-v390" +: args.toArray)
-    }
+    },
+    publish / skip := true,
+    assembly / assemblyShadeRules := Seq(
+      ShadeRule
+        .rename("com.google.protobuf.**" -> "sbt.internal.shaded.com.google.protobuf.@1")
+        .inAll
+    ),
+    // remove *.proto files
+    assembly / assemblyMergeStrategy := {
+      case PathList(ps @ _*) if ps.last endsWith ".proto" => MergeStrategy.discard
+      case x =>
+        val oldStrategy = (assemblyMergeStrategy in assembly).value
+        oldStrategy(x)
+    },
   )
 
 // Implements the core functionality of detecting and propagating changes incrementally.
@@ -349,7 +362,7 @@ lazy val zincCore = (projectMatrix in internalPath / "zinc-core")
     zincApiInfo,
     zincClasspath,
     compilerInterface,
-    zincProfCore,
+    zincPersistCoreAssembly,
     compilerBridge % Test,
     zincTesting % Test
   )

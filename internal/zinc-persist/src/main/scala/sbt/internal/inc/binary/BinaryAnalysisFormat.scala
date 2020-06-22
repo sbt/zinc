@@ -11,7 +11,7 @@
 
 package sbt.internal.inc.binary
 
-import com.google.protobuf.{ CodedInputStream, CodedOutputStream }
+import sbt.internal.shaded.com.google.protobuf.{ CodedInputStream, CodedOutputStream }
 import sbt.internal.inc.binary.converters.{ ProtobufReaders, ProtobufWriters }
 import sbt.internal.inc.{ Analysis, Schema }
 import xsbti.compile.analysis.ReadWriteMappers
