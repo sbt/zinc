@@ -187,26 +187,11 @@ object LocalJava {
     }
   }
 
-  private[sbt] def toUri(vf: VirtualFile): URI =
-    new URI(
-      "vf:/tmp/" + vf.id
-        .replaceAllLiterally("$", "%24")
-        .replaceAllLiterally("{", "%7B")
-        .replaceAllLiterally("}", "%7D")
-        .replaceAllLiterally(" ", "%20")
-    )
+  private[sbt] def toUri(vf: VirtualFile): URI = new URI("vf", "tmp", s"/${vf.id}", null)
 
   private[sbt] def fromUri(uri: URI): VirtualFileRef =
     if (uri.getScheme != "vf") sys.error(s"invalid URI for VirtualFileRef: $uri")
-    else {
-      val part = uri.getSchemeSpecificPart.stripPrefix("/tmp/")
-      val id = part
-        .replaceAllLiterally("%24", "$")
-        .replaceAllLiterally("%7B", "{")
-        .replaceAllLiterally("%7D", "}")
-        .replaceAllLiterally("%20", " ")
-      VirtualFileRef.of(id)
-    }
+    else VirtualFileRef.of(uri.getPath.stripPrefix("/"))
 }
 
 /** Implementation of javadoc tool which attempts to run it locally (in-class). */
