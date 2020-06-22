@@ -102,25 +102,25 @@ public class IncOptionsUtil {
         if (values.containsKey(CLASSFILE_MANAGER_TYPE_KEY)) {
             String value = values.get(CLASSFILE_MANAGER_TYPE_KEY);
             if (value.equals(XSBTI_NOTHING)) {
-                base.withClassfileManagerType(Optional.empty());
+                base = base.withClassfileManagerType(Optional.empty());
             } else {
                 logger.debug(f0("CLASS_FILE_MANAGER_TYPE_KEY value was read."));
                 if (value.equals(TRANSACTIONAL_MANAGER_TYPE)) {
                     if (values.containsKey(TRANSACTIONAL_MANAGER_BASE_DIRECTORY)) {
                         File baseDirectory = new File(values.get(TRANSACTIONAL_MANAGER_BASE_DIRECTORY));
-                        base.withClassfileManagerType(Optional.of(new TransactionalManagerType(baseDirectory, logger)));
+                        base = base.withClassfileManagerType(new TransactionalManagerType(baseDirectory, logger));
                     } else {
                         logger.warn(f0("Missing " + TRANSACTIONAL_MANAGER_BASE_DIRECTORY + " key for specified transactional classfile manager."));
                         logger.warn(f0("Classfile manager defaults to delete immediately manager type."));
-                        base.withClassfileManagerType(Optional.of(new DeleteImmediatelyManagerType()));
+                        base = base.withClassfileManagerType(new DeleteImmediatelyManagerType());
                     }
                 } else if (value.equals(DELETE_IMMEDIATELY_MANAGER_TYPE)) {
-                    base.withClassfileManagerType(Optional.of(new DeleteImmediatelyManagerType()));
+                    base = base.withClassfileManagerType(new DeleteImmediatelyManagerType());
                 } else {
                     logger.warn(f0("Unrecognised classfile manager type key " + value + "."));
                     logger.warn(f0("Classfile manager defaults to delete immediately manager type."));
                     // Default case -- if value is not understood, pick DeleteImmediatelyManagerType
-                    base.withClassfileManagerType(Optional.of(new DeleteImmediatelyManagerType()));
+                    base = base.withClassfileManagerType(new DeleteImmediatelyManagerType());
                 }
             }
         }
