@@ -12,7 +12,7 @@
 package sbt.internal.inc.binary.converters
 
 import xsbti.api._
-import sbt.internal.inc.schema
+import sbt.internal.inc.Schema
 
 object ProtobufDefaults {
   final val MissingInt: Int = -1
@@ -27,59 +27,59 @@ object ProtobufDefaults {
   }
 
   object WritersConstants {
-    final val This: schema.This = schema.This.defaultInstance
-    final val PublicAccess: schema.Public = schema.Public.defaultInstance
-    final val Unqualified: schema.Unqualified = schema.Unqualified.defaultInstance
-    final val EmptyType: schema.Type.EmptyType = schema.Type.EmptyType.defaultInstance
-    final val ThisQualifier: schema.ThisQualifier = schema.ThisQualifier.defaultInstance
+    final val This: Schema.This = Schema.This.getDefaultInstance
+    final val PublicAccess: Schema.Public = Schema.Public.getDefaultInstance
+    final val Unqualified: Schema.Unqualified = Schema.Unqualified.getDefaultInstance
+    final val EmptyType: Schema.Type.EmptyType = Schema.Type.EmptyType.getDefaultInstance
+    final val ThisQualifier: Schema.ThisQualifier = Schema.ThisQualifier.getDefaultInstance
   }
 
   object Classes {
-    final val Annotation = classOf[schema.Annotation]
-    final val Parameterized = classOf[schema.Type.Parameterized]
-    final val ParamModifier = classOf[schema.ParameterModifier]
-    final val Polymorphic = classOf[schema.Type.Polymorphic]
-    final val Constant = classOf[schema.Type.Constant]
-    final val Existential = classOf[schema.Type.Existential]
-    final val Singleton = classOf[schema.Type.Singleton]
-    final val Annotated = classOf[schema.Type.Annotated]
-    final val MethodParameter = classOf[schema.MethodParameter]
-    final val Val = classOf[schema.ClassDefinition.Val]
-    final val Var = classOf[schema.ClassDefinition.Var]
-    final val TypeAlias = classOf[schema.ClassDefinition.TypeAlias]
-    final val TypeDeclaration = classOf[schema.ClassDefinition.TypeDeclaration]
-    final val Def = classOf[schema.ClassDefinition.Def]
-    final val PathComponent = classOf[schema.Path.PathComponent]
-    final val Component = classOf[schema.Path.PathComponent.Component]
-    final val ClassLike = classOf[schema.ClassLike]
-    final val Structure = classOf[schema.Type.Structure]
-    final val ClassLikeDef = classOf[schema.ClassDefinition.ClassLikeDef]
-    final val ClassDefinition = classOf[schema.ClassDefinition]
-    final val TypeParameter = classOf[schema.TypeParameter]
-    final val Type = classOf[schema.Type]
-    final val Projection = classOf[schema.Type.Projection]
-    final val Access = classOf[schema.Access]
-    final val Modifiers = classOf[schema.Modifiers]
-    final val Severity = classOf[schema.Severity]
-    final val UseScope = classOf[schema.UseScope]
-    final val CompileOrder = classOf[schema.CompileOrder]
-    final val Path = classOf[schema.Path]
-    final val Super = classOf[schema.Super]
-    final val MiniOptions = classOf[schema.MiniOptions]
-    final val MiniSetup = classOf[schema.MiniSetup]
-    final val CompilationOutput = classOf[schema.Compilation.Output]
-    final val MiniSetupOutput = classOf[schema.MiniSetup.Output]
-    final val Position = classOf[schema.Position]
-    final val Problem = classOf[schema.Problem]
-    final val Companions = classOf[schema.Companions]
-    final val Relations = classOf[schema.Relations]
-    final val Stamps = classOf[schema.Stamps]
-    final val Compilations = classOf[schema.Compilations]
-    final val SourceInfos = classOf[schema.SourceInfos]
-    final val AnalyzedClass = classOf[schema.AnalyzedClass]
-    final val Analysis = classOf[schema.Analysis]
-    final val APIs = classOf[schema.APIs]
-    final val APIsFile = classOf[schema.APIsFile]
+    final val Annotation = classOf[Schema.Annotation]
+    final val Parameterized = classOf[Schema.Type.Parameterized]
+    final val ParamModifier = classOf[Schema.ParameterModifier]
+    final val Polymorphic = classOf[Schema.Type.Polymorphic]
+    final val Constant = classOf[Schema.Type.Constant]
+    final val Existential = classOf[Schema.Type.Existential]
+    final val Singleton = classOf[Schema.Type.Singleton]
+    final val Annotated = classOf[Schema.Type.Annotated]
+    final val MethodParameter = classOf[Schema.MethodParameter]
+    final val Val = classOf[Schema.ClassDefinition.Val]
+    final val Var = classOf[Schema.ClassDefinition.Var]
+    final val TypeAlias = classOf[Schema.ClassDefinition.TypeAlias]
+    final val TypeDeclaration = classOf[Schema.ClassDefinition.TypeDeclaration]
+    final val Def = classOf[Schema.ClassDefinition.Def]
+    final val PathComponent = classOf[Schema.Path.PathComponent]
+    final val Component = classOf[Schema.Path.PathComponent.ComponentCase]
+    final val ClassLike = classOf[Schema.ClassLike]
+    final val Structure = classOf[Schema.Type.Structure]
+    final val ClassLikeDef = classOf[Schema.ClassDefinition.ClassLikeDef]
+    final val ClassDefinition = classOf[Schema.ClassDefinition]
+    final val TypeParameter = classOf[Schema.TypeParameter]
+    final val Type = classOf[Schema.Type]
+    final val Projection = classOf[Schema.Type.Projection]
+    final val Access = classOf[Schema.Access]
+    final val Modifiers = classOf[Schema.Modifiers]
+    final val Severity = classOf[Schema.Severity]
+    final val UseScope = classOf[Schema.UseScope]
+    final val CompileOrder = classOf[Schema.CompileOrder]
+    final val Path = classOf[Schema.Path]
+    final val Super = classOf[Schema.Super]
+    final val MiniOptions = classOf[Schema.MiniOptions]
+    final val MiniSetup = classOf[Schema.MiniSetup]
+    final val CompilationOutput = classOf[Schema.Compilation.OutputCase]
+    final val MiniSetupOutput = classOf[Schema.MiniSetup.OutputCase]
+    final val Position = classOf[Schema.Position]
+    final val Problem = classOf[Schema.Problem]
+    final val Companions = classOf[Schema.Companions]
+    final val Relations = classOf[Schema.Relations]
+    final val Stamps = classOf[Schema.Stamps]
+    final val Compilations = classOf[Schema.Compilations]
+    final val SourceInfos = classOf[Schema.SourceInfos]
+    final val AnalyzedClass = classOf[Schema.AnalyzedClass]
+    final val Analysis = classOf[Schema.Analysis]
+    final val APIs = classOf[Schema.APIs]
+    final val APIsFile = classOf[Schema.APIsFile]
   }
 
   object EmptyLazyCompanions extends Lazy[Companions] {
