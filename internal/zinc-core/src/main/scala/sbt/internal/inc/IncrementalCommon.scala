@@ -232,8 +232,8 @@ private[inc] abstract class IncrementalCommon(
           partialAnalysis: Analysis
       ): CompileCycleResult = {
         val a1 = pruned ++ partialAnalysis
-        val results = prev.fold(mergeAndInvalidate(a1, true))(_.copy(analysis = a1))
-        val products = a1.relations.allProducts
+        val results = prev.fold(mergeAndInvalidate(partialAnalysis, true))(_.copy(analysis = a1))
+        val products = partialAnalysis.relations.allProducts
           .map(converter.toVirtualFile(_))
         classFileManager.generated(products.toArray)
         results
