@@ -132,6 +132,7 @@ final class ScriptedTests(
     val runner = new BatchScriptRunner
     val batchId = s"initial-batch-${batchIdGenerator.incrementAndGet()}"
     val batchLogger = createBatchLogger(batchId)
+    if (bufferLog) batchLogger.buffer.record()
     val handlers = createScriptedHandlers(batchId, batchTmpDir, batchLogger.log)
     val states = new BatchScriptRunner.States
     val seqHandlers = handlers.values.toList
@@ -143,8 +144,9 @@ final class ScriptedTests(
         val loggerName = s"scripted-$group-$name.log"
         val logFile = createScriptedLogFile(loggerName)
         val logger = rebindLogger(batchLogger, logFile)
+        if (bufferLog) batchLogger.buffer.record()
 
-        println(s"Running $label")
+        batchLogger.log.info(s"Running $label")
         // Copy test's contents
         IO.copyDirectory(originalDir, batchTmpDir.toFile)
 
@@ -182,7 +184,6 @@ final class ScriptedTests(
       scriptedLogger: ScriptedLogger
   ): Option[String] = {
     val ScriptedLogger(logger, buffer) = scriptedLogger
-    if (bufferLog) buffer.record()
 
     val (file, pending) = {
       val normal = testDirectory.resolve(ScriptFilename)
