@@ -12,7 +12,8 @@
 package sbt.internal.inc
 
 import sbt.internal.prof.Zprof
-import xsbti.{ UseScope, VirtualFileRef }
+import xsbti.UseScope._
+import xsbti.VirtualFileRef
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -39,26 +40,19 @@ object InvalidationProfiler {
 }
 
 class ZincInvalidationProfiler extends InvalidationProfiler {
-  private final var lastKnownIndex: Int = -1
   /* The string table contains any kind of repeated string that is likely to occur
    * in the protobuf profiling data. This includes used names, class names, source
    * files and class files (their paths), as well as other repeated strings. This is
    * done to keep the memory overhead of the profiler to a minimum. */
   private final val stringTable: ArrayBuffer[String] = new ArrayBuffer[String](1000)
-
-  /* Maps strings to indices. The indices are long because we're overprotecting ourselves
-   * in case the string table grows gigantic. This should not happen, but as the profiling
-   * scheme of pprof does it and it's not cumbersome to implement it, we replicate the same design. */
   private final val stringTableIndices: mutable.HashMap[String, Int] =
     new mutable.HashMap[String, Int]
 
   def profileRun: RunProfiler = new ZincProfilerImplementation
 
   private final var runs: List[Zprof.ZincRun] = Nil
-  def registerRun(run: Zprof.ZincRun): Unit = {
-    runs = run :: runs
-    ()
-  }
+
+  def registerRun(run: Zprof.ZincRun): Unit = runs ::= run
 
   /**
    * Returns an immutable zprof profile that can be serialized.
@@ -68,7 +62,7 @@ class ZincInvalidationProfiler extends InvalidationProfiler {
    * call this function after every compiler iteration as you will
    * write a symbol table in every persisted protobuf file. It's
    * better to persist this file periodically after several runs
-   * so that the overhead in disk is not high.
+   * so that the overhead to disk is not high.
    *
    * @return An immutable zprof profile that can be persisted via protobuf.
    */
@@ -79,71 +73,55 @@ class ZincInvalidationProfiler extends InvalidationProfiler {
       .build
 
   private[inc] class ZincProfilerImplementation extends RunProfiler {
-    private def toStringTableIndex(string: String): Int = {
-      stringTableIndices.get(string) match {
-        case Some(index) =>
-          val newIndex = index.toInt
-          stringTable.apply(newIndex)
-          newIndex
-        case None =>
-          val newIndex = lastKnownIndex + 1
-          // Depending on the size of the index, use the first or second symbol table
-          stringTable.insert(newIndex.toInt, string)
-          stringTableIndices.put(string, newIndex)
-          lastKnownIndex = lastKnownIndex + 1
-          newIndex
-      }
+    private def memo(string: String): Int = { // was "toStringTableIndices"
+      stringTableIndices.getOrElseUpdate(string, {
+        stringTable += string
+        stringTable.length - 1
+      })
     }
-
-    private def toStringTableIndices(strings: Iterable[String]): Iterable[java.lang.Integer] =
-      strings.map(x => (toStringTableIndex(x): java.lang.Integer))
 
     private final var compilationStartNanos: Long = 0L
     private final var compilationDurationNanos: Long = 0L
+    private final var invalidationEvents: List[Zprof.InvalidationEvent] = Nil
+    private final var cycleInvalidations: List[Zprof.CycleInvalidation] = Nil
+
     def timeCompilation(startNanos: Long, durationNanos: Long): Unit = {
       compilationStartNanos = startNanos
       compilationDurationNanos = durationNanos
     }
 
-    private def toPathStrings(files: Iterable[VirtualFileRef]): Iterable[String] =
-      files.map(_.id)
-
-    def toApiChanges(changes: APIChanges): Iterable[Zprof.ApiChange] = {
-      def toUsedNames(names: Iterable[UsedName]): Iterable[Zprof.UsedName] = {
-        import scala.collection.JavaConverters._
-        names.map { name =>
-          val scopes = name.scopes.asScala.map {
-            case UseScope.Default =>
-              Zprof.Scope.newBuilder.setKind(toStringTableIndex("default")).build
-            case UseScope.Implicit =>
-              Zprof.Scope.newBuilder.setKind(toStringTableIndex("implicit")).build
-            case UseScope.PatMatTarget =>
-              Zprof.Scope.newBuilder.setKind(toStringTableIndex("patmat target")).build
+    private def toApiChanges(changes: APIChanges) = {
+      def toUsedNames(names: Iterable[UsedName]) = {
+        listMap(names) { name =>
+          val scopes = listMap(name.scopes.asScala) {
+            case Default      => Zprof.Scope.newBuilder.setKind(memo("default")).build
+            case Implicit     => Zprof.Scope.newBuilder.setKind(memo("implicit")).build
+            case PatMatTarget => Zprof.Scope.newBuilder.setKind(memo("patmat target")).build
           }
           Zprof.UsedName.newBuilder
-            .setName(toStringTableIndex(name.name))
-            .addAllScopes(scopes.toList.asJava)
+            .setName(memo(name.name))
+            .addAllScopes(scopes)
             .build
         }
       }
 
-      changes.apiChanges.map {
+      listMap(changes.apiChanges) {
         case change: APIChangeDueToMacroDefinition =>
           Zprof.ApiChange.newBuilder
-            .setModifiedClass(toStringTableIndex(change.modifiedClass))
+            .setModifiedClass(memo(change.modifiedClass))
             .setReason("API change due to macro definition.")
             .build
         case change: TraitPrivateMembersModified =>
           Zprof.ApiChange.newBuilder
-            .setModifiedClass(toStringTableIndex(change.modifiedClass))
-            .setReason(s"API change due to existence of private trait members in modified class.")
+            .setModifiedClass(memo(change.modifiedClass))
+            .setReason("API change due to existence of private trait members in modified class.")
             .build
         case NamesChange(modifiedClass, modifiedNames) =>
-          val usedNames = toUsedNames(modifiedNames.names).toList
+          val usedNames = toUsedNames(modifiedNames.names)
           Zprof.ApiChange.newBuilder
-            .setModifiedClass(toStringTableIndex(modifiedClass))
-            .setReason(s"Standard API name change in modified class.")
-            .addAllUsedNames(usedNames.asJava)
+            .setModifiedClass(memo(modifiedClass))
+            .setReason("Standard API name change in modified class.")
+            .addAllUsedNames(usedNames)
             .build
       }
     }
@@ -151,46 +129,33 @@ class ZincInvalidationProfiler extends InvalidationProfiler {
     def registerInitial(changes: InitialChanges): Unit = {
       val fileChanges = changes.internalSrc
       val profChanges = Zprof.Changes.newBuilder
-        .addAllAdded(
-          toStringTableIndices(toPathStrings(fileChanges.getAdded.asScala)).toList.asJava
-        )
-        .addAllRemoved(
-          toStringTableIndices(toPathStrings(fileChanges.getRemoved.asScala)).toList.asJava
-        )
-        .addAllModified(
-          toStringTableIndices(toPathStrings(fileChanges.getChanged.asScala)).toList.asJava
-        )
+        .addAllAdded(listMap(fileChanges.getAdded.asScala)(f => memo(f.id)))
+        .addAllRemoved(listMap(fileChanges.getRemoved.asScala)(f => memo(f.id)))
+        .addAllModified(listMap(fileChanges.getChanged.asScala)(f => memo(f.id)))
         .build
       Zprof.InitialChanges.newBuilder
         .setChanges(profChanges)
-        .addAllRemovedProducts(
-          toStringTableIndices(toPathStrings(changes.removedProducts)).toList.asJava
-        )
-        .addAllBinaryDependencies(
-          toStringTableIndices(toPathStrings(changes.libraryDeps)).toList.asJava
-        )
-        .addAllExternalChanges(toApiChanges(changes.external).toList.asJava)
+        .addAllRemovedProducts(listMap(changes.removedProducts)(f => memo(f.id)))
+        .addAllBinaryDependencies(listMap(changes.libraryDeps)(f => memo(f.id)))
+        .addAllExternalChanges(toApiChanges(changes.external))
         .build
       ()
     }
 
-    private final var currentEvents: List[Zprof.InvalidationEvent] = Nil
     def registerEvent(
         kind: String,
         inputs: Iterable[String],
         outputs: Iterable[String],
         reason: String
     ): Unit = {
-      val event = Zprof.InvalidationEvent.newBuilder
+      invalidationEvents ::= Zprof.InvalidationEvent.newBuilder
         .setKind(kind)
-        .addAllInputs(toStringTableIndices(inputs).toList.asJava)
-        .addAllOutputs(toStringTableIndices(outputs).toList.asJava)
+        .addAllInputs(listMap(inputs)(memo))
+        .addAllOutputs(listMap(outputs)(memo))
         .setReason(reason)
         .build
-      currentEvents = event :: currentEvents
     }
 
-    private final var cycles: List[Zprof.CycleInvalidation] = Nil
     def registerCycle(
         invalidatedClasses: Iterable[String],
         invalidatedPackageObjects: Iterable[String],
@@ -201,27 +166,22 @@ class ZincInvalidationProfiler extends InvalidationProfiler {
         nextInvalidations: Iterable[String],
         shouldCompileIncrementally: Boolean
     ): Unit = {
-      val newCycle = Zprof.CycleInvalidation.newBuilder
-        .addAllInvalidated(toStringTableIndices(invalidatedClasses).toList.asJava)
-        .addAllInvalidatedByPackageObjects(
-          toStringTableIndices(invalidatedPackageObjects).toList.asJava
-        )
-        .addAllInitialSources(toStringTableIndices(toPathStrings(initialSources)).toList.asJava)
-        .addAllInvalidatedSources(
-          toStringTableIndices(toPathStrings(invalidatedSources)).toList.asJava
-        )
-        .addAllRecompiledClasses(toStringTableIndices(recompiledClasses).toList.asJava)
-        .addAllChangesAfterRecompilation(toApiChanges(changesAfterRecompilation).toList.asJava)
-        .addAllNextInvalidations(toStringTableIndices(nextInvalidations).toList.asJava)
+      cycleInvalidations ::= Zprof.CycleInvalidation.newBuilder
+        .addAllInvalidated(listMap(invalidatedClasses)(memo))
+        .addAllInvalidatedByPackageObjects(listMap(invalidatedPackageObjects)(memo))
+        .addAllInitialSources(listMap(initialSources)(f => memo(f.id)))
+        .addAllInvalidatedSources(listMap(invalidatedSources)(f => memo(f.id)))
+        .addAllRecompiledClasses(listMap(recompiledClasses)(memo))
+        .addAllChangesAfterRecompilation(toApiChanges(changesAfterRecompilation))
+        .addAllNextInvalidations(listMap(nextInvalidations)(memo))
         .setStartTimeNanos(compilationStartNanos)
         .setCompilationDurationNanos(compilationDurationNanos)
-        .addAllEvents(currentEvents.asJava)
+        .addAllEvents(invalidationEvents.asJava)
         .setShouldCompileIncrementally(shouldCompileIncrementally)
         .build
-
-      cycles = newCycle :: cycles
-      ()
     }
+
+    private def listMap[A, B](xs: Iterable[A])(f: A => B) = xs.iterator.map(f).toList.asJava
   }
 }
 
@@ -271,6 +231,7 @@ object RunProfiler {
         outputs: Iterable[String],
         reason: String
     ): Unit = ()
+
     def registerCycle(
         invalidatedClasses: Iterable[String],
         invalidatedPackageObjects: Iterable[String],
