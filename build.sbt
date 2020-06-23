@@ -727,7 +727,7 @@ addCommandAlias(
 
 lazy val otherRootSettings = Seq(
   mimaPreviousArtifacts := Set.empty,
-  scriptedBufferLog := false,
+  scriptedBufferLog := true,
   scripted := scriptedTask.evaluated,
   Scripted.scriptedSource := (zinc212 / sourceDirectory).value / "sbt-test",
   Scripted.scriptedCompileToJar := false,
