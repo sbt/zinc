@@ -17,13 +17,8 @@ import sbt.util.Logger
 import xsbti.{ FileConverter, VirtualFile, VirtualFileRef }
 import xsbt.api.APIUtil
 import xsbti.api.AnalyzedClass
-import xsbti.compile.{
-  Changes,
-  DependencyChanges,
-  IncOptions,
-  Output,
-  ClassFileManager => XClassFileManager
-}
+import xsbti.compile.{ Changes, DependencyChanges, IncOptions, Output }
+import xsbti.compile.{ ClassFileManager => XClassFileManager }
 import xsbti.compile.analysis.{ ReadStamps, Stamp => XStamp }
 import scala.collection.Iterator
 import Incremental.{ CompileCycle, CompileCycleResult, IncrementalCallback, PrefixingLogger }
@@ -105,23 +100,18 @@ private[inc] abstract class IncrementalCommon(
           invalidatedSources,
           classfileManager,
           pruned,
-          classesToRecompile, {
-            (
-                recompiledClasses: Set[String],
-                newApiChanges: APIChanges,
-                nextInvalidations: Set[String],
-                continuePerLookup: Boolean
-            ) =>
-              profiler.registerCycle(
-                invalidatedClasses,
-                invalidatedByPackageObjects,
-                initialChangedSources,
-                invalidatedSources,
-                recompiledClasses,
-                newApiChanges,
-                nextInvalidations,
-                continuePerLookup
-              )
+          classesToRecompile,
+          (recompiledClasses, newApiChanges, nextInvalidations, continuePerLookup) => {
+            profiler.registerCycle(
+              invalidatedClasses,
+              invalidatedByPackageObjects,
+              initialChangedSources,
+              invalidatedSources,
+              recompiledClasses,
+              newApiChanges,
+              nextInvalidations,
+              continuePerLookup,
+            )
           }
         )
 

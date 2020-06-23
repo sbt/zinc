@@ -149,17 +149,21 @@ object Incremental {
     val internalSourceToClassNamesMap: VirtualFile => Set[String] = (f: VirtualFile) =>
       previous.relations.classNames(f)
     val externalAPI = getExternalAPI(lookup)
-    val profiler = InvalidationProfiler.empty
-    val runProfiler = profiler.profileRun
+    val profiler = options.externalHooks.getInvalidationProfiler
+    val runProfiler = new AdaptedRunProfiler(profiler.profileRun)
     val incremental: IncrementalCommon = new IncrementalNameHashing(log, options, runProfiler)
-    try {
+    val result = try {
       incrementalCompile(
         sources,
         converter,
         lookup,
         previous,
         currentStamper,
-        compile,
+        (vs, depCh, cb, cfm) => {
+          val startTime = System.nanoTime()
+          compile(vs, depCh, cb, cfm)
+          runProfiler.timeCompilation(startTime, System.nanoTime() - startTime)
+        },
         new AnalysisCallback.Builder(
           internalBinaryToSourceClassName,
           internalSourceToClassNamesMap,
@@ -190,6 +194,8 @@ object Incremental {
         // and we can report back as there was no change (false) and return a previous Analysis which is still up-to-date
         (false, previous)
     }
+    runProfiler.registerRun()
+    result
   }
 
   def getExternalAPI(lookup: Lookup): (VirtualFileRef, String) => Option[AnalyzedClass] =

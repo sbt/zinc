@@ -11,17 +11,19 @@
 
 package sbt.internal.inc
 
-import java.util
-
+import xsbti.compile.{ UsedName => XUsedName }
 import xsbti.UseScope
 
-case class UsedName private (name: String, scopes: util.EnumSet[UseScope])
+case class UsedName private (name: String, scopes: java.util.EnumSet[UseScope]) extends XUsedName {
+  override def getName: String = name
+  override def getScopes: java.util.EnumSet[UseScope] = scopes
+}
 
 object UsedName {
 
   def apply(name: String, scopes: Iterable[UseScope] = Nil): UsedName = {
     val escapedName = escapeControlChars(name)
-    val useScopes = util.EnumSet.noneOf(classOf[UseScope])
+    val useScopes = java.util.EnumSet.noneOf(classOf[UseScope])
     scopes.foreach(useScopes.add)
     UsedName(escapedName, useScopes)
   }
