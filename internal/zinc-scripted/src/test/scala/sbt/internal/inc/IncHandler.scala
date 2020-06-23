@@ -13,6 +13,7 @@ package sbt
 package internal
 package inc
 
+import java.io.{ ByteArrayOutputStream, PrintStream }
 import java.nio.file.{ Files, Path, Paths }
 import java.net.URLClassLoader
 import java.util.jar.Manifest
@@ -448,9 +449,18 @@ case class ProjectStructure(
         case Seq(mainClassName) =>
           val cp = ((i.si.allJars.map(_.toPath) :+ classesDir) ++ outputJar).map(_.toAbsolutePath)
           val loader = ClasspathUtil.makeLoader(cp, i.si, baseDirectory)
-          try invokeMain(loader, getMainMethod(mainClassName, loader), params)
-          finally loader match {
-            case f: ClasspathFilter => f.close()
+          val buffer = new ByteArrayOutputStream(8192)
+          val oldOut = System.out
+          try {
+            System.setOut(new PrintStream(buffer))
+            invokeMain(loader, getMainMethod(mainClassName, loader), params)
+          } catch {
+            case t: Throwable =>
+              buffer.writeTo(oldOut)
+              throw t
+          } finally {
+            System.setOut(oldOut)
+            loader match { case f: ClasspathFilter => f.close() }
           }
         case Seq() => throw new TestFailed(s"Did not find any main class")
         case s     => throw new TestFailed(s"Found more than one main class: $s")
