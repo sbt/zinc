@@ -42,7 +42,7 @@ object ScriptedRunnerImpl {
     val pool = new java.util.concurrent.ForkJoinPool(instances)
     parallelRunners.tasksupport = new scala.collection.parallel.ForkJoinTaskSupport(pool)
     try runAllInParallel(parallelRunners, scriptedTests.size)
-    finally globalLogger.info(s"Log files can be found at ${logsDir.absolutePath}")
+    finally globalLogger.info(s"Log files of all scripted tests run: ${logsDir.absolutePath}")
   }
 
   def runAllInParallel(tests: ParSeq[TestRunner], size: Int): Unit = {

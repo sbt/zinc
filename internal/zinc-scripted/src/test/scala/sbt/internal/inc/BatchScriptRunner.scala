@@ -60,6 +60,6 @@ private[sbt] object BatchScriptRunner {
   final class PreciseScriptedError(st: Statement, msg: String, e: Throwable)
       extends RuntimeException({
         val args = if (st.arguments.nonEmpty) st.arguments.mkString(" ", " ", "") else ""
-        s"$msg: '${st.command}$args'"
+        s"${st.linePrefix}$msg: '${st.command}$args'"
       }, e, false, false)
 }
