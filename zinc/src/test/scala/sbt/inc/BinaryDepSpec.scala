@@ -36,6 +36,8 @@ class BinaryDepSpec extends BaseCompilerSpec {
               analysis.relations.libraryDep._2s
                 .filter(_.id.startsWith(tempDir.toPath.toString)) shouldBe 'empty
 
+              analysis.relations.libraryDep._2s
+                .filter(_.name == "rt.jar") shouldBe 'empty
           }
         } finally {
           compiler2.close()

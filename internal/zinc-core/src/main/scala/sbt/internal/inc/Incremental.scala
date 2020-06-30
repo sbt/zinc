@@ -459,13 +459,16 @@ private final class AnalysisCallback(
         val targetBinaryClassName = onBinaryName
         externalSourceDependency(sourceClassName, targetBinaryClassName, api, context)
       case None =>
-        // dependency is some other binary on the classpath
-        externalLibraryDependency(
-          vf,
-          onBinaryName,
-          sourceFile,
-          context
-        )
+        // dependency is some other binary on the classpath.
+        // exclude dependency tracking with rt.jar, for example java.lang.String -> rt.jar.
+        if (vf.name != "rt.jar") {
+          externalLibraryDependency(
+            vf,
+            onBinaryName,
+            sourceFile,
+            context
+          )
+        }
     }
   }
 
