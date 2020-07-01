@@ -22,8 +22,6 @@ object TestResource {
     Paths.get(classOf[TestResource].getResource("sample-binary_2.12-0.1.jar").toURI)
   def dependerFile0 =
     Paths.get(classOf[TestResource].getResource("Depender.scala").toURI)
-  def depender2File0 =
-    Paths.get(classOf[TestResource].getResource("Depender2.scala").toURI)
   def ext1File0 =
     Paths.get(classOf[TestResource].getResource("Ext1.scala").toURI)
   def ext2File0 =
