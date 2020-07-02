@@ -861,7 +861,7 @@ private final class AnalysisCallback(
       val knownProducts = merged.relations.allSources
         .flatMap(merged.relations.products)
         .flatMap(extractProductPath)
-      PickleJar.write(pickleJarPath, pklData, knownProducts, log)
+      PickleJar.write(pickleJarPath, pklData, knownProducts, currentSetup.compilerVersion, log)
     }
     progress foreach { p =>
       p.earlyOutputComplete(true)
