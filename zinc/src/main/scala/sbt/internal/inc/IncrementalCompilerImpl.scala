@@ -361,21 +361,26 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         case Some(previous) => previous
         case None           => Analysis.empty
       }
-      val compileStraightToJar = JarUtils.isCompilingToJar(output)
 
-      // otherwise jars on classpath will not be closed, especially prev jar.
-      if (compileStraightToJar) sys.props.put("scala.classpath.closeZip", "true")
-
-      val extraScalacOptions = {
-        val scalaVersion = scalaCompiler.scalaInstance.version
-        if (compileStraightToJar && scalaVersion.startsWith("2.12")) {
-          JarUtils.scalacOptions
-        } else Seq.empty
+      val outputs = output :: earlyOutput.toList
+      val outputJars = outputs.flatMap(out => (JarUtils.getOutputJar(out): Option[Path]).toList)
+      val outputJarsOnCp = outputJars.exists { outputJar =>
+        classpath.exists {
+          case x: PathBasedFile => x.toPath.toAbsolutePath == outputJar.toAbsolutePath
+          case _                => false
+        }
       }
 
-      val extraJavacOptions = if (compileStraightToJar) {
-        JarUtils.javacOptions
-      } else Seq.empty
+      // otherwise jars on classpath will not be closed, especially prev jar.
+      if (outputJarsOnCp) sys.props.put("scala.classpath.closeZip", "true")
+
+      val extraScalacOptions = {
+        if (outputJarsOnCp && scalaCompiler.scalaInstance.version.startsWith("2.12"))
+          JarUtils.scalacOptions
+        else Nil
+      }
+
+      val extraJavacOptions = if (outputJarsOnCp) JarUtils.javacOptions else Nil
 
       val outputJarContent = JarUtils.createOutputJarContent(output)
 
