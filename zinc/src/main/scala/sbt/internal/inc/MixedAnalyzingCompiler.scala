@@ -63,25 +63,9 @@ final class MixedAnalyzingCompiler(
       include: Set[VirtualFile],
       changes: DependencyChanges,
       callback: XAnalysisCallback,
-      classfileManager: XClassFileManager
-  ): Unit = compile(include, changes, callback, classfileManager, config.progress)
-
-  /**
-   * Compiles the given Java/Scala files.
-   *
-   * @param include          The files to compile right now
-   * @param changes          A list of dependency changes.
-   * @param callback         The callback where we report dependency issues.
-   * @param classfileManager The component that manages generated class files.
-   */
-  def compile(
-      include: Set[VirtualFile],
-      changes: DependencyChanges,
-      callback: XAnalysisCallback,
       classfileManager: XClassFileManager,
-      progress: Option[CompileProgress]
   ): Unit = {
-    val output = config.output
+    val output = config.currentSetup.output
     val outputDirs = outputDirectories(output)
     outputDirs.foreach { d =>
       if (d.toString.endsWith(".jar"))
@@ -119,7 +103,7 @@ final class MixedAnalyzingCompiler(
               config.reporter,
               config.cache,
               log,
-              progress.toOptional
+              config.progress.toOptional
             )
           }
         }
@@ -307,7 +291,6 @@ object MixedAnalyzingCompiler {
       skip,
       cache,
       incrementalCompilerOptions,
-      output,
       outputJarContent,
       earlyOutput,
       earlyAnalysisStore,
@@ -330,7 +313,6 @@ object MixedAnalyzingCompiler {
       skip: Boolean,
       cache: GlobalsCache,
       incrementalCompilerOptions: IncOptions,
-      output: Output,
       outputJarContent: JarUtils.OutputJarContent,
       earlyOutput: Option[Output],
       earlyAnalysisStore: Option[AnalysisStore],
@@ -350,7 +332,6 @@ object MixedAnalyzingCompiler {
       javac,
       cache,
       incrementalCompilerOptions,
-      output,
       outputJarContent,
       earlyOutput,
       earlyAnalysisStore,
@@ -370,7 +351,7 @@ object MixedAnalyzingCompiler {
     // available for sbt.internal.inc.classfile.Analyze to work correctly.
     val tempJavacOutput =
       JarUtils
-        .getOutputJar(config.output)
+        .getOutputJar(config.currentSetup.output)
         .map(JarUtils.javacTempOutput)
         .toSeq
         .map(converter.toVirtualFile(_))
