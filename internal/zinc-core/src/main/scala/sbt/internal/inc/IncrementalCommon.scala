@@ -17,16 +17,11 @@ import sbt.util.Logger
 import xsbti.{ FileConverter, VirtualFile, VirtualFileRef }
 import xsbt.api.APIUtil
 import xsbti.api.AnalyzedClass
-import xsbti.compile.{
-  Changes,
-  DependencyChanges,
-  IncOptions,
-  Output,
-  ClassFileManager => XClassFileManager
-}
+import xsbti.compile.{ Changes, DependencyChanges, IncOptions, Output }
+import xsbti.compile.{ ClassFileManager => XClassFileManager }
 import xsbti.compile.analysis.{ ReadStamps, Stamp => XStamp }
 import scala.collection.Iterator
-import Incremental.{ PrefixingLogger, apiDebug }
+import Incremental.{ CompileCycle, CompileCycleResult, IncrementalCallback, PrefixingLogger }
 
 /**
  * Defines the core logic to compile incrementally and apply the class invalidation after
@@ -70,11 +65,15 @@ private[inc] abstract class IncrementalCommon(
       binaryChanges: DependencyChanges,
       lookup: ExternalLookup,
       previous: Analysis,
-      doCompile: (Set[VirtualFile], DependencyChanges) => Analysis,
+      doCompile: CompileCycle,
       classfileManager: XClassFileManager,
       output: Output,
       cycleNum: Int
   ) {
+    lazy val javaSources: Set[VirtualFileRef] = allSources
+      .filter(_.name.endsWith(".java"))
+      .map(_.asInstanceOf[VirtualFileRef])
+
     def hasNext: Boolean = invalidatedClasses.nonEmpty || initialChangedSources.nonEmpty
     def next: CycleState = {
       // Compute all the invalidated classes by aggregating invalidated package objects
@@ -88,15 +87,44 @@ private[inc] abstract class IncrementalCommon(
       val invalidatedRefs: Set[VirtualFileRef] =
         mapInvalidationsToSources(classesToRecompile, initialChangedSources, vs, previous)
       val invalidatedSources: Set[VirtualFile] = invalidatedRefs map { converter.toVirtualFile }
-      val current =
-        recompileClasses(
+      val pruned =
+        IncrementalCommon.pruneClassFilesOfInvalidations(
           invalidatedSources,
-          converter,
-          binaryChanges,
           previous,
-          doCompile,
-          classfileManager
+          classfileManager,
+          converter
         )
+      debug("********* Pruned: \n" + pruned.relations + "\n*********")
+      val handler =
+        new IncrementalCallbackImpl(
+          invalidatedSources,
+          classfileManager,
+          pruned,
+          classesToRecompile,
+          (recompiledClasses, newApiChanges, nextInvalidations, continuePerLookup) => {
+            profiler.registerCycle(
+              invalidatedClasses,
+              invalidatedByPackageObjects,
+              initialChangedSources,
+              invalidatedSources,
+              recompiledClasses,
+              newApiChanges,
+              nextInvalidations,
+              continuePerLookup,
+            )
+          }
+        )
+
+      // Actual compilation takes place here
+      log.debug(s"compilation cycle $cycleNum")
+      val result = doCompile.run(invalidatedSources, binaryChanges, handler)
+      val continue = result.continue
+      val nextInvalidations = result.nextInvalidations
+      val current = result.analysis
+
+      val nextChangedSources: Set[VirtualFileRef] =
+        if (continue) javaSources
+        else Set.empty
 
       // Return immediate analysis as all sources have been recompiled
       if (invalidatedSources == allSources)
@@ -114,40 +142,9 @@ private[inc] abstract class IncrementalCommon(
           cycleNum + 1
         )
       else {
-        val recompiledClasses: Set[String] = {
-          // Represents classes detected as changed externally and internally (by a previous cycle)
-          classesToRecompile ++
-            // Maps the changed sources by the user to class names we can count as invalidated
-            initialChangedSources.flatMap(previous.relations.classNames) ++
-            initialChangedSources.flatMap(current.relations.classNames)
-        }
-
-        val newApiChanges =
-          detectAPIChanges(recompiledClasses, previous.apis.internalAPI, current.apis.internalAPI)
-        debug("\nChanges:\n" + newApiChanges)
-        val nextInvalidations = invalidateAfterInternalCompilation(
-          current.relations,
-          newApiChanges,
-          recompiledClasses,
-          cycleNum >= options.transitiveStep,
-          IncrementalCommon.comesFromScalaSource(previous.relations, Some(current.relations))
-        )
-
-        val continue = lookup.shouldDoIncrementalCompilation(nextInvalidations, current)
-
-        profiler.registerCycle(
-          invalidatedClasses,
-          invalidatedByPackageObjects,
-          initialChangedSources,
-          invalidatedSources,
-          recompiledClasses,
-          newApiChanges,
-          nextInvalidations,
-          continue
-        )
         CycleState(
           if (continue) nextInvalidations else Set.empty,
-          Set.empty,
+          nextChangedSources,
           allSources,
           converter,
           IncrementalCommon.emptyChanges,
@@ -159,6 +156,80 @@ private[inc] abstract class IncrementalCommon(
           cycleNum + 1
         )
       }
+    }
+
+    /**
+     * IncrementalCallbackImpl is a callback hanlder that the custom
+     * phases injected by Zinc call back to perform certain operations mid-compilation.
+     * In particular, for pipelining, we need to know whether the current
+     * incremental cycle is going to be the last cycle or not.
+     */
+    class IncrementalCallbackImpl(
+        invalidatedSources: Set[VirtualFile],
+        classFileManager: XClassFileManager,
+        pruned: Analysis,
+        classesToRecompile: Set[String],
+        registerCycle: (Set[String], APIChanges, Set[String], Boolean) => Unit
+    ) extends IncrementalCallback(classFileManager) {
+      override val isFullCompilation: Boolean =
+        allSources.subsetOf(invalidatedSources)
+
+      override def mergeAndInvalidate(
+          partialAnalysis: Analysis,
+          completingCycle: Boolean
+      ): CompileCycleResult = {
+        val analysis =
+          if (isFullCompilation) partialAnalysis
+          else pruned ++ partialAnalysis
+        val recompiledClasses: Set[String] = {
+          // Represents classes detected as changed externally and internally (by a previous cycle)
+          classesToRecompile ++
+            // Maps the changed sources by the user to class names we can count as invalidated
+            initialChangedSources.flatMap(previous.relations.classNames) ++
+            initialChangedSources.flatMap(analysis.relations.classNames)
+        }
+        val newApiChanges =
+          detectAPIChanges(recompiledClasses, previous.apis.internalAPI, analysis.apis.internalAPI)
+        debug("\nChanges:\n" + newApiChanges)
+        val nextInvalidations =
+          if (isFullCompilation) Set.empty[String]
+          else
+            invalidateAfterInternalCompilation(
+              analysis.relations,
+              newApiChanges,
+              recompiledClasses,
+              cycleNum >= options.transitiveStep,
+              IncrementalCommon
+                .comesFromScalaSource(previous.relations, Some(analysis.relations)) _
+            )
+        // No matter what shouldDoIncrementalCompilation returns, we are not in fact going to
+        // continue if there are no invalidations.  Assume the result is somehow interesting for
+        // profiling... or a bug.
+        val continuePerLookup =
+          if (isFullCompilation) false
+          else lookup.shouldDoIncrementalCompilation(nextInvalidations, analysis)
+        val continue = continuePerLookup && nextInvalidations.nonEmpty
+
+        // If we're completing the cycle, then mergeAndInvalidate has already been called
+        if (!completingCycle) {
+          registerCycle(recompiledClasses, newApiChanges, nextInvalidations, continuePerLookup)
+        }
+        CompileCycleResult(continue, nextInvalidations, analysis)
+      }
+
+      override def completeCycle(
+          prev: Option[CompileCycleResult],
+          partialAnalysis: Analysis
+      ): CompileCycleResult = {
+        val a1 = pruned ++ partialAnalysis
+        val results = prev.fold(mergeAndInvalidate(partialAnalysis, true))(_.copy(analysis = a1))
+        val products = partialAnalysis.relations.allProducts
+          .map(converter.toVirtualFile(_))
+        classFileManager.generated(products.toArray)
+        results
+      }
+
+      override val previousAnalysisPruned = pruned
     }
   }
 
@@ -192,7 +263,7 @@ private[inc] abstract class IncrementalCommon(
       binaryChanges: DependencyChanges,
       lookup: ExternalLookup,
       previous: Analysis,
-      doCompile: (Set[VirtualFile], DependencyChanges) => Analysis,
+      doCompile: CompileCycle,
       classfileManager: XClassFileManager,
       output: Output,
       cycleNum: Int
@@ -237,35 +308,6 @@ private[inc] abstract class IncrementalCommon(
     expand(invalidatedClasses.flatMap(previous.relations.definesClass) ++ aggregateSources)
   }
 
-  def recompileClasses(
-      sources: Set[VirtualFile],
-      converter: FileConverter,
-      binaryChanges: DependencyChanges,
-      previous: Analysis,
-      doCompile: (Set[VirtualFile], DependencyChanges) => Analysis,
-      classfileManager: XClassFileManager
-  ): Analysis = {
-    val pruned =
-      IncrementalCommon.pruneClassFilesOfInvalidations(
-        sources,
-        previous,
-        classfileManager,
-        converter
-      )
-    debug("********* Pruned: \n" + pruned.relations + "\n*********")
-    val fresh = doCompile(sources, binaryChanges)
-    debug("********* Fresh: \n" + fresh.relations + "\n*********")
-
-    val products = fresh.relations.allProducts.toList
-    /* This is required for both scala compilation and forked java compilation, despite
-     *  being redundant for the most common Java compilation (using the local compiler). */
-    classfileManager.generated(products.map(converter.toVirtualFile(_)).toArray)
-
-    val merged = pruned ++ fresh
-    debug("********* Merged: \n" + merged.relations + "\n*********")
-    merged
-  }
-
   /**
    * Detects the API changes of `recompiledClasses`.
    *
@@ -279,7 +321,9 @@ private[inc] abstract class IncrementalCommon(
       oldAPI: String => AnalyzedClass,
       newAPI: String => AnalyzedClass
   ): APIChanges = {
+    // log.debug(s"[zinc] detectAPIChanges(recompiledClasses = $recompiledClasses)")
     def classDiff(className: String, a: AnalyzedClass, b: AnalyzedClass): Option[APIChange] = {
+      // log.debug(s"[zinc] classDiff($className, ${a.name}, ${b.name})")
       if (a.compilationTimestamp() == b.compilationTimestamp() && (a.apiHash == b.apiHash)) None
       else {
         val hasMacro = a.hasMacro || b.hasMacro
@@ -288,9 +332,8 @@ private[inc] abstract class IncrementalCommon(
         } else findAPIChange(className, a, b)
       }
     }
-
     val apiChanges = recompiledClasses.flatMap(name => classDiff(name, oldAPI(name), newAPI(name)))
-    if (apiDebug(options) && apiChanges.nonEmpty) {
+    if (Incremental.apiDebug(options) && apiChanges.nonEmpty) {
       logApiChanges(apiChanges, oldAPI, newAPI)
     }
     new APIChanges(apiChanges)
@@ -358,7 +401,7 @@ private[inc] abstract class IncrementalCommon(
           .toSet
       }
 
-    val changedBinaries: Set[VirtualFileRef] = lookup.changedBinaries(previousAnalysis).getOrElse {
+    val changedLibraries: Set[VirtualFileRef] = lookup.changedBinaries(previousAnalysis).getOrElse {
       val detectChange =
         isLibraryModified(
           enableShallowLookup,
@@ -372,7 +415,7 @@ private[inc] abstract class IncrementalCommon(
       previous.allLibraries.filter(detectChange).toSet
     }
 
-    val externalApiChanges: APIChanges = {
+    val subprojectApiChanges: APIChanges = {
       val incrementalExternalChanges = {
         val previousAPIs = previousAnalysis.apis
         val externalFinder = lookupAnalyzedClass(_: String).getOrElse(APIs.emptyAnalyzedClass)
@@ -385,7 +428,8 @@ private[inc] abstract class IncrementalCommon(
       else incrementalExternalChanges
     }
 
-    val init = InitialChanges(sourceChanges, removedProducts, changedBinaries, externalApiChanges)
+    val init =
+      InitialChanges(sourceChanges, removedProducts, changedLibraries, subprojectApiChanges)
     profiler.registerInitial(init)
     // log.debug(s"initial changes: $init")
     init

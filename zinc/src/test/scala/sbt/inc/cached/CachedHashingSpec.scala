@@ -65,7 +65,6 @@ class CachedHashingSpec extends BaseCompilerSpec {
           options.sources,
           options.converter.toOption.get,
           giganticClasspath,
-          output,
           setup.cache,
           setup.progress.toOption,
           options.scalacOptions,
@@ -77,7 +76,10 @@ class CachedHashingSpec extends BaseCompilerSpec {
           options.order,
           setup.skip,
           setup.incrementalCompilerOptions,
+          output,
           JarUtils.createOutputJarContent(output),
+          options.earlyOutput.toOption,
+          setup.earlyAnalysisStore.toOption,
           options.stamper.toOption.get,
           setup.extra.toList.map(_.toScalaTuple)
         )

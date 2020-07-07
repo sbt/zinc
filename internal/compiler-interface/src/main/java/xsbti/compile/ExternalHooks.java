@@ -107,4 +107,8 @@ public interface ExternalHooks {
     ExternalHooks withExternalLookup(Lookup externalLookup);
 
     default ExternalHooks withGetProvenance(GetProvenance getProvenance) { return this; }
+
+    default InvalidationProfiler getInvalidationProfiler() { return InvalidationProfiler.EMPTY.INSTANCE; }
+
+    default ExternalHooks withInvalidationProfiler(InvalidationProfiler profiler) { return this; }
 }

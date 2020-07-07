@@ -64,6 +64,22 @@ final class MixedAnalyzingCompiler(
       changes: DependencyChanges,
       callback: XAnalysisCallback,
       classfileManager: XClassFileManager
+  ): Unit = compile(include, changes, callback, classfileManager, config.progress)
+
+  /**
+   * Compiles the given Java/Scala files.
+   *
+   * @param include          The files to compile right now
+   * @param changes          A list of dependency changes.
+   * @param callback         The callback where we report dependency issues.
+   * @param classfileManager The component that manages generated class files.
+   */
+  def compile(
+      include: Set[VirtualFile],
+      changes: DependencyChanges,
+      callback: XAnalysisCallback,
+      classfileManager: XClassFileManager,
+      progress: Option[CompileProgress]
   ): Unit = {
     val output = config.output
     val outputDirs = outputDirectories(output)
@@ -78,10 +94,11 @@ final class MixedAnalyzingCompiler(
     val incSrc = config.sources.filter(include)
     val (javaSrcs, scalaSrcs) = incSrc.partition(javaOnly(_))
     logInputs(log, javaSrcs.size, scalaSrcs.size, outputDirs)
+    val isPickleJava = config.currentSetup.order == Mixed && config.incOptions.pipelining && javaSrcs.nonEmpty
 
     // Compile Scala sources.
     def compileScala(): Unit =
-      if (scalaSrcs.nonEmpty) {
+      if (scalaSrcs.nonEmpty || isPickleJava) {
         JarUtils.withPreviousJar(output) { extraClasspath: Seq[Path] =>
           val sources =
             if (config.currentSetup.order == Mixed) incSrc
@@ -102,7 +119,7 @@ final class MixedAnalyzingCompiler(
               config.reporter,
               config.cache,
               log,
-              config.progress.toOptional
+              progress.toOptional
             )
           }
         }
@@ -234,7 +251,6 @@ object MixedAnalyzingCompiler {
       sources: Seq[VirtualFile],
       converter: FileConverter, // this is needed to thaw ref back to path for stamping
       classpath: Seq[VirtualFile],
-      output: Output,
       cache: GlobalsCache,
       progress: Option[CompileProgress] = None,
       options: Seq[String] = Nil,
@@ -246,7 +262,10 @@ object MixedAnalyzingCompiler {
       compileOrder: CompileOrder = Mixed,
       skip: Boolean = false,
       incrementalCompilerOptions: IncOptions,
+      output: Output,
       outputJarContent: JarUtils.OutputJarContent,
+      earlyOutput: Option[Output],
+      earlyAnalysisStore: Option[AnalysisStore],
       stamper: ReadStamps,
       extra: List[(String, String)]
   ): CompileConfiguration = {
@@ -277,7 +296,6 @@ object MixedAnalyzingCompiler {
       sources,
       converter,
       classpath,
-      output,
       compileSetup,
       progress,
       previousAnalysis,
@@ -289,7 +307,10 @@ object MixedAnalyzingCompiler {
       skip,
       cache,
       incrementalCompilerOptions,
+      output,
       outputJarContent,
+      earlyOutput,
+      earlyAnalysisStore,
       stamper
     )
   }
@@ -298,7 +319,6 @@ object MixedAnalyzingCompiler {
       sources: Seq[VirtualFile],
       converter: FileConverter,
       classpath: Seq[VirtualFile],
-      output: Output,
       setup: MiniSetup,
       progress: Option[CompileProgress],
       previousAnalysis: CompileAnalysis,
@@ -310,14 +330,16 @@ object MixedAnalyzingCompiler {
       skip: Boolean,
       cache: GlobalsCache,
       incrementalCompilerOptions: IncOptions,
+      output: Output,
       outputJarContent: JarUtils.OutputJarContent,
+      earlyOutput: Option[Output],
+      earlyAnalysisStore: Option[AnalysisStore],
       stamper: ReadStamps,
   ): CompileConfiguration = {
     new CompileConfiguration(
       sources,
       converter,
       classpath,
-      output,
       previousAnalysis,
       previousSetup,
       setup,
@@ -328,7 +350,10 @@ object MixedAnalyzingCompiler {
       javac,
       cache,
       incrementalCompilerOptions,
+      output,
       outputJarContent,
+      earlyOutput,
+      earlyAnalysisStore,
       stamper
     )
   }

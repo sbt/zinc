@@ -61,6 +61,8 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       sources,
       classpath,
       CompileOutput(classesDirectory),
+      earlyOutput.toOption,
+      earlyAnalysisStore.toOption,
       cache,
       progress().toOption,
       scalacOptions,
@@ -75,7 +77,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       temporaryClassesDirectory.toOption,
       extraOptions,
       conv,
-      stamper.toOption.getOrElse(defaultStampReader)
+      stamper.toOption.getOrElse(defaultStampReader),
     )(logger)
   }
 
@@ -122,6 +124,8 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       sources: Array[VirtualFile],
       classpath: Array[VirtualFile],
       output: xsbti.compile.Output,
+      earlyOutput: Optional[xsbti.compile.Output],
+      earlyAnalysisStore: Optional[AnalysisStore],
       cache: xsbti.compile.GlobalsCache,
       scalaOptions: Array[String],
       javaOptions: Array[String],
@@ -146,6 +150,8 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       sources.toVector,
       classpath.toSeq,
       output,
+      earlyOutput.toOption,
+      earlyAnalysisStore.toOption,
       cache,
       progress.toOption,
       scalaOptions.toSeq,
@@ -207,6 +213,8 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       sources: Array[Path],
       classpath: Array[Path],
       output: xsbti.compile.Output,
+      earlyOutput: Optional[xsbti.compile.Output],
+      earlyAnalysisStore: Optional[AnalysisStore],
       cache: xsbti.compile.GlobalsCache,
       scalaOptions: Array[String],
       javaOptions: Array[String],
@@ -233,6 +241,8 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       vs,
       cp,
       output,
+      earlyOutput.toOption,
+      earlyAnalysisStore.toOption,
       cache,
       progress.toOption,
       scalaOptions.toSeq,
@@ -328,6 +338,8 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       sources: Seq[VirtualFile],
       classpath: Seq[VirtualFile],
       output: Output,
+      earlyOutput: Option[Output],
+      earlyAnalysisStore: Option[AnalysisStore],
       cache: GlobalsCache,
       progress: Option[CompileProgress] = None,
       scalaOptions: Seq[String] = Nil,
@@ -349,21 +361,26 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         case Some(previous) => previous
         case None           => Analysis.empty
       }
-      val compileStraightToJar = JarUtils.isCompilingToJar(output)
 
-      // otherwise jars on classpath will not be closed, especially prev jar.
-      if (compileStraightToJar) sys.props.put("scala.classpath.closeZip", "true")
-
-      val extraScalacOptions = {
-        val scalaVersion = scalaCompiler.scalaInstance.version
-        if (compileStraightToJar && scalaVersion.startsWith("2.12")) {
-          JarUtils.scalacOptions
-        } else Seq.empty
+      val outputs = output :: earlyOutput.toList
+      val outputJars = outputs.flatMap(out => (JarUtils.getOutputJar(out): Option[Path]).toList)
+      val outputJarsOnCp = outputJars.exists { outputJar =>
+        classpath.exists {
+          case x: PathBasedFile => x.toPath.toAbsolutePath == outputJar.toAbsolutePath
+          case _                => false
+        }
       }
 
-      val extraJavacOptions = if (compileStraightToJar) {
-        JarUtils.javacOptions
-      } else Seq.empty
+      // otherwise jars on classpath will not be closed, especially prev jar.
+      if (outputJarsOnCp) sys.props.put("scala.classpath.closeZip", "true")
+
+      val extraScalacOptions = {
+        if (outputJarsOnCp && scalaCompiler.scalaInstance.version.startsWith("2.12"))
+          JarUtils.scalacOptions
+        else Nil
+      }
+
+      val extraJavacOptions = if (outputJarsOnCp) JarUtils.javacOptions else Nil
 
       val outputJarContent = JarUtils.createOutputJarContent(output)
 
@@ -373,7 +390,6 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         sources,
         converter,
         classpath,
-        output,
         cache,
         progress,
         scalaOptions ++ extraScalacOptions,
@@ -385,7 +401,10 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         compileOrder,
         skip,
         incrementalOptions,
+        output,
         outputJarContent,
+        earlyOutput,
+        earlyAnalysisStore,
         stampReader,
         extra
       )
@@ -443,14 +462,17 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       srcsSet,
       converter,
       lookup,
-      mixedCompiler.compile,
       analysis,
-      output,
-      log,
       incOptions,
-      outputJarContent,
+      currentSetup,
       stampReader,
-    )
+      output,
+      outputJarContent,
+      earlyOutput,
+      earlyAnalysisStore,
+      progress,
+      log
+    )(mixedCompiler.compile)
     compile.swap
   }
 
@@ -475,12 +497,21 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       cache: GlobalsCache,
       incOptions: IncOptions,
       reporter: Reporter,
-      optionProgress: Option[CompileProgress],
+      progress: Option[CompileProgress],
+      earlyAnalysisStore: Option[AnalysisStore],
       extra: Array[T2[String, String]]
-  ): Setup = {
-    val progress = optionProgress.toOptional
-    Setup.of(lookup, skip, cacheFile, cache, incOptions, reporter, progress, extra)
-  }
+  ): Setup =
+    Setup.of(
+      lookup,
+      skip,
+      cacheFile,
+      cache,
+      incOptions,
+      reporter,
+      progress.toOptional,
+      earlyAnalysisStore.toOptional,
+      extra
+    )
 
   def inputs(
       options: CompileOptions,
@@ -495,6 +526,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       classpath: Array[VirtualFile],
       sources: Array[VirtualFile],
       classesDirectory: Path,
+      earlyJarPath: Option[Path],
       scalacOptions: Array[String],
       javacOptions: Array[String],
       maxErrors: Int,
@@ -520,6 +552,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         temporaryClassesDirectory,
         Option(converter).toOptional,
         Option(stampReader).toOptional,
+        (earlyJarPath map { CompileOutput(_) }).toOptional,
       )
     }
     inputs(compileOptions, compilers, setup, pr)

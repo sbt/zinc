@@ -15,6 +15,7 @@ package inc
 
 import xsbti.compile.{ Output, OutputGroup }
 import java.nio.file.Path
+import java.util.Optional
 
 /**
  * Define helpers to create [[CompileOutput]] to pass to the incremental
@@ -46,8 +47,16 @@ object CompileOutput {
 
   def apply(groups: Array[OutputGroup]): Output = new ConcreteMultipleOutput(groups)
 
+  lazy val empty: Output = new EmptyOutput()
+
   def outputGroup(source: Path, output: Path): OutputGroup =
     new ConcreteOutputGroup(source, output)
+
+  private final class EmptyOutput extends xsbti.compile.Output {
+    override def getSingleOutput(): Optional[Path] = Optional.empty()
+    override def getMultipleOutput(): Optional[Array[OutputGroup]] = Optional.empty()
+    override def toString: String = "EmptyOutput()"
+  }
 
   private final class ConcreteSingleOutput(val getOutputDirectory: Path)
       extends xsbti.compile.SingleOutput {

@@ -92,6 +92,10 @@ type IncOptions {
   allowMachinePath: Boolean! = raw"xsbti.compile.IncOptions.defaultAllowMachinePath()"
   @since("1.4.0")
 
+  ## Enables build pipelining at the module level.
+  pipelining: Boolean! = raw"xsbti.compile.IncOptions.defaultPipelining()"
+  @since("1.4.0")
+
   #x public static int defaultTransitiveStep() {
   #x     return 3;
   #x }
@@ -156,6 +160,9 @@ type IncOptions {
   #x public static boolean defaultAllowMachinePath() {
   #x     return true;
   #x }
+  #x public static boolean defaultPipelining() {
+  #x     return true;
+  #x }
 }
 
 ## Compilation options
@@ -204,6 +211,10 @@ type CompileOptions {
   ## ReadStamps to calculate timestamp or hash.
   stamper: xsbti.compile.analysis.ReadStamps
   @since("1.4.0")
+
+  ## Output for pickle JAR used for build pipelining
+  earlyOutput: xsbti.compile.Output
+  @since("1.4.0")
 }
 
 ## This is used as part of CompileResult.
@@ -237,7 +248,10 @@ type Setup {
   reporter: xsbti.Reporter!
 
   ## Optionally provide progress indication.
-  progress: xsbti.compile.CompileProgress
+  progress: xsbti.compile.CompileProgress @since("0.1.0")
+
+  ## Store early Analysis during pipeline compilation.
+  earlyAnalysisStore: xsbti.compile.AnalysisStore @since("1.4.0")
 
   extra: [raw"xsbti.T2<String, String>"]
 
@@ -310,12 +324,15 @@ type PreviousResult {
   setup: xsbti.compile.MiniSetup
 }
 
-
 ## The result of running the incremental compilation.
 type CompileResult {
   analysis: xsbti.compile.CompileAnalysis!
   setup: xsbti.compile.MiniSetup!
   hasModified: Boolean!
+
+  #xinterface xsbti.compile.AnalysisContents
+  #x public xsbti.compile.CompileAnalysis getAnalysis() { return this.analysis; }
+  #x public xsbti.compile.MiniSetup getMiniSetup() { return this.setup; }
 }
 
 ## Configures a single compilation of a single set of sources.

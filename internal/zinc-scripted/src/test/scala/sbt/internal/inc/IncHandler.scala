@@ -25,6 +25,7 @@ import xsbt.api.Discovery
 import xsbti.{ FileConverter, Problem, Severity, VirtualFileRef, VirtualFile }
 import xsbti.compile.{
   AnalysisContents,
+  AnalysisStore,
   ClasspathOptionsUtil,
   CompileAnalysis,
   CompileOrder,
@@ -55,6 +56,7 @@ import scala.collection.mutable
 import scala.concurrent.{ Await, Future, Promise }
 import scala.concurrent.duration._
 import scala.util.control.NonFatal
+import scala.util.Success
 
 final case class Project(
     name: String,
@@ -69,7 +71,7 @@ final case class IncState(
     si: XScalaInstance,
     cs: XCompilers,
     number: Int,
-    compilations: mutable.Map[ProjectStructure, (Future[Analysis], Future[Unit])]
+    compilations: mutable.Map[ProjectStructure, (Future[Analysis], Future[Boolean])]
 ) {
   def inc: IncState = copy(number = number + 1, compilations = mutable.Map.empty)
 }
@@ -273,10 +275,14 @@ case class ProjectStructure(
   import scala.concurrent.ExecutionContext.Implicits._
   val maxErrors = 100
   val targetDir = baseDirectory / "target"
+  // val targetDir = Paths.get("/tmp/pipelining") / name / "target"
   val classesDir = targetDir / "classes"
   val outputJar = if (compileToJar) Some(classesDir / "output.jar") else None
   val output = outputJar.getOrElse(classesDir)
-  val earlyOutput = targetDir / "early-output.jar"
+  val earlyOutput = targetDir / "early" / "output.jar"
+  if (!earlyOutput.toFile.getParentFile.exists()) {
+    earlyOutput.toFile.getParentFile.mkdirs()
+  }
   val generatedClassFiles = classesDir.toFile ** "*.class"
   val scalaSourceDirectory = baseDirectory / "src" / "main" / "scala"
   val javaSourceDirectory = baseDirectory / "src" / "main" / "java"
@@ -298,6 +304,26 @@ case class ProjectStructure(
   val earlyCacheFile = baseDirectory / "target" / "early" / "inc_compile.zip"
   val earlyAnalysisStore = FileAnalysisStore.binary(earlyCacheFile.toFile)
   // val earlyCachedStore = AnalysisStore.cached(fileStore)
+
+  // We specify the class file manager explicitly even though it's noew possible
+  // to specify it in the incremental option property file (this is the default for sbt)
+  val (incOptions, scalacOptions) = {
+    val properties = loadIncProperties(baseDirectory)
+    val (incOptions0, sco) = loadIncOptions(properties)
+    val storeApis = Option(properties.getProperty("incOptions.storeApis"))
+      .map(_.toBoolean)
+      .getOrElse(incOptions0.storeApis())
+    val transactional: Optional[xsbti.compile.ClassFileManagerType] =
+      Optional.of(
+        xsbti.compile.TransactionalManagerType
+          .of((targetDir / "classes.bak").toFile, sbt.util.Logger.Null)
+      )
+    val incO =
+      incOptions0
+        .withClassfileManagerType(transactional)
+        .withStoreApis(storeApis)
+    (incO, sco)
+  }
 
   def prev(useCachedAnalysis: Boolean = true) = {
     val store = if (useCachedAnalysis) cachedStore else fileStore
@@ -468,9 +494,9 @@ case class ProjectStructure(
     }
 
   def compile(i: IncState): Future[Analysis] = startCompilation(i)._1
-  def earlyArtifact(i: IncState): Future[Unit] = startCompilation(i)._2
+  def earlyArtifact(i: IncState): Future[Boolean] = startCompilation(i)._2
 
-  def startCompilation(i: IncState): (Future[Analysis], Future[Unit]) = synchronized {
+  def startCompilation(i: IncState): (Future[Analysis], Future[Boolean]) = synchronized {
     def traditionalLookupAnalysis: VirtualFile => Option[CompileAnalysis] = {
       val f0: PartialFunction[VirtualFile, Option[CompileAnalysis]] = {
         case x if converter.toPath(x).toAbsolutePath == classesDir.toAbsolutePath =>
@@ -501,15 +527,22 @@ case class ProjectStructure(
     }
 
     i.compilations.get(this).getOrElse {
-      val notifyEarlyOutput: Promise[Unit] = Promise[Unit]()
-      val pipelining = false
-      if (pipelining) {
+      val notifyEarlyOutput: Promise[Boolean] = Promise[Boolean]()
+      if (incOptions.pipelining) {
+        // future of early outputs
         val earlyDeps: Future[Seq[Path]] = Future.traverse(dependsOnRef) { dep =>
-          dep.earlyArtifact(i).map(_ => dep.earlyOutput)
+          dep.earlyArtifact(i).map(success => if (success) dep.earlyOutput else dep.output)
         }
-        val f = earlyDeps.map { internalCp =>
+        val futureAnalysis = earlyDeps.map { internalCp =>
           doCompile(i, notifyEarlyOutput, internalCp, pipelinedLookupAnalysis)
         }
+        // wait for the full compilation from the dependencies
+        // during pipelining, downstream compilation may complete before the upstream
+        // to avoid deletion of directories etc, we need to wait for the upstream to finish
+        val f = for {
+          _ <- Future.traverse(dependsOnRef)(_.compile(i))
+          a <- futureAnalysis
+        } yield a
         i.compilations(this) = (f, notifyEarlyOutput.future)
         (f, notifyEarlyOutput.future)
       } else {
@@ -535,7 +568,7 @@ case class ProjectStructure(
   // whereas for pipelining, you'd get an early JAR.
   private def doCompile(
       i: IncState,
-      notifyEarlyOutput: Promise[Unit],
+      notifyEarlyOutput: Promise[Boolean],
       internalCp: Seq[Path],
       lookupAnalysis: VirtualFile => Option[CompileAnalysis]
   ): Analysis = {
@@ -543,40 +576,22 @@ case class ProjectStructure(
     val sources = scalaSources ++ javaSources
     val vs = sources.toList.map(converter.toVirtualFile)
     val entryLookup = new PerClasspathEntryLookupImpl(lookupAnalysis, Locate.definesClass)
-    val transactional: Optional[xsbti.compile.ClassFileManagerType] =
-      Optional.of(
-        xsbti.compile.TransactionalManagerType
-          .of((targetDir / "classes.bak").toFile, sbt.util.Logger.Null)
-      )
-    // We specify the class file manager explicitly even though it's noew possible
-    // to specify it in the incremental option property file (this is the default for sbt)
-    val properties = loadIncProperties(baseDirectory / "incOptions.properties")
-    val (incOptions0, scalacOptions) = loadIncOptions(properties)
-    val storeApis = Option(properties.getProperty("incOptions.storeApis"))
-      .map(_.toBoolean)
-      .getOrElse(incOptions0.storeApis())
     val reporter = new ManagedLoggedReporter(maxErrors, scriptedLog)
     val extra = Array(t2(("key", "value")))
-    val previousResult = prev(
-      Option(properties.getProperty("alwaysLoadAnalysis")).exists(_.toBoolean)
-    )
-    val incOptions =
-      incOptions0
-        .withClassfileManagerType(transactional)
-        .withStoreApis(storeApis)
-
+    val previousResult = prev()
     val progress = new CompileProgress {
       override def startUnit(phase: String, unitPath: String): Unit = {
-        // println(s"[zinc] start $phase $unitPath")
+        // scriptedLog.debug(s"[zinc] start $phase $unitPath")
       }
-      override def advance(current: Int, total: Int) = true
-      /*
       override def advance(current: Int, total: Int, prevPhase: String, nextPhase: String) = true
-      override def earlyOutputComplete = {
-        println(s"early output is done for $name!")
-        notifyEarlyOutput.complete(Success(()))
+      override def earlyOutputComplete(success: Boolean) = {
+        if (success) {
+          scriptedLog.info(s"[progress] early output is done for $name!")
+        } else {
+          scriptedLog.info(s"[progress] early output can't be made for $name because macros!")
+        }
+        notifyEarlyOutput.complete(Success(success))
       }
-     */
     }
     val setup = incrementalCompiler.setup(
       entryLookup,
@@ -586,8 +601,8 @@ case class ProjectStructure(
       incOptions,
       reporter,
       Some(progress),
-      // earlyAnalysisStore = Some(earlyAnalysisStore),
-      extra
+      earlyAnalysisStore = Some(earlyAnalysisStore),
+      extra = extra
     )
 
     val paths = (i.si.allJars.toList.map(_.toPath) ++ (unmanagedJars :+ output) ++ internalCp)
@@ -596,7 +611,7 @@ case class ProjectStructure(
       cp.toArray,
       vs.toArray,
       output,
-      // Some(earlyOutput),
+      Some(earlyOutput),
       scalacOptions,
       javacOptions = Array(),
       maxErrors,
@@ -612,7 +627,7 @@ case class ProjectStructure(
     val result = incrementalCompiler.compile(in, scriptedLog)
     val analysis = result.analysis match { case a: Analysis => a }
     cachedStore.set(AnalysisContents.create(analysis, result.setup))
-    scriptedLog.info(s"""Compilation done: ${sources.toList.mkString(", ")}""")
+    scriptedLog.info(s"""$name: compilation done: ${sources.toList.mkString(", ")}""")
     analysis
   }
 
@@ -680,10 +695,12 @@ case class ProjectStructure(
     ()
   }
 
-  def loadIncProperties(src: Path): Properties = {
+  def loadIncProperties(base: Path): Properties = {
+    val prop0 = base / "incoptions.properties"
+    val prop1 = if (Files.exists(prop0)) prop0 else base / "incOptions.properties"
     val properties = new Properties()
-    if (Files.exists(src)) {
-      val stream = Files.newInputStream(src)
+    if (Files.exists(prop1)) {
+      val stream = Files.newInputStream(prop1)
       try properties.load(stream)
       finally stream.close()
     }
@@ -695,16 +712,18 @@ case class ProjectStructure(
     val map = new java.util.HashMap[String, String]
     properties.asScala foreach { case (k: String, v: String) => map.put(k, v) }
 
-    val scalacOptions =
-      Option(map.get("scalac.options")).map(_.toString.split(" +")).getOrElse(Array.empty)
-
     val incOptions = {
       val opts = IncOptionsUtil.fromStringMap(map, scriptedLog)
       if (opts.recompileAllFraction() != IncOptions.defaultRecompileAllFraction()) opts
       else opts.withRecompileAllFraction(1.0)
     }
-
-    (incOptions, scalacOptions)
+    val scalacOptions: List[String] =
+      (Option(map.get("scalac.options")) match {
+        case Some(x)                    => List(x)
+        case _ if incOptions.pipelining => List("-Ypickle-java")
+        case _                          => Nil
+      }).flatMap(_.toString.split(" +").toList)
+    (incOptions, scalacOptions.toArray)
   }
 
   def getProblems(): Seq[Problem] =

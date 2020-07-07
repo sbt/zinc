@@ -15,7 +15,7 @@ import java.net.URLClassLoader
 import java.util.Optional
 import java.nio.file.{ Files, Path, Paths, StandardCopyOption }
 
-import sbt.internal.inc.{ ScalaInstance => _, FileAnalysisStore => _, AnalysisStore => _, _ }
+import sbt.internal.inc.{ ScalaInstance => _, FileAnalysisStore => _, _ }
 import sbt.io.IO
 import sbt.util.Logger
 import JavaInterfaceUtil.{ EnrichOption, EnrichOptional }
@@ -42,8 +42,12 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       Files.createDirectories(sub2Directory)
       Files.createDirectories(sub2Directory / "src")
       val targetDir2 = sub2Directory / "target"
+      val earlyOutput2 = targetDir2 / "early-output.jar"
       val cacheFile2 = targetDir2 / "inc_compile.zip"
       val fileStore2 = AnalysisStore.getCachedStore(FileAnalysisStore.getDefault(cacheFile2.toFile))
+      val earlyCacheFile2 = targetDir2 / "early" / "inc_compile.zip"
+      val earlyAnalysisStore2 =
+        AnalysisStore.getCachedStore(FileAnalysisStore.getDefault(earlyCacheFile2.toFile))
 
       // Prepare the initial compilation
       val sub1Directory = tempDir.toPath / "sub1"
@@ -51,8 +55,12 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       Files.createDirectories(sub1Directory / "src")
       Files.createDirectories(sub1Directory / "lib")
       val targetDir = sub1Directory / "target"
+      val earlyOutput = targetDir / "early-output.jar"
       val cacheFile = targetDir / "inc_compile.zip"
       val fileStore = AnalysisStore.getCachedStore(FileAnalysisStore.getDefault(cacheFile.toFile))
+      val earlyCacheFile = targetDir / "early" / "inc_compile.zip"
+      val earlyAnalysisStore =
+        AnalysisStore.getCachedStore(FileAnalysisStore.getDefault(earlyCacheFile.toFile))
       val dependerFile = sub1Directory / "src" / "Depender.scala"
       Files.copy(dependerFile0, dependerFile, StandardCopyOption.REPLACE_EXISTING)
       val depender2File = sub1Directory / "src" / "Depender2.scala"
@@ -69,12 +77,17 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       val cs = compiler.compilers(si, ClasspathOptionsUtil.boot, None, sc)
       val prev0 = compiler.emptyPreviousResult
       val cp: Vector[VirtualFile] =
-        (si.allJars.toVector.map(_.toPath) ++ Vector(targetDir, targetDir2, binarySampleFile))
+        (si.allJars.toVector.map(_.toPath) ++ Vector(earlyOutput, targetDir2, binarySampleFile))
           .map(PlainVirtualFile(_))
+      val emptyPrev = compiler.emptyPreviousResult
       val lookup = new PerClasspathEntryLookupImpl(
         {
-          case x if converter.toPath(x).toAbsolutePath == targetDir.toAbsolutePath =>
+          case x
+              if converter.toPath(x).toAbsolutePath == targetDir.toAbsolutePath ||
+                converter.toPath(x).toAbsolutePath == earlyOutput.toAbsolutePath =>
             prev0.analysis.toOption
+          case x if converter.toPath(x).toAbsolutePath == targetDir2.toAbsolutePath =>
+            emptyPrev.analysis.toOption
           case _ => None
         },
         Locate.definesClass
@@ -92,13 +105,15 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
         CompilerCache.fresh,
         incOptions,
         reporter,
-        None,
+        progress = None,
+        earlyAnalysisStore = Some(earlyAnalysisStore),
         Array()
       )
       val in = compiler.inputs(
         cp.toArray,
         vs,
         targetDir,
+        Some(earlyOutput),
         Array(),
         Array(),
         maxErrors,
@@ -126,6 +141,7 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
         cp.toArray,
         vs1,
         targetDir,
+        Some(earlyOutput),
         Array(),
         Array(),
         maxErrors,
@@ -148,31 +164,25 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       Files.copy(ext1File0, ext1File, StandardCopyOption.REPLACE_EXISTING)
       val sources2 = Array(ext1File)
       val vs2 = sources2 map converter.toVirtualFile
-      val emptyPrev = compiler.emptyPreviousResult
+
       val cp2: Vector[VirtualFile] = (si.allJars.toVector.map(_.toPath) ++ Vector(targetDir2))
         .map(PlainVirtualFile(_))
-      val lookup2 = new PerClasspathEntryLookupImpl(
-        {
-          case x if converter.toPath(x).toAbsolutePath == targetDir2.toAbsolutePath =>
-            emptyPrev.analysis.toOption
-          case _ => None
-        },
-        Locate.definesClass
-      )
       val setup2 = compiler.setup(
-        lookup2,
+        lookup,
         skip = false,
         cacheFile2,
         CompilerCache.fresh,
         incOptions,
         reporter,
-        None,
+        progress = None,
+        earlyAnalysisStore = Some(earlyAnalysisStore2),
         Array()
       )
       val in2 = compiler.inputs(
         cp2.toArray,
         vs2,
         targetDir2,
+        Some(earlyOutput2),
         Array(),
         Array(),
         maxErrors,
@@ -200,9 +210,13 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
       }
       val lookup3 = new PerClasspathEntryLookupImpl(
         {
-          case x if converter.toPath(x).toAbsolutePath == targetDir.toAbsolutePath =>
+          case x
+              if converter.toPath(x).toAbsolutePath == targetDir.toAbsolutePath ||
+                converter.toPath(x).toAbsolutePath == earlyOutput.toAbsolutePath =>
             prev.analysis.toOption
-          case x if converter.toPath(x).toAbsolutePath == targetDir2.toAbsolutePath =>
+          case x
+              if converter.toPath(x).toAbsolutePath == targetDir2.toAbsolutePath ||
+                converter.toPath(x).toAbsolutePath == earlyOutput2.toAbsolutePath =>
             Some(result2.analysis)
           case _ => None
         },
@@ -215,13 +229,15 @@ class MultiProjectIncrementalSpec extends BridgeProviderSpecification {
         CompilerCache.fresh,
         incOptions,
         reporter,
-        None,
+        progress = None,
+        earlyAnalysisStore = Some(earlyAnalysisStore),
         Array()
       )
       val in3 = compiler.inputs(
         cp.toArray,
         vs3,
         targetDir,
+        Some(earlyOutput),
         Array(),
         Array(),
         maxErrors,

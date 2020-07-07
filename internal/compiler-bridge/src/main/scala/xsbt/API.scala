@@ -34,6 +34,10 @@ final class API(val global: CallbackGlobal) extends Compat with GlobalHelpers wi
       val start = System.currentTimeMillis
       super.run()
 
+      //  We're running right after pickling, so store pickles now.
+      val pickleData = Compat.picklePaths(currentRun)
+      callback.pickleData(pickleData.toArray)
+
       // After processing all units, register generated classes
       registerGeneratedClasses(nonLocalClassSymbolsInCurrentUnits.iterator)
       nonLocalClassSymbolsInCurrentUnits.clear()
@@ -43,8 +47,21 @@ final class API(val global: CallbackGlobal) extends Compat with GlobalHelpers wi
       debuglog("API phase took : " + ((stop - start) / 1000.0) + " s")
     }
 
+    // TODO In 2.13, shouldSkipThisPhaseForJava should be overridden instead of cancelled
+    // override def shouldSkipThisPhaseForJava = !global.callback.isPickleJava
+    override def cancelled(unit: CompilationUnit) = {
+      if (Thread.interrupted()) reporter.cancelled = true
+      reporter.cancelled || unit.isJava && !global.callback.isPickleJava
+    }
+
     def apply(unit: global.CompilationUnit): Unit = processUnit(unit)
-    private def processUnit(unit: CompilationUnit) = if (!unit.isJava) processScalaUnit(unit)
+
+    private def processUnit(unit: CompilationUnit): Unit = {
+      if (!unit.isJava || global.callback.isPickleJava) {
+        processScalaUnit(unit)
+      }
+    }
+
     private def processScalaUnit(unit: CompilationUnit): Unit = {
       val sourceFile: VirtualFile = unit.source.file match {
         case v: VirtualFileWrap => v.underlying

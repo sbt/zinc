@@ -248,7 +248,7 @@ object ClassFileManager {
   ) extends XClassFileManager {
     override def delete(classes0: Array[VirtualFile]): Unit = {
       val classes = classes0.toVector.map(toPath)
-      val relClasses = classes.map(c => JarUtils.ClassInJar.fromPath(c).toClassFilePath)
+      val relClasses = classes.map(c => JarUtils.ClassInJar.fromPath(c).toClassFilePath.get)
       outputJarContent.removeClasses(relClasses.toSet)
       JarUtils.removeFromJar(outputJar, relClasses)
     }
@@ -277,7 +277,9 @@ object ClassFileManager {
 
     override def delete(classesInJar: Array[VirtualFile]): Unit = {
       val classes =
-        classesInJar.toVector.map(toPath).map(c => JarUtils.ClassInJar.fromPath(c).toClassFilePath)
+        classesInJar.toVector
+          .map(toPath)
+          .map(c => JarUtils.ClassInJar.fromPath(c).toClassFilePath.get)
       JarUtils.removeFromJar(outputJar, classes)
       outputJarContent.removeClasses(classes.toSet)
     }

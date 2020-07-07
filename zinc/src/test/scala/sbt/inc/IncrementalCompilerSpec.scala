@@ -12,7 +12,7 @@
 package sbt.inc
 
 import xsbti.compile.AnalysisStore
-import sbt.internal.inc.{ AnalysisStore => _, _ }
+import sbt.internal.inc._
 import sbt.io.IO
 import sbt.io.syntax._
 import java.nio.file.Files

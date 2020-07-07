@@ -14,7 +14,7 @@ package sbt.inc
 import java.nio.file.Files
 import sbt.io.IO
 import sbt.internal.inc.JavaInterfaceUtil._
-import sbt.internal.inc.{ AnalysisStore => _, _ }
+import sbt.internal.inc._
 import xsbti.compile.IncOptions
 
 class OutputSpec extends BaseCompilerSpec {

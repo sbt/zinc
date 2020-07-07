@@ -12,8 +12,14 @@
 package sbt.internal.inc
 
 import sbt.internal.prof.Zprof
+
 import xsbti.UseScope._
 import xsbti.VirtualFileRef
+import xsbti.compile.{ APIChange => XAPIChange }
+import xsbti.compile.{ InitialChanges => XInitialChanges }
+import xsbti.compile.{ InvalidationProfiler => XInvalidationProfiler }
+import xsbti.compile.{ RunProfiler => XRunProfiler }
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -28,7 +34,7 @@ import scala.collection.mutable.ArrayBuffer
  * this class is not thread safe.
  */
 abstract class InvalidationProfiler {
-  def profileRun: RunProfiler
+  def profileRun(): RunProfiler
   def registerRun(run: Zprof.ZincRun): Unit
 }
 
@@ -39,7 +45,7 @@ object InvalidationProfiler {
   }
 }
 
-class ZincInvalidationProfiler extends InvalidationProfiler {
+class ZincInvalidationProfiler extends InvalidationProfiler with XInvalidationProfiler { profiler =>
   /* The string table contains any kind of repeated string that is likely to occur
    * in the protobuf profiling data. This includes used names, class names, source
    * files and class files (their paths), as well as other repeated strings. This is
@@ -48,7 +54,7 @@ class ZincInvalidationProfiler extends InvalidationProfiler {
   private final val stringTableIndices: mutable.HashMap[String, Int] =
     new mutable.HashMap[String, Int]
 
-  def profileRun: RunProfiler = new ZincProfilerImplementation
+  def profileRun: AdaptedRunProfiler = new ZincProfilerImplementation
 
   private final var runs: List[Zprof.ZincRun] = Nil
 
@@ -72,7 +78,10 @@ class ZincInvalidationProfiler extends InvalidationProfiler {
       .addAllStringTable(stringTable.toList.asJava)
       .build
 
-  private[inc] class ZincProfilerImplementation extends RunProfiler {
+  private[inc] class ZincProfilerImplementation
+      extends AdaptedRunProfiler(new ZincXRunProfilerImplementation)
+
+  private[inc] final class ZincXRunProfilerImplementation extends XRunProfiler {
     private def memo(string: String): Int = { // was "toStringTableIndices"
       stringTableIndices.getOrElseUpdate(string, {
         stringTable += string
@@ -80,17 +89,18 @@ class ZincInvalidationProfiler extends InvalidationProfiler {
       })
     }
 
-    private final var compilationStartNanos: Long = 0L
-    private final var compilationDurationNanos: Long = 0L
-    private final var invalidationEvents: List[Zprof.InvalidationEvent] = Nil
-    private final var cycleInvalidations: List[Zprof.CycleInvalidation] = Nil
+    private var compilationStartNanos: Long = 0L
+    private var compilationDurationNanos: Long = 0L
+    private var initialChanges: Zprof.InitialChanges = Zprof.InitialChanges.getDefaultInstance
+    private var invalidationEvents: List[Zprof.InvalidationEvent] = Nil
+    private var cycleInvalidations: List[Zprof.CycleInvalidation] = Nil
 
     def timeCompilation(startNanos: Long, durationNanos: Long): Unit = {
       compilationStartNanos = startNanos
       compilationDurationNanos = durationNanos
     }
 
-    private def toApiChanges(changes: APIChanges) = {
+    private def toApiChanges(changes: Array[XAPIChange]) = {
       def toUsedNames(names: Iterable[UsedName]) = {
         listMap(names) { name =>
           val scopes = listMap(name.scopes.asScala) {
@@ -105,7 +115,7 @@ class ZincInvalidationProfiler extends InvalidationProfiler {
         }
       }
 
-      listMap(changes.apiChanges) {
+      listMap(changes) {
         case change: APIChangeDueToMacroDefinition =>
           Zprof.ApiChange.newBuilder
             .setModifiedClass(memo(change.modifiedClass))
@@ -126,26 +136,25 @@ class ZincInvalidationProfiler extends InvalidationProfiler {
       }
     }
 
-    def registerInitial(changes: InitialChanges): Unit = {
-      val fileChanges = changes.internalSrc
+    def registerInitial(changes: XInitialChanges): Unit = {
+      val fileChanges = changes.getInternalSrc
       val profChanges = Zprof.Changes.newBuilder
         .addAllAdded(listMap(fileChanges.getAdded.asScala)(f => memo(f.id)))
         .addAllRemoved(listMap(fileChanges.getRemoved.asScala)(f => memo(f.id)))
         .addAllModified(listMap(fileChanges.getChanged.asScala)(f => memo(f.id)))
         .build
-      Zprof.InitialChanges.newBuilder
+      initialChanges = Zprof.InitialChanges.newBuilder
         .setChanges(profChanges)
-        .addAllRemovedProducts(listMap(changes.removedProducts)(f => memo(f.id)))
-        .addAllBinaryDependencies(listMap(changes.libraryDeps)(f => memo(f.id)))
-        .addAllExternalChanges(toApiChanges(changes.external))
+        .addAllRemovedProducts(listMap(changes.getRemovedProducts.asScala)(f => memo(f.id)))
+        .addAllBinaryDependencies(listMap(changes.getLibraryDeps.asScala)(f => memo(f.id)))
+        .addAllExternalChanges(toApiChanges(changes.getExternal))
         .build
-      ()
     }
 
     def registerEvent(
         kind: String,
-        inputs: Iterable[String],
-        outputs: Iterable[String],
+        inputs: Array[String],
+        outputs: Array[String],
         reason: String
     ): Unit = {
       invalidationEvents ::= Zprof.InvalidationEvent.newBuilder
@@ -157,13 +166,13 @@ class ZincInvalidationProfiler extends InvalidationProfiler {
     }
 
     def registerCycle(
-        invalidatedClasses: Iterable[String],
-        invalidatedPackageObjects: Iterable[String],
-        initialSources: Iterable[VirtualFileRef],
-        invalidatedSources: Iterable[VirtualFileRef],
-        recompiledClasses: Iterable[String],
-        changesAfterRecompilation: APIChanges,
-        nextInvalidations: Iterable[String],
+        invalidatedClasses: Array[String],
+        invalidatedPackageObjects: Array[String],
+        initialSources: Array[VirtualFileRef],
+        invalidatedSources: Array[VirtualFileRef],
+        recompiledClasses: Array[String],
+        changesAfterRecompilation: Array[XAPIChange],
+        nextInvalidations: Array[String],
         shouldCompileIncrementally: Boolean
     ): Unit = {
       cycleInvalidations ::= Zprof.CycleInvalidation.newBuilder
@@ -180,6 +189,14 @@ class ZincInvalidationProfiler extends InvalidationProfiler {
         .setShouldCompileIncrementally(shouldCompileIncrementally)
         .build
     }
+
+    def toRun: Zprof.ZincRun =
+      Zprof.ZincRun.newBuilder
+        .setInitial(initialChanges)
+        .addAllCycles(cycleInvalidations.asJava)
+        .build
+
+    def registerRun(): Unit = profiler.registerRun(toRun)
 
     private def listMap[A, B](xs: Iterable[A])(f: A => B) = xs.iterator.map(f).toList.asJava
   }
@@ -221,28 +238,40 @@ abstract class RunProfiler {
 }
 
 object RunProfiler {
-  final val empty = new RunProfiler {
-    def timeCompilation(startNanos: Long, durationNanos: Long): Unit = ()
-    def registerInitial(changes: InitialChanges): Unit = ()
+  final val empty = new AdaptedRunProfiler(XRunProfiler.EMPTY.INSTANCE)
+}
 
-    def registerEvent(
-        kind: String,
-        inputs: Iterable[String],
-        outputs: Iterable[String],
-        reason: String
-    ): Unit = ()
+sealed class AdaptedRunProfiler(val profiler: XRunProfiler)
+    extends RunProfiler
+    with XRunProfiler.DelegatingRunProfiler {
+  override def registerInitial(changes: InitialChanges): Unit = profiler.registerInitial(changes)
 
-    def registerCycle(
-        invalidatedClasses: Iterable[String],
-        invalidatedPackageObjects: Iterable[String],
-        initialSources: Iterable[VirtualFileRef],
-        invalidatedSources: Iterable[VirtualFileRef],
-        recompiledClasses: Iterable[String],
-        changesAfterRecompilation: APIChanges,
-        nextInvalidations: Iterable[String],
-        shouldCompileIncrementally: Boolean
-    ): Unit = ()
-  }
+  override def registerEvent(
+      kind: String,
+      inputs: Iterable[String],
+      outputs: Iterable[String],
+      reason: String
+  ): Unit = profiler.registerEvent(kind, inputs.toArray, outputs.toArray, reason)
+
+  override def registerCycle(
+      invalidatedClasses: Iterable[String],
+      invalidatedPackageObjects: Iterable[String],
+      initialSources: Iterable[VirtualFileRef],
+      invalidatedSources: Iterable[VirtualFileRef],
+      recompiledClasses: Iterable[String],
+      changesAfterRecompilation: APIChanges,
+      nextInvalidations: Iterable[String],
+      shouldCompileIncrementally: Boolean
+  ): Unit = profiler.registerCycle(
+    invalidatedClasses.toArray,
+    invalidatedPackageObjects.toArray,
+    initialSources.toArray,
+    invalidatedSources.toArray,
+    recompiledClasses.toArray,
+    changesAfterRecompilation.apiChanges.toArray[XAPIChange],
+    nextInvalidations.toArray,
+    shouldCompileIncrementally,
+  )
 }
 
 trait InvalidationProfilerUtils {

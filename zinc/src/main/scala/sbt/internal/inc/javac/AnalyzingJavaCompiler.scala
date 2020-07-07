@@ -145,10 +145,12 @@ final class AnalyzingJavaCompiler private[sbt] (
       }
 
       // Record progress for java compilation
+      val somePhase = "<some phase>"
+      val noPhase = "<no phase>"
       val javaCompilationPhase = "Java compilation"
       progressOpt.map { progress =>
         progress.startUnit(javaCompilationPhase, "")
-        progress.advance(0, 2)
+        progress.advance(0, 2, somePhase, javaCompilationPhase)
       }
 
       timed(javaCompilationPhase, log) {
@@ -186,13 +188,15 @@ final class AnalyzingJavaCompiler private[sbt] (
       val javaAnalysisPhase = "Java analysis"
       progressOpt.map { progress =>
         progress.startUnit(javaAnalysisPhase, "")
-        progress.advance(1, 2)
+        progress.advance(1, 2, javaCompilationPhase, javaAnalysisPhase)
       }
       // Construct class loader to analyze dependencies of generated class files
       val loader = ClasspathUtil.toLoader(searchClasspath.map(converter.toPath))
 
       timed(javaAnalysisPhase, log) {
-        for ((classesFinder, oldClasses, srcs) <- memo) {
+        for {
+          (classesFinder, oldClasses, srcs) <- memo
+        } {
           val newClasses = Set(classesFinder.get: _*) -- oldClasses
           JavaAnalyze(newClasses.toSeq.map(_.toPath), srcs, log, output, finalJarOutput)(
             callback,
@@ -213,7 +217,7 @@ final class AnalyzingJavaCompiler private[sbt] (
 
       // Report that we reached the end
       progressOpt.foreach { progress =>
-        progress.advance(2, 2)
+        progress.advance(2, 2, javaAnalysisPhase, noPhase)
       }
     }
   }
