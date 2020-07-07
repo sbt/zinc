@@ -30,13 +30,14 @@ object PickleJar {
       pickleOut: Path,
       data: Iterable[PickleData],
       knownProducts: collection.Set[String],
+      compilerVersion: String,
       log: Logger
   ): Path = {
     // def trace(msg: String) = log.trace(() => new Exception(msg))
     var pj: RootJarPath = null
     val writtenPickles = new java.util.IdentityHashMap[AnyRef, String]()
     val writtenSyms = new mutable.HashSet[String]
-    val sigWriter = FileWriter(pickleOut, None)
+    val sigWriter = FileWriter(pickleOut, compilerVersion, None)
 
     def writeSigFile(pickle: PickleData): Unit = {
       val fqcn = pickle.fqcn()
@@ -98,11 +99,16 @@ object PickleJar {
     def close(): Unit
   }
   object FileWriter {
-    def apply(file: Path, jarManifestMainClass: Option[String]): FileWriter = {
+    def apply(
+        file: Path,
+        compilerVersion: String,
+        jarManifestMainClass: Option[String]
+    ): FileWriter = {
       if (file.getFileName.toString.endsWith(".jar")) {
         val jarCompressionLevel: Int = Deflater.DEFAULT_COMPRESSION
         new JarEntryWriter(
           file,
+          compilerVersion,
           jarManifestMainClass,
           jarCompressionLevel
         )
@@ -116,6 +122,7 @@ object PickleJar {
 
   private final class JarEntryWriter(
       file: Path,
+      compilerVersion: String,
       mainClass: Option[String],
       compressionLevel: Int
   ) extends FileWriter {
@@ -136,7 +143,7 @@ object PickleJar {
       val manifest = new Manifest
       val attrs = manifest.getMainAttributes
       attrs.put(MANIFEST_VERSION, "1.0")
-      attrs.put(ScalaCompilerVersion, versionNumberString)
+      attrs.put(ScalaCompilerVersion, compilerVersion)
       mainClass.foreach(c => attrs.put(MAIN_CLASS, c))
       // plugins.foreach(_.augmentManifest(file, manifest))
       prepJarFile()
