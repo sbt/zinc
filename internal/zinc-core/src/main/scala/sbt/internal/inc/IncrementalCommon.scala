@@ -860,7 +860,8 @@ object IncrementalCommon {
     }
   }
 
-  def emptyChanges: DependencyChanges = new DependencyChanges {
+  lazy val emptyChanges: DependencyChanges = new DependencyChanges {
+    override val modifiedBinaries = new Array[java.io.File](0)
     override val modifiedLibraries = new Array[VirtualFileRef](0)
     override val modifiedClasses = new Array[String](0)
     override def isEmpty = true

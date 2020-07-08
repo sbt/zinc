@@ -24,13 +24,14 @@ import sbt.internal.inc.classpath.ClassLoaderCache
 import sbt.internal.util.ManagedLogger
 import xsbti.{
   AnalysisCallback,
+  FileConverter,
   PathBasedFile,
   Reporter,
-  ReporterUtil,
   Logger => xLogger,
   VirtualFile
 }
 import xsbti.compile._
+import scala.language.existentials
 
 /**
  * Implement a cached incremental `ScalaCompiler` that has been instrumented
@@ -52,6 +53,10 @@ final class AnalyzingCompiler(
 ) extends CachedCompilerProvider
     with ScalaCompiler {
 
+  private[this] final val compilerBridgeClassName = "xsbt.CompilerInterface"
+  private[this] final val scaladocBridgeClassName = "xsbt.ScaladocInterface"
+  private[this] final val consoleBridgeClassName = "xsbt.ConsoleInterface"
+
   def onArgs(f: Seq[String] => Unit): AnalyzingCompiler =
     new AnalyzingCompiler(scalaInstance, provider, classpathOptions, f, classLoaderCache)
 
@@ -64,42 +69,22 @@ final class AnalyzingCompiler(
       Some(classLoaderCache)
     )
 
-  def apply(
+  override def compile(
       sources: Array[VirtualFile],
-      changes: DependencyChanges,
-      classpath: Array[VirtualFile],
-      singleOutput: Path,
-      options: Array[String],
-      callback: AnalysisCallback,
-      maximumErrors: Int,
-      cache: GlobalsCache,
-      log: ManagedLogger
-  ): Unit = {
-    val compArgs = new CompilerArguments(scalaInstance, classpathOptions)
-    val arguments = compArgs.makeArguments(Nil, classpath, options)
-    val output = CompileOutput(singleOutput)
-    val basicReporterConfig = ReporterUtil.getDefaultReporterConfig()
-    val reporterConfig = basicReporterConfig.withMaximumErrors(maximumErrors)
-    val reporter = ReporterManager.getReporter(log, reporterConfig)
-    val progress = Optional.empty[CompileProgress]
-    compile(sources, changes, arguments.toArray, output, callback, reporter, cache, log, progress)
-  }
-
-  def compile(
-      sources: Array[VirtualFile],
+      converter: FileConverter,
       changes: DependencyChanges,
       options: Array[String],
       output: Output,
       callback: AnalysisCallback,
       reporter: Reporter,
       cache: GlobalsCache,
-      log: xLogger,
-      progressOpt: Optional[CompileProgress]
+      progressOpt: Optional[CompileProgress],
+      log: xLogger
   ): Unit = {
     val cached = cache(options, output, !changes.isEmpty, this, log, reporter)
     try {
       val progress = if (progressOpt.isPresent) progressOpt.get else IgnoreProgress
-      compile(sources, changes, callback, log, reporter, progress, cached)
+      compile(sources, converter, changes, callback, log, reporter, progress, cached)
     } finally {
       cached match {
         case c: java.io.Closeable => c.close()
@@ -110,6 +95,7 @@ final class AnalyzingCompiler(
 
   def compile(
       sources: Array[VirtualFile],
+      converter: FileConverter,
       changes: DependencyChanges,
       callback: AnalysisCallback,
       log: xLogger,
@@ -117,16 +103,23 @@ final class AnalyzingCompiler(
       progress: CompileProgress,
       compiler: CachedCompiler
   ): Unit = {
-    // onArgsHandler(compiler.commandArguments(sources))
-    call("xsbt.CompilerInterface", "run", log)(
-      classOf[Array[VirtualFile]],
-      classOf[DependencyChanges],
-      classOf[AnalysisCallback],
-      classOf[xLogger],
-      classOf[Reporter],
-      classOf[CompileProgress],
-      classOf[CachedCompiler]
-    )(sources, changes, callback, log, reporter, progress, compiler)
+    val (bridge, bridgeClass) = bridgeInstance(compilerBridgeClassName, log)
+    bridge match {
+      case intf: CompilerInterface2 =>
+        intf.run(sources, changes, callback, log, reporter, progress, compiler)
+      case _ =>
+        // fall back to passing File array
+        val fileSources: Array[File] = sources.map(converter.toPath(_).toFile)
+        invoke(bridge, bridgeClass, "run", log)(
+          classOf[Array[File]],
+          classOf[DependencyChanges],
+          classOf[AnalysisCallback],
+          classOf[xLogger],
+          classOf[Reporter],
+          classOf[CompileProgress],
+          classOf[CachedCompiler]
+        )(fileSources, changes, callback, log, reporter, progress, compiler)
+    }
     ()
   }
 
@@ -144,12 +137,19 @@ final class AnalyzingCompiler(
       log: xLogger,
       reporter: Reporter
   ): CachedCompiler = {
-    val compiler = call("xsbt.CompilerInterface", "newCompiler", log)(
-      classOf[Array[String]],
-      classOf[Output],
-      classOf[xLogger],
-      classOf[Reporter]
-    )(arguments.toArray[String], output, log, reporter)
+    val (bridge, bridgeClass) = bridgeInstance(compilerBridgeClassName, log)
+    val compiler = bridge match {
+      case intf: CompilerInterface2 =>
+        intf.newCompiler(arguments.toArray[String], output, log, reporter)
+      case _ =>
+        // fall back to old reflection if CompilerInterface1 is not supported
+        invoke(bridge, bridgeClass, "newCompiler", log)(
+          classOf[Array[String]],
+          classOf[Output],
+          classOf[xLogger],
+          classOf[Reporter]
+        )(arguments.toArray[String], output, log, reporter)
+    }
     compiler.asInstanceOf[CachedCompiler]
   }
 
@@ -177,12 +177,19 @@ final class AnalyzingCompiler(
     val arguments =
       compArgs.makeArguments(Nil, classpath, Some(outputDirectory), options)
     onArgsHandler(arguments)
-    call("xsbt.ScaladocInterface", "run", log)(
+    val (bridge, bridgeClass) = bridgeInstance(scaladocBridgeClassName, log)
+    bridge match {
+      case intf: ScaladocInterface2 =>
+        intf.run(sources.toArray, arguments.toArray[String], log, reporter)
+    }
+    /*
+      call("xsbt.ScaladocInterface", "run", log)(
       classOf[Array[VirtualFile]],
       classOf[Array[String]],
       classOf[xLogger],
       classOf[Reporter]
     )(sources.toArray, arguments.toArray[String], log, reporter)
+     */
     ()
   }
 
@@ -195,28 +202,46 @@ final class AnalyzingCompiler(
   )(loader: Option[ClassLoader] = None, bindings: Seq[(String, Any)] = Nil): Unit = {
     onArgsHandler(consoleCommandArguments(classpath, options, log))
     val (classpathString, bootClasspath) = consoleClasspaths(classpath)
-    val (names, values) = bindings.unzip
-    call("xsbt.ConsoleInterface", "run", log)(
-      classOf[Array[String]],
-      classOf[String],
-      classOf[String],
-      classOf[String],
-      classOf[String],
-      classOf[ClassLoader],
-      classOf[Array[String]],
-      classOf[Array[Any]],
-      classOf[xLogger]
-    )(
-      options.toArray[String]: Array[String],
-      bootClasspath,
-      classpathString,
-      initialCommands,
-      cleanupCommands,
-      loader.orNull,
-      names.toArray[String],
-      values.toArray[Any],
-      log
-    )
+    val (names, values0) = bindings.unzip
+    val values = values0.toArray[Any].asInstanceOf[Array[AnyRef]]
+    val (bridge, bridgeClass) = bridgeInstance(consoleBridgeClassName, log)
+    bridge match {
+      case intf: ConsoleInterface1 =>
+        intf.run(
+          options.toArray[String]: Array[String],
+          bootClasspath,
+          classpathString,
+          initialCommands,
+          cleanupCommands,
+          loader.orNull,
+          names.toArray[String],
+          values,
+          log
+        )
+      case _ =>
+        // fall back to old reflection if ConsoleInterface1 is not supported
+        invoke(bridge, bridgeClass, "run", log)(
+          classOf[Array[String]],
+          classOf[String],
+          classOf[String],
+          classOf[String],
+          classOf[String],
+          classOf[ClassLoader],
+          classOf[Array[String]],
+          classOf[Array[Any]],
+          classOf[xLogger]
+        )(
+          options.toArray[String]: Array[String],
+          bootClasspath,
+          classpathString,
+          initialCommands,
+          cleanupCommands,
+          loader.orNull,
+          names.toArray[String],
+          values.toArray[Any],
+          log
+        )
+    }
     ()
   }
 
@@ -237,26 +262,33 @@ final class AnalyzingCompiler(
       log: Logger
   ): Seq[String] = {
     val (classpathString, bootClasspath) = consoleClasspaths(classpath)
-    val argsObj = call("xsbt.ConsoleInterface", "commandArguments", log)(
-      classOf[Array[String]],
-      classOf[String],
-      classOf[String],
-      classOf[xLogger]
-    )(options.toArray[String], bootClasspath, classpathString, log)
+    val (bridge, bridgeClass) = bridgeInstance(consoleBridgeClassName, log)
+    val argsObj = bridge match {
+      case intf: ConsoleInterface1 =>
+        intf.commandArguments(options.toArray[String], bootClasspath, classpathString, log)
+      case _ =>
+        invoke(bridge, bridgeClass, "commandArguments", log)(
+          classOf[Array[String]],
+          classOf[String],
+          classOf[String],
+          classOf[xLogger]
+        )(options.toArray[String], bootClasspath, classpathString, log)
+    }
     argsObj.asInstanceOf[Array[String]].toSeq
   }
 
   def force(log: Logger): Unit = { provider.fetchCompiledBridge(scalaInstance, log); () }
 
-  private def call(
-      interfaceClassName: String,
-      methodName: String,
-      log: Logger
-  )(argTypes: Class[_]*)(args: AnyRef*): AnyRef = {
-    val interfaceClass = getInterfaceClass(interfaceClassName, log)
-    val interface = interfaceClass.getDeclaredConstructor().newInstance().asInstanceOf[AnyRef]
-    val method = interfaceClass.getMethod(methodName, argTypes: _*)
-    try method.invoke(interface, args: _*)
+  private def bridgeInstance(bridgeClassName: String, log: Logger): (AnyRef, Class[_]) = {
+    val bridgeClass = getBridgeClass(bridgeClassName, log)
+    (bridgeClass.getDeclaredConstructor().newInstance().asInstanceOf[AnyRef], bridgeClass)
+  }
+
+  private def invoke(bridge: AnyRef, bridgeClass: Class[_], methodName: String, log: Logger)(
+      argTypes: Class[_]*
+  )(args: AnyRef*): AnyRef = {
+    val method = bridgeClass.getMethod(methodName, argTypes: _*)
+    try method.invoke(bridge, args: _*)
     catch {
       case e: InvocationTargetException =>
         e.getCause match {
@@ -285,7 +317,7 @@ final class AnalyzingCompiler(
     }
   }
 
-  private[this] def getInterfaceClass(name: String, log: Logger) =
+  private[this] def getBridgeClass(name: String, log: Logger) =
     Class.forName(name, true, loader(log))
 
   protected def createDualLoader(

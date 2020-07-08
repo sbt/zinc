@@ -16,6 +16,7 @@ package inc
 import java.io.File
 import java.util
 
+import com.github.ghik.silencer.silent
 import xsbti.{ AnalysisCallback, Reporter, Logger => xLogger }
 import xsbti.compile._
 import sbt.util.InterfaceUtil.{ toSupplier => f0 }
@@ -56,6 +57,17 @@ final class CompilerCache(val maxInstances: Int) extends GlobalsCache {
         val newCompiler: CachedCompiler = new CachedCompiler with java.io.Closeable {
           override def commandArguments(sources: Array[File]): Array[String] = {
             compiler.commandArguments(sources)
+          }
+          @silent
+          override def run(
+              sources: Array[File],
+              changes: DependencyChanges,
+              callback: AnalysisCallback,
+              logger: xLogger,
+              delegate: Reporter,
+              progress: CompileProgress
+          ): Unit = {
+            compiler.run(sources, changes, callback, logger, delegate, progress)
           }
           override def run(
               sources: Array[VirtualFile],

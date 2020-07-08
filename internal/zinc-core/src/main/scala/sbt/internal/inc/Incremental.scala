@@ -13,6 +13,7 @@ package sbt
 package internal
 package inc
 
+import java.io.File
 import java.nio.file.Path
 import java.util.EnumSet
 import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
@@ -243,8 +244,10 @@ object Incremental {
       incremental.detectInitialChanges(sources, previous, current, lookup, converter, output)
     log.debug(s"> initialChanges = $initialChanges")
     val binaryChanges = new DependencyChanges {
-      val modifiedLibraries = initialChanges.libraryDeps.toArray
-      val modifiedClasses = initialChanges.external.allModified.toArray
+      override def modifiedBinaries: Array[File] =
+        modifiedLibraries.map(converter.toPath(_).toFile)
+      override val modifiedLibraries = initialChanges.libraryDeps.toArray
+      override val modifiedClasses = initialChanges.external.allModified.toArray
       def isEmpty = modifiedLibraries.isEmpty && modifiedClasses.isEmpty
     }
     val (initialInvClasses, initialInvSources0) =
@@ -428,7 +431,8 @@ private final class AnalysisCallback(
   private[this] val compilation: Compilation = Compilation(compileStartTime, output)
 
   private val hooks = options.externalHooks
-  private val provenance = jo2o(output.getSingleOutput).fold("")(hooks.getProvenance.get(_)).intern
+  private val provenance =
+    jo2o(output.getSingleOutputAsPath).fold("")(hooks.getProvenance.get(_)).intern
 
   override def toString =
     (List("Class APIs", "Object APIs", "Library deps", "Products", "Source deps") zip
@@ -487,7 +491,8 @@ private final class AnalysisCallback(
     currentSetup.options.scalacOptions.contains("-Ypickle-java")
   }
 
-  def startSource(source: VirtualFile): Unit = {
+  override def startSource(source: File): Unit = startSource(converter.toVirtualFile(source.toPath))
+  override def startSource(source: VirtualFile): Unit = {
     if (options.strictMode()) {
       assert(
         !srcs.contains(source),
@@ -540,15 +545,31 @@ private final class AnalysisCallback(
     add(extSrcDeps, sourceClassName, dependency)
   }
 
+  // Called by sbt-dotty
+  override def binaryDependency(
+      classFile: File,
+      onBinaryClassName: String,
+      fromClassName: String,
+      fromSourceFile: File,
+      context: DependencyContext
+  ): Unit =
+    binaryDependency(
+      classFile.toPath,
+      onBinaryClassName,
+      fromClassName,
+      converter.toVirtualFile(fromSourceFile.toPath),
+      context
+    )
+
   // since the binary at this point could either *.class files or
   // library JARs, we need to accept Path here.
-  def binaryDependency(
+  override def binaryDependency(
       classFile: Path,
       onBinaryClassName: String,
       fromClassName: String,
       fromSourceFile: VirtualFileRef,
       context: DependencyContext
-  ) =
+  ): Unit =
     internalBinaryToSourceClassName(onBinaryClassName) match {
       case Some(dependsOn) => // dependsOn is a source class name
         // dependency is a product of a source not included in this compilation
@@ -593,7 +614,21 @@ private final class AnalysisCallback(
     }
   }
 
-  def generatedNonLocalClass(
+  // Called by sbt-dotty
+  override def generatedNonLocalClass(
+      source: File,
+      classFile: File,
+      binaryClassName: String,
+      srcClassName: String
+  ): Unit =
+    generatedNonLocalClass(
+      converter.toVirtualFile(source.toPath),
+      classFile.toPath,
+      binaryClassName,
+      srcClassName
+    )
+
+  override def generatedNonLocalClass(
       source: VirtualFileRef,
       classFile: Path,
       binaryClassName: String,
@@ -607,14 +642,22 @@ private final class AnalysisCallback(
     ()
   }
 
-  def generatedLocalClass(source: VirtualFileRef, classFile: Path): Unit = {
+  // Called by sbt-dotty
+  override def generatedLocalClass(source: File, classFile: File): Unit =
+    generatedLocalClass(converter.toVirtualFile(source.toPath), classFile.toPath)
+
+  override def generatedLocalClass(source: VirtualFileRef, classFile: Path): Unit = {
     //println(s"Generated local class ${source}, ${classFile}")
     val vf = converter.toVirtualFile(classFile)
     add(localClasses, source, vf)
     ()
   }
 
-  def api(sourceFile: VirtualFileRef, classApi: ClassLike): Unit = {
+  // Called by sbt-dotty
+  override def api(sourceFile: File, classApi: ClassLike): Unit =
+    api(converter.toVirtualFile(sourceFile.toPath), classApi)
+
+  override def api(sourceFile: VirtualFileRef, classApi: ClassLike): Unit = {
     import xsbt.api.{ APIUtil, HashAPI }
     val className = classApi.name
     if (APIUtil.isScalaSourceName(sourceFile.id) && APIUtil.hasMacro(classApi))
@@ -638,7 +681,11 @@ private final class AnalysisCallback(
     }
   }
 
-  def mainClass(sourceFile: VirtualFileRef, className: String): Unit = {
+  // Called by sbt-dotty
+  override def mainClass(sourceFile: File, className: String): Unit =
+    mainClass(converter.toVirtualFile(sourceFile.toPath), className)
+
+  override def mainClass(sourceFile: VirtualFileRef, className: String): Unit = {
     mainClasses.getOrElseUpdate(sourceFile, new ConcurrentLinkedQueue).add(className)
     ()
   }
@@ -844,7 +891,7 @@ private final class AnalysisCallback(
     }
     for {
       earlyO <- earlyOutput
-      pickleJarPath <- jo2o(earlyO.getSingleOutput())
+      pickleJarPath <- jo2o(earlyO.getSingleOutputAsPath())
     } {
       // List classes defined in the files that were compiled in this run.
       val knownProducts = merged.relations.allSources
@@ -858,7 +905,7 @@ private final class AnalysisCallback(
   }
 
   private def extractProductPath(product: VirtualFileRef): Option[String] = {
-    jo2o(output.getSingleOutput) match {
+    jo2o(output.getSingleOutputAsPath) match {
       case Some(so) if so.getFileName.toString.endsWith(".jar") =>
         new JarUtils.ClassInJar(product.id).toClassFilePath
       case Some(so) =>

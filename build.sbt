@@ -367,6 +367,10 @@ lazy val zincCompileCore = (projectMatrix in internalPath / "zinc-compile-core")
   )
   .settings(
     name := "zinc Compile Core",
+    libraryDependencies ++= (scalaVersion.value match {
+      case v if v.startsWith("2.12.") => List(compilerPlugin(silencerPlugin))
+      case _                          => List()
+    }),
     libraryDependencies ++= Seq(
       scalaCompiler.value % Test,
       launcherInterface,
@@ -407,18 +411,18 @@ lazy val compilerInterface = (projectMatrix in internalPath / "compiler-interfac
     mimaSettings,
     mimaBinaryIssueFilters ++= Seq(
       // 1.4.0 changed to VirtualFile. These should be internal to Zinc.
-      exclude[Problem]("xsbti.AnalysisCallback.*"),
+      exclude[ReversedMissingMethodProblem]("xsbti.AnalysisCallback.*"),
       exclude[Problem]("xsbti.compile.PerClasspathEntryLookup.*"),
       exclude[Problem]("xsbti.compile.ExternalHooks*"),
       exclude[Problem]("xsbti.compile.FileHash.*"),
-      exclude[Problem]("xsbti.compile.Output.*"),
-      exclude[Problem]("xsbti.compile.OutputGroup.*"),
-      exclude[Problem]("xsbti.compile.SingleOutput.*"),
-      exclude[Problem]("xsbti.compile.MultipleOutput.*"),
-      exclude[Problem]("xsbti.compile.CachedCompiler.*"),
+      exclude[ReversedMissingMethodProblem]("xsbti.compile.Output.*"),
+      exclude[ReversedMissingMethodProblem]("xsbti.compile.OutputGroup.*"),
+      exclude[ReversedMissingMethodProblem]("xsbti.compile.SingleOutput.*"),
+      exclude[ReversedMissingMethodProblem]("xsbti.compile.MultipleOutput.*"),
+      exclude[ReversedMissingMethodProblem]("xsbti.compile.CachedCompiler.*"),
       exclude[Problem]("xsbti.compile.ClassFileManager.*"),
       exclude[Problem]("xsbti.compile.WrappedClassFileManager.*"),
-      exclude[Problem]("xsbti.compile.DependencyChanges.*"),
+      exclude[ReversedMissingMethodProblem]("xsbti.compile.DependencyChanges.*"),
       exclude[Problem]("xsbti.compile.ScalaCompiler.*"),
       exclude[Problem]("xsbti.compile.JavaTool.*"),
       exclude[Problem]("xsbti.compile.JavaTool.*"),

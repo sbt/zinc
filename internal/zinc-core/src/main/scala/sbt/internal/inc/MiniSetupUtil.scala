@@ -85,7 +85,7 @@ object MiniSetupUtil {
   implicit val equivOutput: Equiv[APIOutput] = {
     new Equiv[APIOutput] {
       implicit val outputGroupsOrdering =
-        Ordering.by((og: OutputGroup) => og.getSourceDirectory)
+        Ordering.by((og: OutputGroup) => og.getSourceDirectoryAsPath)
 
       def equiv(out1: APIOutput, out2: APIOutput) = (out1, out2) match {
         case (m1: MultipleOutput, m2: MultipleOutput) =>
@@ -93,11 +93,11 @@ object MiniSetupUtil {
             (m1.getOutputGroups.sorted zip m2.getOutputGroups.sorted forall {
               case (a, b) =>
                 equivFile
-                  .equiv(a.getSourceDirectory, b.getSourceDirectory) && equivFile
-                  .equiv(a.getOutputDirectory, b.getOutputDirectory)
+                  .equiv(a.getSourceDirectoryAsPath, b.getSourceDirectoryAsPath) && equivFile
+                  .equiv(a.getOutputDirectoryAsPath, b.getOutputDirectoryAsPath)
             })
         case (s1: SingleOutput, s2: SingleOutput) =>
-          equivFile.equiv(s1.getOutputDirectory, s2.getOutputDirectory)
+          equivFile.equiv(s1.getOutputDirectoryAsPath, s2.getOutputDirectoryAsPath)
         case _ =>
           false
       }

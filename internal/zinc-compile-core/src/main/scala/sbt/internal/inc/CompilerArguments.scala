@@ -190,7 +190,7 @@ object CompilerArguments {
      * make use of it (e.g. the Eclipse compiler does this via EJC).
      * See https://github.com/sbt/zinc/issues/163. */
     val target = output match {
-      case so: SingleOutput  => Some(so.getOutputDirectory)
+      case so: SingleOutput  => Some(so.getOutputDirectoryAsPath)
       case _: MultipleOutput => None
     }
     outputOption(target)

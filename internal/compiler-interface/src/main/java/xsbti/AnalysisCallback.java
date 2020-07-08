@@ -18,6 +18,14 @@ import java.nio.file.Path;
 import java.util.EnumSet;
 
 public interface AnalysisCallback {
+
+    /**
+     * This is kept around for sbt-dotty.
+     * @deprecated Use @link{#startSource(VirtualFile)} instead. 
+     */
+    @Deprecated
+    void startSource(File source);
+
     /**
      * Set the source file mapped to a concrete {@link AnalysisCallback}.
      * @param source Source file mapped to this instance of {@link AnalysisCallback}.
@@ -44,6 +52,17 @@ public interface AnalysisCallback {
     void classDependency(String onClassName,
                          String sourceClassName,
                          DependencyContext context);
+
+    /**
+     * This is kept around for sbt-dotty.
+     * @deprecated Use @link{#binaryDependency(Path, String, String, VirtualFileRef, DependencyContext)} instead. 
+     */
+    @Deprecated
+    void binaryDependency(File onBinaryEntry,
+                          String onBinaryClassName,
+                          String fromClassName,
+                          File fromSourceFile,
+                          DependencyContext context);
 
     /**
      * Indicate that the class <code>fromClassName</code> depends on a class
@@ -78,6 +97,15 @@ public interface AnalysisCallback {
                           DependencyContext context);
 
     /**
+     * This is kept around for sbt-dotty.
+     * @deprecated Use @link{#generatedNonLocalClass(VirtualFileRef, Path, String, String)} instead. 
+     */
+    @Deprecated
+    void generatedNonLocalClass(File source,
+                                File classFile,
+                                String binaryClassName,
+                                String srcClassName);
+    /**
      * Map the source class name (<code>srcClassName</code>) of a top-level
      * Scala class coming from a given source file to a binary class name
      * (<code>binaryClassName</code>) coming from a given class file.
@@ -100,6 +128,13 @@ public interface AnalysisCallback {
                                 String srcClassName);
 
     /**
+     * This is kept around for sbt-dotty.
+     * @deprecated Use @link{#generatedLocalClass(VirtualFileRef, Path)} instead. 
+     */
+    @Deprecated
+    void generatedLocalClass(File source, File classFile);
+
+    /**
      * Map the product relation between <code>classFile</code> and
      * <code>source</code> to indicate that <code>classFile</code> is the
      * product of compilation from <code>source</code>.
@@ -110,12 +145,26 @@ public interface AnalysisCallback {
     void generatedLocalClass(VirtualFileRef source, Path classFile);
 
     /**
+     * This is kept around for sbt-dotty.
+     * @deprecated Use @link{#api(VirtualFileRef, xsbti.api.ClassLike)} instead. 
+     */
+    @Deprecated
+    void api(File sourceFile, xsbti.api.ClassLike classApi);
+
+    /**
      * Register a public API entry coming from a given source file.
      *
      * @param sourceFile Source file where <code>classApi</code> comes from.
      * @param classApi The extracted public class API.
      */
     void api(VirtualFileRef sourceFile, xsbti.api.ClassLike classApi);
+
+    /**
+     * This is kept around for sbt-dotty.
+     * @deprecated Use @link{#mainClass(VirtualFileRef, String)} instead. 
+     */
+    @Deprecated
+    void mainClass(File sourceFile, String className);
 
     /**
      * Register a class containing an entry point coming from a given source file.

@@ -117,18 +117,18 @@ final class AnalyzingJavaCompiler private[sbt] (
       // Outline chunks of compiles so that .class files end up in right location
       val chunks: Map[Option[Path], Seq[VirtualFile]] = output match {
         case single: SingleOutput =>
-          Map(Option(single.getOutputDirectory) -> sources)
+          Map(Option(single.getOutputDirectoryAsPath) -> sources)
         case multi: MultipleOutput =>
           sources.groupBy { src =>
             multi.getOutputGroups
               .find { out =>
                 val sourceDir: VirtualFileRef = sourceDirs.getOrElseUpdate(
-                  out.getSourceDirectory,
-                  converter.toVirtualFile(out.getSourceDirectory)
+                  out.getSourceDirectoryAsPath,
+                  converter.toVirtualFile(out.getSourceDirectoryAsPath)
                 )
                 src.id.startsWith(sourceDir.id)
               }
-              .map(_.getOutputDirectory)
+              .map(_.getOutputDirectoryAsPath)
           }
       }
 

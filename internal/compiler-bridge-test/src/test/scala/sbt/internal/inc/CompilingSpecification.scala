@@ -5,6 +5,7 @@ package inc
 import java.io.File
 import java.net.URLClassLoader
 import java.nio.file.{ Files, Path, Paths }
+import java.util.Optional
 
 import sbt.internal.inc.classpath.ClassLoaderCache
 import sbt.io.IO
@@ -12,7 +13,7 @@ import sbt.io.syntax._
 import xsbti.compile._
 import sbt.util.Logger
 import xsbti.TestCallback.ExtractedClassDependencies
-import xsbti.{ TestCallback, UseScope, VirtualFile, VirtualFileRef }
+import xsbti.{ ReporterUtil, TestCallback, UseScope, VirtualFile, VirtualFileRef }
 import xsbti.api.ClassLike
 import xsbti.api.DependencyContext._
 
@@ -199,18 +200,25 @@ trait CompilingSpecification extends BridgeProviderSpecification {
         val cp = (si.allJars ++ Array(targetDir)).map(_.toPath).map(converter.toVirtualFile)
         val emptyChanges: DependencyChanges = new DependencyChanges {
           override val modifiedLibraries = new Array[VirtualFileRef](0)
+          override val modifiedBinaries = new Array[File](0)
           override val modifiedClasses = new Array[String](0)
           override def isEmpty = true
         }
-        sc.apply(
+        val compArgs = new CompilerArguments(si, sc.classpathOptions)
+        val arguments = compArgs.makeArguments(Nil, cp, Nil)
+        val basicReporterConfig = ReporterUtil.getDefaultReporterConfig()
+        val reporterConfig = basicReporterConfig.withMaximumErrors(maxErrors)
+        val reporter = ReporterManager.getReporter(log, reporterConfig)
+        sc.compile(
           sources = sources,
+          converter = converter,
           changes = emptyChanges,
-          classpath = cp,
-          singleOutput = targetDir.toPath,
-          options = Array(),
+          options = arguments.toArray,
+          output = CompileOutput(targetDir.toPath),
           callback = analysisCallback,
-          maximumErrors = maxErrors,
+          reporter = reporter,
           cache = cache,
+          progressOpt = Optional.empty[CompileProgress],
           log = log
         )
         srcFiles

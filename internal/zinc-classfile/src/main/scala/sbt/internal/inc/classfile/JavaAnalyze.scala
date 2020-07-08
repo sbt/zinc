@@ -45,7 +45,7 @@ private[sbt] object JavaAnalyze {
       .groupBy(_.name)
     // For performance reasons, precompute these as they are static throughout this analysis
     val outputJarOrNull: Path = finalJarOutput.getOrElse(null)
-    val singleOutputOrNull: Path = output.getSingleOutput.orElse(null)
+    val singleOutputOrNull: Path = output.getSingleOutputAsPath.orElse(null)
 
     def load(tpe: String, errMsg: => Option[String]): Option[Class[_]] = {
       if (tpe.endsWith("module-info")) None

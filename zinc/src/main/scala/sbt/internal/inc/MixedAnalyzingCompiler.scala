@@ -81,7 +81,7 @@ final class MixedAnalyzingCompiler(
     logInputs(log, javaSrcs.size, scalaSrcs.size, outputDirs)
     val isPickleJava = config.currentSetup.order == Mixed && config.incOptions.pipelining && javaSrcs.nonEmpty
 
-    val earlyOut = config.earlyOutput.flatMap(_.getSingleOutput.toOption)
+    val earlyOut = config.earlyOutput.flatMap(_.getSingleOutputAsPath.toOption)
     val pickleWrite = earlyOut.toList.flatMap { out =>
       val sbv = scalac.scalaInstance.version.take(4)
       if (out.toString.endsWith(".jar") && !Files.exists(out))
@@ -105,14 +105,15 @@ final class MixedAnalyzingCompiler(
           timed("Scala compilation", log) {
             config.compiler.compile(
               sources.toArray,
+              config.converter,
               changes,
               arguments.toArray,
               output,
               callback,
               config.reporter,
               config.cache,
-              log,
-              config.progress.toOptional
+              config.progress.toOptional,
+              log
             )
           }
         }
@@ -197,8 +198,8 @@ final class MixedAnalyzingCompiler(
 
   private[this] def outputDirectories(output: Output): Seq[Path] = {
     output match {
-      case single: SingleOutput => List(single.getOutputDirectory)
-      case mult: MultipleOutput => mult.getOutputGroups map (_.getOutputDirectory)
+      case single: SingleOutput => List(single.getOutputDirectoryAsPath)
+      case mult: MultipleOutput => mult.getOutputGroups map (_.getOutputDirectoryAsPath)
     }
   }
 

@@ -11,6 +11,7 @@
 
 package xsbti.compile;
 
+import java.io.File;
 import java.nio.file.Path;
 import java.util.Optional;
 
@@ -30,7 +31,12 @@ public interface MultipleOutput extends Output {
     public OutputGroup[] getOutputGroups();
 
     @Override
-    public default Optional<Path> getSingleOutput() {
+    public default Optional<File> getSingleOutput() {
+        return Optional.empty();
+    }
+
+    @Override
+    public default Optional<Path> getSingleOutputAsPath() {
         return Optional.empty();
     }
 
