@@ -14,8 +14,7 @@ package internal
 package inc
 
 import java.nio.file.{ FileVisitResult, Files, Path, SimpleFileVisitor }
-import java.nio.file.attribute.{ BasicFileAttributes, FileTime }
-import java.time.Instant
+import java.nio.file.attribute.BasicFileAttributes
 
 import scala.reflect.io.RootPath
 
@@ -24,8 +23,6 @@ object PickleJar {
     val pj = RootPath(pickleOut, writable = false) // so it doesn't delete the file
     try Files.walkFileTree(pj.root, deleteUnknowns(knownProducts))
     finally pj.close()
-
-    Files.setLastModifiedTime(pickleOut, FileTime.from(Instant.now()))
   }
 
   def deleteUnknowns(knownProducts: Set[String]) = new SimpleFileVisitor[Path] {
