@@ -375,7 +375,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       if (outputJarsOnCp) sys.props.put("scala.classpath.closeZip", "true")
 
       val extraScalacOptions = {
-        if (outputJarsOnCp && scalaCompiler.scalaInstance.version.startsWith("2.12"))
+        if (outputJarsOnCp && Set("2.12", "2.13")(scalaCompiler.scalaInstance.version.take(4)))
           JarUtils.scalacOptions
         else Nil
       }
