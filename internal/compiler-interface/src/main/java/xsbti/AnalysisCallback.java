@@ -12,7 +12,6 @@
 package xsbti;
 
 import xsbti.api.DependencyContext;
-import xsbti.compile.PickleData;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -204,11 +203,6 @@ public interface AnalysisCallback {
      * can repurpose `classesInOutputJar` to only do 1).
      */
     java.util.Set<String> classesInOutputJar();
-
-    /**
-     * Pass new pickle data as of this point.
-     */
-    void pickleData(PickleData[] data);
 
     /**
      * Returns true if -Ypickle-java is on.

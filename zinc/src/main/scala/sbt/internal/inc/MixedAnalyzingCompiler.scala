@@ -32,6 +32,7 @@ import xsbti.compile.analysis.ReadStamps
 import sbt.io.{ IO, DirectoryFilter }
 import sbt.util.{ InterfaceUtil, Logger }
 import sbt.internal.inc.JavaInterfaceUtil.EnrichOption
+import sbt.internal.inc.JavaInterfaceUtil.EnrichOptional
 import sbt.internal.inc.VirtualFileUtil.toAbsolute
 import sbt.internal.inc.caching.ClasspathCache
 import sbt.internal.inc.javac.AnalyzingJavaCompiler
@@ -80,6 +81,14 @@ final class MixedAnalyzingCompiler(
     logInputs(log, javaSrcs.size, scalaSrcs.size, outputDirs)
     val isPickleJava = config.currentSetup.order == Mixed && config.incOptions.pipelining && javaSrcs.nonEmpty
 
+    val earlyOut = config.earlyOutput.flatMap(_.getSingleOutput.toOption)
+    val pickleWrite = earlyOut.toList.flatMap { out =>
+      val sbv = scalac.scalaInstance.version.take(4)
+      if (out.toString.endsWith(".jar") && !Files.exists(out))
+        scala.reflect.io.RootPath(out, writable = true).close() // creates an empty jar
+      List("-Ypickle-write", out.toString).filter(_ => sbv == "2.12" || sbv == "2.13")
+    }
+
     // Compile Scala sources.
     def compileScala(): Unit =
       if (scalaSrcs.nonEmpty || isPickleJava) {
@@ -92,7 +101,7 @@ final class MixedAnalyzingCompiler(
             config.converter.toVirtualFile(x.toAbsolutePath)
           }) ++ absClasspath
           val arguments =
-            cArgs.makeArguments(Nil, cp, config.currentSetup.options.scalacOptions)
+            cArgs.makeArguments(Nil, cp, config.currentSetup.options.scalacOptions ++ pickleWrite)
           timed("Scala compilation", log) {
             config.compiler.compile(
               sources.toArray,
