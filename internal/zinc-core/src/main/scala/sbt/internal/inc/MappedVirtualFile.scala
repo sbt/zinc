@@ -58,10 +58,11 @@ class MappedFileConverter(rootPaths: Map[String, Path], allowMachinePath: Boolea
       case Some((key, rootPath)) =>
         MappedVirtualFile(s"$${$key}/${rootPath.relativize(path)}".replace('\\', '/'), rootPaths)
       case _ =>
-        path.getFileName.toString match {
-          case "rt.jar"              => DummyVirtualFile("rt.jar", path)
-          case _ if allowMachinePath => MappedVirtualFile(s"$path".replace('\\', '/'), rootPaths)
-          case _                     => sys.error(s"$path cannot be mapped using the root paths $rootPaths")
+        path match {
+          case p if p.toUri.getScheme == "jrt"         => DummyVirtualFile("rt.jar", path)
+          case p if p.getFileName.toString == "rt.jar" => DummyVirtualFile("rt.jar", path)
+          case _ if allowMachinePath                   => MappedVirtualFile(s"$path".replace('\\', '/'), rootPaths)
+          case _                                       => sys.error(s"$path cannot be mapped using the root paths $rootPaths")
         }
     }
   }
