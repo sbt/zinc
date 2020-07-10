@@ -11,50 +11,36 @@
 
 package xsbti;
 
-import java.util.Arrays;
-import java.util.ArrayList;
+import java.util.Objects;
 
 public class BasicVirtualFileRef implements VirtualFileRef {
-    final private String id;
-    final private String parent;
-    final private String name;
+    private final String id;
+    private final String parent;
+    private final String name;
 
     protected BasicVirtualFileRef(String _id) {
-        this.id = _id;
-        int idx = _id.lastIndexOf('/');
-        if (idx >= 0) {
-          parent = _id.substring(0, idx + 1);
-        } else {
-          parent = "";
-        }
-        name = _id.substring(idx + 1);
-    }
-  
-    public String id() {
-        // https://github.com/sbt/zinc/issues/768
-        // keep the whole id as val
-        return this.id;
-    }
-
-    public String name() {
-        return name;
+        this.id = _id.replace('\\', '/');
+        int idx = id.lastIndexOf('/');
+        parent = idx == -1 ? "" : id.substring(0, idx + 1);
+        name = id.substring(idx + 1);
     }
 
     public String[] names() {
-        if (parent == null || parent == "") {
+        if (Objects.equals(parent, "")) {
             return new String[] { name };
         }
         String[] parts = parent.split("/");
         String[] results = new String[parts.length + 1];
-        int i = 0;
-        for (i = 0; i < parts.length; i++) results[i] = parts[i];
-        results[i] = name;
+        System.arraycopy(parts, 0, results, 0, parts.length);
+        results[parts.length] = name;
         return results;
     }
 
-    public BasicVirtualFileRef withId(String id) {
-        return new BasicVirtualFileRef(id);
-    }
+    public BasicVirtualFileRef withId(String id) { return new BasicVirtualFileRef(id); }
+
+    public String id() { return id; } // keep the whole id as val sbt/zinc#768
+    public String name() { return name; }
+    public String toString() { return id; }
 
     public boolean equals(Object obj) {
         if (this == obj) {
@@ -62,14 +48,11 @@ public class BasicVirtualFileRef implements VirtualFileRef {
         } else if (!(obj instanceof VirtualFileRef)) {
             return false;
         } else {
-            VirtualFileRef o = (VirtualFileRef)obj;
-            return this.id().equals(o.id());
+            return Objects.equals(id(), ((VirtualFileRef) obj).id());
         }
     }
+
     public int hashCode() {
-        return 37 * (37 * (17 + "xsbti.VirtualFileRef".hashCode()) + id().hashCode());
-    }
-    public String toString() {
-        return id();
+        return 37 * (37 * (17 + "xsbti.VirtualFileRef".hashCode()) + id.hashCode());
     }
 }

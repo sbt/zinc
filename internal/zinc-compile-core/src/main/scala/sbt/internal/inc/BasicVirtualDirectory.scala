@@ -16,46 +16,30 @@ package inc
 import java.io.{ ByteArrayInputStream, ByteArrayOutputStream, InputStream, OutputStream }
 import xsbti.{ VirtualDirectory, VirtualFileWrite };
 
-class BasicVirtualDirectory(val name: String, parent: Option[VirtualDirectory])
-    extends VirtualDirectory {
-  override def fileNamed(name: String): xsbti.VirtualFileWrite = {
-    val newFile = new BasicMemoryFile(name, Some(this))
-    newFile
-  }
-  override def subdirectoryNamed(name: String): BasicVirtualDirectory = {
-    val newDir = new BasicVirtualDirectory(name, Some(this))
-    newDir
-  }
-  override def id: String = BasicVirtualDirectory.parentId(parent) + name + "/"
-  override def names: Array[String] =
-    BasicVirtualDirectory.parentNames(parent) ++
-      (if (name == "") Array.empty[String]
-       else Array(name))
+class BasicVirtualDirectory private (parts: List[String]) extends VirtualDirectory {
+  override def fileNamed(name: String): VirtualFileWrite = new BasicMemoryFile(name, this)
+
+  override def subdirectoryNamed(name: String): BasicVirtualDirectory =
+    new BasicVirtualDirectory(name :: parts)
+
+  override def id: String = ("" :: parts).reverseIterator.mkString("/", "/", "")
+  override def names(): Array[String] = parts.reverseIterator.toArray
+  override def name(): String = if (parts.isEmpty) "" else parts.head
   override def toString: String = id
 }
 
 object BasicVirtualDirectory {
-  def newRoot: BasicVirtualDirectory = apply("")
-  def apply(name: String): BasicVirtualDirectory = new BasicVirtualDirectory(name, None)
-
-  private[inc] def parentId(parent: Option[VirtualDirectory]): String =
-    parent match {
-      case Some(p) => p.id
-      case None    => ""
-    }
-  private[inc] def parentNames(parent: Option[VirtualDirectory]): Array[String] =
-    parent match {
-      case Some(p) => p.names
-      case None    => Array.empty[String]
-    }
+  def newRoot: BasicVirtualDirectory = new BasicVirtualDirectory(Nil)
+  def apply(name: String): BasicVirtualDirectory =
+    if (name == "") newRoot else new BasicVirtualDirectory(List(name))
 }
 
-class BasicMemoryFile(val name: String, parent: Option[VirtualDirectory]) extends VirtualFileWrite {
+class BasicMemoryFile(val name: String, parent: VirtualDirectory) extends VirtualFileWrite {
   private[this] val byteArray = new ByteArrayOutputStream()
-  override def contentHash(): Long = HashUtil.farmHash(byteArray.toByteArray())
-  override def input(): InputStream = new ByteArrayInputStream(byteArray.toByteArray())
-  override def output(): OutputStream = byteArray
-  override def id(): String = BasicVirtualDirectory.parentId(parent) + name
-  override def names(): Array[String] = BasicVirtualDirectory.parentNames(parent) ++ Array(name)
+  override def contentHash: Long = HashUtil.farmHash(byteArray.toByteArray())
+  override def input: InputStream = new ByteArrayInputStream(byteArray.toByteArray())
+  override def output: OutputStream = byteArray
+  override def id: String = s"$parent$name"
+  override def names: Array[String] = parent.names :+ name
   override def toString: String = id
 }
