@@ -15,61 +15,40 @@ package inc
 
 import java.io.File
 import java.nio.file.Path
+import java.util.Optional
+
 import xsbti.{ FileConverter, PathBasedFile, Position, VirtualFile, VirtualFileRef }
-import xsbti.compile.{ Output, SingleOutput }
+import xsbti.compile.Output
+import sbt.util.InterfaceUtil._
 
 object VirtualFileUtil {
-  implicit val sbtInternalIncVirtualFileRefOrdering: Ordering[VirtualFileRef] =
-    new VirtualFileRefOrdering()
-  private class VirtualFileRefOrdering extends Ordering[VirtualFileRef] {
-    val strOrdering = implicitly[Ordering[String]]
-    override def compare(lhs: VirtualFileRef, rhs: VirtualFileRef): Int = {
-      strOrdering.compare(lhs.id, rhs.id)
-    }
-  }
-
-  implicit val sbtInternalIncVirtualFileOrdering: Ordering[VirtualFile] =
-    new VirtualFileOrdering()
-  private class VirtualFileOrdering extends Ordering[VirtualFile] {
-    val strOrdering = implicitly[Ordering[String]]
-    override def compare(lhs: VirtualFile, rhs: VirtualFile): Int = {
-      strOrdering.compare(lhs.id, rhs.id)
-    }
-  }
+  implicit val sbtInternalIncVirtualFileOrdering: Ordering[VirtualFile] = Ordering.by(_.id)
+  implicit val sbtInternalIncVirtualFileRefOrdering: Ordering[VirtualFileRef] = Ordering.by(_.id)
 
   def outputDirectory(output: Output): Path =
-    output match {
-      case single0: SingleOutput => single0.getOutputDirectory
-      case _                     => sys.error(s"unexpected output $output")
-    }
+    output.getSingleOutput.orElseThrow(() => new RuntimeException(s"unexpected output $output"))
 
-  def sourcePositionMapper(converter: FileConverter): Position => Position = { pos0: Position =>
-    new DelegatingPosition(pos0, converter)
-  }
+  def sourcePositionMapper(converter: FileConverter): Position => Position =
+    new DelegatingPosition(_, converter)
 
-  class DelegatingPosition(
-      original: Position,
-      converter: FileConverter
-  ) extends xsbti.Position {
+  class DelegatingPosition(original: Position, converter: FileConverter) extends Position {
     override def line = original.line
     override def lineContent = original.lineContent
     override def offset = original.offset
 
-    import sbt.util.InterfaceUtil._
-    val popt = toOption(original.sourcePath)
-    val (sourcePath0, sourceFile0) = popt match {
-      case Some(p) =>
-        if (p.contains("${")) {
-          val ref = VirtualFileRef.of(p)
-          val path = converter.toPath(ref)
-          (Some(path.toString), Some(path.toFile))
-        } else {
-          (Some(p), Some(new File(p)))
-        }
-      case _ => (None, None)
+    private var sourcePath0 = original.sourcePath
+    private val sourceFile0 = sourcePath0.map[File] { p =>
+      if (p.contains("${")) {
+        val path = converter.toPath(VirtualFileRef.of(p))
+        sourcePath0 = Optional.of(path.toString)
+        path.toFile
+      } else {
+        new File(p)
+      }
     }
-    override val sourcePath = o2jo(sourcePath0)
-    override val sourceFile = o2jo(sourceFile0)
+
+    override val sourcePath = sourcePath0
+    override val sourceFile = sourceFile0
     override def pointer = original.pointer
     override def pointerSpace = original.pointerSpace
     override def startOffset = original.startOffset
@@ -78,21 +57,16 @@ object VirtualFileUtil {
     override def startColumn = original.startColumn
     override def endLine = original.endLine
     override def endColumn = original.endColumn
-    override def toString =
-      (sourcePath0, jo2o(line)) match {
-        case (Some(s), Some(l)) => s + ":" + l
-        case (Some(s), _)       => s + ":"
-        case _                  => ""
-      }
+
+    override def toString = (jo2o(sourcePath0), jo2o(line)) match {
+      case (Some(s), Some(l)) => s"$s:$l"
+      case (Some(s), _)       => s"$s:"
+      case _                  => ""
+    }
   }
 
-  def toAbsolute(vf: VirtualFile): VirtualFile = {
-    vf match {
-      case x: PathBasedFile =>
-        val p = x.toPath
-        if (p.isAbsolute) x
-        else PlainVirtualFile(p.toAbsolutePath)
-      case _ => vf
-    }
+  def toAbsolute(vf: VirtualFile): VirtualFile = vf match {
+    case x: PathBasedFile if !x.toPath.isAbsolute => PlainVirtualFile(x.toPath.toAbsolutePath)
+    case _                                        => vf
   }
 }
