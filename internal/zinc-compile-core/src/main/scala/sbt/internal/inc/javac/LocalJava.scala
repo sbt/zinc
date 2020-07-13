@@ -192,6 +192,19 @@ object LocalJava {
   private[sbt] def fromUri(uri: URI): VirtualFileRef =
     if (uri.getScheme != "vf") sys.error(s"invalid URI for VirtualFileRef: $uri")
     else VirtualFileRef.of(uri.getPath.stripPrefix("/"))
+
+  // Fixes sbt/zinc#185, sbt/zinc#684, sbt/zinc#832
+  private[sbt] def isSameFile(a: FileObject, b: FileObject): Boolean = {
+    assert(a != null && b != null)
+    def unwrap(fo: FileObject): AnyRef = {
+      fo match {
+        case wrapper: VJavaFileObject              => wrapper.underlying
+        case wrapper: WriteReportingJavaFileObject => wrapper.javaFileObject
+        case notWrapped                            => notWrapped
+      }
+    }
+    unwrap(a) == unwrap(b)
+  }
 }
 
 /** Implementation of javadoc tool which attempts to run it locally (in-class). */
@@ -299,7 +312,7 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
       val maybeClassFileManager = incToolOptions.classFileManager()
       if (incToolOptions.useCustomizedFileManager && maybeClassFileManager.isPresent)
         new WriteReportingFileManager(fileManager, maybeClassFileManager.get)
-      else fileManager
+      else new SameFileFixFileManager(fileManager)
     }
 
     var compileSuccess = false
@@ -360,6 +373,11 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
   }
 }
 
+final class SameFileFixFileManager(underlying: JavaFileManager)
+    extends ForwardingJavaFileManager[JavaFileManager](underlying) {
+  override def isSameFile(a: FileObject, b: FileObject): Boolean = LocalJava.isSameFile(a, b)
+}
+
 /**
  * Track write calls through customized file manager.
  *
@@ -380,16 +398,7 @@ final class WriteReportingFileManager(
     new WriteReportingJavaFileObject(output, classFileManager)
   }
 
-  // Fixes #185, #684
-  override def isSameFile(a: FileObject, b: FileObject): Boolean = {
-    def unwrap(fo: FileObject): FileObject = {
-      fo match {
-        case wrapper: WriteReportingJavaFileObject => wrapper.javaFileObject
-        case notWrapped                            => notWrapped
-      }
-    }
-    super.isSameFile(unwrap(a), unwrap(b))
-  }
+  override def isSameFile(a: FileObject, b: FileObject): Boolean = LocalJava.isSameFile(a, b)
 }
 
 /**
