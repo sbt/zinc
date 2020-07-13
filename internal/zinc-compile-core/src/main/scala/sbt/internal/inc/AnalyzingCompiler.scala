@@ -81,7 +81,9 @@ final class AnalyzingCompiler(
       progressOpt: Optional[CompileProgress],
       log: xLogger
   ): Unit = {
-    val cached = cache(options, output, !changes.isEmpty, this, log, reporter)
+    val cached = cache(options, output, !changes.isEmpty, this, log, reporter) match {
+      case c: CachedCompiler2 => c
+    }
     try {
       val progress = if (progressOpt.isPresent) progressOpt.get else IgnoreProgress
       compile(sources, converter, changes, callback, log, reporter, progress, cached)
@@ -101,7 +103,7 @@ final class AnalyzingCompiler(
       log: xLogger,
       reporter: Reporter,
       progress: CompileProgress,
-      compiler: CachedCompiler
+      compiler: CachedCompiler2
   ): Unit = {
     val (bridge, bridgeClass) = bridgeInstance(compilerBridgeClassName, log)
     bridge match {

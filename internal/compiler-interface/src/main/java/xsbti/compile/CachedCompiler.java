@@ -44,20 +44,9 @@ public interface CachedCompiler {
    * @param logger The logger of the incremental compilation.
    * @param delegate The reporter that informs on the compiler's output.
    * @param progress The compiler progress associated with a Scala compiler.
-   * @deprecated Use run with VirtualFile instead.
+   * @deprecated Use CachedCompiler2#run with VirtualFile instead.
    */
   @Deprecated
   void run(File[] sources, DependencyChanges changes, AnalysisCallback callback, Logger logger, Reporter delegate, CompileProgress progress);
-  
-  /**
-   * Run the cached Scala compiler with inputs of incremental compilation.
-   *
-   * @param sources The source files to be compiled.
-   * @param changes The changes that have occurred since last compilation.
-   * @param callback The callback injected by the incremental compiler.
-   * @param logger The logger of the incremental compilation.
-   * @param delegate The reporter that informs on the compiler's output.
-   * @param progress The compiler progress associated with a Scala compiler.
-   */
-  void run(VirtualFile[] sources, DependencyChanges changes, AnalysisCallback callback, Logger logger, Reporter delegate, CompileProgress progress);
 }
+

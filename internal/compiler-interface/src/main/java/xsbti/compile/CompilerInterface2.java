@@ -31,7 +31,7 @@ public interface CompilerInterface2 {
     Logger log,
     Reporter delegate,
     CompileProgress progress,
-    CachedCompiler cached
+    CachedCompiler2 cached
   );
 }
 

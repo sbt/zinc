@@ -54,11 +54,11 @@ final class CompilerCache(val maxInstances: Int) extends GlobalsCache {
       case null =>
         log.debug(f0(s"Compiler cache miss. $key "))
         val compiler = c.newCachedCompiler(args, output, log, reporter)
-        val newCompiler: CachedCompiler = new CachedCompiler with java.io.Closeable {
+        val newCompiler: CachedCompiler2 = new CachedCompiler2 with java.io.Closeable {
           override def commandArguments(sources: Array[File]): Array[String] = {
             compiler.commandArguments(sources)
           }
-          @silent
+          @silent // silence deprecation of run(Array[File], ...)
           override def run(
               sources: Array[File],
               changes: DependencyChanges,
@@ -67,6 +67,7 @@ final class CompilerCache(val maxInstances: Int) extends GlobalsCache {
               delegate: Reporter,
               progress: CompileProgress
           ): Unit = {
+            // forward run to underlying cached compiler since it could be created by sbt-dotty
             compiler.run(sources, changes, callback, logger, delegate, progress)
           }
           override def run(
@@ -77,7 +78,9 @@ final class CompilerCache(val maxInstances: Int) extends GlobalsCache {
               delegate: Reporter,
               progress: CompileProgress
           ): Unit = {
-            compiler.run(sources, changes, callback, logger, delegate, progress)
+            compiler
+              .asInstanceOf[CachedCompiler2]
+              .run(sources, changes, callback, logger, delegate, progress)
           }
           override def close(): Unit = {
             // Dont' close the underlying Global.
