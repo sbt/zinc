@@ -161,7 +161,7 @@ type IncOptions {
   #x     return true;
   #x }
   #x public static boolean defaultPipelining() {
-  #x     return true;
+  #x     return false;
   #x }
 }
 
