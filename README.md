@@ -22,6 +22,7 @@ change. The generated code should be identical to the output of a clean compile.
 [Scala IDE]: https://github.com/scala-ide/scala-ide
 [Maven Plugin]: https://github.com/random-maven/scalor-maven-plugin
 [Bazel Rule]: https://github.com/higherkindness/rules_scala
+[conduct]: https://www.lightbend.com/conduct
 
 Originally this project was part of [sbt][], referred to as the incremental compiler module of sbt.
 
@@ -57,6 +58,12 @@ libraryDependencies += "org.scala-sbt" %% "zinc" % "$ZINC_VERSION"
 ```
 
 where `$ZINC_VERSION` is the latest tag pushed to the GitHub repository.
+
+## Code of conduct
+
+All communication in `sbt/*` repositories, including Zinc, and Gitter chat rooms
+such as sbt/zinc-contrib are covered by [Lightbend Community Code of Conduct][conduct].
+Please be kind and courteous to each other.
 
 ## Contributing
 
