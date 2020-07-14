@@ -317,7 +317,7 @@ object JarUtils {
   def getOutputJar(output: Output): Option[Path] = {
     output match {
       case s: SingleOutput =>
-        Some(s.getOutputDirectory).filter(_.toString.endsWith(".jar"))
+        Some(s.getOutputDirectoryAsPath).filter(_.toString.endsWith(".jar"))
       case _ => None
     }
   }

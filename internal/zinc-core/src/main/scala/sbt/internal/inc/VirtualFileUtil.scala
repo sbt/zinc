@@ -26,7 +26,9 @@ object VirtualFileUtil {
   implicit val sbtInternalIncVirtualFileRefOrdering: Ordering[VirtualFileRef] = Ordering.by(_.id)
 
   def outputDirectory(output: Output): Path =
-    output.getSingleOutput.orElseThrow(() => new RuntimeException(s"unexpected output $output"))
+    output.getSingleOutputAsPath.orElseThrow(
+      () => new RuntimeException(s"unexpected output $output")
+    )
 
   def sourcePositionMapper(converter: FileConverter): Position => Position =
     new DelegatingPosition(_, converter)

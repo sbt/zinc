@@ -32,7 +32,7 @@ object AnalysisFormatHelpers {
   val mappers: ReadWriteMappers = ReadWriteMappers.getMachineIndependentMappers(RootFilePath)
 
   val commonSetup: MiniSetup = {
-    val output: SingleOutput = () => RootFilePath.resolve("out")
+    val output: Output = CompileOutput(RootFilePath.resolve("out"))
     val opts = MiniOptions.of(Array(), Array(), Array())
     MiniSetup.of(output, opts, "2.10.4", Mixed, true, Array(t2("key" -> "value")))
   }

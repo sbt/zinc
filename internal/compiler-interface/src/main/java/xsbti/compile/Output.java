@@ -12,6 +12,7 @@
 package xsbti.compile;
 
 import java.nio.file.Path;
+import java.io.File;
 import java.io.Serializable;
 import java.util.Optional;
 
@@ -46,6 +47,17 @@ public interface Output extends Serializable {
      * If multiple outputs are used, it returns {@link java.util.Optional#EMPTY}.
      *
      * @see xsbti.compile.SingleOutput
+     * @deprecated use {@link #getSingleOutputAsPath()} instead.
      */
-    public Optional<Path> getSingleOutput();
+    @Deprecated
+    public Optional<File> getSingleOutput();
+
+    /**
+     * Returns the single output passed or to be passed to the Scala or Java compiler.
+     * If multiple outputs are used, it returns {@link java.util.Optional#EMPTY}.
+     *
+     * @see xsbti.compile.SingleOutput
+     */
+    public Optional<Path> getSingleOutputAsPath();
 }
+

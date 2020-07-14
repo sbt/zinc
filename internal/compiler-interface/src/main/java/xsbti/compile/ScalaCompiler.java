@@ -12,6 +12,7 @@
 package xsbti.compile;
 
 import xsbti.AnalysisCallback;
+import xsbti.FileConverter;
 import xsbti.Logger;
 import xsbti.Reporter;
 import xsbti.VirtualFile;
@@ -36,28 +37,6 @@ public interface ScalaCompiler {
 	 * Recompile the subset of <code>sources</code> impacted by the
 	 * changes defined in <code>changes</code> and collect the new APIs.
 	 *
-	 * @param sources  All the sources of the project.
-	 * @param changes  The changes that have been detected at the previous step.
-	 * @param callback The callback to which the extracted information should be
-	 *                 reported.
-	 * @param log      The logger in which the Scala compiler will log info.
-	 * @param reporter The reporter to which errors and warnings should be
-	 *                 reported during compilation.
-	 * @param progress Where to report the file being currently compiled.
-	 * @param compiler The actual compiler that will perform the compilation step.
-	 */
-	void compile(VirtualFile[] sources,
-	             DependencyChanges changes,
-	             AnalysisCallback callback,
-	             Logger log,
-	             Reporter reporter,
-	             CompileProgress progress,
-	             CachedCompiler compiler);
-
-	/**
-	 * Recompile the subset of <code>sources</code> impacted by the
-	 * changes defined in <code>changes</code> and collect the new APIs.
-	 *
 	 * @param sources     All the sources of the project.
 	 * @param changes     The changes that have been detected at the previous step.
 	 * @param options     The arguments to give to the Scala compiler.
@@ -73,12 +52,14 @@ public interface ScalaCompiler {
 	 *                    will report on the file being compiled.
 	 */
 	void compile(VirtualFile[] sources,
+	             FileConverter converter,
 	             DependencyChanges changes,
 	             String[] options,
 	             Output output,
 	             AnalysisCallback callback,
 	             Reporter reporter,
 	             GlobalsCache cache,
-	             Logger log,
-	             Optional<CompileProgress> progressOpt);
+	             Optional<CompileProgress> progressOpt,
+				 Logger log);
 }
+

@@ -280,11 +280,11 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         val numberSources = s"$sourceCount sources"
         val outputString = output match {
           case singleOutput: SingleOutput =>
-            singleOutput.getOutputDirectory().toString
+            singleOutput.getOutputDirectoryAsPath().toString
           case multiOutput: MultipleOutput =>
             multiOutput
               .getOutputGroups()
-              .map(_.getOutputDirectory().toString)
+              .map(_.getOutputDirectoryAsPath().toString)
               .mkString("[", ", ", "]")
           case _ =>
             s"other output ($output)"

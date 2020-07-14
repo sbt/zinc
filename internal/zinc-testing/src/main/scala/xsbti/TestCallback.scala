@@ -11,6 +11,7 @@
 
 package xsbti
 
+import java.io.File
 import java.nio.file.Path
 import java.util
 
@@ -37,6 +38,7 @@ class TestCallback extends AnalysisCallback {
 
   def usedNames = usedNamesAndScopes.mapValues(_.map(_.name))
 
+  override def startSource(source: File): Unit = ???
   override def startSource(source: VirtualFile): Unit = {
     assert(
       !apis.contains(source),
@@ -56,6 +58,14 @@ class TestCallback extends AnalysisCallback {
   }
 
   override def binaryDependency(
+      classFile: File,
+      onBinaryClassName: String,
+      fromClassName: String,
+      fromSourceFile: File,
+      context: DependencyContext
+  ): Unit = ???
+
+  override def binaryDependency(
       onBinary: Path,
       onBinaryClassName: String,
       fromClassName: String,
@@ -65,6 +75,13 @@ class TestCallback extends AnalysisCallback {
     binaryDependencies += ((onBinary, onBinaryClassName, fromClassName, context))
     ()
   }
+
+  override def generatedNonLocalClass(
+      sourceFile: File,
+      classFile: File,
+      binaryClassName: String,
+      srcClassName: String
+  ): Unit = ???
 
   override def generatedNonLocalClass(
       sourceFile: VirtualFileRef,
@@ -78,6 +95,11 @@ class TestCallback extends AnalysisCallback {
   }
 
   override def generatedLocalClass(
+      sourceFile: File,
+      classFile: File
+  ): Unit = ???
+
+  override def generatedLocalClass(
       sourceFile: VirtualFileRef,
       classFile: Path
   ): Unit = {
@@ -88,10 +110,14 @@ class TestCallback extends AnalysisCallback {
   def usedName(className: String, name: String, scopes: util.EnumSet[UseScope]): Unit =
     usedNamesAndScopes(className) += TestUsedName(name, scopes)
 
+  override def api(source: File, api: ClassLike): Unit = ???
+
   override def api(source: VirtualFileRef, api: ClassLike): Unit = {
     apis(source) += api
     ()
   }
+
+  override def mainClass(source: File, className: String): Unit = ()
 
   override def mainClass(source: VirtualFileRef, className: String): Unit = ()
 

@@ -119,8 +119,8 @@ final class ProtobufWriters(mapper: WriteMapper) {
   }
 
   def toOutputGroup(outputGroup: OutputGroup): Schema.OutputGroup = {
-    val newSource = mapper.mapSourceDir(outputGroup.getSourceDirectory)
-    val newTarget = mapper.mapOutputDir(outputGroup.getOutputDirectory)
+    val newSource = mapper.mapSourceDir(outputGroup.getSourceDirectoryAsPath)
+    val newTarget = mapper.mapOutputDir(outputGroup.getOutputDirectoryAsPath)
     val sourcePath = toStringPath(newSource)
     val targetPath = toStringPath(newTarget)
     Schema.OutputGroup.newBuilder
@@ -135,7 +135,7 @@ final class ProtobufWriters(mapper: WriteMapper) {
   ): Schema.Compilation.Builder = {
     output match {
       case single0: SingleOutput =>
-        val newOutputDir = mapper.mapOutputDir(single0.getOutputDirectory)
+        val newOutputDir = mapper.mapOutputDir(single0.getOutputDirectoryAsPath)
         val targetPath = toStringPath(newOutputDir)
         val single = Schema.SingleOutput.newBuilder.setTarget(targetPath).build
         builder.setSingleOutput(single)
@@ -264,7 +264,7 @@ final class ProtobufWriters(mapper: WriteMapper) {
   ): Schema.MiniSetup.Builder =
     output match {
       case single0: SingleOutput =>
-        val newOutputDir = mapper.mapOutputDir(single0.getOutputDirectory)
+        val newOutputDir = mapper.mapOutputDir(single0.getOutputDirectoryAsPath)
         val targetPath = toStringPath(newOutputDir)
         val single = Schema.SingleOutput.newBuilder.setTarget(targetPath).build
         builder.setSingleOutput(single)

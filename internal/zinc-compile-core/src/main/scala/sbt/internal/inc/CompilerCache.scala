@@ -16,6 +16,7 @@ package inc
 import java.io.File
 import java.util
 
+import com.github.ghik.silencer.silent
 import xsbti.{ AnalysisCallback, Reporter, Logger => xLogger }
 import xsbti.compile._
 import sbt.util.InterfaceUtil.{ toSupplier => f0 }
@@ -53,10 +54,31 @@ final class CompilerCache(val maxInstances: Int) extends GlobalsCache {
       case null =>
         log.debug(f0(s"Compiler cache miss. $key "))
         val compiler = c.newCachedCompiler(args, output, log, reporter)
-        val newCompiler: CachedCompiler = new CachedCompiler with java.io.Closeable {
+
+        class OpenCompiler extends CachedCompiler with java.io.Closeable {
           override def commandArguments(sources: Array[File]): Array[String] = {
             compiler.commandArguments(sources)
           }
+
+          @silent // silence deprecation of run(Array[File], ...)
+          override def run(
+              sources: Array[File],
+              changes: DependencyChanges,
+              callback: AnalysisCallback,
+              logger: xLogger,
+              delegate: Reporter,
+              progress: CompileProgress
+          ): Unit = {
+            // forward run to underlying cached compiler since it could be created by sbt-dotty
+            compiler.run(sources, changes, callback, logger, delegate, progress)
+          }
+
+          override def close(): Unit = {
+            // Don't close the underlying Global.
+          }
+        }
+
+        class OpenCompiler2(compiler: CachedCompiler2) extends OpenCompiler with CachedCompiler2 {
           override def run(
               sources: Array[VirtualFile],
               changes: DependencyChanges,
@@ -65,12 +87,16 @@ final class CompilerCache(val maxInstances: Int) extends GlobalsCache {
               delegate: Reporter,
               progress: CompileProgress
           ): Unit = {
-            compiler.run(sources, changes, callback, logger, delegate, progress)
-          }
-          override def close(): Unit = {
-            // Dont' close the underlying Global.
+            compiler
+              .run(sources, changes, callback, logger, delegate, progress)
           }
         }
+
+        val newCompiler: CachedCompiler = compiler match {
+          case compiler: CachedCompiler2 => new OpenCompiler2(compiler)
+          case _                         => new OpenCompiler
+        }
+
         cache.put(key, newCompiler)
         newCompiler
       case cachedCompiler =>
@@ -93,7 +119,7 @@ final class CompilerCache(val maxInstances: Int) extends GlobalsCache {
 
 final class FreshCompilerCache extends GlobalsCache {
   def clear(): Unit = ()
-  def apply(
+  override def apply(
       args: Array[String],
       output: Output,
       forceNew: Boolean,

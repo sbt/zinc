@@ -87,7 +87,10 @@ object JavaCompilerForUnitTesting {
       // - extract all base classes.
       // we extract just parents as this is enough for testing
 
-      val output = new SingleOutput { def getOutputDirectory: Path = classesDir.toPath }
+      val output = new SingleOutput {
+        override def getOutputDirectoryAsPath: Path = classesDir.toPath
+        override def getOutputDirectory: File = getOutputDirectoryAsPath.toFile
+      }
       JavaAnalyze(classFiles, srcFiles, logger, output, finalJarOutput = None)(
         analysisCallback,
         classloader,

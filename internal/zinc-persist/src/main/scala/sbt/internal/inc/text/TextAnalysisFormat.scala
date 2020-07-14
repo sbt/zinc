@@ -428,10 +428,12 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
       val (mode, outputAsMap) = Analysis.dummyOutput match {
         case s: SingleOutput =>
           // just to be compatible with multipleOutputMode
-          val ignored = s.getOutputDirectory
-          (singleOutputMode, Map(ignored -> s.getOutputDirectory))
+          val ignored = s.getOutputDirectoryAsPath
+          (singleOutputMode, Map(ignored -> s.getOutputDirectoryAsPath))
         case m: MultipleOutput =>
-          val map = m.getOutputGroups.map(x => x.getSourceDirectory -> x.getOutputDirectory).toMap
+          val map = m.getOutputGroups
+            .map(x => x.getSourceDirectoryAsPath -> x.getOutputDirectoryAsPath)
+            .toMap
           (multipleOutputMode, map)
       }
       val mappedClasspathHash = setup.options.classpathHash

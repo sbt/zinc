@@ -14,6 +14,7 @@ package internal
 package inc
 
 import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
+import java.io.File
 import java.nio.file.{ Path, Paths }
 
 import xsbti.VirtualFileRef
@@ -126,7 +127,8 @@ object Analysis {
     }
 
   lazy val dummyOutput: Output = new SingleOutput {
-    def getOutputDirectory: Path = Paths.get("/tmp/dummy")
+    override def getOutputDirectoryAsPath: Path = Paths.get("/tmp/dummy")
+    override def getOutputDirectory: File = getOutputDirectoryAsPath.toFile
   }
 }
 

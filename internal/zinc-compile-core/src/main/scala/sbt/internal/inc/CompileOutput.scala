@@ -14,6 +14,7 @@ package internal
 package inc
 
 import xsbti.compile.{ Output, OutputGroup }
+import java.io.File
 import java.nio.file.Path
 import java.util.Optional
 
@@ -53,13 +54,15 @@ object CompileOutput {
     new ConcreteOutputGroup(source, output)
 
   private final class EmptyOutput extends xsbti.compile.Output {
-    override def getSingleOutput(): Optional[Path] = Optional.empty()
+    override def getSingleOutput(): Optional[File] = Optional.empty()
+    override def getSingleOutputAsPath(): Optional[Path] = Optional.empty()
     override def getMultipleOutput(): Optional[Array[OutputGroup]] = Optional.empty()
     override def toString: String = "EmptyOutput()"
   }
 
-  private final class ConcreteSingleOutput(val getOutputDirectory: Path)
+  private final class ConcreteSingleOutput(override val getOutputDirectoryAsPath: Path)
       extends xsbti.compile.SingleOutput {
+    override def getOutputDirectory: File = getOutputDirectoryAsPath.toFile
     override def toString: String = s"SingleOutput($getOutputDirectory)"
   }
 
@@ -69,9 +72,11 @@ object CompileOutput {
   }
 
   private final class ConcreteOutputGroup(
-      val getSourceDirectory: Path,
-      val getOutputDirectory: Path
+      override val getSourceDirectoryAsPath: Path,
+      override val getOutputDirectoryAsPath: Path
   ) extends xsbti.compile.OutputGroup {
-    override def toString = s"OutputGroup($getSourceDirectory -> $getOutputDirectory)"
+    override def getSourceDirectory: File = getSourceDirectoryAsPath.toFile
+    override def getOutputDirectory: File = getOutputDirectoryAsPath.toFile
+    override def toString = s"OutputGroup($getSourceDirectoryAsPath -> $getOutputDirectoryAsPath)"
   }
 }
