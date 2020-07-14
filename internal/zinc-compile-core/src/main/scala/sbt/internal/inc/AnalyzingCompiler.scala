@@ -147,18 +147,20 @@ final class AnalyzingCompiler(
   def doc(
       sources: Seq[VirtualFile],
       classpath: Seq[VirtualFile],
+      converter: FileConverter,
       outputDirectory: Path,
       options: Seq[String],
       maximumErrors: Int,
       log: ManagedLogger
   ): Unit = {
     val reporter = new ManagedLoggedReporter(maximumErrors, log)
-    doc(sources, classpath, outputDirectory, options, log, reporter)
+    doc(sources, classpath, converter, outputDirectory, options, log, reporter)
   }
 
   def doc(
       sources: Seq[VirtualFile],
       classpath: Seq[VirtualFile],
+      converter: FileConverter,
       outputDirectory: Path,
       options: Seq[String],
       log: Logger,
@@ -172,15 +174,16 @@ final class AnalyzingCompiler(
     bridge match {
       case intf: ScaladocInterface2 =>
         intf.run(sources.toArray, arguments.toArray[String], log, reporter)
+      case _ =>
+        // fall back to old reflection
+        val fileSources: Array[File] = sources.toArray.map(converter.toPath(_).toFile)
+        invoke(bridge, bridgeClass, "run", log)(
+          classOf[Array[File]],
+          classOf[Array[String]],
+          classOf[xLogger],
+          classOf[Reporter]
+        )(fileSources, arguments.toArray[String], log, reporter)
     }
-    /*
-      call("xsbt.ScaladocInterface", "run", log)(
-      classOf[Array[VirtualFile]],
-      classOf[Array[String]],
-      classOf[xLogger],
-      classOf[Reporter]
-    )(sources.toArray, arguments.toArray[String], log, reporter)
-     */
     ()
   }
 
