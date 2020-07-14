@@ -14,7 +14,6 @@ package xsbti.compile;
 import xsbti.AnalysisCallback;
 import xsbti.Logger;
 import xsbti.Reporter;
-import xsbti.VirtualFile;
 import java.io.File;
 
 /**
@@ -22,7 +21,7 @@ import java.io.File;
  *
  * This cached compiler hides the implementation of a compiler by just
  * defining two operations: {@link #commandArguments(File[])} and
- *
+ * {@link #run(File[], DependencyChanges, AnalysisCallback, Logger, Reporter, CompileProgress)}.
  */
 public interface CachedCompiler {
   /**

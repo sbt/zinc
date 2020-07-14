@@ -15,20 +15,17 @@ import xsbti.AnalysisCallback;
 import xsbti.Logger;
 import xsbti.Reporter;
 import xsbti.VirtualFile;
-import java.io.File;
+
+import java.io.Closeable;
 
 /**
  * Define the interface of a cached Scala compiler that can be run.
  *
  * This cached compiler hides the implementation of a compiler by just
- * defining two operations: {@link #commandArguments(File[])} and
- *
+ * defining one operation:
+ * {@link #run(VirtualFile[], DependencyChanges, AnalysisCallback, Logger, Reporter, CompileProgress)}.
  */
-public interface CachedCompiler2 extends CachedCompiler {
-  default void run(File[] sources, DependencyChanges changes, AnalysisCallback callback, Logger logger, Reporter delegate, CompileProgress progress) {
-    throw new RuntimeException("run method with Array[File] is not supported for this compiler bridge (see sbt/zinc#829)"); 
-  }
-
+public interface CachedCompiler2 extends CachedCompiler, Closeable {
   /**
    * Run the cached Scala compiler with inputs of incremental compilation.
    *
@@ -41,4 +38,3 @@ public interface CachedCompiler2 extends CachedCompiler {
    */
   void run(VirtualFile[] sources, DependencyChanges changes, AnalysisCallback callback, Logger logger, Reporter delegate, CompileProgress progress);
 }
-

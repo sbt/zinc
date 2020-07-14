@@ -18,6 +18,7 @@ import java.nio.file.Path
 import java.net.URLClassLoader
 import java.util.Optional
 
+import com.github.ghik.silencer.silent
 import sbt.util.Logger
 import sbt.io.syntax._
 import sbt.internal.inc.classpath.ClassLoaderCache
@@ -81,9 +82,7 @@ final class AnalyzingCompiler(
       progressOpt: Optional[CompileProgress],
       log: xLogger
   ): Unit = {
-    val cached = cache(options, output, !changes.isEmpty, this, log, reporter) match {
-      case c: CachedCompiler2 => c
-    }
+    val cached = cache(options, output, !changes.isEmpty, this, log, reporter)
     try {
       val progress = if (progressOpt.isPresent) progressOpt.get else IgnoreProgress
       compile(sources, converter, changes, callback, log, reporter, progress, cached)
@@ -103,12 +102,12 @@ final class AnalyzingCompiler(
       log: xLogger,
       reporter: Reporter,
       progress: CompileProgress,
-      compiler: CachedCompiler2
+      compiler: CachedCompiler
   ): Unit = {
     val (bridge, bridgeClass) = bridgeInstance(compilerBridgeClassName, log)
-    bridge match {
-      case intf: CompilerInterface2 =>
-        intf.run(sources, changes, callback, log, reporter, progress, compiler)
+    (bridge, compiler) match {
+      case (intf: CompilerInterface2, compiler2: CachedCompiler2) =>
+        intf.run(sources, changes, callback, log, reporter, progress, compiler2)
       case _ =>
         // fall back to passing File array
         val fileSources: Array[File] = sources.map(converter.toPath(_).toFile)
@@ -125,34 +124,24 @@ final class AnalyzingCompiler(
     ()
   }
 
-  def newCachedCompiler(
+  override def newCachedCompiler(
       arguments: Array[String],
       output: Output,
       log: xLogger,
       reporter: Reporter
-  ): CachedCompiler =
-    newCachedCompiler(arguments: Seq[String], output, log, reporter)
-
-  def newCachedCompiler(
-      arguments: Seq[String],
-      output: Output,
-      log: xLogger,
-      reporter: Reporter
   ): CachedCompiler = {
-    val (bridge, bridgeClass) = bridgeInstance(compilerBridgeClassName, log)
-    val compiler = bridge match {
-      case intf: CompilerInterface2 =>
-        intf.newCompiler(arguments.toArray[String], output, log, reporter)
-      case _ =>
+    bridgeInstance(compilerBridgeClassName, log) match {
+      case (intf: CompilerInterface2, _) =>
+        intf.newCompiler(arguments, output, log, reporter)
+      case (bridge, bridgeClass) =>
         // fall back to old reflection if CompilerInterface1 is not supported
         invoke(bridge, bridgeClass, "newCompiler", log)(
           classOf[Array[String]],
           classOf[Output],
           classOf[xLogger],
           classOf[Reporter]
-        )(arguments.toArray[String], output, log, reporter)
+        )(arguments, output, log, reporter).asInstanceOf[CachedCompiler]: @silent
     }
-    compiler.asInstanceOf[CachedCompiler]
   }
 
   def doc(
@@ -278,8 +267,6 @@ final class AnalyzingCompiler(
     }
     argsObj.asInstanceOf[Array[String]].toSeq
   }
-
-  def force(log: Logger): Unit = { provider.fetchCompiledBridge(scalaInstance, log); () }
 
   private def bridgeInstance(bridgeClassName: String, log: Logger): (AnyRef, Class[_]) = {
     val bridgeClass = getBridgeClass(bridgeClassName, log)
