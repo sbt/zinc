@@ -32,9 +32,7 @@ class OutputSpec extends BaseCompilerSpec {
     assert(!result.analysis.readStamps.getAllSourceStamps.keySet.isEmpty)
 
     val result2 = compiler.doCompileWithStore()
-
-    if (sys.props("java.specification.version") == "1.8") // This test fails on Scala 2.13 + JDK 11
-      assert(!result2.hasModified || sys.props("java.specification.version") != "1.8")
+    assert(!result2.hasModified)
   }
 
   def mkCompiler(baseDir: File, classes: Seq[String]) =
