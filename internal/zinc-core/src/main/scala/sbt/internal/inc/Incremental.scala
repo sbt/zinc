@@ -254,11 +254,6 @@ object Incremental {
     val javaSources: Set[VirtualFileRef] = sources
       .filter(_.name.endsWith(".java"))
       .map(_.asInstanceOf[VirtualFileRef])
-    val isPickleJava = currentSetup.options.scalacOptions.contains("-Ypickle-java")
-    assert(
-      javaSources.isEmpty || !options.pipelining || isPickleJava,
-      s"-Ypickle-java must be included into scalacOptions if pipelining is enabled with Java sources"
-    )
     val initialInvSources =
       if (initialInvSources0.nonEmpty) initialInvSources0 ++ javaSources
       else Set.empty[VirtualFileRef]
