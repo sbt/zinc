@@ -23,14 +23,7 @@ import sbt.util.Logger
 import sbt.io.syntax._
 import sbt.internal.inc.classpath.ClassLoaderCache
 import sbt.internal.util.ManagedLogger
-import xsbti.{
-  AnalysisCallback,
-  FileConverter,
-  PathBasedFile,
-  Reporter,
-  Logger => xLogger,
-  VirtualFile
-}
+import xsbti.{ AnalysisCallback, PathBasedFile, Reporter, Logger => xLogger, VirtualFile }
 import xsbti.compile._
 import scala.language.existentials
 
@@ -51,7 +44,8 @@ final class AnalyzingCompiler(
     override val classpathOptions: ClasspathOptions,
     onArgsHandler: Seq[String] => Unit,
     val classLoaderCache: Option[ClassLoaderCache]
-) extends ScalaCompiler {
+) extends CachedCompilerProvider
+    with ScalaCompiler {
 
   private[this] final val compilerBridgeClassName = "xsbt.CompilerInterface"
   private[this] final val scaladocBridgeClassName = "xsbt.ScaladocInterface"
@@ -69,9 +63,24 @@ final class AnalyzingCompiler(
       Some(classLoaderCache)
     )
 
+  private[this] var level: Option[Int] = None
+
+  override def bridgeCompatibilityLevel(log: xLogger): Int =
+    level match {
+      case Some(lv) => lv
+      case _ =>
+        val (bridge, _) = bridgeInstance(compilerBridgeClassName, log)
+        val lv = bridge match {
+          case _: CompilerInterface2 => 2
+          case _: CompilerInterface1 => 1
+          case _                     => 0
+        }
+        level = Some(lv)
+        lv
+    }
+
   override def compile(
       sources: Array[VirtualFile],
-      converter: FileConverter,
       changes: DependencyChanges,
       options: Array[String],
       output: Output,
@@ -84,16 +93,31 @@ final class AnalyzingCompiler(
     bridgeInstance(compilerBridgeClassName, log) match {
       case (intf: CompilerInterface2, _) =>
         intf.run(sources, changes, options, output, callback, reporter, progress, log)
-      case (bridge, bridgeClass) =>
-        // fall back to old reflection if CompilerInterface1 is not supported
-        val compiler = invoke(bridge, bridgeClass, "newCompiler", log)(
-          classOf[Array[String]],
-          classOf[Output],
-          classOf[xLogger],
-          classOf[Reporter]
-        )(options, output, log, reporter).asInstanceOf[CachedCompiler]: @silent
-        val fileSources: Array[File] = sources.map(converter.toPath(_).toFile)
-        try {
+      case _ =>
+        val lvl = bridgeCompatibilityLevel(log)
+        sys.error(s"CompilerInterface2 was expected but level $lvl bridge was found")
+    }
+  }
+
+  // Classic reflection-based CompilerInterface
+  override def compile(
+      fileSources: Array[File],
+      changes: DependencyChanges,
+      options: Array[String],
+      output: Output,
+      callback: AnalysisCallback,
+      reporter: Reporter,
+      cache: GlobalsCache,
+      progressOpt: Optional[CompileProgress],
+      log: xLogger
+  ): Unit = {
+    val progress = if (progressOpt.isPresent) progressOpt.get else IgnoreProgress
+    val compiler = cache(options, output, !changes.isEmpty, this, log, reporter)
+    try {
+      bridgeInstance(compilerBridgeClassName, log) match {
+        case (intf: CompilerInterface1, _) =>
+          intf.run(fileSources, changes, callback, log, reporter, progress, compiler)
+        case (bridge, bridgeClass) =>
           invoke(bridge, bridgeClass, "run", log)(
             classOf[Array[File]],
             classOf[DependencyChanges],
@@ -104,32 +128,45 @@ final class AnalyzingCompiler(
             classOf[CachedCompiler]
           )(fileSources, changes, callback, log, reporter, progress, compiler)
           ()
-        } finally {
-          compiler match {
-            case c: java.io.Closeable => c.close()
-            case _                    =>
-          }
-        }
+      }
+    } finally {
+      compiler match {
+        case c: java.io.Closeable => c.close()
+        case _                    =>
+      }
     }
+  }
+
+  override def newCachedCompiler(
+      arguments: Array[String],
+      output: Output,
+      log: xLogger,
+      reporter: Reporter
+  ): CachedCompiler = {
+    val (bridge, bridgeClass) = bridgeInstance(compilerBridgeClassName, log)
+    invoke(bridge, bridgeClass, "newCompiler", log)(
+      classOf[Array[String]],
+      classOf[Output],
+      classOf[xLogger],
+      classOf[Reporter]
+    )(arguments, output, log, reporter).asInstanceOf[CachedCompiler]: @silent
   }
 
   def doc(
       sources: Seq[VirtualFile],
       classpath: Seq[VirtualFile],
-      converter: FileConverter,
       outputDirectory: Path,
       options: Seq[String],
       maximumErrors: Int,
       log: ManagedLogger
   ): Unit = {
     val reporter = new ManagedLoggedReporter(maximumErrors, log)
-    doc(sources, classpath, converter, outputDirectory, options, log, reporter)
+    doc(sources, classpath, outputDirectory, options, log, reporter)
   }
 
   def doc(
       sources: Seq[VirtualFile],
       classpath: Seq[VirtualFile],
-      converter: FileConverter,
       outputDirectory: Path,
       options: Seq[String],
       log: Logger,
@@ -144,15 +181,43 @@ final class AnalyzingCompiler(
       case intf: ScaladocInterface2 =>
         intf.run(sources.toArray, arguments.toArray[String], log, reporter)
       case _ =>
-        // fall back to old reflection
-        val fileSources: Array[File] = sources.toArray.map(converter.toPath(_).toFile)
-        invoke(bridge, bridgeClass, "run", log)(
-          classOf[Array[File]],
-          classOf[Array[String]],
-          classOf[xLogger],
-          classOf[Reporter]
-        )(fileSources, arguments.toArray[String], log, reporter)
+        val lvl = bridgeCompatibilityLevel(log)
+        sys.error(s"CompilerInterface2 was expected but level $lvl bridge was found")
     }
+  }
+
+  def doc0(
+      fileSources: Seq[File],
+      classpath: Seq[File],
+      outputDirectory: Path,
+      options: Seq[String],
+      maximumErrors: Int,
+      log: ManagedLogger
+  ): Unit = {
+    val reporter = new ManagedLoggedReporter(maximumErrors, log)
+    doc0(fileSources, classpath, outputDirectory, options, log, reporter)
+  }
+
+  // Classic reflection-based
+  def doc0(
+      fileSources: Seq[File],
+      classpath: Seq[File],
+      outputDirectory: Path,
+      options: Seq[String],
+      log: Logger,
+      reporter: Reporter
+  ): Unit = {
+    val compArgs = new CompilerArguments(scalaInstance, classpathOptions)
+    val arguments =
+      compArgs.makeArguments0(Nil, classpath.map(_.toPath), Some(outputDirectory), options)
+    onArgsHandler(arguments)
+    val (bridge, bridgeClass) = bridgeInstance(scaladocBridgeClassName, log)
+    invoke(bridge, bridgeClass, "run", log)(
+      classOf[Array[File]],
+      classOf[Array[String]],
+      classOf[xLogger],
+      classOf[Reporter]
+    )(fileSources, arguments.toArray[String], log, reporter)
     ()
   }
 
