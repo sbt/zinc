@@ -96,6 +96,10 @@ type IncOptions {
   pipelining: Boolean! = raw"xsbti.compile.IncOptions.defaultPipelining()"
   @since("1.4.0")
 
+  ## Skip Java compilation.
+  skipJavac: Boolean! = raw"xsbti.compile.IncOptions.defaultSkipJavac()"
+  @since("1.4.0")
+
   #x public static int defaultTransitiveStep() {
   #x     return 3;
   #x }
@@ -162,6 +166,9 @@ type IncOptions {
   #x }
   #x public static boolean defaultPipelining() {
   #x     return true;
+  #x }
+  #x public static boolean defaultSkipJavac() {
+  #x     return false;
   #x }
 }
 

@@ -121,7 +121,7 @@ final class MixedAnalyzingCompiler(
 
     // Compile java and run analysis.
     def compileJava(): Unit = {
-      if (javaSrcs.nonEmpty) {
+      if (javaSrcs.nonEmpty && !config.incOptions.skipJavac) {
         timed("Java compilation + analysis", log) {
           val incToolOptions =
             IncToolOptions.of(
