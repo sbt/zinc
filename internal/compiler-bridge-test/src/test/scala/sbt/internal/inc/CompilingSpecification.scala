@@ -211,7 +211,6 @@ trait CompilingSpecification extends BridgeProviderSpecification {
         val reporter = ReporterManager.getReporter(log, reporterConfig)
         sc.compile(
           sources = sources,
-          converter = converter,
           changes = emptyChanges,
           options = arguments.toArray,
           output = CompileOutput(targetDir.toPath),
