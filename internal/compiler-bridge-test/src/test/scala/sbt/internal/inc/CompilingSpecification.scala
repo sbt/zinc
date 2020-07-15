@@ -180,7 +180,6 @@ trait CompilingSpecification extends BridgeProviderSpecification {
       val targetDir = tempDir / "target"
       val analysisCallback = new TestCallback
       targetDir.mkdir()
-      val cache = CompilerCache.fresh
       val files = for {
         (compilationUnit, unitId) <- groupedSrcs.zipWithIndex
       } yield {
@@ -215,7 +214,6 @@ trait CompilingSpecification extends BridgeProviderSpecification {
           output = CompileOutput(targetDir.toPath),
           callback = analysisCallback,
           reporter = reporter,
-          cache = cache,
           progressOpt = Optional.empty[CompileProgress],
           log = log
         )
