@@ -180,9 +180,7 @@ trait CompilingSpecification extends BridgeProviderSpecification {
       val targetDir = tempDir / "target"
       val analysisCallback = new TestCallback
       targetDir.mkdir()
-      val cache =
-        if (reuseCompilerInstance) new CompilerCache(1)
-        else CompilerCache.fresh
+      val cache = CompilerCache.fresh
       val files = for {
         (compilationUnit, unitId) <- groupedSrcs.zipWithIndex
       } yield {

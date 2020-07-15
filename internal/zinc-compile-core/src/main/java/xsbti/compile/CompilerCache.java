@@ -16,13 +16,12 @@ package xsbti.compile;
  */
 public interface CompilerCache {
     /**
-     * Returns a compiler cache that manages up until <b>5</b> cached Scala compilers,
-     * where 5 is the default number.
+     * Alias for {@link #fresh()}.
      *
      * @return A default compiler cache.
      */
     public static GlobalsCache getDefault() {
-        return createCacheFor(5);
+        return fresh();
     }
 
     /**
@@ -31,9 +30,11 @@ public interface CompilerCache {
      *
      * @param maxInstances Number of maximum cached Scala compilers.
      * @return A compiler cache for <code>maxInstances</code> compilers.
+     * @deprecated Switch to {@link #fresh()} (or just avoid the caching infrastructure).
      */
+    @Deprecated
     public static GlobalsCache createCacheFor(int maxInstances) {
-        return new sbt.internal.inc.CompilerCache(maxInstances);
+        return fresh();
     }
 
     /**
