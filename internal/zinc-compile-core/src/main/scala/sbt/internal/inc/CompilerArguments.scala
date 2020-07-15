@@ -62,24 +62,41 @@ final class CompilerArguments(
     CompilerArguments.outputOption(output) ++
       makeArguments(sources, classpath, options)
 
+  def makeArguments0(
+      sources: Seq[VirtualFile],
+      classpath: Seq[Path],
+      output: Option[Path],
+      options: Seq[String]
+  ): Seq[String] =
+    CompilerArguments.outputOption(output) ++
+      makeArguments0(sources, classpath, options)
+
   def makeArguments(
       sources: Seq[VirtualFile],
       classpath: Seq[VirtualFile],
+      options: Seq[String]
+  ): Seq[String] =
+    makeArguments0(
+      sources,
+      classpath map { case x: PathBasedFile => x.toPath },
+      options
+    )
+
+  def makeArguments0(
+      sources: Seq[VirtualFile],
+      classpath: Seq[Path],
       options: Seq[String]
   ): Seq[String] = {
     /* Add dummy to avoid Scalac misbehaviour for empty classpath (as of 2.9.1). */
     def dummy: String = "dummy_" + Integer.toHexString(util.Random.nextInt)
 
     checkScalaHomeUnset()
-    val cp = classpath map {
-      case x: PathBasedFile => x.toPath
-    }
-    val compilerClasspath = finishClasspath(cp)
+    val compilerClasspath = finishClasspath(classpath)
     val stringClasspath =
       if (compilerClasspath.isEmpty) dummy
       else absString(compilerClasspath)
     val classpathOption = Seq("-classpath", stringClasspath)
-    val bootClasspath = bootClasspathOption(hasLibrary(cp))
+    val bootClasspath = bootClasspathOption(hasLibrary(classpath))
     val sources1 = sources map {
       case x: PathBasedFile => x.toPath
     }

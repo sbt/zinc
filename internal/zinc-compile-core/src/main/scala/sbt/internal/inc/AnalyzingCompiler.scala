@@ -23,14 +23,7 @@ import sbt.util.Logger
 import sbt.io.syntax._
 import sbt.internal.inc.classpath.ClassLoaderCache
 import sbt.internal.util.ManagedLogger
-import xsbti.{
-  AnalysisCallback,
-  FileConverter,
-  PathBasedFile,
-  Reporter,
-  Logger => xLogger,
-  VirtualFile
-}
+import xsbti.{ AnalysisCallback, PathBasedFile, Reporter, Logger => xLogger, VirtualFile }
 import xsbti.compile._
 import scala.language.existentials
 
@@ -178,20 +171,18 @@ final class AnalyzingCompiler(
   def doc(
       sources: Seq[VirtualFile],
       classpath: Seq[VirtualFile],
-      converter: FileConverter,
       outputDirectory: Path,
       options: Seq[String],
       maximumErrors: Int,
       log: ManagedLogger
   ): Unit = {
     val reporter = new ManagedLoggedReporter(maximumErrors, log)
-    doc(sources, classpath, converter, outputDirectory, options, log, reporter)
+    doc(sources, classpath, outputDirectory, options, log, reporter)
   }
 
   def doc(
       sources: Seq[VirtualFile],
       classpath: Seq[VirtualFile],
-      converter: FileConverter,
       outputDirectory: Path,
       options: Seq[String],
       log: Logger,
@@ -206,15 +197,45 @@ final class AnalyzingCompiler(
       case intf: ScaladocInterface2 =>
         intf.run(sources.toArray, arguments.toArray[String], log, reporter)
       case _ =>
-        // fall back to old reflection
-        val fileSources: Array[File] = sources.toArray.map(converter.toPath(_).toFile)
-        invoke(bridge, bridgeClass, "run", log)(
-          classOf[Array[File]],
-          classOf[Array[String]],
-          classOf[xLogger],
-          classOf[Reporter]
-        )(fileSources, arguments.toArray[String], log, reporter)
+        sys.error(
+          s"CompilerInterface2 was expected but level ${bridgeCompatibilityLevel(log)} bridge was found"
+        )
     }
+    ()
+  }
+
+  def doc0(
+      sources: Seq[File],
+      classpath: Seq[File],
+      outputDirectory: Path,
+      options: Seq[String],
+      maximumErrors: Int,
+      log: ManagedLogger
+  ): Unit = {
+    val reporter = new ManagedLoggedReporter(maximumErrors, log)
+    doc0(sources, classpath, outputDirectory, options, log, reporter)
+  }
+
+  // Classic reflection-based
+  def doc0(
+      sources: Seq[File],
+      classpath: Seq[File],
+      outputDirectory: Path,
+      options: Seq[String],
+      log: Logger,
+      reporter: Reporter
+  ): Unit = {
+    val compArgs = new CompilerArguments(scalaInstance, classpathOptions)
+    val arguments =
+      compArgs.makeArguments0(Nil, classpath.map(_.toPath), Some(outputDirectory), options)
+    onArgsHandler(arguments)
+    val (bridge, bridgeClass) = bridgeInstance(scaladocBridgeClassName, log)
+    invoke(bridge, bridgeClass, "run", log)(
+      classOf[Array[File]],
+      classOf[Array[String]],
+      classOf[xLogger],
+      classOf[Reporter]
+    )(sources, arguments.toArray[String], log, reporter)
     ()
   }
 
