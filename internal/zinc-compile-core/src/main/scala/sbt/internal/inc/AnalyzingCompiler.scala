@@ -77,16 +77,13 @@ final class AnalyzingCompiler(
       output: Output,
       callback: AnalysisCallback,
       reporter: Reporter,
-      cache: GlobalsCache,
       progressOpt: Optional[CompileProgress],
       log: xLogger
   ): Unit = {
     val progress = if (progressOpt.isPresent) progressOpt.get else IgnoreProgress
     bridgeInstance(compilerBridgeClassName, log) match {
       case (intf: CompilerInterface2, _) =>
-        val compiler = intf.newCompiler(options, output, log, reporter)
-        try intf.run(sources, changes, callback, log, reporter, progress, compiler)
-        finally compiler.close()
+        intf.run(sources, changes, options, output, callback, reporter, progress, log)
       case (bridge, bridgeClass) =>
         // fall back to old reflection if CompilerInterface1 is not supported
         val compiler = invoke(bridge, bridgeClass, "newCompiler", log)(
