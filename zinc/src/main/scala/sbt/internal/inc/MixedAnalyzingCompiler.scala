@@ -103,18 +103,33 @@ final class MixedAnalyzingCompiler(
           val arguments =
             cArgs.makeArguments(Nil, cp, config.currentSetup.options.scalacOptions ++ pickleWrite)
           timed("Scala compilation", log) {
-            config.compiler.compile(
-              sources.toArray,
-              config.converter,
-              changes,
-              arguments.toArray,
-              output,
-              callback,
-              config.reporter,
-              config.cache,
-              config.progress.toOptional,
-              log
-            )
+            if (config.compiler.bridgeCompatibilityLevel(log) >= 2)
+              config.compiler.compile(
+                sources.toArray,
+                changes,
+                arguments.toArray,
+                output,
+                callback,
+                config.reporter,
+                config.cache,
+                config.progress.toOptional,
+                log
+              )
+            else {
+              // fall back to using File
+              val fileSources: Array[File] = sources.map(config.converter.toPath(_).toFile).toArray
+              config.compiler.compile(
+                fileSources,
+                changes,
+                arguments.toArray,
+                output,
+                callback,
+                config.reporter,
+                config.cache,
+                config.progress.toOptional,
+                log
+              )
+            }
           }
         }
       }

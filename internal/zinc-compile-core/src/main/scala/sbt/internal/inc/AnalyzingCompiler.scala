@@ -70,9 +70,24 @@ final class AnalyzingCompiler(
       Some(classLoaderCache)
     )
 
+  private[this] var level: Option[Int] = None
+  override def bridgeCompatibilityLevel(log: xLogger): Int =
+    level match {
+      case Some(lv) => lv
+      case _ =>
+        val (bridge, bridgeClass) = bridgeInstance(compilerBridgeClassName, log)
+        val lv = bridge match {
+          case intf: CompilerInterface2 => 2
+          case intf: CompilerInterface1 => 1
+          case _                        => 0
+        }
+        level = Some(lv)
+        lv
+    }
+
+  // Classic reflection-based CompilerInterface
   override def compile(
-      sources: Array[VirtualFile],
-      converter: FileConverter,
+      sources: Array[File],
       changes: DependencyChanges,
       options: Array[String],
       output: Output,
@@ -85,43 +100,59 @@ final class AnalyzingCompiler(
     val cached = cache(options, output, !changes.isEmpty, this, log, reporter)
     try {
       val progress = if (progressOpt.isPresent) progressOpt.get else IgnoreProgress
-      compile(sources, converter, changes, callback, log, reporter, progress, cached)
+      val (bridge, bridgeClass) = bridgeInstance(compilerBridgeClassName, log)
+      bridge match {
+        case intf: CompilerInterface1 =>
+          intf.run(sources, changes, callback, log, reporter, progress, cached)
+        case _ =>
+          invoke(bridge, bridgeClass, "run", log)(
+            classOf[Array[File]],
+            classOf[DependencyChanges],
+            classOf[AnalysisCallback],
+            classOf[xLogger],
+            classOf[Reporter],
+            classOf[CompileProgress],
+            classOf[CachedCompiler]
+          )(sources, changes, callback, log, reporter, progress, cached)
+      }
     } finally {
       cached match {
         case c: java.io.Closeable => c.close()
         case _                    =>
       }
     }
+    ()
   }
 
-  def compile(
+  override def compile(
       sources: Array[VirtualFile],
-      converter: FileConverter,
       changes: DependencyChanges,
+      options: Array[String],
+      output: Output,
       callback: AnalysisCallback,
-      log: xLogger,
       reporter: Reporter,
-      progress: CompileProgress,
-      compiler: CachedCompiler
+      cache: GlobalsCache,
+      progressOpt: Optional[CompileProgress],
+      log: xLogger
   ): Unit = {
-    val (bridge, bridgeClass) = bridgeInstance(compilerBridgeClassName, log)
-    (bridge, compiler) match {
-      case (intf: CompilerInterface2, compiler2: CachedCompiler2) =>
-        intf.run(sources, changes, callback, log, reporter, progress, compiler2)
-      case _ =>
-        // fall back to passing File array
-        val fileSources: Array[File] = sources.map(converter.toPath(_).toFile)
-        invoke(bridge, bridgeClass, "run", log)(
-          classOf[Array[File]],
-          classOf[DependencyChanges],
-          classOf[AnalysisCallback],
-          classOf[xLogger],
-          classOf[Reporter],
-          classOf[CompileProgress],
-          classOf[CachedCompiler]
-        )(fileSources, changes, callback, log, reporter, progress, compiler)
+    val cached = cache(options, output, !changes.isEmpty, this, log, reporter)
+    try {
+      val progress = if (progressOpt.isPresent) progressOpt.get else IgnoreProgress
+      val (bridge, bridgeClass) = bridgeInstance(compilerBridgeClassName, log)
+      (bridge, cached) match {
+        case (intf: CompilerInterface2, compiler2: CachedCompiler2) =>
+          intf.run(sources, changes, callback, log, reporter, progress, compiler2)
+        case _ =>
+          sys.error(
+            s"CompilerInterface2 was expected but level ${bridgeCompatibilityLevel(log)} bridge was found"
+          )
+      }
+    } finally {
+      cached match {
+        case c: java.io.Closeable => c.close()
+        case _                    =>
+      }
     }
-    ()
   }
 
   override def newCachedCompiler(
