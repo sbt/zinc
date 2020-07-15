@@ -16,13 +16,12 @@ package xsbti.compile;
  */
 public interface CompilerCache {
     /**
-     * Returns a compiler cache that manages up until <b>5</b> cached Scala compilers,
-     * where 5 is the default number.
+     * Returns a compiler cache that returns a fresh cached Scala compiler.
      *
      * @return A default compiler cache.
      */
     public static GlobalsCache getDefault() {
-        return createCacheFor(5);
+        return fresh();
     }
 
     /**
