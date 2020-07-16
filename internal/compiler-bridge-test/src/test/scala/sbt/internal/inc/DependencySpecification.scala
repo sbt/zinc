@@ -65,16 +65,9 @@ class DependencySpecification extends CompilingSpecification {
   }
 
   it should "extract class dependencies from macro arguments" in {
-    val classDependencies = extractClassDependenciesFromMacroArgument
-    val memberRef = classDependencies.memberRef
-    val inheritance = classDependencies.inheritance
-
-    assert(memberRef("A") === Set("B", "C"))
-    assert(inheritance("A") === Set.empty)
-    assert(memberRef("B") === Set.empty)
-    assert(inheritance("B") === Set.empty)
-    assert(memberRef("C") === Set.empty)
-    assert(inheritance("C") === Set.empty)
+    val binaryDependencies = extractBinaryDependenciesFromMacroArgument
+    val memberRef = binaryDependencies.memberRef
+    memberRef("A") should contain allOf ("B$", "C$")
   }
 
   it should "extract class dependencies from a refinement" in {
@@ -203,7 +196,7 @@ class DependencySpecification extends CompilingSpecification {
     classDependencies
   }
 
-  private def extractClassDependenciesFromMacroArgument: ExtractedClassDependencies = {
+  private def extractBinaryDependenciesFromMacroArgument: ExtractedClassDependencies = {
     val srcA = "class A { println(B.printTree(C.foo)) }"
     val srcB = """
   		|import scala.language.experimental.macros
@@ -218,9 +211,9 @@ class DependencySpecification extends CompilingSpecification {
   		|}""".stripMargin
     val srcC = "object C { val foo = 1 }"
 
-    val classDependencies =
-      extractDependenciesFromSrcs(List(List(srcB, srcC), List(srcA)))
-    classDependencies
+    val binaryDependencies =
+      extractBinaryDependenciesFromSrcs(List(List(srcB, srcC), List(srcA)))
+    binaryDependencies
   }
 
 }
