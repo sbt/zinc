@@ -67,12 +67,13 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
 
       val compiler = projectSetup.createCompiler()
       try {
-        val result = compiler.doCompile()
+        compiler.doCompileWithStore()
+        val result1 = compiler.doCompileAllJavaWithStore()
         val expectedOuts = List(projectSetup.defaultClassesDir.resolve("NestedJavaClasses.class"))
         expectedOuts foreach { f =>
           assert(Files.exists(f), s"$f does not exist.")
         }
-        val a = result.analysis match {
+        val a = result1.analysis match {
           case a: Analysis => a
         }
         assert(a.stamps.allSources.nonEmpty)
@@ -86,7 +87,6 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
     IO.withTemporaryDirectory { tempDir =>
       val sub1Directory = tempDir.toPath / "sub1"
       Files.createDirectories(sub1Directory / "src")
-      Files.createDirectories(sub1Directory / "classes")
       val p1 = VirtualSubproject
         .Builder()
         .baseDirectory(sub1Directory)

@@ -75,6 +75,8 @@ ThisBuild / publishTo := {
 }
 ThisBuild / pomIncludeRepository := (_ => false) // drop repos other than Maven Central from POM
 ThisBuild / mimaPreviousArtifacts := Set.empty
+// limit the number of concurrent test so testQuick works
+Global / concurrentRestrictions += Tags.limit(Tags.Test, 4)
 
 def baseSettings: Seq[Setting[_]] = Seq(
   resolvers += Resolver.typesafeIvyRepo("releases"),

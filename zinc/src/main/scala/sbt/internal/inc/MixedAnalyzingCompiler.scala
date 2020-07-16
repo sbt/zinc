@@ -60,6 +60,7 @@ final class MixedAnalyzingCompiler(
       callback: XAnalysisCallback,
       classfileManager: XClassFileManager,
   ): Unit = {
+    ensureOutput
     if (javaSrcs.nonEmpty)
       timed("Java compilation + analysis", log) {
         val output = config.currentSetup.output
@@ -105,6 +106,20 @@ final class MixedAnalyzingCompiler(
     else ()
   }
 
+  lazy val ensureOutput = {
+    val output = config.currentSetup.output
+    val outputDirs = outputDirectories(output)
+    outputDirs.foreach { d =>
+      val dir =
+        if (d.toString.endsWith(".jar")) d.getParent
+        else d
+      if (!Files.exists(dir)) {
+        Files.createDirectories(dir)
+      }
+    }
+    outputDirs
+  }
+
   /**
    * Compiles the given Java/Scala files.
    *
@@ -120,14 +135,7 @@ final class MixedAnalyzingCompiler(
       classfileManager: XClassFileManager,
   ): Unit = {
     val output = config.currentSetup.output
-    val outputDirs = outputDirectories(output)
-    outputDirs.foreach { d =>
-      if (d.toString.endsWith(".jar"))
-        Files.createDirectories(d.getParent)
-      else {
-        Files.createDirectories(d)
-      }
-    }
+    val outputDirs = ensureOutput
 
     val incSrc = config.sources.filter(include)
     val (javaSrcs, scalaSrcs) = incSrc.partition(MixedAnalyzingCompiler.javaOnly)
@@ -173,18 +181,25 @@ final class MixedAnalyzingCompiler(
       }
     def compileJava0(): Unit = compileJava(javaSrcs, callback, classfileManager)
 
-    /* `Mixed` order defaults to `ScalaThenJava` behaviour.
-     * See https://github.com/sbt/zinc/issues/234. */
-    if (config.currentSetup.order == JavaThenScala) {
-      compileJava0(); compileScala()
+    if (config.incOptions.pipelining) {
+      compileScala()
+      if (scalaSrcs.nonEmpty) {
+        log.debug("done compiling Scala sources")
+      }
     } else {
-      compileScala(); compileJava0()
+      /* `Mixed` order defaults to `ScalaThenJava` behaviour.
+       * See https://github.com/sbt/zinc/issues/234. */
+      if (config.currentSetup.order == JavaThenScala) {
+        compileJava0(); compileScala()
+      } else {
+        compileScala(); compileJava0()
+      }
+      if (javaSrcs.size + scalaSrcs.size > 0) {
+        if (ConsoleAppender.showProgress) log.debug("done compiling")
+        else log.info("done compiling")
+      }
     }
 
-    if (javaSrcs.size + scalaSrcs.size > 0) {
-      if (ConsoleAppender.showProgress) log.debug("Done compiling.")
-      else log.info("Done compiling.")
-    }
   }
 
   private def putJavacOutputInJar(outputJar: File, outputDir: File): Unit = {

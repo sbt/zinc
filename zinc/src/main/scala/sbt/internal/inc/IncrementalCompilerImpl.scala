@@ -420,7 +420,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         case Some(previous) => previous
         case None           => Analysis.empty
       }
-
+      val javaSrcs = sources.filter(MixedAnalyzingCompiler.javaOnly)
       val outputs = output :: earlyOutput.toList
       val outputJars = outputs.flatMap(out => (JarUtils.getOutputJar(out): Option[Path]).toList)
       val outputJarsOnCp = outputJars.exists { outputJar =>
@@ -446,7 +446,8 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       val config = MixedAnalyzingCompiler.makeConfig(
         scalaCompiler,
         javaCompiler,
-        sources,
+        if (recompileAllJava) javaSrcs
+        else sources,
         converter,
         classpath,
         cache,
@@ -467,17 +468,11 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         stampReader,
         extra
       )
-      if (skip) CompileResult.of(prev, config.currentSetup, false)
+      if (skip || (recompileAllJava && javaSrcs.isEmpty))
+        CompileResult.of(prev, config.currentSetup, false)
       else if (recompileAllJava) {
         JarUtils.setupTempClassesDir(temporaryClassesDirectory)
-        val (analysis, changed) = compileAllJava(
-          MixedAnalyzingCompiler(config)(logger),
-          equivCompileSetup(
-            equivOpts0(equivScalacOptions(incrementalOptions.ignoredScalacOptions))
-          ),
-          equivPairs,
-          logger
-        )
+        val (analysis, changed) = compileAllJava(MixedAnalyzingCompiler(config)(logger), logger)
         CompileResult.of(analysis, config.currentSetup, changed)
       } else {
         JarUtils.setupTempClassesDir(temporaryClassesDirectory)
@@ -496,20 +491,15 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
 
   /**
    * Compila all Java sources using the given mixed compiler.
-   *
-   * This operation prunes the inputs based on [[MiniSetup]].
    */
   private[sbt] def compileAllJava(
       mixedCompiler: MixedAnalyzingCompiler,
-      equiv: Equiv[MiniSetup],
-      equivPairs: Equiv[Array[T2[String, String]]],
       log: Logger
   ): (Analysis, Boolean) = {
     import mixedCompiler.config._, currentSetup.output
     val lookup = new LookupImpl(mixedCompiler.config, previousSetup)
-    val javaSrcs = sources.filter(MixedAnalyzingCompiler.javaOnly)
     val compile = Incremental.compileAllJava(
-      javaSrcs,
+      sources,
       converter,
       lookup,
       previousAnalysis,

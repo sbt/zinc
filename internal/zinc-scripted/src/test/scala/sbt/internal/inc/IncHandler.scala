@@ -533,22 +533,31 @@ case class ProjectStructure(
         val earlyDeps: Future[Seq[Path]] = Future.traverse(dependsOnRef) { dep =>
           dep.earlyArtifact(i).map(success => if (success) dep.earlyOutput else dep.output)
         }
-        val futureAnalysis = earlyDeps.map { internalCp =>
-          doCompile(i, notifyEarlyOutput, internalCp, pipelinedLookupAnalysis)
+        val futureScalaAnalysis = earlyDeps.map { internalCp =>
+          doCompile(i, notifyEarlyOutput, internalCp, pipelinedLookupAnalysis, false)
         }
+        val wholeDeps = Future.traverse(dependsOnRef) { dep =>
+          dep.compile(i).map(_ => dep.output)
+        }
+        def futureJavaAnalysis(projectDependencies: Seq[Path], prev: Analysis): Future[Analysis] =
+          Future {
+            doCompile(i, notifyEarlyOutput, projectDependencies, pipelinedLookupAnalysis, true)
+          }
+
         // wait for the full compilation from the dependencies
         // during pipelining, downstream compilation may complete before the upstream
         // to avoid deletion of directories etc, we need to wait for the upstream to finish
         val f = for {
-          _ <- Future.traverse(dependsOnRef)(_.compile(i))
-          a <- futureAnalysis
+          pj <- wholeDeps
+          a0 <- futureScalaAnalysis
+          a <- futureJavaAnalysis(pj, a0)
         } yield a
         i.compilations(this) = (f, notifyEarlyOutput.future)
         (f, notifyEarlyOutput.future)
       } else {
-        val fullDeps = Future.traverse(dependsOnRef)(dep => dep.compile(i))
-        val f = fullDeps.map { _ =>
-          doCompile(i, notifyEarlyOutput, internalClasspath, traditionalLookupAnalysis)
+        val wholeDeps = Future.traverse(dependsOnRef)(dep => dep.compile(i))
+        val f = wholeDeps.map { _ =>
+          doCompile(i, notifyEarlyOutput, internalClasspath, traditionalLookupAnalysis, false)
         }
         i.compilations(this) = (f, notifyEarlyOutput.future)
         (f, notifyEarlyOutput.future)
@@ -570,7 +579,8 @@ case class ProjectStructure(
       i: IncState,
       notifyEarlyOutput: Promise[Boolean],
       internalCp: Seq[Path],
-      lookupAnalysis: VirtualFile => Option[CompileAnalysis]
+      lookupAnalysis: VirtualFile => Option[CompileAnalysis],
+      javaOnly: Boolean,
   ): Analysis = {
     import i._
     val sources = scalaSources ++ javaSources
@@ -624,7 +634,9 @@ case class ProjectStructure(
       converter,
       stamper
     )
-    val result = incrementalCompiler.compile(in, scriptedLog)
+    val result =
+      if (javaOnly) incrementalCompiler.compileAllJava(in, scriptedLog)
+      else incrementalCompiler.compile(in, scriptedLog)
     val analysis = result.analysis match { case a: Analysis => a }
     cachedStore.set(AnalysisContents.create(analysis, result.setup))
     scriptedLog.info(s"""$name: compilation done: ${sources.toList.mkString(", ")}""")
