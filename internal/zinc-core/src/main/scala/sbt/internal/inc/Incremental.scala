@@ -195,6 +195,83 @@ object Incremental {
     } finally runProfiler.registerRun()
   }
 
+  /**
+   * Compile all Java sources, ignoring incrementality.
+   * We are using Incremental class because we still need to perform Analysis so other subprojects
+   * can do incremental compilation.
+   */
+  def compileAllJava(
+      sources: Seq[VirtualFile],
+      converter: FileConverter,
+      lookup: Lookup,
+      previous0: CompileAnalysis,
+      options: IncOptions,
+      currentSetup: MiniSetup,
+      stamper: ReadStamps,
+      output: Output,
+      outputJarContent: JarUtils.OutputJarContent,
+      earlyOutput: Option[Output],
+      earlyAnalysisStore: Option[AnalysisStore],
+      progress: Option[CompileProgress],
+      log: Logger
+  )(
+      compileJava: (Seq[VirtualFile], xsbti.AnalysisCallback, XClassFileManager) => Unit
+  ): (Boolean, Analysis) = {
+    log.debug(s"[zinc] callAllJava")
+    val previous = previous0 match { case a: Analysis => a }
+    // prune Java knowledge out of previous Analysis
+    val pruned = prune(sources.toSet, previous, output, outputJarContent, converter)
+    val currentStamper = Stamps.initial(stamper)
+    val internalBinaryToSourceClassName = (binaryClassName: String) =>
+      pruned.relations.productClassName.reverse(binaryClassName).headOption
+    val internalSourceToClassNamesMap: VirtualFile => Set[String] =
+      (f: VirtualFile) => pruned.relations.classNames(f)
+    val externalAPI = getExternalAPI(lookup)
+    val builder = new AnalysisCallback.Builder(
+      internalBinaryToSourceClassName,
+      internalSourceToClassNamesMap,
+      externalAPI,
+      currentStamper,
+      options,
+      currentSetup,
+      converter,
+      lookup,
+      output,
+      outputJarContent,
+      earlyOutput,
+      earlyAnalysisStore,
+      progress,
+      log
+    )
+    // val profiler = options.externalHooks.getInvalidationProfiler
+    // val runProfiler = new AdaptedRunProfiler(profiler.profileRun)
+    // val incremental: IncrementalCommon = new IncrementalNameHashing(log, options, runProfiler)
+    val callback = builder.build()
+    try {
+      val analysis = withClassfileManager(options, converter, output, outputJarContent) {
+        classFileManager =>
+          // See IncrementalCommon.scala's completeCycle
+          def completeCycle(partialAnalysis: Analysis): Analysis = {
+            val a1 = pruned ++ partialAnalysis
+            val products = partialAnalysis.relations.allProducts
+              .map(converter.toVirtualFile(_))
+            classFileManager.generated(products.toArray)
+            a1
+          }
+          compileJava(sources, callback, classFileManager)
+          val a0 = callback.getPostJavaAnalysis
+          completeCycle(a0)
+      }
+      (sources.nonEmpty, analysis)
+    } catch {
+      case _: xsbti.CompileCancelled =>
+        log.info("Compilation has been cancelled")
+        // in case compilation got cancelled potential partial compilation results (e.g. produced classs files) got rolled back
+        // and we can report back as there was no change (false) and return a previous Analysis which is still up-to-date
+        (false, previous)
+    }
+  }
+
   def getExternalAPI(lookup: Lookup): (VirtualFileRef, String) => Option[AnalyzedClass] =
     (_: VirtualFileRef, binaryClassName: String) => lookup.lookupAnalyzedClass(binaryClassName)
 
@@ -274,7 +351,7 @@ object Incremental {
             "All initially invalidated sources:" + initialInvSources + "\n"
         )
     }
-    val analysis = manageClassfiles(options, converter, output, outputJarContent) {
+    val analysis = withClassfileManager(options, converter, output, outputJarContent) {
       classfileManager =>
         incremental.cycle(
           initialInvClasses,
@@ -347,7 +424,7 @@ object Incremental {
     )
   }
 
-  private[this] def manageClassfiles[T](
+  private[sbt] def withClassfileManager[T](
       options: IncOptions,
       converter: FileConverter,
       output: Output,
@@ -400,7 +477,28 @@ private object AnalysisCallback {
         earlyOutput,
         earlyAnalysisStore,
         progress,
-        incHandler,
+        Some(incHandler),
+        log
+      )
+    }
+
+    // Create an AnalysisCallback without IncHanlder for Java compilation purpose.
+    def build(): AnalysisCallback = {
+      new AnalysisCallback(
+        internalBinaryToSourceClassName,
+        internalSourceToClassNamesMap,
+        externalAPI,
+        stampReader,
+        options,
+        currentSetup,
+        outputJarContent,
+        converter,
+        lookup,
+        output,
+        earlyOutput,
+        earlyAnalysisStore,
+        progress,
+        None,
         log
       )
     }
@@ -421,7 +519,7 @@ private final class AnalysisCallback(
     earlyOutput: Option[Output],
     earlyAnalysisStore: Option[AnalysisStore],
     progress: Option[CompileProgress],
-    incHandler: Incremental.IncrementalCallback,
+    incHandlerOpt: Option[Incremental.IncrementalCallback],
     log: Logger
 ) extends xsbti.AnalysisCallback {
   import Incremental.CompileCycleResult
@@ -698,6 +796,7 @@ private final class AnalysisCallback(
   private[this] var gotten: Boolean = false
   def getCycleResultOnce: CompileCycleResult = {
     assert(!gotten, "can't call AnalysisCallback#getCycleResultOnce more than once")
+    val incHandler = incHandlerOpt.getOrElse(sys.error("incHandler was expected"))
     gotten = true
     // notify that early artifact writing is not going to happen because of macros
     def notifyEarlyArifactFailure(): Unit =
@@ -725,6 +824,10 @@ private final class AnalysisCallback(
   private def getAnalysis: Analysis = {
     val analysis0 = addProductsAndDeps(Analysis.empty)
     addUsedNames(addCompilation(analysis0))
+  }
+
+  def getPostJavaAnalysis: Analysis = {
+    getAnalysis
   }
 
   def getOrNil[A, B](m: collection.Map[A, Seq[B]], a: A): Seq[B] = m.get(a).toList.flatten
@@ -845,22 +948,25 @@ private final class AnalysisCallback(
   override def apiPhaseCompleted(): Unit = {
     // If we know we're done with cycles (presumably because all sources were invalidated) we can store early analysis
     // and picke data now.  Otherwise, we need to wait for dependency information to decide if there are more cycles.
-    if (options.pipelining() && incHandler.isFullCompilation) {
-      val a = getAnalysis
-      val CompileCycleResult(continue, invalidations, merged) =
-        incHandler.mergeAndInvalidate(a, false)
-      if (!hasAnyMacro(merged)) {
-        assert(
-          !continue && invalidations.isEmpty,
-          "everything was supposed to be invalidated already"
-        )
-        invalidationResults = Some(CompileCycleResult.empty)
-        writeEarlyArtifacts(merged)
+    incHandlerOpt foreach { incHandler =>
+      if (options.pipelining() && incHandler.isFullCompilation) {
+        val a = getAnalysis
+        val CompileCycleResult(continue, invalidations, merged) =
+          incHandler.mergeAndInvalidate(a, false)
+        if (!hasAnyMacro(merged)) {
+          assert(
+            !continue && invalidations.isEmpty,
+            "everything was supposed to be invalidated already"
+          )
+          invalidationResults = Some(CompileCycleResult.empty)
+          writeEarlyArtifacts(merged)
+        }
       }
     }
   }
 
   override def dependencyPhaseCompleted(): Unit = {
+    val incHandler = incHandlerOpt.getOrElse(sys.error("incHandler was expected"))
     if (invalidationResults.isEmpty) {
       val a = getAnalysis
       val CompileCycleResult(continue, invalidations, merged) =
