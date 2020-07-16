@@ -28,12 +28,19 @@ case class ScalaBridge(version: String, jars: Seq[File], classesDir: File)
 final class ConstantBridgeProvider(bridges: List[ScalaBridge], tempDir: Path)
     extends CompilerBridgeProvider {
 
+  private val bridgeJars = new java.util.concurrent.ConcurrentHashMap[String, File]
+
   override def fetchCompiledBridge(instance: XScalaInstance, logger: Logger): File = {
+    bridgeJars.computeIfAbsent(instance.version, fetchCompiledBridgeUnsafe)
+  }
+
+  private def fetchCompiledBridgeUnsafe(scalaVersion: String) = {
     val javaClassVersion = sys.props("java.class.version")
-    val jarName = s"scriptedCompilerBridge-bin_${instance.version}__$javaClassVersion.jar"
+    val jarName = s"scriptedCompilerBridge-bin_${scalaVersion}__$javaClassVersion.jar"
     val bridgeJar = tempDir.resolve(jarName).toFile
     // Generate jar from compilation dirs, the resources and a target jarName
-    IO.zip(contentOf(bridgeOrBoom(instance.version).classesDir), bridgeJar, Some(0L))
+    if (!bridgeJar.exists())
+      IO.zip(contentOf(bridgeOrBoom(scalaVersion).classesDir), bridgeJar, Some(0L))
     bridgeJar
   }
 
