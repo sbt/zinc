@@ -273,6 +273,8 @@ case class ProjectStructure(
     incrementalCompiler: IncrementalCompilerImpl
 ) extends BridgeProviderSpecification {
   import scala.concurrent.ExecutionContext.Implicits._
+  // This will test pipelining unless incOptions.properties overrides it
+  val defaultPipelining = true
   val maxErrors = 100
   val targetDir = baseDirectory / "target"
   // val targetDir = Paths.get("/tmp/pipelining") / name / "target"
@@ -723,9 +725,9 @@ case class ProjectStructure(
     import scala.collection.JavaConverters._
     val map = new java.util.HashMap[String, String]
     properties.asScala foreach { case (k: String, v: String) => map.put(k, v) }
-
+    val base = IncOptions.of().withPipelining(defaultPipelining)
     val incOptions = {
-      val opts = IncOptionsUtil.fromStringMap(map, scriptedLog)
+      val opts = IncOptionsUtil.fromStringMap(base, map, scriptedLog)
       if (opts.recompileAllFraction() != IncOptions.defaultRecompileAllFraction()) opts
       else opts.withRecompileAllFraction(1.0)
     }

@@ -61,7 +61,8 @@ class BenchmarkBase extends BridgeProviderSpecification {
     val scalaVersion = ZincBenchmark.scalaVersion
     val bridge = getCompilerBridge(_dir.toPath, noLogger, scalaVersion)
     val si = scalaInstance(scalaVersion, _dir.toPath, noLogger)
-    _compilerSetup = _setup.createCompiler(scalaVersion, si, bridge, log)
+    val pipelining = false
+    _compilerSetup = _setup.createCompiler(scalaVersion, si, bridge, pipelining, log)
     printCompilationDetails()
   }
 

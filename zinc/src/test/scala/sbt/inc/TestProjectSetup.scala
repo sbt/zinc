@@ -97,7 +97,13 @@ case class TestProjectSetup(
   def defaultStoreLocation: Path = baseLocation.resolve("inc_data.zip")
   def defaultEarlyStoreLocation: Path = baseLocation.resolve("early_inc_data.zip")
 
-  def createCompiler(sv: String, si: XScalaInstance, compilerBridge: Path, log: ManagedLogger) = {
+  def createCompiler(
+      sv: String,
+      si: XScalaInstance,
+      compilerBridge: Path,
+      pipelining: Boolean,
+      log: ManagedLogger
+  ) = {
     CompilerSetup(
       sv,
       si,
@@ -108,7 +114,7 @@ case class TestProjectSetup(
       allSources.toVector.map(converter.toVirtualFile(_)),
       allClasspath.map(converter.toVirtualFile(_)),
       scalacOptions,
-      IncOptions.of(),
+      IncOptions.of().withPipelining(pipelining),
       analysisForCp,
       defaultStoreLocation,
       defaultEarlyStoreLocation,

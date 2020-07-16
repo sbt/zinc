@@ -32,6 +32,7 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
         sv,
         scalaInstance(sv, underlying.baseLocation, noLogger),
         getCompilerBridge(underlying.baseLocation, noLogger, sv),
+        pipelining = true,
         log
       )
   }
