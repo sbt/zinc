@@ -624,7 +624,18 @@ case class ProjectStructure(
       converter,
       stamper
     )
-    val result = incrementalCompiler.compile(in, scriptedLog)
+    val result = try {
+      incrementalCompiler.compile(in, scriptedLog)
+    } catch {
+      case e: java.lang.ClassNotFoundException =>
+        val bridgeProvider = cs.scalac.asInstanceOf[AnalyzingCompiler].provider
+        val si = cs.scalac.scalaInstance
+        val compilerBridge = bridgeProvider.fetchCompiledBridge(si, Logger.Null)
+        if (!compilerBridge.exists()) {
+          throw new Exception(s"what the hell happened to $compilerBridge?", e)
+        }
+        throw e
+    }
     val analysis = result.analysis match { case a: Analysis => a }
     cachedStore.set(AnalysisContents.create(analysis, result.setup))
     scriptedLog.info(s"""$name: compilation done: ${sources.toList.mkString(", ")}""")
