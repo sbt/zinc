@@ -65,7 +65,17 @@ public class IncOptionsUtil {
      * @return An instance of {@link IncOptions}.
      */
     public static IncOptions fromStringMap(Map<String, String> values, Logger logger) {
-        IncOptions base = IncOptions.of();
+        return fromStringMap(IncOptions.of(), values, logger);
+    }
+
+    /**
+     * Reads and returns an instance of {@link IncOptions} from a mapping of values.
+     *
+     * @param values The values read from a properties file.
+     * @param logger The logger used for reporting **and** for the transactional manager type.
+     * @return An instance of {@link IncOptions}.
+     */
+    public static IncOptions fromStringMap(IncOptions base, Map<String, String> values, Logger logger) {
         logger.debug(f0("Reading incremental options from map"));
 
         if (values.containsKey(TRANSITIVE_STEP_KEY)) {

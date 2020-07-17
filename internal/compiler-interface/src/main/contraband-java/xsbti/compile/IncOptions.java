@@ -74,7 +74,7 @@ public final class IncOptions implements java.io.Serializable {
         return true;
     }
     public static boolean defaultPipelining() {
-        return true;
+        return false;
     }
     public static IncOptions create() {
         return new IncOptions();

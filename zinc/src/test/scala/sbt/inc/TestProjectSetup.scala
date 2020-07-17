@@ -97,7 +97,13 @@ case class TestProjectSetup(
   def defaultStoreLocation: Path = baseLocation.resolve("inc_data.zip")
   def defaultEarlyStoreLocation: Path = baseLocation.resolve("early_inc_data.zip")
 
-  def createCompiler(sv: String, si: XScalaInstance, compilerBridge: Path, log: ManagedLogger) = {
+  def createCompiler(
+      sv: String,
+      si: XScalaInstance,
+      compilerBridge: Path,
+      pipelining: Boolean,
+      log: ManagedLogger
+  ) = {
     CompilerSetup(
       sv,
       si,
@@ -108,7 +114,7 @@ case class TestProjectSetup(
       allSources.toVector.map(converter.toVirtualFile(_)),
       allClasspath.map(converter.toVirtualFile(_)),
       scalacOptions,
-      IncOptions.of(),
+      IncOptions.of().withPipelining(pipelining),
       analysisForCp,
       defaultStoreLocation,
       defaultEarlyStoreLocation,
@@ -267,6 +273,32 @@ object TestProjectSetup {
       newResult
     }
 
+    def doCompileAllJava(newInputs: Inputs => Inputs = identity): CompileResult = {
+      lastCompiledUnits = Set.empty
+      compiler.compileAllJava(newInputs(in), log)
+    }
+
+    def doCompileAllJavaWithStore(
+        store: AnalysisStore = FileAnalysisStore.getDefault(analysisStoreLocation.toFile),
+        newInputs: Inputs => Inputs = identity
+    ): CompileResult = {
+      val previousResult = store.get().toOption match {
+        case Some(analysisContents) =>
+          val prevAnalysis = analysisContents.getAnalysis
+          val prevSetup = analysisContents.getMiniSetup
+          PreviousResult.of(
+            Optional.of[CompileAnalysis](prevAnalysis),
+            Optional.of[MiniSetup](prevSetup)
+          )
+        case _ =>
+          compiler.emptyPreviousResult
+      }
+      val newResult = doCompileAllJava(in => newInputs(in.withPreviousResult(previousResult)))
+
+      store.set(AnalysisContents.create(newResult.analysis(), newResult.setup()))
+      newResult
+    }
+
     def close(): Unit = sc.classLoaderCache.foreach(_.close())
   }
 
@@ -277,5 +309,67 @@ object TestProjectSetup {
 
     override def definesClass(classpathEntry: VirtualFile): DefinesClass =
       Locate.definesClass(classpathEntry)
+  }
+
+  trait CompilerSetupHelper {
+    def apply(sv: String, setup: TestProjectSetup): CompilerSetup
+  }
+}
+
+object VirtualSubproject {
+  case class Builder(
+      base: Option[Path] = None,
+      projectDeps: List[VirtualSubproject] = Nil,
+      externalDeps: List[Path] = Nil,
+      scalaVersion: String = scala.util.Properties.versionNumberString,
+  ) {
+    def baseDirectory(value: Path): Builder = copy(base = Some(value))
+    def scalaVersion(value: String): Builder = copy(scalaVersion = value)
+    def dependsOn(values: VirtualSubproject*): Builder =
+      copy(projectDeps = this.projectDeps ::: values.toList)
+    def externalDependencies(values: Path*): Builder =
+      copy(externalDeps = this.externalDeps ::: values.toList)
+    // call this get because "build" sounds like we're compiling something
+    def get(implicit ev: TestProjectSetup.CompilerSetupHelper): VirtualSubproject =
+      new VirtualSubproject(base.get, projectDeps, externalDeps, scalaVersion, ev)
+  }
+}
+
+class VirtualSubproject(
+    baseLocation: Path,
+    projectDeps: List[VirtualSubproject],
+    externalDeps: List[Path],
+    scalaVersion: String,
+    helper: TestProjectSetup.CompilerSetupHelper,
+) {
+  val setup = TestProjectSetup.simple(baseLocation, classes = Nil)
+  val cp = setup.earlyOutput :: projectDeps.map(_.setup.defaultClassesDir) ::: externalDeps
+  def p2vf(p: Path) = setup.converter.toVirtualFile(p)
+
+  val analysisForCp = (this :: projectDeps).flatMap { p =>
+    Seq(
+      p2vf(p.setup.defaultClassesDir) -> p.setup.defaultStoreLocation,
+      p2vf(p.setup.earlyOutput) -> p.setup.defaultEarlyStoreLocation,
+    )
+  }.toMap
+
+  val compiler = helper(
+    scalaVersion,
+    setup
+      .copy(analysisForCp = analysisForCp) // need setup's converter to define this, so copy in after
+  ).copy(classpath = cp.map(p2vf)) // TestProjectSetup does weird CP things, so copy this in lat
+
+  def compile(sources: VirtualFile*) = {
+    val vs = sources.toArray
+    compiler.doCompileWithStore(newInputs = in => in.withOptions(in.options.withSources(vs)))
+  }
+
+  def close(): Unit = compiler.close()
+
+  def compileAllJava(sources: VirtualFile*) = {
+    val vs = sources.toArray
+    compiler.doCompileAllJavaWithStore(
+      newInputs = in => in.withOptions(in.options.withSources(vs))
+    )
   }
 }

@@ -28,6 +28,61 @@ import xsbti.compile.analysis.ReadStamps
 class IncrementalCompilerImpl extends IncrementalCompiler {
 
   /**
+   * Compile all Java compilation based on xsbti.compile.Inputs.
+   *
+   * This is a Scala implementation of xsbti.compile.IncrementalCompiler,
+   * check the docs for more information on the specification of this method.
+   *
+   * @param in An instance of xsbti.compile.Inputs that collect all the
+   *           inputs required to run the compiler (from sources and classpath,
+   *           to compilation order, previous results, current setup, etc).
+   * @param logger An instance of `xsbti.Logger` to log Zinc output.
+   *
+   * @return An instance of `xsbti.compile.CompileResult` that holds
+   *         information about the results of the compilation. The returned
+   *         `xsbti.compile.CompileResult` must be used for subsequent
+   *         compilations that depend on the same inputs, check its api and its
+   *         field `xsbti.compile.CompileAnalysis`.
+   */
+  def compileAllJava(in: Inputs, logger: Logger): CompileResult = {
+    val config = in.options()
+    val setup = in.setup()
+    import config._
+    import setup._
+    val compilers = in.compilers
+    val javacChosen = compilers.javaTools.javac
+    val scalac = compilers.scalac
+    val extraOptions = extra.toList.map(_.toScalaTuple)
+    val conv = converter.toOption.getOrElse(???)
+    val defaultStampReader = Stamps.timeWrapLibraryStamps(conv)
+    compileIncrementally(
+      scalac,
+      javacChosen,
+      sources,
+      classpath,
+      CompileOutput(classesDirectory),
+      earlyOutput.toOption,
+      earlyAnalysisStore.toOption,
+      cache,
+      progress().toOption,
+      scalacOptions,
+      javacOptions,
+      in.previousResult.analysis.toOption,
+      in.previousResult.setup.toOption,
+      perClasspathEntryLookup,
+      reporter,
+      order,
+      skip = false,
+      recompileAllJava = true,
+      incrementalCompilerOptions,
+      temporaryClassesDirectory.toOption,
+      extraOptions,
+      conv,
+      stamper.toOption.getOrElse(defaultStampReader),
+    )(logger)
+  }
+
+  /**
    * Performs an incremental compilation based on xsbti.compile.Inputs.
    *
    * This is a Scala implementation of xsbti.compile.IncrementalCompiler,
@@ -73,6 +128,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       reporter,
       order,
       skip,
+      recompileAllJava = false,
       incrementalCompilerOptions,
       temporaryClassesDirectory.toOption,
       extraOptions,
@@ -162,6 +218,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       reporter,
       compileOrder,
       skip: Boolean,
+      recompileAllJava = false,
       incrementalOptions,
       temporaryClassesDirectory.toOption,
       extraInScala,
@@ -253,6 +310,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       reporter,
       compileOrder,
       skip: Boolean,
+      recompileAllJava = false,
       incrementalOptions,
       temporaryClassesDirectory.toOption,
       extraInScala,
@@ -350,6 +408,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       reporter: Reporter,
       compileOrder: CompileOrder = Mixed,
       skip: Boolean = false,
+      recompileAllJava: Boolean = false,
       incrementalOptions: IncOptions,
       temporaryClassesDirectory: Option[Path],
       extra: List[(String, String)],
@@ -358,10 +417,10 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
   )(implicit logger: Logger): CompileResult = {
     handleCompilationError(sources.size, output, logger) {
       val prev = previousAnalysis match {
-        case Some(previous) => previous
+        case Some(previous) => previous.asInstanceOf[Analysis]
         case None           => Analysis.empty
       }
-
+      val javaSrcs = sources.filter(MixedAnalyzingCompiler.javaOnly)
       val outputs = output :: earlyOutput.toList
       val outputJars = outputs.flatMap(out => (JarUtils.getOutputJar(out): Option[Path]).toList)
       val outputJarsOnCp = outputJars.exists { outputJar =>
@@ -387,7 +446,8 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       val config = MixedAnalyzingCompiler.makeConfig(
         scalaCompiler,
         javaCompiler,
-        sources,
+        if (recompileAllJava) javaSrcs
+        else sources,
         converter,
         classpath,
         cache,
@@ -408,8 +468,16 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         stampReader,
         extra
       )
-      if (skip) CompileResult.of(prev, config.currentSetup, false)
-      else {
+      def prevResult = CompileResult.of(prev, config.currentSetup, false)
+      if (skip) prevResult
+      else if (recompileAllJava) {
+        if (javaSrcs.isEmpty) prevResult
+        else {
+          JarUtils.setupTempClassesDir(temporaryClassesDirectory)
+          val (analysis, changed) = compileAllJava(MixedAnalyzingCompiler(config)(logger), logger)
+          CompileResult.of(analysis, config.currentSetup, changed)
+        }
+      } else {
         JarUtils.setupTempClassesDir(temporaryClassesDirectory)
         val (analysis, changed) = compileInternal(
           MixedAnalyzingCompiler(config)(logger),
@@ -422,6 +490,33 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         CompileResult.of(analysis, config.currentSetup, changed)
       }
     }
+  }
+
+  /**
+   * Compila all Java sources using the given mixed compiler.
+   */
+  private[sbt] def compileAllJava(
+      mixedCompiler: MixedAnalyzingCompiler,
+      log: Logger
+  ): (Analysis, Boolean) = {
+    import mixedCompiler.config._, currentSetup.output
+    val lookup = new LookupImpl(mixedCompiler.config, previousSetup)
+    val compile = Incremental.compileAllJava(
+      sources,
+      converter,
+      lookup,
+      previousAnalysis,
+      incOptions,
+      currentSetup,
+      stampReader,
+      output,
+      outputJarContent,
+      earlyOutput,
+      earlyAnalysisStore,
+      progress,
+      log
+    )(mixedCompiler.compileJava)
+    compile.swap
   }
 
   /**

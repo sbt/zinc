@@ -67,18 +67,85 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
 
       val compiler = projectSetup.createCompiler()
       try {
-        val result = compiler.doCompile()
+        compiler.doCompileWithStore()
+        val result1 = compiler.doCompileAllJavaWithStore()
         val expectedOuts = List(projectSetup.defaultClassesDir.resolve("NestedJavaClasses.class"))
         expectedOuts foreach { f =>
           assert(Files.exists(f), s"$f does not exist.")
         }
-        val a = result.analysis match {
+        val a = result1.analysis match {
           case a: Analysis => a
         }
         assert(a.stamps.allSources.nonEmpty)
       } finally {
         compiler.close()
       }
+    }
+  }
+
+  it should "compile all Java code" in {
+    IO.withTemporaryDirectory { tempDir =>
+      val sub1Directory = tempDir.toPath / "sub1"
+      Files.createDirectories(sub1Directory / "src")
+      val p1 = VirtualSubproject
+        .Builder()
+        .baseDirectory(sub1Directory)
+        .get
+
+      try {
+        val javaContent =
+          """package example;
+          |
+          |public class A {
+          |}
+          |""".stripMargin
+        val javaFile = StringVirtualFile("src/example/A.java", javaContent)
+        val result = p1.compileAllJava(javaFile)
+        val a = result.analysis match {
+          case a: Analysis => a
+        }
+        assert(a.stamps.allSources.nonEmpty)
+        assertExists(sub1Directory / "classes" / "example" / "A.class")
+      } finally p1.close()
+    }
+  }
+
+  it should "compile all Java code in a mixed project" in {
+    IO.withTemporaryDirectory { tempDir =>
+      val sub1Directory = tempDir.toPath / "sub1"
+      Files.createDirectories(sub1Directory / "src")
+      Files.createDirectories(sub1Directory / "classes")
+      val p1 = VirtualSubproject
+        .Builder()
+        .baseDirectory(sub1Directory)
+        .get
+
+      try {
+        val javaContent =
+          """package example;
+          |
+          |public class A {
+          |}
+          |""".stripMargin
+        val javaFile = StringVirtualFile("src/example/A.java", javaContent)
+
+        val scalaContent =
+          """package example
+          |
+          |class B {
+          |  val a = new A
+          |}
+          |""".stripMargin
+        val scalaFile = StringVirtualFile("src/example/B.scala", scalaContent)
+        val result1 = p1.compile(javaFile, scalaFile)
+        val a1 = result1.analysis.asInstanceOf[Analysis]
+        assert(a1.stamps.allSources.size == 2)
+        // assert(!Files.exists(sub1Directory / "classes" / "example" / "A.class"))
+        val result2 = p1.compileAllJava(javaFile, scalaFile)
+        val a2 = result2.analysis.asInstanceOf[Analysis]
+        assert(a2.stamps.allSources.nonEmpty)
+        assertExists(sub1Directory / "classes" / "example" / "A.class")
+      } finally p1.close()
     }
   }
 
