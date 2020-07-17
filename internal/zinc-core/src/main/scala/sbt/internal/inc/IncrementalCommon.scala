@@ -179,7 +179,8 @@ private[inc] abstract class IncrementalCommon(
           completingCycle: Boolean
       ): CompileCycleResult = {
         val analysis =
-          if (isFullCompilation) partialAnalysis
+          if (isFullCompilation)
+            partialAnalysis.copy(compilations = pruned.compilations ++ partialAnalysis.compilations)
           else pruned ++ partialAnalysis
         val recompiledClasses: Set[String] = {
           // Represents classes detected as changed externally and internally (by a previous cycle)
