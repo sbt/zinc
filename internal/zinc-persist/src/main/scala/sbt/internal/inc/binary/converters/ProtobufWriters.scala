@@ -19,7 +19,6 @@ import xsbti.{ Position, Problem, Severity, T2, UseScope, VirtualFileRef }
 import xsbti.compile.analysis.{ SourceInfo, Stamp, WriteMapper }
 import sbt.internal.inc.binary.converters.ProtobufDefaults.Feedback.{ Writers => WritersFeedback }
 import sbt.internal.inc.binary.converters.ProtobufDefaults.WritersConstants
-import scala.collection.JavaConverters._
 import xsbti.api.{ Private, _ }
 import xsbti.compile.{
   CompileOrder,
@@ -70,8 +69,8 @@ final class ProtobufWriters(mapper: WriteMapper) {
     // Note that boilerplate here is inteded, abstraction is expensive
     def toBinarySchemaMap(
         data: Map[VirtualFileRef, Stamp]
-    ): Map[String, Schema.Stamps.StampType] = {
-      data.map {
+    ): Iterator[(String, Schema.Stamps.StampType)] = {
+      data.iterator.map {
         case (binaryFile, stamp) =>
           val newBinaryFile = mapper.mapBinaryFile(binaryFile)
           val newPath = toStringPathV(newBinaryFile)
@@ -83,8 +82,8 @@ final class ProtobufWriters(mapper: WriteMapper) {
 
     def toSourceSchemaMap(
         data: Map[VirtualFileRef, Stamp]
-    ): Map[String, Schema.Stamps.StampType] = {
-      data.map {
+    ): Iterator[(String, Schema.Stamps.StampType)] = {
+      data.iterator.map {
         case (sourceFile, stamp) =>
           val newSourceFile = mapper.mapSourceFile(sourceFile)
           val newPath = toStringPathV(newSourceFile)
@@ -96,8 +95,8 @@ final class ProtobufWriters(mapper: WriteMapper) {
 
     def toProductSchemaMap(
         data: Map[VirtualFileRef, Stamp]
-    ): Map[String, Schema.Stamps.StampType] = {
-      data.map {
+    ): Iterator[(String, Schema.Stamps.StampType)] = {
+      data.iterator.map {
         case (productFile, stamp) =>
           val newProductFile = mapper.mapProductFile(productFile)
           val newPath = toStringPathV(newProductFile)
@@ -111,11 +110,11 @@ final class ProtobufWriters(mapper: WriteMapper) {
     val sourceStamps = toSourceSchemaMap(stamps.sources)
     val productStamps = toProductSchemaMap(stamps.products)
 
-    Schema.Stamps.newBuilder
-      .putAllBinaryStamps(binaryStamps.asJava)
-      .putAllSourceStamps(sourceStamps.asJava)
-      .putAllProductStamps(productStamps.asJava)
-      .build
+    val builder = Schema.Stamps.newBuilder
+    binaryStamps.foreach { case (k, v)  => builder.putBinaryStamps(k, v) }
+    sourceStamps.foreach { case (k, v)  => builder.putSourceStamps(k, v) }
+    productStamps.foreach { case (k, v) => builder.putProductStamps(k, v) }
+    builder.build
   }
 
   def toOutputGroup(outputGroup: OutputGroup): Schema.OutputGroup = {
@@ -140,9 +139,9 @@ final class ProtobufWriters(mapper: WriteMapper) {
         val single = Schema.SingleOutput.newBuilder.setTarget(targetPath).build
         builder.setSingleOutput(single)
       case multiple0: MultipleOutput =>
-        val groups = multiple0.getOutputGroups.toSchemaList(toOutputGroup)
-        val multiple = Schema.MultipleOutput.newBuilder.addAllOutputGroups(groups.asJava).build
-        builder.setMultipleOutput(multiple)
+        val multipleBuilder = Schema.MultipleOutput.newBuilder
+        multiple0.getOutputGroups.foreach(g => multipleBuilder.addOutputGroups(toOutputGroup(g)))
+        builder.setMultipleOutput(multipleBuilder.build)
       case _ => sys.error(WritersFeedback.UnexpectedEmptyOutput)
     }
   }
@@ -156,10 +155,9 @@ final class ProtobufWriters(mapper: WriteMapper) {
   }
 
   def toCompilations(compilations0: Compilations): Schema.Compilations = {
-    val compilations = compilations0.allCompilations.map(toCompilation)
-    Schema.Compilations.newBuilder
-      .addAllCompilations(compilations.asJava)
-      .build
+    val builder = Schema.Compilations.newBuilder
+    compilations0.allCompilations.foreach(c => builder.addCompilations(toCompilation(c)))
+    builder.build
   }
 
   import ProtobufDefaults.{ MissingString, MissingInt }
@@ -202,24 +200,21 @@ final class ProtobufWriters(mapper: WriteMapper) {
   }
 
   def toSourceInfo(sourceInfo: SourceInfo): Schema.SourceInfo = {
-    val mainClasses = sourceInfo.getMainClasses
-    val reportedProblems = sourceInfo.getReportedProblems.map(toProblem).toSeq
-    val unreportedProblems = sourceInfo.getUnreportedProblems.map(toProblem).toSeq
-    Schema.SourceInfo.newBuilder
-      .addAllReportedProblems(reportedProblems.asJava)
-      .addAllUnreportedProblems(unreportedProblems.asJava)
-      .addAllMainClasses(mainClasses.toIterable.asJava)
-      .build
+    val builder = Schema.SourceInfo.newBuilder
+    sourceInfo.getMainClasses.foreach(c => builder.addMainClasses(c))
+    sourceInfo.getReportedProblems.foreach(p => builder.addReportedProblems(toProblem(p)))
+    sourceInfo.getUnreportedProblems.foreach(p => builder.addUnreportedProblems(toProblem(p)))
+    builder.build
   }
 
   def toSourceInfos(sourceInfos0: SourceInfos): Schema.SourceInfos = {
-    val sourceInfos = sourceInfos0.allInfos.map {
+    val sourceInfos = sourceInfos0.allInfos.iterator.map {
       case (file, sourceInfo0) =>
         toStringPathV(mapper.mapSourceFile(file)) -> toSourceInfo(sourceInfo0)
     }
-    Schema.SourceInfos.newBuilder
-      .putAllSourceInfos(sourceInfos.asJava)
-      .build
+    val builder = Schema.SourceInfos.newBuilder
+    sourceInfos.foreach { case (k, v) => builder.putSourceInfos(k, v) }
+    builder.build
   }
 
   def toClasspathFileHash(fileHash: FileHash): Schema.FileHash = {
@@ -233,14 +228,11 @@ final class ProtobufWriters(mapper: WriteMapper) {
   }
 
   def toMiniOptions(miniOptions: MiniOptions): Schema.MiniOptions = {
-    val classpathHash = miniOptions.classpathHash.map(toClasspathFileHash)
-    val javacOptions = miniOptions.javacOptions().map(mapper.mapJavacOption)
-    val scalacOptions = miniOptions.scalacOptions().map(mapper.mapScalacOption)
-    Schema.MiniOptions.newBuilder
-      .addAllClasspathHash(classpathHash.toList.asJava)
-      .addAllJavacOptions(javacOptions.toList.asJava)
-      .addAllScalacOptions(scalacOptions.toList.asJava)
-      .build
+    val builder = Schema.MiniOptions.newBuilder
+    miniOptions.classpathHash.foreach(h => builder.addClasspathHash(toClasspathFileHash(h)))
+    miniOptions.javacOptions().foreach(o => builder.addJavacOptions(mapper.mapJavacOption(o)))
+    miniOptions.scalacOptions().foreach(o => builder.addScalacOptions(mapper.mapScalacOption(o)))
+    builder.build
   }
 
   def toCompileOrder(compileOrder: CompileOrder): Schema.CompileOrder = {
@@ -269,9 +261,9 @@ final class ProtobufWriters(mapper: WriteMapper) {
         val single = Schema.SingleOutput.newBuilder.setTarget(targetPath).build
         builder.setSingleOutput(single)
       case multiple0: MultipleOutput =>
-        val groups = multiple0.getOutputGroups.toSchemaList(toOutputGroup)
-        val multiple = Schema.MultipleOutput.newBuilder.addAllOutputGroups(groups.asJava).build
-        builder.setMultipleOutput(multiple)
+        val multipleBuilder = Schema.MultipleOutput.newBuilder
+        multiple0.getOutputGroups.foreach(g => multipleBuilder.addOutputGroups(toOutputGroup(g)))
+        builder.setMultipleOutput(multipleBuilder.build)
       case _ => sys.error(WritersFeedback.UnexpectedEmptyOutput)
     }
 
@@ -282,19 +274,13 @@ final class ProtobufWriters(mapper: WriteMapper) {
     val compilerVersion = miniSetup.compilerVersion()
     val compileOrder = toCompileOrder(miniSetup.order())
     val storeApis = miniSetup.storeApis()
-    val extra = miniSetup.extra().map(toStringTuple)
-    setMiniSetupOutput(Analysis.dummyOutput, builder)
+    val miniBuilder = setMiniSetupOutput(Analysis.dummyOutput, builder)
       .setMiniOptions(miniOptions)
       .setCompilerVersion(compilerVersion)
       .setCompileOrder(compileOrder)
       .setStoreApis(storeApis)
-      .addAllExtra(extra.toList.asJava)
-      .build
-  }
-
-  implicit class EfficientTraverse[T](array: Array[T]) {
-    def toSchemaList[R](f: T => R): List[R] =
-      array.iterator.map(f).toList
+    miniSetup.extra().foreach(e => builder.addExtra(toStringTuple(e)))
+    miniBuilder.build
   }
 
   def toPath(path: xsbti.api.Path): Schema.Path = {
@@ -310,10 +296,9 @@ final class ProtobufWriters(mapper: WriteMapper) {
       }
       builder.build
     }
-    val components = path.components().toSchemaList(toPathComponent)
-    Schema.Path.newBuilder
-      .addAllComponents(components.asJava)
-      .build
+    val builder = Schema.Path.newBuilder
+    path.components().foreach(c => builder.addComponents(toPathComponent(c)))
+    builder.build
   }
 
   def toAnnotation(annotation: Annotation): Schema.Annotation = {
@@ -323,33 +308,26 @@ final class ProtobufWriters(mapper: WriteMapper) {
         .setValue(annotationArgument.value())
         .build
 
-    val arguments = annotation.arguments().toSchemaList(toAnnotationArgument)
     val base = toType(annotation.base())
-    Schema.Annotation.newBuilder
-      .setBase(base)
-      .addAllArguments(arguments.asJava)
-      .build
+    val builder = Schema.Annotation.newBuilder.setBase(base)
+    annotation.arguments().foreach(a => builder.addArguments(toAnnotationArgument(a)))
+    builder.build
   }
 
   def toStructure(tpe: Structure): Schema.Type.Structure = {
-    val declared = tpe.declared().toSchemaList(toClassDefinition)
-    val inherited = tpe.inherited().toSchemaList(toClassDefinition)
-    val parents = tpe.parents().toSchemaList(toType)
-    Schema.Type.Structure.newBuilder
-      .addAllDeclared(declared.asJava)
-      .addAllInherited(inherited.asJava)
-      .addAllParents(parents.asJava)
-      .build
+    val builder = Schema.Type.Structure.newBuilder
+    tpe.declared().foreach(t => builder.addDeclared(toClassDefinition(t)))
+    tpe.inherited().foreach(i => builder.addInherited(toClassDefinition(i)))
+    tpe.parents().foreach(p => builder.addParents(toType(p)))
+    builder.build
   }
 
   def toType(`type`: Type): Schema.Type = {
     def toExistential(tpe: Existential): Schema.Type.Existential = {
       val baseType = toType(tpe.baseType())
-      val clause = tpe.clause().toSchemaList(toTypeParameter)
-      Schema.Type.Existential.newBuilder
-        .setBaseType(baseType)
-        .addAllClause(clause.asJava)
-        .build
+      val builder = Schema.Type.Existential.newBuilder.setBaseType(baseType)
+      tpe.clause().foreach(c => builder.addClause(toTypeParameter(c)))
+      builder.build
     }
 
     def toProjection(tpe: Projection): Schema.Type.Projection = {
@@ -363,11 +341,9 @@ final class ProtobufWriters(mapper: WriteMapper) {
 
     def toPolymorphic(tpe: Polymorphic): Schema.Type.Polymorphic = {
       val baseType = toType(tpe.baseType())
-      val parameters = tpe.parameters().toSchemaList(toTypeParameter)
-      Schema.Type.Polymorphic.newBuilder
-        .setBaseType(baseType)
-        .addAllTypeParameters(parameters.asJava)
-        .build
+      val builder = Schema.Type.Polymorphic.newBuilder.setBaseType(baseType)
+      tpe.parameters().foreach(p => builder.addTypeParameters(toTypeParameter(p)))
+      builder.build
     }
 
     def toParameterRef(tpe: ParameterRef): Schema.Type.ParameterRef =
@@ -377,11 +353,9 @@ final class ProtobufWriters(mapper: WriteMapper) {
 
     def toParameterized(tpe: Parameterized): Schema.Type.Parameterized = {
       val baseType = toType(tpe.baseType())
-      val typeArguments = tpe.typeArguments().toSchemaList(toType)
-      Schema.Type.Parameterized.newBuilder
-        .setBaseType(baseType)
-        .addAllTypeArguments(typeArguments.asJava)
-        .build
+      val builder = Schema.Type.Parameterized.newBuilder.setBaseType(baseType)
+      tpe.typeArguments().foreach(a => builder.addTypeArguments(toType(a)))
+      builder.build
     }
 
     def toSingleton(tpe: Singleton): Schema.Type.Singleton =
@@ -399,12 +373,10 @@ final class ProtobufWriters(mapper: WriteMapper) {
     }
 
     def toAnnotated(tpe: Annotated): Schema.Type.Annotated = {
-      val annotations = tpe.annotations().toSchemaList(toAnnotation)
       val baseType = toType(tpe.baseType())
-      Schema.Type.Annotated.newBuilder
-        .setBaseType(baseType)
-        .addAllAnnotations(annotations.asJava)
-        .build
+      val builder = Schema.Type.Annotated.newBuilder.setBaseType(baseType)
+      tpe.annotations().foreach(a => builder.addAnnotations(toAnnotation(a)))
+      builder.build
     }
 
     val builder = Schema.Type.newBuilder
@@ -488,21 +460,17 @@ final class ProtobufWriters(mapper: WriteMapper) {
           .build
       }
 
-      val parameters = parameterList.parameters().toSchemaList(toMethodParameter)
       val isImplicit = parameterList.isImplicit()
-      Schema.ParameterList.newBuilder
-        .addAllParameters(parameters.asJava)
-        .setIsImplicit(isImplicit)
-        .build
+      val builder = Schema.ParameterList.newBuilder.setIsImplicit(isImplicit)
+      parameterList.parameters().foreach(p => builder.addParameters(toMethodParameter(p)))
+      builder.build
     }
 
     def toClassLikeDef(classLikeDef: ClassLikeDef): Schema.ClassDefinition.ClassLikeDef = {
       val definitionType = toDefinitionType(classLikeDef.definitionType())
-      val typeParameters = classLikeDef.typeParameters().toSchemaList(toTypeParameter)
-      Schema.ClassDefinition.ClassLikeDef.newBuilder
-        .addAllTypeParameters(typeParameters.asJava)
-        .setDefinitionType(definitionType)
-        .build
+      val builder = Schema.ClassDefinition.ClassLikeDef.newBuilder.setDefinitionType(definitionType)
+      classLikeDef.typeParameters().foreach(p => builder.addTypeParameters(toTypeParameter(p)))
+      builder.build
     }
 
     def toValDef(valDef: Val): Schema.ClassDefinition.Val =
@@ -517,22 +485,17 @@ final class ProtobufWriters(mapper: WriteMapper) {
 
     def toDefDef(defDef: Def): Schema.ClassDefinition.Def = {
       val returnType = toType(defDef.returnType)
-      val typeParameters = defDef.typeParameters().toSchemaList(toTypeParameter)
-      val valueParameters = defDef.valueParameters().toSchemaList(toParameterList)
-      Schema.ClassDefinition.Def.newBuilder
-        .addAllTypeParameters(typeParameters.asJava)
-        .addAllValueParameters(valueParameters.asJava)
-        .setReturnType(returnType)
-        .build
+      val builder = Schema.ClassDefinition.Def.newBuilder.setReturnType(returnType)
+      defDef.typeParameters().foreach(p => builder.addTypeParameters(toTypeParameter(p)))
+      defDef.valueParameters().foreach(p => builder.addValueParameters(toParameterList(p)))
+      builder.build
     }
 
     def toTypeAlias(typeAlias: TypeAlias): Schema.ClassDefinition.TypeAlias = {
       val `type` = toType(typeAlias.tpe())
-      val typeParameters = typeAlias.typeParameters().toSchemaList(toTypeParameter)
-      Schema.ClassDefinition.TypeAlias.newBuilder
-        .setType(`type`)
-        .addAllTypeParameters(typeParameters.asJava)
-        .build
+      val builder = Schema.ClassDefinition.TypeAlias.newBuilder.setType(`type`)
+      typeAlias.typeParameters().foreach(p => builder.addTypeParameters(toTypeParameter(p)))
+      builder.build
     }
 
     def toTypeDeclaration(
@@ -540,19 +503,17 @@ final class ProtobufWriters(mapper: WriteMapper) {
     ): Schema.ClassDefinition.TypeDeclaration = {
       val lowerBound = toType(typeDeclaration.lowerBound())
       val upperBound = toType(typeDeclaration.upperBound())
-      val typeParameters = typeDeclaration.typeParameters().toSchemaList(toTypeParameter)
-      Schema.ClassDefinition.TypeDeclaration.newBuilder
+      val builder = Schema.ClassDefinition.TypeDeclaration.newBuilder
         .setLowerBound(lowerBound)
         .setUpperBound(upperBound)
-        .addAllTypeParameters(typeParameters.asJava)
-        .build
+      typeDeclaration.typeParameters().foreach(p => builder.addTypeParameters(toTypeParameter(p)))
+      builder.build
     }
 
     val builder = Schema.ClassDefinition.newBuilder
     val name = classDefinition.name()
     val access = toAccess(classDefinition.access())
     val modifiers = toModifiers(classDefinition.modifiers())
-    val annotations = classDefinition.annotations().toSchemaList(toAnnotation)
     classDefinition match {
       case classLikeDef: ClassLikeDef => builder.setClassLikeDef(toClassLikeDef(classLikeDef))
       case valDef: Val                => builder.setValDef(toValDef(valDef))
@@ -562,12 +523,12 @@ final class ProtobufWriters(mapper: WriteMapper) {
       case typeDeclaration: TypeDeclaration =>
         builder.setTypeDeclaration(toTypeDeclaration(typeDeclaration))
     }
-    builder
+    val resultBuilder = builder
       .setName(name)
       .setAccess(access)
       .setModifiers(modifiers)
-      .addAllAnnotations(annotations.asJava)
-      .build
+    classDefinition.annotations().foreach(a => builder.addAnnotations(toAnnotation(a)))
+    resultBuilder.build
   }
 
   def toTypeParameter(typeParameter: TypeParameter): Schema.TypeParameter = {
@@ -580,47 +541,42 @@ final class ProtobufWriters(mapper: WriteMapper) {
     }
 
     val id = typeParameter.id()
-    val annotations = typeParameter.annotations().toSchemaList(toAnnotation)
-    val typeParameters = typeParameter.typeParameters().toSchemaList(toTypeParameter)
     val variance = toVariance(typeParameter.variance())
     val lowerBound = toType(typeParameter.lowerBound())
     val upperBound = toType(typeParameter.upperBound())
-    Schema.TypeParameter.newBuilder
+    val builder = Schema.TypeParameter.newBuilder
       .setId(id)
-      .addAllAnnotations(annotations.asJava)
-      .addAllTypeParameters(typeParameters.asJava)
       .setVariance(variance)
       .setLowerBound(lowerBound)
       .setUpperBound(upperBound)
-      .build
+    typeParameter.annotations().foreach(a => builder.addAnnotations(toAnnotation(a)))
+    typeParameter.typeParameters().foreach(p => builder.addTypeParameters(toTypeParameter(p)))
+    builder.build
   }
 
   def toClassLike(classLike: ClassLike): Schema.ClassLike = {
     val name = classLike.name()
     val access = toAccess(classLike.access())
     val modifiers = toModifiers(classLike.modifiers())
-    val annotations = classLike.annotations().toSchemaList(toAnnotation)
 
     val definitionType = toDefinitionType(classLike.definitionType())
     val selfType = toType(classLike.selfType())
     val structure = toStructure(classLike.structure())
     val savedAnnotations = classLike.savedAnnotations()
-    val childrenOfSealedClass = classLike.childrenOfSealedClass().toSchemaList(toType)
     val topLevel = classLike.topLevel()
-    val typeParameters = classLike.typeParameters().toSchemaList(toTypeParameter)
-    Schema.ClassLike.newBuilder
+    val builder = Schema.ClassLike.newBuilder
       .setName(name)
       .setAccess(access)
       .setModifiers(modifiers)
-      .addAllAnnotations(annotations.asJava)
       .setDefinitionType(definitionType)
       .setSelfType(selfType)
       .setStructure(structure)
-      .addAllSavedAnnotations(savedAnnotations.toList.asJava)
-      .addAllChildrenOfSealedClass(childrenOfSealedClass.toList.asJava)
       .setTopLevel(topLevel)
-      .addAllTypeParameters(typeParameters.asJava)
-      .build
+    classLike.annotations().foreach(a => builder.addAnnotations(toAnnotation(a)))
+    savedAnnotations.foreach(a => builder.addSavedAnnotations(a))
+    classLike.childrenOfSealedClass().foreach(c => builder.addChildrenOfSealedClass(toType(c)))
+    classLike.typeParameters().foreach(p => builder.addTypeParameters(toTypeParameter(p)))
+    builder.build
   }
 
   def toUseScope(useScope: UseScope): Schema.UseScope = {
@@ -659,22 +615,22 @@ final class ProtobufWriters(mapper: WriteMapper) {
     val compilationTimestamp = analyzedClass.compilationTimestamp()
     val hasMacro = analyzedClass.hasMacro
     val name = analyzedClass.name()
-    val nameHashes = analyzedClass.nameHashes().toSchemaList(toNameHash)
     val provenance = analyzedClass.provenance
 
-    val builder0 = Schema.AnalyzedClass.newBuilder
-    val builder =
-      if (shouldStoreApis) builder0.setApi(toCompanions(analyzedClass.api()))
-      else builder0
-    builder
+    val builder1 = Schema.AnalyzedClass.newBuilder
+    val builder0 =
+      if (shouldStoreApis) builder1.setApi(toCompanions(analyzedClass.api()))
+      else builder1
+    val builder = builder0
       .setCompilationTimestamp(compilationTimestamp)
       .setName(name)
       .setApiHash(apiHash)
-      .addAllNameHashes(nameHashes.asJava)
       .setHasMacro(hasMacro)
       .setExtraHash(extraHash)
       .setProvenance(provenance)
-      .build
+
+    analyzedClass.nameHashes().foreach(h => builder.addNameHashes(toNameHash(h)))
+    builder.build
   }
 
   private final val sourceToString = (f: VirtualFileRef) => toStringPathV(mapper.mapSourceFile(f))
@@ -687,36 +643,34 @@ final class ProtobufWriters(mapper: WriteMapper) {
 
     def toUsedName(usedName: UsedName): Schema.UsedName = {
       val name = usedName.name
-      val javaIterator = usedName.scopes.iterator()
-      val scopes = javaIterator.asScala.map(toUseScope).toList
-      Schema.UsedName.newBuilder
+      val builder = Schema.UsedName.newBuilder
         .setName(name)
-        .addAllScopes(scopes.asJava)
-        .build
+      val it = usedName.scopes.iterator
+      while (it.hasNext) builder.addScopes(toUseScope(it.next))
+      builder.build
     }
 
-    def toUsedNamesMap(relation: Relation[String, UsedName]): Map[String, Schema.UsedNames] = {
-      relation.forwardMap
-        .mapValues({ names =>
-          val usedNames = names.iterator.map(toUsedName).toList
-          Schema.UsedNames.newBuilder
-            .addAllUsedNames(usedNames.asJava)
-            .build
-        })
-        .toMap
+    def toUsedNamesMap(
+        relation: Relation[String, UsedName]
+    ): Iterator[(String, Schema.UsedNames)] = {
+      relation.forwardMap.iterator.map {
+        case (k, names) =>
+          val builder = Schema.UsedNames.newBuilder
+          names.foreach(name => builder.addUsedNames(toUsedName(name)))
+          k -> builder.build
+      }
     }
 
     def toMap[K, V](
         relation: Relation[K, V],
         fk: K => String,
         fv: V => String
-    ): Map[String, Schema.Values] = {
-      relation.forwardMap.map {
+    ): Iterator[(String, Schema.Values)] = {
+      relation.forwardMap.iterator.map {
         case (k, vs) =>
-          val fileValues = Schema.Values.newBuilder
-            .addAllValues(vs.iterator.map(fv).toList.asJava)
-            .build
-          fk(k) -> fileValues
+          val builder = Schema.Values.newBuilder
+          vs.foreach(v => builder.addValues(fv(v)))
+          fk(k) -> builder.build
       }
     }
 
@@ -732,28 +686,35 @@ final class ProtobufWriters(mapper: WriteMapper) {
     val classes = toMap(relations.classes, sourceToString, stringId)
     val productClassName = toMap(relations.productClassName, stringId, stringId)
     val names = toUsedNamesMap(relations.names)
-    val memberRef = Schema.ClassDependencies.newBuilder
-      .putAllInternal(memberRefInternal.asJava)
-      .putAllExternal(memberRefExternal.asJava)
-      .build
+    val memberRef = {
+      val builder = Schema.ClassDependencies.newBuilder
+      memberRefInternal.foreach { case (k, v) => builder.putInternal(k, v) }
+      memberRefExternal.foreach { case (k, v) => builder.putExternal(k, v) }
+      builder.build
+    }
 
-    val inheritance = Schema.ClassDependencies.newBuilder
-      .putAllInternal(inheritanceInternal.asJava)
-      .putAllExternal(inheritanceExternal.asJava)
-      .build
+    val inheritance = {
+      val builder = Schema.ClassDependencies.newBuilder
+      inheritanceInternal.foreach { case (k, v) => builder.putInternal(k, v) }
+      inheritanceExternal.foreach { case (k, v) => builder.putExternal(k, v) }
+      builder.build
+    }
 
-    val localInheritance = Schema.ClassDependencies.newBuilder
-      .putAllInternal(localInheritanceInternal.asJava)
-      .putAllExternal(localInheritanceExternal.asJava)
-      .build
+    val localInheritance = {
+      val builder = Schema.ClassDependencies.newBuilder
+      localInheritanceInternal.foreach { case (k, v) => builder.putInternal(k, v) }
+      localInheritanceExternal.foreach { case (k, v) => builder.putExternal(k, v) }
+      builder.build
+    }
 
-    Schema.Relations.newBuilder
-      .putAllSrcProd(srcProd.asJava)
-      .putAllLibraryDep(libraryDep.asJava)
-      .putAllLibraryClassName(libraryClassName.asJava)
-      .putAllClasses(classes.asJava)
-      .putAllProductClassName(productClassName.asJava)
-      .putAllNames(names.asJava)
+    val builder = Schema.Relations.newBuilder
+    srcProd.foreach { case (k, v)          => builder.putSrcProd(k, v) }
+    libraryDep.foreach { case (k, v)       => builder.putLibraryDep(k, v) }
+    libraryClassName.foreach { case (k, v) => builder.putLibraryClassName(k, v) }
+    classes.foreach { case (k, v)          => builder.putClasses(k, v) }
+    productClassName.foreach { case (k, v) => builder.putProductClassName(k, v) }
+    names.foreach { case (k, v)            => builder.putNames(k, v) }
+    builder
       .setMemberRef(memberRef)
       .setInheritance(inheritance)
       .setLocalInheritance(localInheritance)
@@ -762,12 +723,10 @@ final class ProtobufWriters(mapper: WriteMapper) {
 
   def toApis(apis: APIs, shouldStoreApis: Boolean): Schema.APIs = {
     val toAnalyzedClassSchema = toAnalyzedClass(shouldStoreApis) _
-    val internal = apis.internal.mapValues(toAnalyzedClassSchema).toMap
-    val external = apis.external.mapValues(toAnalyzedClassSchema).toMap
-    Schema.APIs.newBuilder
-      .putAllInternal(internal.asJava)
-      .putAllExternal(external.asJava)
-      .build
+    val builder = Schema.APIs.newBuilder
+    apis.internal.foreach { case (k, v) => builder.putInternal(k, toAnalyzedClassSchema(v)) }
+    apis.external.foreach { case (k, v) => builder.putExternal(k, toAnalyzedClassSchema(v)) }
+    builder.build
   }
 
   def toApisFile(
