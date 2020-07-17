@@ -123,7 +123,7 @@ class ExtractUsedNamesPerformanceSpecification
                  |class Bar {
                  |  def bar[Out] = macro Foo.foo_impl[Out]
                  |}""".stripMargin
-    val (_, analysis) = compileSrcs(List(List(ext), List(cod)), reuseCompilerInstance = true)
+    val (_, analysis) = compileSrcs(List(List(ext), List(cod)))
     val usedNames = analysis.usedNames.toMap
 
     // format: off

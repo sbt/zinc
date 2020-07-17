@@ -48,16 +48,24 @@ trait CompilingSpecification extends BridgeProviderSpecification {
    * Compiles given source code using Scala compiler and returns API representation
    * extracted by ExtractAPI class.
    */
-  def extractApisFromSrcs(
-      reuseCompilerInstance: Boolean
-  )(srcs: List[String]*): Seq[Set[ClassLike]] = {
-    val (tempSrcFiles, analysisCallback) = compileSrcs(srcs.toList, reuseCompilerInstance)
+  def extractApisFromSrcs(srcs: List[String]*): Seq[Set[ClassLike]] = {
+    val (tempSrcFiles, analysisCallback) = compileSrcs(srcs.toList)
     tempSrcFiles.map(analysisCallback.apis)
   }
 
   def extractUsedNamesFromSrc(src: String): Map[String, Set[String]] = {
     val (_, analysisCallback) = compileSrcs(src)
     analysisCallback.usedNames.toMap
+  }
+
+  def extractBinaryDependenciesFromSrcs(srcs: List[List[String]]): ExtractedClassDependencies = {
+    val (_, testCallback) = compileSrcs(srcs)
+    val binaryDependencies = testCallback.binaryDependencies
+    ExtractedClassDependencies.fromPairs(
+      binaryDependencies.collect { case (_, bin, src, DependencyByMemberRef)        => src -> bin },
+      binaryDependencies.collect { case (_, bin, src, DependencyByInheritance)      => src -> bin },
+      binaryDependencies.collect { case (_, bin, src, LocalDependencyByInheritance) => src -> bin },
+    )
   }
 
   def extractBinaryClassNamesFromSrc(src: String): Set[(String, String)] = {
@@ -107,19 +115,11 @@ trait CompilingSpecification extends BridgeProviderSpecification {
   }
 
   /**
-   * Compiles given source code snippets (passed as Strings) using Scala compiler and returns extracted
-   * dependencies between snippets. Source code snippets are identified by symbols. Each symbol should
-   * be associated with one snippet only.
-   *
-   * Snippets can be grouped to be compiled together in the same compiler run. This is
-   * useful to compile macros, which cannot be used in the same compilation run that
-   * defines them.
-   *
-   * Symbols are used to express extracted dependencies between source code snippets. This way we have
-   * file system-independent way of testing dependencies between source code "files".
+   * Compile the given source code snippets (passed as strings) and return the extracted
+   * dependencies between snippets.
    */
-  def extractDependenciesFromSrcs(srcs: List[List[String]]): ExtractedClassDependencies = {
-    val (_, testCallback) = compileSrcs(srcs, reuseCompilerInstance = true)
+  def extractDependenciesFromSrcs(srcs: String*): ExtractedClassDependencies = {
+    val (_, testCallback) = compileSrcs(srcs: _*)
 
     val memberRefDeps = testCallback.classDependencies collect {
       case (target, src, DependencyByMemberRef) => (src, target)
@@ -131,10 +131,6 @@ trait CompilingSpecification extends BridgeProviderSpecification {
       case (target, src, LocalDependencyByInheritance) => (src, target)
     }
     ExtractedClassDependencies.fromPairs(memberRefDeps, inheritanceDeps, localInheritanceDeps)
-  }
-
-  def extractDependenciesFromSrcs(srcs: String*): ExtractedClassDependencies = {
-    extractDependenciesFromSrcs(List(srcs.toList))
   }
 
   val localBoot = Paths.get(sys.props("user.home")).resolve(".sbt").resolve("boot")
@@ -158,18 +154,10 @@ trait CompilingSpecification extends BridgeProviderSpecification {
    * useful to compile macros, which cannot be used in the same compilation run that
    * defines them.
    *
-   * The `reuseCompilerInstance` parameter controls whether the same Scala compiler instance
-   * is reused between compiling source groups. Separate compiler instances can be used to
-   * test stability of API representation (with respect to pickling) or to test handling of
-   * binary dependencies.
-   *
    * The sequence of temporary files corresponding to passed snippets and analysis
    * callback is returned as a result.
    */
-  def compileSrcs(
-      groupedSrcs: List[List[String]],
-      reuseCompilerInstance: Boolean
-  ): (Seq[VirtualFile], TestCallback) = {
+  def compileSrcs(groupedSrcs: List[List[String]]): (Seq[VirtualFile], TestCallback) = {
     IO.withTemporaryDirectory { tempDir =>
       val rootPaths: Map[String, Path] = Map(
         "BASE" -> tempDir.toPath,
@@ -180,9 +168,6 @@ trait CompilingSpecification extends BridgeProviderSpecification {
       val targetDir = tempDir / "target"
       val analysisCallback = new TestCallback
       targetDir.mkdir()
-      val cache =
-        if (reuseCompilerInstance) new CompilerCache(1)
-        else CompilerCache.fresh
       val files = for {
         (compilationUnit, unitId) <- groupedSrcs.zipWithIndex
       } yield {
@@ -217,7 +202,6 @@ trait CompilingSpecification extends BridgeProviderSpecification {
           output = CompileOutput(targetDir.toPath),
           callback = analysisCallback,
           reporter = reporter,
-          cache = cache,
           progressOpt = Optional.empty[CompileProgress],
           log = log
         )
@@ -238,7 +222,7 @@ trait CompilingSpecification extends BridgeProviderSpecification {
   }
 
   def compileSrcs(srcs: String*): (Seq[VirtualFile], TestCallback) = {
-    compileSrcs(List(srcs.toList), reuseCompilerInstance = true)
+    compileSrcs(List(srcs.toList))
   }
 
   private def prepareSrcFile(baseDir: File, fileName: String, src: String): File = {

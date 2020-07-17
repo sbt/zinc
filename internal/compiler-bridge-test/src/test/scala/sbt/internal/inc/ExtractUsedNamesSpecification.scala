@@ -231,7 +231,7 @@ class ExtractUsedNamesSpecification extends CompilingSpecification with Diagramm
       """.stripMargin
 
     def findPatMatUsages(in: String): Set[String] = {
-      val (_, callback) = compileSrcs(List(List(sealedClass, in)), reuseCompilerInstance = false)
+      val (_, callback) = compileSrcs(List(List(sealedClass, in)))
       val clientNames = callback.usedNamesAndScopes.filterKeys(!_.startsWith("base."))
 
       val names: Set[String] = clientNames.flatMap {

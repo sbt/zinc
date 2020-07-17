@@ -172,7 +172,6 @@ final class MixedAnalyzingCompiler(
               output,
               callback,
               config.reporter,
-              config.cache,
               config.progress.toOptional,
               log
             )

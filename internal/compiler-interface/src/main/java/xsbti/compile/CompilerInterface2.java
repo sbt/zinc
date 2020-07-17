@@ -17,21 +17,15 @@ import xsbti.Reporter;
 import xsbti.VirtualFile;
 
 public interface CompilerInterface2 {
-  CachedCompiler2 newCompiler(
-    String[] options,
-    Output output,
-    Logger initialLog,
-    Reporter initialDelegate
-  );
-
   void run(
     VirtualFile[] sources,
     DependencyChanges changes,
+    String[] options,
+    Output output,
     AnalysisCallback callback,
-    Logger log,
     Reporter delegate,
     CompileProgress progress,
-    CachedCompiler2 cached
+    Logger log
   );
 }
 
