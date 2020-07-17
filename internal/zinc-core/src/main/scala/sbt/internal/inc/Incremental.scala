@@ -896,9 +896,9 @@ private final class AnalysisCallback(
           .map(_._1)
         val analyzedApis = classesInSrc.map(analyzeClass)
         val info = SourceInfos.makeInfo(
-          getOrNil(reporteds.mapValues({ _.asScala.toSeq }).toMap, src),
-          getOrNil(unreporteds.mapValues({ _.asScala.toSeq }).toMap, src),
-          getOrNil(mainClasses.mapValues({ _.asScala.toSeq }).toMap, src)
+          getOrNil(reporteds.iterator.map { case (k, v)   => k -> v.asScala.toSeq }.toMap, src),
+          getOrNil(unreporteds.iterator.map { case (k, v) => k -> v.asScala.toSeq }.toMap, src),
+          getOrNil(mainClasses.iterator.map { case (k, v) => k -> v.asScala.toSeq }.toMap, src)
         )
         val libraries: collection.mutable.Set[VirtualFile] =
           libraryDeps.getOrElse(src, ConcurrentHashMap.newKeySet[VirtualFile]).asScala

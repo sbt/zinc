@@ -59,11 +59,10 @@ class NameHashing(optimizedSealed: Boolean) {
   ): Array[NameHash] = {
     val includeSealedChildren = !optimizedSealed || useScope == UseScope.PatMatTarget
     val groupedBySimpleName = defs.groupBy(locatedDef => localName(locatedDef.name))
-    val hashes =
-      groupedBySimpleName.mapValues(hashLocatedDefinitions(_, location, includeSealedChildren))
-    hashes.toIterable
-      .map({ case (name: String, hash: Int) => NameHash.of(name, useScope, hash) })
-      .toArray
+    groupedBySimpleName.iterator.map {
+      case (name, value) =>
+        NameHash.of(name, useScope, hashLocatedDefinitions(value, location, includeSealedChildren))
+    }.toArray
   }
 
   private def hashLocatedDefinitions(

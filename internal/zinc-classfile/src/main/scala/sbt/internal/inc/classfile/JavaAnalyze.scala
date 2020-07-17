@@ -192,7 +192,8 @@ private[sbt] object JavaAnalyze {
 
       def readInheritanceDependencies(classes: Seq[Class[_]]) = {
         val api = readAPI(source, classes)
-        api.groupBy(_._1).mapValues(_.map(_._2))
+        // avoid .mapValues(...) because of its viewness (scala/bug#10919)
+        api.groupBy(_._1).iterator.map { case (k, v) => k -> v.map(_._2) }
       }
 
       // Read API of non-local classes and process dependencies by inheritance

@@ -55,7 +55,7 @@ abstract class IndexBasedZipOps extends CreateZip {
       if (Files.exists(zipFile)) {
         val centralDir = readCentralDir(zipFile)
         val headers = getHeaders(centralDir)
-        Map(headers.map(header => getFileName(header) -> getLastModifiedTime(header)): _*)
+        headers.iterator.map(header => getFileName(header) -> getLastModifiedTime(header)).toMap
       } else {
         Map.empty
       }
