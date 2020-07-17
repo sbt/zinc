@@ -417,7 +417,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
   )(implicit logger: Logger): CompileResult = {
     handleCompilationError(sources.size, output, logger) {
       val prev = previousAnalysis match {
-        case Some(previous) => previous
+        case Some(previous) => previous.asInstanceOf[Analysis]
         case None           => Analysis.empty
       }
       val javaSrcs = sources.filter(MixedAnalyzingCompiler.javaOnly)
@@ -468,12 +468,15 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         stampReader,
         extra
       )
-      if (skip || (recompileAllJava && javaSrcs.isEmpty))
-        CompileResult.of(prev, config.currentSetup, false)
+      def prevResult = CompileResult.of(prev, config.currentSetup, false)
+      if (skip) prevResult
       else if (recompileAllJava) {
-        JarUtils.setupTempClassesDir(temporaryClassesDirectory)
-        val (analysis, changed) = compileAllJava(MixedAnalyzingCompiler(config)(logger), logger)
-        CompileResult.of(analysis, config.currentSetup, changed)
+        if (javaSrcs.isEmpty) prevResult
+        else {
+          JarUtils.setupTempClassesDir(temporaryClassesDirectory)
+          val (analysis, changed) = compileAllJava(MixedAnalyzingCompiler(config)(logger), logger)
+          CompileResult.of(analysis, config.currentSetup, changed)
+        }
       } else {
         JarUtils.setupTempClassesDir(temporaryClassesDirectory)
         val (analysis, changed) = compileInternal(

@@ -19,7 +19,7 @@ import TestResource._
 
 class MultiProjectIncrementalSpec extends BaseCompilerSpec {
   // uncomment this to see the debug log
-  //override def logLevel = sbt.util.Level.Debug
+  // override def logLevel = sbt.util.Level.Debug
 
   "incremental compiler" should "detect shadowing" in {
     IO.withTemporaryDirectory { tempDir =>
@@ -75,26 +75,130 @@ class MultiProjectIncrementalSpec extends BaseCompilerSpec {
         // Actual test
         val knownSampleGoodFile = sub1Directory / "src" / "Good.scala"
         Files.copy(knownSampleGoodFile0, knownSampleGoodFile, StandardCopyOption.REPLACE_EXISTING)
-        val result3 = p1.compile(p1.p2vf(knownSampleGoodFile), p1.p2vf(dependerFile), depender2File)
-        val a3 = result3.analysis match { case a: Analysis => a }
-
-        val allCompilations = a3.compilations.allCompilations
-        val recompiledClasses: Seq[Set[String]] = allCompilations map { c =>
-          val recompiledClasses = a3.apis.internal.collect {
-            case (className, api) if api.compilationTimestamp() == c.getStartTime => className
-          }
-          recompiledClasses.toSet
-        }
-        val lastClasses = recompiledClasses.last
+        val depender3File = StringVirtualFile(
+          "src/Depender3.java",
+          """package test.pkg;
+            |
+            |public class Depender3 {
+            |  public static Ext1 x = new Ext1();
+            |}""".stripMargin
+        )
+        val result3 = p1.compile(
+          p1.p2vf(knownSampleGoodFile),
+          p1.p2vf(dependerFile),
+          depender2File,
+          depender3File
+        )
+        val a3 = result3.analysis.asInstanceOf[Analysis]
+        p1.compileAllJava(
+          p1.p2vf(knownSampleGoodFile),
+          p1.p2vf(dependerFile),
+          depender2File,
+          depender3File
+        )
 
         // Depender.scala should be invalidated since it depends on test.pkg.Ext1 from the JAR file,
         // but the class is now shadowed by sub2/target.
-        assert(lastClasses contains "test.pkg.Depender")
+        assert(lastClasses(a3) contains "test.pkg.Depender")
       } finally {
         p1.close()
         p2.close()
       }
     }
+  }
+
+  "it" should "not compile Java for no-op" in {
+    IO.withTemporaryDirectory { tempDir =>
+      // Second subproject
+      val sub2Directory = tempDir.toPath / "sub2"
+      Files.createDirectories(sub2Directory / "src")
+
+      // Prepare the initial compilation
+      val sub1Directory = tempDir.toPath / "sub1"
+      Files.createDirectories(sub1Directory / "src")
+
+      val p1 = VirtualSubproject
+        .Builder()
+        .baseDirectory(sub1Directory)
+        .get
+      val p2 = VirtualSubproject
+        .Builder()
+        .baseDirectory(sub2Directory)
+        .dependsOn(p1)
+        .get
+      try {
+        // First subproject
+        val file1 = StringVirtualFile("src/Foo.scala", """package test.pkg
+            |
+            |class Foo {
+            |}""".stripMargin)
+        p1.compile(file1)
+
+        val file2 = StringVirtualFile("src/Bar.scala", """package test.pkg
+            |
+            |class Bar {
+            |  def foo = new Foo
+            |}""".stripMargin)
+        val file3 = StringVirtualFile(
+          "src/Use.java",
+          """package test.pkg;
+            |
+            |public class Use {
+            |  public static Foo x = new Bar().foo();
+            |}""".stripMargin
+        )
+        p2.compile(file2, file3)
+        val result0 = p2.compileAllJava(file2, file3)
+        val a0 = result0.analysis.asInstanceOf[Analysis]
+
+        // This should be no-op
+        val result1 = p2.compile(file2, file3)
+
+        val result2 =
+          if (result1.hasModified) p2.compileAllJava(file2, file3)
+          else result1
+        val a2 = result2.analysis.asInstanceOf[Analysis]
+        assert(
+          a0.compilations.allCompilations
+            .map(_.getStartTime)
+            .toList == a2.compilations.allCompilations.map(_.getStartTime).toList
+        )
+
+        // This should trigger compilation
+        val file3b = StringVirtualFile(
+          "src/Use.java",
+          """package test.pkg;
+            |
+            |public class Use {
+            |  public static Foo y = new Bar().foo();
+            |}""".stripMargin
+        )
+        val result3 = p2.compile(file2, file3b)
+        val result4 =
+          if (result3.hasModified) p2.compileAllJava(file2, file3b)
+          else result3
+        val a4 = result4.analysis.asInstanceOf[Analysis]
+        assert(
+          a0.compilations.allCompilations
+            .map(_.getStartTime)
+            .toList != a4.compilations.allCompilations.map(_.getStartTime).toList
+        )
+      } finally {
+        p1.close()
+        p2.close()
+      }
+    }
+  }
+
+  def lastClasses(a: Analysis) = {
+    val allCompilations = a.compilations.allCompilations
+    val recompiledClasses: Seq[Set[String]] = allCompilations map { c =>
+      val recompiledClasses = a.apis.internal.collect {
+        case (className, api) if api.compilationTimestamp() == c.getStartTime => className
+      }
+      recompiledClasses.toSet
+    }
+    recompiledClasses.last
   }
 }
 
