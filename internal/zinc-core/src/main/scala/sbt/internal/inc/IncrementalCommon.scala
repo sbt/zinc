@@ -21,6 +21,7 @@ import xsbti.compile.{ Changes, DependencyChanges, IncOptions, Output }
 import xsbti.compile.{ ClassFileManager => XClassFileManager }
 import xsbti.compile.analysis.{ ReadStamps, Stamp => XStamp }
 import scala.collection.Iterator
+import scala.collection.parallel.immutable.ParVector
 import Incremental.{ CompileCycle, CompileCycleResult, IncrementalCallback, PrefixingLogger }
 
 /**
@@ -385,7 +386,7 @@ private[inc] abstract class IncrementalCommon(
         val changed0 = new java.util.HashSet[VirtualFileRef]
         val removed0 = new java.util.HashSet[VirtualFileRef]
         val unmodified0 = new java.util.HashSet[VirtualFileRef]
-        sources.foreach {
+        new ParVector(sources.toVector).foreach {
           case f: VirtualFileRef if previousSources.contains(f) =>
             if (equivS.equiv(previous.source(f), stamps.source(f))) unmodified0.add(f)
             else changed0.add(f)
@@ -404,11 +405,12 @@ private[inc] abstract class IncrementalCommon(
 
     val removedProducts: Set[VirtualFileRef] =
       lookup.removedProducts(previousAnalysis).getOrElse {
-        previous.allProducts
+        new ParVector(previous.allProducts.toVector)
           .filter(p => {
             // println(s"removedProducts? $p")
             !equivS.equiv(previous.product(p), stamps.product(p))
           })
+          .toVector
           .toSet
       }
 
@@ -423,7 +425,7 @@ private[inc] abstract class IncrementalCommon(
           converter,
           log
         )
-      previous.allLibraries.filter(detectChange).toSet
+      new ParVector(previous.allLibraries.toVector).filter(detectChange).toVector.toSet
     }
 
     val subprojectApiChanges: APIChanges = {

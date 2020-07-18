@@ -338,6 +338,14 @@ lazy val zincCore = (projectMatrix in internalPath / "zinc-core")
       exclude[ReversedMissingMethodProblem]("xsbti.*"),
       exclude[MissingClassProblem]("xsbti.*"),
     ),
+    libraryDependencies ++= {
+      scalaPartialVersion.value match {
+        case Some((2, major)) if major >= 13 =>
+          List("org.scala-lang.modules" %% "scala-parallel-collections" % "0.2.0")
+        case _ =>
+          List()
+      }
+    },
   )
   .jvmPlatform(scalaVersions = List(scala212, scala213))
   .configure(addBaseSettingsAndTestDeps, addSbtIO, addSbtUtilLogging, addSbtUtilRelation)
