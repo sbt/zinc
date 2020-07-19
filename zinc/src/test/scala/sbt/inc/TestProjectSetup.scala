@@ -227,7 +227,7 @@ object TestProjectSetup {
       si.allJars.map(x => converter.toVirtualFile(x.toPath)) ++
       classpath.toVector
 
-    val stamper = Stamps.timeWrapLibraryStamps(converter)
+    val stamper = Stamps.timeWrapBinaryStamps(converter)
 
     val in = compiler.inputs(
       cp.toArray,

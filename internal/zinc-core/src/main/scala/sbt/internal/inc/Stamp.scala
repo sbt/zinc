@@ -279,17 +279,17 @@ object Stamps {
 
   def initial(underlying: ReadStamps): ReadStamps = new InitialStamps(underlying)
 
-  def timeWrapLibraryStamps(underlying: ReadStamps, converter: FileConverter): ReadStamps =
-    new TimeWrapLibraryStamps(underlying, converter)
+  def timeWrapBinaryStamps(underlying: ReadStamps, converter: FileConverter): ReadStamps =
+    new TimeWrapBinaryStamps(underlying, converter)
 
-  def timeWrapLibraryStamps(converter: FileConverter): ReadStamps =
-    new TimeWrapLibraryStamps(uncachedStamps(converter), converter)
+  def timeWrapBinaryStamps(converter: FileConverter): ReadStamps =
+    timeWrapBinaryStamps(uncachedStamps(converter), converter)
 
   def uncachedStamps(converter: FileConverter): ReadStamps =
     uncachedStamps(
       Stamper.forHashInRootPaths(converter),
       Stamper.forContentHash,
-      Stamper.forHashInRootPaths(converter)
+      Stamper.forHashInRootPaths(converter),
     )
 
   def uncachedStamps(
@@ -424,7 +424,7 @@ private class InitialStamps(
     synchronized { libraries.getOrElseUpdate(lib, underlying.library(lib)) }
 }
 
-private class TimeWrapLibraryStamps(
+private class TimeWrapBinaryStamps(
     underlying: ReadStamps,
     converter: FileConverter
 ) extends ReadStamps {
@@ -432,6 +432,7 @@ private class TimeWrapLibraryStamps(
 
   // cached stamps for files that do not change during compilation
   private val libraries: Map[VirtualFileRef, (Long, XStamp)] = new HashMap
+  private val products: Map[VirtualFileRef, (Long, XStamp)] = new HashMap
 
   import scala.collection.JavaConverters.mapAsJavaMapConverter
   override def getAllLibraryStamps: util.Map[VirtualFileRef, XStamp] =
@@ -439,9 +440,10 @@ private class TimeWrapLibraryStamps(
   override def getAllSourceStamps: util.Map[VirtualFileRef, XStamp] =
     underlying.getAllSourceStamps
   override def getAllProductStamps: util.Map[VirtualFileRef, XStamp] =
-    underlying.getAllProductStamps
+    mapAsJavaMapConverter(products map { case (k, (_, v2)) => (k, v2) }).asJava
 
-  override def product(prod: VirtualFileRef): XStamp = underlying.product(prod)
+  val product0 = Stamper.timeWrap(products, converter, underlying.product(_))
+  override def product(prod: VirtualFileRef): XStamp = product0(prod)
   override def source(src: VirtualFile): XStamp = underlying.source(src)
   val library0 = Stamper.timeWrap(libraries, converter, underlying.library(_))
   override def library(lib: VirtualFileRef): XStamp = library0(lib)
