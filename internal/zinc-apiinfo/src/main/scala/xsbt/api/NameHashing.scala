@@ -120,20 +120,18 @@ class NameHashing(optimizedSealed: Boolean) {
 object NameHashing {
   def merge(nm1: Array[NameHash], nm2: Array[NameHash]): Array[NameHash] = {
     import scala.collection.mutable.Map
-    val m: Map[(String, UseScope), Int] = Map(
-      nm1.toSeq.map(nh => (nh.name, nh.scope) -> nh.hash): _*
-    )
+    val m: Map[(String, UseScope), Int] = Map.empty
+    nm1.foreach(nh => m += (nh.name, nh.scope) -> nh.hash)
     for (nh <- nm2) {
       val key = (nh.name, nh.scope())
-      if (!m.contains(key))
-        m(key) = nh.hash
-      else {
-        val existingHash = m(key)
-        // combine hashes without taking an order into account
-        m(key) = Set(existingHash, nh.hash).hashCode()
+      m.get(key) match {
+        case None               => m(key) = nh.hash
+        case Some(existingHash) =>
+          // combine hashes without taking an order into account
+          m(key) = Set(existingHash, nh.hash).hashCode()
       }
     }
-    m.map({ case ((name, scope), hash) => NameHash.of(name, scope, hash) }).toArray
+    m.map { case ((name, scope), hash) => NameHash.of(name, scope, hash) }.toArray
   }
 
   private case class LocatedDefinition(location: Location, definition: Definition)
