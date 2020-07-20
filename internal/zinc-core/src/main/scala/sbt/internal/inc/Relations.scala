@@ -390,8 +390,8 @@ private case class InternalDependencies(
    */
   def --(classes: Iterable[String]): InternalDependencies = {
     InternalDependencies(
-      dependencies
-        .mapValues(_ -- classes)
+      dependencies.iterator
+        .map { case (k, v) => k -> (v -- classes) }
         .filter(_._2.size > 0)
         .toMap
     )
@@ -434,8 +434,8 @@ private case class ExternalDependencies(
    */
   def --(classNames: Iterable[String]): ExternalDependencies =
     ExternalDependencies(
-      dependencies
-        .mapValues(_ -- classNames)
+      dependencies.iterator
+        .map { case (k, v) => k -> (v -- classNames) }
         .filter(_._2.size > 0)
         .toMap
     )

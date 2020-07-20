@@ -53,40 +53,40 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
     def fromBinarySchemaMap(
         stamps: JMap[String, Schema.Stamps.StampType]
     ): Map[VirtualFileRef, Stamp] = {
-      stamps.asScala.toMap.map {
+      stamps.asScala.iterator.map {
         case (path, schemaStamp) =>
           val file = fromPathStringV(path)
           val newFile = mapper.mapBinaryFile(file)
           val stamp = fromStampType(schemaStamp)
           val newStamp = mapper.mapBinaryStamp(newFile, stamp)
           newFile -> newStamp
-      }
+      }.toMap
     }
 
     def fromSourceSchemaMap(
         stamps: JMap[String, Schema.Stamps.StampType]
     ): Map[VirtualFileRef, Stamp] = {
-      stamps.asScala.toMap.map {
+      stamps.asScala.iterator.map {
         case (path, schemaStamp) =>
           val file = fromPathStringV(path)
           val newFile = mapper.mapSourceFile(file)
           val stamp = fromStampType(schemaStamp)
           val newStamp = mapper.mapSourceStamp(newFile, stamp)
           newFile -> newStamp
-      }
+      }.toMap
     }
 
     def fromProductSchemaMap(
         stamps: JMap[String, Schema.Stamps.StampType]
     ): Map[VirtualFileRef, Stamp] = {
-      stamps.asScala.toMap.map {
+      stamps.asScala.iterator.map {
         case (path, schemaStamp) =>
           val file = fromPathStringV(path)
           val newFile = mapper.mapProductFile(file)
           val stamp = fromStampType(schemaStamp)
           val newStamp = mapper.mapProductStamp(newFile, stamp)
           newFile -> newStamp
-      }
+      }.toMap
     }
 
     val libraries = fromBinarySchemaMap(stamps.getBinaryStampsMap)
@@ -117,7 +117,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
         CompileOutput(outputDir)
       case CompilationOutput.MULTIPLEOUTPUT =>
         val multiple = c.getMultipleOutput
-        val groups = multiple.getOutputGroupsList.asScala.map(fromOutputGroup).toArray
+        val groups = multiple.getOutputGroupsList.asScala.iterator.map(fromOutputGroup).toArray
         CompileOutput(groups)
       case CompilationOutput.OUTPUT_NOT_SET =>
         ReadersFeedback.ExpectedOutputInCompilationOutput.!!
@@ -130,7 +130,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
   }
 
   def fromCompilations(compilations0: Schema.Compilations): Compilations = {
-    val compilations = compilations0.getCompilationsList.asScala.map(fromCompilation)
+    val compilations = compilations0.getCompilationsList.asScala.iterator.map(fromCompilation)
     val castedCompilations = (compilations.map { case c: sbt.internal.inc.Compilation => c }).toSeq
     Compilations.of(castedCompilations)
   }
@@ -181,8 +181,10 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
 
   def fromSourceInfo(sourceInfo: Schema.SourceInfo): SourceInfo = {
     val mainClasses = sourceInfo.getMainClassesList.asScala.toSeq
-    val reportedProblems = sourceInfo.getReportedProblemsList.asScala.map(fromProblem).toSeq
-    val unreportedProblems = sourceInfo.getUnreportedProblemsList.asScala.map(fromProblem).toSeq
+    val reportedProblems =
+      sourceInfo.getReportedProblemsList.asScala.iterator.map(fromProblem).toSeq
+    val unreportedProblems =
+      sourceInfo.getUnreportedProblemsList.asScala.iterator.map(fromProblem).toSeq
     SourceInfos.makeInfo(
       reported = reportedProblems,
       unreported = unreportedProblems,
@@ -191,7 +193,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
   }
 
   def fromSourceInfos(sourceInfos0: Schema.SourceInfos): SourceInfos = {
-    val sourceInfos = sourceInfos0.getSourceInfosMap.asScala.map {
+    val sourceInfos = sourceInfos0.getSourceInfosMap.asScala.iterator.map {
       case (path, value) =>
         val file = mapper.mapSourceFile(fromPathStringV(path))
         val sourceInfo = fromSourceInfo(value)
@@ -208,9 +210,12 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
   }
 
   def fromMiniOptions(miniOptions: Schema.MiniOptions): MiniOptions = {
-    val classpathHash = miniOptions.getClasspathHashList.asScala.map(fromClasspathFileHash).toArray
-    val javacOptions = miniOptions.getJavacOptionsList.asScala.map(mapper.mapJavacOption).toArray
-    val scalacOptions = miniOptions.getScalacOptionsList.asScala.map(mapper.mapScalacOption).toArray
+    val classpathHash =
+      miniOptions.getClasspathHashList.asScala.iterator.map(fromClasspathFileHash).toArray
+    val javacOptions =
+      miniOptions.getJavacOptionsList.asScala.iterator.map(mapper.mapJavacOption).toArray
+    val scalacOptions =
+      miniOptions.getScalacOptionsList.asScala.iterator.map(mapper.mapScalacOption).toArray
     MiniOptions.of(classpathHash, scalacOptions, javacOptions)
   }
 
@@ -237,7 +242,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
         CompileOutput(outputDir)
       case MiniSetupOutput.MULTIPLEOUTPUT =>
         val multiple = miniSetup.getMultipleOutput
-        val groups = multiple.getOutputGroupsList.asScala.map(fromOutputGroup).toArray
+        val groups = multiple.getOutputGroupsList.asScala.iterator.map(fromOutputGroup).toArray
         CompileOutput(groups)
       case MiniSetupOutput.OUTPUT_NOT_SET =>
         ReadersFeedback.ExpectedOutputInCompilationOutput.!!
@@ -252,7 +257,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
     val compilerVersion = miniSetup.getCompilerVersion
     val compileOrder = fromCompileOrder(miniSetup.getCompileOrder, miniSetup.getCompileOrderValue)
     val storeApis = miniSetup.getStoreApis
-    val extra = miniSetup.getExtraList.asScala.map(fromStringTuple).toArray
+    val extra = miniSetup.getExtraList.asScala.iterator.map(fromStringTuple).toArray
     val original =
       MiniSetup.of(
         output, // note this is a dummy value
@@ -267,7 +272,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
 
   implicit class EfficientTraverse[T](seq: JList[T]) {
     def toZincArray[R: scala.reflect.ClassTag](f: T => R): Array[R] =
-      seq.asScala.map(f).toArray
+      seq.asScala.iterator.map(f).toArray
   }
 
   implicit class OptionReader[T](option: Option[T]) {
@@ -665,13 +670,13 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
     import scala.collection.{ mutable, immutable }
 
     def fromMap[K, V](
-        map: Map[String, Schema.Values],
+        map: java.util.Map[String, Schema.Values],
         fk: String => K,
         fv: String => V
     ): Relation[K, V] = {
       val forward = mutable.HashMap[K, mutable.Builder[V, immutable.Set[V]]]()
       val reverse = mutable.HashMap[V, mutable.Builder[K, immutable.Set[K]]]()
-      for ((kString, vs) <- map) {
+      for ((kString, vs) <- map.asScala) {
         if (!vs.getValuesList.isEmpty) {
           val k = fk(kString)
           val vsBuilder = forward.getOrElseUpdate(k, immutable.Set.newBuilder[V])
@@ -694,8 +699,8 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
     }
 
     def fromClassDependencies(classDependencies: Schema.ClassDependencies): ClassDependencies = {
-      val internal = fromMap(classDependencies.getInternalMap.asScala.toMap, stringId, stringId)
-      val external = fromMap(classDependencies.getExternalMap.asScala.toMap, stringId, stringId)
+      val internal = fromMap(classDependencies.getInternalMap, stringId, stringId)
+      val external = fromMap(classDependencies.getExternalMap, stringId, stringId)
       new ClassDependencies(internal, external)
     }
 
@@ -708,11 +713,13 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
       UsedName.apply(name, scopes)
     }
 
-    def fromUsedNamesMap(map: Map[String, Schema.UsedNames]): Relation[String, UsedName] = {
+    def fromUsedNamesMap(
+        map: java.util.Map[String, Schema.UsedNames]
+    ): Relation[String, UsedName] = {
       import scala.collection.{ mutable, immutable }
       val forward = mutable.HashMap[String, mutable.Builder[UsedName, immutable.Set[UsedName]]]()
       val reverse = mutable.HashMap[UsedName, mutable.Builder[String, immutable.Set[String]]]()
-      for ((k, used) <- map) {
+      for ((k, used) <- map.asScala) {
         val usedNames = used.getUsedNamesList.asScala
         if (!usedNames.isEmpty) {
           val usedNameBuilder = forward.getOrElseUpdate(k, immutable.Set.newBuilder[UsedName])
@@ -728,10 +735,10 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
 
     def expected(msg: String) = ReadersFeedback.expected(msg, Classes.Relations)
 
-    val srcProd = fromMap(relations.getSrcProdMap.asScala.toMap, stringToVFile, stringToVFile)
-    val libraryDep = fromMap(relations.getLibraryDepMap.asScala.toMap, stringToVFile, stringToVFile)
+    val srcProd = fromMap(relations.getSrcProdMap, stringToVFile, stringToVFile)
+    val libraryDep = fromMap(relations.getLibraryDepMap, stringToVFile, stringToVFile)
     val libraryClassName =
-      fromMap(relations.getLibraryClassNameMap.asScala.toMap, stringToVFile, stringId)
+      fromMap(relations.getLibraryClassNameMap, stringToVFile, stringId)
     val memberRef =
       if (relations.hasMemberRef) fromClassDependencies(relations.getMemberRef)
       else expected("member refs").!!
@@ -741,10 +748,10 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
     val localInheritance =
       if (relations.hasLocalInheritance) fromClassDependencies(relations.getLocalInheritance)
       else expected("local inheritance").!!
-    val classes = fromMap(relations.getClassesMap.asScala.toMap, stringToVFile, stringId)
+    val classes = fromMap(relations.getClassesMap, stringToVFile, stringId)
     val productClassName =
-      fromMap(relations.getProductClassNameMap.asScala.toMap, stringId, stringId)
-    val names = fromUsedNamesMap(relations.getNamesMap.asScala.toMap)
+      fromMap(relations.getProductClassNameMap, stringId, stringId)
+    val names = fromUsedNamesMap(relations.getNamesMap)
     val internal = InternalDependencies(
       Map(
         DependencyContext.DependencyByMemberRef -> memberRef.internal,
@@ -773,9 +780,13 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
 
   def fromApis(shouldStoreApis: Boolean)(apis: Schema.APIs): APIs = {
     val internal =
-      apis.getInternalMap.asScala.toMap.mapValues(fromAnalyzedClass(shouldStoreApis: Boolean)).toMap
+      apis.getInternalMap.asScala.iterator.map {
+        case (k, v) => k -> fromAnalyzedClass(shouldStoreApis)(v)
+      }.toMap
     val external =
-      apis.getExternalMap.asScala.toMap.mapValues(fromAnalyzedClass(shouldStoreApis: Boolean)).toMap
+      apis.getExternalMap.asScala.iterator.map {
+        case (k, v) => k -> fromAnalyzedClass(shouldStoreApis)(v)
+      }.toMap
     APIs(internal = internal, external = external)
   }
 

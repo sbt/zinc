@@ -54,7 +54,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
     val scalac = compilers.scalac
     val extraOptions = extra.toList.map(_.toScalaTuple)
     val conv = converter.toOption.getOrElse(???)
-    val defaultStampReader = Stamps.timeWrapLibraryStamps(conv)
+    val defaultStampReader = Stamps.timeWrapBinaryStamps(conv)
     compileIncrementally(
       scalac,
       javacChosen,
@@ -109,7 +109,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
     val scalac = compilers.scalac
     val extraOptions = extra.toList.map(_.toScalaTuple)
     val conv = converter.toOption.getOrElse(???)
-    val defaultStampReader = Stamps.timeWrapLibraryStamps(conv)
+    val defaultStampReader = Stamps.timeWrapBinaryStamps(conv)
     compileIncrementally(
       scalac,
       javacChosen,

@@ -299,7 +299,7 @@ case class ProjectStructure(
       .map(_.toPath)
       .toList
 
-  val stamper = Stamps.timeWrapLibraryStamps(converter)
+  val stamper = Stamps.timeWrapBinaryStamps(converter)
   val cacheFile = baseDirectory / "target" / "inc_compile.zip"
   val fileStore = FileAnalysisStore.binary(cacheFile.toFile)
   val cachedStore = AnalysisStore.cached(fileStore)
