@@ -4,6 +4,63 @@ Zinc is a piece of software used by all Scala developers all around the globe.
 Contributing to it has a far-reaching impact in all these Scala developers,
 and the Zinc team tries to make it a fun and motivating experience.
 
+## Reporting bugs to Zinc
+
+When you find a bug in sbt we want to hear about it. Your bug reports play an important part in making sbt more reliable and usable.
+
+Effective bug reports are more likely to be fixed. These guidelines explain how to write such reports.
+
+Please open a GitHub issue when you are 90% sure it's an actual bug.
+
+### What to report
+
+The developers need three things from you: **steps**, **problems**, and **expectations**.
+
+The most important thing to remember about bug reporting is to clearly distinguish facts and opinions.
+
+### Steps
+
+What we need first is **the exact steps to reproduce your problems on our computers**. This is called *reproduction steps*, which is often shortened to "repro steps" or "steps." Describe your method of running sbt. Provide `build.sbt` that caused the problem and the version of sbt or Scala that was used. Provide sample Scala code if it's to do with incremental compilation. If possible, minimize the problem to reduce non-essential factors.
+
+Repro steps are the most important part of a bug report. If we cannot reproduce the problem in one way or the other, the problem can't be fixed. Telling us the error messages is not enough.
+
+### Problems
+
+Next, describe the problems, or what *you think* is the problem. It might be "obvious" to you that it's a problem, but it could actually be an intentional behavior for some backward compatibility etc. For compilation errors, include the stack trace. The more raw info the better.
+
+### Expectations
+
+Same as the problems. Describe what *you think* should've happened.
+
+### Notes
+
+Add any optional notes section to describe your analysis.
+
+### Subject
+
+The subject of the bug report doesn't matter. A more descriptive subject is certainly better, but a good subject really depends on the analysis of the problem, so don't worry too much about it. "Undercompilation after changing Java enum" is good enough.
+
+### Formatting
+
+If possible, please format code or console outputs.
+
+On GitHub it's:
+
+    ```scala
+    name := "foo"
+    ```
+
+On StackOverflow, it's:
+
+```
+<!-- language: lang-scala -->
+
+    name := "foo"
+```
+
+Here's a simple sample case: [#830](https://github.com/sbt/zinc/issues/830).
+Finally, thank you for taking the time to report a problem.
+
 ## Reading up
 
 If this is your first time contributing to Zinc, take some time to get familiar
