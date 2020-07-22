@@ -382,10 +382,10 @@ private[inc] abstract class IncrementalCommon(
       log.debug(s"current source = $sources")
 
       new UnderlyingChanges[VirtualFileRef] {
-        val added0 = new java.util.HashSet[VirtualFileRef]
-        val changed0 = new java.util.HashSet[VirtualFileRef]
-        val removed0 = new java.util.HashSet[VirtualFileRef]
-        val unmodified0 = new java.util.HashSet[VirtualFileRef]
+        val added0 = java.util.concurrent.ConcurrentHashMap.newKeySet[VirtualFileRef]
+        val changed0 = java.util.concurrent.ConcurrentHashMap.newKeySet[VirtualFileRef]
+        val removed0 = java.util.concurrent.ConcurrentHashMap.newKeySet[VirtualFileRef]
+        val unmodified0 = java.util.concurrent.ConcurrentHashMap.newKeySet[VirtualFileRef]
         new ParVector(sources.toVector).foreach {
           case f: VirtualFileRef if previousSources.contains(f) =>
             if (equivS.equiv(previous.source(f), stamps.source(f))) unmodified0.add(f)
