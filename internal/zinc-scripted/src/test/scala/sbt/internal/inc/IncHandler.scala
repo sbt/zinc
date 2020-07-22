@@ -598,6 +598,7 @@ case class ProjectStructure(
       override def advance(current: Int, total: Int, prevPhase: String, nextPhase: String) = true
       override def earlyOutputComplete(success: Boolean) = {
         if (success) {
+          assert(Files.exists(earlyOutput))
           scriptedLog.info(s"[progress] early output is done for $name!")
         } else {
           scriptedLog.info(s"[progress] early output can't be made for $name because macros!")
