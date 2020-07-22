@@ -3,7 +3,7 @@ package sbt.internal.inc
 import scala.collection.immutable.Set
 import xsbti.VirtualFileRef
 
-private[inc] class WrappedSet(s: java.util.HashSet[VirtualFileRef]) extends Set[VirtualFileRef] {
+private[inc] class WrappedSet(s: java.util.Set[VirtualFileRef]) extends Set[VirtualFileRef] {
   import scala.jdk.CollectionConverters._
   def iterator: Iterator[VirtualFileRef] = s.asScala.iterator
   def contains(elem: VirtualFileRef): Boolean = s.contains(s)
