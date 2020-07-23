@@ -19,13 +19,13 @@ import java.nio.file.attribute.BasicFileAttributes
 import scala.reflect.io.RootPath
 
 object PickleJar {
-  def write(pickleOut: Path, knownProducts: Set[String]): Path = {
+  def write(pickleOut: Path, knownProducts: java.util.Set[String]): Path = {
     val pj = RootPath(pickleOut, writable = false) // so it doesn't delete the file
     try Files.walkFileTree(pj.root, deleteUnknowns(knownProducts))
     finally pj.close()
   }
 
-  def deleteUnknowns(knownProducts: Set[String]) = new SimpleFileVisitor[Path] {
+  def deleteUnknowns(knownProducts: java.util.Set[String]) = new SimpleFileVisitor[Path] {
     override def visitFile(path: Path, attrs: BasicFileAttributes): FileVisitResult = {
       val ps = path.toString
       if (ps.endsWith(".sig")) {

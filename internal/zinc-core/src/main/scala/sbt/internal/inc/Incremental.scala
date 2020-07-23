@@ -20,6 +20,8 @@ import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
 import sbt.util.{ InterfaceUtil, Level, Logger }
 import sbt.util.InterfaceUtil.jo2o
 import scala.collection.JavaConverters._
+import scala.util.control.NonFatal
+import scala.collection.parallel.immutable.ParVector
 import xsbti.{ FileConverter, Position, Problem, Severity, UseScope, VirtualFile, VirtualFileRef }
 import xsbt.api.{ APIUtil, HashAPI, NameHashing }
 import xsbti.api._
@@ -1000,24 +1002,33 @@ private final class AnalysisCallback(
       pickleJarPath <- jo2o(earlyO.getSingleOutputAsPath())
     } {
       // List classes defined in the files that were compiled in this run.
-      val knownProducts = merged.relations.allSources
-        .flatMap(merged.relations.products)
-        .flatMap(extractProductPath)
-      PickleJar.write(pickleJarPath, knownProducts.toSet)
+      val ps = java.util.concurrent.ConcurrentHashMap.newKeySet[String]
+      val knownProducts: ParVector[VirtualFileRef] =
+        new ParVector(merged.relations.allSources.toVector)
+          .flatMap(merged.relations.products)
+      // extract product paths in parallel
+      jo2o(output.getSingleOutputAsPath) match {
+        case Some(so) if so.getFileName.toString.endsWith(".jar") =>
+          knownProducts foreach { product =>
+            new JarUtils.ClassInJar(product.id).toClassFilePath foreach { path =>
+              ps.add(path.replace('\\', '/'))
+            }
+          }
+        case Some(so) =>
+          knownProducts foreach { product =>
+            val productPath = converter.toPath(product)
+            try {
+              ps.add(so.relativize(productPath).toString.replace('\\', '/'))
+            } catch {
+              case NonFatal(_) => ps.add(product.id)
+            }
+          }
+        case _ => sys.error(s"unsupported output $output")
+      }
+      PickleJar.write(pickleJarPath, ps)
     }
     progress foreach { p =>
       p.earlyOutputComplete(true)
-    }
-  }
-
-  private def extractProductPath(product: VirtualFileRef): Option[String] = {
-    jo2o(output.getSingleOutputAsPath) match {
-      case Some(so) if so.getFileName.toString.endsWith(".jar") =>
-        new JarUtils.ClassInJar(product.id).toClassFilePath
-      case Some(so) =>
-        val productPath = converter.toPath(product)
-        sbt.io.IO.relativize(so.toFile, productPath.toFile)
-      case _ => sys.error(s"unsupported output $output")
     }
   }
 }
