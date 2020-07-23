@@ -14,6 +14,7 @@ package sbt.inc
 import java.io.File
 import java.nio.file.Files
 import sbt.io.IO.{ withTemporaryDirectory => withTmpDir }
+import sbt.internal.inc.JarUtils
 
 class OutputSpec extends BaseCompilerSpec {
   //override val logLevel = sbt.util.Level.Debug
@@ -33,6 +34,23 @@ class OutputSpec extends BaseCompilerSpec {
 
     val result2 = compiler.doCompileWithStore()
     assert(!result2.hasModified)
+  }
+
+  it should "generate early artifact with pickle (.sig) files" in withTmpDir { baseDir =>
+    val p1 = VirtualSubproject
+      .Builder()
+      .baseDirectory(baseDir.toPath)
+      .get
+    val scalaContent =
+      """package example
+      |
+      |class A
+      |""".stripMargin
+    val scalaFile = StringVirtualFile("src/example/A.scala", scalaContent)
+    p1.compile(scalaFile)
+    val earlyJar = p1.setup.earlyOutput
+    assert(Files.exists(earlyJar))
+    assert(JarUtils.listFiles(earlyJar) contains "example/A.sig")
   }
 
   def mkCompiler(baseDir: File, classes: Seq[String]) =
