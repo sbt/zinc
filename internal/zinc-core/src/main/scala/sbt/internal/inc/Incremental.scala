@@ -361,7 +361,7 @@ object Incremental {
     def notifyEarlyArtifact(): Unit =
       if (options.pipelining)
         progress foreach { p =>
-          p.earlyOutputComplete(hasAnyMacro(previous))
+          p.afterEarlyOutput(hasAnyMacro(previous))
         } else ()
     val hasModified = initialInvClasses.nonEmpty || initialInvSources.nonEmpty
     val analysis = withClassfileManager(options, converter, output, outputJarContent) {
@@ -819,7 +819,7 @@ private final class AnalysisCallback(
     def notifyEarlyArifactFailure(): Unit =
       if (!writtenEarlyArtifacts) {
         progress foreach { p =>
-          p.earlyOutputComplete(false)
+          p.afterEarlyOutput(false)
         }
       }
     outputJarContent.scalacRunCompleted()
@@ -1040,7 +1040,7 @@ private final class AnalysisCallback(
       PickleJar.write(pickleJarPath, ps)
     }
     progress foreach { p =>
-      p.earlyOutputComplete(true)
+      p.afterEarlyOutput(true)
     }
   }
 }
