@@ -6,7 +6,7 @@ import xsbti.VirtualFileRef
 private[inc] class WrappedSet(s: java.util.Set[VirtualFileRef]) extends Set[VirtualFileRef] {
   import scala.jdk.CollectionConverters._
   def iterator: Iterator[VirtualFileRef] = s.asScala.iterator
-  def contains(elem: VirtualFileRef): Boolean = s.contains(s)
+  def contains(elem: VirtualFileRef): Boolean = s.contains(elem)
   def excl(elem: VirtualFileRef): Set[VirtualFileRef] =
     s.asScala.foldLeft(Set.empty[VirtualFileRef]) { case (a, e) => if (e != elem) a + e else a }
   def incl(elem: VirtualFileRef): Set[VirtualFileRef] =
