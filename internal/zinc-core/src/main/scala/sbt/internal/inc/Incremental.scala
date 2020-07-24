@@ -20,6 +20,8 @@ import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
 import sbt.util.{ InterfaceUtil, Level, Logger }
 import sbt.util.InterfaceUtil.jo2o
 import scala.collection.JavaConverters._
+import scala.util.control.NonFatal
+import scala.collection.parallel.immutable.ParVector
 import xsbti.{ FileConverter, Position, Problem, Severity, UseScope, VirtualFile, VirtualFileRef }
 import xsbt.api.{ APIUtil, HashAPI, NameHashing }
 import xsbti.api._
@@ -42,6 +44,9 @@ import xsbti.compile.analysis.{ ReadStamps, Stamp => XStamp }
  * compatible with the [[sbt.internal.inc.Incremental]] class.
  */
 object Incremental {
+  def hasAnyMacro(a: Analysis): Boolean =
+    a.apis.internal.values.exists(p => p.hasMacro)
+
   class PrefixingLogger(val prefix: String)(orig: Logger) extends Logger {
     def trace(t: => Throwable): Unit = orig.trace(t)
     def success(message: => String): Unit = orig.success(message)
@@ -184,6 +189,7 @@ object Incremental {
         currentSetup,
         output,
         outputJarContent,
+        progress,
         log
       )
     } catch {
@@ -313,6 +319,7 @@ object Incremental {
       currentSetup: MiniSetup,
       output: Output,
       outputJarContent: JarUtils.OutputJarContent,
+      progress: Option[CompileProgress],
       log: sbt.util.Logger
   )(implicit equivS: Equiv[XStamp]): (Boolean, Analysis) = {
     log.debug("IncrementalCompile.incrementalCompile")
@@ -351,23 +358,33 @@ object Incremental {
             "All initially invalidated sources:" + initialInvSources + "\n"
         )
     }
+    def notifyEarlyArtifact(): Unit =
+      if (options.pipelining)
+        progress foreach { p =>
+          p.afterEarlyOutput(hasAnyMacro(previous))
+        } else ()
+    val hasModified = initialInvClasses.nonEmpty || initialInvSources.nonEmpty
     val analysis = withClassfileManager(options, converter, output, outputJarContent) {
       classfileManager =>
-        incremental.cycle(
-          initialInvClasses,
-          initialInvSources,
-          sources,
-          converter,
-          binaryChanges,
-          lookup,
-          previous,
-          doCompile(compile, callbackBuilder, classfileManager),
-          classfileManager,
-          output,
-          1
-        )
+        if (hasModified)
+          incremental.cycle(
+            initialInvClasses,
+            initialInvSources,
+            sources,
+            converter,
+            binaryChanges,
+            lookup,
+            previous,
+            doCompile(compile, callbackBuilder, classfileManager),
+            classfileManager,
+            output,
+            1
+          )
+        else {
+          notifyEarlyArtifact(); previous
+        }
     }
-    (initialInvClasses.nonEmpty || initialInvSources.nonEmpty, analysis)
+    (hasModified, analysis)
   }
 
   /**
@@ -522,7 +539,7 @@ private final class AnalysisCallback(
     incHandlerOpt: Option[Incremental.IncrementalCallback],
     log: Logger
 ) extends xsbti.AnalysisCallback {
-  import Incremental.CompileCycleResult
+  import Incremental.{ hasAnyMacro, CompileCycleResult }
 
   // This must have a unique value per AnalysisCallback
   private[this] val compileStartTime: Long = System.currentTimeMillis()
@@ -802,7 +819,7 @@ private final class AnalysisCallback(
     def notifyEarlyArifactFailure(): Unit =
       if (!writtenEarlyArtifacts) {
         progress foreach { p =>
-          p.earlyOutputComplete(false)
+          p.afterEarlyOutput(false)
         }
       }
     outputJarContent.scalacRunCompleted()
@@ -985,9 +1002,6 @@ private final class AnalysisCallback(
     outputJarContent.get().asJava
   }
 
-  def hasAnyMacro(merged: Analysis): Boolean =
-    merged.apis.internal.values.exists(p => p.hasMacro)
-
   private[this] var writtenEarlyArtifacts: Boolean = false
   private def writeEarlyArtifacts(merged: Analysis): Unit = {
     writtenEarlyArtifacts = true
@@ -1000,24 +1014,33 @@ private final class AnalysisCallback(
       pickleJarPath <- jo2o(earlyO.getSingleOutputAsPath())
     } {
       // List classes defined in the files that were compiled in this run.
-      val knownProducts = merged.relations.allSources
-        .flatMap(merged.relations.products)
-        .flatMap(extractProductPath)
-      PickleJar.write(pickleJarPath, knownProducts.toSet)
+      val ps = java.util.concurrent.ConcurrentHashMap.newKeySet[String]
+      val knownProducts: ParVector[VirtualFileRef] =
+        new ParVector(merged.relations.allSources.toVector)
+          .flatMap(merged.relations.products)
+      // extract product paths in parallel
+      jo2o(output.getSingleOutputAsPath) match {
+        case Some(so) if so.getFileName.toString.endsWith(".jar") =>
+          knownProducts foreach { product =>
+            new JarUtils.ClassInJar(product.id).toClassFilePath foreach { path =>
+              ps.add(path.replace('\\', '/'))
+            }
+          }
+        case Some(so) =>
+          knownProducts foreach { product =>
+            val productPath = converter.toPath(product)
+            try {
+              ps.add(so.relativize(productPath).toString.replace('\\', '/'))
+            } catch {
+              case NonFatal(_) => ps.add(product.id)
+            }
+          }
+        case _ => sys.error(s"unsupported output $output")
+      }
+      PickleJar.write(pickleJarPath, ps)
     }
     progress foreach { p =>
-      p.earlyOutputComplete(true)
-    }
-  }
-
-  private def extractProductPath(product: VirtualFileRef): Option[String] = {
-    jo2o(output.getSingleOutputAsPath) match {
-      case Some(so) if so.getFileName.toString.endsWith(".jar") =>
-        new JarUtils.ClassInJar(product.id).toClassFilePath
-      case Some(so) =>
-        val productPath = converter.toPath(product)
-        sbt.io.IO.relativize(so.toFile, productPath.toFile)
-      case _ => sys.error(s"unsupported output $output")
+      p.afterEarlyOutput(true)
     }
   }
 }

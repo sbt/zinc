@@ -382,8 +382,4 @@ object AnalyzingCompiler {
     name.endsWith(".scala") || name.endsWith(".java")
 }
 
-private[this] object IgnoreProgress extends CompileProgress {
-  override def startUnit(phase: String, unitPath: String): Unit = ()
-  override def advance(current: Int, total: Int, prevPhase: String, nextPhase: String) = true
-  override def earlyOutputComplete(success: Boolean) = ()
-}
+private[this] object IgnoreProgress extends CompileProgress

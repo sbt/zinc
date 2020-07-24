@@ -27,7 +27,7 @@ public interface CompileProgress {
 	 * @param unitPath The path of the compilation unit. It will be empty
 	 *                 when a Java compiler is reporting the progress.
 	 */
-	void startUnit(String phase, String unitPath);
+	default void startUnit(String phase, String unitPath) {}
 
 	/**
 	 * Advance the progress of the current unit.
@@ -39,7 +39,9 @@ public interface CompileProgress {
 	 *
 	 * @return Whether the user has cancelled compilation or not.
 	 */
-	boolean advance(int current, int total, String prevPhase, String nextPhase);
+	default boolean advance(int current, int total, String prevPhase, String nextPhase) {
+		return true;
+	}
 
 	/**
 	 * Called when early output is created mid-compilation, or
@@ -47,5 +49,5 @@ public interface CompileProgress {
 	 *
 	 * @param success True if output is written; false otherwise.
 	 */
-	void earlyOutputComplete(boolean success);
+	default void afterEarlyOutput(boolean success) {}
 }

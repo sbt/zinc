@@ -166,6 +166,9 @@ object JarUtils {
     IndexBasedZipFsOps.listEntries(jar).filter(_.endsWith(".class"))
   }
 
+  /** Lists file entries in jar e.g. sbt/internal/inc/JarUtils.class */
+  def listFiles(jar: Path): Seq[String] = IndexBasedZipFsOps.listEntries(jar.toFile)
+
   /**
    * Removes specified entries from a jar file.
    */

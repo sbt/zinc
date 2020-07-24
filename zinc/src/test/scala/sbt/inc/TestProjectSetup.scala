@@ -199,14 +199,9 @@ object TestProjectSetup {
 
     var lastCompiledUnits: Set[String] = Set.empty
     val progress = new CompileProgress {
-      override def advance(
-          current: Int,
-          total: Int,
-          prevPhaseName: String,
-          nextPhaseName: String
-      ): Boolean = true
-      override def startUnit(phase: String, unitPath: String): Unit = lastCompiledUnits += unitPath
-      override def earlyOutputComplete(success: Boolean): Unit = ()
+      override def startUnit(phase: String, unitPath: String): Unit = {
+        lastCompiledUnits += unitPath
+      }
     }
 
     val setup = compiler.setup(
