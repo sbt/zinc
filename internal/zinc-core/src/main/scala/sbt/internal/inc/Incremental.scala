@@ -361,7 +361,7 @@ object Incremental {
     def notifyEarlyArtifact(): Unit =
       if (options.pipelining)
         progress foreach { p =>
-          p.afterEarlyOutput(hasAnyMacro(previous))
+          p.afterEarlyOutput(!hasAnyMacro(previous))
         } else ()
     val hasModified = initialInvClasses.nonEmpty || initialInvSources.nonEmpty
     val analysis = withClassfileManager(options, converter, output, outputJarContent) {
