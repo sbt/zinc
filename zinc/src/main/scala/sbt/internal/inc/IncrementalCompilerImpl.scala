@@ -331,6 +331,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
     try {
       compilerRun
     } catch {
+      case e: xsbti.CompileFailed  => throw e // just ignore
       case e: CompileFailed        => throw e // just ignore
       case e: InterruptedException => throw e // just ignore
       case e: Throwable =>
