@@ -392,7 +392,7 @@ private class MStamps(
       products.size,
       sources.size,
       libraries.size
-    ) + " " + sources.toString
+    )
 }
 
 /**
