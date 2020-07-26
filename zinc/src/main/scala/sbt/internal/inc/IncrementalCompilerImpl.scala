@@ -28,7 +28,7 @@ import xsbti.compile.analysis.ReadStamps
 class IncrementalCompilerImpl extends IncrementalCompiler {
 
   /**
-   * Compile all Java compilation based on xsbti.compile.Inputs.
+   * Compile all Java sources based on xsbti.compile.Inputs.
    *
    * This is a Scala implementation of xsbti.compile.IncrementalCompiler,
    * check the docs for more information on the specification of this method.

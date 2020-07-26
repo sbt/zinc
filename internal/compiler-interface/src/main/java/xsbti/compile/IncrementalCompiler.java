@@ -183,4 +183,18 @@ public interface IncrementalCompiler {
                           FileConverter converter,
                           ReadStamps stamper,
                           Logger logger);
+
+    /**
+     * Compile all Java sources based on xsbti.compile.Inputs.
+     * Currently this step is necessary to perform pipeline builds.
+     *
+     * @param inputs An instance of {@link Inputs} that collect all the inputs
+     *               required to run the compiler (from sources and classpath,
+     *               to compilation order, previous results, current setup, etc).
+     * @param logger An instance of {@link Logger} that logs Zinc output.
+     *
+     * @return An instance of {@link CompileResult} that holds information
+     * about the results of the compilation.
+     */
+    CompileResult compileAllJava(Inputs inputs, Logger logger);
 }
