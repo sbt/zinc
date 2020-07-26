@@ -189,6 +189,7 @@ object Incremental {
         currentSetup,
         output,
         outputJarContent,
+        earlyOutput,
         progress,
         log
       )
@@ -319,6 +320,7 @@ object Incremental {
       currentSetup: MiniSetup,
       output: Output,
       outputJarContent: JarUtils.OutputJarContent,
+      earlyOutput: Option[Output],
       progress: Option[CompileProgress],
       log: sbt.util.Logger
   )(implicit equivS: Equiv[XStamp]): (Boolean, Analysis) = {
@@ -360,7 +362,12 @@ object Incremental {
     }
     def notifyEarlyArtifact(): Unit =
       if (options.pipelining)
-        progress foreach { p =>
+        for {
+          earlyO <- earlyOutput
+          pickleJarPath <- jo2o(earlyO.getSingleOutputAsPath())
+          p <- progress
+        } {
+          PickleJar.touch(pickleJarPath)
           p.afterEarlyOutput(!hasAnyMacro(previous))
         } else ()
     val hasModified = initialInvClasses.nonEmpty || initialInvSources.nonEmpty
@@ -1038,9 +1045,9 @@ private final class AnalysisCallback(
         case _ => sys.error(s"unsupported output $output")
       }
       PickleJar.write(pickleJarPath, ps)
-    }
-    progress foreach { p =>
-      p.afterEarlyOutput(true)
+      progress foreach { p =>
+        p.afterEarlyOutput(true)
+      }
     }
   }
 }
