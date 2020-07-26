@@ -18,20 +18,21 @@ import xsbti.compile.CompilerBridgeProvider
 trait AbstractBridgeProviderTestkit {
   def getZincProvider(targetDir: Path, log: Logger): CompilerBridgeProvider
 
-  def getCompilerBridge(targetDir: Path, log: Logger, scalaVersion: String): Path = {
-    val provider = getZincProvider(targetDir, log)
-    val scalaInstance = provider.fetchScalaInstance(scalaVersion, log)
-    val bridge = provider.fetchCompiledBridge(scalaInstance, log).toPath
-    val target = targetDir.resolve(s"target-bridge-$scalaVersion.jar")
-    if (!Files.exists(target)) {
-      try {
-        Files.copy(bridge, target, StandardCopyOption.REPLACE_EXISTING)
-      } catch {
-        case _: FileAlreadyExistsException => ()
+  def getCompilerBridge(targetDir: Path, log: Logger, scalaVersion: String): Path =
+    AbstractBridgeProviderTestkit.lock.synchronized {
+      val provider = getZincProvider(targetDir, log)
+      val scalaInstance = provider.fetchScalaInstance(scalaVersion, log)
+      val bridge = provider.fetchCompiledBridge(scalaInstance, log).toPath
+      val target = targetDir.resolve(s"target-bridge-$scalaVersion.jar")
+      if (!Files.exists(target)) {
+        try {
+          Files.copy(bridge, target, StandardCopyOption.REPLACE_EXISTING)
+        } catch {
+          case _: FileAlreadyExistsException => ()
+        }
       }
+      target
     }
-    target
-  }
 
   import xsbti.compile.ScalaInstance
   def scalaInstance(scalaVersion: String, targetDir: Path, logger: Logger): ScalaInstance =
@@ -40,4 +41,8 @@ trait AbstractBridgeProviderTestkit {
   implicit class RichPath(p: Path) {
     def /(sub: String): Path = p.resolve(sub)
   }
+}
+
+object AbstractBridgeProviderTestkit {
+  private val lock = new AnyRef
 }
