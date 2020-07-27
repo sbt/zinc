@@ -189,6 +189,7 @@ object Incremental {
         currentSetup,
         output,
         outputJarContent,
+        earlyOutput,
         progress,
         log
       )
@@ -319,6 +320,7 @@ object Incremental {
       currentSetup: MiniSetup,
       output: Output,
       outputJarContent: JarUtils.OutputJarContent,
+      earlyOutput: Option[Output],
       progress: Option[CompileProgress],
       log: sbt.util.Logger
   )(implicit equivS: Equiv[XStamp]): (Boolean, Analysis) = {
@@ -337,15 +339,20 @@ object Incremental {
     val (initialInvClasses, initialInvSources0) =
       incremental.invalidateInitial(previous.relations, initialChanges)
 
+    val isPickleWrite = currentSetup.options.scalacOptions.contains("-Ypickle-write")
+    if (!isPickleWrite && options.pipelining) {
+      log.warn(s"-Ypickle-write should be included into scalacOptions if pipelining is enabled")
+    }
     // If there's any compilation at all, invalidate all java sources too, so we have access to their type information.
     val javaSources: Set[VirtualFileRef] = sources
       .filter(_.name.endsWith(".java"))
       .map(_.asInstanceOf[VirtualFileRef])
     val isPickleJava = currentSetup.options.scalacOptions.contains("-Ypickle-java")
-    assert(
-      javaSources.isEmpty || !options.pipelining || isPickleJava,
-      s"-Ypickle-java must be included into scalacOptions if pipelining is enabled with Java sources"
-    )
+    if (javaSources.nonEmpty && options.pipelining && !isPickleJava) {
+      log.warn(
+        s"-Ypickle-java should be included into scalacOptions if pipelining is enabled with Java sources"
+      )
+    }
     val initialInvSources =
       if (initialInvSources0.nonEmpty) initialInvSources0 ++ javaSources
       else Set.empty[VirtualFileRef]
@@ -360,8 +367,13 @@ object Incremental {
     }
     def notifyEarlyArtifact(): Unit =
       if (options.pipelining)
-        progress foreach { p =>
-          p.afterEarlyOutput(hasAnyMacro(previous))
+        for {
+          earlyO <- earlyOutput
+          pickleJarPath <- jo2o(earlyO.getSingleOutputAsPath())
+          p <- progress
+        } {
+          PickleJar.touch(pickleJarPath)
+          p.afterEarlyOutput(!hasAnyMacro(previous))
         } else ()
     val hasModified = initialInvClasses.nonEmpty || initialInvSources.nonEmpty
     val analysis = withClassfileManager(options, converter, output, outputJarContent) {
@@ -1038,9 +1050,9 @@ private final class AnalysisCallback(
         case _ => sys.error(s"unsupported output $output")
       }
       PickleJar.write(pickleJarPath, ps)
-    }
-    progress foreach { p =>
-      p.afterEarlyOutput(true)
+      progress foreach { p =>
+        p.afterEarlyOutput(true)
+      }
     }
   }
 }

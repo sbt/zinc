@@ -446,6 +446,7 @@ lazy val compilerInterface = (projectMatrix in internalPath / "compiler-interfac
       exclude[ReversedMissingMethodProblem]("xsbti.compile.IncrementalCompiler.compile"),
       exclude[ReversedMissingMethodProblem]("xsbti.compile.ScalaInstance.loaderLibraryOnly"),
       exclude[ReversedMissingMethodProblem]("xsbti.compile.ScalaInstance.libraryJars"),
+      exclude[ReversedMissingMethodProblem]("xsbti.compile.IncrementalCompiler.compileAllJava"),
     ),
   )
   .jvmPlatform(autoScalaLibrary = false)

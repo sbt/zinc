@@ -53,7 +53,7 @@ import sjsonnew.support.scalajson.unsafe.{ Converter, Parser => JsonParser }
 
 import scala.{ PartialFunction => ?=> }
 import scala.collection.mutable
-import scala.concurrent.{ Await, Future, Promise }
+import scala.concurrent.{ blocking, Await, Future, Promise }
 import scala.concurrent.duration._
 import scala.util.control.NonFatal
 import scala.util.Success
@@ -71,9 +71,13 @@ final case class IncState(
     si: XScalaInstance,
     cs: XCompilers,
     number: Int,
-    compilations: mutable.Map[ProjectStructure, (Future[Analysis], Future[Boolean])]
+    compilations: scala.collection.concurrent.Map[
+      ProjectStructure,
+      (Future[Analysis], Future[Boolean])
+    ] = scala.collection.concurrent.TrieMap.empty
 ) {
-  def inc: IncState = copy(number = number + 1, compilations = mutable.Map.empty)
+  def inc: IncState =
+    copy(number = number + 1, compilations = scala.collection.concurrent.TrieMap.empty)
 }
 
 class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, compileToJar: Boolean)
@@ -192,7 +196,7 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
     }
     val analyzingCompiler = scalaCompiler(si, compilerBridge)
     val cs = incrementalCompiler.compilers(si, ClasspathOptionsUtil.boot, None, analyzingCompiler)
-    IncState(si, cs, 0, mutable.Map.empty)
+    IncState(si, cs, 0)
   }
 
   private final val unit = (_: Seq[String]) => ()
@@ -364,7 +368,12 @@ case class ProjectStructure(
       }
     }
 
-  def clean(): Future[Unit] = Future { IO.delete(classesDir.toFile) }
+  def clean(): Future[Unit] =
+    Future {
+      blocking {
+        IO.delete(classesDir.toFile)
+      }
+    }
 
   def checkNumberOfCompilerIterations(i: IncState, expected: Int): Future[Unit] =
     compile(i).map { analysis =>
@@ -496,7 +505,6 @@ case class ProjectStructure(
     }
 
   def compile(i: IncState): Future[Analysis] = startCompilation(i)._1
-  def earlyArtifact(i: IncState): Future[Boolean] = startCompilation(i)._2
 
   def startCompilation(i: IncState): (Future[Analysis], Future[Boolean]) = synchronized {
     def traditionalLookupAnalysis: VirtualFile => Option[CompileAnalysis] = {
@@ -519,9 +527,9 @@ case class ProjectStructure(
       }
       val f1 = dependsOnRef.foldLeft(f0) { (acc, dep) =>
         acc.orElse {
-          case x
-              if (converter.toPath(x).toAbsolutePath == dep.classesDir.toAbsolutePath)
-                || (converter.toPath(x).toAbsolutePath == dep.earlyOutput.toAbsolutePath) =>
+          case x if converter.toPath(x).toAbsolutePath == dep.classesDir.toAbsolutePath =>
+            dep.prev().analysis().toOption
+          case x if converter.toPath(x).toAbsolutePath == dep.earlyOutput.toAbsolutePath =>
             dep.earlyPreviousResult.analysis().toOption
         }
       }
@@ -531,19 +539,35 @@ case class ProjectStructure(
     i.compilations.get(this).getOrElse {
       val notifyEarlyOutput: Promise[Boolean] = Promise[Boolean]()
       if (incOptions.pipelining) {
+        // Initiate compilation
+        val triggerDeps: Map[ProjectStructure, (Future[Analysis], Future[Boolean])] =
+          Map(dependsOnRef map { dep =>
+            dep -> dep.startCompilation(i)
+          }: _*)
+        val wholeDeps = Future.traverse(dependsOnRef) { dep =>
+          triggerDeps(dep)._1.map(_ => dep.output)
+        }
         // future of early outputs
         val earlyDeps: Future[Seq[Path]] = Future.traverse(dependsOnRef) { dep =>
-          dep.earlyArtifact(i).map(success => if (success) dep.earlyOutput else dep.output)
+          triggerDeps(dep)._2 flatMap { success =>
+            if (success) {
+              Future.successful { dep.earlyOutput }
+            } else {
+              triggerDeps(dep)._1.map(_ => dep.output)
+            }
+          }
         }
         val futureScalaAnalysis = earlyDeps.map { internalCp =>
-          doCompile(i, notifyEarlyOutput, internalCp, pipelinedLookupAnalysis, false)
-        }
-        val wholeDeps = Future.traverse(dependsOnRef) { dep =>
-          dep.compile(i).map(_ => dep.output)
+          blocking {
+            scriptedLog.info(s"[$name] internapCp = $internalCp")
+            doCompile(i, notifyEarlyOutput, internalCp, pipelinedLookupAnalysis, false)
+          }
         }
         def futureJavaAnalysis(projectDependencies: Seq[Path], prev: Analysis): Future[Analysis] =
           Future {
-            doCompile(i, notifyEarlyOutput, projectDependencies, pipelinedLookupAnalysis, true)
+            blocking {
+              doCompile(i, notifyEarlyOutput, projectDependencies, pipelinedLookupAnalysis, true)
+            }
           }
 
         // wait for the full compilation from the dependencies
@@ -598,9 +622,9 @@ case class ProjectStructure(
       override def afterEarlyOutput(success: Boolean) = {
         if (success) {
           assert(Files.exists(earlyOutput))
-          scriptedLog.info(s"[progress] early output is done for $name!")
+          scriptedLog.info(s"[$name][progress] early output is done!")
         } else {
-          scriptedLog.info(s"[progress] early output can't be made for $name because macros!")
+          scriptedLog.info(s"[$name][progress] early output can't be made because macros!")
         }
         notifyEarlyOutput.complete(Success(success))
       }
@@ -641,7 +665,7 @@ case class ProjectStructure(
       else incrementalCompiler.compile(in, scriptedLog)
     val analysis = result.analysis match { case a: Analysis => a }
     cachedStore.set(AnalysisContents.create(analysis, result.setup))
-    scriptedLog.info(s"""$name: compilation done: ${sources.toList.mkString(", ")}""")
+    scriptedLog.info(s"""[$name] compilation done: ${sources.toList.mkString(", ")}""")
     analysis
   }
 
@@ -725,7 +749,11 @@ case class ProjectStructure(
     import scala.collection.JavaConverters._
     val map = new java.util.HashMap[String, String]
     properties.asScala foreach { case (k: String, v: String) => map.put(k, v) }
-    val base = IncOptions.of().withPipelining(defaultPipelining)
+    val base = IncOptions
+      .of()
+      .withPipelining(defaultPipelining)
+      .withApiDebug(true)
+    //.withRelationsDebug(true)
     val incOptions = {
       val opts = IncOptionsUtil.fromStringMap(base, map, scriptedLog)
       if (opts.recompileAllFraction() != IncOptions.defaultRecompileAllFraction()) opts
@@ -733,9 +761,10 @@ case class ProjectStructure(
     }
     val scalacOptions: List[String] =
       (Option(map.get("scalac.options")) match {
-        case Some(x)                    => List(x)
-        case _ if incOptions.pipelining => List("-Ypickle-java")
-        case _                          => Nil
+        case Some(x) => List(x)
+        case _ if incOptions.pipelining =>
+          List("-Ypickle-java", "-Ypickle-write", earlyOutput.toString)
+        case _ => Nil
       }).flatMap(_.toString.split(" +").toList)
     (incOptions, scalacOptions.toArray)
   }

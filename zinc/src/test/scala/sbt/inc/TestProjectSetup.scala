@@ -229,7 +229,8 @@ object TestProjectSetup {
       sources.toArray,
       output,
       Some(earlyOutput),
-      scalacOptions = (Vector("-Ypickle-java") ++ scalacOptions).toArray,
+      scalacOptions =
+        (Vector("-Ypickle-java", "-Ypickle-write", earlyOutput.toString) ++ scalacOptions).toArray,
       javacOptions = Array(),
       maxErrors,
       sourcePositionMappers = Array(),
