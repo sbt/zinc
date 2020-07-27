@@ -821,7 +821,7 @@ object IncrementalCommon {
       }
 
       if (skipClasspathLookup) compareStamps(binaryFile, binaryFile)
-      else isLibraryChanged(binaryFile)
+      else compareStamps(binaryFile, binaryFile) && isLibraryChanged(binaryFile)
     }
   }
 
