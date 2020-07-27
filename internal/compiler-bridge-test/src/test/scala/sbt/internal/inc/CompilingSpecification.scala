@@ -182,7 +182,7 @@ trait CompilingSpecification extends BridgeProviderSpecification {
         val compilerBridge = getCompilerBridge(tempDir.toPath, noLogger, scalaVersion)
         val si = scalaInstance(scalaVersion, tempDir.toPath, noLogger)
         val sc = scalaCompiler(si, compilerBridge)
-        val cp = (si.allJars ++ Array(targetDir)).map(_.toPath).map(converter.toVirtualFile)
+        val cp = (si.allJars ++ Array(targetDir)).map(_.toPath)
         val emptyChanges: DependencyChanges = new DependencyChanges {
           override val modifiedLibraries = new Array[VirtualFileRef](0)
           override val modifiedBinaries = new Array[File](0)

@@ -156,6 +156,7 @@ final class AnalyzingJavaCompiler private[sbt] (
       timed(javaCompilationPhase, log) {
         val args = sbt.internal.inc.javac.JavaCompiler.commandArguments(
           absClasspath,
+          converter,
           options,
           scalaInstance,
           classpathOptions

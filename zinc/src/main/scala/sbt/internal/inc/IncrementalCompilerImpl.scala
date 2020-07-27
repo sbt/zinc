@@ -424,10 +424,10 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       val javaSrcs = sources.filter(MixedAnalyzingCompiler.javaOnly)
       val outputs = output :: earlyOutput.toList
       val outputJars = outputs.flatMap(out => (JarUtils.getOutputJar(out): Option[Path]).toList)
+      val classpathPaths = classpath.map(converter.toPath)
       val outputJarsOnCp = outputJars.exists { outputJar =>
-        classpath.exists {
-          case x: PathBasedFile => x.toPath.toAbsolutePath == outputJar.toAbsolutePath
-          case _                => false
+        classpathPaths.exists { x: Path =>
+          x.toAbsolutePath == outputJar.toAbsolutePath
         }
       }
 

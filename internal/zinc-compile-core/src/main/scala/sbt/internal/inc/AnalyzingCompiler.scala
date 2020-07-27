@@ -136,22 +136,31 @@ final class AnalyzingCompiler(
       reporter: Reporter
   ): Unit = {
     val compArgs = new CompilerArguments(scalaInstance, classpathOptions)
-    val arguments =
-      compArgs.makeArguments(Nil, classpath, Some(outputDirectory), options)
-    onArgsHandler(arguments)
     val (bridge, bridgeClass) = bridgeInstance(scaladocBridgeClassName, log)
+    val cp = classpath.map(converter.toPath)
     bridge match {
       case intf: ScaladocInterface2 =>
+        val arguments =
+          compArgs.makeArguments(Nil, cp, Some(outputDirectory), options)
+        onArgsHandler(arguments)
         intf.run(sources.toArray, arguments.toArray[String], log, reporter)
+      case intf: ScaladocInterface1 =>
+        val fileSources: Seq[Path] = sources.map(converter.toPath(_))
+        val arguments =
+          compArgs.makeArguments(fileSources, cp, Some(outputDirectory), options)
+        onArgsHandler(arguments)
+        intf.run(arguments.toArray[String], log, reporter)
       case _ =>
         // fall back to old reflection
-        val fileSources: Array[File] = sources.toArray.map(converter.toPath(_).toFile)
+        val fileSources: Seq[Path] = sources.map(converter.toPath(_))
+        val arguments =
+          compArgs.makeArguments(fileSources, cp, Some(outputDirectory), options)
+        onArgsHandler(arguments)
         invoke(bridge, bridgeClass, "run", log)(
-          classOf[Array[File]],
           classOf[Array[String]],
           classOf[xLogger],
           classOf[Reporter]
-        )(fileSources, arguments.toArray[String], log, reporter)
+        )(arguments.toArray[String], log, reporter)
     }
     ()
   }
@@ -364,9 +373,7 @@ object AnalyzingCompiler {
           val scalaLibraryJars = compiler.scalaInstance.libraryJars
           val restClasspath = xsbtiJars.toSeq ++ sourceJars
           val classpath = scalaLibraryJars.map(_.toPath) ++ restClasspath
-          val vs = sourceFiles.map(PlainVirtualFile(_))
-          val cp = classpath.map(PlainVirtualFile(_))
-          compiler(vs, cp, outputDirectory.toPath, "-nowarn" :: Nil)
+          compiler(sourceFiles, classpath, outputDirectory.toPath, "-nowarn" :: Nil)
 
           val end = (System.currentTimeMillis - start) / 1000.0
           log.info(s"  Compilation completed in ${end}s.")
