@@ -85,7 +85,7 @@ final class AnalyzingCompiler(
       case (intf: CompilerInterface2, _) =>
         intf.run(sources, changes, options, output, callback, reporter, progress, log)
       case (bridge, bridgeClass) =>
-        // fall back to old reflection if CompilerInterface1 is not supported
+        // fall back to old reflection if CompilerInterface2 is not supported
         val compiler = invoke(bridge, bridgeClass, "newCompiler", log)(
           classOf[Array[String]],
           classOf[Output],
