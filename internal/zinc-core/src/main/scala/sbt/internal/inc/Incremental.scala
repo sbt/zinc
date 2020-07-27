@@ -343,11 +343,16 @@ object Incremental {
     val javaSources: Set[VirtualFileRef] = sources.collect {
       case s: VirtualFileRef if s.name.endsWith(".java") => s
     }
+    val isPickleWrite = currentSetup.options.scalacOptions.contains("-Ypickle-write")
+    if (!isPickleWrite && options.pipelining) {
+      log.warn(s"-Ypickle-write should be included into scalacOptions if pipelining is enabled")
+    }
     val isPickleJava = currentSetup.options.scalacOptions.contains("-Ypickle-java")
-    assert(
-      javaSources.isEmpty || !options.pipelining || isPickleJava,
-      s"-Ypickle-java must be included into scalacOptions if pipelining is enabled with Java sources"
-    )
+    if (javaSources.nonEmpty && options.pipelining && !isPickleJava) {
+      log.warn(
+        s"-Ypickle-java should be included into scalacOptions if pipelining is enabled with Java sources"
+      )
+    }
     val initialInvSources =
       if (isPickleJava && initialInvSources0.nonEmpty) initialInvSources0 ++ javaSources
       else initialInvSources0

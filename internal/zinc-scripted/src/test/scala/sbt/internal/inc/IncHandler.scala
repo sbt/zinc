@@ -761,9 +761,10 @@ case class ProjectStructure(
     }
     val scalacOptions: List[String] =
       (Option(map.get("scalac.options")) match {
-        case Some(x)                    => List(x)
-        case _ if incOptions.pipelining => List("-Ypickle-java")
-        case _                          => Nil
+        case Some(x) => List(x)
+        case _ if incOptions.pipelining =>
+          List("-Ypickle-java", "-Ypickle-write", earlyOutput.toString)
+        case _ => Nil
       }).flatMap(_.toString.split(" +").toList)
     (incOptions, scalacOptions.toArray)
   }
