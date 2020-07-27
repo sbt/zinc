@@ -15,7 +15,6 @@ package inc
 
 import java.nio.file.Path
 import sbt.internal.util.FeedbackProvidedException
-import xsbti.VirtualFile
 import xsbti.compile.{ ClasspathOptions, ScalaInstance => XScalaInstance }
 
 /**
@@ -44,8 +43,8 @@ class RawCompiler(val scalaInstance: XScalaInstance, cp: ClasspathOptions, log: 
    * @param options The auxiliary options to Scala compilers.
    */
   def apply(
-      sources: Seq[VirtualFile],
-      classpath: Seq[VirtualFile],
+      sources: Seq[Path],
+      classpath: Seq[Path],
       outputDirectory: Path,
       options: Seq[String]
   ): Unit = {

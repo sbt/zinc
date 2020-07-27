@@ -13,7 +13,7 @@ package sbt
 package internal
 package inc
 
-import xsbti.{ ArtifactInfo, PathBasedFile, VirtualFile }
+import xsbti.ArtifactInfo
 import xsbti.compile.{ MultipleOutput, Output, SingleOutput }
 import scala.util
 import java.nio.file.Path
@@ -45,8 +45,8 @@ final class CompilerArguments(
     cpOptions: xsbti.compile.ClasspathOptions
 ) {
   def makeArguments(
-      sources: Seq[VirtualFile],
-      classpath: Seq[VirtualFile],
+      sources: Seq[Path],
+      classpath: Seq[Path],
       output: Option[Path],
       options: Seq[String]
   ): Seq[String] =
@@ -54,8 +54,8 @@ final class CompilerArguments(
       makeArguments(sources, classpath, options)
 
   def makeArguments(
-      sources: Seq[VirtualFile],
-      classpath: Seq[VirtualFile],
+      sources: Seq[Path],
+      classpath: Seq[Path],
       output: Output,
       options: Seq[String]
   ): Seq[String] =
@@ -63,27 +63,21 @@ final class CompilerArguments(
       makeArguments(sources, classpath, options)
 
   def makeArguments(
-      sources: Seq[VirtualFile],
-      classpath: Seq[VirtualFile],
+      sources: Seq[Path],
+      classpath: Seq[Path],
       options: Seq[String]
   ): Seq[String] = {
     /* Add dummy to avoid Scalac misbehaviour for empty classpath (as of 2.9.1). */
-    def dummy: String = "dummy_" + Integer.toHexString(util.Random.nextInt)
+    def dummy: String = "dummy_" + Integer.toHexString(util.Random.nextInt())
 
     checkScalaHomeUnset()
-    val cp = classpath map {
-      case x: PathBasedFile => x.toPath
-    }
-    val compilerClasspath = finishClasspath(cp)
+    val compilerClasspath = finishClasspath(classpath)
     val stringClasspath =
       if (compilerClasspath.isEmpty) dummy
       else absString(compilerClasspath)
     val classpathOption = Seq("-classpath", stringClasspath)
-    val bootClasspath = bootClasspathOption(hasLibrary(cp))
-    val sources1 = sources map {
-      case x: PathBasedFile => x.toPath
-    }
-    options ++ bootClasspath ++ classpathOption ++ abs(sources1)
+    val bootClasspath = bootClasspathOption(hasLibrary(classpath))
+    options ++ bootClasspath ++ classpathOption ++ abs(sources)
   }
 
   /**
@@ -144,7 +138,7 @@ final class CompilerArguments(
 
   def extClasspath: Seq[Path] =
     List("java.ext.dirs", "scala.ext.dirs").flatMap(
-      k => (IO.parseClasspath(System.getProperty(k, "")) * "*.jar").get.map(_.toPath)
+      k => (IO.parseClasspath(System.getProperty(k, "")) * "*.jar").get().map(_.toPath)
     )
 
   private[this] def include(flag: Boolean, jars: Path*) =

@@ -157,9 +157,9 @@ final class MixedAnalyzingCompiler(
             if (config.currentSetup.order == Mixed) incSrc
             else scalaSrcs
 
-          val cp: Seq[VirtualFile] = (extraClasspath map { x =>
-            config.converter.toVirtualFile(x.toAbsolutePath)
-          }) ++ absClasspath
+          val cp: Seq[Path] = (extraClasspath map { x =>
+            x.toAbsolutePath
+          }) ++ absClasspath.map(config.converter.toPath)
           val arguments =
             cArgs.makeArguments(Nil, cp, config.currentSetup.options.scalacOptions)
           timed("Scala compilation", log) {

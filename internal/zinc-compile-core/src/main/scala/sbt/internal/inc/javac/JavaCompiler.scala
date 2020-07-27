@@ -17,7 +17,7 @@ package javac
 
 import java.nio.file.Path
 
-import xsbti.VirtualFile
+import xsbti.{ FileConverter, VirtualFile }
 import xsbti.compile.{
   ClasspathOptions,
   ClasspathOptionsUtil,
@@ -87,13 +87,15 @@ object JavaCompiler {
    */
   def commandArguments(
       classpath: Seq[VirtualFile],
+      converter: FileConverter,
       options: Seq[String],
       scalaInstance: ScalaInstance,
       cpOptions: ClasspathOptions
   ): Seq[String] = {
-    val augmentedClasspath: Seq[VirtualFile] =
-      if (!cpOptions.autoBoot) classpath
-      else classpath ++ scalaInstance.libraryJars.map(_.toPath).map(PlainVirtualFile(_))
+    val cp = classpath.map(converter.toPath)
+    val augmentedClasspath: Seq[Path] =
+      if (!cpOptions.autoBoot) cp
+      else cp ++ scalaInstance.libraryJars.map(_.toPath)
     val javaCp = ClasspathOptionsUtil.javac(cpOptions.compiler)
     val compilerArgs = new CompilerArguments(scalaInstance, javaCp)
     compilerArgs.makeArguments(Nil, augmentedClasspath, options)
