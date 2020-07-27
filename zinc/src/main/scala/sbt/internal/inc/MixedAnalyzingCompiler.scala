@@ -143,11 +143,10 @@ final class MixedAnalyzingCompiler(
     val isPickleJava = config.currentSetup.order == Mixed && config.incOptions.pipelining && javaSrcs.nonEmpty
 
     val earlyOut = config.earlyOutput.flatMap(_.getSingleOutputAsPath.toOption)
-    val pickleWrite = earlyOut.toList.flatMap { out =>
-      val sbv = scalac.scalaInstance.version.take(4)
-      if (out.toString.endsWith(".jar") && !Files.exists(out))
+    earlyOut foreach { out =>
+      if (out.toString.endsWith(".jar") && !Files.exists(out)) {
         scala.reflect.io.RootPath(out, writable = true).close() // creates an empty jar
-      List("-Ypickle-write", out.toString).filter(_ => sbv == "2.12" || sbv == "2.13")
+      }
     }
 
     // Compile Scala sources.
@@ -162,7 +161,7 @@ final class MixedAnalyzingCompiler(
             config.converter.toVirtualFile(x.toAbsolutePath)
           }) ++ absClasspath
           val arguments =
-            cArgs.makeArguments(Nil, cp, config.currentSetup.options.scalacOptions ++ pickleWrite)
+            cArgs.makeArguments(Nil, cp, config.currentSetup.options.scalacOptions)
           timed("Scala compilation", log) {
             config.compiler.compile(
               sources.toArray,
