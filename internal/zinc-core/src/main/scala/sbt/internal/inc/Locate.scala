@@ -15,8 +15,10 @@ package inc
 
 import java.nio.file.{ Files, Path }
 import java.util.zip.{ ZipException, ZipFile }
+import java.util.concurrent.ConcurrentHashMap
+import sbt.io.IO
 import xsbti.{ PathBasedFile, VirtualFile }
-import xsbti.compile.{ DefinesClass, PerClasspathEntryLookup }
+import xsbti.compile.{ DefinesClass => XDefinesClass, PerClasspathEntryLookup }
 
 object Locate {
 
@@ -64,7 +66,38 @@ object Locate {
     className => if (defClass(className)) getF(className).toRight(true) else Left(false)
   }
 
-  def definesClass(entry0: VirtualFile): DefinesClass =
+  /**
+   * Can be used to determine whether or not a given file has a class definition
+   * with a particular name. It will cache the set of class names for each jar file.
+   * Each jar cache entry is invalidated when the last modified time of the jar file
+   * changes.
+   *
+   */
+  sealed abstract class DefinesClass {
+    def apply(entry0: VirtualFile): XDefinesClass
+  }
+  class CachingDefinesClass extends DefinesClass {
+    private[this] val jarCache = new ConcurrentHashMap[Path, (JarDefinesClass, Long)]
+    override def apply(entry0: VirtualFile): XDefinesClass = definesClass(entry0, jarDefinesClass)
+    private def jarDefinesClass(entry: Path): JarDefinesClass = {
+      val currentLastModified = IO.getModifiedTimeOrZero(entry.toFile)
+      jarCache.get(entry) match {
+        case (jdc, lm) if lm == currentLastModified => jdc
+        case _ =>
+          val jdc = new JarDefinesClass(entry)
+          jarCache.put(entry, (jdc, currentLastModified))
+          jdc
+      }
+    }
+  }
+  case object DefinesClass extends DefinesClass {
+    override def apply(entry0: VirtualFile): XDefinesClass =
+      definesClass(entry0, new JarDefinesClass(_))
+  }
+  private def definesClass(
+      entry0: VirtualFile,
+      jarDefinesClass: Path => JarDefinesClass
+  ): XDefinesClass =
     entry0 match {
       case x: PathBasedFile =>
         val entry = x.toPath
@@ -74,18 +107,19 @@ object Locate {
                    entry,
                    contentFallback = true
                  ))
-          new JarDefinesClass(entry)
+          jarDefinesClass(entry)
         else
           FalseDefinesClass
       case _ =>
         sys.error(s"$entry0 (${entry0.getClass}) is not supported")
     }
 
-  private object FalseDefinesClass extends DefinesClass {
+  def definesClass(entry: VirtualFile): XDefinesClass = definesClass(entry, new JarDefinesClass(_))
+  private object FalseDefinesClass extends XDefinesClass {
     override def apply(binaryClassName: String): Boolean = false
   }
 
-  private class JarDefinesClass(entry: Path) extends DefinesClass {
+  private class JarDefinesClass(entry: Path) extends XDefinesClass {
     import collection.JavaConverters._
     private val entries = {
       val jar = try {
@@ -110,7 +144,7 @@ object Locate {
 
   val ClassExt = ".class"
 
-  private class DirectoryDefinesClass(entry: Path) extends DefinesClass {
+  private class DirectoryDefinesClass(entry: Path) extends XDefinesClass {
     override def apply(binaryClassName: String): Boolean =
       Files.isRegularFile(classFile(entry, binaryClassName))
   }
