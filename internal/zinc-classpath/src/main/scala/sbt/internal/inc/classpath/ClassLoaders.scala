@@ -191,9 +191,10 @@ trait NativeCopyLoader extends ClassLoader {
 
   private[this] def findLibrary0(name: String): String = {
     val mappedName = System.mapLibraryName(name)
-    val explicit = explicitLibraries.filter(_.getFileName.toString == mappedName).toStream
-    val search = searchPaths.toStream flatMap relativeLibrary(mappedName)
-    (explicit ++ search).headOption.map(copy).orNull
+    val explicit = explicitLibraries.toIterator.filter(_.getFileName.toString == mappedName)
+    val search = searchPaths.toIterator flatMap relativeLibrary(mappedName)
+    val combined = explicit ++ search
+    if (combined.hasNext) copy(combined.next) else null
   }
   private[this] def relativeLibrary(mappedName: String)(base: Path): Seq[Path] = {
     val f = base.resolve(mappedName)
