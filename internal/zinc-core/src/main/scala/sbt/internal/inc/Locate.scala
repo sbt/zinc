@@ -29,18 +29,24 @@ object Locate {
       classpath: Seq[VirtualFile],
       get: VirtualFile => String => Option[S]
   ): String => Either[Boolean, S] = {
-    val gets = classpath.toStream.map(getValue(get))
+    val gets = classpath.iterator.map(getValue(get))
     className => find(className, gets)
   }
 
-  def find[S](name: String, gets: Stream[String => Either[Boolean, S]]): Either[Boolean, S] =
-    if (gets.isEmpty)
+  private def find[S](
+      name: String,
+      gets: Iterator[String => Either[Boolean, S]]
+  ): Either[Boolean, S] = {
+    if (!gets.hasNext)
       Left(false)
     else
-      gets.head(name) match {
-        case Left(false) => find(name, gets.tail)
+      gets.next.apply(name) match {
+        case Left(false) => find(name, gets)
         case x           => x
       }
+  }
+  def find[S](name: String, gets: Stream[String => Either[Boolean, S]]): Either[Boolean, S] =
+    find[S](name, gets.toIterator)
 
   /**
    * Returns a function that searches the provided class path for
@@ -50,7 +56,7 @@ object Locate {
       classpath: Seq[VirtualFile],
       lookup: PerClasspathEntryLookup
   ): String => Option[VirtualFile] = {
-    val entries = classpath.toStream.map { entry =>
+    val entries = classpath.iterator.map { entry =>
       (entry, lookup.definesClass(entry))
     }
     className => entries.collectFirst { case (entry, defines) if defines(className) => entry }
