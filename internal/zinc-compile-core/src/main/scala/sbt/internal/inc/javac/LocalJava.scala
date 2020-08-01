@@ -298,6 +298,10 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
       log.warn(invalidOptions.mkString("\t", ", ", ""))
     }
     val outputOption = CompilerArguments.outputOption(output)
+    output.getSingleOutputAsPath match {
+      case p if p.isPresent => Files.createDirectories(p.get)
+      case _                =>
+    }
 
     val fileManager = {
       if (cleanedOptions.contains("-XDuseOptimizedZip=false")) {
