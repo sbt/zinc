@@ -29,7 +29,7 @@ object Locate {
       classpath: Seq[VirtualFile],
       get: VirtualFile => String => Option[S]
   ): String => Either[Boolean, S] = {
-    val gets = classpath.iterator.map(getValue(get))
+    def gets = classpath.iterator.map(getValue(get))
     className => find(className, gets)
   }
 
@@ -56,7 +56,7 @@ object Locate {
       classpath: Seq[VirtualFile],
       lookup: PerClasspathEntryLookup
   ): String => Option[VirtualFile] = {
-    val entries = classpath.iterator.map { entry =>
+    def entries = classpath.iterator.map { entry =>
       (entry, lookup.definesClass(entry))
     }
     className => entries.collectFirst { case (entry, defines) if defines(className) => entry }
