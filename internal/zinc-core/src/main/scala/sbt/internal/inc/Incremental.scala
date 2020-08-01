@@ -340,17 +340,17 @@ object Incremental {
       incremental.invalidateInitial(previous.relations, initialChanges)
 
     // If there's any compilation at all, invalidate all java sources too, so we have access to their type information.
-    val javaSources: Set[VirtualFileRef] = sources
-      .filter(_.name.endsWith(".java"))
-      .map(_.asInstanceOf[VirtualFileRef])
+    val javaSources: Set[VirtualFileRef] = sources.collect {
+      case s: VirtualFileRef if s.name.endsWith(".java") => s
+    }
     val isPickleJava = currentSetup.options.scalacOptions.contains("-Ypickle-java")
     assert(
       javaSources.isEmpty || !options.pipelining || isPickleJava,
       s"-Ypickle-java must be included into scalacOptions if pipelining is enabled with Java sources"
     )
     val initialInvSources =
-      if (initialInvSources0.nonEmpty) initialInvSources0 ++ javaSources
-      else Set.empty[VirtualFileRef]
+      if (isPickleJava && initialInvSources0.nonEmpty) initialInvSources0 ++ javaSources
+      else initialInvSources0
     if (initialInvClasses.nonEmpty || initialInvSources.nonEmpty) {
       if (initialInvSources == sources)
         incremental.log.debug(s"all ${initialInvSources.size} sources are invalidated")
