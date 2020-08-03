@@ -339,7 +339,7 @@ object Incremental {
     val (initialInvClasses, initialInvSources0) =
       incremental.invalidateInitial(previous.relations, initialChanges)
 
-    // If there's any compilation at all, invalidate all java sources too, so we have access to their type information.
+    // During pipelining, if there's any compilation at all, invalidate all Java sources too, so the downstream Scala subprojects would have type information via early output (pickle jar).
     val javaSources: Set[VirtualFileRef] = sources.collect {
       case s: VirtualFileRef if s.name.endsWith(".java") => s
     }
