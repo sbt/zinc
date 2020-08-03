@@ -113,9 +113,7 @@ final class MixedAnalyzingCompiler(
       val dir =
         if (d.toString.endsWith(".jar")) d.getParent
         else d
-      if (!Files.exists(dir)) {
-        Files.createDirectories(dir)
-      }
+      Files.createDirectories(dir)
     }
     outputDirs
   }
