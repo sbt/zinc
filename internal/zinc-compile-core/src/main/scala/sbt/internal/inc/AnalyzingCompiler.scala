@@ -70,6 +70,7 @@ final class AnalyzingCompiler(
 
   override def compile(
       sources: Array[VirtualFile],
+      classpath: Array[VirtualFile],
       converter: FileConverter,
       changes: DependencyChanges,
       options: Array[String],
@@ -80,10 +81,12 @@ final class AnalyzingCompiler(
       log: xLogger
   ): Unit = {
     val progress = if (progressOpt.isPresent) progressOpt.get else IgnoreProgress
+    val cp = classpath.map(converter.toPath)
+    val arguments = compArgs.makeArguments(Nil, cp, options).toArray
 
     loadService(classOf[CompilerInterface2], log) match {
       case Some(intf) =>
-        intf.run(sources, changes, options, output, callback, reporter, progress, log)
+        intf.run(sources, changes, arguments, output, callback, reporter, progress, log)
       case _ =>
         // fall back to old reflection if CompilerInterface2 is not supported
         val compilerBridgeClassName = "xsbt.CompilerInterface"
@@ -93,7 +96,7 @@ final class AnalyzingCompiler(
           classOf[Output],
           classOf[xLogger],
           classOf[Reporter]
-        )(options, output, log, reporter).asInstanceOf[CachedCompiler]: @silent
+        )(arguments, output, log, reporter).asInstanceOf[CachedCompiler]: @silent
         val fileSources: Array[File] = sources.map(converter.toPath(_).toFile)
         try {
           invoke(bridge, bridgeClass, "run", log)(
