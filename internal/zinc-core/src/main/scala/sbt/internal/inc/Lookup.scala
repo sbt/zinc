@@ -129,6 +129,21 @@ trait ExternalLookup extends ExternalHooks.Lookup {
     import scala.collection.JavaConverters._
     shouldDoIncrementalCompilation(changedClasses.iterator().asScala.toSet, previousAnalysis)
   }
+
+  /**
+   * Used to override whether we should proceed with making an early output.
+   *
+   * By default we do not make an early output in the presence of any macros
+   * because macro expansion (in a downstream subproject) requires the macro implementation
+   * to be present in bytecode form, rather than just just a pickle-containing JAR.
+   *
+   * If you're careful micromanaging the separation of macro implementations
+   * (e.g. `def impl(c: Context) = ...`) from macro definitions
+   * (e.g. `def foo: Unit = macro Foo.impl`) you can safely override this.
+   */
+  def shouldDoEarlyOutput(compileAnalysis: CompileAnalysis): Boolean = {
+    compileAnalysis.asInstanceOf[Analysis].apis.internal.values.exists(_.hasMacro)
+  }
 }
 
 trait NoopExternalLookup extends ExternalLookup {
