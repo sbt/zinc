@@ -16,6 +16,7 @@ import xsbti.api.DependencyContext;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.EnumSet;
+import java.util.Optional;
 
 public interface AnalysisCallback {
 
@@ -257,4 +258,6 @@ public interface AnalysisCallback {
      * Returns true if -Ypickle-java is on.
      */
     boolean isPickleJava();
+
+    Optional<T2<Path, Path>> getPickleJarPair();
 }

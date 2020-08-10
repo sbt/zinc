@@ -14,6 +14,7 @@ package xsbti
 import java.io.File
 import java.nio.file.Path
 import java.util
+import java.util.Optional
 
 import xsbti.api.{ DependencyContext, ClassLike }
 
@@ -138,6 +139,8 @@ class TestCallback extends AnalysisCallback {
   override def classesInOutputJar(): util.Set[String] = java.util.Collections.emptySet()
 
   override def isPickleJava: Boolean = false
+
+  override def getPickleJarPair = Optional.empty()
 }
 
 object TestCallback {

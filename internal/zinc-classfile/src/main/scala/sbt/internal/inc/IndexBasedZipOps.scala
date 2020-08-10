@@ -165,7 +165,7 @@ abstract class IndexBasedZipOps extends CreateZip {
     setHeaders(centralDir, clearedHeaders)
   }
 
-  private def mergeArchives(target: Path, source: Path): Unit = {
+  def mergeArchives(target: Path, source: Path): Unit = {
     val targetCentralDir = readCentralDir(target)
     val sourceCentralDir = readCentralDir(source)
 
