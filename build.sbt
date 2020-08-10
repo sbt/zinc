@@ -297,7 +297,10 @@ lazy val zincPersistCore = (project in internalPath / "zinc-persist-core")
     crossPaths := false,
     autoScalaLibrary := false,
     exportJars := true,
-    ProtobufConfig / protobufRunProtoc := (args => Protoc.runProtoc("-v390" +: args.toArray)),
+    ProtobufConfig / version := "3.11.4", // sync version w/ plugins.sbt
+    ProtobufConfig / protobufRunProtoc := { args =>
+      Protoc.runProtoc(s"-v${(ProtobufConfig / version).value}" +: args.toArray)
+    },
     publish / skip := true,
     assembly / assemblyShadeRules := Seq(
       ShadeRule
