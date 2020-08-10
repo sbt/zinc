@@ -15,7 +15,7 @@ import java.nio.file.{ Files, FileAlreadyExistsException, Path, StandardCopyOpti
 import sbt.util.Logger
 import xsbti.compile.CompilerBridgeProvider
 
-trait AbstractBridgeProviderTestkit {
+trait AbstractBridgeProviderTestkit extends LogTestkit {
   def getZincProvider(targetDir: Path, log: Logger): CompilerBridgeProvider
 
   def getCompilerBridge(targetDir: Path, log: Logger, scalaVersion: String): Path =

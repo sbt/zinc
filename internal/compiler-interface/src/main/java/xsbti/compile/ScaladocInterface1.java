@@ -14,8 +14,9 @@ package xsbti.compile;
 import xsbti.Logger;
 import xsbti.Reporter;
 
-/** Scaladoc Interface as of Zinc 1.2.0. */
+/** Scaladoc Interface as of Zinc 1.2.0.
+ * An implementation is loaded using java.util.ServiceLoader.
+ */
 public interface ScaladocInterface1 {
   void run(String[] args, Logger log, Reporter delegate);
 }
-

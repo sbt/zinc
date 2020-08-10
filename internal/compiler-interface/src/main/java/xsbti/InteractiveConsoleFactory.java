@@ -11,6 +11,11 @@
 
 package xsbti;
 
+import java.util.Optional;
+
+/** Interface for running console interactively.
+ * An implementation is loaded using java.util.ServiceLoader.
+ */
 public interface InteractiveConsoleFactory {
   InteractiveConsoleInterface createConsole(
       String[] args,
@@ -18,7 +23,7 @@ public interface InteractiveConsoleFactory {
       String classpathString,
       String initialCommands,
       String cleanupCommands,
-      ClassLoader loader,
+      Optional<ClassLoader> loader,
       String[] bindNames,
       Object[] bindValues,
       Logger log

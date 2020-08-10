@@ -13,7 +13,14 @@ import sbt.io.syntax._
 import xsbti.compile._
 import sbt.util.Logger
 import xsbti.TestCallback.ExtractedClassDependencies
-import xsbti.{ ReporterUtil, TestCallback, UseScope, VirtualFile, VirtualFileRef }
+import xsbti.{
+  InteractiveConsoleInterface,
+  ReporterUtil,
+  TestCallback,
+  UseScope,
+  VirtualFile,
+  VirtualFileRef
+}
 import xsbti.api.ClassLike
 import xsbti.api.DependencyContext._
 
@@ -21,7 +28,7 @@ import xsbti.api.DependencyContext._
  * Provides common functionality needed for unit tests that require compiling
  * source code using Scala compiler.
  */
-trait CompilingSpecification extends BridgeProviderSpecification {
+trait CompilingSpecification extends AbstractBridgeProviderTestkit {
   def scalaVersion =
     sys.props
       .get("zinc.build.compilerbridge.scalaVersion")
@@ -146,6 +153,32 @@ trait CompilingSpecification extends BridgeProviderSpecification {
       .toList: _*
   )
 
+  lazy val emptyChanges: DependencyChanges = new DependencyChanges {
+    override val modifiedLibraries = new Array[VirtualFileRef](0)
+    override val modifiedBinaries = new Array[File](0)
+    override val modifiedClasses = new Array[String](0)
+    override def isEmpty = true
+  }
+
+  def mkReporter = {
+    val basicReporterConfig = ReporterUtil.getDefaultReporterConfig()
+    val reporterConfig = basicReporterConfig.withMaximumErrors(maxErrors)
+    ReporterManager.getReporter(log, reporterConfig)
+  }
+
+  def mkScalaCompiler(baseDir: Path): (xsbti.compile.ScalaInstance, AnalyzingCompiler) = {
+    val noLogger = Logger.Null
+    val compilerBridge = getCompilerBridge(baseDir, noLogger, scalaVersion)
+    val si = scalaInstance(scalaVersion, baseDir, noLogger)
+    val sc = scalaCompiler(si, compilerBridge)
+    (si, sc)
+  }
+
+  def compileSrcs(groupedSrcs: List[List[String]]): (Seq[VirtualFile], TestCallback) =
+    IO.withTemporaryDirectory { tempDir =>
+      compileSrcs(tempDir.toPath)(groupedSrcs)
+    }
+
   /**
    * Compiles given source code snippets written to temporary files. Each snippet is
    * written to a separate temporary file.
@@ -157,77 +190,143 @@ trait CompilingSpecification extends BridgeProviderSpecification {
    * The sequence of temporary files corresponding to passed snippets and analysis
    * callback is returned as a result.
    */
-  def compileSrcs(groupedSrcs: List[List[String]]): (Seq[VirtualFile], TestCallback) = {
-    IO.withTemporaryDirectory { tempDir =>
-      val rootPaths: Map[String, Path] = Map(
-        "BASE" -> tempDir.toPath,
-        "SBT_BOOT" -> localBoot,
-        "JAVA_HOME" -> javaHome
-      ) ++ localCoursierCache
-      val converter = new MappedFileConverter(rootPaths, false)
-      val targetDir = tempDir / "target"
-      val analysisCallback = new TestCallback
-      targetDir.mkdir()
-      val files = for {
-        (compilationUnit, unitId) <- groupedSrcs.zipWithIndex
-      } yield {
-        val srcFiles = compilationUnit.zipWithIndex map {
-          case (src, i) =>
-            val fileName = s"Test-$unitId-$i.scala"
-            val f = prepareSrcFile(tempDir, fileName, src)
-            converter.toVirtualFile(f.toPath)
-        }
-        val sources = srcFiles.toArray
-        val noLogger = Logger.Null
-        val compilerBridge = getCompilerBridge(tempDir.toPath, noLogger, scalaVersion)
-        val si = scalaInstance(scalaVersion, tempDir.toPath, noLogger)
-        val sc = scalaCompiler(si, compilerBridge)
-        val cp = (si.allJars ++ Array(targetDir)).map(_.toPath)
-        val emptyChanges: DependencyChanges = new DependencyChanges {
-          override val modifiedLibraries = new Array[VirtualFileRef](0)
-          override val modifiedBinaries = new Array[File](0)
-          override val modifiedClasses = new Array[String](0)
-          override def isEmpty = true
-        }
-        val compArgs = new CompilerArguments(si, sc.classpathOptions)
-        val arguments = compArgs.makeArguments(Nil, cp, Nil)
-        val basicReporterConfig = ReporterUtil.getDefaultReporterConfig()
-        val reporterConfig = basicReporterConfig.withMaximumErrors(maxErrors)
-        val reporter = ReporterManager.getReporter(log, reporterConfig)
-        sc.compile(
-          sources = sources,
-          converter = converter,
-          changes = emptyChanges,
-          options = arguments.toArray,
-          output = CompileOutput(targetDir.toPath),
-          callback = analysisCallback,
-          reporter = reporter,
-          progressOpt = Optional.empty[CompileProgress],
-          log = log
-        )
-        srcFiles
+  def compileSrcs(
+      baseDir: Path
+  )(groupedSrcs: List[List[String]]): (Seq[VirtualFile], TestCallback) = {
+    val rootPaths: Map[String, Path] = Map(
+      "BASE" -> baseDir,
+      "SBT_BOOT" -> localBoot,
+      "JAVA_HOME" -> javaHome
+    ) ++ localCoursierCache
+    val converter = new MappedFileConverter(rootPaths, false)
+    val targetDir = baseDir / "target"
+    val analysisCallback = new TestCallback
+    Files.createDirectory(targetDir)
+    val files = for {
+      (compilationUnit, unitId) <- groupedSrcs.zipWithIndex
+    } yield {
+      val srcFiles = compilationUnit.zipWithIndex map {
+        case (content, i) =>
+          val fileName = s"Test-$unitId-$i.scala"
+          StringVirtualFile(fileName, content)
       }
-
-      // Make sure that the analysis doesn't lie about the class files that are written
-      analysisCallback.productClassesToSources.keySet.foreach { classFile =>
-        if (Files.exists(classFile)) ()
-        else {
-          val cfs = Files.list(classFile.getParent).toArray.mkString("\n")
-          sys.error(s"Class file '${classFile}' doesn't exist! Found:\n$cfs")
-        }
-      }
-
-      (files.flatten map { converter.toVirtualFile(_) }, analysisCallback)
+      val sources = srcFiles.toArray[VirtualFile]
+      val (si, sc) = mkScalaCompiler(baseDir)
+      val cp = (si.allJars).map(_.toPath) ++ Array(targetDir)
+      val compArgs = new CompilerArguments(si, sc.classpathOptions)
+      val arguments = compArgs.makeArguments(Nil, cp, Nil)
+      val reporter = mkReporter
+      sc.compile(
+        sources = sources,
+        converter = converter,
+        changes = emptyChanges,
+        options = arguments.toArray,
+        output = CompileOutput(targetDir),
+        callback = analysisCallback,
+        reporter = reporter,
+        progressOpt = Optional.empty[CompileProgress],
+        log = log
+      )
+      srcFiles
     }
+
+    // Make sure that the analysis doesn't lie about the class files that are written
+    analysisCallback.productClassesToSources.keySet.foreach { classFile =>
+      if (Files.exists(classFile)) ()
+      else {
+        val cfs = Files.list(classFile.getParent).toArray.mkString("\n")
+        sys.error(s"Class file '${classFile}' doesn't exist! Found:\n$cfs")
+      }
+    }
+
+    (files.flatten map { converter.toVirtualFile(_) }, analysisCallback)
   }
 
   def compileSrcs(srcs: String*): (Seq[VirtualFile], TestCallback) = {
     compileSrcs(List(srcs.toList))
   }
 
-  private def prepareSrcFile(baseDir: File, fileName: String, src: String): File = {
-    val srcFile = new File(baseDir, fileName)
-    IO.write(srcFile, src)
-    srcFile
+  def compileSrcs(baseDir: Path, srcs: String*): (Seq[VirtualFile], TestCallback) = {
+    compileSrcs(baseDir)(List(srcs.toList))
   }
+
+  def doc(baseDir: Path)(sourceContents: List[String]): Unit = {
+    val rootPaths: Map[String, Path] = Map(
+      "BASE" -> baseDir,
+      "SBT_BOOT" -> localBoot,
+      "JAVA_HOME" -> javaHome
+    ) ++ localCoursierCache
+    val converter = new MappedFileConverter(rootPaths, false)
+    val targetDir = baseDir / "target"
+    Files.createDirectory(targetDir)
+    val (si, sc) = mkScalaCompiler(baseDir)
+    val reporter = mkReporter
+    val sources = sourceContents.zipWithIndex map {
+      case (content, i) =>
+        val fileName = s"Test-$i.scala"
+        StringVirtualFile(fileName, content)
+    }
+    val cp = (si.allJars).map(_.toPath) ++ Array(targetDir)
+    val classpath = cp.map(converter.toVirtualFile)
+    sc.doc(
+      sources = sources.toArray[VirtualFile],
+      classpath = classpath,
+      converter = converter,
+      outputDirectory = targetDir,
+      options = Nil,
+      log = log,
+      reporter = reporter,
+    )
+    ()
+  }
+
+  def console(baseDir: Path)(initial: String): Unit = {
+    val rootPaths: Map[String, Path] = Map(
+      "BASE" -> baseDir,
+      "SBT_BOOT" -> localBoot,
+      "JAVA_HOME" -> javaHome
+    ) ++ localCoursierCache
+    val converter = new MappedFileConverter(rootPaths, false)
+    val targetDir = baseDir / "target"
+    Files.createDirectory(targetDir)
+    val (si, sc) = mkScalaCompiler(baseDir)
+    val cp = (si.allJars).map(_.toPath) ++ Array(targetDir)
+    val classpath = cp.map(converter.toVirtualFile)
+    sc.console(
+      classpath = classpath,
+      converter = converter,
+      options = Nil,
+      initialCommands = initial,
+      cleanupCommands = "",
+      log = log,
+    )(None, Nil)
+  }
+
+  def interactiveConsole(baseDir: Path)(args: String*): InteractiveConsoleInterface = {
+    val rootPaths: Map[String, Path] = Map(
+      "BASE" -> baseDir,
+      "SBT_BOOT" -> localBoot,
+      "JAVA_HOME" -> javaHome
+    ) ++ localCoursierCache
+    val converter = new MappedFileConverter(rootPaths, false)
+    val targetDir = baseDir / "target"
+    Files.createDirectory(targetDir)
+    val (si, sc) = mkScalaCompiler(baseDir)
+    val cp = (si.allJars).map(_.toPath) ++ Array(targetDir)
+    val classpath = cp.map(converter.toVirtualFile)
+    sc.interactiveConsole(
+      classpath = classpath,
+      converter = converter,
+      options = args.toSeq,
+      initialCommands = "",
+      cleanupCommands = "",
+      log = log,
+    )(None, Nil)
+  }
+
+  def withInteractiveConsole[A](f: InteractiveConsoleInterface => A): A =
+    IO.withTemporaryDirectory { tempDir =>
+      val repl = interactiveConsole(tempDir.toPath)()
+      f(repl)
+    }
 }

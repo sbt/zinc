@@ -4,7 +4,11 @@ package inc
 
 import org.scalatest.DiagrammedAssertions
 
-class ExtractUsedNamesSpecification extends CompilingSpecification with DiagrammedAssertions {
+class ExtractUsedNamesSpecification
+    extends UnitSpec
+    with CompilingSpecification
+    with BridgeProviderTestkit
+    with DiagrammedAssertions {
 
   "Used names extraction" should "extract imported name" in {
     val src = """package a { class A }

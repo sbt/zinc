@@ -16,6 +16,9 @@ import xsbti.Logger;
 import xsbti.Reporter;
 import xsbti.VirtualFile;
 
+/** Interface for running compilation.
+ * An implementation is loaded using java.util.ServiceLoader.
+ */
 public interface CompilerInterface2 {
   void run(
     VirtualFile[] sources,
