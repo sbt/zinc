@@ -16,7 +16,7 @@ package inc
 import sbt.io.IO
 import java.io.File
 import java.util.Optional
-import java.nio.file.{ Files, Path }
+import java.nio.file.{ Files, Path, StandardCopyOption }
 
 import collection.mutable
 import xsbti.{ FileConverter, PathBasedFile, VirtualFile }
@@ -227,7 +227,7 @@ object ClassFileManager {
             if (!Files.exists(origPath.getParent)) {
               Files.createDirectories(origPath.getParent)
             } // if
-            Files.move(tmp, origPath)
+            Files.move(tmp, origPath, StandardCopyOption.REPLACE_EXISTING)
           } // if
         }
       }
