@@ -17,15 +17,23 @@ import java.nio.file.Paths
 import sbt.internal.scripted.FileCommands
 import sbt.io.IO
 
-class ZincFileCommands(baseDirectory: File) extends FileCommands(baseDirectory) {
+import xsbti.Logger
+
+class ZincFileCommands(baseDirectory: File, logger: Logger) extends FileCommands(baseDirectory) {
   override def commandMap: Map[String, List[String] => Unit] = {
-    super.commandMap + {
+    (super.commandMap + {
       "pause" noArg {
         // Redefine pause not to use `System.console`, which is too restrictive
         println(s"Pausing in $baseDirectory (press enter to continue)")
         scala.io.StdIn.readLine()
         println("Restarting the execution.")
       }
+    }).map {
+      case (cmd, fn) =>
+        cmd -> ((args: List[String]) => {
+          logger.debug(() => s"Running: $$ $cmd ${args.mkString(" ")}")
+          fn(args)
+        })
     }
   }
 
