@@ -11,7 +11,7 @@
 
 package xsbti;
 
-public interface InteractiveConsoleInterface {
+public interface InteractiveConsoleInterface extends java.io.Closeable {
   void reset();
   InteractiveConsoleResponse interpret(String line, boolean synthetic);
 }
