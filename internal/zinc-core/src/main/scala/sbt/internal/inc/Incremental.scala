@@ -44,9 +44,6 @@ import xsbti.compile.analysis.{ ReadStamps, Stamp => XStamp }
  * compatible with the [[sbt.internal.inc.Incremental]] class.
  */
 object Incremental {
-  def hasAnyMacro(a: Analysis): Boolean =
-    a.apis.internal.values.exists(p => p.hasMacro)
-
   class PrefixingLogger(val prefix: String)(orig: Logger) extends Logger {
     def trace(t: => Throwable): Unit = orig.trace(t)
     def success(message: => String): Unit = orig.success(message)
@@ -360,16 +357,6 @@ object Incremental {
             "All initially invalidated sources:" + initialInvSources + "\n"
         )
     }
-    def notifyEarlyArtifact(): Unit =
-      if (options.pipelining)
-        for {
-          earlyO <- earlyOutput
-          pickleJarPath <- jo2o(earlyO.getSingleOutputAsPath())
-          p <- progress
-        } {
-          PickleJar.touch(pickleJarPath)
-          p.afterEarlyOutput(!hasAnyMacro(previous))
-        } else ()
     val hasModified = initialInvClasses.nonEmpty || initialInvSources.nonEmpty
     val analysis = withClassfileManager(options, converter, output, outputJarContent) {
       classfileManager =>
@@ -388,7 +375,9 @@ object Incremental {
             1
           )
         else {
-          notifyEarlyArtifact(); previous
+          if (options.pipelining)
+            writeEarlyOut(lookup, progress, earlyOutput, previous, new java.util.HashSet)
+          previous
         }
     }
     (hasModified, analysis)
@@ -464,6 +453,22 @@ object Incremental {
     }
     classfileManager.complete(true)
     result
+  }
+
+  private[inc] def writeEarlyOut(
+      lookup: Lookup,
+      progress: Option[CompileProgress],
+      earlyOutput: Option[Output],
+      analysis: Analysis,
+      knownProducts: java.util.Set[String]
+  ) = {
+    for {
+      earlyO <- earlyOutput
+      pickleJar <- jo2o(earlyO.getSingleOutputAsPath)
+    } {
+      PickleJar.write(pickleJar, knownProducts)
+      progress.foreach(_.afterEarlyOutput(!lookup.shouldDoEarlyOutput(analysis)))
+    }
   }
 }
 
@@ -546,7 +551,7 @@ private final class AnalysisCallback(
     incHandlerOpt: Option[Incremental.IncrementalCallback],
     log: Logger
 ) extends xsbti.AnalysisCallback {
-  import Incremental.{ hasAnyMacro, CompileCycleResult }
+  import Incremental.CompileCycleResult
 
   // This must have a unique value per AnalysisCallback
   private[this] val compileStartTime: Long = System.currentTimeMillis()
@@ -835,7 +840,7 @@ private final class AnalysisCallback(
       invalidationResults match {
         case None =>
           val early = incHandler.previousAnalysisPruned
-          if (!hasAnyMacro(early)) writeEarlyArtifacts(early)
+          if (!lookup.shouldDoEarlyOutput(early)) writeEarlyArtifacts(early)
           else notifyEarlyArifactFailure()
         case Some(CompileCycleResult(false, _, _)) => notifyEarlyArifactFailure()
         case _                                     => ()
@@ -977,7 +982,7 @@ private final class AnalysisCallback(
         val a = getAnalysis
         val CompileCycleResult(continue, invalidations, merged) =
           incHandler.mergeAndInvalidate(a, false)
-        if (!hasAnyMacro(merged)) {
+        if (!lookup.shouldDoEarlyOutput(merged)) {
           assert(
             !continue && invalidations.isEmpty,
             "everything was supposed to be invalidated already"
@@ -998,7 +1003,7 @@ private final class AnalysisCallback(
       // Store invalidations and continuation decision; the analysis will be computed again after Analyze phase.
       invalidationResults = Some(CompileCycleResult(continue, invalidations, Analysis.empty))
       // If there will be no more compilation cycles, store the early analysis file and update the pickle jar
-      if (options.pipelining && !continue && !hasAnyMacro(merged)) {
+      if (options.pipelining && !continue && !lookup.shouldDoEarlyOutput(merged)) {
         writeEarlyArtifacts(merged)
       }
     }
@@ -1010,44 +1015,38 @@ private final class AnalysisCallback(
   }
 
   private[this] var writtenEarlyArtifacts: Boolean = false
+
   private def writeEarlyArtifacts(merged: Analysis): Unit = {
     writtenEarlyArtifacts = true
-    // log.info(s"writeEarlyArtifacts to $earlyOutput")
-    earlyAnalysisStore map { store =>
-      store.set(AnalysisContents.create(merged, currentSetup))
-    }
-    for {
-      earlyO <- earlyOutput
-      pickleJarPath <- jo2o(earlyO.getSingleOutputAsPath())
-    } {
-      // List classes defined in the files that were compiled in this run.
-      val ps = java.util.concurrent.ConcurrentHashMap.newKeySet[String]
-      val knownProducts: ParVector[VirtualFileRef] =
-        new ParVector(merged.relations.allSources.toVector)
-          .flatMap(merged.relations.products)
-      // extract product paths in parallel
-      jo2o(output.getSingleOutputAsPath) match {
-        case Some(so) if so.getFileName.toString.endsWith(".jar") =>
-          knownProducts foreach { product =>
-            new JarUtils.ClassInJar(product.id).toClassFilePath foreach { path =>
-              ps.add(path.replace('\\', '/'))
-            }
+    earlyAnalysisStore.foreach(_.set(AnalysisContents.create(merged, currentSetup)))
+    Incremental.writeEarlyOut(lookup, progress, earlyOutput, merged, knownProducts(merged))
+  }
+
+  private def knownProducts(merged: Analysis) = {
+    // List classes defined in the files that were compiled in this run.
+    val ps = java.util.concurrent.ConcurrentHashMap.newKeySet[String]
+    val knownProducts: ParVector[VirtualFileRef] =
+      new ParVector(merged.relations.allSources.toVector)
+        .flatMap(merged.relations.products)
+    // extract product paths in parallel
+    jo2o(output.getSingleOutputAsPath) match {
+      case Some(so) if so.getFileName.toString.endsWith(".jar") =>
+        knownProducts foreach { product =>
+          new JarUtils.ClassInJar(product.id).toClassFilePath foreach { path =>
+            ps.add(path.replace('\\', '/'))
           }
-        case Some(so) =>
-          knownProducts foreach { product =>
-            val productPath = converter.toPath(product)
-            try {
-              ps.add(so.relativize(productPath).toString.replace('\\', '/'))
-            } catch {
-              case NonFatal(_) => ps.add(product.id)
-            }
+        }
+      case Some(so) =>
+        knownProducts foreach { product =>
+          val productPath = converter.toPath(product)
+          try {
+            ps.add(so.relativize(productPath).toString.replace('\\', '/'))
+          } catch {
+            case NonFatal(_) => ps.add(product.id)
           }
-        case _ => sys.error(s"unsupported output $output")
-      }
-      PickleJar.write(pickleJarPath, ps)
-      progress foreach { p =>
-        p.afterEarlyOutput(true)
-      }
+        }
+      case _ => sys.error(s"unsupported output $output")
     }
+    ps
   }
 }
