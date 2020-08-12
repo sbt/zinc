@@ -14,7 +14,7 @@ package internal
 package inc
 
 import java.io.File
-import java.nio.file.Path
+import java.nio.file.{ Path, Paths }
 import java.util.EnumSet
 import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
 import sbt.util.{ InterfaceUtil, Level, Logger }
@@ -340,11 +340,34 @@ object Incremental {
     val javaSources: Set[VirtualFileRef] = sources.collect {
       case s: VirtualFileRef if s.name.endsWith(".java") => s
     }
+    val scalacOptions = currentSetup.options.scalacOptions
+    val isPickleWrite = scalacOptions.contains("-Ypickle-write")
+    if (isPickleWrite) {
+      val idx = scalacOptions.indexOf("-Ypickle-write")
+      val p =
+        if (scalacOptions.size <= idx + 1) None
+        else Some(Paths.get(scalacOptions(idx + 1)))
+      val earlyJar = for {
+        earlyO <- earlyOutput
+        jar <- jo2o(earlyO.getSingleOutputAsPath())
+      } yield jar
+      (p, earlyJar) match {
+        case (None, _)            => log.warn(s"-Ypickle-write is specified but <path> is not?")
+        case (x1, x2) if x1 == x2 => ()
+        case _ =>
+          sys.error(
+            s"early output must match -Ypickle-write path '$p' but was '$earlyJar' instead"
+          )
+      }
+    } else if (!isPickleWrite && options.pipelining) {
+      log.warn(s"-Ypickle-write should be included into scalacOptions if pipelining is enabled")
+    }
     val isPickleJava = currentSetup.options.scalacOptions.contains("-Ypickle-java")
-    assert(
-      javaSources.isEmpty || !options.pipelining || isPickleJava,
-      s"-Ypickle-java must be included into scalacOptions if pipelining is enabled with Java sources"
-    )
+    if (javaSources.nonEmpty && options.pipelining && !isPickleJava) {
+      log.warn(
+        s"-Ypickle-java should be included into scalacOptions if pipelining is enabled with Java sources"
+      )
+    }
     val initialInvSources =
       if (isPickleJava && initialInvSources0.nonEmpty) initialInvSources0 ++ javaSources
       else initialInvSources0
