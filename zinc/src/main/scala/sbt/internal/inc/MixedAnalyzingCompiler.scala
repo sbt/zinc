@@ -140,16 +140,20 @@ final class MixedAnalyzingCompiler(
     logInputs(log, javaSrcs.size, scalaSrcs.size, outputDirs)
     val isPickleJava = config.currentSetup.order == Mixed && config.incOptions.pipelining && javaSrcs.nonEmpty
 
-    val earlyOut = config.earlyOutput.flatMap(_.getSingleOutputAsPath.toOption)
-    earlyOut foreach { out =>
-      if (out.toString.endsWith(".jar") && !Files.exists(out)) {
-        scala.reflect.io.RootPath(out, writable = true).close() // creates an empty jar
-      }
-    }
-
     // Compile Scala sources.
     def compileScala(): Unit =
       if (scalaSrcs.nonEmpty || isPickleJava) {
+        val pickleJarPair = callback.getPickleJarPair.toOption.map(t2 => (t2.get1, t2.get2))
+        val scalacOpts = pickleJarPair match {
+          case Some((originalJar, updatesJar)) =>
+            val path = originalJar.toString
+            config.currentSetup.options.scalacOptions.map {
+              case s if s == path => updatesJar.toString
+              case s              => s
+            }
+          case _ => config.currentSetup.options.scalacOptions
+        }
+
         JarUtils.withPreviousJar(output) { extraClasspath: Seq[Path] =>
           val sources =
             if (config.currentSetup.order == Mixed) incSrc
@@ -159,7 +163,7 @@ final class MixedAnalyzingCompiler(
             x.toAbsolutePath
           }) ++ absClasspath.map(config.converter.toPath)
           val arguments =
-            cArgs.makeArguments(Nil, cp, config.currentSetup.options.scalacOptions)
+            cArgs.makeArguments(Nil, cp, scalacOpts)
           timed("Scala compilation", log) {
             config.compiler.compile(
               sources.toArray,

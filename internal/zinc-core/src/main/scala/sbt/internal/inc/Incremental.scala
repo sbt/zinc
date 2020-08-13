@@ -14,11 +14,12 @@ package internal
 package inc
 
 import java.io.File
-import java.nio.file.{ Path, Paths }
-import java.util.EnumSet
+import java.nio.file.{ Files, Path, Paths }
+import java.util.{ EnumSet, UUID }
 import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
+import sbt.internal.inc.JavaInterfaceUtil.EnrichOption
 import sbt.util.{ InterfaceUtil, Level, Logger }
-import sbt.util.InterfaceUtil.jo2o
+import sbt.util.InterfaceUtil.{ jo2o, t2 }
 import scala.collection.JavaConverters._
 import scala.util.control.NonFatal
 import scala.collection.parallel.immutable.ParVector
@@ -150,6 +151,15 @@ object Incremental {
     val internalSourceToClassNamesMap: VirtualFile => Set[String] = (f: VirtualFile) =>
       previous.relations.classNames(f)
     val externalAPI = getExternalAPI(lookup)
+
+    val earlyJar = for (early <- earlyOutput; jar <- jo2o(early.getSingleOutputAsPath)) yield jar
+    val pickleJarPair = earlyJar.map { p =>
+      val newName = s"${p.getFileName.toString.stripSuffix(".jar")}-${UUID.randomUUID()}.jar"
+      val updatesJar = p.resolveSibling(newName)
+      PickleJar.touch(updatesJar) // scalac should create -Ypickle-write jars but it throws FileNotFoundException :-/
+      p -> updatesJar
+    }
+
     val profiler = options.externalHooks.getInvalidationProfiler
     val runProfiler = new AdaptedRunProfiler(profiler.profileRun)
     val incremental: IncrementalCommon = new IncrementalNameHashing(log, options, runProfiler)
@@ -178,6 +188,7 @@ object Incremental {
           outputJarContent,
           earlyOutput,
           earlyAnalysisStore,
+          pickleJarPair,
           progress,
           log
         ),
@@ -244,6 +255,7 @@ object Incremental {
       outputJarContent,
       earlyOutput,
       earlyAnalysisStore,
+      None,
       progress,
       log
     )
@@ -511,31 +523,17 @@ private object AnalysisCallback {
       outputJarContent: JarUtils.OutputJarContent,
       earlyOutput: Option[Output],
       earlyAnalysisStore: Option[AnalysisStore],
+      pickleJarPair: Option[(Path, Path)],
       progress: Option[CompileProgress],
       log: Logger
   ) {
-    def build(incHandler: Incremental.IncrementalCallback): AnalysisCallback = {
-      new AnalysisCallback(
-        internalBinaryToSourceClassName,
-        internalSourceToClassNamesMap,
-        externalAPI,
-        stampReader,
-        options,
-        currentSetup,
-        outputJarContent,
-        converter,
-        lookup,
-        output,
-        earlyOutput,
-        earlyAnalysisStore,
-        progress,
-        Some(incHandler),
-        log
-      )
-    }
+    def build(incHandler: Incremental.IncrementalCallback): AnalysisCallback =
+      buildImpl(Some(incHandler))
 
-    // Create an AnalysisCallback without IncHanlder for Java compilation purpose.
-    def build(): AnalysisCallback = {
+    // Create an AnalysisCallback without IncHandler for Java compilation purpose.
+    def build(): AnalysisCallback = buildImpl(None)
+
+    private def buildImpl(incHandlerOpt: Option[Incremental.IncrementalCallback]) = {
       new AnalysisCallback(
         internalBinaryToSourceClassName,
         internalSourceToClassNamesMap,
@@ -549,12 +547,14 @@ private object AnalysisCallback {
         output,
         earlyOutput,
         earlyAnalysisStore,
+        pickleJarPair,
         progress,
-        None,
+        incHandlerOpt,
         log
       )
     }
   }
+
 }
 
 private final class AnalysisCallback(
@@ -570,6 +570,7 @@ private final class AnalysisCallback(
     output: Output,
     earlyOutput: Option[Output],
     earlyAnalysisStore: Option[AnalysisStore],
+    pickleJarPair: Option[(Path, Path)],
     progress: Option[CompileProgress],
     incHandlerOpt: Option[Incremental.IncrementalCallback],
     log: Logger
@@ -640,6 +641,8 @@ private final class AnalysisCallback(
   override def isPickleJava: Boolean = {
     currentSetup.options.scalacOptions.contains("-Ypickle-java")
   }
+
+  override def getPickleJarPair = pickleJarPair.map { case (p1, p2) => t2((p1, p2)) }.toOptional
 
   override def startSource(source: File): Unit = startSource(converter.toVirtualFile(source.toPath))
   override def startSource(source: VirtualFile): Unit = {
@@ -1042,6 +1045,17 @@ private final class AnalysisCallback(
   private def writeEarlyArtifacts(merged: Analysis): Unit = {
     writtenEarlyArtifacts = true
     earlyAnalysisStore.foreach(_.set(AnalysisContents.create(merged, currentSetup)))
+    pickleJarPair.foreach {
+      case (originalJar, updatesJar) =>
+        if (Files.exists(originalJar) && Files.exists(updatesJar)) {
+          log.debug(s"merging $updatesJar into $originalJar")
+          IndexBasedZipFsOps.mergeArchives(originalJar, updatesJar)
+        } else if (Files.exists(updatesJar)) {
+          log.debug(s"moving $updatesJar to $originalJar")
+          import java.nio.file.StandardCopyOption.REPLACE_EXISTING
+          Files.move(updatesJar, originalJar, REPLACE_EXISTING)
+        }
+    }
     Incremental.writeEarlyOut(lookup, progress, earlyOutput, merged, knownProducts(merged))
   }
 

@@ -1,0 +1,8 @@
+# this compiles A.scala
+> dep/compile
+$ sleep 1000
+
+$ copy-file changes/B.scala dep/B.scala
+
+# this compiles Main.scala that uses A.scala
+> use/compile

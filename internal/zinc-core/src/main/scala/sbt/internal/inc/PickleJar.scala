@@ -19,12 +19,16 @@ import java.nio.file.attribute.BasicFileAttributes
 import scala.reflect.io.RootPath
 
 object PickleJar {
-  def write(pickleOut: Path, knownProducts: java.util.Set[String]): Unit = {
-    if (!Files.exists(pickleOut)) {
-      Files.createDirectories(pickleOut.getParent)
-      Files.createFile(pickleOut)
+  // create an empty JAR file in case the subproject has no classes.
+  def touch(path: Path): Unit = {
+    if (!Files.exists(path)) {
+      Files.createDirectories(path.getParent)
+      RootPath(path, writable = true).close() // create an empty jar
     }
+  }
 
+  def write(pickleOut: Path, knownProducts: java.util.Set[String]): Unit = {
+    touch(pickleOut)
     if (!knownProducts.isEmpty) {
       val pj = RootPath(pickleOut, writable = false) // so it doesn't delete the file
       try Files.walkFileTree(pj.root, deleteUnknowns(knownProducts))
