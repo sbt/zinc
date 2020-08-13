@@ -63,9 +63,13 @@ object InteractiveConsoleInterfaceSpecification
   test("it should evaluate postfix op without warning when -language:postfixOps arg passed") {
     IO.withTemporaryDirectory { tempDir =>
       val repl = interactiveConsole(tempDir.toPath)("-language:postfixOps")
-      val response = repl.interpret(postfixOpExpression, false)
-      assert(!response.output.trim.startsWith("warning"))
-      assert(response.result == InteractiveConsoleResult.Success)
+      try {
+        val response = repl.interpret(postfixOpExpression, false)
+        assert(!response.output.trim.startsWith("warning"))
+        assert(response.result == InteractiveConsoleResult.Success)
+      } finally {
+        repl.close()
+      }
     }
   }
 

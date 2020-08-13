@@ -327,6 +327,10 @@ trait CompilingSpecification extends AbstractBridgeProviderTestkit {
   def withInteractiveConsole[A](f: InteractiveConsoleInterface => A): A =
     IO.withTemporaryDirectory { tempDir =>
       val repl = interactiveConsole(tempDir.toPath)()
-      f(repl)
+      try {
+        f(repl)
+      } finally {
+        repl.close()
+      }
     }
 }
