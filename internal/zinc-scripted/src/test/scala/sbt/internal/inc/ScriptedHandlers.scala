@@ -29,7 +29,7 @@ class SleepingHandler(val handler: StatementHandler, delay: Long) extends Statem
 
 class IncScriptedHandlers(globalCacheDir: Path, compileToJar: Boolean) extends HandlersProvider {
   def getHandlers(config: ScriptConfig): Map[Char, StatementHandler] = Map(
-    '$' -> new SleepingHandler(new ZincFileCommands(config.testDirectory()), 500),
+    '$' -> new SleepingHandler(new ZincFileCommands(config.testDirectory, config.logger), 500),
     '#' -> CommentHandler,
     '>' -> {
       val logger = config.logger().asInstanceOf[ManagedLogger]
