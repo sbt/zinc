@@ -4,7 +4,10 @@ package inc
 
 import xsbti.TestCallback.ExtractedClassDependencies
 
-class DependencySpecification extends CompilingSpecification {
+class DependencySpecification
+    extends UnitSpec
+    with CompilingSpecification
+    with BridgeProviderTestkit {
 
   "Dependency phase" should "extract class dependencies from public members" in {
     val classDependencies = extractClassDependenciesPublic

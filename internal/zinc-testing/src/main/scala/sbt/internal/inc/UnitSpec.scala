@@ -18,7 +18,9 @@ import sbt.util.{ LogExchange, Level }
 import sbt.internal.util.{ ManagedLogger, ConsoleOut, MainAppender }
 import java.util.concurrent.atomic.AtomicInteger
 
-abstract class UnitSpec extends FlatSpec with Matchers {
+abstract class UnitSpec extends FlatSpec with Matchers with LogTestkit {}
+
+trait LogTestkit {
   def logLevel: Level.Value = Level.Warn
   lazy val log: ManagedLogger = UnitSpec.newLogger(logLevel)
 }

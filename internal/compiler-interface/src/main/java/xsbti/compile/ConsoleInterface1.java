@@ -14,7 +14,9 @@ package xsbti.compile;
 import xsbti.Logger;
 import xsbti.Reporter;
 
-/** Console Interface as of Zinc 1.2.0. */
+/** Console Interface as of Zinc 1.2.0.
+ * An implementation is loaded using java.util.ServiceLoader.
+ */
 public interface ConsoleInterface1 {
   void run(
       String[] args,

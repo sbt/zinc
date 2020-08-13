@@ -223,7 +223,7 @@ lazy val zincTesting = (projectMatrix in internalPath / "zinc-testing")
     name := "zinc Testing",
     baseSettings,
     noPublish,
-    libraryDependencies ++= Seq(scalaCheck, scalatest, junit, sjsonnewScalaJson.value)
+    libraryDependencies ++= Seq(scalaCheck, scalatest, junit, verify, sjsonnewScalaJson.value)
   )
   .jvmPlatform(scalaVersions = List(scala212, scala213))
   .configure(addSbtIO, addSbtUtilLogging)
@@ -445,6 +445,7 @@ lazy val compilerInterface = (projectMatrix in internalPath / "compiler-interfac
       // This is a breaking change
       exclude[Problem]("xsbti.compile.CompileOptions.*"),
       exclude[Problem]("xsbti.compile.CompileProgress.*"),
+      exclude[Problem]("xsbti.InteractiveConsoleFactory.createConsole"),
       // new API points
       exclude[DirectMissingMethodProblem]("xsbti.compile.IncrementalCompiler.compile"),
       exclude[ReversedMissingMethodProblem]("xsbti.compile.IncrementalCompiler.compile"),

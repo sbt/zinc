@@ -5,7 +5,10 @@ package inc
 import java.io.File
 import org.scalactic.source.Position
 
-class ClassNameSpecification extends CompilingSpecification {
+class ClassNameSpecification
+    extends UnitSpec
+    with CompilingSpecification
+    with BridgeProviderTestkit {
 
   "ClassName" should "create correct binary names for top level object" in {
     expectBinaryClassNames("object A", Set("A" -> "A", "A" -> "A$"))

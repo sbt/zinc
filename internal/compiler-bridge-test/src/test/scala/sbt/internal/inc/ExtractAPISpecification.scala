@@ -5,7 +5,10 @@ package inc
 import xsbti.api._
 import xsbt.api.SameAPI
 
-class ExtractAPISpecification extends CompilingSpecification {
+class ExtractAPISpecification
+    extends UnitSpec
+    with CompilingSpecification
+    with BridgeProviderTestkit {
 
   "ExtractAPI" should "give stable names to members of existential types in method signatures" in stableExistentialNames()
 

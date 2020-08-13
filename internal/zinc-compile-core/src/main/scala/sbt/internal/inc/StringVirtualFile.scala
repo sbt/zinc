@@ -9,11 +9,12 @@
  * additional information regarding copyright ownership.
  */
 
-package sbt.inc
+package sbt
+package internal
+package inc
 
 import java.io.{ ByteArrayInputStream, InputStream }
 
-import sbt.internal.inc.HashUtil
 import xsbti.{ BasicVirtualFileRef, VirtualFile }
 
 case class StringVirtualFile(path: String, content: String)

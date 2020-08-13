@@ -1,70 +1,72 @@
-package xsbt
+package sbt
+package internal
+package inc
 
-import sbt.internal.inc.UnitSpec
-import sbt.util.Logger
+import verify._
+import sbt.io.IO
 import xsbti.InteractiveConsoleResult
 
 // This is a specification to check the REPL block parsing.
-class InteractiveConsoleInterfaceSpecification extends UnitSpec {
+object InteractiveConsoleInterfaceSpecification
+    extends BasicTestSuite
+    with BridgeProviderTestkit
+    with CompilingSpecification {
 
-  private val consoleFactory = new InteractiveConsoleFactory
-
-  def consoleWithArgs(args: String*) = consoleFactory.createConsole(
-    args = args.toArray,
-    bootClasspathString = "",
-    classpathString = "",
-    initialCommands = "",
-    cleanupCommands = "",
-    loader = this.getClass.getClassLoader,
-    bindNames = Array.empty,
-    bindValues = Array.empty,
-    log = Logger.Null
-  )
-
-  private val consoleWithoutArgs = consoleWithArgs()
-
-  "Scala interpreter" should "evaluate arithmetic expression" in {
-    val response = consoleWithoutArgs.interpret("1+1", false)
-    response.output.trim shouldBe "res0: Int = 2"
-    response.result shouldBe InteractiveConsoleResult.Success
+  test("Scala interpreter should evaluate arithmetic expression") {
+    withInteractiveConsole { repl =>
+      val response = repl.interpret("1+1", false)
+      assert(response.output.trim == "res0: Int = 2")
+      assert(response.result == InteractiveConsoleResult.Success)
+    }
   }
 
-  it should "evaluate list constructor" in {
-    val response = consoleWithoutArgs.interpret("List(1,2)", false)
-    response.output.trim shouldBe "res1: List[Int] = List(1, 2)"
-    response.result shouldBe InteractiveConsoleResult.Success
+  test("it should evaluate list constructor") {
+    withInteractiveConsole { repl =>
+      val response = repl.interpret("List(1,2)", false)
+      assert(response.output.trim == "res0: List[Int] = List(1, 2)")
+      assert(response.result == InteractiveConsoleResult.Success)
+    }
   }
 
-  it should "evaluate import" in {
-    val response = consoleWithoutArgs.interpret("import xsbt._", false)
-    response.output.trim shouldBe "import xsbt._"
-    response.result shouldBe InteractiveConsoleResult.Success
+  test("it should evaluate import") {
+    withInteractiveConsole { repl =>
+      val response = repl.interpret("import xsbt._", false)
+      assert(response.output.trim == "import xsbt._")
+      assert(response.result == InteractiveConsoleResult.Success)
+    }
   }
 
-  it should "mark partial expression as incomplete" in {
-    val response = consoleWithoutArgs.interpret("val a =", false)
-    response.result shouldBe InteractiveConsoleResult.Incomplete
+  test("it should mark partial expression as incomplete") {
+    withInteractiveConsole { repl =>
+      val response = repl.interpret("val a =", false)
+      assert(response.result == InteractiveConsoleResult.Incomplete)
+    }
   }
 
-  it should "not evaluate incorrect expression" in {
-    val response = consoleWithoutArgs.interpret("1 ++ 1", false)
-    response.result shouldBe InteractiveConsoleResult.Error
+  test("it should not evaluate incorrect expression") {
+    withInteractiveConsole { repl =>
+      val response = repl.interpret("1 ++ 1", false)
+      assert(response.result == InteractiveConsoleResult.Error)
+    }
   }
 
   val postfixOpExpression = "import scala.concurrent.duration._\nval t = 1 second"
 
-  it should "evaluate postfix op with a warning" in {
-    val response = consoleWithoutArgs.interpret(postfixOpExpression, false)
-    response.output.trim should startWith("warning")
-    response.result shouldBe InteractiveConsoleResult.Success
+  test("it should evaluate postfix op with a warning") {
+    withInteractiveConsole { repl =>
+      val response = repl.interpret(postfixOpExpression, false)
+      assert(response.output.trim.startsWith("warning"))
+      assert(response.result == InteractiveConsoleResult.Success)
+    }
   }
 
-  private val consoleWithPostfixOps = consoleWithArgs("-language:postfixOps")
-
-  it should "evaluate postfix op without warning when -language:postfixOps arg passed" in {
-    val response = consoleWithPostfixOps.interpret(postfixOpExpression, false)
-    response.output.trim should not startWith "warning"
-    response.result shouldBe InteractiveConsoleResult.Success
+  test("it should evaluate postfix op without warning when -language:postfixOps arg passed") {
+    IO.withTemporaryDirectory { tempDir =>
+      val repl = interactiveConsole(tempDir.toPath)("-language:postfixOps")
+      val response = repl.interpret(postfixOpExpression, false)
+      assert(!response.output.trim.startsWith("warning"))
+      assert(response.result == InteractiveConsoleResult.Success)
+    }
   }
 
 }

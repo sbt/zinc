@@ -16,17 +16,17 @@ package inc
 import java.lang.reflect.InvocationTargetException
 import java.nio.file.Path
 import java.net.URLClassLoader
-import java.util.Optional
+import java.util.{ Optional, ServiceLoader }
 
 import com.github.ghik.silencer.silent
-import sbt.util.Logger
+import sbt.util.{ InterfaceUtil, Logger }
 import sbt.io.syntax._
 import sbt.internal.inc.classpath.ClassLoaderCache
 import sbt.internal.util.ManagedLogger
 import xsbti.{
   AnalysisCallback,
   FileConverter,
-  PathBasedFile,
+  InteractiveConsoleFactory,
   Reporter,
   Logger => xLogger,
   VirtualFile
@@ -53,9 +53,8 @@ final class AnalyzingCompiler(
     val classLoaderCache: Option[ClassLoaderCache]
 ) extends ScalaCompiler {
 
-  private[this] final val compilerBridgeClassName = "xsbt.CompilerInterface"
-  private[this] final val scaladocBridgeClassName = "xsbt.ScaladocInterface"
-  private[this] final val consoleBridgeClassName = "xsbt.ConsoleInterface"
+  /** Mechanism to work with compiler arguments. */
+  private[this] val compArgs = new CompilerArguments(scalaInstance, classpathOptions)
 
   def onArgs(f: Seq[String] => Unit): AnalyzingCompiler =
     new AnalyzingCompiler(scalaInstance, provider, classpathOptions, f, classLoaderCache)
@@ -81,11 +80,14 @@ final class AnalyzingCompiler(
       log: xLogger
   ): Unit = {
     val progress = if (progressOpt.isPresent) progressOpt.get else IgnoreProgress
-    bridgeInstance(compilerBridgeClassName, log) match {
-      case (intf: CompilerInterface2, _) =>
+
+    loadService(classOf[CompilerInterface2], log) match {
+      case Some(intf) =>
         intf.run(sources, changes, options, output, callback, reporter, progress, log)
-      case (bridge, bridgeClass) =>
+      case _ =>
         // fall back to old reflection if CompilerInterface2 is not supported
+        val compilerBridgeClassName = "xsbt.CompilerInterface"
+        val (bridge, bridgeClass) = bridgeInstance(compilerBridgeClassName, log)
         val compiler = invoke(bridge, bridgeClass, "newCompiler", log)(
           classOf[Array[String]],
           classOf[Output],
@@ -135,50 +137,54 @@ final class AnalyzingCompiler(
       log: Logger,
       reporter: Reporter
   ): Unit = {
-    val compArgs = new CompilerArguments(scalaInstance, classpathOptions)
-    val (bridge, bridgeClass) = bridgeInstance(scaladocBridgeClassName, log)
     val cp = classpath.map(converter.toPath)
-    bridge match {
-      case intf: ScaladocInterface2 =>
+    loadService(classOf[ScaladocInterface2], log) match {
+      case Some(intf) =>
         val arguments =
           compArgs.makeArguments(Nil, cp, Some(outputDirectory), options)
         onArgsHandler(arguments)
         intf.run(sources.toArray, arguments.toArray[String], log, reporter)
-      case intf: ScaladocInterface1 =>
-        val fileSources: Seq[Path] = sources.map(converter.toPath(_))
-        val arguments =
-          compArgs.makeArguments(fileSources, cp, Some(outputDirectory), options)
-        onArgsHandler(arguments)
-        intf.run(arguments.toArray[String], log, reporter)
       case _ =>
-        // fall back to old reflection
-        val fileSources: Seq[Path] = sources.map(converter.toPath(_))
-        val arguments =
-          compArgs.makeArguments(fileSources, cp, Some(outputDirectory), options)
-        onArgsHandler(arguments)
-        invoke(bridge, bridgeClass, "run", log)(
-          classOf[Array[String]],
-          classOf[xLogger],
-          classOf[Reporter]
-        )(arguments.toArray[String], log, reporter)
+        loadService(classOf[ScaladocInterface1], log) match {
+          case Some(intf) =>
+            val fileSources: Seq[Path] = sources.map(converter.toPath(_))
+            val arguments =
+              compArgs.makeArguments(fileSources, cp, Some(outputDirectory), options)
+            onArgsHandler(arguments)
+            intf.run(arguments.toArray[String], log, reporter)
+          case _ =>
+            // fall back to old reflection
+            val scaladocBridgeClassName = "xsbt.ScaladocInterface"
+            val (bridge, bridgeClass) = bridgeInstance(scaladocBridgeClassName, log)
+            val fileSources: Seq[Path] = sources.map(converter.toPath(_))
+            val arguments =
+              compArgs.makeArguments(fileSources, cp, Some(outputDirectory), options)
+            onArgsHandler(arguments)
+            invoke(bridge, bridgeClass, "run", log)(
+              classOf[Array[String]],
+              classOf[xLogger],
+              classOf[Reporter]
+            )(arguments.toArray[String], log, reporter)
+        }
     }
     ()
   }
 
   def console(
       classpath: Seq[VirtualFile],
+      converter: FileConverter,
       options: Seq[String],
       initialCommands: String,
       cleanupCommands: String,
       log: Logger
   )(loader: Option[ClassLoader] = None, bindings: Seq[(String, Any)] = Nil): Unit = {
-    onArgsHandler(consoleCommandArguments(classpath, options, log))
-    val (classpathString, bootClasspath) = consoleClasspaths(classpath)
+    onArgsHandler(consoleCommandArguments(classpath, converter, options, log))
+    val (classpathString, bootClasspath) = consoleClasspaths(classpath, converter)
     val (names, values0) = bindings.unzip
     val values = values0.toArray[Any].asInstanceOf[Array[AnyRef]]
-    val (bridge, bridgeClass) = bridgeInstance(consoleBridgeClassName, log)
-    bridge match {
-      case intf: ConsoleInterface1 =>
+
+    loadService(classOf[ConsoleInterface1], log) match {
+      case Some(intf) =>
         intf.run(
           options.toArray[String]: Array[String],
           bootClasspath,
@@ -192,6 +198,8 @@ final class AnalyzingCompiler(
         )
       case _ =>
         // fall back to old reflection if ConsoleInterface1 is not supported
+        val consoleBridgeClassName = "xsbt.ConsoleInterface"
+        val (bridge, bridgeClass) = bridgeInstance(consoleBridgeClassName, log)
         invoke(bridge, bridgeClass, "run", log)(
           classOf[Array[String]],
           classOf[String],
@@ -217,28 +225,30 @@ final class AnalyzingCompiler(
     ()
   }
 
-  private[this] def consoleClasspaths(classpath: Seq[VirtualFile]): (String, String) = {
-    val arguments = new CompilerArguments(scalaInstance, classpathOptions)
-    val cp = classpath map {
-      case x: PathBasedFile => x.toPath
-    }
-    val classpathString = CompilerArguments.absString(arguments.finishClasspath(cp))
+  private[this] def consoleClasspaths(
+      classpath: Seq[VirtualFile],
+      converter: FileConverter
+  ): (String, String) = {
+    val cp = classpath map { converter.toPath }
+    val classpathString = CompilerArguments.absString(compArgs.finishClasspath(cp))
     val bootClasspath =
-      if (classpathOptions.autoBoot) arguments.createBootClasspathFor(cp) else ""
+      if (classpathOptions.autoBoot) compArgs.createBootClasspathFor(cp) else ""
     (classpathString, bootClasspath)
   }
 
   def consoleCommandArguments(
       classpath: Seq[VirtualFile],
+      converter: FileConverter,
       options: Seq[String],
       log: Logger
   ): Seq[String] = {
-    val (classpathString, bootClasspath) = consoleClasspaths(classpath)
-    val (bridge, bridgeClass) = bridgeInstance(consoleBridgeClassName, log)
-    val argsObj = bridge match {
-      case intf: ConsoleInterface1 =>
+    val (classpathString, bootClasspath) = consoleClasspaths(classpath, converter)
+    val argsObj = loadService(classOf[ConsoleInterface1], log) match {
+      case Some(intf) =>
         intf.commandArguments(options.toArray[String], bootClasspath, classpathString, log)
       case _ =>
+        val consoleBridgeClassName = "xsbt.ConsoleInterface"
+        val (bridge, bridgeClass) = bridgeInstance(consoleBridgeClassName, log)
         invoke(bridge, bridgeClass, "commandArguments", log)(
           classOf[Array[String]],
           classOf[String],
@@ -247,6 +257,47 @@ final class AnalyzingCompiler(
         )(options.toArray[String], bootClasspath, classpathString, log)
     }
     argsObj.asInstanceOf[Array[String]].toSeq
+  }
+
+  def interactiveConsole(
+      classpath: Seq[VirtualFile],
+      converter: FileConverter,
+      options: Seq[String],
+      initialCommands: String,
+      cleanupCommands: String,
+      log: Logger
+  )(
+      loader: Option[ClassLoader] = None,
+      bindings: Seq[(String, AnyRef)] = Nil
+  ): xsbti.InteractiveConsoleInterface = {
+    onArgsHandler(consoleCommandArguments(classpath, converter, options, log))
+    val (classpathString, bootClasspath) = consoleClasspaths(classpath, converter)
+    val (names, values0) = bindings.unzip
+    val values = values0.toArray[Any].asInstanceOf[Array[AnyRef]]
+    loadService(classOf[InteractiveConsoleFactory], log) match {
+      case Some(intf) =>
+        intf.createConsole(
+          options.toArray[String]: Array[String],
+          bootClasspath,
+          classpathString,
+          initialCommands,
+          cleanupCommands,
+          InterfaceUtil.toOptional(loader),
+          names.toArray[String],
+          values,
+          log
+        )
+      case _ =>
+        sys.error(s"xsbti.InteractiveConsoleFactory service was not found")
+    }
+  }
+
+  // see https://docs.oracle.com/javase/8/docs/api/java/util/ServiceLoader.html
+  private def loadService[A](cls: Class[A], log: xLogger): Option[A] = {
+    val sl = ServiceLoader.load(cls, loader(log))
+    val it = sl.iterator
+    if (it.hasNext) Some(it.next)
+    else None
   }
 
   private def bridgeInstance(bridgeClassName: String, log: Logger): (AnyRef, Class[_]) = {
@@ -269,7 +320,7 @@ final class AnalyzingCompiler(
     }
   }
 
-  private[this] def loader(log: Logger) = {
+  private[this] def loader(log: Logger): ClassLoader = {
     val interfaceJar = provider.fetchCompiledBridge(scalaInstance, log)
     def createInterfaceLoader =
       new URLClassLoader(

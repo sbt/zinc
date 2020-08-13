@@ -11,7 +11,9 @@ import java.nio.file.Paths
 import org.scalatest.DiagrammedAssertions
 
 class ExtractUsedNamesPerformanceSpecification
-    extends CompilingSpecification
+    extends UnitSpec
+    with CompilingSpecification
+    with BridgeProviderTestkit
     with DiagrammedAssertions {
   private def initFileSystem(uri: URI): Option[FileSystem] = {
     try Option(FileSystems.getFileSystem(uri))

@@ -75,6 +75,10 @@ please check the [CONTRIBUTING guide](CONTRIBUTING.md).
 
 This software is released under the following [LICENSE](LICENSE).
 
+### Note to compiler bridge authors
+
+The compiler bridge classes are loaded using [java.util.ServiceLoader](https://docs.oracle.com/javase/8/docs/api/java/util/ServiceLoader.html). In other words, the class implementing `xsbti.compile.CompilerInterface2` must be mentioned in a file named: `/META-INF/services/xsbti.compile.CompilerInterface2`.
+
 ## Acknowledgements
 
 | Logo | Acknowledgement |

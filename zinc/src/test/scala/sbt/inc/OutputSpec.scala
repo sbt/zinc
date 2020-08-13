@@ -14,7 +14,7 @@ package sbt.inc
 import java.io.File
 import java.nio.file.Files
 import sbt.io.IO.{ withTemporaryDirectory => withTmpDir }
-import sbt.internal.inc.JarUtils
+import sbt.internal.inc.{ StringVirtualFile, JarUtils }
 
 class OutputSpec extends BaseCompilerSpec {
   //override val logLevel = sbt.util.Level.Debug

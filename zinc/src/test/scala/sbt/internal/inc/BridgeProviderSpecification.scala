@@ -16,8 +16,10 @@ import sbt.inc.{ ScalaBridge, ConstantBridgeProvider }
 import sbt.util.Logger
 import xsbti.compile.CompilerBridgeProvider
 
-class BridgeProviderSpecification extends UnitSpec with AbstractBridgeProviderTestkit {
-  val bridges: List[ScalaBridge] = {
+class BridgeProviderSpecification extends UnitSpec with BridgeProviderTestkit {}
+
+trait BridgeProviderTestkit extends AbstractBridgeProviderTestkit {
+  lazy val bridges: List[ScalaBridge] = {
     import sbt.internal.inc.ZincBuildInfo._
     val compilerBridge210 = ScalaBridge(scalaVersion210, scalaJars210.toList, classDirectory210)
     val compilerBridge211 = ScalaBridge(scalaVersion211, scalaJars211.toList, classDirectory211)
