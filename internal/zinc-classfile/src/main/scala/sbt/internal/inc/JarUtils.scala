@@ -155,7 +155,7 @@ object JarUtils {
   }
 
   /**
-   * Merges contents of two jars. See [[sbt.internal.inc.IndexBasedZipOps#mergeArchives]] for details.
+   * Merges contents of two jars. See sbt.internal.inc.IndexBasedZipOps#mergeArchives for details.
    */
   def mergeJars(into: File, from: File): Unit = {
     IndexBasedZipFsOps.mergeArchives(into, from)

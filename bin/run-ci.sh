@@ -10,6 +10,7 @@ sbt -Dfile.encoding=UTF-8 \
   scalafmtSbtCheck \
   whitesourceCheckPolicies \
   Test/compile \
+  doc \
   crossTestBridges \
   test \
   scripted
