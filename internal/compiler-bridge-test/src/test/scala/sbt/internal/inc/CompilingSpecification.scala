@@ -212,15 +212,14 @@ trait CompilingSpecification extends AbstractBridgeProviderTestkit {
       }
       val sources = srcFiles.toArray[VirtualFile]
       val (si, sc) = mkScalaCompiler(baseDir)
-      val cp = (si.allJars).map(_.toPath) ++ Array(targetDir)
-      val compArgs = new CompilerArguments(si, sc.classpathOptions)
-      val arguments = compArgs.makeArguments(Nil, cp, Nil)
+      val cp = ((si.allJars).map(_.toPath) ++ Array(targetDir)).map(converter.toVirtualFile)
       val reporter = mkReporter
       sc.compile(
         sources = sources,
+        classpath = cp,
         converter = converter,
         changes = emptyChanges,
-        options = arguments.toArray,
+        options = Array(),
         output = CompileOutput(targetDir),
         callback = analysisCallback,
         reporter = reporter,

@@ -51,6 +51,7 @@ public interface ScalaCompiler {
    *                    will report on the file being compiled.
    */
   void compile(VirtualFile[] sources,
+               VirtualFile[] classpath,
                FileConverter converter,
                DependencyChanges changes,
                String[] options,

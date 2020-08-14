@@ -48,10 +48,6 @@ final class MixedAnalyzingCompiler(
 ) {
   private[this] val absClasspath = config.classpath.map(toAbsolute(_))
 
-  /** Mechanism to work with compiler arguments. */
-  private[this] val cArgs =
-    new CompilerArguments(config.compiler.scalaInstance, config.compiler.classpathOptions)
-
   /**
    * Compile java and run analysis.
    */
@@ -159,17 +155,16 @@ final class MixedAnalyzingCompiler(
             if (config.currentSetup.order == Mixed) incSrc
             else scalaSrcs
 
-          val cp: Seq[Path] = (extraClasspath map { x =>
-            x.toAbsolutePath
-          }) ++ absClasspath.map(config.converter.toPath)
-          val arguments =
-            cArgs.makeArguments(Nil, cp, scalacOpts)
+          val cp: Seq[VirtualFile] = (extraClasspath map { x =>
+            config.converter.toVirtualFile(x.toAbsolutePath)
+          }) ++ absClasspath
           timed("Scala compilation", log) {
             config.compiler.compile(
               sources.toArray,
+              cp.toArray,
               config.converter,
               changes,
-              arguments.toArray,
+              scalacOpts.toArray,
               output,
               callback,
               config.reporter,
