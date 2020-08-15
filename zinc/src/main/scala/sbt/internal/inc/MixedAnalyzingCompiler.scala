@@ -155,9 +155,19 @@ final class MixedAnalyzingCompiler(
             if (config.currentSetup.order == Mixed) incSrc
             else scalaSrcs
 
-          val cp: Seq[VirtualFile] = (extraClasspath map { x =>
+          val cp0: Vector[VirtualFile] = (extraClasspath.toVector map { x =>
             config.converter.toVirtualFile(x.toAbsolutePath)
-          }) ++ absClasspath
+          }) ++ absClasspath.toVector
+          val cp =
+            if (scalaSrcs.isEmpty && isPickleJava) {
+              // we are invoking Scala compiler just for the sake of generating pickles for Java, which
+              // means that the classpath would not contain scala-library jar from the build tool.
+              // to work around this, we inject the scala-library into the classpath
+              val libraryJars = scalac.scalaInstance.libraryJars.toVector map { x =>
+                config.converter.toVirtualFile(x.toPath)
+              }
+              (cp0 ++ libraryJars).distinct
+            } else cp0
           timed("Scala compilation", log) {
             config.compiler.compile(
               sources.toArray,
