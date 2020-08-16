@@ -251,7 +251,7 @@ final class MixedAnalyzingCompiler(
     val combined = scalaMsg ++ javaMsg
     if (combined.nonEmpty) {
       val targets = outputDirs.map(_.toAbsolutePath).mkString(",")
-      log.info(combined.mkString("Compiling ", " and ", s" to $targets ..."))
+      log.info(combined.mkString("compiling ", " and ", s" to $targets ..."))
     }
   }
 }
