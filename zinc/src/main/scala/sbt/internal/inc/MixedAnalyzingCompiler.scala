@@ -134,11 +134,11 @@ final class MixedAnalyzingCompiler(
     val incSrc = config.sources.filter(include)
     val (javaSrcs, scalaSrcs) = incSrc.partition(MixedAnalyzingCompiler.javaOnly)
     logInputs(log, javaSrcs.size, scalaSrcs.size, outputDirs)
-    val isPickleJava = config.currentSetup.order == Mixed && config.incOptions.pipelining && javaSrcs.nonEmpty
+    val pickleJava = Incremental.isPickleJava(config.currentSetup.options.scalacOptions)
 
     // Compile Scala sources.
     def compileScala(): Unit =
-      if (scalaSrcs.nonEmpty || isPickleJava) {
+      if (scalaSrcs.nonEmpty || pickleJava) {
         val pickleJarPair = callback.getPickleJarPair.toOption.map(t2 => (t2.get1, t2.get2))
         val scalacOpts = pickleJarPair match {
           case Some((originalJar, updatesJar)) =>
@@ -159,7 +159,7 @@ final class MixedAnalyzingCompiler(
             config.converter.toVirtualFile(x.toAbsolutePath)
           }) ++ absClasspath.toVector
           val cp =
-            if (scalaSrcs.isEmpty && isPickleJava) {
+            if (scalaSrcs.isEmpty && pickleJava) {
               // we are invoking Scala compiler just for the sake of generating pickles for Java, which
               // means that the classpath would not contain scala-library jar from the build tool.
               // to work around this, we inject the scala-library into the classpath

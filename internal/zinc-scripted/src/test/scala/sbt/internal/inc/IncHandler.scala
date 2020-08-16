@@ -331,6 +331,7 @@ case class ProjectStructure(
         .withStoreApis(storeApis)
     (incO, sco)
   }
+  val exportPipelining = incOptions.pipelining
 
   def prev(useCachedAnalysis: Boolean = true) = {
     val store = if (useCachedAnalysis) cachedStore else fileStore
@@ -539,7 +540,7 @@ case class ProjectStructure(
 
     i.compilations.get(this).getOrElse {
       val notifyEarlyOutput: Promise[Boolean] = Promise[Boolean]()
-      if (incOptions.pipelining) {
+      if (exportPipelining) {
         // Initiate compilation
         val triggerDeps: Map[ProjectStructure, (Future[Analysis], Future[Boolean])] =
           Map(dependsOnRef map { dep =>
@@ -550,13 +551,14 @@ case class ProjectStructure(
         }
         // future of early outputs
         val earlyDeps: Future[Seq[Path]] = Future.traverse(dependsOnRef) { dep =>
-          triggerDeps(dep)._2 flatMap { success =>
-            if (success) {
-              Future.successful { dep.earlyOutput }
-            } else {
-              triggerDeps(dep)._1.map(_ => dep.output)
-            }
-          }
+          if (dep.exportPipelining)
+            triggerDeps(dep)._2 flatMap { success =>
+              if (success) {
+                Future.successful { dep.earlyOutput }
+              } else {
+                triggerDeps(dep)._1.map(_ => dep.output)
+              }
+            } else triggerDeps(dep)._1.map(_ => dep.output)
         }
         val futureScalaAnalysis = earlyDeps.map { internalCp =>
           blocking {
@@ -648,7 +650,8 @@ case class ProjectStructure(
       cp.toArray,
       vs.toArray,
       output,
-      Some(earlyOutput),
+      if (exportPipelining) Some(earlyOutput)
+      else None,
       scalacOptions,
       javacOptions = Array(),
       maxErrors,
@@ -761,12 +764,11 @@ case class ProjectStructure(
       else opts.withRecompileAllFraction(1.0)
     }
     val scalacOptions: List[String] =
-      (Option(map.get("scalac.options")) match {
-        case Some(x) => List(x)
-        case _ if incOptions.pipelining =>
-          List("-Ypickle-java", "-Ypickle-write", earlyOutput.toString)
-        case _ => Nil
-      }).flatMap(_.toString.split(" +").toList)
+      Option(map.get("scalac.options")).toList
+        .flatMap(_.toString.split(" +").toList) ++
+        // for now assume export pipelining for all pipelining subprojects
+        (if (incOptions.pipelining) List("-Ypickle-java", "-Ypickle-write", earlyOutput.toString)
+         else Nil)
     (incOptions, scalacOptions.toArray)
   }
 

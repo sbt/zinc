@@ -470,7 +470,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         extra
       )
       def prevResult = CompileResult.of(prev, config.currentSetup, false)
-      if (skip && !incrementalOptions.pipelining) prevResult
+      if (skip && earlyOutput.isEmpty) prevResult
       else if (recompileAllJava) {
         if (javaSrcs.isEmpty) prevResult
         else {

@@ -451,7 +451,14 @@ public final class IncOptions implements java.io.Serializable {
     public boolean allowMachinePath() {
         return this.allowMachinePath;
     }
-    /** Enables build pipelining at the module level. */
+    /**
+     * Enabled when build pipelining is used for this subproject.
+     * The consumption of early output (pickle JAR) is dependent on the Scala version,
+     * so this flag in Zinc effectively means skip Javac invocation.
+     * 
+     * Note that contribution to pipelining by exporting early output is signaled by
+     * setting an earlyOutput in CompileOptions.
+     */
     public boolean pipelining() {
         return this.pipelining;
     }
