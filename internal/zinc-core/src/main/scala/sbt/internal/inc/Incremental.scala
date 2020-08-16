@@ -152,7 +152,7 @@ object Incremental {
       previous.relations.classNames(f)
     val externalAPI = getExternalAPI(lookup)
 
-    val earlyJar = for (early <- earlyOutput; jar <- jo2o(early.getSingleOutputAsPath)) yield jar
+    val earlyJar = extractEarlyJar(earlyOutput)
     val pickleJarPair = earlyJar.map { p =>
       val newName = s"${p.getFileName.toString.stripSuffix(".jar")}-${UUID.randomUUID()}.jar"
       val updatesJar = p.resolveSibling(newName)
@@ -209,6 +209,14 @@ object Incremental {
         (false, previous)
     } finally runProfiler.registerRun()
   }
+
+  def extractEarlyJar(earlyOutput: Option[Output]): Option[Path] =
+    for {
+      early <- earlyOutput
+      jar <- jo2o(early.getSingleOutputAsPath)
+    } yield jar
+
+  def isPickleJava(scalacOptions: Seq[String]): Boolean = scalacOptions.contains("-Ypickle-java")
 
   /**
    * Compile all Java sources, ignoring incrementality.
@@ -348,21 +356,18 @@ object Incremental {
     val (initialInvClasses, initialInvSources0) =
       incremental.invalidateInitial(previous.relations, initialChanges)
 
-    // During pipelining, if there's any compilation at all, invalidate all Java sources too, so the downstream Scala subprojects would have type information via early output (pickle jar).
+    // During early output, if there's any compilation at all, invalidate all Java sources too, so the downstream Scala subprojects would have type information via early output (pickle jar).
     val javaSources: Set[VirtualFileRef] = sources.collect {
       case s: VirtualFileRef if s.name.endsWith(".java") => s
     }
     val scalacOptions = currentSetup.options.scalacOptions
+    val earlyJar = extractEarlyJar(earlyOutput)
     val isPickleWrite = scalacOptions.contains("-Ypickle-write")
-    if (isPickleWrite) {
+    if (earlyOutput.isDefined || isPickleWrite) {
       val idx = scalacOptions.indexOf("-Ypickle-write")
       val p =
         if (scalacOptions.size <= idx + 1) None
         else Some(Paths.get(scalacOptions(idx + 1)))
-      val earlyJar = for {
-        earlyO <- earlyOutput
-        jar <- jo2o(earlyO.getSingleOutputAsPath())
-      } yield jar
       (p, earlyJar) match {
         case (None, _)            => log.warn(s"-Ypickle-write is specified but <path> is not?")
         case (x1, x2) if x1 == x2 => ()
@@ -371,17 +376,15 @@ object Incremental {
             s"early output must match -Ypickle-write path '$p' but was '$earlyJar' instead"
           )
       }
-    } else if (!isPickleWrite && options.pipelining) {
-      log.warn(s"-Ypickle-write should be included into scalacOptions if pipelining is enabled")
     }
-    val isPickleJava = currentSetup.options.scalacOptions.contains("-Ypickle-java")
-    if (javaSources.nonEmpty && options.pipelining && !isPickleJava) {
+    val pickleJava = isPickleJava(scalacOptions)
+    if (javaSources.nonEmpty && earlyOutput.isDefined && !pickleJava) {
       log.warn(
-        s"-Ypickle-java should be included into scalacOptions if pipelining is enabled with Java sources"
+        s"-Ypickle-java should be included into scalacOptions if early output is enabled with Java sources"
       )
     }
     val initialInvSources =
-      if (isPickleJava && initialInvSources0.nonEmpty) initialInvSources0 ++ javaSources
+      if (pickleJava && initialInvSources0.nonEmpty) initialInvSources0 ++ javaSources
       else initialInvSources0
     if (initialInvClasses.nonEmpty || initialInvSources.nonEmpty) {
       if (initialInvSources == sources)
@@ -410,7 +413,7 @@ object Incremental {
             1
           )
         else {
-          if (options.pipelining)
+          if (earlyOutput.isDefined)
             writeEarlyOut(lookup, progress, earlyOutput, previous, new java.util.HashSet)
           previous
         }
@@ -862,7 +865,7 @@ private final class AnalysisCallback(
       }
     outputJarContent.scalacRunCompleted()
     val a = getAnalysis
-    if (options.pipelining) {
+    if (earlyOutput.isDefined) {
       invalidationResults match {
         case None =>
           val early = incHandler.previousAnalysisPruned
@@ -1004,7 +1007,7 @@ private final class AnalysisCallback(
     // If we know we're done with cycles (presumably because all sources were invalidated) we can store early analysis
     // and picke data now.  Otherwise, we need to wait for dependency information to decide if there are more cycles.
     incHandlerOpt foreach { incHandler =>
-      if (options.pipelining() && incHandler.isFullCompilation) {
+      if (earlyOutput.isDefined && incHandler.isFullCompilation) {
         val a = getAnalysis
         val CompileCycleResult(continue, invalidations, merged) =
           incHandler.mergeAndInvalidate(a, false)
@@ -1029,7 +1032,7 @@ private final class AnalysisCallback(
       // Store invalidations and continuation decision; the analysis will be computed again after Analyze phase.
       invalidationResults = Some(CompileCycleResult(continue, invalidations, Analysis.empty))
       // If there will be no more compilation cycles, store the early analysis file and update the pickle jar
-      if (options.pipelining && !continue && !lookup.shouldDoEarlyOutput(merged)) {
+      if (earlyOutput.isDefined && !continue && !lookup.shouldDoEarlyOutput(merged)) {
         writeEarlyArtifacts(merged)
       }
     }
