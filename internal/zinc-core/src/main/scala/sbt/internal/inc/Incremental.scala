@@ -366,10 +366,15 @@ object Incremental {
     if (earlyOutput.isDefined || isPickleWrite) {
       val idx = scalacOptions.indexOf("-Ypickle-write")
       val p =
-        if (scalacOptions.size <= idx + 1) None
+        if (!isPickleWrite || scalacOptions.size <= idx + 1) None
         else Some(Paths.get(scalacOptions(idx + 1)))
       (p, earlyJar) match {
-        case (None, _)            => log.warn(s"-Ypickle-write is specified but <path> is not?")
+        case (None, _) =>
+          if (isPickleWrite) log.warn(s"expected -Ypickle-write <path> but <path> is missing")
+          else
+            log.warn(
+              s"-Ypickle-write should be included into scalacOptions if early output is defined"
+            )
         case (x1, x2) if x1 == x2 => ()
         case _ =>
           sys.error(
