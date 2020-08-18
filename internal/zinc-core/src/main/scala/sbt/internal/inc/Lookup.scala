@@ -141,8 +141,8 @@ trait ExternalLookup extends ExternalHooks.Lookup {
    * (e.g. `def impl(c: Context) = ...`) from macro definitions
    * (e.g. `def foo: Unit = macro Foo.impl`) you can safely override this.
    */
-  def shouldDoEarlyOutput(compileAnalysis: CompileAnalysis): Boolean = {
-    compileAnalysis.asInstanceOf[Analysis].apis.internal.values.forall(!_.hasMacro)
+  def shouldDoEarlyOutput(analysis: CompileAnalysis): Boolean = {
+    analysis.asInstanceOf[Analysis].apis.internal.values.forall(!_.hasMacro)
   }
 }
 
