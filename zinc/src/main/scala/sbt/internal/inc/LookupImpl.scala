@@ -13,7 +13,6 @@ package sbt.internal.inc
 
 import java.util.Optional
 
-import xsbti.api.AnalyzedClass
 import xsbti.compile.{ Changes, CompileAnalysis, FileHash, MiniSetup }
 import xsbti.{ VirtualFile, VirtualFileRef }
 
@@ -56,15 +55,15 @@ class LookupImpl(compileConfiguration: CompileConfiguration, previousSetup: Opti
     .flatMap(ext => ext.getExternalLookup().toOption)
     .collect { case externalLookup: ExternalLookup => externalLookup }
 
-  override def lookupAnalyzedClass(binaryClassName: String): Option[AnalyzedClass] = {
+  override def lookupAnalyzedClass(binaryClassName: String, file: Option[VirtualFileRef]) = {
     externalLookup match { // not flatMap so that external lookup can fast-track returning None
       case Some(externalLookup) =>
-        externalLookup.lookupAnalyzedClass(binaryClassName) match {
+        externalLookup.lookupAnalyzedClass(binaryClassName, file) match {
           case Some(api) if api.provenance.isEmpty => // found but w/o provenance, so go slow route
-            super.lookupAnalyzedClass(binaryClassName)
+            super.lookupAnalyzedClass(binaryClassName, file)
           case x => x // fast-track success: either found w/ provenance or not found at all
         }
-      case _ => super.lookupAnalyzedClass(binaryClassName)
+      case _ => super.lookupAnalyzedClass(binaryClassName, file)
     }
   }
 

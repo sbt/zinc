@@ -48,7 +48,7 @@ trait Lookup extends ExternalLookup {
    */
   def lookupAnalysis(binaryClassName: String): Option[CompileAnalysis]
 
-  def lookupAnalyzedClass(binaryClassName: String): Option[AnalyzedClass] = {
+  override def lookupAnalyzedClass(binaryClassName: String, file: Option[VirtualFileRef]) = {
     // This is the default, slow, route, via Analysis; overridden in LookupImpl for the fast-track.
     for {
       analysis0 <- lookupAnalysis(binaryClassName)
@@ -69,14 +69,18 @@ trait ExternalLookup extends ExternalHooks.Lookup {
   import scala.collection.JavaConverters._
 
   /**
-   * Find the external `AnalyzedClass` (from another analysis) given a class name.
+   * Find the external `AnalyzedClass` (from another analysis) given a class name and, if available,
+   * the jar file (or class file) the class comes from.
    *
    * @return The `AnalyzedClass` associated with the given class name, if one is found.
-   *         Optional.empty() => Found class somewhere outside of project.  No analysis possible.
-   *         Optional.of(analyzed) if analyzed.provenance.isEmpty => Couldn't find it.
-   *         Optional.of(analyzed) => good
+   *         None => Found class somewhere outside of project.  No analysis possible.
+   *         Some(analyzed) if analyzed.provenance.isEmpty => Couldn't find it.
+   *         Some(analyzed) => good
    */
-  def lookupAnalyzedClass(binaryClassName: String): Option[AnalyzedClass]
+  def lookupAnalyzedClass(
+      binaryClassName: String,
+      file: Option[VirtualFileRef],
+  ): Option[AnalyzedClass]
 
   /**
    * Used to provide information from external tools into sbt (e.g. IDEs)
@@ -147,7 +151,7 @@ trait ExternalLookup extends ExternalHooks.Lookup {
 }
 
 trait NoopExternalLookup extends ExternalLookup {
-  override def lookupAnalyzedClass(binaryClassName: String): Option[AnalyzedClass] = None
+  override def lookupAnalyzedClass(binaryClassName: String, file: Option[VirtualFileRef]) = None
   override def changedSources(previous: CompileAnalysis): Option[Changes[VirtualFileRef]] = None
   override def changedBinaries(previous: CompileAnalysis): Option[Set[VirtualFileRef]] = None
   override def removedProducts(previous: CompileAnalysis): Option[Set[VirtualFileRef]] = None

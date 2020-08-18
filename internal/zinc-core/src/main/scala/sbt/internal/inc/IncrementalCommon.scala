@@ -433,7 +433,7 @@ private[inc] abstract class IncrementalCommon(
     val subprojectApiChanges: APIChanges = {
       val incrementalExternalChanges = {
         val previousAPIs = previousAnalysis.apis
-        val externalFinder = lookupAnalyzedClass(_: String).getOrElse(APIs.emptyAnalyzedClass)
+        val externalFinder = lookupAnalyzedClass(_: String, None).getOrElse(APIs.emptyAnalyzedClass)
         detectAPIChanges(previousAPIs.allExternals, previousAPIs.externalAPI, externalFinder)
       }
 
