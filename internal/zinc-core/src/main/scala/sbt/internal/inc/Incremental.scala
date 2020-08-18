@@ -150,7 +150,6 @@ object Incremental {
       previous.relations.productClassName.reverse(binaryClassName).headOption
     val internalSourceToClassNamesMap: VirtualFile => Set[String] = (f: VirtualFile) =>
       previous.relations.classNames(f)
-    val externalAPI = getExternalAPI(lookup)
 
     val earlyJar = extractEarlyJar(earlyOutput)
     val pickleJarPair = earlyJar.map { p =>
@@ -178,7 +177,7 @@ object Incremental {
         new AnalysisCallback.Builder(
           internalBinaryToSourceClassName,
           internalSourceToClassNamesMap,
-          externalAPI,
+          lookup.lookupAnalyzedClass(_, _),
           currentStamper,
           options,
           currentSetup,
@@ -249,11 +248,10 @@ object Incremental {
       pruned.relations.productClassName.reverse(binaryClassName).headOption
     val internalSourceToClassNamesMap: VirtualFile => Set[String] =
       (f: VirtualFile) => pruned.relations.classNames(f)
-    val externalAPI = getExternalAPI(lookup)
     val builder = new AnalysisCallback.Builder(
       internalBinaryToSourceClassName,
       internalSourceToClassNamesMap,
-      externalAPI,
+      lookup.lookupAnalyzedClass(_, _),
       currentStamper,
       options,
       currentSetup,
@@ -295,9 +293,6 @@ object Incremental {
         (false, previous)
     }
   }
-
-  def getExternalAPI(lookup: Lookup): (VirtualFileRef, String) => Option[AnalyzedClass] =
-    (_: VirtualFileRef, binaryClassName: String) => lookup.lookupAnalyzedClass(binaryClassName)
 
   /**
    * Runs the incremental compiler algorithm.
@@ -516,7 +511,7 @@ private object AnalysisCallback {
   class Builder(
       internalBinaryToSourceClassName: String => Option[String],
       internalSourceToClassNamesMap: VirtualFile => Set[String],
-      externalAPI: (VirtualFileRef, String) => Option[AnalyzedClass],
+      externalAPI: (String, Option[VirtualFileRef]) => Option[AnalyzedClass],
       stampReader: ReadStamps,
       options: IncOptions,
       currentSetup: MiniSetup,
@@ -563,7 +558,7 @@ private object AnalysisCallback {
 private final class AnalysisCallback(
     internalBinaryToSourceClassName: String => Option[String],
     internalSourceToClassNamesMap: VirtualFile => Set[String],
-    externalAPI: (VirtualFileRef, String) => Option[AnalyzedClass],
+    externalAPI: (String, Option[VirtualFileRef]) => Option[AnalyzedClass],
     stampReader: ReadStamps,
     options: IncOptions,
     currentSetup: MiniSetup,
@@ -751,7 +746,7 @@ private final class AnalysisCallback(
   ): Unit = {
     // TODO: handle library JARs and rt.jar.
     val vf = converter.toVirtualFile(classFile)
-    externalAPI(vf, onBinaryName) match {
+    externalAPI(onBinaryName, Some(vf)) match {
       case Some(api) =>
         // dependency is a product of a source in another project
         val targetBinaryClassName = onBinaryName
