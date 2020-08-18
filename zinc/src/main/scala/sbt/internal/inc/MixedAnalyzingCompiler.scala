@@ -143,9 +143,12 @@ final class MixedAnalyzingCompiler(
         val scalacOpts = pickleJarPair match {
           case Some((originalJar, updatesJar)) =>
             val path = originalJar.toString
+            // ^ Path#toString uses '\' on Windows
+            // but the path could've been specified with '/' in scalacOptions
+            val fwdSlashPath = path.replace('\\', '/')
             config.currentSetup.options.scalacOptions.map {
-              case s if s == path => updatesJar.toString
-              case s              => s
+              case s if s == path || s == fwdSlashPath => updatesJar.toString
+              case s                                   => s
             }
           case _ => config.currentSetup.options.scalacOptions
         }
