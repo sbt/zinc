@@ -15,13 +15,13 @@ import java.io.File
 import java.nio.file.{ Files, Path, Paths }
 import org.eclipse.jgit.api.{ CloneCommand, Git }
 import sbt.io.{ IO, RichFile }
-import sbt.inc.TestProjectSetup
+import sbt.inc.{ ProjectSetup, VirtualSubproject }
 import xsbt.ZincBenchmark.CompilationInfo
 
 import scala.util.Try
 
 /** Consist of the setups for every subproject of a `ProjectBenchmark`. */
-case class ZincSetup(result: ZincBenchmark.Result[List[TestProjectSetup]]) {
+case class ZincSetup(result: ZincBenchmark.Result[List[ProjectSetup]]) {
   private def crash(throwable: Throwable) = {
     val message =
       s"""Unexpected error when setting up Zinc benchmarks:
@@ -31,7 +31,7 @@ case class ZincSetup(result: ZincBenchmark.Result[List[TestProjectSetup]]) {
   }
 
   /** Crash at this point because JMH wants the list of setup runs. */
-  def getOrCrash: List[TestProjectSetup] =
+  def getOrCrash: List[ProjectSetup] =
     result.fold(crash, identity)
 }
 
@@ -67,8 +67,8 @@ private[xsbt] class ZincBenchmark(toCompile: BenchmarkProject, zincEnabled: Bool
         .map(x => base.relativize(x))
       val cp = buildInfo.classpath
       cp.foreach(x => assert(Files.exists(x), s"$x does not exist"))
-      TestProjectSetup(
-        compilationDir.toPath,
+      ProjectSetup(
+        VirtualSubproject(compilationDir.toPath),
         Map(output -> sources),
         cp,
         Map.empty,

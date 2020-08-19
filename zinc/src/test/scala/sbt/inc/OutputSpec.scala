@@ -29,6 +29,7 @@ class OutputSpec extends BaseCompilerSpec {
 
   it should "not compile anything if source has not changed" in withTmpDir { baseDir =>
     val compiler = mkCompiler(baseDir, Seq(SourceFiles.Good, SourceFiles.Foo))
+
     val result = compiler.doCompileWithStore()
     assert(!result.analysis.readStamps.getAllSourceStamps.keySet.isEmpty)
 
@@ -37,20 +38,10 @@ class OutputSpec extends BaseCompilerSpec {
   }
 
   it should "generate early artifact with pickle (.sig) files" in withTmpDir { baseDir =>
-    val p1 = VirtualSubproject
-      .Builder()
-      .baseDirectory(baseDir.toPath)
-      .get
-    val scalaContent =
-      """package example
-      |
-      |class A
-      |""".stripMargin
-    val scalaFile = StringVirtualFile("src/example/A.scala", scalaContent)
-    p1.compile(scalaFile)
-    val earlyJar = p1.setup.earlyOutput
-    assert(Files.exists(earlyJar))
-    assert(JarUtils.listFiles(earlyJar) contains "example/A.sig")
+    val c1 = VirtualSubproject(baseDir.toPath).setup.createCompiler()
+    c1.compile(StringVirtualFile("src/example/A.scala", "package example; class A"))
+    assert(Files.exists(c1.earlyOutput))
+    assert(JarUtils.listFiles(c1.earlyOutput).contains("example/A.sig"))
   }
 
   def mkCompiler(baseDir: File, classes: Seq[String]) =

@@ -11,7 +11,8 @@
 
 package sbt.inc
 
-import java.nio.file.Paths
+import java.nio.charset.StandardCharsets
+import java.nio.file.{ Files, Paths }
 
 import sbt.io.IO
 
@@ -23,8 +24,8 @@ class NameHashingCompilerSpec extends BaseCompilerSpec {
   ) = {
     val nahaPath = Paths.get("naha")
     IO.withTemporaryDirectory { tempDir =>
-      val projectSetup = TestProjectSetup(
-        tempDir.toPath,
+      val projectSetup = ProjectSetup(
+        VirtualSubproject(tempDir.toPath),
         Map(nahaPath -> SourceFiles.Naha.all.map(nahaPath.resolve)),
         Nil
       )
@@ -40,18 +41,21 @@ class NameHashingCompilerSpec extends BaseCompilerSpec {
 
       changes.foreach {
         case (name, change) =>
-          projectSetup.update(nahaPath.resolve("naha").resolve(name))(change)
+          val source = nahaPath.resolve("naha").resolve(name)
+          val sourceFile = projectSetup.baseDir.resolve(source)
+          val text = new String(Files.readAllBytes(sourceFile), StandardCharsets.UTF_8)
+          Files.write(sourceFile, change(text).getBytes(StandardCharsets.UTF_8))
       }
 
       val result2 =
-        compilerSetup.doCompile(_.withPreviousResult(compilerSetup.compiler.previousResult(result)))
+        compilerSetup.doCompile(_.withPreviousResult(compilerSetup.zinc.previousResult(result)))
       if (changes.isEmpty) {
         assert(!result2.hasModified)
       } else {
         val recompiledUnitsNames =
           compilerSetup.lastCompiledUnits.map(n => Paths.get(n).getFileName.toString)
 
-        recompiledUnitsNames should equal((transitiveChanges ++ changes.map(_._1)).toSet)
+        recompiledUnitsNames should equal((transitiveChanges ++ changes.map(_._1)))
         assert(result2.hasModified)
       }
     }

@@ -654,18 +654,12 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
     inputs(compileOptions, compilers, setup, pr)
   }
 
-  def previousResult(result: CompileResult): PreviousResult = {
-    PreviousResult.of(
-      Optional.of[CompileAnalysis](result.analysis),
-      Optional.of[MiniSetup](result.setup)
-    )
+  def previousResult(contents: AnalysisContents): PreviousResult = {
+    PreviousResult.of(Optional.of(contents.getAnalysis), Optional.of(contents.getMiniSetup))
   }
 
   def emptyPreviousResult: PreviousResult = {
-    PreviousResult.of(
-      Optional.empty[CompileAnalysis],
-      Optional.empty[MiniSetup]
-    )
+    PreviousResult.of(Optional.empty[CompileAnalysis], Optional.empty[MiniSetup])
   }
 
   def compilers(

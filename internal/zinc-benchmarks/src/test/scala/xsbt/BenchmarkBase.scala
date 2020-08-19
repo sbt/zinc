@@ -14,7 +14,7 @@ package xsbt
 import net.openhft.affinity.AffinityLock
 import org.openjdk.jmh.annotations._
 import java.io.File
-import sbt.inc.TestProjectSetup
+import sbt.inc.{ CompilerSetup, ProjectSetup }
 import sbt.internal.inc.BridgeProviderSpecification
 import sbt.util.Logger
 
@@ -31,9 +31,9 @@ class BenchmarkBase extends BridgeProviderSpecification {
 
   /* Data filled in by the benchmark setup. */
   var _dir: File = _
-  var _setup: TestProjectSetup = _
-  var _compilerSetup: TestProjectSetup.CompilerSetup = _
-  var _subprojectsSetup: List[TestProjectSetup] = _
+  var _setup: ProjectSetup = _
+  var _compilerSetup: CompilerSetup = _
+  var _subprojectsSetup: List[ProjectSetup] = _
 
   /* Java thread affinity (install JNA to run this benchmark). */
   var _lock: AffinityLock = _
