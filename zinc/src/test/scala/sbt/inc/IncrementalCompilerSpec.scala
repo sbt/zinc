@@ -11,11 +11,12 @@
 
 package sbt.inc
 
-import xsbti.compile.AnalysisStore
+import xsbti.compile.{ AnalysisStore, CompileAnalysis, DefaultExternalHooks }
 import sbt.internal.inc._
 import sbt.io.IO
 import sbt.io.syntax._
 import java.nio.file.Files
+import java.util.Optional
 
 class IncrementalCompilerSpec extends BaseCompilerSpec {
   //override val logLevel = sbt.util.Level.Debug
@@ -58,6 +59,31 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
       } finally {
         compilerSetup.close()
       }
+    }
+  }
+
+  it should "honour Lookup#shouldDoEarlyOutput" in IO.withTemporaryDirectory { tmp =>
+    val ext = new NoopExternalLookup { override def shouldDoEarlyOutput(a: CompileAnalysis) = true }
+    val extHooks = new DefaultExternalHooks(Optional.of(ext), Optional.empty())
+    implicit val compilerSetupHelper = new TestProjectSetup.CompilerSetupHelper {
+      override def apply(sv: String, ps: TestProjectSetup) = {
+        val setup1 = ps.copy(scalacOptions = ps.scalacOptions :+ "-language:experimental.macros")
+        val c1 = setup1.createCompiler(sv)
+        c1.copy(incOptions = c1.incOptions.withExternalHooks(extHooks))
+      }
+    }
+    val p1 = VirtualSubproject.Builder().baseDirectory(tmp.toPath / "p1").get
+    val p2 = VirtualSubproject.Builder().baseDirectory(tmp.toPath / "p2").dependsOn(p1).get
+    try {
+      val s1 = s"object A { def f(c: scala.reflect.macros.blackbox.Context) = c.literalUnit }"
+      val s2 = s"object B { def f: Unit = macro A.f }"
+      p1.compile(StringVirtualFile("A.scala", s1))
+      p2.compile(StringVirtualFile("B.scala", s2))
+      assertExists(p1.setup.earlyOutput)
+      assertExists(p2.setup.earlyOutput)
+    } finally {
+      p1.close()
+      p2.close()
     }
   }
 
