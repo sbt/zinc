@@ -505,7 +505,7 @@ object Incremental {
       pickleJar <- jo2o(earlyO.getSingleOutputAsPath)
     } {
       PickleJar.write(pickleJar, knownProducts)
-      progress.foreach(_.afterEarlyOutput(!lookup.shouldDoEarlyOutput(analysis)))
+      progress.foreach(_.afterEarlyOutput(lookup.shouldDoEarlyOutput(analysis)))
     }
   }
 }
@@ -869,7 +869,7 @@ private final class AnalysisCallback(
       invalidationResults match {
         case None =>
           val early = incHandler.previousAnalysisPruned
-          if (!lookup.shouldDoEarlyOutput(early)) writeEarlyArtifacts(early)
+          if (lookup.shouldDoEarlyOutput(early)) writeEarlyArtifacts(early)
           else notifyEarlyArifactFailure()
         case Some(CompileCycleResult(false, _, _)) => notifyEarlyArifactFailure()
         case _                                     => ()
@@ -1011,7 +1011,7 @@ private final class AnalysisCallback(
         val a = getAnalysis
         val CompileCycleResult(continue, invalidations, merged) =
           incHandler.mergeAndInvalidate(a, false)
-        if (!lookup.shouldDoEarlyOutput(merged)) {
+        if (lookup.shouldDoEarlyOutput(merged)) {
           assert(
             !continue && invalidations.isEmpty,
             "everything was supposed to be invalidated already"
@@ -1032,7 +1032,7 @@ private final class AnalysisCallback(
       // Store invalidations and continuation decision; the analysis will be computed again after Analyze phase.
       invalidationResults = Some(CompileCycleResult(continue, invalidations, Analysis.empty))
       // If there will be no more compilation cycles, store the early analysis file and update the pickle jar
-      if (earlyOutput.isDefined && !continue && !lookup.shouldDoEarlyOutput(merged)) {
+      if (earlyOutput.isDefined && !continue && lookup.shouldDoEarlyOutput(merged)) {
         writeEarlyArtifacts(merged)
       }
     }
