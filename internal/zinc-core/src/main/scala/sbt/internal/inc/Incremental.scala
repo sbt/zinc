@@ -856,27 +856,20 @@ private final class AnalysisCallback(
     assert(!gotten, "can't call AnalysisCallback#getCycleResultOnce more than once")
     val incHandler = incHandlerOpt.getOrElse(sys.error("incHandler was expected"))
     gotten = true
-    // notify that early artifact writing is not going to happen because of macros
-    def notifyEarlyArifactFailure(): Unit =
-      if (!writtenEarlyArtifacts) {
-        progress foreach { p =>
-          p.afterEarlyOutput(false)
-        }
-      }
+    // Not continuing & nothing was written, so notify it ain't gonna happen
+    def notifyNoEarlyOut() = if (!writtenEarlyArtifacts) progress.foreach(_.afterEarlyOutput(false))
     outputJarContent.scalacRunCompleted()
-    val a = getAnalysis
     if (earlyOutput.isDefined) {
+      val early = incHandler.previousAnalysisPruned
       invalidationResults match {
-        case None =>
-          val early = incHandler.previousAnalysisPruned
-          if (lookup.shouldDoEarlyOutput(early)) writeEarlyArtifacts(early)
-          else notifyEarlyArifactFailure()
-        case Some(CompileCycleResult(false, _, _)) => notifyEarlyArifactFailure()
-        case _                                     => ()
+        case None if lookup.shouldDoEarlyOutput(early)    => writeEarlyArtifacts(early)
+        case None | Some(CompileCycleResult(false, _, _)) => notifyNoEarlyOut()
+        case _                                            =>
       }
+      if (!writtenEarlyArtifacts) // writing implies the updates merge has happened
+        mergeUpdates() // must merge updates each cycle or else scalac will clobber it
     }
-    // assert(writtenEarlyArtifacts, s"early artifact $earlyOutput hasn't been written")
-    incHandler.completeCycle(invalidationResults, a)
+    incHandler.completeCycle(invalidationResults, getAnalysis)
   }
 
   private def getAnalysis: Analysis = {
@@ -1048,18 +1041,21 @@ private final class AnalysisCallback(
   private def writeEarlyArtifacts(merged: Analysis): Unit = {
     writtenEarlyArtifacts = true
     earlyAnalysisStore.foreach(_.set(AnalysisContents.create(merged, currentSetup)))
+    mergeUpdates() // must merge updates each cycle or else scalac will clobber it
+    Incremental.writeEarlyOut(lookup, progress, earlyOutput, merged, knownProducts(merged))
+  }
+
+  private def mergeUpdates() = {
     pickleJarPair.foreach {
       case (originalJar, updatesJar) =>
-        if (Files.exists(originalJar) && Files.exists(updatesJar)) {
+        if (Files.exists(updatesJar)) {
           log.debug(s"merging $updatesJar into $originalJar")
-          IndexBasedZipFsOps.mergeArchives(originalJar, updatesJar)
-        } else if (Files.exists(updatesJar)) {
-          log.debug(s"moving $updatesJar to $originalJar")
-          import java.nio.file.StandardCopyOption.REPLACE_EXISTING
-          Files.move(updatesJar, originalJar, REPLACE_EXISTING)
+          if (Files.exists(originalJar))
+            IndexBasedZipFsOps.mergeArchives(originalJar, updatesJar)
+          else
+            Files.move(updatesJar, originalJar)
         }
     }
-    Incremental.writeEarlyOut(lookup, progress, earlyOutput, merged, knownProducts(merged))
   }
 
   private def knownProducts(merged: Analysis) = {
