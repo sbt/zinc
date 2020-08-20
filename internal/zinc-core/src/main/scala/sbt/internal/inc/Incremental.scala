@@ -396,6 +396,7 @@ object Incremental {
         )
     }
     val hasModified = initialInvClasses.nonEmpty || initialInvSources.nonEmpty
+    val hasSubprojectChange = initialChanges.external.apiChanges.nonEmpty
     val analysis = withClassfileManager(options, converter, output, outputJarContent) {
       classfileManager =>
         if (hasModified)
@@ -413,12 +414,24 @@ object Incremental {
             1
           )
         else {
+          val analysis =
+            if (hasSubprojectChange)
+              previous.copy(
+                apis = initialChanges.external.allModified.foldLeft[APIs](previous.apis) {
+                  (apis, clazz) =>
+                    lookup.lookupAnalyzedClass(clazz, None) match {
+                      case Some(ac) => apis.markExternalAPI(clazz, ac)
+                      case _        => apis
+                    }
+                }
+              )
+            else previous
           if (earlyOutput.isDefined)
-            writeEarlyOut(lookup, progress, earlyOutput, previous, new java.util.HashSet)
-          previous
+            writeEarlyOut(lookup, progress, earlyOutput, analysis, new java.util.HashSet)
+          analysis
         }
     }
-    (hasModified, analysis)
+    (hasModified || hasSubprojectChange, analysis)
   }
 
   /**

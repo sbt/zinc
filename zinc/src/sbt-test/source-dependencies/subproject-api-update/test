@@ -1,0 +1,5 @@
+> checkExists core.A a
+
+$ copy-file changes/A.scala core/src/main/scala/A.scala
+
+> checkExists core.A b
