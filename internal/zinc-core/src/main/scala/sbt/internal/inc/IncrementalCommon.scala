@@ -172,16 +172,13 @@ private[inc] abstract class IncrementalCommon(
             )
 
         // No matter what shouldDoIncrementalCompilation returns, we are not in fact going to
-        // continue if there are no invalidations.  Assume the result is somehow interesting for
-        // profiling... or a bug.
-        val continuePerLookup =
-          if (isFullCompilation) false
-          else lookup.shouldDoIncrementalCompilation(nextInvalidations, analysis)
-        val continue = continuePerLookup && nextInvalidations.nonEmpty
+        // continue if there are no invalidations.
+        val continue = nextInvalidations.nonEmpty &&
+          lookup.shouldDoIncrementalCompilation(nextInvalidations, analysis)
 
         // If we're completing the cycle, then mergeAndInvalidate has already been called
         if (!completingCycle) {
-          registerCycle(recompiledClasses, newApiChanges, nextInvalidations, continuePerLookup)
+          registerCycle(recompiledClasses, newApiChanges, nextInvalidations, continue)
         }
         CompileCycleResult(continue, nextInvalidations, analysis)
       }
