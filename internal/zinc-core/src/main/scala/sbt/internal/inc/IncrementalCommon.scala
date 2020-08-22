@@ -71,92 +71,59 @@ private[inc] abstract class IncrementalCommon(
       output: Output,
       cycleNum: Int
   ) {
-    lazy val javaSources: Set[VirtualFileRef] = allSources
-      .filter(_.name.endsWith(".java"))
-      .map(_.asInstanceOf[VirtualFileRef])
+    def toVf(ref: VirtualFileRef): VirtualFile = converter.toVirtualFile(ref)
+    def sourceRefs: Set[VirtualFileRef] = allSources.asInstanceOf[Set[VirtualFileRef]]
+    lazy val javaSources: Set[VirtualFileRef] = sourceRefs.filter(_.id.endsWith(".java"))
 
     def hasNext: Boolean = invalidatedClasses.nonEmpty || initialChangedSources.nonEmpty
+
     def next: CycleState = {
       // Compute all the invalidated classes by aggregating invalidated package objects
       val invalidatedByPackageObjects =
         invalidatedPackageObjects(invalidatedClasses, previous.relations, previous.apis)
       val classesToRecompile = invalidatedClasses ++ invalidatedByPackageObjects
-      val vs = allSources map { x =>
-        (x: VirtualFileRef)
-      }
+
       // Computes which source files are mapped to the invalidated classes and recompile them
       val invalidatedRefs: Set[VirtualFileRef] =
-        mapInvalidationsToSources(classesToRecompile, initialChangedSources, vs, previous)
-      val invalidatedSources: Set[VirtualFile] = invalidatedRefs map { converter.toVirtualFile }
-      val pruned =
-        IncrementalCommon.pruneClassFilesOfInvalidations(
+        mapInvalidationsToSources(classesToRecompile, initialChangedSources, sourceRefs, previous)
+
+      val invalidatedSources: Set[VirtualFile] = invalidatedRefs.map(toVf)
+
+      val pruned = IncrementalCommon
+        .pruneClassFilesOfInvalidations(invalidatedSources, previous, classfileManager, converter)
+
+      debug(s"********* Pruned: \n${pruned.relations}\n*********")
+
+      val handler = new IncrementalCallbackImpl(
+        invalidatedSources,
+        classfileManager,
+        pruned,
+        classesToRecompile,
+        profiler.registerCycle(
+          invalidatedClasses,
+          invalidatedByPackageObjects,
+          initialChangedSources,
           invalidatedSources,
-          previous,
-          classfileManager,
-          converter
+          _,
+          _,
+          _,
+          _
         )
-      debug("********* Pruned: \n" + pruned.relations + "\n*********")
-      val handler =
-        new IncrementalCallbackImpl(
-          invalidatedSources,
-          classfileManager,
-          pruned,
-          classesToRecompile,
-          (recompiledClasses, newApiChanges, nextInvalidations, continuePerLookup) => {
-            profiler.registerCycle(
-              invalidatedClasses,
-              invalidatedByPackageObjects,
-              initialChangedSources,
-              invalidatedSources,
-              recompiledClasses,
-              newApiChanges,
-              nextInvalidations,
-              continuePerLookup,
-            )
-          }
-        )
+      )
 
       // Actual compilation takes place here
       log.debug(s"compilation cycle $cycleNum")
       val result = doCompile.run(invalidatedSources, binaryChanges, handler)
-      val continue = result.continue
-      val nextInvalidations = result.nextInvalidations
-      val current = result.analysis
-
-      val nextChangedSources: Set[VirtualFileRef] =
-        if (continue) javaSources
-        else Set.empty
+      val CompileCycleResult(continue, nextInvalidations, current) = result
 
       // Return immediate analysis as all sources have been recompiled
-      if (invalidatedSources == allSources)
-        CycleState(
-          Set.empty,
-          Set.empty,
-          allSources,
-          converter,
-          IncrementalCommon.emptyChanges,
-          lookup,
-          current,
-          doCompile,
-          classfileManager,
-          output,
-          cycleNum + 1
-        )
-      else {
-        CycleState(
-          if (continue) nextInvalidations else Set.empty,
-          nextChangedSources,
-          allSources,
-          converter,
-          IncrementalCommon.emptyChanges,
-          lookup,
-          current,
-          doCompile,
-          classfileManager,
-          output,
-          cycleNum + 1
-        )
-      }
+      copy(
+        if (continue && !handler.isFullCompilation) nextInvalidations else Set.empty,
+        if (continue && !handler.isFullCompilation) javaSources else Set.empty,
+        binaryChanges = IncrementalCommon.emptyChanges,
+        previous = current,
+        cycleNum = cycleNum + 1,
+      )
     }
 
     /**
@@ -172,8 +139,8 @@ private[inc] abstract class IncrementalCommon(
         classesToRecompile: Set[String],
         registerCycle: (Set[String], APIChanges, Set[String], Boolean) => Unit
     ) extends IncrementalCallback(classFileManager) {
-      override val isFullCompilation: Boolean =
-        allSources.subsetOf(invalidatedSources)
+      override val isFullCompilation: Boolean = allSources.subsetOf(invalidatedSources)
+      override val previousAnalysisPruned: Analysis = pruned
 
       override def mergeAndInvalidate(
           partialAnalysis: Analysis,
@@ -183,16 +150,16 @@ private[inc] abstract class IncrementalCommon(
           if (isFullCompilation)
             partialAnalysis.copy(compilations = pruned.compilations ++ partialAnalysis.compilations)
           else pruned ++ partialAnalysis
-        val recompiledClasses: Set[String] = {
-          // Represents classes detected as changed externally and internally (by a previous cycle)
-          classesToRecompile ++
-            // Maps the changed sources by the user to class names we can count as invalidated
-            initialChangedSources.flatMap(previous.relations.classNames) ++
-            initialChangedSources.flatMap(analysis.relations.classNames)
-        }
+
+        // Represents classes detected as changed externally and internally (by a previous cycle)
+        // Maps the changed sources by the user to class names we can count as invalidated
+        val getClasses = (a: Analysis) => initialChangedSources.flatMap(a.relations.classNames)
+        val recompiledClasses = classesToRecompile ++ getClasses(previous) ++ getClasses(analysis)
+
         val newApiChanges =
           detectAPIChanges(recompiledClasses, previous.apis.internalAPI, analysis.apis.internalAPI)
-        debug("\nChanges:\n" + newApiChanges)
+        debug(s"\nChanges:\n$newApiChanges")
+
         val nextInvalidations =
           if (isFullCompilation) Set.empty[String]
           else
@@ -201,9 +168,9 @@ private[inc] abstract class IncrementalCommon(
               newApiChanges,
               recompiledClasses,
               cycleNum >= options.transitiveStep,
-              IncrementalCommon
-                .comesFromScalaSource(previous.relations, Some(analysis.relations)) _
+              IncrementalCommon.comesFromScalaSource(previous.relations, Some(analysis.relations)) _
             )
+
         // No matter what shouldDoIncrementalCompilation returns, we are not in fact going to
         // continue if there are no invalidations.  Assume the result is somehow interesting for
         // profiling... or a bug.
@@ -223,15 +190,12 @@ private[inc] abstract class IncrementalCommon(
           prev: Option[CompileCycleResult],
           partialAnalysis: Analysis
       ): CompileCycleResult = {
-        val a1 = pruned ++ partialAnalysis
-        val results = prev.fold(mergeAndInvalidate(partialAnalysis, true))(_.copy(analysis = a1))
-        val products = partialAnalysis.relations.allProducts
-          .map(converter.toVirtualFile(_))
-        classFileManager.generated(products.toArray)
-        results
+        classFileManager.generated(partialAnalysis.relations.allProducts.map(toVf).toArray)
+        prev match {
+          case Some(prev) => prev.copy(analysis = pruned ++ partialAnalysis)
+          case _          => mergeAndInvalidate(partialAnalysis, true)
+        }
       }
-
-      override val previousAnalysisPruned = pruned
     }
   }
 
