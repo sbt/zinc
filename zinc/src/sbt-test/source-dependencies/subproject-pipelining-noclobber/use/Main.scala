@@ -1,3 +1,5 @@
 package example
 
-class B
+object Main {
+  val y = A.x
+}
