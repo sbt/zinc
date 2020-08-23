@@ -499,17 +499,19 @@ private[inc] abstract class IncrementalCommon(
     else if (allInvalidatedClasses.isEmpty && allInvalidatedSourcefiles.isEmpty)
       log.debug("No changes")
     else
-      log.debug(
-        "\nInitial source changes: \n\tremoved:" + removedSrcs + "\n\tadded: " + addedSrcs + "\n\tmodified: " + modifiedSrcs +
-          "\nInvalidated products: " + changes.removedProducts +
-          "\nExternal API changes: " + changes.external +
-          "\nModified binary dependencies: " + changes.libraryDeps +
-          "\nInitial directly invalidated classes: " + invalidatedClasses +
-          "\n\nSources indirectly invalidated by:" +
-          "\n\tproduct: " + byProduct +
-          "\n\tbinary dep: " + byLibraryDep +
-          "\n\texternal source: " + byExtSrcDep
-      )
+      log.debug(s"""
+        |Initial source changes:
+        |	removed: $removedSrcs
+        |	added: $addedSrcs
+        |	modified: $modifiedSrcs
+        |Invalidated products: ${changes.removedProducts}
+        |External API changes: ${changes.external}
+        |Modified binary dependencies: ${changes.libraryDeps}
+        |Initial directly invalidated classes: $invalidatedClasses
+        |Sources indirectly invalidated by:
+        |	product: $byProduct
+        |	binary dep: $byLibraryDep
+        |	external source: $byExtSrcDep""".stripMargin)
 
     (allInvalidatedClasses, allInvalidatedSourcefiles)
   }
@@ -533,7 +535,7 @@ private[inc] abstract class IncrementalCommon(
       findClassDependencies: String => Set[String]
   ): Set[String] = {
     val newInvalidations = currentInvalidations -- previousInvalidations
-    log.debug("New invalidations:\n\t" + newInvalidations)
+    log.debug(s"New invalidations:${ppxs(newInvalidations)}")
 
     val newTransitiveInvalidations =
       IncrementalCommon.transitiveDeps(newInvalidations, log)(findClassDependencies)
@@ -541,10 +543,12 @@ private[inc] abstract class IncrementalCommon(
     val reInvalidated = previousInvalidations.intersect(newTransitiveInvalidations)
 
     log.debug(
-      "Previously invalidated, but (transitively) depend on new invalidations:\n\t" + reInvalidated
+      s"Previously invalidated, but (transitively) depend on new invalidations:${ppxs(reInvalidated)}"
     )
     newInvalidations ++ reInvalidated
   }
+
+  def ppxs[A](xs: Iterable[A]) = xs.iterator.map(x => s"\n\t$x").mkString
 
   /**
    * Logs API changes using debug-level logging. The API are obtained using the APIDiff class.
