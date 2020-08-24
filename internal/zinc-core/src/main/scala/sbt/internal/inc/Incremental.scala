@@ -411,7 +411,8 @@ object Incremental {
             doCompile(compile, callbackBuilder, classfileManager),
             classfileManager,
             output,
-            1
+            1,
+            pickleJava,
           )
         else {
           val analysis =
