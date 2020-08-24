@@ -1,8 +1,9 @@
-# this compiles A.scala
 > dep/compile
 $ sleep 1000
 
-$ copy-file changes/B.scala dep/B.scala
+$ copy-file changes/A.scala dep/A.scala
+$ delete dep/target/early/output.jar
 
-# this compiles Main.scala that uses A.scala
+# Main uses A, but recompiling A causes B to be recompiled: the pickle must contain both
+# delete early/output.jar so to avoid it accidentally working by merging into an older jar
 > use/compile
