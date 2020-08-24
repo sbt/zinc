@@ -31,9 +31,9 @@ import xsbti.compile.{
 import sbt.io.IO
 import sbt.util.LogExchange
 import org.scalatest.matchers._
-import org.scalatest.DiagrammedAssertions
+import org.scalatest.diagrams.Diagrams
 
-class JavaCompilerSpec extends UnitSpec with DiagrammedAssertions {
+class JavaCompilerSpec extends UnitSpec with Diagrams {
 
   "Compiling a java file with local javac" should "compile a java file" in works(local)
   it should "issue errors and warnings" in findsErrors(local)

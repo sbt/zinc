@@ -13,12 +13,13 @@ package sbt
 package internal
 package inc
 
-import org.scalatest._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import sbt.util.{ LogExchange, Level }
 import sbt.internal.util.{ ManagedLogger, ConsoleOut, MainAppender }
 import java.util.concurrent.atomic.AtomicInteger
 
-abstract class UnitSpec extends FlatSpec with Matchers with LogTestkit {}
+abstract class UnitSpec extends AnyFlatSpec with Matchers with LogTestkit {}
 
 trait LogTestkit {
   def logLevel: Level.Value = Level.Warn
