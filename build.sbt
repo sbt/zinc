@@ -432,6 +432,7 @@ lazy val compilerInterface = (projectMatrix in internalPath / "compiler-interfac
     crossScalaVersions := Seq(scala212),
     compilerVersionDependentScalacOptions,
     libraryDependencies ++= Seq(scalaLibrary.value % Test),
+    libraryDependencies ++= Seq(scalatest % Test),
     exportJars := true,
     Compile / resourceGenerators += Def.task {
       val a = (Compile / compile).value

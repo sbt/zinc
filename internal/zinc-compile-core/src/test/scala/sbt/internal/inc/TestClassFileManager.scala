@@ -14,6 +14,7 @@ package sbt.internal.inc
 import xsbti.VirtualFile
 import xsbti.compile.ClassFileManager
 
+import java.io.File
 import scala.collection.mutable
 
 /**
@@ -24,12 +25,17 @@ class CollectingClassFileManager extends ClassFileManager {
   /** Collect generated classes, with public access to allow inspection. */
   val generatedClasses = new mutable.HashSet[VirtualFile]
 
-  override def delete(classes: Array[VirtualFile]): Unit = ()
+  @deprecated("Use variant that takes Array[VirtualFile]", "1.4.0")
+  override def delete(classes: Array[File]): Unit = ()
 
   override def generated(classes: Array[VirtualFile]): Unit = {
     generatedClasses ++= classes
     ()
   }
+
+  @deprecated("Use variant that takes Array[VirtualFile]", "1.4.0")
+  override def generated(classes: Array[File]): Unit =
+    generated(classes.map(c => PlainVirtualFile(c.toPath): VirtualFile))
 
   override def complete(success: Boolean): Unit = ()
 }

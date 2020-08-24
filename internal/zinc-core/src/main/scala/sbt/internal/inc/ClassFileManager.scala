@@ -16,7 +16,7 @@ package inc
 import sbt.io.IO
 import java.io.File
 import java.util.Optional
-import java.nio.file.{ Files, Path, StandardCopyOption }
+import java.nio.file.{ Files, Path }
 
 import collection.mutable
 import xsbti.{ FileConverter, PathBasedFile, VirtualFile }
@@ -65,65 +65,18 @@ object ClassFileManager {
     import sbt.internal.inc.JavaInterfaceUtil.{ EnrichOptional, EnrichOption }
     val internal =
       getDefaultClassFileManager(options.classfileManagerType, output, outputJarContent)
-    val external = Option(options.externalHooks())
-      .flatMap(
-        ext =>
-          ext.getExternalClassFileManager.toOption
-            .map(cm => (new DelegatingClassFileManager(cm, converter): XClassFileManager))
-      )
+    val external = Option(options.externalHooks()).flatMap(_.getExternalClassFileManager.toOption)
     xsbti.compile.WrappedClassFileManager.of(internal, external.toOptional)
   }
 
-  private type XClassFileManager13 = {
-    def delete(classes: Array[File]): Unit
-    def generated(classes: Array[File]): Unit
-  }
-
-  /**
-   * Workaround for Zinc 1.4.0 breaking changes.
-   * This provides reflective fallback to Zinc 1.3.x XClassFileManager.
-   */
-  private final class DelegatingClassFileManager(
-      underlying: XClassFileManager,
-      converter: FileConverter
-  ) extends XClassFileManager {
-
-    import scala.language.reflectiveCalls
-    override def delete(classes: Array[VirtualFile]): Unit =
-      try {
-        underlying.delete(classes)
-      } catch {
-        case _: AbstractMethodError =>
-          underlying
-            .asInstanceOf[XClassFileManager13]
-            .delete(classes.map(vf => converter.toPath(vf).toFile))
-      }
-
-    override def generated(classes: Array[VirtualFile]): Unit =
-      try {
-        underlying.generated(classes)
-      } catch {
-        case _: AbstractMethodError =>
-          underlying
-            .asInstanceOf[XClassFileManager13]
-            .generated(classes.map(vf => converter.toPath(vf).toFile))
-      }
-
-    override def complete(success: Boolean): Unit = underlying.complete(success)
-
-    def containsMethod(x: AnyRef, name: String, params: java.lang.Class[_]*) =
-      try {
-        x.getClass.getMethod(name, params: _*)
-        true
-      } catch {
-        case _: NoSuchMethodException => false
-      }
-  }
-
   private final class DeleteClassFileManager extends XClassFileManager {
+    @deprecated("Use variant that takes Array[VirtualFile]", "1.4.0")
+    override def delete(classes: Array[File]): Unit = IO.deleteFilesEmptyDirs(classes)
     override def delete(classes: Array[VirtualFile]): Unit =
       IO.deleteFilesEmptyDirs(classes.toVector.map(toPath).map(_.toFile))
     override def generated(classes: Array[VirtualFile]): Unit = ()
+    @deprecated("Use variant that takes Array[VirtualFile]", "1.4.0")
+    override def generated(classes: Array[File]): Unit = {}
     override def complete(success: Boolean): Unit = ()
   }
 
@@ -188,28 +141,36 @@ object ClassFileManager {
     Files.createDirectories(tempDir)
     logger.debug(s"Created transactional ClassFileManager with tempDir = $tempDir")
 
-    private[this] val generatedClasses = new mutable.HashSet[VirtualFile]
-    private[this] val movedClasses = new mutable.HashMap[VirtualFile, Path]
+    private[this] val generatedClasses = new mutable.HashSet[File]
+    private[this] val movedClasses = new mutable.HashMap[File, File]
 
-    private def showFiles(files: Iterable[VirtualFile]): String =
-      files.map(f => s"\t${f.id}").mkString("\n")
+    private def showFiles(files: Iterable[File]): String =
+      files.map(f => s"\t${f.getName()}").mkString("\n")
 
-    override def delete(classes0: Array[VirtualFile]): Unit = {
+    @deprecated("Use variant that takes Array[VirtualFile]", "1.4.0")
+    override def delete(classes0: Array[File]): Unit = deleteImpl(classes0)
+    override def delete(classes: Array[VirtualFile]): Unit =
+      deleteImpl(classes.map(c => toPath(c).toFile))
+    private def deleteImpl(classes0: Array[File]): Unit = {
       logger.debug(s"About to delete class files:\n${showFiles(classes0)}")
       val toBeBackedUp =
         classes0.toVector.filter(
-          c => Files.exists(toPath(c)) && !movedClasses.contains(c) && !generatedClasses(c)
+          c => c.exists && !movedClasses.contains(c) && !generatedClasses(c)
         )
       logger.debug(s"We backup class files:\n${showFiles(toBeBackedUp)}")
       for { c <- toBeBackedUp } {
         movedClasses.put(c, move(c))
       }
-      IO.deleteFilesEmptyDirs(classes0.map(toPath).map(_.toFile))
+      IO.deleteFilesEmptyDirs(classes0)
     }
 
-    override def generated(classes0: Array[VirtualFile]): Unit = {
-      logger.debug(s"Registering generated classes:\n${showFiles(classes0)}")
-      generatedClasses ++= classes0
+    override def generated(classes0: Array[VirtualFile]): Unit =
+      generatedImpl(classes0.map(c => toPath(c).toFile))
+    @deprecated("Use variant that takes Array[VirtualFile]", "1.4.0")
+    override def generated(classes: Array[File]): Unit = generatedImpl(classes)
+    private def generatedImpl(classes: Array[File]): Unit = {
+      logger.debug(s"Registering generated classes:\n${showFiles(classes)}")
+      generatedClasses ++= classes
       ()
     }
 
@@ -217,17 +178,16 @@ object ClassFileManager {
       if (!success) {
         logger.debug("Rolling back changes to class files.")
         logger.debug(s"Removing generated classes:\n${showFiles(generatedClasses)}")
-        IO.deleteFilesEmptyDirs(generatedClasses.toVector.map(toPath).map(_.toFile))
+        IO.deleteFilesEmptyDirs(generatedClasses.toVector)
         logger.debug(s"Restoring class files: \n${showFiles(movedClasses.keys)}")
         for {
           (orig, tmp) <- movedClasses
         } {
-          if (Files.exists(tmp)) {
-            val origPath = toPath(orig)
-            if (!Files.exists(origPath.getParent)) {
-              Files.createDirectories(origPath.getParent)
+          if (tmp.exists) {
+            if (!orig.getParentFile.exists) {
+              IO.createDirectory(orig.getParentFile)
             } // if
-            Files.move(tmp, origPath, StandardCopyOption.REPLACE_EXISTING)
+            IO.move(tmp, orig)
           } // if
         }
       }
@@ -235,9 +195,9 @@ object ClassFileManager {
       IO.delete(tempDir.toFile)
     }
 
-    def move(c: VirtualFile): Path = {
-      val target = Files.createTempFile(tempDir, "sbt", ".class")
-      IO.move(toPath(c).toFile, target.toFile)
+    def move(c: File): File = {
+      val target = Files.createTempFile(tempDir, "sbt", ".class").toFile
+      IO.move(c, target)
       target
     }
   }
@@ -246,12 +206,17 @@ object ClassFileManager {
       outputJar: Path,
       outputJarContent: JarUtils.OutputJarContent
   ) extends XClassFileManager {
-    override def delete(classes0: Array[VirtualFile]): Unit = {
-      val classes = classes0.toVector.map(toPath)
-      val relClasses = classes.map(c => JarUtils.ClassInJar.fromPath(c).toClassFilePath.get)
+    @deprecated("Use variant that takes Array[VirtualFile]", "1.4.0")
+    override def delete(classes: Array[File]): Unit = deleteImpl(classes)
+    override def delete(classes0: Array[VirtualFile]): Unit =
+      deleteImpl(classes0.map(toPath(_).toFile))
+    private def deleteImpl(classes: Array[File]): Unit = {
+      val relClasses = classes.map(c => JarUtils.ClassInJar.fromFile(c).toClassFilePath.get)
       outputJarContent.removeClasses(relClasses.toSet)
       JarUtils.removeFromJar(outputJar, relClasses)
     }
+    @deprecated("Use variant that takes Array[VirtualFile]", "1.4.0")
+    override def generated(classes: Array[File]): Unit = ()
     override def generated(classes: Array[VirtualFile]): Unit = ()
     override def complete(success: Boolean): Unit = ()
   }
@@ -275,6 +240,14 @@ object ClassFileManager {
       .filter(Files.exists(_))
       .map(JarUtils.stashIndex)
 
+    @deprecated("Use variant that takes Array[VirtualFile]", "1.4.0")
+    override def delete(classesInJar: Array[File]): Unit = {
+      val classes =
+        classesInJar.toVector
+          .map(c => JarUtils.ClassInJar.fromPath(c.toPath).toClassFilePath.get)
+      JarUtils.removeFromJar(outputJar, classes)
+      outputJarContent.removeClasses(classes.toSet)
+    }
     override def delete(classesInJar: Array[VirtualFile]): Unit = {
       val classes =
         classesInJar.toVector
@@ -284,6 +257,8 @@ object ClassFileManager {
       outputJarContent.removeClasses(classes.toSet)
     }
 
+    @deprecated("Use variant that takes Array[VirtualFile]", "1.4.0")
+    override def generated(classes: Array[File]): Unit = ()
     override def generated(classes: Array[VirtualFile]): Unit = ()
 
     override def complete(success: Boolean): Unit = {

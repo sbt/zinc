@@ -11,6 +11,7 @@
 
 package xsbti.compile;
 
+import java.io.File;
 import java.util.Optional;
 import xsbti.VirtualFile;
 
@@ -45,6 +46,17 @@ public class WrappedClassFileManager implements ClassFileManager {
   }
 
   @Override
+  @Deprecated
+  public void delete(File[] classes) {
+    // Avoid Java 8 syntax to accommodate Scala 2.10
+    if (external.isPresent()) {
+      external.get().delete(classes);
+    }
+    internal.delete(classes);
+  }
+
+
+  @Override
   public void complete(boolean success) {
     // Avoid Java 8 syntax to accommodate Scala 2.10
     if (external.isPresent()) {
@@ -55,6 +67,16 @@ public class WrappedClassFileManager implements ClassFileManager {
 
   @Override
   public void generated(VirtualFile[] classes) {
+    // Avoid Java 8 syntax to accommodate Scala 2.10
+    if (external.isPresent()) {
+      external.get().generated(classes);
+    }
+    internal.generated(classes);
+  }
+
+  @Override
+  @Deprecated
+  public void generated(File[] classes) {
     // Avoid Java 8 syntax to accommodate Scala 2.10
     if (external.isPresent()) {
       external.get().generated(classes);
