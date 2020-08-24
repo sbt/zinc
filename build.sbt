@@ -365,8 +365,7 @@ lazy val zincCore = (projectMatrix in internalPath / "zinc-core")
   .configure(addBaseSettingsAndTestDeps, addSbtIO, addSbtUtilLogging, addSbtUtilRelation)
 
 lazy val zincBenchmarks = (projectMatrix in internalPath / "zinc-benchmarks")
-  .dependsOn(compilerInterface % "compile->compile;compile->test")
-  .dependsOn(compilerBridge, zinc % "compile->test", zincTesting % "compile->test")
+  .dependsOn(zinc % "test->test")
   .enablePlugins(JmhPlugin)
   .settings(
     noPublish,
@@ -376,6 +375,17 @@ lazy val zincBenchmarks = (projectMatrix in internalPath / "zinc-benchmarks")
       "net.openhft" % "affinity" % "3.1.11"
     ),
     Test / javaOptions ++= List("-Xmx600M", "-Xms600M"),
+    inConfig(Jmh)(
+      List(
+        // Rewire as described at the bottom of https://github.com/ktoso/sbt-jmh#adding-to-your-project
+        sourceDirectory := (Test / sourceDirectory).value,
+        classDirectory := (Test / classDirectory).value,
+        dependencyClasspath := (Test / dependencyClasspath).value,
+        // rewire tasks, so that 'jmh:run' automatically invokes 'jmh:compile' (otherwise a clean 'jmh:run' would fail)
+        compile := compile.dependsOn(Test / compile).value,
+        run := run.dependsOn(Test / compile).evaluated,
+      )
+    ),
   )
   .jvmPlatform(scalaVersions = scala212_213)
 
@@ -667,7 +677,7 @@ addCommandAlias(
     Seq(
       s"${compilerBridge213.id}/packageBin",
       s"${compilerBridge212.id}/packageBin",
-      s"${zincBenchmarks.jvm(scala212).id}/run $dir",
+      s"${zincBenchmarks.jvm(scala212).id}/Test/run $dir",
       s"${zincBenchmarks.jvm(scala212).id}/jmh:run -p _tempDir=$dir -prof gc -foe true",
       s"""eval IO.delete(file("$dir"))""",
     ).mkString(";", ";", "")
