@@ -13,7 +13,9 @@ package sbt
 package internal
 package inc
 
-import org.scalatest._
+import org.scalatest.diagrams.Diagrams
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 // All eight combinations of class/object nesting to three levels.
 // O-O-O means object { object { object } }
@@ -26,7 +28,7 @@ package p2 { object x { class y { object z; class z } } }
 package p3 { class x { object y { object z; class z } } }
 package p4 { class x { class y { object z; class z } } }
 
-class ClassCanonicalNameSpec extends FlatSpec with Matchers with DiagrammedAssertions {
+class ClassCanonicalNameSpec extends AnyFlatSpec with Matchers with Diagrams {
   "ClassToAPI.classCanonicalName" should """return "" for null""" in
     assert(getCustomCanonicalName(null) === "")
 

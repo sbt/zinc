@@ -8,13 +8,15 @@ import java.nio.file.FileSystemNotFoundException
 import java.nio.file.FileSystems
 import java.nio.file.Files
 import java.nio.file.Paths
-import org.scalatest.DiagrammedAssertions
+import org.scalatest.diagrams.Diagrams
+import org.scalatest.concurrent.TimeLimits
 
 class ExtractUsedNamesPerformanceSpecification
     extends UnitSpec
     with CompilingSpecification
     with BridgeProviderTestkit
-    with DiagrammedAssertions {
+    with Diagrams
+    with TimeLimits {
   private def initFileSystem(uri: URI): Option[FileSystem] = {
     try Option(FileSystems.getFileSystem(uri))
     catch {
@@ -55,7 +57,6 @@ class ExtractUsedNamesPerformanceSpecification
       try fs.close()
       catch { case _: Throwable => /*ignore*/ }
     }
-    import org.scalatest.concurrent.Timeouts._
     import org.scalatest.time.SpanSugar._
     val usedNames = failAfter(30 seconds) {
       extractUsedNamesFromSrc(src)

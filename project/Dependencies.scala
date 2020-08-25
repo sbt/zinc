@@ -73,7 +73,7 @@ object Dependencies {
   val sbinary = "org.scala-sbt" %% "sbinary" % "0.5.1"
   val silencerPlugin = "com.github.ghik" %% "silencer-plugin" % "1.4.2"
   val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.14.0"
-  val scalatest = "org.scalatest" %% "scalatest" % "3.0.8"
+  val scalatest = "org.scalatest" %% "scalatest" % "3.2.0"
   val junit = "junit" % "junit" % "4.12"
   val verify = "com.eed3si9n.verify" %% "verify" % "0.2.0"
   val sjsonnew = Def.setting {

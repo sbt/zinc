@@ -2,13 +2,13 @@ package sbt
 package internal
 package inc
 
-import org.scalatest.DiagrammedAssertions
+import org.scalatest.diagrams.Diagrams
 
 class ExtractUsedNamesSpecification
     extends UnitSpec
     with CompilingSpecification
     with BridgeProviderTestkit
-    with DiagrammedAssertions {
+    with Diagrams {
 
   "Used names extraction" should "extract imported name" in {
     val src = """package a { class A }
