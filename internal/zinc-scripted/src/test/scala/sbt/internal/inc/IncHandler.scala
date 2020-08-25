@@ -571,7 +571,7 @@ case class ProjectStructure(
         }
         val futureScalaAnalysis = earlyDeps.map { internalCp =>
           blocking {
-            scriptedLog.info(s"[$name] internapCp = $internalCp")
+            scriptedLog.info(s"[$name] internalCp = $internalCp")
             doCompile(i, notifyEarlyOutput, internalCp, pipelinedLookupAnalysis, false)
           }
         }
@@ -678,7 +678,8 @@ case class ProjectStructure(
       else incrementalCompiler.compile(in, scriptedLog)
     val analysis = result.analysis match { case a: Analysis => a }
     cachedStore.set(AnalysisContents.create(analysis, result.setup))
-    scriptedLog.info(s"""[$name] compilation done: ${sources.toList.mkString(", ")}""")
+    val javaOnlyStr = if (javaOnly) "(java-only) " else ""
+    scriptedLog.info(s"""[$name] ${javaOnlyStr}compilation done: ${sources.mkString(", ")}""")
     analysis
   }
 

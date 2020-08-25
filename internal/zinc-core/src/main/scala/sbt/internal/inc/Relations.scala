@@ -628,9 +628,9 @@ private class MRelationsNameHashing(
 
   override def toString: String = {
     def deps_s(m: Map[_, Relation[_, _]]) =
-      m.iterator
-        .map { case (k, vs) => s"$k ${relation_s(vs)}" }
-        .mkString("\n    ", "\n    ", "")
+      m.iterator.map {
+        case (k, vs) => s"\n    $k ${relation_s(vs)}"
+      }.mkString
     s"""
     |Relations:
     |  products: ${relation_s(srcProd)}
