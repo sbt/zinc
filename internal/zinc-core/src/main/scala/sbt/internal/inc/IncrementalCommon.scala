@@ -69,7 +69,8 @@ private[inc] abstract class IncrementalCommon(
       doCompile: CompileCycle,
       classfileManager: XClassFileManager,
       output: Output,
-      cycleNum: Int
+      cycleNum: Int,
+      isPipeline: Boolean,
   ) {
     def toVf(ref: VirtualFileRef): VirtualFile = converter.toVirtualFile(ref)
     def sourceRefs: Set[VirtualFileRef] = allSources.asInstanceOf[Set[VirtualFileRef]]
@@ -119,7 +120,7 @@ private[inc] abstract class IncrementalCommon(
       // Return immediate analysis as all sources have been recompiled
       copy(
         if (continue && !handler.isFullCompilation) nextInvalidations else Set.empty,
-        if (continue && !handler.isFullCompilation) javaSources else Set.empty,
+        if (continue && !handler.isFullCompilation && isPipeline) javaSources else Set.empty,
         binaryChanges = IncrementalCommon.emptyChanges,
         previous = current,
         cycleNum = cycleNum + 1,
@@ -229,7 +230,8 @@ private[inc] abstract class IncrementalCommon(
       doCompile: CompileCycle,
       classfileManager: XClassFileManager,
       output: Output,
-      cycleNum: Int
+      cycleNum: Int,
+      isPipeline: Boolean
   ): Analysis = {
     var s = CycleState(
       invalidatedClasses,
@@ -242,7 +244,8 @@ private[inc] abstract class IncrementalCommon(
       doCompile,
       classfileManager,
       output,
-      cycleNum
+      cycleNum,
+      isPipeline,
     )
     val it = iterations(s)
     while (it.hasNext) {
