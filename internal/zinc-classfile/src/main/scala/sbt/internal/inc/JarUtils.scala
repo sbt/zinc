@@ -13,7 +13,6 @@ package sbt.internal.inc
 
 import sbt.io.IO
 import java.util.zip.ZipFile
-import java.nio.file.{ Files, Path }
 import java.io.File
 import java.util.UUID
 

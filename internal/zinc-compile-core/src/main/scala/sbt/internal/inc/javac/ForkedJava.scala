@@ -17,7 +17,6 @@ package javac
 
 import java.io.File
 import java.nio.file.Path
-import sbt.io.syntax._
 import sbt.io.IO
 import sbt.util.Logger
 import xsbti.{ PathBasedFile, Reporter, Logger => XLogger, VirtualFile }
