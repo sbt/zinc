@@ -18,12 +18,12 @@ import java.io.File;
 /**
  * Defines a store interface that provides analysis **file** read and write capabilities to users.
  *
- * This interface provides a backend for {@link AnalysisStore} to read and write from files,
+ * This interface provides a backend for `AnalysisStore` to read and write from files,
  * storing the analysis contents in the file system before or after every incremental compile.
  */
 public interface FileAnalysisStore extends AnalysisStore {
     /**
-     * Returns the default implementation of a file-based {@link AnalysisStore}.
+     * Returns the default implementation of a file-based `AnalysisStore`.
      *
      * This implementation is binary and based on Protobuf, which means that the content
      * of the file will be binary and can be read in plain text with the Protobuf toolkit.
@@ -36,7 +36,7 @@ public interface FileAnalysisStore extends AnalysisStore {
     }
 
     /**
-     * Returns the default implementation of a file-based {@link AnalysisStore}.
+     * Returns the default implementation of a file-based `AnalysisStore`.
      *
      * This implementation is binary and based on Protobuf, which means that the content
      * of the file will be binary and can be read in plain text with the Protobuf toolkit.
