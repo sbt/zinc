@@ -129,6 +129,35 @@ class MultiProjectIncrementalSpec extends BaseCompilerSpec {
     }
   })
 
+  "it" should "recompile Java on upstream changes" in (IO.withTemporaryDirectory { tmp =>
+    val p1 = VirtualSubproject(tmp.toPath / "sub1")
+    val p2 = VirtualSubproject(tmp.toPath / "sub2").dependsOn(p1)
+    val c1 = p1.setup.createCompiler()
+    val c2 = p2.setup.createCompiler()
+    try {
+      val s1 = "package pkg; class A { def a = 1 }"
+      val s1b = "package pkg; class A { def a1 = 1 }"
+      val s2 = "package pkg; class B extends A { def b = 2 }"
+      val s3 = "package pkg; class C"
+      val s4 = "package pkg; public class Z { public static int x = 3; }"
+
+      val f1 = StringVirtualFile("A.scala", s1)
+      val f1b = StringVirtualFile("A.scala", s1b)
+      val f2 = StringVirtualFile("B.scala", s2)
+      val f3 = StringVirtualFile("C.scala", s3)
+      val f4 = StringVirtualFile("Z.java", s4)
+
+      c1.compile(f1)
+      c2.compile(f2, f3, f4)
+      c1.compile(f1b)
+      val result = c2.compile(f2, f3, f4)
+      assert(lastClasses(result.analysis.asInstanceOf[Analysis]) == Set("pkg.B", "pkg.Z"))
+    } finally {
+      c1.close()
+      c2.close()
+    }
+  })
+
   def lastClasses(a: Analysis) = {
     a.compilations.allCompilations.map { c =>
       a.apis.internal.collect {
