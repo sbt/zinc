@@ -220,20 +220,17 @@ object Stamper {
 
   def forHashInRootPaths(converter: FileConverter): VirtualFileRef => XStamp = {
     (toStamp: VirtualFileRef) =>
-      {
-        toStamp.name match {
-          case "rt.jar" => EmptyStamp
+      if (toStamp.id.endsWith("rt.jar")) EmptyStamp
+      else {
+        val p = converter.toPath(toStamp)
+        JarUtils.getJarInClassInJar(p) match {
+          case Some(outputJar) =>
+            tryStamp {
+              FarmHash.ofPath(outputJar)
+            }
           case _ =>
-            val p = converter.toPath(toStamp)
-            JarUtils.getJarInClassInJar(p) match {
-              case Some(outputJar) =>
-                tryStamp {
-                  FarmHash.ofPath(outputJar)
-                }
-              case _ =>
-                tryStamp {
-                  FarmHash.ofPath(p)
-                }
+            tryStamp {
+              FarmHash.ofPath(p)
             }
         }
       }
@@ -245,11 +242,9 @@ object Stamper {
       getStamp: VirtualFileRef => XStamp
   ): VirtualFileRef => XStamp = { key: VirtualFileRef =>
     val p = converter.toPath(key)
-    val ts = try {
-      IO.getModifiedTimeOrZero(p.toFile)
-    } catch {
-      case _: Throwable => 0L
-    }
+    val ts =
+      try IO.getModifiedTimeOrZero(p.toFile)
+      catch { case _: Throwable => 0L }
     synchronized {
       cache.get(key) match {
         case Some((ts1, value)) if ts == ts1 && ts > 0 => value
