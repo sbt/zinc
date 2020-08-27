@@ -383,11 +383,12 @@ object Incremental {
         s"-Ypickle-java should be included into scalacOptions if early output is enabled with Java sources"
       )
     }
+    val hasModified = initialInvClasses.nonEmpty || initialInvSources0.nonEmpty
     val initialInvSources =
-      if (pickleJava && initialInvSources0.nonEmpty) initialInvSources0 ++ javaSources
+      if (pickleJava && hasModified) initialInvSources0 ++ javaSources
       else initialInvSources0
     if (initialInvClasses.nonEmpty || initialInvSources.nonEmpty) {
-      if (initialInvSources == sources)
+      if (hasModified)
         incremental.log.debug(s"all ${initialInvSources.size} sources are invalidated")
       else
         incremental.log.debug(
@@ -395,7 +396,6 @@ object Incremental {
             "All initially invalidated sources:" + initialInvSources + "\n"
         )
     }
-    val hasModified = initialInvClasses.nonEmpty || initialInvSources.nonEmpty
     val hasSubprojectChange = initialChanges.external.apiChanges.nonEmpty
     val analysis = withClassfileManager(options, converter, output, outputJarContent) {
       classfileManager =>

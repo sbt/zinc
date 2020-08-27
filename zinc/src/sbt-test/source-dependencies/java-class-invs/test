@@ -1,0 +1,6 @@
+> app/compile
+$ sleep 1000
+$ copy-file changes/Std.scala std/Std.scala
+$ delete lib/target/early/output.jar
+# delete early/output.jar to avoid it accidentally working by merging into an older jar
+> app/compile
