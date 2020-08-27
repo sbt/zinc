@@ -268,6 +268,17 @@ trait Relations {
    * Relation between source files and _unqualified_ term and type names used in given source file.
    */
   private[inc] def names: Relation[String, UsedName]
+
+  private[inc] def copy(
+      srcProd: Relation[VirtualFileRef, VirtualFileRef] = srcProd,
+      libraryDep: Relation[VirtualFileRef, VirtualFileRef] = libraryDep,
+      libraryClassName: Relation[VirtualFileRef, String] = libraryClassName,
+      internalDependencies: InternalDependencies = internalDependencies,
+      externalDependencies: ExternalDependencies = externalDependencies,
+      classes: Relation[VirtualFileRef, String] = classes,
+      names: Relation[String, UsedName] = names,
+      productClassName: Relation[String, String] = productClassName,
+  ): Relations
 }
 
 object Relations {
@@ -606,6 +617,26 @@ private class MRelationsNameHashing(
       productClassName = productClassName -- classesInSources
     )
   }
+
+  def copy(
+      srcProd: Relation[VirtualFileRef, VirtualFileRef] = srcProd,
+      libraryDep: Relation[VirtualFileRef, VirtualFileRef] = libraryDep,
+      libraryClassName: Relation[VirtualFileRef, String] = libraryClassName,
+      internalDependencies: InternalDependencies = internalDependencies,
+      externalDependencies: ExternalDependencies = externalDependencies,
+      classes: Relation[VirtualFileRef, String] = classes,
+      names: Relation[String, UsedName] = names,
+      productClassName: Relation[String, String] = productClassName,
+  ): Relations = new MRelationsNameHashing(
+    srcProd,
+    libraryDep,
+    libraryClassName,
+    internalDependencies,
+    externalDependencies,
+    classes,
+    names,
+    productClassName,
+  )
 
   override def equals(other: Any) = other match {
     case o: MRelationsNameHashing =>

@@ -1054,7 +1054,19 @@ private final class AnalysisCallback(
 
   private def writeEarlyArtifacts(merged: Analysis): Unit = {
     writtenEarlyArtifacts = true
-    earlyAnalysisStore.foreach(_.set(AnalysisContents.create(merged, currentSetup)))
+
+    // Only need internal apis & the productClassName relation from early analysis - drop the rest
+    // Because early analysis is only used by downstream to detect whether APIs have changed
+    val trimmedAnalysis = merged.copy(
+      Stamps.empty,
+      APIs(merged.apis.internal, Map.empty),
+      Relations.empty.copy(productClassName = merged.relations.productClassName),
+      SourceInfos.empty,
+      Compilations.empty,
+    )
+    val trimmedSetup = currentSetup.withOptions(currentSetup.options.withClasspathHash(Array.empty))
+    earlyAnalysisStore.foreach(_.set(AnalysisContents.create(trimmedAnalysis, trimmedSetup)))
+
     mergeUpdates() // must merge updates each cycle or else scalac will clobber it
     Incremental.writeEarlyOut(lookup, progress, earlyOutput, merged, knownProducts(merged))
   }
