@@ -1,5 +1,5 @@
-> checkExists core.A a
+> checkNameExistsInClass core.A a
 
 $ copy-file changes/A.scala core/src/main/scala/A.scala
 
-> checkExists core.A b
+> checkNameExistsInClass core.A b
