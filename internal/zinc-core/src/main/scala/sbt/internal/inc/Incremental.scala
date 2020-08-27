@@ -353,7 +353,7 @@ object Incremental {
 
     // During early output, if there's any compilation at all, invalidate all Java sources too, so the downstream Scala subprojects would have type information via early output (pickle jar).
     val javaSources: Set[VirtualFileRef] = sources.collect {
-      case s: VirtualFileRef if s.name.endsWith(".java") => s
+      case s: VirtualFileRef if s.id.endsWith(".java") => s
     }
     val scalacOptions = currentSetup.options.scalacOptions
     val earlyJar = extractEarlyJar(earlyOutput)
@@ -773,7 +773,7 @@ private final class AnalysisCallback(
       case None =>
         // dependency is some other binary on the classpath.
         // exclude dependency tracking with rt.jar, for example java.lang.String -> rt.jar.
-        if (vf.name != "rt.jar") {
+        if (!vf.id.endsWith("rt.jar")) {
           externalLibraryDependency(
             vf,
             onBinaryName,

@@ -81,9 +81,7 @@ package xsbti;
  * which the compiler is able to compile.
  */
 public interface VirtualFileRef {
-  public static VirtualFileRef of(String id) {
-      return new BasicVirtualFileRef(id);
-  }
+  static VirtualFileRef of(String id) { return new BasicVirtualFileRef(id); }
 
   /**
    * Returns unique identifier for the file.
@@ -95,14 +93,14 @@ public interface VirtualFileRef {
    * Java files must end with ".java",
    * and Scala files must end with ".scala".
    */
-  public String id();
+  String id();
 
   /**
    * Returns "file name" for the file.
    * Java files must end with ".java",
    * and Scala files must end with ".scala".
    */
-  public String name();
+  String name();
 
-  public String[] names();
+  String[] names();
 }

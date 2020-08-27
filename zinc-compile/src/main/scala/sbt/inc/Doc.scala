@@ -98,7 +98,7 @@ object Doc {
   private[sbt] def filesInfoToList[A <: FileInfo](info: FilesInfo[A]): List[A] =
     info.files.toList.sortBy(x => x.file.getAbsolutePath)
 
-  private[sbt] val javaSourcesOnly: VirtualFile => Boolean = _.name.endsWith(".java")
+  private[sbt] val javaSourcesOnly: VirtualFile => Boolean = _.id.endsWith(".java")
 
   class JavadocGenerationFailed extends Exception
 
