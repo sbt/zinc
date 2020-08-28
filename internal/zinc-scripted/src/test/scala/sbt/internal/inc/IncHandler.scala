@@ -229,8 +229,8 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
     onArgs("checkDependencies") {
       case (p, cls :: dependencies, i) => p.checkDependencies(i, dropRightColon(cls), dependencies)
     },
-    onArgs("checkExists") {
-      case (p, cls :: name :: Nil, i) => p.checkExists(i, dropRightColon(cls), name)
+    onArgs("checkNameExistsInClass") {
+      case (p, cls :: name :: Nil, i) => p.checkNameExistsInClass(i, dropRightColon(cls), name)
     },
     noArgs("checkSame") { case (p, i)   => p.checkSame(i) },
     onArgs("run") { case (p, params, i) => p.run(i, params) },
@@ -485,9 +485,9 @@ case class ProjectStructure(
       ()
     }
 
-  def checkExists(i: IncState, className: String, name: String): Future[Unit] =
-    compile(i).map { analysis =>
-      assert(analysis.apis.externalAPI(className).nameHashes().exists(_.name() == name))
+  def checkNameExistsInClass(i: IncState, className: String, name: String): Future[Unit] =
+    compile(i).map[Unit] { analysis =>
+      assert(analysis.apis.externalAPI(className).nameHashes.exists(_.name == name))
       ()
     }
 
