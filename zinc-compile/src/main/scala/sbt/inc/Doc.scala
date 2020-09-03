@@ -18,7 +18,7 @@ import sbt.io.syntax._
 import sbt.util.Logger
 import xsbti.{ FileConverter, VirtualFile }
 import xsbti.compile.{ IncToolOptions, JavaTools }
-import sbt.internal.inc.CompileOutput
+import sbt.internal.inc.{ CompileOutput, PlainVirtualFile, PlainVirtualFileConverter }
 import sbt.internal.inc.javac.JavaCompilerArguments
 import sbt.util.Tracked.inputChanged
 import sbt.util.{ CacheStoreFactory, FileInfo, FilesInfo, ModifiedFileInfo, PlainFileInfo }
@@ -103,6 +103,29 @@ object Doc {
   class JavadocGenerationFailed extends Exception
 
   trait JavaDoc {
+
+    /** @throws JavadocGenerationFailed when generating javadoc fails */
+    @deprecated("Use variant that takes VirtualFiles", "1.4.0")
+    def run(
+        sources: List[File],
+        classpath: List[File],
+        outputDirectory: File,
+        options: List[String],
+        incToolOptions: IncToolOptions,
+        log: Logger,
+        reporter: Reporter
+    ): Unit = {
+      run(
+        sources.map(s => PlainVirtualFile(s.toPath)),
+        classpath.map(s => PlainVirtualFile(s.toPath)),
+        PlainVirtualFileConverter.converter,
+        outputDirectory.toPath,
+        options,
+        incToolOptions,
+        log,
+        reporter
+      )
+    }
 
     /** @throws JavadocGenerationFailed when generating javadoc fails */
     def run(
