@@ -1,0 +1,18 @@
+{
+  "projects": [
+    {
+      "name": "app",
+      "dependsOn": [ "std", "lib" ],
+      "scalaVersion": "2.13.3"
+    },
+    {
+      "name": "lib",
+      "dependsOn": [ "std" ],
+      "scalaVersion": "2.13.3"
+    },
+    {
+      "name": "std",
+      "scalaVersion": "2.13.3"
+    }
+  ]
+}
