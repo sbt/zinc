@@ -86,7 +86,12 @@ private[inc] abstract class IncrementalCommon(
       val invalidatedRefs: Set[VirtualFileRef] =
         mapInvalidationsToSources(classesToRecompile, initialChangedSources, sourceRefs, previous)
 
-      val invalidatedSources: Set[VirtualFile] = invalidatedRefs.map(toVf)
+      val invalidatedSources: Set[VirtualFile] = if (cycleNum > options.transitiveStep) {
+        debug(s"reached cycle limit ${options.transitiveStep}; invalidating all sources")
+        allSources
+      } else {
+        invalidatedRefs.map(toVf)
+      }
 
       val pruned = IncrementalCommon
         .pruneClassFilesOfInvalidations(invalidatedSources, previous, classfileManager, converter)
