@@ -158,9 +158,17 @@ final class MixedAnalyzingCompiler(
             if (config.currentSetup.order == Mixed) incSrc
             else scalaSrcs
 
+          // include outputted pickle jar into the classpath since this would contain
+          // pickles for Java sources that are not included into cycle 2 onwards
+          val pickleJarAsClasspath: Option[VirtualFile] = pickleJarPair match {
+            case Some((originalJar, _)) =>
+              if (callback.cycleNum > 1) Some(config.converter.toVirtualFile(originalJar))
+              else None
+            case _ => None
+          }
           val cp0: Vector[VirtualFile] = (extraClasspath.toVector map { x =>
             config.converter.toVirtualFile(x.toAbsolutePath)
-          }) ++ absClasspath.toVector
+          }) ++ absClasspath.toVector ++ pickleJarAsClasspath.toVector
           val cp =
             if (scalaSrcs.isEmpty && pickleJava) {
               // we are invoking Scala compiler just for the sake of generating pickles for Java, which

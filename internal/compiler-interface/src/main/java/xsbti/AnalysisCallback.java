@@ -260,4 +260,6 @@ public interface AnalysisCallback {
     boolean isPickleJava();
 
     Optional<T2<Path, Path>> getPickleJarPair();
+
+    int cycleNum();
 }

@@ -82,6 +82,10 @@ object Incremental {
      * @return true when the compilation cycle is compiling all the sources; false, otherwise.
      */
     def isFullCompilation: Boolean
+
+    /** The counter of incremental compiler cycles.
+     */
+    def cycleNum: Int
   }
 
   sealed trait CompileCycle {
@@ -659,6 +663,11 @@ private final class AnalysisCallback(
   }
 
   override def getPickleJarPair = pickleJarPair.map { case (p1, p2) => t2((p1, p2)) }.toOptional
+  override def cycleNum: Int =
+    incHandlerOpt match {
+      case Some(handler) => handler.cycleNum
+      case _             => 1
+    }
 
   override def startSource(source: File): Unit = startSource(converter.toVirtualFile(source.toPath))
   override def startSource(source: VirtualFile): Unit = {

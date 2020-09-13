@@ -141,6 +141,8 @@ class TestCallback extends AnalysisCallback {
   override def isPickleJava: Boolean = false
 
   override def getPickleJarPair = Optional.empty()
+
+  override def cycleNum: Int = 1
 }
 
 object TestCallback {
