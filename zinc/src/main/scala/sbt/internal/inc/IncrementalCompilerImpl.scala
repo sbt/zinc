@@ -545,8 +545,18 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
           previousAnalysis
           // Return an empty analysis if values of extra have changed
         } else if (!equivPairs.equiv(previous.extra, currentSetup.extra)) {
+          log.info(
+            InterfaceUtil.toSupplier(
+              s"detected compileIncSetup.extra change: from ${previous.extra.toList} to ${currentSetup.extra.toList}"
+            )
+          )
           Analysis.empty
         } else {
+          log.debug(
+            InterfaceUtil.toSupplier(
+              s"detected compileIncSetup chage: from ${previous} to ${currentSetup}"
+            )
+          )
           Incremental.prune(srcsSet, previousAnalysis, output, outputJarContent, converter)
         }
       case None =>
