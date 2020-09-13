@@ -412,6 +412,7 @@ object Incremental {
             classfileManager,
             output,
             1,
+            pickleJava,
           )
         else {
           val analysis =
