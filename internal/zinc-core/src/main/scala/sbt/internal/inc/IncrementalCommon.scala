@@ -51,8 +51,8 @@ private[inc] abstract class IncrementalCommon(
   final def iterations(state0: CycleState): Iterator[CycleState] =
     new Iterator[CycleState] {
       var state: CycleState = state0
-      def hasNext: Boolean = state.hasNext
-      def next: CycleState = {
+      override def hasNext: Boolean = state.hasNext
+      override def next(): CycleState = {
         val n = state.next
         state = n
         n
@@ -70,7 +70,6 @@ private[inc] abstract class IncrementalCommon(
       classfileManager: XClassFileManager,
       output: Output,
       cycleNum: Int,
-      isPipeline: Boolean,
   ) {
     def toVf(ref: VirtualFileRef): VirtualFile = converter.toVirtualFile(ref)
     def sourceRefs: Set[VirtualFileRef] = allSources.asInstanceOf[Set[VirtualFileRef]]
@@ -117,10 +116,22 @@ private[inc] abstract class IncrementalCommon(
       val result = doCompile.run(invalidatedSources, binaryChanges, handler)
       val CompileCycleResult(continue, nextInvalidations, current) = result
 
+      // Include all Java sources into each Scala compilation cycle during pipelining.
+      // In normal compilation without pipelining the product of javac compilation would
+      // be available in /classes directory, but with pipelining javac compilation is
+      // deferred till later.
+      // This means that for each cycle (A.scala), (B.scala, ...), etc all Java sources
+      // must be included into scalac invocation so the sources that are being recompiled
+      // get to see the symbols coming from Java.
+      // See also sbt/zinc#918
+      val nextChangedSources: Set[VirtualFileRef] =
+        if (continue && !handler.isFullCompilation && options.pipelining) javaSources
+        else Set.empty
+
       // Return immediate analysis as all sources have been recompiled
       copy(
         if (continue && !handler.isFullCompilation) nextInvalidations else Set.empty,
-        if (continue && !handler.isFullCompilation && isPipeline) javaSources else Set.empty,
+        nextChangedSources,
         binaryChanges = IncrementalCommon.emptyChanges,
         previous = current,
         cycleNum = cycleNum + 1,
@@ -231,7 +242,6 @@ private[inc] abstract class IncrementalCommon(
       classfileManager: XClassFileManager,
       output: Output,
       cycleNum: Int,
-      isPipeline: Boolean
   ): Analysis = {
     var s = CycleState(
       invalidatedClasses,
@@ -245,11 +255,10 @@ private[inc] abstract class IncrementalCommon(
       classfileManager,
       output,
       cycleNum,
-      isPipeline,
     )
     val it = iterations(s)
     while (it.hasNext) {
-      s = it.next
+      s = it.next()
     }
     s.previous
   }
