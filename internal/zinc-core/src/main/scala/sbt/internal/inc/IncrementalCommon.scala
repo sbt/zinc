@@ -442,18 +442,18 @@ private[inc] abstract class IncrementalCommon(
       invalidateTransitively: Boolean,
       isScalaClass: String => Boolean
   ): Set[String] = {
-    val initial = changes.allModified.toSet
-    val dependsOnClass = findClassDependencies(_, relations)
     val firstClassInvalidation: Set[String] = {
-      val invalidated = if (invalidateTransitively) {
+      if (invalidateTransitively) {
         // Invalidate by brute force (normally happens when we've done more than 3 incremental runs)
-        IncrementalCommon.transitiveDeps(initial, log)(dependsOnClass)
+        val dependsOnClass = relations.memberRef.internal.reverse _
+        transitiveDependencies(dependsOnClass, changes.allModified.toSet)
       } else {
-        changes.apiChanges.flatMap(invalidateClassesInternally(relations, _, isScalaClass)).toSet
+        includeTransitiveInitialInvalidations(
+          changes.allModified.toSet,
+          changes.apiChanges.flatMap(invalidateClassesInternally(relations, _, isScalaClass)).toSet,
+          findClassDependencies(_, relations)
+        )
       }
-      val included = includeTransitiveInitialInvalidations(initial, invalidated, dependsOnClass)
-      log.debug("Final step, transitive dependencies:\n\t" + included)
-      included
     }
 
     // Invalidate classes linked with a class file that is produced by more than one source file
@@ -461,14 +461,32 @@ private[inc] abstract class IncrementalCommon(
     if (secondClassInvalidation.nonEmpty)
       log.debug(s"Invalidated due to generated class file collision: ${secondClassInvalidation}")
 
-    val allInvalidations = (firstClassInvalidation -- recompiledClasses) ++ secondClassInvalidation
-    if (allInvalidations.isEmpty) {
+    val newInvalidations = (firstClassInvalidation -- recompiledClasses) ++ secondClassInvalidation
+    if (newInvalidations.isEmpty) {
       log.debug("No classes were invalidated.")
       Set.empty
     } else {
-      log.debug(s"Invalidated classes: ${allInvalidations.mkString(", ")}")
-      allInvalidations
+      val allInvalidatedClasses: Set[String] = firstClassInvalidation ++ secondClassInvalidation
+      log.debug(s"Invalidated classes: ${allInvalidatedClasses.mkString(", ")}")
+      allInvalidatedClasses
     }
+  }
+
+  /**
+   * Returns the transitive class dependencies of an `initial` set of class names.
+   *
+   * Because the intermediate steps do not pull in cycles, this result includes the initial classes
+   * if they are part of a cycle containing newly invalidated classes.
+   */
+  def transitiveDependencies(
+      dependsOnClass: String => Set[String],
+      initial: Set[String]
+  ): Set[String] = {
+    val transitiveWithInitial = IncrementalCommon.transitiveDeps(initial, log)(dependsOnClass)
+    val transitivePartial =
+      includeTransitiveInitialInvalidations(initial, transitiveWithInitial, dependsOnClass)
+    log.debug("Final step, transitive dependencies:\n\t" + transitivePartial)
+    transitivePartial
   }
 
   /** Invalidates classes and sources based on initially detected 'changes' to the sources, products, and dependencies.*/
@@ -529,6 +547,26 @@ private[inc] abstract class IncrementalCommon(
   }
 
   /**
+   * Invalidates inheritance dependencies, transitively.  Then, invalidates direct dependencies.  Finally, excludes initial dependencies not
+   * included in a cycle with newly invalidated classes.
+   */
+  def invalidateClasses(
+      previous: Relations,
+      changes: APIChanges,
+      isScalaClass: String => Boolean
+  ): Set[String] = {
+    includeTransitiveInitialInvalidations(
+      changes.allModified.toSet,
+      changes.apiChanges.flatMap(invalidateClassesInternally(previous, _, isScalaClass)).toSet,
+      findClassDependencies(_, previous)
+    )
+  }
+
+  /**
+   * Conditionally include initial classes that are dependencies of newly invalidated classes.
+   * Initial classes included in this step can be because of a cycle, but not always.
+   */
+  /**
    * Returns the invalidations that are the result of the `currentInvalidations` + the
    * `previousInvalidations` that depend transitively on `currentInvalidations`.
    *
@@ -552,12 +590,12 @@ private[inc] abstract class IncrementalCommon(
     val newTransitiveInvalidations =
       IncrementalCommon.transitiveDeps(newInvalidations, log)(findClassDependencies)
     // Include the initial invalidations that are present in the transitive new invalidations
-    val reInvalidated = previousInvalidations.intersect(newTransitiveInvalidations)
+    val includedInitialInvalidations = newTransitiveInvalidations & previousInvalidations
 
     log.debug(
-      s"Previously invalidated, but (transitively) depend on new invalidations:${ppxs(reInvalidated)}"
+      s"Previously invalidated, but (transitively) depend on new invalidations:${ppxs(includedInitialInvalidations)}"
     )
-    newInvalidations ++ reInvalidated
+    newInvalidations ++ includedInitialInvalidations
   }
 
   def ppxs[A](xs: Iterable[A]) = xs.iterator.map(x => s"\n\t$x").mkString
@@ -646,9 +684,9 @@ private[inc] abstract class IncrementalCommon(
    * This step happens in every cycle of the incremental compiler as it is required to know
    * what classes were invalidated given the previous incremental compiler run.
    *
-   * @param relations    The relations from the previous analysis file of the compiled project.
-   * @param change       The internal API change detected by [[invalidateAfterInternalCompilation]].
-   * @param isScalaClass A function that tell us whether a class is defined in a Scala file or not.
+   * @param currentRelations  The relations from the previous analysis file of the compiled project.
+   * @param externalAPIChange The internal API change detected by [[invalidateAfterInternalCompilation()]].
+   * @param isScalaClass      A function that tell us whether a class is defined in a Scala file or not.
    */
   protected def invalidateClassesInternally(
       relations: Relations,
