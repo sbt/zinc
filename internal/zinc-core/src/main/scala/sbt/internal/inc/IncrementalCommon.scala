@@ -448,11 +448,12 @@ private[inc] abstract class IncrementalCommon(
     if (secondClassInvalidation.nonEmpty)
       log.debug(s"Invalidated due to generated class file collision: ${secondClassInvalidation}")
 
-    val allInvalidations = (firstClassInvalidation -- recompiledClasses) ++ secondClassInvalidation
-    if (allInvalidations.isEmpty) {
+    val newInvalidations = (firstClassInvalidation -- recompiledClasses) ++ secondClassInvalidation
+    if (newInvalidations.isEmpty) {
       log.debug("No classes were invalidated.")
       Set.empty
     } else {
+      val allInvalidations = firstClassInvalidation ++ secondClassInvalidation
       log.debug(s"Invalidated classes: ${allInvalidations.mkString(", ")}")
       allInvalidations
     }
