@@ -427,7 +427,7 @@ object Incremental {
               )
             else previous
           if (earlyOutput.isDefined)
-            writeEarlyOut(lookup, progress, earlyOutput, analysis, new java.util.HashSet)
+            writeEarlyOut(lookup, progress, earlyOutput, analysis, new java.util.HashSet, log)
           analysis
         }
     }
@@ -511,13 +511,14 @@ object Incremental {
       progress: Option[CompileProgress],
       earlyOutput: Option[Output],
       analysis: Analysis,
-      knownProducts: java.util.Set[String]
+      knownProducts: java.util.Set[String],
+      log: Logger,
   ) = {
     for {
       earlyO <- earlyOutput
       pickleJar <- jo2o(earlyO.getSingleOutputAsPath)
     } {
-      PickleJar.write(pickleJar, knownProducts)
+      PickleJar.write(pickleJar, knownProducts, log)
       progress.foreach(_.afterEarlyOutput(lookup.shouldDoEarlyOutput(analysis)))
     }
   }
@@ -1067,7 +1068,7 @@ private final class AnalysisCallback(
     earlyAnalysisStore.foreach(_.set(AnalysisContents.create(trimmedAnalysis, trimmedSetup)))
 
     mergeUpdates() // must merge updates each cycle or else scalac will clobber it
-    Incremental.writeEarlyOut(lookup, progress, earlyOutput, merged, knownProducts(merged))
+    Incremental.writeEarlyOut(lookup, progress, earlyOutput, merged, knownProducts(merged), log)
   }
 
   private def mergeUpdates() = {
