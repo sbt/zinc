@@ -90,10 +90,7 @@ private object DelegatingReporter {
 
     def makePosition(pos: Position): xsbti.Position = {
       val src = pos.source
-      val sourcePath = src.file match {
-        case AbstractZincFile(virtualFile) => virtualFile.id
-        case af: AbstractFile              => af.path
-      }
+      val sourcePath = src.file.path
       val sourceFile = new File(src.file.path)
       val line = pos.line
       val lineContent = pos.lineContent.stripLineEnd
