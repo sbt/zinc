@@ -66,9 +66,12 @@ object Discovery {
   def defAnnotations(s: Structure, pred: String => Boolean): Set[String] =
     defAnnotations(s.declared, pred) ++ defAnnotations(s.inherited, pred)
   def defAnnotations(defs: Seq[Definition], pred: String => Boolean): Set[String] =
-    findAnnotations(defs.flatMap {
-      case d: Def if isPublic(d) => d.annotations.toSeq; case _ => Nil
-    }, pred)
+    findAnnotations(
+      defs.flatMap {
+        case d: Def if isPublic(d) => d.annotations.toSeq; case _ => Nil
+      },
+      pred
+    )
 
   def isConcrete(a: Definition): Boolean = isConcrete(a.modifiers)
   def isConcrete(m: Modifiers) = !m.isAbstract
@@ -97,7 +100,11 @@ object Discovery {
       p.tpe
     )
   def isStringArray(t: Type): Boolean =
-    isParameterized(t, "scala.Array", "java.lang.String") // doesn't handle scala.this#Predef#String, should API phase dealias?
+    isParameterized(
+      t,
+      "scala.Array",
+      "java.lang.String"
+    ) // doesn't handle scala.this#Predef#String, should API phase dealias?
 
   def isParameterized(t: Type, base: String, args: String*): Boolean = t match {
     case p: Parameterized =>

@@ -72,13 +72,12 @@ trait RelationsTextFormat extends FormatCommons {
         // We sort for ease of debugging and for more efficient reconstruction when reading.
         // Note that we don't share code with writeMap. Each is implemented more efficiently
         // than the shared code would be, and the difference is measurable on large analyses.
-        rel.forwardMap.toSeq.sortBy(_._1)(toStringOrdA).foreach {
-          case (k, vs) =>
-            val kStr = relDesc.keyMapper.write(k)
-            vs.toSeq.sorted(toStringOrdB) foreach { v =>
-              out.write(kStr); out.write(" -> "); out.write(relDesc.valueMapper.write(v));
-              out.write("\n")
-            }
+        rel.forwardMap.toSeq.sortBy(_._1)(toStringOrdA).foreach { case (k, vs) =>
+          val kStr = relDesc.keyMapper.write(k)
+          vs.toSeq.sorted(toStringOrdB) foreach { v =>
+            out.write(kStr); out.write(" -> "); out.write(relDesc.valueMapper.write(v));
+            out.write("\n")
+          }
         }
       }
 

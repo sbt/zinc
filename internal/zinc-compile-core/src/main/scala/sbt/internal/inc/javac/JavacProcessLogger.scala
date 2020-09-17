@@ -25,7 +25,6 @@ import scala.sys.process.ProcessLogger
  * An adapted process logger which can feed semantic error events from Javac as well as just
  * dump logs.
  *
- *
  * @param log  The logger where all non-semantic messages will go.
  * @param reporter  A reporter for semantic Javac error messages.
  * @param cwd The current working directory of the Javac process, used when parsing Filenames.

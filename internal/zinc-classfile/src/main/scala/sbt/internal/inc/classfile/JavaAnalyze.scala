@@ -177,17 +177,16 @@ private[sbt] object JavaAnalyze {
           context: DependencyContext,
           fromBinaryClassName: String
       ): Unit =
-        binaryClassNames.foreach(
-          binaryClassName => processDependency(binaryClassName, context, fromBinaryClassName)
+        binaryClassNames.foreach(binaryClassName =>
+          processDependency(binaryClassName, context, fromBinaryClassName)
         )
 
       // Get all references to types in a given class file (via constant pool)
       val typesInSource = classFiles.map(cf => cf.className -> cf.types).toMap
 
       // Process dependencies by member references
-      typesInSource foreach {
-        case (binaryClassName, binaryClassNameDeps) =>
-          processDependencies(binaryClassNameDeps, DependencyByMemberRef, binaryClassName)
+      typesInSource foreach { case (binaryClassName, binaryClassNameDeps) =>
+        processDependencies(binaryClassNameDeps, DependencyByMemberRef, binaryClassName)
       }
 
       def readInheritanceDependencies(classes: Seq[Class[_]]) = {
@@ -199,9 +198,8 @@ private[sbt] object JavaAnalyze {
       // Read API of non-local classes and process dependencies by inheritance
       val nonLocalInherited: Map[String, Set[String]] =
         readInheritanceDependencies(nonLocalClasses.toSeq).toMap
-      nonLocalInherited foreach {
-        case (className, inheritanceDeps) =>
-          processDependencies(inheritanceDeps, DependencyByInheritance, className)
+      nonLocalInherited foreach { case (className, inheritanceDeps) =>
+        processDependencies(inheritanceDeps, DependencyByInheritance, className)
       }
 
       // Read API of local classes and process local dependencies by inheritance
@@ -209,9 +207,8 @@ private[sbt] object JavaAnalyze {
         localClassesOrStale.filter(cls => localClassesToSources.contains(cls.getName))
       val localInherited: Map[String, Set[String]] =
         readInheritanceDependencies(localClasses.toSeq).toMap
-      localInherited foreach {
-        case (className, inheritanceDeps) =>
-          processDependencies(inheritanceDeps, LocalDependencyByInheritance, className)
+      localInherited foreach { case (className, inheritanceDeps) =>
+        processDependencies(inheritanceDeps, LocalDependencyByInheritance, className)
       }
     }
   }
@@ -336,9 +333,12 @@ private[sbt] object JavaAnalyze {
         fs(fs.keys.min)
       }
 
-    refine((sourceNameMap get sourceFileName).toList.flatten map { x =>
-      (x, x.names.toList.reverse.drop(1))
-    }, pkg.reverse)
+    refine(
+      (sourceNameMap get sourceFileName).toList.flatten map { x =>
+        (x, x.names.toList.reverse.drop(1))
+      },
+      pkg.reverse
+    )
   }
 
 }

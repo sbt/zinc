@@ -53,7 +53,6 @@ import Compat._
  *      tree so we missed it
  *
  * The tree walking algorithm walks into TypeTree.original explicitly.
- *
  */
 class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
     extends Compat

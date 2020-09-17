@@ -38,18 +38,18 @@ object JavaCompilerForUnitTesting {
     val (_, testCallback) = compileJavaSrcs(srcs: _*)((_, _, classes) => extractParents(classes))
 
     val memberRefDeps = testCallback.classDependencies
-      .collect({
-        case (target, src, DependencyByMemberRef) => (src, target)
+      .collect({ case (target, src, DependencyByMemberRef) =>
+        (src, target)
       })
       .toSeq
     val inheritanceDeps = testCallback.classDependencies
-      .collect({
-        case (target, src, DependencyByInheritance) => (src, target)
+      .collect({ case (target, src, DependencyByInheritance) =>
+        (src, target)
       })
       .toSeq
     val localInheritanceDeps = testCallback.classDependencies
-      .collect({
-        case (target, src, LocalDependencyByInheritance) => (src, target)
+      .collect({ case (target, src, LocalDependencyByInheritance) =>
+        (src, target)
       })
       .toSeq
     ExtractedClassDependencies.fromPairs(memberRefDeps, inheritanceDeps, localInheritanceDeps)
@@ -59,8 +59,8 @@ object JavaCompilerForUnitTesting {
       readAPI: (AnalysisCallback, VirtualFileRef, Seq[Class[_]]) => Set[(String, String)]
   ): (Seq[VirtualFile], TestCallback) = {
     IO.withTemporaryDirectory { temp =>
-      val srcFiles0 = srcs.map {
-        case (fileName, src) => prepareSrcFile(temp, fileName, src)
+      val srcFiles0 = srcs.map { case (fileName, src) =>
+        prepareSrcFile(temp, fileName, src)
       }
       val srcFiles: List[VirtualFile] =
         srcFiles0.toList.map(x => new TestVirtualFile(x.toPath): VirtualFile)

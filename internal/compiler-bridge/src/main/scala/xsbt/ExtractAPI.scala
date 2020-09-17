@@ -49,7 +49,6 @@ import scala.PartialFunction.cond
  * only non-private (accessible from other compilation units) members are relevant. Other parts of the
  * incremental compiler filter out private definitions before processing API structures. Check SameAPI for
  * an example.
- *
  */
 class ExtractAPI[GlobalType <: Global](
     val global: GlobalType,
@@ -144,10 +143,9 @@ class ExtractAPI[GlobalType <: Global](
     }
     def enterExistentialTypeVariables(typeVariables: Seq[Symbol]): Unit = {
       nestingLevel += 1
-      typeVariables.zipWithIndex foreach {
-        case (tv, i) =>
-          val newName = "existential_" + nestingLevel + "_" + i
-          renameTo(tv) = newName
+      typeVariables.zipWithIndex foreach { case (tv, i) =>
+        val newName = "existential_" + nestingLevel + "_" + i
+        renameTo(tv) = newName
       }
     }
     def renaming(symbol: Symbol): Option[String] = renameTo.get(symbol)
@@ -215,12 +213,12 @@ class ExtractAPI[GlobalType <: Global](
             xsbti.api.Annotation.of(
               processType(in, a.atp),
               if (a.assocs.isEmpty)
-                Array(xsbti.api.AnnotationArgument.of("", a.args.mkString("(", ",", ")"))) // what else to do with a Tree?
+                // what else to do with a Tree?
+                Array(xsbti.api.AnnotationArgument.of("", a.args.mkString("(", ",", ")")))
               else
                 a.assocs
-                  .map {
-                    case (name, value) =>
-                      xsbti.api.AnnotationArgument.of(name.toString, value.toString)
+                  .map { case (name, value) =>
+                    xsbti.api.AnnotationArgument.of(name.toString, value.toString)
                   }
                   .toArray[xsbti.api.AnnotationArgument]
             )
@@ -419,7 +417,8 @@ class ExtractAPI[GlobalType <: Global](
     val decls = info.decls.toList
     val declsNoModuleCtor = if (s.isModuleClass) removeConstructors(decls) else decls
     val declSet = decls.toSet
-    val inherited = info.nonPrivateMembers.toList.filterNot(declSet) // private members are not inherited
+    // private members are not inherited
+    val inherited = info.nonPrivateMembers.toList.filterNot(declSet)
     mkStructure(s, ancestorTypes, declsNoModuleCtor, inherited)
   }
 

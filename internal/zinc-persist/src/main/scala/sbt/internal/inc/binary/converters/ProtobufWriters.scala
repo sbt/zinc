@@ -70,39 +70,36 @@ final class ProtobufWriters(mapper: WriteMapper) {
     def toBinarySchemaMap(
         data: Map[VirtualFileRef, Stamp]
     ): Iterator[(String, Schema.Stamps.StampType)] = {
-      data.iterator.map {
-        case (binaryFile, stamp) =>
-          val newBinaryFile = mapper.mapBinaryFile(binaryFile)
-          val newPath = toStringPathV(newBinaryFile)
-          val newBinaryStamp = mapper.mapBinaryStamp(binaryFile, stamp)
-          val newStamp = toStampType(newBinaryStamp)
-          newPath -> newStamp
+      data.iterator.map { case (binaryFile, stamp) =>
+        val newBinaryFile = mapper.mapBinaryFile(binaryFile)
+        val newPath = toStringPathV(newBinaryFile)
+        val newBinaryStamp = mapper.mapBinaryStamp(binaryFile, stamp)
+        val newStamp = toStampType(newBinaryStamp)
+        newPath -> newStamp
       }
     }
 
     def toSourceSchemaMap(
         data: Map[VirtualFileRef, Stamp]
     ): Iterator[(String, Schema.Stamps.StampType)] = {
-      data.iterator.map {
-        case (sourceFile, stamp) =>
-          val newSourceFile = mapper.mapSourceFile(sourceFile)
-          val newPath = toStringPathV(newSourceFile)
-          val newSourceStamp = mapper.mapSourceStamp(sourceFile, stamp)
-          val newStamp = toStampType(newSourceStamp)
-          newPath -> newStamp
+      data.iterator.map { case (sourceFile, stamp) =>
+        val newSourceFile = mapper.mapSourceFile(sourceFile)
+        val newPath = toStringPathV(newSourceFile)
+        val newSourceStamp = mapper.mapSourceStamp(sourceFile, stamp)
+        val newStamp = toStampType(newSourceStamp)
+        newPath -> newStamp
       }
     }
 
     def toProductSchemaMap(
         data: Map[VirtualFileRef, Stamp]
     ): Iterator[(String, Schema.Stamps.StampType)] = {
-      data.iterator.map {
-        case (productFile, stamp) =>
-          val newProductFile = mapper.mapProductFile(productFile)
-          val newPath = toStringPathV(newProductFile)
-          val newProductStamp = mapper.mapProductStamp(productFile, stamp)
-          val newStamp = toStampType(newProductStamp)
-          newPath -> newStamp
+      data.iterator.map { case (productFile, stamp) =>
+        val newProductFile = mapper.mapProductFile(productFile)
+        val newPath = toStringPathV(newProductFile)
+        val newProductStamp = mapper.mapProductStamp(productFile, stamp)
+        val newStamp = toStampType(newProductStamp)
+        newPath -> newStamp
       }
     }
 
@@ -111,8 +108,8 @@ final class ProtobufWriters(mapper: WriteMapper) {
     val productStamps = toProductSchemaMap(stamps.products)
 
     val builder = Schema.Stamps.newBuilder
-    binaryStamps.foreach { case (k, v)  => builder.putBinaryStamps(k, v) }
-    sourceStamps.foreach { case (k, v)  => builder.putSourceStamps(k, v) }
+    binaryStamps.foreach { case (k, v) => builder.putBinaryStamps(k, v) }
+    sourceStamps.foreach { case (k, v) => builder.putSourceStamps(k, v) }
     productStamps.foreach { case (k, v) => builder.putProductStamps(k, v) }
     builder.build
   }
@@ -208,9 +205,8 @@ final class ProtobufWriters(mapper: WriteMapper) {
   }
 
   def toSourceInfos(sourceInfos0: SourceInfos): Schema.SourceInfos = {
-    val sourceInfos = sourceInfos0.allInfos.iterator.map {
-      case (file, sourceInfo0) =>
-        toStringPathV(mapper.mapSourceFile(file)) -> toSourceInfo(sourceInfo0)
+    val sourceInfos = sourceInfos0.allInfos.iterator.map { case (file, sourceInfo0) =>
+      toStringPathV(mapper.mapSourceFile(file)) -> toSourceInfo(sourceInfo0)
     }
     val builder = Schema.SourceInfos.newBuilder
     sourceInfos.foreach { case (k, v) => builder.putSourceInfos(k, v) }
@@ -653,11 +649,10 @@ final class ProtobufWriters(mapper: WriteMapper) {
     def toUsedNamesMap(
         relation: Relation[String, UsedName]
     ): Iterator[(String, Schema.UsedNames)] = {
-      relation.forwardMap.iterator.map {
-        case (k, names) =>
-          val builder = Schema.UsedNames.newBuilder
-          names.foreach(name => builder.addUsedNames(toUsedName(name)))
-          k -> builder.build
+      relation.forwardMap.iterator.map { case (k, names) =>
+        val builder = Schema.UsedNames.newBuilder
+        names.foreach(name => builder.addUsedNames(toUsedName(name)))
+        k -> builder.build
       }
     }
 
@@ -666,11 +661,10 @@ final class ProtobufWriters(mapper: WriteMapper) {
         fk: K => String,
         fv: V => String
     ): Iterator[(String, Schema.Values)] = {
-      relation.forwardMap.iterator.map {
-        case (k, vs) =>
-          val builder = Schema.Values.newBuilder
-          vs.foreach(v => builder.addValues(fv(v)))
-          fk(k) -> builder.build
+      relation.forwardMap.iterator.map { case (k, vs) =>
+        val builder = Schema.Values.newBuilder
+        vs.foreach(v => builder.addValues(fv(v)))
+        fk(k) -> builder.build
       }
     }
 
@@ -708,12 +702,12 @@ final class ProtobufWriters(mapper: WriteMapper) {
     }
 
     val builder = Schema.Relations.newBuilder
-    srcProd.foreach { case (k, v)          => builder.putSrcProd(k, v) }
-    libraryDep.foreach { case (k, v)       => builder.putLibraryDep(k, v) }
+    srcProd.foreach { case (k, v) => builder.putSrcProd(k, v) }
+    libraryDep.foreach { case (k, v) => builder.putLibraryDep(k, v) }
     libraryClassName.foreach { case (k, v) => builder.putLibraryClassName(k, v) }
-    classes.foreach { case (k, v)          => builder.putClasses(k, v) }
+    classes.foreach { case (k, v) => builder.putClasses(k, v) }
     productClassName.foreach { case (k, v) => builder.putProductClassName(k, v) }
-    names.foreach { case (k, v)            => builder.putNames(k, v) }
+    names.foreach { case (k, v) => builder.putNames(k, v) }
     builder
       .setMemberRef(memberRef)
       .setInheritance(inheritance)

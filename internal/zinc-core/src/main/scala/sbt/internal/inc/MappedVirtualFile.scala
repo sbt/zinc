@@ -40,12 +40,11 @@ object MappedVirtualFile {
 
 class MappedFileConverter(rootPaths: Map[String, Path], allowMachinePath: Boolean)
     extends FileConverter {
-  val rootPaths2: Seq[(String, Path)] = rootPaths.toSeq.flatMap {
-    case (key, rootPath) =>
-      if (rootPath.startsWith("/var/") || rootPath.startsWith("/tmp/")) {
-        val rootPath2 = Paths.get("/private").resolve(Paths.get("/").relativize(rootPath))
-        Seq(key -> rootPath, key -> rootPath2)
-      } else Seq(key -> rootPath)
+  val rootPaths2: Seq[(String, Path)] = rootPaths.toSeq.flatMap { case (key, rootPath) =>
+    if (rootPath.startsWith("/var/") || rootPath.startsWith("/tmp/")) {
+      val rootPath2 = Paths.get("/private").resolve(Paths.get("/").relativize(rootPath))
+      Seq(key -> rootPath, key -> rootPath2)
+    } else Seq(key -> rootPath)
   }
 
   def toPath(ref: VirtualFileRef): Path = ref match {

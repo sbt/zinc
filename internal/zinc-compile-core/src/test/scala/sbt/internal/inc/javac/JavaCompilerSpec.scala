@@ -85,8 +85,8 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
     val classfile = new File(out, "good.class")
     assert(classfile.exists)
     assert(
-      dealiasSymlinks(classfileManager.generatedClasses map {
-        case vf: PathBasedFile => vf.toPath.toFile
+      dealiasSymlinks(classfileManager.generatedClasses map { case vf: PathBasedFile =>
+        vf.toPath.toFile
       }) ==
         (if (forked) HashSet() else dealiasSymlinks(HashSet(classfile)))
     )
@@ -110,7 +110,13 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
     val importWarn = warnOnLine(lineno = 12, lineContent = Some("java.rmi.RMISecurityException"))
     val enclosingError = errorOnLine(lineno = 25, message = Some("not an enclosing class: C.D"))
     val beAnExpectedError =
-      List(importWarn, errorOnLine(14), errorOnLine(15), warnOnLine(18), enclosingError) reduce (_ or _)
+      List(
+        importWarn,
+        errorOnLine(14),
+        errorOnLine(15),
+        warnOnLine(18),
+        enclosingError
+      ) reduce (_ or _)
     problems foreach { p =>
       p should beAnExpectedError
     }
@@ -202,7 +208,11 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
     val content = lineContent.fold("")(s => s""" with content = "$s"""")
     Matcher { (p: Problem) =>
       MatchResult(
-        messageMatches(p, lineno, message) && lineMatches(p, lineno, lineContent) && p.severity == severity,
+        messageMatches(p, lineno, message) && lineMatches(
+          p,
+          lineno,
+          lineContent
+        ) && p.severity == severity,
         s"Expected $problemType on line $lineno$msg$content, but found $p",
         "Problem matched: " + p
       )
@@ -222,17 +232,16 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
       compile(local, Seq(knownSampleErrorFile), Seq("-deprecation"), out.toPath)
     assert(fresult == lresult)
 
-    (fproblems zip lproblems) foreach {
-      case (f, l) =>
-        // TODO - We should check to see if the levenshtein distance of the messages is close...
-        // if (f.position.sourcePath.isPresent)
-        //   assert(f.position.sourcePath.get == l.position.sourcePath.get)
-        // else assert(!l.position.sourcePath.isPresent)
+    (fproblems zip lproblems) foreach { case (f, l) =>
+      // TODO - We should check to see if the levenshtein distance of the messages is close...
+      // if (f.position.sourcePath.isPresent)
+      //   assert(f.position.sourcePath.get == l.position.sourcePath.get)
+      // else assert(!l.position.sourcePath.isPresent)
 
-        if (f.position.line.isPresent) assert(f.position.line.get == l.position.line.get)
-        else assert(!l.position.line.isPresent)
+      if (f.position.line.isPresent) assert(f.position.line.get == l.position.line.get)
+      else assert(!l.position.line.isPresent)
 
-        assert(f.severity == l.severity)
+      assert(f.severity == l.severity)
     }
   }
 

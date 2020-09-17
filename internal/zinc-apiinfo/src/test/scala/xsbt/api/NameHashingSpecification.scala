@@ -211,7 +211,7 @@ class NameHashingSpecification extends UnitSpec {
    *
    * // Test1.scala
    * class A {
-   * 	def foo: { bar: Int }
+   *  def foo: { bar: Int }
    * }
    *
    * // Test2.scala

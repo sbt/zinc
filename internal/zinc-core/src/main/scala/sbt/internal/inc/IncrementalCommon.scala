@@ -472,7 +472,7 @@ private[inc] abstract class IncrementalCommon(
     }
   }
 
-  /** Invalidates classes and sources based on initially detected 'changes' to the sources, products, and dependencies.*/
+  /** Invalidates classes and sources based on initially detected 'changes' to the sources, products, and dependencies. */
   def invalidateInitial(
       previous: Relations,
       changes: InitialChanges
@@ -693,8 +693,8 @@ object IncrementalCommon {
 
   /** Invalidate all classes that claim to produce the same class file as another class. */
   def invalidateNamesProducingSameClassFile(merged: Relations): Set[String] = {
-    merged.srcProd.reverseMap.flatMap {
-      case (_, sources) => if (sources.size > 1) sources.flatMap(merged.classNames(_)) else Nil
+    merged.srcProd.reverseMap.flatMap { case (_, sources) =>
+      if (sources.size > 1) sources.flatMap(merged.classNames(_)) else Nil
     }.toSet
   }
 
@@ -736,8 +736,10 @@ object IncrementalCommon {
 
       def isLibraryChanged(file: VirtualFileRef): Boolean = {
         def compareOriginClassFile(className: String, classpathEntry: VirtualFileRef): Boolean = {
-          if (classpathEntry.id.endsWith(".jar") &&
-              (converter.toPath(classpathEntry).toString != converter.toPath(file).toString))
+          if (
+            classpathEntry.id.endsWith(".jar") &&
+            (converter.toPath(classpathEntry).toString != converter.toPath(file).toString)
+          )
             invalidateBinary(s"${className} is now provided by ${classpathEntry}")
           else compareStamps(file, classpathEntry)
         }

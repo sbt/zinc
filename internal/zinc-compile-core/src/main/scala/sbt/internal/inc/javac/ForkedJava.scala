@@ -40,8 +40,8 @@ object ForkedJava {
     val (jArgs, nonJArgs) = options.partition(_.startsWith("-J"))
     val outputOption = CompilerArguments.outputOption(output)
     // val sources: Seq[String] = sources0.map(converter.toPath).map(_.toAbsolutePath.toString)
-    val sources = sources0 map {
-      case x: PathBasedFile => x.toPath.toAbsolutePath.toString
+    val sources = sources0 map { case x: PathBasedFile =>
+      x.toPath.toAbsolutePath.toString
     }
     val allArguments = outputOption ++ nonJArgs ++ sources
 

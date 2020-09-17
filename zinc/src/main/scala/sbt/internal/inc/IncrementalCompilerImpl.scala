@@ -138,7 +138,6 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
   }
 
   /**
-   *
    * Performs an incremental compilation based on xsbti.compile.Inputs.
    *
    * This is a Scala implementation of xsbti.compile.IncrementalCompiler,
@@ -228,7 +227,6 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
   }
 
   /**
-   *
    * Performs an incremental compilation based on xsbti.compile.Inputs.
    *
    * This is a Scala implementation of xsbti.compile.IncrementalCompiler,

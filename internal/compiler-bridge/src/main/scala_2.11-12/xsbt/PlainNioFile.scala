@@ -84,9 +84,7 @@ class PlainNioFile(val nioPath: Path) extends AbstractFile {
     ()
   }
 
-  /** Returns a plain file with the given name. It does not
-   *  check that it exists.
-   */
+  /** Returns a plain file with the given name. It does not check that it exists. */
   def lookupNameUnchecked(name: String, directory: Boolean): AbstractFile =
     new PlainNioFile(nioPath.resolve(name))
 }

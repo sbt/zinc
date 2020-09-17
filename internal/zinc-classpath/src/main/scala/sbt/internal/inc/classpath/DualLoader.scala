@@ -115,7 +115,7 @@ class DualLoader(
   override def toString = s"DualLoader(a = $parentA, b = $parentB)"
 }
 
-/** Concatenates `a` and `b` into a single `Enumeration`.*/
+/** Concatenates `a` and `b` into a single `Enumeration`. */
 final class DualEnumeration[T](a: Enumeration[T], b: Enumeration[T]) extends Enumeration[T] {
   // invariant: current.hasMoreElements or current eq b
   private[this] var current = if (a.hasMoreElements) a else b

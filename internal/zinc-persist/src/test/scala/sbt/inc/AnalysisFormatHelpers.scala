@@ -96,10 +96,9 @@ object AnalysisFormatHelpers {
     ("EXTRA EQUAL" |: mapExtra(left.extra()) =? mapExtra(right.extra()))
   }
 
-  private def mapInfos(a: SourceInfos) = a.allInfos.map {
-    case (f, sourceInfo) =>
-      import sourceInfo._
-      f -> ((getReportedProblems.toList, getUnreportedProblems.toList, getMainClasses.toList))
+  private def mapInfos(a: SourceInfos) = a.allInfos.map { case (f, sourceInfo) =>
+    import sourceInfo._
+    f -> ((getReportedProblems.toList, getUnreportedProblems.toList, getMainClasses.toList))
   }
 
   private def mapExtra(extra: Array[T2[String, String]]): Seq[(String, String)] =

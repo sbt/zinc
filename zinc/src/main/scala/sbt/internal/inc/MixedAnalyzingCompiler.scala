@@ -429,8 +429,8 @@ object MixedAnalyzingCompiler {
   def classPathLookup(config: CompileConfiguration): String => Option[VirtualFile] =
     searchClasspathAndLookup(config)._2
 
-  def apply(config: CompileConfiguration)(
-      implicit log: Logger
+  def apply(config: CompileConfiguration)(implicit
+      log: Logger
   ): MixedAnalyzingCompiler = {
     import config._
     val (searchClasspath, entry) = searchClasspathAndLookup(config)

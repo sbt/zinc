@@ -26,7 +26,8 @@ class ClasspathHashingHookSpec extends BaseCompilerSpec {
       val setup = ProjectSetup.simple(tempDir.toPath, SourceFiles.Foo :: Nil)
 
       def hashFile(f: VirtualFile): FileHash = {
-        FileHash.of(setup.converter.toPath(f), setup.converter.toPath(f).hashCode() * 37 + 41) // Some deterministic random changes
+        // Some deterministic random changes
+        FileHash.of(setup.converter.toPath(f), setup.converter.toPath(f).hashCode() * 37 + 41)
       }
       val lookup = new NoopExternalLookup {
         override def hashClasspath(classpath: Array[VirtualFile]): Optional[Array[FileHash]] =

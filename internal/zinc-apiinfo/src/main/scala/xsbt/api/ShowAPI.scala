@@ -107,8 +107,8 @@ object ShowAPI {
       showModifiers(d.modifiers)
     ) + space(label) + d.name
 
-  private def showPolyDef(d: ParameterizedDefinition, label: String)(
-      implicit nesting: Int
+  private def showPolyDef(d: ParameterizedDefinition, label: String)(implicit
+      nesting: Int
   ): String =
     showMonoDef(d, label) + showTypeParameters(d.typeParameters)
 
@@ -133,18 +133,17 @@ object ShowAPI {
     ">: " + showType(lower) + " <: " + showType(upper)
 
   private def showValueParams(ps: Seq[ParameterList])(implicit nesting: Int): String =
-    ps.map(
-        pl =>
-          pl.parameters
-            .map(
-              mp =>
-                mp.name + ": " + showParameterModifier(showType(mp.tpe), mp.modifier) + (if (mp.hasDefault)
-                                                                                           "= ..."
-                                                                                         else "")
-            )
-            .mkString(if (pl.isImplicit) "(implicit " else "(", ", ", ")")
-      )
-      .mkString("")
+    ps.map(pl =>
+      pl.parameters
+        .map(mp =>
+          mp.name + ": " + showParameterModifier(showType(mp.tpe), mp.modifier) + (if (
+                                                                                     mp.hasDefault
+                                                                                   )
+                                                                                     "= ..."
+                                                                                   else "")
+        )
+        .mkString(if (pl.isImplicit) "(implicit " else "(", ", ", ")")
+    ).mkString("")
 
   private def showParameterModifier(base: String, pm: ParameterModifier): String = pm match {
     case ParameterModifier.Plain    => base

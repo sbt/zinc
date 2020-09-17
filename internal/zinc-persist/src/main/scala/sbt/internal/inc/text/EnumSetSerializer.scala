@@ -23,9 +23,8 @@ case class EnumSetSerializer[E <: Enum[E]: ClassTag](allValues: Array[E]) {
 
   private val enumClass = implicitly[ClassTag[E]].runtimeClass.asInstanceOf[Class[E]]
 
-  private val masks = allValues.zipWithIndex.map {
-    case (v, i) =>
-      v -> (1 << i)
+  private val masks = allValues.zipWithIndex.map { case (v, i) =>
+    v -> (1 << i)
   }
 
   private val OffsetInASCII = 33 // byte value of '!'

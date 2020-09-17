@@ -19,7 +19,6 @@ import xsbti.api.Companions
 
 /**
  * A class which computes diffs (unified diffs) between two textual representations of an API.
- *
  */
 private[inc] class APIDiff {
 
@@ -184,8 +183,8 @@ private[inc] class APIDiff {
           val (x1, x2) = x.splitAt(xmid)
           val leftScore = nwScore(x1, y)
           val rightScore = nwScore(x2.reverse, y.reverse)
-          val scoreSum = (leftScore zip rightScore.reverse).map {
-            case (left, right) => left + right
+          val scoreSum = (leftScore zip rightScore.reverse).map { case (left, right) =>
+            left + right
           }
           val max = scoreSum.max
           val ymid = scoreSum.indexOf(max)

@@ -190,9 +190,8 @@ private class MAnalysis(
         acc.markProduct(localProduct.classFile, localProduct.classFileStamp)
       }
 
-      libraryDeps.foldLeft(stamps2) {
-        case (acc, (toBinary, className, binStamp)) =>
-          acc.markLibrary(toBinary, className, binStamp)
+      libraryDeps.foldLeft(stamps2) { case (acc, (toBinary, className, binStamp)) =>
+        acc.markLibrary(toBinary, className, binStamp)
       }
     }
 

@@ -65,26 +65,29 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
 
   val JAVAC: Parser[String] = literal("javac")
   val SEMICOLON: Parser[String] = literal(":") | literal("\uff1a")
-  val SYMBOL
-      : Parser[String] = allUntilChar(':') // We ignore whether it actually says "symbol" for i18n
-  val LOCATION: Parser[String] = allUntilChar(':') // We ignore whether it actually says "location" for i18n.
+
+  // We ignore whether it actually says "symbol" for i18n
+  val SYMBOL: Parser[String] = allUntilChar(':')
+  // We ignore whether it actually says "location" for i18n.
+  val LOCATION: Parser[String] = allUntilChar(':')
+
   val WARNING: Parser[String] = allUntilChar(':') ^? {
     case x if WARNING_PREFIXES.exists(x.trim.startsWith) => x
   }
   // Parses the rest of an input line.
   val restOfLine: Parser[String] =
     // TODO - Can we use END_OF_LINE here without issues?
-    allUntilChars(Array('\n', '\r')) ~ """[\r]?[\n]?""".r ^^ {
-      case msg ~ _ => msg
+    allUntilChars(Array('\n', '\r')) ~ """[\r]?[\n]?""".r ^^ { case msg ~ _ =>
+      msg
     }
   val NOTE: Parser[String] = restOfLine ^? {
     case x if NOTE_LINE_PREFIXES exists x.startsWith => x
   }
   val allIndented: Parser[String] =
-    rep("""\s+""".r ~ restOfLine ^^ {
-      case x ~ msg => x + msg
-    }) ^^ {
-      case xs => xs.mkString("\n")
+    rep("""\s+""".r ~ restOfLine ^^ { case x ~ msg =>
+      x + msg
+    }) ^^ { case xs =>
+      xs.mkString("\n")
     }
   val nonPathLine: Parser[String] = {
     val nonPathLine0 = new Parser[String] {
@@ -104,13 +107,13 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
         else Success(line, in.drop(i - offset))
       }
     }
-    nonPathLine0 ~ """[\r]?[\n]?""".r ^^ {
-      case msg ~ endline => msg + endline
+    nonPathLine0 ~ """[\r]?[\n]?""".r ^^ { case msg ~ endline =>
+      msg + endline
     }
   }
   val nonPathLines: Parser[String] = {
-    rep(nonPathLine) ^^ {
-      case lines => lines.mkString("")
+    rep(nonPathLine) ^^ { case lines =>
+      lines.mkString("")
     }
   }
 
@@ -145,17 +148,17 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
       catch { case _: NumberFormatException => None }
   }
   // Parses a line number
-  val line: Parser[Int] = allUntilChar(':') ^? {
-    case ParsedInteger(x) => x
+  val line: Parser[Int] = allUntilChar(':') ^? { case ParsedInteger(x) =>
+    x
   }
 
   // Parses the file + lineno output of javac.
   val fileAndLineNo: Parser[(String, Int)] = {
     val linuxFile = allUntilChar(':') ^^ { _.trim() }
-    val windowsRootFile = linuxFile ~ SEMICOLON ~ linuxFile ^^ {
-      case root ~ _ ~ path => s"$root:$path"
+    val windowsRootFile = linuxFile ~ SEMICOLON ~ linuxFile ^^ { case root ~ _ ~ path =>
+      s"$root:$path"
     }
-    val linuxOption = linuxFile ~ SEMICOLON ~ line ^^ { case f ~ _ ~ l         => (f, l) }
+    val linuxOption = linuxFile ~ SEMICOLON ~ line ^^ { case f ~ _ ~ l => (f, l) }
     val windowsOption = windowsRootFile ~ SEMICOLON ~ line ^^ { case f ~ _ ~ l => (f, l) }
     (linuxOption | windowsOption)
   }
@@ -175,8 +178,8 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
 
   /** Parses an error message (not this WILL parse warning messages as error messages if used incorrectly. */
   val errorMessage: Parser[Problem] = {
-    val fileLineMessage = fileAndLineNo ~ SEMICOLON ~ restOfLine ^^ {
-      case (file, line) ~ _ ~ msg => (file, line, msg)
+    val fileLineMessage = fileAndLineNo ~ SEMICOLON ~ restOfLine ^^ { case (file, line) ~ _ ~ msg =>
+      (file, line, msg)
     }
     fileLineMessage ~ (allUntilCaret ~ '^' ~ restOfLine).? ~ (nonPathLines.?) ^^ {
       case (file, line, msg) ~ contentsOpt ~ ind =>
@@ -234,19 +237,17 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
       )
     }
   val javacError: Parser[Problem] =
-    JAVAC ~ SEMICOLON ~ restOfLine ^^ {
-      case _ ~ _ ~ error =>
-        new JavaProblem(
-          JavaNoPosition,
-          Severity.Error,
-          s"javac:$error"
-        )
+    JAVAC ~ SEMICOLON ~ restOfLine ^^ { case _ ~ _ ~ error =>
+      new JavaProblem(
+        JavaNoPosition,
+        Severity.Error,
+        s"javac:$error"
+      )
     }
 
   val outputSumamry: Parser[Unit] =
-    """(\s*)(\d+) (\w+)""".r ~ restOfLine ^^ {
-      case a ~ b =>
-        ()
+    """(\s*)(\d+) (\w+)""".r ~ restOfLine ^^ { case a ~ b =>
+      ()
     }
 
   val potentialProblem: Parser[Problem] = warningMessage | errorMessage | noteMessage | javacError

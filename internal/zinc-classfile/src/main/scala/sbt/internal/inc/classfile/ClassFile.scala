@@ -40,9 +40,8 @@ private[sbt] trait ClassFile {
       .find(_.name.exists(_ == fieldName))
       .toSeq
       .flatMap(_.attributes)
-      .collectFirst {
-        case ai @ classfile.AttributeInfo(Some("ConstantValue"), _) =>
-          constantPool(Parser.entryIndex(ai))
+      .collectFirst { case ai @ classfile.AttributeInfo(Some("ConstantValue"), _) =>
+        constantPool(Parser.entryIndex(ai))
       }
       .map {
         case Constant(ConstantString, nextOffset, _, _) =>
@@ -100,7 +99,7 @@ private[sbt] object Constants {
   final val ACC_STATIC = 0x0008
   final val ACC_PUBLIC = 0x0001
 
-  final val JavaMagic = 0xCAFEBABE
+  final val JavaMagic = 0xcafebabe
   final val ConstantUTF8 = 1
   final val ConstantUnicode = 2
   final val ConstantInteger = 3

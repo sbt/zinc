@@ -154,9 +154,7 @@ object ClassFileManager {
     private def deleteImpl(classes0: Array[File]): Unit = {
       logger.debug(s"About to delete class files:\n${showFiles(classes0)}")
       val toBeBackedUp =
-        classes0.toVector.filter(
-          c => c.exists && !movedClasses.contains(c) && !generatedClasses(c)
-        )
+        classes0.toVector.filter(c => c.exists && !movedClasses.contains(c) && !generatedClasses(c))
       logger.debug(s"We backup class files:\n${showFiles(toBeBackedUp)}")
       for { c <- toBeBackedUp } {
         movedClasses.put(c, move(c))
