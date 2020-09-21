@@ -30,8 +30,10 @@ class BasicVirtualDirectory private (parts: List[String]) extends VirtualDirecto
 
 object BasicVirtualDirectory {
   def newRoot: BasicVirtualDirectory = new BasicVirtualDirectory(Nil)
+
   def apply(name: String): BasicVirtualDirectory =
     if (name == "") newRoot else new BasicVirtualDirectory(List(name))
+
 }
 
 class BasicMemoryFile(val name: String, parent: VirtualDirectory) extends VirtualFileWrite {

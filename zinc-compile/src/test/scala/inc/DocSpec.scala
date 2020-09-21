@@ -29,7 +29,7 @@ import sbt.util.CacheStoreFactory
 import org.scalatest.{ Assertion, Succeeded }
 
 class DocSpec extends UnitSpec {
-  behavior of "Doc.cachedJavadoc"
+  behavior.of("Doc.cachedJavadoc")
 
   it should "generate Javadoc" in {
     docAndAssert(knownSampleGoodFile) { (_, out) =>

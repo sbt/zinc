@@ -17,9 +17,7 @@ import java.io.InputStream
 import java.nio.file.{ Files, Path }
 import xsbti.{ BasicVirtualFileRef, VirtualFile }
 
-/**
- * This is a dummy VirtualFile that's a simple wrapper around Path.
- */
+/** This is a dummy VirtualFile that's a simple wrapper around Path. */
 class DummyVirtualFile(encodedPath: String, path: Path)
     extends BasicVirtualFileRef(encodedPath)
     with VirtualFile {
@@ -28,6 +26,8 @@ class DummyVirtualFile(encodedPath: String, path: Path)
 }
 
 object DummyVirtualFile {
+
   def apply(encodedPath: String, path: Path): DummyVirtualFile =
     new DummyVirtualFile(encodedPath, path)
+
 }

@@ -22,13 +22,13 @@ object ParserSpecification extends Properties("Parser") {
     Parser(sbt.io.IO.classfileLocation(c)) ne null
   }
 
-  implicit def classes: Gen[Class[_]] =
-    Gen.oneOf(
-      this.getClass,
-      classOf[java.lang.Integer],
-      classOf[java.util.AbstractMap.SimpleEntry[String, String]],
-      classOf[String],
-      classOf[Thread],
-      classOf[Properties]
-    )
+  implicit def classes: Gen[Class[_]] = Gen.oneOf(
+    this.getClass,
+    classOf[java.lang.Integer],
+    classOf[java.util.AbstractMap.SimpleEntry[String, String]],
+    classOf[String],
+    classOf[Thread],
+    classOf[Properties]
+  )
+
 }

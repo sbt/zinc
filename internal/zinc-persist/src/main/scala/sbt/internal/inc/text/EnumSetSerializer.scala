@@ -41,4 +41,5 @@ case class EnumSetSerializer[E <: Enum[E]: ClassTag](allValues: Array[E]) {
     for ((v, mask) <- masks if (bits & mask) != 0) set.add(v)
     set
   }
+
 }

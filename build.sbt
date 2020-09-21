@@ -40,7 +40,7 @@ def mimaSettings: Seq[Setting[_]] = Seq(
       if (scalaVersion.value.startsWith("2.12.")) pre140 ++ post140
       else post140
     val cross = if (crossPaths.value) CrossVersion.binary else CrossVersion.disabled
-    versions.map(version => organization.value %% moduleName.value % version cross cross)
+    versions.map(version => (organization.value %% moduleName.value % version).cross(cross))
   },
 )
 
@@ -91,7 +91,7 @@ Global / concurrentRestrictions += Tags.limit(Tags.Test, 4)
 def baseSettings: Seq[Setting[_]] = Seq(
   resolvers += Resolver.typesafeIvyRepo("releases"),
   resolvers += Resolver.sonatypeRepo("snapshots"),
-  resolvers += "bintray-sbt-maven-releases" at "https://dl.bintray.com/sbt/maven-releases/",
+  resolvers += "bintray-sbt-maven-releases".at("https://dl.bintray.com/sbt/maven-releases/"),
   resolvers += Resolver.url(
     "bintray-sbt-ivy-snapshots",
     url("https://dl.bintray.com/sbt/ivy-snapshots/")
@@ -222,6 +222,7 @@ def resGenFile = (zincRootPath / "zinc" / "resGenerator").getAbsoluteFile
 
 lazy val jar1 = (project in resGenFile / "jar1").settings(sampleProjectSettings("jar"))
 lazy val jar2 = (project in resGenFile / "jar2").settings(sampleProjectSettings("jar"))
+
 lazy val classesDep1 =
   (project in resGenFile / "classesDep1").settings(sampleProjectSettings("zip"))
 

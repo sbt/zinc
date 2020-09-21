@@ -23,18 +23,20 @@ class PlainVirtualFile(path: Path) extends BasicVirtualFileRef(path.toString) wi
   override def input(): InputStream = Files.newInputStream(path)
   override def toPath: Path = path
 }
+
 object PlainVirtualFile {
   def apply(path: Path): PlainVirtualFile = new PlainVirtualFile(path)
 
   // This doesn't use FileConverter
-  def extractPath(vf: VirtualFile): Path =
-    vf match {
-      case x: PathBasedFile => x.toPath
-      case _                => sys.error(s"unsupported file: $vf (${vf.getClass})")
-    }
+  def extractPath(vf: VirtualFile): Path = vf match {
+    case x: PathBasedFile => x.toPath
+    case _                => sys.error(s"unsupported file: $vf (${vf.getClass})")
+  }
+
 }
 
 class PlainVirtualFileConverter extends FileConverter {
+
   def toPath(ref: VirtualFileRef): Path = ref match {
     case x: PathBasedFile => x.toPath
     case _                => Paths.get(ref.id)

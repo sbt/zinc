@@ -19,6 +19,7 @@ import xsbti.compile.CompilerBridgeProvider
 class BridgeProviderSpecification extends UnitSpec with BridgeProviderTestkit {}
 
 trait BridgeProviderTestkit extends AbstractBridgeProviderTestkit {
+
   lazy val bridges: List[ScalaBridge] = {
     import sbt.internal.inc.ZincBuildInfo._
     val compilerBridge210 = ScalaBridge(scalaVersion210, scalaJars210.toList, classDirectory210)
@@ -31,4 +32,5 @@ trait BridgeProviderTestkit extends AbstractBridgeProviderTestkit {
   // Create a provider that uses the bridges from the classes directory of the projects
   def getZincProvider(targetDir: Path, log: Logger): CompilerBridgeProvider =
     new ConstantBridgeProvider(bridges, targetDir)
+
 }

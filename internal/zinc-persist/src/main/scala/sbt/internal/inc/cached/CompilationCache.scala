@@ -26,6 +26,7 @@ trait CompilationCache {
 }
 
 case class ProjectRebasedCache(remoteRoot: Path, cacheLocation: Path) extends CompilationCache {
+
   override def loadCache(projectLocation: File): Option[(CompileAnalysis, MiniSetup)] = {
     import JavaInterfaceUtil.EnrichOptional
     import scala.collection.JavaConverters._
@@ -55,8 +56,7 @@ case class ProjectRebasedCache(remoteRoot: Path, cacheLocation: Path) extends Co
 
     override def mapSourceFile(sourceFile: VirtualFileRef): VirtualFileRef = sourceFile
     override def mapBinaryFile(binaryFile: VirtualFileRef): VirtualFileRef = binaryFile
-    override def mapProductFile(productFile: VirtualFileRef): VirtualFileRef =
-      productFile
+    override def mapProductFile(productFile: VirtualFileRef): VirtualFileRef = productFile
 
     override def mapClasspathEntry(classpathEntry: Path): Path = rebase(classpathEntry)
     override def mapJavacOption(javacOption: String): String = identity(javacOption)
@@ -67,11 +67,14 @@ case class ProjectRebasedCache(remoteRoot: Path, cacheLocation: Path) extends Co
 
     override def mapProductStamp(file: VirtualFileRef, productStamp: Stamp): Stamp =
       identity(productStamp)
+
     override def mapSourceStamp(file: VirtualFileRef, sourceStamp: Stamp): Stamp =
       identity(sourceStamp)
+
     override def mapBinaryStamp(file: VirtualFileRef, binaryStamp: Stamp): Stamp =
       identity(binaryStamp)
 
     override def mapMiniSetup(miniSetup: MiniSetup): MiniSetup = identity(miniSetup)
   }
+
 }

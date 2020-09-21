@@ -64,6 +64,7 @@ object JavaTools {
     }
     apply(javaCompiler, javaDoc)
   }
+
 }
 
 /** Factory methods for constructing a java compiler. */
@@ -72,14 +73,12 @@ object JavaCompiler {
   /** Returns a local compiler, if the current runtime supports it. */
   def local: Option[XJavacompiler] = {
     Option(javax.tools.ToolProvider.getSystemJavaCompiler).map {
-      (compiler: javax.tools.JavaCompiler) =>
-        new LocalJavaCompiler(compiler)
+      (compiler: javax.tools.JavaCompiler) => new LocalJavaCompiler(compiler)
     }
   }
 
   /** Returns a local compiler that will fork javac when needed. */
-  def fork(javaHome: Option[Path] = None): XJavacompiler =
-    new ForkedJavaCompiler(javaHome)
+  def fork(javaHome: Option[Path] = None): XJavacompiler = new ForkedJavaCompiler(javaHome)
 
   /**
    * Create a collection of all the compiler arguments that must be
@@ -100,6 +99,7 @@ object JavaCompiler {
     val compilerArgs = new CompilerArguments(scalaInstance, javaCp)
     compilerArgs.makeArguments(Nil, augmentedClasspath, options)
   }
+
 }
 
 /** Factory methods for constructing a javadoc. */
@@ -112,6 +112,5 @@ object Javadoc {
   }
 
   /** Returns a local compiler that will fork javac when needed. */
-  def fork(javaHome: Option[Path] = None): XJavadoc =
-    new ForkedJavadoc(javaHome)
+  def fork(javaHome: Option[Path] = None): XJavadoc = new ForkedJavadoc(javaHome)
 }

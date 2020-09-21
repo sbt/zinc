@@ -43,11 +43,13 @@ object HouseRulesPlugin extends AutoPlugin {
     scalacOptions in (c, console) --= Seq("-Ywarn-unused-import", "-Xlint")
   )
 
-  private def scalaPartV = Def setting (CrossVersion partialVersion scalaVersion.value)
+  private def scalaPartV = Def.setting(CrossVersion.partialVersion(scalaVersion.value))
 
   private implicit final class AnyWithIfScala[A](val __x: A) {
+
     def ifScala(p: Long => Boolean) =
-      Def setting (scalaPartV.value collect { case (2, y) if p(y) => __x })
+      Def.setting(scalaPartV.value.collect { case (2, y) if p(y) => __x })
+
     def ifScalaLte(v: Long) = ifScala(_ <= v)
     def ifScalaGte(v: Long) = ifScala(_ >= v)
     def ifScala211OrMinus = ifScalaLte(11)
@@ -55,4 +57,5 @@ object HouseRulesPlugin extends AutoPlugin {
     def ifScala212OrMinus = ifScalaLte(12)
     def ifScala213OrMinus = ifScalaLte(13)
   }
+
 }

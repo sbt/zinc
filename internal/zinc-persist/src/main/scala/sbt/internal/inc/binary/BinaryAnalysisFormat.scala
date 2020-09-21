@@ -57,4 +57,5 @@ final class BinaryAnalysisFormat(mappers: ReadWriteMappers) {
     val (apis, _) = protobufReaders.fromApisFile(protobufAPIsFile, shouldStoreApis)
     analysis.copy(apis = apis)
   }
+
 }

@@ -54,4 +54,5 @@ final class ConstantBridgeProvider(bridges: List[ScalaBridge], tempDir: Path)
       sys.error(s"Missing $scalaVersion in supported versions $versions")
     }
   }
+
 }

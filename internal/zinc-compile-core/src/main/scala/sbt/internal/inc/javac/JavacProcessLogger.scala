@@ -33,17 +33,15 @@ final class JavacLogger(log: sbt.util.Logger, reporter: Reporter, cwd: File) ext
   private val out: ListBuffer[String] = new ListBuffer()
   private val err: ListBuffer[String] = new ListBuffer()
 
-  def out(s: => String): Unit =
-    synchronized {
-      out += s
-      ()
-    }
+  def out(s: => String): Unit = synchronized {
+    out += s
+    ()
+  }
 
-  def err(s: => String): Unit =
-    synchronized {
-      err += s
-      ()
-    }
+  def err(s: => String): Unit = synchronized {
+    err += s
+    ()
+  }
 
   def buffer[T](f: => T): T = f
 
@@ -64,4 +62,5 @@ final class JavacLogger(log: sbt.util.Logger, reporter: Reporter, cwd: File) ext
       err.clear()
     }
   }
+
 }

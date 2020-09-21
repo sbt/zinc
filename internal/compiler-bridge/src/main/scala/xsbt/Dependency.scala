@@ -40,6 +40,7 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
   import global._
 
   def newPhase(prev: Phase): Phase = new DependencyPhase(prev)
+
   private class DependencyPhase(prev: Phase) extends GlobalPhase(prev) {
     override def description = "Extracts dependency information"
     def name = Dependency.name
@@ -68,11 +69,13 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
         dependencyTraverser.traverse(unit.body)
       }
     }
+
   }
 
   private class DependencyProcessor(unit: CompilationUnit) {
+
     private def firstClassOrModuleClass(tree: Tree): Option[Symbol] = {
-      val maybeClassOrModule = tree find {
+      val maybeClassOrModule = tree.find {
         case ((_: ClassDef) | (_: ModuleDef)) => true
         case _                                => false
       }
@@ -200,6 +203,7 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
           }
       }
     }
+
   }
 
   private case class ClassDependency(from: Symbol, to: Symbol)
@@ -330,6 +334,7 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
       type Handler = Symbol => Unit
       // Type dependencies are always added to member references
       val memberRefHandler = processor.memberRef
+
       def createHandler(fromClass: Symbol): Handler = { (dep: Symbol) =>
         if (ignoredSymbol(fromClass) || fromClass.hasPackageFlag) {
           if (inImportNode) addTopLevelImportDependency(dep)
@@ -342,6 +347,7 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
       val cache = new JavaMap[Symbol, (Handler, JavaSet[Type])]()
       private var handler: Handler = _
       private var visitedOwner: Symbol = _
+
       def setOwner(owner: Symbol) = {
         if (visitedOwner != owner) {
           cache.get(owner) match {
@@ -469,5 +475,7 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
         super.traverse(tree)
       case other => super.traverse(other)
     }
+
   }
+
 }

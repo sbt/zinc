@@ -17,6 +17,7 @@ import java.nio.file.{ Files, Paths }
 import sbt.io.IO
 
 class NameHashingCompilerSpec extends BaseCompilerSpec {
+
   def testIncrementalCompilation(
       changes: Seq[(String, String => String)],
       transitiveChanges: Set[String],
@@ -62,10 +63,11 @@ class NameHashingCompilerSpec extends BaseCompilerSpec {
 
   def changeImplicitMemberType(in: String) = in.replace("\"implicitMemberValue\"", "42")
   def changeStandardMemberType(in: String) = in.replace("\"standardMemberValue\"", "42")
+
   def changeOtherSealedType(in: String) =
     in.replace("class OtherSealed", "class OtherSealed extends MarkerTrait")
-  def addNewSealedChildren(in: String) =
-    s"""
+
+  def addNewSealedChildren(in: String) = s"""
       |$in
       |object OtherSealedNew extends OtherSealed
     """.stripMargin

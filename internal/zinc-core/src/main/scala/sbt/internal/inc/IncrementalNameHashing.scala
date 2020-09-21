@@ -175,6 +175,7 @@ private[inc] class IncrementalNameHashingCommon(
       className: String,
       relations: Relations
   ): Set[String] = relations.memberRef.internal.reverse(className)
+
 }
 
 private final class IncrementalNameHashing(log: Logger, options: IncOptions, profiler: RunProfiler)

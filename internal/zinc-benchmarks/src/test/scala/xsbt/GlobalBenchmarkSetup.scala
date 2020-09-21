@@ -53,4 +53,5 @@ object GlobalBenchmarkSetup {
       System.exit(exitCode)
     }
   }
+
 }

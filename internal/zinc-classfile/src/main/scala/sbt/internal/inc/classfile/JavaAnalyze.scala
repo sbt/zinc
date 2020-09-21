@@ -29,6 +29,7 @@ import xsbti.compile.Output
 import java.nio.file.Path
 
 private[sbt] object JavaAnalyze {
+
   def apply[T](
       newClasses: Seq[Path],
       sources: Seq[VirtualFile],
@@ -71,7 +72,7 @@ private[sbt] object JavaAnalyze {
     for {
       newClass <- newClasses
       classFile = Parser(newClass)
-      _ <- classFile.sourceFile orElse guessSourceName(newClass.getFileName.toString)
+      _ <- classFile.sourceFile.orElse(guessSourceName(newClass.getFileName.toString))
       source <- guessSourcePath(sourceMap, classFile, log)
       binaryClassName = classFile.className
       loadedClass <- load(
@@ -176,16 +177,15 @@ private[sbt] object JavaAnalyze {
           binaryClassNames: Iterable[String],
           context: DependencyContext,
           fromBinaryClassName: String
-      ): Unit =
-        binaryClassNames.foreach(binaryClassName =>
-          processDependency(binaryClassName, context, fromBinaryClassName)
-        )
+      ): Unit = binaryClassNames.foreach(binaryClassName =>
+        processDependency(binaryClassName, context, fromBinaryClassName)
+      )
 
       // Get all references to types in a given class file (via constant pool)
       val typesInSource = classFiles.map(cf => cf.className -> cf.types).toMap
 
       // Process dependencies by member references
-      typesInSource foreach { case (binaryClassName, binaryClassNameDeps) =>
+      typesInSource.foreach { case (binaryClassName, binaryClassNameDeps) =>
         processDependencies(binaryClassNameDeps, DependencyByMemberRef, binaryClassName)
       }
 
@@ -198,7 +198,7 @@ private[sbt] object JavaAnalyze {
       // Read API of non-local classes and process dependencies by inheritance
       val nonLocalInherited: Map[String, Set[String]] =
         readInheritanceDependencies(nonLocalClasses.toSeq).toMap
-      nonLocalInherited foreach { case (className, inheritanceDeps) =>
+      nonLocalInherited.foreach { case (className, inheritanceDeps) =>
         processDependencies(inheritanceDeps, DependencyByInheritance, className)
       }
 
@@ -207,7 +207,7 @@ private[sbt] object JavaAnalyze {
         localClassesOrStale.filter(cls => localClassesToSources.contains(cls.getName))
       val localInherited: Map[String, Set[String]] =
         readInheritanceDependencies(localClasses.toSeq).toMap
-      localInherited foreach { case (className, inheritanceDeps) =>
+      localInherited.foreach { case (className, inheritanceDeps) =>
         processDependencies(inheritanceDeps, LocalDependencyByInheritance, className)
       }
     }
@@ -264,15 +264,21 @@ private[sbt] object JavaAnalyze {
       execute
     } catch { case e: Throwable => log.trace(e); log.error(e.toString) }
   }
+
   private def guessSourceName(name: String) = Some(takeToDollar(trimClassExt(name)))
+
   private def takeToDollar(name: String) = {
     val dollar = name.indexOf('$')
     if (dollar < 0) name else name.substring(0, dollar)
   }
+
   private final val ClassExt = ".class"
+
   private def trimClassExt(name: String) =
     if (name.endsWith(ClassExt)) name.substring(0, name.length - ClassExt.length) else name
+
   private def classNameToClassFile(name: String) = name.replace('.', '/') + ClassExt
+
   private def binaryToSourceName(loadedClass: Class[_]): Option[String] =
     Option(loadedClass.getCanonicalName)
 
@@ -319,7 +325,7 @@ private[sbt] object JavaAnalyze {
         pkgRev match {
           case Nil => shortest(make)
           case x :: xs =>
-            val retain = sources flatMap {
+            val retain = sources.flatMap {
               case (src, `x` :: presRev) => (src, presRev) :: Nil
               case _                     => Nil
             }
@@ -334,7 +340,7 @@ private[sbt] object JavaAnalyze {
       }
 
     refine(
-      (sourceNameMap get sourceFileName).toList.flatten map { x =>
+      (sourceNameMap.get(sourceFileName)).toList.flatten.map { x =>
         (x, x.names.toList.reverse.drop(1))
       },
       pkg.reverse

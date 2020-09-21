@@ -64,8 +64,7 @@ final class RelativeWriteMapper(rootPaths: RootPaths) extends WriteMapper {
   override def mapOutputDir(outputDir: Path): Path = makeRelative(outputDir, productsRoot)
   override def mapSourceDir(sourceDir: Path): Path = makeRelative(sourceDir, sourcesRoot)
 
-  override def mapProductStamp(file: VirtualFileRef, productStamp: Stamp): Stamp =
-    productStamp
+  override def mapProductStamp(file: VirtualFileRef, productStamp: Stamp): Stamp = productStamp
   override def mapSourceStamp(file: VirtualFileRef, sourceStamp: Stamp): Stamp = sourceStamp
   override def mapBinaryStamp(file: VirtualFileRef, binaryStamp: Stamp): Stamp = binaryStamp
 

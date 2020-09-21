@@ -16,9 +16,10 @@ object Scripted {
   import DefaultParsers._
   // Paging, 1-index based.
   case class ScriptedTestPage(page: Int, total: Int)
+
   def scriptedParser(scriptedBase: File): Parser[Seq[String]] = {
     val scriptedFiles: NameFilter = ("test": NameFilter) | "pending"
-    val pairs = (scriptedBase * AllPassFilter * AllPassFilter * scriptedFiles).get map {
+    val pairs = (scriptedBase * AllPassFilter * AllPassFilter * scriptedFiles).get.map {
       (f: File) =>
         val p = f.getParentFile
         (p.getParentFile.getName, p.getName)
@@ -29,7 +30,7 @@ object Scripted {
     val groupP = token(id.examples(pairMap.keySet.toSet)) <~ token('/')
 
     // A parser for page definitions
-    val pageP: Parser[ScriptedTestPage] = ("*" ~ NatBasic ~ "of" ~ NatBasic) map {
+    val pageP: Parser[ScriptedTestPage] = ("*" ~ NatBasic ~ "of" ~ NatBasic).map {
       case _ ~ page ~ _ ~ total => ScriptedTestPage(page, total)
     }
     // Grabs the filenames from a given test group in the current page definition.
@@ -51,22 +52,24 @@ object Scripted {
         files = pagedFilenames(group, page)
         // TODO -  Fail the parser if we don't have enough files for the given page size
         //if !files.isEmpty
-      } yield files map (f => group + '/' + f)
+      } yield files.map(f => group + '/' + f)
 
     val testID = (for (group <- groupP; name <- nameP(group)) yield (group, name))
-    val testIdAsGroup = matched(testID) map (test => Seq(test))
+    val testIdAsGroup = matched(testID).map(test => Seq(test))
     //(token(Space) ~> matched(testID)).*
-    (token(Space) ~> (PagedIds | testIdAsGroup)).* map (_.flatten)
+    (token(Space) ~> (PagedIds | testIdAsGroup)).*.map(_.flatten)
   }
 
   // Interface to cross class loader
   type ScriptedMain = {
+
     def run(
         baseDir: File,
         bufferLog: Boolean,
         compileToJar: Boolean,
         testSpecs: Array[String],
     ): Unit
+
   }
 
   def doScripted(
@@ -85,4 +88,5 @@ object Scripted {
       bridge.run(sourcePath, bufferLog, compileToJar, args.toArray)
     } catch { case ite: java.lang.reflect.InvocationTargetException => throw ite.getCause }
   }
+
 }

@@ -42,6 +42,7 @@ private[inc] object FormatTimer {
     timers.remove(key)
     ()
   }
+
 }
 
 class ReadException(s: String) extends Exception(s) {
@@ -56,9 +57,8 @@ object FormatCommons extends FormatCommons
 /** Various helper functions. */
 trait FormatCommons {
 
-  val fileToString: File => String = { f: File =>
-    f.toPath.toString
-  }
+  val fileToString: File => String = { f: File => f.toPath.toString }
+
   val stringToFile: String => File = { s: String =>
     try {
       Paths.get(s).toFile
@@ -66,12 +66,9 @@ trait FormatCommons {
       case e: Exception => sys.error(e.getMessage + ": " + s)
     }
   }
-  val fileVToString: VirtualFileRef => String = { f: VirtualFileRef =>
-    f.id
-  }
-  val stringToFileV: String => VirtualFileRef = { s: String =>
-    VirtualFileRef.of(s)
-  }
+
+  val fileVToString: VirtualFileRef => String = { f: VirtualFileRef => f.id }
+  val stringToFileV: String => VirtualFileRef = { s: String => VirtualFileRef.of(s) }
 
   protected def writeHeader(out: Writer, header: String): Unit = out.write(header + ":\n")
 
@@ -84,6 +81,7 @@ trait FormatCommons {
   protected def writeSize(out: Writer, n: Int): Unit = out.write("%d items\n".format(n))
 
   private val itemsPattern = """(\d+) items""".r
+
   protected def readSize(in: BufferedReader): Int = {
     in.readLine() match {
       case itemsPattern(nStr) => Integer.parseInt(nStr)
@@ -106,16 +104,7 @@ trait FormatCommons {
       out: Writer
   )(header: String, m: Map[K, V], k2s: K => String, v2s: V => String, inlineVals: Boolean = true)(
       implicit ord: Ordering[K]
-  ): Unit =
-    writePairs(out)(
-      header,
-      m.keys.toSeq.sorted map { k =>
-        (k, (m(k)))
-      },
-      k2s,
-      v2s,
-      inlineVals
-    )
+  ): Unit = writePairs(out)(header, m.keys.toSeq.sorted.map(k => (k, (m(k)))), k2s, v2s, inlineVals)
 
   protected def writePairs[K, V](out: Writer)(
       header: String,
@@ -126,11 +115,11 @@ trait FormatCommons {
   ): Unit = {
     writeHeader(out, header)
     writeSize(out, s.size)
-    s foreach { case (k, v) =>
+    s.foreach { case (k, v) =>
       out.write(k2s(k))
       out.write(" -> ")
-      if (!inlineVals)
-        out.write("\n") // Put large vals on their own line, to save string munging on read.
+      // Put large vals on their own line, to save string munging on read.
+      if (!inlineVals) out.write("\n")
       out.write(v2s(v))
       out.write("\n")
     }
@@ -145,7 +134,7 @@ trait FormatCommons {
   }
 
   protected def readSeq[T](in: BufferedReader)(expectedHeader: String, s2t: String => T): Seq[T] =
-    (readPairs(in)(expectedHeader, identity[String], s2t).toSeq.sortBy(_._1) map (_._2))
+    (readPairs(in)(expectedHeader, identity[String], s2t).toSeq.sortBy(_._1).map(_._2))
 
   protected def readPairs[K, V](
       in: BufferedReader
@@ -167,4 +156,5 @@ trait FormatCommons {
     val n = readSize(in)
     for (i <- 0 until n) yield toPair(in.readLine())
   }
+
 }

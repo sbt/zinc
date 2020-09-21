@@ -18,6 +18,7 @@ import sbt.internal.inc._
 import sbt.internal.inc.text.TextAnalysisFormat
 
 object TextAnalysisFormatHelpers {
+
   def checkTextRoundtrip(analysis: Analysis, wfmt: TextAnalysisFormat, rfmt: TextAnalysisFormat) = {
     val (readAnalysis, readSetup) = deserialize(serialize(analysis, wfmt), rfmt)
     compare(analysis, readAnalysis) && compare(commonSetup, readSetup)
@@ -39,4 +40,5 @@ object TextAnalysisFormatHelpers {
     write(writer)
     writer.toString
   }
+
 }

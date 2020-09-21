@@ -45,9 +45,12 @@ trait APIs {
   def internal: Map[String, AnalyzedClass]
   def external: Map[String, AnalyzedClass]
 }
+
 object APIs {
+
   def apply(internal: Map[String, AnalyzedClass], external: Map[String, AnalyzedClass]): APIs =
     new MAPIs(internal, external)
+
   def empty: APIs = apply(Map.empty, Map.empty)
 
   val emptyModifiers = new Modifiers(false, false, false, false, false, false, false, false)
@@ -56,6 +59,7 @@ object APIs {
   val emptyAPIHash = -1
   val noCompilationStamp = -1L
   val emptyCompanions = xsbti.api.Companions.of(emptyAPI, emptyAPI)
+
   val emptyAnalyzedClass = xsbti.api.AnalyzedClass.of(
     noCompilationStamp,
     emptyName,
@@ -64,8 +68,10 @@ object APIs {
     Array.empty[NameHash],
     false
   )
+
   def getAPI[T](map: Map[T, AnalyzedClass], className: T): AnalyzedClass =
     map.getOrElse(className, emptyAnalyzedClass)
+
 }
 
 private class MAPIs(
@@ -85,6 +91,7 @@ private class MAPIs(
 
   def removeInternal(removeClasses: Iterable[String]): APIs =
     new MAPIs(internal -- removeClasses, external)
+
   def filterExt(keep: String => Boolean): APIs =
     new MAPIs(internal, external.filterKeys(keep).toMap)
 
@@ -96,7 +103,7 @@ private class MAPIs(
       def areEqual[T](x: Map[T, AnalyzedClass], y: Map[T, AnalyzedClass])(implicit
           ord: math.Ordering[T]
       ) = {
-        x.size == y.size && (sorted(x) zip sorted(y) forall { z =>
+        x.size == y.size && (sorted(x).zip(sorted(y)).forall { z =>
           z._1._1 == z._2._1 && SameAPI(z._1._2, z._2._2)
         })
       }
@@ -113,10 +120,11 @@ private class MAPIs(
 
   override def toString: String =
     "APIs(internal: %d, subproject: %d)".format(internal.size, external.size)
+
   // s"MAPIs(internal = $internal, external = $external)"
 
   private[this] def sorted[T](
       m: Map[T, AnalyzedClass]
-  )(implicit ord: math.Ordering[T]): Seq[(T, AnalyzedClass)] =
-    m.toSeq.sortBy(_._1)
+  )(implicit ord: math.Ordering[T]): Seq[(T, AnalyzedClass)] = m.toSeq.sortBy(_._1)
+
 }

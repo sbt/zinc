@@ -78,6 +78,7 @@ sealed class ZincCompiler(settings: Settings, dreporter: DelegatingReporter, out
     with ZincGlobalCompat {
 
   final class ZincRun(compileProgress: CompileProgress) extends Run {
+
     override def informUnitStarting(phase: Phase, unit: CompilationUnit): Unit = {
       compileProgress.startUnit(phase.name, unit.source.path)
     }
@@ -86,6 +87,7 @@ sealed class ZincCompiler(settings: Settings, dreporter: DelegatingReporter, out
       if (!compileProgress.advance(current, total, phase.name, phase.next.name)) cancel
       else ()
     }
+
   }
 
   object dummy // temporary fix for #4426
@@ -130,7 +132,7 @@ sealed class ZincCompiler(settings: Settings, dreporter: DelegatingReporter, out
     override val runsBefore = List("erasure")
     // TODO: Consider migrating to "uncurry" for `runsBefore`.
     // TODO: Consider removing the system property to modify which phase is used for API extraction.
-    val runsRightAfter = Option(System.getProperty("sbt.api.phase")) orElse Some("pickler")
+    val runsRightAfter = Option(System.getProperty("sbt.api.phase")).orElse(Some("pickler"))
   } with SubComponent {
     val api = new API(global)
     def newPhase(prev: Phase) = api.newPhase(prev)
@@ -274,9 +276,11 @@ sealed class ZincCompiler(settings: Settings, dreporter: DelegatingReporter, out
       yield callback.problem(what, DelegatingReporter.convert(pos), msg, Severity.Warn, false)
     ()
   }
+
 }
 
 import scala.reflect.internal.Positions
+
 final class ZincCompilerRangePos(settings: Settings, dreporter: DelegatingReporter, output: Output)
     extends ZincCompiler(settings, dreporter, output)
     with Positions

@@ -72,4 +72,5 @@ class LocalToNonLocalClass[G <: CallbackGlobal](val global: G) {
       else nonLocalForOwner
     } else resolveCached(s.owner.enclClass)
   }
+
 }

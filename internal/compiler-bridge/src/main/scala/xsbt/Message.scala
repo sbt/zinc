@@ -14,7 +14,9 @@ package xsbt
 import java.util.function.Supplier
 
 object Message {
+
   def apply[T](s: => T): Supplier[T] = new Supplier[T] {
     override def get(): T = s
   }
+
 }

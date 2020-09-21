@@ -49,6 +49,7 @@ object JavaNoPosition extends Position {
 /** A wrapper around xsbti.Problem with java-specific options. */
 final case class JavaProblem(position: Position, severity: Severity, message: String)
     extends xsbti.Problem {
+
   override def category: String =
     "javac" // TODO - what is this even supposed to be?  For now it appears unused.
   override def toString = s"$severity @ $position - $message"
@@ -74,21 +75,19 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
   val WARNING: Parser[String] = allUntilChar(':') ^? {
     case x if WARNING_PREFIXES.exists(x.trim.startsWith) => x
   }
+
   // Parses the rest of an input line.
   val restOfLine: Parser[String] =
     // TODO - Can we use END_OF_LINE here without issues?
-    allUntilChars(Array('\n', '\r')) ~ """[\r]?[\n]?""".r ^^ { case msg ~ _ =>
-      msg
-    }
+    allUntilChars(Array('\n', '\r')) ~ """[\r]?[\n]?""".r ^^ { case msg ~ _ => msg }
+
   val NOTE: Parser[String] = restOfLine ^? {
-    case x if NOTE_LINE_PREFIXES exists x.startsWith => x
+    case x if NOTE_LINE_PREFIXES.exists(x.startsWith) => x
   }
+
   val allIndented: Parser[String] =
-    rep("""\s+""".r ~ restOfLine ^^ { case x ~ msg =>
-      x + msg
-    }) ^^ { case xs =>
-      xs.mkString("\n")
-    }
+    rep("""\s+""".r ~ restOfLine ^^ { case x ~ msg => x + msg }) ^^ { case xs => xs.mkString("\n") }
+
   val nonPathLine: Parser[String] = {
     val nonPathLine0 = new Parser[String] {
       def isStopChar(c: Char): Boolean = c == '\n' || c == '\r'
@@ -107,19 +106,18 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
         else Success(line, in.drop(i - offset))
       }
     }
-    nonPathLine0 ~ """[\r]?[\n]?""".r ^^ { case msg ~ endline =>
-      msg + endline
-    }
+    nonPathLine0 ~ """[\r]?[\n]?""".r ^^ { case msg ~ endline => msg + endline }
   }
+
   val nonPathLines: Parser[String] = {
-    rep(nonPathLine) ^^ { case lines =>
-      lines.mkString("")
-    }
+    rep(nonPathLine) ^^ { case lines => lines.mkString("") }
   }
 
   // Parses ALL characters until an expected character is met.
   def allUntilChar(c: Char): Parser[String] = allUntilChars(Array(c))
+
   def allUntilChars(chars: Array[Char]): Parser[String] = new Parser[String] {
+
     def isStopChar(c: Char): Boolean = {
       var i = 0
       while (i < chars.length) {
@@ -139,18 +137,20 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
       }
       Success(source.subSequence(start, i).toString, in.drop(i - offset))
     }
+
   }
 
   // Helper to extract an integer from a string
   private object ParsedInteger {
+
     def unapply(s: String): Option[Int] =
       try Some(Integer.parseInt(s))
       catch { case _: NumberFormatException => None }
+
   }
+
   // Parses a line number
-  val line: Parser[Int] = allUntilChar(':') ^? { case ParsedInteger(x) =>
-    x
-  }
+  val line: Parser[Int] = allUntilChar(':') ^? { case ParsedInteger(x) => x }
 
   // Parses the file + lineno output of javac.
   val fileAndLineNo: Parser[(String, Int)] = {
@@ -169,8 +169,7 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
   // NOTE - this is probably wrong...
   private def findFileSource(f: String): String = {
     // If a file looks like an absolute path, leave it as is.
-    def isAbsolute(f: String) =
-      (f startsWith "/") || (f matches """[^\\]+:\\.*""")
+    def isAbsolute(f: String) = (f.startsWith("/")) || (f.matches("""[^\\]+:\\.*"""))
     // TODO - we used to use existence checks, that may be the right way to go
     if (isAbsolute(f)) f
     else (new File(relativeDir, f)).getAbsolutePath
@@ -228,6 +227,7 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
         )
     }
   }
+
   val noteMessage: Parser[Problem] =
     NOTE ^^ { msg =>
       new JavaProblem(
@@ -236,6 +236,7 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
         msg
       )
     }
+
   val javacError: Parser[Problem] =
     JAVAC ~ SEMICOLON ~ restOfLine ^^ { case _ ~ _ ~ error =>
       new JavaProblem(
@@ -283,6 +284,6 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
     }
 
   private def getOffset(contents: String): Int =
-    contents.linesIterator.toList.lastOption map (_.length) getOrElse 0
+    contents.linesIterator.toList.lastOption.map(_.length).getOrElse(0)
 
 }

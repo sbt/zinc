@@ -92,6 +92,7 @@ class NameHashing(optimizedSealed: Boolean) {
    */
   private class ExtractPublicDefinitions extends Visit {
     val defs = scala.collection.mutable.Buffer[Definition]()
+
     // if the definition is private, we do not visit because we do
     // not want to include any private members or its children
     override def visitDefinition(d: Definition): Unit =
@@ -99,6 +100,7 @@ class NameHashing(optimizedSealed: Boolean) {
         defs += d
         super.visitDefinition(d)
       }
+
   }
 
   private def publicDefs(c: ClassLike): Iterable[Definition] = {
@@ -117,6 +119,7 @@ class NameHashing(optimizedSealed: Boolean) {
 }
 
 object NameHashing {
+
   def merge(nm1: Array[NameHash], nm2: Array[NameHash]): Array[NameHash] = {
     import scala.collection.mutable.Map
     val m: Map[(String, UseScope), Int] = Map.empty
@@ -150,13 +153,17 @@ object NameHashing {
   private case class Location(className: String, nameType: NameType)
   private case class Selector(name: String, nameType: NameType)
   private sealed trait NameType
+
   private object NameType {
     import DefinitionType._
+
     def apply(dt: DefinitionType): NameType = dt match {
       case Trait | ClassDef       => TypeName
       case Module | PackageModule => TermName
     }
+
   }
+
   private case object TermName extends NameType
   private case object TypeName extends NameType
 }

@@ -34,13 +34,15 @@ object FileAnalysisStore {
 
   def binary(analysisFile: File): XAnalysisStore =
     new BinaryFileStore(analysisFile, ReadWriteMappers.getEmptyMappers())
+
   def binary(analysisFile: File, mappers: ReadWriteMappers): XAnalysisStore =
     new BinaryFileStore(analysisFile, mappers)
 
-  def text(file: File): XAnalysisStore =
-    new FileBasedStoreImpl(file, TextAnalysisFormat)
+  def text(file: File): XAnalysisStore = new FileBasedStoreImpl(file, TextAnalysisFormat)
+
   def text(file: File, mappers: ReadWriteMappers): XAnalysisStore =
     new FileBasedStoreImpl(file, new TextAnalysisFormat(mappers))
+
   def text(file: File, format: TextAnalysisFormat): XAnalysisStore =
     new FileBasedStoreImpl(file, format)
 
@@ -50,9 +52,7 @@ object FileAnalysisStore {
     private final val format = new BinaryAnalysisFormat(readWriteMappers)
     private final val TmpEnding = ".tmp"
 
-    /**
-     * Get `CompileAnalysis` and `MiniSetup` instances for current `Analysis`.
-     */
+    /** Get `CompileAnalysis` and `MiniSetup` instances for current `Analysis`. */
     override def get: Optional[AnalysisContents] = {
       import JavaInterfaceUtil.EnrichOption
       val nestedRead: Option[Option[AnalysisContents]] = allCatch.opt {
@@ -99,6 +99,7 @@ object FileAnalysisStore {
       }
       IO.move(tmpAnalysisFile, file)
     }
+
   }
 
   private final class FileBasedStoreImpl(file: File, format: TextAnalysisFormat)
@@ -136,24 +137,28 @@ object FileAnalysisStore {
         val (analysis, setup) = format.read(writer, companionsStore)
         AnalysisContents.create(analysis, setup)
       }
+
   }
 
-  private def lookupEntry(in: ZipInputStream, name: String): Unit =
-    Option(in.getNextEntry) match {
-      case Some(entry) if entry.getName == name => ()
-      case Some(_)                              => lookupEntry(in, name)
-      case None                                 => sys.error(s"$name not found in the zip file")
-    }
+  private def lookupEntry(in: ZipInputStream, name: String): Unit = Option(in.getNextEntry) match {
+    case Some(entry) if entry.getName == name => ()
+    case Some(_)                              => lookupEntry(in, name)
+    case None                                 => sys.error(s"$name not found in the zip file")
+  }
 
   private final class FileBasedCompanionsMapStore(file: File, format: TextAnalysisFormat)
       extends CompanionsStore {
+
     def get(): Option[(Map[String, Companions], Map[String, Companions])] =
       allCatch.opt(getUncaught())
+
     def getUncaught(): (Map[String, Companions], Map[String, Companions]) =
       Using.zipInputStream(new FileInputStream(file)) { inputStream =>
         lookupEntry(inputStream, companionsFileName)
         val reader = new BufferedReader(new InputStreamReader(inputStream, IO.utf8))
         format.readCompanionMap(reader)
       }
+
   }
+
 }

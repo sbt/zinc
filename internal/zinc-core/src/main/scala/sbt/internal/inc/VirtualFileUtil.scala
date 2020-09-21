@@ -25,10 +25,9 @@ object VirtualFileUtil {
   implicit val sbtInternalIncVirtualFileOrdering: Ordering[VirtualFile] = Ordering.by(_.id)
   implicit val sbtInternalIncVirtualFileRefOrdering: Ordering[VirtualFileRef] = Ordering.by(_.id)
 
-  def outputDirectory(output: Output): Path =
-    output.getSingleOutputAsPath.orElseThrow(() =>
-      new RuntimeException(s"unexpected output $output")
-    )
+  def outputDirectory(output: Output): Path = output.getSingleOutputAsPath.orElseThrow(() =>
+    new RuntimeException(s"unexpected output $output")
+  )
 
   def sourcePositionMapper(converter: FileConverter): Position => Position =
     new DelegatingPosition(_, converter)
@@ -39,6 +38,7 @@ object VirtualFileUtil {
     override def offset = original.offset
 
     private var sourcePath0 = original.sourcePath
+
     private val sourceFile0 = sourcePath0.map[File] { p =>
       if (p.contains("${")) {
         val path = converter.toPath(VirtualFileRef.of(p))
@@ -65,10 +65,12 @@ object VirtualFileUtil {
       case (Some(s), _)       => s"$s:"
       case _                  => ""
     }
+
   }
 
   def toAbsolute(vf: VirtualFile): VirtualFile = vf match {
     case x: PathBasedFile if !x.toPath.isAbsolute => PlainVirtualFile(x.toPath.toAbsolutePath)
     case _                                        => vf
   }
+
 }

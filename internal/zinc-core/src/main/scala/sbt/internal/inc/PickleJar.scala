@@ -19,6 +19,7 @@ import sbt.util.Logger
 import scala.reflect.io.RootPath
 
 object PickleJar {
+
   // create an empty JAR file in case the subproject has no classes.
   def touch(path: Path): Unit = {
     if (!Files.exists(path)) {
@@ -39,6 +40,7 @@ object PickleJar {
 
   def deleteUnknowns(knownProducts: java.util.Set[String], log: Logger) =
     new SimpleFileVisitor[Path] {
+
       override def visitFile(path: Path, attrs: BasicFileAttributes): FileVisitResult = {
         val ps = path.toString
         if (ps.endsWith(".sig")) {
@@ -50,5 +52,7 @@ object PickleJar {
         }
         FileVisitResult.CONTINUE
       }
+
     }
+
 }

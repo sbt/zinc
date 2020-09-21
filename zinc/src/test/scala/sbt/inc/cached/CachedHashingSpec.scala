@@ -25,6 +25,7 @@ import sbt.io.IO
 import scala.collection.JavaConverters.asScalaIteratorConverter
 
 class CachedHashingSpec extends BaseCompilerSpec {
+
   lazy val isWindows: Boolean =
     sys.props("os.name").toLowerCase(java.util.Locale.ENGLISH).contains("windows")
 

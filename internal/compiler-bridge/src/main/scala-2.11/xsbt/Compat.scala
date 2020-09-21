@@ -16,6 +16,7 @@ import xsbti.compile.Output
 import scala.tools.nsc.Settings
 
 abstract class Compat
+
 object Compat {
   // IR is renamed to Results
   val Results = scala.tools.nsc.interpreter.IR
@@ -30,6 +31,8 @@ trait ZincGlobalCompat {
 }
 
 private trait CachedCompilerCompat { self: CachedCompiler0 =>
+
   def newCompiler(settings: Settings, reporter: DelegatingReporter, output: Output): ZincCompiler =
     new ZincCompiler(settings, reporter, output)
+
 }

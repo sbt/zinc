@@ -10,8 +10,8 @@ private[inc] class WrappedSet(s: java.util.Set[VirtualFileRef]) extends Set[Virt
 
   def +(elem: xsbti.VirtualFileRef): Set[xsbti.VirtualFileRef] =
     s.asScala.foldLeft(Set(elem)) { case (a, e) => a + e }
+
   def -(elem: xsbti.VirtualFileRef): Set[xsbti.VirtualFileRef] =
-    s.asScala.foldLeft(Set.empty[VirtualFileRef]) { case (a, e) =>
-      if (e != elem) a + e else a
-    }
+    s.asScala.foldLeft(Set.empty[VirtualFileRef]) { case (a, e) => if (e != elem) a + e else a }
+
 }

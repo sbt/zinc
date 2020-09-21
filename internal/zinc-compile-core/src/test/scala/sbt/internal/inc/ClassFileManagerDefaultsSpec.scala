@@ -7,19 +7,24 @@ import xsbti.VirtualFile
 import org.scalatest.flatspec.AnyFlatSpec
 
 class ClassFileManagerDefaultsSpec extends AnyFlatSpec {
+
   class TestClassFileManager extends ClassFileManager {
     val deletedFiles = mutable.HashSet.empty[File]
     val generatedFiles = mutable.HashSet.empty[File]
+
     override def delete(classes: Array[File]): Unit = {
       deletedFiles ++= classes
       ()
     }
+
     override def generated(classes: Array[File]): Unit = {
       generatedFiles ++= classes
       ()
     }
+
     override def complete(x: Boolean): Unit = {}
   }
+
   "VirtualFile apis" should "delegate" in {
     val manager = new TestClassFileManager
     val file = new File("foo")

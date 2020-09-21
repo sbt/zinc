@@ -62,6 +62,7 @@ class FilteredReporter(
     logger: Logger,
     positionMapper: Position => Position
 ) extends LoggedReporter(maximumErrors, logger, positionMapper) {
+
   private final def isFiltered(pos: Position, msg: String, severity: Severity): Boolean = {
     def isFiltered[T](filters: Seq[T => java.lang.Boolean], value: T): Boolean =
       filters.exists(f => f(value).booleanValue())
@@ -101,4 +102,5 @@ class FilteredReporter(
       ()
     }
   }
+
 }

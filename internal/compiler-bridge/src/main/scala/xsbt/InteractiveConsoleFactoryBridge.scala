@@ -15,6 +15,7 @@ import java.util.Optional
 import xsbti.Logger
 
 class InteractiveConsoleBridgeFactory extends xsbti.InteractiveConsoleFactory {
+
   def createConsole(
       args: Array[String],
       bootClasspathString: String,
@@ -25,16 +26,16 @@ class InteractiveConsoleBridgeFactory extends xsbti.InteractiveConsoleFactory {
       bindNames: Array[String],
       bindValues: Array[AnyRef],
       log: Logger
-  ): xsbti.InteractiveConsoleInterface =
-    new InteractiveConsoleBridge(
-      args,
-      bootClasspathString,
-      classpathString,
-      initialCommands,
-      cleanupCommands,
-      loader,
-      bindNames,
-      bindValues,
-      log
-    )
+  ): xsbti.InteractiveConsoleInterface = new InteractiveConsoleBridge(
+    args,
+    bootClasspathString,
+    classpathString,
+    initialCommands,
+    cleanupCommands,
+    loader,
+    bindNames,
+    bindValues,
+    log
+  )
+
 }

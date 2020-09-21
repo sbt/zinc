@@ -24,8 +24,7 @@ object ReporterManager {
   import java.util.concurrent.atomic.AtomicInteger
   private val idGenerator: AtomicInteger = new AtomicInteger
   private val DefaultName = "zinc-out"
-  private def generateZincReporterId(name: String): String =
-    s"$name-${idGenerator.incrementAndGet}"
+  private def generateZincReporterId(name: String): String = s"$name-${idGenerator.incrementAndGet}"
 
   /**
    * Returns the id that is used to know what's the minimum level from which the
@@ -60,6 +59,7 @@ object ReporterManager {
   private val NoPositionMapper = java.util.function.Function.identity[Position]()
 
   import java.util.function.{ Function => JavaFunction }
+
   private implicit class EnrichedJava[T, R](f: JavaFunction[T, R]) {
     def toScala: Function[T, R] = (t: T) => f.apply(t)
   }
@@ -106,4 +106,5 @@ object ReporterManager {
     val printWriter = new PrintWriter(utf8Writer)
     getReporter(printWriter, config)
   }
+
 }

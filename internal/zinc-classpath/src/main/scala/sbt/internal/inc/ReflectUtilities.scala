@@ -72,6 +72,7 @@ object ReflectUtilities {
       self: AnyRef
   )(implicit mt: scala.reflect.Manifest[T]): immutable.SortedMap[String, T] =
     allValsC(self, mt.runtimeClass).asInstanceOf[immutable.SortedMap[String, T]]
+
 }
 
 /** An exception to indicate that while traversing the `val`s for an instance of `className`, the `val` named `valName` was `null`. */

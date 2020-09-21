@@ -36,6 +36,7 @@ class PlainNioFile(val nioPath: Path) extends AbstractFile {
   override def output = Files.newOutputStream(nioPath)
   override def sizeOption = Some(Files.size(nioPath).toInt)
   override def hashCode(): Int = fpath.hashCode()
+
   override def equals(that: Any): Boolean = that match {
     case x: PlainNioFile => fpath == x.fpath
     case _               => false
@@ -84,7 +85,11 @@ class PlainNioFile(val nioPath: Path) extends AbstractFile {
     ()
   }
 
-  /** Returns a plain file with the given name. It does not check that it exists. */
+  /**
+   * Returns a plain file with the given name. It does not
+   *  check that it exists.
+   */
   def lookupNameUnchecked(name: String, directory: Boolean): AbstractFile =
     new PlainNioFile(nioPath.resolve(name))
+
 }

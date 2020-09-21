@@ -62,7 +62,7 @@ object MiniSetupUtil {
       private def comparable(
           a: Array[T2[String, String]]
       ): Set[(String, String)] = {
-        a.filterNot(_.get1 startsWith "info.")
+        a.filterNot(_.get1.startsWith("info."))
           .map(v => v.get1() -> v.get2())
           .toSet
       }
@@ -90,7 +90,7 @@ object MiniSetupUtil {
       def equiv(out1: APIOutput, out2: APIOutput) = (out1, out2) match {
         case (m1: MultipleOutput, m2: MultipleOutput) =>
           (m1.getOutputGroups.length == m2.getOutputGroups.length) &&
-            (m1.getOutputGroups.sorted zip m2.getOutputGroups.sorted forall { case (a, b) =>
+            (m1.getOutputGroups.sorted.zip(m2.getOutputGroups.sorted).forall { case (a, b) =>
               equivFile
                 .equiv(a.getSourceDirectoryAsPath, b.getSourceDirectoryAsPath) && equivFile
                 .equiv(a.getOutputDirectoryAsPath, b.getOutputDirectoryAsPath)
@@ -154,4 +154,5 @@ object MiniSetupUtil {
       }
     }
   }
+
 }

@@ -31,11 +31,11 @@ import sbt.io.Using
 import Constants._
 
 private[sbt] object Parser {
+
   def apply(file: Path): ClassFile =
     Using.fileInputStream(file.toFile)(parse(file.toString)).right.get
 
-  def apply(file: File): ClassFile =
-    Using.fileInputStream(file)(parse(file.toString)).right.get
+  def apply(file: File): ClassFile = Using.fileInputStream(file)(parse(file.toString)).right.get
 
   def apply(url: URL): ClassFile =
     usingUrlInputStreamWithoutCaching(url)(parse(url.toString)).right.get
@@ -51,6 +51,7 @@ private[sbt] object Parser {
 
   private def parse(readableName: String)(is: InputStream): Either[String, ClassFile] =
     Right(parseImpl(readableName, is))
+
   private def parseImpl(readableName: String, is: InputStream): ClassFile = {
     val in = new DataInputStream(is)
     assume(in.readInt() == JavaMagic, "Invalid class file: " + readableName)
@@ -93,13 +94,12 @@ private[sbt] object Parser {
         if (index <= 0) None
         else Some(toUTF8(index))
       }
-      private def parseFieldOrMethodInfo() =
-        FieldOrMethodInfo(
-          in.readUnsignedShort(),
-          toString(in.readUnsignedShort()),
-          toString(in.readUnsignedShort()),
-          array(in.readUnsignedShort())(parseAttribute())
-        )
+      private def parseFieldOrMethodInfo() = FieldOrMethodInfo(
+        in.readUnsignedShort(),
+        toString(in.readUnsignedShort()),
+        toString(in.readUnsignedShort()),
+        array(in.readUnsignedShort())(parseAttribute())
+      )
       private def parseAttribute() = {
         val nameIndex = in.readUnsignedShort()
         val name = if (nameIndex == -1) None else Some(toUTF8(nameIndex))
@@ -110,25 +110,22 @@ private[sbt] object Parser {
       def types = (classConstantReferences ++ fieldTypes ++ methodTypes).toSet
 
       private def getTypes(fieldsOrMethods: Array[FieldOrMethodInfo]) =
-        fieldsOrMethods.flatMap { fieldOrMethod =>
-          descriptorToTypes(fieldOrMethod.descriptor)
-        }
+        fieldsOrMethods.flatMap(fieldOrMethod => descriptorToTypes(fieldOrMethod.descriptor))
 
       private def fieldTypes = getTypes(fields)
       private def methodTypes = getTypes(methods)
 
-      private def classConstantReferences =
-        constants.flatMap { constant =>
-          constant.tag match {
-            case ConstantClass =>
-              val name = toUTF8(constant.nameIndex)
-              if (name.startsWith("["))
-                descriptorToTypes(Some(name))
-              else
-                slashesToDots(name) :: Nil
-            case _ => Nil
-          }
+      private def classConstantReferences = constants.flatMap { constant =>
+        constant.tag match {
+          case ConstantClass =>
+            val name = toUTF8(constant.nameIndex)
+            if (name.startsWith("["))
+              descriptorToTypes(Some(name))
+            else
+              slashesToDots(name) :: Nil
+          case _ => Nil
         }
+      }
       private def constants = {
         def next(i: Int, list: List[Constant]): List[Constant] = {
           if (i < constantPool.length) {
@@ -141,17 +138,18 @@ private[sbt] object Parser {
       }
     }
   }
+
   private def array[T: scala.reflect.Manifest](size: Int)(f: => T) = Array.tabulate(size)(_ => f)
+
   private def parseConstantPool(in: DataInputStream) = {
     val constantPoolSize = in.readUnsignedShort()
     val pool = new Array[Constant](constantPoolSize)
 
-    def parse(i: Int): Unit =
-      if (i < constantPoolSize) {
-        val constant = getConstant(in)
-        pool(i) = constant
-        parse(if (constant.wide) i + 2 else i + 1)
-      }
+    def parse(i: Int): Unit = if (i < constantPoolSize) {
+      val constant = getConstant(in)
+      pool(i) = constant
+      parse(if (constant.wide) i + 2 else i + 1)
+    }
 
     parse(1)
     pool
@@ -197,6 +195,7 @@ private[sbt] object Parser {
   }
 
   private def toInt(v: Byte) = if (v < 0) v + 256 else v.toInt
+
   def entryIndex(a: AttributeInfo) = {
     require(a.value.length == 2, s"Expected two bytes for unsigned value; got: ${a.value.length}")
     val Array(v0, v1) = a.value
@@ -218,4 +217,5 @@ private[sbt] object Parser {
     }
     toTypes(descriptor.getOrElse(""), Nil)
   }
+
 }

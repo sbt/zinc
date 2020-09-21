@@ -19,6 +19,7 @@ import xsbti.VirtualFileRef
 
 // Please see docs about the implementation in the ReadMapper interface
 final class NaiveRelativeReadMapper(rootProjectPath: Path) extends ReadMapper {
+
   private def reconstructRelative(file: Path): Path =
     MapperUtils.reconstructRelative(file, rootProjectPath)
 

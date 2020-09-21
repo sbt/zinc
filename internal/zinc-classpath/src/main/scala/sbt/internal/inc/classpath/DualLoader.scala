@@ -20,11 +20,15 @@ import java.util.Collections
 
 /** A class loader that always fails to load classes and resources. */
 final class NullLoader extends ClassLoader {
+
   override final def loadClass(className: String, resolve: Boolean): Class[_] =
     throw new ClassNotFoundException("No classes can be loaded from the null loader")
+
   override def getResource(name: String): URL = null
+
   override def getResources(name: String): Enumeration[URL] =
     Collections.enumeration(Collections.emptyList())
+
   override def toString = "NullLoader"
 }
 
@@ -57,8 +61,8 @@ class DualLoader(
       aOnly: String => Boolean,
       parentB: ClassLoader,
       bOnly: String => Boolean
-  ) =
-    this(parentA, aOnly, aOnly, parentB, bOnly, bOnly)
+  ) = this(parentA, aOnly, aOnly, parentB, bOnly, bOnly)
+
   override final def loadClass(className: String, resolve: Boolean): Class[_] = {
     val c =
       if (aOnlyClasses(className))
@@ -81,6 +85,7 @@ class DualLoader(
       resolveClass(c)
     c
   }
+
   override def getResource(name: String): URL = {
     if (aOnlyResources(name))
       parentA.getResource(name)
@@ -95,6 +100,7 @@ class DualLoader(
         urlA
     }
   }
+
   override def getResources(name: String): Enumeration[URL] = {
     if (aOnlyResources(name))
       parentA.getResources(name)
@@ -120,10 +126,12 @@ final class DualEnumeration[T](a: Enumeration[T], b: Enumeration[T]) extends Enu
   // invariant: current.hasMoreElements or current eq b
   private[this] var current = if (a.hasMoreElements) a else b
   def hasMoreElements = current.hasMoreElements
+
   def nextElement = {
     val element = current.nextElement
     if (!current.hasMoreElements)
       current = b
     element
   }
+
 }

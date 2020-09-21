@@ -20,6 +20,6 @@ class HashSpec extends UnitSpec {
   it should "reject odd number" in reject("012345678")
 
   private def reject(s: String) = assert(run(s).isEmpty)
-  private def accept(s: String) = assert(run(s) exists (_.hexHash == s))
-  private def run(s: String) = Hash fromString s"hash($s)"
+  private def accept(s: String) = assert(run(s).exists(_.hexHash == s))
+  private def run(s: String) = Hash.fromString(s"hash($s)")
 }

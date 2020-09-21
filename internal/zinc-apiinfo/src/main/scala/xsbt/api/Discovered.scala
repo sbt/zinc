@@ -19,6 +19,7 @@ final case class Discovered(
 ) {
   def isEmpty = baseClasses.isEmpty && annotations.isEmpty
 }
+
 object Discovered {
   def empty = new Discovered(Set.empty, Set.empty, false, false)
 }

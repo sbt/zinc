@@ -21,10 +21,10 @@ case class CacheAwareStore(
     cacheProvider: CacheProvider,
     projectLocation: File
 ) extends AnalysisStore {
-  override def set(analysisFile: AnalysisContents): Unit =
-    localStore.set(analysisFile)
+  override def set(analysisFile: AnalysisContents): Unit = localStore.set(analysisFile)
 
   final val Empty = Optional.empty[AnalysisContents]
+
   override def get: Optional[AnalysisContents] = {
     import sbt.internal.inc.JavaInterfaceUtil.EnrichOptional
     val previous = localStore.get().toOption.map(f => (f.getAnalysis, f.getMiniSetup))

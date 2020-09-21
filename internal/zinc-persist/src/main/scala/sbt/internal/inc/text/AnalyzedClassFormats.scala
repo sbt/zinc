@@ -18,6 +18,7 @@ import sbt.internal.inc.Compilation
 import xsbti.api.{ AnalyzedClass, NameHash, SafeLazyProxy }
 
 object AnalyzedClassFormats {
+
   // This will throw out API information intentionally.
   def analyzedClassFormat(implicit
       ev0: Format[Compilation],
@@ -48,4 +49,5 @@ object AnalyzedClassFormats {
             )
         }
     )
+
 }

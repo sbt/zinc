@@ -37,7 +37,9 @@ trait AbstractClassLoaderCache extends AutoCloseable {
       files: List[File],
       mkLoader: () => ClassLoader
   ): ClassLoader
+
 }
+
 final class ClassLoaderCache(private val abstractClassLoaderCache: AbstractClassLoaderCache)
     extends AutoCloseable {
   def this(commonParent: ClassLoader) = this(new ClassLoaderCacheImpl(commonParent))
@@ -55,10 +57,12 @@ final class ClassLoaderCache(private val abstractClassLoaderCache: AbstractClass
       files: List[File],
       mkLoader: () => ClassLoader
   ): ClassLoader = abstractClassLoaderCache.cachedCustomClassloader(files, mkLoader)
+
 }
 
 private final class ClassLoaderCacheImpl(val commonParent: ClassLoader)
     extends AbstractClassLoaderCache {
+
   private[this] val delegate =
     new HashMap[List[File], Reference[CachedClassLoader]]
 
@@ -83,11 +87,10 @@ private final class ClassLoaderCacheImpl(val commonParent: ClassLoader)
   def cachedCustomClassloader(
       files: List[File],
       mkLoader: () => ClassLoader
-  ): ClassLoader =
-    synchronized {
-      val tstamps = files.map(IO.getModifiedTimeOrZero)
-      getFromReference(files, tstamps, delegate.get(files), mkLoader)
-    }
+  ): ClassLoader = synchronized {
+    val tstamps = files.map(IO.getModifiedTimeOrZero)
+    getFromReference(files, tstamps, delegate.get(files), mkLoader)
+  }
 
   override def close(): Unit = {
     delegate.values.forEach(v => Option(v.get).foreach(_.close()))
@@ -128,16 +131,20 @@ private final class ClassLoaderCacheImpl(val commonParent: ClassLoader)
     )
     loader
   }
+
 }
+
 private[sbt] final class CachedClassLoader(
     val loader: ClassLoader,
     val files: List[File],
     val timestamps: List[Long]
 ) extends AutoCloseable {
+
   override def close(): Unit = loader match {
     case a: AutoCloseable =>
       try a.close()
       catch { case NonFatal(e) => e.printStackTrace() }
     case _ =>
   }
+
 }

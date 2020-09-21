@@ -22,4 +22,5 @@ object BinaryMappersSpecification extends Properties("BinaryMappers") {
 
   private def check(analysis: Analysis) =
     checkStoreRoundtrip(analysis, FileAnalysisStore.binary(_, mappers))
+
 }

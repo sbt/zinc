@@ -28,19 +28,18 @@ import sbt.internal.util.codec._
 import Severity.{ Error, Warn, Info => SInfo }
 
 object LoggedReporter {
+
   final class PositionKey(pos: Position) {
     import sbt.util.InterfaceUtil.jo2o
     def offset = pos.offset
     def sourceFile = pos.sourceFile
 
-    override def equals(o: Any) =
-      o match { case pk: PositionKey => equalsKey(pk); case _ => false }
+    override def equals(o: Any) = o match { case pk: PositionKey => equalsKey(pk); case _ => false }
 
-    def equalsKey(o: PositionKey) =
-      jo2o(pos.offset) == jo2o(o.offset) &&
-        jo2o(pos.sourceFile) == jo2o(o.sourceFile)
-    override def hashCode =
-      jo2o(pos.offset).hashCode * 31 + jo2o(pos.sourceFile).hashCode
+    def equalsKey(o: PositionKey) = jo2o(pos.offset) == jo2o(o.offset) &&
+      jo2o(pos.sourceFile) == jo2o(o.sourceFile)
+
+    override def hashCode = jo2o(pos.offset).hashCode * 31 + jo2o(pos.sourceFile).hashCode
   }
 
   def countElementsAsString(n: Int, elements: String): String = {
@@ -58,6 +57,7 @@ object LoggedReporter {
     with SeverityFormats
     with PositionFormats
     with sjsonnew.BasicJsonProtocol {}
+
   lazy val problemStringFormats: ProblemStringFormats = new ProblemStringFormats {}
 }
 
@@ -185,4 +185,5 @@ class LoggedReporter(
       }
     }
   }
+
 }

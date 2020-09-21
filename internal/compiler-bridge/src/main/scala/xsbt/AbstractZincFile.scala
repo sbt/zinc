@@ -29,6 +29,7 @@ private final class ZincVirtualFile private[xsbt] (val underlying: VirtualFile)
 }
 
 private object AbstractZincFile {
+
   def apply(virtualFile: VirtualFile): AbstractZincFile = virtualFile match {
     case file: PathBasedFile => new ZincPlainFile(file)
     case _                   => new ZincVirtualFile(virtualFile)
@@ -38,4 +39,5 @@ private object AbstractZincFile {
     case wrapper: AbstractZincFile => Some(wrapper.underlying)
     case _                         => None
   }
+
 }

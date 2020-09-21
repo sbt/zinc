@@ -32,12 +32,15 @@ import xsbti.compile.{
 }
 
 final class ProtobufWriters(mapper: WriteMapper) {
+
   def toStringPath(file: File): String = {
     file.toPath.toString
   }
+
   def toStringPath(file: Path): String = {
     file.toString
   }
+
   def toStringPathV(file: VirtualFileRef): String = {
     file.id
   }
@@ -159,29 +162,28 @@ final class ProtobufWriters(mapper: WriteMapper) {
 
   import ProtobufDefaults.{ MissingString, MissingInt }
   import sbt.internal.inc.JavaInterfaceUtil._
-  def toPosition(position: Position): Schema.Position =
-    Schema.Position.newBuilder
-      .setLine(position.line.toOption.fold(MissingInt)(_.toInt))
-      .setOffset(position.offset.toOption.fold(MissingInt)(_.toInt))
-      .setLineContent(position.lineContent)
-      .setPointer(position.pointer.toOption.fold(MissingInt)(_.toInt))
-      .setPointerSpace(position.pointerSpace.toOption.getOrElse(MissingString))
-      .setSourcePath(position.sourcePath.toOption.getOrElse(MissingString))
-      .setSourceFilepath(position.sourceFile.toOption.fold(MissingString)(toStringPath))
-      .setStartOffset(position.startOffset.toOption.fold(MissingInt)(_.toInt))
-      .setEndOffset(position.endOffset.toOption.fold(MissingInt)(_.toInt))
-      .setStartLine(position.startLine.toOption.fold(MissingInt)(_.toInt))
-      .setStartColumn(position.startColumn.toOption.fold(MissingInt)(_.toInt))
-      .setEndLine(position.endLine.toOption.fold(MissingInt)(_.toInt))
-      .setEndColumn(position.endColumn.toOption.fold(MissingInt)(_.toInt))
-      .build
 
-  def toSeverity(severity: Severity): Schema.Severity =
-    severity match {
-      case Severity.Info  => Schema.Severity.INFO
-      case Severity.Warn  => Schema.Severity.WARN
-      case Severity.Error => Schema.Severity.ERROR
-    }
+  def toPosition(position: Position): Schema.Position = Schema.Position.newBuilder
+    .setLine(position.line.toOption.fold(MissingInt)(_.toInt))
+    .setOffset(position.offset.toOption.fold(MissingInt)(_.toInt))
+    .setLineContent(position.lineContent)
+    .setPointer(position.pointer.toOption.fold(MissingInt)(_.toInt))
+    .setPointerSpace(position.pointerSpace.toOption.getOrElse(MissingString))
+    .setSourcePath(position.sourcePath.toOption.getOrElse(MissingString))
+    .setSourceFilepath(position.sourceFile.toOption.fold(MissingString)(toStringPath))
+    .setStartOffset(position.startOffset.toOption.fold(MissingInt)(_.toInt))
+    .setEndOffset(position.endOffset.toOption.fold(MissingInt)(_.toInt))
+    .setStartLine(position.startLine.toOption.fold(MissingInt)(_.toInt))
+    .setStartColumn(position.startColumn.toOption.fold(MissingInt)(_.toInt))
+    .setEndLine(position.endLine.toOption.fold(MissingInt)(_.toInt))
+    .setEndColumn(position.endColumn.toOption.fold(MissingInt)(_.toInt))
+    .build
+
+  def toSeverity(severity: Severity): Schema.Severity = severity match {
+    case Severity.Info  => Schema.Severity.INFO
+    case Severity.Warn  => Schema.Severity.WARN
+    case Severity.Error => Schema.Severity.ERROR
+  }
 
   def toProblem(problem: Problem): Schema.Problem = {
     val category = problem.category()
@@ -249,19 +251,18 @@ final class ProtobufWriters(mapper: WriteMapper) {
   def setMiniSetupOutput(
       output: Output,
       builder: Schema.MiniSetup.Builder
-  ): Schema.MiniSetup.Builder =
-    output match {
-      case single0: SingleOutput =>
-        val newOutputDir = mapper.mapOutputDir(single0.getOutputDirectoryAsPath)
-        val targetPath = toStringPath(newOutputDir)
-        val single = Schema.SingleOutput.newBuilder.setTarget(targetPath).build
-        builder.setSingleOutput(single)
-      case multiple0: MultipleOutput =>
-        val multipleBuilder = Schema.MultipleOutput.newBuilder
-        multiple0.getOutputGroups.foreach(g => multipleBuilder.addOutputGroups(toOutputGroup(g)))
-        builder.setMultipleOutput(multipleBuilder.build)
-      case _ => sys.error(WritersFeedback.UnexpectedEmptyOutput)
-    }
+  ): Schema.MiniSetup.Builder = output match {
+    case single0: SingleOutput =>
+      val newOutputDir = mapper.mapOutputDir(single0.getOutputDirectoryAsPath)
+      val targetPath = toStringPath(newOutputDir)
+      val single = Schema.SingleOutput.newBuilder.setTarget(targetPath).build
+      builder.setSingleOutput(single)
+    case multiple0: MultipleOutput =>
+      val multipleBuilder = Schema.MultipleOutput.newBuilder
+      multiple0.getOutputGroups.foreach(g => multipleBuilder.addOutputGroups(toOutputGroup(g)))
+      builder.setMultipleOutput(multipleBuilder.build)
+    case _ => sys.error(WritersFeedback.UnexpectedEmptyOutput)
+  }
 
   def toMiniSetup(miniSetup0: MiniSetup): Schema.MiniSetup = {
     val builder = Schema.MiniSetup.newBuilder
@@ -354,10 +355,9 @@ final class ProtobufWriters(mapper: WriteMapper) {
       builder.build
     }
 
-    def toSingleton(tpe: Singleton): Schema.Type.Singleton =
-      Schema.Type.Singleton.newBuilder
-        .setPath(toPath(tpe.path()))
-        .build
+    def toSingleton(tpe: Singleton): Schema.Type.Singleton = Schema.Type.Singleton.newBuilder
+      .setPath(toPath(tpe.path()))
+      .build
 
     def toConstant(tpe: Constant): Schema.Type.Constant = {
       val baseType = toType(tpe.baseType())
@@ -428,10 +428,9 @@ final class ProtobufWriters(mapper: WriteMapper) {
     builder.build
   }
 
-  def toModifiers(modifiers: Modifiers): Schema.Modifiers =
-    Schema.Modifiers.newBuilder
-      .setFlags(modifiers.raw().toInt)
-      .build
+  def toModifiers(modifiers: Modifiers): Schema.Modifiers = Schema.Modifiers.newBuilder
+    .setFlags(modifiers.raw().toInt)
+    .build
 
   def toClassDefinition(classDefinition: ClassDefinition): Schema.ClassDefinition = {
 
@@ -469,15 +468,13 @@ final class ProtobufWriters(mapper: WriteMapper) {
       builder.build
     }
 
-    def toValDef(valDef: Val): Schema.ClassDefinition.Val =
-      Schema.ClassDefinition.Val.newBuilder
-        .setType(toType(valDef.tpe))
-        .build
+    def toValDef(valDef: Val): Schema.ClassDefinition.Val = Schema.ClassDefinition.Val.newBuilder
+      .setType(toType(valDef.tpe))
+      .build
 
-    def toVarDef(varDef: Var): Schema.ClassDefinition.Var =
-      Schema.ClassDefinition.Var.newBuilder
-        .setType(toType(varDef.tpe))
-        .build
+    def toVarDef(varDef: Var): Schema.ClassDefinition.Var = Schema.ClassDefinition.Var.newBuilder
+      .setType(toType(varDef.tpe))
+      .build
 
     def toDefDef(defDef: Def): Schema.ClassDefinition.Def = {
       val returnType = toType(defDef.returnType)
@@ -634,6 +631,7 @@ final class ProtobufWriters(mapper: WriteMapper) {
   private final val prodToString = (f: VirtualFileRef) => toStringPathV(mapper.mapProductFile(f))
 
   private final val stringId = identity[String] _
+
   def toRelations(relations: Relations): Schema.Relations = {
     import sbt.internal.util.Relation
 
@@ -727,28 +725,26 @@ final class ProtobufWriters(mapper: WriteMapper) {
       apis0: APIs,
       version: Schema.Version,
       shouldStoreApis: Boolean
-  ): Schema.APIsFile =
-    Schema.APIsFile.newBuilder
-      .setVersion(version)
-      .setApis(toApis(apis0, shouldStoreApis))
-      .build
+  ): Schema.APIsFile = Schema.APIsFile.newBuilder
+    .setVersion(version)
+    .setApis(toApis(apis0, shouldStoreApis))
+    .build
 
-  def toAnalysis(analysis: Analysis): Schema.Analysis =
-    Schema.Analysis.newBuilder
-      .setStamps(toStamps(analysis.stamps))
-      .setRelations(toRelations(analysis.relations))
-      .setSourceInfos(toSourceInfos(analysis.infos))
-      .setCompilations(toCompilations(analysis.compilations))
-      .build
+  def toAnalysis(analysis: Analysis): Schema.Analysis = Schema.Analysis.newBuilder
+    .setStamps(toStamps(analysis.stamps))
+    .setRelations(toRelations(analysis.relations))
+    .setSourceInfos(toSourceInfos(analysis.infos))
+    .setCompilations(toCompilations(analysis.compilations))
+    .build
 
   def toAnalysisFile(
       analysis0: Analysis,
       miniSetup0: MiniSetup,
       version: Schema.Version
-  ): Schema.AnalysisFile =
-    Schema.AnalysisFile.newBuilder
-      .setVersion(version)
-      .setAnalysis(toAnalysis(analysis0))
-      .setMiniSetup(toMiniSetup(miniSetup0))
-      .build
+  ): Schema.AnalysisFile = Schema.AnalysisFile.newBuilder
+    .setVersion(version)
+    .setAnalysis(toAnalysis(analysis0))
+    .setMiniSetup(toMiniSetup(miniSetup0))
+    .build
+
 }

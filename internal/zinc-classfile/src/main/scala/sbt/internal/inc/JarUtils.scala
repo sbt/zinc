@@ -48,6 +48,7 @@ object JarUtils {
    */
   class ClassInJar(override val toString: String) extends AnyVal {
     def toClassFilePath: Option[ClassFilePath] = splitJarReference._2
+
     def splitJarReference: (File, Option[ClassFilePath]) = {
       if (toString.contains("!")) {
         val Array(jar, cls) = toString.split("!")
@@ -147,16 +148,12 @@ object JarUtils {
     IndexBasedZipFsOps.writeCentralDir(jar.toFile, index)
   }
 
-  /**
-   * Adds plain files to specified jar file. See [[sbt.internal.inc.IndexBasedZipOps#includeInArchive]] for details.
-   */
+  /** Adds plain files to specified jar file. See [[sbt.internal.inc.IndexBasedZipOps#includeInArchive]] for details. */
   def includeInJar(jar: File, files: Seq[(File, ClassFilePath)]): Unit = {
     IndexBasedZipFsOps.includeInArchive(jar, files.toVector)
   }
 
-  /**
-   * Merges contents of two jars. See sbt.internal.inc.IndexBasedZipOps#mergeArchives for details.
-   */
+  /** Merges contents of two jars. See sbt.internal.inc.IndexBasedZipOps#mergeArchives for details. */
   def mergeJars(into: File, from: File): Unit = {
     IndexBasedZipFsOps.mergeArchives(into, from)
   }
@@ -169,9 +166,7 @@ object JarUtils {
   /** Lists file entries in jar e.g. sbt/internal/inc/JarUtils.class */
   def listFiles(jar: Path): Seq[String] = IndexBasedZipFsOps.listEntries(jar.toFile)
 
-  /**
-   * Removes specified entries from a jar file.
-   */
+  /** Removes specified entries from a jar file. */
   def removeFromJar(jarFile: Path, classes: Iterable[ClassFilePath]): Unit = {
     if (Files.exists(jarFile)) {
       IndexBasedZipFsOps.removeEntries(jarFile.toFile, classes)
@@ -298,9 +293,7 @@ object JarUtils {
     }
   }
 
-  /**
-   * Return JAR component of class-in-jar notation.
-   */
+  /** Return JAR component of class-in-jar notation. */
   def getJarInClassInJar(path: Path): Option[Path] = {
     path.toString.split("!") match {
       case Array(jar, _) if jar.toString.endsWith(".jar") => Some(Paths.get(jar))
@@ -428,6 +421,7 @@ object JarUtils {
         content ++= JarUtils.listClassFiles(outputJar.toFile).toSet
       }
     }
+
   }
 
   /* Methods below are only used for test code. They are not optimized for performance. */
@@ -456,4 +450,5 @@ object JarUtils {
     try f(file)
     finally file.close()
   }
+
 }

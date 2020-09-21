@@ -133,7 +133,7 @@ final class AnalyzingJavaCompiler private[sbt] (
       }
 
       // Report warnings about source files that have no output directory
-      chunks.get(None) foreach { srcs =>
+      chunks.get(None).foreach { srcs =>
         val culpritPaths = srcs.map(_.id).mkString(", ")
         log.error(InterfaceUtil.toSupplier(s"No output directory mapped for: $culpritPaths"))
       }
@@ -180,9 +180,7 @@ final class AnalyzingJavaCompiler private[sbt] (
         val (apis, mainClasses, inherits) = ClassToAPI.process(classes)
         apis.foreach(callback.api(source, _))
         mainClasses.foreach(callback.mainClass(source, _))
-        inherits.map { case (from, to) =>
-          (from.getName, to.getName)
-        }
+        inherits.map { case (from, to) => (from.getName, to.getName) }
       }
 
       // Record progress for java analysis
@@ -217,9 +215,7 @@ final class AnalyzingJavaCompiler private[sbt] (
       }
 
       // Report that we reached the end
-      progressOpt.foreach { progress =>
-        progress.advance(2, 2, javaAnalysisPhase, noPhase)
-      }
+      progressOpt.foreach(progress => progress.advance(2, 2, javaAnalysisPhase, noPhase))
     }
   }
 
@@ -253,4 +249,5 @@ final class AnalyzingJavaCompiler private[sbt] (
     log.debug(label + " took " + (elapsed / 1e9) + " s")
     result
   }
+
 }

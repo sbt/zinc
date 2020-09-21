@@ -46,4 +46,5 @@ class OutputSpec extends BaseCompilerSpec {
 
   def mkCompiler(baseDir: File, classes: Seq[String]) =
     ProjectSetup.simple(baseDir.toPath, classes).copy(outputToJar = true).createCompiler()
+
 }

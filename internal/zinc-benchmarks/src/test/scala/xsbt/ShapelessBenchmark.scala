@@ -28,6 +28,7 @@ class ColdShapelessBenchmark extends ShapelessBenchmark {
   override def action(): Unit = {
     super.action()
   }
+
 }
 
 /*
@@ -58,4 +59,5 @@ class HotShapelessBenchmark extends ShapelessBenchmark {
   override def action(): Unit = {
     super.action()
   }
+
 }

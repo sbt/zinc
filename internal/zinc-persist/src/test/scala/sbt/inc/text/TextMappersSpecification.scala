@@ -31,4 +31,5 @@ object TextMappersSpecification extends Properties("TextMappers") {
     checkTextRoundtrip(analysis, mappedFormat, TextAnalysisFormat) &&
     throws(checkTextRoundtrip(analysis, TextAnalysisFormat, mappedFormat))
   }
+
 }

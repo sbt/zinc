@@ -424,9 +424,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       val outputJars = outputs.flatMap(out => (JarUtils.getOutputJar(out): Option[Path]).toList)
       val classpathPaths = classpath.map(converter.toPath)
       val outputJarsOnCp = outputJars.exists { outputJar =>
-        classpathPaths.exists { x: Path =>
-          x.toAbsolutePath == outputJar.toAbsolutePath
-        }
+        classpathPaths.exists { x: Path => x.toAbsolutePath == outputJar.toAbsolutePath }
       }
 
       // otherwise jars on classpath will not be closed, especially prev jar.
@@ -491,9 +489,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
     }
   }
 
-  /**
-   * Compila all Java sources using the given mixed compiler.
-   */
+  /** Compila all Java sources using the given mixed compiler. */
   private[sbt] def compileAllJava(
       mixedCompiler: MixedAnalyzingCompiler,
       log: Logger
@@ -594,18 +590,17 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       progress: Option[CompileProgress],
       earlyAnalysisStore: Option[AnalysisStore],
       extra: Array[T2[String, String]]
-  ): Setup =
-    Setup.of(
-      lookup,
-      skip,
-      cacheFile,
-      cache,
-      incOptions,
-      reporter,
-      progress.toOptional,
-      earlyAnalysisStore.toOptional,
-      extra
-    )
+  ): Setup = Setup.of(
+    lookup,
+    skip,
+    cacheFile,
+    cache,
+    incOptions,
+    reporter,
+    progress.toOptional,
+    earlyAnalysisStore.toOptional,
+    extra
+  )
 
   def inputs(
       options: CompileOptions,
@@ -646,7 +641,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         temporaryClassesDirectory,
         Option(converter).toOptional,
         Option(stampReader).toOptional,
-        (earlyJarPath map { CompileOutput(_) }).toOptional,
+        (earlyJarPath.map { CompileOutput(_) }).toOptional,
       )
     }
     inputs(compileOptions, compilers, setup, pr)
@@ -665,8 +660,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       cpOptions: XClasspathOptions,
       javaHome: Option[Path],
       scalac: ScalaCompiler
-  ): Compilers =
-    ZincUtil.compilers(instance, cpOptions, javaHome, scalac)
+  ): Compilers = ZincUtil.compilers(instance, cpOptions, javaHome, scalac)
 
   def compilers(javaTools: XJavaTools, scalac: ScalaCompiler): Compilers =
     ZincUtil.compilers(javaTools, scalac)
@@ -677,9 +671,8 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
 
   private[sbt] def foldMappers[A](mappers: Array[JavaFunction[A, Optional[A]]]) = {
     mappers.foldRight(InterfaceUtil.toJavaFunction[A, A](identity)) { (mapper, mappers) =>
-      InterfaceUtil.toJavaFunction[A, A]({ p: A =>
-        mapper(p).toOption.getOrElse(mappers(p))
-      })
+      InterfaceUtil.toJavaFunction[A, A]({ p: A => mapper(p).toOption.getOrElse(mappers(p)) })
     }
   }
+
 }

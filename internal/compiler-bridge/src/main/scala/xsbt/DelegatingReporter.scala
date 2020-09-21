@@ -20,6 +20,7 @@ import Compat._
 import scala.reflect.io.AbstractFile
 
 private object DelegatingReporter {
+
   def apply(settings: scala.tools.nsc.Settings, delegate: xsbti.Reporter): DelegatingReporter =
     new DelegatingReporter(settings.fatalWarnings.value, settings.nowarn.value, delegate)
 
@@ -51,20 +52,24 @@ private object DelegatingReporter {
     override val startColumn = o2oi(startColumn0)
     override val endLine = o2oi(endLine0)
     override val endColumn = o2oi(endColumn0)
-    override def toString =
-      (sourcePath0, line0) match {
-        case (Some(s), Some(l)) => s + ":" + l
-        case (Some(s), _)       => s + ":"
-        case _                  => ""
-      }
+
+    override def toString = (sourcePath0, line0) match {
+      case (Some(s), Some(l)) => s + ":" + l
+      case (Some(s), _)       => s + ":"
+      case _                  => ""
+    }
+
   }
 
   object PositionImpl {
+
     def empty: PositionImpl =
       new PositionImpl(None, None, None, "", None, None, None, None, None, None, None, None, None)
+
   }
 
   import java.lang.{ Integer => I }
+
   private[xsbt] def o2oi(opt: Option[Int]): Optional[I] = {
     opt match {
       case Some(s) => Optional.ofNullable[I](s: I)
@@ -156,6 +161,7 @@ private object DelegatingReporter {
       case Some(cleanPos) => makePosition(cleanPos)
     }
   }
+
 }
 
 // Copyright 2002-2009 LAMP/EPFL
@@ -173,8 +179,10 @@ private final class DelegatingReporter(
   def problems = delegate.problems
   override def hasErrors = delegate.hasErrors
   override def hasWarnings = delegate.hasWarnings
+
   override def comment(pos: Position, msg: String): Unit =
     delegate.comment(DelegatingReporter.convert(pos), msg)
+
   override def reset(): Unit = {
     super.reset()
     delegate.reset()
@@ -189,6 +197,7 @@ private final class DelegatingReporter(
   }
 
   import xsbti.Severity.{ Info, Warn, Error }
+
   private[this] def convert(sev: Severity): xsbti.Severity = {
     sev match {
       case INFO    => Info
@@ -199,6 +208,7 @@ private final class DelegatingReporter(
 
   // Define our own problem because the bridge should not depend on sbt util-logging.
   import xsbti.{ Problem => XProblem, Position => XPosition, Severity => XSeverity }
+
   private final class CompileProblem(
       pos: XPosition,
       msg: String,
@@ -210,4 +220,5 @@ private final class DelegatingReporter(
     override val severity = sev
     override def toString = s"[$severity] $pos: $message"
   }
+
 }

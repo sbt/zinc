@@ -18,6 +18,7 @@ import xsbti.compile._
 
 final class FreshCompilerCache extends GlobalsCache {
   def clear(): Unit = ()
+
   override def apply(
       args: Array[String],
       output: Output,
@@ -26,4 +27,5 @@ final class FreshCompilerCache extends GlobalsCache {
       log: xLogger,
       reporter: Reporter
   ): CachedCompiler = c.newCachedCompiler(args, output, log, reporter)
+
 }

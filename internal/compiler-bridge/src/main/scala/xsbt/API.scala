@@ -27,9 +27,11 @@ final class API(val global: CallbackGlobal) extends Compat with GlobalHelpers wi
   private val nonLocalClassSymbolsInCurrentUnits = new mutable.HashSet[Symbol]()
 
   def newPhase(prev: Phase) = new ApiPhase(prev)
+
   class ApiPhase(prev: Phase) extends GlobalPhase(prev) {
     override def description = "Extracts the public API from source files."
     def name = API.name
+
     override def run(): Unit = {
       val start = System.currentTimeMillis
       super.run()
@@ -89,6 +91,7 @@ final class API(val global: CallbackGlobal) extends Compat with GlobalHelpers wi
         if (cs.sourceFile != null) nonLocalClassSymbolsInCurrentUnits.+=(cs)
       }
     }
+
   }
 
   private case class FlattenedNames(binaryName: String, className: String)
@@ -152,7 +155,7 @@ final class API(val global: CallbackGlobal) extends Compat with GlobalHelpers wi
           }
           val zincClassName = names.className
           val srcClassName = classNameAsString(symbol)
-          sourceVF foreach { source =>
+          sourceVF.foreach { source =>
             callback.generatedNonLocalClass(
               source,
               classFile.toPath,
@@ -185,6 +188,7 @@ final class API(val global: CallbackGlobal) extends Compat with GlobalHelpers wi
 
   private final class TopLevelHandler(extractApi: ExtractAPI[global.type])
       extends TopLevelTraverser {
+
     def allNonLocalClasses: Set[ClassLike] = {
       extractApi.allExtractedNonLocalClasses
     }
@@ -194,10 +198,12 @@ final class API(val global: CallbackGlobal) extends Compat with GlobalHelpers wi
     def `class`(c: Symbol): Unit = {
       extractApi.extractAllClassesOf(c.owner, c)
     }
+
   }
 
   private abstract class TopLevelTraverser extends Traverser {
     def `class`(s: Symbol): Unit
+
     override def traverse(tree: Tree): Unit = {
       tree match {
         case (_: ClassDef | _: ModuleDef) if isTopLevel(tree.symbol) => `class`(tree.symbol)
@@ -206,6 +212,7 @@ final class API(val global: CallbackGlobal) extends Compat with GlobalHelpers wi
         case _ =>
       }
     }
+
     def isTopLevel(sym: Symbol): Boolean = {
       !ignoredSymbol(sym) &&
       sym.isStatic &&
@@ -213,6 +220,7 @@ final class API(val global: CallbackGlobal) extends Compat with GlobalHelpers wi
       (!sym.hasFlag(Flags.JAVA) || global.callback.isPickleJava) &&
       !sym.isNestedClass
     }
+
   }
 
 }

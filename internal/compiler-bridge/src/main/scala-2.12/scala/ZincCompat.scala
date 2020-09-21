@@ -19,9 +19,11 @@ object ZincCompat {
   type PlainNioFile = scala.reflect.io.PlainNioFile
 
   def plainNioFile(path: Path): AbstractFile = new PlainNioFile(path)
+
   def unwrapPlainNioFile(pf: PlainNioFile): Path = {
     val f = pf.getClass.getDeclaredField("nioPath") // it's not val'd in 2.12 :-/
     f.setAccessible(true)
     f.get(pf).asInstanceOf[Path]
   }
+
 }

@@ -19,12 +19,14 @@ import xsbti.{ VirtualFile, VirtualFileRef }
 class LookupImpl(compileConfiguration: CompileConfiguration, previousSetup: Option[MiniSetup])
     extends Lookup {
   private val classpath: Vector[VirtualFile] = compileConfiguration.classpath.toVector
+
   private val classpathHash: Vector[FileHash] =
     compileConfiguration.currentSetup.options.classpathHash.toVector
 
   import sbt.internal.inc.JavaInterfaceUtil.EnrichOptional
+
   lazy val analyses: Vector[Analysis] = {
-    classpath flatMap { entry =>
+    classpath.flatMap { entry =>
       compileConfiguration.perClasspathEntryLookup.analysis(entry).toOption.map {
         case a: Analysis => a
       }
@@ -75,14 +77,12 @@ class LookupImpl(compileConfiguration: CompileConfiguration, previousSetup: Opti
 
   override def removedProducts(
       previousAnalysis: CompileAnalysis
-  ): Option[Set[VirtualFileRef]] =
-    externalLookup.flatMap(_.removedProducts(previousAnalysis))
+  ): Option[Set[VirtualFileRef]] = externalLookup.flatMap(_.removedProducts(previousAnalysis))
 
   override def shouldDoIncrementalCompilation(
       changedClasses: Set[String],
       analysis: CompileAnalysis
-  ): Boolean =
-    externalLookup.forall(_.shouldDoIncrementalCompilation(changedClasses, analysis))
+  ): Boolean = externalLookup.forall(_.shouldDoIncrementalCompilation(changedClasses, analysis))
 
   override def shouldDoEarlyOutput(analysis: CompileAnalysis): Boolean = {
     externalLookup match {
@@ -93,4 +93,5 @@ class LookupImpl(compileConfiguration: CompileConfiguration, previousSetup: Opti
 
   override def hashClasspath(classpath: Array[VirtualFile]): Optional[Array[FileHash]] =
     externalLookup.map(_.hashClasspath(classpath)).getOrElse(Optional.empty())
+
 }

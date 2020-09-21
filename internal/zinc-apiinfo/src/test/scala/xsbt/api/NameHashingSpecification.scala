@@ -20,19 +20,18 @@ class NameHashingSpecification extends UnitSpec {
 
   implicit class NameHashesOpts(nameHashes: Array[NameHash]) {
 
-    def in(s: UseScope): Array[NameHash] =
-      nameHashes.filter(_.scope() == s)
+    def in(s: UseScope): Array[NameHash] = nameHashes.filter(_.scope() == s)
 
-    def namesIn(s: UseScope): Set[String] =
-      nameHashes
-        .collect({
-          case nameHash if nameHash.scope() == s =>
-            nameHash.name()
-        })
-        .toSet
+    def namesIn(s: UseScope): Set[String] = nameHashes
+      .collect({
+        case nameHash if nameHash.scope() == s =>
+          nameHash.name()
+      })
+      .toSet
 
     def forNameIn(s: UseScope, name: String): NameHash =
       nameHashes.find(nameHash => nameHash.scope() == s && nameHash.name() == name).get
+
   }
 
   "NameHashing" should "generate correct hashes for sealed classes" in {
@@ -44,10 +43,9 @@ class NameHashingSpecification extends UnitSpec {
     val Ala = Projection.of(emptyType, "Ala")
     val Ola = Projection.of(emptyType, "Ola")
 
-    def createClass(types: Type*) =
-      simpleClass("Bar", def1, def2)
-        .withModifiers(new Modifiers(false, false, false, true, false, false, false, false))
-        .withChildrenOfSealedClass(types.toArray)
+    def createClass(types: Type*) = simpleClass("Bar", def1, def2)
+      .withModifiers(new Modifiers(false, false, false, true, false, false, false, false))
+      .withChildrenOfSealedClass(types.toArray)
 
     val notSealedClass = simpleClass("Bar", def1)
 
@@ -67,17 +65,18 @@ class NameHashingSpecification extends UnitSpec {
       } else {
         assert(nameHashesA.in(UseScope.PatMatTarget).isEmpty)
         assert(nameHashesB.in(UseScope.PatMatTarget).isEmpty)
-        nameHashesA.in(UseScope.Default) should not equal nameHashesB.in(UseScope.Default)
+        (nameHashesA.in(UseScope.Default) should not).equal(nameHashesB.in(UseScope.Default))
       }
 
       if (optimizedSealed) {
         nameHashesA.namesIn(UseScope.PatMatTarget) shouldEqual nameHashesB.namesIn(
           UseScope.PatMatTarget
         )
-        nameHashesA.in(UseScope.PatMatTarget) should not equal nameHashesB.in(UseScope.PatMatTarget)
+        (nameHashesA.in(UseScope.PatMatTarget) should not)
+          .equal(nameHashesB.in(UseScope.PatMatTarget))
       }
 
-      HashAPI(a) should not equal HashAPI(b)
+      (HashAPI(a) should not).equal(HashAPI(b))
     }
 
     checkOptimizedNames(baseClass, classWithAla, optimizedSealed = true)
@@ -105,8 +104,8 @@ class NameHashingSpecification extends UnitSpec {
     val nameHashes2 = nameHashing.nameHashes(classBar2)
     assertNameHashEqualForRegularName("Bar", nameHashes1, nameHashes2)
     assertNameHashEqualForRegularName("foo", nameHashes1, nameHashes2)
-    nameHashes1 namesIn UseScope.Default should not contain "bar"
-    nameHashes2 namesIn UseScope.Default should contain("bar")
+    nameHashes1.namesIn(UseScope.Default) should not contain "bar"
+    nameHashes2.namesIn(UseScope.Default) should contain("bar")
   }
 
   /**
@@ -320,8 +319,7 @@ class NameHashingSpecification extends UnitSpec {
       name: String,
       nameHashes1: Array[NameHash],
       nameHashes2: Array[NameHash]
-  ) =
-    assertNameHashEqual(UseScope.Default, name, nameHashes1, nameHashes2)
+  ) = assertNameHashEqual(UseScope.Default, name, nameHashes1, nameHashes2)
 
   private def assertNameHashNotEqualForRegularName(
       name: String,

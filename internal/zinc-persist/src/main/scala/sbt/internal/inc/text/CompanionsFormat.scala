@@ -16,6 +16,7 @@ import xsbti.api._
 
 object CompanionsFormat extends Format[Companions] {
   import java.io._
+
   def reads(in: Input): Companions = {
     val oin = new ObjectInputStream(new InputWrapperStream(in))
     try {
@@ -24,6 +25,7 @@ object CompanionsFormat extends Format[Companions] {
       oin.close()
     }
   }
+
   def writes(out: Output, src: Companions): Unit = {
     val oout = new ObjectOutputStream(new OutputWrapperStream(out))
     try {
@@ -32,4 +34,5 @@ object CompanionsFormat extends Format[Companions] {
       oout.close()
     }
   }
+
 }

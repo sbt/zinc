@@ -24,9 +24,7 @@ import xsbti.compile.{ Changes, CompileAnalysis, ExternalHooks, FileHash }
  */
 trait Lookup extends ExternalLookup {
 
-  /**
-   * Returns the current classpath if the classpath has changed from the last compilation.
-   */
+  /** Returns the current classpath if the classpath has changed from the last compilation. */
   def changedClasspathHash: Option[Vector[FileHash]]
 
   def analyses: Vector[CompileAnalysis]
@@ -57,6 +55,7 @@ trait Lookup extends ExternalLookup {
       analyzedClass <- analysis.apis.internal.get(className)
     } yield analyzedClass
   }
+
 }
 
 /**
@@ -89,10 +88,10 @@ trait ExternalLookup extends ExternalHooks.Lookup {
    * @return None if is unable to determine what was changed, changes otherwise
    */
   def changedSources(previousAnalysis: CompileAnalysis): Option[Changes[VirtualFileRef]]
+
   override def getChangedSources(
       previousAnalysis: CompileAnalysis
-  ): Optional[Changes[VirtualFileRef]] =
-    changedSources(previousAnalysis).toOptional
+  ): Optional[Changes[VirtualFileRef]] = changedSources(previousAnalysis).toOptional
 
   /**
    * Used to provide information from external tools into sbt (e.g. IDEs)
@@ -101,10 +100,10 @@ trait ExternalLookup extends ExternalHooks.Lookup {
    * @return None if is unable to determine what was changed, changes otherwise
    */
   def changedBinaries(previousAnalysis: CompileAnalysis): Option[Set[VirtualFileRef]]
+
   override def getChangedBinaries(
       previousAnalysis: CompileAnalysis
-  ): Optional[util.Set[VirtualFileRef]] =
-    changedBinaries(previousAnalysis).map(_.asJava).toOptional
+  ): Optional[util.Set[VirtualFileRef]] = changedBinaries(previousAnalysis).map(_.asJava).toOptional
 
   /**
    * Used to provide information from external tools into sbt (e.g. IDEs)
@@ -113,10 +112,10 @@ trait ExternalLookup extends ExternalHooks.Lookup {
    * @return None if is unable to determine what was changed, changes otherwise
    */
   def removedProducts(previousAnalysis: CompileAnalysis): Option[Set[VirtualFileRef]]
+
   override def getRemovedProducts(
       previousAnalysis: CompileAnalysis
-  ): Optional[util.Set[VirtualFileRef]] =
-    removedProducts(previousAnalysis).map(_.asJava).toOptional
+  ): Optional[util.Set[VirtualFileRef]] = removedProducts(previousAnalysis).map(_.asJava).toOptional
 
   /**
    * Used to provide information from external tools into sbt (e.g. IDEs)
@@ -126,6 +125,7 @@ trait ExternalLookup extends ExternalHooks.Lookup {
       changedClasses: Set[String],
       analysis: CompileAnalysis
   ): Boolean
+
   override def shouldDoIncrementalCompilation(
       changedClasses: util.Set[String],
       previousAnalysis: CompileAnalysis
@@ -148,6 +148,7 @@ trait ExternalLookup extends ExternalHooks.Lookup {
   def shouldDoEarlyOutput(analysis: CompileAnalysis): Boolean = {
     analysis.asInstanceOf[Analysis].apis.internal.values.forall(!_.hasMacro)
   }
+
 }
 
 trait NoopExternalLookup extends ExternalLookup {
@@ -155,10 +156,13 @@ trait NoopExternalLookup extends ExternalLookup {
   override def changedSources(previous: CompileAnalysis): Option[Changes[VirtualFileRef]] = None
   override def changedBinaries(previous: CompileAnalysis): Option[Set[VirtualFileRef]] = None
   override def removedProducts(previous: CompileAnalysis): Option[Set[VirtualFileRef]] = None
+
   override def shouldDoIncrementalCompilation(
       changedClasses: Set[String],
       analysis: CompileAnalysis
   ): Boolean = true
+
   override def hashClasspath(classpath: Array[VirtualFile]): Optional[Array[FileHash]] =
     Optional.empty()
+
 }

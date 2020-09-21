@@ -28,5 +28,7 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
       val bridge = getCompilerBridge(setup.baseDir, Logger.Null, sv)
       setup.createCompiler(sv, si, bridge, true, log)
     }
+
   }
+
 }

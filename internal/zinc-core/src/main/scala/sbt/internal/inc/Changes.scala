@@ -29,11 +29,10 @@ final case class InitialChanges(
     external: APIChanges
 ) extends XInitialChanges {
 
-  def isEmpty: Boolean =
-    internalSrc.isEmpty &&
-      removedProducts.isEmpty &&
-      libraryDeps.isEmpty &&
-      external.apiChanges.isEmpty
+  def isEmpty: Boolean = internalSrc.isEmpty &&
+    removedProducts.isEmpty &&
+    libraryDeps.isEmpty &&
+    external.apiChanges.isEmpty
 
   def getInternalSrc: Changes[VirtualFileRef] = internalSrc
   def getRemovedProducts: java.util.Set[VirtualFileRef] = removedProducts.asJava
@@ -48,11 +47,13 @@ final class APIChanges(val apiChanges: Iterable[APIChange]) {
 
 sealed abstract class APIChange(val modifiedClass: String) extends XAPIChange {
   override def getModifiedClass: String = modifiedClass
+
   override def getModifiedNames: java.util.Set[XUsedName] = this match {
     case _: APIChangeDueToMacroDefinition => java.util.Collections.emptySet[XUsedName]
     case _: TraitPrivateMembersModified   => java.util.Collections.emptySet[XUsedName]
     case NamesChange(_, modifiedNames)    => modifiedNames.names.map(x => x: XUsedName).asJava
   }
+
 }
 
 /**
@@ -84,20 +85,22 @@ final case class ModifiedNames(names: Set[UsedName]) {
   def in(scope: UseScope): Set[UsedName] = names.filter(_.scopes.contains(scope))
 
   import collection.JavaConverters._
+
   private lazy val lookupMap: Set[(String, UseScope)] =
     names.flatMap(n => n.scopes.asScala.map(n.name -> _))
 
   def isModified(usedName: UsedName): Boolean =
     usedName.scopes.asScala.exists(scope => lookupMap.contains(usedName.name -> scope))
 
-  override def toString: String =
-    s"ModifiedNames(changes = ${names.mkString(", ")})"
+  override def toString: String = s"ModifiedNames(changes = ${names.mkString(", ")})"
 }
+
 object ModifiedNames {
+
   def compareTwoNameHashes(a: Array[NameHash], b: Array[NameHash]): ModifiedNames = {
     val xs = a.toSet
     val ys = b.toSet
-    val changed = (xs union ys) diff (xs intersect ys)
+    val changed = (xs.union(ys)).diff(xs.intersect(ys))
     val modifiedNames: Set[UsedName] = changed
       .groupBy(_.name)
       .map({ case (name, nameHashes) =>
@@ -107,6 +110,7 @@ object ModifiedNames {
 
     ModifiedNames(modifiedNames)
   }
+
 }
 
 abstract class UnderlyingChanges[A] extends Changes[A] {
@@ -125,4 +129,5 @@ abstract class UnderlyingChanges[A] extends Changes[A] {
   override def toString: String = {
     s"""Changes(added = $added, removed = $removed, changed = $changed, unmodified = ...)""".stripMargin
   }
+
 }

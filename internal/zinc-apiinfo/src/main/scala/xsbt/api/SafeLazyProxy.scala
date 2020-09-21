@@ -23,19 +23,16 @@ import java.util.function.Supplier
  */
 object SafeLazyProxy {
 
-  /**
-   * Return a lazy implementation of a Scala by-name parameter.
-   */
+  /** Return a lazy implementation of a Scala by-name parameter. */
   def apply[T](s: => T): Lazy[T] = {
     val sbtThunk = new Supplier[T] { override def get() = s }
     SafeLazy.apply(sbtThunk)
   }
 
-  /**
-   * Return a lazy implementation of a strict value.
-   */
+  /** Return a lazy implementation of a strict value. */
   def strict[T](s: T): Lazy[T] = {
     val sbtThunk = new Supplier[T] { override def get() = s }
     SafeLazy.apply(sbtThunk)
   }
+
 }

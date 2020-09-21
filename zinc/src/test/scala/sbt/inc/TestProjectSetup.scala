@@ -148,10 +148,12 @@ case class CompilerSetup(
 case class ProjectPaths(baseDir: Path) {}
 
 object ProjectSetup {
+
   def simple(baseDir: Path, classes: Seq[String]): ProjectSetup = {
     val sources = Map(Paths.get("src") -> classes.map(Paths.get(_)))
     ProjectSetup(VirtualSubproject(baseDir), sources, Nil, Map.empty)
   }
+
 }
 
 case class ProjectSetup(
@@ -230,6 +232,7 @@ case class ProjectSetup(
       log
     )
   }
+
 }
 
 case class VirtualSubproject(

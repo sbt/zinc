@@ -15,10 +15,11 @@ import Compat._
 import xsbti.InteractiveConsoleResult
 
 object InteractiveConsoleHelper {
-  implicit def toConsoleResult(ir: Results.Result): InteractiveConsoleResult =
-    ir match {
-      case Results.Success    => InteractiveConsoleResult.Success
-      case Results.Incomplete => InteractiveConsoleResult.Incomplete
-      case Results.Error      => InteractiveConsoleResult.Error
-    }
+
+  implicit def toConsoleResult(ir: Results.Result): InteractiveConsoleResult = ir match {
+    case Results.Success    => InteractiveConsoleResult.Success
+    case Results.Incomplete => InteractiveConsoleResult.Incomplete
+    case Results.Error      => InteractiveConsoleResult.Error
+  }
+
 }

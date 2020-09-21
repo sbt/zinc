@@ -17,6 +17,7 @@ import sbt.util.InterfaceUtil
 import xsbti.T2
 
 object JavaInterfaceUtil {
+
   private[sbt] implicit class EnrichSbtTuple[T, U](sbtTuple: T2[T, U]) {
     def toScalaTuple: (T, U) = sbtTuple.get1() -> sbtTuple.get2()
   }
@@ -28,4 +29,5 @@ object JavaInterfaceUtil {
   private[sbt] implicit class EnrichOption[T](option: Option[T]) {
     def toOptional: Optional[T] = InterfaceUtil.toOptional(option)
   }
+
 }

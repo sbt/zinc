@@ -23,15 +23,19 @@ trait Compilations extends ReadCompilations {
 
   // Work around the fact that Array is invariant
   import xsbti.compile.analysis.{ Compilation => CompilationInterface }
+
   override def getAllCompilations: Array[CompilationInterface] =
     allCompilations.toArray[CompilationInterface]
+
 }
 
 object Compilations {
   val empty: Compilations = new MCompilations(Seq.empty)
   def of(s: Seq[Compilation]): Compilations = new MCompilations(s)
+
   def merge(s: Traversable[Compilations]): Compilations =
-    of((s flatMap { _.allCompilations }).toSeq.distinct)
+    of((s.flatMap { _.allCompilations }).toSeq.distinct)
+
 }
 
 private final class MCompilations(val allCompilations: Seq[Compilation]) extends Compilations {

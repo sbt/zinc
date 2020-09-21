@@ -17,6 +17,7 @@ import scala.tools.nsc.interpreter.shell.{ ILoop, ShellConfig, ReplReporterImpl 
 import scala.tools.nsc.{ GenericRunnerCommand, Settings }
 
 class ConsoleBridge extends xsbti.compile.ConsoleInterface1 {
+
   override def commandArguments(
       args: Array[String],
       bootClasspathString: String,
@@ -55,7 +56,7 @@ class ConsoleBridge extends xsbti.compile.ConsoleInterface1 {
         } else
           super.createInterpreter(interpreterSettings)
 
-        for ((id, value) <- bindNames zip bindValues) {
+        for ((id, value) <- bindNames.zip(bindValues)) {
           intp.beQuietDuring {
             intp.bind(id, value.asInstanceOf[AnyRef].getClass.getName, value)
             ()
@@ -78,9 +79,11 @@ class ConsoleBridge extends xsbti.compile.ConsoleInterface1 {
     loop.run(compilerSettings)
     ()
   }
+
 }
 
 object MakeSettings {
+
   def apply(args: List[String], log: Logger): Settings = {
     val command = new GenericRunnerCommand(args, message => log.error(Message(message)))
     if (command.ok)
@@ -107,4 +110,5 @@ object MakeSettings {
     settings.Yreplsync.value = true
     settings
   }
+
 }

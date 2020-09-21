@@ -81,18 +81,17 @@ object LocalJava {
       case _                         => None
     }
   }
+
   private[this] lazy val toolsJarClassLoader: Option[URLClassLoader] =
-    toolsJar map { jar =>
-      new URLClassLoader(Array(jar.toUri.toURL))
-    }
+    toolsJar.map(jar => new URLClassLoader(Array(jar.toUri.toURL)))
+
   private[javac] lazy val standardDocletClass: Option[Class[_]] =
     try {
-      toolsJarClassLoader flatMap { cl =>
-        Option(cl.loadClass(standardDoclet)): Option[Class[_]]
-      }
+      toolsJarClassLoader.flatMap(cl => Option(cl.loadClass(standardDoclet)): Option[Class[_]])
     } catch {
       case NonFatal(_) => None
     }
+
   private[javac] def javadocViaTask(
       compilationUnits: Array[JavaFileObject],
       options: Array[String],
@@ -123,14 +122,13 @@ object LocalJava {
       in: InputStream,
       out: OutputStream,
       err: OutputStream
-  ): Int =
-    javadocTool match {
-      case Some(m) =>
-        m.run(in, out, err, args: _*)
-      case _ =>
-        System.err.println(JavadocFailure)
-        -1
-    }
+  ): Int = javadocTool match {
+    case Some(m) =>
+      m.run(in, out, err, args: _*)
+    case _ =>
+      System.err.println(JavadocFailure)
+      -1
+  }
 
   /** Get the javadoc execute method reflectively from current class loader. */
   private[this] def javadocMethod = {
@@ -171,12 +169,14 @@ object LocalJava {
 
   private[javac] def toFileObject(vf: VirtualFile): JavaFileObject =
     new VJavaFileObject(vf, toUri(vf))
+
   private[javac] class VJavaFileObject(val underlying: VirtualFile, uri: URI)
       extends SimpleJavaFileObject(uri, JavaFileObject.Kind.SOURCE) {
     // println(uri.toString)
     override def openInputStream: InputStream = underlying.input
     override def getName: String = underlying.name
     override def toString: String = underlying.id
+
     override def getCharContent(ignoreEncodingErrors: Boolean): CharSequence = {
       val in = underlying.input
       try {
@@ -185,6 +185,7 @@ object LocalJava {
         in.close()
       }
     }
+
   }
 
   private[sbt] def toUri(vf: VirtualFile): URI = new URI("vf", "tmp", s"/${vf.id}", null)
@@ -205,10 +206,12 @@ object LocalJava {
     }
     unwrap(a) == unwrap(b)
   }
+
 }
 
 /** Implementation of javadoc tool which attempts to run it locally (in-class). */
 final class LocalJavadoc() extends XJavadoc {
+
   override def run(
       sources: Array[VirtualFile],
       options: Array[String],
@@ -241,7 +244,7 @@ final class LocalJavadoc() extends XJavadoc {
       }
     } else {
       val cwd = Paths.get(".").toAbsolutePath
-      val pathSources = sources map {
+      val pathSources = sources.map {
         case x: PathBasedFile => x.toPath.toAbsolutePath.toString
         case _ =>
           sys.error(
@@ -269,6 +272,7 @@ final class LocalJavadoc() extends XJavadoc {
     }
     compileSuccess
   }
+
 }
 
 /**
@@ -276,6 +280,7 @@ final class LocalJavadoc() extends XJavadoc {
  * resident Java compiler.
  */
 final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaCompiler {
+
   override def run(
       sources: Array[VirtualFile],
       options: Array[String],
@@ -292,7 +297,7 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
     val diagnostics = new DiagnosticsReporter(reporter)
 
     /* Local Java compiler doesn't accept `-J<flag>` options, strip them. */
-    val (invalidOptions, cleanedOptions) = options partition (_ startsWith "-J")
+    val (invalidOptions, cleanedOptions) = options.partition(_.startsWith("-J"))
     if (invalidOptions.nonEmpty) {
       log.warn("Javac is running in 'local' mode. These flags have been removed:")
       log.warn(invalidOptions.mkString("\t", ", ", ""))
@@ -375,6 +380,7 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
       .newInstance(context, Boolean.box(true), null)
       .asInstanceOf[StandardJavaFileManager]
   }
+
 }
 
 final class SameFileFixFileManager(underlying: JavaFileManager)
@@ -392,6 +398,7 @@ final class WriteReportingFileManager(
     fileManager: JavaFileManager,
     var classFileManager: ClassFileManager
 ) extends ForwardingJavaFileManager[JavaFileManager](fileManager) {
+
   override def getJavaFileForOutput(
       location: Location,
       className: String,
@@ -415,6 +422,7 @@ final class WriteReportingJavaFileObject(
     val javaFileObject: JavaFileObject,
     var classFileManager: ClassFileManager
 ) extends ForwardingJavaFileObject[JavaFileObject](javaFileObject) {
+
   override def openWriter(): Writer = {
     classFileManager.generated(
       Array[VirtualFile](PlainVirtualFile(Paths.get(javaFileObject.toUri)))
@@ -428,6 +436,7 @@ final class WriteReportingJavaFileObject(
     )
     super.openOutputStream()
   }
+
 }
 
 /**
@@ -454,10 +463,12 @@ class WriterOutputStream(writer: Writer) extends OutputStream {
     }
     ()
   }
+
   override def close(): Unit = {
     decoder.decode(byteBuffer, charBuffer, /*endOfInput=*/ true)
     decoder.flush(charBuffer)
     ()
   }
+
   override def toString: String = charBuffer.toString
 }

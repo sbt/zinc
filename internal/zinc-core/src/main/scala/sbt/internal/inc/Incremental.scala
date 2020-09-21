@@ -45,13 +45,16 @@ import xsbti.compile.analysis.{ ReadStamps, Stamp => XStamp }
  * compatible with the [[sbt.internal.inc.Incremental]] class.
  */
 object Incremental {
+
   class PrefixingLogger(val prefix: String)(orig: Logger) extends Logger {
     def trace(t: => Throwable): Unit = orig.trace(t)
     def success(message: => String): Unit = orig.success(message)
+
     def log(level: Level.Value, message: => String): Unit = level match {
       case Level.Debug => orig.log(level, message.replaceAll("(?m)^", prefix))
       case _           => orig.log(level, message)
     }
+
   }
 
   /**
@@ -68,9 +71,7 @@ object Incremental {
      */
     def mergeAndInvalidate(partialAnalysis: Analysis, completingCycle: Boolean): CompileCycleResult
 
-    /**
-     * Merge latest analysis as of analyzer into pruned previous analysis and inform file manager.
-     */
+    /** Merge latest analysis as of analyzer into pruned previous analysis and inform file manager. */
     def completeCycle(
         prev: Option[CompileCycleResult],
         partialAnalysis: Analysis
@@ -78,31 +79,34 @@ object Incremental {
 
     def previousAnalysisPruned: Analysis
 
-    /**
-     * @return true when the compilation cycle is compiling all the sources; false, otherwise.
-     */
+    /** @return true when the compilation cycle is compiling all the sources; false, otherwise. */
     def isFullCompilation: Boolean
   }
 
   sealed trait CompileCycle {
+
     def run(
         sources: Set[VirtualFile],
         changes: DependencyChanges,
         incHandler: IncrementalCallback
     ): CompileCycleResult
+
   }
+
   case class CompileCycleResult(
       continue: Boolean,
       nextInvalidations: Set[String],
       analysis: Analysis
   )
+
   object CompileCycleResult {
+
     def apply(
         continue: Boolean,
         nextInvalidations: Set[String],
         analysis: Analysis
-    ): CompileCycleResult =
-      new CompileCycleResult(continue, nextInvalidations, analysis)
+    ): CompileCycleResult = new CompileCycleResult(continue, nextInvalidations, analysis)
+
     def empty = CompileCycleResult(false, Set.empty, Analysis.empty)
   }
 
@@ -155,9 +159,8 @@ object Incremental {
     val pickleJarPair = earlyJar.map { p =>
       val newName = s"${p.getFileName.toString.stripSuffix(".jar")}-${UUID.randomUUID()}.jar"
       val updatesJar = p.resolveSibling(newName)
-      PickleJar.touch(
-        updatesJar
-      ) // scalac should create -Ypickle-write jars but it throws FileNotFoundException :-/
+      // scalac should create -Ypickle-write jars but it throws FileNotFoundException :-/
+      PickleJar.touch(updatesJar)
       p -> updatesJar
     }
 
@@ -211,11 +214,10 @@ object Incremental {
     } finally runProfiler.registerRun()
   }
 
-  def extractEarlyJar(earlyOutput: Option[Output]): Option[Path] =
-    for {
-      early <- earlyOutput
-      jar <- jo2o(early.getSingleOutputAsPath)
-    } yield jar
+  def extractEarlyJar(earlyOutput: Option[Output]): Option[Path] = for {
+    early <- earlyOutput
+    jar <- jo2o(early.getSingleOutputAsPath)
+  } yield jar
 
   def isPickleJava(scalacOptions: Seq[String]): Boolean = scalacOptions.contains("-Ypickle-java")
 
@@ -344,8 +346,7 @@ object Incremental {
       incremental.detectInitialChanges(sources, previous, current, lookup, converter, output)
     log.debug(s"> initialChanges = $initialChanges")
     val binaryChanges = new DependencyChanges {
-      override def modifiedBinaries: Array[File] =
-        modifiedLibraries.map(converter.toPath(_).toFile)
+      override def modifiedBinaries: Array[File] = modifiedLibraries.map(converter.toPath(_).toFile)
       override val modifiedLibraries = initialChanges.libraryDeps.toArray
       override val modifiedClasses = initialChanges.external.allModified.toArray
       def isEmpty = modifiedLibraries.isEmpty && modifiedClasses.isEmpty
@@ -436,9 +437,7 @@ object Incremental {
     (hasModified || hasSubprojectChange, analysis)
   }
 
-  /**
-   * Compilation unit in each compile cycle.
-   */
+  /** Compilation unit in each compile cycle. */
   def doCompile(
       compile: (
           Set[VirtualFile],
@@ -449,6 +448,7 @@ object Incremental {
       callbackBuilder: AnalysisCallback.Builder,
       classFileManager: XClassFileManager
   ): CompileCycle = new CompileCycle {
+
     override def run(
         srcs: Set[VirtualFile],
         changes: DependencyChanges,
@@ -461,6 +461,7 @@ object Incremental {
       compile(srcs, changes, callback, classFileManager)
       callback.getCycleResultOnce
     }
+
   }
 
   // the name of system property that was meant to enable debugging mode of incremental compiler but
@@ -471,6 +472,7 @@ object Incremental {
   val incDebugProp = "xsbt.inc.debug"
 
   private[inc] val apiDebugProp = "xsbt.api.debug"
+
   private[inc] def apiDebug(options: IncOptions): Boolean =
     options.apiDebug || java.lang.Boolean.getBoolean(apiDebugProp)
 
@@ -525,6 +527,7 @@ object Incremental {
       progress.foreach(_.afterEarlyOutput(lookup.shouldDoEarlyOutput(analysis)))
     }
   }
+
 }
 
 private object AnalysisCallback {
@@ -547,6 +550,7 @@ private object AnalysisCallback {
       progress: Option[CompileProgress],
       log: Logger
   ) {
+
     def build(incHandler: Incremental.IncrementalCallback): AnalysisCallback =
       buildImpl(Some(incHandler))
 
@@ -573,6 +577,7 @@ private object AnalysisCallback {
         log
       )
     }
+
   }
 
 }
@@ -602,12 +607,13 @@ private final class AnalysisCallback(
   private[this] val compilation: Compilation = Compilation(compileStartTime, output)
 
   private val hooks = options.externalHooks
+
   private val provenance =
     jo2o(output.getSingleOutputAsPath).fold("")(hooks.getProvenance.get(_)).intern
 
   override def toString =
-    (List("Class APIs", "Object APIs", "Library deps", "Products", "Source deps") zip
-      List(classApis, objectApis, libraryDeps, nonLocalClasses, intSrcDeps))
+    (List("Class APIs", "Object APIs", "Library deps", "Products", "Source deps")
+      .zip(List(classApis, objectApis, libraryDeps, nonLocalClasses, intSrcDeps)))
       .map { case (label, map) => label + "\n\t" + map.mkString("\n\t") }
       .mkString("\n")
 
@@ -636,6 +642,7 @@ private final class AnalysisCallback(
   // source file to set of generated (class file, binary class name); only non local classes are stored here
   private[this] val nonLocalClasses =
     new TrieMap[VirtualFileRef, ConcurrentSet[(VirtualFileRef, String)]]
+
   private[this] val localClasses = new TrieMap[VirtualFileRef, ConcurrentSet[VirtualFileRef]]
   // mapping between src class name and binary (flat) class name for classes generated from src file
   private[this] val classNames = new TrieMap[VirtualFileRef, ConcurrentSet[(String, String)]]
@@ -665,6 +672,7 @@ private final class AnalysisCallback(
   override def getPickleJarPair = pickleJarPair.map { case (p1, p2) => t2((p1, p2)) }.toOptional
 
   override def startSource(source: File): Unit = startSource(converter.toVirtualFile(source.toPath))
+
   override def startSource(source: VirtualFile): Unit = {
     if (options.strictMode()) {
       assert(
@@ -725,14 +733,13 @@ private final class AnalysisCallback(
       fromClassName: String,
       fromSourceFile: File,
       context: DependencyContext
-  ): Unit =
-    binaryDependency(
-      classFile.toPath,
-      onBinaryClassName,
-      fromClassName,
-      converter.toVirtualFile(fromSourceFile.toPath),
-      context
-    )
+  ): Unit = binaryDependency(
+    classFile.toPath,
+    onBinaryClassName,
+    fromClassName,
+    converter.toVirtualFile(fromSourceFile.toPath),
+    context
+  )
 
   // since the binary at this point could either *.class files or
   // library JARs, we need to accept Path here.
@@ -742,22 +749,21 @@ private final class AnalysisCallback(
       fromClassName: String,
       fromSourceFile: VirtualFileRef,
       context: DependencyContext
-  ): Unit =
-    internalBinaryToSourceClassName(onBinaryClassName) match {
-      case Some(dependsOn) => // dependsOn is a source class name
-        // dependency is a product of a source not included in this compilation
-        classDependency(dependsOn, fromClassName, context)
-      case None =>
-        val vf = converter.toVirtualFile(classFile)
-        classToSource.get(vf) match {
-          case Some(dependsOn) =>
-            // dependency is a product of a source in this compilation step,
-            //  but not in the same compiler run (as in javac v. scalac)
-            classDependency(dependsOn, fromClassName, context)
-          case None =>
-            externalDependency(classFile, onBinaryClassName, fromClassName, fromSourceFile, context)
-        }
-    }
+  ): Unit = internalBinaryToSourceClassName(onBinaryClassName) match {
+    case Some(dependsOn) => // dependsOn is a source class name
+      // dependency is a product of a source not included in this compilation
+      classDependency(dependsOn, fromClassName, context)
+    case None =>
+      val vf = converter.toVirtualFile(classFile)
+      classToSource.get(vf) match {
+        case Some(dependsOn) =>
+          // dependency is a product of a source in this compilation step,
+          //  but not in the same compiler run (as in javac v. scalac)
+          classDependency(dependsOn, fromClassName, context)
+        case None =>
+          externalDependency(classFile, onBinaryClassName, fromClassName, fromSourceFile, context)
+      }
+  }
 
   private[this] def externalDependency(
       classFile: Path,
@@ -793,13 +799,12 @@ private final class AnalysisCallback(
       classFile: File,
       binaryClassName: String,
       srcClassName: String
-  ): Unit =
-    generatedNonLocalClass(
-      converter.toVirtualFile(source.toPath),
-      classFile.toPath,
-      binaryClassName,
-      srcClassName
-    )
+  ): Unit = generatedNonLocalClass(
+    converter.toVirtualFile(source.toPath),
+    classFile.toPath,
+    binaryClassName,
+    srcClassName
+  )
 
   override def generatedNonLocalClass(
       source: VirtualFileRef,
@@ -869,6 +874,7 @@ private final class AnalysisCallback(
   override def enabled(): Boolean = options.enabled
 
   private[this] var gotten: Boolean = false
+
   def getCycleResultOnce: CompileCycleResult = {
     assert(!gotten, "can't call AnalysisCallback#getCycleResultOnce more than once")
     val incHandler = incHandlerOpt.getOrElse(sys.error("incHandler was expected"))
@@ -899,8 +905,10 @@ private final class AnalysisCallback(
   }
 
   def getOrNil[A, B](m: collection.Map[A, Seq[B]], a: A): Seq[B] = m.get(a).toList.flatten
+
   def addCompilation(base: Analysis): Analysis =
     base.copy(compilations = base.compilations.add(compilation))
+
   def addUsedNames(base: Analysis): Analysis =
     usedNames.foldLeft(base) { case (a, (className, names)) =>
       import scala.collection.JavaConverters._
@@ -971,21 +979,25 @@ private final class AnalysisCallback(
         libraryDeps.getOrElse(src, ConcurrentHashMap.newKeySet[VirtualFile]).asScala
       val localProds = localClasses
         .getOrElse(src, ConcurrentHashMap.newKeySet[VirtualFileRef]())
-        .asScala map { classFile =>
-        val classFileStamp = stampReader.product(classFile)
-        LocalProduct(classFile, classFileStamp)
-      }
+        .asScala
+        .map { classFile =>
+          val classFileStamp = stampReader.product(classFile)
+          LocalProduct(classFile, classFileStamp)
+        }
       val binaryToSrcClassName =
-        (classNames.getOrElse(src, ConcurrentHashMap.newKeySet[(String, String)]()).asScala map {
-          case (srcClassName, binaryClassName) => (binaryClassName, srcClassName)
-        }).toMap
+        (classNames
+          .getOrElse(src, ConcurrentHashMap.newKeySet[(String, String)]())
+          .asScala
+          .map { case (srcClassName, binaryClassName) => (binaryClassName, srcClassName) })
+          .toMap
       val nonLocalProds = nonLocalClasses
         .getOrElse(src, ConcurrentHashMap.newKeySet[(VirtualFileRef, String)]())
-        .asScala map { case (classFile, binaryClassName) =>
-        val srcClassName = binaryToSrcClassName(binaryClassName)
-        val classFileStamp = stampReader.product(classFile)
-        NonLocalProduct(srcClassName, binaryClassName, classFile, classFileStamp)
-      }
+        .asScala
+        .map { case (classFile, binaryClassName) =>
+          val srcClassName = binaryToSrcClassName(binaryClassName)
+          val classFileStamp = stampReader.product(classFile)
+          NonLocalProduct(srcClassName, binaryClassName, classFile, classFileStamp)
+        }
 
       val internalDeps = classesInSrc.flatMap(cls =>
         intSrcDeps.getOrElse(cls, ConcurrentHashMap.newKeySet[InternalDependency]()).asScala
@@ -1012,7 +1024,7 @@ private final class AnalysisCallback(
   override def apiPhaseCompleted(): Unit = {
     // If we know we're done with cycles (presumably because all sources were invalidated) we can store early analysis
     // and picke data now.  Otherwise, we need to wait for dependency information to decide if there are more cycles.
-    incHandlerOpt foreach { incHandler =>
+    incHandlerOpt.foreach { incHandler =>
       if (earlyOutput.isDefined && incHandler.isFullCompilation) {
         val a = getAnalysis
         val CompileCycleResult(continue, invalidations, merged) =
@@ -1091,13 +1103,13 @@ private final class AnalysisCallback(
     // extract product paths in parallel
     jo2o(output.getSingleOutputAsPath) match {
       case Some(so) if so.getFileName.toString.endsWith(".jar") =>
-        knownProducts foreach { product =>
-          new JarUtils.ClassInJar(product.id).toClassFilePath foreach { path =>
+        knownProducts.foreach { product =>
+          new JarUtils.ClassInJar(product.id).toClassFilePath.foreach { path =>
             ps.add(path.replace('\\', '/'))
           }
         }
       case Some(so) =>
-        knownProducts foreach { product =>
+        knownProducts.foreach { product =>
           val productPath = converter.toPath(product)
           try {
             ps.add(so.relativize(productPath).toString.replace('\\', '/'))
@@ -1109,4 +1121,5 @@ private final class AnalysisCallback(
     }
     ps
   }
+
 }

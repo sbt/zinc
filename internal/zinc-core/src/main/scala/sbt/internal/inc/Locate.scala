@@ -45,6 +45,7 @@ object Locate {
         case x           => x
       }
   }
+
   def find[S](name: String, gets: Stream[String => Either[Boolean, S]]): Either[Boolean, S] =
     find[S](name, gets.toIterator)
 
@@ -56,9 +57,7 @@ object Locate {
       classpath: Seq[VirtualFile],
       lookup: PerClasspathEntryLookup
   ): String => Option[VirtualFile] = {
-    def entries = classpath.iterator.map { entry =>
-      (entry, lookup.definesClass(entry))
-    }
+    def entries = classpath.iterator.map(entry => (entry, lookup.definesClass(entry)))
     className =>
       // See sbt/zinc#757, sbt/zinc#925. Class name containing "<" is usually a synthetic
       // one that does not have a corresponding *.class file.
@@ -75,24 +74,23 @@ object Locate {
     className => if (defClass(className)) getF(className).toRight(true) else Left(false)
   }
 
-  def definesClass(entry0: VirtualFile): DefinesClass =
-    entry0 match {
-      case x: PathBasedFile =>
-        val entry = x.toPath
-        if (Files.isDirectory(entry))
-          new DirectoryDefinesClass(entry)
-        else if (
-          Files.exists(entry) && classpath.ClasspathUtil.isArchive(
-            entry,
-            contentFallback = true
-          )
+  def definesClass(entry0: VirtualFile): DefinesClass = entry0 match {
+    case x: PathBasedFile =>
+      val entry = x.toPath
+      if (Files.isDirectory(entry))
+        new DirectoryDefinesClass(entry)
+      else if (
+        Files.exists(entry) && classpath.ClasspathUtil.isArchive(
+          entry,
+          contentFallback = true
         )
-          new JarDefinesClass(entry)
-        else
-          FalseDefinesClass
-      case _ =>
-        sys.error(s"$entry0 (${entry0.getClass}) is not supported")
-    }
+      )
+        new JarDefinesClass(entry)
+      else
+        FalseDefinesClass
+    case _ =>
+      sys.error(s"$entry0 (${entry0.getClass}) is not supported")
+  }
 
   private object FalseDefinesClass extends DefinesClass {
     override def apply(binaryClassName: String): Boolean = false
@@ -100,6 +98,7 @@ object Locate {
 
   private class JarDefinesClass(entry: Path) extends DefinesClass {
     import collection.JavaConverters._
+
     private val entries = {
       val jar =
         try {
@@ -115,22 +114,23 @@ object Locate {
         jar.close()
       }
     }
-    override def apply(binaryClassName: String): Boolean =
-      entries.contains(binaryClassName)
+
+    override def apply(binaryClassName: String): Boolean = entries.contains(binaryClassName)
   }
 
-  def toClassName(entry: String): String =
-    entry.stripSuffix(ClassExt).replace('/', '.')
+  def toClassName(entry: String): String = entry.stripSuffix(ClassExt).replace('/', '.')
 
   val ClassExt = ".class"
 
   private class DirectoryDefinesClass(entry: Path) extends DefinesClass {
+
     override def apply(binaryClassName: String): Boolean =
       try {
         Files.isRegularFile(classFile(entry, binaryClassName))
       } catch {
         case _: InvalidPathException => false // an invalid path doesn't exist. don't panic.
       }
+
   }
 
   def classFile(baseDir: Path, className: String): Path = {
@@ -147,4 +147,5 @@ object Locate {
     val parts = className.split("\\.")
     if (parts.length == 1) (Nil, parts(0)) else (parts.init, parts.last)
   }
+
 }

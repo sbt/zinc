@@ -82,6 +82,7 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
       }
       builder.toString()
     }
+
   }
 
   private def DefaultScopes = EnumSet.of(UseScope.Default)
@@ -154,7 +155,7 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
   }
 
   private def firstClassOrModuleDef(tree: Tree): Option[Tree] = {
-    tree find {
+    tree.find {
       case ((_: ClassDef) | (_: ModuleDef)) => true
       case _                                => false
     }
@@ -207,6 +208,7 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
     }
 
     private object PatMatDependencyTraverser extends TypeDependencyTraverser {
+
       override def addDependency(symbol: global.Symbol): Unit = {
         if (!ignoredSymbol(symbol) && symbol.isSealed) {
           val name = mangledName(symbol)
@@ -219,6 +221,7 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
         }
         ()
       }
+
     }
 
     private object TypeDependencyTraverser extends TypeDependencyTraverser {
@@ -243,8 +246,7 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
         }
       }
 
-      override def addDependency(symbol: global.Symbol): Unit =
-        addSymbol(nameCache, symbol)
+      override def addDependency(symbol: global.Symbol): Unit = addSymbol(nameCache, symbol)
     }
 
     private def handleClassicTreeNode(tree: Tree): Unit = tree match {
@@ -261,7 +263,7 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
             ()
           }
         }
-        selectors foreach { selector =>
+        selectors.foreach { selector =>
           usedNameInImportSelector(selector.name)
           usedNameInImportSelector(selector.rename)
         }
@@ -354,5 +356,7 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
       updateCurrentOwner()
       _currentNamesCache
     }
+
   }
+
 }

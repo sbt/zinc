@@ -18,9 +18,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 import xsbti.compile.analysis.{ Stamp => XStamp }
 
-/**
- * Cache based on path and its stamp.
- */
+/** Cache based on path and its stamp. */
 sealed trait FileValueCache[T] {
   def clear(): Unit
   def get: Path => T
@@ -28,8 +26,10 @@ sealed trait FileValueCache[T] {
 
 object FileValueCache {
   def apply[T](f: Path => T): FileValueCache[T] = make(Stamper.forLastModifiedP)(f)
+
   def make[T](stamp: Path => XStamp)(f: Path => T): FileValueCache[T] =
     new FileValueCache0[T](stamp, f)
+
 }
 
 private[this] final class FileValueCache0[T](getStamp: Path => XStamp, make: Path => T)(implicit
@@ -38,6 +38,7 @@ private[this] final class FileValueCache0[T](getStamp: Path => XStamp, make: Pat
   private[this] val backing = new ConcurrentHashMap[Path, FileCache]
 
   def clear(): Unit = backing.clear()
+
   def get = file => {
     val ifAbsent = new FileCache(file)
     val cache = backing.putIfAbsent(file, ifAbsent)
@@ -46,6 +47,7 @@ private[this] final class FileValueCache0[T](getStamp: Path => XStamp, make: Pat
 
   private[this] final class FileCache(file: Path) {
     private[this] var stampedValue: Option[(XStamp, T)] = None
+
     def get(): T = synchronized {
       val latest = getStamp(file)
       stampedValue match {
@@ -59,5 +61,7 @@ private[this] final class FileValueCache0[T](getStamp: Path => XStamp, make: Pat
       stampedValue = Some((stamp, value))
       value
     }
+
   }
+
 }

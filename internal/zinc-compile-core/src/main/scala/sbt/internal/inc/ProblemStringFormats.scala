@@ -22,7 +22,9 @@ import sbt.util.InterfaceUtil.jo2o
  * messages, etc) that have been reported by [[LoggedReporter]] and the logger.
  */
 trait ProblemStringFormats {
+
   implicit lazy val ProblemStringFormat: ShowLines[Problem] = new ShowLines[Problem] {
+
     def showLines(p: Problem): Seq[String] =
       if (p.rendered.isPresent)
         Vector(p.rendered.get)
@@ -41,5 +43,7 @@ trait ProblemStringFormats {
             (for { space <- jo2o(pos.pointerSpace) } yield (space + "^")).toVector
         } else Vector(line1)
       }
+
   }
+
 }

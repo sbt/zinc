@@ -42,6 +42,7 @@ object IndexBasedZipFsOps extends IndexBasedZipOps {
   override protected def getHeaders(centralDir: CentralDir): Seq[Header] = {
     centralDir.getHeaders.asScala.toVector
   }
+
   override protected def setHeaders(centralDir: CentralDir, headers: Seq[Header]): Unit = {
     centralDir.setHeaders(new java.util.ArrayList[Header](headers.asJava))
   }
@@ -68,4 +69,5 @@ object IndexBasedZipFsOps extends IndexBasedZipOps {
   ): Unit = {
     centralDir.dump(outputStream)
   }
+
 }

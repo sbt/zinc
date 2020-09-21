@@ -59,14 +59,13 @@ final class AnalyzingCompiler(
   def onArgs(f: Seq[String] => Unit): AnalyzingCompiler =
     new AnalyzingCompiler(scalaInstance, provider, classpathOptions, f, classLoaderCache)
 
-  def withClassLoaderCache(classLoaderCache: ClassLoaderCache) =
-    new AnalyzingCompiler(
-      scalaInstance,
-      provider,
-      classpathOptions,
-      onArgsHandler,
-      Some(classLoaderCache)
-    )
+  def withClassLoaderCache(classLoaderCache: ClassLoaderCache) = new AnalyzingCompiler(
+    scalaInstance,
+    provider,
+    classpathOptions,
+    onArgsHandler,
+    Some(classLoaderCache)
+  )
 
   override def compile(
       sources: Array[VirtualFile],
@@ -241,7 +240,7 @@ final class AnalyzingCompiler(
       classpath: Seq[VirtualFile],
       converter: FileConverter
   ): (String, String) = {
-    val cp = classpath map { converter.toPath }
+    val cp = classpath.map(converter.toPath)
     val classpathString = CompilerArguments.absString(compArgs.finishClasspath(cp))
     val bootClasspath =
       if (classpathOptions.autoBoot) compArgs.createBootClasspathFor(cp) else ""
@@ -340,11 +339,10 @@ final class AnalyzingCompiler(
 
   private[this] def getLoader(log: Logger): ClassLoader = {
     val interfaceJar = provider.fetchCompiledBridge(scalaInstance, log)
-    def createInterfaceLoader =
-      new URLClassLoader(
-        Array(interfaceJar.toURI.toURL),
-        createDualLoader(scalaInstance.loader(), getClass.getClassLoader)
-      )
+    def createInterfaceLoader = new URLClassLoader(
+      Array(interfaceJar.toURI.toURL),
+      createDualLoader(scalaInstance.loader(), getClass.getClassLoader)
+    )
 
     classLoaderCache match {
       case Some(cache) =>
@@ -404,8 +402,7 @@ object AnalyzingCompiler {
       log: Logger
   ): Unit = {
     val isSource = (f: Path) => isSourceName(f.getFileName.toString)
-    def keepIfSource(files: Set[Path]): Set[Path] =
-      if (files.exists(isSource)) files else Set.empty
+    def keepIfSource(files: Set[Path]): Set[Path] = if (files.exists(isSource)) files else Set.empty
 
     // Generate jar from compilation dirs, the resources and a target name.
     def generateJar(outputDir: File, dir: File, resources: Seq[File], targetJar: File) = {
@@ -456,6 +453,7 @@ object AnalyzingCompiler {
 
   private def isSourceName(name: String): Boolean =
     name.endsWith(".scala") || name.endsWith(".java")
+
 }
 
 private[this] object IgnoreProgress extends CompileProgress

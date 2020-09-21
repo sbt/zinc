@@ -51,13 +51,12 @@ final class DiagnosticsReporter(reporter: Reporter) extends DiagnosticListener[J
     if (severity == Severity.Error) errorEncountered = true
     reporter.log(problem("", pos, msg, severity, None))
   }
+
 }
 
 object DiagnosticsReporter {
 
-  /**
-   * Strict and immutable implementation of Position.
-   */
+  /** Strict and immutable implementation of Position. */
   private[sbt] final class PositionImpl private (
       sourceUri: Option[String],
       override val line: Optional[Integer],
@@ -79,6 +78,7 @@ object DiagnosticsReporter {
     override def toString: String =
       if (sourceUri.isDefined) s"${sourceUri.get}:${if (line.isPresent) line.get else -1}"
       else ""
+
   }
 
   private[sbt] object PositionImpl {
@@ -96,12 +96,11 @@ object DiagnosticsReporter {
       // except that you can cause this number to occur by putting "abc {}" in A.java.
       // This will cause Invalid position: 0 masking the actual error message
       //     a/A.java:1: class, interface, or enum expected
-      def checkNoPos(n: Long): Option[Long] =
-        n match {
-          case NOPOS       => None
-          case x if x <= 0 => None
-          case x           => Option(x)
-        }
+      def checkNoPos(n: Long): Option[Long] = n match {
+        case NOPOS       => None
+        case x if x <= 0 => None
+        case x           => Option(x)
+      }
 
       val source: Option[JavaFileObject] = Option(d.getSource)
 
@@ -121,10 +120,10 @@ object DiagnosticsReporter {
             else Some(uri.toString)
           case _ => None
         }
-      val line: Optional[Integer] = o2jo(checkNoPos(d.getLineNumber) map (_.toInt))
-      val offset: Optional[Integer] = o2jo(checkNoPos(d.getPosition) map (_.toInt))
-      val startOffset: Optional[Integer] = o2jo(checkNoPos(d.getStartPosition) map (_.toInt))
-      val endOffset: Optional[Integer] = o2jo(checkNoPos(d.getEndPosition) map (_.toInt))
+      val line: Optional[Integer] = o2jo(checkNoPos(d.getLineNumber).map(_.toInt))
+      val offset: Optional[Integer] = o2jo(checkNoPos(d.getPosition).map(_.toInt))
+      val startOffset: Optional[Integer] = o2jo(checkNoPos(d.getStartPosition).map(_.toInt))
+      val endOffset: Optional[Integer] = o2jo(checkNoPos(d.getEndPosition).map(_.toInt))
 
       def startPosition: Option[Long] = checkNoPos(d.getStartPosition)
       def endPosition: Option[Long] = checkNoPos(d.getEndPosition)
@@ -146,4 +145,5 @@ object DiagnosticsReporter {
     }
 
   }
+
 }

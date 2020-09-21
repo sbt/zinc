@@ -23,10 +23,12 @@ import scala.util.control.Exception.catching
 
 object ClasspathUtil {
   def toLoader(finder: PathFinder): ClassLoader = toLoader(finder, rootLoader)
+
   def toLoader(finder: PathFinder, parent: ClassLoader): ClassLoader =
     new URLClassLoader(finder.getURLs, parent)
 
   def toLoader(paths: Seq[Path]): ClassLoader = toLoader(paths, rootLoader)
+
   def toLoader(paths: Seq[Path], parent: ClassLoader): ClassLoader =
     new URLClassLoader(toURLs(paths).toArray, parent)
 
@@ -34,10 +36,9 @@ object ClasspathUtil {
       paths: Seq[Path],
       parent: ClassLoader,
       resourceMap: Map[String, String]
-  ): ClassLoader =
-    new URLClassLoader(toURLs(paths).toArray, parent) with RawResources {
-      override def resources = resourceMap
-    }
+  ): ClassLoader = new URLClassLoader(toURLs(paths).toArray, parent) with RawResources {
+    override def resources = resourceMap
+  }
 
   def toLoader(
       paths: Seq[Path],
@@ -48,8 +49,7 @@ object ClasspathUtil {
     new URLClassLoader(toURLs(paths).toArray, parent) with RawResources with NativeCopyLoader {
       override def resources = resourceMap
       override val config = new NativeCopyConfig(nativeTemp, paths, javaLibraryPaths)
-      override def toString =
-        s"""|URLClassLoader with NativeCopyLoader with RawResources(
+      override def toString = s"""|URLClassLoader with NativeCopyLoader with RawResources(
             |  urls = $paths,
             |  parent = $parent,
             |  resourceMap = ${resourceMap.keySet},
@@ -57,9 +57,9 @@ object ClasspathUtil {
             |)""".stripMargin
     }
 
-  def javaLibraryPaths: Seq[Path] =
-    IO.parseClasspath(System.getProperty("java.library.path"))
-      .map(_.toPath)
+  def javaLibraryPaths: Seq[Path] = IO
+    .parseClasspath(System.getProperty("java.library.path"))
+    .map(_.toPath)
 
   lazy val rootLoader = {
     def parent(loader: ClassLoader): ClassLoader = {
@@ -70,6 +70,7 @@ object ClasspathUtil {
     if (systemLoader ne null) parent(systemLoader)
     else parent(getClass.getClassLoader)
   }
+
   lazy val xsbtiLoader = classOf[xsbti.Launcher].getClassLoader
 
   final val AppClassPath = "app.class.path"
@@ -119,12 +120,11 @@ object ClasspathUtil {
 
   def isArchive(file: Path): Boolean = isArchive(file, contentFallback = false)
 
-  def isArchive(file: Path, contentFallback: Boolean): Boolean =
-    Files.isRegularFile(file) && (isArchiveName(
-      file.getFileName.toString
-    ) || (contentFallback && hasZipContent(
-      file
-    )))
+  def isArchive(file: Path, contentFallback: Boolean): Boolean = Files.isRegularFile(
+    file
+  ) && (isArchiveName(file.getFileName.toString) || (contentFallback && hasZipContent(
+    file
+  )))
 
   def isArchiveName(fileName: String) = fileName.endsWith(".jar") || fileName.endsWith(".zip")
 
@@ -157,6 +157,7 @@ object ClasspathUtil {
 
   /** Converts the given URL to a File.  If the URL is for an entry in a jar, the File for the jar is returned. */
   private[sbt] def asFile(url: URL): List[Path] = asFile(false)(url)
+
   private[sbt] def asFile(jarOnly: Boolean)(url: URL): List[Path] = {
     try {
       url.getProtocol match {
@@ -171,11 +172,11 @@ object ClasspathUtil {
     } catch { case _: Exception => Nil }
   }
 
-  private[sbt] def toURLs(files: Seq[Path]): Seq[URL] =
-    files.map(_.toUri.toURL)
+  private[sbt] def toURLs(files: Seq[Path]): Seq[URL] = files.map(_.toUri.toURL)
 
   private[sbt] def makeString(paths: Seq[Path]): String =
     makeString(paths, java.io.File.pathSeparator)
+
   private[sbt] def makeString(paths: Seq[Path], sep: String): String = {
     val separated = paths.map(_.toAbsolutePath.toString)
     separated.find(_ contains sep).foreach(p => sys.error(s"Path '$p' contains separator '$sep'"))
@@ -198,12 +199,13 @@ object ClasspathUtil {
     }
     val basePath = toAbsolutePath(base).normalize
     val filePath = toAbsolutePath(file).normalize
-    if (filePath startsWith basePath) {
+    if (filePath.startsWith(basePath)) {
       val relativePath =
-        catching(classOf[IllegalArgumentException]) opt (basePath relativize filePath)
-      relativePath map (_.toString)
+        catching(classOf[IllegalArgumentException]).opt(basePath.relativize(filePath))
+      relativePath.map(_.toString)
     } else None
   }
+
 }
 
 // old File-based implementation kept for compatibility
@@ -213,12 +215,15 @@ object ClasspathUtilities {
 
   @deprecated("internal", "1.4.0")
   def toLoader(finder: PathFinder): ClassLoader = ClasspathUtil.toLoader(finder)
+
   @deprecated("internal", "1.4.0")
   def toLoader(finder: PathFinder, parent: ClassLoader): ClassLoader =
     ClasspathUtil.toLoader(finder, parent)
+
   @deprecated("internal", "1.4.0")
   def toLoader(paths: Seq[File]): ClassLoader =
     ClasspathUtil.toLoader(paths.map(_.toPath), ClasspathUtil.rootLoader)
+
   @deprecated("internal", "1.4.0")
   def toLoader(paths: Seq[File], parent: ClassLoader): ClassLoader =
     ClasspathUtil.toLoader(paths.map(_.toPath), parent)
@@ -228,8 +233,7 @@ object ClasspathUtilities {
       paths: Seq[File],
       parent: ClassLoader,
       resourceMap: Map[String, String]
-  ): ClassLoader =
-    ClasspathUtil.toLoader(paths.map(_.toPath), parent, resourceMap)
+  ): ClassLoader = ClasspathUtil.toLoader(paths.map(_.toPath), parent, resourceMap)
 
   @deprecated("internal", "1.4.0")
   def toLoader(
@@ -284,10 +288,13 @@ object ClasspathUtilities {
 
   @deprecated("internal", "1.4.0")
   lazy val rootLoader: ClassLoader = ClasspathUtil.rootLoader
+
   @deprecated("internal", "1.4.0")
   lazy val xsbtiLoader: ClassLoader = ClasspathUtil.xsbtiLoader
+
   @deprecated("internal", "1.4.0")
   final val AppClassPath = ClasspathUtil.AppClassPath
+
   @deprecated("internal", "1.4.0")
   final val BootClassPath = ClasspathUtil.BootClassPath
 

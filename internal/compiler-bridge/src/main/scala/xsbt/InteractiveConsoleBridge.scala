@@ -71,10 +71,11 @@ class InteractiveConsoleBridge(
     }
   }
 
-  private def onError(str: String) = log error Message(str)
+  private def onError(str: String) = log.error(Message(str))
 }
 
 object InteractiveMakeSettings {
+
   def apply(args: List[String], onError: String => Unit): Settings = {
     val command = new GenericRunnerCommand(args, onError)
     if (command.ok) command.settings
@@ -100,4 +101,5 @@ object InteractiveMakeSettings {
     settings.Yreplsync.value = true
     settings
   }
+
 }

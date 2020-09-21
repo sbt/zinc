@@ -63,10 +63,7 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
     assert(good.exists)
   }
 
-  def dealiasSymlinks(xs: HashSet[File]): HashSet[String] =
-    xs map { x =>
-      x.getCanonicalPath
-    }
+  def dealiasSymlinks(xs: HashSet[File]): HashSet[String] = xs.map(x => x.getCanonicalPath)
 
   def works(compiler: XJavaTools, forked: Boolean = false) = IO.withTemporaryDirectory { out =>
     val classfileManager = new CollectingClassFileManager()
@@ -85,7 +82,7 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
     val classfile = new File(out, "good.class")
     assert(classfile.exists)
     assert(
-      dealiasSymlinks(classfileManager.generatedClasses map { case vf: PathBasedFile =>
+      dealiasSymlinks(classfileManager.generatedClasses.map { case vf: PathBasedFile =>
         vf.toPath.toFile
       }) ==
         (if (forked) HashSet() else dealiasSymlinks(HashSet(classfile)))
@@ -110,16 +107,10 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
     val importWarn = warnOnLine(lineno = 12, lineContent = Some("java.rmi.RMISecurityException"))
     val enclosingError = errorOnLine(lineno = 25, message = Some("not an enclosing class: C.D"))
     val beAnExpectedError =
-      List(
-        importWarn,
-        errorOnLine(14),
-        errorOnLine(15),
-        warnOnLine(18),
-        enclosingError
-      ) reduce (_ or _)
-    problems foreach { p =>
-      p should beAnExpectedError
-    }
+      List(importWarn, errorOnLine(14), errorOnLine(15), warnOnLine(18), enclosingError).reduce(
+        _ or _
+      )
+    problems.foreach(p => p should beAnExpectedError)
   }
 
   def findsDocErrors(compiler: XJavaTools) = IO.withTemporaryDirectory { out =>
@@ -133,10 +124,8 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
       }
     })
     assert(problems.size == 2)
-    val beAnExpectedError = List(errorOnLine(14), errorOnLine(15)) reduce (_ or _)
-    problems foreach { p =>
-      p should beAnExpectedError
-    }
+    val beAnExpectedError = List(errorOnLine(14), errorOnLine(15)).reduce(_ or _)
+    problems.foreach(p => p should beAnExpectedError)
   }
 
   /**
@@ -175,18 +164,18 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
     val leftAPI = compileWithPrimitive(leftType, left)
     val rightAPI = compileWithPrimitive(rightType, right)
     assert(leftAPI.size == rightAPI.size)
-    assert(((leftAPI, rightAPI).zipped forall SameAPI.apply) == (left == right))
+    assert(((leftAPI, rightAPI).zipped.forall(SameAPI.apply)) == (left == right))
     ()
   }
 
   def messageMatches(p: Problem, lineno: Int, message: Option[String] = None): Boolean = {
-    def messageCheck = message forall (message => p.message contains message)
+    def messageCheck = message.forall(message => p.message contains message)
     def lineNumberCheck = p.position.line.isPresent && (p.position.line.get == lineno)
     lineNumberCheck && messageCheck
   }
 
   def lineMatches(p: Problem, lineno: Int, lineContent: Option[String] = None): Boolean = {
-    def lineContentCheck = lineContent forall (content => p.position.lineContent contains content)
+    def lineContentCheck = lineContent.forall(content => p.position.lineContent contains content)
     def lineNumberCheck = p.position.line.isPresent && (p.position.line.get == lineno)
     lineNumberCheck && lineContentCheck
   }
@@ -232,7 +221,7 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
       compile(local, Seq(knownSampleErrorFile), Seq("-deprecation"), out.toPath)
     assert(fresult == lresult)
 
-    (fproblems zip lproblems) foreach { case (f, l) =>
+    (fproblems.zip(lproblems)).foreach { case (f, l) =>
       // TODO - We should check to see if the levenshtein distance of the messages is close...
       // if (f.position.sourcePath.isPresent)
       //   assert(f.position.sourcePath.get == l.position.sourcePath.get)
@@ -288,14 +277,12 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
   // TODO - Create one with known JAVA HOME.
   def forked = JavaTools(JavaCompiler.fork(), Javadoc.fork())
 
-  def local =
-    JavaTools(
-      JavaCompiler.local.getOrElse(sys.error("This test cannot be run on a JRE, but only a JDK.")),
-      Javadoc.local.getOrElse(Javadoc.fork())
-    )
+  def local = JavaTools(
+    JavaCompiler.local.getOrElse(sys.error("This test cannot be run on a JRE, but only a JDK.")),
+    Javadoc.local.getOrElse(Javadoc.fork())
+  )
 
-  def cwd =
-    new File(new File(".").getAbsolutePath).getCanonicalFile
+  def cwd = new File(new File(".").getAbsolutePath).getCanonicalFile
 
   def knownSampleErrorFile = loadTestResource("test1.java")
   def knownSampleGoodFile = loadTestResource("good.java")

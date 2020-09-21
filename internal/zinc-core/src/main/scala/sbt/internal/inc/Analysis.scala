@@ -84,6 +84,7 @@ trait Analysis extends CompileAnalysis {
 }
 
 object Analysis {
+
   case class NonLocalProduct(
       className: String,
       binaryClassName: String,
@@ -130,6 +131,7 @@ object Analysis {
     override def getOutputDirectoryAsPath: Path = Paths.get("/tmp/dummy")
     override def getOutputDirectory: File = getOutputDirectoryAsPath.toFile
   }
+
 }
 
 private class MAnalysis(
@@ -139,14 +141,14 @@ private class MAnalysis(
     val infos: SourceInfos,
     val compilations: Compilations
 ) extends Analysis {
-  def ++(o: Analysis): Analysis =
-    new MAnalysis(
-      stamps ++ o.stamps,
-      apis ++ o.apis,
-      relations ++ o.relations,
-      infos ++ o.infos,
-      compilations ++ o.compilations
-    )
+
+  def ++(o: Analysis): Analysis = new MAnalysis(
+    stamps ++ o.stamps,
+    apis ++ o.apis,
+    relations ++ o.relations,
+    infos ++ o.infos,
+    compilations ++ o.compilations
+  )
 
   def --(sources: Iterable[VirtualFileRef]): Analysis = {
     val newRelations = relations -- sources
@@ -165,8 +167,7 @@ private class MAnalysis(
       relations: Relations,
       infos: SourceInfos,
       compilations: Compilations = compilations
-  ): Analysis =
-    new MAnalysis(stamps, apis, relations, infos, compilations)
+  ): Analysis = new MAnalysis(stamps, apis, relations, infos, compilations)
 
   def addSource(
       src: VirtualFileRef,

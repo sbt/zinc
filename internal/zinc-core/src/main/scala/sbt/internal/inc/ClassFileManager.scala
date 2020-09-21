@@ -30,6 +30,7 @@ import xsbti.compile.{
 }
 
 object ClassFileManager {
+
   def getDefaultClassFileManager(
       classFileManagerType: Optional[ClassFileManagerType]
   ): XClassFileManager = {
@@ -70,21 +71,25 @@ object ClassFileManager {
   }
 
   private final class DeleteClassFileManager extends XClassFileManager {
+
     @deprecated("Use variant that takes Array[VirtualFile]", "1.4.0")
     override def delete(classes: Array[File]): Unit = IO.deleteFilesEmptyDirs(classes)
+
     override def delete(classes: Array[VirtualFile]): Unit =
       IO.deleteFilesEmptyDirs(classes.toVector.map(toPath).map(_.toFile))
+
     override def generated(classes: Array[VirtualFile]): Unit = ()
+
     @deprecated("Use variant that takes Array[VirtualFile]", "1.4.0")
     override def generated(classes: Array[File]): Unit = {}
+
     override def complete(success: Boolean): Unit = ()
   }
 
-  private def toPath(vf: VirtualFile): Path =
-    vf match {
-      case x: PathBasedFile => x.toPath
-      case x                => sys.error(s"${x.id} is not path-based")
-    }
+  private def toPath(vf: VirtualFile): Path = vf match {
+    case x: PathBasedFile => x.toPath
+    case x                => sys.error(s"${x.id} is not path-based")
+  }
 
   /**
    * Constructs a minimal [[ClassFileManager]] implementation that immediately deletes
@@ -96,8 +101,7 @@ object ClassFileManager {
   def deleteImmediatelyFromJar(
       outputJar: Path,
       outputJarContent: JarUtils.OutputJarContent
-  ): XClassFileManager =
-    new DeleteClassFileManagerForJar(outputJar, outputJarContent)
+  ): XClassFileManager = new DeleteClassFileManagerForJar(outputJar, outputJarContent)
 
   def deleteImmediately(
       output: Output,
@@ -149,8 +153,10 @@ object ClassFileManager {
 
     @deprecated("Use variant that takes Array[VirtualFile]", "1.4.0")
     override def delete(classes0: Array[File]): Unit = deleteImpl(classes0)
+
     override def delete(classes: Array[VirtualFile]): Unit =
       deleteImpl(classes.map(c => toPath(c).toFile))
+
     private def deleteImpl(classes0: Array[File]): Unit = {
       logger.debug(s"About to delete class files:\n${showFiles(classes0)}")
       val toBeBackedUp =
@@ -164,8 +170,10 @@ object ClassFileManager {
 
     override def generated(classes0: Array[VirtualFile]): Unit =
       generatedImpl(classes0.map(c => toPath(c).toFile))
+
     @deprecated("Use variant that takes Array[VirtualFile]", "1.4.0")
     override def generated(classes: Array[File]): Unit = generatedImpl(classes)
+
     private def generatedImpl(classes: Array[File]): Unit = {
       logger.debug(s"Registering generated classes:\n${showFiles(classes)}")
       generatedClasses ++= classes
@@ -198,23 +206,29 @@ object ClassFileManager {
       IO.move(c, target)
       target
     }
+
   }
 
   private final class DeleteClassFileManagerForJar(
       outputJar: Path,
       outputJarContent: JarUtils.OutputJarContent
   ) extends XClassFileManager {
+
     @deprecated("Use variant that takes Array[VirtualFile]", "1.4.0")
     override def delete(classes: Array[File]): Unit = deleteImpl(classes)
+
     override def delete(classes0: Array[VirtualFile]): Unit =
       deleteImpl(classes0.map(toPath(_).toFile))
+
     private def deleteImpl(classes: Array[File]): Unit = {
       val relClasses = classes.map(c => JarUtils.ClassInJar.fromFile(c).toClassFilePath.get)
       outputJarContent.removeClasses(relClasses.toSet)
       JarUtils.removeFromJar(outputJar, relClasses)
     }
+
     @deprecated("Use variant that takes Array[VirtualFile]", "1.4.0")
     override def generated(classes: Array[File]): Unit = ()
+
     override def generated(classes: Array[VirtualFile]): Unit = ()
     override def complete(success: Boolean): Unit = ()
   }
@@ -234,6 +248,7 @@ object ClassFileManager {
       outputJar: Path,
       outputJarContent: JarUtils.OutputJarContent
   ) extends XClassFileManager {
+
     private val backedUpIndex = Some(outputJar)
       .filter(Files.exists(_))
       .map(JarUtils.stashIndex)
@@ -246,6 +261,7 @@ object ClassFileManager {
       JarUtils.removeFromJar(outputJar, classes)
       outputJarContent.removeClasses(classes.toSet)
     }
+
     override def delete(classesInJar: Array[VirtualFile]): Unit = {
       val classes =
         classesInJar.toVector
@@ -257,6 +273,7 @@ object ClassFileManager {
 
     @deprecated("Use variant that takes Array[VirtualFile]", "1.4.0")
     override def generated(classes: Array[File]): Unit = ()
+
     override def generated(classes: Array[VirtualFile]): Unit = ()
 
     override def complete(success: Boolean): Unit = {
@@ -264,5 +281,7 @@ object ClassFileManager {
         backedUpIndex.foreach(index => JarUtils.unstashIndex(outputJar, index))
       }
     }
+
   }
+
 }

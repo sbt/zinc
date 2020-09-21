@@ -16,6 +16,7 @@ import java.nio.file.{ Path, Paths }
 import xsbti.compile.analysis.Stamp
 
 object MapperUtils {
+
   private[inc] def rebase(target: Path, from: Path, to: Path): Path = {
     to.resolve(from.relativize(target))
   }
@@ -72,4 +73,5 @@ object MapperUtils {
   private[inc] def recomputeModificationDate(previouslyStampedFile: Path): Stamp = {
     sbt.internal.inc.Stamper.forLastModifiedP(previouslyStampedFile)
   }
+
 }

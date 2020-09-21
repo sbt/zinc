@@ -31,6 +31,7 @@ import ProtobufDefaults.{ MissingString, MissingInt }
 
 final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) {
   def fromPathString(path: String): Path = Paths.get(path)
+
   def fromPathStringV(path: String): VirtualFileRef = {
     VirtualFileRef.of(path)
   }
@@ -162,8 +163,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
   private def fromString(value: String): Option[String] =
     if (value == MissingString) None else Some(value)
 
-  private def fromInt(value: Int): Option[Integer] =
-    if (value == MissingInt) None else Some(value)
+  private def fromInt(value: Int): Option[Integer] = if (value == MissingInt) None else Some(value)
 
   def fromProblem(problem: Schema.Problem): Problem = {
     val category = problem.getCategory
@@ -267,13 +267,14 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
   }
 
   implicit class EfficientTraverse[T](seq: JList[T]) {
+
     def toZincArray[R: scala.reflect.ClassTag](f: T => R): Array[R] =
       seq.asScala.iterator.map(f).toArray
+
   }
 
   implicit class OptionReader[T](option: Option[T]) {
-    def read[R](from: T => R, errorMessage: => String): R =
-      option.fold(errorMessage.!!)(from)
+    def read[R](from: T => R, errorMessage: => String): R = option.fold(errorMessage.!!)(from)
   }
 
   def fromPath(path: Schema.Path): xsbti.api.Path = {
@@ -662,6 +663,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
   private final val stringId = identity[String] _
   private final val stringToFile = (path: String) => fromPathString(path)
   private final val stringToVFile = (path: String) => fromPathStringV(path)
+
   def fromRelations(relations: Schema.Relations): Relations = {
     import scala.collection.{ mutable, immutable }
 
@@ -826,4 +828,5 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
       else s"The mini setup from format ${version} could not be read.".!!
     (analysis, miniSetup, version)
   }
+
 }

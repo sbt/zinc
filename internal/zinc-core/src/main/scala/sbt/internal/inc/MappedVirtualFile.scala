@@ -27,6 +27,7 @@ class MappedVirtualFile(encodedPath: String, rootPathsMap: Map[String, Path])
 }
 
 object MappedVirtualFile {
+
   def apply(encodedPath: String, rootPaths: Map[String, Path]): MappedVirtualFile =
     new MappedVirtualFile(encodedPath, rootPaths)
 
@@ -36,10 +37,12 @@ object MappedVirtualFile {
       case None           => Paths.get(encodedPath)
     }
   }
+
 }
 
 class MappedFileConverter(rootPaths: Map[String, Path], allowMachinePath: Boolean)
     extends FileConverter {
+
   val rootPaths2: Seq[(String, Path)] = rootPaths.toSeq.flatMap { case (key, rootPath) =>
     if (rootPath.startsWith("/var/") || rootPath.startsWith("/tmp/")) {
       val rootPath2 = Paths.get("/private").resolve(Paths.get("/").relativize(rootPath))
@@ -65,10 +68,13 @@ class MappedFileConverter(rootPaths: Map[String, Path], allowMachinePath: Boolea
         }
     }
   }
+
 }
 
 object MappedFileConverter {
   def empty: MappedFileConverter = new MappedFileConverter(Map(), true)
+
   def apply(rootPaths: Map[String, Path], allowMachinePath: Boolean): MappedFileConverter =
     new MappedFileConverter(rootPaths, allowMachinePath)
+
 }

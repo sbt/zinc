@@ -41,6 +41,7 @@ private[inc] abstract class IncrementalCommon(
     options: IncOptions,
     profiler: RunProfiler
 ) extends InvalidationProfilerUtils {
+
   // Work around bugs in classpath handling such as the "currently" problematic -javabootclasspath
   private[this] def enableShallowLookup: Boolean =
     java.lang.Boolean.getBoolean("xsbt.skip.cp.lookup")
@@ -48,16 +49,18 @@ private[inc] abstract class IncrementalCommon(
   private[this] final val wrappedLog = new PrefixingLogger("[inv] ")(log)
   def debug(s: => String): Unit = if (options.relationsDebug) wrappedLog.debug(s) else ()
 
-  final def iterations(state0: CycleState): Iterator[CycleState] =
-    new Iterator[CycleState] {
-      var state: CycleState = state0
-      override def hasNext: Boolean = state.hasNext
-      override def next(): CycleState = {
-        val n = state.next
-        state = n
-        n
-      }
+  final def iterations(state0: CycleState): Iterator[CycleState] = new Iterator[CycleState] {
+    var state: CycleState = state0
+    override def hasNext: Boolean = state.hasNext
+
+    override def next(): CycleState = {
+      val n = state.next
+      state = n
+      n
     }
+
+  }
+
   case class CycleState(
       invalidatedClasses: Set[String],
       initialChangedSources: Set[VirtualFileRef],
@@ -205,7 +208,9 @@ private[inc] abstract class IncrementalCommon(
           case _          => mergeAndInvalidate(partialAnalysis, true)
         }
       }
+
     }
+
   }
 
   /**
@@ -577,7 +582,7 @@ private[inc] abstract class IncrementalCommon(
     try {
       val wrappedLog = new PrefixingLogger("[diff] ")(log)
       val apiDiff = new APIDiff
-      apiChanges foreach {
+      apiChanges.foreach {
         case APIChangeDueToMacroDefinition(src) =>
           wrappedLog.debug(s"Detected API change because $src contains a macro definition.")
         case TraitPrivateMembersModified(modifiedClass) =>
@@ -671,6 +676,7 @@ private[inc] abstract class IncrementalCommon(
       externalAPIChange: APIChange,
       isScalaClass: String => Boolean
   ): Set[String]
+
 }
 
 object IncrementalCommon {
@@ -842,4 +848,5 @@ object IncrementalCommon {
     classfileManager.delete(products.map(converter.toVirtualFile(_)).toArray)
     previous -- invalidatedSources
   }
+
 }

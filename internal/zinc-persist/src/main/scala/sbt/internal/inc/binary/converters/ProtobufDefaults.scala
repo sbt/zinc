@@ -83,96 +83,124 @@ object ProtobufDefaults {
   }
 
   object EmptyLazyCompanions extends Lazy[Companions] {
-    override def get(): Companions =
-      throw new IllegalArgumentException("No companions was stored!")
+    override def get(): Companions = throw new IllegalArgumentException("No companions was stored!")
   }
 
   object Feedback {
+
     implicit class StringToException(str: String) {
       def `!!` : Nothing = sys.error(str)
     }
 
     object Writers {
+
       final val UnexpectedEmptyOutput =
         "Expected `Output` to be either `SingleOutput` or `MultipleOutput`."
+
     }
 
     object Readers {
       final val ReadError: String = "Protobuf read error"
 
-      final def expectedBaseIn(clazz: Class[_]) =
-        expected("base type", clazz)
-      final def expectedTypeIn(clazz: Class[_]) =
-        expected("type", clazz)
+      final def expectedBaseIn(clazz: Class[_]) = expected("base type", clazz)
+      final def expectedTypeIn(clazz: Class[_]) = expected("type", clazz)
+
       final val ExpectedReturnTypeInDef =
         expected("return type", Classes.Def)
+
       final val ExpectedUpperBoundInTypeParameter =
         expected("upper bound", Classes.TypeParameter)
+
       final val ExpectedUpperBoundInTypeDeclaration =
         expected("upper bound", Classes.TypeDeclaration)
+
       final val ExpectedLowerBoundInTypeParameter =
         expected("lower bound", Classes.TypeParameter)
+
       final val ExpectedLowerBoundInTypeDeclaration =
         expected("lower bound", Classes.TypeDeclaration)
+
       final val ExpectedNonEmptyType =
         expected(s"non empty type", Classes.Type)
+
       final val ExpectedNonEmptyDefType =
         expected(s"non empty `${Classes.ClassDefinition.getName}` type", Classes.Type)
+
       final val ExpectedPathInSingleton =
         expected("path", Classes.Singleton)
+
       final val ExpectedPrefixInProjection =
         expected("prefix", Classes.Projection)
+
       final val ExpectedQualifierInAccess =
         expected("qualifier", Classes.Access)
+
       final val MissingModifiersInDef =
         expected("modifiers", Classes.ClassDefinition)
+
       final val MissingAccessInDef =
         expected("access", Classes.ClassDefinition)
+
       final val ExpectedValidAccessType =
         expected("valid access type", Classes.Access)
+
       final val ExpectedAccessInClassLike =
         expected(Classes.Access, Classes.ClassLike)
+
       final val ExpectedNonEmptyQualifier =
         expected("non-empty qualifier", Classes.Access)
+
       final val ExpectedCompanionsInAnalyzedClass =
         expected(Classes.Companions, Classes.AnalyzedClass)
+
       final val ExpectedPathInSuper =
         expected(s"qualifier of type ${Classes.Path}", Classes.Super)
+
       final val ExpectedMiniOptionsInSetup =
         expected(Classes.MiniOptions, Classes.MiniSetup)
+
       final val ExpectedOutputInCompilationOutput =
         expected("non-empty output", Classes.CompilationOutput)
+
       final val ExpectedOutputInMiniSetupOutput =
         expected("non-empty output", Classes.MiniSetupOutput)
+
       final val ExpectedPositionInProblem: String =
         expected(Classes.Position, Classes.Problem)
+
       final val ExpectedApisInApisFile: String =
         expected(Classes.APIs, Classes.APIsFile)
 
       final def expected(culprit: Class[_], owner: Class[_]): String =
         expected(s"`${culprit.getName}`", owner)
+
       final def expected(something: String, owner: Class[_]): String =
         s"$ReadError: Expected $something in `${owner.getName}`."
 
       final val UnrecognizedParamModifier =
         unrecognized("param modifier", Classes.MethodParameter)
+
       final val UnrecognizedVariance =
         unrecognized("variance", Classes.TypeParameter)
+
       final val UnrecognizedDefinitionType =
         unrecognized("definition type", Classes.ClassLikeDef)
-      final def unrecognizedSeverity(id: Int) =
-        unrecognized(Classes.Severity, id.toString)
-      final def unrecognizedUseScope(id: Int) =
-        unrecognized(Classes.UseScope, id.toString)
-      final def unrecognizedOrder(id: Int) =
-        unrecognized(Classes.CompileOrder, id.toString)
+
+      final def unrecognizedSeverity(id: Int) = unrecognized(Classes.Severity, id.toString)
+      final def unrecognizedUseScope(id: Int) = unrecognized(Classes.UseScope, id.toString)
+      final def unrecognizedOrder(id: Int) = unrecognized(Classes.CompileOrder, id.toString)
 
       final def unrecognized[T](culprit: Class[_], value: String): String =
         s"$ReadError: Unrecognized ${culprit.getName} with value `$value`."
+
       final def unrecognized(culprit: Class[_], owner: Class[_]): String =
         unrecognized(s"`${culprit.getName}`", owner)
+
       final def unrecognized(something: String, owner: Class[_]): String =
         s"$ReadError: Unrecognized $something in `${owner.getName}`."
+
     }
+
   }
+
 }

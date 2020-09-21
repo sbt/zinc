@@ -35,6 +35,7 @@ class ClassCanonicalNameSpec extends AnyFlatSpec with Matchers with Diagrams {
   import scala.reflect._
   def check[T: ClassTag](expected: Expected) = checkClass(expected, classTag[T].runtimeClass, "tag")
   def checkRef(expected: Expected, x: AnyRef) = checkClass(expected, x.getClass, "ref")
+
   def checkClass(expected: Expected, c: Class[_], classSource: String) = {
     import expected._
     it should f"for $nesting%-5s ($classSource) return $canonicalClassName" in {
@@ -107,16 +108,19 @@ class ClassCanonicalNameSpec extends AnyFlatSpec with Matchers with Diagrams {
   class Expected(
       val canonicalClassName: String
   ) {
+
     val nesting = {
-      val n0 = getClass.getSimpleName stripSuffix "$"
+      val n0 = getClass.getSimpleName.stripSuffix("$")
       Seq(n0, "-" * (n0.length - 1)).flatMap(_.zipWithIndex).sortBy(_._2).map(_._1).mkString
     }
+
   }
 
   // Strip the shared prefix to the class name
   def strip(s: String) = {
     val prefix = "sbt.internal.inc.p"
-    if (s startsWith prefix) s stripPrefix prefix drop 2
+    if (s.startsWith(prefix)) s.stripPrefix(prefix).drop(2)
     else s
   }
+
 }

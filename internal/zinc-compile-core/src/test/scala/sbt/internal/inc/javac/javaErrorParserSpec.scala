@@ -90,8 +90,7 @@ class JavaErrorParserSpec extends UnitSpec with Diagrams {
     assert(problems(0).position.sourcePath.get == ("/home/me/projects/sample/src/main/Test.java"))
   }
 
-  def sampleLinuxMessage =
-    """
+  def sampleLinuxMessage = """
       |/home/me/projects/sample/src/main/Test.java:18: error: cannot find symbol
       |          baz();
       |          ^
@@ -100,8 +99,7 @@ class JavaErrorParserSpec extends UnitSpec with Diagrams {
       |1 error.
       |""".stripMargin
 
-  def sampleLinuxMessage2 =
-    """
+  def sampleLinuxMessage2 = """
       |/home/me/projects/sample/src/main/Test.java:100:1: cannot find symbol
       |symbol: method isBar()
       |location: variable x of type com.example.List
@@ -116,8 +114,7 @@ class JavaErrorParserSpec extends UnitSpec with Diagrams {
       |foo.baz(runtime, x.isBar());
       |""".stripMargin
 
-  def sampleWindowsMessage =
-    s"""
+  def sampleWindowsMessage = s"""
       |$windowsFile:4: cannot find symbol
       |symbol  : method baz()
       |location: class Foo
@@ -129,8 +126,7 @@ class JavaErrorParserSpec extends UnitSpec with Diagrams {
 
   def sampleJavacMessage = "javac: invalid flag: -foobar"
 
-  def sampleErrorPosition =
-    """
+  def sampleErrorPosition = """
       |A.java:6: cannot find symbol
       |symbol  : variable foobar
       |location: class A
@@ -158,4 +154,5 @@ class JavaErrorParserSpec extends UnitSpec with Diagrams {
        |              ^
        |5 errors.
        |""".stripMargin
+
 }

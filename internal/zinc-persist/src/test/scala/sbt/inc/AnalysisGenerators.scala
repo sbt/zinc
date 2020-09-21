@@ -57,12 +57,11 @@ object AnalysisGenerators {
 
   def identifier: Gen[String] = sized(size => resize(Math.max(size, 3), Gen.identifier))
 
-  def genFilePathSegment: Gen[String] =
-    for {
-      n <- choose(3, maxPathSegmentLen) // Segments have at least 3 characters.
-      c <- alphaChar
-      cs <- listOfN(n - 1, alphaNumChar)
-    } yield (c :: cs).mkString
+  def genFilePathSegment: Gen[String] = for {
+    n <- choose(3, maxPathSegmentLen) // Segments have at least 3 characters.
+    c <- alphaChar
+    cs <- listOfN(n - 1, alphaNumChar)
+  } yield (c :: cs).mkString
 
   def genFile: Gen[File] = {
     for {
@@ -78,8 +77,8 @@ object AnalysisGenerators {
   def genStamps(rel: Relations): Gen[Stamps] = {
     import VirtualFileUtil._
 
-    def stamp(xs: Iterable[VirtualFileRef]) =
-      for (stamps <- listOfN(xs.size, genStamp)) yield TreeMap(xs.toList.zip(stamps): _*)
+    def stamp(xs: Iterable[VirtualFileRef]) = for (stamps <- listOfN(xs.size, genStamp))
+      yield TreeMap(xs.toList.zip(stamps): _*)
 
     for {
       prods <- stamp(rel.allProducts)
@@ -103,29 +102,27 @@ object AnalysisGenerators {
 
   private[this] def lzy[T <: AnyRef](x: T) = SafeLazyProxy.strict(x)
 
-  def genNameHash(name: String): Gen[NameHash] =
-    for (scope <- oneOf(UseScope.values()))
-      yield NameHash.of(name, scope, (name, scope).hashCode())
+  def genNameHash(name: String): Gen[NameHash] = for (scope <- oneOf(UseScope.values()))
+    yield NameHash.of(name, scope, (name, scope).hashCode())
 
-  def genClass(name: String): Gen[AnalyzedClass] =
-    for {
-      startTime <- arbitrary[Long]
-      apiHash <- arbitrary[Int]
-      hasMacro <- arbitrary[Boolean]
-      nameHash <- genNameHash(name)
-      provenance <- arbitrary[String]
-    } yield {
-      AnalyzedClass.of(
-        startTime,
-        name,
-        SafeLazyProxy(makeCompanions(name)),
-        apiHash,
-        Array(nameHash),
-        hasMacro,
-        apiHash, // The default is to use the public API hash
-        provenance
-      )
-    }
+  def genClass(name: String): Gen[AnalyzedClass] = for {
+    startTime <- arbitrary[Long]
+    apiHash <- arbitrary[Int]
+    hasMacro <- arbitrary[Boolean]
+    nameHash <- genNameHash(name)
+    provenance <- arbitrary[String]
+  } yield {
+    AnalyzedClass.of(
+      startTime,
+      name,
+      SafeLazyProxy(makeCompanions(name)),
+      apiHash,
+      Array(nameHash),
+      hasMacro,
+      apiHash, // The default is to use the public API hash
+      provenance
+    )
+  }
 
   def genClasses(defns: Seq[String]): Gen[Seq[AnalyzedClass]] =
     Gen.sequence[List[AnalyzedClass], AnalyzedClass](defns.map(genClass))
@@ -141,11 +138,10 @@ object AnalysisGenerators {
 
   def genVirtualFileRefRelation[T](
       g: Gen[T]
-  )(srcs: List[VirtualFileRef]): Gen[Relation[VirtualFileRef, T]] =
-    for {
-      n <- choose(1, maxRelatives)
-      entries <- listOfN(srcs.length, containerOfN[Set, T](n, g))
-    } yield Relation.reconstruct(zipMap(srcs, entries))
+  )(srcs: List[VirtualFileRef]): Gen[Relation[VirtualFileRef, T]] = for {
+    n <- choose(1, maxRelatives)
+    entries <- listOfN(srcs.length, containerOfN[Set, T](n, g))
+  } yield Relation.reconstruct(zipMap(srcs, entries))
 
   val genStringRelation = genVirtualFileRefRelation(unique(identifier)) _
   val genFileVORefRelation = genVirtualFileRefRelation(unique(genFileVRef)) _
@@ -153,44 +149,43 @@ object AnalysisGenerators {
   def rel[A, B](a: Seq[A], b: Seq[B]): Relation[A, B] =
     Relation.reconstruct(zipMap(a, b).mapValues(Set(_)).toMap)
 
-  def genStringStringRelation(num: Int): Gen[Relation[String, String]] =
-    for {
-      n <- choose(1, if (num == 0) 1 else num)
-      fwd <- listOfN(n, unique(identifier))
-      prv <- listOfN(n, unique(identifier))
-    } yield rel(fwd, prv)
+  def genStringStringRelation(num: Int): Gen[Relation[String, String]] = for {
+    n <- choose(1, if (num == 0) 1 else num)
+    fwd <- listOfN(n, unique(identifier))
+    prv <- listOfN(n, unique(identifier))
+  } yield rel(fwd, prv)
 
-  def genRClassDependencies(classNames: List[String]): Gen[Relations.ClassDependencies] =
-    for {
-      internal <- listOfN(classNames.length, someOf(classNames))
-      external <- listOfN(classNames.length, someOf(classNames))
-    } yield {
-      def toForwardMap(targets: Seq[scala.collection.Seq[String]]): Map[String, Set[String]] =
-        classNames.zip(targets.map(_.toSet)).map { case (a, b) => (a, b - a) }.toMap
-      Relations.makeClassDependencies(
-        Relation.reconstruct(toForwardMap(internal)),
-        Relation.reconstruct(toForwardMap(external))
-      )
-    }
+  def genRClassDependencies(classNames: List[String]): Gen[Relations.ClassDependencies] = for {
+    internal <- listOfN(classNames.length, someOf(classNames))
+    external <- listOfN(classNames.length, someOf(classNames))
+  } yield {
+    def toForwardMap(targets: Seq[scala.collection.Seq[String]]): Map[String, Set[String]] =
+      classNames.zip(targets.map(_.toSet)).map { case (a, b) => (a, b - a) }.toMap
+    Relations.makeClassDependencies(
+      Relation.reconstruct(toForwardMap(internal)),
+      Relation.reconstruct(toForwardMap(external))
+    )
+  }
 
   private[inc] def genSubRClassDependencies(
       src: Relations.ClassDependencies
-  ): Gen[Relations.ClassDependencies] =
-    for {
-      internal <- someOf(src.internal.all.toList)
-      external <- someOf(src.external.all.toList)
-    } yield Relations.makeClassDependencies(Relation.empty ++ internal, Relation.empty ++ external)
+  ): Gen[Relations.ClassDependencies] = for {
+    internal <- someOf(src.internal.all.toList)
+    external <- someOf(src.external.all.toList)
+  } yield Relations.makeClassDependencies(Relation.empty ++ internal, Relation.empty ++ external)
 
   def genScalaName: Gen[String] =
     Gen.listOf(Gen.oneOf(Gen.choose('!', 'Z'), Gen.const('\n'))).map(_.toString())
 
-  def genUsedName(namesGen: Gen[String] = genScalaName): Gen[UsedName] =
-    for (name <- namesGen; scopes <- Gen.someOf(UseScope.values()))
-      yield UsedName(name, UseScope.Default +: scopes)
+  def genUsedName(namesGen: Gen[String] = genScalaName): Gen[UsedName] = for (
+    name <- namesGen; scopes <- Gen.someOf(UseScope.values())
+  )
+    yield UsedName(name, UseScope.Default +: scopes)
 
-  def genUsedNames(classNames: Seq[String]): Gen[Relation[String, UsedName]] =
-    for (allNames <- listOfN(classNames.length, containerOf[Set, UsedName](genUsedName())))
-      yield Relation.reconstruct(zipMap(classNames, allNames))
+  def genUsedNames(classNames: Seq[String]): Gen[Relation[String, UsedName]] = for (
+    allNames <- listOfN(classNames.length, containerOf[Set, UsedName](genUsedName()))
+  )
+    yield Relation.reconstruct(zipMap(classNames, allNames))
 
   def genFileVRef: Gen[VirtualFileRef] = genFile.map(x => VirtualFileRef.of(x.toPath.toString))
 
@@ -233,10 +228,10 @@ object AnalysisGenerators {
       productClassName
     )
 
-  def genAnalysis: Gen[Analysis] =
-    for {
-      rels <- genRelationsNameHashing
-      stamps <- genStamps(rels)
-      apis <- genAPIs(rels)
-    } yield new MAnalysis(stamps, apis, rels, SourceInfos.empty, Compilations.empty)
+  def genAnalysis: Gen[Analysis] = for {
+    rels <- genRelationsNameHashing
+    stamps <- genStamps(rels)
+    apis <- genAPIs(rels)
+  } yield new MAnalysis(stamps, apis, rels, SourceInfos.empty, Compilations.empty)
+
 }

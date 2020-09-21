@@ -17,8 +17,10 @@ import Log.debug
 import scala.tools.nsc.CompilerCommand
 
 class ScaladocBridge extends xsbti.compile.ScaladocInterface2 {
+
   def run(sources: Array[VirtualFile], args: Array[String], log: Logger, delegate: xsbti.Reporter) =
     (new Runner(sources, args, log, delegate)).run()
+
 }
 
 private class Runner(
@@ -52,7 +54,9 @@ private class Runner(
   }
 
   object forScope {
+
     class DocFactory(reporter: Reporter, docSettings: doc.Settings) {
+
       object compiler extends Global(command.settings, reporter) {
         // override def onlyPresentation = true
         // override def forScaladoc = true
@@ -62,7 +66,9 @@ private class Runner(
           assert(false)
           def process(units: Iterator[CompilationUnit]) = error("for 2.8 compatibility only")
         }
+
       }
+
       def document(ignore: Seq[String]): Unit = {
         import compiler._
         val run = new Run
@@ -78,6 +84,9 @@ private class Runner(
         }
         generator.process(run.units)
       }
+
     }
+
   }
+
 }

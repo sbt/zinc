@@ -20,6 +20,5 @@ object BinaryAnalysisFormatSpecification extends Properties("BinaryAnalysisForma
   property("round-trip simple") = forSimple(check)
   property("round-trip complex") = forComplex(check)
 
-  private def check(analysis: Analysis) =
-    checkStoreRoundtrip(analysis, FileAnalysisStore.binary(_))
+  private def check(analysis: Analysis) = checkStoreRoundtrip(analysis, FileAnalysisStore.binary(_))
 }

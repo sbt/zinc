@@ -26,4 +26,5 @@ object TextAnalysisFormatSpecification extends Properties("TextAnalysisFormat") 
     checkStoreRoundtrip(analysis, FileAnalysisStore.text(_)) &&
     checkTextRoundtrip(analysis, TextAnalysisFormat, TextAnalysisFormat)
   }
+
 }

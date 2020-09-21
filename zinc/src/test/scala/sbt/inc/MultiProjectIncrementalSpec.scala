@@ -140,6 +140,7 @@ class MultiProjectIncrementalSpec extends BaseCompilerSpec {
   def startTimes(res: CompileResult) = {
     res.analysis.readCompilations.getAllCompilations.map(_.getStartTime).toList
   }
+
 }
 
 /* Make a jar with the following:

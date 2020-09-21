@@ -13,27 +13,19 @@ package xsbt
 
 import scala.tools.nsc.Global
 
-/**
- * Utility methods for creating (source|binary) class names for a Symbol.
- */
+/** Utility methods for creating (source|binary) class names for a Symbol. */
 trait ClassName extends Compat {
   val global: Global
   import global._
 
-  /**
-   * Creates a flat (binary) name for a class symbol `s`.
-   */
+  /** Creates a flat (binary) name for a class symbol `s`. */
   protected def flatname(s: Symbol, separator: Char) =
-    enteringPhase(currentRun.flattenPhase.next) { s fullName separator }
+    enteringPhase(currentRun.flattenPhase.next)(s.fullName(separator))
 
-  /**
-   * Create a (source) name for a class symbol `s`.
-   */
+  /** Create a (source) name for a class symbol `s`. */
   protected def className(s: Symbol): Name = pickledName(s)
 
-  /**
-   * Create a String (source) name for a class symbol `s`.
-   */
+  /** Create a String (source) name for a class symbol `s`. */
   protected def classNameAsString(s: Symbol): String = pickledNameAsString(s)
 
   /**
@@ -52,15 +44,11 @@ trait ClassName extends Compat {
    * use '<init>'), we use ';' because it is one of the few characters that
    * cannot appear in a valid JVM name.
    */
-  protected def constructorName(cls: Symbol): Name =
-    newTermName(constructorNameAsString(cls))
+  protected def constructorName(cls: Symbol): Name = newTermName(constructorNameAsString(cls))
 
-  protected def constructorNameAsString(cls: Symbol): String =
-    cls.fullName(';') ++ ";init;"
+  protected def constructorNameAsString(cls: Symbol): String = cls.fullName(';') ++ ";init;"
 
-  /**
-   * Mangle a JVM symbol name in a format better suited for internal uses by sbt.
-   */
+  /** Mangle a JVM symbol name in a format better suited for internal uses by sbt. */
   protected def mangledName(s: Symbol): Name =
     if (s.name == nme.CONSTRUCTOR)
       constructorName(s.enclClass)
@@ -88,10 +76,10 @@ trait ClassName extends Compat {
     }
 
   private def pickledName(s: Symbol): Name =
-    enteringPhase(currentRun.picklerPhase.next) { s.fullNameAsName('.') }
+    enteringPhase(currentRun.picklerPhase.next)(s.fullNameAsName('.'))
 
   private def pickledNameAsString(s: Symbol): String =
-    enteringPhase(currentRun.picklerPhase.next) { s.fullName }
+    enteringPhase(currentRun.picklerPhase.next)(s.fullName)
 
   protected def isTopLevelModule(sym: Symbol): Boolean =
     enteringPhase(currentRun.picklerPhase.next) {
@@ -100,4 +88,5 @@ trait ClassName extends Compat {
 
   protected def flatclassName(s: Symbol, sep: Char, dollarRequired: Boolean): String =
     flatname(s, sep) + (if (dollarRequired) "$" else "")
+
 }

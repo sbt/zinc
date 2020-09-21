@@ -78,12 +78,14 @@ abstract class Compat {
     // in 2.11 genJVM does not exist
     def genJVM = this
   }
+
   // in 2.9, NullaryMethodType was added to Type
   object NullaryMethodTpe {
     def unapply(t: Type): Option[Type] = None
   }
 
   protected implicit def symbolCompat(sym: Symbol): SymbolCompat = new SymbolCompat(sym)
+
   protected final class SymbolCompat(sym: Symbol) {
     // before 2.10, sym.moduleSuffix doesn't exist, but genJVM.moduleSuffix does
     def moduleSuffix = global.genJVM.moduleSuffix(sym)
@@ -94,11 +96,11 @@ abstract class Compat {
 
     // Not present in 2.10
     @inline final def getterIn(base: Symbol): Symbol = sym.getter(base)
+
     @inline final def setterIn(
         base: Symbol,
         hasExpandedName: Boolean = needsExpandedSetterName
-    ): Symbol =
-      sym.setter(base, hasExpandedName)
+    ): Symbol = sym.setter(base, hasExpandedName)
 
     // copied from 2.12.1 sources
     private def needsExpandedSetterName: Boolean =
@@ -112,10 +114,12 @@ abstract class Compat {
   }
 
   val DummyValue = 0
+
   def hasMacro(s: Symbol): Boolean = {
     val MACRO = Flags.MACRO // will be DummyValue for versions before 2.10
     MACRO != DummyValue && s.hasFlag(MACRO.toLong)
   }
+
   def moduleSuffix(s: Symbol): String = s.moduleSuffix
 
   // Not present in 2.10
@@ -132,18 +136,22 @@ abstract class Compat {
   object MirrorHelper {
 
     private implicit def withRootMirror(x: Any): WithRootMirror = new WithRootMirror(x)
+
     private class DummyMirror {
       def getClassIfDefined(x: String): Symbol = NoSymbol
     }
+
     private class WithRootMirror(x: Any) {
       def rootMirror: DummyMirror = new DummyMirror
     }
+
   }
 
   implicit class MacroExpansionAttachmentCompat(self: MacroExpansionAttachment) {
     // `original` has been renamed to `expandee` in 2.11.x
     @inline final def expandee: Tree = self.original
   }
+
 }
 
 /** Defines compatibility utils for [[ZincCompiler]]. */
@@ -161,6 +169,7 @@ trait ZincGlobalCompat {
     catch { case e: NoSuchMethodException => () }
     ()
   }
+
 }
 
 object Compat {
@@ -182,11 +191,13 @@ object Compat {
 
   implicit final class PositionOps(val self: sriu.Position) extends AnyVal {
     // Missing in 2.10
-    @inline final def finalPosition: sriu.Position = self.source positionInUltimateSource self
+    @inline final def finalPosition: sriu.Position = self.source.positionInUltimateSource(self)
   }
+
 }
 
 private trait CachedCompilerCompat { self: CachedCompiler0 =>
+
   def newCompiler(
       settings: Settings,
       reporter: DelegatingReporter,
@@ -196,4 +207,5 @@ private trait CachedCompilerCompat { self: CachedCompiler0 =>
     if (settings.Yrangepos.value) new ZincCompilerRangePos(settings, reporter, output)
     else new ZincCompiler(settings, reporter, output)
   }
+
 }

@@ -60,6 +60,8 @@ object ClassLikeHelpers {
   final val publicAccess = Public.of()
   final val privateAccess = Private.of(Unqualified.of())
   final val emptyMembers = lzy(Array.empty[ClassDefinition])
+
   final val defaultMods =
     new Modifiers(false, false, false, false, false, false, false, false)
+
 }

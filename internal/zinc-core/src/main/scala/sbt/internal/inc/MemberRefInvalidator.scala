@@ -56,6 +56,7 @@ import xsbti.UseScope
  */
 private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolean) {
   private final val NoInvalidation = (_: String) => Set.empty[String]
+
   def get(
       memberRef: Relation[String, String],
       usedNames: Relation[String, UsedName],
@@ -90,6 +91,7 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
   // Left for compatibility
   private[inc] class InvalidateDueToMacroDefinition(memberRef: Relation[String, String])
       extends (String => Set[String]) {
+
     def apply(from: String): Set[String] = {
       val invalidated = memberRef.reverse(from)
       if (invalidated.nonEmpty && logRecompileOnMacro) {
@@ -100,10 +102,12 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
       }
       invalidated
     }
+
   }
 
   private class InvalidateUnconditionally(memberRef: Relation[String, String])
       extends (String => Set[String]) {
+
     def apply(from: String): Set[String] = {
       val invalidated = memberRef.reverse(from)
       if (invalidated.nonEmpty)
@@ -113,6 +117,7 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
         )
       invalidated
     }
+
   }
 
   private def formatInvalidated(invalidated: Set[String]): String = {
@@ -131,6 +136,7 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
       val dependent = memberRef.reverse(to)
       filteredDependencies(dependent)
     }
+
     private def filteredDependencies(dependent: Set[String]): Set[String] = {
       dependent.filter {
         case from if isScalaClass(from) =>
@@ -149,5 +155,7 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
           true
       }
     }
+
   }
+
 }

@@ -26,6 +26,7 @@ class BenchmarkBase extends BridgeProviderSpecification {
   @Param(Array("")) var _tempDir: String = _
   var _project: BenchmarkProject = _
   var _subprojectToRun: String = _
+
   @Param(Array("true"))
   var zincEnabled: Boolean = _
 
@@ -87,9 +88,7 @@ class BenchmarkBase extends BridgeProviderSpecification {
   def tearDown(): Unit = {
     _lock.release()
     // Remove the directory where all the class files have been compiled
-    _setup.sources.keys.toList map { x =>
-      sbt.io.IO.delete(x.toFile)
-    }
+    _setup.sources.keys.toList.map(x => sbt.io.IO.delete(x.toFile))
     ()
   }
 
@@ -97,4 +96,5 @@ class BenchmarkBase extends BridgeProviderSpecification {
     _compilerSetup.doCompile()
     ()
   }
+
 }

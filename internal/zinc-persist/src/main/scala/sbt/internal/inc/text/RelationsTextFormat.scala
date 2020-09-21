@@ -59,11 +59,11 @@ trait RelationsTextFormat extends FormatCommons {
         // persisted using their string representation, it makes sense to sort them using
         // their string representation.
         val toStringOrdA = new Ordering[A] {
-          def compare(a: A, b: A) = relDesc.keyMapper.write(a) compare relDesc.keyMapper.write(b)
+          def compare(a: A, b: A) = relDesc.keyMapper.write(a).compare(relDesc.keyMapper.write(b))
         }
         val toStringOrdB = new Ordering[B] {
           def compare(a: B, b: B) =
-            relDesc.valueMapper.write(a) compare relDesc.valueMapper.write(b)
+            relDesc.valueMapper.write(a).compare(relDesc.valueMapper.write(b))
         }
         val header = relDesc.header
         val rel = relDesc.selectCorresponding(relations)
@@ -74,16 +74,14 @@ trait RelationsTextFormat extends FormatCommons {
         // than the shared code would be, and the difference is measurable on large analyses.
         rel.forwardMap.toSeq.sortBy(_._1)(toStringOrdA).foreach { case (k, vs) =>
           val kStr = relDesc.keyMapper.write(k)
-          vs.toSeq.sorted(toStringOrdB) foreach { v =>
+          vs.toSeq.sorted(toStringOrdB).foreach { v =>
             out.write(kStr); out.write(" -> "); out.write(relDesc.valueMapper.write(v));
             out.write("\n")
           }
         }
       }
 
-      allRelations.foreach { relDesc =>
-        writeRelation(relDesc, relations)
-      }
+      allRelations.foreach(relDesc => writeRelation(relDesc, relations))
     }
 
     def read(in: BufferedReader): Relations = {
@@ -114,49 +112,50 @@ trait RelationsTextFormat extends FormatCommons {
 
       construct(relations)
     }
+
   }
 
   /**
    * Reconstructs a Relations from a list of Relation
    * The order in which the relations are read matters and is defined by `existingRelations`.
    */
-  private def construct(relations: List[Relation[_, _]]) =
-    relations match {
-      case p :: bin :: lcn :: mri :: mre :: ii :: ie :: lii :: lie :: cn :: un :: bcn :: Nil =>
-        val srcProd = p.asInstanceOf[Relation[VirtualFileRef, VirtualFileRef]]
-        val libraryDep = bin.asInstanceOf[Relation[VirtualFileRef, VirtualFileRef]]
-        val libraryClassName = lcn.asInstanceOf[Relation[VirtualFileRef, String]]
-        val classes = cn.asInstanceOf[Relation[VirtualFileRef, String]]
-        val names = un.asInstanceOf[Relation[String, UsedName]]
-        val binaryClassName = bcn.asInstanceOf[Relation[String, String]]
+  private def construct(relations: List[Relation[_, _]]) = relations match {
+    case p :: bin :: lcn :: mri :: mre :: ii :: ie :: lii :: lie :: cn :: un :: bcn :: Nil =>
+      val srcProd = p.asInstanceOf[Relation[VirtualFileRef, VirtualFileRef]]
+      val libraryDep = bin.asInstanceOf[Relation[VirtualFileRef, VirtualFileRef]]
+      val libraryClassName = lcn.asInstanceOf[Relation[VirtualFileRef, String]]
+      val classes = cn.asInstanceOf[Relation[VirtualFileRef, String]]
+      val names = un.asInstanceOf[Relation[String, UsedName]]
+      val binaryClassName = bcn.asInstanceOf[Relation[String, String]]
 
-        val internal = InternalDependencies(
-          Map(
-            DependencyByMemberRef -> mri.asInstanceOf[Relation[String, String]],
-            DependencyByInheritance -> ii.asInstanceOf[Relation[String, String]],
-            LocalDependencyByInheritance -> lii.asInstanceOf[Relation[String, String]]
-          )
+      val internal = InternalDependencies(
+        Map(
+          DependencyByMemberRef -> mri.asInstanceOf[Relation[String, String]],
+          DependencyByInheritance -> ii.asInstanceOf[Relation[String, String]],
+          LocalDependencyByInheritance -> lii.asInstanceOf[Relation[String, String]]
         )
-        val external = ExternalDependencies(
-          Map(
-            DependencyByMemberRef -> mre.asInstanceOf[Relation[String, String]],
-            DependencyByInheritance -> ie.asInstanceOf[Relation[String, String]],
-            LocalDependencyByInheritance -> lie.asInstanceOf[Relation[String, String]]
-          )
+      )
+      val external = ExternalDependencies(
+        Map(
+          DependencyByMemberRef -> mre.asInstanceOf[Relation[String, String]],
+          DependencyByInheritance -> ie.asInstanceOf[Relation[String, String]],
+          LocalDependencyByInheritance -> lie.asInstanceOf[Relation[String, String]]
         )
-        Relations.make(
-          srcProd,
-          libraryDep,
-          libraryClassName,
-          internal,
-          external,
-          classes,
-          names,
-          binaryClassName
-        )
-      case _ =>
-        throw new java.io.IOException(
-          s"Expected to read ${allRelations.length} relations but read ${relations.length}."
-        )
-    }
+      )
+      Relations.make(
+        srcProd,
+        libraryDep,
+        libraryClassName,
+        internal,
+        external,
+        classes,
+        names,
+        binaryClassName
+      )
+    case _ =>
+      throw new java.io.IOException(
+        s"Expected to read ${allRelations.length} relations but read ${relations.length}."
+      )
+  }
+
 }

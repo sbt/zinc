@@ -95,9 +95,7 @@ class ClassToAPISpecification extends UnitSpec {
     val (apis, mainClasses, inherits) = ClassToAPI.process(classes)
     apis.foreach(callback.api(source, _))
     mainClasses.foreach(callback.mainClass(source, _))
-    inherits.map { case (from, to) =>
-      (from.getName, to.getName)
-    }
+    inherits.map { case (from, to) => (from.getName, to.getName) }
   }
 
 }

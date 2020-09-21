@@ -40,9 +40,7 @@ object ForkedJava {
     val (jArgs, nonJArgs) = options.partition(_.startsWith("-J"))
     val outputOption = CompilerArguments.outputOption(output)
     // val sources: Seq[String] = sources0.map(converter.toPath).map(_.toAbsolutePath.toString)
-    val sources = sources0 map { case x: PathBasedFile =>
-      x.toPath.toAbsolutePath.toString
-    }
+    val sources = sources0.map { case x: PathBasedFile => x.toPath.toAbsolutePath.toString }
     val allArguments = outputOption ++ nonJArgs ++ sources
 
     withArgumentFile(allArguments) { argsFile =>
@@ -77,6 +75,7 @@ object ForkedJava {
       f(argFile)
     }
   }
+
   // javac's argument file seems to allow naive space escaping with quotes.  escaping a quote with a backslash does not work
   private def escapeSpaces(s: String): String = '\"' + normalizeSlash(s) + '\"'
   private def normalizeSlash(s: String) = s.replace(File.separatorChar, '/')
@@ -88,10 +87,12 @@ object ForkedJava {
       case Some(jh) =>
         jh.resolve("bin").resolve(name).toAbsolutePath.toString
     }
+
 }
 
 /** An implementation of compiling java which forks a Javac instance. */
 final class ForkedJavaCompiler(javaHome: Option[Path]) extends XJavaCompiler {
+
   def run(
       sources: Array[VirtualFile],
       options: Array[String],
@@ -99,10 +100,12 @@ final class ForkedJavaCompiler(javaHome: Option[Path]) extends XJavaCompiler {
       incToolOptions: IncToolOptions,
       reporter: Reporter,
       log: XLogger
-  ): Boolean =
-    ForkedJava.launch(javaHome, "javac", sources, options, output, log, reporter)
+  ): Boolean = ForkedJava.launch(javaHome, "javac", sources, options, output, log, reporter)
+
 }
+
 final class ForkedJavadoc(javaHome: Option[Path]) extends XJavadoc {
+
   def run(
       sources: Array[VirtualFile],
       options: Array[String],
@@ -110,6 +113,6 @@ final class ForkedJavadoc(javaHome: Option[Path]) extends XJavadoc {
       incToolOptions: IncToolOptions,
       reporter: Reporter,
       log: XLogger
-  ): Boolean =
-    ForkedJava.launch(javaHome, "javadoc", sources, options, output, log, reporter)
+  ): Boolean = ForkedJava.launch(javaHome, "javadoc", sources, options, output, log, reporter)
+
 }

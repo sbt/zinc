@@ -24,22 +24,28 @@ class TestCallback extends AnalysisCallback {
   case class TestUsedName(name: String, scopes: util.EnumSet[UseScope])
 
   val classDependencies = new ArrayBuffer[(String, String, DependencyContext)]
+
   val binaryDependencies =
     new ArrayBuffer[(Path, String, String, DependencyContext)]
+
   val productClassesToSources =
     scala.collection.mutable.Map.empty[Path, VirtualFileRef]
+
   val usedNamesAndScopes =
     scala.collection.mutable.Map.empty[String, Set[TestUsedName]].withDefaultValue(Set.empty)
+
   val classNames =
     scala.collection.mutable.Map
       .empty[VirtualFileRef, Set[(String, String)]]
       .withDefaultValue(Set.empty)
+
   val apis: scala.collection.mutable.Map[VirtualFileRef, Set[ClassLike]] =
     scala.collection.mutable.Map.empty
 
   def usedNames = usedNamesAndScopes.mapValues(_.map(_.name))
 
   override def startSource(source: File): Unit = ???
+
   override def startSource(source: VirtualFile): Unit = {
     assert(
       !apis.contains(source),
@@ -144,12 +150,15 @@ class TestCallback extends AnalysisCallback {
 }
 
 object TestCallback {
+
   case class ExtractedClassDependencies(
       memberRef: Map[String, Set[String]],
       inheritance: Map[String, Set[String]],
       localInheritance: Map[String, Set[String]]
   )
+
   object ExtractedClassDependencies {
+
     def fromPairs(
         memberRefPairs: Seq[(String, String)],
         inheritancePairs: Seq[(String, String)],
@@ -171,5 +180,7 @@ object TestCallback {
       // convert all collections to immutable variants
       multiMap.toMap.mapValues(_.toSet).toMap.withDefaultValue(Set.empty)
     }
+
   }
+
 }

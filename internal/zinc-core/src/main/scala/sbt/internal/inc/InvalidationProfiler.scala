@@ -39,10 +39,12 @@ abstract class InvalidationProfiler {
 }
 
 object InvalidationProfiler {
+
   final val empty: InvalidationProfiler = new InvalidationProfiler {
     override def profileRun: RunProfiler = RunProfiler.empty
     override def registerRun(run: Zprof.ZincRun): Unit = ()
   }
+
 }
 
 class ZincInvalidationProfiler extends InvalidationProfiler with XInvalidationProfiler { profiler =>
@@ -51,6 +53,7 @@ class ZincInvalidationProfiler extends InvalidationProfiler with XInvalidationPr
    * files and class files (their paths), as well as other repeated strings. This is
    * done to keep the memory overhead of the profiler to a minimum. */
   private final val stringTable: ArrayBuffer[String] = new ArrayBuffer[String](1000)
+
   private final val stringTableIndices: mutable.HashMap[String, Int] =
     new mutable.HashMap[String, Int]
 
@@ -72,16 +75,16 @@ class ZincInvalidationProfiler extends InvalidationProfiler with XInvalidationPr
    *
    * @return An immutable zprof profile that can be persisted via protobuf.
    */
-  def toProfile: Zprof.Profile =
-    Zprof.Profile.newBuilder
-      .addAllRuns(runs.asJava)
-      .addAllStringTable(stringTable.toList.asJava)
-      .build
+  def toProfile: Zprof.Profile = Zprof.Profile.newBuilder
+    .addAllRuns(runs.asJava)
+    .addAllStringTable(stringTable.toList.asJava)
+    .build
 
   private[inc] class ZincProfilerImplementation
       extends AdaptedRunProfiler(new ZincXRunProfilerImplementation)
 
   private[inc] final class ZincXRunProfilerImplementation extends XRunProfiler {
+
     private def memo(string: String): Int = { // was "toStringTableIndices"
       stringTableIndices.getOrElseUpdate(
         string, {
@@ -192,16 +195,16 @@ class ZincInvalidationProfiler extends InvalidationProfiler with XInvalidationPr
         .build
     }
 
-    def toRun: Zprof.ZincRun =
-      Zprof.ZincRun.newBuilder
-        .setInitial(initialChanges)
-        .addAllCycles(cycleInvalidations.asJava)
-        .build
+    def toRun: Zprof.ZincRun = Zprof.ZincRun.newBuilder
+      .setInitial(initialChanges)
+      .addAllCycles(cycleInvalidations.asJava)
+      .build
 
     def registerRun(): Unit = profiler.registerRun(toRun)
 
     private def listMap[A, B](xs: Iterable[A])(f: A => B) = xs.iterator.map(f).toList.asJava
   }
+
 }
 
 /**
@@ -211,6 +214,7 @@ class ZincInvalidationProfiler extends InvalidationProfiler with XInvalidationPr
  * instance managed by the client.
  */
 abstract class RunProfiler {
+
   def timeCompilation(
       startNanos: Long,
       durationNanos: Long
@@ -237,6 +241,7 @@ abstract class RunProfiler {
       nextInvalidations: Iterable[String],
       shouldCompileIncrementally: Boolean
   ): Unit
+
 }
 
 object RunProfiler {
@@ -274,6 +279,7 @@ sealed class AdaptedRunProfiler(val profiler: XRunProfiler)
     nextInvalidations.toArray,
     shouldCompileIncrementally,
   )
+
 }
 
 trait InvalidationProfilerUtils {

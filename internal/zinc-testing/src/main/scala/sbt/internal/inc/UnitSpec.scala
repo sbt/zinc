@@ -30,6 +30,7 @@ object UnitSpec {
   val console = ConsoleOut.systemOut
   val consoleAppender = MainAppender.defaultScreen(console)
   val generateId: AtomicInteger = new AtomicInteger
+
   def newLogger(level: Level.Value): ManagedLogger = {
     val loggerName = "test-" + generateId.incrementAndGet
     val x = LogExchange.logger(loggerName)
@@ -37,4 +38,5 @@ object UnitSpec {
     LogExchange.bindLoggerAppenders(loggerName, (consoleAppender -> level) :: Nil)
     x
   }
+
 }

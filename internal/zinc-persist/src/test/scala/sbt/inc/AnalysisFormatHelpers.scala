@@ -72,11 +72,10 @@ object AnalysisFormatHelpers {
     compare(analysis, readContents.getAnalysis) && compare(commonSetup, readContents.getMiniSetup)
   }
 
-  def compare(left: CompileAnalysis, right: CompileAnalysis): Prop =
-    (left, right) match {
-      case (left: Analysis, right: Analysis) => compare(left, right)
-      case _                                 => falsified :| s"left: $left\n  right: $right"
-    }
+  def compare(left: CompileAnalysis, right: CompileAnalysis): Prop = (left, right) match {
+    case (left: Analysis, right: Analysis) => compare(left, right)
+    case _                                 => falsified :| s"left: $left\n  right: $right"
+  }
 
   // Compare two analyses with useful labelling when they aren't equal.
   private def compare(left: Analysis, right: Analysis): Prop = {
@@ -103,4 +102,5 @@ object AnalysisFormatHelpers {
 
   private def mapExtra(extra: Array[T2[String, String]]): Seq[(String, String)] =
     extra.toSeq.map(x => (x.get1(), x.get2()))
+
 }

@@ -60,6 +60,7 @@ abstract class IndexBasedZipOps extends CreateZip {
         Map.empty
       }
     }
+
   }
 
   /**
@@ -280,9 +281,7 @@ sealed trait CreateZip {
 
   def createZip(target: File, files: Seq[(File, String)]): Unit = {
     IO.createDirectory(target.getParentFile)
-    withZipOutput(target) { output =>
-      writeZip(files, output)
-    }
+    withZipOutput(target)(output => writeZip(files, output))
   }
 
   private def withZipOutput(file: File)(f: ZipOutputStream => Unit): Unit = {

@@ -46,4 +46,5 @@ final class JarUtils(outputDirs: Iterable[Path]) {
   def classNameInJar(jar: Path, classFilePath: String): String = {
     s"$jar!${if (isSlashSeparator) classFilePath else classFilePath.replace('/', File.separatorChar)}"
   }
+
 }

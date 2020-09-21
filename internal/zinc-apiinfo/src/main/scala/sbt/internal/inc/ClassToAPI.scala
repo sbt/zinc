@@ -53,11 +53,9 @@ object ClassToAPI {
     res
   }
 
-  def packages(c: Seq[Class[_]]): Set[String] =
-    c.flatMap(packageName).toSet
+  def packages(c: Seq[Class[_]]): Set[String] = c.flatMap(packageName).toSet
 
-  def isTopLevel(c: Class[_]): Boolean =
-    c.getEnclosingClass eq null
+  def isTopLevel(c: Class[_]): Boolean = c.getEnclosingClass eq null
 
   final class ClassMap private[sbt] (
       private[sbt] val memo: mutable.Map[String, Seq[api.ClassLikeDef]],
@@ -66,20 +64,22 @@ object ClassToAPI {
       private[sbt] val allNonLocalClasses: mutable.Set[api.ClassLike],
       private[sbt] val mainClasses: mutable.Set[String]
   ) {
+
     def clear(): Unit = {
       memo.clear()
       inherited.clear()
       lz.clear()
     }
+
   }
-  def emptyClassMap: ClassMap =
-    new ClassMap(
-      new mutable.HashMap,
-      new mutable.HashSet,
-      new mutable.ListBuffer,
-      new mutable.HashSet,
-      new mutable.HashSet
-    )
+
+  def emptyClassMap: ClassMap = new ClassMap(
+    new mutable.HashMap,
+    new mutable.HashSet,
+    new mutable.ListBuffer,
+    new mutable.HashSet,
+    new mutable.HashSet
+  )
 
   /**
    * Returns the canonical name given a class based on https://docs.oracle.com/javase/specs/jls/se11/html/jls-6.html#jls-6.7
@@ -222,6 +222,7 @@ object ClassToAPI {
 
   @inline private[this] def lzyS[T <: AnyRef](t: T): xsbti.api.Lazy[T] = SafeLazyProxy.strict(t)
   @inline final def lzy[T <: AnyRef](t: => T): xsbti.api.Lazy[T] = SafeLazyProxy(t)
+
   private[this] def lzy[T <: AnyRef](t: => T, cmap: ClassMap): xsbti.api.Lazy[T] = {
     val s = lzy(t)
     cmap.lz += s
@@ -247,8 +248,8 @@ object ClassToAPI {
     }
     @tailrec def flattenAll(interfaces: Seq[Type], accum: Seq[Type] = Seq.empty): Seq[Type] = {
       if (interfaces.nonEmpty) {
-        val raw = interfaces map { case p: ParameterizedType => p.getRawType; case i => i }
-        val children = raw flatMap {
+        val raw = interfaces.map { case p: ParameterizedType => p.getRawType; case i => i }
+        val children = raw.flatMap {
           case i: Class[_] => i.getGenericInterfaces; case _ => Seq.empty
         }
         flattenAll(children, accum ++ interfaces ++ children)
@@ -258,8 +259,8 @@ object ClassToAPI {
     accumulate(t).filterNot(_ == null).distinct
   }
 
-  def types(ts: Seq[Type]): Array[api.Type] =
-    ts.filter(_ ne null).map(reference).toArray
+  def types(ts: Seq[Type]): Array[api.Type] = ts.filter(_ ne null).map(reference).toArray
+
   def upperBounds(ts: Array[Type]): api.Type =
     api.Structure.of(lzy(types(ts)), lzyEmptyDefArray, lzyEmptyDefArray)
 
@@ -322,36 +323,35 @@ object ClassToAPI {
       )
     )
 
-  def methodToDef(enclPkg: Option[String])(m: Method): api.Def =
-    defLike(
-      m.getName,
-      m.getModifiers,
-      m.getDeclaredAnnotations,
-      typeParameterTypes(m),
-      m.getParameterAnnotations,
-      parameterTypes(m),
-      Option(returnType(m)),
-      exceptionTypes(m),
-      m.isVarArgs,
-      enclPkg
-    )
+  def methodToDef(enclPkg: Option[String])(m: Method): api.Def = defLike(
+    m.getName,
+    m.getModifiers,
+    m.getDeclaredAnnotations,
+    typeParameterTypes(m),
+    m.getParameterAnnotations,
+    parameterTypes(m),
+    Option(returnType(m)),
+    exceptionTypes(m),
+    m.isVarArgs,
+    enclPkg
+  )
 
   /** Use the unique constructor format defined in [[xsbt.ClassName.constructorName]]. */
   private def uniqueConstructorName(constructor: Constructor[_]): String =
     s"${name(constructor).replace('.', ';')};init;"
-  def constructorToDef(enclPkg: Option[String])(c: Constructor[_]): api.Def =
-    defLike(
-      uniqueConstructorName(c),
-      c.getModifiers,
-      c.getDeclaredAnnotations,
-      typeParameterTypes(c),
-      c.getParameterAnnotations,
-      parameterTypes(c),
-      None,
-      exceptionTypes(c),
-      c.isVarArgs,
-      enclPkg
-    )
+
+  def constructorToDef(enclPkg: Option[String])(c: Constructor[_]): api.Def = defLike(
+    uniqueConstructorName(c),
+    c.getModifiers,
+    c.getDeclaredAnnotations,
+    typeParameterTypes(c),
+    c.getParameterAnnotations,
+    parameterTypes(c),
+    None,
+    exceptionTypes(c),
+    c.isVarArgs,
+    enclPkg
+  )
 
   def defLike[T <: GenericDeclaration](
       name: String,
@@ -367,9 +367,7 @@ object ClassToAPI {
   ): api.Def = {
     val varArgPosition = if (varArgs) paramTypes.length - 1 else -1
     val isVarArg = List.tabulate(paramTypes.length)(_ == varArgPosition)
-    val pa = (paramAnnots, paramTypes, isVarArg).zipped map { case (a, p, v) =>
-      parameter(a, p, v)
-    }
+    val pa = (paramAnnots, paramTypes, isVarArg).zipped.map { case (a, p, v) => parameter(a, p, v) }
     val params = api.ParameterList.of(pa.toArray, false)
     val ret = retType match { case Some(rt) => reference(rt); case None => Empty }
     api.Def.of(
@@ -410,21 +408,22 @@ object ClassToAPI {
       staticDeclared: Seq[api.ClassDefinition],
       staticInherited: Seq[api.ClassDefinition]
   ) {
-    def ++(o: Defs) =
-      Defs(
-        declared ++ o.declared,
-        inherited ++ o.inherited,
-        staticDeclared ++ o.staticDeclared,
-        staticInherited ++ o.staticInherited
-      )
+
+    def ++(o: Defs) = Defs(
+      declared ++ o.declared,
+      inherited ++ o.inherited,
+      staticDeclared ++ o.staticDeclared,
+      staticInherited ++ o.staticInherited
+    )
+
   }
+
   def mergeMap[T <: Member](
       of: Class[_],
       self: Seq[T],
       public: Seq[T],
       f: T => api.ClassDefinition
-  ): Defs =
-    merge[T](of, self, public, x => f(x) :: Nil, splitStatic, _.getDeclaringClass != of)
+  ): Defs = merge[T](of, self, public, x => f(x) :: Nil, splitStatic, _.getDeclaringClass != of)
 
   def merge[T](
       of: Class[_],
@@ -435,17 +434,16 @@ object ClassToAPI {
       isInherited: T => Boolean
   ): Defs = {
     val (selfStatic, selfInstance) = splitStatic(self)
-    val (inheritedStatic, inheritedInstance) = splitStatic(public filter isInherited)
+    val (inheritedStatic, inheritedInstance) = splitStatic(public.filter(isInherited))
     Defs(
-      selfInstance flatMap f,
-      inheritedInstance flatMap f,
-      selfStatic flatMap f,
-      inheritedStatic flatMap f
+      selfInstance.flatMap(f),
+      inheritedInstance.flatMap(f),
+      selfStatic.flatMap(f),
+      inheritedStatic.flatMap(f)
     )
   }
 
-  def splitStatic[T <: Member](defs: Seq[T]): (Seq[T], Seq[T]) =
-    defs partition isStatic
+  def splitStatic[T <: Member](defs: Seq[T]): (Seq[T], Seq[T]) = defs.partition(isStatic)
 
   def isStatic(c: Class[_]): Boolean = Modifier.isStatic(c.getModifiers)
   def isStatic(a: Member): Boolean = Modifier.isStatic(a.getModifiers)
@@ -470,20 +468,19 @@ object ClassToAPI {
   def typeVariable[T <: GenericDeclaration](tv: TypeVariable[T]): String =
     name(tv.getGenericDeclaration) + " " + tv.getName
 
-  def reduceHash(in: Array[Byte]): Int =
-    in.foldLeft(0)((acc, b) => (acc * 43) ^ b)
+  def reduceHash(in: Array[Byte]): Int = in.foldLeft(0)((acc, b) => (acc * 43) ^ b)
 
-  def name(gd: GenericDeclaration): String =
-    gd match {
-      case c: Class[_]       => classCanonicalName(c)
-      case m: Method         => m.getName
-      case c: Constructor[_] => c.getName
-    }
+  def name(gd: GenericDeclaration): String = gd match {
+    case c: Class[_]       => classCanonicalName(c)
+    case m: Method         => m.getName
+    case c: Constructor[_] => c.getName
+  }
 
   def modifiers(i: Int): api.Modifiers = {
     import Modifier.{ isAbstract, isFinal }
     new api.Modifiers(isAbstract(i), false, isFinal(i), false, false, false, false, false)
   }
+
   def access(i: Int, pkg: Option[String]): api.Access = {
     import Modifier.{ isPublic, isPrivate, isProtected }
     if (isPublic(i)) Public
@@ -494,6 +491,7 @@ object ClassToAPI {
 
   def annotations(a: Array[Annotation]): Array[api.Annotation] =
     if (a.length == 0) emptyAnnotationArray else arrayMap(a)(annotation)
+
   def annotation(a: Annotation): api.Annotation =
     api.Annotation.of(reference(a.annotationType), Array(javaAnnotation(a.toString)))
 
@@ -513,10 +511,10 @@ object ClassToAPI {
     }
 
   // full information not available from reflection
-  def javaAnnotation(s: String): api.AnnotationArgument =
-    api.AnnotationArgument.of("toString", s)
+  def javaAnnotation(s: String): api.AnnotationArgument = api.AnnotationArgument.of("toString", s)
 
   def array(tpe: api.Type): api.Type = api.Parameterized.of(ArrayRef, Array(tpe))
+
   def reference(c: Class[_]): api.Type =
     if (c.isArray) array(reference(c.getComponentType))
     else if (c.isPrimitive) primitive(c.getName)
@@ -544,22 +542,22 @@ object ClassToAPI {
     api.Parameterized.of(base, args)
   }
 
-  def reference(t: Type): api.Type =
-    t match {
-      case _: WildcardType       => reference("_")
-      case tv: TypeVariable[_]   => api.ParameterRef.of(typeVariable(tv))
-      case pt: ParameterizedType => referenceP(pt)
-      case gat: GenericArrayType => array(reference(gat.getGenericComponentType))
-      case c: Class[_]           => reference(c)
-    }
+  def reference(t: Type): api.Type = t match {
+    case _: WildcardType       => reference("_")
+    case tv: TypeVariable[_]   => api.ParameterRef.of(typeVariable(tv))
+    case pt: ParameterizedType => referenceP(pt)
+    case gat: GenericArrayType => array(reference(gat.getGenericComponentType))
+    case c: Class[_]           => reference(c)
+  }
 
-  def pathFromString(s: String): api.Path =
-    pathFromStrings(s.split("\\."))
+  def pathFromString(s: String): api.Path = pathFromStrings(s.split("\\."))
+
   def pathFromStrings(ss: Seq[String]): api.Path =
     api.Path.of((ss.map(api.Id.of(_)) :+ ThisRef).toArray)
+
   def packageName(c: Class[_]) = packageAndName(c)._1
-  def packageAndName(c: Class[_]): (Option[String], String) =
-    packageAndName(c.getName)
+  def packageAndName(c: Class[_]): (Option[String], String) = packageAndName(c.getName)
+
   def packageAndName(name: String): (Option[String], String) = {
     val lastDot = name.lastIndexOf('.')
     if (lastDot >= 0)
@@ -575,8 +573,9 @@ object ClassToAPI {
   val Unqualified = api.Unqualified.of()
   val Private = api.Private.of(Unqualified)
   val Protected = api.Protected.of(Unqualified)
+
   def packagePrivate(pkg: Option[String]): api.Access =
-    api.Private.of(api.IdQualifier.of(pkg getOrElse ""))
+    api.Private.of(api.IdQualifier.of(pkg.getOrElse("")))
 
   val ArrayRef = reference("scala.Array")
   val Throws = reference("scala.throws")
@@ -584,10 +583,13 @@ object ClassToAPI {
 
   private[this] def PrimitiveNames =
     Seq("boolean", "byte", "char", "short", "int", "long", "float", "double")
+
   private[this] def PrimitiveMap = PrimitiveNames.map(j => (j, j.capitalize)) :+ ("void" -> "Unit")
+
   private[this] val PrimitiveRefs = PrimitiveMap.map { case (n, sn) =>
     (n, reference("scala." + sn))
   }.toMap
+
   def primitive(name: String): api.Type = PrimitiveRefs(name)
 
   private[this] def returnType(f: Field): Type = f.getGenericType
@@ -596,16 +598,16 @@ object ClassToAPI {
 
   private[this] def exceptionTypes(m: Method): Array[Type] = m.getGenericExceptionTypes
 
-  private[this] def parameterTypes(m: Method): Array[Type] =
-    ignoreNulls(m.getGenericParameterTypes)
+  private[this] def parameterTypes(m: Method): Array[Type] = ignoreNulls(m.getGenericParameterTypes)
 
   private[this] def parameterTypes(c: Constructor[_]): Array[Type] =
     ignoreNulls(c.getGenericParameterTypes)
 
   private[this] def typeParameterTypes[T](m: Constructor[T]): Array[TypeVariable[Constructor[T]]] =
     m.getTypeParameters
+
   private[this] def typeParameterTypes[T](m: Class[T]): Array[TypeVariable[Class[T]]] =
     m.getTypeParameters
-  private[this] def typeParameterTypes(m: Method): Array[TypeVariable[Method]] =
-    m.getTypeParameters
+
+  private[this] def typeParameterTypes(m: Method): Array[TypeVariable[Method]] = m.getTypeParameters
 }

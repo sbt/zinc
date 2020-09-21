@@ -16,9 +16,10 @@ import xsbti.api._
 import scala.util.Try
 
 object DefaultShowAPI {
+
   private lazy val defaultNesting = Try {
     java.lang.Integer.parseInt(sys.props.get("sbt.inc.apidiff.depth").get)
-  } getOrElse 2
+  }.getOrElse(2)
 
   def apply(d: Definition) = ShowAPI.showDefinition(d)(defaultNesting)
   def apply(d: Type) = ShowAPI.showType(d)(defaultNesting)
@@ -26,16 +27,17 @@ object DefaultShowAPI {
 }
 
 object ShowAPI {
+
   private lazy val numDecls = Try {
     java.lang.Integer.parseInt(sys.props.get("sbt.inc.apidiff.decls").get)
-  } getOrElse 0
+  }.getOrElse(0)
 
   private def truncateDecls(decls: Array[ClassDefinition]): Array[ClassDefinition] =
     if (numDecls <= 0) decls else decls.take(numDecls)
+
   private def lines(ls: Seq[String]): String = ls.mkString("\n", "\n", "\n")
 
-  def showApi(c: ClassLike)(implicit nesting: Int) =
-    showDefinition(c)
+  def showApi(c: ClassLike)(implicit nesting: Int) = showDefinition(c)
 
   def showDefinition(d: Definition)(implicit nesting: Int): String = d match {
     case v: Val => showMonoDef(v, "val") + ": " + showType(v.tpe)
@@ -95,6 +97,7 @@ object ShowAPI {
   }
 
   private def showPath(p: Path): String = p.components.map(showPathComponent).mkString(".")
+
   private def showPathComponent(pc: PathComponent) = pc match {
     case s: Super => "super[" + showPath(s.qualifier) + "]"
     case _: This  => "this"
@@ -102,6 +105,7 @@ object ShowAPI {
   }
 
   private def space(s: String) = if (s.isEmpty) s else s + " "
+
   private def showMonoDef(d: Definition, label: String)(implicit nesting: Int): String =
     space(showAnnotations(d.annotations)) + space(showAccess(d.access)) + space(
       showModifiers(d.modifiers)
@@ -109,8 +113,7 @@ object ShowAPI {
 
   private def showPolyDef(d: ParameterizedDefinition, label: String)(implicit
       nesting: Int
-  ): String =
-    showMonoDef(d, label) + showTypeParameters(d.typeParameters)
+  ): String = showMonoDef(d, label) + showTypeParameters(d.typeParameters)
 
   private def showTypeParameters(tps: Seq[TypeParameter])(implicit nesting: Int): String =
     if (tps.isEmpty) ""
@@ -123,17 +126,17 @@ object ShowAPI {
 
   private def showAnnotations(as: Seq[Annotation])(implicit nesting: Int) =
     as.map(showAnnotation).mkString(" ")
-  private def showAnnotation(a: Annotation)(implicit nesting: Int) =
-    "@" + showType(a.base) + (
-      if (a.arguments.isEmpty) ""
-      else a.arguments.map(a => a.name + " = " + a.value).mkString("(", ", ", ")")
-    )
+
+  private def showAnnotation(a: Annotation)(implicit nesting: Int) = "@" + showType(a.base) + (
+    if (a.arguments.isEmpty) ""
+    else a.arguments.map(a => a.name + " = " + a.value).mkString("(", ", ", ")")
+  )
 
   private def showBounds(lower: Type, upper: Type)(implicit nesting: Int): String =
     ">: " + showType(lower) + " <: " + showType(upper)
 
-  private def showValueParams(ps: Seq[ParameterList])(implicit nesting: Int): String =
-    ps.map(pl =>
+  private def showValueParams(ps: Seq[ParameterList])(implicit nesting: Int): String = ps
+    .map(pl =>
       pl.parameters
         .map(mp =>
           mp.name + ": " + showParameterModifier(showType(mp.tpe), mp.modifier) + (if (
@@ -143,7 +146,8 @@ object ShowAPI {
                                                                                    else "")
         )
         .mkString(if (pl.isImplicit) "(implicit " else "(", ", ", ")")
-    ).mkString("")
+    )
+    .mkString("")
 
   private def showParameterModifier(base: String, pm: ParameterModifier): String = pm match {
     case ParameterModifier.Plain    => base
@@ -170,15 +174,14 @@ object ShowAPI {
     case i: IdQualifier   => "[" + i.value + "]"
   }
 
-  private def showModifiers(m: Modifiers) =
-    List(
-      (m.isOverride, "override"),
-      (m.isFinal, "final"),
-      (m.isSealed, "sealed"),
-      (m.isImplicit, "implicit"),
-      (m.isAbstract, "abstract"),
-      (m.isLazy, "lazy")
-    ).collect { case (true, mod) => mod }.mkString(" ")
+  private def showModifiers(m: Modifiers) = List(
+    (m.isOverride, "override"),
+    (m.isFinal, "final"),
+    (m.isSealed, "sealed"),
+    (m.isImplicit, "implicit"),
+    (m.isAbstract, "abstract"),
+    (m.isLazy, "lazy")
+  ).collect { case (true, mod) => mod }.mkString(" ")
 
   private def showVariance(v: Variance) = v match {
     case Variance.Invariant     => ""
@@ -188,10 +191,14 @@ object ShowAPI {
 
   // limit nesting to prevent cycles and generally keep output from getting humongous
   private def showNestedType(tp: Type)(implicit nesting: Int) = showType(tp)(nesting - 1)
+
   private def showNestedTypeParameter(tp: TypeParameter)(implicit nesting: Int) =
     showTypeParameter(tp)(nesting - 1)
+
   private def showNestedTypeParameters(tps: Seq[TypeParameter])(implicit nesting: Int) =
     showTypeParameters(tps)(nesting - 1)
+
   private def showNestedDefinition(d: Definition)(implicit nesting: Int) =
     showDefinition(d)(nesting - 1)
+
 }

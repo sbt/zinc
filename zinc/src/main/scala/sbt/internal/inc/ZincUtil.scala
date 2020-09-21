@@ -66,8 +66,7 @@ object ZincUtil {
       scalaInstance: ScalaInstance,
       compilerBridgeJar: File,
       classpathOptions: ClasspathOptions
-  ): AnalyzingCompiler =
-    scalaCompiler(scalaInstance, compilerBridgeJar.toPath, classpathOptions)
+  ): AnalyzingCompiler = scalaCompiler(scalaInstance, compilerBridgeJar.toPath, classpathOptions)
 
   /**
    * Instantiate a Scala compiler that is instrumented to analyze dependencies.
@@ -114,8 +113,7 @@ object ZincUtil {
       classpathOptions: ClasspathOptions,
       javaHome: Option[Path],
       scalac: ScalaCompiler
-  ): Compilers =
-    compilers(JavaTools.directOrFork(instance, classpathOptions, javaHome), scalac)
+  ): Compilers = compilers(JavaTools.directOrFork(instance, classpathOptions, javaHome), scalac)
 
   def compilers(javaTools: XJavaTools, scalac: ScalaCompiler): Compilers = {
     Compilers.of(scalac, javaTools)
@@ -132,4 +130,5 @@ object ZincUtil {
       compilerBridgeJar: File,
   ): CompilerBridgeProvider =
     ZincCompilerUtil.constantBridgeProvider(scalaInstance, compilerBridgeJar)
+
 }

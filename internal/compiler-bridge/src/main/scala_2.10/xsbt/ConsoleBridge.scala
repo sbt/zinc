@@ -17,6 +17,7 @@ import scala.tools.nsc.reporters.Reporter
 import scala.tools.nsc.{ GenericRunnerCommand, Settings }
 
 class ConsoleBridge extends xsbti.compile.ConsoleInterface1 {
+
   override def commandArguments(
       args: Array[String],
       bootClasspathString: String,
@@ -57,7 +58,7 @@ class ConsoleBridge extends xsbti.compile.ConsoleInterface1 {
         } else
           super.createInterpreter()
 
-        for ((id, value) <- bindNames zip bindValues)
+        for ((id, value) <- bindNames.zip(bindValues))
           intp.quietBind(NamedParam.clazz(id, value))
 
         if (!initialCommands.isEmpty)
@@ -77,9 +78,11 @@ class ConsoleBridge extends xsbti.compile.ConsoleInterface1 {
 
     ()
   }
+
 }
 
 object MakeSettings {
+
   def apply(args: List[String], log: Logger): Settings = {
     val command = new GenericRunnerCommand(args, message => log.error(Message(message)))
     if (command.ok)
@@ -106,4 +109,5 @@ object MakeSettings {
     settings.Yreplsync.value = true
     settings
   }
+
 }

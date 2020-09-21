@@ -127,6 +127,7 @@ trait GlobalHelpers { self: Compat =>
         }
       }
     }
+
   }
 
   /** Returns true if given tree contains macro attchment. In such case calls func on tree from attachment. */
@@ -145,17 +146,16 @@ trait GlobalHelpers { self: Compat =>
   }
 
   object MacroExpansionOf {
+
     def unapply(tree: Tree): Option[Tree] = {
       import analyzer._ // this is where MEA lives in 2.11.x
-      tree.attachments.all.collect { case att: MacroExpansionAttachment =>
-        att.expandee
-      }.headOption
+      tree.attachments.all.collect { case att: MacroExpansionAttachment => att.expandee }.headOption
     }
+
   }
 
   /** Return the enclosing class or the module class if it's a module. */
-  def enclOrModuleClass(s: Symbol): Symbol =
-    if (s.isModule) s.moduleClass else s.enclClass
+  def enclOrModuleClass(s: Symbol): Symbol = if (s.isModule) s.moduleClass else s.enclClass
 
   /** Define common error messages for error reporting and assertions. */
   object Feedback {
@@ -164,10 +164,13 @@ trait GlobalHelpers { self: Compat =>
 
     def noOriginFileForExternalSymbol(symbol: Symbol) =
       s"The symbol $symbol comes from an unknown source or compiled source -- ignoring."
+
     def expectedClassSymbol(culprit: Symbol): String =
       s"The ${culprit.fullName} defined at ${culprit.fullLocationString} is not a class symbol."
+
     def missingEnclosingClass(culprit: Symbol, owner: Symbol): String =
       s"No enclosing class. Discarding dependency on $culprit (currentOwner = $owner)."
+
     def noTopLevelMember(found: String) = s"""
       |Found $found but no class, trait or object is defined in the compilation unit.
       |The incremental compiler cannot record the dependency information in such case.
@@ -178,5 +181,6 @@ trait GlobalHelpers { self: Compat =>
   final def isSyntheticCoreClass(sym: Symbol): Boolean = {
     syntheticCoreClassSet.contains(sym)
   }
+
   private val syntheticCoreClassSet = definitions.syntheticCoreClasses.toSet[Symbol]
 }

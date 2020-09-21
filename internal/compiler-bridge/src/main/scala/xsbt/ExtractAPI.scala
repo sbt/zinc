@@ -69,8 +69,10 @@ class ExtractAPI[GlobalType <: Global](
   private[this] val typeCache = perRunCaches.newMap[(Symbol, Type), xsbti.api.Type]()
   // these caches are necessary for correctness
   private[this] val structureCache = perRunCaches.newMap[Symbol, xsbti.api.Structure]()
+
   private[this] val classLikeCache =
     perRunCaches.newMap[(Symbol, Symbol), xsbti.api.ClassLikeDef]()
+
   private[this] val pending = perRunCaches.newSet[xsbti.api.Lazy[_]]()
 
   private[this] val emptyStringArray = Array.empty[String]
@@ -141,13 +143,15 @@ class ExtractAPI[GlobalType <: Global](
       assert(nestingLevel >= 0)
       typeVariables.foreach(renameTo.remove)
     }
+
     def enterExistentialTypeVariables(typeVariables: Seq[Symbol]): Unit = {
       nestingLevel += 1
-      typeVariables.zipWithIndex foreach { case (tv, i) =>
+      typeVariables.zipWithIndex.foreach { case (tv, i) =>
         val newName = "existential_" + nestingLevel + "_" + i
         renameTo(tv) = newName
       }
     }
+
     def renaming(symbol: Symbol): Option[String] = renameTo.get(symbol)
   }
 
@@ -171,19 +175,23 @@ class ExtractAPI[GlobalType <: Global](
     else {
       val toProcess = pending.toList
       pending.clear()
-      toProcess foreach { _.get() }
+      toProcess.foreach(_.get())
       forceStructures()
     }
 
   private def thisPath(sym: Symbol) = path(pathComponents(sym, Constants.thisPath :: Nil))
+
   private def path(components: List[PathComponent]) =
     xsbti.api.Path.of(components.toArray[PathComponent])
+
   private def pathComponents(sym: Symbol, postfix: List[PathComponent]): List[PathComponent] = {
     if (sym == NoSymbol || sym.isRoot || sym.isEmptyPackageClass || sym.isRootPackage) postfix
     else pathComponents(sym.owner, xsbti.api.Id.of(simpleName(sym)) :: postfix)
   }
+
   private def types(in: Symbol, t: List[Type]): Array[xsbti.api.Type] =
     t.toArray[Type].map(processType(in, _))
+
   private def projectionType(in: Symbol, pre: Type, sym: Symbol) = {
     if (pre == NoPrefix) {
       if (sym.isLocalClass || sym.isRoot || sym.isRootPackage) Constants.emptyType
@@ -197,6 +205,7 @@ class ExtractAPI[GlobalType <: Global](
     } else if (sym.isRoot || sym.isRootPackage) Constants.emptyType
     else xsbti.api.Projection.of(processType(in, pre), simpleName(sym))
   }
+
   private def reference(sym: Symbol): xsbti.api.ParameterRef =
     xsbti.api.ParameterRef.of(tparamID(sym))
 
@@ -319,7 +328,9 @@ class ExtractAPI[GlobalType <: Global](
     val t = viewer(in).memberInfo(s)
     build(t, Array(), Nil)
   }
+
   private def hasDefault(s: Symbol) = s != NoSymbol && s.hasFlag(Flags.DEFAULTPARAM)
+
   private def fieldDef[T](
       in: Symbol,
       s: Symbol,
@@ -336,10 +347,12 @@ class ExtractAPI[GlobalType <: Global](
     val t2 = if (keepConst) t else dropConst(t)
     create(simpleName(s), getAccess(s), getModifiers(s), annotations(in, s), processType(in, t2))
   }
+
   private def dropConst(t: Type): Type = t match {
     case ConstantType(constant) => constant.tpe
     case _                      => t
   }
+
   private def dropNullary(t: Type): Type = t match {
     case NullaryMethodType(un) => un
     case _                     => t
@@ -375,10 +388,11 @@ class ExtractAPI[GlobalType <: Global](
 
   private def structure(info: Type, s: Symbol): xsbti.api.Structure =
     structureCache.getOrElseUpdate(s, mkStructure(info, s))
+
   private def structureWithInherited(info: Type, s: Symbol): xsbti.api.Structure =
     structureCache.getOrElseUpdate(s, mkStructureWithInherited(info, s))
 
-  private def removeConstructors(ds: List[Symbol]): List[Symbol] = ds filter { !_.isConstructor }
+  private def removeConstructors(ds: List[Symbol]): List[Symbol] = ds.filter(!_.isConstructor)
 
   /**
    * Create structure as-is, without embedding ancestors
@@ -439,8 +453,10 @@ class ExtractAPI[GlobalType <: Global](
       lzy(processDefinitions(s, inherited))
     )
   }
+
   private def processDefinitions(in: Symbol, defs: List[Symbol]): Array[xsbti.api.ClassDefinition] =
     sort(defs.toArray).flatMap((d: Symbol) => definition(in, d))
+
   private[this] def sort(defs: Array[Symbol]): Array[Symbol] = {
     Arrays.sort(defs, sortClasses)
     defs
@@ -464,6 +480,7 @@ class ExtractAPI[GlobalType <: Global](
     else
       None
   }
+
   private def ignoreClass(sym: Symbol): Boolean =
     sym.isLocalClass || sym.isAnonymousClass || sym.fullName.endsWith(tpnme.LOCAL_CHILD.toString)
 
@@ -475,6 +492,7 @@ class ExtractAPI[GlobalType <: Global](
     // `isParamAccessor` does not exist in all supported versions of Scala, so the flag check is done directly
     (getter == NoSymbol && !sym.hasFlag(Flags.PARAMACCESSOR)) || (getter eq sym)
   }
+
   private def getModifiers(s: Symbol): xsbti.api.Modifiers = {
     import Flags._
     val absOver = s.hasFlag(ABSOVERRIDE)
@@ -493,6 +511,7 @@ class ExtractAPI[GlobalType <: Global](
   }
 
   private def isImplicit(s: Symbol) = s.hasFlag(Flags.IMPLICIT)
+
   private def getAccess(c: Symbol): xsbti.api.Access = {
     if (c.isPublic) Constants.public
     else if (c.isPrivateLocal) Constants.privateLocal
@@ -512,13 +531,16 @@ class ExtractAPI[GlobalType <: Global](
    * (a specialized version of substThisAndSym)
    */
   class SuppressSymbolRef(forbidden: Symbol) extends TypeMap {
+
     def apply(tp: Type) =
       if (tp.typeSymbolDirect == forbidden) NoType
       else mapOver(tp)
+
   }
 
   private def processType(in: Symbol, t: Type): xsbti.api.Type =
     typeCache.getOrElseUpdate((in, t), makeType(in, t))
+
   private def makeType(in: Symbol, t: Type): xsbti.api.Type = {
 
     val dealiased = t match {
@@ -605,6 +627,7 @@ class ExtractAPI[GlobalType <: Global](
         Constants.emptyType
     }
   }
+
   private def makeExistentialType(in: Symbol, t: ExistentialType): xsbti.api.Existential = {
     val ExistentialType(typeVariables, qualified) = t
     existentialRenamings.enterExistentialTypeVariables(typeVariables)
@@ -616,10 +639,13 @@ class ExtractAPI[GlobalType <: Global](
       existentialRenamings.leaveExistentialTypeVariables(typeVariables)
     }
   }
+
   private def typeParameters(in: Symbol, s: Symbol): Array[xsbti.api.TypeParameter] =
     typeParameters(in, s.typeParams)
+
   private def typeParameters(in: Symbol, s: List[Symbol]): Array[xsbti.api.TypeParameter] =
     s.map(typeParameter(in, _)).toArray[xsbti.api.TypeParameter]
+
   private def typeParameter(in: Symbol, s: Symbol): xsbti.api.TypeParameter = {
     val varianceInt = s.variance
     import xsbti.api.Variance._
@@ -648,16 +674,16 @@ class ExtractAPI[GlobalType <: Global](
       case x => error("Unknown type parameter info: " + x.getClass)
     }
   }
-  private def tparamID(s: Symbol): String =
-    existentialRenamings.renaming(s) match {
-      case Some(rename) =>
-        // can't use debuglog because it doesn't exist in Scala 2.9.x
-        if (settings.debug.value)
-          log("Renaming existential type variable " + s.fullName + " to " + rename)
-        rename
-      case None =>
-        s.fullName
-    }
+
+  private def tparamID(s: Symbol): String = existentialRenamings.renaming(s) match {
+    case Some(rename) =>
+      // can't use debuglog because it doesn't exist in Scala 2.9.x
+      if (settings.debug.value)
+        log("Renaming existential type variable " + s.fullName + " to " + rename)
+      rename
+    case None =>
+      s.fullName
+  }
 
   /* Representation for the self type of a class symbol `s`, or `emptyType` for an *unascribed* self variable (or no self variable at all).
      Only the self variable's explicitly ascribed type is relevant for incremental compilation. */
@@ -689,6 +715,7 @@ class ExtractAPI[GlobalType <: Global](
 
   private def classLike(in: Symbol, c: Symbol): ClassLikeDef =
     classLikeCache.getOrElseUpdate((in, c), mkClassLike(in, c))
+
   private def mkClassLike(in: Symbol, c: Symbol): ClassLikeDef = {
     // Normalize to a class symbol, and initialize it.
     // (An object -- aka module -- also has a term symbol,
@@ -748,10 +775,12 @@ class ExtractAPI[GlobalType <: Global](
   // TODO: could we restrict ourselves to classes, ignoring the term symbol for modules,
   // since everything we need to track about a module is in the module's class (`moduleSym.moduleClass`)?
   private[this] def isClass(s: Symbol) = s.isClass || s.isModule
+
   // necessary to ensure a stable ordering of classes in the definitions list:
   //  modules and classes come first and are sorted by name
   // all other definitions come later and are not sorted
   private[this] val sortClasses = new Comparator[Symbol] {
+
     def compare(a: Symbol, b: Symbol) = {
       val aIsClass = isClass(a)
       val bIsClass = isClass(b)
@@ -770,7 +799,9 @@ class ExtractAPI[GlobalType <: Global](
       else
         1
     }
+
   }
+
   private object Constants {
     val local = xsbti.api.ThisQualifier.of()
     val public = xsbti.api.Public.of()
@@ -794,7 +825,7 @@ class ExtractAPI[GlobalType <: Global](
       // compat stub for 2.8/2.9
       class IsStatic(ann: AnnotationInfo) {
         def isStatic: Boolean =
-          ann.atp.typeSymbol isNonBottomSubClass definitions.StaticAnnotationClass
+          ann.atp.typeSymbol.isNonBottomSubClass(definitions.StaticAnnotationClass)
       }
       implicit def compat(ann: AnnotationInfo): IsStatic = new IsStatic(ann)
 
@@ -807,6 +838,7 @@ class ExtractAPI[GlobalType <: Global](
     case _: StubSymbol => true
     case _             => false
   }
+
 }
 
 object ExtractAPI {

@@ -17,9 +17,7 @@ import java.nio.file.{ Files, Path }
 import net.openhft.hashing.LongHashFunction
 
 object HashUtil {
-  def farmHash(bytes: Array[Byte]): Long =
-    LongHashFunction.farmNa().hashBytes(bytes)
+  def farmHash(bytes: Array[Byte]): Long = LongHashFunction.farmNa().hashBytes(bytes)
 
-  def farmHash(path: Path): Long =
-    farmHash(Files.readAllBytes(path))
+  def farmHash(path: Path): Long = farmHash(Files.readAllBytes(path))
 }

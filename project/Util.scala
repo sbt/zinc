@@ -9,8 +9,9 @@ object Util {
   def lastCompilationTime(analysis0: CompileAnalysis): Long = {
     val analysis = analysis0 match { case a: sbt.internal.inc.Analysis => a }
     val lastCompilation = analysis.compilations.allCompilations.lastOption
-    lastCompilation.map(_.getStartTime) getOrElse 0L
+    lastCompilation.map(_.getStartTime).getOrElse(0L)
   }
+
   def generateVersionFile(
       version: String,
       dir: File,
@@ -34,20 +35,21 @@ object Util {
     }
     f :: Nil
   }
+
   def versionLine(version: String): String = "version=" + version
+
   def containsVersion(propFile: File, version: String): Boolean =
     IO.read(propFile).contains(versionLine(version))
 
-  def sampleProjectSettings(ext: String) =
-    Seq(
-      (scalaSource in Compile) := baseDirectory.value / "src",
-      genTestResTask := {
-        def resurcesDir = (file("zinc") / "src" / "test" / "resources" / "bin").getAbsoluteFile
-        val target = resurcesDir / s"${name.value}.$ext"
-        IO.copyFile((packageBin in Compile).value, target)
-        Seq(target)
-      }
-    ) ++ relaxNon212
+  def sampleProjectSettings(ext: String) = Seq(
+    (scalaSource in Compile) := baseDirectory.value / "src",
+    genTestResTask := {
+      def resurcesDir = (file("zinc") / "src" / "test" / "resources" / "bin").getAbsoluteFile
+      val target = resurcesDir / s"${name.value}.$ext"
+      IO.copyFile((packageBin in Compile).value, target)
+      Seq(target)
+    }
+  ) ++ relaxNon212
 
   def relaxNon212: Seq[Setting[_]] = Seq(
     scalacOptions := {
@@ -55,11 +57,13 @@ object Util {
       scalaBinaryVersion.value match {
         case "2.12" => old
         case _ =>
-          old filterNot Set(
-            "-Xfatal-warnings",
-            "-deprecation",
-            "-Ywarn-unused",
-            "-Ywarn-unused-import"
+          old.filterNot(
+            Set(
+              "-Xfatal-warnings",
+              "-deprecation",
+              "-Ywarn-unused",
+              "-Ywarn-unused-import"
+            )
           )
       }
     }
@@ -67,6 +71,7 @@ object Util {
 
   import com.typesafe.tools.mima.core._
   import com.typesafe.tools.mima.core.ProblemFilters._
+
   def excludeInternalProblems = {
     Seq(
       exclude[DirectMissingMethodProblem]("sbt.internal.*"),
@@ -83,4 +88,5 @@ object Util {
       exclude[DirectAbstractMethodProblem]("sbt.internal.*"),
     )
   }
+
 }

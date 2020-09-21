@@ -44,23 +44,22 @@ final class CompilerArguments(
     scalaInstance: xsbti.compile.ScalaInstance,
     cpOptions: xsbti.compile.ClasspathOptions
 ) {
+
   def makeArguments(
       sources: Seq[Path],
       classpath: Seq[Path],
       output: Option[Path],
       options: Seq[String]
-  ): Seq[String] =
-    CompilerArguments.outputOption(output) ++
-      makeArguments(sources, classpath, options)
+  ): Seq[String] = CompilerArguments.outputOption(output) ++
+    makeArguments(sources, classpath, options)
 
   def makeArguments(
       sources: Seq[Path],
       classpath: Seq[Path],
       output: Output,
       options: Seq[String]
-  ): Seq[String] =
-    CompilerArguments.outputOption(output) ++
-      makeArguments(sources, classpath, options)
+  ): Seq[String] = CompilerArguments.outputOption(output) ++
+    makeArguments(sources, classpath, options)
 
   def makeArguments(
       sources: Seq[Path],
@@ -133,20 +132,17 @@ final class CompilerArguments(
     if (!cpOptions.autoBoot) Nil
     else IO.parseClasspath(createBootClasspath(addLibrary)).map(_.toPath)
 
-  def bootClasspathFor(classpath: Seq[Path]) =
-    bootClasspath(hasLibrary(classpath))
+  def bootClasspathFor(classpath: Seq[Path]) = bootClasspath(hasLibrary(classpath))
 
-  def extClasspath: Seq[Path] =
-    List("java.ext.dirs", "scala.ext.dirs").flatMap(k =>
-      (IO.parseClasspath(System.getProperty(k, "")) * "*.jar").get().map(_.toPath)
-    )
+  def extClasspath: Seq[Path] = List("java.ext.dirs", "scala.ext.dirs").flatMap(k =>
+    (IO.parseClasspath(System.getProperty(k, "")) * "*.jar").get().map(_.toPath)
+  )
 
   private[this] def include(flag: Boolean, jars: Path*) =
     if (flag) jars
     else Nil
 
-  private[this] def abs(files: Seq[Path]) =
-    files.map(_.toAbsolutePath.toString).sortWith(_ < _)
+  private[this] def abs(files: Seq[Path]) = files.map(_.toAbsolutePath.toString).sortWith(_ < _)
 
   private[this] def checkScalaHomeUnset(): Unit = {
     val scalaHome = System.getProperty("scala.home")
@@ -161,6 +157,7 @@ final class CompilerArguments(
     name.contains(ArtifactInfo.ScalaLibraryID) ||
     scalaInstance.libraryJars.exists(_.getName == name)
   }
+
 }
 
 object CompilerArguments {
@@ -170,8 +167,7 @@ object CompilerArguments {
 
   def abs(files: Set[Path]): List[String] = abs(files.toList)
 
-  def absString(files: Seq[Path]): String =
-    abs(files).mkString(java.io.File.pathSeparator)
+  def absString(files: Seq[Path]): String = abs(files).mkString(java.io.File.pathSeparator)
 
   def absString(files: Set[Path]): String = absString(files.toList)
 
@@ -195,4 +191,5 @@ object CompilerArguments {
       .map(output => List("-d", output.toAbsolutePath.toString))
       .getOrElse(Nil)
   }
+
 }

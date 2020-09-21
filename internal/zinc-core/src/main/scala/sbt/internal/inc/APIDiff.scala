@@ -17,14 +17,10 @@ import xsbt.api.DefaultShowAPI
 
 import xsbti.api.Companions
 
-/**
- * A class which computes diffs (unified diffs) between two textual representations of an API.
- */
+/** A class which computes diffs (unified diffs) between two textual representations of an API. */
 private[inc] class APIDiff {
 
-  /**
-   * Generates an unified diff between textual representations of `api1` and `api2`.
-   */
+  /** Generates an unified diff between textual representations of `api1` and `api2`. */
   def generateApiDiff(
       fileName: String,
       api1: Companions,
@@ -183,9 +179,8 @@ private[inc] class APIDiff {
           val (x1, x2) = x.splitAt(xmid)
           val leftScore = nwScore(x1, y)
           val rightScore = nwScore(x2.reverse, y.reverse)
-          val scoreSum = (leftScore zip rightScore.reverse).map { case (left, right) =>
-            left + right
-          }
+          val scoreSum =
+            (leftScore.zip(rightScore.reverse)).map { case (left, right) => left + right }
           val max = scoreSum.max
           val ymid = scoreSum.indexOf(max)
 
@@ -213,7 +208,7 @@ private[inc] class APIDiff {
           val scoreSub = score(i - 1)(j - 1) + sub(x(i - 1), y(j - 1))
           val scoreDel = score(i - 1)(j) + del(x(i - 1))
           val scoreIns = score(i)(j - 1) + ins(y(j - 1))
-          score(i)(j) = scoreSub max scoreDel max scoreIns
+          score(i)(j) = scoreSub.max(scoreDel).max(scoreIns)
         }
       }
       Array.tabulate(y.length + 1)(j => score(x.length)(j))
@@ -236,7 +231,7 @@ private[inc] class APIDiff {
           val mtch = score(i - 1)(j - 1) + similarity(x(i - 1), y(j - 1))
           val delete = score(i - 1)(j) + d
           val insert = score(i)(j - 1) + d
-          score(i)(j) = mtch max insert max delete
+          score(i)(j) = mtch.max(insert).max(delete)
         }
       }
 

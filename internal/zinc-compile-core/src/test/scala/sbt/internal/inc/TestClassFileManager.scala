@@ -17,9 +17,7 @@ import xsbti.compile.ClassFileManager
 import java.io.File
 import scala.collection.mutable
 
-/**
- * Collection of `ClassFileManager`s used for testing purposes.
- */
+/** Collection of `ClassFileManager`s used for testing purposes. */
 class CollectingClassFileManager extends ClassFileManager {
 
   /** Collect generated classes, with public access to allow inspection. */

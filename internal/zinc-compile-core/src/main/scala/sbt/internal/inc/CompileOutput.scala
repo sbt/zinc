@@ -40,9 +40,7 @@ object CompileOutput {
    * @return An instance of `MultipleOutput`.
    */
   def apply(groups: (Path, Path)*): Output = {
-    val gs = groups.toArray map { case (src, out) =>
-      outputGroup(src, out)
-    }
+    val gs = groups.toArray.map { case (src, out) => outputGroup(src, out) }
     apply(gs)
   }
 
@@ -50,8 +48,7 @@ object CompileOutput {
 
   lazy val empty: Output = new EmptyOutput()
 
-  def outputGroup(source: Path, output: Path): OutputGroup =
-    new ConcreteOutputGroup(source, output)
+  def outputGroup(source: Path, output: Path): OutputGroup = new ConcreteOutputGroup(source, output)
 
   private final class EmptyOutput extends xsbti.compile.Output {
     override def getSingleOutput(): Optional[File] = Optional.empty()
@@ -79,4 +76,5 @@ object CompileOutput {
     override def getOutputDirectory: File = getOutputDirectoryAsPath.toFile
     override def toString = s"OutputGroup($getSourceDirectoryAsPath -> $getOutputDirectoryAsPath)"
   }
+
 }

@@ -22,7 +22,9 @@ package xsbti.api
  * guarantee and can be broken in any minor release.
  */
 object InternalApiProxy {
+
   object Modifiers {
     def apply(flags: Int): Modifiers = new Modifiers(flags.toByte)
   }
+
 }

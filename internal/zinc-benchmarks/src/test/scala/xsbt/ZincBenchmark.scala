@@ -22,6 +22,7 @@ import scala.util.Try
 
 /** Consist of the setups for every subproject of a `ProjectBenchmark`. */
 case class ZincSetup(result: ZincBenchmark.Result[List[ProjectSetup]]) {
+
   private def crash(throwable: Throwable) = {
     val message =
       s"""Unexpected error when setting up Zinc benchmarks:
@@ -31,8 +32,7 @@ case class ZincSetup(result: ZincBenchmark.Result[List[ProjectSetup]]) {
   }
 
   /** Crash at this point because JMH wants the list of setup runs. */
-  def getOrCrash: List[ProjectSetup] =
-    result.fold(crash, identity)
+  def getOrCrash: List[ProjectSetup] = result.fold(crash, identity)
 }
 
 /* Classes are defined `private[xsbt]` to avoid scoping issues w/ `CachedCompiler0`. */
@@ -50,6 +50,7 @@ private[xsbt] class ZincBenchmark(toCompile: BenchmarkProject, zincEnabled: Bool
   }
 
   private val UseJavaCpArg = Array("-usejavacp")
+
   def readSetup(compilationDir: File): ZincSetup = {
     def createSetup(subproject: String, compilationInfo: CompilationInfo) = {
 
@@ -101,6 +102,7 @@ private[xsbt] class ZincBenchmark(toCompile: BenchmarkProject, zincEnabled: Bool
 
     ZincSetup(targetSetup)
   }
+
 }
 
 private[xsbt] object ZincBenchmark {
@@ -133,6 +135,7 @@ private[xsbt] object ZincBenchmark {
     /** Checkout a hash in a concrete repository and throw away Ref. */
     def checkout(git: Git, hash: String): Result[Git] =
       Try(git.checkout().setName(hash).call()).toEither.right.map(_ => git)
+
   }
 
   /** Sbt classpath, scalac options and sources for a given subproject. */
@@ -166,8 +169,7 @@ private[xsbt] object ZincBenchmark {
     private val TaskNamePrefix = "getAllSourcesAndClasspath"
     private val ExpectedFileType = "out"
 
-    private def generateTaskName(sbtProject: String) =
-      s"$TaskNamePrefix$sbtProject"
+    private def generateTaskName(sbtProject: String) = s"$TaskNamePrefix$sbtProject"
 
     def generateOutputFile(sbtProject: String) =
       s"${generateTaskName(sbtProject)}.$ExpectedFileType"
@@ -232,9 +234,7 @@ private[xsbt] object ZincBenchmark {
       val readState = Try(IO.read(stateFile).linesIterator.toList).toEither
       readState.right.flatMap { stateLines =>
         val init: Result[List[ReadBuildInfo]] = Right(Nil)
-        stateLines.foldLeft(init) { (acc, line) =>
-          acc.right.map(rs => parseStateLine(line) :: rs)
-        }
+        stateLines.foldLeft(init)((acc, line) => acc.right.map(rs => parseStateLine(line) :: rs))
       }
     }
 
@@ -279,7 +279,9 @@ private[xsbt] object ZincBenchmark {
         }.toEither
       }
     }
+
   }
+
 }
 
 /** Represent a project on which to run benchmarks. */
@@ -328,9 +330,8 @@ case class BenchmarkProject(
 
     val init: WriteBuildInfo = Right(())
     subprojects.foldLeft(init) { (result, subproject) =>
-      result.right.flatMap { _ =>
-        persistBuildInfo(subproject, stateFile)
-      }
+      result.right.flatMap(_ => persistBuildInfo(subproject, stateFile))
     }
   }
+
 }

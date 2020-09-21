@@ -88,4 +88,5 @@ class JavaProcessLoggerSpec extends UnitSpec {
     errorLogger.messages(Level.Warn)(1).contains("javadoc exited with exit code -1") shouldBe true
     ()
   }
+
 }

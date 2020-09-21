@@ -16,7 +16,7 @@ import sbt.internal.inc.UnitSpec
 import xsbt.api.ClassLikeHelpers._
 
 class HashAPISpecification extends UnitSpec {
-  behavior of "The HashAPI specification"
+  behavior.of("The HashAPI specification")
 
   it should "detect hash changes in private trait vars" in {
     val privateVar = Var.of("x", privateAccess, defaultMods, Array.empty, emptyType)
@@ -98,6 +98,7 @@ class HashAPISpecification extends UnitSpec {
 
   def assertDifferentPrivateAPI(a: ClassLike, b: ClassLike): Unit = assertPrivateApi(true, a, b)
   def assertSamePrivateAPI(a: ClassLike, b: ClassLike): Unit = assertPrivateApi(false, a, b)
+
   def assertPrivateApi(isDifferent: Boolean, a: ClassLike, b: ClassLike): Unit = {
     def PrivateAPI(c: ClassLike): Int = HashAPI(_.hashAPI(c), includePrivateDefsInTrait = true)
     def checkOrder(a: ClassLike, b: ClassLike): Unit = {
@@ -113,4 +114,5 @@ class HashAPISpecification extends UnitSpec {
     checkOrder(a, b)
     checkOrder(b, a)
   }
+
 }

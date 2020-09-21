@@ -114,6 +114,7 @@ final class ScalaInstance(
 
   override def toString: String =
     s"Scala instance { version label $version, actual version $actualVersion, $jarStrings }"
+
 }
 
 object ScalaInstance {
@@ -129,9 +130,7 @@ object ScalaInstance {
   /** The prefix being used for Scala artifacts name creation. */
   val VersionPrefix = "version "
 
-  /**
-   * Distinguish Dotty and Scala 2 version given the version number.
-   */
+  /** Distinguish Dotty and Scala 2 version given the version number. */
   def isDotty(version: String): Boolean = version.startsWith("0.") || version.startsWith("3.")
 
   /** Create a [[ScalaInstance]] from a given org, version and launcher. */
@@ -172,7 +171,7 @@ object ScalaInstance {
     val compilerJar = findOrCrash(jars, "scala-compiler.jar")
     def fallbackClassLoaders = {
       val l = ClasspathUtil.toLoader(Vector(libraryJar.toPath))
-      val c = scalaLoader(l)(jars.toVector filterNot { _ == libraryJar })
+      val c = scalaLoader(l)(jars.toVector.filterNot(_ == libraryJar))
       (c, l)
     }
     // sbt launcher 1.0.3 will construct layered classloader. Use them if we find them.
@@ -184,7 +183,7 @@ object ScalaInstance {
         }
       } catch {
         case _: NoSuchMethodException => None
-      }) getOrElse fallbackClassLoaders
+      }).getOrElse(fallbackClassLoaders)
     }
     new ScalaInstance(version, loader, loaderLibraryOnly, libraryJar, compilerJar, jars, None)
   }
@@ -196,7 +195,7 @@ object ScalaInstance {
     val all = allJars(scalaHome)
     val library = libraryJar(scalaHome)
     val loaderLibraryOnly = classLoader(List(library))
-    val loader = scalaLoader(loaderLibraryOnly)(all.toVector filterNot { _ == library })
+    val loader = scalaLoader(loaderLibraryOnly)(all.toVector.filterNot(_ == library))
     val version = actualVersion(loader)(" (library jar  " + library.getAbsolutePath + ")")
     val compiler = compilerJar(scalaHome)
     new ScalaInstance(version, loader, loaderLibraryOnly, library, compiler, all.toArray, None)
@@ -215,8 +214,7 @@ object ScalaInstance {
   def allJars(scalaHome: File): Seq[File] =
     IO.listFiles(scalaLib(scalaHome)).filter(f => !blacklist(f.getName))
 
-  private[this] def scalaLib(scalaHome: File): File =
-    new File(scalaHome, "lib")
+  private[this] def scalaLib(scalaHome: File): File = new File(scalaHome, "lib")
 
   private[this] val blacklist: Set[String] = Set(
     "scala-actors.jar",
@@ -228,12 +226,9 @@ object ScalaInstance {
   )
 
   /** Get a scala artifact from a given directory. */
-  def scalaJar(scalaHome: File, name: String) =
-    new File(scalaLib(scalaHome), name)
-  private def compilerJar(scalaHome: File) =
-    scalaJar(scalaHome, "scala-compiler.jar")
-  private def libraryJar(scalaHome: File) =
-    scalaJar(scalaHome, "scala-library.jar")
+  def scalaJar(scalaHome: File, name: String) = new File(scalaLib(scalaHome), name)
+  private def compilerJar(scalaHome: File) = scalaJar(scalaHome, "scala-compiler.jar")
+  private def libraryJar(scalaHome: File) = scalaJar(scalaHome, "scala-library.jar")
 
   /** Gets the version of Scala in the compiler.properties file from the loader. */
   private def actualVersion(scalaLoader: ClassLoader)(label: String) = {
@@ -278,6 +273,7 @@ object ScalaInstance {
   private def scalaLoader(parent: ClassLoader): Seq[File] => ClassLoader = { jars =>
     ClasspathUtil.toLoader(jars.map(_.toPath), parent)
   }
+
 }
 
 /** Runtime exception representing a failure when finding a `ScalaInstance`. */

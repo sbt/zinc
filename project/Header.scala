@@ -28,4 +28,5 @@ object CustomHeaderPlugin extends AutoPlugin {
       )
     )
   )
+
 }

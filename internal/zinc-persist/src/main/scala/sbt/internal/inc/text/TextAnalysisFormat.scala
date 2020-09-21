@@ -44,51 +44,60 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
   import xsbti.{ Position, Problem, Severity }
 
   private implicit val compilationF: Format[Compilation] = CompilationFormat
+
   private implicit val nameHashesFormat: Format[NameHash] = {
     def read(name: String, scopeName: String, hash: Int) =
       NameHash.of(name, UseScope.valueOf(scopeName), hash)
     asProduct3(read)(a => (a.name(), a.scope().name(), a.hash()))
   }
+
   private implicit val companionsFomrat: Format[Companions] = CompanionsFormat
+
   private implicit def problemFormat: Format[Problem] =
     asProduct5(problem)(p => (p.category, p.position, p.message, p.severity, jo2o(p.rendered)))
-  private implicit def positionFormat: Format[Position] =
-    asProduct13(position)(p =>
-      (
-        jo2o(p.line),
-        p.lineContent,
-        jo2o(p.offset),
-        jo2o(p.pointer),
-        jo2o(p.pointerSpace),
-        jo2o(p.sourcePath),
-        jo2o(p.sourceFile),
-        jo2o(p.startOffset),
-        jo2o(p.endOffset),
-        jo2o(p.startLine),
-        jo2o(p.startColumn),
-        jo2o(p.endLine),
-        jo2o(p.endColumn)
-      )
+
+  private implicit def positionFormat: Format[Position] = asProduct13(position)(p =>
+    (
+      jo2o(p.line),
+      p.lineContent,
+      jo2o(p.offset),
+      jo2o(p.pointer),
+      jo2o(p.pointerSpace),
+      jo2o(p.sourcePath),
+      jo2o(p.sourceFile),
+      jo2o(p.startOffset),
+      jo2o(p.endOffset),
+      jo2o(p.startLine),
+      jo2o(p.startColumn),
+      jo2o(p.endLine),
+      jo2o(p.endColumn)
     )
+  )
+
   private implicit val severityFormat: Format[Severity] =
     wrap[Severity, Byte](_.ordinal.toByte, b => Severity.values.apply(b.toInt))
+
   private implicit val integerFormat: Format[Integer] =
     wrap[Integer, Int](_.toInt, Integer.valueOf)
+
   private implicit val analyzedClassFormat: Format[AnalyzedClass] =
     AnalyzedClassFormats.analyzedClassFormat
+
   private implicit def infoFormat: Format[SourceInfo] =
     wrap[SourceInfo, (Seq[Problem], Seq[Problem], Seq[String])](
       si => (si.getReportedProblems, si.getUnreportedProblems, si.getMainClasses),
-      { case (a, b, c) =>
-        SourceInfos.makeInfo(a.toVector, b.toVector, c.toVector)
-      }
+      { case (a, b, c) => SourceInfos.makeInfo(a.toVector, b.toVector, c.toVector) }
     )
+
   private implicit val pathFormat: Format[Path] =
     wrap[Path, String](_.toString, s => Paths.get(s))
+
   private implicit def fileHashFormat: Format[FileHash] =
     asProduct2((file: Path, hash: Int) => FileHash.of(file, hash))(h => (h.file, h.hash))
+
   private implicit def seqFormat[T](implicit optionFormat: Format[T]): Format[Seq[T]] =
     viaSeq[Seq[T], T](x => x)
+
   private def t2[A1, A2](a1: A1, a2: A2): T2[A1, A2] = InterfaceUtil.t2(a1 -> a2)
 
   // Companions portion of the API info is written in a separate entry later.
@@ -96,14 +105,14 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
     val analysis0 = analysis match { case analysis: Analysis => analysis }
     VersionF.write(out)
     // We start with writing compile setup
-    FormatTimer.time("write setup") { MiniSetupF.write(out, setup) }
+    FormatTimer.time("write setup")(MiniSetupF.write(out, setup))
     // Next we write relations because that's the part of greatest interest to external readers,
     // who can abort reading early once they're read them.
-    FormatTimer.time("write relations") { RelationsF.write(out, analysis0.relations) }
-    FormatTimer.time("write stamps") { StampsF.write(out, analysis0.stamps) }
-    FormatTimer.time("write apis") { APIsF.write(out, analysis0.apis) }
-    FormatTimer.time("write sourceinfos") { SourceInfosF.write(out, analysis0.infos) }
-    FormatTimer.time("write compilations") { CompilationsF.write(out, analysis0.compilations) }
+    FormatTimer.time("write relations")(RelationsF.write(out, analysis0.relations))
+    FormatTimer.time("write stamps")(StampsF.write(out, analysis0.stamps))
+    FormatTimer.time("write apis")(APIsF.write(out, analysis0.apis))
+    FormatTimer.time("write sourceinfos")(SourceInfosF.write(out, analysis0.infos))
+    FormatTimer.time("write compilations")(CompilationsF.write(out, analysis0.compilations))
     out.flush()
   }
 
@@ -117,14 +126,14 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
   // Companions portion of the API info is read from a separate file lazily.
   def read(in: BufferedReader, companionsStore: CompanionsStore): (CompileAnalysis, MiniSetup) = {
     VersionF.read(in)
-    val setup = FormatTimer.time("read setup") { MiniSetupF.read(in) }
-    val relations = FormatTimer.time("read relations") { RelationsF.read(in) }
-    val stamps = FormatTimer.time("read stamps") { StampsF.read(in) }
+    val setup = FormatTimer.time("read setup")(MiniSetupF.read(in))
+    val relations = FormatTimer.time("read relations")(RelationsF.read(in))
+    val stamps = FormatTimer.time("read stamps")(StampsF.read(in))
     val apis = FormatTimer.time("read apis") {
       APIsF.read(in, if (setup.storeApis) Some(companionsStore) else None)
     }
-    val infos = FormatTimer.time("read sourceinfos") { SourceInfosF.read(in) }
-    val compilations = FormatTimer.time("read compilations") { CompilationsF.read(in) }
+    val infos = FormatTimer.time("read sourceinfos")(SourceInfosF.read(in))
+    val compilations = FormatTimer.time("read compilations")(CompilationsF.read(in))
 
     (Analysis.Empty.copy(stamps, apis, relations, infos, compilations), setup)
   }
@@ -142,6 +151,7 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
     }
 
     private val versionPattern = """format version: (\w+)""".r
+
     def read(in: BufferedReader): Unit = {
       in.readLine() match {
         case versionPattern(version) => validateVersion(version)
@@ -159,6 +169,7 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
         )
       }
     }
+
   }
 
   override def productsMapper = Mapper(
@@ -177,6 +188,7 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
   )
 
   private[this] object StampsF {
+
     object Headers {
       val products = "product stamps"
       val sources = "source stamps"
@@ -253,9 +265,11 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
 
       Stamps(products, sources, libraries)
     }
+
   }
 
   private[this] object APIsF {
+
     object Headers {
       val internal = "internal apis"
       val external = "external apis"
@@ -285,6 +299,7 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
     }
 
     @inline final def lzy[T](t: => T) = SafeLazyProxy(t)
+
     def read(in: BufferedReader, companionsStore: Option[CompanionsStore]): APIs = {
       val internal = readMap(in)(Headers.internal, identity[String], stringToAnalyzedClass)
       val external = readMap(in)(Headers.external, identity[String], stringToAnalyzedClass)
@@ -296,16 +311,18 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
             lzy(companionsStore.getUncaught())
 
           APIs(
-            internal map { case (k, v) => k -> v.withApi(lzy(companions.get._1(k))) },
-            external map { case (k, v) => k -> v.withApi(lzy(companions.get._2(k))) }
+            internal.map { case (k, v) => k -> v.withApi(lzy(companions.get._1(k))) },
+            external.map { case (k, v) => k -> v.withApi(lzy(companions.get._2(k))) }
           )
         case _ => APIs(internal, external)
       }
 
     }
+
   }
 
   private[this] object CompanionsF {
+
     object Headers {
       val internal = "internal companions"
       val external = "external companions"
@@ -315,8 +332,8 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
     val companionsToString = ObjectStringifier.objToString[Companions] _
 
     def write(out: Writer, apis: APIs): Unit = {
-      val internal = apis.internal map { case (k, v) => k -> v.api }
-      val external = apis.external map { case (k, v) => k -> v.api }
+      val internal = apis.internal.map { case (k, v) => k -> v.api }
+      val external = apis.external.map { case (k, v) => k -> v.api }
       write(out, internal, external)
     }
 
@@ -346,10 +363,12 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
       val external = readMap(in)(Headers.external, identity[String], stringToCompanions)
       (internal, external)
     }
+
   }
 
   private[this] object SourceInfosF {
     import VirtualFileUtil._
+
     object Headers {
       val infos = "source infos"
     }
@@ -357,20 +376,22 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
     val stringToSourceInfo = ObjectStringifier.stringToObj[SourceInfo] _
     val sourceInfoToString = ObjectStringifier.objToString[SourceInfo] _
 
-    def write(out: Writer, infos: SourceInfos): Unit =
-      writeMap(out)(
-        Headers.infos,
-        infos.allInfos,
-        sourcesMapper.write,
-        sourceInfoToString,
-        inlineVals = false
-      )
+    def write(out: Writer, infos: SourceInfos): Unit = writeMap(out)(
+      Headers.infos,
+      infos.allInfos,
+      sourcesMapper.write,
+      sourceInfoToString,
+      inlineVals = false
+    )
+
     def read(in: BufferedReader): SourceInfos =
       SourceInfos.of(readMap(in)(Headers.infos, sourcesMapper.read, stringToSourceInfo))
+
   }
 
   // Path is no serializable, so this is currently stubbed.
   private[this] object CompilationsF {
+
     object Headers {
       val compilations = "compilations"
     }
@@ -385,6 +406,7 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
   }
 
   private[this] object MiniSetupF {
+
     object Headers {
       val outputMode = "output mode"
       val outputDir = "output directories"
@@ -448,9 +470,7 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
       writeSeq(out)(Headers.skipApiStoring, setup.storeApis() :: Nil, (b: Boolean) => b.toString)
       writePairs[String, String](out)(
         Headers.extra,
-        setup.extra.toList map { x =>
-          (x.get1, x.get2)
-        },
+        setup.extra.toList.map(x => (x.get1, x.get2)),
         identity[String],
         identity[String]
       )
@@ -467,7 +487,7 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
       val compilerVersion = readSeq(in)(Headers.compilerVersion, identity[String]).head
       val compileOrder = readSeq(in)(Headers.compileOrder, identity[String]).head
       val skipApiStoring = readSeq(in)(Headers.skipApiStoring, s2b).head
-      val extra = readPairs(in)(Headers.extra, identity[String], identity[String]) map {
+      val extra = readPairs(in)(Headers.extra, identity[String], identity[String]).map {
         case (a, b) => t2[String, String](a, b)
       }
 
@@ -496,9 +516,11 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
 
       readMapper.mapMiniSetup(original)
     }
+
   }
 
   private[this] object ObjectStringifier {
+
     def objToString[T](o: T)(implicit fmt: sbinary.Format[T]) = {
       val baos = new ByteArrayOutputStream()
       val out = new sbinary.JavaOutput(baos)
@@ -509,15 +531,16 @@ object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMa
           baos.close()
         }
       }
-      val bytes = FormatTimer.aggregate("byte copy") { baos.toByteArray }
-      FormatTimer.aggregate("bytes -> base64") { Base64.factory().encode(bytes) }
+      val bytes = FormatTimer.aggregate("byte copy")(baos.toByteArray)
+      FormatTimer.aggregate("bytes -> base64")(Base64.factory().encode(bytes))
     }
 
     def stringToObj[T](s: String)(implicit fmt: sbinary.Format[T]) = {
-      val bytes = FormatTimer.aggregate("base64 -> bytes") { Base64.factory().decode(s) }
+      val bytes = FormatTimer.aggregate("base64 -> bytes")(Base64.factory().decode(s))
       val in = new sbinary.JavaInput(new ByteArrayInputStream(bytes))
-      FormatTimer.aggregate("sbinary read") { fmt.reads(in) }
+      FormatTimer.aggregate("sbinary read")(fmt.reads(in))
     }
+
   }
 
 }

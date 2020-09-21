@@ -24,10 +24,12 @@ class ScalacBenchmark extends BenchmarkBase {
 @Fork(value = 5, jvmArgs = Array("-XX:CICompilerCount=2"))
 class ColdScalacBenchmark extends ScalacBenchmark {
   _subprojectToRun = _project.subprojects.head
+
   @Benchmark
   override def action(): Unit = {
     super.action()
   }
+
 }
 
 /*
@@ -54,8 +56,10 @@ class WarmScalacBenchmark extends ScalacBenchmark {
 @Fork(value = 1)
 class HotScalacBenchmark extends ScalacBenchmark {
   _subprojectToRun = _project.subprojects.head
+
   @Benchmark
   override def action(): Unit = {
     super.action()
   }
+
 }

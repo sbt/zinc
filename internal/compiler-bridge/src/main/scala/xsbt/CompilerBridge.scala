@@ -20,10 +20,9 @@ import scala.tools.nsc.CompilerCommand
 import Log.debug
 import java.io.File
 
-/**
- * This is the entry point for the compiler bridge (implementation of CompilerInterface)
- */
+/** This is the entry point for the compiler bridge (implementation of CompilerInterface) */
 final class CompilerBridge extends xsbti.compile.CompilerInterface2 {
+
   override def run(
       sources: Array[VirtualFile],
       changes: DependencyChanges,
@@ -41,6 +40,7 @@ final class CompilerBridge extends xsbti.compile.CompilerInterface2 {
       cached.close()
     }
   }
+
 }
 
 class InterfaceCompileFailed(
@@ -53,16 +53,20 @@ class InterfaceCompileCancelled(val arguments: Array[String], override val toStr
     extends xsbti.CompileCancelled
 
 private final class WeakLog(private[this] var log: Logger, private[this] var delegate: Reporter) {
+
   def apply(message: String): Unit = {
     assert(log ne null, "Stale reference to logger")
     log.error(Message(message))
   }
+
   def logger: Logger = log
   def reporter: Reporter = delegate
+
   def clear(): Unit = {
     log = null
     delegate = null
   }
+
 }
 
 private final class CachedCompiler0(
@@ -117,6 +121,7 @@ private final class CachedCompiler0(
     (command.settings.recreateArgs ++ sources.map(_.getAbsolutePath)).toArray[String]
 
   import scala.tools.nsc.Properties.versionString
+
   def infoOnCachedCompiler(compilerId: String): String =
     s"[zinc] Running cached compiler $compilerId for Scala compiler $versionString"
 
@@ -202,4 +207,5 @@ private final class CachedCompiler0(
     if (warnings.nonEmpty)
       compiler.logUnreportedWarnings(warnings.map(cw => ("" /*cw.what*/, cw.warnings.toList)))
   }
+
 }

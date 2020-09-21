@@ -29,8 +29,8 @@ object Dependencies {
   def getSbtModulePath(key: String, name: String) = {
     val localProps = new java.util.Properties()
     IO.load(localProps, file("project/local.properties"))
-    val path = Option(localProps getProperty key) orElse (sys.props get key)
-    path foreach (f => println(s"Using $name from $f"))
+    val path = Option(localProps.getProperty(key)).orElse(sys.props.get(key))
+    path.foreach(f => println(s"Using $name from $f"))
     path
   }
 
@@ -40,13 +40,12 @@ object Dependencies {
       projectName: String,
       m: ModuleID,
       c: Option[Configuration] = None
-  ) =
-    path match {
-      case Some(f) =>
-        p dependsOn ClasspathDependency(ProjectRef(file(f), projectName), c.map(_.name))
-      case None =>
-        p settings (libraryDependencies += m.withConfigurations(c.map(_.name)))
-    }
+  ) = path match {
+    case Some(f) =>
+      p.dependsOn(ClasspathDependency(ProjectRef(file(f), projectName), c.map(_.name)))
+    case None =>
+      p.settings(libraryDependencies += m.withConfigurations(c.map(_.name)))
+  }
 
   lazy val sbtIoPath = getSbtModulePath("sbtio.path", "sbt/io")
   lazy val sbtUtilPath = getSbtModulePath("sbtutil.path", "sbt/util")
@@ -55,19 +54,24 @@ object Dependencies {
 
   def addSbtUtilControl(p: Project): Project =
     addSbtModule(p, sbtUtilPath, "utilControl", utilControl)
+
   def addSbtUtilInterface(p: Project): Project =
     addSbtModule(p, sbtUtilPath, "utilInterface", utilInterface)
+
   def addSbtUtilLogging(p: Project): Project =
     addSbtModule(p, sbtUtilPath, "utilLogging", utilLogging)
+
   def addSbtUtilRelation(p: Project): Project =
     addSbtModule(p, sbtUtilPath, "utilRelation", utilRelation)
+
   def addSbtUtilScripted(p: Project): Project =
     addSbtModule(p, sbtUtilPath, "utilScripted", utilScripted, Some(Test))
+
   def addSbtUtilTracking(p: Project): Project =
     addSbtModule(p, sbtUtilPath, "utilTracking", utilTracking)
 
-  val scalaLibrary = Def.setting { "org.scala-lang" % "scala-library" % scalaVersion.value }
-  val scalaCompiler = Def.setting { "org.scala-lang" % "scala-compiler" % scalaVersion.value }
+  val scalaLibrary = Def.setting("org.scala-lang" % "scala-library" % scalaVersion.value)
+  val scalaCompiler = Def.setting("org.scala-lang" % "scala-compiler" % scalaVersion.value)
 
   val parserCombinator = "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2"
   val sbinary = "org.scala-sbt" %% "sbinary" % "0.5.1"
@@ -76,12 +80,15 @@ object Dependencies {
   val scalatest = "org.scalatest" %% "scalatest" % "3.2.0"
   val junit = "junit" % "junit" % "4.12"
   val verify = "com.eed3si9n.verify" %% "verify" % "0.2.0"
+
   val sjsonnew = Def.setting {
     "com.eed3si9n" %% "sjson-new-core" % contrabandSjsonNewVersion.value
   }
+
   val sjsonnewScalaJson = Def.setting {
     "com.eed3si9n" %% "sjson-new-scalajson" % contrabandSjsonNewVersion.value
   }
+
   val zeroAllocationHashing = "net.openhft" % "zero-allocation-hashing" % "0.10.1"
 
   def log4jVersion = "2.11.2"
@@ -91,13 +98,13 @@ object Dependencies {
   // specify all of log4j modules to prevent misalignment
   val log4jDependencies = Vector(log4jApi, log4jCore, log4jSlf4jImpl)
 
-  def addTestDependencies(p: Project): Project =
-    p.settings(
-      libraryDependencies ++= Seq(
-        scalaCheck % Test,
-        scalatest % Test,
-        verify % Test,
-        junit % Test
-      )
+  def addTestDependencies(p: Project): Project = p.settings(
+    libraryDependencies ++= Seq(
+      scalaCheck % Test,
+      scalatest % Test,
+      verify % Test,
+      junit % Test
     )
+  )
+
 }

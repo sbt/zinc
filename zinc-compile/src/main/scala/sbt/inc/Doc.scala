@@ -28,6 +28,7 @@ import sjsonnew._
 import xsbti.Reporter
 
 object Doc {
+
   private[this] implicit val IsoInputs = LList.iso(
     (in: Inputs) => ("getOutputDirectory", in.outputDirectory.toFile) :*: LNil,
     (in: File :*: LNil) => Inputs(Nil, Nil, Nil, in.head.toPath, Nil)
@@ -140,4 +141,5 @@ object Doc {
     ): Unit
 
   }
+
 }

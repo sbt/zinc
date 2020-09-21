@@ -30,32 +30,36 @@ object SourceInfos {
   def of(m: Map[VirtualFileRef, SourceInfo]): SourceInfos = new MSourceInfos(m)
 
   val emptyInfo: SourceInfo = makeInfo(Nil, Nil, Nil)
+
   def makeInfo(
       reported: Seq[Problem],
       unreported: Seq[Problem],
       mainClasses: Seq[String]
-  ): SourceInfo =
-    new UnderlyingSourceInfo(reported, unreported, mainClasses)
+  ): SourceInfo = new UnderlyingSourceInfo(reported, unreported, mainClasses)
+
   def merge(infos: Traversable[SourceInfos]): SourceInfos =
     infos.foldLeft(SourceInfos.empty)(_ ++ _)
+
 }
 
 private final class MSourceInfos(val allInfos: Map[VirtualFileRef, SourceInfo])
     extends SourceInfos {
   def ++(o: SourceInfos) = new MSourceInfos(allInfos ++ o.allInfos)
   def --(sources: Iterable[VirtualFileRef]) = new MSourceInfos(allInfos -- sources)
+
   def groupBy[K](f: VirtualFileRef => K): Map[K, SourceInfos] =
-    allInfos groupBy (x => f(x._1)) map { x =>
-      (x._1, new MSourceInfos(x._2))
-    }
+    allInfos.groupBy(x => f(x._1)).map(x => (x._1, new MSourceInfos(x._2)))
+
   def add(file: VirtualFileRef, info: SourceInfo) = new MSourceInfos(allInfos + ((file, info)))
 
   override def get(file: VirtualFileRef): SourceInfo =
     allInfos.getOrElse(file, SourceInfos.emptyInfo)
+
   override def getAllSourceInfos: java.util.Map[VirtualFileRef, SourceInfo] = {
     import scala.collection.JavaConverters.mapAsJavaMapConverter
     mapAsJavaMapConverter(allInfos).asJava
   }
+
 }
 
 private final class UnderlyingSourceInfo(
@@ -66,6 +70,8 @@ private final class UnderlyingSourceInfo(
   override def getReportedProblems: Array[Problem] = reportedProblems.toArray
   override def getUnreportedProblems: Array[Problem] = unreportedProblems.toArray
   override def getMainClasses: Array[String] = mainClasses.toArray
+
   override def toString: String =
     s"SourceInfo($reportedProblems, $unreportedProblems, $mainClasses)"
+
 }
