@@ -805,8 +805,13 @@ case class ProjectStructure(
       val problems = getProblems().filter(_.severity == severity)
       problems.lift(index) match {
         case Some(problem) =>
-          val msg = s"'${problem.message}' doesn't contain '$expected'."
-          assert(problem.message.contains(expected), msg)
+          val problemMessage: String = problem.message
+          // See ScriptedTests.scala.
+          // val handlersAndStatements = parser.parse(file.toFile, true) doesn't correctly parse
+          val dropQuotes =
+            if (expected.startsWith("\"")) expected.drop(1).dropRight(1)
+            else expected
+          assert(problemMessage.contains(dropQuotes), s"'$problemMessage' doesn't contain '$dropQuotes'.")
         case None =>
           throw new TestFailed(
             s"Problem not found: $index (there are ${problems.length} problem with severity $severity)."
