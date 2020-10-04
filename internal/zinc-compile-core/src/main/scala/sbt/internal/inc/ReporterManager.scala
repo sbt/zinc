@@ -16,7 +16,7 @@ import java.nio.charset.StandardCharsets
 import java.util.logging.Level
 
 import sbt.internal.util.{ ConsoleAppender, MainAppender, ManagedLogger }
-import sbt.util.LogExchange
+import sbt.util.LoggerContext
 import sbt.util.{ Level => SbtLevel }
 import xsbti.{ Position, Reporter, ReporterConfig }
 
@@ -91,13 +91,11 @@ object ReporterManager {
     val printWriterToAppender = MainAppender.defaultBacked(config.useColor())
     val appender = printWriterToAppender(toOutput)
     val freshName = generateZincReporterId(config.loggerName())
-    val logger = LogExchange.logger(freshName)
+    val logger = LoggerContext.globalContext.logger(freshName, None, None)
     val loggerName = logger.name
-
-    LogExchange.unbindLoggerAppenders(loggerName)
+    LoggerContext.globalContext.clearAppenders(loggerName)
     val sbtLogLevel = fromJavaLogLevel(config.logLevel())
-    val toAppend = List(appender -> sbtLogLevel)
-    LogExchange.bindLoggerAppenders(loggerName, toAppend)
+    LoggerContext.globalContext.addAppender(loggerName, appender -> sbtLogLevel)
     getReporter(logger, config)
   }
 

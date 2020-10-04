@@ -29,7 +29,7 @@ import xsbti.compile.{
   JavaTools => XJavaTools
 }
 import sbt.io.IO
-import sbt.util.LogExchange
+import sbt.util.LoggerContext
 import org.scalatest.matchers._
 import org.scalatest.diagrams.Diagrams
 
@@ -243,7 +243,7 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
       output: Path,
       incToolOptions: IncToolOptions = IncToolOptionsUtil.defaultIncToolOptions()
   ): (Boolean, Array[Problem]) = {
-    val log = LogExchange.logger("JavaCompilerSpec")
+    val log = LoggerContext.globalContext.logger("JavaCompilerSpec", None, None)
     val reporter = new ManagedLoggedReporter(10, log)
     val result = c.javac.run(
       sources.map(x => PlainVirtualFile(x)).toArray,
@@ -263,7 +263,7 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
       output: Path,
       incToolOptions: IncToolOptions = IncToolOptionsUtil.defaultIncToolOptions()
   ): (Boolean, Array[Problem]) = {
-    val log = LogExchange.logger("JavaCompilerSpec")
+    val log = LoggerContext.globalContext.logger("JavaCompilerSpec", None, None)
     val reporter = new ManagedLoggedReporter(10, log)
     val result = c.javadoc.run(
       sources.map(x => PlainVirtualFile(x)).toArray,
