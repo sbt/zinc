@@ -484,6 +484,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         val (analysis, changed) = compileInternal(
           MixedAnalyzingCompiler(config)(logger),
           equivCompileSetup(
+            logger,
             equivOpts0(equivScalacOptions(incrementalOptions.ignoredScalacOptions))
           ),
           equivPairs,
