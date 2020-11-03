@@ -36,10 +36,6 @@ object Compilations {
 
 private final class MCompilations(val allCompilations: Seq[Compilation]) extends Compilations {
   // TODO: Sort `allCompilations` chronologically and enforce it in the Zinc API specification
-  assert(
-    { val xs = allCompilations.map(_.getStartTime); xs.distinct.size == xs.size },
-    "Created a Compilations with duplicate compilations"
-  )
 
   def ++(o: Compilations): Compilations = new MCompilations(allCompilations ++ o.allCompilations)
   def add(c: Compilation): Compilations = new MCompilations(allCompilations :+ c)
