@@ -526,6 +526,10 @@ object Incremental {
 
 private object AnalysisCallback {
 
+  private val parallelKnownProducts = "true" == System.getProperty(
+    "sbt.analysis.known.products.parallel"
+  )
+
   /** Allow creating new callback instance to be used in each compile iteration */
   class Builder(
       internalBinaryToSourceClassName: String => Option[String],
@@ -1086,20 +1090,29 @@ private final class AnalysisCallback(
 
   private def knownProducts(merged: Analysis) = {
     // List classes defined in the files that were compiled in this run.
-    val ps = java.util.concurrent.ConcurrentHashMap.newKeySet[String]
-    val knownProducts: ParVector[VirtualFileRef] =
-      new ParVector(merged.relations.allSources.toVector)
-        .flatMap(merged.relations.products)
-    // extract product paths in parallel
+    val ps: java.util.Set[String] =
+      if (AnalysisCallback.parallelKnownProducts)
+        java.util.concurrent.ConcurrentHashMap.newKeySet[String]
+      else
+        new java.util.HashSet[String]()
+    val knownProducts: Vector[VirtualFileRef] =
+      merged.relations.allSources.toVector.flatMap(merged.relations.products)
+
+    def knownProductsPar =
+      if (AnalysisCallback.parallelKnownProducts) new ParVector(knownProducts) else knownProducts
+
+    // extract product paths
     jo2o(output.getSingleOutputAsPath) match {
       case Some(so) if so.getFileName.toString.endsWith(".jar") =>
-        knownProducts foreach { product =>
-          new JarUtils.ClassInJar(product.id).toClassFilePath foreach { path =>
-            ps.add(path.replace('\\', '/'))
+        knownProductsPar foreach { product =>
+          new JarUtils.ClassInJar(product.id).toClassFilePathOrNull match {
+            case null =>
+            case path =>
+              ps.add(path.replace('\\', '/'))
           }
         }
       case Some(so) =>
-        knownProducts foreach { product =>
+        knownProductsPar foreach { product =>
           val productPath = converter.toPath(product)
           try {
             ps.add(so.relativize(productPath).toString.replace('\\', '/'))
