@@ -22,7 +22,6 @@ import sbt.util.{ InterfaceUtil, Level, Logger }
 import sbt.util.InterfaceUtil.{ jo2o, t2 }
 import scala.collection.JavaConverters._
 import scala.util.control.NonFatal
-import scala.collection.parallel.immutable.ParVector
 import xsbti.{ FileConverter, Position, Problem, Severity, UseScope, VirtualFile, VirtualFileRef }
 import xsbt.api.{ APIUtil, HashAPI, NameHashing }
 import xsbti.api._
@@ -1086,28 +1085,27 @@ private final class AnalysisCallback(
 
   private def knownProducts(merged: Analysis) = {
     // List classes defined in the files that were compiled in this run.
-    val ps = java.util.concurrent.ConcurrentHashMap.newKeySet[String]
-    val knownProducts: ParVector[VirtualFileRef] =
-      new ParVector(merged.relations.allSources.toVector)
-        .flatMap(merged.relations.products)
-    // extract product paths in parallel
-    jo2o(output.getSingleOutputAsPath) match {
-      case Some(so) if so.getFileName.toString.endsWith(".jar") =>
-        knownProducts foreach { product =>
-          new JarUtils.ClassInJar(product.id).toClassFilePath foreach { path =>
+    val ps: java.util.Set[String] = new java.util.HashSet[String]()
+    val knownProducts: collection.Set[VirtualFileRef] = merged.relations.allProducts
+
+    // extract product paths
+    val so = jo2o(output.getSingleOutputAsPath).getOrElse(sys.error(s"unsupported output $output"))
+    val isJarOutput = so.getFileName.toString.endsWith(".jar")
+    knownProducts foreach { product =>
+      if (isJarOutput) {
+        new JarUtils.ClassInJar(product.id).toClassFilePathOrNull match {
+          case null =>
+          case path =>
             ps.add(path.replace('\\', '/'))
-          }
         }
-      case Some(so) =>
-        knownProducts foreach { product =>
-          val productPath = converter.toPath(product)
-          try {
-            ps.add(so.relativize(productPath).toString.replace('\\', '/'))
-          } catch {
-            case NonFatal(_) => ps.add(product.id)
-          }
+      } else {
+        val productPath = converter.toPath(product)
+        try {
+          ps.add(so.relativize(productPath).toString.replace('\\', '/'))
+        } catch {
+          case NonFatal(_) => ps.add(product.id)
         }
-      case _ => sys.error(s"unsupported output $output")
+      }
     }
     ps
   }
