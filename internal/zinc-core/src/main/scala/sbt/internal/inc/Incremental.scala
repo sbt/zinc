@@ -1086,29 +1086,26 @@ private final class AnalysisCallback(
   private def knownProducts(merged: Analysis) = {
     // List classes defined in the files that were compiled in this run.
     val ps: java.util.Set[String] = new java.util.HashSet[String]()
-    val knownProducts: Vector[VirtualFileRef] =
-      merged.relations.allSources.toVector.flatMap(merged.relations.products)
+    val knownProducts: collection.Set[VirtualFileRef] = merged.relations.allProducts
 
     // extract product paths
-    jo2o(output.getSingleOutputAsPath) match {
-      case Some(so) if so.getFileName.toString.endsWith(".jar") =>
-        knownProducts foreach { product =>
-          new JarUtils.ClassInJar(product.id).toClassFilePathOrNull match {
-            case null =>
-            case path =>
-              ps.add(path.replace('\\', '/'))
-          }
+    val so = jo2o(output.getSingleOutputAsPath).getOrElse(sys.error(s"unsupported output $output"))
+    val isJarOutput = so.getFileName.toString.endsWith(".jar")
+    knownProducts foreach { product =>
+      if (isJarOutput) {
+        new JarUtils.ClassInJar(product.id).toClassFilePathOrNull match {
+          case null =>
+          case path =>
+            ps.add(path.replace('\\', '/'))
         }
-      case Some(so) =>
-        knownProducts foreach { product =>
-          val productPath = converter.toPath(product)
-          try {
-            ps.add(so.relativize(productPath).toString.replace('\\', '/'))
-          } catch {
-            case NonFatal(_) => ps.add(product.id)
-          }
+      } else {
+        val productPath = converter.toPath(product)
+        try {
+          ps.add(so.relativize(productPath).toString.replace('\\', '/'))
+        } catch {
+          case NonFatal(_) => ps.add(product.id)
         }
-      case _ => sys.error(s"unsupported output $output")
+      }
     }
     ps
   }
