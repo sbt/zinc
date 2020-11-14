@@ -44,15 +44,6 @@ def mimaSettings: Seq[Setting[_]] = Seq(
   },
 )
 
-ThisBuild / version := {
-  val old = (ThisBuild / version).value
-  nightlyVersion match {
-    case Some(v) => v
-    case _ =>
-      if ((ThisBuild / isSnapshot).value) "1.4.0-SNAPSHOT"
-      else old
-  }
-}
 ThisBuild / versionScheme := Some("early-semver")
 ThisBuild / organization := "org.scala-sbt"
 ThisBuild / licenses := List(("Apache-2.0", url("https://www.apache.org/licenses/LICENSE-2.0")))
@@ -77,13 +68,6 @@ ThisBuild / developers := List(
   Developer("jvican", "Jorge Vicente Cantero", "@jvican", url("https://github.com/jvican")),
   Developer("Duhemm", "Martin Duhem", "@Duhemm", url("https://github.com/Duhemm")),
 )
-ThisBuild / publishTo := {
-  val old = (ThisBuild / publishTo).value
-  sys.props.get("sbt.build.localmaven") match {
-    case Some(path) => Some(MavenCache("local-maven", file(path)))
-    case _          => old
-  }
-}
 ThisBuild / pomIncludeRepository := (_ => false) // drop repos other than Maven Central from POM
 ThisBuild / mimaPreviousArtifacts := Set.empty
 // limit the number of concurrent test so testQuick works
@@ -698,6 +682,31 @@ def scriptedTask: Def.Initialize[InputTask[Unit]] = Def.inputTask {
   )
 }
 
+ThisBuild / version := {
+  val old = (ThisBuild / version).value
+  nightlyVersion match {
+    case Some(v) => v
+    case _ =>
+      if ((ThisBuild / isSnapshot).value) "1.4.0-SNAPSHOT"
+      else old
+  }
+}
+def githubPackageRegistry: Option[Resolver] =
+  sys.env.get("RELEASE_GITHUB_PACKAGE_REGISTRY") map { repo =>
+    s"GitHub Package Registry ($repo)" at s"https://maven.pkg.github.com/$repo"
+  }
+ThisBuild / publishTo := {
+  val old = (ThisBuild / publishTo).value
+  githubPackageRegistry orElse old
+}
+ThisBuild / resolvers ++= githubPackageRegistry.toList
+ThisBuild / credentials ++= {
+  sys.env.get("GITHUB_TOKEN") match {
+    case Some(token) =>
+      List(Credentials("GitHub Package Registry", "maven.pkg.github.com", "unused", token))
+    case _ => Nil
+  }
+}
 ThisBuild / whitesourceProduct := "Lightbend Reactive Platform"
 ThisBuild / whitesourceAggregateProjectName := "sbt-zinc-master"
 ThisBuild / whitesourceAggregateProjectToken := "4b57f35176864c6397b872277d51bc27b89503de0f1742b8bc4dfa2e33b95c5c"

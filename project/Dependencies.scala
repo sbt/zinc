@@ -2,7 +2,8 @@ import sbt._, Keys._
 import sbt.contraband.ContrabandPlugin.autoImport._
 
 object Dependencies {
-  def nightlyVersion: Option[String] = sys.props.get("sbt.build.version")
+  def nightlyVersion: Option[String] =
+    sys.env.get("BUILD_VERSION") orElse sys.props.get("sbt.build.version")
 
   val scala210 = "2.10.7"
   val scala211 = "2.11.12"
