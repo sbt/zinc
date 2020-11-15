@@ -58,7 +58,7 @@ ThisBuild / organization := "org.scala-sbt"
 ThisBuild / licenses := List(("Apache-2.0", url("https://www.apache.org/licenses/LICENSE-2.0")))
 ThisBuild / scalafmtOnCompile := !(Global / insideCI).value
 ThisBuild / Test / scalafmtOnCompile := !(Global / insideCI).value
-ThisBuild / bintrayPackage := "zinc"
+ThisBuild / bintrayPackage := sys.env.get("BINTRAY_PACKAGE").getOrElse("zinc")
 ThisBuild / scmInfo := Some(
   ScmInfo(url("https://github.com/sbt/zinc"), "git@github.com:sbt/zinc.git")
 )
@@ -77,13 +77,6 @@ ThisBuild / developers := List(
   Developer("jvican", "Jorge Vicente Cantero", "@jvican", url("https://github.com/jvican")),
   Developer("Duhemm", "Martin Duhem", "@Duhemm", url("https://github.com/Duhemm")),
 )
-ThisBuild / publishTo := {
-  val old = (ThisBuild / publishTo).value
-  sys.props.get("sbt.build.localmaven") match {
-    case Some(path) => Some(MavenCache("local-maven", file(path)))
-    case _          => old
-  }
-}
 ThisBuild / pomIncludeRepository := (_ => false) // drop repos other than Maven Central from POM
 ThisBuild / mimaPreviousArtifacts := Set.empty
 // limit the number of concurrent test so testQuick works
