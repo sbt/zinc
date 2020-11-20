@@ -9,6 +9,8 @@ object Dependencies {
   val scala211 = "2.11.12"
   val scala212 = "2.12.12"
   val scala213 = "2.13.3"
+  val `scala-3.0` = "3.0.0-M1"
+  
   val defaultScalaVersion = scala212
   val allScalaVersions = Seq(defaultScalaVersion, scala210, scala211, scala213)
   val scala212_213 = Seq(defaultScalaVersion, scala213)
@@ -68,7 +70,12 @@ object Dependencies {
     addSbtModule(p, sbtUtilPath, "utilTracking", utilTracking)
 
   val scalaLibrary = Def.setting { "org.scala-lang" % "scala-library" % scalaVersion.value }
-  val scalaCompiler = Def.setting { "org.scala-lang" % "scala-compiler" % scalaVersion.value }
+  val scalaCompiler = Def.setting {
+    if (scalaVersion.value.startsWith("3."))
+      "org.scala-lang" %% "scala3-compiler" % scalaVersion.value
+    else
+      "org.scala-lang" % "scala-compiler" % scalaVersion.value
+  }
 
   val parserCombinator = "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2"
   val sbinary = "org.scala-sbt" %% "sbinary" % "0.5.1"

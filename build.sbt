@@ -510,6 +510,25 @@ lazy val compilerBridge211 = compilerBridge.jvm(scala211)
 lazy val compilerBridge212 = compilerBridge.jvm(scala212)
 lazy val compilerBridge213 = compilerBridge.jvm(scala213)
 
+lazy val scala3CompilerBridge = project
+  .in(internalPath / "scala3-compiler-bridge")
+  .dependsOn(
+    compilerInterface.jvm(autoScalaLibrary = false)
+  )
+  .settings(
+    name := "scala3-compiler-bridge",
+    autoScalaLibrary := false,
+    scalaVersion :=`scala-3.0`,
+    baseSettings,
+    compilerVersionDependentScalacOptions,
+    libraryDependencies += scalaCompiler.value % "provided",
+    exportJars := true,
+    // Those scalacOptions are ignored by  the scala3-compiler
+    Compile / scalacOptions --= 
+      Seq("-Xlint", "-Ywarn-dead-code", "-Ywarn-numeric-widen", "-Ywarn-value-discard")
+  )
+  .disablePlugins(ScalafmtPlugin)
+
 /**
  * Tests for the compiler bridge.
  * This is split into a separate subproject because testing introduces more dependencies
