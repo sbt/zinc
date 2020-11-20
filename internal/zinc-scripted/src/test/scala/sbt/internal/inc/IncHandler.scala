@@ -811,7 +811,10 @@ case class ProjectStructure(
           val dropQuotes =
             if (expected.startsWith("\"")) expected.drop(1).dropRight(1)
             else expected
-          assert(problemMessage.contains(dropQuotes), s"'$problemMessage' doesn't contain '$dropQuotes'.")
+          assert(
+            problemMessage.contains(dropQuotes),
+            s"'$problemMessage' doesn't contain '$dropQuotes'."
+          )
         case None =>
           throw new TestFailed(
             s"Problem not found: $index (there are ${problems.length} problem with severity $severity)."

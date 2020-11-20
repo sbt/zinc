@@ -42,7 +42,8 @@ private final class DelegatingReporter(
 
 private object DelegatingReporter {
   private def convert(pos: SourcePosition): Position = {
-    if (pos.exists) new PositionImpl(pos, pos.source)
+    if (pos.exists)
+      new PositionImpl(pos, pos.source)
     else EmptyPosition
   }
 
@@ -56,20 +57,20 @@ private object DelegatingReporter {
   }
 
   object EmptyPosition extends xsbti.Position {
-    override def line(): Optional[Integer] = Optional.empty
-    override def lineContent(): String = ""
-    override def offset(): Optional[Integer] = Optional.empty
-    override def pointer(): Optional[Integer] = Optional.empty
-    override def pointerSpace(): Optional[String] = Optional.empty
-    override def sourcePath(): Optional[String] = Optional.empty
-    override def sourceFile(): Optional[File] = Optional.empty
+    override def line: Optional[Integer] = Optional.empty
+    override def lineContent: String = ""
+    override def offset: Optional[Integer] = Optional.empty
+    override def pointer: Optional[Integer] = Optional.empty
+    override def pointerSpace: Optional[String] = Optional.empty
+    override def sourcePath: Optional[String] = Optional.empty
+    override def sourceFile: Optional[File] = Optional.empty
   }
 
   class PositionImpl(
       pos: SourcePosition,
       src: SourceFile
   ) extends xsbti.Position {
-    def line: Optional[Integer] = {
+    override def line: Optional[Integer] = {
       if (src.content.isEmpty)
         Optional.empty
       else {
@@ -78,7 +79,7 @@ private object DelegatingReporter {
         else Optional.of(line + 1)
       }
     }
-    def lineContent: String = {
+    override def lineContent: String = {
       if (src.content.isEmpty) ""
       else {
         val line = pos.lineContent
@@ -89,20 +90,25 @@ private object DelegatingReporter {
         else line
       }
     }
-    def offset: Optional[Integer] = Optional.of(pos.point)
-    def sourcePath: Optional[String] = {
+    override def offset: Optional[Integer] = Optional.of(pos.point)
+    override def sourcePath: Optional[String] = {
       if (!src.exists) Optional.empty
-      else Optional.ofNullable(src.file.path)
+      else {
+        pos.source.file match {
+          case AbstractZincFile(virtualFile) => Optional.of(virtualFile.id)
+          case abstractFile => Optional.ofNullable(abstractFile.path)
+        }
+      }
     }
-    def sourceFile: Optional[File] = {
+    override def sourceFile: Optional[File] = {
       if (!src.exists) Optional.empty
       else Optional.ofNullable(src.file.file)
     }
-    def pointer: Optional[Integer] = {
+    override def pointer: Optional[Integer] = {
       if (src.content.isEmpty) Optional.empty
       else Optional.of(pos.point - src.startOfLine(pos.point))
     }
-    def pointerSpace: Optional[String] = {
+    override def pointerSpace: Optional[String] = {
       if (src.content.isEmpty) Optional.empty
       else {
         // Don't crash if pointer is out-of-bounds (happens with some macros)
