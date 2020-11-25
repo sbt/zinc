@@ -14,24 +14,25 @@ package internal
 package inc
 
 import java.lang.reflect.InvocationTargetException
-import java.nio.file.Path
 import java.net.URLClassLoader
+import java.nio.file.Path
 import java.util.{ Optional, ServiceLoader }
 
 import com.github.ghik.silencer.silent
-import sbt.util.{ InterfaceUtil, Logger }
-import sbt.io.syntax._
-import sbt.internal.inc.classpath.ClassLoaderCache
+import sbt.internal.inc.classpath.{ ClassLoaderCache, DualLoader }
 import sbt.internal.util.ManagedLogger
+import sbt.io.syntax._
+import sbt.util.{ InterfaceUtil, Logger }
+import xsbti.compile._
 import xsbti.{
   AnalysisCallback,
   FileConverter,
   InteractiveConsoleFactory,
   Reporter,
-  Logger => xLogger,
-  VirtualFile
+  VirtualFile,
+  Logger => xLogger
 }
-import xsbti.compile._
+
 import scala.language.existentials
 
 /**
@@ -340,11 +341,13 @@ final class AnalyzingCompiler(
 
   private[this] def getLoader(log: Logger): ClassLoader = {
     val interfaceJar = provider.fetchCompiledBridge(scalaInstance, log)
-    def createInterfaceLoader =
+
+    def createInterfaceLoader = {
       new URLClassLoader(
         Array(interfaceJar.toURI.toURL),
-        createDualLoader(scalaInstance.loader(), getClass.getClassLoader)
+        createDualLoader(scalaInstance, getClass.getClassLoader)
       )
+    }
 
     classLoaderCache match {
       case Some(cache) =>
@@ -359,27 +362,37 @@ final class AnalyzingCompiler(
   private[this] def getBridgeClass(name: String, loader: ClassLoader) =
     Class.forName(name, true, loader)
 
+  /**
+   * The created `DualLoader` must load the xsbti.*` classes from the `sbtLoader`
+   * and everything else from the `scalaInstance` jars.
+   *
+   * We cannot use the `scalaInstance.loader` direclty because the Scala 3 compiler
+   * needs access to the `xsbti.*` classes.
+   * If the same class is loaded by two different loaders (`sbtLodaer` and
+   * `scalaInstance.loader`) they are considered distinct by the JVM, resulting in
+   * `ClassCastException` or `LinkageError`.
+   *
+   * The compiler classes are directly loaded by the `DualLoader` so that the
+   * subsequent classes are also loaded by the `DualLoader`, ensuring consistency
+   * for `xsbti.*` classes.
+   */
   protected def createDualLoader(
-      scalaLoader: ClassLoader,
+      scalaInstance: xsbti.compile.ScalaInstance,
       sbtLoader: ClassLoader
   ): ClassLoader = {
     val xsbtiFilter = (name: String) => name.startsWith("xsbti.")
-    val notXsbtiFilter = (name: String) => !xsbtiFilter(name)
-    new classpath.DualLoader(
-      scalaLoader,
-      notXsbtiFilter,
-      _ => true,
+    new DualLoader(
+      scalaInstance.allJars.map(_.toURI.toURL),
       sbtLoader,
       xsbtiFilter,
       _ => false
     )
   }
-
   override def toString = s"Analyzing compiler (Scala ${scalaInstance.actualVersion})"
 }
 
 object AnalyzingCompiler {
-  import sbt.io.IO.{ copy, zip, unzip, withTemporaryDirectory }
+  import sbt.io.IO.{ copy, unzip, withTemporaryDirectory, zip }
 
   /**
    * Compile a Scala bridge from the sources of the compiler as follows:
