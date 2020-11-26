@@ -616,6 +616,11 @@ lazy val zincClasspath = (projectMatrix in internalPath / "zinc-classpath")
         "sbt.internal.inc.classpath.NativeCopyConfig.*"
       ),
       exclude[IncompatibleMethTypeProblem]("sbt.internal.inc.classpath.NativeCopyConfig.*"),
+      exclude[MissingTypesProblem]("sbt.internal.inc.classpath.DualLoader"),
+      exclude[DirectMissingMethodProblem]("sbt.internal.inc.classpath.DualLoader.this"),
+      exclude[IncompatibleMethTypeProblem]("sbt.internal.inc.classpath.DualLoader.this"),
+      exclude[MissingClassProblem]("sbt.internal.inc.classpath.DifferentLoaders"),
+      exclude[MissingClassProblem]("sbt.internal.inc.classpath.NullLoader")
     ),
   )
   .jvmPlatform(scalaVersions = scala212_213)
