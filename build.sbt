@@ -518,13 +518,13 @@ lazy val scala3CompilerBridge = project
   .settings(
     name := "scala3-compiler-bridge",
     autoScalaLibrary := false,
-    scalaVersion :=`scala-3.0`,
+    scalaVersion := `scala-3.0`,
     baseSettings,
     compilerVersionDependentScalacOptions,
     libraryDependencies += scalaCompiler.value % "provided",
     exportJars := true,
     // Those scalacOptions are ignored by  the scala3-compiler
-    Compile / scalacOptions --= 
+    Compile / scalacOptions --=
       Seq("-Xlint", "-Ywarn-dead-code", "-Ywarn-numeric-widen", "-Ywarn-value-discard")
   )
   .disablePlugins(ScalafmtPlugin)
