@@ -26,17 +26,19 @@ public final class ClassFileManagerUtil {
      * @return A classfile manager implementation.
      */
     public static ClassFileManager getDefaultClassFileManager(ClassFileManagerType classFileManagerType) {
-        return sbt.internal.inc.ClassFileManager.getDefaultClassFileManager(Optional.of(classFileManagerType));
+        return sbt.internal.inc.ClassFileManager.getDefaultClassFileManager(
+                Optional.of(classFileManagerType), new AuxiliaryClassFiles[0]);
     }
 
     /**
      * Get the default classfile manager implementation for a given classfile manager type,
      * extracted from an instance of {@link IncOptions}.
      *
-     * @param classFileManagerType The classfile manager type.
+     * @param incOptions The Incremental compiler options.
      * @return A classfile manager implementation.
      */
     public static ClassFileManager getDefaultClassFileManager(IncOptions incOptions) {
-        return sbt.internal.inc.ClassFileManager.getDefaultClassFileManager(incOptions.classfileManagerType());
+        return sbt.internal.inc.ClassFileManager.getDefaultClassFileManager(
+                incOptions.classfileManagerType(), incOptions.auxiliaryClassFiles());
     }
 }

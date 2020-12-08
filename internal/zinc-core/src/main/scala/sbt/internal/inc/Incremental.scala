@@ -241,7 +241,7 @@ object Incremental {
     log.debug(s"[zinc] callAllJava")
     val previous = previous0 match { case a: Analysis => a }
     // prune Java knowledge out of previous Analysis
-    val pruned = prune(sources.toSet, previous, output, outputJarContent, converter)
+    val pruned = prune(sources.toSet, previous, output, outputJarContent, converter, options)
     val currentStamper = Stamps.initial(stamper)
     val internalBinaryToSourceClassName = (binaryClassName: String) =>
       pruned.relations.productClassName.reverse(binaryClassName).headOption
@@ -476,13 +476,15 @@ object Incremental {
       previous0: CompileAnalysis,
       output: Output,
       outputJarContent: JarUtils.OutputJarContent,
-      converter: FileConverter
+      converter: FileConverter,
+      incOptions: IncOptions
   ): Analysis = {
     val previous = previous0.asInstanceOf[Analysis]
     IncrementalCommon.pruneClassFilesOfInvalidations(
       invalidatedSrcs,
       previous,
-      ClassFileManager.deleteImmediately(output, outputJarContent),
+      ClassFileManager
+        .deleteImmediately(output, outputJarContent, incOptions.auxiliaryClassFiles()),
       converter
     )
   }
@@ -494,7 +496,7 @@ object Incremental {
       outputJarContent: JarUtils.OutputJarContent
   )(run: XClassFileManager => T): T = {
     val classfileManager =
-      ClassFileManager.getClassFileManager(options, converter, output, outputJarContent)
+      ClassFileManager.getClassFileManager(options, output, outputJarContent)
     val result = try run(classfileManager)
     catch {
       case e: Throwable =>

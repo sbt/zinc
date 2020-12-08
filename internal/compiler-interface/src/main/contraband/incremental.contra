@@ -41,6 +41,10 @@ type IncOptions {
   classfileManagerType: xsbti.compile.ClassFileManagerType = raw"xsbti.compile.IncOptions.defaultClassFileManagerType()"
   @since("0.1.0")
 
+  ## Associate each class file with corresponding files (eg. .tasty files) that must be managed by the ClassfileManager.
+  auxiliaryClassFiles: [xsbti.compile.AuxiliaryClassFiles] = raw"xsbti.compile.IncOptions.defaultAuxiliaryClassFiles()"
+  @since("1.5.0")
+
   ## Option to turn on customized file manager that tracks generated class files for transactional rollbacks.
   ## Using customized file manager may conflict with some libraries, this option allows user to decide
   ## whether to use.
@@ -121,6 +125,9 @@ type IncOptions {
   #x }
   #x public static java.util.Optional<ClassFileManagerType> defaultClassFileManagerType() {
   #x     return java.util.Optional.empty();
+  #x }
+  #x public static xsbti.compile.AuxiliaryClassFiles[] defaultAuxiliaryClassFiles() {
+  #x     return new xsbti.compile.AuxiliaryClassFiles[0];
   #x }
   #x public static java.util.Optional<Boolean> defaultRecompileOnMacroDef() {
   #x     return java.util.Optional.empty();
