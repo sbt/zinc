@@ -11,10 +11,11 @@
 
 package sbt.inc
 
-import xsbti.compile.{ AnalysisStore, CompileAnalysis, DefaultExternalHooks }
 import sbt.internal.inc._
 import sbt.io.IO.{ withTemporaryDirectory => withTmpDir }
 import sbt.io.syntax._
+import xsbti.compile.{ AnalysisStore, CompileAnalysis, DefaultExternalHooks }
+
 import java.util.Optional
 
 class IncrementalCompilerSpec extends BaseCompilerSpec {

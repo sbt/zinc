@@ -1,29 +1,68 @@
 package sbt.inc
 
+import sbt.internal.inc.FileAnalysisStore
 import sbt.io.IO
-import xsbti.compile.AuxiliaryClassFiles
+import sbt.io.syntax._
+import xsbti.compile.{ AnalysisStore, ScalaNativeFiles, TastyFiles, TransactionalManagerType }
 
-import java.nio.file.Path
+import java.nio.file.Files
 
 class AuxiliaryClassFilesSpec extends BaseCompilerSpec {
-  it should "allow client to add define their own auxiliary class files" in {
-    IO.withTemporaryDirectory { tempDir =>
-      val setup = ProjectSetup.simple(tempDir.toPath, SourceFiles.Foo :: Nil)
-      var callbackCalled = 0
-      val myAuxiliaryFiles = new AuxiliaryClassFiles {
-        override def associatedFiles(classFile: Path): Array[Path] = {
-          callbackCalled += 1
-          Array()
-        }
-      }
+  behavior.of("incremental compiler with auxiliary class files")
+  it should "remove auxiliary tasty files" in IO.withTemporaryDirectory { tempDir =>
+    val classes = Seq(SourceFiles.Good, SourceFiles.Foo)
+    val setup = ProjectSetup.simple(tempDir.toPath, classes)
+    val backup = tempDir / "classes.back"
+    val options = incOptions
+      .withAuxiliaryClassFiles(Array(TastyFiles.instance()))
+      .withClassfileManagerType(TransactionalManagerType.of(backup, sbt.util.Logger.Null))
+    val compiler = setup.createCompiler().copy(incOptions = options)
+    try {
+      val cacheFile = tempDir / "target" / "inc_compile.zip"
+      val fileStore = AnalysisStore.getCachedStore(FileAnalysisStore.binary(cacheFile))
 
-      val compiler =
-        setup.createCompiler(incOptions = incOptions.withAuxiliaryClassFiles(Array(myAuxiliaryFiles)))
+      compiler.doCompileWithStore(fileStore)
 
-      try compiler.doCompile()
-      finally compiler.close()
+      // create fake Foo.tasty files
+      val fooTastyFile = setup.classesDir.resolve("pkg/Foo.tasty")
+      IO.touch(fooTastyFile.toFile)
 
-      callbackCalled.shouldEqual(3)
-    }
+      // remove Foo.scala
+      val fooSrcFile = setup.baseDir.resolve(s"src/${SourceFiles.Foo}")
+      IO.delete(fooSrcFile.toFile)
+
+      // recompile
+      val goodSrcFile = setup.baseDir.resolve(s"src/${SourceFiles.Good}")
+      val newSources = Array(setup.converter.toVirtualFile(goodSrcFile))
+      compiler.doCompileWithStore(
+        fileStore,
+        i => i.withOptions(i.options().withSources(newSources))
+      )
+      assert(!Files.exists(fooTastyFile))
+    } finally compiler.close()
+  }
+
+  it should "ignore non-existent auxiliary files" in IO.withTemporaryDirectory { tempDir =>
+    val classes = Seq(SourceFiles.Good, SourceFiles.Foo)
+    val setup = ProjectSetup.simple(tempDir.toPath, classes)
+    val backup = tempDir / "classes.back"
+    val options = incOptions
+      .withAuxiliaryClassFiles(Array(ScalaNativeFiles.instance()))
+      .withClassfileManagerType(TransactionalManagerType.of(backup, sbt.util.Logger.Null))
+    val compiler = setup.createCompiler().copy(incOptions = options)
+    try {
+      val cacheFile = tempDir / "target" / "inc_compile.zip"
+      val fileStore = AnalysisStore.getCachedStore(FileAnalysisStore.binary(cacheFile))
+
+      val res = compiler.doCompileWithStore(fileStore)
+      assert(res.hasModified)
+
+      // recompile
+      val res1 = compiler.doCompileWithStore(
+        fileStore,
+        i => i.withSetup(i.setup().withExtra(Array()))
+      )
+      assert(res1.hasModified)
+    } finally compiler.close()
   }
 }

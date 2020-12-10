@@ -162,7 +162,7 @@ case class ProjectSetup(
     outputToJar: Boolean = false,
     subproject: String = "unnamed",
     scalacOptions: Seq[String] = Nil,
-    overrideCp: Option[Seq[Path]] = None, // to avoid "fromResource"
+    overrideCp: Option[Seq[Path]] = None // to avoid "fromResource"
 ) {
   def baseDir = proj.baseDir
   def converter = proj.converter
@@ -209,7 +209,7 @@ case class ProjectSetup(
       sv: String,
       si: XScalaInstance,
       compilerBridge: Path,
-      pipelining: Boolean,
+      options: IncOptions,
       log: ManagedLogger,
   ): CompilerSetup = {
     CompilerSetup(
@@ -222,7 +222,7 @@ case class ProjectSetup(
       allSources.toVector.map(converter.toVirtualFile(_)),
       allClasspath.map(converter.toVirtualFile(_)),
       scalacOptions,
-      IncOptions.of().withPipelining(pipelining),
+      options,
       analysisForCp,
       analysisPath,
       earlyAnalysisPath,

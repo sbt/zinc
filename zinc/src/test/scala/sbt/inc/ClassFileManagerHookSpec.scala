@@ -14,7 +14,6 @@ package sbt.inc
 import java.io.File
 import sbt.io.IO
 import xsbti.compile.ClassFileManager
-import xsbti.compile.IncOptions
 
 class ClassFileManagerHookSpec extends BaseCompilerSpec {
   it should "allow client to add their own class file manager" in {
@@ -36,12 +35,11 @@ class ClassFileManagerHookSpec extends BaseCompilerSpec {
         }
       }
 
-      val incOptions = IncOptions.of()
       val newExternalHooks =
         incOptions.externalHooks.withExternalClassFileManager(myClassFileManager)
+      val options = incOptions.withExternalHooks(newExternalHooks)
 
-      val compiler =
-        setup.createCompiler().copy(incOptions = incOptions.withExternalHooks(newExternalHooks))
+      val compiler = setup.createCompiler().copy(incOptions = options)
       try compiler.doCompile()
       finally compiler.close()
 
