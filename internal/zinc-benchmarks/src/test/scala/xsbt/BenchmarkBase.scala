@@ -13,12 +13,13 @@ package xsbt
 
 import net.openhft.affinity.AffinityLock
 import org.openjdk.jmh.annotations._
+
 import java.io.File
 import sbt.inc.{ CompilerSetup, ProjectSetup }
 import sbt.internal.inc.BridgeProviderSpecification
 import sbt.util.Logger
-
 import xsbt.ZincBenchmark.CompilationInfo
+import xsbti.compile.IncOptions
 
 @State(Scope.Benchmark)
 class BenchmarkBase extends BridgeProviderSpecification {
@@ -61,8 +62,8 @@ class BenchmarkBase extends BridgeProviderSpecification {
     val scalaVersion = ZincBenchmark.scalaVersion
     val bridge = getCompilerBridge(_dir.toPath, noLogger, scalaVersion)
     val si = scalaInstance(scalaVersion, _dir.toPath, noLogger)
-    val pipelining = false
-    _compilerSetup = _setup.createCompiler(scalaVersion, si, bridge, pipelining, log)
+    val options = IncOptions.of()
+    _compilerSetup = _setup.createCompiler(scalaVersion, si, bridge, options, log)
     printCompilationDetails()
   }
 
