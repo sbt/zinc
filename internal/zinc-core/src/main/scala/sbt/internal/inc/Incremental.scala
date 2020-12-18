@@ -16,6 +16,7 @@ package inc
 import java.io.File
 import java.nio.file.{ Files, Path, Paths }
 import java.util.{ EnumSet, UUID }
+import java.util.concurrent.atomic.{ AtomicBoolean }
 import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
 import sbt.internal.inc.JavaInterfaceUtil.EnrichOption
 import sbt.util.{ InterfaceUtil, Level, Logger }
@@ -647,7 +648,7 @@ private final class AnalysisCallback(
 
   // Results of invalidation calculations (including whether to continue cycles) - the analysis at this point is
   // not useful and so isn't included.
-  private[this] var invalidationResults: Option[CompileCycleResult] = None
+  @volatile private[this] var invalidationResults: Option[CompileCycleResult] = None
 
   private def add[A, B](map: TrieMap[A, ConcurrentSet[B]], a: A, b: B): Unit = {
     map.getOrElseUpdate(a, ConcurrentHashMap.newKeySet[B]()).add(b)
@@ -864,25 +865,30 @@ private final class AnalysisCallback(
 
   override def enabled(): Boolean = options.enabled
 
-  private[this] var gotten: Boolean = false
+  private[this] val gotten: AtomicBoolean = new AtomicBoolean(false)
   def getCycleResultOnce: CompileCycleResult = {
-    assert(!gotten, "can't call AnalysisCallback#getCycleResultOnce more than once")
-    val incHandler = incHandlerOpt.getOrElse(sys.error("incHandler was expected"))
-    gotten = true
-    // Not continuing & nothing was written, so notify it ain't gonna happen
-    def notifyNoEarlyOut() = if (!writtenEarlyArtifacts) progress.foreach(_.afterEarlyOutput(false))
-    outputJarContent.scalacRunCompleted()
-    if (earlyOutput.isDefined) {
-      val early = incHandler.previousAnalysisPruned
-      invalidationResults match {
-        case None if lookup.shouldDoEarlyOutput(early)    => writeEarlyArtifacts(early)
-        case None | Some(CompileCycleResult(false, _, _)) => notifyNoEarlyOut()
-        case _                                            =>
+    if (gotten.compareAndSet(false, true)) {
+      val incHandler = incHandlerOpt.getOrElse(sys.error("incHandler was expected"))
+      // Not continuing & nothing was written, so notify it ain't gonna happen
+      def notifyNoEarlyOut() =
+        if (!writtenEarlyArtifacts) progress.foreach(_.afterEarlyOutput(false))
+      outputJarContent.scalacRunCompleted()
+      if (earlyOutput.isDefined) {
+        val early = incHandler.previousAnalysisPruned
+        invalidationResults match {
+          case None if lookup.shouldDoEarlyOutput(early)    => writeEarlyArtifacts(early)
+          case None | Some(CompileCycleResult(false, _, _)) => notifyNoEarlyOut()
+          case _                                            =>
+        }
+        if (!writtenEarlyArtifacts) // writing implies the updates merge has happened
+          mergeUpdates() // must merge updates each cycle or else scalac will clobber it
       }
-      if (!writtenEarlyArtifacts) // writing implies the updates merge has happened
-        mergeUpdates() // must merge updates each cycle or else scalac will clobber it
+      incHandler.completeCycle(invalidationResults, getAnalysis)
+    } else {
+      throw new IllegalStateException(
+        "can't call AnalysisCallback#getCycleResultOnce more than once"
+      )
     }
-    incHandler.completeCycle(invalidationResults, getAnalysis)
   }
 
   private def getAnalysis: Analysis = {
@@ -1049,7 +1055,7 @@ private final class AnalysisCallback(
     outputJarContent.get().asJava
   }
 
-  private[this] var writtenEarlyArtifacts: Boolean = false
+  @volatile private[this] var writtenEarlyArtifacts: Boolean = false
 
   private def writeEarlyArtifacts(merged: Analysis): Unit = {
     writtenEarlyArtifacts = true
