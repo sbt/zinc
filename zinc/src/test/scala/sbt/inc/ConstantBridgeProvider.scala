@@ -41,11 +41,19 @@ final class ConstantBridgeProvider(bridges: List[ScalaBridge], tempDir: Path)
     val jars = bridgeOrBoom(scalaVersion).jars.toArray
     assert(jars.forall(_.exists), "One or more jar(s) in the Scala instance do not exist.")
     val libraryJar = jars.find(_.getName.contains("scala-library")).get
-    val compilerJar = jars.find(_.getName.contains("scala-compiler")).get
     val loaderLibraryOnly = ClasspathUtil.toLoader(Seq(libraryJar.toPath))
     val missingJars = jars.filter(_ != libraryJar)
     val loader = ClasspathUtil.toLoader(missingJars.map(_.toPath), loaderLibraryOnly)
-    new ScalaInstance(scalaVersion, loader, loaderLibraryOnly, libraryJar, compilerJar, jars, None)
+    new ScalaInstance(
+      scalaVersion,
+      loader,
+      loader,
+      loaderLibraryOnly,
+      Array(libraryJar),
+      compilerJars = jars,
+      jars,
+      None
+    )
   }
 
   private def bridgeOrBoom(scalaVersion: String) = {
