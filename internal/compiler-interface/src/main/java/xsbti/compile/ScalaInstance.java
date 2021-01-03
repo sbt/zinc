@@ -35,6 +35,13 @@ public interface ScalaInstance {
 	/** A class loader providing access to the classes and resources in all the jars of this Scala instance. */
 	ClassLoader loader();
 
+	/** A class loader providing access to the classes and resources in the compiler jar of this Scala instance.
+	 * In Scala 2, `loaderCompilerOnly` and `loader` are not different.
+	 * But in Scala 3, `loader` contains the `scala3doc` jar and all its dependencies, that are not contained in
+	 * `loaderCompilerOnly`
+	 * */
+	ClassLoader loaderCompilerOnly();
+
 	/** A class loader providing access to the classes and resources in the library jars of this Scala instance. */
 	ClassLoader loaderLibraryOnly();
 
@@ -48,7 +55,11 @@ public interface ScalaInstance {
 	}
 
 	/** Classpath entry that stores the Scala compiler classes. */
-	File compilerJar();
+	File[] compilerJars();
+
+	/** @deprecated Use `compilerJars` instead (since 1.5.0). */
+	@Deprecated
+	default File compilerJar() { return compilerJars()[0]; }
 
 	/** All the jars except `libraryJars` and `compilerJar`. */
 	File[] otherJars();

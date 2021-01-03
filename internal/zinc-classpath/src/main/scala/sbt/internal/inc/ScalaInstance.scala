@@ -34,13 +34,15 @@ import sbt.internal.inc.classpath.ClasspathUtil
 final class ScalaInstance(
     val version: String,
     val loader: ClassLoader,
+    val loaderCompilerOnly: ClassLoader,
     val loaderLibraryOnly: ClassLoader,
     val libraryJars: Array[File],
-    val compilerJar: File,
+    val compilerJars: Array[File],
     val allJars: Array[File],
     val explicitActual: Option[String]
 ) extends xsbti.compile.ScalaInstance {
 
+  @deprecated("Use constructor with loaderCompilerOnly", "1.5.0")
   def this(
       version: String,
       loader: ClassLoader,
@@ -53,15 +55,38 @@ final class ScalaInstance(
     this(
       version,
       loader,
+      loader,
       loaderLibraryOnly,
       Array(libraryJar),
-      compilerJar,
       allJars,
+      Array.empty,
       explicitActual
     )
   }
 
-  @deprecated("Use constructor with loaderLibraryOnly", "1.1.2")
+  @deprecated("Use constructor with loaderCompilerOnly", "1.5.0")
+  def this(
+      version: String,
+      loader: ClassLoader,
+      loaderLibraryOnly: ClassLoader,
+      libraryJars: Array[File],
+      compilerJar: File,
+      allJars: Array[File],
+      explicitActual: Option[String]
+  ) {
+    this(
+      version,
+      loader,
+      loader,
+      loaderLibraryOnly,
+      libraryJars,
+      compilerJars = allJars,
+      allJars = allJars,
+      explicitActual
+    )
+  }
+
+  @deprecated("Use constructor with loaderLibraryOnly and compilerLibraryOnly", "1.1.2")
   def this(
       version: String,
       loader: ClassLoader,
@@ -73,9 +98,10 @@ final class ScalaInstance(
     this(
       version,
       loader,
+      loader,
       ClasspathUtil.rootLoader,
-      libraryJar,
-      compilerJar,
+      Array(libraryJar),
+      compilerJars = allJars,
       allJars,
       explicitActual
     )
@@ -88,7 +114,8 @@ final class ScalaInstance(
    */
   def isManagedVersion = explicitActual.isDefined
 
-  def otherJars: Array[File] = allJars.filterNot(f => compilerJar == f || libraryJars.contains(f))
+  def otherJars: Array[File] =
+    allJars.filterNot(f => compilerJars.contains(f) || libraryJars.contains(f))
 
   require(
     version.indexOf(' ') < 0,
@@ -109,8 +136,9 @@ final class ScalaInstance(
   /** Get the string representation of all the available jars. */
   private def jarStrings: String = {
     val libs = libraryJars.mkString(", ")
+    val compiler = compilerJars.mkString(", ")
     val other = otherJars.mkString(", ")
-    s"""library jars: $libs, compiler jar: $compilerJar, other jars: $other"""
+    s"""library jars: $libs, compiler jars: $compiler, other jars: $other"""
   }
 
   override def toString: String =
@@ -170,7 +198,6 @@ object ScalaInstance {
     }
     val jars = provider.jars
     val libraryJar = findOrCrash(jars, "scala-library.jar")
-    val compilerJar = findOrCrash(jars, "scala-compiler.jar")
     def fallbackClassLoaders = {
       val l = ClasspathUtil.toLoader(Vector(libraryJar.toPath))
       val c = scalaLoader(l)(jars.toVector filterNot { _ == libraryJar })
@@ -187,29 +214,54 @@ object ScalaInstance {
         case _: NoSuchMethodException => None
       }) getOrElse fallbackClassLoaders
     }
-    new ScalaInstance(version, loader, loaderLibraryOnly, libraryJar, compilerJar, jars, None)
+    new ScalaInstance(
+      version,
+      loader,
+      loader,
+      loaderLibraryOnly,
+      Array(libraryJar),
+      compilerJars = jars,
+      jars,
+      None
+    )
   }
 
   def apply(scalaHome: File, launcher: xsbti.Launcher): ScalaInstance =
     apply(scalaHome)(scalaLibraryLoader(launcher))
 
   def apply(scalaHome: File)(classLoader: List[File] => ClassLoader): ScalaInstance = {
-    val all = allJars(scalaHome)
+    val all = allJars(scalaHome).toArray
     val library = libraryJar(scalaHome)
     val loaderLibraryOnly = classLoader(List(library))
     val loader = scalaLoader(loaderLibraryOnly)(all.toVector filterNot { _ == library })
     val version = actualVersion(loader)(" (library jar  " + library.getAbsolutePath + ")")
-    val compiler = compilerJar(scalaHome)
-    new ScalaInstance(version, loader, loaderLibraryOnly, library, compiler, all.toArray, None)
+    new ScalaInstance(
+      version,
+      loader,
+      loader,
+      loaderLibraryOnly,
+      Array(library),
+      compilerJars = all,
+      all,
+      None
+    )
   }
 
   def apply(version: String, scalaHome: File, launcher: xsbti.Launcher): ScalaInstance = {
-    val all = allJars(scalaHome)
+    val all = allJars(scalaHome).toArray
     val library = libraryJar(scalaHome)
     val loaderLibraryOnly = scalaLibraryLoader(launcher)(List(library))
     val loader = scalaLoader(loaderLibraryOnly)(all.toVector)
-    val compiler = compilerJar(scalaHome)
-    new ScalaInstance(version, loader, loaderLibraryOnly, library, compiler, all.toArray, None)
+    new ScalaInstance(
+      version,
+      loader,
+      loader,
+      loaderLibraryOnly,
+      Array(library),
+      compilerJars = all,
+      all,
+      None
+    )
   }
 
   /** Return all the required Scala jars from a path `scalaHome`. */
@@ -231,8 +283,6 @@ object ScalaInstance {
   /** Get a scala artifact from a given directory. */
   def scalaJar(scalaHome: File, name: String) =
     new File(scalaLib(scalaHome), name)
-  private def compilerJar(scalaHome: File) =
-    scalaJar(scalaHome, "scala-compiler.jar")
   private def libraryJar(scalaHome: File) =
     scalaJar(scalaHome, "scala-library.jar")
 
