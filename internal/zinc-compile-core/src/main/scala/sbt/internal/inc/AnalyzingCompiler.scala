@@ -18,7 +18,6 @@ import java.nio.file.Path
 import java.net.URLClassLoader
 import java.util.{ Optional, ServiceLoader }
 
-import com.github.ghik.silencer.silent
 import sbt.util.{ InterfaceUtil, Logger }
 import sbt.io.syntax._
 import sbt.internal.inc.classpath.ClassLoaderCache
@@ -99,7 +98,7 @@ final class AnalyzingCompiler(
           classOf[Output],
           classOf[xLogger],
           classOf[Reporter]
-        )(arguments, output, log, reporter).asInstanceOf[CachedCompiler]: @silent
+        )(arguments, output, log, reporter).asInstanceOf[CachedCompiler]
         val fileSources: Array[File] = sources.map(converter.toPath(_).toFile)
         try {
           invoke(bridge, bridgeClass, "run", log)(

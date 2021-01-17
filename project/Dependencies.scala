@@ -7,8 +7,8 @@ object Dependencies {
 
   val scala210 = "2.10.7"
   val scala211 = "2.11.12"
-  val scala212 = "2.12.12"
-  val scala213 = "2.13.3"
+  val scala212 = "2.12.13"
+  val scala213 = "2.13.4"
   val defaultScalaVersion = scala212
   val allScalaVersions = Seq(defaultScalaVersion, scala210, scala211, scala213)
   val scala212_213 = Seq(defaultScalaVersion, scala213)
@@ -72,7 +72,6 @@ object Dependencies {
 
   val parserCombinator = "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2"
   val sbinary = "org.scala-sbt" %% "sbinary" % "0.5.1"
-  val silencerPlugin = "com.github.ghik" %% "silencer-plugin" % "1.4.2"
   val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.14.0"
   val scalatest = "org.scalatest" %% "scalatest" % "3.2.0"
   val junit = "junit" % "junit" % "4.12"
