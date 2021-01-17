@@ -21,7 +21,6 @@ import xsbti.{ T2, UseScope, VirtualFileRef }
 import xsbti.api._
 import xsbti.compile._
 import xsbti.compile.analysis.{ ReadWriteMappers, SourceInfo, Stamp }
-import com.github.ghik.silencer.silent
 import scala.collection.Seq
 
 // A text-based serialization format for Analysis objects.
@@ -29,7 +28,7 @@ import scala.collection.Seq
 // Please refrain from making changes that significantly degrade read/write performance on large analysis files.
 object TextAnalysisFormat extends TextAnalysisFormat(ReadWriteMappers.getEmptyMappers)
 
-@silent class TextAnalysisFormat(val mappers: ReadWriteMappers)
+class TextAnalysisFormat(val mappers: ReadWriteMappers)
     extends FormatCommons
     with RelationsTextFormat {
 

@@ -81,6 +81,7 @@ ThisBuild / pomIncludeRepository := (_ => false) // drop repos other than Maven 
 ThisBuild / mimaPreviousArtifacts := Set.empty
 // limit the number of concurrent test so testQuick works
 Global / concurrentRestrictions += Tags.limit(Tags.Test, 4)
+ThisBuild / semanticdbVersion := "4.4.6"
 
 def baseSettings: Seq[Setting[_]] = Seq(
   resolvers += Resolver.typesafeIvyRepo("releases"),
@@ -94,7 +95,11 @@ def baseSettings: Seq[Setting[_]] = Seq(
   testFrameworks += new TestFramework("verify.runner.Framework"),
   compile / javacOptions ++= Seq("-Xlint", "-Xlint:-serial"),
   Test / publishArtifact := false,
-  scalacOptions ++= Seq("-YdisableFlatCpCaching", "-target:jvm-1.8")
+  scalacOptions ++= Seq("-YdisableFlatCpCaching", "-target:jvm-1.8"),
+  semanticdbCompilerPlugin := {
+    ("org.scalameta" % "semanticdb-scalac" % semanticdbVersion.value)
+      .cross(CrossVersion.full)
+  },
 )
 
 def compilerVersionDependentScalacOptions: Seq[Setting[_]] = Seq(
@@ -254,10 +259,6 @@ lazy val zincPersist = (projectMatrix in internalPath / "zinc-persist")
   .settings(
     name := "zinc Persist",
     libraryDependencies += sbinary,
-    libraryDependencies ++= (scalaVersion.value match {
-      case v if v.startsWith("2.12.") => List(compilerPlugin(silencerPlugin))
-      case _                          => List()
-    }),
     libraryDependencies ++= {
       scalaPartialVersion.value match {
         case Some((2, major)) if major >= 13 =>
@@ -395,10 +396,6 @@ lazy val zincCompileCore = (projectMatrix in internalPath / "zinc-compile-core")
   )
   .settings(
     name := "zinc Compile Core",
-    libraryDependencies ++= (scalaVersion.value match {
-      case v if v.startsWith("2.12.") => List(compilerPlugin(silencerPlugin))
-      case _                          => List()
-    }),
     libraryDependencies ++= Seq(
       scalaCompiler.value % Test,
       launcherInterface,
