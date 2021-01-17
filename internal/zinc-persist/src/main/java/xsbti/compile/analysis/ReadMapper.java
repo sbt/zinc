@@ -20,7 +20,7 @@ import java.nio.file.Path;
 
 /**
  * Defines a reader-only mapper interface that is used by Zinc after reading
- * the analysis from an instance of an {@link xsbti.compile.AnalysisStore}.
+ * the analysis from an instance of an xsbti.compile.AnalysisStore.
  *
  * This interface is useful to make the analysis file machine-independent and
  * allow third parties to distribute them around.
