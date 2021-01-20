@@ -470,45 +470,31 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         stampReader,
         extra
       )
-      def prevResult = CompileResult.of(prev, config.currentSetup, false)
-      if (skip && earlyOutput.isEmpty) prevResult
-      else if (recompileAllJava) {
-        if (javaSrcs.isEmpty) prevResult
-        else {
-          JarUtils.setupTempClassesDir(temporaryClassesDirectory)
-          val (analysis, changed) = compileAllJava(MixedAnalyzingCompiler(config)(logger), logger)
-          CompileResult.of(analysis, config.currentSetup, changed)
-        }
+      import config.currentSetup
+
+      if (skip && earlyOutput.isEmpty || recompileAllJava && javaSrcs.isEmpty) {
+        CompileResult.of(prev, currentSetup, false)
       } else {
         JarUtils.setupTempClassesDir(temporaryClassesDirectory)
-        val (analysis, changed) = compileInternal(
-          MixedAnalyzingCompiler(config)(logger),
-          equivCompileSetup(
-            logger,
-            equivOpts0(equivScalacOptions(incrementalOptions.ignoredScalacOptions))
-          ),
-          equivPairs,
-          logger
-        )
-        CompileResult.of(analysis, config.currentSetup, changed)
+        val (changed, analysis) = if (recompileAllJava) {
+          compileAllJava(MixedAnalyzingCompiler(config)(logger))
+        } else {
+          compileInternal(MixedAnalyzingCompiler(config)(logger))
+        }
+        CompileResult.of(analysis, currentSetup, changed)
       }
     }
   }
 
-  /**
-   * Compila all Java sources using the given mixed compiler.
-   */
-  private[sbt] def compileAllJava(
-      mixedCompiler: MixedAnalyzingCompiler,
-      log: Logger
-  ): (Analysis, Boolean) = {
-    import mixedCompiler.config._, currentSetup.output
+  /** Compile all Java sources using the given mixed compiler. */
+  private[sbt] def compileAllJava(mixedCompiler: MixedAnalyzingCompiler): (Boolean, Analysis) = {
+    import mixedCompiler._, config._, currentSetup._
     val lookup = new LookupImpl(mixedCompiler.config, previousSetup)
-    val compile = Incremental.compileAllJava(
+    Incremental.compileAllJava(
       sources,
       converter,
       lookup,
-      previousAnalysis,
+      prevAnalysis(mixedCompiler),
       incOptions,
       currentSetup,
       stampReader,
@@ -519,62 +505,17 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       progress,
       log
     )(mixedCompiler.compileJava)
-    compile.swap
   }
 
-  /**
-   * Run the incremental compiler using the given mixed compiler.
-   *
-   * This operation prunes the inputs based on [[MiniSetup]].
-   */
-  private[sbt] def compileInternal(
-      mixedCompiler: MixedAnalyzingCompiler,
-      equiv: Equiv[MiniSetup],
-      equivPairs: Equiv[Array[T2[String, String]]],
-      log: Logger
-  ): (Analysis, Boolean) = {
-    import mixedCompiler.config._, currentSetup.output
+  /** Run the incremental compiler using the given mixed compiler. */
+  private[sbt] def compileInternal(mixedCompiler: MixedAnalyzingCompiler): (Boolean, Analysis) = {
+    import mixedCompiler._, config._, currentSetup._
     val lookup = new LookupImpl(mixedCompiler.config, previousSetup)
-    val srcsSet = mixedCompiler.config.sources.toSet
-    val analysis = previousSetup match {
-      case Some(previous) =>
-        // The dummy output needs to be changed to .jar for this to work again.
-        //
-        // if (compileToJarSwitchedOn(mixedCompiler.config)) {
-        //   Analysis.empty
-        // } else
-        if (equiv.equiv(previous, currentSetup)) {
-          previousAnalysis
-          // Return an empty analysis if values of extra have changed
-        } else if (!equivPairs.equiv(previous.extra, currentSetup.extra)) {
-          Analysis.empty
-        } else {
-          Incremental.prune(
-            srcsSet,
-            previousAnalysis,
-            output,
-            outputJarContent,
-            converter,
-            incOptions
-          )
-        }
-      case None =>
-        Incremental.prune(
-          srcsSet,
-          previousAnalysis,
-          output,
-          outputJarContent,
-          converter,
-          incOptions
-        )
-    }
-
-    // Run the incremental compilation
-    val compile = Incremental(
-      srcsSet,
+    Incremental.apply(
+      sources.toSet,
       converter,
       lookup,
-      analysis,
+      prevAnalysis(mixedCompiler),
       incOptions,
       currentSetup,
       stampReader,
@@ -585,7 +526,21 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       progress,
       log
     )(mixedCompiler.compile)
-    compile.swap
+  }
+
+  private def prevAnalysis(mixedCompiler: MixedAnalyzingCompiler) = {
+    import mixedCompiler._, config._, currentSetup._
+    val equivOpts = equivOpts0(equivScalacOptions(incOptions.ignoredScalacOptions))
+    val equiv = equivCompileSetup(mixedCompiler.log, equivOpts)
+    previousSetup match {
+      // The dummy output needs to be changed to .jar for this to work again.
+      //case _ if compileToJarSwitchedOn(mixedCompiler.config)             => Analysis.empty
+      case Some(prev) if equiv.equiv(prev, currentSetup)                   => previousAnalysis
+      case Some(prev) if !equivPairs.equiv(prev.extra, currentSetup.extra) => Analysis.empty
+      case _ =>
+        val srcs = config.sources.toSet
+        Incremental.prune(srcs, previousAnalysis, output, outputJarContent, converter, incOptions)
+    }
   }
 
   // private def compileToJarSwitchedOn(config: CompileConfiguration): Boolean = {
