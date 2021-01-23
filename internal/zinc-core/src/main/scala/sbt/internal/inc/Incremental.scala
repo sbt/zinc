@@ -218,7 +218,7 @@ object Incremental {
   def isPickleJava(scalacOptions: Seq[String]): Boolean = scalacOptions.contains("-Ypickle-java")
 
   /**
-   * Compile all Java sources, ignoring incrementality.
+   * Compile all Java sources.
    * We are using Incremental class because we still need to perform Analysis so other subprojects
    * can do incremental compilation.
    */
@@ -239,15 +239,13 @@ object Incremental {
   )(
       compileJava: (Seq[VirtualFile], xsbti.AnalysisCallback, XClassFileManager) => Unit
   ): (Boolean, Analysis) = {
-    log.debug(s"[zinc] callAllJava")
+    log.debug("[zinc] compileAllJava")
     val previous = previous0 match { case a: Analysis => a }
-    // prune Java knowledge out of previous Analysis
-    val pruned = prune(sources.toSet, previous, output, outputJarContent, converter, options)
     val currentStamper = Stamps.initial(stamper)
     val internalBinaryToSourceClassName = (binaryClassName: String) =>
-      pruned.relations.productClassName.reverse(binaryClassName).headOption
+      previous.relations.productClassName.reverse(binaryClassName).headOption
     val internalSourceToClassNamesMap: VirtualFile => Set[String] =
-      (f: VirtualFile) => pruned.relations.classNames(f)
+      (f: VirtualFile) => previous.relations.classNames(f)
     val builder = new AnalysisCallback.Builder(
       internalBinaryToSourceClassName,
       internalSourceToClassNamesMap,
@@ -274,7 +272,7 @@ object Incremental {
         classFileManager =>
           // See IncrementalCommon.scala's completeCycle
           def completeCycle(partialAnalysis: Analysis): Analysis = {
-            val a1 = pruned ++ partialAnalysis
+            val a1 = previous ++ partialAnalysis
             val products = partialAnalysis.relations.allProducts
               .map(converter.toVirtualFile(_))
             classFileManager.generated(products.toArray)
