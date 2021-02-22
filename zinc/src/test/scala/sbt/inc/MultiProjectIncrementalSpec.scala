@@ -158,6 +158,29 @@ class MultiProjectIncrementalSpec extends BaseCompilerSpec {
     }
   })
 
+  "it" should "allow shadowing of dependency classes" in (IO.withTemporaryDirectory { tmp =>
+    val p1 = VirtualSubproject(tmp.toPath / "sub1")
+    val p2 = VirtualSubproject(tmp.toPath / "sub2").dependsOn(p1)
+    val c1 = p1.setup.createCompiler()
+    val c2 = p2.setup.copy(outputToJar = true).createCompiler()
+    try {
+      val s1 = "package pkg; public class A { public static int a = 1; }"
+      val s1Shadow =
+        "package pkg; public class A { public static int a = 1; public class InnerA { public int i = 2; } }"
+
+      val f1 = StringVirtualFile("A.java", s1)
+      val f1Shadow = StringVirtualFile("A.java", s1Shadow)
+
+      c1.compileAllJava(f1)
+      // this will fail with "pkg.A and pkg.A$InnerA disagree on InnerClasses attribute" if f1Shadow ends up
+      // later on the AnalyzingJavaCompiler.searchClasspath than f1
+      c2.compileAllJava(f1Shadow)
+    } finally {
+      c1.close()
+      c2.close()
+    }
+  })
+
   def lastClasses(a: Analysis) = {
     a.compilations.allCompilations.map { c =>
       a.apis.internal.collect {
