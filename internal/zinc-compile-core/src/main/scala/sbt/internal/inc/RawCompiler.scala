@@ -97,6 +97,12 @@ class RawCompiler(val scalaInstance: XScalaInstance, cp: ClasspathOptions, log: 
 class CompileFailed(
     val arguments: Array[String],
     override val toString: String,
-    val problems: Array[xsbti.Problem]
-) extends xsbti.CompileFailed
-    with FeedbackProvidedException
+    val problems: Array[xsbti.Problem],
+    cause: Throwable
+) extends xsbti.CompileFailed(cause)
+    with FeedbackProvidedException {
+
+  def this(arguments: Array[String], toString: String, problems: Array[xsbti.Problem]) {
+    this(arguments, toString, problems, null)
+  }
+}

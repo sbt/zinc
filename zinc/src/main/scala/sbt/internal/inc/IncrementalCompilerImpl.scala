@@ -332,7 +332,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       compilerRun
     } catch {
       case e: xsbti.CompileFailed =>
-        throw new sbt.internal.inc.CompileFailed(e.arguments, e.toString, e.problems) // just ignore
+        throw new sbt.internal.inc.CompileFailed(e.arguments, e.toString, e.problems, e) // just ignore
       case e: CompileFailed        => throw e // just ignore
       case e: InterruptedException => throw e // just ignore
       case e: Throwable =>

@@ -16,6 +16,15 @@ package xsbti;
  * This failure extends {@link RuntimeException} that you can catch at the use-site.
  */
 public abstract class CompileFailed extends RuntimeException {
+
+	public CompileFailed() {
+		super();
+	}
+
+	public CompileFailed(final Throwable cause) {
+		super(cause);
+	}
+
     /** Return an array of the initial arguments of the compiler. */
 	public abstract String[] arguments();
 
