@@ -58,7 +58,6 @@ ThisBuild / organization := "org.scala-sbt"
 ThisBuild / licenses := List(("Apache-2.0", url("https://www.apache.org/licenses/LICENSE-2.0")))
 ThisBuild / scalafmtOnCompile := !(Global / insideCI).value
 ThisBuild / Test / scalafmtOnCompile := !(Global / insideCI).value
-ThisBuild / bintrayPackage := sys.env.get("BINTRAY_PACKAGE").getOrElse("zinc")
 ThisBuild / scmInfo := Some(
   ScmInfo(url("https://github.com/sbt/zinc"), "git@github.com:sbt/zinc.git")
 )
@@ -78,6 +77,10 @@ ThisBuild / developers := List(
   Developer("Duhemm", "Martin Duhem", "@Duhemm", url("https://github.com/Duhemm")),
 )
 ThisBuild / pomIncludeRepository := (_ => false) // drop repos other than Maven Central from POM
+ThisBuild / publishTo := {
+  val nexus = "https://oss.sonatype.org/"
+  Some("releases" at nexus + "service/local/staging/deploy/maven2")
+}
 ThisBuild / mimaPreviousArtifacts := Set.empty
 // limit the number of concurrent test so testQuick works
 Global / concurrentRestrictions += Tags.limit(Tags.Test, 4)
