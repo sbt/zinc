@@ -332,8 +332,8 @@ object JarUtils {
   }
 
   /**
-   * As javac does not support compiling directly to jar it is required to
-   * change its output to a directory that is temporary, as after compilation
+   * As some javac implementations do not support compiling directly to jar it is
+   * required to change its output to a directory that is temporary, as after compilation
    * the plain classes are put into a zip file and merged with the output jar.
    *
    * This method returns path to this directory based on output jar. The result

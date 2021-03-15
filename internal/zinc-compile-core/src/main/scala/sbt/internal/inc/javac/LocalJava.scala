@@ -16,11 +16,12 @@ package inc
 package javac
 
 import java.net.{ URI, URLClassLoader }
-import java.io.{ InputStream, OutputStream, PrintWriter, Writer }
+import java.io.{ InputStream, OutputStream, OutputStreamWriter, PrintWriter, Reader, Writer }
 import java.util.Locale
 import java.nio.{ ByteBuffer, CharBuffer }
 import java.nio.charset.{ Charset, CodingErrorAction }
-import java.nio.file.{ Files, Path, Paths }
+import java.nio.file.{ Files, FileSystems, Path, Paths }
+import javax.lang.model.element.{ Modifier, NestingKind }
 import javax.tools.JavaFileManager.Location
 import javax.tools.JavaFileObject.Kind
 import javax.tools.{
@@ -36,6 +37,7 @@ import javax.tools.{
 import sbt.internal.util.LoggerWriter
 import sbt.util.{ Level, Logger }
 
+import scala.collection.JavaConverters._
 import scala.util.control.NonFatal
 import xsbti.{ Reporter, Logger => XLogger, PathBasedFile, VirtualFile, VirtualFileRef }
 import xsbti.compile.{
@@ -276,6 +278,8 @@ final class LocalJavadoc() extends XJavadoc {
  * resident Java compiler.
  */
 final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaCompiler {
+  override def supportsDirectToJar: Boolean = true
+
   override def run(
       sources: Array[VirtualFile],
       options: Array[String],
@@ -297,18 +301,26 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
       log.warn("Javac is running in 'local' mode. These flags have been removed:")
       log.warn(invalidOptions.mkString("\t", ", ", ""))
     }
-    val outputOption = CompilerArguments.outputOption(output)
-    output.getSingleOutputAsPath match {
-      case p if p.isPresent => Files.createDirectories(p.get)
-      case _                =>
-    }
 
-    val fileManager = {
-      if (cleanedOptions.contains("-XDuseOptimizedZip=false")) {
-        fileManagerWithoutOptimizedZips(diagnostics)
-      } else {
-        compiler.getStandardFileManager(diagnostics, null, null)
-      }
+    def standardFileManager = compiler.getStandardFileManager(diagnostics, null, null)
+
+    val (fileManager, javacOptions) = JarUtils.getOutputJar(output) match {
+      case Some(outputJar) =>
+        (new DirectToJarFileManager(outputJar, standardFileManager), cleanedOptions.toSeq)
+      case None =>
+        output.getSingleOutputAsPath match {
+          case p if p.isPresent => Files.createDirectories(p.get)
+          case _                =>
+        }
+        val fileManager = {
+          if (cleanedOptions.contains("-XDuseOptimizedZip=false")) {
+            fileManagerWithoutOptimizedZips(diagnostics)
+          } else {
+            standardFileManager
+          }
+        }
+        val outputOption = CompilerArguments.outputOption(output)
+        (fileManager, outputOption ++ cleanedOptions)
     }
 
     val jfiles = sources.toList.map(LocalJava.toFileObject)
@@ -316,7 +328,8 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
       val maybeClassFileManager = incToolOptions.classFileManager()
       if (incToolOptions.useCustomizedFileManager && maybeClassFileManager.isPresent)
         new WriteReportingFileManager(fileManager, maybeClassFileManager.get)
-      else new SameFileFixFileManager(fileManager)
+      else
+        new SameFileFixFileManager(fileManager)
     }
 
     var compileSuccess = false
@@ -326,7 +339,7 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
           logWriter,
           customizedFileManager,
           diagnostics,
-          (outputOption ++ cleanedOptions).toList.asJava,
+          javacOptions.toList.asJava,
           null,
           jfiles.asJava
         )
@@ -460,4 +473,70 @@ class WriterOutputStream(writer: Writer) extends OutputStream {
     ()
   }
   override def toString: String = charBuffer.toString
+}
+
+final class DirectToJarFileManager(
+    outputJar: Path,
+    delegate: JavaFileManager
+) extends ForwardingJavaFileManager[JavaFileManager](delegate) {
+  private val jarFs = {
+    val uri = URI.create("jar:file:" + outputJar.toUri.getPath)
+    def newFs() = FileSystems.newFileSystem(uri, Map("create" -> "true").asJava)
+    // work around java 8 bug which results in ZipFileSystem being initially registered with a null key on the provider
+    newFs().close()
+    newFs()
+  }
+  private val jarRoot = jarFs.getRootDirectories.iterator.next()
+
+  override def getJavaFileForOutput(
+       location: JavaFileManager.Location,
+       className: String,
+       kind: JavaFileObject.Kind,
+       sibling: FileObject
+  ): JavaFileObject = {
+    val relativeFilePath = className.replace('.', '/') + kind.extension
+    val filePath = jarRoot.resolve(relativeFilePath)
+    new DirectToJarFileObject(filePath, filePath.toUri, kind)
+  }
+
+  override def isSameFile(a: FileObject, b: FileObject): Boolean = a == b
+
+  override def close(): Unit = {
+    // super also holds a reference to outputJar, so we need to close it before closing jarFs
+    super.close()
+    jarFs.close()
+  }
+}
+
+// We can't extend SimpleJavaFileObject here, because it expects the URI to have a path element (which jar URIs do not)
+// The rest of the code is simply a port of the SimpleJavaFileObject source.
+final class DirectToJarFileObject(path: Path, uri: URI, kind: JavaFileObject.Kind) extends JavaFileObject {
+
+  override def getName: String = path.toString
+  override def getKind: JavaFileObject.Kind = kind
+  override def toUri: URI = uri
+
+  override def isNameCompatible(simpleName: String, kind: JavaFileObject.Kind): Boolean = {
+    val baseName = s"$simpleName${kind.extension}"
+    kind == this.kind && (path.toString == baseName  || path.endsWith(baseName))
+  }
+
+  override def getLastModified: Long = 0L
+  override def getNestingKind: NestingKind = null
+  override def getAccessLevel: Modifier = null
+
+  override def getCharContent(ignoreEncodingErrors: Boolean): CharSequence =
+    throw new UnsupportedOperationException
+  override def openInputStream(): InputStream =
+    throw new UnsupportedOperationException
+  override def openReader(ignoreEncodingErrors: Boolean): Reader =
+    throw new UnsupportedOperationException
+
+  override def openOutputStream(): OutputStream = {
+    Files.createDirectories(path.getParent)
+    Files.newOutputStream(path)
+  }
+  override def openWriter(): Writer = new OutputStreamWriter(openOutputStream())
+
+  override def delete(): Boolean = false
 }

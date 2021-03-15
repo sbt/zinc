@@ -67,12 +67,15 @@ final class MixedAnalyzingCompiler(
           )
         val joptions = config.currentSetup.options.javacOptions
 
+        def toVirtualFile(p: Path) = config.converter.toVirtualFile(p.toAbsolutePath)
+
         JarUtils.getOutputJar(output) match {
-          case Some(outputJar) =>
+          case Some(outputJar) if !javac.supportsDirectToJar =>
             val outputDir = JarUtils.javacTempOutput(outputJar)
             Files.createDirectories(outputDir)
             javac.compile(
               javaSrcs,
+              Seq(toVirtualFile(outputJar)),
               config.converter,
               joptions,
               CompileOutput(outputDir),
@@ -84,19 +87,22 @@ final class MixedAnalyzingCompiler(
               config.progress
             )
             putJavacOutputInJar(outputJar.toFile, outputDir.toFile)
-          case None =>
-            javac.compile(
-              javaSrcs,
-              config.converter,
-              joptions,
-              output,
-              finalJarOutput = None,
-              callback,
-              incToolOptions,
-              config.reporter,
-              log,
-              config.progress
-            )
+          case _ =>
+            JarUtils.withPreviousJar(output) { extraClasspath: Seq[Path] =>
+              javac.compile(
+                javaSrcs,
+                extraClasspath map toVirtualFile,
+                config.converter,
+                joptions,
+                output,
+                None,
+                callback,
+                incToolOptions,
+                config.reporter,
+                log,
+                config.progress
+              )
+            }
         }
       } // timed
     else ()
@@ -389,7 +395,6 @@ object MixedAnalyzingCompiler {
     searchClasspathAndLookup(
       config.converter,
       config.classpath,
-      config.currentSetup.output,
       config.currentSetup.options.scalacOptions,
       config.perClasspathEntryLookup,
       config.compiler
@@ -399,25 +404,14 @@ object MixedAnalyzingCompiler {
   def searchClasspathAndLookup(
       converter: FileConverter,
       classpath: Seq[VirtualFile],
-      output: Output,
       scalacOptions: Array[String],
       perClasspathEntryLookup: PerClasspathEntryLookup,
       compiler: xsbti.compile.ScalaCompiler
   ): (Seq[VirtualFile], String => Option[VirtualFile]) = {
-    // If we are compiling straight to jar, as javac does not support this,
-    // it will be compiled to a temporary directory (with deterministic name)
-    // and then added to the final jar. This temporary directory has to be
-    // available for sbt.internal.inc.classfile.Analyze to work correctly.
-    val tempJavacOutput =
-      JarUtils
-        .getOutputJar(output)
-        .map(JarUtils.javacTempOutput)
-        .toSeq
-        .map(converter.toVirtualFile(_))
     val absClasspath = classpath.map(toAbsolute(_))
     val cArgs =
       new CompilerArguments(compiler.scalaInstance, compiler.classpathOptions)
-    val searchClasspath: Seq[VirtualFile] = tempJavacOutput ++ explicitBootClasspath(
+    val searchClasspath: Seq[VirtualFile] = explicitBootClasspath(
       scalacOptions,
       converter
     ) ++

@@ -12,4 +12,8 @@
 package xsbti.compile;
 
 /** Represent the interface of a Java compiler. */
-public interface JavaCompiler extends JavaTool {}
+public interface JavaCompiler extends JavaTool {
+    default boolean supportsDirectToJar() {
+        return false;
+    }
+}
