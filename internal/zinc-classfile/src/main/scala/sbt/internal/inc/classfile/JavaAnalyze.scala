@@ -57,7 +57,10 @@ private[sbt] object JavaAnalyze {
         }
     }
 
-    val classNames = mutable.Set.empty[String]
+    def remapClassFile(classFile: Path) =
+      if (singleOutputOrNull == null || outputJarOrNull == null) classFile
+      else resolveFinalClassFile(classFile, singleOutputOrNull, outputJarOrNull, log)
+
     val sourceToClassFiles = mutable.HashMap[VirtualFile, Buffer[ClassFile]](
       sources.map(vf => vf -> new ArrayBuffer[ClassFile]): _*
     )
@@ -91,15 +94,10 @@ private[sbt] object JavaAnalyze {
 
       val srcClassName = loadEnclosingClass(loadedClass)
 
-      val finalClassFile: Path = {
-        if (singleOutputOrNull == null || outputJarOrNull == null) newClass
-        else
-          resolveFinalClassFile(newClass, singleOutputOrNull, outputJarOrNull, log)
-      }
+      val finalClassFile: Path = remapClassFile(newClass)
       srcClassName match {
         case Some(className) =>
           analysis.generatedNonLocalClass(source, finalClassFile, binaryClassName, className)
-          classNames += className
         case None => analysis.generatedLocalClass(source, finalClassFile)
       }
 
@@ -145,31 +143,26 @@ private[sbt] object JavaAnalyze {
           } yield { classfilesCache(onBinaryName) = file; file }
         }
 
-        getMappedSource(fromBinaryName) match {
-          case Some(fromClassName) =>
+        (getMappedSource(fromBinaryName), getMappedSource(onBinaryName)) match {
+          case (Some(fromClassName), Some(onClassName)) =>
             trapAndLog(log) {
-              val scalaLikeTypeName = onBinaryName.replace('$', '.')
-              if (classNames.contains(scalaLikeTypeName)) {
-                analysis.classDependency(scalaLikeTypeName, fromClassName, context)
-              } else {
-                val cachedOrigin = classfilesCache.get(onBinaryName)
-                for (file <- cachedOrigin.orElse(loadFromClassloader())) {
-                  val binaryFile: Path = {
-                    if (singleOutputOrNull == null || outputJarOrNull == null) file
-                    else
-                      resolveFinalClassFile(file, singleOutputOrNull, outputJarOrNull, log)
-                  }
-                  analysis.binaryDependency(
-                    binaryFile,
-                    onBinaryName,
-                    fromClassName,
-                    source,
-                    context
-                  )
-                }
+              analysis.classDependency(onClassName, fromClassName, context)
+            }
+          case (Some(fromClassName), None) =>
+            trapAndLog(log) {
+              val cachedOrigin = classfilesCache.get(onBinaryName)
+              for (file <- cachedOrigin.orElse(loadFromClassloader())) {
+                val binaryFile: Path = remapClassFile(file)
+                analysis.binaryDependency(
+                  binaryFile,
+                  onBinaryName,
+                  fromClassName,
+                  source,
+                  context
+                )
               }
             }
-          case None => // It could be a stale class file, ignore
+          case (None, _) => // It could be a stale class file, ignore
         }
       }
       def processDependencies(
