@@ -188,8 +188,10 @@ private[inc] abstract class IncrementalCommon(
         val continue = nextInvalidations.nonEmpty &&
           lookup.shouldDoIncrementalCompilation(nextInvalidations, analysis)
 
-        // If we're completing the cycle, then mergeAndInvalidate has already been called
-        if (!completingCycle) {
+        val hasScala = Analysis.sources(partialAnalysis).scala.nonEmpty
+
+        // If we're completing the cycle and we had scala sources, then mergeAndInvalidate has already been called
+        if (!completingCycle || !hasScala) {
           registerCycle(recompiledClasses, newApiChanges, nextInvalidations, continue)
         }
         CompileCycleResult(continue, nextInvalidations, analysis)

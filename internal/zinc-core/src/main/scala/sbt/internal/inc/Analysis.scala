@@ -98,13 +98,20 @@ object Analysis {
 
   def empty: Analysis = Empty
 
-  def summary(a: Analysis): String = {
+  case class Sources(java: Set[String], scala: Set[String])
+
+  def sources(a: Analysis): Sources = {
     def sourceFileForClass(className: String): VirtualFileRef =
       a.relations.definesClass(className).headOption.getOrElse {
         sys.error(s"Can't find source file for $className")
       }
     def isJavaClass(className: String) = sourceFileForClass(className).id.endsWith(".java")
     val (j, s) = a.apis.allInternalClasses.partition(isJavaClass)
+    Sources(j.toSet, s.toSet)
+  }
+
+  def summary(a: Analysis): String = {
+    val Sources(j, s) = sources(a)
     val c = a.stamps.allProducts
     val ext = a.apis.allExternals
     val jars = a.relations.allLibraryDeps.filter(_.id.endsWith(".jar"))
