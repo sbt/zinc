@@ -32,6 +32,7 @@ import javax.tools.{
   JavaFileObject,
   SimpleJavaFileObject,
   StandardJavaFileManager,
+  StandardLocation,
   DiagnosticListener
 }
 import sbt.internal.util.LoggerWriter
@@ -488,16 +489,29 @@ final class DirectToJarFileManager(
   }
   private val jarRoot = jarFs.getRootDirectories.iterator.next()
 
+  override def getFileForOutput(
+      location: JavaFileManager.Location,
+      packageName: String,
+      relativeName: String,
+      sibling: FileObject
+  ): FileObject =
+    if (location == StandardLocation.CLASS_OUTPUT) {
+      val packagePath = packageName.replace('.', '/')
+      val filePath = jarRoot.resolve(packagePath).resolve(relativeName)
+      new DirectToJarFileObject(filePath, filePath.toUri)
+    } else super.getFileForOutput(location, packageName, relativeName, sibling)
+
   override def getJavaFileForOutput(
-       location: JavaFileManager.Location,
-       className: String,
-       kind: JavaFileObject.Kind,
-       sibling: FileObject
-  ): JavaFileObject = {
-    val relativeFilePath = className.replace('.', '/') + kind.extension
-    val filePath = jarRoot.resolve(relativeFilePath)
-    new DirectToJarFileObject(filePath, filePath.toUri, kind)
-  }
+      location: JavaFileManager.Location,
+      className: String,
+      kind: JavaFileObject.Kind,
+      sibling: FileObject
+  ): JavaFileObject =
+    if (location == StandardLocation.CLASS_OUTPUT) {
+      val relativeFilePath = className.replace('.', '/') + kind.extension
+      val filePath = jarRoot.resolve(relativeFilePath)
+      new DirectToJarJavaFileObject(filePath, filePath.toUri, kind)
+    } else super.getJavaFileForOutput(location, className, kind, sibling)
 
   override def isSameFile(a: FileObject, b: FileObject): Boolean = a == b
 
@@ -508,22 +522,11 @@ final class DirectToJarFileManager(
   }
 }
 
-// We can't extend SimpleJavaFileObject here, because it expects the URI to have a path element (which jar URIs do not)
-// The rest of the code is simply a port of the SimpleJavaFileObject source.
-final class DirectToJarFileObject(path: Path, uri: URI, kind: JavaFileObject.Kind) extends JavaFileObject {
-
+class DirectToJarFileObject(path: Path, uri: URI) extends FileObject {
   override def getName: String = path.toString
-  override def getKind: JavaFileObject.Kind = kind
   override def toUri: URI = uri
 
-  override def isNameCompatible(simpleName: String, kind: JavaFileObject.Kind): Boolean = {
-    val baseName = s"$simpleName${kind.extension}"
-    kind == this.kind && (path.toString == baseName  || path.endsWith(baseName))
-  }
-
   override def getLastModified: Long = 0L
-  override def getNestingKind: NestingKind = null
-  override def getAccessLevel: Modifier = null
 
   override def getCharContent(ignoreEncodingErrors: Boolean): CharSequence =
     throw new UnsupportedOperationException
@@ -539,4 +542,19 @@ final class DirectToJarFileObject(path: Path, uri: URI, kind: JavaFileObject.Kin
   override def openWriter(): Writer = new OutputStreamWriter(openOutputStream())
 
   override def delete(): Boolean = false
+}
+
+final class DirectToJarJavaFileObject(path: Path, uri: URI, kind: JavaFileObject.Kind)
+    extends DirectToJarFileObject(path, uri)
+    with JavaFileObject {
+
+  override def getKind: JavaFileObject.Kind = kind
+
+  override def isNameCompatible(simpleName: String, kind: JavaFileObject.Kind): Boolean = {
+    val baseName = s"$simpleName${kind.extension}"
+    kind == this.kind && (path.toString == baseName || path.endsWith(baseName))
+  }
+
+  override def getNestingKind: NestingKind = null
+  override def getAccessLevel: Modifier = null
 }

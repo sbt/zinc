@@ -20,7 +20,6 @@ import scala.annotation.tailrec
 import java.io.File
 import java.net.URL
 
-import com.sun.nio.zipfs.ZipPath
 import xsbti.{ VirtualFile, VirtualFileRef }
 import xsbti.api.DependencyContext
 import xsbti.api.DependencyContext._
@@ -60,9 +59,9 @@ private[sbt] object JavaAnalyze {
     }
 
     def remapClassFile(classFile: Path) =
-      if (directOutputJarOrNull != null && classFile.isInstanceOf[ZipPath])
+      if (directOutputJarOrNull != null && classFile.getFileSystem.provider.getScheme == "jar")
         // convert to the class-in-jar path format that zinc uses. we make an assumption here that
-        // if we've got a ZipPath, it's referring to a class in the output jar.
+        // if we've got a jar-based path, it's referring to a class in the output jar.
         JarUtils
           .ClassInJar(directOutputJarOrNull, classFile.getRoot.relativize(classFile).toString)
           .toPath
