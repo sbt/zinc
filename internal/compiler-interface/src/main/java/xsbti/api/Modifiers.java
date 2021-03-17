@@ -56,7 +56,7 @@ public final class Modifiers implements java.io.Serializable
 	 * This method is not part of the public API and it may be removed at any point.
 	 * @param flags An instance of byte encoding the modifiers.
 	 */
-	protected Modifiers(byte flags) {
+	private Modifiers(byte flags) {
 		this.flags = flags;
 	}
 

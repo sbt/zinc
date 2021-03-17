@@ -9,20 +9,24 @@
  * additional information regarding copyright ownership.
  */
 
-package xsbti.api
+package sbt.internal.inc.binary.converters
 
 /**
  * Defines a proxy to the Java compiler interface to create different utils.
  *
  * This proxy is required for an efficient deserialization of the analysis files.
- * It exposes implementation details and uses protected methods to create new
- * instances of other classes.
+ * It exposes implementation details and uses reflection methods to access private
+ * constructors.
  *
- * Even though this proxy is public, Do not depend on it, it has no binary compatibility
+ * This proxy is not public, Do not depend on it, it has no binary compatibility
  * guarantee and can be broken in any minor release.
  */
 object InternalApiProxy {
   object Modifiers {
-    def apply(flags: Int): Modifiers = new Modifiers(flags.toByte)
+    def apply(flags: Int): xsbti.api.Modifiers = {
+      val constructor = classOf[xsbti.api.Modifiers].getDeclaredConstructor(java.lang.Byte.TYPE)
+      constructor.setAccessible(true)
+      constructor.newInstance(flags.toByte: java.lang.Byte)
+    }
   }
 }
