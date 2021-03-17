@@ -283,6 +283,9 @@ lazy val zincPersist = (projectMatrix in internalPath / "zinc-persist")
       exclude[IncompatibleMethTypeProblem]("xsbti.*"),
       exclude[ReversedMissingMethodProblem]("xsbti.*"),
       exclude[IncompatibleTemplateDefProblem]("sbt.internal.inc.schema.*"),
+      exclude[MissingClassProblem]("xsbti.api.InternalApiProxy$"),
+      exclude[MissingClassProblem]("xsbti.api.InternalApiProxy$Modifiers$"),
+      exclude[MissingClassProblem]("xsbti.api.InternalApiProxy")
     ),
   )
   .jvmPlatform(scalaVersions = scala212_213)
