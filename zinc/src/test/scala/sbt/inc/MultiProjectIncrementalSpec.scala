@@ -181,14 +181,6 @@ class MultiProjectIncrementalSpec extends BaseCompilerSpec {
     }
   })
 
-  def lastClasses(a: Analysis) = {
-    a.compilations.allCompilations.map { c =>
-      a.apis.internal.collect {
-        case (className, api) if api.compilationTimestamp == c.getStartTime => className
-      }.toSet
-    }.last
-  }
-
   def startTimes(res: CompileResult) = {
     res.analysis.readCompilations.getAllCompilations.map(_.getStartTime).toList
   }

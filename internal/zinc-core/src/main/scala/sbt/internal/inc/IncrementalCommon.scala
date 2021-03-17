@@ -271,7 +271,13 @@ private[inc] abstract class IncrementalCommon(
   ): Set[VirtualFileRef] = {
     def expand(invalidated: Set[VirtualFileRef]): Set[VirtualFileRef] = {
       val recompileAllFraction = options.recompileAllFraction
-      if (invalidated.size <= allSources.size * recompileAllFraction) invalidated
+      // when pipelining we currently always invalidate all java sources, so it doesn't make sense to include them
+      // when checking recompileAllFraction
+      def countRelevant(ss: Set[VirtualFileRef]): Int =
+        if (options.pipelining) ss.count(_.name.endsWith(".scala")) else ss.size
+
+      if (countRelevant(invalidated) <= countRelevant(allSources) * recompileAllFraction)
+        invalidated
       else {
         log.debug(
           s"Recompiling all sources: number of invalidated sources > ${recompileAllFraction * 100.00}% of all sources"

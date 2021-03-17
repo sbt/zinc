@@ -118,4 +118,31 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
       assert(result3.hasModified)
     } finally comp.close()
   }
+
+  it should "not trigger full compilation for small Scala changes in a mixed project" in withTmpDir {
+    tmp =>
+      val project = VirtualSubproject(tmp.toPath / "p1")
+      val comp = project.setup.createCompiler()
+      try {
+        val s1 = "class A { def a = 1 }"
+        val s1b = "class A { def a = 2 }"
+        val s2 = "class B { def b = 1 }"
+        val s3 = "class C { def c = 1 }"
+        val s4 = "public class D { public int d = 1; }"
+        val s5 = "public class E { public int e = 1; }"
+
+        val f1 = StringVirtualFile("A.scala", s1)
+        val f1b = StringVirtualFile("A.scala", s1b)
+        val f2 = StringVirtualFile("B.scala", s2)
+        val f3 = StringVirtualFile("C.scala", s3)
+        val f4 = StringVirtualFile("D.java", s4)
+        val f5 = StringVirtualFile("E.java", s5)
+
+        comp.compile(f1, f2, f3, f4, f5)
+        val result = comp.compile(f1b, f2, f3, f4, f5)
+        assert(lastClasses(result.analysis.asInstanceOf[Analysis]) == Set("A", "D", "E"))
+      } finally {
+        comp.close()
+      }
+  }
 }
