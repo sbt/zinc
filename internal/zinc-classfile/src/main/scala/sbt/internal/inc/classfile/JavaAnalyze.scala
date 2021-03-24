@@ -84,14 +84,6 @@ private[sbt] object JavaAnalyze {
     } {
       binaryClassNameToLoadedClass.update(binaryClassName, loadedClass)
 
-      def loadEnclosingClass(clazz: Class[_]): Option[String] = {
-        binaryToSourceName(clazz) match {
-          case None if clazz.getEnclosingClass != null =>
-            loadEnclosingClass(clazz.getEnclosingClass)
-          case other => other
-        }
-      }
-
       val srcClassName = loadEnclosingClass(loadedClass)
 
       val finalClassFile: Path = remapClassFile(newClass)
@@ -116,8 +108,7 @@ private[sbt] object JavaAnalyze {
       val localClassesToSources = {
         val localToSourcesSeq = for {
           cls <- localClassesOrStale
-          enclosingCls <- Option(cls.getEnclosingClass)
-          sourceOfEnclosing <- binaryToSourceName(enclosingCls)
+          sourceOfEnclosing <- loadEnclosingClass(cls)
         } yield (cls.getName, sourceOfEnclosing)
         localToSourcesSeq.toMap
       }
@@ -271,6 +262,14 @@ private[sbt] object JavaAnalyze {
   private def classNameToClassFile(name: String) = name.replace('.', '/') + ClassExt
   private def binaryToSourceName(loadedClass: Class[_]): Option[String] =
     Option(loadedClass.getCanonicalName)
+
+  private def loadEnclosingClass(clazz: Class[_]): Option[String] = {
+    binaryToSourceName(clazz) match {
+      case None if clazz.getEnclosingClass != null =>
+        loadEnclosingClass(clazz.getEnclosingClass)
+      case other => other
+    }
+  }
 
   /*
    * given mapping between getName and sources, try to guess

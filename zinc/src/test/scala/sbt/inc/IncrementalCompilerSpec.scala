@@ -14,9 +14,10 @@ package sbt.inc
 import sbt.internal.inc._
 import sbt.io.IO.{ withTemporaryDirectory => withTmpDir }
 import sbt.io.syntax._
-import xsbti.compile.{ AnalysisStore, CompileAnalysis, DefaultExternalHooks }
-
+import xsbti.compile.{ AnalysisStore, CompileAnalysis, DefaultExternalHooks, Inputs, Output }
 import java.util.Optional
+
+import xsbti.VirtualFile
 
 class IncrementalCompilerSpec extends BaseCompilerSpec {
   //override val logLevel = sbt.util.Level.Debug
@@ -144,5 +145,48 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
       } finally {
         comp.close()
       }
+  }
+
+  it should "track dependencies for nested inner Java classes" in withTmpDir { tmp =>
+    val project = VirtualSubproject(tmp.toPath / "p1")
+    val comp = project.setup.createCompiler()
+    try {
+      val s1 =
+        "public class A { public Object i = new Object() { public Object ii = new Object() { public int i = B.b; }; }; }"
+      val s2 = "public class B { public static int b = 1; }"
+      val s2b = "public class B { public static int b = 1; public static int b2 = 1; }"
+      val s3 = "public class C { public static int c = 1; }"
+
+      val f1 = StringVirtualFile("A.java", s1)
+      val f2 = StringVirtualFile("B.java", s2)
+      val f2b = StringVirtualFile("B.java", s2b)
+      val f3 = StringVirtualFile("C.java", s3)
+
+      def compileJava(sources: VirtualFile*) = {
+        def incrementalJavaInputs(sources: VirtualFile*)(in: Inputs): Inputs = {
+          comp.withSrcs(sources.toArray)(
+            in.withOptions(
+                in.options
+                  .withEarlyOutput(Optional.empty[Output])
+                    // remove -YpickleXXX args
+                  .withScalacOptions(comp.scalacOptions.toArray)
+              )
+              .withSetup(
+                in.setup.withIncrementalCompilerOptions(
+                  // remove pipelining
+                  in.setup.incrementalCompilerOptions.withPipelining(false)
+                )
+              )
+          )
+        }
+        comp.doCompileWithStore(newInputs = incrementalJavaInputs(sources: _*))
+      }
+
+      val res1 = compileJava(f1, f2, f3)
+      val res2 = compileJava(f1, f2b, f3)
+      assert(recompiled(res1, res2) == Set("A", "B"))
+    } finally {
+      comp.close()
+    }
   }
 }
