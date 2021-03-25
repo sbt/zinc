@@ -33,6 +33,7 @@ import xsbti.compile.{
   CompileProgress,
   DependencyChanges,
   IncOptions,
+  MiniOptions,
   MiniSetup,
   Output,
   ClassFileManager => XClassFileManager
@@ -1068,7 +1069,10 @@ private final class AnalysisCallback(
       SourceInfos.empty,
       Compilations.empty,
     )
-    val trimmedSetup = currentSetup.withOptions(currentSetup.options.withClasspathHash(Array.empty))
+    val trimmedSetup = currentSetup
+      .withOutput(CompileOutput.empty)
+      .withOptions(MiniOptions.of(Array.empty, Array.empty, Array.empty))
+      .withExtra(Array.empty)
     earlyAnalysisStore.foreach(_.set(AnalysisContents.create(trimmedAnalysis, trimmedSetup)))
 
     mergeUpdates() // must merge updates each cycle or else scalac will clobber it

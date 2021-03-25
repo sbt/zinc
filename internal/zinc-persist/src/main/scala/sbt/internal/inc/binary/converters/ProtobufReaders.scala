@@ -113,8 +113,11 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
       case CompilationOutput.SINGLEOUTPUT =>
         val single = c.getSingleOutput
         val target = fromPathString(single.getTarget)
-        val outputDir = mapper.mapOutputDir(target)
-        CompileOutput(outputDir)
+        if (target == Analysis.dummyOutputPath) CompileOutput.empty
+        else {
+          val outputDir = mapper.mapOutputDir(target)
+          CompileOutput(outputDir)
+        }
       case CompilationOutput.MULTIPLEOUTPUT =>
         val multiple = c.getMultipleOutput
         val groups = multiple.getOutputGroupsList.asScala.iterator.map(fromOutputGroup).toArray

@@ -424,17 +424,9 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
 
     def write(out: Writer, setup0: MiniSetup): Unit = {
       val setup = writeMapper.mapMiniSetup(setup0)
-      val (mode, outputAsMap) = Analysis.dummyOutput match {
-        case s: SingleOutput =>
-          // just to be compatible with multipleOutputMode
-          val ignored = s.getOutputDirectoryAsPath
-          (singleOutputMode, Map(ignored -> s.getOutputDirectoryAsPath))
-        case m: MultipleOutput =>
-          val map = m.getOutputGroups
-            .map(x => x.getSourceDirectoryAsPath -> x.getOutputDirectoryAsPath)
-            .toMap
-          (multipleOutputMode, map)
-      }
+      val mode = singleOutputMode
+      // just to be compatible with multipleOutputMode
+      val outputAsMap = Map(Analysis.dummyOutputPath -> Analysis.dummyOutputPath)
       val mappedClasspathHash = setup.options.classpathHash
         .map(fh => fh.withFile(writeMapper.mapClasspathEntry(fh.file)))
       writeSeq(out)(Headers.outputMode, mode :: Nil, identity[String])

@@ -264,7 +264,10 @@ final class ProtobufWriters(mapper: WriteMapper) {
         val multipleBuilder = Schema.MultipleOutput.newBuilder
         multiple0.getOutputGroups.foreach(g => multipleBuilder.addOutputGroups(toOutputGroup(g)))
         builder.setMultipleOutput(multipleBuilder.build)
-      case _ => sys.error(WritersFeedback.UnexpectedEmptyOutput)
+      case CompileOutput.empty =>
+        val dummy =
+          Schema.SingleOutput.newBuilder.setTarget(toStringPath(Analysis.dummyOutputPath)).build
+        builder.setSingleOutput(dummy)
     }
 
   def toMiniSetup(miniSetup0: MiniSetup): Schema.MiniSetup = {
@@ -274,7 +277,7 @@ final class ProtobufWriters(mapper: WriteMapper) {
     val compilerVersion = miniSetup.compilerVersion()
     val compileOrder = toCompileOrder(miniSetup.order())
     val storeApis = miniSetup.storeApis()
-    val miniBuilder = setMiniSetupOutput(Analysis.dummyOutput, builder)
+    val miniBuilder = setMiniSetupOutput(CompileOutput.empty, builder)
       .setMiniOptions(miniOptions)
       .setCompilerVersion(compilerVersion)
       .setCompileOrder(compileOrder)
