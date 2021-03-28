@@ -12,6 +12,7 @@
 package sbt.internal.inc.binary.converters
 
 import java.nio.file.{ Path, Paths }
+import java.util
 import java.util.{ List => JList, Map => JMap }
 import sbt.internal.inc.Relations.ClassDependencies
 import sbt.internal.inc._
@@ -26,8 +27,7 @@ import sbt.internal.inc.binary.converters.ProtobufDefaults.{ Classes, ReadersCon
 import sbt.internal.util.Relation
 import scala.collection.JavaConverters._
 import xsbti.api._
-
-import ProtobufDefaults.{ MissingString, MissingInt }
+import ProtobufDefaults.{ MissingInt, MissingString }
 
 final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) {
   def fromPathString(path: String): Path = Paths.get(path)
@@ -307,7 +307,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
 
   def fromAnnotation(annotation: Schema.Annotation): Annotation = {
     def fromAnnotationArgument(argument: Schema.AnnotationArgument): AnnotationArgument = {
-      val name = argument.getName
+      val name = argument.getName.intern()
       val value = argument.getValue
       AnnotationArgument.of(name, value)
     }
@@ -454,7 +454,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
       ExpectedUpperBoundInTypeDeclaration
     }
 
-    val name = classDefinition.getName
+    val name = classDefinition.getName.intern()
     val access =
       if (classDefinition.hasAccess) fromAccess(classDefinition.getAccess)
       else MissingAccessInDef.!!
@@ -474,7 +474,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
               ReadersFeedback.UnrecognizedParamModifier.!!
           }
         }
-        val name = methodParameter.getName
+        val name = methodParameter.getName.intern()
         val hasDefault = methodParameter.getHasDefault
         val `type` =
           if (methodParameter.hasType) fromType(methodParameter.getType)
@@ -575,7 +575,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
   def fromClassLike(classLike: Schema.ClassLike): ClassLike = {
     def expectedMsg(msg: String) = ReadersFeedback.expected(msg, Classes.ClassLike)
     def expected(clazz: Class[_]) = expectedMsg(clazz.getName)
-    val name = classLike.getName
+    val name = classLike.getName.intern()
     val access =
       if (classLike.hasAccess) fromAccess(classLike.getAccess)
       else expected(Classes.Access).!!
@@ -636,7 +636,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
     }
 
     def fromNameHash(nameHash: Schema.NameHash): NameHash = {
-      val name = nameHash.getName
+      val name = nameHash.getName.intern()
       val hash = nameHash.getHash
       val scope = fromUseScope(nameHash.getScope, nameHash.getScopeValue)
       NameHash.of(name, scope, hash)
@@ -645,7 +645,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
     import SafeLazyProxy.{ strict => mkLazy }
     import ReadersFeedback.ExpectedCompanionsInAnalyzedClass
     val compilationTs = analyzedClass.getCompilationTimestamp
-    val name = analyzedClass.getName
+    val name = analyzedClass.getName.intern()
     val api =
       if (!shouldStoreApis) EmptyLazyCompanions
       else
@@ -667,34 +667,21 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
   private final val stringToFile = (path: String) => fromPathString(path)
   private final val stringToVFile = (path: String) => fromPathStringV(path)
   def fromRelations(relations: Schema.Relations): Relations = {
-    import scala.collection.{ mutable, immutable }
 
     def fromMap[K, V](
         map: java.util.Map[String, Schema.Values],
         fk: String => K,
         fv: String => V
     ): Relation[K, V] = {
-      val forward = mutable.HashMap[K, mutable.Builder[V, immutable.Set[V]]]()
-      val reverse = mutable.HashMap[V, mutable.Builder[K, immutable.Set[K]]]()
+      val builder = new RelationBuilder[K, V]
       for ((kString, vs) <- map.asScala) {
         if (!vs.getValuesList.isEmpty) {
           val k = fk(kString)
-          val vsBuilder = forward.getOrElseUpdate(k, immutable.Set.newBuilder[V])
           for (vString <- vs.getValuesList.asScala) {
-            val v = fv(vString)
-            vsBuilder += v
-            reverse.getOrElseUpdate(v, immutable.Set.newBuilder[K]) += k
+            builder(k) = fv(vString)
           }
         }
       }
-      Relation.make[K, V](toImmutable(forward), toImmutable(reverse))
-    }
-    def toImmutable[A, B](
-        map: mutable.Map[A, mutable.Builder[B, immutable.Set[B]]]
-    ): immutable.Map[A, immutable.Set[B]] = {
-      val builder = immutable.Map.newBuilder[A, immutable.Set[B]]
-      for ((a, setBuilder) <- map)
-        builder += (a -> setBuilder.result())
       builder.result()
     }
 
@@ -705,32 +692,28 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
     }
 
     def fromUsedName(usedName: Schema.UsedName): UsedName = {
-      val name = usedName.getName
+      val name = usedName.getName.intern()
+      val useScopes = util.EnumSet.noneOf(classOf[UseScope])
       val len = usedName.getScopesCount
       val scopes = for {
         i <- 0 to len - 1
-      } yield fromUseScope(usedName.getScopes(i), usedName.getScopesValue(i))
-      UsedName.apply(name, scopes)
+      } yield useScopes.add(fromUseScope(usedName.getScopes(i), usedName.getScopesValue(i)))
+      UsedName.make(name, useScopes)
     }
 
     def fromUsedNamesMap(
         map: java.util.Map[String, Schema.UsedNames]
     ): Relation[String, UsedName] = {
-      import scala.collection.{ mutable, immutable }
-      val forward = mutable.HashMap[String, mutable.Builder[UsedName, immutable.Set[UsedName]]]()
-      val reverse = mutable.HashMap[UsedName, mutable.Builder[String, immutable.Set[String]]]()
+      val builder = new RelationBuilder[String, UsedName]
       for ((k, used) <- map.asScala) {
         val usedNames = used.getUsedNamesList.asScala
         if (!usedNames.isEmpty) {
-          val usedNameBuilder = forward.getOrElseUpdate(k, immutable.Set.newBuilder[UsedName])
-          for (SchemaUsedName <- usedNames) {
-            val usedName = fromUsedName(SchemaUsedName)
-            usedNameBuilder += usedName
-            reverse.getOrElseUpdate(usedName, immutable.Set.newBuilder[String]) += k
+          for (schemaUsedName <- usedNames) {
+            builder(k) = fromUsedName(schemaUsedName)
           }
         }
       }
-      Relation.make(toImmutable(forward), toImmutable(reverse))
+      builder.result()
     }
 
     def expected(msg: String) = ReadersFeedback.expected(msg, Classes.Relations)
