@@ -134,6 +134,14 @@ with a newer version of them, you can do it with:
 $ sbt -Dsbtio.path=../io -Dsbtutil.path=../util
 ```
 
+### Working in IntelliJ
+
+The SBT build for Zinc uses [sbt-project-matrix](https://github.com/sbt/sbt-projectmatrix) to cross build certain subprojects
+selectively with different Scala versions. Unfortunately this confused the IntelliJ project import.
+
+As a workaround, uncomment the import in the `== INTELLIJ IMPORT ==` section of `build.sbt` prior to importing
+into IntelliJ. This will specialize the build structure to a single Scala version.
+
 ## Signing the CLA
 
 Contributing to Zinc requires you or your employer to sign the

@@ -136,7 +136,7 @@ class LoggedReporter(
       severity,
       InterfaceUtil.jo2o(rendered)
     )
-    allProblems += problem
+    allProblems += problem0
     severity match {
       case Warn | Error =>
         if (!testAndLog(transformedPos, severity)) display(problem)

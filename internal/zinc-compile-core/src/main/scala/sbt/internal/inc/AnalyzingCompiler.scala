@@ -18,7 +18,6 @@ import java.nio.file.Path
 import java.net.URLClassLoader
 import java.util.{ Optional, ServiceLoader }
 
-import com.github.ghik.silencer.silent
 import sbt.util.{ InterfaceUtil, Logger }
 import sbt.io.syntax._
 import sbt.internal.inc.classpath.ClassLoaderCache
@@ -83,20 +82,23 @@ final class AnalyzingCompiler(
     val progress = if (progressOpt.isPresent) progressOpt.get else IgnoreProgress
     val cp = classpath.map(converter.toPath)
     val arguments = compArgs.makeArguments(Nil, cp, options).toArray
+    // hold reference to compiler bridge class loader to prevent its being evicted
+    // from the compiler cache (sbt/zinc#914)
+    val loader = getCompilerLoader(log)
 
-    loadService(classOf[CompilerInterface2], log) match {
+    loadService(classOf[CompilerInterface2], loader) match {
       case Some(intf) =>
         intf.run(sources, changes, arguments, output, callback, reporter, progress, log)
       case _ =>
         // fall back to old reflection if CompilerInterface2 is not supported
         val compilerBridgeClassName = "xsbt.CompilerInterface"
-        val (bridge, bridgeClass) = bridgeInstance(compilerBridgeClassName, log)
+        val (bridge, bridgeClass) = bridgeInstance(compilerBridgeClassName, loader)
         val compiler = invoke(bridge, bridgeClass, "newCompiler", log)(
           classOf[Array[String]],
           classOf[Output],
           classOf[xLogger],
           classOf[Reporter]
-        )(arguments, output, log, reporter).asInstanceOf[CachedCompiler]: @silent
+        )(arguments, output, log, reporter).asInstanceOf[CachedCompiler]
         val fileSources: Array[File] = sources.map(converter.toPath(_).toFile)
         try {
           invoke(bridge, bridgeClass, "run", log)(
@@ -141,14 +143,17 @@ final class AnalyzingCompiler(
       reporter: Reporter
   ): Unit = {
     val cp = classpath.map(converter.toPath)
-    loadService(classOf[ScaladocInterface2], log) match {
+    // hold reference to compiler bridge class loader to prevent its being evicted
+    // from the compiler cache (sbt/zinc#914)
+    val loader = getDocLoader(log)
+    loadService(classOf[ScaladocInterface2], loader) match {
       case Some(intf) =>
         val arguments =
           compArgs.makeArguments(Nil, cp, Some(outputDirectory), options)
         onArgsHandler(arguments)
         intf.run(sources.toArray, arguments.toArray[String], log, reporter)
       case _ =>
-        loadService(classOf[ScaladocInterface1], log) match {
+        loadService(classOf[ScaladocInterface1], loader) match {
           case Some(intf) =>
             val fileSources: Seq[Path] = sources.map(converter.toPath(_))
             val arguments =
@@ -158,7 +163,7 @@ final class AnalyzingCompiler(
           case _ =>
             // fall back to old reflection
             val scaladocBridgeClassName = "xsbt.ScaladocInterface"
-            val (bridge, bridgeClass) = bridgeInstance(scaladocBridgeClassName, log)
+            val (bridge, bridgeClass) = bridgeInstance(scaladocBridgeClassName, loader)
             val fileSources: Seq[Path] = sources.map(converter.toPath(_))
             val arguments =
               compArgs.makeArguments(fileSources, cp, Some(outputDirectory), options)
@@ -185,8 +190,11 @@ final class AnalyzingCompiler(
     val (classpathString, bootClasspath) = consoleClasspaths(classpath, converter)
     val (names, values0) = bindings.unzip
     val values = values0.toArray[Any].asInstanceOf[Array[AnyRef]]
+    // hold reference to compiler bridge class loader to prevent its being evicted
+    // from the compiler cache (sbt/zinc#914)
+    val classLoader = getCompilerLoader(log)
 
-    loadService(classOf[ConsoleInterface1], log) match {
+    loadService(classOf[ConsoleInterface1], classLoader) match {
       case Some(intf) =>
         intf.run(
           options.toArray[String]: Array[String],
@@ -202,7 +210,7 @@ final class AnalyzingCompiler(
       case _ =>
         // fall back to old reflection if ConsoleInterface1 is not supported
         val consoleBridgeClassName = "xsbt.ConsoleInterface"
-        val (bridge, bridgeClass) = bridgeInstance(consoleBridgeClassName, log)
+        val (bridge, bridgeClass) = bridgeInstance(consoleBridgeClassName, classLoader)
         invoke(bridge, bridgeClass, "run", log)(
           classOf[Array[String]],
           classOf[String],
@@ -246,12 +254,15 @@ final class AnalyzingCompiler(
       log: Logger
   ): Seq[String] = {
     val (classpathString, bootClasspath) = consoleClasspaths(classpath, converter)
-    val argsObj = loadService(classOf[ConsoleInterface1], log) match {
+    // hold reference to compiler bridge class loader to prevent its being evicted
+    // from the compiler cache (sbt/zinc#914)
+    val loader = getCompilerLoader(log)
+    val argsObj = loadService(classOf[ConsoleInterface1], loader) match {
       case Some(intf) =>
         intf.commandArguments(options.toArray[String], bootClasspath, classpathString, log)
       case _ =>
         val consoleBridgeClassName = "xsbt.ConsoleInterface"
-        val (bridge, bridgeClass) = bridgeInstance(consoleBridgeClassName, log)
+        val (bridge, bridgeClass) = bridgeInstance(consoleBridgeClassName, loader)
         invoke(bridge, bridgeClass, "commandArguments", log)(
           classOf[Array[String]],
           classOf[String],
@@ -277,7 +288,10 @@ final class AnalyzingCompiler(
     val (classpathString, bootClasspath) = consoleClasspaths(classpath, converter)
     val (names, values0) = bindings.unzip
     val values = values0.toArray[Any].asInstanceOf[Array[AnyRef]]
-    loadService(classOf[InteractiveConsoleFactory], log) match {
+    // hold reference to compiler bridge class loader to prevent its being evicted
+    // from the compiler cache (sbt/zinc#914)
+    val classLoader = getCompilerLoader(log)
+    loadService(classOf[InteractiveConsoleFactory], classLoader) match {
       case Some(intf) =>
         intf.createConsole(
           options.toArray[String]: Array[String],
@@ -296,15 +310,15 @@ final class AnalyzingCompiler(
   }
 
   // see https://docs.oracle.com/javase/8/docs/api/java/util/ServiceLoader.html
-  private def loadService[A](cls: Class[A], log: xLogger): Option[A] = {
-    val sl = ServiceLoader.load(cls, loader(log))
+  private def loadService[A](cls: Class[A], loader: ClassLoader): Option[A] = {
+    val sl = ServiceLoader.load(cls, loader)
     val it = sl.iterator
     if (it.hasNext) Some(it.next)
     else None
   }
 
-  private def bridgeInstance(bridgeClassName: String, log: Logger): (AnyRef, Class[_]) = {
-    val bridgeClass = getBridgeClass(bridgeClassName, log)
+  private def bridgeInstance(bridgeClassName: String, loader: ClassLoader): (AnyRef, Class[_]) = {
+    val bridgeClass = getBridgeClass(bridgeClassName, loader)
     (bridgeClass.getDeclaredConstructor().newInstance().asInstanceOf[AnyRef], bridgeClass)
   }
 
@@ -323,26 +337,39 @@ final class AnalyzingCompiler(
     }
   }
 
-  private[this] def loader(log: Logger): ClassLoader = {
+  private[this] def getCompilerLoader(log: Logger): ClassLoader = {
+    // could crash if the `CompilerBridge` tries to load classes
+    // that are not in `scalaInstance.compilerJars`
+    getDualLoader(scalaInstance.compilerJars.toList, scalaInstance.loaderCompilerOnly, log)
+  }
+
+  private[this] def getDocLoader(log: Logger): ClassLoader =
+    getDualLoader(scalaInstance.allJars.toList, scalaInstance.loader, log)
+
+  private[this] def getDualLoader(
+      scalaJars: List[File],
+      scalaLoader: ClassLoader,
+      log: Logger
+  ): ClassLoader = {
     val interfaceJar = provider.fetchCompiledBridge(scalaInstance, log)
     def createInterfaceLoader =
       new URLClassLoader(
         Array(interfaceJar.toURI.toURL),
-        createDualLoader(scalaInstance.loader(), getClass.getClassLoader)
+        createDualLoader(scalaLoader, getClass.getClassLoader)
       )
 
     classLoaderCache match {
       case Some(cache) =>
         cache.cachedCustomClassloader(
-          interfaceJar :: scalaInstance.allJars().toList,
+          interfaceJar :: scalaJars,
           () => createInterfaceLoader
         )
       case None => createInterfaceLoader
     }
   }
 
-  private[this] def getBridgeClass(name: String, log: Logger) =
-    Class.forName(name, true, loader(log))
+  private[this] def getBridgeClass(name: String, loader: ClassLoader) =
+    Class.forName(name, true, loader)
 
   protected def createDualLoader(
       scalaLoader: ClassLoader,

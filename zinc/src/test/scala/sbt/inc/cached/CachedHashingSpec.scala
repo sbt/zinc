@@ -39,7 +39,7 @@ class CachedHashingSpec extends BaseCompilerSpec {
     IO.withTemporaryDirectory { tempDir =>
       val classes = Seq(SourceFiles.Good)
       val sources0 = Map(Paths.get("src") -> classes.map(path => Paths.get(path)))
-      val projectSetup = TestProjectSetup(tempDir.toPath(), sources0, Nil)
+      val projectSetup = ProjectSetup(VirtualSubproject(tempDir.toPath()), sources0, Nil)
       val compiler = projectSetup.createCompiler()
       try {
         import compiler.in.{ setup, options, compilers, previousResult }

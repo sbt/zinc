@@ -4,6 +4,16 @@ import localzinc.Scripted, Scripted._
 import com.typesafe.tools.mima.core._, ProblemFilters._
 import com.github.os72.protocjar.Protoc
 
+// == INTELLIJ IMPORT ==
+//
+// Uncomment this line to remove usage of sbt-project-matrix by specializing scalaVersion := 2.12
+// Ideally we could replace this with: `SettingKey[Boolean]("ideSkipProject") := scalaVersion.value != defaultScalaVersion`
+// in `commonSettings`, but when I tried this the IntelliJ import fails with `Cannot find project dependency: compilerBridgeJVM2_13`
+// See: https://github.com/sbt/sbt-projectmatrix/issues/25
+//
+// This hack is documented in CONTRIBUTING.md, please keep that in sync.
+// import ProjectMatrixShims.{ projectMatrix, _ }
+
 def zincRootPath: File = file(sys.props.getOrElse("sbtzinc.path", ".")).getCanonicalFile
 def internalPath = zincRootPath / "internal"
 
@@ -43,11 +53,11 @@ ThisBuild / version := {
       else old
   }
 }
+ThisBuild / versionScheme := Some("early-semver")
 ThisBuild / organization := "org.scala-sbt"
 ThisBuild / licenses := List(("Apache-2.0", url("https://www.apache.org/licenses/LICENSE-2.0")))
 ThisBuild / scalafmtOnCompile := !(Global / insideCI).value
 ThisBuild / Test / scalafmtOnCompile := !(Global / insideCI).value
-ThisBuild / bintrayPackage := "zinc"
 ThisBuild / scmInfo := Some(
   ScmInfo(url("https://github.com/sbt/zinc"), "git@github.com:sbt/zinc.git")
 )
@@ -66,17 +76,15 @@ ThisBuild / developers := List(
   Developer("jvican", "Jorge Vicente Cantero", "@jvican", url("https://github.com/jvican")),
   Developer("Duhemm", "Martin Duhem", "@Duhemm", url("https://github.com/Duhemm")),
 )
-ThisBuild / publishTo := {
-  val old = (ThisBuild / publishTo).value
-  sys.props.get("sbt.build.localmaven") match {
-    case Some(path) => Some(MavenCache("local-maven", file(path)))
-    case _          => old
-  }
-}
 ThisBuild / pomIncludeRepository := (_ => false) // drop repos other than Maven Central from POM
+ThisBuild / publishTo := {
+  val nexus = "https://oss.sonatype.org/"
+  Some("releases" at nexus + "service/local/staging/deploy/maven2")
+}
 ThisBuild / mimaPreviousArtifacts := Set.empty
 // limit the number of concurrent test so testQuick works
 Global / concurrentRestrictions += Tags.limit(Tags.Test, 4)
+ThisBuild / semanticdbVersion := "4.4.6"
 
 def baseSettings: Seq[Setting[_]] = Seq(
   resolvers += Resolver.typesafeIvyRepo("releases"),
@@ -90,7 +98,11 @@ def baseSettings: Seq[Setting[_]] = Seq(
   testFrameworks += new TestFramework("verify.runner.Framework"),
   compile / javacOptions ++= Seq("-Xlint", "-Xlint:-serial"),
   Test / publishArtifact := false,
-  scalacOptions ++= Seq("-YdisableFlatCpCaching", "-target:jvm-1.8")
+  scalacOptions ++= Seq("-YdisableFlatCpCaching", "-target:jvm-1.8"),
+  semanticdbCompilerPlugin := {
+    ("org.scalameta" % "semanticdb-scalac" % semanticdbVersion.value)
+      .cross(CrossVersion.full)
+  },
 )
 
 def compilerVersionDependentScalacOptions: Seq[Setting[_]] = Seq(
@@ -127,23 +139,23 @@ val noPublish: Seq[Setting[_]] = List(
 )
 
 // zincRoot is now only 2.12 (2.11.x is not supported anymore)
+lazy val aggregated: Seq[ProjectReference] = compilerInterface.projectRefs ++
+  compilerBridge.projectRefs ++
+  zincApiInfo.projectRefs ++
+  zincBenchmarks.projectRefs ++
+  zincClasspath.projectRefs ++
+  zincClassfile.projectRefs ++
+  zincCompileCore.projectRefs ++
+  zincCompile.projectRefs ++
+  zincCore.projectRefs ++
+  zincPersist.projectRefs ++
+  Seq(zincPersistCore: ProjectReference) ++
+  zincPersistCoreAssembly.projectRefs ++
+  zincTesting.projectRefs ++
+  zinc.projectRefs
+
 lazy val zincRoot: Project = (project in file("."))
-  .aggregate(
-    compilerInterface.projectRefs ++
-      compilerBridge.projectRefs ++
-      zincApiInfo.projectRefs ++
-      zincBenchmarks.projectRefs ++
-      zincClasspath.projectRefs ++
-      zincClassfile.projectRefs ++
-      zincCompileCore.projectRefs ++
-      zincCompile.projectRefs ++
-      zincCore.projectRefs ++
-      zincPersist.projectRefs ++
-      Seq(zincPersistCore: ProjectReference) ++
-      zincPersistCoreAssembly.projectRefs ++
-      zincTesting.projectRefs ++
-      zinc.projectRefs: _*
-  )
+  .aggregate(aggregated: _*)
   .settings(
     baseSettings,
     name := "zinc Root",
@@ -205,7 +217,7 @@ lazy val zinc = (projectMatrix in (zincRootPath / "zinc"))
       exclude[IncompatibleResultTypeProblem]("sbt.internal.*"),
     )
   )
-  .jvmPlatform(scalaVersions = List(scala212, scala213))
+  .jvmPlatform(scalaVersions = scala212_213)
   .configure(addBaseSettingsAndTestDeps)
 
 def resGenFile = (zincRootPath / "zinc" / "resGenerator").getAbsoluteFile
@@ -241,7 +253,7 @@ lazy val zincCompile = (projectMatrix in zincRootPath / "zinc-compile")
       exclude[ReversedMissingMethodProblem]("sbt.inc.Doc*"),
     ),
   )
-  .jvmPlatform(scalaVersions = List(scala212, scala213))
+  .jvmPlatform(scalaVersions = scala212_213)
   .configure(addBaseSettingsAndTestDeps, addSbtUtilTracking)
 
 // Persists the incremental data structures using Protobuf
@@ -250,10 +262,6 @@ lazy val zincPersist = (projectMatrix in internalPath / "zinc-persist")
   .settings(
     name := "zinc Persist",
     libraryDependencies += sbinary,
-    libraryDependencies ++= (scalaVersion.value match {
-      case v if v.startsWith("2.12.") => List(compilerPlugin(silencerPlugin))
-      case _                          => List()
-    }),
     libraryDependencies ++= {
       scalaPartialVersion.value match {
         case Some((2, major)) if major >= 13 =>
@@ -275,9 +283,12 @@ lazy val zincPersist = (projectMatrix in internalPath / "zinc-persist")
       exclude[IncompatibleMethTypeProblem]("xsbti.*"),
       exclude[ReversedMissingMethodProblem]("xsbti.*"),
       exclude[IncompatibleTemplateDefProblem]("sbt.internal.inc.schema.*"),
+      exclude[MissingClassProblem]("xsbti.api.InternalApiProxy$"),
+      exclude[MissingClassProblem]("xsbti.api.InternalApiProxy$Modifiers$"),
+      exclude[MissingClassProblem]("xsbti.api.InternalApiProxy")
     ),
   )
-  .jvmPlatform(scalaVersions = List(scala212, scala213))
+  .jvmPlatform(scalaVersions = scala212_213)
   .configure(addBaseSettingsAndTestDeps)
 
 lazy val zincPersistCoreAssembly = (projectMatrix in internalPath / "zinc-persist-core-assembly")
@@ -351,12 +362,11 @@ lazy val zincCore = (projectMatrix in internalPath / "zinc-core")
       }
     },
   )
-  .jvmPlatform(scalaVersions = List(scala212, scala213))
+  .jvmPlatform(scalaVersions = scala212_213)
   .configure(addBaseSettingsAndTestDeps, addSbtIO, addSbtUtilLogging, addSbtUtilRelation)
 
 lazy val zincBenchmarks = (projectMatrix in internalPath / "zinc-benchmarks")
-  .dependsOn(compilerInterface % "compile->compile;compile->test")
-  .dependsOn(compilerBridge, zinc % "compile->test", zincTesting % "compile->test")
+  .dependsOn(zinc % "test->test")
   .enablePlugins(JmhPlugin)
   .settings(
     noPublish,
@@ -366,8 +376,19 @@ lazy val zincBenchmarks = (projectMatrix in internalPath / "zinc-benchmarks")
       "net.openhft" % "affinity" % "3.1.11"
     ),
     Test / javaOptions ++= List("-Xmx600M", "-Xms600M"),
+    inConfig(Jmh)(
+      List(
+        // Rewire as described at the bottom of https://github.com/ktoso/sbt-jmh#adding-to-your-project
+        sourceDirectory := (Test / sourceDirectory).value,
+        classDirectory := (Test / classDirectory).value,
+        dependencyClasspath := (Test / dependencyClasspath).value,
+        // rewire tasks, so that 'jmh:run' automatically invokes 'jmh:compile' (otherwise a clean 'jmh:run' would fail)
+        compile := compile.dependsOn(Test / compile).value,
+        run := run.dependsOn(Test / compile).evaluated,
+      )
+    ),
   )
-  .jvmPlatform(scalaVersions = List(scala212, scala213))
+  .jvmPlatform(scalaVersions = scala212_213)
 
 // sbt-side interface to compiler.  Calls compiler-side interface reflectively
 lazy val zincCompileCore = (projectMatrix in internalPath / "zinc-compile-core")
@@ -381,10 +402,6 @@ lazy val zincCompileCore = (projectMatrix in internalPath / "zinc-compile-core")
   )
   .settings(
     name := "zinc Compile Core",
-    libraryDependencies ++= (scalaVersion.value match {
-      case v if v.startsWith("2.12.") => List(compilerPlugin(silencerPlugin))
-      case _                          => List()
-    }),
     libraryDependencies ++= Seq(
       scalaCompiler.value % Test,
       launcherInterface,
@@ -412,6 +429,7 @@ lazy val compilerInterface = (projectMatrix in internalPath / "compiler-interfac
     crossScalaVersions := Seq(scala212),
     compilerVersionDependentScalacOptions,
     libraryDependencies ++= Seq(scalaLibrary.value % Test),
+    libraryDependencies ++= Seq(scalatest % Test),
     exportJars := true,
     Compile / resourceGenerators += Def.task {
       val a = (Compile / compile).value
@@ -452,10 +470,12 @@ lazy val compilerInterface = (projectMatrix in internalPath / "compiler-interfac
       exclude[ReversedMissingMethodProblem]("xsbti.compile.ScalaInstance.loaderLibraryOnly"),
       exclude[ReversedMissingMethodProblem]("xsbti.compile.ScalaInstance.libraryJars"),
       exclude[ReversedMissingMethodProblem]("xsbti.compile.IncrementalCompiler.compileAllJava"),
+      exclude[ReversedMissingMethodProblem]("xsbti.compile.ScalaInstance.loaderCompilerOnly"),
+      exclude[ReversedMissingMethodProblem]("xsbti.compile.ScalaInstance.compilerJars"),
     ),
   )
   .jvmPlatform(autoScalaLibrary = false)
-  .configure(addSbtUtilInterface)
+  .configure(addSbtUtilInterface(_))
 
 /**
  * Compiler-side interface to compiler that is compiled against the compiler being used either in advance or on the fly.
@@ -488,7 +508,7 @@ lazy val compilerBridge = (projectMatrix in internalPath / "compiler-bridge")
       case (2, y) if y >= 13            => new File(scalaSource.value.getPath + "_2.13")
     }.toList),
   )
-  .jvmPlatform(scalaVersions = Seq(scala210, scala211, scala212, scala213))
+  .jvmPlatform(scalaVersions = allScalaVersions)
 
 lazy val compilerBridge210 = compilerBridge.jvm(scala210)
 lazy val compilerBridge211 = compilerBridge.jvm(scala211)
@@ -554,8 +574,8 @@ lazy val zincApiInfo = (projectMatrix in internalPath / "zinc-apiinfo")
       exclude[DirectMissingMethodProblem]("sbt.internal.inc.ClassToAPI.handleMalformedNameOf*"),
     ),
   )
-  .jvmPlatform(scalaVersions = List(scala212, scala213))
-  .configure(addBaseSettingsAndTestDeps)
+  .jvmPlatform(scalaVersions = scala212_213)
+  .configure(addBaseSettingsAndTestDeps(_))
 
 // Utilities related to reflection, managing Scala versions, and custom class loaders
 lazy val zincClasspath = (projectMatrix in internalPath / "zinc-classpath")
@@ -584,7 +604,7 @@ lazy val zincClasspath = (projectMatrix in internalPath / "zinc-classpath")
       exclude[IncompatibleMethTypeProblem]("sbt.internal.inc.classpath.NativeCopyConfig.*"),
     ),
   )
-  .jvmPlatform(scalaVersions = List(scala212, scala213))
+  .jvmPlatform(scalaVersions = scala212_213)
   .configure(addBaseSettingsAndTestDeps, addSbtIO)
 
 // class file reader and analyzer
@@ -606,7 +626,7 @@ lazy val zincClassfile = (projectMatrix in internalPath / "zinc-classfile")
     ),
     mimaBinaryIssueFilters ++= Util.excludeInternalProblems,
   )
-  .jvmPlatform(scalaVersions = List(scala212, scala213))
+  .jvmPlatform(scalaVersions = scala212_213)
   .configure(addBaseSettingsAndTestDeps, addSbtIO, addSbtUtilLogging)
 
 // re-implementation of scripted engine
@@ -657,7 +677,7 @@ addCommandAlias(
     Seq(
       s"${compilerBridge213.id}/packageBin",
       s"${compilerBridge212.id}/packageBin",
-      s"${zincBenchmarks.jvm(scala212).id}/run $dir",
+      s"${zincBenchmarks.jvm(scala212).id}/Test/run $dir",
       s"${zincBenchmarks.jvm(scala212).id}/jmh:run -p _tempDir=$dir -prof gc -foe true",
       s"""eval IO.delete(file("$dir"))""",
     ).mkString(";", ";", "")

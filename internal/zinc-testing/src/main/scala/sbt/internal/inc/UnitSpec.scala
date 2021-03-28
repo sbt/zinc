@@ -13,12 +13,13 @@ package sbt
 package internal
 package inc
 
-import org.scalatest._
-import sbt.util.{ LogExchange, Level }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import sbt.util.{ LoggerContext, Level }
 import sbt.internal.util.{ ManagedLogger, ConsoleOut, MainAppender }
 import java.util.concurrent.atomic.AtomicInteger
 
-abstract class UnitSpec extends FlatSpec with Matchers with LogTestkit {}
+abstract class UnitSpec extends AnyFlatSpec with Matchers with LogTestkit {}
 
 trait LogTestkit {
   def logLevel: Level.Value = Level.Warn
@@ -31,9 +32,9 @@ object UnitSpec {
   val generateId: AtomicInteger = new AtomicInteger
   def newLogger(level: Level.Value): ManagedLogger = {
     val loggerName = "test-" + generateId.incrementAndGet
-    val x = LogExchange.logger(loggerName)
-    LogExchange.unbindLoggerAppenders(loggerName)
-    LogExchange.bindLoggerAppenders(loggerName, (consoleAppender -> level) :: Nil)
+    val x = LoggerContext.globalContext.logger(loggerName, None, None)
+    LoggerContext.globalContext.clearAppenders(loggerName)
+    LoggerContext.globalContext.addAppender(loggerName, consoleAppender -> level)
     x
   }
 }

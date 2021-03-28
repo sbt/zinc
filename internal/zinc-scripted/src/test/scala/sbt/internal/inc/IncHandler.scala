@@ -229,6 +229,9 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
     onArgs("checkDependencies") {
       case (p, cls :: dependencies, i) => p.checkDependencies(i, dropRightColon(cls), dependencies)
     },
+    onArgs("checkNameExistsInClass") {
+      case (p, cls :: name :: Nil, i) => p.checkNameExistsInClass(i, dropRightColon(cls), name)
+    },
     noArgs("checkSame") { case (p, i)   => p.checkSame(i) },
     onArgs("run") { case (p, params, i) => p.run(i, params) },
     noArgs("package") { case (p, i)     => p.packageBin(i) },
@@ -482,6 +485,12 @@ case class ProjectStructure(
       ()
     }
 
+  def checkNameExistsInClass(i: IncState, className: String, name: String): Future[Unit] =
+    compile(i).map[Unit] { analysis =>
+      assert(analysis.apis.externalAPI(className).nameHashes.exists(_.name == name))
+      ()
+    }
+
   def run(i: IncState, params: Seq[String]): Future[Unit] =
     compile(i).map { analysis =>
       discoverMainClasses(Some(analysis.apis)) match {
@@ -562,7 +571,7 @@ case class ProjectStructure(
         }
         val futureScalaAnalysis = earlyDeps.map { internalCp =>
           blocking {
-            scriptedLog.info(s"[$name] internapCp = $internalCp")
+            scriptedLog.info(s"[$name] internalCp = $internalCp")
             doCompile(i, notifyEarlyOutput, internalCp, pipelinedLookupAnalysis, false)
           }
         }
@@ -669,7 +678,8 @@ case class ProjectStructure(
       else incrementalCompiler.compile(in, scriptedLog)
     val analysis = result.analysis match { case a: Analysis => a }
     cachedStore.set(AnalysisContents.create(analysis, result.setup))
-    scriptedLog.info(s"""[$name] compilation done: ${sources.toList.mkString(", ")}""")
+    val javaOnlyStr = if (javaOnly) "(java-only) " else ""
+    scriptedLog.info(s"""[$name] ${javaOnlyStr}compilation done: ${sources.mkString(", ")}""")
     analysis
   }
 
@@ -795,8 +805,13 @@ case class ProjectStructure(
       val problems = getProblems().filter(_.severity == severity)
       problems.lift(index) match {
         case Some(problem) =>
-          val msg = s"'${problem.message}' doesn't contain '$expected'."
-          assert(problem.message.contains(expected), msg)
+          val problemMessage: String = problem.message
+          // See ScriptedTests.scala.
+          // val handlersAndStatements = parser.parse(file.toFile, true) doesn't correctly parse
+          val dropQuotes =
+            if (expected.startsWith("\"")) expected.drop(1).dropRight(1)
+            else expected
+          assert(problemMessage.contains(dropQuotes), s"'$problemMessage' doesn't contain '$dropQuotes'.")
         case None =>
           throw new TestFailed(
             s"Problem not found: $index (there are ${problems.length} problem with severity $severity)."

@@ -14,38 +14,22 @@ package sbt.inc
 import java.nio.file.{ Files, Path }
 import sbt.internal.inc.BridgeProviderSpecification
 import sbt.util.Logger
+import xsbti.compile.IncOptions
 
 class BaseCompilerSpec extends BridgeProviderSpecification {
+  val scalaVersion: String = scala.util.Properties.versionNumberString
 
-  val scalaVersion = scala.util.Properties.versionNumberString
-  val maxErrors = 100
-  val noLogger = Logger.Null
+  val incOptions: IncOptions = IncOptions.of().withPipelining(true)
 
   def assertExists(p: Path) = assert(Files.exists(p), s"$p does not exist")
 
-  implicit class TestProjectSetupMod(underlying: TestProjectSetup) {
-    def createCompiler(): TestProjectSetup.CompilerSetup =
-      createCompiler(scalaVersion)
+  implicit class ProjectSetupOps(setup: ProjectSetup) {
+    def createCompiler(): CompilerSetup = setup.createCompiler(scalaVersion, incOptions)
 
-    def createCompiler(sv: String): TestProjectSetup.CompilerSetup =
-      underlying.createCompiler(
-        sv,
-        scalaInstance(sv, underlying.baseLocation, noLogger),
-        getCompilerBridge(underlying.baseLocation, noLogger, sv),
-        pipelining = true,
-        log
-      )
-  }
-
-  implicit val compilerSetupHelper: TestProjectSetup.CompilerSetupHelper =
-    new TestProjectSetup.CompilerSetupHelper {
-      def apply(sv: String, setup: TestProjectSetup): TestProjectSetup.CompilerSetup =
-        setup.createCompiler(sv)
+    private def createCompiler(sv: String, incOptions: IncOptions): CompilerSetup = {
+      val si = scalaInstance(sv, setup.baseDir, Logger.Null)
+      val bridge = getCompilerBridge(setup.baseDir, Logger.Null, sv)
+      setup.createCompiler(sv, si, bridge, incOptions, log)
     }
-
-  // to avoid rewriting existing tests
-  object ProjectSetup {
-    def simple(baseLocation: Path, classes: Seq[String]): TestProjectSetup =
-      TestProjectSetup.simple(baseLocation, classes)
   }
 }

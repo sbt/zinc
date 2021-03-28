@@ -21,7 +21,7 @@ import sbt.io.FileFilter._
 import sbt.internal.io.Resources
 import sbt.internal.util.BufferedAppender
 import sbt.internal.util.{ ConsoleAppender, ConsoleOut, ManagedLogger, TraceEvent }
-import sbt.util.{ Level, LogExchange }
+import sbt.util.{ Level, LoggerContext }
 
 final class ScriptedTests(
     resourceBaseDirectory: Path,
@@ -98,15 +98,15 @@ final class ScriptedTests(
     val writer = new BufferedWriter(new FileWriter(logFile.toFile), BufferSize)
     val fileOut = ConsoleOut.bufferedWriterOut(writer)
     val fileAppender = ConsoleAppender(name, fileOut, useFormat = false)
-    LogExchange.bindLoggerAppenders(name, List(fileAppender -> Level.Debug))
+    LoggerContext.globalContext.addAppender(name, fileAppender -> Level.Debug)
     logger
   }
 
   private def createBatchLogger(name: String): ScriptedLogger = {
-    val logger = LogExchange.logger(name)
+    val logger = LoggerContext.globalContext.logger(name, None, None)
     val outAppender = BufferedAppender(ConsoleAppender())
-    LogExchange.unbindLoggerAppenders(name)
-    LogExchange.bindLoggerAppenders(name, List(outAppender -> outLevel))
+    LoggerContext.globalContext.clearAppenders(name)
+    LoggerContext.globalContext.addAppender(name, outAppender -> outLevel)
     ScriptedLogger(logger, outAppender)
   }
 
@@ -215,7 +215,7 @@ final class ScriptedTests(
       .andFinally(buffer.stopBuffer())
       .apply {
         val parser = new TestScriptParser(handlers)
-        val handlersAndStatements = parser.parse(file.toFile)
+        val handlersAndStatements = parser.parse(file.toFile, false)
         runner.run(handlersAndStatements, states)
 
         // Handle successful tests

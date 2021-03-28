@@ -268,6 +268,17 @@ trait Relations {
    * Relation between source files and _unqualified_ term and type names used in given source file.
    */
   private[inc] def names: Relation[String, UsedName]
+
+  private[inc] def copy(
+      srcProd: Relation[VirtualFileRef, VirtualFileRef] = srcProd,
+      libraryDep: Relation[VirtualFileRef, VirtualFileRef] = libraryDep,
+      libraryClassName: Relation[VirtualFileRef, String] = libraryClassName,
+      internalDependencies: InternalDependencies = internalDependencies,
+      externalDependencies: ExternalDependencies = externalDependencies,
+      classes: Relation[VirtualFileRef, String] = classes,
+      names: Relation[String, UsedName] = names,
+      productClassName: Relation[String, String] = productClassName,
+  ): Relations
 }
 
 object Relations {
@@ -441,66 +452,7 @@ private case class ExternalDependencies(
     )
 }
 
-private[inc] sealed trait RelationDescriptor[A, B] {
-  val header: String
-  val selectCorresponding: Relations => Relation[A, B]
-  def firstWrite(a: A): String
-  def firstRead(s: String): A
-  def secondWrite(b: B): String
-  def secondRead(s: String): B
-}
-
-// private[inc] case class FFRelationDescriptor(
-//     header: String,
-//     selectCorresponding: Relations => Relation[File, File]
-// ) extends RelationDescriptor[File, File] {
-//   override def firstWrite(a: File): String = a.toString
-//   override def secondWrite(b: File): String = b.toString
-//   override def firstRead(s: String): File = new File(s)
-//   override def secondRead(s: String): File = new File(s)
-// }
-
-// private[inc] case class FSRelationDescriptor(
-//     header: String,
-//     selectCorresponding: Relations => Relation[File, String]
-// ) extends RelationDescriptor[File, String] {
-//   override def firstWrite(a: File): String = a.toString
-//   override def secondWrite(b: String): String = b
-//   override def firstRead(s: String): File = new File(s)
-//   override def secondRead(s: String): String = s
-// }
-
-// private[inc] case class SFRelationDescriptor(
-//     header: String,
-//     selectCorresponding: Relations => Relation[String, File]
-// ) extends RelationDescriptor[String, File] {
-//   override def firstWrite(a: String): String = a
-//   override def secondWrite(b: File): String = b.toString
-//   override def firstRead(s: String): String = s
-//   override def secondRead(s: String): File = new File(s)
-// }
-
-private[inc] case class SSRelationDescriptor(
-    header: String,
-    selectCorresponding: Relations => Relation[String, String]
-) extends RelationDescriptor[String, String] {
-  override def firstWrite(a: String): String = a
-  override def secondWrite(b: String): String = b
-  override def firstRead(s: String): String = s
-  override def secondRead(s: String): String = s
-}
-
 /**
- * An abstract class that contains common functionality inherited by two implementations of Relations trait.
- *
- * A little note why we have two different implementations of Relations trait. This is needed for the time
- * being when we are slowly migrating to the new invalidation algorithm called "name hashing" which requires
- * some subtle changes to dependency tracking. For some time we plan to keep both algorithms side-by-side
- * and have a runtime switch which allows to pick one. So we need logic for both old and new dependency
- * tracking to be available. That's exactly what two subclasses of MRelationsCommon implement. Once name
- * hashing is proven to be stable and reliable we'll phase out the old algorithm and the old dependency tracking
- * logic.
- *
  * `srcProd` is a relation between a source file and a product: (source, product).
  * Note that some source files may not have a product and will not be included in this relation.
  *
@@ -511,11 +463,14 @@ private[inc] case class SSRelationDescriptor(
  *
  * `classes` is a relation between a source file and its generated fully-qualified class names.
  */
-private abstract class MRelationsCommon(
+private class MRelationsNameHashing(
     val srcProd: Relation[VirtualFileRef, VirtualFileRef],
     val libraryDep: Relation[VirtualFileRef, VirtualFileRef],
     val libraryClassName: Relation[VirtualFileRef, String],
+    val internalDependencies: InternalDependencies,
+    val externalDependencies: ExternalDependencies,
     val classes: Relation[VirtualFileRef, String],
+    val names: Relation[String, UsedName],
     val productClassName: Relation[String, String]
 ) extends Relations {
   def allSources: collection.Set[VirtualFileRef] = srcProd._1s
@@ -535,6 +490,9 @@ private abstract class MRelationsCommon(
   def libraryClassNames(lib: VirtualFileRef): Set[String] = libraryClassName.forward(lib)
   def libraryDefinesClass(name: String): Set[VirtualFileRef] = libraryClassName.reverse(name)
 
+  def internalClassDep: Relation[String, String] = memberRef.internal
+  def externalClassDep: Relation[String, String] = memberRef.external
+
   def internalClassDeps(className: String): Set[String] =
     internalClassDep.forward(className)
   def usesInternalClass(className: String): Set[String] =
@@ -545,58 +503,28 @@ private abstract class MRelationsCommon(
 
   private[inc] def usedNames(className: String): Set[UsedName] = names.forward(className)
 
-  /** Making large Relations a little readable. */
-  private val userDir = sys.props("user.dir").stripSuffix("/") + "/"
-  private def nocwd(s: String) = s stripPrefix userDir
-  private def line_s(kv: (Any, Any)) =
-    "    " + nocwd("" + kv._1) + " -> " + nocwd("" + kv._2) + "\n"
-  protected def relation_s(r: Relation[_, _]) = (
-    if (r.forwardMap.isEmpty) "Relation [ ]"
-    else (r.all.toSeq.map(line_s).sorted) mkString ("Relation [\n", "", "]")
-  )
-}
-
-/**
- * This class implements Relations trait with support for tracking of `memberRef` and `inheritance` class
- * dependencies. Therefore this class implements the new (compared to sbt 0.13.0) dependency tracking logic
- * needed by the name hashing invalidation algorithm.
- */
-private class MRelationsNameHashing(
-    srcProd: Relation[VirtualFileRef, VirtualFileRef],
-    libraryDep: Relation[VirtualFileRef, VirtualFileRef],
-    libraryClassName: Relation[VirtualFileRef, String],
-    val internalDependencies: InternalDependencies,
-    val externalDependencies: ExternalDependencies,
-    classes: Relation[VirtualFileRef, String],
-    val names: Relation[String, UsedName],
-    productClassName: Relation[String, String]
-) extends MRelationsCommon(srcProd, libraryDep, libraryClassName, classes, productClassName) {
-
-  def internalClassDep: Relation[String, String] = memberRef.internal
-  def externalClassDep: Relation[String, String] = memberRef.external
-
   def addProducts(src: VirtualFileRef, products: Iterable[VirtualFileRef]): Relations =
     new MRelationsNameHashing(
       srcProd ++ products.map(p => (src, p)),
       libraryDep,
       libraryClassName,
-      internalDependencies = internalDependencies,
-      externalDependencies = externalDependencies,
-      classes = classes,
-      names = names,
-      productClassName = productClassName
+      internalDependencies,
+      externalDependencies,
+      classes,
+      names,
+      productClassName,
     )
 
   private[inc] def addClasses(src: VirtualFileRef, classes: Iterable[(String, String)]): Relations =
     new MRelationsNameHashing(
-      srcProd = srcProd,
+      srcProd,
       libraryDep,
       libraryClassName,
-      internalDependencies = internalDependencies,
-      externalDependencies = externalDependencies,
+      internalDependencies,
+      externalDependencies,
       this.classes ++ classes.map(c => (src, c._1)),
-      names = names,
-      productClassName = this.productClassName ++ classes
+      names,
+      productClassName = productClassName ++ classes
     )
 
   def addInternalSrcDeps(src: VirtualFileRef, deps: Iterable[InternalDependency]) =
@@ -605,10 +533,10 @@ private class MRelationsNameHashing(
       libraryDep,
       libraryClassName,
       internalDependencies = internalDependencies ++ deps,
-      externalDependencies = externalDependencies,
+      externalDependencies,
       classes,
       names,
-      productClassName = productClassName
+      productClassName,
     )
 
   def addExternalDeps(src: VirtualFileRef, deps: Iterable[ExternalDependency]) =
@@ -616,25 +544,23 @@ private class MRelationsNameHashing(
       srcProd,
       libraryDep,
       libraryClassName,
-      internalDependencies = internalDependencies,
+      internalDependencies,
       externalDependencies = externalDependencies ++ deps,
       classes,
       names,
-      productClassName = productClassName
+      productClassName,
     )
 
   def addLibraryDeps(src: VirtualFileRef, deps: Iterable[(VirtualFileRef, String, XStamp)]) =
     new MRelationsNameHashing(
       srcProd,
       libraryDep + (src, deps.map(_._1)),
-      libraryClassName ++ (deps map { d =>
-        d._1 -> d._2
-      }),
-      internalDependencies = internalDependencies,
-      externalDependencies = externalDependencies,
+      libraryClassName ++ (deps.map(d => d._1 -> d._2)),
+      internalDependencies,
+      externalDependencies,
       classes,
       names,
-      productClassName = productClassName
+      productClassName,
     )
 
   private[inc] def addUsedNames(data: Relation[String, UsedName]): Relations = {
@@ -642,11 +568,11 @@ private class MRelationsNameHashing(
       srcProd,
       libraryDep,
       libraryClassName,
-      internalDependencies = internalDependencies,
-      externalDependencies = externalDependencies,
+      internalDependencies,
+      externalDependencies,
       classes,
       names = if (names.forwardMap.isEmpty) data else names ++ data,
-      productClassName = productClassName
+      productClassName,
     )
   }
 
@@ -679,25 +605,12 @@ private class MRelationsNameHashing(
     )
   }
 
-  // def removeFile(sources: Iterable[File]) = {
-  //   new MRelationsNameHashing(
-  //     srcProd, // -- sources,
-  //     libraryDep, // -- sources,
-  //     libraryClassName -- sources,
-  //     internalDependencies = internalDependencies, // -- classesInSources,
-  //     externalDependencies = externalDependencies, // -- classesInSources,
-  //     classes, // -- sources,
-  //     names = names, // -- classesInSources,
-  //     productClassName = productClassName, // -- classesInSources
-  //   )
-  // }
-
   def --(sources: Iterable[VirtualFileRef]) = {
     val classesInSources = sources.flatMap(classNames)
     new MRelationsNameHashing(
       srcProd -- sources,
       libraryDep -- sources,
-      libraryClassName, // -- sources,
+      libraryClassName,
       internalDependencies = internalDependencies -- classesInSources,
       externalDependencies = externalDependencies -- classesInSources,
       classes -- sources,
@@ -705,6 +618,26 @@ private class MRelationsNameHashing(
       productClassName = productClassName -- classesInSources
     )
   }
+
+  def copy(
+      srcProd: Relation[VirtualFileRef, VirtualFileRef] = srcProd,
+      libraryDep: Relation[VirtualFileRef, VirtualFileRef] = libraryDep,
+      libraryClassName: Relation[VirtualFileRef, String] = libraryClassName,
+      internalDependencies: InternalDependencies = internalDependencies,
+      externalDependencies: ExternalDependencies = externalDependencies,
+      classes: Relation[VirtualFileRef, String] = classes,
+      names: Relation[String, UsedName] = names,
+      productClassName: Relation[String, String] = productClassName,
+  ): Relations = new MRelationsNameHashing(
+    srcProd,
+    libraryDep,
+    libraryClassName,
+    internalDependencies,
+    externalDependencies,
+    classes,
+    names,
+    productClassName,
+  )
 
   override def equals(other: Any) = other match {
     case o: MRelationsNameHashing =>
@@ -714,22 +647,29 @@ private class MRelationsNameHashing(
   }
 
   override def hashCode =
-    (srcProd :: libraryDep :: libraryClassName :: memberRef :: inheritance :: classes :: Nil).hashCode
+    List(srcProd, libraryDep, libraryClassName, memberRef, inheritance, classes).hashCode
+
+  /** Making large Relations a little readable. */
+  private val userDir = sys.props("user.dir").stripSuffix("/") + "/"
+  private def nocwd(s: String) = s.stripPrefix(userDir)
+  private def line_s(k: Any, v: Any) = s"    ${nocwd(s"$k")} -> ${nocwd(s"$v")}\n"
+  def relation_s(r: Relation[_, _]) = {
+    if (r.forwardMap.isEmpty) "Relation [ ]"
+    else r.all.toSeq.map(kv => line_s(kv._1, kv._2)).sorted.mkString("Relation [\n", "", "]")
+  }
 
   override def toString: String = {
-    val internalDepsStr = (internalDependencies.dependencies map {
-      case (k, vs) => k + " " + relation_s(vs)
-    }).mkString("\n    ", "\n    ", "")
-    val externalDepsStr = (externalDependencies.dependencies map {
-      case (k, vs) => k + " " + relation_s(vs)
-    }).mkString("\n    ", "\n    ", "")
+    def deps_s(m: Map[_, Relation[_, _]]) =
+      m.iterator.map {
+        case (k, vs) => s"\n    $k ${relation_s(vs)}"
+      }.mkString
     s"""
-    |Relations (with name hashing enabled):
+    |Relations:
     |  products: ${relation_s(srcProd)}
     |  library deps: ${relation_s(libraryDep)}
     |  library class names: ${relation_s(libraryClassName)}
-    |  internalDependencies: $internalDepsStr
-    |  externalDependencies: $externalDepsStr
+    |  internalDependencies: ${deps_s(internalDependencies.dependencies)}
+    |  externalDependencies: ${deps_s(externalDependencies.dependencies)}
     |  class names: ${relation_s(classes)}
     |  used names: ${relation_s(names)}
     |  product class names: ${relation_s(productClassName)}

@@ -102,7 +102,8 @@ final class MixedAnalyzingCompiler(
     else ()
   }
 
-  lazy val ensureOutput = {
+  // We had this as lazy val, but that caused issues https://github.com/sbt/sbt/issues/5951
+  def ensureOutput = {
     val output = config.currentSetup.output
     val outputDirs = outputDirectories(output)
     outputDirs.foreach { d =>

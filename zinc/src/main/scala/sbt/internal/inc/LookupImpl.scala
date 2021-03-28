@@ -84,6 +84,13 @@ class LookupImpl(compileConfiguration: CompileConfiguration, previousSetup: Opti
   ): Boolean =
     externalLookup.forall(_.shouldDoIncrementalCompilation(changedClasses, analysis))
 
+  override def shouldDoEarlyOutput(analysis: CompileAnalysis): Boolean = {
+    externalLookup match {
+      case Some(externalLookup) => externalLookup.shouldDoEarlyOutput(analysis)
+      case None                 => super.shouldDoEarlyOutput(analysis)
+    }
+  }
+
   override def hashClasspath(classpath: Array[VirtualFile]): Optional[Array[FileHash]] =
     externalLookup.map(_.hashClasspath(classpath)).getOrElse(Optional.empty())
 }

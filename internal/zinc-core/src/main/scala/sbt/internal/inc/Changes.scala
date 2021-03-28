@@ -13,8 +13,6 @@ package sbt
 package internal
 package inc
 
-import java.io.File
-
 import scala.collection.JavaConverters._
 
 import xsbti.{ UseScope, VirtualFileRef }
@@ -23,7 +21,6 @@ import xsbti.compile.Changes
 import xsbti.compile.{ APIChange => XAPIChange }
 import xsbti.compile.{ InitialChanges => XInitialChanges }
 import xsbti.compile.{ UsedName => XUsedName }
-import xsbti.compile.analysis.{ Stamp => XStamp }
 
 final case class InitialChanges(
     internalSrc: Changes[VirtualFileRef],
@@ -130,8 +127,3 @@ abstract class UnderlyingChanges[A] extends Changes[A] {
     s"""Changes(added = $added, removed = $removed, changed = $changed, unmodified = ...)""".stripMargin
   }
 }
-
-sealed abstract class Change(val file: File)
-final class Removed(f: File) extends Change(f)
-final class Added(f: File, newStamp: XStamp) extends Change(f)
-final class Modified(f: File, oldStamp: XStamp, newStamp: XStamp) extends Change(f)

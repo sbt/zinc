@@ -416,12 +416,16 @@ final class WriteReportingJavaFileObject(
     var classFileManager: ClassFileManager
 ) extends ForwardingJavaFileObject[JavaFileObject](javaFileObject) {
   override def openWriter(): Writer = {
-    classFileManager.generated(Array(PlainVirtualFile(Paths.get(javaFileObject.toUri))))
+    classFileManager.generated(
+      Array[VirtualFile](PlainVirtualFile(Paths.get(javaFileObject.toUri)))
+    )
     super.openWriter()
   }
 
   override def openOutputStream(): OutputStream = {
-    classFileManager.generated(Array(PlainVirtualFile(Paths.get(javaFileObject.toUri))))
+    classFileManager.generated(
+      Array[VirtualFile](PlainVirtualFile(Paths.get(javaFileObject.toUri)))
+    )
     super.openOutputStream()
   }
 }

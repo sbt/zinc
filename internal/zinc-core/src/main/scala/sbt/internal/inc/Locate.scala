@@ -13,7 +13,7 @@ package sbt
 package internal
 package inc
 
-import java.nio.file.{ Files, Path }
+import java.nio.file.{ Files, InvalidPathException, Path }
 import java.util.zip.{ ZipException, ZipFile }
 import xsbti.{ PathBasedFile, VirtualFile }
 import xsbti.compile.{ DefinesClass, PerClasspathEntryLookup }
@@ -59,7 +59,12 @@ object Locate {
     def entries = classpath.iterator.map { entry =>
       (entry, lookup.definesClass(entry))
     }
-    className => entries.collectFirst { case (entry, defines) if defines(className) => entry }
+    className =>
+      // See sbt/zinc#757, sbt/zinc#925. Class name containing "<" is usually a synthetic
+      // one that does not have a corresponding *.class file.
+      // Yet the process of creating the path would fail only on Windows.
+      if (className.contains("<")) None
+      else entries.collectFirst { case (entry, defines) if defines(className) => entry }
   }
 
   def getValue[S](
@@ -118,7 +123,11 @@ object Locate {
 
   private class DirectoryDefinesClass(entry: Path) extends DefinesClass {
     override def apply(binaryClassName: String): Boolean =
-      Files.isRegularFile(classFile(entry, binaryClassName))
+      try {
+        Files.isRegularFile(classFile(entry, binaryClassName))
+      } catch {
+        case _: InvalidPathException => false // an invalid path doesn't exist. don't panic.
+      }
   }
 
   def classFile(baseDir: Path, className: String): Path = {

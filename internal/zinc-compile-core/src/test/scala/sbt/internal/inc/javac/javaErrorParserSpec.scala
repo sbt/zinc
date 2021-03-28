@@ -14,10 +14,10 @@ package internal
 package inc
 package javac
 
-import org.scalatest.DiagrammedAssertions
 import sbt.internal.util.ConsoleLogger
+import org.scalatest.diagrams.Diagrams
 
-class JavaErrorParserSpec extends UnitSpec with DiagrammedAssertions {
+class JavaErrorParserSpec extends UnitSpec with Diagrams {
 
   "The JavaErrorParser" should "be able to parse Linux errors" in parseSampleLinux()
   it should "be able to parse windows file names" in parseWindowsFile()

@@ -13,7 +13,6 @@ package sbt.internal.inc
 
 import sbt.io.IO
 import java.util.zip.ZipFile
-import java.nio.file.{ Files, Path }
 import java.io.File
 import java.util.UUID
 
@@ -47,16 +46,23 @@ object JarUtils {
    * "C:\develop\zinc\target\output.jar!sbt\internal\inc\Compile.class"
    */
   class ClassInJar(override val toString: String) extends AnyVal {
-    def toClassFilePath: Option[ClassFilePath] = splitJarReference._2
+    def toClassFilePath: Option[ClassFilePath] = Option(toClassFilePathOrNull)
+    def toClassFilePathOrNull: ClassFilePath = {
+      val idx = toString.indexOf('!')
+      if (idx < 0) null
+      else toClassFilePath(idx)
+    }
     def splitJarReference: (File, Option[ClassFilePath]) = {
-      if (toString.contains("!")) {
-        val Array(jar, cls) = toString.split("!")
-        // ClassInJar stores RelClass part with File.separatorChar, however actual paths in zips always use '/'
-        val classFilePath = cls.replace('\\', '/')
-        (new File(jar), Some(classFilePath))
-      } else {
+      val idx = toString.indexOf('!')
+      if (idx < 0) {
         (new File(toString), None)
+      } else {
+        (new File(toString.substring(0, idx)), Some(toClassFilePath(idx)))
       }
+    }
+    private def toClassFilePath(idx: Int): String = {
+      // ClassInJar stores RelClass part with File.separatorChar, however actual paths in zips always use '/'
+      toString.substring(idx + 1).replace('\\', '/')
     }
 
     /**

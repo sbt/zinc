@@ -16,19 +16,19 @@ package inc
 import java.io.File
 import java.nio.file.{ Files, Path, Paths }
 import java.util.{ EnumSet, UUID }
+import java.util.concurrent.atomic.{ AtomicBoolean }
 import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
 import sbt.internal.inc.JavaInterfaceUtil.EnrichOption
 import sbt.util.{ InterfaceUtil, Level, Logger }
 import sbt.util.InterfaceUtil.{ jo2o, t2 }
 import scala.collection.JavaConverters._
 import scala.util.control.NonFatal
-import scala.collection.parallel.immutable.ParVector
 import xsbti.{ FileConverter, Position, Problem, Severity, UseScope, VirtualFile, VirtualFileRef }
 import xsbt.api.{ APIUtil, HashAPI, NameHashing }
 import xsbti.api._
 import xsbti.compile.{
   AnalysisContents,
-  AnalysisStore,
+  AnalysisStore => XAnalysisStore,
   CompileAnalysis,
   CompileProgress,
   DependencyChanges,
@@ -132,7 +132,7 @@ object Incremental {
       output: Output,
       outputJarContent: JarUtils.OutputJarContent,
       earlyOutput: Option[Output],
-      earlyAnalysisStore: Option[AnalysisStore],
+      earlyAnalysisStore: Option[XAnalysisStore],
       progress: Option[CompileProgress],
       log: Logger
   )(
@@ -218,7 +218,7 @@ object Incremental {
   def isPickleJava(scalacOptions: Seq[String]): Boolean = scalacOptions.contains("-Ypickle-java")
 
   /**
-   * Compile all Java sources, ignoring incrementality.
+   * Compile all Java sources.
    * We are using Incremental class because we still need to perform Analysis so other subprojects
    * can do incremental compilation.
    */
@@ -233,21 +233,19 @@ object Incremental {
       output: Output,
       outputJarContent: JarUtils.OutputJarContent,
       earlyOutput: Option[Output],
-      earlyAnalysisStore: Option[AnalysisStore],
+      earlyAnalysisStore: Option[XAnalysisStore],
       progress: Option[CompileProgress],
       log: Logger
   )(
       compileJava: (Seq[VirtualFile], xsbti.AnalysisCallback, XClassFileManager) => Unit
   ): (Boolean, Analysis) = {
-    log.debug(s"[zinc] callAllJava")
+    log.debug("[zinc] compileAllJava")
     val previous = previous0 match { case a: Analysis => a }
-    // prune Java knowledge out of previous Analysis
-    val pruned = prune(sources.toSet, previous, output, outputJarContent, converter)
     val currentStamper = Stamps.initial(stamper)
     val internalBinaryToSourceClassName = (binaryClassName: String) =>
-      pruned.relations.productClassName.reverse(binaryClassName).headOption
+      previous.relations.productClassName.reverse(binaryClassName).headOption
     val internalSourceToClassNamesMap: VirtualFile => Set[String] =
-      (f: VirtualFile) => pruned.relations.classNames(f)
+      (f: VirtualFile) => previous.relations.classNames(f)
     val builder = new AnalysisCallback.Builder(
       internalBinaryToSourceClassName,
       internalSourceToClassNamesMap,
@@ -274,7 +272,7 @@ object Incremental {
         classFileManager =>
           // See IncrementalCommon.scala's completeCycle
           def completeCycle(partialAnalysis: Analysis): Analysis = {
-            val a1 = pruned ++ partialAnalysis
+            val a1 = previous ++ partialAnalysis
             val products = partialAnalysis.relations.allProducts
               .map(converter.toVirtualFile(_))
             classFileManager.generated(products.toArray)
@@ -353,7 +351,7 @@ object Incremental {
 
     // During early output, if there's any compilation at all, invalidate all Java sources too, so the downstream Scala subprojects would have type information via early output (pickle jar).
     val javaSources: Set[VirtualFileRef] = sources.collect {
-      case s: VirtualFileRef if s.name.endsWith(".java") => s
+      case s: VirtualFileRef if s.id.endsWith(".java") => s
     }
     val scalacOptions = currentSetup.options.scalacOptions
     val earlyJar = extractEarlyJar(earlyOutput)
@@ -361,10 +359,15 @@ object Incremental {
     if (earlyOutput.isDefined || isPickleWrite) {
       val idx = scalacOptions.indexOf("-Ypickle-write")
       val p =
-        if (scalacOptions.size <= idx + 1) None
+        if (!isPickleWrite || scalacOptions.size <= idx + 1) None
         else Some(Paths.get(scalacOptions(idx + 1)))
       (p, earlyJar) match {
-        case (None, _)            => log.warn(s"-Ypickle-write is specified but <path> is not?")
+        case (None, _) =>
+          if (isPickleWrite) log.warn(s"expected -Ypickle-write <path> but <path> is missing")
+          else
+            log.warn(
+              s"-Ypickle-write should be included into scalacOptions if early output is defined"
+            )
         case (x1, x2) if x1 == x2 => ()
         case _ =>
           sys.error(
@@ -391,6 +394,7 @@ object Incremental {
         )
     }
     val hasModified = initialInvClasses.nonEmpty || initialInvSources.nonEmpty
+    val hasSubprojectChange = initialChanges.external.apiChanges.nonEmpty
     val analysis = withClassfileManager(options, converter, output, outputJarContent) {
       classfileManager =>
         if (hasModified)
@@ -405,15 +409,27 @@ object Incremental {
             doCompile(compile, callbackBuilder, classfileManager),
             classfileManager,
             output,
-            1
+            1,
           )
         else {
+          val analysis =
+            if (hasSubprojectChange)
+              previous.copy(
+                apis = initialChanges.external.allModified.foldLeft[APIs](previous.apis) {
+                  (apis, clazz) =>
+                    lookup.lookupAnalyzedClass(clazz, None) match {
+                      case Some(ac) => apis.markExternalAPI(clazz, ac)
+                      case _        => apis
+                    }
+                }
+              )
+            else previous
           if (earlyOutput.isDefined)
-            writeEarlyOut(lookup, progress, earlyOutput, previous, new java.util.HashSet)
-          previous
+            writeEarlyOut(lookup, progress, earlyOutput, analysis, new java.util.HashSet, log)
+          analysis
         }
     }
-    (hasModified, analysis)
+    (hasModified || hasSubprojectChange, analysis)
   }
 
   /**
@@ -459,13 +475,15 @@ object Incremental {
       previous0: CompileAnalysis,
       output: Output,
       outputJarContent: JarUtils.OutputJarContent,
-      converter: FileConverter
+      converter: FileConverter,
+      incOptions: IncOptions
   ): Analysis = {
     val previous = previous0.asInstanceOf[Analysis]
     IncrementalCommon.pruneClassFilesOfInvalidations(
       invalidatedSrcs,
       previous,
-      ClassFileManager.deleteImmediately(output, outputJarContent),
+      ClassFileManager
+        .deleteImmediately(output, outputJarContent, incOptions.auxiliaryClassFiles()),
       converter
     )
   }
@@ -477,7 +495,7 @@ object Incremental {
       outputJarContent: JarUtils.OutputJarContent
   )(run: XClassFileManager => T): T = {
     val classfileManager =
-      ClassFileManager.getClassFileManager(options, converter, output, outputJarContent)
+      ClassFileManager.getClassFileManager(options, output, outputJarContent)
     val result = try run(classfileManager)
     catch {
       case e: Throwable =>
@@ -493,14 +511,15 @@ object Incremental {
       progress: Option[CompileProgress],
       earlyOutput: Option[Output],
       analysis: Analysis,
-      knownProducts: java.util.Set[String]
+      knownProducts: java.util.Set[String],
+      log: Logger,
   ) = {
     for {
       earlyO <- earlyOutput
       pickleJar <- jo2o(earlyO.getSingleOutputAsPath)
     } {
-      PickleJar.write(pickleJar, knownProducts)
-      progress.foreach(_.afterEarlyOutput(!lookup.shouldDoEarlyOutput(analysis)))
+      PickleJar.write(pickleJar, knownProducts, log)
+      progress.foreach(_.afterEarlyOutput(lookup.shouldDoEarlyOutput(analysis)))
     }
   }
 }
@@ -520,7 +539,7 @@ private object AnalysisCallback {
       output: Output,
       outputJarContent: JarUtils.OutputJarContent,
       earlyOutput: Option[Output],
-      earlyAnalysisStore: Option[AnalysisStore],
+      earlyAnalysisStore: Option[XAnalysisStore],
       pickleJarPair: Option[(Path, Path)],
       progress: Option[CompileProgress],
       log: Logger
@@ -567,7 +586,7 @@ private final class AnalysisCallback(
     lookup: Lookup,
     output: Output,
     earlyOutput: Option[Output],
-    earlyAnalysisStore: Option[AnalysisStore],
+    earlyAnalysisStore: Option[XAnalysisStore],
     pickleJarPair: Option[(Path, Path)],
     progress: Option[CompileProgress],
     incHandlerOpt: Option[Incremental.IncrementalCallback],
@@ -629,7 +648,7 @@ private final class AnalysisCallback(
 
   // Results of invalidation calculations (including whether to continue cycles) - the analysis at this point is
   // not useful and so isn't included.
-  private[this] var invalidationResults: Option[CompileCycleResult] = None
+  @volatile private[this] var invalidationResults: Option[CompileCycleResult] = None
 
   private def add[A, B](map: TrieMap[A, ConcurrentSet[B]], a: A, b: B): Unit = {
     map.getOrElseUpdate(a, ConcurrentHashMap.newKeySet[B]()).add(b)
@@ -754,7 +773,7 @@ private final class AnalysisCallback(
       case None =>
         // dependency is some other binary on the classpath.
         // exclude dependency tracking with rt.jar, for example java.lang.String -> rt.jar.
-        if (vf.name != "rt.jar") {
+        if (!vf.id.endsWith("rt.jar")) {
           externalLibraryDependency(
             vf,
             onBinaryName,
@@ -848,32 +867,30 @@ private final class AnalysisCallback(
 
   override def enabled(): Boolean = options.enabled
 
-  private[this] var gotten: Boolean = false
+  private[this] val gotten: AtomicBoolean = new AtomicBoolean(false)
   def getCycleResultOnce: CompileCycleResult = {
-    assert(!gotten, "can't call AnalysisCallback#getCycleResultOnce more than once")
-    val incHandler = incHandlerOpt.getOrElse(sys.error("incHandler was expected"))
-    gotten = true
-    // notify that early artifact writing is not going to happen because of macros
-    def notifyEarlyArifactFailure(): Unit =
-      if (!writtenEarlyArtifacts) {
-        progress foreach { p =>
-          p.afterEarlyOutput(false)
+    if (gotten.compareAndSet(false, true)) {
+      val incHandler = incHandlerOpt.getOrElse(sys.error("incHandler was expected"))
+      // Not continuing & nothing was written, so notify it ain't gonna happen
+      def notifyNoEarlyOut() =
+        if (!writtenEarlyArtifacts) progress.foreach(_.afterEarlyOutput(false))
+      outputJarContent.scalacRunCompleted()
+      if (earlyOutput.isDefined) {
+        val early = incHandler.previousAnalysisPruned
+        invalidationResults match {
+          case None if lookup.shouldDoEarlyOutput(early)    => writeEarlyArtifacts(early)
+          case None | Some(CompileCycleResult(false, _, _)) => notifyNoEarlyOut()
+          case _                                            =>
         }
+        if (!writtenEarlyArtifacts) // writing implies the updates merge has happened
+          mergeUpdates() // must merge updates each cycle or else scalac will clobber it
       }
-    outputJarContent.scalacRunCompleted()
-    val a = getAnalysis
-    if (earlyOutput.isDefined) {
-      invalidationResults match {
-        case None =>
-          val early = incHandler.previousAnalysisPruned
-          if (!lookup.shouldDoEarlyOutput(early)) writeEarlyArtifacts(early)
-          else notifyEarlyArifactFailure()
-        case Some(CompileCycleResult(false, _, _)) => notifyEarlyArifactFailure()
-        case _                                     => ()
-      }
+      incHandler.completeCycle(invalidationResults, getAnalysis)
+    } else {
+      throw new IllegalStateException(
+        "can't call AnalysisCallback#getCycleResultOnce more than once"
+      )
     }
-    // assert(writtenEarlyArtifacts, s"early artifact $earlyOutput hasn't been written")
-    incHandler.completeCycle(invalidationResults, a)
   }
 
   private def getAnalysis: Analysis = {
@@ -1005,7 +1022,7 @@ private final class AnalysisCallback(
         val a = getAnalysis
         val CompileCycleResult(continue, invalidations, merged) =
           incHandler.mergeAndInvalidate(a, false)
-        if (!lookup.shouldDoEarlyOutput(merged)) {
+        if (lookup.shouldDoEarlyOutput(merged)) {
           assert(
             !continue && invalidations.isEmpty,
             "everything was supposed to be invalidated already"
@@ -1026,7 +1043,7 @@ private final class AnalysisCallback(
       // Store invalidations and continuation decision; the analysis will be computed again after Analyze phase.
       invalidationResults = Some(CompileCycleResult(continue, invalidations, Analysis.empty))
       // If there will be no more compilation cycles, store the early analysis file and update the pickle jar
-      if (earlyOutput.isDefined && !continue && !lookup.shouldDoEarlyOutput(merged)) {
+      if (earlyOutput.isDefined && !continue && lookup.shouldDoEarlyOutput(merged)) {
         writeEarlyArtifacts(merged)
       }
     }
@@ -1037,49 +1054,63 @@ private final class AnalysisCallback(
     outputJarContent.get().asJava
   }
 
-  private[this] var writtenEarlyArtifacts: Boolean = false
+  @volatile private[this] var writtenEarlyArtifacts: Boolean = false
 
   private def writeEarlyArtifacts(merged: Analysis): Unit = {
     writtenEarlyArtifacts = true
-    earlyAnalysisStore.foreach(_.set(AnalysisContents.create(merged, currentSetup)))
+
+    // Only need internal apis & the productClassName relation from early analysis - drop the rest
+    // Because early analysis is only used by downstream to detect whether APIs have changed
+    val trimmedAnalysis = merged.copy(
+      Stamps.empty,
+      APIs(merged.apis.internal, Map.empty),
+      Relations.empty.copy(productClassName = merged.relations.productClassName),
+      SourceInfos.empty,
+      Compilations.empty,
+    )
+    val trimmedSetup = currentSetup.withOptions(currentSetup.options.withClasspathHash(Array.empty))
+    earlyAnalysisStore.foreach(_.set(AnalysisContents.create(trimmedAnalysis, trimmedSetup)))
+
+    mergeUpdates() // must merge updates each cycle or else scalac will clobber it
+    Incremental.writeEarlyOut(lookup, progress, earlyOutput, merged, knownProducts(merged), log)
+  }
+
+  private def mergeUpdates() = {
     pickleJarPair.foreach {
       case (originalJar, updatesJar) =>
-        if (Files.exists(originalJar) && Files.exists(updatesJar)) {
+        if (Files.exists(updatesJar)) {
           log.debug(s"merging $updatesJar into $originalJar")
-          IndexBasedZipFsOps.mergeArchives(originalJar, updatesJar)
-        } else if (Files.exists(updatesJar)) {
-          log.debug(s"moving $updatesJar to $originalJar")
-          import java.nio.file.StandardCopyOption.REPLACE_EXISTING
-          Files.move(updatesJar, originalJar, REPLACE_EXISTING)
+          if (Files.exists(originalJar))
+            IndexBasedZipFsOps.mergeArchives(originalJar, updatesJar)
+          else
+            Files.move(updatesJar, originalJar)
         }
     }
-    Incremental.writeEarlyOut(lookup, progress, earlyOutput, merged, knownProducts(merged))
   }
 
   private def knownProducts(merged: Analysis) = {
     // List classes defined in the files that were compiled in this run.
-    val ps = java.util.concurrent.ConcurrentHashMap.newKeySet[String]
-    val knownProducts: ParVector[VirtualFileRef] =
-      new ParVector(merged.relations.allSources.toVector)
-        .flatMap(merged.relations.products)
-    // extract product paths in parallel
-    jo2o(output.getSingleOutputAsPath) match {
-      case Some(so) if so.getFileName.toString.endsWith(".jar") =>
-        knownProducts foreach { product =>
-          new JarUtils.ClassInJar(product.id).toClassFilePath foreach { path =>
+    val ps: java.util.Set[String] = new java.util.HashSet[String]()
+    val knownProducts: collection.Set[VirtualFileRef] = merged.relations.allProducts
+
+    // extract product paths
+    val so = jo2o(output.getSingleOutputAsPath).getOrElse(sys.error(s"unsupported output $output"))
+    val isJarOutput = so.getFileName.toString.endsWith(".jar")
+    knownProducts foreach { product =>
+      if (isJarOutput) {
+        new JarUtils.ClassInJar(product.id).toClassFilePathOrNull match {
+          case null =>
+          case path =>
             ps.add(path.replace('\\', '/'))
-          }
         }
-      case Some(so) =>
-        knownProducts foreach { product =>
-          val productPath = converter.toPath(product)
-          try {
-            ps.add(so.relativize(productPath).toString.replace('\\', '/'))
-          } catch {
-            case NonFatal(_) => ps.add(product.id)
-          }
+      } else {
+        val productPath = converter.toPath(product)
+        try {
+          ps.add(so.relativize(productPath).toString.replace('\\', '/'))
+        } catch {
+          case NonFatal(_) => ps.add(product.id)
         }
-      case _ => sys.error(s"unsupported output $output")
+      }
     }
     ps
   }
