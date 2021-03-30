@@ -42,7 +42,7 @@ The Zinc 1.0 incremental compiler implements significant improvements over
 0.13.13's version when it comes to performance, correctness and dependency
 analysis.
 
-Zinc 1.0 is already in use in many tools in the Scala ecosystem like sbt,
+Zinc 1.0 is already in use in many tools in the Scala ecosystem like Mill, sbt,
 Bloop, Pants, Bazel, and [Maven](https://github.com/random-maven/scalor-maven-plugin).
 If you want to create your own integration, you have two options:
 
