@@ -240,9 +240,12 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
     miniSetup.getOutputCase match {
       case MiniSetupOutput.SINGLEOUTPUT =>
         val single = miniSetup.getSingleOutput
-        val targetDir = fromPathString(single.getTarget)
-        val outputDir = mapper.mapOutputDir(targetDir)
-        CompileOutput(outputDir)
+        val target = fromPathString(single.getTarget)
+        if (target == Analysis.dummyOutputPath) CompileOutput.empty
+        else {
+          val outputDir = mapper.mapOutputDir(target)
+          CompileOutput(outputDir)
+        }
       case MiniSetupOutput.MULTIPLEOUTPUT =>
         val multiple = miniSetup.getMultipleOutput
         val groups = multiple.getOutputGroupsList.asScala.iterator.map(fromOutputGroup).toArray
