@@ -5,6 +5,7 @@ package inc
 import verify._
 import sbt.io.IO.withTemporaryDirectory
 import sbt.io.syntax._
+import sbt.internal.util.Util
 
 /** This is a basic test for compiler bridge, mostly wrapped as
  * AnalyzingCompiler.
@@ -32,8 +33,10 @@ object BasicBridgeSpec
   }
 
   test("A compiler bridge should run console") {
-    withTemporaryDirectory { tempDir =>
-      console(tempDir.toPath)(":q")
-    }
+    if (Util.isWindows) ()
+    else
+      withTemporaryDirectory { tempDir =>
+        console(tempDir.toPath)(":q")
+      }
   }
 }
