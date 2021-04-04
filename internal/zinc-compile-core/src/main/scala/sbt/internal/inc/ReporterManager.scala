@@ -15,7 +15,7 @@ import java.io.{ OutputStreamWriter, PrintStream, PrintWriter }
 import java.nio.charset.StandardCharsets
 import java.util.logging.Level
 
-import sbt.internal.util.{ ConsoleAppender, MainAppender, ManagedLogger }
+import sbt.internal.util.{ MainAppender, ManagedLogger, Terminal => UTerminal }
 import sbt.util.LoggerContext
 import sbt.util.{ Level => SbtLevel }
 import xsbti.{ Position, Reporter, ReporterConfig }
@@ -56,7 +56,7 @@ object ReporterManager {
     }
   }
 
-  private val UseColor = ConsoleAppender.formatEnabledInEnv
+  private val UseColor = UTerminal.isColorEnabled
   private val NoPositionMapper = java.util.function.Function.identity[Position]()
 
   import java.util.function.{ Function => JavaFunction }

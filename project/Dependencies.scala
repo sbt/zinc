@@ -8,13 +8,13 @@ object Dependencies {
   val scala210 = "2.10.7"
   val scala211 = "2.11.12"
   val scala212 = "2.12.13"
-  val scala213 = "2.13.4"
+  val scala213 = "2.13.5"
   val defaultScalaVersion = scala212
   val allScalaVersions = Seq(defaultScalaVersion, scala210, scala211, scala213)
   val scala212_213 = Seq(defaultScalaVersion, scala213)
 
-  private val ioVersion = nightlyVersion.getOrElse("1.4.0")
-  private val utilVersion = nightlyVersion.getOrElse("1.4.0")
+  private val ioVersion = nightlyVersion.getOrElse("1.5.0")
+  private val utilVersion = nightlyVersion.getOrElse("1.5.0")
 
   private val sbtIO = "org.scala-sbt" %% "io" % ioVersion
 
