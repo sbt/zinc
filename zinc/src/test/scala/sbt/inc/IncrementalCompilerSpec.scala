@@ -147,7 +147,7 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
       }
   }
 
-  it should "track dependencies for nested inner Java classes" in withTmpDir { tmp =>
+  it should "track dependencies from nested inner Java classes" in withTmpDir { tmp =>
     val project = VirtualSubproject(tmp.toPath / "p1")
     val comp = project.setup.createCompiler()
     try {
@@ -184,6 +184,28 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
 
       val res1 = compileJava(f1, f2, f3)
       val res2 = compileJava(f1, f2b, f3)
+      assert(recompiled(res1, res2) == Set("A", "B"))
+    } finally {
+      comp.close()
+    }
+  }
+
+  it should "track dependencies on constants" in withTmpDir { tmp =>
+    val project = VirtualSubproject(tmp.toPath / "p1")
+    val comp = project.setup.createCompiler()
+    try {
+      val s1 = "object A { final val i = 1 }"
+      val s1b = "object A { final val i = 2 }"
+      val s2 = "class B { def i = A.i }"
+      val s3 = "class C { def i = 3 }"
+
+      val f1 = StringVirtualFile("A.scala", s1)
+      val f1b = StringVirtualFile("A.scala", s1b)
+      val f2 = StringVirtualFile("B.scala", s2)
+      val f3 = StringVirtualFile("C.scala", s3)
+
+      val res1 = comp.compile(f1, f2, f3)
+      val res2 = comp.compile(f1b, f2, f3)
       assert(recompiled(res1, res2) == Set("A", "B"))
     } finally {
       comp.close()
