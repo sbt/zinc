@@ -58,8 +58,8 @@ final class ScalaInstance(
       loader,
       loaderLibraryOnly,
       Array(libraryJar),
-      allJars,
-      Array.empty,
+      compilerJars = allJars,
+      allJars = allJars,
       explicitActual
     )
   }
