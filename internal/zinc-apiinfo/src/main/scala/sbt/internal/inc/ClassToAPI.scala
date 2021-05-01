@@ -31,7 +31,8 @@ object ClassToAPI {
   ): (Seq[api.ClassLike], Seq[String], Set[(Class[_], Class[_])]) = {
     val cmap = emptyClassMap
     classes.foreach(toDefinitions(cmap)) // force recording of class definitions
-    cmap.lz.foreach(_.get()) // force thunks to ensure all inherited dependencies are recorded
+    cmap.lz.toList
+      .foreach(_.get()) // force thunks to ensure all inherited dependencies are recorded
     val classApis = cmap.allNonLocalClasses.toSeq
     val mainClasses = cmap.mainClasses.toSeq
     val inDeps = cmap.inherited.toSet
