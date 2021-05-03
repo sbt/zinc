@@ -35,7 +35,10 @@ def mimaSettings: Seq[Setting[_]] = Seq(
       "1.2.2",
       "1.3.0",
     )
-    val post140: Set[String] = Set()
+    val post140: Set[String] = Set(
+      "1.4.0",
+      "1.5.0",
+    )
     val versions =
       if (scalaVersion.value.startsWith("2.12.")) pre140 ++ post140
       else post140
@@ -299,6 +302,7 @@ lazy val zincPersistCoreAssembly = (projectMatrix in internalPath / "zinc-persis
     autoScalaLibrary := false,
     exportJars := true,
     Compile / packageBin := (zincPersistCore / Compile / assembly).value,
+    mimaPreviousArtifacts := Set.empty,
   )
 
 lazy val zincPersistCore = (project in internalPath / "zinc-persist-core")
@@ -472,6 +476,7 @@ lazy val compilerInterface = (projectMatrix in internalPath / "compiler-interfac
       exclude[ReversedMissingMethodProblem]("xsbti.compile.IncrementalCompiler.compileAllJava"),
       exclude[ReversedMissingMethodProblem]("xsbti.compile.ScalaInstance.loaderCompilerOnly"),
       exclude[ReversedMissingMethodProblem]("xsbti.compile.ScalaInstance.compilerJars"),
+      exclude[InheritedNewAbstractMethodProblem]("xsbti.InteractiveConsoleInterface.close"),
     ),
   )
   .jvmPlatform(autoScalaLibrary = false)
