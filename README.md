@@ -22,7 +22,9 @@ change. The generated code should be identical to the output of a clean compile.
 [Scala IDE]: https://github.com/scala-ide/scala-ide
 [Maven Plugin]: https://github.com/random-maven/scalor-maven-plugin
 [Bazel Rule]: https://github.com/higherkindness/rules_scala
+[bloop]: https://github.com/pantsbuild/pants
 [conduct]: https://www.lightbend.com/conduct
+[mill]: https://github.com/com-lihaoyi/mill
 
 Originally this project was part of [sbt][], referred to as the incremental compiler module of sbt.
 
@@ -42,8 +44,14 @@ The Zinc 1.0 incremental compiler implements significant improvements over
 0.13.13's version when it comes to performance, correctness and dependency
 analysis.
 
-Zinc 1.0 is already in use in many tools in the Scala ecosystem like sbt,
-Bloop, Pants, Bazel, and [Maven](https://github.com/random-maven/scalor-maven-plugin).
+Besides it's use in [sbt](https://github.com/sbt/sbt), Zinc 1.0 is also used by many build tools in the Scala ecosystem:
+
+* Bazel via [rules_scala][Bazel Rule]
+* [Bloop][bloop] - a compile server using zinc to compile Scala and Java code
+* Maven via the [Scalor Plugin](https://github.com/random-maven/scalor-maven-plugin)
+* [Mill][mill] - a Scala-based build tools using zinc to compile Java and Scala code
+* [Pants][pants] - a Python-based build tool for monorepos
+
 If you want to create your own integration, you have two options:
 
 1. Interface directly with Zinc APIs and maintain your own integration.
