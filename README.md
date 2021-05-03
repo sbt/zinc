@@ -22,7 +22,7 @@ change. The generated code should be identical to the output of a clean compile.
 [Scala IDE]: https://github.com/scala-ide/scala-ide
 [Maven Plugin]: https://github.com/random-maven/scalor-maven-plugin
 [Bazel Rule]: https://github.com/higherkindness/rules_scala
-[bloop]: https://github.com/pantsbuild/pants
+[bloop]: https://github.com/scalacenter/bloop
 [conduct]: https://www.lightbend.com/conduct
 [mill]: https://github.com/com-lihaoyi/mill
 
