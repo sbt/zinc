@@ -38,11 +38,11 @@ object Util {
 
   def sampleProjectSettings(ext: String) =
     Seq(
-      (scalaSource in Compile) := baseDirectory.value / "src",
+      (Compile / scalaSource) := baseDirectory.value / "src",
       genTestResTask := {
         def resurcesDir = (file("zinc") / "src" / "test" / "resources" / "bin").getAbsoluteFile
         val target = resurcesDir / s"${name.value}.$ext"
-        IO.copyFile((packageBin in Compile).value, target)
+        IO.copyFile((Compile / packageBin).value, target)
         Seq(target)
       }
     ) ++ relaxNon212

@@ -77,7 +77,8 @@ object Scripted {
       bufferLog: Boolean,
       compileToJar: Boolean,
   ): Unit = {
-    val noJLine = new classpath.FilteredLoader(scriptedSbtInstance.loader, "jline." :: Nil)
+    val noJLine =
+      new classpath.FilteredLoader(scriptedSbtInstance.loader, "xsbti." :: "jline." :: Nil)
     val loader = classpath.ClasspathUtilities.toLoader(scriptedSbtClasspath.files, noJLine)
     val bridgeClass = Class.forName("sbt.inc.ScriptedMain$", true, loader)
     val bridge = bridgeClass.getField("MODULE$").get(null).asInstanceOf[ScriptedMain]

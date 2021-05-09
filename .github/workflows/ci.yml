@@ -15,9 +15,12 @@ jobs:
           - os: ubuntu-latest
             java: 11
             jobtype: 1
+          - os: windows-latest
+            java: 8
+            jobtype: 2
           - os: ubuntu-latest
             java: 11
-            jobtype: 2
+            jobtype: 3
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout
@@ -34,12 +37,16 @@ jobs:
         path: ~/.sbt
         key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
     - name: Build and test
+      shell: bash
       run: |
         case ${{ matrix.jobtype }} in
           1)
             bin/run-ci.sh
             ;;
           2)
+            sbt -v -Dfile.encoding=UTF-8 -J-XX:ReservedCodeCacheSize=512M -Dsbt.supershell=never -J-Xms1024M -J-Xmx2048M -J-server "crossTestBridges" "zincRoot/test" "zincScriptedJVM2_12/test:run"
+            ;;
+          3)
             sbt -v -Dfile.encoding=UTF-8 -J-XX:ReservedCodeCacheSize=512M -J-Xms1024M -J-Xmx2048M -J-server "runBenchmarks"
             ;;
           *)
