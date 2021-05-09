@@ -17,6 +17,7 @@ import java.nio.file.{ FileVisitResult, Files, Path, SimpleFileVisitor }
 import java.nio.file.attribute.BasicFileAttributes
 import sbt.util.Logger
 import scala.reflect.io.RootPath
+import sbt.internal.io.Retry
 
 object PickleJar {
   // create an empty JAR file in case the subproject has no classes.
@@ -32,7 +33,7 @@ object PickleJar {
     if (!knownProducts.isEmpty) {
       val pj = RootPath(pickleOut, writable = false) // so it doesn't delete the file
       try Files.walkFileTree(pj.root, deleteUnknowns(knownProducts, log))
-      finally pj.close()
+      finally Retry(pj.close())
     }
     ()
   }
@@ -45,7 +46,9 @@ object PickleJar {
           // "/foo/bar/wiz.sig" -> "foo/bar/wiz.class"
           if (!knownProducts.contains(ps.stripPrefix("/").stripSuffix(".sig") + ".class")) {
             log.debug(s"PickleJar.deleteUnknowns: visitFile deleting $ps")
-            Files.delete(path)
+            // retry to work around C:\Users\RUNNER~1\AppData\Local\Temp\sbt_f3e67bfa\dep\target\early\output.jar:
+            // The process cannot access the file because it is being used by another process.
+            Retry(Files.delete(path))
           }
         }
         FileVisitResult.CONTINUE
