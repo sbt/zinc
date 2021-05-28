@@ -5,11 +5,11 @@
       "dependsOn": [
         "dep"
       ],
-      "scalaVersion": "2.13.5"
+      "scalaVersion": "2.13.6"
     },
     {
       "name": "dep",
-      "scalaVersion": "2.13.5"
+      "scalaVersion": "2.13.6"
     }
   ]
 }
