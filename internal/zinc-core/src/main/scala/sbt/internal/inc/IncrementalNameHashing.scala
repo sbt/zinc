@@ -44,9 +44,16 @@ private[inc] class IncrementalNameHashingCommon(
       apis: APIs
   ): Set[String] = {
     val findSubclasses = relations.inheritance.internal.reverse _
+    val invalidatedClassesAndCodefinedClasses = for {
+      cls <- invalidatedClasses.iterator
+      file <- relations.definesClass(cls).iterator
+      cls1 <- relations.classNames(file)
+    } yield cls1
+
     debug("Invalidate package objects by inheritance only...")
     val invalidatedPackageObjects =
-      transitiveDeps(invalidatedClasses, log)(findSubclasses).filter(_.endsWith(".package"))
+      transitiveDeps(invalidatedClassesAndCodefinedClasses.toSet, log)(findSubclasses)
+        .filter(_.endsWith(".package"))
     debug(s"Package object invalidations: ${invalidatedPackageObjects.mkString(", ")}")
     invalidatedPackageObjects
   }
