@@ -271,8 +271,9 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
   }
 
   implicit class EfficientTraverse[T](seq: JList[T]) {
-    def toZincArray[R: scala.reflect.ClassTag](f: T => R): Array[R] =
-      seq.asScala.iterator.map(f).toArray
+    def toZincArray[R <: AnyRef: scala.reflect.ClassTag](f: T => R): Array[R] = {
+      seq.stream().map[R](x => f(x)).toArray[R](new Array[R](_))
+    }
   }
 
   implicit class OptionReader[T](option: Option[T]) {
@@ -695,9 +696,11 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
       val name = usedName.getName.intern()
       val useScopes = util.EnumSet.noneOf(classOf[UseScope])
       val len = usedName.getScopesCount
-      val scopes = for {
+      for {
         i <- 0 to len - 1
-      } yield useScopes.add(fromUseScope(usedName.getScopes(i), usedName.getScopesValue(i)))
+      } {
+        useScopes.add(fromUseScope(usedName.getScopes(i), usedName.getScopesValue(i)))
+      }
       UsedName.make(name, useScopes)
     }
 
