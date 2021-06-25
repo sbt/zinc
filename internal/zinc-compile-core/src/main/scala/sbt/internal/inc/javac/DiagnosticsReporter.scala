@@ -93,8 +93,10 @@ object DiagnosticsReporter {
       start: Long,
       end: Long
   ): (Integer, Integer, Integer, Integer, String) = {
+
     var startPos = start.toInt
     var endPos = end.toInt
+
     val lineContent = cc.subSequence(startPos, endPos).toString
     // ignore CR or LF - depending on which one isn't found
     var checkForN = true
@@ -213,7 +215,9 @@ object DiagnosticsReporter {
         source match {
           case Some(source: JavaFileObject) =>
             (Option(source.getCharContent(true)), startPosition, endPosition) match {
-              case (Some(cc), Some(start), Some(end)) =>
+              case (Some(cc), Some(start), Some(end))
+                  // Guard against Javac bug in parsing `public class ChrisTest { void m() { else null; }}`
+                  if end >= start =>
                 // can't optimise using line as it's not always the same as startLine
                 val range = contentAndRanges(cc, start, end)
                 (
