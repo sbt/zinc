@@ -129,13 +129,57 @@ class MultiProjectIncrementalSpec extends BaseCompilerSpec {
     }
   })
 
-  def lastClasses(a: Analysis) = {
-    a.compilations.allCompilations.map { c =>
-      a.apis.internal.collect {
-        case (className, api) if api.compilationTimestamp == c.getStartTime => className
-      }.toSet
-    }.last
-  }
+  "it" should "recompile Java on upstream changes" in (IO.withTemporaryDirectory { tmp =>
+    val p1 = VirtualSubproject(tmp.toPath / "sub1")
+    val p2 = VirtualSubproject(tmp.toPath / "sub2").dependsOn(p1)
+    val c1 = p1.setup.createCompiler()
+    val c2 = p2.setup.createCompiler()
+    try {
+      val s1 = "package pkg; class A { def a = 1 }"
+      val s1b = "package pkg; class A { def a1 = 1 }"
+      val s2 = "package pkg; class B extends A { def b = 2 }"
+      val s3 = "package pkg; class C"
+      val s4 = "package pkg; public class Z { public static int x = 3; }"
+
+      val f1 = StringVirtualFile("A.scala", s1)
+      val f1b = StringVirtualFile("A.scala", s1b)
+      val f2 = StringVirtualFile("B.scala", s2)
+      val f3 = StringVirtualFile("C.scala", s3)
+      val f4 = StringVirtualFile("Z.java", s4)
+
+      c1.compile(f1)
+      c2.compile(f2, f3, f4)
+      c1.compile(f1b)
+      val result = c2.compile(f2, f3, f4)
+      assert(lastClasses(result.analysis.asInstanceOf[Analysis]) == Set("pkg.B", "pkg.Z"))
+    } finally {
+      c1.close()
+      c2.close()
+    }
+  })
+
+  "it" should "allow shadowing of dependency classes" in (IO.withTemporaryDirectory { tmp =>
+    val p1 = VirtualSubproject(tmp.toPath / "sub1")
+    val p2 = VirtualSubproject(tmp.toPath / "sub2").dependsOn(p1)
+    val c1 = p1.setup.createCompiler()
+    val c2 = p2.setup.copy(outputToJar = true).createCompiler()
+    try {
+      val s1 = "package pkg; public class A { public static int a = 1; }"
+      val s1Shadow =
+        "package pkg; public class A { public static int a = 1; public class InnerA { public int i = 2; } }"
+
+      val f1 = StringVirtualFile("A.java", s1)
+      val f1Shadow = StringVirtualFile("A.java", s1Shadow)
+
+      c1.compileAllJava(f1)
+      // this will fail with "pkg.A and pkg.A$InnerA disagree on InnerClasses attribute" if f1Shadow ends up
+      // later on the AnalyzingJavaCompiler.searchClasspath than f1
+      c2.compileAllJava(f1Shadow)
+    } finally {
+      c1.close()
+      c2.close()
+    }
+  })
 
   def startTimes(res: CompileResult) = {
     res.analysis.readCompilations.getAllCompilations.map(_.getStartTime).toList

@@ -417,12 +417,15 @@ object MixedAnalyzingCompiler {
     val absClasspath = classpath.map(toAbsolute(_))
     val cArgs =
       new CompilerArguments(compiler.scalaInstance, compiler.classpathOptions)
-    val searchClasspath: Seq[VirtualFile] = explicitBootClasspath(scalacOptions, converter) ++
+    val searchClasspath: Seq[VirtualFile] = tempJavacOutput ++ explicitBootClasspath(
+      scalacOptions,
+      converter
+    ) ++
       withBootclasspath(
         cArgs,
         absClasspath,
         converter
-      ) ++ tempJavacOutput
+      )
     (searchClasspath, Locate.entry(searchClasspath, perClasspathEntryLookup))
   }
 

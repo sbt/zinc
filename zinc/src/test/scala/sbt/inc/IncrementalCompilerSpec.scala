@@ -14,9 +14,10 @@ package sbt.inc
 import sbt.internal.inc._
 import sbt.io.IO.{ withTemporaryDirectory => withTmpDir }
 import sbt.io.syntax._
-import xsbti.compile.{ AnalysisStore, CompileAnalysis, DefaultExternalHooks }
-
+import xsbti.compile.{ AnalysisStore, CompileAnalysis, DefaultExternalHooks, Inputs, Output }
 import java.util.Optional
+
+import xsbti.VirtualFile
 
 class IncrementalCompilerSpec extends BaseCompilerSpec {
   //override val logLevel = sbt.util.Level.Debug
@@ -117,5 +118,97 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
       val result3 = comp.doCompileWithStore(fileStore, _.withSetup(setup))
       assert(result3.hasModified)
     } finally comp.close()
+  }
+
+  it should "not trigger full compilation for small Scala changes in a mixed project" in withTmpDir {
+    tmp =>
+      val project = VirtualSubproject(tmp.toPath / "p1")
+      val comp = project.setup.createCompiler()
+      try {
+        val s1 = "class A { def a = 1 }"
+        val s1b = "class A { def a = 2 }"
+        val s2 = "class B { def b = 1 }"
+        val s3 = "class C { def c = 1 }"
+        val s4 = "public class D { public int d = 1; }"
+        val s5 = "public class E { public int e = 1; }"
+
+        val f1 = StringVirtualFile("A.scala", s1)
+        val f1b = StringVirtualFile("A.scala", s1b)
+        val f2 = StringVirtualFile("B.scala", s2)
+        val f3 = StringVirtualFile("C.scala", s3)
+        val f4 = StringVirtualFile("D.java", s4)
+        val f5 = StringVirtualFile("E.java", s5)
+
+        comp.compile(f1, f2, f3, f4, f5)
+        val result = comp.compile(f1b, f2, f3, f4, f5)
+        assert(lastClasses(result.analysis.asInstanceOf[Analysis]) == Set("A", "D", "E"))
+      } finally {
+        comp.close()
+      }
+  }
+
+  it should "track dependencies from nested inner Java classes" in withTmpDir { tmp =>
+    val project = VirtualSubproject(tmp.toPath / "p1")
+    val comp = project.setup.createCompiler()
+    try {
+      val s1 =
+        "public class A { public Object i = new Object() { public Object ii = new Object() { public int i = B.b; }; }; }"
+      val s2 = "public class B { public static int b = 1; }"
+      val s2b = "public class B { public static int b = 1; public static int b2 = 1; }"
+      val s3 = "public class C { public static int c = 1; }"
+
+      val f1 = StringVirtualFile("A.java", s1)
+      val f2 = StringVirtualFile("B.java", s2)
+      val f2b = StringVirtualFile("B.java", s2b)
+      val f3 = StringVirtualFile("C.java", s3)
+
+      def compileJava(sources: VirtualFile*) = {
+        def incrementalJavaInputs(sources: VirtualFile*)(in: Inputs): Inputs = {
+          comp.withSrcs(sources.toArray)(
+            in.withOptions(
+                in.options
+                  .withEarlyOutput(Optional.empty[Output])
+                    // remove -YpickleXXX args
+                  .withScalacOptions(comp.scalacOptions.toArray)
+              )
+              .withSetup(
+                in.setup.withIncrementalCompilerOptions(
+                  // remove pipelining
+                  in.setup.incrementalCompilerOptions.withPipelining(false)
+                )
+              )
+          )
+        }
+        comp.doCompileWithStore(newInputs = incrementalJavaInputs(sources: _*))
+      }
+
+      val res1 = compileJava(f1, f2, f3)
+      val res2 = compileJava(f1, f2b, f3)
+      assert(recompiled(res1, res2) == Set("A", "B"))
+    } finally {
+      comp.close()
+    }
+  }
+
+  it should "track dependencies on constants" in withTmpDir { tmp =>
+    val project = VirtualSubproject(tmp.toPath / "p1")
+    val comp = project.setup.createCompiler()
+    try {
+      val s1 = "object A { final val i = 1 }"
+      val s1b = "object A { final val i = 2 }"
+      val s2 = "class B { def i = A.i }"
+      val s3 = "class C { def i = 3 }"
+
+      val f1 = StringVirtualFile("A.scala", s1)
+      val f1b = StringVirtualFile("A.scala", s1b)
+      val f2 = StringVirtualFile("B.scala", s2)
+      val f3 = StringVirtualFile("C.scala", s3)
+
+      val res1 = comp.compile(f1, f2, f3)
+      val res2 = comp.compile(f1b, f2, f3)
+      assert(recompiled(res1, res2) == Set("A", "B"))
+    } finally {
+      comp.close()
+    }
   }
 }
