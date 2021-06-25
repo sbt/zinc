@@ -113,8 +113,11 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
       case CompilationOutput.SINGLEOUTPUT =>
         val single = c.getSingleOutput
         val target = fromPathString(single.getTarget)
-        val outputDir = mapper.mapOutputDir(target)
-        CompileOutput(outputDir)
+        if (target == Analysis.dummyOutputPath) CompileOutput.empty
+        else {
+          val outputDir = mapper.mapOutputDir(target)
+          CompileOutput(outputDir)
+        }
       case CompilationOutput.MULTIPLEOUTPUT =>
         val multiple = c.getMultipleOutput
         val groups = multiple.getOutputGroupsList.asScala.iterator.map(fromOutputGroup).toArray
@@ -237,9 +240,12 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
     miniSetup.getOutputCase match {
       case MiniSetupOutput.SINGLEOUTPUT =>
         val single = miniSetup.getSingleOutput
-        val targetDir = fromPathString(single.getTarget)
-        val outputDir = mapper.mapOutputDir(targetDir)
-        CompileOutput(outputDir)
+        val target = fromPathString(single.getTarget)
+        if (target == Analysis.dummyOutputPath) CompileOutput.empty
+        else {
+          val outputDir = mapper.mapOutputDir(target)
+          CompileOutput(outputDir)
+        }
       case MiniSetupOutput.MULTIPLEOUTPUT =>
         val multiple = miniSetup.getMultipleOutput
         val groups = multiple.getOutputGroupsList.asScala.iterator.map(fromOutputGroup).toArray
@@ -665,8 +671,11 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
   }
 
   private final val stringId = identity[String] _
-  private final val stringToFile = (path: String) => fromPathString(path)
-  private final val stringToVFile = (path: String) => fromPathStringV(path)
+
+  private final val stringToSource = (path: String) => mapper.mapSourceFile(fromPathStringV(path))
+  private final val stringToLibrary = (path: String) => mapper.mapBinaryFile(fromPathStringV(path))
+  private final val stringToProd = (path: String) => mapper.mapProductFile(fromPathStringV(path))
+
   def fromRelations(relations: Schema.Relations): Relations = {
 
     def fromMap[K, V](
@@ -721,10 +730,10 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
 
     def expected(msg: String) = ReadersFeedback.expected(msg, Classes.Relations)
 
-    val srcProd = fromMap(relations.getSrcProdMap, stringToVFile, stringToVFile)
-    val libraryDep = fromMap(relations.getLibraryDepMap, stringToVFile, stringToVFile)
+    val srcProd = fromMap(relations.getSrcProdMap, stringToSource, stringToProd)
+    val libraryDep = fromMap(relations.getLibraryDepMap, stringToSource, stringToLibrary)
     val libraryClassName =
-      fromMap(relations.getLibraryClassNameMap, stringToVFile, stringId)
+      fromMap(relations.getLibraryClassNameMap, stringToLibrary, stringId)
     val memberRef =
       if (relations.hasMemberRef) fromClassDependencies(relations.getMemberRef)
       else expected("member refs").!!
@@ -734,7 +743,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
     val localInheritance =
       if (relations.hasLocalInheritance) fromClassDependencies(relations.getLocalInheritance)
       else expected("local inheritance").!!
-    val classes = fromMap(relations.getClassesMap, stringToVFile, stringId)
+    val classes = fromMap(relations.getClassesMap, stringToSource, stringId)
     val productClassName =
       fromMap(relations.getProductClassNameMap, stringId, stringId)
     val names = fromUsedNamesMap(relations.getNamesMap)

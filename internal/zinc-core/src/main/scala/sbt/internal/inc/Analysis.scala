@@ -14,12 +14,11 @@ package internal
 package inc
 
 import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
-import java.io.File
 import java.nio.file.{ Path, Paths }
 
 import xsbti.VirtualFileRef
 import xsbti.api.{ AnalyzedClass, ExternalDependency, InternalDependency }
-import xsbti.compile.{ CompileAnalysis, SingleOutput, Output }
+import xsbti.compile.CompileAnalysis
 import xsbti.compile.analysis.{
   ReadCompilations,
   ReadSourceInfos,
@@ -133,10 +132,7 @@ object Analysis {
       case x => Some(s"$x $prefix$plural")
     }
 
-  lazy val dummyOutput: Output = new SingleOutput {
-    override def getOutputDirectoryAsPath: Path = Paths.get("/tmp/dummy")
-    override def getOutputDirectory: File = getOutputDirectoryAsPath.toFile
-  }
+  lazy val dummyOutputPath: Path = Paths.get("/tmp/dummy")
 }
 
 private class MAnalysis(
