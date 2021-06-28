@@ -44,8 +44,9 @@ private[sbt] object JavaAnalyze {
       .toSet[VirtualFile]
       .groupBy(_.name)
     // For performance reasons, precompute these as they are static throughout this analysis
-    val outputJarOrNull: Path = finalJarOutput.getOrElse(null)
     val singleOutputOrNull: Path = output.getSingleOutputAsPath.orElse(null)
+    val directOutputJarOrNull: Path = JarUtils.getOutputJar(output).getOrElse(null)
+    val mappedOutputJarOrNull: Path = finalJarOutput.getOrElse(null)
 
     def load(tpe: String, errMsg: => Option[String]): Option[Class[_]] = {
       if (tpe.endsWith("module-info")) None
@@ -58,8 +59,16 @@ private[sbt] object JavaAnalyze {
     }
 
     def remapClassFile(classFile: Path) =
-      if (singleOutputOrNull == null || outputJarOrNull == null) classFile
-      else resolveFinalClassFile(classFile, singleOutputOrNull, outputJarOrNull, log)
+      if (directOutputJarOrNull != null && classFile.getFileSystem.provider.getScheme == "jar")
+        // convert to the class-in-jar path format that zinc uses. we make an assumption here that
+        // if we've got a jar-based path, it's referring to a class in the output jar.
+        JarUtils
+          .ClassInJar(directOutputJarOrNull, classFile.getRoot.relativize(classFile).toString)
+          .toPath
+      else if (singleOutputOrNull != null && mappedOutputJarOrNull != null)
+        resolveFinalClassFile(classFile, singleOutputOrNull, mappedOutputJarOrNull, log)
+      else
+        classFile
 
     val sourceToClassFiles = mutable.HashMap[VirtualFile, Buffer[ClassFile]](
       sources.map(vf => vf -> new ArrayBuffer[ClassFile]): _*
@@ -85,7 +94,6 @@ private[sbt] object JavaAnalyze {
       binaryClassNameToLoadedClass.update(binaryClassName, loadedClass)
 
       val srcClassName = loadEnclosingClass(loadedClass)
-
       val finalClassFile: Path = remapClassFile(newClass)
       srcClassName match {
         case Some(className) =>
@@ -201,8 +209,8 @@ private[sbt] object JavaAnalyze {
   }
 
   /**
-   * When straight-to-jar compilation is enabled, classes are compiled to a temporary directory
-   * because javac cannot compile to jar directly. The paths to class files that can be observed
+   * When straight-to-jar compilation is enabled on a javac which doesn't support it, classes are compiled to a
+   * temporary directory because javac cannot compile to jar directly. The paths to class files that can be observed
    * here through the file system or class loaders are located in temporary output directory for
    * javac. As this output will be eventually included in the output jar (`finalJarOutput`), the
    * analysis (products) have to be changed accordingly.

@@ -17,6 +17,7 @@ package javac
 import java.nio.file.Path
 import java.net.URLClassLoader
 
+import sbt.internal.inc.JavaInterfaceUtil._
 import sbt.internal.inc.classfile.JavaAnalyze
 import sbt.internal.inc.classpath.ClasspathUtil
 import xsbti.compile._
@@ -28,7 +29,6 @@ import xsbti.{
   VirtualFile,
   VirtualFileRef
 }
-import sbt.io.PathFinder
 
 import sbt.util.InterfaceUtil
 import sbt.util.Logger
@@ -57,6 +57,8 @@ final class AnalyzingJavaCompiler private[sbt] (
     val classLookup: (String => Option[VirtualFile]),
     val searchClasspath: Seq[VirtualFile]
 ) extends JavaCompiler {
+
+  override def supportsDirectToJar: Boolean = javac.supportsDirectToJar
 
   // // for compatibility
   // def compile(
@@ -88,7 +90,7 @@ final class AnalyzingJavaCompiler private[sbt] (
    * @param sources  The sources to compile
    * @param options  The options for the Java compiler
    * @param output   The output configuration for this compiler
-   * @param finalJarOutput The output that will be used for straight to jar compilation.
+   * @param finalJarOutput The output that will be used for straight to jar compilation if javac doesn't support it.
    * @param callback  A callback to report discovered source/binary dependencies on.
    * @param incToolOptions The component that manages generated class files.
    * @param reporter  A reporter where semantic compiler failures can be reported.
@@ -98,6 +100,7 @@ final class AnalyzingJavaCompiler private[sbt] (
    */
   def compile(
       sources: Seq[VirtualFile],
+      extraClasspath: Seq[VirtualFile],
       converter: FileConverter, // this is needed to thaw ref back to path for stamping
       options: Seq[String],
       output: Output,
@@ -112,7 +115,7 @@ final class AnalyzingJavaCompiler private[sbt] (
 
     if (sources.nonEmpty) {
       // Make the classpath absolute for Java compilation
-      val absClasspath = classpath.map(VirtualFileUtil.toAbsolute)
+      val absClasspath = (extraClasspath ++ classpath).map(VirtualFileUtil.toAbsolute)
 
       // Outline chunks of compiles so that .class files end up in right location
       val chunks: Map[Option[Path], Seq[VirtualFile]] = output match {
@@ -138,10 +141,12 @@ final class AnalyzingJavaCompiler private[sbt] (
         log.error(InterfaceUtil.toSupplier(s"No output directory mapped for: $culpritPaths"))
       }
 
-      // Memoize the known class files in the Javac output directory
-      val memo = for { (Some(outputDirectory), srcs) <- chunks } yield {
-        val classesFinder = PathFinder(outputDirectory.toFile) ** "*.class"
-        (classesFinder, classesFinder.get, srcs)
+      // Memoize the known class files in the Javac output location
+      val memo = for { (Some(outputPath), srcs) <- chunks } yield {
+        val classFinder =
+          if (outputPath.toString.endsWith(".jar")) new JarClassFinder(outputPath)
+          else new DirectoryClassFinder(outputPath)
+        (classFinder, classFinder.classes.pathsAndClose(), srcs)
       }
 
       // Record progress for java compilation
@@ -192,18 +197,24 @@ final class AnalyzingJavaCompiler private[sbt] (
         progress.advance(1, 2, javaCompilationPhase, javaAnalysisPhase)
       }
       // Construct class loader to analyze dependencies of generated class files
-      val loader = ClasspathUtil.toLoader(searchClasspath.map(converter.toPath))
+      val loader = ClasspathUtil.toLoader(
+        output.getSingleOutputAsPath.toOption.toSeq ++
+          (extraClasspath ++ searchClasspath).map(converter.toPath)
+      )
 
       timed(javaAnalysisPhase, log) {
         for {
-          (classesFinder, oldClasses, srcs) <- memo
+          (classFinder, oldClasses, srcs) <- memo
         } {
-          val newClasses = Set(classesFinder.get: _*) -- oldClasses
-          JavaAnalyze(newClasses.toSeq.map(_.toPath), srcs, log, output, finalJarOutput)(
-            callback,
-            loader,
-            readAPI
-          )
+          val classes = classFinder.classes
+          try {
+            val newClasses = Set(classes.paths: _*) -- oldClasses
+            JavaAnalyze(newClasses.toSeq, srcs, log, output, finalJarOutput)(
+              callback,
+              loader,
+              readAPI
+            )
+          } finally classes.close()
         }
       }
 

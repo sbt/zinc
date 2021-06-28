@@ -15,6 +15,7 @@ package inc
 package classfile
 
 import java.net.URL
+import java.nio.file.Files
 import java.nio.file.Path
 import java.io.{ BufferedInputStream, InputStream, File, DataInputStream }
 
@@ -32,7 +33,7 @@ import Constants._
 
 private[sbt] object Parser {
   def apply(file: Path): ClassFile =
-    Using.fileInputStream(file.toFile)(parse(file.toString)).right.get
+    Using.bufferedInputStream(Files.newInputStream(file))(parse(file.toString)).right.get
 
   def apply(file: File): ClassFile =
     Using.fileInputStream(file)(parse(file.toString)).right.get
