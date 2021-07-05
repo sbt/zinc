@@ -87,7 +87,7 @@ ThisBuild / publishTo := {
 ThisBuild / mimaPreviousArtifacts := Set.empty
 // limit the number of concurrent test so testQuick works
 Global / concurrentRestrictions += Tags.limit(Tags.Test, 4)
-ThisBuild / semanticdbVersion := "4.4.6"
+Global / semanticdbVersion := "4.4.20"
 ThisBuild / Test / fork := true
 
 def baseSettings: Seq[Setting[_]] = Seq(
