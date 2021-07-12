@@ -49,6 +49,8 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
 
   implicit class ProjectSetupOps(setup: ProjectSetup) {
     def createCompiler(): CompilerSetup = setup.createCompiler(scalaVersion, incOptions)
+    def createCompiler(scalaVersion: String): CompilerSetup =
+      setup.createCompiler(scalaVersion, incOptions)
 
     private def createCompiler(sv: String, incOptions: IncOptions): CompilerSetup = {
       val si = scalaInstance(sv, setup.baseDir, Logger.Null)
