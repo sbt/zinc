@@ -188,9 +188,9 @@ object AnalysisGenerators {
     for (name <- namesGen; scopes <- Gen.someOf(UseScope.values()))
       yield UsedName(name, UseScope.Default +: scopes)
 
-  def genUsedNames(classNames: Seq[String]): Gen[Relation[String, UsedName]] =
+  def genUsedNames(classNames: Seq[String]): Gen[Relations.UsedNames] =
     for (allNames <- listOfN(classNames.length, containerOf[Set, UsedName](genUsedName())))
-      yield Relation.reconstruct(zipMap(classNames, allNames))
+      yield zipMap(classNames, allNames)
 
   def genFileVRef: Gen[VirtualFileRef] = genFile.map(x => VirtualFileRef.of(x.toPath.toString))
 

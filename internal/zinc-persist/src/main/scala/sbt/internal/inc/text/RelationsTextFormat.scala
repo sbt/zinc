@@ -13,7 +13,7 @@ package sbt.internal.inc.text
 
 import java.io.{ BufferedReader, Writer }
 
-import sbt.internal.inc.{ ExternalDependencies, InternalDependencies, Relations, UsedName }
+import sbt.internal.inc.{ ExternalDependencies, InternalDependencies, Relations }
 import sbt.internal.util.Relation
 import xsbti.VirtualFileRef
 import xsbti.api.DependencyContext._
@@ -26,26 +26,34 @@ trait RelationsTextFormat extends FormatCommons {
 
   private case class Descriptor[A, B](
       header: String,
-      selectCorresponding: Relations => Relation[A, B],
+      selectCorresponding: Relations => scala.collection.Map[A, scala.collection.Set[B]],
       keyMapper: Mapper[A],
       valueMapper: Mapper[B]
   )
 
+  private def descriptor[A, B](
+      header: String,
+      rels: Relations => Relation[A, B],
+      keyMapper: Mapper[A],
+      valueMapper: Mapper[B]
+  ) =
+    Descriptor(header, rels.andThen(_.forwardMap), keyMapper, valueMapper)
+
   private def stringsDescriptor(header: String, rels: Relations => Relation[String, String]) =
-    Descriptor(header, rels, Mapper.forString, Mapper.forString)
+    descriptor(header, rels, Mapper.forString, Mapper.forString)
 
   private val allRelations: List[Descriptor[_, _]] = {
     List(
-      Descriptor("products", _.srcProd, sourcesMapper, productsMapper),
-      Descriptor("library dependencies", _.libraryDep, sourcesMapper, binariesMapper),
-      Descriptor("library class names", _.libraryClassName, binariesMapper, Mapper.forString),
+      descriptor("products", _.srcProd, sourcesMapper, productsMapper),
+      descriptor("library dependencies", _.libraryDep, sourcesMapper, binariesMapper),
+      descriptor("library class names", _.libraryClassName, binariesMapper, Mapper.forString),
       stringsDescriptor("member reference internal dependencies", _.memberRef.internal),
       stringsDescriptor("member reference external dependencies", _.memberRef.external),
       stringsDescriptor("inheritance internal dependencies", _.inheritance.internal),
       stringsDescriptor("inheritance external dependencies", _.inheritance.external),
       stringsDescriptor("local internal inheritance dependencies", _.localInheritance.internal),
       stringsDescriptor("local external inheritance dependencies", _.localInheritance.external),
-      Descriptor("class names", _.classes, sourcesMapper, Mapper.forString),
+      descriptor("class names", _.classes, sourcesMapper, Mapper.forString),
       Descriptor("used names", _.names, Mapper.forString, Mapper.forUsedName),
       stringsDescriptor("product class names", _.productClassName)
     )
@@ -72,7 +80,7 @@ trait RelationsTextFormat extends FormatCommons {
         // We sort for ease of debugging and for more efficient reconstruction when reading.
         // Note that we don't share code with writeMap. Each is implemented more efficiently
         // than the shared code would be, and the difference is measurable on large analyses.
-        rel.forwardMap.toSeq.sortBy(_._1)(toStringOrdA).foreach {
+        rel.toSeq.sortBy(_._1)(toStringOrdA).foreach {
           case (k, vs) =>
             val kStr = relDesc.keyMapper.write(k)
             vs.toSeq.sorted(toStringOrdB) foreach { v =>
@@ -88,7 +96,7 @@ trait RelationsTextFormat extends FormatCommons {
     }
 
     def read(in: BufferedReader): Relations = {
-      def readRelation[A, B](relDesc: Descriptor[A, B]): Relation[A, B] = {
+      def readRelation[A, B](relDesc: Descriptor[A, B]): Map[A, Set[B]] = {
         val expectedHeader = relDesc.header
         val items =
           readPairs(in)(expectedHeader, relDesc.keyMapper.read, relDesc.valueMapper.read).toIterator
@@ -108,7 +116,7 @@ trait RelationsTextFormat extends FormatCommons {
           else closeEntry()
         }
         if (currentItem != null) closeEntry()
-        Relation.reconstruct(forward.toMap)
+        forward.toMap
       }
 
       val relations = allRelations.map(rd => readRelation(rd))
@@ -121,39 +129,35 @@ trait RelationsTextFormat extends FormatCommons {
    * Reconstructs a Relations from a list of Relation
    * The order in which the relations are read matters and is defined by `existingRelations`.
    */
-  private def construct(relations: List[Relation[_, _]]) =
+  private def construct(relations: List[Map[_, Set[_]]]) =
     relations match {
       case p :: bin :: lcn :: mri :: mre :: ii :: ie :: lii :: lie :: cn :: un :: bcn :: Nil =>
-        val srcProd = p.asInstanceOf[Relation[VirtualFileRef, VirtualFileRef]]
-        val libraryDep = bin.asInstanceOf[Relation[VirtualFileRef, VirtualFileRef]]
-        val libraryClassName = lcn.asInstanceOf[Relation[VirtualFileRef, String]]
-        val classes = cn.asInstanceOf[Relation[VirtualFileRef, String]]
-        val names = un.asInstanceOf[Relation[String, UsedName]]
-        val binaryClassName = bcn.asInstanceOf[Relation[String, String]]
+        def toMultiMap[K, V](m: Map[_, _]): Map[K, Set[V]] = m.asInstanceOf[Map[K, Set[V]]]
+        def toRelation[K, V](m: Map[_, _]): Relation[K, V] = Relation.reconstruct(toMultiMap(m))
 
         val internal = InternalDependencies(
           Map(
-            DependencyByMemberRef -> mri.asInstanceOf[Relation[String, String]],
-            DependencyByInheritance -> ii.asInstanceOf[Relation[String, String]],
-            LocalDependencyByInheritance -> lii.asInstanceOf[Relation[String, String]]
+            DependencyByMemberRef -> toRelation(mri),
+            DependencyByInheritance -> toRelation(ii),
+            LocalDependencyByInheritance -> toRelation(lii),
           )
         )
         val external = ExternalDependencies(
           Map(
-            DependencyByMemberRef -> mre.asInstanceOf[Relation[String, String]],
-            DependencyByInheritance -> ie.asInstanceOf[Relation[String, String]],
-            LocalDependencyByInheritance -> lie.asInstanceOf[Relation[String, String]]
+            DependencyByMemberRef -> toRelation(mre),
+            DependencyByInheritance -> toRelation(ie),
+            LocalDependencyByInheritance -> toRelation(lie),
           )
         )
         Relations.make(
-          srcProd,
-          libraryDep,
-          libraryClassName,
+          toRelation(p),
+          toRelation(bin),
+          toRelation(lcn),
           internal,
           external,
-          classes,
-          names,
-          binaryClassName
+          toRelation(cn),
+          toMultiMap(un),
+          toRelation(bcn),
         )
       case _ =>
         throw new java.io.IOException(
