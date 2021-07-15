@@ -715,17 +715,9 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
 
     def fromUsedNamesMap(
         map: java.util.Map[String, Schema.UsedNames]
-    ): Relation[String, UsedName] = {
-      val builder = new RelationBuilder[String, UsedName]
-      for ((k, used) <- map.asScala) {
-        val usedNames = used.getUsedNamesList.asScala
-        if (!usedNames.isEmpty) {
-          for (schemaUsedName <- usedNames) {
-            builder(k) = fromUsedName(schemaUsedName)
-          }
-        }
-      }
-      builder.result()
+    ): Relations.UsedNames = {
+      for ((k, used) <- map.asScala)
+        yield k -> used.getUsedNamesList.asScala.iterator.map(fromUsedName).toSet
     }
 
     def expected(msg: String) = ReadersFeedback.expected(msg, Classes.Relations)
