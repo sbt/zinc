@@ -60,68 +60,45 @@ trait RelationsTextFormat extends FormatCommons {
   }
 
   protected object RelationsF {
-
     def write(out: Writer, relations: Relations): Unit = {
-      def writeRelation[A, B](relDesc: Descriptor[A, B], relations: Relations): Unit = {
-        // This ordering is used to persist all values in order. Since all values will be
-        // persisted using their string representation, it makes sense to sort them using
-        // their string representation.
-        val toStringOrdA = new Ordering[A] {
-          def compare(a: A, b: A) = relDesc.keyMapper.write(a) compare relDesc.keyMapper.write(b)
-        }
-        val toStringOrdB = new Ordering[B] {
-          def compare(a: B, b: B) =
-            relDesc.valueMapper.write(a) compare relDesc.valueMapper.write(b)
-        }
-        val header = relDesc.header
-        val rel = relDesc.selectCorresponding(relations)
+      def writeRelation[A, B](relDesc: Descriptor[A, B]): Unit = {
+        import relDesc._
+        val map = selectCorresponding(relations)
         writeHeader(out, header)
-        writeSize(out, rel.size)
+        writeSize(out, map.valuesIterator.flatten.size)
         // We sort for ease of debugging and for more efficient reconstruction when reading.
         // Note that we don't share code with writeMap. Each is implemented more efficiently
         // than the shared code would be, and the difference is measurable on large analyses.
-        rel.toSeq.sortBy(_._1)(toStringOrdA).foreach {
-          case (k, vs) =>
-            val kStr = relDesc.keyMapper.write(k)
-            vs.toSeq.sorted(toStringOrdB) foreach { v =>
-              out.write(kStr); out.write(" -> "); out.write(relDesc.valueMapper.write(v));
-              out.write("\n")
-            }
+        val kvs = map.iterator.map { case (k, vs) => keyMapper.write(k) -> vs }.toSeq.sortBy(_._1)
+        for ((k, vs) <- kvs; v <- vs.iterator.map(valueMapper.write).toSeq.sorted) {
+          out.write(k); out.write(" -> "); out.write(v); out.write("\n")
         }
       }
-
-      allRelations.foreach { relDesc =>
-        writeRelation(relDesc, relations)
-      }
+      allRelations.foreach(writeRelation(_))
     }
 
     def read(in: BufferedReader): Relations = {
       def readRelation[A, B](relDesc: Descriptor[A, B]): Map[A, Set[B]] = {
-        val expectedHeader = relDesc.header
-        val items =
-          readPairs(in)(expectedHeader, relDesc.keyMapper.read, relDesc.valueMapper.read).toIterator
-        // Reconstruct the forward map. This is more efficient than Relation.empty ++ items.
-        var forward: List[(A, Set[B])] = Nil
-        var currentItem: (A, B) = null
-        var currentKey: A = null.asInstanceOf[A]
-        var currentVals: List[B] = Nil
-        def closeEntry(): Unit = {
-          if (currentKey != null) forward = (currentKey, currentVals.toSet) :: forward
-          currentKey = currentItem._1
-          currentVals = currentItem._2 :: Nil
-        }
+        import relDesc._
+        val items = readPairs(in)(header, keyMapper.read, valueMapper.read).toIterator
+        // Reconstruct the multi-map efficiently, using the writing strategy above
+        val builder = Map.newBuilder[A, Set[B]]
+        var currentKey = null.asInstanceOf[A]
+        var currentVals = Set.newBuilder[B]
+        def closeEntry() = if (currentKey != null) builder += ((currentKey, currentVals.result()))
         while (items.hasNext) {
-          currentItem = items.next()
-          if (currentItem._1 == currentKey) currentVals = currentItem._2 :: currentVals
-          else closeEntry()
+          val (key, value) = items.next()
+          if (key == currentKey) currentVals += value
+          else {
+            closeEntry()
+            currentKey = key
+            currentVals = Set.newBuilder[B] += value
+          }
         }
-        if (currentItem != null) closeEntry()
-        forward.toMap
+        closeEntry()
+        builder.result()
       }
-
-      val relations = allRelations.map(rd => readRelation(rd))
-
-      construct(relations)
+      construct(allRelations.map(readRelation(_)))
     }
   }
 
