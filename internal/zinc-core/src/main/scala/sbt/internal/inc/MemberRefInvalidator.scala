@@ -135,14 +135,17 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
     private def filteredDependencies(dependent: Set[String]): Set[String] = {
       dependent.filter {
         case from if isScalaClass(from) =>
-          val affectedNames = usedNames(from).iterator.filter(modifiedNames.isModified)
-          if (affectedNames.isEmpty) {
+          val fromUsedNames = usedNames(from)
+          val affected = fromUsedNames.exists(modifiedNames.isModified)
+          if (!affected) {
             log.debug(
               s"None of the modified names appears in source file of $from. This dependency is not being considered for invalidation."
             )
             false
           } else {
-            log.debug(s"The following modified names cause invalidation of $from: $affectedNames")
+            def showUsedNames: String =
+              fromUsedNames.iterator.filter(modifiedNames.isModified).mkString("[", ", ", "]")
+            log.debug(s"The following modified names cause invalidation of $from: $showUsedNames")
             true
           }
         case from =>
