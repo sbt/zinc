@@ -88,7 +88,10 @@ final case class ModifiedNames(names: Set[UsedName]) {
     names.flatMap(n => n.scopes.asScala.map(n.name -> _))
 
   def isModified(usedName: UsedName): Boolean =
-    usedName.scopes.asScala.exists(scope => lookupMap.contains(usedName.name -> scope))
+    usedName.scopes.asScala.exists(scope => isModifiedRaw(usedName.name, scope))
+
+  def isModifiedRaw(name: String, scope: UseScope): Boolean =
+    lookupMap.contains(name -> scope)
 
   override def toString: String =
     s"ModifiedNames(changes = ${names.mkString(", ")})"

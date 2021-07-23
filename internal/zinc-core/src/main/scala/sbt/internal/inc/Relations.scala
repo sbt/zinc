@@ -280,7 +280,7 @@ trait Relations {
 }
 
 object Relations {
-  type UsedNames = scala.collection.Map[String, scala.collection.Set[UsedName]]
+  type UsedNames = inc.UsedNames
 
   /** Tracks internal and external source dependencies for a specific dependency type, such as direct or inherited.*/
   private[inc] final class ClassDependencies(
@@ -317,7 +317,7 @@ object Relations {
     internalDependencies = InternalDependencies.empty,
     externalDependencies = ExternalDependencies.empty,
     classes = Relation.empty,
-    names = Map.empty,
+    names = UsedNames.fromMultiMap(Map.empty),
     productClassName = Relation.empty
   )
 

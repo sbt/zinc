@@ -12,7 +12,6 @@
 package sbt.internal.inc.binary.converters
 
 import java.nio.file.{ Path, Paths }
-import java.util
 import java.util.{ List => JList, Map => JMap }
 import sbt.internal.inc.Relations.ClassDependencies
 import sbt.internal.inc._
@@ -701,25 +700,6 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
       new ClassDependencies(internal, external)
     }
 
-    def fromUsedName(usedName: Schema.UsedName): UsedName = {
-      val name = usedName.getName.intern()
-      val useScopes = util.EnumSet.noneOf(classOf[UseScope])
-      val len = usedName.getScopesCount
-      for {
-        i <- 0 to len - 1
-      } {
-        useScopes.add(fromUseScope(usedName.getScopes(i), usedName.getScopesValue(i)))
-      }
-      UsedName.make(name, useScopes)
-    }
-
-    def fromUsedNamesMap(
-        map: java.util.Map[String, Schema.UsedNames]
-    ): Relations.UsedNames = {
-      for ((k, used) <- map.asScala)
-        yield k -> used.getUsedNamesList.asScala.iterator.map(fromUsedName).toSet
-    }
-
     def expected(msg: String) = ReadersFeedback.expected(msg, Classes.Relations)
 
     val srcProd = fromMap(relations.getSrcProdMap, stringToSource, stringToProd)
@@ -738,7 +718,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
     val classes = fromMap(relations.getClassesMap, stringToSource, stringId)
     val productClassName =
       fromMap(relations.getProductClassNameMap, stringId, stringId)
-    val names = fromUsedNamesMap(relations.getNamesMap)
+    val names = UsedNames.fromJavaMap(relations.getNamesMap)
     val internal = InternalDependencies(
       Map(
         DependencyContext.DependencyByMemberRef -> memberRef.internal,

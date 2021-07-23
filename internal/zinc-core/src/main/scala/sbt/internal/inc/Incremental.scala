@@ -912,8 +912,8 @@ private final class AnalysisCallback(
     base.copy(compilations = base.compilations.add(compilation))
 
   def addUsedNames(base: Analysis): Analysis = {
-    assert(base.relations.names.size == 0)
-    base.copy(relations = base.relations.addUsedNames(usedNames))
+    assert(base.relations.names.isEmpty)
+    base.copy(relations = base.relations.addUsedNames(UsedNames.fromMultiMap(usedNames)))
   }
 
   private def companionsWithHash(className: String): (Companions, HashAPI.Hash, HashAPI.Hash) = {

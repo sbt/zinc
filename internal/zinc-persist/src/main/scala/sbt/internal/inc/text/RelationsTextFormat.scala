@@ -13,7 +13,7 @@ package sbt.internal.inc.text
 
 import java.io.{ BufferedReader, Writer }
 
-import sbt.internal.inc.{ ExternalDependencies, InternalDependencies, Relations }
+import sbt.internal.inc.{ ExternalDependencies, InternalDependencies, Relations, UsedNames }
 import sbt.internal.util.Relation
 import xsbti.VirtualFileRef
 import xsbti.api.DependencyContext._
@@ -54,7 +54,7 @@ trait RelationsTextFormat extends FormatCommons {
       stringsDescriptor("local internal inheritance dependencies", _.localInheritance.internal),
       stringsDescriptor("local external inheritance dependencies", _.localInheritance.external),
       descriptor("class names", _.classes, sourcesMapper, Mapper.forString),
-      Descriptor("used names", _.names, Mapper.forString, Mapper.forUsedName),
+      Descriptor("used names", _.names.toMultiMap, Mapper.forString, Mapper.forUsedName),
       stringsDescriptor("product class names", _.productClassName)
     )
   }
@@ -133,7 +133,7 @@ trait RelationsTextFormat extends FormatCommons {
           internal,
           external,
           toRelation(cn),
-          toMultiMap(un),
+          UsedNames.fromMultiMap(toMultiMap(un)),
           toRelation(bcn),
         )
       case _ =>

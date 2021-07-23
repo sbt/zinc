@@ -190,7 +190,7 @@ object AnalysisGenerators {
 
   def genUsedNames(classNames: Seq[String]): Gen[Relations.UsedNames] =
     for (allNames <- listOfN(classNames.length, containerOf[Set, UsedName](genUsedName())))
-      yield zipMap(classNames, allNames)
+      yield UsedNames.fromMultiMap(zipMap(classNames, allNames))
 
   def genFileVRef: Gen[VirtualFileRef] = genFile.map(x => VirtualFileRef.of(x.toPath.toString))
 
