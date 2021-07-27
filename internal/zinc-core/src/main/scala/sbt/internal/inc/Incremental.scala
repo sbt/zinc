@@ -22,7 +22,6 @@ import sbt.internal.inc.JavaInterfaceUtil.EnrichOption
 import sbt.util.{ InterfaceUtil, Level, Logger }
 import sbt.util.InterfaceUtil.{ jo2o, t2 }
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 import scala.util.control.NonFatal
 import xsbti.{ FileConverter, Position, Problem, Severity, UseScope, VirtualFile, VirtualFileRef }
 import xsbt.api.{ APIUtil, HashAPI, NameHashing }
@@ -627,7 +626,7 @@ private final class AnalysisCallback(
   private[this] val objectApis = new TrieMap[String, ApiInfo]
   private[this] val classPublicNameHashes = new TrieMap[String, Array[NameHash]]
   private[this] val objectPublicNameHashes = new TrieMap[String, Array[NameHash]]
-  private[this] val usedNames = mutable.Map.empty[String, mutable.Set[UsedName]]
+  private[this] val usedNames = new TrieMap[String, ConcurrentSet[UsedName]]
   private[this] val unreporteds = new TrieMap[VirtualFileRef, ConcurrentLinkedQueue[Problem]]
   private[this] val reporteds = new TrieMap[VirtualFileRef, ConcurrentLinkedQueue[Problem]]
   private[this] val mainClasses = new TrieMap[VirtualFileRef, ConcurrentLinkedQueue[String]]
@@ -863,11 +862,12 @@ private final class AnalysisCallback(
     ()
   }
 
-  def usedName(className: String, name: String, useScopes: EnumSet[UseScope]) =
-    usedNames.synchronized {
-      usedNames.getOrElseUpdate(className, mutable.Set.empty) += UsedName.make(name, useScopes)
-      ()
-    }
+  def usedName(className: String, name: String, useScopes: EnumSet[UseScope]) = {
+    usedNames
+      .getOrElseUpdate(className, ConcurrentHashMap.newKeySet[UsedName])
+      .add(UsedName.make(name, useScopes))
+    ()
+  }
 
   override def enabled(): Boolean = options.enabled
 
@@ -913,7 +913,10 @@ private final class AnalysisCallback(
 
   def addUsedNames(base: Analysis): Analysis = {
     assert(base.relations.names.isEmpty)
-    base.copy(relations = base.relations.addUsedNames(UsedNames.fromMultiMap(usedNames)))
+    base.copy(
+      relations =
+        base.relations.addUsedNames(UsedNames.fromMultiMap(usedNames.mapValues(_.asScala)))
+    )
   }
 
   private def companionsWithHash(className: String): (Companions, HashAPI.Hash, HashAPI.Hash) = {
