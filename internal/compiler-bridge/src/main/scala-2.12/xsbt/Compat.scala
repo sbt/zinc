@@ -22,11 +22,10 @@ abstract class Compat {
 
   /** If given tree contains object tree attachment calls func on tree from attachment. */
   protected def processOriginalTreeAttachment(in: Tree)(func: Tree => Unit): Unit = {
-    // We can't until we figure out how to conditionally do this for Scala 2.12.3+
-    // import analyzer._
-    // in.attachments.get[OriginalTreeAttachment].foreach { a =>
-    //  func(a.original)
-    // }
+    import analyzer._
+    in.attachments.get[OriginalTreeAttachment].foreach { a =>
+      func(a.original)
+    }
   }
 }
 object Compat {

@@ -192,7 +192,7 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
 
   it should "track dependencies on constants" in withTmpDir { tmp =>
     val project = VirtualSubproject(tmp.toPath / "p1")
-    val comp = project.setup.createCompiler("2.13.6")
+    val comp = project.setup.createCompiler()
     try {
       val s1 = "object A { final val i = 1 }"
       val s1b = "object A { final val i = 2 }"
