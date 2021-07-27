@@ -12,7 +12,6 @@
 package sbt.internal.inc
 
 import java.{ util => ju }
-
 import scala.{ collection => sc }
 import xsbti.compile.{ UsedName => XUsedName }
 import xsbti.UseScope
@@ -50,6 +49,7 @@ sealed abstract class UsedNames private {
   def --(classes: Iterable[String]): UsedNames
   def iterator: Iterator[(String, sc.Set[UsedName])]
 
+  def hasAffectedNames(modifiedNames: ModifiedNames, from: String): Boolean
   def affectedNames(modifiedNames: ModifiedNames, from: String): String
 }
 
@@ -63,11 +63,14 @@ object UsedNames {
     def ++(other: UsedNames) = fromMultiMap(map ++ other.iterator)
     def --(classes: Iterable[String]) = fromMultiMap(map -- classes)
     def iterator = map.iterator
+    def hasAffectedNames(modifiedNames: ModifiedNames, from: String): Boolean =
+      map(from).iterator.exists(modifiedNames.isModified)
     def affectedNames(modifiedNames: ModifiedNames, from: String): String =
       map(from).iterator.filter(modifiedNames.isModified).mkString(", ")
   }
 
   final case class JavaUsedNames(map: ju.Map[String, Schema.UsedNames]) extends UsedNames {
+
     import scala.collection.JavaConverters._
 
     private def fromUseScope(useScope: Schema.UseScope, id: Int): UseScope = useScope match {
@@ -95,9 +98,33 @@ object UsedNames {
     private lazy val convert: UsedNames = fromMultiMap(toMultiMap)
 
     def isEmpty = map.isEmpty
+
     def ++(other: UsedNames) = convert ++ other
+
     def --(classes: Iterable[String]) = convert -- classes
+
     def iterator = convert.iterator
+
+    def hasAffectedNames(modifiedNames: ModifiedNames, from: String): Boolean = {
+      val usedNames = map.get(from)
+      var i = 0
+      val n = usedNames.getUsedNamesCount
+      while (i < n) {
+        val usedName = usedNames.getUsedNames(i)
+        val name = usedName.getName
+        var i2 = 0
+        val n2 = usedName.getScopesCount
+        while (i2 < n2) {
+          val scope = fromUseScope(usedName.getScopes(i2), usedName.getScopesValue(i2))
+          if (modifiedNames.isModifiedRaw(name, scope)) {
+            return true
+          }
+          i2 += 1
+        }
+        i += 1
+      }
+      false
+    }
 
     def affectedNames(modifiedNames: ModifiedNames, from: String): String = {
       val b = new StringBuilder()
