@@ -24,9 +24,12 @@ import sbt.internal.inc.binary.converters.ProtobufDefaults.Feedback.StringToExce
 import sbt.internal.inc.binary.converters.ProtobufDefaults.Feedback.{ Readers => ReadersFeedback }
 import sbt.internal.inc.binary.converters.ProtobufDefaults.{ Classes, ReadersConstants }
 import sbt.internal.util.Relation
+
 import scala.collection.JavaConverters._
 import xsbti.api._
 import ProtobufDefaults.{ MissingInt, MissingString }
+
+import java.util
 
 final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) {
   def fromPathString(path: String): Path = Paths.get(path)
@@ -628,7 +631,8 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
   }
 
   def fromAnalyzedClass(
-      shouldStoreApis: Boolean
+      shouldStoreApis: Boolean,
+      names: util.HashMap[String, String]
   )(analyzedClass: Schema.AnalyzedClass): AnalyzedClass = {
     def fromCompanions(companions: Schema.Companions): Companions = {
       def expected(msg: String) = ReadersFeedback.expected(msg, Classes.Companions)
@@ -642,7 +646,11 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
     }
 
     def fromNameHash(nameHash: Schema.NameHash): NameHash = {
-      val name = nameHash.getName.intern()
+      val name0 = nameHash.getName
+      val name = names.putIfAbsent(name0, name0) match {
+        case null => name0
+        case v    => v
+      }
       val hash = nameHash.getHash
       val scope = fromUseScope(nameHash.getScope, nameHash.getScopeValue)
       NameHash.of(name, scope, hash)
@@ -746,13 +754,14 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
   }
 
   def fromApis(shouldStoreApis: Boolean)(apis: Schema.APIs): APIs = {
+    val names = new util.HashMap[String, String]()
     val internal =
       apis.getInternalMap.asScala.iterator.map {
-        case (k, v) => k -> fromAnalyzedClass(shouldStoreApis)(v)
+        case (k, v) => k -> fromAnalyzedClass(shouldStoreApis, names)(v)
       }.toMap
     val external =
       apis.getExternalMap.asScala.iterator.map {
-        case (k, v) => k -> fromAnalyzedClass(shouldStoreApis)(v)
+        case (k, v) => k -> fromAnalyzedClass(shouldStoreApis, names)(v)
       }.toMap
     APIs(internal = internal, external = external)
   }
