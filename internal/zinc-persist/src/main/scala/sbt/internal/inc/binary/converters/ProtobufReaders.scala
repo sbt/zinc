@@ -12,7 +12,7 @@
 package sbt.internal.inc.binary.converters
 
 import java.nio.file.{ Path, Paths }
-import java.util.{ List => JList, Map => JMap }
+import java.util.{ List => JList, Map => JMap, HashMap => JHashMap }
 import sbt.internal.inc.Relations.ClassDependencies
 import sbt.internal.inc._
 import sbt.internal.inc.binary.converters.ProtobufDefaults.EmptyLazyCompanions
@@ -28,8 +28,6 @@ import sbt.internal.util.Relation
 import scala.collection.JavaConverters._
 import xsbti.api._
 import ProtobufDefaults.{ MissingInt, MissingString }
-
-import java.util
 
 final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) {
   def fromPathString(path: String): Path = Paths.get(path)
@@ -632,7 +630,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
 
   def fromAnalyzedClass(
       shouldStoreApis: Boolean,
-      names: util.HashMap[String, String]
+      stringTable: StringTable
   )(analyzedClass: Schema.AnalyzedClass): AnalyzedClass = {
     def fromCompanions(companions: Schema.Companions): Companions = {
       def expected(msg: String) = ReadersFeedback.expected(msg, Classes.Companions)
@@ -646,11 +644,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
     }
 
     def fromNameHash(nameHash: Schema.NameHash): NameHash = {
-      val name0 = nameHash.getName
-      val name = names.putIfAbsent(name0, name0) match {
-        case null => name0
-        case v    => v
-      }
+      val name = stringTable.lookupOrEnter(nameHash.getName)
       val hash = nameHash.getHash
       val scope = fromUseScope(nameHash.getScope, nameHash.getScopeValue)
       NameHash.of(name, scope, hash)
@@ -754,14 +748,14 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
   }
 
   def fromApis(shouldStoreApis: Boolean)(apis: Schema.APIs): APIs = {
-    val names = new util.HashMap[String, String]()
+    val stringTable = new StringTable
     val internal =
       apis.getInternalMap.asScala.iterator.map {
-        case (k, v) => k -> fromAnalyzedClass(shouldStoreApis, names)(v)
+        case (k, v) => k -> fromAnalyzedClass(shouldStoreApis, stringTable)(v)
       }.toMap
     val external =
       apis.getExternalMap.asScala.iterator.map {
-        case (k, v) => k -> fromAnalyzedClass(shouldStoreApis, names)(v)
+        case (k, v) => k -> fromAnalyzedClass(shouldStoreApis, stringTable)(v)
       }.toMap
     APIs(internal = internal, external = external)
   }
@@ -805,5 +799,14 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
       if (analysisFile.hasMiniSetup) fromMiniSetup(analysisFile.getMiniSetup)
       else s"The mini setup from format ${version} could not be read.".!!
     (analysis, miniSetup, version)
+  }
+  private class StringTable {
+    private val strings = new JHashMap[String, String]()
+    def lookupOrEnter(string: String): String = {
+      strings.putIfAbsent(string, string) match {
+        case null => string
+        case v    => v
+      }
+    }
   }
 }
