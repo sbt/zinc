@@ -16,19 +16,20 @@ package inc
 import java.io.File
 import java.nio.file.{ Files, Path, Paths }
 import java.util.{ EnumSet, UUID }
-import java.util.concurrent.atomic.{ AtomicBoolean }
+import java.util.concurrent.atomic.AtomicBoolean
 import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
 import sbt.internal.inc.JavaInterfaceUtil.EnrichOption
 import sbt.util.{ InterfaceUtil, Level, Logger }
 import sbt.util.InterfaceUtil.{ jo2o, t2 }
+
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.util.control.NonFatal
 import xsbti.{ FileConverter, Position, Problem, Severity, UseScope, VirtualFile, VirtualFileRef }
 import xsbt.api.{ APIUtil, HashAPI, NameHashing }
 import xsbti.api._
 import xsbti.compile.{
   AnalysisContents,
-  AnalysisStore => XAnalysisStore,
   CompileAnalysis,
   CompileProgress,
   DependencyChanges,
@@ -36,6 +37,7 @@ import xsbti.compile.{
   MiniOptions,
   MiniSetup,
   Output,
+  AnalysisStore => XAnalysisStore,
   ClassFileManager => XClassFileManager
 }
 import xsbti.compile.analysis.{ ReadStamps, Stamp => XStamp }
@@ -626,7 +628,7 @@ private final class AnalysisCallback(
   private[this] val objectApis = new TrieMap[String, ApiInfo]
   private[this] val classPublicNameHashes = new TrieMap[String, Array[NameHash]]
   private[this] val objectPublicNameHashes = new TrieMap[String, Array[NameHash]]
-  private[this] val usedNames = new RelationBuilder[String, UsedName]
+  private[this] val usedNames = new TrieMap[String, mutable.Set[UsedName]]
   private[this] val unreporteds = new TrieMap[VirtualFileRef, ConcurrentLinkedQueue[Problem]]
   private[this] val reporteds = new TrieMap[VirtualFileRef, ConcurrentLinkedQueue[Problem]]
   private[this] val mainClasses = new TrieMap[VirtualFileRef, ConcurrentLinkedQueue[String]]
@@ -862,10 +864,12 @@ private final class AnalysisCallback(
     ()
   }
 
-  def usedName(className: String, name: String, useScopes: EnumSet[UseScope]) =
-    usedNames.synchronized {
-      usedNames(className) = UsedName.make(name, useScopes)
-    }
+  def usedName(className: String, name: String, useScopes: EnumSet[UseScope]) = {
+    usedNames
+      .getOrElseUpdate(className, ConcurrentHashMap.newKeySet[UsedName].asScala)
+      .add(UsedName.make(name, useScopes))
+    ()
+  }
 
   override def enabled(): Boolean = options.enabled
 
@@ -905,11 +909,15 @@ private final class AnalysisCallback(
   }
 
   def getOrNil[A, B](m: collection.Map[A, Seq[B]], a: A): Seq[B] = m.get(a).toList.flatten
+
   def addCompilation(base: Analysis): Analysis =
     base.copy(compilations = base.compilations.add(compilation))
+
   def addUsedNames(base: Analysis): Analysis = {
-    assert(base.relations.names.size == 0)
-    base.copy(relations = base.relations.addUsedNames(usedNames.result()))
+    assert(base.relations.names.isEmpty)
+    base.copy(
+      relations = base.relations.addUsedNames(UsedNames.fromMultiMap(usedNames))
+    )
   }
 
   private def companionsWithHash(className: String): (Companions, HashAPI.Hash, HashAPI.Hash) = {

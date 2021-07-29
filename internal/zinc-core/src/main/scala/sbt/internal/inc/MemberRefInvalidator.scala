@@ -58,7 +58,7 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
   private final val NoInvalidation = (_: String) => Set.empty[String]
   def get(
       memberRef: Relation[String, String],
-      usedNames: Relation[String, UsedName],
+      usedNames: Relations.UsedNames,
       apiChange: APIChange,
       isScalaClass: String => Boolean
   ): String => Set[String] = apiChange match {
@@ -121,7 +121,7 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
   }
 
   private class NameHashFilteredInvalidator(
-      usedNames: Relation[String, UsedName],
+      usedNames: Relations.UsedNames,
       memberRef: Relation[String, String],
       modifiedNames: ModifiedNames,
       isScalaClass: String => Boolean
@@ -131,17 +131,18 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
       val dependent = memberRef.reverse(to)
       filteredDependencies(dependent)
     }
+
     private def filteredDependencies(dependent: Set[String]): Set[String] = {
       dependent.filter {
         case from if isScalaClass(from) =>
-          val affectedNames = usedNames.forward(from).filter(modifiedNames.isModified)
-          if (affectedNames.isEmpty) {
+          if (!usedNames.hasAffectedNames(modifiedNames, from)) {
             log.debug(
               s"None of the modified names appears in source file of $from. This dependency is not being considered for invalidation."
             )
             false
           } else {
-            log.debug(s"The following modified names cause invalidation of $from: $affectedNames")
+            val affectedNames = usedNames.affectedNames(modifiedNames, from)
+            log.debug(s"The following modified names cause invalidation of $from: [$affectedNames]")
             true
           }
         case from =>
