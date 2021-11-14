@@ -55,14 +55,14 @@ public final class SafeLazy {
     private Thunky<T> thunky;
 
     Impl(Supplier<T> thunk) {
-      this.thunky = new Thunky(thunk, null);
+      this.thunky = new Thunky<>(thunk, null);
     }
 
     public T get() {
       Thunky<T> t = thunky;
       if (t.result == null) {
         T r = t.thunk.get();
-        t = new Thunky(null, r);
+        t = new Thunky<>(null, r);
         thunky = t;
       }
       return t.result;
