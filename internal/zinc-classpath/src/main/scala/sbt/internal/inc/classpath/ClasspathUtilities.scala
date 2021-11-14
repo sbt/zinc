@@ -24,7 +24,7 @@ import scala.util.control.Exception.catching
 object ClasspathUtil {
   def toLoader(finder: PathFinder): ClassLoader = toLoader(finder, rootLoader)
   def toLoader(finder: PathFinder, parent: ClassLoader): ClassLoader =
-    new URLClassLoader(finder.getURLs, parent)
+    new URLClassLoader(finder.getURLs(), parent)
 
   def toLoader(paths: Seq[Path]): ClassLoader = toLoader(paths, rootLoader)
   def toLoader(paths: Seq[Path], parent: ClassLoader): ClassLoader =

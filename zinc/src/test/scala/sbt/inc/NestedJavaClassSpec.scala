@@ -24,7 +24,7 @@ class NestedJavaClassSpec extends BaseCompilerSpec {
       result.analysis() match {
         case analysis: Analysis =>
           analysis.relations.libraryDep._2s
-            .filter(_.id.startsWith(tempDir.toPath.toString)) shouldBe 'empty
+            .filter(_.id.startsWith(tempDir.toPath.toString)) shouldBe Symbol("empty")
       }
     }
   }

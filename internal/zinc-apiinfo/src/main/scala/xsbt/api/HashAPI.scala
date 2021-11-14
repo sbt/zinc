@@ -63,7 +63,7 @@ final class HashAPI private (
     includeTraitBreakers: Boolean
 ) {
   // this constructor variant is for source and binary backwards compatibility with sbt 0.13.0
-  def this(includePrivate: Boolean, includeParamNames: Boolean) {
+  def this(includePrivate: Boolean, includeParamNames: Boolean) = {
     // in the old logic we used to always include definitions hence
     // includeDefinitions=true
     this(

@@ -76,7 +76,7 @@ object Doc {
       val cp0 = classpath.map(converter.toPath(_).toFile)
       val cp = filesInfoToList(FileInfo.lastModified(cp0.toSet))
       val inputs = Inputs(srcs, cp, classpath, outDir, options)
-      val outputs = filesInfoToList(FileInfo.exists(outDir.toFile.allPaths.get.toSet))
+      val outputs = filesInfoToList(FileInfo.exists(outDir.toFile.allPaths.get().toSet))
       inputChanged(storeFactory.make("inputs")) { (inChanged, _: Inputs) =>
         inputChanged(storeFactory.make("output")) { (outChanged, _: List[PlainFileInfo]) =>
           if (inChanged || outChanged) go()

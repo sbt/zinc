@@ -40,7 +40,7 @@ abstract class InvalidationProfiler {
 
 object InvalidationProfiler {
   final val empty: InvalidationProfiler = new InvalidationProfiler {
-    override def profileRun: RunProfiler = RunProfiler.empty
+    override def profileRun(): RunProfiler = RunProfiler.empty
     override def registerRun(run: Zprof.ZincRun): Unit = ()
   }
 }

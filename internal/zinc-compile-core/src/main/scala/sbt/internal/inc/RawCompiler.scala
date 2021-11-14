@@ -102,7 +102,7 @@ class CompileFailed(
 ) extends xsbti.CompileFailed(cause)
     with FeedbackProvidedException {
 
-  def this(arguments: Array[String], toString: String, problems: Array[xsbti.Problem]) {
+  def this(arguments: Array[String], toString: String, problems: Array[xsbti.Problem]) = {
     this(arguments, toString, problems, null)
   }
 }

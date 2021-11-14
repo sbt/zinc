@@ -76,7 +76,7 @@ object JavaCompilerForUnitTesting {
       fileManager.close()
 
       val classesFinder = sbt.io.PathFinder(classesDir) ** "*.class"
-      val classFiles = classesFinder.get.map(_.toPath)
+      val classFiles = classesFinder.get().map(_.toPath)
 
       val classloader = new URLClassLoader(Array(classesDir.toURI.toURL))
 
