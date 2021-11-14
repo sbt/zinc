@@ -93,11 +93,6 @@ ThisBuild / Test / fork := true
 def baseSettings: Seq[Setting[_]] = Seq(
   resolvers += Resolver.typesafeIvyRepo("releases"),
   resolvers += Resolver.sonatypeRepo("snapshots"),
-  resolvers += "bintray-sbt-maven-releases" at "https://dl.bintray.com/sbt/maven-releases/",
-  resolvers += Resolver.url(
-    "bintray-sbt-ivy-snapshots",
-    url("https://dl.bintray.com/sbt/ivy-snapshots/")
-  )(Resolver.ivyStylePatterns),
   testOptions += Tests.Argument(TestFrameworks.ScalaCheck, "-w", "1", "-verbosity", "2"),
   testFrameworks += new TestFramework("verify.runner.Framework"),
   compile / javacOptions ++= Seq("-Xlint", "-Xlint:-serial"),
