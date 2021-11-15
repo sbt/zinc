@@ -35,7 +35,7 @@ class DirectoryClassFinder(dir: Path) extends ClassFinder {
 
   private val pathFinder = PathFinder(dir.toFile) ** "*.class"
 
-  override def classes: DirectoryClasses = new DirectoryClasses(pathFinder.get.map(_.toPath))
+  override def classes: DirectoryClasses = new DirectoryClasses(pathFinder.get().map(_.toPath))
 }
 
 class JarClassFinder(jar: Path) extends ClassFinder {

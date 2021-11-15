@@ -40,7 +40,7 @@ object Locate {
     if (!gets.hasNext)
       Left(false)
     else
-      gets.next.apply(name) match {
+      gets.next().apply(name) match {
         case Left(false) => find(name, gets)
         case x           => x
       }

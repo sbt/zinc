@@ -51,7 +51,7 @@ final class ScalaInstance(
       compilerJar: File,
       allJars: Array[File],
       explicitActual: Option[String]
-  ) {
+  ) = {
     this(
       version,
       loader,
@@ -73,7 +73,7 @@ final class ScalaInstance(
       compilerJar: File,
       allJars: Array[File],
       explicitActual: Option[String]
-  ) {
+  ) = {
     this(
       version,
       loader,
@@ -94,7 +94,7 @@ final class ScalaInstance(
       compilerJar: File,
       allJars: Array[File],
       explicitActual: Option[String]
-  ) {
+  ) = {
     this(
       version,
       loader,

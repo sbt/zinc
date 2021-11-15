@@ -44,7 +44,7 @@ private[xsbt] class ZincBenchmark(toCompile: BenchmarkProject, zincEnabled: Bool
   def writeSetup(globalDir: File): WriteBuildInfo = {
     // Destructive action, remove previous state and cloned projects
     if (globalDir.exists()) IO.delete(globalDir)
-    toCompile.cloneRepo(globalDir).right.flatMap { projectDir =>
+    toCompile.cloneRepo(globalDir).flatMap { projectDir =>
       toCompile.writeBuildInfo(projectDir, globalDir)
     }
   }
@@ -87,9 +87,9 @@ private[xsbt] class ZincBenchmark(toCompile: BenchmarkProject, zincEnabled: Bool
 
     import CompilationInfo.{ readBuildInfos, createStateFile }
     val stateFile = createStateFile(compilationDir)
-    val targetSetup = readBuildInfos(stateFile).right.flatMap { builds =>
+    val targetSetup = readBuildInfos(stateFile).flatMap { builds =>
       val collected = builds.collect {
-        case r @ Right(read) if r.right.exists(t => targetProjects.contains(t._1)) =>
+        case r @ Right(read) if r.exists(t => targetProjects.contains(t._1)) =>
           val (subproject, compilationInfo) = read
           createSetup(subproject, compilationInfo)
       }
@@ -132,7 +132,7 @@ private[xsbt] object ZincBenchmark {
 
     /** Checkout a hash in a concrete repository and throw away Ref. */
     def checkout(git: Git, hash: String): Result[Git] =
-      Try(git.checkout().setName(hash).call()).toEither.right.map(_ => git)
+      Try(git.checkout().setName(hash).call()).toEither.map(_ => git)
   }
 
   /** Sbt classpath, scalac options and sources for a given subproject. */
@@ -222,7 +222,7 @@ private[xsbt] object ZincBenchmark {
           case Array(sbtProject, buildOutputFilepath) =>
             val buildOutputFile = new File(buildOutputFilepath)
             if (buildOutputFile.exists())
-              readCompilationFile(buildOutputFile).right.map(sbtProject -> _)
+              readCompilationFile(buildOutputFile).map(sbtProject -> _)
             else Left(new Exception(s"$buildOutputFile doesn't exist."))
           case _ =>
             Left(new Exception(s"Unexpected format of line: $line."))
@@ -230,10 +230,10 @@ private[xsbt] object ZincBenchmark {
       }
 
       val readState = Try(IO.read(stateFile).linesIterator.toList).toEither
-      readState.right.flatMap { stateLines =>
+      readState.flatMap { stateLines =>
         val init: Result[List[ReadBuildInfo]] = Right(Nil)
         stateLines.foldLeft(init) { (acc, line) =>
-          acc.right.map(rs => parseStateLine(line) :: rs)
+          acc.map(rs => parseStateLine(line) :: rs)
         }
       }
     }
@@ -267,7 +267,7 @@ private[xsbt] object ZincBenchmark {
       val taskName = generateTaskName(sbtProject)
       val sbtExecutable = if (scala.util.Properties.isWin) "cmd /c sbt.bat" else "sbt"
       val sbt = Try(Process(s"$sbtExecutable ++$scalaVersion! $taskName", atDir).!).toEither
-      sbt.right.flatMap { _ =>
+      sbt.flatMap { _ =>
         val buildOutputFilepath = buildOutputFile.getAbsolutePath
         Try {
           val subprojectId = createIdentifierFor(sbtProject, project)
@@ -298,7 +298,7 @@ case class BenchmarkProject(
   private[xsbt] def cloneRepo(at: File): Result[File] = {
     val tempDir = new File(s"${at.getAbsolutePath}/$hash")
     val gitClient = Git.clone(repo, tempDir)
-    gitClient.right.flatMap(Git.checkout(_, hash)).right.map(_ => tempDir)
+    gitClient.flatMap(Git.checkout(_, hash)).map(_ => tempDir)
   }
 
   // Left for compatibility
@@ -311,7 +311,7 @@ case class BenchmarkProject(
       val buildFile = clonedProjectDir / "build.sbt"
       val appendFile = Try(IO.append(buildFile, taskImpl)).toEither
 
-      appendFile.right.flatMap { _ =>
+      appendFile.flatMap { _ =>
         CompilationInfo.executeSbtTask(
           subproject,
           this,
@@ -328,7 +328,7 @@ case class BenchmarkProject(
 
     val init: WriteBuildInfo = Right(())
     subprojects.foldLeft(init) { (result, subproject) =>
-      result.right.flatMap { _ =>
+      result.flatMap { _ =>
         persistBuildInfo(subproject, stateFile)
       }
     }

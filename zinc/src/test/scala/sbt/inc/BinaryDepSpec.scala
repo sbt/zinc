@@ -39,8 +39,10 @@ class BinaryDepSpec extends BaseCompilerSpec {
       try {
         val a = compiler2.doCompile().analysis.asInstanceOf[Analysis]
         // We should not depend on jar creating from project that we depend on (since we've got analysis for it)
-        a.relations.libraryDep._2s.filter(_.id.startsWith(tmp.toPath.toString)) shouldBe 'empty
-        a.relations.libraryDep._2s.filter(_.id.endsWith("rt.jar")) shouldBe 'empty
+        a.relations.libraryDep._2s.filter(_.id.startsWith(tmp.toPath.toString)) shouldBe Symbol(
+          "empty"
+        )
+        a.relations.libraryDep._2s.filter(_.id.endsWith("rt.jar")) shouldBe Symbol("empty")
       } finally compiler2.close()
     } finally compiler.close()
   })

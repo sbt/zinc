@@ -219,7 +219,7 @@ final class MixedAnalyzingCompiler(
 
   private def putJavacOutputInJar(outputJar: File, outputDir: File): Unit = {
     import sbt.io.syntax._
-    val compiledClasses = (outputDir ** -DirectoryFilter).get.flatMap { classFile =>
+    val compiledClasses = (outputDir ** -DirectoryFilter).get().flatMap { classFile =>
       IO.relativize(outputDir, classFile) match {
         case Some(relPath) =>
           List((classFile, relPath))
