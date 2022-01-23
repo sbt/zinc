@@ -240,7 +240,7 @@ object Stamper {
       cache: collection.mutable.Map[VirtualFileRef, (Long, XStamp)],
       converter: FileConverter,
       getStamp: VirtualFileRef => XStamp
-  ): VirtualFileRef => XStamp = { key: VirtualFileRef =>
+  ): VirtualFileRef => XStamp = { (key: VirtualFileRef) =>
     val p = converter.toPath(key)
     val ts =
       try IO.getModifiedTimeOrZero(p.toFile)

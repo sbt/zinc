@@ -800,7 +800,8 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
       else s"The mini setup from format ${version} could not be read.".!!
     (analysis, miniSetup, version)
   }
-  private class StringTable {
+
+  private[inc] class StringTable {
     private val strings = new JHashMap[String, String]()
     def lookupOrEnter(string: String): String = {
       strings.putIfAbsent(string, string) match {

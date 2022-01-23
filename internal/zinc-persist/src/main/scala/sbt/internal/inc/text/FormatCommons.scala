@@ -56,20 +56,20 @@ object FormatCommons extends FormatCommons
 /** Various helper functions. */
 trait FormatCommons {
 
-  val fileToString: File => String = { f: File =>
+  val fileToString: File => String = { (f: File) =>
     f.toPath.toString
   }
-  val stringToFile: String => File = { s: String =>
+  val stringToFile: String => File = { (s: String) =>
     try {
       Paths.get(s).toFile
     } catch {
       case e: Exception => sys.error(e.getMessage + ": " + s)
     }
   }
-  val fileVToString: VirtualFileRef => String = { f: VirtualFileRef =>
+  val fileVToString: VirtualFileRef => String = { (f: VirtualFileRef) =>
     f.id
   }
-  val stringToFileV: String => VirtualFileRef = { s: String =>
+  val stringToFileV: String => VirtualFileRef = { (s: String) =>
     VirtualFileRef.of(s)
   }
 

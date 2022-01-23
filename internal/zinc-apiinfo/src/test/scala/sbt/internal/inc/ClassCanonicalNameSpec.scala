@@ -55,16 +55,16 @@ class ClassCanonicalNameSpec extends AnyFlatSpec with Matchers with Diagrams {
 
   check[p1.x.y.type](OO)
   check[p2.x.y](OC)
-  check[c1.y.type forSome { val c1: p3.x }](CO)
+  // check[c1.y.type forSome { val c1: p3.x }](CO)
   check[p4.x#y](CC)
 
   check[p1.x.y.z.type](OOO)
   check[p1.x.y.z](OOC)
-  check[c2.z.type forSome { val c2: p2.x.y }](OCO)
+  // check[c2.z.type forSome { val c2: p2.x.y }](OCO)
   check[p2.x.y#z](OCC)
-  check[c1.y.z.type forSome { val c1: p3.x }](COO)
-  check[c1.y.z forSome { val c1: p3.x }](COC)
-  check[c2.z.type forSome { val c2: p4.x#y }](CCO)
+  // check[c1.y.z.type forSome { val c1: p3.x }](COO)
+  // check[c1.y.z forSome { val c1: p3.x }](COC)
+  // check[c2.z.type forSome { val c2: p4.x#y }](CCO)
   check[p4.x#y#z](CCC)
 
   // Now again, but calling getClass on an instance instead
