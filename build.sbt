@@ -425,10 +425,9 @@ lazy val compilerInterface = (projectMatrix in internalPath / "compiler-interfac
   .settings(
     baseSettings,
     name := "Compiler Interface",
-    scalaVersion := scala212,
-    crossScalaVersions := Seq(scala212),
+    scalaVersion := scala3,
+    crossScalaVersions := Seq(scala3),
     compilerVersionDependentScalacOptions,
-    libraryDependencies ++= Seq(scalaLibrary.value % Test),
     libraryDependencies ++= Seq(scalatest % Test),
     exportJars := true,
     Compile / resourceGenerators += Def.task {
@@ -522,7 +521,10 @@ lazy val compilerBridge213 = compilerBridge.jvm(scala213)
  * (Zinc API Info, which transitively depends on IO).
  */
 lazy val compilerBridgeTest = (project in internalPath / "compiler-bridge-test")
-  .dependsOn(zinc3 % "compile->compile;test->test", compilerInterface.jvm(false))
+  .dependsOn(
+    zinc3 % "compile->compile;test->test",
+    compilerInterface.jvm(false)
+  )
   .settings(
     name := "Compiler Bridge Test",
     baseSettings,
@@ -535,7 +537,7 @@ lazy val compilerBridgeTest = (project in internalPath / "compiler-bridge-test")
     // needed because we fork tests and tests are ran in parallel so we have multiple Scala
     // compiler instances that are memory hungry
     Test / javaOptions += "-Xmx1G",
-    Test / javaOptions += s"-Dzinc.build.compilerbridge.scalaVersion=${scalaVersion.value}",
+    Test / javaOptions += s"-Dzinc.build.compilerbridge.scalaVersion=${scala213}",
     publish / skip := true,
   )
 
