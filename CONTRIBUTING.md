@@ -70,7 +70,7 @@ compilation works in 1.0.
 
 Guides:
 
-* [Understanding Incremental Recompilation](http://www.scala-sbt.org/0.13/docs/Understanding-Recompilation.html).
+* [Understanding Incremental Recompilation](https://www.scala-sbt.org/1.x/docs/Understanding-Recompilation.html).
 * [Scala Lang blog post on Zinc release](https://www.scala-lang.org/blog/2017/11/03/zinc-blog-1.0.html).
 * All the issues and PRs labelled as `docs` will help you understand different
   aspects of Zinc. They both count with concrete information that are helpful
