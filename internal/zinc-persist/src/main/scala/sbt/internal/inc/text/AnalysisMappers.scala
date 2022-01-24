@@ -17,6 +17,7 @@ import java.nio.file.{ Path, Paths }
 import sbt.internal.inc.UsedName
 import xsbti.{ UseScope, VirtualFileRef }
 import xsbti.compile.analysis.Stamp
+import scala.collection.JavaConverters._
 
 case class Mapper[V](read: String => V, write: V => String)
 case class ContextAwareMapper[C, V](read: (C, String) => V, write: (C, V) => String)
@@ -34,7 +35,7 @@ object Mapper {
     def serialize(usedName: UsedName): String =
       s"${enumSetSerializer.serialize(usedName.scopes)}${usedName.name}"
 
-    def deserialize(s: String) = UsedName(s.tail, enumSetSerializer.deserialize(s.head))
+    def deserialize(s: String) = UsedName(s.tail, enumSetSerializer.deserialize(s.head).asScala)
 
     Mapper(deserialize, serialize)
   }

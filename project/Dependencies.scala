@@ -9,12 +9,14 @@ object Dependencies {
   val scala211 = "2.11.12"
   val scala212 = "2.12.15"
   val scala213 = "2.13.6"
-  val defaultScalaVersion = scala212
-  val allScalaVersions = Seq(defaultScalaVersion, scala210, scala211, scala213)
+  val scala3 = "3.1.0"
+  val defaultScalaVersion = scala3
+  val allScalaVersions = Seq(scala212, scala210, scala211, scala213)
   val scala212_213 = Seq(defaultScalaVersion, scala213)
+  val scala3_only = Seq(scala3)
 
   private val ioVersion = nightlyVersion.getOrElse("1.6.0")
-  private val utilVersion = nightlyVersion.getOrElse("1.6.1")
+  private val utilVersion = nightlyVersion.getOrElse("2.0.0-alpha1")
 
   private val sbtIO = "org.scala-sbt" %% "io" % ioVersion
 
@@ -70,17 +72,18 @@ object Dependencies {
   val scalaLibrary = Def.setting { "org.scala-lang" % "scala-library" % scalaVersion.value }
   val scalaCompiler = Def.setting { "org.scala-lang" % "scala-compiler" % scalaVersion.value }
 
-  val parserCombinator = "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2"
+  val parserCombinator = "org.scala-lang.modules" %% "scala-parser-combinators" % "2.1.0"
   val sbinary = "org.scala-sbt" %% "sbinary" % "0.5.1"
-  val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.14.0"
-  val scalatest = "org.scalatest" %% "scalatest" % "3.2.0"
+  val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.15.4"
+  val scalatest = "org.scalatest" %% "scalatest" % "3.2.10"
   val junit = "junit" % "junit" % "4.12"
-  val verify = "com.eed3si9n.verify" %% "verify" % "0.2.0"
+  val verify = "com.eed3si9n.verify" %% "verify" % "1.0.0"
+  val sjsonNewVersion = "0.10.0"
   val sjsonnew = Def.setting {
-    "com.eed3si9n" %% "sjson-new-core" % contrabandSjsonNewVersion.value
+    "com.eed3si9n" %% "sjson-new-core" % sjsonNewVersion
   }
   val sjsonnewScalaJson = Def.setting {
-    "com.eed3si9n" %% "sjson-new-scalajson" % contrabandSjsonNewVersion.value
+    "com.eed3si9n" %% "sjson-new-scalajson" % sjsonNewVersion
   }
   val zeroAllocationHashing = "net.openhft" % "zero-allocation-hashing" % "0.10.1"
 

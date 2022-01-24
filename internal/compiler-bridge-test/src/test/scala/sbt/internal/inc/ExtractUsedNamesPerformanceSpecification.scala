@@ -58,7 +58,7 @@ class ExtractUsedNamesPerformanceSpecification
       catch { case _: Throwable => /*ignore*/ }
     }
     import org.scalatest.time.SpanSugar._
-    val usedNames = failAfter(30 seconds) {
+    val usedNames = failAfter(30.seconds) {
       extractUsedNamesFromSrc(src)
     }
     // format: off

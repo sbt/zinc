@@ -59,7 +59,7 @@ class RawCompiler(val scalaInstance: XScalaInstance, cp: ClasspathOptions, log: 
     }
 
     // Make sure that methods exist so that reflection is safe (trick)
-    import scala.tools.nsc.Main.{ process => _, reporter => _ }
+    // import scala.tools.nsc.Main.{ process => _, reporter => _ }
     val uniqueCompilerVersion = scalaInstance.actualVersion
     val compilerOut = Some(outputDirectory)
     val arguments = compilerArguments.makeArguments(sources, classpath, compilerOut, options)

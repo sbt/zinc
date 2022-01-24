@@ -27,7 +27,7 @@ private[sbt] trait ClassFile {
   val fields: Array[FieldOrMethodInfo]
   val methods: Array[FieldOrMethodInfo]
   val attributes: Array[AttributeInfo]
-  val sourceFile: Option[String]
+  def sourceFile: Option[String]
   def types: Set[String]
   def stringValue(a: AttributeInfo): String
 
