@@ -696,10 +696,3 @@ def scriptedTask: Def.Initialize[InputTask[Unit]] = Def.inputTask {
     scriptedCompileToJar.value,
   )
 }
-
-ThisBuild / whitesourceProduct := "Lightbend Reactive Platform"
-ThisBuild / whitesourceAggregateProjectName := "sbt-zinc-master"
-ThisBuild / whitesourceAggregateProjectToken := "4b57f35176864c6397b872277d51bc27b89503de0f1742b8bc4dfa2e33b95c5c"
-ThisBuild / whitesourceIgnoredScopes += "scalafmt"
-ThisBuild / whitesourceFailOnError := sys.env.contains("WHITESOURCE_PASSWORD") // fail if pwd is present
-ThisBuild / whitesourceForceCheckAllDependencies := true

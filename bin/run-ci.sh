@@ -8,7 +8,6 @@ sbt -Dfile.encoding=UTF-8 \
   mimaReportBinaryIssues \
   scalafmtCheckAll \
   scalafmtSbtCheck \
-  whitesourceCheckPolicies \
   Test/compile \
   doc \
   crossTestBridges \
