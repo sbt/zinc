@@ -14,7 +14,7 @@ object HouseRulesPlugin extends AutoPlugin {
     scalacOptions ++= Seq("-deprecation", "-feature", "-unchecked", "-Xlint"),
     scalacOptions += "-language:higherKinds",
     scalacOptions += "-language:implicitConversions",
-    scalacOptions ++= "-Xfuture".ifScala213OrMinus.value.toList,
+    scalacOptions ++= "-Xfuture".ifScala212OrMinus.value.toList,
     scalacOptions += "-Xlint",
     scalacOptions ++= "-Xfatal-warnings"
       .ifScala(v => {
