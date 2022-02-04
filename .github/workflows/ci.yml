@@ -45,10 +45,10 @@ jobs:
             bin/run-ci.sh
             ;;
           2)
-            sbt -v -Dfile.encoding=UTF-8 -J-XX:ReservedCodeCacheSize=512M -Dsbt.supershell=never -J-Xms1024M -J-Xmx2048M -J-server "crossTestBridges" "zincRoot/test" "zincScriptedJVM2_12/test:run"
+            sbt -v -Dfile.encoding=UTF-8 -Dsbt.supershell=never "crossTestBridges" "zincRoot/test" "zincScriptedJVM2_12/test:run"
             ;;
           3)
-            sbt -v -Dfile.encoding=UTF-8 -J-XX:ReservedCodeCacheSize=512M -J-Xms1024M -J-Xmx2048M -J-server "runBenchmarks"
+            sbt -v -Dfile.encoding=UTF-8 "runBenchmarks"
             ;;
           *)
             echo unknown jobtype
