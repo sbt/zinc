@@ -11,8 +11,8 @@ object CustomHeaderPlugin extends AutoPlugin {
 
   override def projectSettings = Seq(
     SbtHeaderKeys.headerMappings ++= Map(
-      HeaderFileType.scala -> HeaderCommentStyle.CStyleBlockComment,
-      HeaderFileType.java -> HeaderCommentStyle.CStyleBlockComment
+      HeaderFileType.scala -> HeaderCommentStyle.cStyleBlockComment,
+      HeaderFileType.java -> HeaderCommentStyle.cStyleBlockComment
     ),
     SbtHeaderKeys.headerLicense := Some(
       HeaderLicense.Custom(
