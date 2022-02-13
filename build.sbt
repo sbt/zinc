@@ -310,7 +310,19 @@ lazy val zincPersistCore = (project in internalPath / "zinc-persist-core")
     exportJars := true,
     ProtobufConfig / version := "3.11.4", // sync version w/ plugins.sbt
     ProtobufConfig / protobufRunProtoc := { args =>
-      Protoc.runProtoc(s"-v${(ProtobufConfig / version).value}" +: args.toArray)
+      // as per https://github.com/os72/protoc-jar/issues/93 , this is needed
+      // to work around the lack of support for Apple M1 architecture.
+      // (there is an upstream fix, but as of February 2022 there is no
+      // protoc-jar release containing the fix)
+      val workaround =
+        System.getProperty("os.name") == "Mac OS X" &&
+          System.getProperty("os.arch") == "aarch64"
+      try {
+        if (workaround)
+          System.setProperty("os.arch", "x86_64")
+        Protoc.runProtoc(s"-v${(ProtobufConfig / version).value}" +: args.toArray)
+      } finally if (workaround)
+        System.setProperty("os.arch", "aarch64")
     },
     publish / skip := true,
     assembly / assemblyShadeRules := Seq(
