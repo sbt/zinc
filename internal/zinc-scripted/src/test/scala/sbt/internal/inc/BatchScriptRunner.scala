@@ -21,7 +21,8 @@ import sbt.internal.inc.BatchScriptRunner.{ PreciseScriptedError, States }
 /** Defines an alternative script runner that allows batch execution. */
 private[sbt] class BatchScriptRunner extends ScriptRunner {
 
-  /** Defines a method to run batched execution.
+  /**
+   * Defines a method to run batched execution.
    *
    * @param statements The list of handlers and statements.
    * @param states The states of the runner. In case it's empty, inherited apply is called.
@@ -58,8 +59,13 @@ private[sbt] object BatchScriptRunner {
 
   // Should be used instead of sbt.internal.scripted.TestException that doesn't show failed command
   final class PreciseScriptedError(st: Statement, msg: String, e: Throwable)
-      extends RuntimeException({
-        val args = if (st.arguments.nonEmpty) st.arguments.mkString(" ", " ", "") else ""
-        s"${st.linePrefix}$msg: '${st.command}$args'"
-      }, e, false, false)
+      extends RuntimeException(
+        {
+          val args = if (st.arguments.nonEmpty) st.arguments.mkString(" ", " ", "") else ""
+          s"${st.linePrefix}$msg: '${st.command}$args'"
+        },
+        e,
+        false,
+        false
+      )
 }

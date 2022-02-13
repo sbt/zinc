@@ -168,14 +168,15 @@ object ClassToAPI {
     cmap.memo(name) = defsEmptyMembers
     cmap.allNonLocalClasses ++= defs
 
-    if (c.getMethods.exists(
-          meth =>
-            meth.getName == "main" &&
-              Modifier.isStatic(meth.getModifiers) &&
-              meth.getParameterTypes.length == 1 &&
-              meth.getParameterTypes.head == classOf[Array[String]] &&
-              meth.getReturnType == java.lang.Void.TYPE
-        )) {
+    if (
+      c.getMethods.exists(meth =>
+        meth.getName == "main" &&
+          Modifier.isStatic(meth.getModifiers) &&
+          meth.getParameterTypes.length == 1 &&
+          meth.getParameterTypes.head == classOf[Array[String]] &&
+          meth.getReturnType == java.lang.Void.TYPE
+      )
+    ) {
       cmap.mainClasses += name
     }
 
@@ -367,8 +368,8 @@ object ClassToAPI {
   ): api.Def = {
     val varArgPosition = if (varArgs) paramTypes.length - 1 else -1
     val isVarArg = List.tabulate(paramTypes.length)(_ == varArgPosition)
-    val pa = (paramAnnots, paramTypes, isVarArg).zipped map {
-      case (a, p, v) => parameter(a, p, v)
+    val pa = (paramAnnots, paramTypes, isVarArg).zipped map { case (a, p, v) =>
+      parameter(a, p, v)
     }
     val params = api.ParameterList.of(pa.toArray, false)
     val ret = retType match { case Some(rt) => reference(rt); case None => Empty }
@@ -386,8 +387,8 @@ object ClassToAPI {
   def exceptionAnnotations(exceptions: Array[Type]): Array[api.Annotation] =
     if (exceptions.length == 0) emptyAnnotationArray
     else
-      arrayMap(exceptions)(
-        t => api.Annotation.of(Throws, Array(api.AnnotationArgument.of("value", t.toString)))
+      arrayMap(exceptions)(t =>
+        api.Annotation.of(Throws, Array(api.AnnotationArgument.of("value", t.toString)))
       )
 
   def parameter(annots: Array[Annotation], parameter: Type, varArgs: Boolean): api.MethodParameter =
@@ -584,8 +585,8 @@ object ClassToAPI {
   private[this] def PrimitiveNames =
     Seq("boolean", "byte", "char", "short", "int", "long", "float", "double")
   private[this] def PrimitiveMap = PrimitiveNames.map(j => (j, j.capitalize)) :+ ("void" -> "Unit")
-  private[this] val PrimitiveRefs = PrimitiveMap.map {
-    case (n, sn) => (n, reference("scala." + sn))
+  private[this] val PrimitiveRefs = PrimitiveMap.map { case (n, sn) =>
+    (n, reference("scala." + sn))
   }.toMap
   def primitive(name: String): api.Type = PrimitiveRefs(name)
 

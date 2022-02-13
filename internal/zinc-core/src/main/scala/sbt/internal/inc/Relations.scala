@@ -36,10 +36,10 @@ trait Relations {
   /** All products associated with sources. */
   def allProducts: collection.Set[VirtualFileRef]
 
-  /** All files that are recorded as a library dependency of a source file.*/
+  /** All files that are recorded as a library dependency of a source file. */
   def allLibraryDeps: collection.Set[VirtualFileRef]
 
-  /** All files in another compilation group (project) that are recorded as a source dependency of a source file in this group.*/
+  /** All files in another compilation group (project) that are recorded as a source dependency of a source file in this group. */
   def allExternalDeps: collection.Set[String]
 
   /**
@@ -68,16 +68,16 @@ trait Relations {
   /** The library files that generated a class with the given fully qualified `name`. This is typically a set containing a single file. */
   def libraryDefinesClass(name: String): Set[VirtualFileRef]
 
-  /** Internal source dependencies for `src`.  This includes both direct and inherited dependencies.  */
+  /** Internal source dependencies for `src`.  This includes both direct and inherited dependencies. */
   def internalClassDeps(className: String): Set[String]
 
-  /** Internal source files that depend on internal source `dep`.  This includes both direct and inherited dependencies.  */
+  /** Internal source files that depend on internal source `dep`.  This includes both direct and inherited dependencies. */
   def usesInternalClass(className: String): Set[String]
 
-  /** External source dependencies that internal source file `src` depends on.  This includes both direct and inherited dependencies.  */
+  /** External source dependencies that internal source file `src` depends on.  This includes both direct and inherited dependencies. */
   def externalDeps(className: String): Set[String]
 
-  /** Internal source dependencies that depend on external source file `dep`.  This includes both direct and inherited dependencies.  */
+  /** Internal source dependencies that depend on external source file `dep`.  This includes both direct and inherited dependencies. */
   def usesExternal(className: String): Set[String]
 
   /**
@@ -171,10 +171,10 @@ trait Relations {
    */
   def productClassName: Relation[String, String]
 
-  /** The dependency relation between internal classes.*/
+  /** The dependency relation between internal classes. */
   def internalClassDep: Relation[String, String]
 
-  /** The dependency relation between internal and external classes.*/
+  /** The dependency relation between internal and external classes. */
   def externalClassDep: Relation[String, String]
 
   /** All the internal dependencies */
@@ -221,7 +221,6 @@ trait Relations {
    *
    * Therefore if you inherit from a trait you'll get an additional dependency on a class that is
    * resolved transitively. You should not rely on this behavior, though.
-   *
    */
   private[inc] def inheritance: ClassDependencies
 
@@ -259,7 +258,7 @@ trait Relations {
    */
   private[inc] def localInheritance: ClassDependencies
 
-  /** The relation between a source file and the fully qualified names of classes generated from it.*/
+  /** The relation between a source file and the fully qualified names of classes generated from it. */
   def classes: Relation[VirtualFileRef, String]
 
   /**
@@ -282,7 +281,7 @@ trait Relations {
 object Relations {
   type UsedNames = inc.UsedNames
 
-  /** Tracks internal and external source dependencies for a specific dependency type, such as direct or inherited.*/
+  /** Tracks internal and external source dependencies for a specific dependency type, such as direct or inherited. */
   private[inc] final class ClassDependencies(
       val internal: Relation[String, String],
       val external: Relation[String, String]
@@ -292,7 +291,7 @@ object Relations {
     def addExternal(className: String, dependsOn: Iterable[String]): ClassDependencies =
       new ClassDependencies(internal, external + (className, dependsOn))
 
-    /** Drops all dependency mappings from `sources`. Acts naively, i.e., doesn't externalize internal deps on removed files.*/
+    /** Drops all dependency mappings from `sources`. Acts naively, i.e., doesn't externalize internal deps on removed files. */
     def --(classNames: Iterable[String]): ClassDependencies =
       new ClassDependencies(internal -- classNames, external -- classNames)
     def ++(o: ClassDependencies): ClassDependencies =
@@ -360,8 +359,8 @@ private[inc] object DependencyCollection {
       m1: Map[DependencyContext, Relation[String, T]],
       m2: Map[DependencyContext, Relation[String, T]]
   ) =
-    m1.foldLeft(m2) {
-      case (tmp, (key, values)) => tmp.updated(key, tmp.getOrElse(key, Relation.empty) ++ values)
+    m1.foldLeft(m2) { case (tmp, (key, values)) =>
+      tmp.updated(key, tmp.getOrElse(key, Relation.empty) ++ values)
     }
 }
 
@@ -429,7 +428,10 @@ private case class ExternalDependencies(
       dependencies.updated(
         dep.context,
         dependencies
-          .getOrElse(dep.context, Relation.empty) + (dep.sourceClassName, dep.targetProductClassName)
+          .getOrElse(
+            dep.context,
+            Relation.empty
+          ) + (dep.sourceClassName, dep.targetProductClassName)
       )
     )
 
@@ -665,8 +667,8 @@ private class MRelationsNameHashing(
 
   override def toString: String = {
     def deps_s(m: Map[_, Relation[_, _]]) =
-      m.iterator.map {
-        case (k, vs) => s"\n    $k ${relation_s(vs)}"
+      m.iterator.map { case (k, vs) =>
+        s"\n    $k ${relation_s(vs)}"
       }.mkString
     s"""
     |Relations:

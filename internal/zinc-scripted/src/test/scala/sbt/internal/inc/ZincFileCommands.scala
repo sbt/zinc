@@ -28,12 +28,11 @@ class ZincFileCommands(baseDirectory: File, logger: Logger) extends FileCommands
         scala.io.StdIn.readLine()
         println("Restarting the execution.")
       }
-    }).map {
-      case (cmd, fn) =>
-        cmd -> ((args: List[String]) => {
-          logger.debug(() => s"Running: $$ $cmd ${args.mkString(" ")}")
-          fn(args)
-        })
+    }).map { case (cmd, fn) =>
+      cmd -> ((args: List[String]) => {
+        logger.debug(() => s"Running: $$ $cmd ${args.mkString(" ")}")
+        fn(args)
+      })
     }
   }
 

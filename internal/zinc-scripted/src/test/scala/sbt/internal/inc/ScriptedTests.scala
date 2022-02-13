@@ -57,12 +57,11 @@ final class ScriptedTests(
       testDir <- groupDir.toFile.*(name).get.map(_.toPath)
     } yield (groupDir, testDir)
 
-    val labelsAndDirs = groupAndNameDirs.map {
-      case (groupDir, nameDir) =>
-        val groupName = groupDir.getFileName.toString
-        val testName = nameDir.getFileName.toString
-        val testDirectory = testResources.readOnlyResourceDirectory(groupName, testName)
-        (groupName, testName) -> testDirectory
+    val labelsAndDirs = groupAndNameDirs.map { case (groupDir, nameDir) =>
+      val groupName = groupDir.getFileName.toString
+      val testName = nameDir.getFileName.toString
+      val testDirectory = testResources.readOnlyResourceDirectory(groupName, testName)
+      (groupName, testName) -> testDirectory
     }
 
     if (labelsAndDirs.isEmpty) List()
@@ -110,7 +109,8 @@ final class ScriptedTests(
     ScriptedLogger(logger, outAppender)
   }
 
-  /** Defines the batch execution of scripted tests.
+  /**
+   * Defines the batch execution of scripted tests.
    *
    * Scripted tests are run one after the other one recycling the handlers, under
    * the assumption that handlers do not produce side effects that can change scripted
@@ -138,27 +138,26 @@ final class ScriptedTests(
     val seqHandlers = handlers.values.toList
     runner.initStates(states, seqHandlers)
 
-    try groupedTests.map {
-      case ((group, name), originalDir) =>
-        val label = s"$group/$name"
-        val loggerName = s"scripted-$group-$name.log"
-        val logFile = createScriptedLogFile(loggerName)
-        val logger = rebindLogger(batchLogger, logFile)
-        if (bufferLog) batchLogger.buffer.record()
+    try groupedTests.map { case ((group, name), originalDir) =>
+      val label = s"$group/$name"
+      val loggerName = s"scripted-$group-$name.log"
+      val logFile = createScriptedLogFile(loggerName)
+      val logger = rebindLogger(batchLogger, logFile)
+      if (bufferLog) batchLogger.buffer.record()
 
-        batchLogger.log.info(s"Running $label")
-        // Copy test's contents
-        IO.copyDirectory(originalDir, batchTmpDir.toFile)
+      batchLogger.log.info(s"Running $label")
+      // Copy test's contents
+      IO.copyDirectory(originalDir, batchTmpDir.toFile)
 
-        // Reset the state of `IncHandler` between every scripted run
-        runner.cleanUpHandlers(seqHandlers, states)
-        runner.initStates(states, seqHandlers)
+      // Reset the state of `IncHandler` between every scripted run
+      runner.cleanUpHandlers(seqHandlers, states)
+      runner.initStates(states, seqHandlers)
 
-        // Run the test and delete files (except global that holds local scala jars)
-        val runTest = () => commonRunTest(label, batchTmpDir, handlers, runner, states, logger)
-        val result = runOrHandleDisabled(label, batchTmpDir, runTest, logger)
-        IO.delete(batchTmpDir.toFile.*("*" -- "global").get)
-        result
+      // Run the test and delete files (except global that holds local scala jars)
+      val runTest = () => commonRunTest(label, batchTmpDir, handlers, runner, states, logger)
+      val result = runOrHandleDisabled(label, batchTmpDir, runTest, logger)
+      IO.delete(batchTmpDir.toFile.*("*" -- "global").get)
+      result
     } finally runner.cleanUpHandlers(seqHandlers, states)
   }
 

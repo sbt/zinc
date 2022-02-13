@@ -39,15 +39,15 @@ abstract class LoaderBase(urls: Seq[URL], parent: ClassLoader)
     found
   }
 
-  /** Provides the implementation of finding a class that has not yet been loaded.*/
+  /** Provides the implementation of finding a class that has not yet been loaded. */
   protected def doLoadClass(className: String): Class[_]
 
-  /** Provides access to the default implementation of 'loadClass'.*/
+  /** Provides access to the default implementation of 'loadClass'. */
   protected final def defaultLoadClass(className: String): Class[_] =
     super.loadClass(className, false)
 }
 
-/** Searches self first before delegating to the parent.*/
+/** Searches self first before delegating to the parent. */
 final class SelfFirstLoader(classpath: Seq[URL], parent: ClassLoader)
     extends LoaderBase(classpath, parent) {
   @throws(classOf[ClassNotFoundException])
@@ -60,7 +60,7 @@ final class SelfFirstLoader(classpath: Seq[URL], parent: ClassLoader)
   }
 }
 
-/** Doesn't load any classes itself, but instead verifies that all classes loaded through `parent` either come from `root` or `classpath`.*/
+/** Doesn't load any classes itself, but instead verifies that all classes loaded through `parent` either come from `root` or `classpath`. */
 final class ClasspathFilter(parent: ClassLoader, root: ClassLoader, classpath: Set[Path])
     extends ClassLoader(parent) {
 

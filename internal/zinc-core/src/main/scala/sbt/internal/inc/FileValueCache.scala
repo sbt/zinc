@@ -32,8 +32,8 @@ object FileValueCache {
     new FileValueCache0[T](stamp, f)
 }
 
-private[this] final class FileValueCache0[T](getStamp: Path => XStamp, make: Path => T)(
-    implicit equiv: Equiv[XStamp]
+private[this] final class FileValueCache0[T](getStamp: Path => XStamp, make: Path => T)(implicit
+    equiv: Equiv[XStamp]
 ) extends FileValueCache[T] {
   private[this] val backing = new ConcurrentHashMap[Path, FileCache]
 

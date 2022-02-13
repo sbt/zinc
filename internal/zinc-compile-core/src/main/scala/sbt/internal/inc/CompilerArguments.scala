@@ -137,8 +137,8 @@ final class CompilerArguments(
     bootClasspath(hasLibrary(classpath))
 
   def extClasspath: Seq[Path] =
-    List("java.ext.dirs", "scala.ext.dirs").flatMap(
-      k => (IO.parseClasspath(System.getProperty(k, "")) * "*.jar").get().map(_.toPath)
+    List("java.ext.dirs", "scala.ext.dirs").flatMap(k =>
+      (IO.parseClasspath(System.getProperty(k, "")) * "*.jar").get().map(_.toPath)
     )
 
   private[this] def include(flag: Boolean, jars: Path*) =

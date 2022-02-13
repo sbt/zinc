@@ -40,8 +40,8 @@ object CompileOutput {
    * @return An instance of `MultipleOutput`.
    */
   def apply(groups: (Path, Path)*): Output = {
-    val gs = groups.toArray map {
-      case (src, out) => outputGroup(src, out)
+    val gs = groups.toArray map { case (src, out) =>
+      outputGroup(src, out)
     }
     apply(gs)
   }

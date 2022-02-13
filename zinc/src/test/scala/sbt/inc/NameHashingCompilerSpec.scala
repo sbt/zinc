@@ -39,12 +39,11 @@ class NameHashingCompilerSpec extends BaseCompilerSpec {
 
       val result = compilerSetup.doCompile()
 
-      changes.foreach {
-        case (name, change) =>
-          val source = nahaPath.resolve("naha").resolve(name)
-          val sourceFile = projectSetup.baseDir.resolve(source)
-          val text = new String(Files.readAllBytes(sourceFile), StandardCharsets.UTF_8)
-          Files.write(sourceFile, change(text).getBytes(StandardCharsets.UTF_8))
+      changes.foreach { case (name, change) =>
+        val source = nahaPath.resolve("naha").resolve(name)
+        val sourceFile = projectSetup.baseDir.resolve(source)
+        val text = new String(Files.readAllBytes(sourceFile), StandardCharsets.UTF_8)
+        Files.write(sourceFile, change(text).getBytes(StandardCharsets.UTF_8))
       }
 
       val result2 =

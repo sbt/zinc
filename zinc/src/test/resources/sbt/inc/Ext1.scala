@@ -14,7 +14,4 @@ package test.pkg
 object Ext1 {
   val x = 2
 }
-class Ext1 {
-
-}
-
+class Ext1 {}

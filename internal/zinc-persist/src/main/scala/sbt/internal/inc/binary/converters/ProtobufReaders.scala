@@ -53,39 +53,36 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
     def fromBinarySchemaMap(
         stamps: JMap[String, Schema.Stamps.StampType]
     ): Map[VirtualFileRef, Stamp] = {
-      stamps.asScala.iterator.map {
-        case (path, schemaStamp) =>
-          val file = fromPathStringV(path)
-          val newFile = mapper.mapBinaryFile(file)
-          val stamp = fromStampType(schemaStamp)
-          val newStamp = mapper.mapBinaryStamp(newFile, stamp)
-          newFile -> newStamp
+      stamps.asScala.iterator.map { case (path, schemaStamp) =>
+        val file = fromPathStringV(path)
+        val newFile = mapper.mapBinaryFile(file)
+        val stamp = fromStampType(schemaStamp)
+        val newStamp = mapper.mapBinaryStamp(newFile, stamp)
+        newFile -> newStamp
       }.toMap
     }
 
     def fromSourceSchemaMap(
         stamps: JMap[String, Schema.Stamps.StampType]
     ): Map[VirtualFileRef, Stamp] = {
-      stamps.asScala.iterator.map {
-        case (path, schemaStamp) =>
-          val file = fromPathStringV(path)
-          val newFile = mapper.mapSourceFile(file)
-          val stamp = fromStampType(schemaStamp)
-          val newStamp = mapper.mapSourceStamp(newFile, stamp)
-          newFile -> newStamp
+      stamps.asScala.iterator.map { case (path, schemaStamp) =>
+        val file = fromPathStringV(path)
+        val newFile = mapper.mapSourceFile(file)
+        val stamp = fromStampType(schemaStamp)
+        val newStamp = mapper.mapSourceStamp(newFile, stamp)
+        newFile -> newStamp
       }.toMap
     }
 
     def fromProductSchemaMap(
         stamps: JMap[String, Schema.Stamps.StampType]
     ): Map[VirtualFileRef, Stamp] = {
-      stamps.asScala.iterator.map {
-        case (path, schemaStamp) =>
-          val file = fromPathStringV(path)
-          val newFile = mapper.mapProductFile(file)
-          val stamp = fromStampType(schemaStamp)
-          val newStamp = mapper.mapProductStamp(newFile, stamp)
-          newFile -> newStamp
+      stamps.asScala.iterator.map { case (path, schemaStamp) =>
+        val file = fromPathStringV(path)
+        val newFile = mapper.mapProductFile(file)
+        val stamp = fromStampType(schemaStamp)
+        val newStamp = mapper.mapProductStamp(newFile, stamp)
+        newFile -> newStamp
       }.toMap
     }
 
@@ -196,11 +193,10 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
   }
 
   def fromSourceInfos(sourceInfos0: Schema.SourceInfos): SourceInfos = {
-    val sourceInfos = sourceInfos0.getSourceInfosMap.asScala.iterator.map {
-      case (path, value) =>
-        val file = mapper.mapSourceFile(fromPathStringV(path))
-        val sourceInfo = fromSourceInfo(value)
-        file -> sourceInfo
+    val sourceInfos = sourceInfos0.getSourceInfosMap.asScala.iterator.map { case (path, value) =>
+      val file = mapper.mapSourceFile(fromPathStringV(path))
+      val sourceInfo = fromSourceInfo(value)
+      file -> sourceInfo
     }
     SourceInfos.of(sourceInfos.toMap)
   }
@@ -750,12 +746,12 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
   def fromApis(shouldStoreApis: Boolean)(apis: Schema.APIs): APIs = {
     val stringTable = new StringTable
     val internal =
-      apis.getInternalMap.asScala.iterator.map {
-        case (k, v) => k -> fromAnalyzedClass(shouldStoreApis, stringTable)(v)
+      apis.getInternalMap.asScala.iterator.map { case (k, v) =>
+        k -> fromAnalyzedClass(shouldStoreApis, stringTable)(v)
       }.toMap
     val external =
-      apis.getExternalMap.asScala.iterator.map {
-        case (k, v) => k -> fromAnalyzedClass(shouldStoreApis, stringTable)(v)
+      apis.getExternalMap.asScala.iterator.map { case (k, v) =>
+        k -> fromAnalyzedClass(shouldStoreApis, stringTable)(v)
       }.toMap
     APIs(internal = internal, external = external)
   }

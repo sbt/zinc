@@ -138,7 +138,6 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
   }
 
   /**
-   *
    * Performs an incremental compilation based on xsbti.compile.Inputs.
    *
    * This is a Scala implementation of xsbti.compile.IncrementalCompiler,
@@ -228,7 +227,6 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
   }
 
   /**
-   *
    * Performs an incremental compilation based on xsbti.compile.Inputs.
    *
    * This is a Scala implementation of xsbti.compile.IncrementalCompiler,
@@ -332,7 +330,12 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       compilerRun
     } catch {
       case e: xsbti.CompileFailed =>
-        throw new sbt.internal.inc.CompileFailed(e.arguments, e.toString, e.problems, e) // just ignore
+        throw new sbt.internal.inc.CompileFailed(
+          e.arguments,
+          e.toString,
+          e.problems,
+          e
+        ) // just ignore
       case e: CompileFailed        => throw e // just ignore
       case e: InterruptedException => throw e // just ignore
       case e: Throwable =>

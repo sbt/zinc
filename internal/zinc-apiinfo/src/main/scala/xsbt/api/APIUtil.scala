@@ -92,7 +92,7 @@ object APIUtil {
 
   def isNonPrivate(d: Definition): Boolean = isNonPrivate(d.access)
 
-  /** Returns false if the `access` is `Private` and qualified, true otherwise.*/
+  /** Returns false if the `access` is `Private` and qualified, true otherwise. */
   def isNonPrivate(access: Access): Boolean =
     access match {
       case p: Private if !p.qualifier.isInstanceOf[IdQualifier] => false

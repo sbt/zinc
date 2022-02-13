@@ -52,7 +52,6 @@ import scala.tools.nsc.symtab.Flags, Flags._
  * is purely source compatibility stub.
  *
  * The technique described above is used in several places below.
- *
  */
 abstract class Compat {
   val global: Global

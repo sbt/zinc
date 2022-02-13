@@ -24,11 +24,11 @@ private[sbt] object JavaCompilerArguments {
       classpath: List[VirtualFile],
       options: List[String]
   ): List[String] = {
-    val cp = classpath map {
-      case x: PathBasedFile => x.toPath
+    val cp = classpath map { case x: PathBasedFile =>
+      x.toPath
     }
-    val sources1 = sources map {
-      case x: PathBasedFile => x.toPath
+    val sources1 = sources map { case x: PathBasedFile =>
+      x.toPath
     }
     val classpathOption = List("-classpath", absString(cp))
     options ::: classpathOption ::: abs(sources1)

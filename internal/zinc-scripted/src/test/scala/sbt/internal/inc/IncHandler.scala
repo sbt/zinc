@@ -210,42 +210,42 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
 
   lazy val commands: Map[String, IncCommand] = Map(
     noArgs("compile") { case (p, i) => p.compile(i).map(_ => ()) },
-    noArgs("clean") { case (p, _)   => p.clean() },
-    onArgs("checkIterations") {
-      case (p, x :: Nil, i) => p.checkNumberOfCompilerIterations(i, x.toInt)
+    noArgs("clean") { case (p, _) => p.clean() },
+    onArgs("checkIterations") { case (p, x :: Nil, i) =>
+      p.checkNumberOfCompilerIterations(i, x.toInt)
     },
-    onArgs("checkRecompilations") {
-      case (p, step :: classNames, i) => p.checkRecompilations(i, step.toInt, classNames)
+    onArgs("checkRecompilations") { case (p, step :: classNames, i) =>
+      p.checkRecompilations(i, step.toInt, classNames)
     },
-    onArgs("checkClasses") {
-      case (p, src :: products, i) => p.checkClasses(i, dropRightColon(src), products)
+    onArgs("checkClasses") { case (p, src :: products, i) =>
+      p.checkClasses(i, dropRightColon(src), products)
     },
-    onArgs("checkMainClasses") {
-      case (p, src :: products, i) => p.checkMainClasses(i, dropRightColon(src), products)
+    onArgs("checkMainClasses") { case (p, src :: products, i) =>
+      p.checkMainClasses(i, dropRightColon(src), products)
     },
-    onArgs("checkProducts") {
-      case (p, src :: products, i) => p.checkProducts(i, dropRightColon(src), products)
+    onArgs("checkProducts") { case (p, src :: products, i) =>
+      p.checkProducts(i, dropRightColon(src), products)
     },
-    onArgs("checkDependencies") {
-      case (p, cls :: dependencies, i) => p.checkDependencies(i, dropRightColon(cls), dependencies)
+    onArgs("checkDependencies") { case (p, cls :: dependencies, i) =>
+      p.checkDependencies(i, dropRightColon(cls), dependencies)
     },
-    onArgs("checkNameExistsInClass") {
-      case (p, cls :: name :: Nil, i) => p.checkNameExistsInClass(i, dropRightColon(cls), name)
+    onArgs("checkNameExistsInClass") { case (p, cls :: name :: Nil, i) =>
+      p.checkNameExistsInClass(i, dropRightColon(cls), name)
     },
-    noArgs("checkSame") { case (p, i)   => p.checkSame(i) },
+    noArgs("checkSame") { case (p, i) => p.checkSame(i) },
     onArgs("run") { case (p, params, i) => p.run(i, params) },
-    noArgs("package") { case (p, i)     => p.packageBin(i) },
-    onArgs("checkWarnings") {
-      case (p, count :: Nil, _) => p.checkMessages(count.toInt, Severity.Warn)
+    noArgs("package") { case (p, i) => p.packageBin(i) },
+    onArgs("checkWarnings") { case (p, count :: Nil, _) =>
+      p.checkMessages(count.toInt, Severity.Warn)
     },
-    onArgs("checkWarning") {
-      case (p, index :: expected :: Nil, _) => p.checkMessage(index.toInt, expected, Severity.Warn)
+    onArgs("checkWarning") { case (p, index :: expected :: Nil, _) =>
+      p.checkMessage(index.toInt, expected, Severity.Warn)
     },
-    onArgs("checkErrors") {
-      case (p, count :: Nil, _) => p.checkMessages(count.toInt, Severity.Error)
+    onArgs("checkErrors") { case (p, count :: Nil, _) =>
+      p.checkMessages(count.toInt, Severity.Error)
     },
-    onArgs("checkError") {
-      case (p, idx :: expected :: Nil, _) => p.checkMessage(idx.toInt, expected, Severity.Error)
+    onArgs("checkError") { case (p, idx :: expected :: Nil, _) =>
+      p.checkMessage(idx.toInt, expected, Severity.Error)
     },
     noArgs("checkNoClassFiles") { case (p, _) => p.checkNoGeneratedClassFiles() }
   )
@@ -366,9 +366,8 @@ case class ProjectStructure(
     cachedStore.get.toOption.fold(Future.unit) { contents =>
       val prevAnalysis = contents.getAnalysis.asInstanceOf[Analysis]
       compile(i).map { analysis =>
-        analysis.apis.internal.foreach {
-          case (k, api) =>
-            assert(api.apiHash == prevAnalysis.apis.internalAPI(k).apiHash)
+        analysis.apis.internal.foreach { case (k, api) =>
+          assert(api.apiHash == prevAnalysis.apis.internalAPI(k).apiHash)
         }
       }
     }
@@ -567,7 +566,8 @@ case class ProjectStructure(
               } else {
                 triggerDeps(dep)._1.map(_ => dep.output)
               }
-            } else triggerDeps(dep)._1.map(_ => dep.output)
+            }
+          else triggerDeps(dep)._1.map(_ => dep.output)
         }
         val futureScalaAnalysis = earlyDeps.map { internalCp =>
           blocking {

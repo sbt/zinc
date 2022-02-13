@@ -69,8 +69,8 @@ trait CompilingSpecification extends AbstractBridgeProviderTestkit {
     val (_, testCallback) = compileSrcs(srcs)
     val binaryDependencies = testCallback.binaryDependencies
     ExtractedClassDependencies.fromPairs(
-      binaryDependencies.collect { case (_, bin, src, DependencyByMemberRef)        => src -> bin },
-      binaryDependencies.collect { case (_, bin, src, DependencyByInheritance)      => src -> bin },
+      binaryDependencies.collect { case (_, bin, src, DependencyByMemberRef) => src -> bin },
+      binaryDependencies.collect { case (_, bin, src, DependencyByInheritance) => src -> bin },
       binaryDependencies.collect { case (_, bin, src, LocalDependencyByInheritance) => src -> bin },
     )
   }
@@ -205,10 +205,9 @@ trait CompilingSpecification extends AbstractBridgeProviderTestkit {
     val files = for {
       (compilationUnit, unitId) <- groupedSrcs.zipWithIndex
     } yield {
-      val srcFiles = compilationUnit.zipWithIndex map {
-        case (content, i) =>
-          val fileName = s"Test-$unitId-$i.scala"
-          StringVirtualFile(fileName, content)
+      val srcFiles = compilationUnit.zipWithIndex map { case (content, i) =>
+        val fileName = s"Test-$unitId-$i.scala"
+        StringVirtualFile(fileName, content)
       }
       val sources = srcFiles.toArray[VirtualFile]
       val (si, sc) = mkScalaCompiler(baseDir)
@@ -260,10 +259,9 @@ trait CompilingSpecification extends AbstractBridgeProviderTestkit {
     Files.createDirectory(targetDir)
     val (si, sc) = mkScalaCompiler(baseDir)
     val reporter = mkReporter
-    val sources = sourceContents.zipWithIndex map {
-      case (content, i) =>
-        val fileName = s"Test-$i.scala"
-        StringVirtualFile(fileName, content)
+    val sources = sourceContents.zipWithIndex map { case (content, i) =>
+      val fileName = s"Test-$i.scala"
+      StringVirtualFile(fileName, content)
     }
     val cp = (si.allJars).map(_.toPath) ++ Array(targetDir)
     val classpath = cp.map(converter.toVirtualFile)

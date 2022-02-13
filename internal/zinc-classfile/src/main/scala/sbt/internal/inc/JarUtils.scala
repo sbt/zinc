@@ -32,7 +32,8 @@ object JarUtils {
   /** Represents a path to a class file located inside a jar, relative to this jar */
   type ClassFilePath = String
 
-  /** `ClassInJar` is an identifier for a class located inside a jar.
+  /**
+   * `ClassInJar` is an identifier for a class located inside a jar.
    * For plain class files it is enough to simply use the actual file
    * system path. A class in a jar is identified as a path to the jar
    * and path to the class within that jar (`RelClass`). Those two values
@@ -263,7 +264,7 @@ object JarUtils {
    * Performs cleanup after successful compilation that involved
    * previous jar. It merges the previous jar with the new output
    * and puts the merged file back into output jar path.
-   * */
+   */
   def cleanupPreviousJar(prevJar: File, outputJar: File): Unit = {
     if (outputJar.exists()) {
       JarUtils.mergeJars(into = prevJar, from = outputJar)

@@ -7,7 +7,8 @@ import sbt.io.IO.withTemporaryDirectory
 import sbt.io.syntax._
 import sbt.internal.util.Util
 
-/** This is a basic test for compiler bridge, mostly wrapped as
+/**
+ * This is a basic test for compiler bridge, mostly wrapped as
  * AnalyzingCompiler.
  */
 object BasicBridgeSpec

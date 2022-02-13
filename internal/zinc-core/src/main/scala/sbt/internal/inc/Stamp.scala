@@ -347,12 +347,15 @@ private class MStamps(
       removeSources: Iterable[VirtualFileRef],
       lib: VirtualFileRef => Boolean
   ): Stamps =
-    new MStamps(products.filterKeys(prod).toMap, {
-      val rs = removeSources.toSet
-      Map(sources.toSeq.filter {
-        case (file, stamp) => !rs(file)
-      }: _*)
-    }, libraries.filterKeys(lib).toMap)
+    new MStamps(
+      products.filterKeys(prod).toMap, {
+        val rs = removeSources.toSet
+        Map(sources.toSeq.filter { case (file, stamp) =>
+          !rs(file)
+        }: _*)
+      },
+      libraries.filterKeys(lib).toMap
+    )
 
   def groupBy[K](
       prod: Map[K, VirtualFileRef => Boolean],

@@ -147,8 +147,8 @@ trait GlobalHelpers { self: Compat =>
   object MacroExpansionOf {
     def unapply(tree: Tree): Option[Tree] = {
       import analyzer._ // this is where MEA lives in 2.11.x
-      tree.attachments.all.collect {
-        case att: MacroExpansionAttachment => att.expandee
+      tree.attachments.all.collect { case att: MacroExpansionAttachment =>
+        att.expandee
       }.headOption
     }
   }

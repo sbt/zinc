@@ -24,7 +24,6 @@ import sbt.internal.inc.classpath.ClasspathUtil
  * Scala version, like the `java.lang.ClassLoader` or all the JARs
  * required for Scala compilation: library jar, compiler jar and others.
  *
- *
  * Both a `ClassLoader` and the jars are required because the compiler's
  * boot classpath requires the location of the library and compiler jar
  * on the classpath to compile any Scala program and macros.
@@ -286,7 +285,7 @@ object ScalaInstance {
   private def libraryJar(scalaHome: File) =
     scalaJar(scalaHome, "scala-library.jar")
 
-  /** Gets the version of Scala in the compiler.properties file from the loader.*/
+  /** Gets the version of Scala in the compiler.properties file from the loader. */
   private def actualVersion(scalaLoader: ClassLoader)(label: String) = {
     try fastActualVersion(scalaLoader)
     catch { case _: Exception => slowActualVersion(scalaLoader)(label) }

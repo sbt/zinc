@@ -54,8 +54,10 @@ object LoggedReporter {
     }
   }
 
-  lazy val problemFormats: ProblemFormats = new ProblemFormats with SeverityFormats
-  with PositionFormats with sjsonnew.BasicJsonProtocol {}
+  lazy val problemFormats: ProblemFormats = new ProblemFormats
+    with SeverityFormats
+    with PositionFormats
+    with sjsonnew.BasicJsonProtocol {}
   lazy val problemStringFormats: ProblemStringFormats = new ProblemStringFormats {}
 }
 

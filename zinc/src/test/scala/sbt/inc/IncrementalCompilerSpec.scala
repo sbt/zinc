@@ -166,17 +166,16 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
         def incrementalJavaInputs(sources: VirtualFile*)(in: Inputs): Inputs = {
           comp.withSrcs(sources.toArray)(
             in.withOptions(
-                in.options
-                  .withEarlyOutput(Optional.empty[Output])
-                    // remove -YpickleXXX args
-                  .withScalacOptions(comp.scalacOptions.toArray)
+              in.options
+                .withEarlyOutput(Optional.empty[Output])
+                // remove -YpickleXXX args
+                .withScalacOptions(comp.scalacOptions.toArray)
+            ).withSetup(
+              in.setup.withIncrementalCompilerOptions(
+                // remove pipelining
+                in.setup.incrementalCompilerOptions.withPipelining(false)
               )
-              .withSetup(
-                in.setup.withIncrementalCompilerOptions(
-                  // remove pipelining
-                  in.setup.incrementalCompilerOptions.withPipelining(false)
-                )
-              )
+            )
           )
         }
         comp.doCompileWithStore(newInputs = incrementalJavaInputs(sources: _*))

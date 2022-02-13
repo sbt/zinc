@@ -93,8 +93,8 @@ private class MAPIs(
 
   override def equals(other: Any): Boolean = other match {
     case o: MAPIs => {
-      def areEqual[T](x: Map[T, AnalyzedClass], y: Map[T, AnalyzedClass])(
-          implicit ord: math.Ordering[T]
+      def areEqual[T](x: Map[T, AnalyzedClass], y: Map[T, AnalyzedClass])(implicit
+          ord: math.Ordering[T]
       ) = {
         x.size == y.size && (sorted(x) zip sorted(y) forall { z =>
           z._1._1 == z._2._1 && SameAPI(z._1._2, z._2._2)
