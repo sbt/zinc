@@ -75,7 +75,7 @@ object Dependencies {
   val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.15.4"
   val scalatest = "org.scalatest" %% "scalatest" % "3.2.10"
   val junit = "junit" % "junit" % "4.13.2"
-  val verify = "com.eed3si9n.verify" %% "verify" % "0.2.0"
+  val verify = "com.eed3si9n.verify" %% "verify" % "2.0.1"
   val sjsonnew = Def.setting {
     "com.eed3si9n" %% "sjson-new-core" % contrabandSjsonNewVersion.value
   }
