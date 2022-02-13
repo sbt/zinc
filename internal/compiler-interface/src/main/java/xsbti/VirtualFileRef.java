@@ -26,7 +26,7 @@ package xsbti;
  * following flow of operation.
  * </p>
  *
- * <h3>Flow of operation</h3>
+ * <h2>Flow of operation</h2>
  * <p>Suppose that there are two people Alice and Bob who are working on the same repo.
  * On Alice's machine, the build tool would construct
  * an instance of {@link FileConverter} used for the entire build.
@@ -55,7 +55,7 @@ package xsbti;
  * be called the same, hopefully he can resume incremental compilation.
  * </p>
  *
- * <h3>Difference between VirtualFileRef and VirtualFile</h3>
+ * <h2>Difference between VirtualFileRef and VirtualFile</h2>
  * <p><code>VirtualFileRef</code> on its own can only have identity
  * information to be compared against another.
  * At the most basic level this could be implemented as
@@ -72,7 +72,7 @@ package xsbti;
  * represent something more concrete, like a local file or
  * an in-memory file.
  *
- * <h3>ok, so how would the compiler compile this?</h3>
+ * <h2>ok, so how would the compiler compile this?</h2>
  * See <code>IncrementalCompile.scala</code>.
  * At the top layer of Zinc, we are passing in the source files as a
  * sequence of {@link VirtualFile}s.

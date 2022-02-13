@@ -206,6 +206,18 @@ lazy val zinc = (projectMatrix in (zincRootPath / "zinc"))
       BuildInfoKey.map(compilerBridge213 / Compile / classDirectory)("classDirectory213" -> _._2),
     ),
     Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
+    // so we have full access to com.sun.tools.javac on JDK 17
+    Test / javaOptions ++= (
+      if (System.getProperty("java.version").startsWith("1.8"))
+        Seq()
+      else
+        Seq(
+          "--add-opens",
+          "jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
+          "--add-opens",
+          "jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
+        )
+    ),
     mimaSettings,
     mimaBinaryIssueFilters ++= Seq(
       exclude[DirectMissingMethodProblem]("sbt.internal.*"),
