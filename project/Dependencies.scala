@@ -82,7 +82,7 @@ object Dependencies {
   val sjsonnewScalaJson = Def.setting {
     "com.eed3si9n" %% "sjson-new-scalajson" % contrabandSjsonNewVersion.value
   }
-  val zeroAllocationHashing = "net.openhft" % "zero-allocation-hashing" % "0.10.1"
+  val zeroAllocationHashing = "net.openhft" % "zero-allocation-hashing" % "0.15"
 
   def log4jVersion = "2.16.0"
   val log4jApi = "org.apache.logging.log4j" % "log4j-api" % log4jVersion
