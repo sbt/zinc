@@ -37,7 +37,7 @@ import java.io.InputStream;
  * <p>A <code>VirtualFile</code> can also be created with plain <code>String</code>s
  * to represent the content, without any "real" files.
  * </p>
- * <h3>OK, but how does the compiler compile these?</h3>
+ * <h2>OK, but how does the compiler compile these?</h2>
  * See <code>IncrementalCompiler.java</code>.
  * At the top layer of Zinc, we are passing in the source files as a
  * sequence of {@link VirtualFile}s.
