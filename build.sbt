@@ -649,6 +649,12 @@ lazy val zincClassfile = (projectMatrix in internalPath / "zinc-classfile")
   .settings(
     name := "zinc Classfile",
     compilerVersionDependentScalacOptions,
+    Compile / headerSources ~= { xs =>
+      val excluded = Set("ZipCentralDir.java", "ZipConstants.java", "ZipUtils.java")
+      xs filter { x =>
+        !excluded(x.getName)
+      }
+    },
     mimaSettings,
     mimaBinaryIssueFilters ++= Seq(
       exclude[DirectMissingMethodProblem]("sbt.internal.inc.classfile.Analyze.apply"),
