@@ -48,7 +48,7 @@ jobs:
             bin/run-ci.sh
             ;;
           2)
-            sbt -v -Dfile.encoding=UTF-8 -Dsbt.supershell=never "crossTestBridges" "zincRoot/test" "zincScriptedJVM2_12/test:run"
+            sbt -v -Dfile.encoding=UTF-8 -Dsbt.supershell=never "crossTestBridges" "zincRoot/test" "zincScripted/Test/run"
             ;;
           3)
             sbt -v -Dfile.encoding=UTF-8 "runBenchmarks"
