@@ -453,12 +453,13 @@ private[inc] abstract class IncrementalCommon(
     val initial = changes.allModified.toSet
     val dependsOnClass = findClassDependencies(_, relations)
     val firstClassInvalidation: Set[String] = {
-      val invalidated = if (invalidateTransitively) {
-        // Invalidate by brute force (normally happens when we've done more than 3 incremental runs)
-        IncrementalCommon.transitiveDeps(initial, log)(dependsOnClass)
-      } else {
-        changes.apiChanges.flatMap(invalidateClassesInternally(relations, _, isScalaClass)).toSet
-      }
+      val invalidated =
+        if (invalidateTransitively) {
+          // Invalidate by brute force (normally happens when we've done more than 3 incremental runs)
+          IncrementalCommon.transitiveDeps(initial, log)(dependsOnClass)
+        } else {
+          changes.apiChanges.flatMap(invalidateClassesInternally(relations, _, isScalaClass)).toSet
+        }
       val included = includeTransitiveInitialInvalidations(initial, invalidated, dependsOnClass)
       log.debug("Final step, transitive dependencies:\n\t" + included)
       included
@@ -744,8 +745,10 @@ object IncrementalCommon {
 
       def isLibraryChanged(file: VirtualFileRef): Boolean = {
         def compareOriginClassFile(className: String, classpathEntry: VirtualFileRef): Boolean = {
-          if (classpathEntry.id.endsWith(".jar") &&
-              (converter.toPath(classpathEntry).toString != converter.toPath(file).toString))
+          if (
+            classpathEntry.id.endsWith(".jar") &&
+            (converter.toPath(classpathEntry).toString != converter.toPath(file).toString)
+          )
             invalidateBinary(s"${className} is now provided by ${classpathEntry}")
           else compareStamps(file, classpathEntry)
         }

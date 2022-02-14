@@ -107,9 +107,15 @@ trait FormatCommons {
   )(header: String, m: Map[K, V], k2s: K => String, v2s: V => String, inlineVals: Boolean = true)(
       implicit ord: Ordering[K]
   ): Unit =
-    writePairs(out)(header, m.keys.toSeq.sorted map { k =>
-      (k, (m(k)))
-    }, k2s, v2s, inlineVals)
+    writePairs(out)(
+      header,
+      m.keys.toSeq.sorted map { k =>
+        (k, (m(k)))
+      },
+      k2s,
+      v2s,
+      inlineVals
+    )
 
   protected def writePairs[K, V](out: Writer)(
       header: String,
@@ -124,7 +130,8 @@ trait FormatCommons {
       case (k, v) =>
         out.write(k2s(k))
         out.write(" -> ")
-        if (!inlineVals) out.write("\n") // Put large vals on their own line, to save string munging on read.
+        if (!inlineVals)
+          out.write("\n") // Put large vals on their own line, to save string munging on read.
         out.write(v2s(v))
         out.write("\n")
     }

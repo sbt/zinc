@@ -83,10 +83,12 @@ class ZincInvalidationProfiler extends InvalidationProfiler with XInvalidationPr
 
   private[inc] final class ZincXRunProfilerImplementation extends XRunProfiler {
     private def memo(string: String): Int = { // was "toStringTableIndices"
-      stringTableIndices.getOrElseUpdate(string, {
-        stringTable += string
-        stringTable.length - 1
-      })
+      stringTableIndices.getOrElseUpdate(
+        string, {
+          stringTable += string
+          stringTable.length - 1
+        }
+      )
     }
 
     private var compilationStartNanos: Long = 0L

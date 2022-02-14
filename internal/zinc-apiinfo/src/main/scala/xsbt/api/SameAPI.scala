@@ -133,7 +133,7 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
   def sameDefinitionContent(a: Definition, b: Definition): Boolean =
     samePending(a, b)(sameDefinitionContentDirect)
   def sameDefinitionContentDirect(a: Definition, b: Definition): Boolean = {
-    //a.name == b.name &&
+    // a.name == b.name &&
     debug(sameAccess(a.access, b.access), "Access differed") &&
     debug(sameModifiers(a.modifiers, b.modifiers), "Modifiers differed") &&
     debug(sameAnnotations(a.annotations, b.annotations), "Annotations differed") &&
@@ -226,7 +226,10 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
   def sameAliasSpecificAPI(a: TypeAlias, b: TypeAlias): Boolean =
     debug(sameType(a.tpe, b.tpe), "Different alias type for " + a.name)
   def sameDeclarationSpecificAPI(a: TypeDeclaration, b: TypeDeclaration): Boolean =
-    debug(sameType(a.lowerBound, b.lowerBound), "Different lower bound for declaration " + a.name) &&
+    debug(
+      sameType(a.lowerBound, b.lowerBound),
+      "Different lower bound for declaration " + a.name
+    ) &&
       debug(sameType(a.upperBound, b.upperBound), "Different upper bound for declaration " + a.name)
   def sameFieldSpecificAPI(a: FieldLike, b: FieldLike): Boolean =
     debug(

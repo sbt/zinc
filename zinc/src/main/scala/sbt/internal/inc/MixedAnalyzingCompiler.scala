@@ -165,9 +165,10 @@ final class MixedAnalyzingCompiler(
             if (config.currentSetup.order == Mixed) incSrc
             else scalaSrcs
 
-          val cp0: Vector[VirtualFile] = (extraClasspath.toVector map { x =>
-            config.converter.toVirtualFile(x.toAbsolutePath)
-          }) ++ absClasspath.toVector
+          val cp0: Vector[VirtualFile] =
+            (extraClasspath.toVector map { x =>
+              config.converter.toVirtualFile(x.toAbsolutePath)
+            }) ++ absClasspath.toVector
           val cp =
             if (scalaSrcs.isEmpty && pickleJava) {
               // we are invoking Scala compiler just for the sake of generating pickles for Java, which

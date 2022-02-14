@@ -61,7 +61,7 @@ object ClasspathCache {
             (lastModified, attrs.size())
           Option(cacheMetadataJar.get(file)) match {
             case Some((metadata, hashHit)) if metadata == currentMetadata => hashHit
-            case _                                                        => genFileHash(file, currentMetadata)
+            case _ => genFileHash(file, currentMetadata)
           }
         }
       } catch { case _: NoSuchFileException => emptyFileHash(file) }

@@ -319,7 +319,7 @@ lazy val zincPersistCore = (project in internalPath / "zinc-persist-core")
           System.setProperty("os.arch", "x86_64")
         Protoc.runProtoc(s"-v${(ProtobufConfig / version).value}" +: args.toArray)
       } finally if (workaround)
-        System.setProperty("os.arch", "aarch64")
+          System.setProperty("os.arch", "aarch64")
     },
     publish / skip := true,
     assembly / assemblyShadeRules := Seq(
@@ -329,7 +329,7 @@ lazy val zincPersistCore = (project in internalPath / "zinc-persist-core")
     ),
     assembly / assemblyMergeStrategy := { // remove *.proto files
       case PathList(ps @ _*) if ps.last.endsWith(".proto") => MergeStrategy.discard
-      case x                                               => (assembly / assemblyMergeStrategy).value(x)
+      case x => (assembly / assemblyMergeStrategy).value(x)
     },
   )
 

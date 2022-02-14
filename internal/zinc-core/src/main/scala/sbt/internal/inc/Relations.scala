@@ -429,7 +429,10 @@ private case class ExternalDependencies(
       dependencies.updated(
         dep.context,
         dependencies
-          .getOrElse(dep.context, Relation.empty) + (dep.sourceClassName, dep.targetProductClassName)
+          .getOrElse(
+            dep.context,
+            Relation.empty
+          ) + (dep.sourceClassName, dep.targetProductClassName)
       )
     )
 
@@ -640,7 +643,7 @@ private class MRelationsNameHashing(
   override def equals(other: Any) = other match {
     case o: MRelationsNameHashing =>
       srcProd == o.srcProd && libraryDep == o.libraryDep && memberRef == o.memberRef &&
-        inheritance == o.inheritance && classes == o.classes
+      inheritance == o.inheritance && classes == o.classes
     case _ => false
   }
 

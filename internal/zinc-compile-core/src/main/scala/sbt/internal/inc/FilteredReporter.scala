@@ -68,7 +68,7 @@ class FilteredReporter(
 
     severity != Severity.Error && (
       (pos.sourceFile.isPresent && isFiltered(fileFilters, pos.sourceFile.get.toPath)) ||
-      (isFiltered(msgFilters, msg))
+        (isFiltered(msgFilters, msg))
     )
   }
 

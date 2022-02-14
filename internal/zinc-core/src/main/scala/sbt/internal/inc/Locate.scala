@@ -81,10 +81,12 @@ object Locate {
         val entry = x.toPath
         if (Files.isDirectory(entry))
           new DirectoryDefinesClass(entry)
-        else if (Files.exists(entry) && classpath.ClasspathUtil.isArchive(
-                   entry,
-                   contentFallback = true
-                 ))
+        else if (
+          Files.exists(entry) && classpath.ClasspathUtil.isArchive(
+            entry,
+            contentFallback = true
+          )
+        )
           new JarDefinesClass(entry)
         else
           FalseDefinesClass
@@ -99,13 +101,14 @@ object Locate {
   private class JarDefinesClass(entry: Path) extends DefinesClass {
     import collection.JavaConverters._
     private val entries = {
-      val jar = try {
-        new ZipFile(entry.toFile, ZipFile.OPEN_READ)
-      } catch {
-        // ZipException doesn't include the file name :(
-        case e: ZipException =>
-          throw new RuntimeException("Error opening zip file: " + entry.getFileName.toString, e)
-      }
+      val jar =
+        try {
+          new ZipFile(entry.toFile, ZipFile.OPEN_READ)
+        } catch {
+          // ZipException doesn't include the file name :(
+          case e: ZipException =>
+            throw new RuntimeException("Error opening zip file: " + entry.getFileName.toString, e)
+        }
       try {
         jar.entries.asScala.map(e => toClassName(e.getName)).toSet
       } finally {

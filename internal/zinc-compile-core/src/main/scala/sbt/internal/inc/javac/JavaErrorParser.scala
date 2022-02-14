@@ -65,9 +65,10 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
 
   val JAVAC: Parser[String] = literal("javac")
   val SEMICOLON: Parser[String] = literal(":") | literal("\uff1a")
-  val SYMBOL
-      : Parser[String] = allUntilChar(':') // We ignore whether it actually says "symbol" for i18n
-  val LOCATION: Parser[String] = allUntilChar(':') // We ignore whether it actually says "location" for i18n.
+  val SYMBOL: Parser[String] =
+    allUntilChar(':') // We ignore whether it actually says "symbol" for i18n
+  val LOCATION: Parser[String] =
+    allUntilChar(':') // We ignore whether it actually says "location" for i18n.
   val WARNING: Parser[String] = allUntilChar(':') ^? {
     case x if WARNING_PREFIXES.exists(x.trim.startsWith) => x
   }
@@ -155,7 +156,7 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
     val windowsRootFile = linuxFile ~ SEMICOLON ~ linuxFile ^^ {
       case root ~ _ ~ path => s"$root:$path"
     }
-    val linuxOption = linuxFile ~ SEMICOLON ~ line ^^ { case f ~ _ ~ l         => (f, l) }
+    val linuxOption = linuxFile ~ SEMICOLON ~ line ^^ { case f ~ _ ~ l => (f, l) }
     val windowsOption = windowsRootFile ~ SEMICOLON ~ line ^^ { case f ~ _ ~ l => (f, l) }
     (linuxOption | windowsOption)
   }

@@ -52,23 +52,22 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
   private implicit def problemFormat: Format[Problem] =
     asProduct5(problem)(p => (p.category, p.position, p.message, p.severity, jo2o(p.rendered)))
   private implicit def positionFormat: Format[Position] =
-    asProduct13(position)(
-      p =>
-        (
-          jo2o(p.line),
-          p.lineContent,
-          jo2o(p.offset),
-          jo2o(p.pointer),
-          jo2o(p.pointerSpace),
-          jo2o(p.sourcePath),
-          jo2o(p.sourceFile),
-          jo2o(p.startOffset),
-          jo2o(p.endOffset),
-          jo2o(p.startLine),
-          jo2o(p.startColumn),
-          jo2o(p.endLine),
-          jo2o(p.endColumn)
-        )
+    asProduct13(position)(p =>
+      (
+        jo2o(p.line),
+        p.lineContent,
+        jo2o(p.offset),
+        jo2o(p.pointer),
+        jo2o(p.pointerSpace),
+        jo2o(p.sourcePath),
+        jo2o(p.sourceFile),
+        jo2o(p.startOffset),
+        jo2o(p.endOffset),
+        jo2o(p.startLine),
+        jo2o(p.startColumn),
+        jo2o(p.endLine),
+        jo2o(p.endColumn)
+      )
     )
   private implicit val severityFormat: Format[Severity] =
     wrap[Severity, Byte](_.ordinal.toByte, b => Severity.values.apply(b.toInt))
@@ -78,7 +77,8 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
     AnalyzedClassFormats.analyzedClassFormat
   private implicit def infoFormat: Format[SourceInfo] =
     wrap[SourceInfo, (Seq[Problem], Seq[Problem], Seq[String])](
-      si => (si.getReportedProblems, si.getUnreportedProblems, si.getMainClasses), {
+      si => (si.getReportedProblems, si.getUnreportedProblems, si.getMainClasses),
+      {
         case (a, b, c) => SourceInfos.makeInfo(a.toVector, b.toVector, c.toVector)
       }
     )
@@ -437,9 +437,14 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
       writeSeq(out)(Headers.compilerVersion, setup.compilerVersion :: Nil, identity[String])
       writeSeq(out)(Headers.compileOrder, setup.order.name :: Nil, identity[String])
       writeSeq(out)(Headers.skipApiStoring, setup.storeApis() :: Nil, (b: Boolean) => b.toString)
-      writePairs[String, String](out)(Headers.extra, setup.extra.toList map { x =>
-        (x.get1, x.get2)
-      }, identity[String], identity[String])
+      writePairs[String, String](out)(
+        Headers.extra,
+        setup.extra.toList map { x =>
+          (x.get1, x.get2)
+        },
+        identity[String],
+        identity[String]
+      )
     }
 
     def read(in: BufferedReader): MiniSetup = {

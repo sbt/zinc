@@ -24,8 +24,8 @@ object HashUtil {
   def farmHash(path: Path): Long = {
     import sbt.io.Hash
 
-    //allocating many byte arrays for large files may lead to OOME
-    //but it is more efficient for small files
+    // allocating many byte arrays for large files may lead to OOME
+    // but it is more efficient for small files
     val largeFileLimit = 10 * 1024 * 1024
 
     if (Files.size(path) < largeFileLimit)
