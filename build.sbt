@@ -276,14 +276,6 @@ lazy val zincPersist = (projectMatrix in internalPath / "zinc-persist")
   .settings(
     name := "zinc Persist",
     libraryDependencies += sbinary,
-    libraryDependencies ++= {
-      scalaPartialVersion.value match {
-        case Some((2, major)) if major >= 13 =>
-          List("org.scala-lang.modules" %% "scala-parallel-collections" % "0.2.0")
-        case _ =>
-          List()
-      }
-    },
     compileOrder := sbt.CompileOrder.Mixed,
     Compile / scalacOptions ++= (scalaVersion.value match {
       case VersionNumber(Seq(2, 12, _*), _, _) =>
@@ -384,6 +376,7 @@ lazy val zincCore = (projectMatrix in internalPath / "zinc-core")
     libraryDependencies ++= {
       scalaPartialVersion.value match {
         case Some((2, major)) if major >= 13 =>
+          // should match version in sbt's util-collection module
           List("org.scala-lang.modules" %% "scala-parallel-collections" % "0.2.0")
         case _ =>
           List()
