@@ -8,7 +8,7 @@ import com.github.os72.protocjar.Protoc
 //
 // Uncomment this line to remove usage of sbt-project-matrix by specializing scalaVersion := 2.12
 // Ideally we could replace this with: `SettingKey[Boolean]("ideSkipProject") := scalaVersion.value != defaultScalaVersion`
-// in `commonSettings`, but when I tried this the IntelliJ import fails with `Cannot find project dependency: compilerBridgeJVM2_13`
+// in `commonSettings`, but when I tried this the IntelliJ import fails with `Cannot find project dependency: compilerBridge2_13`
 // See: https://github.com/sbt/sbt-projectmatrix/issues/25
 //
 // This hack is documented in CONTRIBUTING.md, please keep that in sync.
@@ -228,6 +228,7 @@ lazy val zinc = (projectMatrix in (zincRootPath / "zinc"))
       exclude[IncompatibleResultTypeProblem]("sbt.internal.*"),
     )
   )
+  .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
   .jvmPlatform(scalaVersions = scala212_213)
   .configure(addBaseSettingsAndTestDeps)
 
@@ -248,6 +249,7 @@ lazy val zincTesting = (projectMatrix in internalPath / "zinc-testing")
     noPublish,
     libraryDependencies ++= Seq(scalaCheck, scalatest, junit, verify, sjsonnewScalaJson.value)
   )
+  .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
   .jvmPlatform(scalaVersions = List(scala212, scala213))
   .configure(addSbtIO, addSbtUtilLogging)
 
@@ -264,6 +266,7 @@ lazy val zincCompile = (projectMatrix in zincRootPath / "zinc-compile")
       exclude[ReversedMissingMethodProblem]("sbt.inc.Doc*"),
     ),
   )
+  .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
   .jvmPlatform(scalaVersions = scala212_213)
   .configure(addBaseSettingsAndTestDeps, addSbtUtilTracking)
 
@@ -299,6 +302,7 @@ lazy val zincPersist = (projectMatrix in internalPath / "zinc-persist")
       exclude[MissingClassProblem]("xsbti.api.InternalApiProxy")
     ),
   )
+  .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
   .jvmPlatform(scalaVersions = scala212_213)
   .configure(addBaseSettingsAndTestDeps)
 
@@ -386,6 +390,7 @@ lazy val zincCore = (projectMatrix in internalPath / "zinc-core")
       }
     },
   )
+  .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
   .jvmPlatform(scalaVersions = scala212_213)
   .configure(addBaseSettingsAndTestDeps, addSbtIO, addSbtUtilLogging, addSbtUtilRelation)
 
@@ -412,6 +417,7 @@ lazy val zincBenchmarks = (projectMatrix in internalPath / "zinc-benchmarks")
       )
     ),
   )
+  .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
   .jvmPlatform(scalaVersions = scala212_213)
 
 // sbt-side interface to compiler.  Calls compiler-side interface reflectively
@@ -438,6 +444,7 @@ lazy val zincCompileCore = (projectMatrix in internalPath / "zinc-compile-core")
     mimaSettings,
     mimaBinaryIssueFilters ++= Util.excludeInternalProblems,
   )
+  .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
   .jvmPlatform(scalaVersions = List(scala212, scala213))
   .configure(addBaseSettingsAndTestDeps, addSbtUtilLogging, addSbtIO, addSbtUtilControl)
 
@@ -499,6 +506,7 @@ lazy val compilerInterface = (projectMatrix in internalPath / "compiler-interfac
       exclude[InheritedNewAbstractMethodProblem]("xsbti.InteractiveConsoleInterface.close"),
     ),
   )
+  .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
   .jvmPlatform(autoScalaLibrary = false)
   .configure(addSbtUtilInterface(_))
 
@@ -533,6 +541,7 @@ lazy val compilerBridge = (projectMatrix in internalPath / "compiler-bridge")
       case (2, y) if y >= 13            => new File(scalaSource.value.getPath + "_2.13")
     }.toList),
   )
+  .defaultAxes(VirtualAxis.jvm)
   .jvmPlatform(scalaVersions = allScalaVersions)
 
 lazy val compilerBridge210 = compilerBridge.jvm(scala210)
@@ -599,6 +608,7 @@ lazy val zincApiInfo = (projectMatrix in internalPath / "zinc-apiinfo")
       exclude[DirectMissingMethodProblem]("sbt.internal.inc.ClassToAPI.handleMalformedNameOf*"),
     ),
   )
+  .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
   .jvmPlatform(scalaVersions = scala212_213)
   .configure(addBaseSettingsAndTestDeps(_))
 
@@ -629,6 +639,7 @@ lazy val zincClasspath = (projectMatrix in internalPath / "zinc-classpath")
       exclude[IncompatibleMethTypeProblem]("sbt.internal.inc.classpath.NativeCopyConfig.*"),
     ),
   )
+  .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
   .jvmPlatform(scalaVersions = scala212_213)
   .configure(addBaseSettingsAndTestDeps, addSbtIO)
 
@@ -651,6 +662,7 @@ lazy val zincClassfile = (projectMatrix in internalPath / "zinc-classfile")
     ),
     mimaBinaryIssueFilters ++= Util.excludeInternalProblems,
   )
+  .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
   .jvmPlatform(scalaVersions = scala212_213)
   .configure(addBaseSettingsAndTestDeps, addSbtIO, addSbtUtilLogging)
 
@@ -669,6 +681,7 @@ lazy val zincScripted = (projectMatrix in internalPath / "zinc-scripted")
     Test / buildInfoKeys := Seq[BuildInfoKey](zinc212 / sourceDirectory),
     conflictWarning := ConflictWarning.disable,
   )
+  .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
   .jvmPlatform(scalaVersions = List(scala212))
   .configure(
     _.dependsOn(compilerBridge210, compilerBridge211, compilerBridge212, compilerBridge213)
