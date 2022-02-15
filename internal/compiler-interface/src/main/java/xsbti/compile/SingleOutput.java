@@ -51,6 +51,7 @@ public interface SingleOutput extends Output {
         return getOutputDirectory().toPath();
     }
 
+    @Deprecated
     @Override
     public default Optional<File> getSingleOutput() {
         return Optional.of(getOutputDirectory());
