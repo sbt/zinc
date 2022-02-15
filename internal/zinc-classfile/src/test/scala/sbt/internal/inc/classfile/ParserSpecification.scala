@@ -34,6 +34,7 @@ object ParserSpecification extends Properties("Parser") {
       classOf[java.util.AbstractMap.SimpleEntry[String, String]],
       classOf[String],
       classOf[Thread],
-      classOf[Properties]
+      classOf[Properties],
+      classOf[java.lang.annotation.Retention]
     )
 }

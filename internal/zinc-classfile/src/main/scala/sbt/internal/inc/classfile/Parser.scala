@@ -29,6 +29,9 @@ import sbt.util.Logger
 // (BSD license at time of initial port; MIT license as of 2022)
 //
 // Note that unlike the rest of sbt, some things might be null.
+//
+// For debugging this, it's useful to uncomment this in JavaCompilerForUnitTesting:
+// logger.setLevel(sbt.util.Level.Debug)
 
 import Constants._
 
@@ -66,6 +69,7 @@ private[sbt] object Parser {
       val accessFlags: Int = in.readUnsignedShort()
 
       val className = getClassConstantName(in.readUnsignedShort())
+      log.debug(s"[zinc] classfile.Parser parsing $className")
       val superClassName = getClassConstantName(in.readUnsignedShort())
       val interfaceNames =
         array(in.readUnsignedShort())(getClassConstantName(in.readUnsignedShort()))
@@ -110,7 +114,8 @@ private[sbt] object Parser {
         AttributeInfo(name, value)
       }
 
-      def types = (classConstantReferences ++ fieldTypes ++ methodTypes).toSet
+      def types =
+        (classConstantReferences ++ fieldTypes ++ methodTypes ++ annotationsReferences).toSet
 
       private def getTypes(fieldsOrMethods: Array[FieldOrMethodInfo]) =
         fieldsOrMethods.flatMap { fieldOrMethod =>
@@ -119,6 +124,49 @@ private[sbt] object Parser {
 
       private def fieldTypes = getTypes(fields)
       private def methodTypes = getTypes(methods)
+
+      private def annotationsReferences: List[String] = {
+        val allAttributes =
+          attributes ++
+            fields.flatMap(_.attributes) ++
+            methods.flatMap(_.attributes)
+        allAttributes
+          .filter(x => x.isRuntimeVisibleAnnotations || x.isRuntimeInvisibleAnnotations)
+          .flatMap { attr =>
+            val in = new DataInputStream(new java.io.ByteArrayInputStream(attr.value))
+            val numAnnotations = in.readUnsignedShort()
+            val result = collection.mutable.ListBuffer[String]()
+            def parseElementValue(): Unit = { // JVMS 4.7.16.1
+              val c = in.readUnsignedByte().toChar
+              c match {
+                case 'e' =>
+                  result += slashesToDots(toUTF8(in.readUnsignedShort()))
+                  val _ = in.readUnsignedShort()
+                case 'c' =>
+                  result += slashesToDots(toUTF8(in.readUnsignedShort()))
+                case '@' =>
+                  parseAnnotation()
+                case '[' =>
+                  for (_ <- 0 until in.readUnsignedShort())
+                    parseElementValue()
+                case _ =>
+                // ignore. robustness is paramount
+              }
+            }
+            def parseAnnotation(): Unit = { // JVMS 4.7.16
+              result += slashesToDots(toUTF8(in.readUnsignedShort()))
+              for (_ <- 0 until in.readUnsignedShort()) {
+                in.readUnsignedShort() // skip element name index
+                parseElementValue()
+              }
+            }
+            for (_ <- 0 until numAnnotations)
+              parseAnnotation()
+            // the type names in the constant pool have the form e.g. `Ljava/lang/Object;`;
+            // we've already used `slashesToDots`, but we still need to drop the `L` and the semicolon
+            result.map(name => name.slice(1, name.length - 1))
+          }.toList
+      }
 
       private def classConstantReferences =
         constants.flatMap { constant =>
@@ -200,11 +248,15 @@ private[sbt] object Parser {
   }
 
   private def toInt(v: Byte) = if (v < 0) v + 256 else v.toInt
-  def entryIndex(a: AttributeInfo) = {
-    require(a.value.length == 2, s"Expected two bytes for unsigned value; got: ${a.value.length}")
-    val Array(v0, v1) = a.value
-    toInt(v0) * 256 + toInt(v1)
-  }
+  private def u2(highByte: Byte, lowByte: Byte): Int =
+    toInt(highByte) * 256 + toInt(lowByte)
+  def entryIndex(a: AttributeInfo) =
+    a.value match {
+      case Array(v0, v1) =>
+        u2(v0, v1)
+      case _ =>
+        sys.error(s"Expected two bytes for unsigned value; got: ${a.value.length}")
+    }
 
   private def slashesToDots(s: String) = s.replace('/', '.')
 

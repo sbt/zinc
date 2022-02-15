@@ -123,6 +123,11 @@ class ZincInvalidationProfiler extends InvalidationProfiler with XInvalidationPr
             .setModifiedClass(memo(change.modifiedClass))
             .setReason("API change due to macro definition.")
             .build
+        case change: APIChangeDueToAnnotationDefinition =>
+          Zprof.ApiChange.newBuilder
+            .setModifiedClass(memo(change.modifiedClass))
+            .setReason("API change due to annotation definition.")
+            .build
         case change: TraitPrivateMembersModified =>
           Zprof.ApiChange.newBuilder
             .setModifiedClass(memo(change.modifiedClass))

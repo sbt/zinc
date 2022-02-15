@@ -95,6 +95,8 @@ private[sbt] final case class AttributeInfo(name: Option[String], value: Array[B
   def isNamed(s: String) = name.exists(s == _)
   def isSignature = isNamed("Signature")
   def isSourceFile = isNamed("SourceFile")
+  def isRuntimeVisibleAnnotations = isNamed("RuntimeVisibleAnnotations")
+  def isRuntimeInvisibleAnnotations = isNamed("RuntimeInvisibleAnnotations")
 }
 private[sbt] object Constants {
   final val ACC_STATIC = 0x0008

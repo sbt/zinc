@@ -46,4 +46,142 @@ class AnalyzeSpecification extends UnitSpec {
     assert(deps.memberRef("D") === Set.empty)
   }
 
+  "Analyze" should "process runtime-visible annotations" in {
+    val srcTest =
+      """|import java.lang.annotation.Retention;
+         |import java.lang.annotation.RetentionPolicy;
+         |@Retention(RetentionPolicy.RUNTIME)
+         |public @interface Test { }
+         |""".stripMargin
+    val srcFoo =
+      """|@Test
+         |public class Foo {
+         |  public static void main(String[] args){
+         |    System.out.println(Foo.class.getAnnotations().length);
+         |  }
+         |}
+         |""".stripMargin
+    val deps = JavaCompilerForUnitTesting.extractDependenciesFromSrcs(
+      "Test.java" -> srcTest,
+      "Foo.java" -> srcFoo,
+    )
+    assert(deps.memberRef("Foo").contains("Test"))
+  }
+
+  "Analyze" should "process annotation with array argument" in {
+    val srcTest =
+      """|import java.lang.annotation.Retention;
+         |import java.lang.annotation.RetentionPolicy;
+         |import java.lang.annotation.ElementType;
+         |@Retention(RetentionPolicy.RUNTIME)
+         |public @interface Test {
+         |  ElementType[] value();
+         |}
+         |""".stripMargin
+    val srcFoo =
+      """|import java.lang.annotation.ElementType;
+         |@Test(ElementType.TYPE)
+         |public class Foo {
+         |  public static void main(String[] args){
+         |    System.out.println(Foo.class.getAnnotations().length);
+         |  }
+         |}
+         |""".stripMargin
+    val deps = JavaCompilerForUnitTesting.extractDependenciesFromSrcs(
+      "Test.java" -> srcTest,
+      "Foo.java" -> srcFoo,
+    )
+    assert(deps.memberRef("Foo").contains("Test"))
+  }
+
+  "Analyze" should "detect annotation in array argument to annotation" in {
+    val srcTest1 =
+      """|import java.lang.annotation.Retention;
+         |import java.lang.annotation.RetentionPolicy;
+         |@Retention(RetentionPolicy.RUNTIME)
+         |public @interface Test1 { }
+         |""".stripMargin
+    val srcTest2 =
+      """|import java.lang.annotation.Retention;
+         |import java.lang.annotation.RetentionPolicy;
+         |@Retention(RetentionPolicy.RUNTIME)
+         |public @interface Test2 {
+         |  Test1[] value();
+         |}
+         |""".stripMargin
+    val srcFoo =
+      """|import java.lang.annotation.ElementType;
+         |@Test2(@Test1)
+         |public class Foo {
+         |  public static void main(String[] args){
+         |    System.out.println(Foo.class.getAnnotations().length);
+         |  }
+         |}
+         |""".stripMargin
+    val deps = JavaCompilerForUnitTesting.extractDependenciesFromSrcs(
+      "Test1.java" -> srcTest1,
+      "Test2.java" -> srcTest2,
+      "Foo.java" -> srcFoo,
+    )
+    assert(deps.memberRef("Foo").contains("Test1"))
+    assert(deps.memberRef("Foo").contains("Test2"))
+  }
+
+  "Analyze" should "process runtime-invisible annotations" in {
+    val srcTest =
+      """|public @interface Test { }
+         |""".stripMargin
+    val srcFoo =
+      """|@Test
+         |public class Foo {
+         |  public static void main(String[] args){
+         |    System.out.println(Foo.class.getAnnotations().length);
+         |  }
+         |}
+         |""".stripMargin
+    val deps = JavaCompilerForUnitTesting.extractDependenciesFromSrcs(
+      "Test.java" -> srcTest,
+      "Foo.java" -> srcFoo,
+    )
+    assert(deps.memberRef("Foo").contains("Test"))
+  }
+
+  "Analyze" should "detect annotation on field" in {
+    val srcTest =
+      """|import java.lang.annotation.Target;
+         |import java.lang.annotation.ElementType;
+         |@Target(ElementType.FIELD)
+         |public @interface Test { }
+         |""".stripMargin
+    val srcFoo =
+      """|public class Foo {
+         |  @Test int foo;
+         |}
+         |""".stripMargin
+    val deps = JavaCompilerForUnitTesting.extractDependenciesFromSrcs(
+      "Test.java" -> srcTest,
+      "Foo.java" -> srcFoo,
+    )
+    assert(deps.memberRef("Foo").contains("Test"))
+  }
+
+  "Analyze" should "detect annotation on method" in {
+    val srcTest =
+      """|import java.lang.annotation.Target;
+         |import java.lang.annotation.ElementType;
+         |@Target(ElementType.METHOD)
+         |public @interface Test { }
+         |""".stripMargin
+    val srcFoo =
+      """|public class Foo {
+         |  @Test int foo() { return 0; }
+         |}
+         |""".stripMargin
+    val deps = JavaCompilerForUnitTesting.extractDependenciesFromSrcs(
+      "Test.java" -> srcTest,
+      "Foo.java" -> srcFoo,
+    )
+    assert(deps.memberRef("Foo").contains("Test"))
+  }
+
 }

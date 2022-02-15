@@ -49,9 +49,10 @@ final class APIChanges(val apiChanges: Iterable[APIChange]) {
 sealed abstract class APIChange(val modifiedClass: String) extends XAPIChange {
   override def getModifiedClass: String = modifiedClass
   override def getModifiedNames: java.util.Set[XUsedName] = this match {
-    case _: APIChangeDueToMacroDefinition => java.util.Collections.emptySet[XUsedName]
-    case _: TraitPrivateMembersModified   => java.util.Collections.emptySet[XUsedName]
-    case NamesChange(_, modifiedNames)    => modifiedNames.names.map(x => x: XUsedName).asJava
+    case _: APIChangeDueToMacroDefinition      => java.util.Collections.emptySet[XUsedName]
+    case _: APIChangeDueToAnnotationDefinition => java.util.Collections.emptySet[XUsedName]
+    case _: TraitPrivateMembersModified        => java.util.Collections.emptySet[XUsedName]
+    case NamesChange(_, modifiedNames)         => modifiedNames.names.map(x => x: XUsedName).asJava
   }
 }
 
@@ -61,6 +62,13 @@ sealed abstract class APIChange(val modifiedClass: String) extends XAPIChange {
  * are affecting its users or not. Therefore we err on the side of caution.
  */
 final case class APIChangeDueToMacroDefinition(modified0: String) extends APIChange(modified0)
+
+/**
+ * If we recompile an annotation definition in a Java source file then we always assume
+ * that its api has changed. We err on the side of caution because e.g. the annotation's
+ * Retention might have changed (sbt/zinc#630).
+ */
+final case class APIChangeDueToAnnotationDefinition(modified0: String) extends APIChange(modified0)
 
 /**
  * An APIChange that carries information about modified names.
