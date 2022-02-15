@@ -24,8 +24,8 @@ import sbt.internal.io.ErrorHandling
 import scala.annotation.switch
 import sbt.io.Using
 
-// Translation of jdepend.framework.ClassFileParser by Mike Clark, Clarkware Consulting, Inc.
-// BSD Licensed
+// Loosely based on jdepend.framework.ClassFileParser by Mike Clark, Clarkware Consulting, Inc.
+// (BSD license at time of initial port; MIT license as of 2022)
 //
 // Note that unlike the rest of sbt, some things might be null.
 
