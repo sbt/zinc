@@ -128,15 +128,6 @@ def compilerVersionDependentScalacOptions: Seq[Setting[_]] = Seq(
 def addBaseSettingsAndTestDeps(p: Project): Project =
   p.settings(baseSettings).configure(addTestDependencies)
 
-val noPublish: Seq[Setting[_]] = List(
-  publish := {},
-  publishLocal := {},
-  Compile / publishArtifact := false,
-  Test / publishArtifact := false,
-  publishArtifact := false,
-  publish / skip := true,
-)
-
 // zincRoot is now only 2.12 (2.11.x is not supported anymore)
 lazy val aggregated: Seq[ProjectReference] = compilerInterface.projectRefs ++
   compilerBridge.projectRefs ++
@@ -164,7 +155,7 @@ lazy val zincRoot: Project = (project in file("."))
     scripted / watchTriggers += baseDirectory.value.toGlob / "zinc" / "src" / "sbt-test" / **,
     Scripted.scriptedSource := (zinc212 / sourceDirectory).value / "sbt-test",
     Scripted.scriptedCompileToJar := false,
-    noPublish,
+    publish / skip := true,
     commands += Command.command("release") { state =>
       "clean" :: "+compile" :: "+publishSigned" :: "reload" :: state
     }, // clean is required b/c the version is generated in properties file
@@ -246,7 +237,7 @@ lazy val zincTesting = (projectMatrix in internalPath / "zinc-testing")
   .settings(
     name := "zinc Testing",
     baseSettings,
-    noPublish,
+    publish / skip := true,
     libraryDependencies ++= Seq(scalaCheck, scalatest, verify, sjsonnewScalaJson.value)
   )
   .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
@@ -391,7 +382,7 @@ lazy val zincBenchmarks = (projectMatrix in internalPath / "zinc-benchmarks")
   .dependsOn(zinc % "test->test")
   .enablePlugins(JmhPlugin)
   .settings(
-    noPublish,
+    publish / skip := true,
     name := "Benchmarks of Zinc and the compiler bridge",
     libraryDependencies ++= Seq(
       "org.eclipse.jgit" % "org.eclipse.jgit" % "6.0.0.202111291000-r",
@@ -671,7 +662,7 @@ lazy val zincScripted = (projectMatrix in internalPath / "zinc-scripted")
   .enablePlugins(BuildInfoPlugin)
   .settings(
     baseSettings,
-    noPublish,
+    publish / skip := true,
     name := "zinc Scripted",
     libraryDependencies ++= log4jDependencies,
     Compile / buildInfo := Nil, // Only generate build info for tests
