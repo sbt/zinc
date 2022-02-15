@@ -91,8 +91,6 @@ Global / semanticdbVersion := "4.4.28"
 ThisBuild / Test / fork := true
 
 def baseSettings: Seq[Setting[_]] = Seq(
-  resolvers += Resolver.typesafeIvyRepo("releases"),
-  resolvers += Resolver.sonatypeRepo("snapshots"),
   testOptions += Tests.Argument(TestFrameworks.ScalaCheck, "-w", "1", "-verbosity", "2"),
   testFrameworks += new TestFramework("verify.runner.Framework"),
   compile / javacOptions ++= Seq("-Xlint", "-Xlint:-serial"),
