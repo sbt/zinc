@@ -116,7 +116,7 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
   }
 
   private def formatInvalidated(invalidated: Set[String]): String = {
-    //val sortedFiles = invalidated.toSeq.sortBy(_.getAbsolutePath)
+    // val sortedFiles = invalidated.toSeq.sortBy(_.getAbsolutePath)
     invalidated.toSeq.sorted.map(cls => "\t" + cls).mkString("\n")
   }
 

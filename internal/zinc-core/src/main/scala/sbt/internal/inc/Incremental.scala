@@ -158,7 +158,9 @@ object Incremental {
     val pickleJarPair = earlyJar.map { p =>
       val newName = s"${p.getFileName.toString.stripSuffix(".jar")}-${UUID.randomUUID()}.jar"
       val updatesJar = p.resolveSibling(newName)
-      PickleJar.touch(updatesJar) // scalac should create -Ypickle-write jars but it throws FileNotFoundException :-/
+      PickleJar.touch(
+        updatesJar
+      ) // scalac should create -Ypickle-write jars but it throws FileNotFoundException :-/
       p -> updatesJar
     }
 
@@ -500,12 +502,13 @@ object Incremental {
   )(run: XClassFileManager => T): T = {
     val classfileManager =
       ClassFileManager.getClassFileManager(options, output, outputJarContent)
-    val result = try run(classfileManager)
-    catch {
-      case e: Throwable =>
-        classfileManager.complete(false)
-        throw e
-    }
+    val result =
+      try run(classfileManager)
+      catch {
+        case e: Throwable =>
+          classfileManager.complete(false)
+          throw e
+      }
     classfileManager.complete(true)
     result
   }
@@ -808,7 +811,7 @@ private final class AnalysisCallback(
       binaryClassName: String,
       srcClassName: String
   ): Unit = {
-    //println(s"Generated non local class ${source}, ${classFile}, ${binaryClassName}, ${srcClassName}")
+    // println(s"Generated non local class ${source}, ${classFile}, ${binaryClassName}, ${srcClassName}")
     val vf = converter.toVirtualFile(classFile)
     add(nonLocalClasses, source, (vf, binaryClassName))
     add(classNames, source, (srcClassName, binaryClassName))
@@ -821,7 +824,7 @@ private final class AnalysisCallback(
     generatedLocalClass(converter.toVirtualFile(source.toPath), classFile.toPath)
 
   override def generatedLocalClass(source: VirtualFileRef, classFile: Path): Unit = {
-    //println(s"Generated local class ${source}, ${classFile}")
+    // println(s"Generated local class ${source}, ${classFile}")
     val vf = converter.toVirtualFile(classFile)
     add(localClasses, source, vf)
     ()
@@ -975,7 +978,7 @@ private final class AnalysisCallback(
           .map(_._1)
         val analyzedApis = classesInSrc.map(analyzeClass)
         val info = SourceInfos.makeInfo(
-          getOrNil(reporteds.iterator.map { case (k, v)   => k -> v.asScala.toSeq }.toMap, src),
+          getOrNil(reporteds.iterator.map { case (k, v) => k -> v.asScala.toSeq }.toMap, src),
           getOrNil(unreporteds.iterator.map { case (k, v) => k -> v.asScala.toSeq }.toMap, src),
           getOrNil(mainClasses.iterator.map { case (k, v) => k -> v.asScala.toSeq }.toMap, src)
         )
@@ -1000,13 +1003,11 @@ private final class AnalysisCallback(
             NonLocalProduct(srcClassName, binaryClassName, classFile, classFileStamp)
         }
 
-        val internalDeps = classesInSrc.flatMap(
-          cls =>
-            intSrcDeps.getOrElse(cls, ConcurrentHashMap.newKeySet[InternalDependency]()).asScala
+        val internalDeps = classesInSrc.flatMap(cls =>
+          intSrcDeps.getOrElse(cls, ConcurrentHashMap.newKeySet[InternalDependency]()).asScala
         )
-        val externalDeps = classesInSrc.flatMap(
-          cls =>
-            extSrcDeps.getOrElse(cls, ConcurrentHashMap.newKeySet[ExternalDependency]()).asScala
+        val externalDeps = classesInSrc.flatMap(cls =>
+          extSrcDeps.getOrElse(cls, ConcurrentHashMap.newKeySet[ExternalDependency]()).asScala
         )
         val libDeps = libraries.map(d => (d, binaryClassName(d), stampReader.library(d)))
 

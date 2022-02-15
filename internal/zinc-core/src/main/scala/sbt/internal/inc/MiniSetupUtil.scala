@@ -106,12 +106,12 @@ object MiniSetupUtil {
       def equiv(out1: APIOutput, out2: APIOutput) = (out1, out2) match {
         case (m1: MultipleOutput, m2: MultipleOutput) =>
           (m1.getOutputGroups.length == m2.getOutputGroups.length) &&
-            (m1.getOutputGroups.sorted zip m2.getOutputGroups.sorted forall {
-              case (a, b) =>
-                equivFile
-                  .equiv(a.getSourceDirectoryAsPath, b.getSourceDirectoryAsPath) && equivFile
-                  .equiv(a.getOutputDirectoryAsPath, b.getOutputDirectoryAsPath)
-            })
+          (m1.getOutputGroups.sorted zip m2.getOutputGroups.sorted forall {
+            case (a, b) =>
+              equivFile
+                .equiv(a.getSourceDirectoryAsPath, b.getSourceDirectoryAsPath) && equivFile
+                .equiv(a.getOutputDirectoryAsPath, b.getOutputDirectoryAsPath)
+          })
         case (s1: SingleOutput, s2: SingleOutput) =>
           equivFile.equiv(s1.getOutputDirectoryAsPath, s2.getOutputDirectoryAsPath)
         case _ =>

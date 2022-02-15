@@ -120,7 +120,9 @@ object ClasspathUtil {
   def isArchive(file: Path): Boolean = isArchive(file, contentFallback = false)
 
   def isArchive(file: Path, contentFallback: Boolean): Boolean =
-    Files.isRegularFile(file) && (isArchiveName(file.getFileName.toString) || (contentFallback && hasZipContent(
+    Files.isRegularFile(file) && (isArchiveName(
+      file.getFileName.toString
+    ) || (contentFallback && hasZipContent(
       file
     )))
 
@@ -197,7 +199,8 @@ object ClasspathUtil {
     val basePath = toAbsolutePath(base).normalize
     val filePath = toAbsolutePath(file).normalize
     if (filePath startsWith basePath) {
-      val relativePath = catching(classOf[IllegalArgumentException]) opt (basePath relativize filePath)
+      val relativePath =
+        catching(classOf[IllegalArgumentException]) opt (basePath relativize filePath)
       relativePath map (_.toString)
     } else None
   }

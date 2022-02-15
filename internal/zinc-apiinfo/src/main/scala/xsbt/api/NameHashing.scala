@@ -40,13 +40,14 @@ class NameHashing(optimizedSealed: Boolean) {
     val (regularDefs, implicitDefs) = apiPublicDefs.partition(deff => !deff.modifiers.isImplicit)
     val location = Location(classApi.name, NameType(classApi.definitionType))
 
-    val forPatMat = if (optimizedSealed) {
-      val classDefs = apiPublicDefs.collect {
-        case classLike: ClassLike if classLike.modifiers().isSealed =>
-          classLike
-      }
-      nameHashesForDefinitions(classDefs, location, UseScope.PatMatTarget)
-    } else Array.empty[NameHash]
+    val forPatMat =
+      if (optimizedSealed) {
+        val classDefs = apiPublicDefs.collect {
+          case classLike: ClassLike if classLike.modifiers().isSealed =>
+            classLike
+        }
+        nameHashesForDefinitions(classDefs, location, UseScope.PatMatTarget)
+      } else Array.empty[NameHash]
 
     nameHashesForDefinitions(regularDefs, location, UseScope.Default) ++
       nameHashesForDefinitions(implicitDefs, location, UseScope.Implicit) ++ forPatMat

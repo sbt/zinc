@@ -168,14 +168,15 @@ object ClassToAPI {
     cmap.memo(name) = defsEmptyMembers
     cmap.allNonLocalClasses ++= defs
 
-    if (c.getMethods.exists(
-          meth =>
-            meth.getName == "main" &&
-              Modifier.isStatic(meth.getModifiers) &&
-              meth.getParameterTypes.length == 1 &&
-              meth.getParameterTypes.head == classOf[Array[String]] &&
-              meth.getReturnType == java.lang.Void.TYPE
-        )) {
+    if (
+      c.getMethods.exists(meth =>
+        meth.getName == "main" &&
+          Modifier.isStatic(meth.getModifiers) &&
+          meth.getParameterTypes.length == 1 &&
+          meth.getParameterTypes.head == classOf[Array[String]] &&
+          meth.getReturnType == java.lang.Void.TYPE
+      )
+    ) {
       cmap.mainClasses += name
     }
 
@@ -386,8 +387,8 @@ object ClassToAPI {
   def exceptionAnnotations(exceptions: Array[Type]): Array[api.Annotation] =
     if (exceptions.length == 0) emptyAnnotationArray
     else
-      arrayMap(exceptions)(
-        t => api.Annotation.of(Throws, Array(api.AnnotationArgument.of("value", t.toString)))
+      arrayMap(exceptions)(t =>
+        api.Annotation.of(Throws, Array(api.AnnotationArgument.of("value", t.toString)))
       )
 
   def parameter(annots: Array[Annotation], parameter: Type, varArgs: Boolean): api.MethodParameter =
@@ -398,10 +399,11 @@ object ClassToAPI {
       if (varArgs) api.ParameterModifier.Repeated else api.ParameterModifier.Plain
     )
 
-  def annotated(t: api.Type, annots: Array[Annotation]): api.Type = (
-    if (annots.length == 0) t
-    else api.Annotated.of(t, annotations(annots))
-  )
+  def annotated(t: api.Type, annots: Array[Annotation]): api.Type =
+    (
+      if (annots.length == 0) t
+      else api.Annotated.of(t, annotations(annots))
+    )
 
   case class Defs(
       declared: Seq[api.ClassDefinition],

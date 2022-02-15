@@ -111,8 +111,8 @@ final class ProtobufWriters(mapper: WriteMapper) {
     val productStamps = toProductSchemaMap(stamps.products)
 
     val builder = Schema.Stamps.newBuilder
-    binaryStamps.foreach { case (k, v)  => builder.putBinaryStamps(k, v) }
-    sourceStamps.foreach { case (k, v)  => builder.putSourceStamps(k, v) }
+    binaryStamps.foreach { case (k, v) => builder.putBinaryStamps(k, v) }
+    sourceStamps.foreach { case (k, v) => builder.putSourceStamps(k, v) }
     productStamps.foreach { case (k, v) => builder.putProductStamps(k, v) }
     builder.build
   }
@@ -709,12 +709,12 @@ final class ProtobufWriters(mapper: WriteMapper) {
     }
 
     val builder = Schema.Relations.newBuilder
-    srcProd.foreach { case (k, v)          => builder.putSrcProd(k, v) }
-    libraryDep.foreach { case (k, v)       => builder.putLibraryDep(k, v) }
+    srcProd.foreach { case (k, v) => builder.putSrcProd(k, v) }
+    libraryDep.foreach { case (k, v) => builder.putLibraryDep(k, v) }
     libraryClassName.foreach { case (k, v) => builder.putLibraryClassName(k, v) }
-    classes.foreach { case (k, v)          => builder.putClasses(k, v) }
+    classes.foreach { case (k, v) => builder.putClasses(k, v) }
     productClassName.foreach { case (k, v) => builder.putProductClassName(k, v) }
-    names.foreach { case (k, v)            => builder.putNames(k, v) }
+    names.foreach { case (k, v) => builder.putNames(k, v) }
     builder
       .setMemberRef(memberRef)
       .setInheritance(inheritance)

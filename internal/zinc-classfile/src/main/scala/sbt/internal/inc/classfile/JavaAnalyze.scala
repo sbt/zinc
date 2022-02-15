@@ -169,8 +169,8 @@ private[sbt] object JavaAnalyze {
           context: DependencyContext,
           fromBinaryClassName: String
       ): Unit =
-        binaryClassNames.foreach(
-          binaryClassName => processDependency(binaryClassName, context, fromBinaryClassName)
+        binaryClassNames.foreach(binaryClassName =>
+          processDependency(binaryClassName, context, fromBinaryClassName)
         )
 
       // Get all references to types in a given class file (via constant pool)
@@ -336,9 +336,12 @@ private[sbt] object JavaAnalyze {
         fs(fs.keys.min)
       }
 
-    refine((sourceNameMap get sourceFileName).toList.flatten map { x =>
-      (x, x.names.toList.reverse.drop(1))
-    }, pkg.reverse)
+    refine(
+      (sourceNameMap get sourceFileName).toList.flatten map { x =>
+        (x, x.names.toList.reverse.drop(1))
+      },
+      pkg.reverse
+    )
   }
 
 }

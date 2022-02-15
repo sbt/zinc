@@ -158,7 +158,7 @@ object Stamp {
       // Windows is handling this differently sometimes...
       case (lm1: LastModified, lm2: LastModified) =>
         lm1.value == lm2.value ||
-          Math.abs(lm1.value - lm2.value) < maxModificationDifferenceInMillis
+        Math.abs(lm1.value - lm2.value) < maxModificationDifferenceInMillis
       case (stampA, stampB) =>
         // This part of code should not depend on `equals`
         // Checking for (EmptyStamp, EmptyStamp) produces SOE
@@ -347,12 +347,15 @@ private class MStamps(
       removeSources: Iterable[VirtualFileRef],
       lib: VirtualFileRef => Boolean
   ): Stamps =
-    new MStamps(products.filterKeys(prod).toMap, {
-      val rs = removeSources.toSet
-      Map(sources.toSeq.filter {
-        case (file, stamp) => !rs(file)
-      }: _*)
-    }, libraries.filterKeys(lib).toMap)
+    new MStamps(
+      products.filterKeys(prod).toMap, {
+        val rs = removeSources.toSet
+        Map(sources.toSeq.filter {
+          case (file, stamp) => !rs(file)
+        }: _*)
+      },
+      libraries.filterKeys(lib).toMap
+    )
 
   def groupBy[K](
       prod: Map[K, VirtualFileRef => Boolean],
