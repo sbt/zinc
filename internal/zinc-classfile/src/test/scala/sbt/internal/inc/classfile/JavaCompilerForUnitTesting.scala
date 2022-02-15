@@ -109,7 +109,10 @@ object JavaCompilerForUnitTesting {
   private val extractParents: Seq[Class[_]] => Set[(String, String)] = { classes =>
     def canonicalNames(p: (Class[_], Class[_])): (String, String) =
       p._1.getCanonicalName -> p._2.getCanonicalName
-    val parents = classes.map(c => c -> c.getSuperclass)
+    val parents =
+      classes
+        .map(c => c -> c.getSuperclass)
+        .filterNot(_._2 == null) // may be null for an interface
     val parentInterfaces = classes.flatMap(c => c.getInterfaces.map(i => c -> i))
     (parents ++ parentInterfaces).map(canonicalNames).toSet
   }
