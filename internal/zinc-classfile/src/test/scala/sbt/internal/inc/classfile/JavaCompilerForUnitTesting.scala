@@ -81,6 +81,7 @@ object JavaCompilerForUnitTesting {
       val classloader = new URLClassLoader(Array(classesDir.toURI.toURL))
 
       val logger = ConsoleLogger()
+      // logger.setLevel(sbt.util.Level.Debug)
 
       // we pass extractParents as readAPI. In fact, Analyze expect readAPI to do both things:
       // - extract api representation out of Class (and saved it via a side effect)

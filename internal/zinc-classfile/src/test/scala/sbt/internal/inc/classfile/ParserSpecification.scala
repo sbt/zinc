@@ -14,12 +14,17 @@ package internal
 package inc
 package classfile
 
+import sbt.internal.util.ConsoleLogger
+
 import org.scalacheck._
 import Prop._
 
 object ParserSpecification extends Properties("Parser") {
+
+  val log = ConsoleLogger()
+
   property("able to parse all relevant classes") = Prop.forAll(classes) { (c: Class[_]) =>
-    Parser(sbt.io.IO.classfileLocation(c)) ne null
+    Parser(sbt.io.IO.classfileLocation(c), log) ne null
   }
 
   implicit def classes: Gen[Class[_]] =

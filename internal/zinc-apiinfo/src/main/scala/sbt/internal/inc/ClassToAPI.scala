@@ -21,6 +21,7 @@ import xsbti.api
 import xsbti.api.SafeLazyProxy
 import collection.mutable
 import sbt.io.IO
+import sbt.util.Logger
 
 object ClassToAPI {
   def apply(c: Seq[Class[_]]): Seq[api.ClassLike] = process(c)._1
@@ -219,7 +220,7 @@ object ClassToAPI {
 
   /** TODO: over time, ClassToAPI should switch the majority of access to the classfile parser */
   private[this] def classFileForClass(c: Class[_]): ClassFile =
-    classfile.Parser.apply(IO.classfileLocation(c))
+    classfile.Parser.apply(IO.classfileLocation(c), Logger.Null)
 
   @inline private[this] def lzyS[T <: AnyRef](t: T): xsbti.api.Lazy[T] = SafeLazyProxy.strict(t)
   @inline final def lzy[T <: AnyRef](t: => T): xsbti.api.Lazy[T] = SafeLazyProxy(t)
