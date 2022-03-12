@@ -383,7 +383,7 @@ lazy val zincBenchmarks = (projectMatrix in internalPath / "zinc-benchmarks")
     publish / skip := true,
     name := "Benchmarks of Zinc and the compiler bridge",
     libraryDependencies ++= Seq(
-      "org.eclipse.jgit" % "org.eclipse.jgit" % "6.0.0.202111291000-r",
+      "org.eclipse.jgit" % "org.eclipse.jgit" % "6.1.0.202203080745-r",
       "net.openhft" % "affinity" % "3.20.0",
     ),
     Test / javaOptions ++= List("-Xmx600M", "-Xms600M"),
