@@ -135,19 +135,13 @@ with a newer version of them, you can do it with:
 $ sbt -Dsbtio.path=../io -Dsbtutil.path=../util
 ```
 
-### Working in IntelliJ
+## Headers
 
-The SBT build for Zinc uses [sbt-project-matrix](https://github.com/sbt/sbt-projectmatrix) to cross build certain subprojects
-selectively with different Scala versions. Unfortunately this confused the IntelliJ project import.
-
-As a workaround, uncomment the import in the `== INTELLIJ IMPORT ==` section of `build.sbt` prior to importing
-into IntelliJ. This will specialize the build structure to a single Scala version.
+To make it easier to respect our license agreements, we have added an sbt task
+that takes care of adding the LICENSE headers to new files. Run `headerCreate`
+and sbt will put a copyright notice into it.
 
 ## Signing the CLA
 
 Contributing to Zinc requires you or your employer to sign the
 [Lightbend Contributor License Agreement](https://www.lightbend.com/contribute/cla).
-
-To make it easier to respect our license agreements, we have added an sbt task
-that takes care of adding the LICENSE headers to new files. Run `headerCreate`
-and sbt will put a copyright notice into it.

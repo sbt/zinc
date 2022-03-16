@@ -4,16 +4,6 @@ import localzinc.Scripted, Scripted._
 import com.typesafe.tools.mima.core._, ProblemFilters._
 import com.github.os72.protocjar.Protoc
 
-// == INTELLIJ IMPORT ==
-//
-// Uncomment this line to remove usage of sbt-project-matrix by specializing scalaVersion := 2.12
-// Ideally we could replace this with: `SettingKey[Boolean]("ideSkipProject") := scalaVersion.value != defaultScalaVersion`
-// in `commonSettings`, but when I tried this the IntelliJ import fails with `Cannot find project dependency: compilerBridge2_13`
-// See: https://github.com/sbt/sbt-projectmatrix/issues/25
-//
-// This hack is documented in CONTRIBUTING.md, please keep that in sync.
-// import ProjectMatrixShims.{ projectMatrix, _ }
-
 def zincRootPath: File = file(sys.props.getOrElse("sbtzinc.path", ".")).getCanonicalFile
 def internalPath = zincRootPath / "internal"
 
@@ -89,6 +79,7 @@ ThisBuild / mimaPreviousArtifacts := Set.empty
 Global / concurrentRestrictions += Tags.limit(Tags.Test, 4)
 Global / semanticdbVersion := "4.4.28"
 ThisBuild / Test / fork := true
+Global / excludeLintKeys += ideSkipProject
 
 def baseSettings: Seq[Setting[_]] = Seq(
   testOptions += Tests.Argument(TestFrameworks.ScalaCheck, "-w", "1", "-verbosity", "2"),
@@ -100,6 +91,7 @@ def baseSettings: Seq[Setting[_]] = Seq(
     ("org.scalameta" % "semanticdb-scalac" % semanticdbVersion.value)
       .cross(CrossVersion.full)
   },
+  ideSkipProject := scalaVersion.value != defaultScalaVersion,
 )
 
 def compilerVersionDependentScalacOptions: Seq[Setting[_]] = Seq(
@@ -381,6 +373,7 @@ lazy val zincBenchmarks = (projectMatrix in internalPath / "zinc-benchmarks")
   .enablePlugins(JmhPlugin)
   .settings(
     publish / skip := true,
+    ideSkipProject := true, // otherwise IntelliJ complains
     name := "Benchmarks of Zinc and the compiler bridge",
     libraryDependencies ++= Seq(
       "org.eclipse.jgit" % "org.eclipse.jgit" % "6.1.0.202203080745-r",
@@ -660,6 +653,7 @@ lazy val zincScripted = (projectMatrix in internalPath / "zinc-scripted")
   .enablePlugins(BuildInfoPlugin)
   .settings(
     baseSettings,
+    ideSkipProject := true, // otherwise IntelliJ complains
     publish / skip := true,
     name := "zinc Scripted",
     libraryDependencies ++= log4jDependencies,
