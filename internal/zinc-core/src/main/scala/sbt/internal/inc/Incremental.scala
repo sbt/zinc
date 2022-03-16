@@ -208,7 +208,7 @@ object Incremental {
     } catch {
       case _: xsbti.CompileCancelled =>
         log.info("Compilation has been cancelled")
-        // in case compilation got cancelled potential partial compilation results (e.g. produced classs files) got rolled back
+        // in case compilation got cancelled potential partial compilation results (e.g. produced class files) got rolled back
         // and we can report back as there was no change (false) and return a previous Analysis which is still up-to-date
         (false, previous)
     } finally runProfiler.registerRun()
@@ -291,7 +291,7 @@ object Incremental {
     } catch {
       case _: xsbti.CompileCancelled =>
         log.info("Compilation has been cancelled")
-        // in case compilation got cancelled potential partial compilation results (e.g. produced classs files) got rolled back
+        // in case compilation got cancelled potential partial compilation results (e.g. produced class files) got rolled back
         // and we can report back as there was no change (false) and return a previous Analysis which is still up-to-date
         (false, previous)
     }

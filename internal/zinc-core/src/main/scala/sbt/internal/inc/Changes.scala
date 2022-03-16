@@ -56,7 +56,7 @@ sealed abstract class APIChange(val modifiedClass: String) extends XAPIChange {
 }
 
 /**
- * If we recompile a source file that contains a macro definition then we always assume that it's
+ * If we recompile a source file that contains a macro definition then we always assume that its
  * api has changed. The reason is that there's no way to determine if changes to macros implementation
  * are affecting its users or not. Therefore we err on the side of caution.
  */
