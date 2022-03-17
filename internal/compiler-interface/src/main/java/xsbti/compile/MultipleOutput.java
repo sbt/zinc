@@ -30,6 +30,7 @@ public interface MultipleOutput extends Output {
      */
     public OutputGroup[] getOutputGroups();
 
+    @Deprecated
     @Override
     public default Optional<File> getSingleOutput() {
         return Optional.empty();

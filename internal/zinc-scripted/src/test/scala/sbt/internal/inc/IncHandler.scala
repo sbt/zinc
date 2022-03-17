@@ -208,12 +208,18 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
     new AnalyzingCompiler(instance, bridgeProvider, classpath, unit, IncHandler.classLoaderCache)
   }
 
+  // hopefully the meaning of the commands can be understood by looking at examples.
+  // the `check-recompilations` test is a good one for seeing how `checkDependencies`
+  // and `checkRecompilations` work.
   lazy val commands: Map[String, IncCommand] = Map(
     noArgs("compile") { case (p, i) => p.compile(i).map(_ => ()) },
     noArgs("clean") { case (p, _)   => p.clean() },
     onArgs("checkIterations") {
       case (p, x :: Nil, i) => p.checkNumberOfCompilerIterations(i, x.toInt)
     },
+    // note that this can only tell us the *last* round a class got compiled in.
+    // it can't tell us *every* round something got compiled in, since only
+    // still-extant classfiles are available for inspection
     onArgs("checkRecompilations") {
       case (p, step :: classNames, i) => p.checkRecompilations(i, step.toInt, classNames)
     },

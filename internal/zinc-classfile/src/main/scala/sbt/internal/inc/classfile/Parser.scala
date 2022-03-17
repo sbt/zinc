@@ -23,23 +23,25 @@ import sbt.internal.io.ErrorHandling
 
 import scala.annotation.switch
 import sbt.io.Using
+import sbt.util.Logger
 
-// Translation of jdepend.framework.ClassFileParser by Mike Clark, Clarkware Consulting, Inc.
-// BSD Licensed
+// Loosely based on jdepend.framework.ClassFileParser by Mike Clark, Clarkware Consulting, Inc.
+// (BSD license at time of initial port; MIT license as of 2022)
 //
 // Note that unlike the rest of sbt, some things might be null.
 
 import Constants._
 
 private[sbt] object Parser {
-  def apply(file: Path): ClassFile =
-    Using.bufferedInputStream(Files.newInputStream(file))(parse(file.toString)).right.get
 
-  def apply(file: File): ClassFile =
-    Using.fileInputStream(file)(parse(file.toString)).right.get
+  def apply(file: Path, log: Logger): ClassFile =
+    Using.bufferedInputStream(Files.newInputStream(file))(parse(file.toString, log)).right.get
 
-  def apply(url: URL): ClassFile =
-    usingUrlInputStreamWithoutCaching(url)(parse(url.toString)).right.get
+  def apply(file: File, log: Logger): ClassFile =
+    Using.fileInputStream(file)(parse(file.toString, log)).right.get
+
+  def apply(url: URL, log: Logger): ClassFile =
+    usingUrlInputStreamWithoutCaching(url)(parse(url.toString, log)).right.get
 
   // JarURLConnection with caching enabled will never close the jar
   private val usingUrlInputStreamWithoutCaching = Using.resource((u: URL) =>
@@ -50,9 +52,9 @@ private[sbt] object Parser {
     }
   )
 
-  private def parse(readableName: String)(is: InputStream): Either[String, ClassFile] =
-    Right(parseImpl(readableName, is))
-  private def parseImpl(readableName: String, is: InputStream): ClassFile = {
+  private def parse(readableName: String, log: Logger)(is: InputStream): Either[String, ClassFile] =
+    Right(parseImpl(readableName, log, is))
+  private def parseImpl(readableName: String, log: Logger, is: InputStream): ClassFile = {
     val in = new DataInputStream(is)
     assume(in.readInt() == JavaMagic, "Invalid class file: " + readableName)
 

@@ -82,7 +82,7 @@ private[sbt] object JavaAnalyze {
     // as class->class dependencies that must be mapped back to source->class dependencies using the source+class assignment
     for {
       newClass <- newClasses
-      classFile = Parser(newClass)
+      classFile = Parser(newClass, log)
       _ <- classFile.sourceFile orElse guessSourceName(newClass.getFileName.toString)
       source <- guessSourcePath(sourceMap, classFile, log)
       binaryClassName = classFile.className
