@@ -596,7 +596,7 @@ private[inc] abstract class IncrementalCommon(
           val oldApi = oldAPIMapping(src)
           val newApi = newAPIMapping(src)
           val apiUnifiedPatch =
-            apiDiff.generateApiDiff(src.toString, oldApi.api, newApi.api, contextSize)
+            apiDiff.generateApiDiff(src, oldApi.api, newApi.api, contextSize)
           wrappedLog.debug(s"Detected a change in a public API ($src):\n$apiUnifiedPatch")
       }
     } catch {

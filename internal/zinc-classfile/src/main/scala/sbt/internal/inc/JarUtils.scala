@@ -309,8 +309,8 @@ object JarUtils {
    */
   def getJarInClassInJar(path: Path): Option[Path] = {
     path.toString.split("!") match {
-      case Array(jar, _) if jar.toString.endsWith(".jar") => Some(Paths.get(jar))
-      case _                                              => None
+      case Array(jar, _) if jar.endsWith(".jar") => Some(Paths.get(jar))
+      case _                                     => None
     }
   }
 
