@@ -165,7 +165,7 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
     val (project, commandToRun) = splitCommands match {
       case sub :: cmd :: Nil => buildStructure(sub) -> cmd
       case cmd :: Nil        => buildStructure(RootIdentifier) -> cmd
-      case _                 => sys.error(s"The command is either empty or has more than one `/`: $command")
+      case _ => sys.error(s"The command is either empty or has more than one `/`: $command")
     }
     val runner = (ii: IncState) => commands(commandToRun)(project, arguments, ii)
     Some(onIncState(state, project)(runner))
@@ -213,7 +213,7 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
   // and `checkRecompilations` work.
   lazy val commands: Map[String, IncCommand] = Map(
     noArgs("compile") { case (p, i) => p.compile(i).map(_ => ()) },
-    noArgs("clean") { case (p, _)   => p.clean() },
+    noArgs("clean") { case (p, _) => p.clean() },
     onArgs("checkIterations") {
       case (p, x :: Nil, i) => p.checkNumberOfCompilerIterations(i, x.toInt)
     },
@@ -238,9 +238,9 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
     onArgs("checkNameExistsInClass") {
       case (p, cls :: name :: Nil, i) => p.checkNameExistsInClass(i, dropRightColon(cls), name)
     },
-    noArgs("checkSame") { case (p, i)   => p.checkSame(i) },
+    noArgs("checkSame") { case (p, i) => p.checkSame(i) },
     onArgs("run") { case (p, params, i) => p.run(i, params) },
-    noArgs("package") { case (p, i)     => p.packageBin(i) },
+    noArgs("package") { case (p, i) => p.packageBin(i) },
     onArgs("checkWarnings") {
       case (p, count :: Nil, _) => p.checkMessages(count.toInt, Severity.Warn)
     },
@@ -573,7 +573,8 @@ case class ProjectStructure(
               } else {
                 triggerDeps(dep)._1.map(_ => dep.output)
               }
-            } else triggerDeps(dep)._1.map(_ => dep.output)
+            }
+          else triggerDeps(dep)._1.map(_ => dep.output)
         }
         val futureScalaAnalysis = earlyDeps.map { internalCp =>
           blocking {
@@ -773,7 +774,7 @@ case class ProjectStructure(
       .of()
       .withPipelining(defaultPipelining)
       .withApiDebug(true)
-    //.withRelationsDebug(true)
+    // .withRelationsDebug(true)
     val incOptions = {
       val opts = IncOptionsUtil.fromStringMap(base, map, scriptedLog)
       if (opts.recompileAllFraction() != IncOptions.defaultRecompileAllFraction()) opts
