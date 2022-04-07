@@ -69,8 +69,8 @@ trait CompilingSpecification extends AbstractBridgeProviderTestkit {
     val (_, testCallback) = compileSrcs(srcs)
     val binaryDependencies = testCallback.binaryDependencies
     ExtractedClassDependencies.fromPairs(
-      binaryDependencies.collect { case (_, bin, src, DependencyByMemberRef)        => src -> bin },
-      binaryDependencies.collect { case (_, bin, src, DependencyByInheritance)      => src -> bin },
+      binaryDependencies.collect { case (_, bin, src, DependencyByMemberRef) => src -> bin },
+      binaryDependencies.collect { case (_, bin, src, DependencyByInheritance) => src -> bin },
       binaryDependencies.collect { case (_, bin, src, LocalDependencyByInheritance) => src -> bin },
     )
   }
@@ -99,7 +99,10 @@ trait CompilingSpecification extends AbstractBridgeProviderTestkit {
     if (assertDefaultScope) for {
       (className, used) <- analysisCallback.usedNamesAndScopes
       analysisCallback.TestUsedName(name, scopes) <- used
-    } assert(scopes.size() == 1 && scopes.contains(UseScope.Default), s"$className uses $name in $scopes")
+    } assert(
+      scopes.size() == 1 && scopes.contains(UseScope.Default),
+      s"$className uses $name in $scopes"
+    )
 
     val classesInActualSrc = analysisCallback.classNames(tempSrcFile).map(_._1)
     classesInActualSrc.map(className => className -> analysisCallback.usedNames(className)).toMap

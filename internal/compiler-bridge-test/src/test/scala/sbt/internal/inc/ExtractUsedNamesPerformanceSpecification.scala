@@ -49,14 +49,15 @@ class ExtractUsedNamesPerformanceSpecification
 
   it should "be executed in reasonable time" in {
     var zipfs: Option[FileSystem] = None
-    val src = try {
-      val fileUri = getClass.getResource(TestResource).toURI
-      zipfs = initFileSystem(fileUri)
-      new String(Files.readAllBytes(Paths.get(fileUri)))
-    } finally zipfs.foreach { fs =>
-      try fs.close()
-      catch { case _: Throwable => /*ignore*/ }
-    }
+    val src =
+      try {
+        val fileUri = getClass.getResource(TestResource).toURI
+        zipfs = initFileSystem(fileUri)
+        new String(Files.readAllBytes(Paths.get(fileUri)))
+      } finally zipfs.foreach { fs =>
+          try fs.close()
+          catch { case _: Throwable => /*ignore*/ }
+        }
     import org.scalatest.time.SpanSugar._
     val usedNames = failAfter(30 seconds) {
       extractUsedNamesFromSrc(src)
@@ -80,7 +81,7 @@ class ExtractUsedNamesPerformanceSpecification
     assert(diffAndSort(usedNames("acme.DepFn1")) === diffAndSort(expectedNamesForDepFn1))
     assert(diffAndSort(usedNames("acme.HList")) === diffAndSort(expectedNamesForHList))
     // Todo
-    //assert(
+    // assert(
     //  diffAndSort(usedNames("acme.TuplerInstances")) === diffAndSort(
     //    expectedNamesForTuplerInstances))
     // assert(diffAndSort(usedNames("acme.$colon$colon")) === diffAndSort(`expectedNamesFor::`))
@@ -105,7 +106,9 @@ class ExtractUsedNamesPerformanceSpecification
       usedNames("TuplerInstances") -- scalaDiff === expectedNamesForTuplerInstances -- scalaDiff
     )
     assert(
-      usedNames("TuplerInstances.<refinement>") -- scalaDiff === expectedNamesForTuplerInstancesRefinement -- scalaDiff
+      usedNames(
+        "TuplerInstances.<refinement>"
+      ) -- scalaDiff === expectedNamesForTuplerInstancesRefinement -- scalaDiff
     )
   }
 

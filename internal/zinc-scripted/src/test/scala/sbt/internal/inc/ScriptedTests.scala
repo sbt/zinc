@@ -139,27 +139,28 @@ final class ScriptedTests(
     runner.initStates(states, seqHandlers)
 
     try groupedTests.map {
-      case ((group, name), originalDir) =>
-        val label = s"$group/$name"
-        val loggerName = s"scripted-$group-$name.log"
-        val logFile = createScriptedLogFile(loggerName)
-        val logger = rebindLogger(batchLogger, logFile)
-        if (bufferLog) batchLogger.buffer.record()
+        case ((group, name), originalDir) =>
+          val label = s"$group/$name"
+          val loggerName = s"scripted-$group-$name.log"
+          val logFile = createScriptedLogFile(loggerName)
+          val logger = rebindLogger(batchLogger, logFile)
+          if (bufferLog) batchLogger.buffer.record()
 
-        batchLogger.log.info(s"Running $label")
-        // Copy test's contents
-        IO.copyDirectory(originalDir, batchTmpDir.toFile)
+          batchLogger.log.info(s"Running $label")
+          // Copy test's contents
+          IO.copyDirectory(originalDir, batchTmpDir.toFile)
 
-        // Reset the state of `IncHandler` between every scripted run
-        runner.cleanUpHandlers(seqHandlers, states)
-        runner.initStates(states, seqHandlers)
+          // Reset the state of `IncHandler` between every scripted run
+          runner.cleanUpHandlers(seqHandlers, states)
+          runner.initStates(states, seqHandlers)
 
-        // Run the test and delete files (except global that holds local scala jars)
-        val runTest = () => commonRunTest(label, batchTmpDir, handlers, runner, states, logger)
-        val result = runOrHandleDisabled(label, batchTmpDir, runTest, logger)
-        IO.delete(batchTmpDir.toFile.*("*" -- "global").get)
-        result
-    } finally runner.cleanUpHandlers(seqHandlers, states)
+          // Run the test and delete files (except global that holds local scala jars)
+          val runTest = () => commonRunTest(label, batchTmpDir, handlers, runner, states, logger)
+          val result = runOrHandleDisabled(label, batchTmpDir, runTest, logger)
+          IO.delete(batchTmpDir.toFile.*("*" -- "global").get)
+          result
+      }
+    finally runner.cleanUpHandlers(seqHandlers, states)
   }
 
   private def runOrHandleDisabled(
