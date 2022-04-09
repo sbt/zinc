@@ -129,12 +129,16 @@ class LoggedReporter(
       (problem0.category, problem0.position, problem0.message, problem0.severity, problem0.rendered)
     // Note: positions in reported errors can be fixed with `sourcePositionMapper`.
     val transformedPos: Position = sourcePositionMapper(position)
+    val transformed = transformedPos.sourceFile != position.sourceFile
     val problem = InterfaceUtil.problem(
       category,
       transformedPos,
       message,
       severity,
-      InterfaceUtil.jo2o(rendered)
+      // When the source mapping is performed,
+      // the information based on the `transformedPos` should be displayed
+      // even if the `rendered` is defined.
+      if (transformed) None else InterfaceUtil.jo2o(rendered)
     )
     allProblems += problem0
     severity match {
