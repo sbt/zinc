@@ -43,7 +43,7 @@ private[sbt] class BatchScriptRunner extends ScriptRunner {
     val state = states(handler).asInstanceOf[handler.State]
     Try(handler(st.command, st.arguments, state)) match {
       case Success(s) if st.successExpected => states(handler) = s
-      case Success(_)                       => throw new PreciseScriptedError(st, "Expecting error at", null)
+      case Success(_) => throw new PreciseScriptedError(st, "Expecting error at", null)
       case Failure(t: TestFailed) if st.successExpected =>
         throw new PreciseScriptedError(st, s"${t.getMessage} produced by", null)
       case Failure(err) if st.successExpected =>
@@ -58,8 +58,13 @@ private[sbt] object BatchScriptRunner {
 
   // Should be used instead of sbt.internal.scripted.TestException that doesn't show failed command
   final class PreciseScriptedError(st: Statement, msg: String, e: Throwable)
-      extends RuntimeException({
-        val args = if (st.arguments.nonEmpty) st.arguments.mkString(" ", " ", "") else ""
-        s"${st.linePrefix}$msg: '${st.command}$args'"
-      }, e, false, false)
+      extends RuntimeException(
+        {
+          val args = if (st.arguments.nonEmpty) st.arguments.mkString(" ", " ", "") else ""
+          s"${st.linePrefix}$msg: '${st.command}$args'"
+        },
+        e,
+        false,
+        false
+      )
 }
