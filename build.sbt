@@ -656,7 +656,6 @@ lazy val zincScripted = (projectMatrix in internalPath / "zinc-scripted")
     ideSkipProject := true, // otherwise IntelliJ complains
     publish / skip := true,
     name := "zinc Scripted",
-    libraryDependencies ++= log4jDependencies,
     Compile / buildInfo := Nil, // Only generate build info for tests
     BuildInfoPlugin.buildInfoScopedSettings(Test),
     Test / buildInfoPackage := "sbt.internal.inc",
