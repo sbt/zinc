@@ -83,13 +83,6 @@ object Dependencies {
   }
   val zeroAllocationHashing = "net.openhft" % "zero-allocation-hashing" % "0.10.1"
 
-  def log4jVersion = "2.16.0"
-  val log4jApi = "org.apache.logging.log4j" % "log4j-api" % log4jVersion
-  val log4jCore = "org.apache.logging.log4j" % "log4j-core" % log4jVersion
-  val log4jSlf4jImpl = "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion
-  // specify all of log4j modules to prevent misalignment
-  val log4jDependencies = Vector(log4jApi, log4jCore, log4jSlf4jImpl)
-
   def addTestDependencies(p: Project): Project =
     p.settings(
       libraryDependencies ++= Seq(
