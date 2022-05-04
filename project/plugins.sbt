@@ -6,7 +6,7 @@ addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.4.6")
 addSbtPlugin("org.scala-sbt" % "sbt-contraband" % "0.5.3")
 addSbtPlugin("pl.project13.scala" % "sbt-jmh" % "0.4.3")
 addSbtPlugin("de.heikoseeberger" % "sbt-header" % "5.7.0")
-addSbtPlugin("com.github.gseitz" % "sbt-protobuf" % "0.6.5")
+addSbtPlugin("com.github.sbt" % "sbt-protobuf" % "0.7.1")
 libraryDependencies += "com.github.os72" % "protoc-jar" % "3.11.4" // sync w/ ProtobufConfig / version
 addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "1.1.0")
 addSbtPlugin("com.eed3si9n" % "sbt-buildinfo" % "0.11.0")
