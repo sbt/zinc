@@ -24,6 +24,9 @@ jobs:
           - os: ubuntu-latest
             java: 17
             jobtype: 3
+          - os: ubuntu-latest
+            java: 17
+            jobtype: 4
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout
@@ -52,6 +55,9 @@ jobs:
             ;;
           3)
             sbt -v -Dfile.encoding=UTF-8 "runBenchmarks"
+            ;;
+          4)
+            sbt -v -Dfile.encoding=UTF-8 scalafmtCheckAll scalafmtSbtCheck
             ;;
           *)
             echo unknown jobtype
