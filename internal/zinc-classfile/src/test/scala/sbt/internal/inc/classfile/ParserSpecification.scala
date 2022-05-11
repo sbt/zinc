@@ -16,25 +16,30 @@ package classfile
 
 import sbt.internal.util.ConsoleLogger
 
-import org.scalacheck._
-import Prop._
+class ParserSpecification extends UnitSpec {
 
-object ParserSpecification extends Properties("Parser") {
+  val sampleClasses = List[Class[_]](
+    this.getClass,
+    classOf[java.lang.Integer],
+    classOf[java.util.AbstractMap.SimpleEntry[String, String]],
+    classOf[String],
+    classOf[Thread],
+    classOf[org.scalacheck.Properties],
+    // exercises meta-annotation parsing
+    classOf[java.lang.annotation.Retention]
+    // I thought it would be nice to throw in a nested annotation example here,
+    // but I couldn't find one that we could use without having to add another
+    // JAR to the test classpath. it's fine, we have nested annotation testing
+    // over in AnalyzeSpecification
+  )
 
-  val log = ConsoleLogger()
+  for (c <- sampleClasses)
+    "classfile.Parser" should s"not crash when parsing $c" in {
+      val logger = ConsoleLogger()
+      // logger.setLevel(sbt.util.Level.Debug)
+      val classfile = Parser(sbt.io.IO.classfileLocation(c), logger)
+      assert(classfile ne null)
+      assert(classfile.types.nonEmpty)
+    }
 
-  property("able to parse all relevant classes") = Prop.forAll(classes) { (c: Class[_]) =>
-    Parser(sbt.io.IO.classfileLocation(c), log) ne null
-  }
-
-  implicit def classes: Gen[Class[_]] =
-    Gen.oneOf(
-      this.getClass,
-      classOf[java.lang.Integer],
-      classOf[java.util.AbstractMap.SimpleEntry[String, String]],
-      classOf[String],
-      classOf[Thread],
-      classOf[Properties],
-      classOf[java.lang.annotation.Retention]
-    )
 }

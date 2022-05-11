@@ -30,8 +30,9 @@ import sbt.util.Logger
 //
 // Note that unlike the rest of sbt, some things might be null.
 //
-// For debugging this, it's useful to uncomment this in JavaCompilerForUnitTesting:
-// logger.setLevel(sbt.util.Level.Debug)
+// For debugging this, it's useful to uncomment this:
+//   logger.setLevel(sbt.util.Level.Debug)
+// in ParserSpecification and/or JavaCompilerForUnitTesting
 
 import Constants._
 
