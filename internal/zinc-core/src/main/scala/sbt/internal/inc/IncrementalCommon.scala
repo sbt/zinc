@@ -312,7 +312,14 @@ private[inc] abstract class IncrementalCommon(
         val hasMacro = a.hasMacro || b.hasMacro
         if (hasMacro && IncOptions.getRecompileOnMacroDef(options)) {
           Some(APIChangeDueToMacroDefinition(className))
-        } else findAPIChange(className, a, b)
+        } else if (
+          APIUtil.isAnnotationDefinition(a.api().classApi()) ||
+          APIUtil.isAnnotationDefinition(b.api().classApi())
+        ) {
+          Some(APIChangeDueToAnnotationDefinition(className))
+        } else {
+          findAPIChange(className, a, b)
+        }
       }
     }
     val apiChanges = recompiledClasses.flatMap(name => classDiff(name, oldAPI(name), newAPI(name)))
@@ -589,6 +596,8 @@ private[inc] abstract class IncrementalCommon(
       apiChanges foreach {
         case APIChangeDueToMacroDefinition(src) =>
           wrappedLog.debug(s"Detected API change because $src contains a macro definition.")
+        case APIChangeDueToAnnotationDefinition(src) =>
+          wrappedLog.debug(s"Detected API change because $src contains an annotation definition.")
         case TraitPrivateMembersModified(modifiedClass) =>
           wrappedLog.debug(s"Detect change in private members of trait ${modifiedClass}.")
         case apiChange: NamesChange =>

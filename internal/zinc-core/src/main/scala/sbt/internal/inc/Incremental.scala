@@ -208,7 +208,7 @@ object Incremental {
     } catch {
       case _: xsbti.CompileCancelled =>
         log.info("Compilation has been cancelled")
-        // in case compilation got cancelled potential partial compilation results (e.g. produced classs files) got rolled back
+        // in case compilation got cancelled potential partial compilation results (e.g. produced class files) got rolled back
         // and we can report back as there was no change (false) and return a previous Analysis which is still up-to-date
         (false, previous)
     } finally runProfiler.registerRun()
@@ -291,7 +291,7 @@ object Incremental {
     } catch {
       case _: xsbti.CompileCancelled =>
         log.info("Compilation has been cancelled")
-        // in case compilation got cancelled potential partial compilation results (e.g. produced classs files) got rolled back
+        // in case compilation got cancelled potential partial compilation results (e.g. produced class files) got rolled back
         // and we can report back as there was no change (false) and return a previous Analysis which is still up-to-date
         (false, previous)
     }
@@ -652,6 +652,8 @@ private final class AnalysisCallback(
   private[this] val binaryClassName = new TrieMap[VirtualFile, String]
   // source files containing a macro def.
   private[this] val macroClasses = ConcurrentHashMap.newKeySet[String]()
+  // source files containing a Java annotation definition
+  private[this] val annotationClasses = ConcurrentHashMap.newKeySet[String]()
 
   // Results of invalidation calculations (including whether to continue cycles) - the analysis at this point is
   // not useful and so isn't included.
@@ -839,6 +841,9 @@ private final class AnalysisCallback(
     val className = classApi.name
     if (APIUtil.isScalaSourceName(sourceFile.id) && APIUtil.hasMacro(classApi))
       macroClasses.add(className)
+    // sbt/zinc#630
+    if (!APIUtil.isScalaSourceName(sourceFile.id) && APIUtil.isAnnotationDefinition(classApi))
+      annotationClasses.add(className)
     val shouldMinimize = !Incremental.apiDebug(options)
     val savedClassApi = if (shouldMinimize) APIUtil.minimize(classApi) else classApi
     val apiHash: HashAPI.Hash = HashAPI(classApi)

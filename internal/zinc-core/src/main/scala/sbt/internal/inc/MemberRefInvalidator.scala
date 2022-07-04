@@ -65,6 +65,8 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
     case _: TraitPrivateMembersModified => NoInvalidation
     case _: APIChangeDueToMacroDefinition =>
       new InvalidateUnconditionally(memberRef)
+    case _: APIChangeDueToAnnotationDefinition =>
+      new InvalidateUnconditionally(memberRef)
     case NamesChange(_, modifiedNames) if modifiedNames.in(UseScope.Implicit).nonEmpty =>
       new InvalidateUnconditionally(memberRef)
     case NamesChange(_, modifiedNames) =>
@@ -76,6 +78,8 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
       s"The private signature of trait ${modifiedClass} changed."
     case APIChangeDueToMacroDefinition(modifiedSrcFile) =>
       s"The $modifiedSrcFile source file declares a macro."
+    case APIChangeDueToAnnotationDefinition(modifiedSrcFile) =>
+      s"The $modifiedSrcFile source file declares an annotation."
     case NamesChange(modifiedClass, modifiedNames) =>
       modifiedNames.in(UseScope.Implicit) match {
         case changedImplicits if changedImplicits.isEmpty =>

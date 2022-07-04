@@ -35,6 +35,10 @@ object APIUtil {
     check.hasMacro
   }
 
+  def isAnnotationDefinition(c: ClassLike): Boolean =
+    c.structure.parents.flatMap(Discovery.simpleName)
+      .contains("java.lang.annotation.Annotation")
+
   private[this] class HasMacro extends Visit {
     var hasMacro = false
 
