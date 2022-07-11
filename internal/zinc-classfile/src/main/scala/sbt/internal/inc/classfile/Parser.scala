@@ -164,8 +164,12 @@ private[sbt] object Parser {
                 case '[' =>
                   for (_ <- 0 until in.readUnsignedShort())
                     parseElementValue()
+                case 'B' | 'C' | 'D' | 'F' | 'I' | 'J' | 'S' | 'Z' | 's' =>
+                  val _ = in.readUnsignedShort()
                 case _ =>
-                // ignore. robustness is paramount
+                  // if we see something unexpected, we're likely already doomed and trying to
+                  // continue parsing will just make troubleshooting harder. so let's bail
+                  sys.error(s"unexpected tag in annotation: '$c'")
               }
             }
             def parseAnnotation(): Unit = { // JVMS 4.7.16
