@@ -30,41 +30,29 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
-    - name: Setup
-      uses: actions/setup-java@v2
+      uses: actions/checkout@v3
+    - name: Setup JDK
+      uses: actions/setup-java@v3
       with:
         distribution: temurin
         java-version: ${{ matrix.java }}
-    - name: Coursier cache
-      uses: coursier/cache-action@v5
-    - name: Cache sbt
-      uses: actions/cache@v1
-      with:
-        path: ~/.sbt
-        key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
-    - name: Build and test
+        cache: sbt
+    - name: Build and test (1)
+      if: ${{ matrix.jobtype == 1 }}
+      shell: bash
+      run: bin/run-ci.sh
+    - name: Build and test (2)
+      if: ${{ matrix.jobtype == 2 }}
       shell: bash
       run: |
-        case ${{ matrix.jobtype }} in
-          1)
-            bin/run-ci.sh
-            ;;
-          2)
-            sbt -v -Dfile.encoding=UTF-8 -Dsbt.supershell=never "crossTestBridges" "zincRoot/test" "zincScripted/Test/run"
-            ;;
-          3)
-            sbt -v -Dfile.encoding=UTF-8 "runBenchmarks"
-            ;;
-          4)
-            sbt -v -Dfile.encoding=UTF-8 scalafmtCheckAll scalafmtSbtCheck
-            ;;
-          *)
-            echo unknown jobtype
-            exit 1
-        esac
-        rm -rf "$HOME/.ivy2/local"
-        find $HOME/Library/Caches/Coursier/v1        -name "ivydata-*.properties" -delete || true
-        find $HOME/.ivy2/cache                       -name "ivydata-*.properties" -delete || true
-        find $HOME/.cache/coursier/v1                -name "ivydata-*.properties" -delete || true
-        find $HOME/.sbt                              -name "*.lock"               -delete || true
+        sbt -v -Dfile.encoding=UTF-8 -Dsbt.supershell=never "crossTestBridges" "zincRoot/test" "zincScripted/Test/run"
+    - name: Build and test (3)
+      if: ${{ matrix.jobtype == 3 }}
+      shell: bash
+      run: |
+        sbt -v -Dfile.encoding=UTF-8 "runBenchmarks"
+    - name: Build and test (4)
+      if: ${{ matrix.jobtype == 4 }}
+      shell: bash
+      run: |
+        sbt -v -Dfile.encoding=UTF-8 scalafmtCheckAll scalafmtSbtCheck

@@ -28,6 +28,8 @@ def mimaSettings: Seq[Setting[_]] = Seq(
     val post140: Set[String] = Set(
       "1.4.0",
       "1.5.0",
+      "1.6.0",
+      "1.7.0",
     )
     val versions =
       if (scalaVersion.value.startsWith("2.12.")) pre140 ++ post140
@@ -77,7 +79,7 @@ ThisBuild / publishTo := {
 ThisBuild / mimaPreviousArtifacts := Set.empty
 // limit the number of concurrent test so testQuick works
 Global / concurrentRestrictions += Tags.limit(Tags.Test, 4)
-Global / semanticdbVersion := "4.4.28"
+// Global / semanticdbVersion := "4.5.9"
 ThisBuild / Test / fork := true
 Global / excludeLintKeys += ideSkipProject
 
