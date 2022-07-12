@@ -115,8 +115,22 @@ private[sbt] object Parser {
         AttributeInfo(name, value)
       }
 
-      def types =
-        (classConstantReferences ++ fieldTypes ++ methodTypes ++ annotationsReferences).toSet
+      def types: Set[String] = {
+        // support for parsing annotations in Java classfiles is new in sbt 1.7.0.  as of July 2022
+        // we don't completely trust it yet (one bug already forced us to build sbt 1.7.1) so if
+        // that part of the parser blows up, we only warn rather than failing compilation. this runs
+        // the risk of the warning not being noticed and the bug not being reported, but so be it.
+        // (for the time being, at least!)
+        def annotationsReferencesCarefully =
+          try annotationsReferences
+          catch {
+            case re: RuntimeException =>
+              log.warn(s"couldn't parse annotations in $readableName ($re)")
+              List()
+          }
+        // the other aspects of classfile.Parser are long battle-tested
+        (classConstantReferences ++ fieldTypes ++ methodTypes ++ annotationsReferencesCarefully).toSet
+      }
 
       private def getTypes(fieldsOrMethods: Array[FieldOrMethodInfo]) =
         fieldsOrMethods.flatMap { fieldOrMethod =>
@@ -150,8 +164,12 @@ private[sbt] object Parser {
                 case '[' =>
                   for (_ <- 0 until in.readUnsignedShort())
                     parseElementValue()
+                case 'B' | 'C' | 'D' | 'F' | 'I' | 'J' | 'S' | 'Z' | 's' =>
+                  val _ = in.readUnsignedShort()
                 case _ =>
-                // ignore. robustness is paramount
+                  // if we see something unexpected, we're likely already doomed and trying to
+                  // continue parsing will just make troubleshooting harder. so let's bail
+                  sys.error(s"unexpected tag in annotation: '$c'")
               }
             }
             def parseAnnotation(): Unit = { // JVMS 4.7.16

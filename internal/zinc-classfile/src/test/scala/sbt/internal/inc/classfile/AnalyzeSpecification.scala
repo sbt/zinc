@@ -184,4 +184,34 @@ class AnalyzeSpecification extends UnitSpec {
     assert(deps.memberRef("Foo").contains("Test"))
   }
 
+  // issue: sbt/sbt#6969
+  "Analyze" should "handle multiple annotations on field" in {
+    val srcA1 =
+      """|import java.lang.annotation.Retention;
+         |import java.lang.annotation.RetentionPolicy;
+         |@Retention(RetentionPolicy.RUNTIME)
+         |public @interface A1 {
+         |  String s();
+         |}
+         |""".stripMargin
+    val srcA2 =
+      """|import java.lang.annotation.Retention;
+         |import java.lang.annotation.RetentionPolicy;
+         |@Retention(RetentionPolicy.RUNTIME)
+         |public @interface A2 { }
+         |""".stripMargin
+    val srcFoo =
+      """|public class Foo {
+         |  @A1(s = "id") @A2 String id;
+         |}
+         |""".stripMargin
+    val deps = JavaCompilerForUnitTesting.extractDependenciesFromSrcs(
+      "A1.java" -> srcA1,
+      "A2.java" -> srcA2,
+      "Foo.java" -> srcFoo,
+    )
+    assert(deps.memberRef("Foo").contains("A1"))
+    assert(deps.memberRef("Foo").contains("A2"))
+  }
+
 }
