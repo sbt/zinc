@@ -301,7 +301,7 @@ lazy val zincPersistCore = (project in internalPath / "zinc-persist-core")
     crossPaths := false,
     autoScalaLibrary := false,
     exportJars := true,
-    ProtobufConfig / version := "3.11.4", // sync version w/ plugins.sbt
+    ProtobufConfig / version := "3.21.5", // sync version w/ plugins.sbt
     ProtobufConfig / protobufRunProtoc := { args =>
       // as per https://github.com/os72/protoc-jar/issues/93 , this is needed
       // to work around the lack of support for Apple M1 architecture.
