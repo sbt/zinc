@@ -282,7 +282,7 @@ private[inc] abstract class IncrementalCommon(
         invalidated
       else {
         log.debug(
-          s"Recompiling all sources: number of invalidated sources > ${recompileAllFraction * 100.00}% of all sources"
+          s"Recompiling all sources: number of invalidated sources > ${recompileAllFraction * 100.00} percent of all sources"
         )
         allSources ++ invalidated // Union because `all` doesn't contain removed sources
       }
