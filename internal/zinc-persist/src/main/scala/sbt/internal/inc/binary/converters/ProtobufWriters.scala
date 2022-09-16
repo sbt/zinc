@@ -14,6 +14,8 @@ package sbt.internal.inc.binary.converters
 import java.io.File
 import java.nio.file.Path
 
+import scala.annotation.nowarn
+
 import sbt.internal.inc._
 import xsbti.{ Position, Problem, Severity, T2, UseScope, VirtualFileRef }
 import xsbti.compile.analysis.{ SourceInfo, Stamp, WriteMapper }
@@ -235,6 +237,7 @@ final class ProtobufWriters(mapper: WriteMapper) {
     builder.build
   }
 
+  @nowarn("cat=deprecation")
   def toCompileOrder(compileOrder: CompileOrder): Schema.CompileOrder = {
     compileOrder match {
       case CompileOrder.Mixed         => Schema.CompileOrder.MIXED

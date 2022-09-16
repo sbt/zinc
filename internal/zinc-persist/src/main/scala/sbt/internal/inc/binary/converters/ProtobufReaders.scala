@@ -25,6 +25,7 @@ import sbt.internal.inc.binary.converters.ProtobufDefaults.Feedback.{ Readers =>
 import sbt.internal.inc.binary.converters.ProtobufDefaults.{ Classes, ReadersConstants }
 import sbt.internal.util.Relation
 
+import scala.annotation.nowarn
 import scala.collection.JavaConverters._
 import xsbti.api._
 import ProtobufDefaults.{ MissingInt, MissingString }
@@ -226,8 +227,9 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
     compileOrder match {
       case Schema.CompileOrder.MIXED         => CompileOrder.Mixed
       case Schema.CompileOrder.JAVATHENSCALA => CompileOrder.JavaThenScala
-      case Schema.CompileOrder.SCALATHENJAVA => CompileOrder.ScalaThenJava
-      case Schema.CompileOrder.UNRECOGNIZED  => ReadersFeedback.unrecognizedOrder(id).!!
+      case Schema.CompileOrder.SCALATHENJAVA =>
+        CompileOrder.ScalaThenJava: @nowarn("cat=deprecation")
+      case Schema.CompileOrder.UNRECOGNIZED => ReadersFeedback.unrecognizedOrder(id).!!
     }
   }
 
