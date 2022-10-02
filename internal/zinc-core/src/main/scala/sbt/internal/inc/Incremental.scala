@@ -694,7 +694,15 @@ private final class AnalysisCallback(
       val map = if (reported) reporteds else unreporteds
       map
         .getOrElseUpdate(source, new ConcurrentLinkedQueue)
-        .add(InterfaceUtil.problem(category, pos, msg, severity, None))
+        .add(InterfaceUtil.problem(
+          cat = category,
+          pos = pos,
+          msg = msg,
+          sev = severity,
+          rendered = None,
+          diagnosticCode = None,
+          diagnosticRelatedInforamation = Nil,
+        ))
     }
   }
 

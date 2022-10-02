@@ -131,14 +131,16 @@ class LoggedReporter(
     val transformedPos: Position = sourcePositionMapper(position)
     val transformed = transformedPos.sourceFile != position.sourceFile
     val problem = InterfaceUtil.problem(
-      category,
-      transformedPos,
-      message,
-      severity,
+      cat = category,
+      pos = transformedPos,
+      msg = message,
+      sev = severity,
       // When the source mapping is performed,
       // the information based on the `transformedPos` should be displayed
       // even if the `rendered` is defined.
-      if (transformed) None else InterfaceUtil.jo2o(rendered)
+      rendered = if (transformed) None else InterfaceUtil.jo2o(rendered),
+      diagnosticCode = InterfaceUtil.jo2o(problem0.diagnosticCode()),
+      diagnosticRelatedInforamation = InterfaceUtil.jl2l(problem0.diagnosticRelatedInforamation()),
     )
     allProblems += problem0
     severity match {
