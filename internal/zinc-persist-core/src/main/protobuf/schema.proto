@@ -79,12 +79,24 @@ message Position {
     sint32 endColumn = 13;
 }
 
+message DiagnosticCode {
+    string code = 1;
+    string explanation = 2;
+}
+
+message DiagnosticRelatedInformation {
+    Position position = 1;
+    string message = 2;
+}
+
 message Problem {
     string category = 1;
     Severity severity = 2;
     string message = 3;
     Position position = 4;
     string rendered = 5;
+    DiagnosticCode diagnosticCode = 6;
+    repeated DiagnosticRelatedInformation diagnosticRelatedInforamation = 7;
 }
 
 message SourceInfo {

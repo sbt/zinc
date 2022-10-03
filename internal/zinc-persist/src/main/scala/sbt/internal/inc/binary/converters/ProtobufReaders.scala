@@ -12,12 +12,21 @@
 package sbt.internal.inc.binary.converters
 
 import java.nio.file.{ Path, Paths }
-import java.util.{ List => JList, Map => JMap, HashMap => JHashMap }
+import java.util.{ List => JList, Map => JMap, HashMap => JHashMap, Optional }
 import sbt.internal.inc.Relations.ClassDependencies
 import sbt.internal.inc._
 import sbt.internal.inc.binary.converters.ProtobufDefaults.EmptyLazyCompanions
 import sbt.util.InterfaceUtil
-import xsbti.{ Position, Problem, Severity, T2, UseScope, VirtualFileRef }
+import xsbti.{
+  DiagnosticCode,
+  DiagnosticRelatedInformation,
+  Position,
+  Problem,
+  Severity,
+  T2,
+  UseScope,
+  VirtualFileRef
+}
 import xsbti.compile.{ CompileOrder, FileHash, MiniOptions, MiniSetup, Output, OutputGroup }
 import xsbti.compile.analysis.{ Compilation, ReadMapper, SourceInfo, Stamp }
 import sbt.internal.inc.binary.converters.ProtobufDefaults.Feedback.StringToException
@@ -171,6 +180,17 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
   private def fromInt(value: Int): Option[Integer] =
     if (value == MissingInt) None else Some(value)
 
+  private def fromDiagnosticCode(diagnosticCode: Schema.DiagnosticCode): DiagnosticCode =
+    new DiagnosticCode {
+      override val code: String = diagnosticCode.getCode()
+      override val explanation: Optional[String] =
+        InterfaceUtil.o2jo(fromString(diagnosticCode.getExplanation()))
+    }
+
+  private def fromDiagnosticRelatedInformation(info: Schema.DiagnosticRelatedInformation)
+      : DiagnosticRelatedInformation =
+    ???
+
   def fromProblem(problem: Schema.Problem): Problem = {
     val category = problem.getCategory
     val message = problem.getMessage
@@ -179,7 +199,20 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
       if (problem.hasPosition) fromPosition(problem.getPosition)
       else ReadersFeedback.ExpectedPositionInProblem.!!
     val rendered = fromString(problem.getRendered)
-    InterfaceUtil.problem(category, position, message, severity, rendered)
+    val diagnosticCode =
+      if (problem.hasDiagnosticCode) Some(fromDiagnosticCode(problem.getDiagnosticCode()))
+      else None
+    val infos = problem.getDiagnosticRelatedInforamationList().asScala.iterator
+      .map(fromDiagnosticRelatedInformation).toList
+    InterfaceUtil.problem(
+      cat = category,
+      pos = position,
+      msg = message,
+      sev = severity,
+      rendered = rendered,
+      diagnosticCode = diagnosticCode,
+      diagnosticRelatedInforamation = infos,
+    )
   }
 
   def fromSourceInfo(sourceInfo: Schema.SourceInfo): SourceInfo = {

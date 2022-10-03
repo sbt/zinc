@@ -14,8 +14,18 @@ package sbt.internal.inc.binary.converters
 import java.io.File
 import java.nio.file.Path
 
+import scala.collection.JavaConverters._
 import sbt.internal.inc._
-import xsbti.{ Position, Problem, Severity, T2, UseScope, VirtualFileRef }
+import xsbti.{
+  DiagnosticCode,
+  DiagnosticRelatedInformation,
+  Position,
+  Problem,
+  Severity,
+  T2,
+  UseScope,
+  VirtualFileRef
+}
 import xsbti.compile.analysis.{ SourceInfo, Stamp, WriteMapper }
 import sbt.internal.inc.binary.converters.ProtobufDefaults.Feedback.{ Writers => WritersFeedback }
 import sbt.internal.inc.binary.converters.ProtobufDefaults.WritersConstants
@@ -191,12 +201,31 @@ final class ProtobufWriters(mapper: WriteMapper) {
     val message = problem.message()
     val position = toPosition(problem.position())
     val severity = toSeverity(problem.severity())
-    Schema.Problem.newBuilder
+    val builder = Schema.Problem.newBuilder
       .setCategory(category)
       .setMessage(message)
       .setPosition(position)
       .setSeverity(severity)
-      .build
+    problem.rendered.toOption.foreach(r => builder.setRendered(r))
+    problem.diagnosticCode.toOption.foreach(d => builder.setDiagnosticCode(toDiagnosticCode(d)))
+    problem.diagnosticRelatedInforamation.asScala
+      .foreach(d => builder.addDiagnosticRelatedInforamation(toDiagnosticRelatedInformation(d)))
+    builder.build
+  }
+
+  def toDiagnosticCode(diagnosticCode: DiagnosticCode): Schema.DiagnosticCode = {
+    val builder = Schema.DiagnosticCode.newBuilder
+      .setCode(diagnosticCode.code())
+    diagnosticCode.explanation().toOption.foreach(d => builder.setExplanation(d))
+    builder.build
+  }
+
+  def toDiagnosticRelatedInformation(info: DiagnosticRelatedInformation)
+      : Schema.DiagnosticRelatedInformation = {
+    val builder = Schema.DiagnosticRelatedInformation.newBuilder
+    builder.setPosition(toPosition(info.position()))
+    builder.setMessage(info.message())
+    builder.build
   }
 
   def toSourceInfo(sourceInfo: SourceInfo): Schema.SourceInfo = {

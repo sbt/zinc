@@ -16,8 +16,8 @@ import java.nio.file.{ Path, Paths }
 
 import sbt.internal.inc._
 import sbt.util.InterfaceUtil
-import sbt.util.InterfaceUtil.{ jo2o, position, problem }
-import xsbti.{ T2, UseScope, VirtualFileRef }
+import sbt.util.InterfaceUtil.{ jl2l, jo2o, position, problem }
+import xsbti.{ DiagnosticCode, DiagnosticRelatedInformation, T2, UseScope, VirtualFileRef }
 import xsbti.api._
 import xsbti.compile._
 import xsbti.compile.analysis.{ ReadWriteMappers, SourceInfo, Stamp }
@@ -49,8 +49,6 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
     asProduct3(read)(a => (a.name(), a.scope().name(), a.hash()))
   }
   private implicit val companionsFomrat: Format[Companions] = CompanionsFormat
-  private implicit def problemFormat: Format[Problem] =
-    asProduct5(problem)(p => (p.category, p.position, p.message, p.severity, jo2o(p.rendered)))
   private implicit def positionFormat: Format[Position] =
     asProduct13(position)(p =>
       (
@@ -88,7 +86,28 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
     asProduct2((file: Path, hash: Int) => FileHash.of(file, hash))(h => (h.file, h.hash))
   private implicit def seqFormat[T](implicit optionFormat: Format[T]): Format[Seq[T]] =
     viaSeq[Seq[T], T](x => x)
+  private implicit def listFormat[A](implicit optionFormat: Format[A]): Format[List[A]] =
+    wrap[List[A], Seq[A]](_.toSeq, _.toList)
   private def t2[A1, A2](a1: A1, a2: A2): T2[A1, A2] = InterfaceUtil.t2(a1 -> a2)
+  private implicit def diagnosticCodeFormat: Format[DiagnosticCode] =
+    asProduct2(DiagnosticsUtil.diagnosticCode)(d => (d.code(), jo2o(d.explanation())))
+  private implicit def diagnosticRelatedInformationFormat: Format[DiagnosticRelatedInformation] =
+    asProduct2(DiagnosticsUtil.diagnosticRelatedInformation)(d => (d.position(), d.message()))
+  private implicit def problemFormat: Format[Problem] = {
+    implicit val ev: Format[List[DiagnosticRelatedInformation]] =
+      listFormat(diagnosticRelatedInformationFormat)
+    asProduct7(problem)(p =>
+      (
+        p.category,
+        p.position,
+        p.message,
+        p.severity,
+        jo2o(p.rendered),
+        jo2o(p.diagnosticCode),
+        jl2l(p.diagnosticRelatedInforamation),
+      )
+    )
+  }
 
   // Companions portion of the API info is written in a separate entry later.
   def write(out: Writer, analysis: CompileAnalysis, setup: MiniSetup): Unit = {
