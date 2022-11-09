@@ -21,14 +21,21 @@ class ClassFileManagerHookSpec extends BaseCompilerSpec {
       val setup = ProjectSetup.simple(tempDir.toPath, SourceFiles.Foo :: Nil)
 
       var callbackCalled = 0
+      var numDel = 0
+      var numGen = 0
       val myClassFileManager = new ClassFileManager {
         @deprecated("legacy", "1.4.0")
         override def delete(classes: Array[File]): Unit = {
+          // delete is called twice, both paths root in `IncrementalCompilerImpl.compileInternal`:
+          //   1. IncrementalCompilerImpl.prevAnalysis -> Incremental.prune
+          //   2. IncrementalCommon.pruneClassFilesOfInvalidations
           callbackCalled += 1
+          numDel += classes.length
         }
         @deprecated("legacy", "1.4.0")
         override def generated(classes: Array[File]): Unit = {
           callbackCalled += 1
+          numGen += classes.length
         }
         override def complete(success: Boolean): Unit = {
           callbackCalled += 1
@@ -43,7 +50,9 @@ class ClassFileManagerHookSpec extends BaseCompilerSpec {
       try compiler.doCompile()
       finally compiler.close()
 
-      callbackCalled.shouldEqual(3)
+      callbackCalled.shouldEqual(4)
+      numDel.shouldEqual(0)
+      numGen.shouldEqual(2)
     }
   }
 }
