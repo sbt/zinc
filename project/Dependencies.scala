@@ -7,14 +7,14 @@ object Dependencies {
 
   val scala210 = "2.10.7"
   val scala211 = "2.11.12"
-  val scala212 = "2.12.16"
+  val scala212 = "2.12.17"
   val scala213 = "2.13.8"
   val defaultScalaVersion = scala212
   val allScalaVersions = Seq(defaultScalaVersion, scala210, scala211, scala213)
   val scala212_213 = Seq(defaultScalaVersion, scala213)
 
-  private val ioVersion = nightlyVersion.getOrElse("1.7.0")
-  private val utilVersion = nightlyVersion.getOrElse("1.7.2")
+  private val ioVersion = nightlyVersion.getOrElse("1.8.0")
+  private val utilVersion = nightlyVersion.getOrElse("1.8.0")
 
   private val sbtIO = "org.scala-sbt" %% "io" % ioVersion
 
@@ -72,6 +72,7 @@ object Dependencies {
 
   val parserCombinator = "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2"
   val sbinary = "org.scala-sbt" %% "sbinary" % "0.5.1"
+  val scalaXml = "org.scala-lang.modules" %% "scala-xml" % "2.1.0"
   val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.17.0"
   val scalatest = "org.scalatest" %% "scalatest" % "3.2.13"
   val verify = "com.eed3si9n.verify" %% "verify" % "2.0.1"

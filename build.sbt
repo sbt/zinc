@@ -260,7 +260,10 @@ lazy val zincPersist = (projectMatrix in internalPath / "zinc-persist")
   .dependsOn(zincCore, zincCompileCore, zincPersistCoreAssembly, zincCore % "test->test")
   .settings(
     name := "zinc Persist",
-    libraryDependencies += sbinary,
+    libraryDependencies ++= Seq(
+      sbinary.exclude("org.scala-lang.modules", "scala-xml_" + scalaBinaryVersion.value),
+      scalaXml
+    ),
     compileOrder := sbt.CompileOrder.Mixed,
     Compile / scalacOptions ++= (scalaVersion.value match {
       case VersionNumber(Seq(2, 12, _*), _, _) =>
