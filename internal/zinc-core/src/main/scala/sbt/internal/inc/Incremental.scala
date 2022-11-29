@@ -488,8 +488,7 @@ object Incremental {
     IncrementalCommon.pruneClassFilesOfInvalidations(
       invalidatedSrcs,
       previous,
-      ClassFileManager
-        .deleteImmediately(output, outputJarContent, incOptions.auxiliaryClassFiles()),
+      ClassFileManager.getClassFileManager(incOptions, output, outputJarContent),
       converter
     )
   }
