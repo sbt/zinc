@@ -31,20 +31,25 @@ object FileAnalysisStore {
   private final val BinExtension = "bin"
   private final val analysisFileName = s"inc_compile.$BinExtension"
   private final val companionsFileName = s"api_companions.$BinExtension"
+  private final val defaultTmpDir = new File(System.getProperty("java.io.tmpdir"))
 
   def binary(analysisFile: File): XAnalysisStore =
-    new BinaryFileStore(analysisFile, ReadWriteMappers.getEmptyMappers())
+    binary(analysisFile, ReadWriteMappers.getEmptyMappers())
   def binary(analysisFile: File, mappers: ReadWriteMappers): XAnalysisStore =
-    new BinaryFileStore(analysisFile, mappers)
+    binary(analysisFile, mappers, defaultTmpDir)
+  def binary(analysisFile: File, mappers: ReadWriteMappers, tmpDir: File): XAnalysisStore =
+    new BinaryFileStore(analysisFile, mappers, tmpDir)
 
   def text(file: File): XAnalysisStore =
-    new FileBasedStoreImpl(file, TextAnalysisFormat)
+    text(file, TextAnalysisFormat)
   def text(file: File, mappers: ReadWriteMappers): XAnalysisStore =
-    new FileBasedStoreImpl(file, new TextAnalysisFormat(mappers))
+    text(file, new TextAnalysisFormat(mappers))
   def text(file: File, format: TextAnalysisFormat): XAnalysisStore =
-    new FileBasedStoreImpl(file, format)
+    text(file, format, defaultTmpDir)
+  def text(file: File, format: TextAnalysisFormat, tmpDir: File): XAnalysisStore =
+    new FileBasedStoreImpl(file, format, tmpDir)
 
-  private final class BinaryFileStore(file: File, readWriteMappers: ReadWriteMappers)
+  private final class BinaryFileStore(file: File, readWriteMappers: ReadWriteMappers, tmpDir: File)
       extends XAnalysisStore {
 
     private final val format = new BinaryAnalysisFormat(readWriteMappers)
@@ -82,7 +87,7 @@ object FileAnalysisStore {
     override def set(contents: AnalysisContents): Unit = {
       val analysis = contents.getAnalysis
       val setup = contents.getMiniSetup
-      val tmpAnalysisFile = File.createTempFile(file.getName, TmpEnding)
+      val tmpAnalysisFile = File.createTempFile(file.getName, TmpEnding, tmpDir)
       if (!file.getParentFile.exists())
         file.getParentFile.mkdirs()
 
@@ -101,14 +106,14 @@ object FileAnalysisStore {
     }
   }
 
-  private final class FileBasedStoreImpl(file: File, format: TextAnalysisFormat)
+  private final class FileBasedStoreImpl(file: File, format: TextAnalysisFormat, tmpDir: File)
       extends XAnalysisStore {
     val companionsStore = new FileBasedCompanionsMapStore(file, format)
 
     def set(analysisContents: AnalysisContents): Unit = {
       val analysis = analysisContents.getAnalysis
       val setup = analysisContents.getMiniSetup
-      val tmpAnalysisFile = File.createTempFile(file.getName, ".tmp")
+      val tmpAnalysisFile = File.createTempFile(file.getName, ".tmp", tmpDir)
       if (!file.getParentFile.exists()) file.getParentFile.mkdirs()
       Using.zipOutputStream(new FileOutputStream(tmpAnalysisFile)) { outputStream =>
         val writer = new BufferedWriter(new OutputStreamWriter(outputStream, IO.utf8))
