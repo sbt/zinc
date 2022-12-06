@@ -16,7 +16,7 @@ object Dependencies {
   val scala3_only = Seq(scala3)
 
   private val ioVersion = nightlyVersion.getOrElse("1.7.0")
-  private val utilVersion = nightlyVersion.getOrElse("2.0.0-alpha4")
+  private val utilVersion = nightlyVersion.getOrElse("2.0.0-alpha5")
 
   private val sbtIO = "org.scala-sbt" %% "io" % ioVersion
 
@@ -78,7 +78,7 @@ object Dependencies {
   val scalatest = "org.scalatest" %% "scalatest" % "3.2.10"
   val junit = "junit" % "junit" % "4.12"
   val verify = "com.eed3si9n.verify" %% "verify" % "1.0.0"
-  val sjsonNewVersion = "0.12.0"
+  val sjsonNewVersion = "0.13.0"
   val sjsonnew = Def.setting {
     "com.eed3si9n" %% "sjson-new-core" % sjsonNewVersion
   }
