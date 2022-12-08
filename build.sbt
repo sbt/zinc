@@ -52,7 +52,7 @@ ThisBuild / version := {
   nightlyVersion match {
     case Some(v) => v
     case _ =>
-      if ((ThisBuild / isSnapshot).value) "2.0.0-SNAPSHOT"
+      if ((ThisBuild / isSnapshot).value) "2.0.0-alpha7-SNAPSHOT"
       else old
   }
 }
@@ -234,7 +234,7 @@ lazy val zincTesting = (projectMatrix in internalPath / "zinc-testing")
     name := "zinc Testing",
     baseSettings,
     noPublish,
-    libraryDependencies ++= Seq(scalaCheck, scalatest, junit, verify, sjsonnewScalaJson.value)
+    libraryDependencies ++= Seq(scalaCheck, scalatest.cross(CrossVersion.for3Use2_13), junit, verify, sjsonnewScalaJson.value)
   )
   .jvmPlatform(scalaVersions = scala3_only)
   .configure(addSbtIO, addSbtUtilLogging)
@@ -428,7 +428,7 @@ lazy val compilerInterface = (projectMatrix in internalPath / "compiler-interfac
     scalaVersion := scala3,
     crossScalaVersions := Seq(scala3),
     compilerVersionDependentScalacOptions,
-    libraryDependencies ++= Seq(scalatest % Test),
+    libraryDependencies ++= Seq((scalatest % Test).cross(CrossVersion.for3Use2_13)),
     exportJars := true,
     Compile / resourceGenerators += Def.task {
       val a = (Compile / compile).value

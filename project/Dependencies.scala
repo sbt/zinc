@@ -73,7 +73,7 @@ object Dependencies {
   val scalaCompiler = Def.setting { "org.scala-lang" % "scala-compiler" % scalaVersion.value }
 
   val parserCombinator = "org.scala-lang.modules" %% "scala-parser-combinators" % "2.1.0"
-  val sbinary = "org.scala-sbt" %% "sbinary" % "0.5.1"
+  val sbinary = "org.scala-sbt" %% "sbinary" % "0.5.2"
   val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.15.4"
   val scalatest = "org.scalatest" %% "scalatest" % "3.2.10"
   val junit = "junit" % "junit" % "4.12"
@@ -98,7 +98,7 @@ object Dependencies {
     p.settings(
       libraryDependencies ++= Seq(
         scalaCheck % Test,
-        scalatest % Test,
+        (scalatest % Test).cross(CrossVersion.for3Use2_13),
         verify % Test,
         junit % Test
       )
