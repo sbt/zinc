@@ -958,7 +958,7 @@ private final class AnalysisCallback(
         NameHashing.merge(nm1, nm2)
       case (Some(nm), None) => nm
       case (None, Some(nm)) => nm
-      case (None, None)     => sys.error("Failed to find name hashes for " + className)
+      case (None, None)     => Array.empty
     }
   }
 
