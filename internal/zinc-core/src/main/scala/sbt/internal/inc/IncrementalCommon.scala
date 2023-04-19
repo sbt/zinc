@@ -482,9 +482,11 @@ private[inc] abstract class IncrementalCommon(
       log.debug("No classes were invalidated.")
       Set.empty
     } else {
-      val allInvalidations = firstClassInvalidation ++ secondClassInvalidation
-      log.debug(s"Invalidated classes: ${allInvalidations.mkString(", ")}")
-      allInvalidations
+      if (invalidateTransitively) {
+        newInvalidations ++ recompiledClasses
+      } else {
+        firstClassInvalidation ++ secondClassInvalidation
+      }
     }
   }
 
