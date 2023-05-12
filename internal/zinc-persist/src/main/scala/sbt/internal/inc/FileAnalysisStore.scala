@@ -14,6 +14,7 @@ package internal
 package inc
 
 import java.io._
+import java.nio.file.Files
 import java.util.Optional
 import java.util.zip.{ ZipEntry, ZipInputStream }
 
@@ -87,7 +88,7 @@ object FileAnalysisStore {
     override def set(contents: AnalysisContents): Unit = {
       val analysis = contents.getAnalysis
       val setup = contents.getMiniSetup
-      val tmpAnalysisFile = File.createTempFile(file.getName, TmpEnding, tmpDir)
+      val tmpAnalysisFile = Files.createTempFile(tmpDir.toPath, file.getName, TmpEnding).toFile
       if (!file.getParentFile.exists())
         file.getParentFile.mkdirs()
 
@@ -113,7 +114,7 @@ object FileAnalysisStore {
     def set(analysisContents: AnalysisContents): Unit = {
       val analysis = analysisContents.getAnalysis
       val setup = analysisContents.getMiniSetup
-      val tmpAnalysisFile = File.createTempFile(file.getName, ".tmp", tmpDir)
+      val tmpAnalysisFile = Files.createTempFile(tmpDir.toPath, file.getName, ".tmp").toFile
       if (!file.getParentFile.exists()) file.getParentFile.mkdirs()
       Using.zipOutputStream(new FileOutputStream(tmpAnalysisFile)) { outputStream =>
         val writer = new BufferedWriter(new OutputStreamWriter(outputStream, IO.utf8))
