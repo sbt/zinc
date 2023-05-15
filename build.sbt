@@ -537,11 +537,11 @@ lazy val compilerBridge213 = compilerBridge.jvm(scala213)
  * (Zinc API Info, which transitively depends on IO).
  */
 lazy val compilerBridgeTest = (project in internalPath / "compiler-bridge-test")
-  .dependsOn(zinc.jvm(scala212) % "compile->compile;test->test", compilerInterface.jvm(false))
+  .dependsOn(zinc.jvm(scala213) % "compile->compile;test->test", compilerInterface.jvm(false))
   .settings(
     name := "Compiler Bridge Test",
     baseSettings,
-    scalaVersion := scala212,
+    scalaVersion := scala213,
     compilerVersionDependentScalacOptions,
     // we need to fork because in unit tests we set usejavacp = true which means
     // we are expecting all of our dependencies to be on classpath so Scala compiler

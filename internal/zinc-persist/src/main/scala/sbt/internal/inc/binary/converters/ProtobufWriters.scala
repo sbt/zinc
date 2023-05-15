@@ -17,14 +17,17 @@ import java.nio.file.Path
 import scala.collection.JavaConverters._
 import sbt.internal.inc._
 import xsbti.{
+  Action,
   DiagnosticCode,
   DiagnosticRelatedInformation,
   Position,
   Problem,
   Severity,
   T2,
+  TextEdit,
   UseScope,
-  VirtualFileRef
+  VirtualFileRef,
+  WorkspaceEdit,
 }
 import xsbti.compile.analysis.{ SourceInfo, Stamp, WriteMapper }
 import sbt.internal.inc.binary.converters.ProtobufDefaults.Feedback.{ Writers => WritersFeedback }
@@ -208,8 +211,31 @@ final class ProtobufWriters(mapper: WriteMapper) {
       .setSeverity(severity)
     problem.rendered.toOption.foreach(r => builder.setRendered(r))
     problem.diagnosticCode.toOption.foreach(d => builder.setDiagnosticCode(toDiagnosticCode(d)))
-    problem.diagnosticRelatedInforamation.asScala
-      .foreach(d => builder.addDiagnosticRelatedInforamation(toDiagnosticRelatedInformation(d)))
+    problem.diagnosticRelatedInformation.asScala
+      .foreach(d => builder.addDiagnosticRelatedInformation(toDiagnosticRelatedInformation(d)))
+    problem.actions.asScala.foreach(a => builder.addActions(toAction(a)))
+    builder.build
+  }
+
+  def toAction(action: Action): Schema.Action = {
+    val edit = toWorkspaceEdit(action.edit())
+    val builder = Schema.Action.newBuilder
+      .setTitle(action.title)
+      .setEdit(edit)
+    action.description.toOption.foreach(d => builder.setDescription(d))
+    builder.build
+  }
+
+  def toWorkspaceEdit(edit: WorkspaceEdit): Schema.WorkspaceEdit = {
+    val builder = Schema.WorkspaceEdit.newBuilder
+    edit.changes.asScala.foreach(c => builder.addChanges(toTextEdit(c)))
+    builder.build
+  }
+
+  def toTextEdit(edit: TextEdit): Schema.TextEdit = {
+    val builder = Schema.TextEdit.newBuilder
+      .setPosition(toPosition(edit.position))
+      .setNewText(edit.newText)
     builder.build
   }
 

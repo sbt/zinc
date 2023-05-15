@@ -89,6 +89,21 @@ message DiagnosticRelatedInformation {
     string message = 2;
 }
 
+message TextEdit {
+    Position position = 1;
+    string newText = 2;
+}
+
+message WorkspaceEdit {
+    repeated TextEdit changes = 1;
+}
+
+message Action {
+    string title = 1;
+    string description = 2;
+    WorkspaceEdit edit = 3;
+}
+
 message Problem {
     string category = 1;
     Severity severity = 2;
@@ -96,7 +111,9 @@ message Problem {
     Position position = 4;
     string rendered = 5;
     DiagnosticCode diagnosticCode = 6;
-    repeated DiagnosticRelatedInformation diagnosticRelatedInforamation = 7;
+    repeated DiagnosticRelatedInformation diagnosticRelatedInforamation = 7 [deprecated=true];
+    repeated DiagnosticRelatedInformation diagnosticRelatedInformation = 8;
+    repeated Action actions = 9;
 }
 
 message SourceInfo {

@@ -97,7 +97,8 @@ class FilteredReporter(
         sev = severity,
         rendered = InterfaceUtil.jo2o(rendered),
         diagnosticCode = InterfaceUtil.jo2o(problem.diagnosticCode()),
-        diagnosticRelatedInforamation = InterfaceUtil.jl2l(problem.diagnosticRelatedInforamation()),
+        diagnosticRelatedInformation = InterfaceUtil.jl2l(problem.diagnosticRelatedInformation()),
+        actions = InterfaceUtil.jl2l(problem.actions()),
       )
       allProblems += prob
       ()

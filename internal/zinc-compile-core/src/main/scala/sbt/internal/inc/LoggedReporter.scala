@@ -140,7 +140,8 @@ class LoggedReporter(
       // even if the `rendered` is defined.
       rendered = if (transformed) None else InterfaceUtil.jo2o(rendered),
       diagnosticCode = InterfaceUtil.jo2o(problem0.diagnosticCode()),
-      diagnosticRelatedInforamation = InterfaceUtil.jl2l(problem0.diagnosticRelatedInforamation()),
+      diagnosticRelatedInformation = InterfaceUtil.jl2l(problem0.diagnosticRelatedInformation()),
+      actions = InterfaceUtil.jl2l(problem0.actions()),
     )
     allProblems += problem0
     severity match {
