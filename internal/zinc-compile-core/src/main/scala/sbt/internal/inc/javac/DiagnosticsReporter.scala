@@ -56,7 +56,8 @@ final class DiagnosticsReporter(reporter: Reporter) extends DiagnosticListener[J
       sev = severity,
       rendered = None,
       diagnosticCode = None,
-      diagnosticRelatedInforamation = Nil,
+      diagnosticRelatedInformation = Nil,
+      actions = Nil,
     ))
   }
 }

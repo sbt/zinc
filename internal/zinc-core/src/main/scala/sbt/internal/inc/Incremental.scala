@@ -700,7 +700,8 @@ private final class AnalysisCallback(
           sev = severity,
           rendered = None,
           diagnosticCode = None,
-          diagnosticRelatedInforamation = Nil,
+          diagnosticRelatedInformation = Nil,
+          actions = Nil,
         ))
     }
   }

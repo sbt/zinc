@@ -17,7 +17,16 @@ import java.nio.file.{ Path, Paths }
 import sbt.internal.inc._
 import sbt.util.InterfaceUtil
 import sbt.util.InterfaceUtil.{ jl2l, jo2o, position, problem }
-import xsbti.{ DiagnosticCode, DiagnosticRelatedInformation, T2, UseScope, VirtualFileRef }
+import xsbti.{
+  Action,
+  DiagnosticCode,
+  DiagnosticRelatedInformation,
+  T2,
+  TextEdit,
+  UseScope,
+  VirtualFileRef,
+  WorkspaceEdit
+}
 import xsbti.api._
 import xsbti.compile._
 import xsbti.compile.analysis.{ ReadWriteMappers, SourceInfo, Stamp }
@@ -96,7 +105,9 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
   private implicit def problemFormat: Format[Problem] = {
     implicit val ev: Format[List[DiagnosticRelatedInformation]] =
       listFormat(diagnosticRelatedInformationFormat)
-    asProduct7(problem)(p =>
+    implicit val ev2: Format[List[Action]] =
+      listFormat(actionFormat)
+    asProduct8(problem)(p =>
       (
         p.category,
         p.position,
@@ -104,10 +115,33 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
         p.severity,
         jo2o(p.rendered),
         jo2o(p.diagnosticCode),
-        jl2l(p.diagnosticRelatedInforamation),
+        jl2l(p.diagnosticRelatedInformation),
+        jl2l(p.actions),
       )
     )
   }
+  private implicit def actionFormat: Format[Action] =
+    asProduct3(InterfaceUtil.action)((a: Action) =>
+      (
+        a.title,
+        jo2o(a.description),
+        a.edit,
+      )
+    )
+  private implicit def workspaceEditFormat: Format[WorkspaceEdit] = {
+    implicit val ev: Format[List[TextEdit]] = listFormat(textEditFormat)
+    wrap[WorkspaceEdit, List[TextEdit]](
+      (e: WorkspaceEdit) => jl2l(e.changes),
+      InterfaceUtil.workspaceEdit
+    )
+  }
+  private implicit def textEditFormat: Format[TextEdit] =
+    asProduct2(InterfaceUtil.textEdit)((e: TextEdit) =>
+      (
+        e.position,
+        e.newText,
+      )
+    )
 
   // Companions portion of the API info is written in a separate entry later.
   def write(out: Writer, analysis: CompileAnalysis, setup: MiniSetup): Unit = {
@@ -153,7 +187,7 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
   }
 
   private[this] object VersionF {
-    val currentVersion = "6"
+    val currentVersion = "7"
 
     def write(out: Writer): Unit = {
       out.write("format version: %s\n".format(currentVersion))

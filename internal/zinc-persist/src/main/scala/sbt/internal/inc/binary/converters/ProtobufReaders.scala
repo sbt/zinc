@@ -12,20 +12,23 @@
 package sbt.internal.inc.binary.converters
 
 import java.nio.file.{ Path, Paths }
-import java.util.{ List => JList, Map => JMap, HashMap => JHashMap, Optional }
+import java.util.{ List => JList, Map => JMap, HashMap => JHashMap }
 import sbt.internal.inc.Relations.ClassDependencies
 import sbt.internal.inc._
 import sbt.internal.inc.binary.converters.ProtobufDefaults.EmptyLazyCompanions
 import sbt.util.InterfaceUtil
 import xsbti.{
+  Action,
   DiagnosticCode,
   DiagnosticRelatedInformation,
   Position,
   Problem,
   Severity,
   T2,
+  TextEdit,
   UseScope,
-  VirtualFileRef
+  VirtualFileRef,
+  WorkspaceEdit,
 }
 import xsbti.compile.{ CompileOrder, FileHash, MiniOptions, MiniSetup, Output, OutputGroup }
 import xsbti.compile.analysis.{ Compilation, ReadMapper, SourceInfo, Stamp }
@@ -181,15 +184,35 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
     if (value == MissingInt) None else Some(value)
 
   private def fromDiagnosticCode(diagnosticCode: Schema.DiagnosticCode): DiagnosticCode =
-    new DiagnosticCode {
-      override val code: String = diagnosticCode.getCode()
-      override val explanation: Optional[String] =
-        InterfaceUtil.o2jo(fromString(diagnosticCode.getExplanation()))
-    }
+    DiagnosticsUtil.diagnosticCode(
+      code = diagnosticCode.getCode(),
+      explanation = fromString(diagnosticCode.getExplanation()),
+    )
 
   private def fromDiagnosticRelatedInformation(info: Schema.DiagnosticRelatedInformation)
       : DiagnosticRelatedInformation =
-    ???
+    DiagnosticsUtil.diagnosticRelatedInformation(
+      position = fromPosition(info.getPosition()),
+      message = info.getMessage(),
+    )
+
+  private def fromAction(action: Schema.Action): Action =
+    InterfaceUtil.action(
+      title = action.getTitle(),
+      description = fromString(action.getDescription()),
+      edit = fromWorkspaceEdit(action.getEdit()),
+    )
+
+  private def fromWorkspaceEdit(edit: Schema.WorkspaceEdit): WorkspaceEdit =
+    InterfaceUtil.workspaceEdit(
+      changes = edit.getChangesList().asScala.iterator.map(fromTextEdit).toList
+    )
+
+  private def fromTextEdit(edit: Schema.TextEdit): TextEdit =
+    InterfaceUtil.textEdit(
+      position = fromPosition(edit.getPosition()),
+      newText = edit.getNewText(),
+    )
 
   def fromProblem(problem: Schema.Problem): Problem = {
     val category = problem.getCategory
@@ -202,8 +225,10 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
     val diagnosticCode =
       if (problem.hasDiagnosticCode) Some(fromDiagnosticCode(problem.getDiagnosticCode()))
       else None
-    val infos = problem.getDiagnosticRelatedInforamationList().asScala.iterator
+    val infos = problem.getDiagnosticRelatedInformationList().asScala.iterator
       .map(fromDiagnosticRelatedInformation).toList
+    val actions = problem.getActionsList().asScala.iterator
+      .map(fromAction).toList
     InterfaceUtil.problem(
       cat = category,
       pos = position,
@@ -211,7 +236,8 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
       sev = severity,
       rendered = rendered,
       diagnosticCode = diagnosticCode,
-      diagnosticRelatedInforamation = infos,
+      diagnosticRelatedInformation = infos,
+      actions = actions,
     )
   }
 

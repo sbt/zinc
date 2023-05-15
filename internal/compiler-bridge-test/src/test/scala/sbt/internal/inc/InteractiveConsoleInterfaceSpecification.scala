@@ -15,7 +15,7 @@ object InteractiveConsoleInterfaceSpecification
   test("Scala interpreter should evaluate arithmetic expression") {
     withInteractiveConsole { repl =>
       val response = repl.interpret("1+1", false)
-      assert(response.output.trim == "res0: Int = 2")
+      assert(response.output.trim == "val res0: Int = 2")
       assert(response.result == InteractiveConsoleResult.Success)
     }
   }
@@ -23,7 +23,7 @@ object InteractiveConsoleInterfaceSpecification
   test("it should evaluate list constructor") {
     withInteractiveConsole { repl =>
       val response = repl.interpret("List(1,2)", false)
-      assert(response.output.trim == "res0: List[Int] = List(1, 2)")
+      assert(response.output.trim == "val res0: List[Int] = List(1, 2)")
       assert(response.result == InteractiveConsoleResult.Success)
     }
   }
@@ -51,14 +51,6 @@ object InteractiveConsoleInterfaceSpecification
   }
 
   val postfixOpExpression = "import scala.concurrent.duration._\nval t = 1 second"
-
-  test("it should evaluate postfix op with a warning") {
-    withInteractiveConsole { repl =>
-      val response = repl.interpret(postfixOpExpression, false)
-      assert(response.output.trim.startsWith("warning"))
-      assert(response.result == InteractiveConsoleResult.Success)
-    }
-  }
 
   test("it should evaluate postfix op without warning when -language:postfixOps arg passed") {
     IO.withTemporaryDirectory { tempDir =>
