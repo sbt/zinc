@@ -111,7 +111,7 @@ public class ZipCentralDir {
         }
         end.centot = elist.size();
         end.cenlen = written;
-        end.write(os, written);
+        end.write(os, written + end.cenoff);
     }
 
     private List<Entry> readEntries() throws IOException {
@@ -242,6 +242,7 @@ public class ZipCentralDir {
                         end.centot = (int)ZIP64_ENDTOT(end64buf); // assume total < 2g
                         end.endpos = end64pos;
                     }
+                    log(end);
                     return end;
                 }
             }
@@ -431,6 +432,8 @@ public class ZipCentralDir {
                 writeShort(os, 0);
             }
         }
+
+        public String toString() { return String.format("END[@%07d #%05d %07dB]", cenoff, centot, cenlen); }
     }
 
     public static class Entry extends IndexNode {
@@ -739,4 +742,7 @@ public class ZipCentralDir {
         }
     }
 
+    private static void log(Object x) {
+        //System.out.println(x);
+    }
 }
