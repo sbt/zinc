@@ -19,6 +19,7 @@ import java.net.{ URI, URL, URLClassLoader }
 import sbt.io.{ IO, PathFinder }
 import xsbti.compile.ScalaInstance
 import java.io.InputStream
+import scala.annotation.tailrec
 import scala.util.control.Exception.catching
 
 object ClasspathUtil {
@@ -62,6 +63,7 @@ object ClasspathUtil {
       .map(_.toPath)
 
   lazy val rootLoader = {
+    @tailrec
     def parent(loader: ClassLoader): ClassLoader = {
       val p = loader.getParent
       if (p eq null) loader else parent(p)

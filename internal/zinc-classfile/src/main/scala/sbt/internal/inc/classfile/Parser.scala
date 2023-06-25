@@ -21,7 +21,7 @@ import java.io.{ BufferedInputStream, InputStream, File, DataInputStream }
 
 import sbt.internal.io.ErrorHandling
 
-import scala.annotation.switch
+import scala.annotation.{ switch, tailrec }
 import sbt.io.Using
 import sbt.util.Logger
 
@@ -200,6 +200,7 @@ private[sbt] object Parser {
           }
         }
       private def constants = {
+        @tailrec
         def next(i: Int, list: List[Constant]): List[Constant] = {
           if (i < constantPool.length) {
             val constant = constantPool(i)
@@ -216,6 +217,7 @@ private[sbt] object Parser {
     val constantPoolSize = in.readUnsignedShort()
     val pool = new Array[Constant](constantPoolSize)
 
+    @tailrec
     def parse(i: Int): Unit =
       if (i < constantPoolSize) {
         val constant = getConstant(in)
@@ -280,6 +282,7 @@ private[sbt] object Parser {
   private def slashesToDots(s: String) = s.replace('/', '.')
 
   private def descriptorToTypes(descriptor: Option[String]) = {
+    @tailrec
     def toTypes(descriptor: String, types: List[String]): List[String] = {
       val startIndex = descriptor.indexOf(ClassDescriptor)
       if (startIndex < 0)

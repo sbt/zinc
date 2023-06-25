@@ -26,6 +26,7 @@ import xsbti.api.Companions
 import xsbti.compile.analysis.ReadWriteMappers
 import xsbti.compile.{ AnalysisContents, AnalysisStore => XAnalysisStore }
 
+import scala.annotation.tailrec
 import scala.util.control.Exception.allCatch
 
 object FileAnalysisStore {
@@ -144,6 +145,7 @@ object FileAnalysisStore {
       }
   }
 
+  @tailrec
   private def lookupEntry(in: ZipInputStream, name: String): Unit =
     Option(in.getNextEntry) match {
       case Some(entry) if entry.getName == name => ()

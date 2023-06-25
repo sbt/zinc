@@ -14,6 +14,7 @@ package xsbt.api
 import xsbti.api._
 
 import Function.tupled
+import scala.annotation.tailrec
 import scala.collection.{ immutable, mutable }
 
 /** Checks the API of two source files for equality.*/
@@ -112,6 +113,7 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
     def sameDefs(a: List[Definition], b: List[Definition]): Boolean = {
       a match {
         case adef :: atail =>
+          @tailrec
           def sameDef(seen: List[Definition], remaining: List[Definition]): Boolean =
             remaining match {
               case Nil => debug(flag = false, "Definition different in new API: \n" + adef.name)

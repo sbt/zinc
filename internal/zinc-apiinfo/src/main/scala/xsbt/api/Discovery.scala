@@ -15,6 +15,8 @@ import xsbti.api.{ Path => APath, _ }
 
 import Discovery._
 
+import scala.annotation.tailrec
+
 class Discovery(baseClasses: Set[String], annotations: Set[String]) {
   def apply(s: Seq[Definition]): Seq[(Definition, Discovered)] =
     s.map { d =>
@@ -115,6 +117,7 @@ object Discovery {
   }
   def named(t: Type, nme: String) = simpleName(t) == Some(nme)
 
+  @tailrec
   def simpleName(t: Type): Option[String] = t match {
     case a: Annotated => simpleName(a.baseType)
     case _: Singleton => None
