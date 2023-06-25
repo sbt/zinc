@@ -18,6 +18,8 @@ import java.util.zip.{ ZipException, ZipFile }
 import xsbti.{ PathBasedFile, VirtualFile }
 import xsbti.compile.{ DefinesClass, PerClasspathEntryLookup }
 
+import scala.annotation.tailrec
+
 object Locate {
 
   /**
@@ -33,6 +35,7 @@ object Locate {
     className => find(className, gets)
   }
 
+  @tailrec
   private def find[S](
       name: String,
       gets: Iterator[String => Either[Boolean, S]]

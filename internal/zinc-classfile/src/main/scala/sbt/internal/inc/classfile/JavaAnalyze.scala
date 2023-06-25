@@ -271,6 +271,7 @@ private[sbt] object JavaAnalyze {
   private def binaryToSourceName(loadedClass: Class[_]): Option[String] =
     Option(loadedClass.getCanonicalName)
 
+  @tailrec
   private def loadEnclosingClass(clazz: Class[_]): Option[String] = {
     binaryToSourceName(clazz) match {
       case None if clazz.getEnclosingClass != null =>

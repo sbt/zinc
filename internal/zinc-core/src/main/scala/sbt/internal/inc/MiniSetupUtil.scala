@@ -26,6 +26,8 @@ import xsbti.compile.{
   Output => APIOutput
 }
 
+import scala.annotation.tailrec
+
 /**
  * Define all the implicit instances that are used in the Scala implementation
  * of the incremental compiler to check the mathematical equivalence relation
@@ -154,6 +156,7 @@ object MiniSetupUtil {
   def equivCompilerOptions(ignoredRegexes: Array[String]): Equiv[Array[String]] = {
     def groupWithParams(opts: Array[String]): Set[String] = {
       def isParam(s: String) = !s.startsWith("-")
+      @tailrec
       def recur(opts: List[String], res: Set[String]): Set[String] = opts match {
         case opt :: param :: rest if isParam(param) => recur(rest, res + s"$opt $param")
         case opt :: rest                            => recur(rest, res + opt)
