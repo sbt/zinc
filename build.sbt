@@ -88,7 +88,15 @@ def baseSettings: Seq[Setting[_]] = Seq(
   testFrameworks += new TestFramework("verify.runner.Framework"),
   compile / javacOptions ++= Seq("-Xlint", "-Xlint:-serial"),
   Test / publishArtifact := false,
-  scalacOptions ++= Seq("-YdisableFlatCpCaching", "-target:jvm-1.8"),
+  scalacOptions ++= Seq("-YdisableFlatCpCaching"),
+  scalacOptions += {
+    scalaBinaryVersion.value match {
+      case "2.10" | "2.11" =>
+        "-target:jvm-1.8"
+      case _ =>
+        "-release:8"
+    }
+  },
   semanticdbCompilerPlugin := {
     ("org.scalameta" % "semanticdb-scalac" % semanticdbVersion.value)
       .cross(CrossVersion.full)
