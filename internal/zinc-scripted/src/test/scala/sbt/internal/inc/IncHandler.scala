@@ -323,7 +323,7 @@ case class ProjectStructure(
 
   // We specify the class file manager explicitly even though it's noew possible
   // to specify it in the incremental option property file (this is the default for sbt)
-  val (incOptions, scalacOptions) = {
+  val (_incOptions, scalacOptions) = {
     val properties = loadIncProperties(baseDirectory)
     val (incOptions0, sco) = loadIncOptions(properties)
     val storeApis = Option(properties.getProperty("incOptions.storeApis"))
@@ -340,6 +340,7 @@ case class ProjectStructure(
         .withStoreApis(storeApis)
     (incO, sco)
   }
+  override def incOptions = _incOptions
   val exportPipelining = incOptions.pipelining
 
   def prev(useCachedAnalysis: Boolean = true) = {

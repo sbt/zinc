@@ -65,6 +65,8 @@ case class CompilerSetup(
   val loaderCache = new ClassLoaderCache(new URLClassLoader(Array()))
   val scalac = new AnalyzingCompiler(si, bridgeProv, boot, _ => (), Some(loaderCache))
   def toVf(p: Path) = converter.toVirtualFile(p)
+  val reporter =
+    new ManagedLoggedReporter(maxErrors, log, VirtualFileUtil.sourcePositionMapper(converter))
 
   val setup = zinc.setup(
     perClasspathEntryLookup,
@@ -72,7 +74,7 @@ case class CompilerSetup(
     tempDir.resolve("inc_compile"),
     CompilerCache.fresh,
     incOptions,
-    new ManagedLoggedReporter(maxErrors, log, VirtualFileUtil.sourcePositionMapper(converter)),
+    reporter,
     Some(progress),
     Some(FileAnalysisStore.getDefault(earlyAnalysisStoreLocation.toFile)),
     Array(InterfaceUtil.t2(("key", "value")))

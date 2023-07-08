@@ -1,4 +1,4 @@
-import Util._
+import ZincBuildUtil._
 import Dependencies._
 import localzinc.Scripted, Scripted._
 import com.typesafe.tools.mima.core._, ProblemFilters._
@@ -82,6 +82,8 @@ Global / concurrentRestrictions += Tags.limit(Tags.Test, 4)
 // Global / semanticdbVersion := "4.5.9"
 ThisBuild / Test / fork := true
 Global / excludeLintKeys += ideSkipProject
+Global / resolvers += "scala-integration" at
+  "https://scala-ci.typesafe.com/artifactory/scala-integration/"
 
 def baseSettings: Seq[Setting[_]] = Seq(
   testOptions += Tests.Argument(TestFrameworks.ScalaCheck, "-w", "1", "-verbosity", "2"),
@@ -131,6 +133,7 @@ def addBaseSettingsAndTestDeps(p: Project): Project =
 // zincRoot is now only 2.12 (2.11.x is not supported anymore)
 lazy val aggregated: Seq[ProjectReference] = compilerInterface.projectRefs ++
   compilerBridge.projectRefs ++
+  Seq(compilerBridge213_next: ProjectReference) ++
   zincApiInfo.projectRefs ++
   zincBenchmarks.projectRefs ++
   zincClasspath.projectRefs ++
@@ -195,6 +198,13 @@ lazy val zinc = (projectMatrix in (zincRootPath / "zinc"))
       BuildInfoKey.map(compilerBridge213 / scalaVersion)("scalaVersion213" -> _._2),
       BuildInfoKey.map(compilerBridge213 / scalaInstance)("scalaJars213" -> _._2.allJars.toList),
       BuildInfoKey.map(compilerBridge213 / Compile / classDirectory)("classDirectory213" -> _._2),
+      BuildInfoKey.map(compilerBridge213_next / scalaVersion)("scalaVersion213_next" -> _._2),
+      BuildInfoKey.map(compilerBridge213_next / scalaInstance)(
+        "scalaJars213_next" -> _._2.allJars.toList
+      ),
+      BuildInfoKey.map(compilerBridge213_next / Compile / classDirectory)(
+        "classDirectory213_next" -> _._2
+      ),
     ),
     Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
     // so we have full access to com.sun.tools.javac on JDK 17
@@ -280,7 +290,7 @@ lazy val zincPersist = (projectMatrix in internalPath / "zinc-persist")
     }),
     Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
     mimaSettings,
-    mimaBinaryIssueFilters ++= Util.excludeInternalProblems,
+    mimaBinaryIssueFilters ++= ZincBuildUtil.excludeInternalProblems,
     mimaBinaryIssueFilters ++= Seq(
       exclude[IncompatibleMethTypeProblem]("xsbti.*"),
       exclude[ReversedMissingMethodProblem]("xsbti.*"),
@@ -363,7 +373,7 @@ lazy val zincCore = (projectMatrix in internalPath / "zinc-core")
     name := "zinc Core",
     compileOrder := sbt.CompileOrder.Mixed,
     mimaSettings,
-    mimaBinaryIssueFilters ++= Util.excludeInternalProblems,
+    mimaBinaryIssueFilters ++= ZincBuildUtil.excludeInternalProblems,
     mimaBinaryIssueFilters ++= Seq(
       exclude[IncompatibleMethTypeProblem]("xsbti.*"),
       exclude[ReversedMissingMethodProblem]("xsbti.*"),
@@ -432,7 +442,7 @@ lazy val zincCompileCore = (projectMatrix in internalPath / "zinc-compile-core")
     Compile / managedSourceDirectories += (Compile / generateContrabands / sourceManaged).value,
     Compile / generateContrabands / sourceManaged := (internalPath / "zinc-compile-core" / "src" / "main" / "contraband-java").getAbsoluteFile,
     mimaSettings,
-    mimaBinaryIssueFilters ++= Util.excludeInternalProblems,
+    mimaBinaryIssueFilters ++= ZincBuildUtil.excludeInternalProblems,
   )
   .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
   .jvmPlatform(scalaVersions = List(scala212, scala213))
@@ -538,6 +548,30 @@ lazy val compilerBridge210 = compilerBridge.jvm(scala210)
 lazy val compilerBridge211 = compilerBridge.jvm(scala211)
 lazy val compilerBridge212 = compilerBridge.jvm(scala212)
 lazy val compilerBridge213 = compilerBridge.jvm(scala213)
+
+lazy val compilerBridge213_next = (project in (file(".sbt") / "matrix" / "compilerBridge2_13_next"))
+  .dependsOn(compilerInterface.jvm(false))
+  .settings(
+    scalaVersion := scala213_next,
+    autoScalaLibrary := false,
+    baseSettings,
+    compilerVersionDependentScalacOptions,
+    // We need this for import Compat._
+    Compile / scalacOptions --= Seq("-Ywarn-unused-import", "-Xfatal-warnings"),
+    libraryDependencies += scalaCompiler.value % "provided",
+    exportJars := true,
+    Compile / unmanagedResourceDirectories ++= (compilerBridge213 / Compile / unmanagedResourceDirectories).value,
+    Compile / unmanagedSourceDirectories ++= (compilerBridge213 / Compile / unmanagedSourceDirectories).value,
+    Compile / sources := {
+      val xs = (Compile / sources).value
+      (xs.filterNot { x => x.getName() == "DelegatingReporter.scala" }) ++
+        Seq(
+          (compilerBridge213 / Compile / scalaSource).value.getParentFile() / "resources" / "scala-2.13.12" / "DelegatingReporter.scala"
+        )
+    },
+    publishLocal / skip := false,
+    publish / skip := true,
+  )
 
 /**
  * Tests for the compiler bridge.
@@ -656,7 +690,7 @@ lazy val zincClassfile = (projectMatrix in internalPath / "zinc-classfile")
       exclude[IncompatibleResultTypeProblem]("sbt.internal.inc.IndexBasedZipOps.*"),
       exclude[ReversedMissingMethodProblem]("sbt.internal.inc.IndexBasedZipOps.*"),
     ),
-    mimaBinaryIssueFilters ++= Util.excludeInternalProblems,
+    mimaBinaryIssueFilters ++= ZincBuildUtil.excludeInternalProblems,
   )
   .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
   .jvmPlatform(scalaVersions = scala212_213)
@@ -680,7 +714,12 @@ lazy val zincScripted = (projectMatrix in internalPath / "zinc-scripted")
   .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
   .jvmPlatform(scalaVersions = List(scala212))
   .configure(
-    _.dependsOn(compilerBridge210, compilerBridge211, compilerBridge212, compilerBridge213)
+    _.dependsOn(
+      compilerBridge210,
+      compilerBridge211,
+      compilerBridge212,
+      compilerBridge213,
+    )
   )
   .configure(addSbtUtilScripted)
 
@@ -688,13 +727,18 @@ lazy val zincScripted212 = zincScripted.jvm(scala212)
 
 def bridges = {
   if (sys.props("java.specification.version") == "1.8") {
-    List(compilerBridge210 / publishLocal, compilerBridge211 / publishLocal)
+    List(
+      compilerBridge210 / publishLocal,
+      compilerBridge211 / publishLocal,
+      compilerBridge213_next / publishLocal,
+    )
   } else {
     List(
       compilerBridge210 / publishLocal,
       compilerBridge211 / publishLocal,
       compilerBridge212 / publishLocal,
       compilerBridge213 / publishLocal,
+      compilerBridge213_next / publishLocal,
     )
   }
 }
@@ -703,7 +747,8 @@ val publishBridges = taskKey[Unit]("")
 val crossTestBridges = taskKey[Unit]("")
 
 publishBridges := Def.task(()).dependsOn(bridges: _*).value
-crossTestBridges := (compilerBridgeTest / Test / test).dependsOn(publishBridges).value
+crossTestBridges := (compilerBridgeTest / Test / test)
+  .dependsOn(publishBridges).value
 
 addCommandAlias(
   "runBenchmarks", {
