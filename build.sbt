@@ -240,7 +240,7 @@ lazy val zincTesting = (projectMatrix in internalPath / "zinc-testing")
     publish / skip := true,
     libraryDependencies ++= Seq(scalaCheck, scalatest, verify, sjsonnewScalaJson.value),
     // scala-compiler depends on 1.x, but 2.x works too
-    dependencyOverrides += "org.scala-lang.modules" %% "scala-xml" % "2.1.0"
+    dependencyOverrides += "org.scala-lang.modules" %% "scala-xml" % "2.2.0"
   )
   .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
   .jvmPlatform(scalaVersions = List(scala212, scala213))
