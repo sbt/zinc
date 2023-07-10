@@ -2,7 +2,7 @@ import sbt._
 import Keys._
 import xsbti.compile.CompileAnalysis
 
-object Util {
+object ZincBuildUtil {
   lazy val apiDefinitions = TaskKey[Seq[File]]("api-definitions")
   lazy val genTestResTask = TaskKey[Seq[File]]("gen-test-resources")
 

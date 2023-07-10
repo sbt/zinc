@@ -14,13 +14,12 @@ package sbt.inc
 import java.nio.file.{ Files, Path }
 
 import sbt.internal.inc.{ Analysis, BridgeProviderSpecification }
-import sbt.util.Logger
 import xsbti.compile.{ CompileResult, IncOptions }
 
 class BaseCompilerSpec extends BridgeProviderSpecification {
   val scalaVersion: String = scala.util.Properties.versionNumberString
 
-  val incOptions: IncOptions = IncOptions.of().withPipelining(true)
+  override def incOptions: IncOptions = IncOptions.of().withPipelining(true)
 
   def assertExists(p: Path) = assert(Files.exists(p), s"$p does not exist")
 
@@ -45,15 +44,5 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
     val classes1 = classes(res1.analysis.asInstanceOf[Analysis])
     val classes2 = classes(res2.analysis.asInstanceOf[Analysis])
     classes2.collect { case (clazz, time) if !classes1.get(clazz).contains(time) => clazz }.toSet
-  }
-
-  implicit class ProjectSetupOps(setup: ProjectSetup) {
-    def createCompiler(): CompilerSetup = setup.createCompiler(scalaVersion, incOptions)
-
-    private def createCompiler(sv: String, incOptions: IncOptions): CompilerSetup = {
-      val si = scalaInstance(sv, setup.baseDir, Logger.Null)
-      val bridge = getCompilerBridge(setup.baseDir, Logger.Null, sv)
-      setup.createCompiler(sv, si, bridge, incOptions, log)
-    }
   }
 }
