@@ -149,6 +149,8 @@ private final class CachedCompiler0(
       underlyingReporter: DelegatingReporter,
       compileProgress: CompileProgress
   ): Unit = {
+    // cast down to AnalysisCallback2
+    val callback2 = callback.asInstanceOf[xsbti.AnalysisCallback2]
 
     if (command.shouldStopWithInfo) {
       underlyingReporter.info(null, command.getInfoMessage(compiler), true)
@@ -163,7 +165,17 @@ private final class CachedCompiler0(
       run.compileFiles(sources)
       processUnreportedWarnings(run)
       underlyingReporter.problems.foreach(p =>
-        callback.problem(p.category, p.position, p.message, p.severity, true)
+        callback2.problem2(
+          p.category,
+          p.position,
+          p.message,
+          p.severity,
+          true,
+          p.rendered,
+          p.diagnosticCode,
+          p.diagnosticRelatedInformation,
+          p.actions
+        )
       )
     }
 

@@ -1,4 +1,4 @@
-import Util._
+import ZincBuildUtil._
 import Dependencies._
 import localzinc.Scripted, Scripted._
 import com.typesafe.tools.mima.core._, ProblemFilters._
@@ -280,7 +280,7 @@ lazy val zincPersist = (projectMatrix in internalPath / "zinc-persist")
     }),
     Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
     mimaSettings,
-    mimaBinaryIssueFilters ++= Util.excludeInternalProblems,
+    mimaBinaryIssueFilters ++= ZincBuildUtil.excludeInternalProblems,
     mimaBinaryIssueFilters ++= Seq(
       exclude[IncompatibleMethTypeProblem]("xsbti.*"),
       exclude[ReversedMissingMethodProblem]("xsbti.*"),
@@ -363,7 +363,7 @@ lazy val zincCore = (projectMatrix in internalPath / "zinc-core")
     name := "zinc Core",
     compileOrder := sbt.CompileOrder.Mixed,
     mimaSettings,
-    mimaBinaryIssueFilters ++= Util.excludeInternalProblems,
+    mimaBinaryIssueFilters ++= ZincBuildUtil.excludeInternalProblems,
     mimaBinaryIssueFilters ++= Seq(
       exclude[IncompatibleMethTypeProblem]("xsbti.*"),
       exclude[ReversedMissingMethodProblem]("xsbti.*"),
@@ -432,7 +432,7 @@ lazy val zincCompileCore = (projectMatrix in internalPath / "zinc-compile-core")
     Compile / managedSourceDirectories += (Compile / generateContrabands / sourceManaged).value,
     Compile / generateContrabands / sourceManaged := (internalPath / "zinc-compile-core" / "src" / "main" / "contraband-java").getAbsoluteFile,
     mimaSettings,
-    mimaBinaryIssueFilters ++= Util.excludeInternalProblems,
+    mimaBinaryIssueFilters ++= ZincBuildUtil.excludeInternalProblems,
   )
   .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
   .jvmPlatform(scalaVersions = List(scala212, scala213))
@@ -656,7 +656,7 @@ lazy val zincClassfile = (projectMatrix in internalPath / "zinc-classfile")
       exclude[IncompatibleResultTypeProblem]("sbt.internal.inc.IndexBasedZipOps.*"),
       exclude[ReversedMissingMethodProblem]("sbt.internal.inc.IndexBasedZipOps.*"),
     ),
-    mimaBinaryIssueFilters ++= Util.excludeInternalProblems,
+    mimaBinaryIssueFilters ++= ZincBuildUtil.excludeInternalProblems,
   )
   .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
   .jvmPlatform(scalaVersions = scala212_213)

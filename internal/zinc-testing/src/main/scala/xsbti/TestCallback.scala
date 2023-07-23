@@ -13,15 +13,15 @@ package xsbti
 
 import java.io.File
 import java.nio.file.Path
-import java.util
-import java.util.Optional
+import java.{ util => ju }
+import ju.Optional
 
 import xsbti.api.{ DependencyContext, ClassLike }
 
 import scala.collection.mutable.ArrayBuffer
 
-class TestCallback extends AnalysisCallback {
-  case class TestUsedName(name: String, scopes: util.EnumSet[UseScope])
+class TestCallback extends AnalysisCallback2 {
+  case class TestUsedName(name: String, scopes: ju.EnumSet[UseScope])
 
   val classDependencies = new ArrayBuffer[(String, String, DependencyContext)]
   val binaryDependencies =
@@ -108,7 +108,7 @@ class TestCallback extends AnalysisCallback {
     ()
   }
 
-  def usedName(className: String, name: String, scopes: util.EnumSet[UseScope]): Unit =
+  def usedName(className: String, name: String, scopes: ju.EnumSet[UseScope]): Unit =
     usedNamesAndScopes(className) += TestUsedName(name, scopes)
 
   override def api(source: File, api: ClassLike): Unit = ???
@@ -124,19 +124,31 @@ class TestCallback extends AnalysisCallback {
 
   override def enabled(): Boolean = true
 
-  def problem(
+  override def problem(
       category: String,
       pos: xsbti.Position,
       message: String,
       severity: xsbti.Severity,
-      reported: Boolean
+      reported: Boolean,
+  ): Unit = ()
+
+  override def problem2(
+      category: String,
+      pos: Position,
+      msg: String,
+      severity: Severity,
+      reported: Boolean,
+      rendered: Optional[String],
+      diagnosticCode: Optional[xsbti.DiagnosticCode],
+      diagnosticRelatedInformation: ju.List[xsbti.DiagnosticRelatedInformation],
+      actions: ju.List[xsbti.Action],
   ): Unit = ()
 
   override def dependencyPhaseCompleted(): Unit = {}
 
   override def apiPhaseCompleted(): Unit = {}
 
-  override def classesInOutputJar(): util.Set[String] = java.util.Collections.emptySet()
+  override def classesInOutputJar(): ju.Set[String] = ju.Collections.emptySet()
 
   override def isPickleJava: Boolean = false
 
