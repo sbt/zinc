@@ -231,9 +231,14 @@ private final class DelegatingReporter(
 
   private def getActions(pos: Position, pos1: xsbti.Position, msg: String): List[Action] =
     if (pos.isRange) Nil
-    else if (msg.startsWith("procedure syntax is deprecated:")) {
-      val edit = workspaceEdit(List(textEdit(pos1, ": Unit = {")))
-      action("procedure syntax", None, edit) :: Nil
+    else if (msg.contains("procedure syntax is deprecated")) {
+      if (msg.contains("add `: Unit =`")) {
+        val edit = workspaceEdit(List(textEdit(pos1, ": Unit = ")))
+        action("procedure syntax (defn)", None, edit) :: Nil
+      } else if (msg.contains("add `: Unit`")) {
+        val edit = workspaceEdit(List(textEdit(pos1, ": Unit")))
+        action("procedure syntax (decl)", None, edit) :: Nil
+      } else Nil
     } else Nil
 
   import xsbti.Severity.{ Info, Warn, Error }
