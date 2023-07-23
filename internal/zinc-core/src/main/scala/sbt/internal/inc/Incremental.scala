@@ -15,12 +15,13 @@ package inc
 
 import java.io.File
 import java.nio.file.{ Files, Path, Paths }
-import java.util.{ EnumSet, UUID }
-import java.util.concurrent.atomic.AtomicBoolean
+import java.{ util => ju }
+import ju.{ EnumSet, Optional, UUID }
+import ju.concurrent.atomic.AtomicBoolean
 import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
 import sbt.internal.inc.JavaInterfaceUtil.EnrichOption
 import sbt.util.{ InterfaceUtil, Level, Logger }
-import sbt.util.InterfaceUtil.{ jo2o, t2 }
+import sbt.util.InterfaceUtil.{ jl2l, jo2o, l2jl, t2 }
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -597,7 +598,7 @@ private final class AnalysisCallback(
     progress: Option[CompileProgress],
     incHandlerOpt: Option[Incremental.IncrementalCallback],
     log: Logger
-) extends xsbti.AnalysisCallback {
+) extends xsbti.AnalysisCallback2 {
   import Incremental.CompileCycleResult
 
   // This must have a unique value per AnalysisCallback
@@ -681,14 +682,20 @@ private final class AnalysisCallback(
     ()
   }
 
-  def problem(
+  override def problem2(
       category: String,
       pos: Position,
       msg: String,
       severity: Severity,
-      reported: Boolean
-  ): Unit = {
-    for (path <- jo2o(pos.sourcePath())) {
+      reported: Boolean,
+      rendered: Optional[String],
+      diagnosticCode: Optional[xsbti.DiagnosticCode],
+      diagnosticRelatedInformation: ju.List[xsbti.DiagnosticRelatedInformation],
+      actions: ju.List[xsbti.Action],
+  ): Unit =
+    for {
+      path <- jo2o(pos.sourcePath())
+    } {
       val source = VirtualFileRef.of(path)
       val map = if (reported) reporteds else unreporteds
       map
@@ -698,13 +705,31 @@ private final class AnalysisCallback(
           pos = pos,
           msg = msg,
           sev = severity,
-          rendered = None,
-          diagnosticCode = None,
-          diagnosticRelatedInformation = Nil,
-          actions = Nil,
+          rendered = jo2o(rendered),
+          diagnosticCode = jo2o(diagnosticCode),
+          diagnosticRelatedInformation = jl2l(diagnosticRelatedInformation),
+          actions = jl2l(actions),
         ))
     }
-  }
+
+  override def problem(
+      category: String,
+      pos: Position,
+      msg: String,
+      severity: Severity,
+      reported: Boolean
+  ): Unit =
+    problem2(
+      category = category,
+      pos = pos,
+      msg = msg,
+      severity = severity,
+      reported = reported,
+      rendered = Optional.empty(),
+      diagnosticCode = Optional.empty(),
+      diagnosticRelatedInformation = l2jl(Nil),
+      actions = l2jl(Nil),
+    )
 
   def classDependency(onClassName: String, sourceClassName: String, context: DependencyContext) = {
     if (onClassName != sourceClassName)
