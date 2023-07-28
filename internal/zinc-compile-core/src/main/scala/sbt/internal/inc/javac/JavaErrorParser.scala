@@ -243,6 +243,15 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
           s"javac:$error"
         )
     }
+  val javacWarning: Parser[Problem] =
+    WARNING ~ SEMICOLON ~ restOfLine ^^ {
+      case _ ~ _ ~ warning =>
+        new JavaProblem(
+          JavaNoPosition,
+          Severity.Warn,
+          s"javac:$warning"
+        )
+    }
 
   val outputSumamry: Parser[Unit] =
     """(\s*)(\d+) (\w+)""".r ~ restOfLine ^^ {
@@ -250,7 +259,8 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
         ()
     }
 
-  val potentialProblem: Parser[Problem] = warningMessage | errorMessage | noteMessage | javacError
+  val potentialProblem: Parser[Problem] =
+    warningMessage | errorMessage | noteMessage | javacError | javacWarning
 
   val javacOutput: Parser[Seq[Problem]] = rep(potentialProblem) <~ opt(outputSumamry)
 
