@@ -14,6 +14,7 @@ package sbt.inc
 object SourceFiles {
   val Good = "Good.scala"
   val Foo = "Foo.scala"
+  val Foo2 = "Foo2.scala"
   val NestedJavaClasses = "NestedJavaClasses.java"
 
   object Naha {

@@ -404,6 +404,17 @@ object Incremental {
     val hasSubprojectChange = initialChanges.external.apiChanges.nonEmpty
     val analysis = withClassfileManager(options, converter, output, outputJarContent) {
       classfileManager =>
+        val nDeleted =
+          IncrementalCommon.deleteOrphanClassFiles(
+            sources,
+            previous,
+            classfileManager,
+            converter,
+            output
+          )
+        if (nDeleted > 0) {
+          incremental.log.debug(s"$nDeleted orphan classfiles deleted")
+        }
         if (hasModified)
           incremental.cycle(
             initialInvClasses,

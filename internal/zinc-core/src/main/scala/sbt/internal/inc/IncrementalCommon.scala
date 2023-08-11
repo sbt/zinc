@@ -845,6 +845,73 @@ object IncrementalCommon {
   }
 
   /**
+   * Deletes any orphan class files that cannot be related to any existing sources
+   *
+   * @param sources The set of current sources (invalidated or not).
+   * @param previous The previous analysis instance.
+   * @param classfileManager The class file manager.
+   * @param converter The file converter.
+   * @param output Compilation output for finding output class directory.
+   * @return The number of deleted orphan class files.
+   */
+  def deleteOrphanClassFiles(
+      sources: Set[VirtualFile],
+      previous: Analysis,
+      classfileManager: XClassFileManager,
+      converter: FileConverter,
+      output: Output
+  ): Int = {
+    import java.nio.file.{ Files, Path }
+    import scala.collection.mutable
+
+    val classesDirOpt = output.getSingleOutputAsPath()
+    var nOrphans = 0
+    // Is it even possible for this not to be defined at this point?
+    if (classesDirOpt.isPresent()) {
+      val classesDir: Path = classesDirOpt.get()
+
+      val reachableClasses: collection.Set[VirtualFile] =
+        previous.relations.allProducts.map(converter.toVirtualFile(_))
+
+      // Should this be a utility on sbt.io.IO?
+      // Would use Files.find but that was added in Java8
+      def findOrphans(root: Path): Array[VirtualFile] = {
+        // save allocation in common case of no orphans
+        var buf: mutable.ArrayBuffer[VirtualFile] = null
+        def walk(p: Path): Unit = {
+          if (Files.isDirectory(p)) {
+            val it = Files.newDirectoryStream(p).iterator()
+            while (it.hasNext()) {
+              walk(it.next())
+            }
+          } else {
+            if (p.toString.endsWith(".class")) { // Is there a better way?
+              val vf = converter.toVirtualFile(p)
+              if (!reachableClasses.contains(vf)) {
+                if (buf == null) {
+                  buf = new mutable.ArrayBuffer()
+                }
+                buf.append(vf)
+              }
+            }
+          }
+        }
+        walk(root)
+        if (buf == null) {
+          Array()
+        } else {
+          buf.toArray
+        }
+      }
+
+      val orphanClasses = findOrphans(classesDir)
+      nOrphans = orphanClasses.size
+      classfileManager.delete(orphanClasses)
+    }
+    nOrphans
+  }
+
+  /**
    * Prunes from the analysis and deletes the class files of `invalidatedSources`.
    *
    * @param invalidatedSources The set of invalidated sources.

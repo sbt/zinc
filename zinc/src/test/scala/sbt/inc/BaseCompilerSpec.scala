@@ -24,6 +24,8 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
 
   def assertExists(p: Path) = assert(Files.exists(p), s"$p does not exist")
 
+  def assertNotExists(p: Path) = assert(!Files.exists(p), s"$p exists")
+
   def lastClasses(a: Analysis) = {
     a.compilations.allCompilations.map { c =>
       a.apis.internal.collect {

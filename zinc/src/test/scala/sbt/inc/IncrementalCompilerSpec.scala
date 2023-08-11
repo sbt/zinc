@@ -120,6 +120,36 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
     } finally comp.close()
   }
 
+  it should "delete orphan class files" in withTmpDir { tempDir =>
+    val classes = Seq(SourceFiles.Good, SourceFiles.Foo)
+    val comp = ProjectSetup.simple(tempDir.toPath, classes).createCompiler()
+    // comp1 is identical to comp, showing stability for identical arguments
+    val comp1 = ProjectSetup.simple(tempDir.toPath, classes).createCompiler()
+    // Foo2 is same as Foo but in a different package
+    val classes2 = Seq(SourceFiles.Good, SourceFiles.Foo2)
+    val comp2 = ProjectSetup.simple(tempDir.toPath, classes2).createCompiler()
+    try {
+      val cacheFile = tempDir / "target" / "inc_compile.zip"
+      val fileStore = AnalysisStore.getCachedStore(FileAnalysisStore.binary(cacheFile))
+
+      val result = comp.doCompileWithStore(fileStore)
+      assert(result.hasModified)
+
+      val result2 = comp1.doCompileWithStore(fileStore)
+      assert(!result2.hasModified)
+
+      // We've changed source files, but also change setup to trigger full compilation
+      val setup = comp2.setup.withExtra(Array())
+      val result3 = comp2.doCompileWithStore(fileStore, _.withSetup(setup))
+      assert(result3.hasModified)
+
+      // TODO should this be more of an "assert exactly the following classes exist?"
+      assertExists(comp2.output / "pkg" / "Good$.class")
+      assertExists(comp2.output / "pkg2" / "Foo$.class")
+      assertNotExists(comp2.output / "pkg" / "Foo$.class")
+    } finally comp.close()
+  }
+
   it should "not trigger full compilation for small Scala changes in a mixed project" in withTmpDir {
     tmp =>
       val project = VirtualSubproject(tmp.toPath / "p1")
