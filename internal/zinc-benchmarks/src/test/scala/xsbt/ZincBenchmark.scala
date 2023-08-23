@@ -106,7 +106,7 @@ private[xsbt] class ZincBenchmark(toCompile: BenchmarkProject, zincEnabled: Bool
 private[xsbt] object ZincBenchmark {
   // This is the Scala version used to compile the benchmark project
   // do not use `scala.util.Properties.versionNumberString`.
-  val scalaVersion = "2.13.10"
+  val scalaVersion = "2.13.11"
 
   /* ************************************************************* */
   /* Utils to programmatically instantiate Compiler from sbt setup  */
