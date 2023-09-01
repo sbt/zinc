@@ -15,7 +15,7 @@ import java.io.PrintWriter
 import xsbti.compile.Output
 import scala.reflect.{ internal => sri }
 import scala.reflect.internal.{ util => sriu }
-import scala.tools.nsc.{ Global, Settings }
+import scala.tools.nsc.{ Global, Phase, Settings }
 import scala.tools.nsc.interactive.RangePositions
 import scala.tools.nsc.symtab.Flags, Flags._
 
@@ -150,7 +150,8 @@ abstract class Compat {
 }
 
 /** Defines compatibility utils for [[ZincCompiler]]. */
-trait ZincGlobalCompat {
+trait ZincGlobalCompat { g: Global =>
+  @inline final def exitingFlatten[T](op: => T): T = atPhase(currentRun.flattenPhase.next)(op)
 
   /** Use `dropRun` only in 2.10.x series. It was removed as of 2.11.0. */
   protected def superDropRun(): Unit = {

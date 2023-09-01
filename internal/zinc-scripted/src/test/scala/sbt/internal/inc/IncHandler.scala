@@ -232,6 +232,9 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
     onArgs("checkProducts") {
       case (p, src :: products, i) => p.checkProducts(i, dropRightColon(src), products)
     },
+    onArgs("checkProductsExists") {
+      case (p, src :: Nil, i) => p.checkProductsExist(i, src)
+    },
     onArgs("checkDependencies") {
       case (p, cls :: dependencies, i) => p.checkDependencies(i, dropRightColon(cls), dependencies)
     },
@@ -441,28 +444,32 @@ case class ProjectStructure(
       ()
     }
 
+  def getProducts(analysis: Analysis)(srcFile: String): Set[VirtualFileRef] =
+    analysis.relations.products(converter.toVirtualFile(baseDirectory / srcFile))
+
   def checkProducts(i: IncState, src: String, expected: List[String]): Future[Unit] =
     compile(i).map { analysis =>
-      // def isWindows: Boolean = sys.props("os.name").toLowerCase.startsWith("win")
-      // def relativeClassDir(f: File): File = f.relativeTo(classesDir) getOrElse f
-      // def normalizePath(path: String): String = {
-      //   if (isWindows) path.replace('\\', '/') else path
-      // }
-      def products(srcFile: String): Set[String] = {
-        val productFiles = analysis.relations.products(converter.toVirtualFile(baseDirectory / src))
-        productFiles.map { file: VirtualFileRef =>
-          // if (JarUtils.isClassInJar(file)) {
-          //   JarUtils.ClassInJar.fromPath(output.toPath).toClassFilePath
-          // } else {
-          //   normalizePath(relativeClassDir(file).getPath)
-          // }
-          file.id
-        }
-      }
       def assertClasses(expected: Set[String], actual: Set[String]) =
-        assert(expected == actual, s"Expected $expected products, got $actual")
+        assert(
+          expected == actual,
+          s"""Mismatch:
+             |Expected:${expected.map("\n  " + _).mkString}
+             |Obtained:${actual.map("\n  " + _).mkString}""".stripMargin
+        )
 
-      assertClasses(expected.toSet, products(src))
+      assertClasses(expected.toSet, getProducts(analysis)(src).map(_.id))
+      ()
+    }
+
+  def checkProductsExist(i: IncState, src: String): Future[Unit] =
+    compile(i).map { analysis =>
+      val missing =
+        for (p <- getProducts(analysis)(src).toList if !Files.exists(converter.toPath(p))) yield p
+      assert(
+        missing.isEmpty,
+        s"""Missing ${missing.size} products:${missing.map("\n  " + _).mkString}
+           |Generated:${generatedClassFiles.get.toList.map("\n  " + _).mkString}""".stripMargin
+      )
       ()
     }
 
