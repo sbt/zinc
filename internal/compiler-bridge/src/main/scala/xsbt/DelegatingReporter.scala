@@ -230,7 +230,7 @@ private final class DelegatingReporter(
   }
 
   private def getActions(pos: Position, pos1: xsbti.Position, msg: String): List[Action] =
-    if (pos.isRange) Nil
+    if ((pos eq null) || pos.isRange) Nil //can be null when a message is not related to any file (e.g. with `-X/-Y/-V/-W` compiler options)
     else if (msg.contains("procedure syntax is deprecated")) {
       if (msg.contains("add `: Unit =`")) {
         val edit = workspaceEdit(List(textEdit(pos1, ": Unit = ")))
