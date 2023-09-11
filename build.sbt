@@ -107,7 +107,7 @@ def baseSettings: Seq[Setting[_]] = Seq(
 def compilerVersionDependentScalacOptions: Seq[Setting[_]] = Seq(
   scalacOptions := {
     scalaBinaryVersion.value match {
-      case "2.12" =>
+      case "2.12" | "2.13" =>
         scalacOptions.value ++ List(
           "-opt-inline-from:<sources>",
           "-opt:l:inline",
