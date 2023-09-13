@@ -242,7 +242,7 @@ sealed class ZincCompiler(settings: Settings, dreporter: DelegatingReporter, out
       }
       ()
     }
-    loop(suffix.length(), symbol)
+    exitingFlatten(loop(suffix.length(), symbol))
     b.append(suffix)
     b.toString
   }
