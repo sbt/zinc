@@ -6,18 +6,18 @@
         "std",
         "lib"
       ],
-      "scalaVersion": "2.13.11"
+      "scalaVersion": "2.13.12"
     },
     {
       "name": "lib",
       "dependsOn": [
         "std"
       ],
-      "scalaVersion": "2.13.11"
+      "scalaVersion": "2.13.12"
     },
     {
       "name": "std",
-      "scalaVersion": "2.13.11"
+      "scalaVersion": "2.13.12"
     }
   ]
 }
