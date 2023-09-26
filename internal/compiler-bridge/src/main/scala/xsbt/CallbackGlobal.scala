@@ -19,6 +19,7 @@ import io.AbstractFile
 import java.nio.file.{ Files, Path }
 
 import scala.reflect.io.PlainFile
+import scala.reflect.ReflectAccess._
 
 /** Defines the interface of the incremental compiler hiding implementation details. */
 sealed abstract class CallbackGlobal(
@@ -225,19 +226,19 @@ sealed class ZincCompiler(settings: Settings, dreporter: DelegatingReporter, out
   ): String = {
     var b: java.lang.StringBuffer = null
     def loop(size: Int, sym: Symbol): Unit = {
-      val symName = sym.name
+      val symName = flattenedName(this)(sym)
       // Use of encoded to produce correct paths for names that have symbols
       val encodedName = symName.encode
       val nSize = encodedName.length - (if (symName.endsWith(nme.LOCAL_SUFFIX_STRING)) 1 else 0)
-      if (sym.isRoot || sym.isRootPackage || sym == NoSymbol || sym.owner.isEffectiveRoot) {
+      val owner = flattenedOwner(this)(sym)
+      if (sym.isRoot || sym.isRootPackage || sym == NoSymbol || owner.isEffectiveRoot) {
         val capacity = size + nSize
         b = new java.lang.StringBuffer(capacity)
         b.append(chrs, encodedName.start, nSize)
       } else {
-        val next = if (sym.owner.isPackageObjectClass) sym.owner else sym.effectiveOwner.enclClass
+        val next = if (owner.isPackageObjectClass) owner else owner.skipPackageObject
         loop(size + nSize + 1, next)
-        // Addition to normal `fullName` to produce correct names for nested non-local classes
-        if (sym.isNestedClass) b.append(nme.MODULE_SUFFIX_STRING) else b.append(separator)
+        if (owner.isPackageObjectClass) b.append(nme.MODULE_SUFFIX_STRING) else b.append(separator)
         b.append(chrs, encodedName.start, nSize)
       }
       ()
