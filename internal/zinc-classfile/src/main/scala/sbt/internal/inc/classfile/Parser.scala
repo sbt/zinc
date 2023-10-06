@@ -212,7 +212,7 @@ private[sbt] object Parser {
       }
     }
   }
-  private def array[T: scala.reflect.Manifest](size: Int)(f: => T) = Array.tabulate(size)(_ => f)
+  private def array[T: scala.reflect.ClassTag](size: Int)(f: => T) = Array.tabulate(size)(_ => f)
   private def parseConstantPool(in: DataInputStream) = {
     val constantPoolSize = in.readUnsignedShort()
     val pool = new Array[Constant](constantPoolSize)
