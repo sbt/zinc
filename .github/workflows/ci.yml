@@ -16,16 +16,16 @@ jobs:
             java: 11
             jobtype: 1
           - os: ubuntu-latest
-            java: 17
+            java: 21
             jobtype: 1
           - os: windows-latest
             java: 8
             jobtype: 2
           - os: ubuntu-latest
-            java: 17
+            java: 21
             jobtype: 3
           - os: ubuntu-latest
-            java: 17
+            java: 21
             jobtype: 4
     runs-on: ${{ matrix.os }}
     steps:
