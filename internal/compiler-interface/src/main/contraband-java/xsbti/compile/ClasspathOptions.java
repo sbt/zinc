@@ -32,7 +32,7 @@ public final class ClasspathOptions implements java.io.Serializable {
     }
     /**
      * If true, includes the Scala library on the boot classpath.
-     * This should usually be true.
+     * This should usually be false.
      */
     public boolean bootLibrary() {
         return this.bootLibrary;
@@ -53,14 +53,14 @@ public final class ClasspathOptions implements java.io.Serializable {
     }
     /**
      * If true, automatically configures the boot classpath.
-     * This should usually be true.
+     * This should usually be false.
      */
     public boolean autoBoot() {
         return this.autoBoot;
     }
     /**
      * If true, the Scala library jar is filtered from the standard classpath.
-     * This should usually be true because the library should be included on the boot
+     * This should usually be false unless the library is included on the boot
      * classpath of the Scala compiler and not the standard classpath.
      */
     public boolean filterLibrary() {

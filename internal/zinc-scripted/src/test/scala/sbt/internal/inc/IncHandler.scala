@@ -196,7 +196,7 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
       toCache
     }
     val analyzingCompiler = scalaCompiler(si, compilerBridge)
-    val cs = incrementalCompiler.compilers(si, ClasspathOptionsUtil.boot, None, analyzingCompiler)
+    val cs = incrementalCompiler.compilers(si, ClasspathOptionsUtil.noboot(si.version), None, analyzingCompiler)
     IncState(si, cs, 0)
   }
 
@@ -204,7 +204,7 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
 
   def scalaCompiler(instance: XScalaInstance, bridgeJar: Path): AnalyzingCompiler = {
     val bridgeProvider = ZincUtil.constantBridgeProvider(instance, bridgeJar)
-    val classpath = ClasspathOptionsUtil.boot
+    val classpath = ClasspathOptionsUtil.noboot(instance.version)
     new AnalyzingCompiler(instance, bridgeProvider, classpath, unit, IncHandler.classLoaderCache)
   }
 
