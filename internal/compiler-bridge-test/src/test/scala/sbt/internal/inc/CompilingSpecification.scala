@@ -39,7 +39,7 @@ trait CompilingSpecification extends AbstractBridgeProviderTestkit {
 
   def scalaCompiler(instance: xsbti.compile.ScalaInstance, bridgeJar: Path): AnalyzingCompiler = {
     val bridgeProvider = ZincUtil.constantBridgeProvider(instance, bridgeJar)
-    val classpath = ClasspathOptionsUtil.boot
+    val classpath = ClasspathOptionsUtil.noboot(instance.version)
     val cache = Some(new ClassLoaderCache(new URLClassLoader(Array())))
     new AnalyzingCompiler(instance, bridgeProvider, classpath, _ => (), cache)
   }
