@@ -76,7 +76,7 @@ final class CompilerArguments(
       if (compilerClasspath.isEmpty) dummy
       else absString(compilerClasspath)
     val classpathOption = Seq("-classpath", stringClasspath)
-    val bootClasspath = bootClasspathOption(hasLibrary(classpath))
+    val bootClasspath = bootClasspathOption(hasLibrary(classpath), classpath)
     options ++ bootClasspath ++ classpathOption ++ abs(sources)
   }
 
@@ -95,13 +95,13 @@ final class CompilerArguments(
   }
 
   def createBootClasspathFor(classpath: Seq[Path]): String =
-    createBootClasspath(hasLibrary(classpath) || cpOptions.compiler || cpOptions.extra)
+    createBootClasspath(hasLibrary(classpath) || cpOptions.compiler || cpOptions.extra, classpath)
 
   /**
    * Return the Scala library to the boot classpath if `addLibrary` is true.
    * @param addLibrary Flag to return the Scala library.
    */
-  def createBootClasspath(addLibrary: Boolean): String = {
+  def createBootClasspath(addLibrary: Boolean, classpath: Seq[Path]): String = {
     def findBoot: String = {
       import scala.collection.JavaConverters._
       System.getProperties.asScala.iterator
@@ -115,7 +115,14 @@ final class CompilerArguments(
       val newBootPrefix =
         if (originalBoot.isEmpty) ""
         else originalBoot + java.io.File.pathSeparator
-      newBootPrefix + absString(scalaInstance.libraryJars.map(_.toPath))
+      val useInstanceLibrary = {
+        val v = scalaInstance.version
+        v.startsWith("3.") || v.startsWith("2.13.")
+      }
+      val library: String =
+        if (useInstanceLibrary) absString(scalaInstance.libraryJars.map(_.toPath))
+        else absString(classpath.filter(isScalaLibrary))
+      newBootPrefix + library
     } else originalBoot
   }
 
@@ -125,16 +132,16 @@ final class CompilerArguments(
 
   def hasLibrary(classpath: Seq[Path]) = classpath.exists(isScalaLibrary)
 
-  def bootClasspathOption(addLibrary: Boolean): Seq[String] =
+  def bootClasspathOption(addLibrary: Boolean, classpath: Seq[Path]): Seq[String] =
     if (!cpOptions.autoBoot) Nil
-    else Seq(BootClasspathOption, createBootClasspath(addLibrary))
+    else Seq(BootClasspathOption, createBootClasspath(addLibrary, classpath))
 
-  def bootClasspath(addLibrary: Boolean): Seq[Path] =
+  def bootClasspath(addLibrary: Boolean, classpath: Seq[Path]): Seq[Path] =
     if (!cpOptions.autoBoot) Nil
-    else IO.parseClasspath(createBootClasspath(addLibrary)).map(_.toPath)
+    else IO.parseClasspath(createBootClasspath(addLibrary, classpath)).map(_.toPath)
 
   def bootClasspathFor(classpath: Seq[Path]) =
-    bootClasspath(hasLibrary(classpath))
+    bootClasspath(hasLibrary(classpath), classpath)
 
   def extClasspath: Seq[Path] =
     List("java.ext.dirs", "scala.ext.dirs").flatMap(k =>
