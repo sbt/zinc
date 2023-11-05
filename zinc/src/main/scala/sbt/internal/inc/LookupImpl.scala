@@ -31,6 +31,14 @@ class LookupImpl(compileConfiguration: CompileConfiguration, previousSetup: Opti
     }
   }
 
+  private lazy val binaryClassNameToAnalysis: Map[String, Analysis] = {
+    analyses.flatMap { analysis =>
+      analysis.relations.productClassName._2s.map { binaryClassName =>
+        binaryClassName -> analysis
+      }
+    }.toMap
+  }
+
   lazy val previousClasspathHash: Vector[FileHash] = {
     previousSetup match {
       case Some(x) => x.options.classpathHash.toVector
@@ -45,7 +53,7 @@ class LookupImpl(compileConfiguration: CompileConfiguration, previousSetup: Opti
   private val entry = MixedAnalyzingCompiler.classPathLookup(compileConfiguration)
 
   override def lookupAnalysis(binaryClassName: String): Option[CompileAnalysis] =
-    analyses.find(_.relations.productClassName._2s.contains(binaryClassName))
+    binaryClassNameToAnalysis.get(binaryClassName)
 
   override def lookupOnClasspath(binaryClassName: String): Option[VirtualFileRef] =
     entry(binaryClassName)
