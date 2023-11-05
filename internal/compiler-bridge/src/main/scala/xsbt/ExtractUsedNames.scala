@@ -250,6 +250,9 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
 
     private def handleClassicTreeNode(tree: Tree): Unit = tree match {
       // Register names from pattern match target type in PatMatTarget scope
+      case matchNode: Match =>
+        updateCurrentOwner()
+        PatMatDependencyTraverser.traverse(matchNode.selector.tpe)
       case ValDef(mods, _, tpt, _) if mods.isCase && mods.isSynthetic =>
         updateCurrentOwner()
         PatMatDependencyTraverser.traverse(tpt.tpe)

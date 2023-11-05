@@ -121,12 +121,11 @@ class NameHashingCompilerSpec extends BaseCompilerSpec {
       optimizedSealed = false
     )
 
-    // TODO: potential under compilation on 2.13 https://github.com/sbt/zinc/issues/753
-    // testIncrementalCompilation(
-    //   changes = Seq(Other -> addNewSealedChildren),
-    //   transitiveChanges = Set(Other3, Other),
-    //   optimizedSealed = true
-    // )
+    testIncrementalCompilation(
+      changes = Seq(Other -> addNewSealedChildren),
+      transitiveChanges = Set(Other3, Other),
+      optimizedSealed = true
+    )
   }
 
 }
