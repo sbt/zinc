@@ -508,7 +508,8 @@ case class ProjectStructure(
     compile(i).map { analysis =>
       discoverMainClasses(Some(analysis.apis)) match {
         case Seq(mainClassName) =>
-          val cp = ((i.si.allJars.map(_.toPath) :+ classesDir) ++ outputJar).map(_.toAbsolutePath)
+          val jars = i.si.allJars.map(_.toPath)
+          val cp = (jars ++ (unmanagedJars :+ output) ++ internalClasspath).map(_.toAbsolutePath)
           val loader = ClasspathUtil.makeLoader(cp, i.si, baseDirectory)
           val buffer = new ByteArrayOutputStream(8192)
           val oldOut = System.out
