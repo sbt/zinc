@@ -492,9 +492,10 @@ private[inc] abstract class IncrementalCommon(
 
   /** Invalidates classes and sources based on initially detected 'changes' to the sources, products, and dependencies.*/
   def invalidateInitial(
-      previous: Relations,
+      previousAnalysis: Analysis,
       changes: InitialChanges
   ): (Set[String], Set[VirtualFileRef]) = {
+    val previous = previousAnalysis.relations
     def classNames(srcs: Set[VirtualFileRef]): Set[String] = srcs.flatMap(previous.classNames)
     def toImmutableSet(srcs: java.util.Set[VirtualFileRef]): Set[VirtualFileRef] = {
       import scala.collection.JavaConverters.asScalaIteratorConverter
@@ -521,8 +522,15 @@ private[inc] abstract class IncrementalCommon(
         invalidateClassesExternally(previous, externalAPIChange, isScalaSource)
       }.toSet
     }
+    val byMacroUsage = {
+      for {
+        class1 <- invalidatedClasses
+        class1Client <- previous.memberRef.internal.reverse(class1)
+        if previousAnalysis.apis.internalAPI(class1Client).hasMacro
+      } yield class1Client
+    }
 
-    val allInvalidatedClasses = invalidatedClasses ++ byExtSrcDep
+    val allInvalidatedClasses = invalidatedClasses ++ byExtSrcDep ++ byMacroUsage
     val allInvalidatedSourcefiles = addedSrcs ++ modifiedSrcs ++ byProduct ++ byLibraryDep
 
     if (previous.allSources.isEmpty)
