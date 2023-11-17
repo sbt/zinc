@@ -519,8 +519,6 @@ private[inc] abstract class IncrementalCommon(
     val invalidatedClasses =
       removedClasses ++ dependentOnRemovedClasses ++ modifiedClasses ++ mutualDependentOnModifiedClasses
 
-//    val invalidatedClasses = removedClasses ++ dependentOnRemovedClasses ++ modifiedClasses
-
     val byProduct = changes.removedProducts.flatMap(previous.produced)
     val byLibraryDep = changes.libraryDeps.flatMap(previous.usesLibrary)
     val byExtSrcDep = {
