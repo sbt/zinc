@@ -3,6 +3,6 @@
 $ copy-file changes/Providers.scala Providers.scala
 $ copy-file changes/Bar.scala Bar.scala
 
--> compile # This should compile
+> compile # This should compile
 > clean
 > compile # Make sure that clean compile is fine
