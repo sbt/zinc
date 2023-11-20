@@ -9,7 +9,7 @@ object Macro {
 
   def impl(c: Context)(s: c.Tree): c.Tree = {
     import c.universe._
-    val suffix = new Data().suffix
+    val suffix = new Data2().suffix
     q"""$s + $suffix"""
   }
 }
