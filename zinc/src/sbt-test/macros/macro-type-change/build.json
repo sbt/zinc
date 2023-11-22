@@ -1,0 +1,15 @@
+{
+  "projects": [
+    {
+      "name": "app",
+      "dependsOn": [
+        "macros"
+      ],
+      "scalaVersion": "2.13.12"
+    },
+    {
+      "name": "macros",
+      "scalaVersion": "2.13.12"
+    }
+  ]
+}
