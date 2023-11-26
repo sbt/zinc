@@ -3,7 +3,13 @@ $ copy-file changes/Use.scala Use.scala
 > compile
 
 $ copy-file changes/Define2.scala Define.scala
-> compile
+
+# We usually call `compile` right before a checkDependencies call
+# However, as per https://github.com/sbt/zinc/pull/1287#issue-2010864729
+# The check would be too late to catch the missing dependency between a.Use and pkgName.Test
+# As invalidateInitial introduces library dependency between a.Use and pkgName.Test
+
+> checkDependencies a.Use: pkgName.Test
 
 $ delete Define.scala
 -> compile

@@ -152,10 +152,6 @@ object Incremental {
     log.debug(s"[zinc] IncrementalCompile -----------")
     val previous = previous0 match { case a: Analysis => a }
     val currentStamper = Stamps.initial(stamper)
-    val internalBinaryToSourceClassName = (binaryClassName: String) =>
-      previous.relations.productClassName.reverse(binaryClassName).headOption
-    val internalSourceToClassNamesMap: VirtualFile => Set[String] = (f: VirtualFile) =>
-      previous.relations.classNames(f)
 
     val earlyJar = extractEarlyJar(earlyOutput)
     val pickleJarPair = earlyJar.map { p =>
@@ -183,8 +179,6 @@ object Incremental {
           runProfiler.timeCompilation(startTime, System.nanoTime() - startTime)
         },
         new AnalysisCallback.Builder(
-          internalBinaryToSourceClassName,
-          internalSourceToClassNamesMap,
           lookup.lookupAnalyzedClass(_, _),
           currentStamper,
           options,
@@ -250,13 +244,7 @@ object Incremental {
     log.debug("[zinc] compileAllJava")
     val previous = previous0 match { case a: Analysis => a }
     val currentStamper = Stamps.initial(stamper)
-    val internalBinaryToSourceClassName = (binaryClassName: String) =>
-      previous.relations.productClassName.reverse(binaryClassName).headOption
-    val internalSourceToClassNamesMap: VirtualFile => Set[String] =
-      (f: VirtualFile) => previous.relations.classNames(f)
     val builder = new AnalysisCallback.Builder(
-      internalBinaryToSourceClassName,
-      internalSourceToClassNamesMap,
       lookup.lookupAnalyzedClass(_, _),
       currentStamper,
       options,
@@ -537,8 +525,6 @@ private object AnalysisCallback {
 
   /** Allow creating new callback instance to be used in each compile iteration */
   class Builder(
-      internalBinaryToSourceClassName: String => Option[String],
-      internalSourceToClassNamesMap: VirtualFile => Set[String],
       externalAPI: (String, Option[VirtualFileRef]) => Option[AnalyzedClass],
       stampReader: ReadStamps,
       options: IncOptions,
@@ -560,9 +546,14 @@ private object AnalysisCallback {
     def build(): AnalysisCallback = buildImpl(None)
 
     private def buildImpl(incHandlerOpt: Option[Incremental.IncrementalCallback]) = {
+      val previousAnalysisOpt = incHandlerOpt.map(_.previousAnalysisPruned)
+      val binaryToSourceLookup: String => Option[String] = previousAnalysisOpt match {
+        case Some(analysis) => (binaryClassName: String) =>
+            analysis.relations.productClassName.reverse(binaryClassName).headOption
+        case None => _ => None
+      }
       new AnalysisCallback(
-        internalBinaryToSourceClassName,
-        internalSourceToClassNamesMap,
+        binaryToSourceLookup,
         externalAPI,
         stampReader,
         options,
@@ -585,7 +576,6 @@ private object AnalysisCallback {
 
 private final class AnalysisCallback(
     internalBinaryToSourceClassName: String => Option[String],
-    internalSourceToClassNamesMap: VirtualFile => Set[String],
     externalAPI: (String, Option[VirtualFileRef]) => Option[AnalyzedClass],
     stampReader: ReadStamps,
     options: IncOptions,
