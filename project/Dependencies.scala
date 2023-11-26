@@ -8,15 +8,15 @@ object Dependencies {
   val scala210 = "2.10.7"
   val scala211 = "2.11.12"
   val scala212 = "2.12.15"
-  val scala213 = "2.13.6"
-  val scala3 = "3.2.0"
+  val scala213 = "2.13.12"
+  val scala3 = "3.3.1"
   val defaultScalaVersion = scala3
   val allScalaVersions = Seq(scala212, scala210, scala211, scala213)
   val scala212_213 = Seq(defaultScalaVersion, scala213)
   val scala3_only = Seq(scala3)
 
-  private val ioVersion = nightlyVersion.getOrElse("1.7.0")
-  private val utilVersion = nightlyVersion.getOrElse("2.0.0-alpha5")
+  private val ioVersion = nightlyVersion.getOrElse("1.9.7")
+  private val utilVersion = nightlyVersion.getOrElse("2.0.0-alpha7")
 
   private val sbtIO = "org.scala-sbt" %% "io" % ioVersion
 
@@ -73,12 +73,13 @@ object Dependencies {
   val scalaCompiler = Def.setting { "org.scala-lang" % "scala-compiler" % scalaVersion.value }
 
   val parserCombinator = "org.scala-lang.modules" %% "scala-parser-combinators" % "2.1.0"
-  val sbinary = "org.scala-sbt" %% "sbinary" % "0.5.2"
+  // sbinary 0.5.2 uses 2.13 build of scala-xml, so use 0.5.1
+  val sbinary = "org.scala-sbt" %% "sbinary" % "0.5.1"
   val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.15.4"
   val scalatest = "org.scalatest" %% "scalatest" % "3.2.10"
   val junit = "junit" % "junit" % "4.12"
   val verify = "com.eed3si9n.verify" %% "verify" % "1.0.0"
-  val sjsonNewVersion = "0.13.0"
+  val sjsonNewVersion = "0.14.0-M1"
   val sjsonnew = Def.setting {
     "com.eed3si9n" %% "sjson-new-core" % sjsonNewVersion
   }
@@ -98,7 +99,7 @@ object Dependencies {
     p.settings(
       libraryDependencies ++= Seq(
         scalaCheck % Test,
-        (scalatest % Test).cross(CrossVersion.for3Use2_13),
+        scalatest % Test,
         verify % Test,
         junit % Test
       )
