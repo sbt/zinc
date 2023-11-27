@@ -147,6 +147,8 @@ abstract class Compat {
   }
 
   protected def processOriginalTreeAttachment(in: Tree)(func: Tree => Unit): Unit = ()
+  protected def processSAMAttachment(f: Function)(addDependency: Symbol => Unit): Unit =
+    ()
 }
 
 /** Defines compatibility utils for [[ZincCompiler]]. */

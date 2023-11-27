@@ -24,6 +24,12 @@ abstract class Compat {
   protected def processOriginalTreeAttachment(in: Tree)(func: Tree => Unit): Unit = {
     Compat.OriginalTreeTraverser.Instance.traverseOriginal(in)(func)
   }
+
+  protected def processSAMAttachment(f: Function)(addDependency: Symbol => Unit): Unit = {
+    f.attachments.get[SAMFunction].foreach(sam => {
+      addDependency(sam.samTp.typeSymbol)
+    })
+  }
 }
 object Compat {
   // IR is renamed to Results
