@@ -353,7 +353,7 @@ object Incremental {
       def isEmpty = modifiedLibraries.isEmpty && modifiedClasses.isEmpty
     }
     val (initialInvClasses, initialInvSources0) =
-      incremental.invalidateInitial(previous, initialChanges)
+      incremental.invalidateInitial(previous.relations, initialChanges)
 
     // During early output, if there's any compilation at all, invalidate all Java sources too, so the downstream Scala subprojects would have type information via early output (pickle jar).
     val javaSources: Set[VirtualFileRef] = sources.collect {

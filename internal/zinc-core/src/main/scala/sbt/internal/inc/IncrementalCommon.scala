@@ -176,7 +176,7 @@ private[inc] abstract class IncrementalCommon(
           if (isFullCompilation) Set.empty[String]
           else
             invalidateAfterInternalCompilation(
-              analysis.relations,
+              analysis,
               newApiChanges,
               recompiledClasses,
               cycleNum >= options.transitiveStep,
@@ -451,12 +451,13 @@ private[inc] abstract class IncrementalCommon(
    * @return A list of invalidated class names for the next incremental compiler run.
    */
   def invalidateAfterInternalCompilation(
-      relations: Relations,
+      analysis: Analysis,
       changes: APIChanges,
       recompiledClasses: Set[String],
       invalidateTransitively: Boolean,
       isScalaClass: String => Boolean
   ): Set[String] = {
+    val relations = analysis.relations
     val initial = changes.allModified.toSet
     val dependsOnClass = findClassDependencies(_, relations)
     val firstClassInvalidation: Set[String] = {
@@ -477,7 +478,14 @@ private[inc] abstract class IncrementalCommon(
     if (secondClassInvalidation.nonEmpty)
       log.debug(s"Invalidated due to generated class file collision: ${secondClassInvalidation}")
 
-    val newInvalidations = (firstClassInvalidation -- recompiledClasses) ++ secondClassInvalidation
+    // Invalidate macros that transitively depend on any of the recompiled classes
+    val thirdClassInvalidation = {
+      val transitive = IncrementalCommon.transitiveDeps(recompiledClasses, log)(dependsOnClass)
+      (transitive -- recompiledClasses).filter(analysis.apis.internalAPI(_).hasMacro)
+    }
+
+    val newInvalidations =
+      (firstClassInvalidation -- recompiledClasses) ++ secondClassInvalidation ++ thirdClassInvalidation
     if (newInvalidations.isEmpty) {
       log.debug("No classes were invalidated.")
       Set.empty
@@ -485,17 +493,16 @@ private[inc] abstract class IncrementalCommon(
       if (invalidateTransitively) {
         newInvalidations ++ recompiledClasses
       } else {
-        firstClassInvalidation ++ secondClassInvalidation
+        firstClassInvalidation ++ secondClassInvalidation ++ thirdClassInvalidation
       }
     }
   }
 
   /** Invalidates classes and sources based on initially detected 'changes' to the sources, products, and dependencies.*/
   def invalidateInitial(
-      previousAnalysis: Analysis,
+      previous: Relations,
       changes: InitialChanges
   ): (Set[String], Set[VirtualFileRef]) = {
-    val previous = previousAnalysis.relations
     def classNames(srcs: Set[VirtualFileRef]): Set[String] = srcs.flatMap(previous.classNames)
     def toImmutableSet(srcs: java.util.Set[VirtualFileRef]): Set[VirtualFileRef] = {
       import scala.collection.JavaConverters.asScalaIteratorConverter
@@ -522,15 +529,8 @@ private[inc] abstract class IncrementalCommon(
         invalidateClassesExternally(previous, externalAPIChange, isScalaSource)
       }.toSet
     }
-    val byMacroUsage = {
-      for {
-        class1 <- invalidatedClasses
-        class1Client <- previous.memberRef.internal.reverse(class1)
-        if previousAnalysis.apis.internalAPI(class1Client).hasMacro
-      } yield class1Client
-    }
 
-    val allInvalidatedClasses = invalidatedClasses ++ byExtSrcDep ++ byMacroUsage
+    val allInvalidatedClasses = invalidatedClasses ++ byExtSrcDep
     val allInvalidatedSourcefiles = addedSrcs ++ modifiedSrcs ++ byProduct ++ byLibraryDep
 
     if (previous.allSources.isEmpty)

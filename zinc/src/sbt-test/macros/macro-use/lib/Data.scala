@@ -1,5 +1,5 @@
 package lib
 
 class Data {
-  def suffix = "_1"
+  def suffix = "_" + new InternalApi().value
 }
