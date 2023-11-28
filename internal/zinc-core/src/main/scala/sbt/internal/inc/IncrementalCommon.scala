@@ -98,6 +98,7 @@ private[inc] abstract class IncrementalCommon(
         invalidatedSources,
         classfileManager,
         pruned,
+        previous,
         classesToRecompile,
         profiler.registerCycle(
           invalidatedClasses,
@@ -148,6 +149,7 @@ private[inc] abstract class IncrementalCommon(
         invalidatedSources: Set[VirtualFile],
         classFileManager: XClassFileManager,
         pruned: Analysis,
+        override val previousAnalysis: Analysis,
         classesToRecompile: Set[String],
         registerCycle: (Set[String], APIChanges, Set[String], Boolean) => Unit
     ) extends IncrementalCallback(classFileManager) {

@@ -82,6 +82,8 @@ object Incremental {
 
     def previousAnalysisPruned: Analysis
 
+    def previousAnalysis: Analysis
+
     /**
      * @return true when the compilation cycle is compiling all the sources; false, otherwise.
      */
@@ -885,7 +887,18 @@ private final class AnalysisCallback(
       case d @ (DefinitionType.ClassDef | DefinitionType.Trait) =>
         val extraApiHash = {
           if (d != DefinitionType.Trait) apiHash
-          else HashAPI(_.hashAPI(classApi), includePrivateDefsInTrait = true)
+          else {
+            val currentExtraHash = HashAPI(_.hashAPI(classApi), includePrivateDefsInTrait = true)
+            incHandlerOpt match {
+              case Some(handler) =>
+                val analysis = handler.previousAnalysis
+                val parents = analysis.relations.inheritance.external.forward(className)
+                val parentsAPI = parents.map(analysis.apis.externalAPI)
+                val parentsHashes = parentsAPI.map(_.extraHash())
+                parentsHashes.fold(currentExtraHash)(_ ^ _)
+              case None => currentExtraHash
+            }
+          }
         }
 
         classApis(className) = ApiInfo(apiHash, extraApiHash, savedClassApi)
