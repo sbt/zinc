@@ -892,9 +892,11 @@ private final class AnalysisCallback(
             incHandlerOpt match {
               case Some(handler) =>
                 val analysis = handler.previousAnalysis
-                val parents = analysis.relations.inheritance.external.forward(className)
-                val parentsAPI = parents.map(analysis.apis.externalAPI)
-                val parentsHashes = parentsAPI.map(_.extraHash())
+                val externalParents = analysis.relations.inheritance.external.forward(className)
+                val internalParents = analysis.relations.inheritance.internal.forward(className)
+                val externalParentsAPI = externalParents.map(analysis.apis.externalAPI)
+                val internalParentsAPI = internalParents.map(analysis.apis.internalAPI)
+                val parentsHashes = (externalParentsAPI ++ internalParentsAPI).map(_.extraHash())
                 parentsHashes.fold(currentExtraHash)(_ ^ _)
               case None => currentExtraHash
             }
