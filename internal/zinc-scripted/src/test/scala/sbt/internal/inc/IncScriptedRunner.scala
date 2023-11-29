@@ -19,6 +19,7 @@ import sbt.io.IO
 import sbt.util.{ Level, Logger }
 
 import scala.collection.parallel.ParSeq
+import sbt.inc.ScriptedMain._
 
 object ScriptedRunnerImpl {
   type TestRunner = () => Seq[Option[String]]
@@ -59,6 +60,11 @@ object ScriptedRunnerImpl {
     reportErrors(tests.flatMap(test => test.apply()).flatten.toList)
   }
 
-  def listTests(baseDir: Path, log: Logger): Seq[ScriptedTest] =
-    new ListTests(baseDir.toFile, _ => true, log).listTests
+  def listTests(baseDir: Path, log: Logger): Seq[ScriptedTest] = {
+    val foundScriptedTests = detectScriptedTests(baseDir.toFile)
+    def isScriptedTest(test: ScriptedTest) = {
+      foundScriptedTests(test.group).contains(test.name)
+    }
+    new ListTests(baseDir.toFile, isScriptedTest, log).listTests
+  }
 }
