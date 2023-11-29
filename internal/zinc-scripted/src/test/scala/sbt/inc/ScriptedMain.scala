@@ -29,7 +29,7 @@ object ScriptedMain {
     run(baseDir, buffer = !disableBuffering, compileToJar, tests)
   }
 
-  private def detectScriptedTests(scriptedBase: File): Map[String, Set[String]] = {
+  def detectScriptedTests(scriptedBase: File): Map[String, Set[String]] = {
     val scriptedFiles: NameFilter = ("test": NameFilter) | "pending"
     val pairs = (scriptedBase * AllPassFilter * AllPassFilter * scriptedFiles).get.map { f =>
       val p = f.getParentFile
