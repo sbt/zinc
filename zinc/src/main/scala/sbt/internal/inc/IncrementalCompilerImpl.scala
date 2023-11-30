@@ -543,6 +543,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       // case _ if compileToJarSwitchedOn(mixedCompiler.config)             => Analysis.empty
       case Some(prev) if equiv.equiv(prev, currentSetup) => previousAnalysis
       case Some(prev) if !equivPairs.equiv(prev.extra, currentSetup.extra) =>
+        import sbt.internal.inc.ClassFileManager
         val classFileManager =
           ClassFileManager.getClassFileManager(incOptions, output, outputJarContent)
         val products = previousAnalysis.asInstanceOf[Analysis].relations.allProducts
