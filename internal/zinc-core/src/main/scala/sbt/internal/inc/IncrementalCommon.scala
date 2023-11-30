@@ -178,7 +178,7 @@ private[inc] abstract class IncrementalCommon(
           if (isFullCompilation) Set.empty[String]
           else
             invalidateAfterInternalCompilation(
-              analysis.relations,
+              analysis,
               newApiChanges,
               recompiledClasses,
               cycleNum >= options.transitiveStep,
@@ -443,7 +443,7 @@ private[inc] abstract class IncrementalCommon(
   /**
    * Invalidates classes internally to a project after an incremental compiler run.
    *
-   * @param relations The relations produced by the immediate previous incremental compiler cycle.
+   * @param analysis The analysis produced by the immediate previous incremental compiler cycle.
    * @param changes The changes produced by the immediate previous incremental compiler cycle.
    * @param recompiledClasses The immediately recompiled class names.
    * @param invalidateTransitively A flag that tells whether transitive invalidations should be
@@ -453,12 +453,13 @@ private[inc] abstract class IncrementalCommon(
    * @return A list of invalidated class names for the next incremental compiler run.
    */
   def invalidateAfterInternalCompilation(
-      relations: Relations,
+      analysis: Analysis,
       changes: APIChanges,
       recompiledClasses: Set[String],
       invalidateTransitively: Boolean,
       isScalaClass: String => Boolean
   ): Set[String] = {
+    val relations = analysis.relations
     val initial = changes.allModified.toSet
     val dependsOnClass = findClassDependencies(_, relations)
     val firstClassInvalidation: Set[String] = {
@@ -479,7 +480,27 @@ private[inc] abstract class IncrementalCommon(
     if (secondClassInvalidation.nonEmpty)
       log.debug(s"Invalidated due to generated class file collision: ${secondClassInvalidation}")
 
-    val newInvalidations = (firstClassInvalidation -- recompiledClasses) ++ secondClassInvalidation
+    // Invalidate macro classes that transitively depend on any of the recompiled classes
+    //
+    // The macro expansion tree can depend on the behavioural change of any upstream code change,
+    // not just API changes, so correctness requires aggressive recompilation of downstream classes.
+    //
+    // Technically the macro doesn't need to be recompiled - it's the classes downstream of the macro
+    // that need to be recompiled, so that the macros can be re-expanded.  But recompiling is the most
+    // straightforward way to signal any classes downstream of the _macro_ that they need to recompile.
+    //
+    // Also, note, that this solution only works for behavioural changes in sources within the same
+    // subproject as the macro.  Changes in behaviour in upstream subprojects don't cause downstream
+    // macro classes to recompile - because downstream projects only have visibility of the upstream
+    // API, and if it changed, which is insufficient, and upstream projects have no other way than
+    // their API to signal to downstream.
+    val thirdClassInvalidation = {
+      val transitive = IncrementalCommon.transitiveDeps(recompiledClasses, log)(dependsOnClass)
+      (transitive -- recompiledClasses).filter(analysis.apis.internalAPI(_).hasMacro)
+    }
+
+    val newInvalidations =
+      (firstClassInvalidation -- recompiledClasses) ++ secondClassInvalidation ++ thirdClassInvalidation
     if (newInvalidations.isEmpty) {
       log.debug("No classes were invalidated.")
       Set.empty
@@ -487,7 +508,7 @@ private[inc] abstract class IncrementalCommon(
       if (invalidateTransitively) {
         newInvalidations ++ recompiledClasses
       } else {
-        firstClassInvalidation ++ secondClassInvalidation
+        firstClassInvalidation ++ secondClassInvalidation ++ thirdClassInvalidation
       }
     }
   }
