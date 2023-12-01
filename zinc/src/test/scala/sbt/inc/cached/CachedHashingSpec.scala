@@ -28,7 +28,7 @@ class CachedHashingSpec extends BaseCompilerSpec {
   lazy val isWindows: Boolean =
     sys.props("os.name").toLowerCase(java.util.Locale.ENGLISH).contains("windows")
 
-  def timeMs[R](block: => R): Long = {
+  def timeUs[R](block: => R): Long = {
     val t0 = System.nanoTime()
     block // call-by-name
     val t1 = System.nanoTime()
@@ -84,11 +84,11 @@ class CachedHashingSpec extends BaseCompilerSpec {
           setup.extra.toList.map(_.toScalaTuple)
         )
 
-        val hashingTime = timeMs(genConfig)
+        val hashingTime = timeUs(genConfig)
         // we've had problems with this failing intermittently in CI (issue #1064), so let's
         // run it three times and accept any passing result; hopefully that will help?
         val cachedHashingTime =
-          Iterator.continually(timeMs(genConfig))
+          Iterator.continually(timeUs(genConfig))
             .take(3).min
         if (isWindows) assert(true)
         else
