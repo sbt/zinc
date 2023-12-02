@@ -6,3 +6,5 @@ target-2.13/
 zinc/src/test/resources/bin
 .idea
 metals.sbt
+.bsp
+.DS_Store
