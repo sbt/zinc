@@ -532,12 +532,11 @@ lazy val compilerBridge213 = compilerBridge.jvm(scala213)
  * This is split into a separate subproject because testing introduces more dependencies
  * (Zinc API Info, which transitively depends on IO).
  */
-lazy val compilerBridgeTest = (project in internalPath / "compiler-bridge-test")
-  .dependsOn(zinc.jvm(scala213) % "compile->compile;test->test", compilerInterface.jvm(false))
+lazy val compilerBridgeTest = (projectMatrix in internalPath / "compiler-bridge-test")
+  .dependsOn(zinc % "compile->compile;test->test", compilerInterface)
   .settings(
     name := "Compiler Bridge Test",
     baseSettings,
-    scalaVersion := scala213,
     compilerVersionDependentScalacOptions,
     // we need to fork because in unit tests we set usejavacp = true which means
     // we are expecting all of our dependencies to be on classpath so Scala compiler
@@ -549,6 +548,8 @@ lazy val compilerBridgeTest = (project in internalPath / "compiler-bridge-test")
     Test / javaOptions += s"-Dzinc.build.compilerbridge.scalaVersion=${scalaVersion.value}",
     publish / skip := true,
   )
+  .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
+  .jvmPlatform(scalaVersions = scala212_213)
 
 val scalaPartialVersion = Def.setting(CrossVersion.partialVersion(scalaVersion.value))
 
@@ -691,7 +692,7 @@ val publishBridges = taskKey[Unit]("")
 val crossTestBridges = taskKey[Unit]("")
 
 publishBridges := Def.task(()).dependsOn(bridges: _*).value
-crossTestBridges := (compilerBridgeTest / Test / test).dependsOn(publishBridges).value
+crossTestBridges := (compilerBridgeTest.jvm(scala213) / Test / test).dependsOn(publishBridges).value
 
 addCommandAlias(
   "runBenchmarks", {
