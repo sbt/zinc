@@ -541,8 +541,14 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
     previousSetup match {
       // The dummy output needs to be changed to .jar for this to work again.
       // case _ if compileToJarSwitchedOn(mixedCompiler.config)             => Analysis.empty
-      case Some(prev) if equiv.equiv(prev, currentSetup)                   => previousAnalysis
-      case Some(prev) if !equivPairs.equiv(prev.extra, currentSetup.extra) => Analysis.empty
+      case Some(prev) if equiv.equiv(prev, currentSetup) => previousAnalysis
+      case Some(prev) if !equivPairs.equiv(prev.extra, currentSetup.extra) =>
+        import sbt.internal.inc.ClassFileManager
+        val classFileManager =
+          ClassFileManager.getClassFileManager(incOptions, output, outputJarContent)
+        val products = previousAnalysis.asInstanceOf[Analysis].relations.allProducts
+        classFileManager.delete(products.map(converter.toVirtualFile).toArray)
+        Analysis.empty
       case _ =>
         val srcs = config.sources.toSet
         Incremental.prune(srcs, previousAnalysis, output, outputJarContent, converter, incOptions)
