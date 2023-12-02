@@ -652,11 +652,10 @@ lazy val zincClassfile = (projectMatrix in internalPath / "zinc-classfile")
 
 // re-implementation of scripted engine
 lazy val zincScripted = (projectMatrix in internalPath / "zinc-scripted")
-  .dependsOn(zinc % "compile;test->test")
+  .dependsOn(zinc % "compile;test->test", compilerBridge % "compile;test->test")
   .enablePlugins(BuildInfoPlugin)
   .settings(
     baseSettings,
-    ideSkipProject := true, // otherwise IntelliJ complains
     publish / skip := true,
     name := "zinc Scripted",
     Compile / buildInfo := Nil, // Only generate build info for tests
@@ -667,9 +666,6 @@ lazy val zincScripted = (projectMatrix in internalPath / "zinc-scripted")
   )
   .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
   .jvmPlatform(scalaVersions = List(scala212))
-  .configure(
-    _.dependsOn(compilerBridge210, compilerBridge211, compilerBridge212, compilerBridge213)
-  )
   .configure(addSbtUtilScripted)
 
 lazy val zincScripted212 = zincScripted.jvm(scala212)
