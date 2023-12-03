@@ -118,9 +118,12 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
 
   def initBuildStructure(): Unit = {
     val build = initBuild
+    val defaultScalaVersion = "2.13.12"
     build.projects.foreach { p =>
       val in: Path = p.in.getOrElse(directory / p.name)
-      val version = p.scalaVersion.getOrElse(scala.util.Properties.versionNumberString)
+      // TODO: when zinc-scripted builds at Scala 2.13 by default, instead
+      // uses scala.util.Properties.versionNumberString and remove defaultScalaVersion
+      val version = p.scalaVersion.getOrElse(defaultScalaVersion)
       val deps = p.dependsOn.toVector.flatten
       val project = ProjectStructure(
         p.name,
