@@ -18,6 +18,9 @@ import net.openhft.hashing.LongHashFunction
 import java.nio.file.{ Files, Path }
 
 object HashUtil {
+  def toFarmHashString(digest: Long): String =
+    s"farm64-${digest.toHexString}"
+
   def farmHash(bytes: Array[Byte]): Long =
     LongHashFunction.farmNa().hashBytes(bytes)
 

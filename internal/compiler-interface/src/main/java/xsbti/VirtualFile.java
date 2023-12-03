@@ -45,7 +45,7 @@ import java.io.InputStream;
  * which extends <code>scala.reflect.io.AbstractFile</code>,
  * which the compiler is able to compile.
  */
-public interface VirtualFile extends VirtualFileRef {
+public interface VirtualFile extends HashedVirtualFileRef {
   long contentHash();
   InputStream input();
 }

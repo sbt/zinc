@@ -37,6 +37,7 @@ object BasicVirtualDirectory {
 class BasicMemoryFile(val name: String, parent: VirtualDirectory) extends VirtualFileWrite {
   private[this] val byteArray = new ByteArrayOutputStream()
   override def contentHash: Long = HashUtil.farmHash(byteArray.toByteArray())
+  override def contentHashStr: String = HashUtil.toFarmHashString(contentHash)
   override def input: InputStream = new ByteArrayInputStream(byteArray.toByteArray())
   override def output: OutputStream = byteArray
   override def id: String = s"$parent$name"
