@@ -376,7 +376,7 @@ lazy val zincBenchmarks = (projectMatrix in internalPath / "zinc-benchmarks")
   .enablePlugins(JmhPlugin)
   .settings(
     publish / skip := true,
-    ideSkipProject := true, // otherwise IntelliJ complains
+    baseSettings,
     name := "Benchmarks of Zinc and the compiler bridge",
     libraryDependencies ++= Seq(
       "org.eclipse.jgit" % "org.eclipse.jgit" % "6.7.0.202309050840-r",
