@@ -175,7 +175,7 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
       run: IncState => Future[Unit]
   ): IncState = {
     val instance = i.getOrElse(onNewIncState(p))
-    try Await.result(run(instance), 60.seconds)
+    try Await.result(run(instance), 600.seconds)
     catch {
       case NonFatal(e) =>
         instance.compilations.clear()
