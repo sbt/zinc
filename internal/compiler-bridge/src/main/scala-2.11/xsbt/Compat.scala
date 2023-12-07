@@ -21,6 +21,9 @@ abstract class Compat {
   import global._
 
   protected def processOriginalTreeAttachment(in: Tree)(func: Tree => Unit): Unit = ()
+
+  protected def processSAMAttachment(f: Function)(addDependency: Symbol => Unit): Unit =
+    ()
 }
 object Compat {
   // IR is renamed to Results

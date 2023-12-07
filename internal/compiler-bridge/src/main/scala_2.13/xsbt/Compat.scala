@@ -28,6 +28,12 @@ abstract class Compat {
       func(a.original)
     }
   }
+
+  protected def processSAMAttachment(f: Function)(addDependency: Symbol => Unit): Unit = {
+    f.attachments.get[SAMFunction].foreach(sam => {
+      addDependency(sam.samTp.typeSymbol)
+    })
+  }
 }
 object Compat {
   // IR is renamed to Results
