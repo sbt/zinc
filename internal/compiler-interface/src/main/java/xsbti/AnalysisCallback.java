@@ -12,7 +12,6 @@
 package xsbti;
 
 import xsbti.api.DependencyContext;
-import xsbti.compile.analysis.ReadSourceInfos;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -261,6 +260,4 @@ public interface AnalysisCallback {
     boolean isPickleJava();
 
     Optional<T2<Path, Path>> getPickleJarPair();
-    
-    ReadSourceInfos getSourceInfos();
 }

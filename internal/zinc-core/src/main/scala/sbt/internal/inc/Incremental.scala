@@ -590,7 +590,7 @@ private final class AnalysisCallback(
     progress: Option[CompileProgress],
     incHandlerOpt: Option[Incremental.IncrementalCallback],
     log: Logger
-) extends xsbti.AnalysisCallback2 {
+) extends xsbti.AnalysisCallback3 {
   import Incremental.CompileCycleResult
 
   // This must have a unique value per AnalysisCallback

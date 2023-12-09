@@ -20,7 +20,7 @@ import xsbti.compile.analysis.ReadSourceInfos
 
 import scala.collection.mutable.ArrayBuffer
 
-class TestCallback extends AnalysisCallback2 {
+class TestCallback extends AnalysisCallback3 {
   case class TestUsedName(name: String, scopes: ju.EnumSet[UseScope])
 
   val classDependencies = new ArrayBuffer[(String, String, DependencyContext)]
