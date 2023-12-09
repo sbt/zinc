@@ -1068,6 +1068,25 @@ private final class AnalysisCallback(
     }
   }
 
+  def getSourceInfos: SourceInfos = {
+    // Collect Source Info from current run
+    val sources = reporteds.keySet ++ unreporteds.keySet ++ mainClasses.keySet
+    val sourceToInfo = sources.map { source =>
+      val info = SourceInfos.makeInfo(
+        getOrNil(reporteds.iterator.map { case (k, v) => k -> v.asScala.toSeq }.toMap, source),
+        getOrNil(unreporteds.iterator.map { case (k, v) => k -> v.asScala.toSeq }.toMap, source),
+        getOrNil(mainClasses.iterator.map { case (k, v) => k -> v.asScala.toSeq }.toMap, source)
+      )
+      (source, info)
+    }.toMap
+    val sourceInfoFromCurrentRun = new MSourceInfos(sourceToInfo)
+    // Collect reported problems from previous run
+    incHandlerOpt.map(_.previousAnalysisPruned) match {
+      case Some(prevAnalysis) => prevAnalysis.infos ++ sourceInfoFromCurrentRun
+      case None               => sourceInfoFromCurrentRun
+    }
+  }
+
   override def apiPhaseCompleted(): Unit = {
     // If we know we're done with cycles (presumably because all sources were invalidated) we can store early analysis
     // and picke data now.  Otherwise, we need to wait for dependency information to decide if there are more cycles.

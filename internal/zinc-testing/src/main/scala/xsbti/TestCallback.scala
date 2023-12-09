@@ -15,8 +15,8 @@ import java.io.File
 import java.nio.file.Path
 import java.{ util => ju }
 import ju.Optional
-
-import xsbti.api.{ DependencyContext, ClassLike }
+import xsbti.api.{ ClassLike, DependencyContext }
+import xsbti.compile.analysis.ReadSourceInfos
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -153,6 +153,8 @@ class TestCallback extends AnalysisCallback2 {
   override def isPickleJava: Boolean = false
 
   override def getPickleJarPair = Optional.empty()
+
+  override def getSourceInfos: ReadSourceInfos = null
 }
 
 object TestCallback {

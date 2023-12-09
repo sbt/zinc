@@ -69,7 +69,7 @@ object SourceInfos {
   }
 }
 
-private final class MSourceInfos(val allInfos: Map[VirtualFileRef, SourceInfo])
+private[inc] final class MSourceInfos(val allInfos: Map[VirtualFileRef, SourceInfo])
     extends SourceInfos {
 
   def ++(o: SourceInfos) = {
