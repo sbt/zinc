@@ -13,8 +13,8 @@ package xsbti;
 import xsbti.compile.analysis.ReadSourceInfos;
 
 /**
- * Extension to AnalysisCallback2
- * refer to AnalysisCallback2.java for explanation
+ * Extension to {@link AnalysisCallback2}.
+ * Similar to {@link AnalysisCallback2}, it serves as compatibility layer for Scala compilers.
  */
 public interface AnalysisCallback3 extends AnalysisCallback2 {
     ReadSourceInfos getSourceInfos();

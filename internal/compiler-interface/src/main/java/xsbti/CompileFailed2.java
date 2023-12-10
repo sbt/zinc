@@ -14,5 +14,11 @@ package xsbti;
 import xsbti.compile.analysis.ReadSourceInfos;
 
 public abstract class CompileFailed2 extends CompileFailed {
+    /**
+     * Returns SourceInfos containing problems for each file.
+     * This includes problems found by most recent compilation run and all prior compilation runs.
+     * This does not include problems found by prior compilation runs that are no longer valid.
+     * e.g. If A.scala previously has a problem, but no longer has a problem, it will not be included.
+     */
     public abstract ReadSourceInfos sourceInfos();
 }
