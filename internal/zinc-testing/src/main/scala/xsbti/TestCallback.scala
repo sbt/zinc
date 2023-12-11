@@ -154,7 +154,7 @@ class TestCallback extends AnalysisCallback3 {
 
   override def getPickleJarPair = Optional.empty()
 
-  override def getSourceInfos: ReadSourceInfos = null
+  override def getSourceInfos: ReadSourceInfos = new TestSourceInfos
 }
 
 object TestCallback {
