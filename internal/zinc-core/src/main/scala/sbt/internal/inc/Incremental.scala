@@ -1079,7 +1079,7 @@ private final class AnalysisCallback(
       )
       (source, info)
     }.toMap
-    val sourceInfoFromCurrentRun = new MSourceInfos(sourceToInfo)
+    val sourceInfoFromCurrentRun = SourceInfos.of(sourceToInfo)
     // Collect reported problems from previous run
     incHandlerOpt.map(_.previousAnalysisPruned) match {
       case Some(prevAnalysis) => prevAnalysis.infos ++ sourceInfoFromCurrentRun
