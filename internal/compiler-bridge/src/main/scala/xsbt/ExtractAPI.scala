@@ -522,6 +522,7 @@ class ExtractAPI[GlobalType <: Global](
     val absOver = s.hasFlag(ABSOVERRIDE)
     val abs = s.hasFlag(ABSTRACT) || s.hasFlag(DEFERRED) || absOver
     val over = s.hasFlag(OVERRIDE) || absOver
+    val hasInline = s.annotations.exists(_.symbol.tpe == typeOf[scala.inline])
     new xsbti.api.Modifiers(
       abs,
       over,
@@ -529,7 +530,7 @@ class ExtractAPI[GlobalType <: Global](
       s.hasFlag(SEALED),
       isImplicit(s),
       s.hasFlag(LAZY),
-      s.hasFlag(MACRO),
+      s.hasFlag(MACRO) || hasInline,
       s.hasFlag(SUPERACCESSOR)
     )
   }
