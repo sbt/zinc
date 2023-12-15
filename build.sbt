@@ -150,7 +150,7 @@ lazy val zincRoot: Project = (project in file("."))
     baseSettings,
     name := "zinc Root",
     mimaPreviousArtifacts := Set.empty,
-    scriptedBufferLog := false,
+    scriptedBufferLog := true,
     scripted := scriptedTask.evaluated,
     scripted / watchTriggers += baseDirectory.value.toGlob / "zinc" / "src" / "sbt-test" / **,
     Scripted.scriptedSource := (zinc212 / sourceDirectory).value / "sbt-test",
