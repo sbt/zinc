@@ -519,10 +519,13 @@ class ExtractAPI[GlobalType <: Global](
   }
   private def getModifiers(s: Symbol): xsbti.api.Modifiers = {
     import Flags._
+    import xsbt.Compat._
     val absOver = s.hasFlag(ABSOVERRIDE)
     val abs = s.hasFlag(ABSTRACT) || s.hasFlag(DEFERRED) || absOver
     val over = s.hasFlag(OVERRIDE) || absOver
-    val hasInline = s.annotations.exists(_.symbol.tpe == typeOf[scala.inline])
+    val hasInline = global.settings.optInlinerEnabled || s.annotations.exists(
+      _.symbol.tpe == typeOf[scala.inline]
+    )
     new xsbti.api.Modifiers(
       abs,
       over,

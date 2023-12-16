@@ -183,6 +183,8 @@ object Compat {
   implicit final class SettingsCompat(val settings: Settings) extends AnyVal {
     // Introduced in 2.11
     @inline final def fatalWarnings = settings.Xwarnfatal
+
+    @inline final def optInlinerEnabled: Boolean = false
   }
 
   implicit final class PositionOps(val self: sriu.Position) extends AnyVal {
