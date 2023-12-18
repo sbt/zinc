@@ -31,6 +31,10 @@ object Compat {
 
   // IMain in 2.13 accepts ReplReporter
   def replReporter(settings: Settings, writer: PrintWriter) = writer
+
+  implicit final class SettingsCompat(val settings: Settings) extends AnyVal {
+    @inline final def optInlinerEnabled: Boolean = false
+  }
 }
 
 /** Defines compatibility utils for [[ZincCompiler]]. */
