@@ -1,0 +1,7 @@
+> compile
+
+# Signal to Zinc that Foo is changed, such that it will be recompiled next
+$ copy-file changes/Foo.scala Foo.scala
+
+# fails with: `could not find implicit value for parameter baz: sbt.zinc.example.Baz`
+> compile
