@@ -3,4 +3,4 @@
 $ copy-file changes/ABase.java ABase.java
 $ copy-file changes/A.scala A.scala
 
-> checkIterations 1
+> checkIterations 2
