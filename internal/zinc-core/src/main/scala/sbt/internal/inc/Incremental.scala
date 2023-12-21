@@ -937,7 +937,7 @@ private final class AnalysisCallback(
         if (!writtenEarlyArtifacts) // writing implies the updates merge has happened
           mergeUpdates() // must merge updates each cycle or else scalac will clobber it
       }
-      incHandler.completeCycle(invalidationResults, getAnalysis)
+      incHandler.completeCycle(None, getAnalysis)
     } else {
       throw new IllegalStateException(
         "can't call AnalysisCallback#getCycleResultOnce more than once"
