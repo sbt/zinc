@@ -152,6 +152,7 @@ private final class CachedCompiler0(
     // cast down to AnalysisCallback2
     val callback2 = callback.asInstanceOf[xsbti.AnalysisCallback2]
 
+    compiler.set(callback, underlyingReporter)
     if (command.shouldStopWithInfo) {
       underlyingReporter.info(null, command.getInfoMessage(compiler), true)
       throw new InterfaceCompileFailed(args, Array(), StopInfoError)
@@ -159,7 +160,6 @@ private final class CachedCompiler0(
 
     if (noErrors(underlyingReporter)) {
       debug(log, prettyPrintCompilationArguments(args))
-      compiler.set(callback, underlyingReporter)
       val run = new compiler.ZincRun(compileProgress)
 
       run.compileFiles(sources)
