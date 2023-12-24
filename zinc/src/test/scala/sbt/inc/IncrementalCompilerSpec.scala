@@ -211,4 +211,18 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
       comp.close()
     }
   }
+
+  it should "not throw NullPointerException when passing -Xshow-phases to scalac" in withTmpDir {
+    tmp =>
+      val comp = ProjectSetup.simple(
+        tmp.toPath,
+        Seq(SourceFiles.Good),
+        Seq("-Xshow-phases")
+      ).createCompiler()
+      try {
+        assertThrows[CompileFailed] {
+          comp.doCompile()
+        }
+      } finally comp.close()
+  }
 }
