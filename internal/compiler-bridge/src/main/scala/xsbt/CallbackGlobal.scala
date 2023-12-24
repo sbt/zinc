@@ -103,7 +103,7 @@ sealed class ZincCompiler(settings: Settings, dreporter: DelegatingReporter, out
     def newPhase(prev: Phase) = analyzer.newPhase(prev)
     def name = phaseName
 
-    def description = "analyzes the generated class files and maps them to sources"
+    def description = "analyze the generated class files and map them to sources"
   }
 
   /** Phase that extracts dependency information */
@@ -119,7 +119,7 @@ sealed class ZincCompiler(settings: Settings, dreporter: DelegatingReporter, out
     def newPhase(prev: Phase) = dependency.newPhase(prev)
     def name = phaseName
 
-    def description = "extracts dependency information"
+    def description = "extract dependency information"
   }
 
   /**
@@ -141,7 +141,7 @@ sealed class ZincCompiler(settings: Settings, dreporter: DelegatingReporter, out
     def newPhase(prev: Phase) = api.newPhase(prev)
     def name = phaseName
 
-    def description = "constructs a representation of the public API"
+    def description = "construct a representation of the public API"
   }
 
   override lazy val phaseDescriptors = {
