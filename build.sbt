@@ -145,7 +145,6 @@ lazy val aggregated: Seq[ProjectReference] = compilerInterface.projectRefs ++
   zincClasspath.projectRefs ++
   zincClassfile.projectRefs ++
   zincCompileCore.projectRefs ++
-  zincCompile.projectRefs ++
   zincCore.projectRefs ++
   zincPersist.projectRefs ++
   Seq(zincPersistCore: ProjectReference) ++
@@ -238,22 +237,6 @@ lazy val zincTesting = (projectMatrix in internalPath / "zinc-testing")
   )
   .jvmPlatform(scalaVersions = scala3_only)
   .configure(addSbtIO, addSbtUtilLogging)
-
-lazy val zincCompile = (projectMatrix in zincRootPath / "zinc-compile")
-  .dependsOn(zincCompileCore, zincCompileCore % "test->test")
-  .settings(
-    name := "zinc Compile",
-    mimaSettings,
-    mimaBinaryIssueFilters ++= Seq(
-      exclude[IncompatibleSignatureProblem]("sbt.inc.Doc*"),
-      exclude[IncompatibleResultTypeProblem]("sbt.inc.Doc*"),
-      exclude[IncompatibleMethTypeProblem]("sbt.inc.Doc*"),
-      exclude[DirectMissingMethodProblem]("sbt.inc.Doc*"),
-      exclude[ReversedMissingMethodProblem]("sbt.inc.Doc*"),
-    ),
-  )
-  .jvmPlatform(scalaVersions = scala3_only)
-  .configure(addBaseSettingsAndTestDeps, addSbtUtilTracking)
 
 // Persists the incremental data structures using Protobuf
 lazy val zincPersist = (projectMatrix in internalPath / "zinc-persist")

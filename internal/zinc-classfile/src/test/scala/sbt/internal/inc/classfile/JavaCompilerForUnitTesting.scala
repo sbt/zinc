@@ -31,6 +31,7 @@ import scala.collection.JavaConverters._
 object JavaCompilerForUnitTesting {
   private class TestVirtualFile(p: Path) extends BasicVirtualFileRef(p.toString) with VirtualFile {
     override def contentHash(): Long = sbt.io.Hash(p.toFile).hashCode.toLong
+    override lazy val contentHashStr: String = contentHash().toHexString
     override def input(): InputStream = Files.newInputStream(p)
   }
 
