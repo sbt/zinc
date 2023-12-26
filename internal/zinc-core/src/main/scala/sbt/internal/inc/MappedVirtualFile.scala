@@ -22,7 +22,7 @@ class MappedVirtualFile(encodedPath: String, rootPathsMap: Map[String, Path])
     with PathBasedFile {
   private def path: Path = MappedVirtualFile.toPath(encodedPath, rootPathsMap)
   override def contentHash: Long = HashUtil.farmHash(path)
-  override def contentHashStr: String = HashUtil.toFarmHashString(contentHash)
+  override lazy val contentHashStr: String = HashUtil.sha256HashStr(input)
   override def input(): InputStream = Files.newInputStream(path)
   override def toPath: Path = path
 }

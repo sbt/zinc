@@ -15,7 +15,9 @@ package inc
 
 import net.openhft.hashing.LongHashFunction
 
+import java.io.{ BufferedInputStream, InputStream }
 import java.nio.file.{ Files, Path }
+import sbt.io.Hash
 
 object HashUtil {
   def toFarmHashString(digest: Long): String =
@@ -36,4 +38,23 @@ object HashUtil {
     else
       farmHash(Hash(path.toFile))
   }
+
+  def sha256Hash(input: InputStream): Array[Byte] = {
+    val BufferSize = 8192
+    import java.security.{ DigestInputStream, MessageDigest }
+    val bis = new BufferedInputStream(input)
+    val digest = MessageDigest.getInstance("SHA-256")
+    try {
+      val dis = new DigestInputStream(bis, digest)
+      val buffer = new Array[Byte](BufferSize)
+      while (dis.read(buffer) >= 0) {}
+      dis.close()
+      digest.digest
+    } finally {
+      bis.close()
+    }
+  }
+
+  def sha256HashStr(input: InputStream): String =
+    "sha256-" + Hash.toHex(sha256Hash(input))
 }
