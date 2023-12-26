@@ -24,12 +24,12 @@ import sbt.io.IO
 import sbt.util.Logger
 
 object ClassToAPI {
-  def apply(c: Seq[Class[_]]): Seq[api.ClassLike] = process(c)._1
+  def apply(c: Seq[Class[?]]): Seq[api.ClassLike] = process(c)._1
 
   // (api, public inherited classes)
   def process(
-      classes: Seq[Class[_]]
-  ): (Seq[api.ClassLike], Seq[String], Set[(Class[_], Class[_])]) = {
+      classes: Seq[Class[?]]
+  ): (Seq[api.ClassLike], Seq[String], Set[(Class[?], Class[?])]) = {
     val cmap = emptyClassMap
     classes.foreach(toDefinitions(cmap)) // force recording of class definitions
     cmap.lz.toList
@@ -55,16 +55,16 @@ object ClassToAPI {
     res
   }
 
-  def packages(c: Seq[Class[_]]): Set[String] =
+  def packages(c: Seq[Class[?]]): Set[String] =
     c.flatMap(packageName).toSet
 
-  def isTopLevel(c: Class[_]): Boolean =
+  def isTopLevel(c: Class[?]): Boolean =
     c.getEnclosingClass eq null
 
   final class ClassMap private[sbt] (
       private[sbt] val memo: mutable.Map[String, Seq[api.ClassLikeDef]],
-      private[sbt] val inherited: mutable.Set[(Class[_], Class[_])],
-      private[sbt] val lz: mutable.Buffer[xsbti.api.Lazy[_]],
+      private[sbt] val inherited: mutable.Set[(Class[?], Class[?])],
+      private[sbt] val lz: mutable.Buffer[xsbti.api.Lazy[?]],
       private[sbt] val allNonLocalClasses: mutable.Set[api.ClassLike],
       private[sbt] val mainClasses: mutable.Set[String]
   ) {
@@ -96,8 +96,8 @@ object ClassToAPI {
    * For example OOO (object in object in object) returns `p1.O1.O2$.O3$`.
    * @return The canonical name if not null, the blank string otherwise.
    */
-  def classCanonicalName(c: Class[_]): String = {
-    def handleMalformedNameOf(c: Class[_]): String = {
+  def classCanonicalName(c: Class[?]): String = {
+    def handleMalformedNameOf(c: Class[?]): String = {
       if (c == null) "" // Return nothing if it hits the top-level class
       else {
         val className = c.getName
@@ -121,10 +121,10 @@ object ClassToAPI {
     handleMalformedNameOf(c)
   }
 
-  def toDefinitions(cmap: ClassMap)(c: Class[_]): Seq[api.ClassLikeDef] =
+  def toDefinitions(cmap: ClassMap)(c: Class[?]): Seq[api.ClassLikeDef] =
     cmap.memo.getOrElseUpdate(classCanonicalName(c), toDefinitions0(c, cmap))
 
-  def toDefinitions0(c: Class[_], cmap: ClassMap): Seq[api.ClassLikeDef] = {
+  def toDefinitions0(c: Class[?], cmap: ClassMap): Seq[api.ClassLikeDef] = {
     import api.DefinitionType.{ ClassDef, Module, Trait }
     val enclPkg = packageName(c)
     val mods = modifiers(c.getModifiers)
@@ -186,7 +186,7 @@ object ClassToAPI {
 
   /** Returns the (static structure, instance structure, inherited classes) for `c`. */
   def structure(
-      c: Class[_],
+      c: Class[?],
       enclPkg: Option[String],
       cmap: ClassMap
   ): (api.Structure, api.Structure) = {
@@ -195,18 +195,18 @@ object ClassToAPI {
     val fields = mergeMap(c, c.getDeclaredFields, c.getFields, fieldToDef(c, cf, enclPkg))
     val constructors =
       mergeMap(c, c.getDeclaredConstructors, c.getConstructors, constructorToDef(enclPkg))
-    val classes = merge[Class[_]](
+    val classes = merge[Class[?]](
       c,
       c.getDeclaredClasses,
       c.getClasses,
       toDefinitions(cmap),
-      (_: Seq[Class[_]]).partition(isStatic),
+      (_: Seq[Class[?]]).partition(isStatic),
       _.getEnclosingClass != c
     )
     val all = methods ++ fields ++ constructors ++ classes
     val parentJavaTypes = allSuperTypes(c)
     if (!Modifier.isPrivate(c.getModifiers))
-      cmap.inherited ++= parentJavaTypes.collect { case parent: Class[_] => c -> parent }
+      cmap.inherited ++= parentJavaTypes.collect { case parent: Class[?] => c -> parent }
     val parentTypes = types(parentJavaTypes)
     val instanceStructure =
       api.Structure.of(lzyS(parentTypes), lzyS(all.declared.toArray), lzyS(all.inherited.toArray))
@@ -219,7 +219,7 @@ object ClassToAPI {
   }
 
   /** TODO: over time, ClassToAPI should switch the majority of access to the classfile parser */
-  private[this] def classFileForClass(c: Class[_]): ClassFile =
+  private[this] def classFileForClass(c: Class[?]): ClassFile =
     classfile.Parser.apply(IO.classfileLocation(c), Logger.Null)
 
   @inline private[this] def lzyS[T <: AnyRef](t: T): xsbti.api.Lazy[T] = SafeLazyProxy.strict(t)
@@ -239,7 +239,7 @@ object ClassToAPI {
 
   private def allSuperTypes(t: Type): Seq[Type] = {
     @tailrec def accumulate(t: Type, accum: Seq[Type] = Seq.empty): Seq[Type] = t match {
-      case c: Class[_] =>
+      case c: Class[?] =>
         val (parent, interfaces) = (c.getGenericSuperclass, c.getGenericInterfaces)
         accumulate(parent, (accum :+ parent) ++ flattenAll(interfaces))
       case p: ParameterizedType =>
@@ -251,7 +251,7 @@ object ClassToAPI {
       if (interfaces.nonEmpty) {
         val raw = interfaces map { case p: ParameterizedType => p.getRawType; case i => i }
         val children = raw flatMap {
-          case i: Class[_] => i.getGenericInterfaces; case _ => Seq.empty
+          case i: Class[?] => i.getGenericInterfaces; case _ => Seq.empty
         }
         flattenAll(children, accum ++ interfaces ++ children)
       } else
@@ -266,7 +266,7 @@ object ClassToAPI {
     api.Structure.of(lzy(types(ts)), lzyEmptyDefArray, lzyEmptyDefArray)
 
   @deprecated("No longer used", "0.13.0")
-  def parents(c: Class[_]): Seq[api.Type] = types(allSuperTypes(c))
+  def parents(c: Class[?]): Seq[api.Type] = types(allSuperTypes(c))
 
   @deprecated("Use fieldToDef[4] instead", "0.13.9")
   def fieldToDef(enclPkg: Option[String])(f: Field): api.FieldLike = {
@@ -274,7 +274,7 @@ object ClassToAPI {
     fieldToDef(c, classFileForClass(c), enclPkg)(f)
   }
 
-  def fieldToDef(c: Class[_], cf: => ClassFile, enclPkg: Option[String])(
+  def fieldToDef(c: Class[?], cf: => ClassFile, enclPkg: Option[String])(
       f: Field
   ): api.FieldLike = {
     val name = f.getName
@@ -315,7 +315,7 @@ object ClassToAPI {
    * Because this type is purely synthetic, it's fine that the name might contain filename-
    * banned characters.
    */
-  private def singletonForConstantField(c: Class[_], field: Field, constantValue: AnyRef) =
+  private def singletonForConstantField(c: Class[?], field: Field, constantValue: AnyRef) =
     api.Singleton.of(
       pathFromStrings(
         c.getName
@@ -339,9 +339,9 @@ object ClassToAPI {
     )
 
   /** Use the unique constructor format defined in [[xsbt.ClassName.constructorName]]. */
-  private def uniqueConstructorName(constructor: Constructor[_]): String =
+  private def uniqueConstructorName(constructor: Constructor[?]): String =
     s"${name(constructor).replace('.', ';')};init;"
-  def constructorToDef(enclPkg: Option[String])(c: Constructor[_]): api.Def =
+  def constructorToDef(enclPkg: Option[String])(c: Constructor[?]): api.Def =
     defLike(
       uniqueConstructorName(c),
       c.getModifiers,
@@ -421,7 +421,7 @@ object ClassToAPI {
       )
   }
   def mergeMap[T <: Member](
-      of: Class[_],
+      of: Class[?],
       self: Seq[T],
       public: Seq[T],
       f: T => api.ClassDefinition
@@ -429,7 +429,7 @@ object ClassToAPI {
     merge[T](of, self, public, x => f(x) :: Nil, splitStatic, _.getDeclaringClass != of)
 
   def merge[T](
-      of: Class[_],
+      of: Class[?],
       self: Seq[T],
       public: Seq[T],
       f: T => Seq[api.ClassDefinition],
@@ -449,7 +449,7 @@ object ClassToAPI {
   def splitStatic[T <: Member](defs: Seq[T]): (Seq[T], Seq[T]) =
     defs partition isStatic
 
-  def isStatic(c: Class[_]): Boolean = Modifier.isStatic(c.getModifiers)
+  def isStatic(c: Class[?]): Boolean = Modifier.isStatic(c.getModifiers)
   def isStatic(a: Member): Boolean = Modifier.isStatic(a.getModifiers)
 
   def typeParameters[T <: GenericDeclaration](
@@ -477,9 +477,9 @@ object ClassToAPI {
 
   def name(gd: GenericDeclaration): String =
     gd match {
-      case c: Class[_]       => classCanonicalName(c)
+      case c: Class[?]       => classCanonicalName(c)
       case m: Method         => m.getName
-      case c: Constructor[_] => c.getName
+      case c: Constructor[?] => c.getName
     }
 
   def modifiers(i: Int): api.Modifiers = {
@@ -506,7 +506,7 @@ object ClassToAPI {
    *
    * We need this logic to trigger recompilation due to changes to pattern exhaustivity checking results.
    */
-  private def childrenOfSealedClass(c: Class[_]): Seq[api.Type] =
+  private def childrenOfSealedClass(c: Class[?]): Seq[api.Type] =
     if (!c.isEnum) emptyTypeArray
     else {
       // Calling getCanonicalName() on classes from enum constants yields same string as enumClazz.getCanonicalName
@@ -519,7 +519,7 @@ object ClassToAPI {
     api.AnnotationArgument.of("toString", s)
 
   def array(tpe: api.Type): api.Type = api.Parameterized.of(ArrayRef, Array(tpe))
-  def reference(c: Class[_]): api.Type =
+  def reference(c: Class[?]): api.Type =
     if (c.isArray) array(reference(c.getComponentType))
     else if (c.isPrimitive) primitive(c.getName)
     else reference(classCanonicalName(c))
@@ -549,18 +549,18 @@ object ClassToAPI {
   def reference(t: Type): api.Type =
     t match {
       case _: WildcardType       => reference("_")
-      case tv: TypeVariable[_]   => api.ParameterRef.of(typeVariable(tv))
+      case tv: TypeVariable[?]   => api.ParameterRef.of(typeVariable(tv))
       case pt: ParameterizedType => referenceP(pt)
       case gat: GenericArrayType => array(reference(gat.getGenericComponentType))
-      case c: Class[_]           => reference(c)
+      case c: Class[?]           => reference(c)
     }
 
   def pathFromString(s: String): api.Path =
     pathFromStrings(s.split("\\."))
   def pathFromStrings(ss: Seq[String]): api.Path =
     api.Path.of((ss.map(api.Id.of(_)) :+ ThisRef).toArray)
-  def packageName(c: Class[_]) = packageAndName(c)._1
-  def packageAndName(c: Class[_]): (Option[String], String) =
+  def packageName(c: Class[?]) = packageAndName(c)._1
+  def packageAndName(c: Class[?]): (Option[String], String) =
     packageAndName(c.getName)
   def packageAndName(name: String): (Option[String], String) = {
     val lastDot = name.lastIndexOf('.')
@@ -594,14 +594,14 @@ object ClassToAPI {
 
   private[this] def returnType(f: Field): Type = f.getGenericType
   private[this] def returnType(m: Method): Type = m.getGenericReturnType
-  private[this] def exceptionTypes(c: Constructor[_]): Array[Type] = c.getGenericExceptionTypes
+  private[this] def exceptionTypes(c: Constructor[?]): Array[Type] = c.getGenericExceptionTypes
 
   private[this] def exceptionTypes(m: Method): Array[Type] = m.getGenericExceptionTypes
 
   private[this] def parameterTypes(m: Method): Array[Type] =
     ignoreNulls(m.getGenericParameterTypes)
 
-  private[this] def parameterTypes(c: Constructor[_]): Array[Type] =
+  private[this] def parameterTypes(c: Constructor[?]): Array[Type] =
     ignoreNulls(c.getGenericParameterTypes)
 
   private[this] def typeParameterTypes[T](m: Constructor[T]): Array[TypeVariable[Constructor[T]]] =

@@ -100,9 +100,9 @@ object ProtobufDefaults {
     object Readers {
       final val ReadError: String = "Protobuf read error"
 
-      final def expectedBaseIn(clazz: Class[_]) =
+      final def expectedBaseIn(clazz: Class[?]) =
         expected("base type", clazz)
-      final def expectedTypeIn(clazz: Class[_]) =
+      final def expectedTypeIn(clazz: Class[?]) =
         expected("type", clazz)
       final val ExpectedReturnTypeInDef =
         expected("return type", Classes.Def)
@@ -149,9 +149,9 @@ object ProtobufDefaults {
       final val ExpectedApisInApisFile: String =
         expected(Classes.APIs, Classes.APIsFile)
 
-      final def expected(culprit: Class[_], owner: Class[_]): String =
+      final def expected(culprit: Class[?], owner: Class[?]): String =
         expected(s"`${culprit.getName}`", owner)
-      final def expected(something: String, owner: Class[_]): String =
+      final def expected(something: String, owner: Class[?]): String =
         s"$ReadError: Expected $something in `${owner.getName}`."
 
       final val UnrecognizedParamModifier =
@@ -167,11 +167,11 @@ object ProtobufDefaults {
       final def unrecognizedOrder(id: Int) =
         unrecognized(Classes.CompileOrder, id.toString)
 
-      final def unrecognized[T](culprit: Class[_], value: String): String =
+      final def unrecognized[T](culprit: Class[?], value: String): String =
         s"$ReadError: Unrecognized ${culprit.getName} with value `$value`."
-      final def unrecognized(culprit: Class[_], owner: Class[_]): String =
+      final def unrecognized(culprit: Class[?], owner: Class[?]): String =
         unrecognized(s"`${culprit.getName}`", owner)
-      final def unrecognized(something: String, owner: Class[_]): String =
+      final def unrecognized(something: String, owner: Class[?]): String =
         s"$ReadError: Unrecognized $something in `${owner.getName}`."
     }
   }

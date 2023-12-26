@@ -317,13 +317,13 @@ final class AnalyzingCompiler(
     else None
   }
 
-  private def bridgeInstance(bridgeClassName: String, loader: ClassLoader): (AnyRef, Class[_]) = {
+  private def bridgeInstance(bridgeClassName: String, loader: ClassLoader): (AnyRef, Class[?]) = {
     val bridgeClass = getBridgeClass(bridgeClassName, loader)
     (bridgeClass.getDeclaredConstructor().newInstance().asInstanceOf[AnyRef], bridgeClass)
   }
 
-  private def invoke(bridge: AnyRef, bridgeClass: Class[_], methodName: String, log: Logger)(
-      argTypes: Class[_]*
+  private def invoke(bridge: AnyRef, bridgeClass: Class[?], methodName: String, log: Logger)(
+      argTypes: Class[?]*
   )(args: AnyRef*): AnyRef = {
     val method = bridgeClass.getMethod(methodName, argTypes: _*)
     try method.invoke(bridge, args: _*)

@@ -181,7 +181,7 @@ final class AnalyzingJavaCompiler private[sbt] (
       }
 
       // Read the API information from [[Class]] to analyze dependencies.
-      def readAPI(source: VirtualFileRef, classes: Seq[Class[_]]): Set[(String, String)] = {
+      def readAPI(source: VirtualFileRef, classes: Seq[Class[?]]): Set[(String, String)] = {
         val (apis, mainClasses, inherits) = ClassToAPI.process(classes)
         apis.foreach(callback.api(source, _))
         mainClasses.foreach(callback.mainClass(source, _))

@@ -36,7 +36,7 @@ final class DiagnosticsReporter(reporter: Reporter) extends DiagnosticListener[J
   private[this] var errorEncountered = false
   def hasErrors: Boolean = errorEncountered
 
-  override def report(d: Diagnostic[_ <: JavaFileObject]): Unit = {
+  override def report(d: Diagnostic[? <: JavaFileObject]): Unit = {
     val severity: Severity = {
       d.getKind match {
         case Diagnostic.Kind.ERROR                                       => Severity.Error
@@ -164,7 +164,7 @@ object DiagnosticsReporter {
      * This caused a race condition on the Diagnostic object, resulting in a NullPointerException.
      * See https://github.com/sbt/sbt/issues/3623
      */
-    def apply(d: Diagnostic[_ <: JavaFileObject]): PositionImpl = {
+    def apply(d: Diagnostic[? <: JavaFileObject]): PositionImpl = {
       // https://docs.oracle.com/javase/7/docs/api/javax/tools/Diagnostic.html
       // Negative values (except NOPOS) and 0 are not valid line or column numbers,
       // except that you can cause this number to occur by putting "abc {}" in A.java.

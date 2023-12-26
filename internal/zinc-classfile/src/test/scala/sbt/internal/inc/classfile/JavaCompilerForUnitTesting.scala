@@ -56,7 +56,7 @@ object JavaCompilerForUnitTesting {
   }
 
   def compileJavaSrcs(srcs: (String, String)*)(
-      readAPI: (AnalysisCallback, VirtualFileRef, Seq[Class[_]]) => Set[(String, String)]
+      readAPI: (AnalysisCallback, VirtualFileRef, Seq[Class[?]]) => Set[(String, String)]
   ): (Seq[VirtualFile], TestCallback) = {
     IO.withTemporaryDirectory { temp =>
       val srcFiles0 = srcs.map {
@@ -107,8 +107,8 @@ object JavaCompilerForUnitTesting {
     srcFile
   }
 
-  private val extractParents: Seq[Class[_]] => Set[(String, String)] = { classes =>
-    def canonicalNames(p: (Class[_], Class[_])): (String, String) =
+  private val extractParents: Seq[Class[?]] => Set[(String, String)] = { classes =>
+    def canonicalNames(p: (Class[?], Class[?])): (String, String) =
       p._1.getCanonicalName -> p._2.getCanonicalName
     val parents =
       classes

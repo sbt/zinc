@@ -90,7 +90,7 @@ class ClassToAPISpecification extends UnitSpec {
   def readAPI(
       callback: AnalysisCallback,
       source: VirtualFileRef,
-      classes: Seq[Class[_]]
+      classes: Seq[Class[?]]
   ): Set[(String, String)] = {
     val (apis, mainClasses, inherits) = ClassToAPI.process(classes)
     apis.foreach(callback.api(source, _))

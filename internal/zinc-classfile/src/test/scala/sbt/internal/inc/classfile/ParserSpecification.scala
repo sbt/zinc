@@ -18,7 +18,7 @@ import sbt.internal.util.ConsoleLogger
 
 class ParserSpecification extends UnitSpec {
 
-  val sampleClasses = List[Class[_]](
+  val sampleClasses = List[Class[?]](
     this.getClass,
     classOf[java.lang.Integer],
     classOf[java.util.AbstractMap.SimpleEntry[String, String]],

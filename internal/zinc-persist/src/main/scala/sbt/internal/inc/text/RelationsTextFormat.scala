@@ -42,7 +42,7 @@ trait RelationsTextFormat extends FormatCommons {
   private def stringsDescriptor(header: String, rels: Relations => Relation[String, String]) =
     descriptor(header, rels, Mapper.forString, Mapper.forString)
 
-  private val allRelations: List[Descriptor[_, _]] = {
+  private val allRelations: List[Descriptor[?, ?]] = {
     List(
       descriptor("products", _.srcProd, sourcesMapper, productsMapper),
       descriptor("library dependencies", _.libraryDep, sourcesMapper, binariesMapper),
@@ -106,11 +106,11 @@ trait RelationsTextFormat extends FormatCommons {
    * Reconstructs a Relations from a list of Relation
    * The order in which the relations are read matters and is defined by `existingRelations`.
    */
-  private def construct(relations: List[Map[_, Set[_]]]) =
+  private def construct(relations: List[Map[?, Set[?]]]) =
     relations match {
       case p :: bin :: lcn :: mri :: mre :: ii :: ie :: lii :: lie :: cn :: un :: bcn :: Nil =>
-        def toMultiMap[K, V](m: Map[_, _]): Map[K, Set[V]] = m.asInstanceOf[Map[K, Set[V]]]
-        def toRelation[K, V](m: Map[_, _]): Relation[K, V] = Relation.reconstruct(toMultiMap(m))
+        def toMultiMap[K, V](m: Map[?, ?]): Map[K, Set[V]] = m.asInstanceOf[Map[K, Set[V]]]
+        def toRelation[K, V](m: Map[?, ?]): Relation[K, V] = Relation.reconstruct(toMultiMap(m))
 
         val internal = InternalDependencies(
           Map(

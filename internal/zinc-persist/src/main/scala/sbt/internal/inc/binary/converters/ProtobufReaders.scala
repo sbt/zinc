@@ -640,7 +640,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
 
   def fromClassLike(classLike: Schema.ClassLike): ClassLike = {
     def expectedMsg(msg: String) = ReadersFeedback.expected(msg, Classes.ClassLike)
-    def expected(clazz: Class[_]) = expectedMsg(clazz.getName)
+    def expected(clazz: Class[?]) = expectedMsg(clazz.getName)
     val name = classLike.getName.intern()
     val access =
       if (classLike.hasAccess) fromAccess(classLike.getAccess)
@@ -828,7 +828,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
   }
 
   def fromAnalysis(analysis: Schema.Analysis): Analysis = {
-    def expected(clazz: Class[_]) = ReadersFeedback.expected(clazz, Classes.Analysis)
+    def expected(clazz: Class[?]) = ReadersFeedback.expected(clazz, Classes.Analysis)
     val stamps =
       if (analysis.hasStamps) fromStamps(analysis.getStamps)
       else expected(Classes.Stamps).!!
