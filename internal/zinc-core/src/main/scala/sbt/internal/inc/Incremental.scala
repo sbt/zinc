@@ -1090,14 +1090,14 @@ private final class AnalysisCallback(
 
   override def dependencyPhaseCompleted(): Unit = {
     val incHandler = incHandlerOpt.getOrElse(sys.error("incHandler was expected"))
-    if (invalidationResults.isEmpty) {
+    if (earlyOutput.isDefined && invalidationResults.isEmpty) {
       val a = getAnalysis
       val CompileCycleResult(continue, invalidations, merged) =
         incHandler.mergeAndInvalidate(a, false)
       // Store invalidations and continuation decision; the analysis will be computed again after Analyze phase.
       invalidationResults = Some(CompileCycleResult(continue, invalidations, Analysis.empty))
       // If there will be no more compilation cycles, store the early analysis file and update the pickle jar
-      if (earlyOutput.isDefined && !continue && lookup.shouldDoEarlyOutput(merged)) {
+      if (!continue && lookup.shouldDoEarlyOutput(merged)) {
         writeEarlyArtifacts(merged)
       }
     }
