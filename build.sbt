@@ -7,7 +7,7 @@ import com.github.os72.protocjar.Protoc
 def zincRootPath: File = file(sys.props.getOrElse("sbtzinc.path", ".")).getCanonicalFile
 def internalPath = zincRootPath / "internal"
 
-def mimaSettings: Seq[Setting[_]] = Seq(
+def mimaSettings: Seq[Setting[?]] = Seq(
   mimaPreviousArtifacts := {
     val pre140 = Set(
       "1.0.0",
@@ -83,7 +83,7 @@ Global / concurrentRestrictions += Tags.limit(Tags.Test, 4)
 ThisBuild / Test / fork := true
 Global / excludeLintKeys += ideSkipProject
 
-def baseSettings: Seq[Setting[_]] = Seq(
+def baseSettings: Seq[Setting[?]] = Seq(
   testOptions += Tests.Argument(TestFrameworks.ScalaCheck, "-w", "1", "-verbosity", "2"),
   testFrameworks += new TestFramework("verify.runner.Framework"),
   compile / javacOptions ++= Seq("-Xlint", "-Xlint:-serial"),
@@ -104,7 +104,7 @@ def baseSettings: Seq[Setting[_]] = Seq(
   ideSkipProject := scalaVersion.value != defaultScalaVersion,
 )
 
-def compilerVersionDependentScalacOptions: Seq[Setting[_]] = Seq(
+def compilerVersionDependentScalacOptions: Seq[Setting[?]] = Seq(
   scalacOptions := {
     scalaBinaryVersion.value match {
       case "2.12" | "2.13" =>
@@ -553,7 +553,7 @@ lazy val compilerBridgeTest = (projectMatrix in internalPath / "compiler-bridge-
 
 val scalaPartialVersion = Def.setting(CrossVersion.partialVersion(scalaVersion.value))
 
-def inBoth(ss: Setting[_]*): Seq[Setting[_]] = Seq(Compile, Test).flatMap(inConfig(_)(ss))
+def inBoth(ss: Setting[?]*): Seq[Setting[?]] = Seq(Compile, Test).flatMap(inConfig(_)(ss))
 
 // defines operations on the API of a source, including determining whether it has changed and converting it to a string
 //   and discovery of classes and annotations

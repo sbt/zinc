@@ -26,7 +26,7 @@ class Visit {
     visitString(p.name)
   }
 
-  def visitDefinitions(ds: Array[_ <: Definition]) = visitArray(ds, visitDefinition)
+  def visitDefinitions(ds: Array[? <: Definition]) = visitArray(ds, visitDefinition)
   def visitDefinition(d: Definition): Unit = {
     visitString(d.name)
     visitAnnotations(d.annotations)

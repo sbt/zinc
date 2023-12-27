@@ -31,11 +31,11 @@ object ReflectUtilities {
     buffer.toString
   }
 
-  def ancestry(clazz: Class[_]): List[Class[_]] =
+  def ancestry(clazz: Class[?]): List[Class[?]] =
     if (clazz == classOf[AnyRef] || !classOf[AnyRef].isAssignableFrom(clazz)) List(clazz)
     else clazz :: ancestry(clazz.getSuperclass);
 
-  def fields(clazz: Class[_]) =
+  def fields(clazz: Class[?]) =
     mutable.OpenHashMap(ancestry(clazz).flatMap(_.getDeclaredFields).map(f => (f.getName, f)): _*)
 
   /**

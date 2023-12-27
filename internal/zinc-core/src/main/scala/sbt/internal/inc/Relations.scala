@@ -654,7 +654,7 @@ private class MRelationsNameHashing(
   private val userDir = sys.props("user.dir").stripSuffix("/") + "/"
   private def nocwd(s: String) = s.stripPrefix(userDir)
   private def line_s(k: Any, v: Any) = s"    ${nocwd(s"$k")} -> ${nocwd(s"$v")}\n"
-  def relation_s(r: Relation[_, _]) = {
+  def relation_s(r: Relation[?, ?]) = {
     if (r.forwardMap.isEmpty) "Relation [ ]"
     else r.all.toSeq.map(kv => line_s(kv._1, kv._2)).sorted.mkString("Relation [\n", "", "]")
   }
@@ -667,7 +667,7 @@ private class MRelationsNameHashing(
   }
 
   override def toString: String = {
-    def deps_s(m: Map[_, Relation[_, _]]) =
+    def deps_s(m: Map[?, Relation[?, ?]]) =
       m.iterator.map {
         case (k, vs) => s"\n    $k ${relation_s(vs)}"
       }.mkString
