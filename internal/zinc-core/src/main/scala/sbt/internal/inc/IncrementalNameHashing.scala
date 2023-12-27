@@ -184,7 +184,7 @@ private[inc] class IncrementalNameHashingCommon(
            |  > ${ppxs("by transitive inheritance", transitiveInheritance)}
            |  > ${ppxs("by local inheritance", localInheritance)}
            |  > ${ppxs("by member reference", memberRef)}
-           |  > ${ppxs("by macro expansion", memberRef)}
+           |  > ${ppxs("by macro expansion", macroExpansion)}
         """.stripMargin
       }
     }

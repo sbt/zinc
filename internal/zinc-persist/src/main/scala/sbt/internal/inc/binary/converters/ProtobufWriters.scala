@@ -739,6 +739,8 @@ final class ProtobufWriters(mapper: WriteMapper) {
     val inheritanceExternal = toMap(relations.inheritance.external, stringId, stringId)
     val localInheritanceInternal = toMap(relations.localInheritance.internal, stringId, stringId)
     val localInheritanceExternal = toMap(relations.localInheritance.external, stringId, stringId)
+    val macroExpansionInternal = toMap(relations.macroExpansion.internal, stringId, stringId)
+    val macroExpansionExternal = toMap(relations.macroExpansion.external, stringId, stringId)
     val classes = toMap(relations.classes, sourceToString, stringId)
     val productClassName = toMap(relations.productClassName, stringId, stringId)
     val names = toUsedNamesMap(relations.names)
@@ -763,6 +765,13 @@ final class ProtobufWriters(mapper: WriteMapper) {
       builder.build
     }
 
+    val macroExpansion = {
+      val builder = Schema.ClassDependencies.newBuilder
+      macroExpansionInternal.foreach { case (k, v) => builder.putInternal(k, v) }
+      macroExpansionExternal.foreach { case (k, v) => builder.putExternal(k, v) }
+      builder.build
+    }
+
     val builder = Schema.Relations.newBuilder
     srcProd.foreach { case (k, v) => builder.putSrcProd(k, v) }
     libraryDep.foreach { case (k, v) => builder.putLibraryDep(k, v) }
@@ -774,6 +783,7 @@ final class ProtobufWriters(mapper: WriteMapper) {
       .setMemberRef(memberRef)
       .setInheritance(inheritance)
       .setLocalInheritance(localInheritance)
+      .setMacroExpansion(macroExpansion)
       .build
   }
 
