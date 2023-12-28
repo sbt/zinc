@@ -82,7 +82,7 @@ object Dependencies {
   val sjsonnewScalaJson = Def.setting {
     "com.eed3si9n" %% "sjson-new-scalajson" % contrabandSjsonNewVersion.value
   }
-  val zeroAllocationHashing = "net.openhft" % "zero-allocation-hashing" % "0.10.1"
+  val zeroAllocationHashing = "net.openhft" % "zero-allocation-hashing" % "0.16"
 
   def addTestDependencies(p: Project): Project =
     p.settings(
