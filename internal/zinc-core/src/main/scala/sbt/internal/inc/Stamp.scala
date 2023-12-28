@@ -237,23 +237,27 @@ object Stamper {
   }
 
   private[sbt] def timeWrap(
-      cache: collection.mutable.Map[VirtualFileRef, (Long, XStamp)],
+      cache: collection.concurrent.Map[VirtualFileRef, (Long, XStamp)],
       converter: FileConverter,
       getStamp: VirtualFileRef => XStamp
   ): VirtualFileRef => XStamp = { key: VirtualFileRef =>
+    import scala.collection.JavaConverters._
     val p = converter.toPath(key)
     val ts =
       try IO.getModifiedTimeOrZero(p.toFile)
       catch { case _: Throwable => 0L }
-    synchronized {
-      cache.get(key) match {
-        case Some((ts1, value)) if ts == ts1 && ts > 0 => value
-        case _ =>
-          val value = getStamp(key)
-          cache.put(key, (ts, value))
-          value
+    val (_, stamp) = cache.asJava.compute(
+      key,
+      (_: VirtualFileRef, current: (Long, XStamp)) => {
+        current match {
+          case (ts1, value) if ts == ts1 && ts > 0 => (ts1, value)
+          case _ =>
+            val value = getStamp(key)
+            (ts, value)
+        }
       }
-    }
+    )
+    stamp
   }
 }
 
@@ -401,44 +405,46 @@ private class MStamps(
 private class InitialStamps(
     underlying: ReadStamps
 ) extends ReadStamps {
-  import collection.mutable.{ HashMap, Map }
+  import collection.concurrent.Map
+  import java.util.concurrent.ConcurrentHashMap
+  import scala.collection.JavaConverters._
 
   // cached stamps for files that do not change during compilation
-  private val sources: Map[VirtualFileRef, XStamp] = new HashMap
-  private val libraries: Map[VirtualFileRef, XStamp] = new HashMap
+  private val sources: Map[VirtualFileRef, XStamp] = new ConcurrentHashMap().asScala
+  private val libraries: Map[VirtualFileRef, XStamp] = new ConcurrentHashMap().asScala
 
-  import scala.collection.JavaConverters.mapAsJavaMapConverter
   override def getAllLibraryStamps: util.Map[VirtualFileRef, XStamp] =
-    mapAsJavaMapConverter(libraries).asJava
+    libraries.asJava
   override def getAllSourceStamps: util.Map[VirtualFileRef, XStamp] =
-    mapAsJavaMapConverter(sources).asJava
+    sources.asJava
   override def getAllProductStamps: util.Map[VirtualFileRef, XStamp] =
     new util.HashMap()
 
   override def product(prod: VirtualFileRef): XStamp = underlying.product(prod)
   override def source(src: VirtualFile): XStamp =
-    synchronized { sources.getOrElseUpdate(src, underlying.source(src)) }
+    sources.getOrElseUpdate(src, underlying.source(src))
   override def library(lib: VirtualFileRef): XStamp =
-    synchronized { libraries.getOrElseUpdate(lib, underlying.library(lib)) }
+    libraries.getOrElseUpdate(lib, underlying.library(lib))
 }
 
 private class TimeWrapBinaryStamps(
     underlying: ReadStamps,
     converter: FileConverter
 ) extends ReadStamps {
-  import collection.mutable.{ HashMap, Map }
+  import collection.concurrent.Map
+  import java.util.concurrent.ConcurrentHashMap
+  import scala.collection.JavaConverters._
 
   // cached stamps for files that do not change during compilation
-  private val libraries: Map[VirtualFileRef, (Long, XStamp)] = new HashMap
-  private val products: Map[VirtualFileRef, (Long, XStamp)] = new HashMap
+  private val libraries: Map[VirtualFileRef, (Long, XStamp)] = new ConcurrentHashMap().asScala
+  private val products: Map[VirtualFileRef, (Long, XStamp)] = new ConcurrentHashMap().asScala
 
-  import scala.collection.JavaConverters.mapAsJavaMapConverter
   override def getAllLibraryStamps: util.Map[VirtualFileRef, XStamp] =
-    mapAsJavaMapConverter(libraries map { case (k, (_, v2)) => (k, v2) }).asJava
+    (libraries map { case (k, (_, v2)) => (k, v2) }).asJava
   override def getAllSourceStamps: util.Map[VirtualFileRef, XStamp] =
     underlying.getAllSourceStamps
   override def getAllProductStamps: util.Map[VirtualFileRef, XStamp] =
-    mapAsJavaMapConverter(products map { case (k, (_, v2)) => (k, v2) }).asJava
+    (products map { case (k, (_, v2)) => (k, v2) }).asJava
 
   val product0 = Stamper.timeWrap(products, converter, underlying.product(_))
   override def product(prod: VirtualFileRef): XStamp = product0(prod)
