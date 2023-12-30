@@ -120,6 +120,21 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
     } finally comp.close()
   }
 
+  it should "delete all products if extra changes" in withTmpDir { tempDir =>
+    val comp =
+      ProjectSetup.simple(tempDir.toPath, Seq(SourceFiles.Good, SourceFiles.Foo)).createCompiler()
+    val comp2 =
+      ProjectSetup.simple(tempDir.toPath, Seq(SourceFiles.Foo)).createCompiler()
+    try {
+      val cacheFile = tempDir / "target" / "inc_compile.zip"
+      val fileStore = AnalysisStore.getCachedStore(FileAnalysisStore.binary(cacheFile))
+      comp.doCompileWithStore(fileStore)
+      val newSetup = comp2.setup.withExtra(Array())
+      comp2.doCompileWithStore(fileStore, _.withSetup(newSetup))
+      assertNotExists(comp.output / "pkg" / "Good$.class")
+    } finally comp.close()
+  }
+
   it should "not trigger full compilation for small Scala changes in a mixed project" in withTmpDir {
     tmp =>
       val project = VirtualSubproject(tmp.toPath / "p1")
