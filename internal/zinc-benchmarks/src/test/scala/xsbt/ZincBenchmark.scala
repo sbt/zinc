@@ -50,6 +50,7 @@ private[xsbt] class ZincBenchmark(toCompile: BenchmarkProject, zincEnabled: Bool
   }
 
   private val UseJavaCpArg = Array("-usejavacp")
+  private val nowarn = Seq("-nowarn")
   def readSetup(compilationDir: File): ZincSetup = {
     def createSetup(subproject: String, compilationInfo: CompilationInfo) = {
 
@@ -77,7 +78,7 @@ private[xsbt] class ZincBenchmark(toCompile: BenchmarkProject, zincEnabled: Bool
         // ignore `buildInfo.scalacOptions` that was recovered from the build
         // [info] [error] ## Exception when compiling 564 sources to /private/var/folders/hg/2602nfrs2958vnshglyl3srw0000gn/T/sbt_ed541eaf/scala/scala/classes
         // [info] [error] scala.reflect.internal.Symbols$CyclicReference: illegal cyclic reference involving object Predef
-        List()
+        scalacOptions = nowarn,
       )
     }
 
