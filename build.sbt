@@ -697,11 +697,12 @@ crossTestBridges := (compilerBridgeTest.jvm(scala213) / Test / test).dependsOn(p
 addCommandAlias(
   "runBenchmarks", {
     val dir = IO.createTemporaryDirectory.getAbsolutePath
+    val pattern = sys.props.getOrElse("benchmark.pattern", "")
     Seq(
       s"${compilerBridge213.id}/packageBin",
       s"${compilerBridge212.id}/packageBin",
-      s"${zincBenchmarks.jvm(scala212).id}/Test/run $dir",
-      s"${zincBenchmarks.jvm(scala212).id}/jmh:run -p _tempDir=$dir -prof gc -foe true",
+      s"${zincBenchmarks.jvm(scala212).id}/Test/run $dir $pattern",
+      s"${zincBenchmarks.jvm(scala212).id}/jmh:run -p _tempDir=$dir -prof gc -foe true $pattern",
       s"""eval IO.delete(file("$dir"))""",
     ).mkString(";", ";", "")
   }

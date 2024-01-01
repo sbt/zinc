@@ -27,6 +27,9 @@ jobs:
           - os: ubuntu-latest
             java: 21
             jobtype: 4
+          - os: ubuntu-latest
+            java: 21
+            jobtype: 5
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout
@@ -50,9 +53,14 @@ jobs:
       if: ${{ matrix.jobtype == 3 }}
       shell: bash
       run: |
-        sbt -v -Dfile.encoding=UTF-8 "runBenchmarks"
-    - name: Build and test (4)
+        sbt -v -Dfile.encoding=UTF-8 scalafmtCheckAll scalafmtSbtCheck
+    - name: Benchmark (Scalac) (4)
       if: ${{ matrix.jobtype == 4 }}
       shell: bash
       run: |
-        sbt -v -Dfile.encoding=UTF-8 scalafmtCheckAll scalafmtSbtCheck
+        sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Scalac.*" "runBenchmarks"
+    - name: Benchmark (Shapeless) (5)
+      if: ${{ matrix.jobtype == 5 }}
+      shell: bash
+      run: |
+        sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Shapeless.*" "runBenchmarks"

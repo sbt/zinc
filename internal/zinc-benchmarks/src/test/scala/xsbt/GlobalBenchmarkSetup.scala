@@ -18,13 +18,15 @@ import xsbt.BenchmarkProjects.{ Scalac, Shapeless }
 object GlobalBenchmarkSetup {
 
   /** Update this list every time you add a new benchmark. */
-  val projects = List(Scalac, Shapeless)
+  val projects = Map("Scalac" -> Scalac, "Shapeless" -> Shapeless)
 
-  def runSetup(setupDir: File): (Int, String) = {
-    val projectsPreparation = projects.map { project =>
-      val benchmark = new ZincBenchmark(project)
-      project -> benchmark.writeSetup(new File(setupDir, project.repo))
-    }
+  def runSetup(setupDir: File, pattern: String): (Int, String) = {
+    val projectsPreparation = projects
+      .filterKeys { _.matches(pattern) }
+      .map { case (_, project) =>
+        val benchmark = new ZincBenchmark(project)
+        project -> benchmark.writeSetup(new File(setupDir, project.repo))
+      }
 
     val failedToPrepare = projectsPreparation.filter(_._2.isLeft)
     if (failedToPrepare.isEmpty)
@@ -43,11 +45,12 @@ object GlobalBenchmarkSetup {
 
     if (args.isEmpty)
       fail("Missing directory to host project setups.")
-    else if (args.length > 1)
+    else if (args.length > 2)
       fail("Too many arguments. Pass the directory to host project setups.")
     else {
       val setupDir = new File(args(0))
-      val (exitCode, status) = runSetup(setupDir)
+      val pattern = if (args.length == 1) ".*" else args(1)
+      val (exitCode, status) = runSetup(setupDir, pattern)
       println(status)
       println("The benchmark setup has finished.")
       System.exit(exitCode)
