@@ -51,6 +51,17 @@ jobs:
       shell: bash
       run: |
         sbt -v -Dfile.encoding=UTF-8 "runBenchmarks"
+    - name: Checkout Develop Branch (3)
+      if: ${{ github.event_name == 'pull_request' && matrix.jobtype == 3 }}
+      uses: actions/checkout@v4
+      with:
+        clean: false
+        ref: develop
+    - name: Build and test against Develop Branch (3)
+      if: ${{ github.event_name == 'pull_request' && matrix.jobtype == 3 }}
+      shell: bash
+      run: |
+        sbt -v -Dfile.encoding=UTF-8 "runBenchmarks"
     - name: Build and test (4)
       if: ${{ matrix.jobtype == 4 }}
       shell: bash
