@@ -11,12 +11,12 @@
 
 package xsbt
 
-import xsbti.{AnalysisCallback, AnalysisCallback3, PathBasedFile, Severity, VirtualFileWrite}
+import xsbti.{ AnalysisCallback, AnalysisCallback3, PathBasedFile, Severity }
 import xsbti.compile._
 
 import scala.tools.nsc._
 import io.AbstractFile
-import java.nio.file.{Files, Path}
+import java.nio.file.{ Files, Path }
 import scala.reflect.io.PlainFile
 import scala.reflect.ReflectAccess._
 import scala.reflect.internal.util.BatchSourceFile
@@ -84,7 +84,7 @@ sealed class ZincCompiler(settings: Settings, dreporter: DelegatingReporter, out
         val virtualFile = callback3.toVirtualFile(plainFile.file.toPath)
         virtualFile match {
           case underlying: PathBasedFile => new ZincPlainFile(underlying)
-          case _ => f
+          case _                         => f
         }
       case _ => f
     }
