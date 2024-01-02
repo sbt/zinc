@@ -11,12 +11,12 @@
 
 package xsbt
 
-import xsbti.{ AnalysisCallback, AnalysisCallback3, PathBasedFile, Severity }
+import xsbti.{AnalysisCallback, AnalysisCallback3, PathBasedFile, Severity, VirtualFileWrite}
 import xsbti.compile._
 
 import scala.tools.nsc._
 import io.AbstractFile
-import java.nio.file.{ Files, Path }
+import java.nio.file.{Files, Path}
 import scala.reflect.io.PlainFile
 import scala.reflect.ReflectAccess._
 import scala.reflect.internal.util.BatchSourceFile
@@ -79,10 +79,13 @@ sealed class ZincCompiler(settings: Settings, dreporter: DelegatingReporter, out
     with ZincGlobalCompat {
 
   override def getSourceFile(f: AbstractFile): BatchSourceFile = {
-    val file = f match {
-      case plainFile: PlainFile =>
-        val vf = callback.asInstanceOf[AnalysisCallback3].toVirtualFile(plainFile.file.toPath)
-        new ZincPlainFile(vf.asInstanceOf[PathBasedFile])
+    val file = (f, callback) match {
+      case (plainFile: PlainFile, callback3: AnalysisCallback3) =>
+        val virtualFile = callback3.toVirtualFile(plainFile.file.toPath)
+        virtualFile match {
+          case underlying: PathBasedFile => new ZincPlainFile(underlying)
+          case _ => f
+        }
       case _ => f
     }
     super.getSourceFile(file)
