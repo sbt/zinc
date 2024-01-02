@@ -27,6 +27,9 @@ jobs:
           - os: ubuntu-latest
             java: 21
             jobtype: 4
+          - os: ubuntu-latest
+            java: 21
+            jobtype: 5
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout
@@ -50,20 +53,31 @@ jobs:
       if: ${{ matrix.jobtype == 3 }}
       shell: bash
       run: |
-        sbt -v -Dfile.encoding=UTF-8 "runBenchmarks"
-    - name: Checkout Develop Branch (3)
-      if: ${{ github.event_name == 'pull_request' && matrix.jobtype == 3 }}
+        sbt -v -Dfile.encoding=UTF-8 scalafmtCheckAll scalafmtSbtCheck
+    - name: Benchmark (Scalac) (4)
+      if: ${{ matrix.jobtype == 4 }}
+      shell: bash
+      run: |
+        sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Scalac.*" "runBenchmarks"
+    - name: Benchmark (Shapeless) (5)
+      if: ${{ matrix.jobtype == 5 }}
+      shell: bash
+      run: |
+        sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Shapeless.*" "runBenchmarks"
+    - name: Checkout Develop Branch (4, 5)
+      if: ${{ github.event_name == 'pull_request' && (matrix.jobtype == 4 || matrix.jobtype == 5) }}
       uses: actions/checkout@v4
       with:
         clean: false
         ref: develop
-    - name: Build and test against Develop Branch (3)
-      if: ${{ github.event_name == 'pull_request' && matrix.jobtype == 3 }}
+    - name: Benchmark (Scalac) against Develop Branch (4)
+      if: ${{ github.event_name == 'pull_request' && matrix.jobtype == 4 }}
       shell: bash
       run: |
-        sbt -v -Dfile.encoding=UTF-8 "runBenchmarks"
-    - name: Build and test (4)
-      if: ${{ matrix.jobtype == 4 }}
+        sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Scalac.*" "runBenchmarks"
+    - name: Benchmark (Shapeless) against Develop Branch (5)
+      if: ${{ github.event_name == 'pull_request' && matrix.jobtype == 5 }}
       shell: bash
       run: |
-        sbt -v -Dfile.encoding=UTF-8 scalafmtCheckAll scalafmtSbtCheck
+        sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Shapeless.*" "runBenchmarks"
+        
