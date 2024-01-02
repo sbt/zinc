@@ -17,6 +17,7 @@ import xsbti.compile._
 import scala.tools.nsc._
 import io.AbstractFile
 import java.nio.file.{ Files, Path }
+
 import scala.reflect.io.PlainFile
 import scala.reflect.ReflectAccess._
 import scala.reflect.internal.util.BatchSourceFile
