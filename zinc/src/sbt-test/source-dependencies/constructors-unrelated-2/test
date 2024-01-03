@@ -1,0 +1,8 @@
+> compile
+$ copy-file changes/B.scala B.scala
+# Second compilation round, there should be no third round (we don't need to recompile A.scala)
+> compile
+# Check that there were only two rounds of compilation
+> checkIterations 2
+$ copy-file changes/C.scala C.scala
+-> compile
