@@ -110,7 +110,7 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
     val memberRef = processDependency(DependencyByMemberRef, false) _
     val inheritance = processDependency(DependencyByInheritance, true) _
     val localInheritance = processDependency(LocalDependencyByInheritance, true) _
-    val macroExpansion = processDependency(DependencyByMacroExpansion, false) _
+    val scala2MacroExpansion = processDependency(DependencyByMacroExpansion, false) _
 
     @deprecated("Use processDependency that takes allowLocal.", "1.1.0")
     def processDependency(context: DependencyContext)(dep: ClassDependency): Unit =
@@ -371,7 +371,7 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
       override def addDependency(symbol: global.Symbol): Unit = {
         addClassDependency(
           _dependencyByMacroExpansionCache,
-          processor.macroExpansion,
+          processor.scala2MacroExpansion,
           owner,
           symbol
         )
