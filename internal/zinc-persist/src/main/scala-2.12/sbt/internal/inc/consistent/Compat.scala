@@ -44,7 +44,7 @@ object Compat {
 
   implicit class IterableOnceOps[+E](private val it: IterableOnce[E]) {
     def iterator: Iterator[E] = it match {
-      case it: Iterator[_] => it.asInstanceOf[Iterator[E]]
+      case it: Iterator[?] => it.asInstanceOf[Iterator[E]]
       case it              => it.asInstanceOf[Iterable[E]].iterator
     }
   }

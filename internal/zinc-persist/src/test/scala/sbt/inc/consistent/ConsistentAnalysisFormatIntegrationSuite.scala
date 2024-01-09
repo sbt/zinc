@@ -42,7 +42,7 @@ class ConsistentAnalysisFormatIntegrationSuite extends AnyFunSuite {
       val api2 = read(ConsistentFileAnalysisStore.binary(f1, ReadWriteMappers.getEmptyMappers))
       val f2 = write("cbin2.zip", api2, sort = false)
       val api3 = read(ConsistentFileAnalysisStore.binary(f2, ReadWriteMappers.getEmptyMappers))
-      val f3 = write("cbin3.zip", api2)
+      val f3 = write("cbin3.zip", api3)
       assert(Arrays.equals(IO.readBytes(f1), IO.readBytes(f3)), s"same output for $d")
     }
   }

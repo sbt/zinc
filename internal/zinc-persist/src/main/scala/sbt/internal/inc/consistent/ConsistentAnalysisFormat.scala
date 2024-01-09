@@ -28,7 +28,7 @@ import Compat._
 class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
   import ConsistentAnalysisFormat._
 
-  private[this] final val VERSION = 1000028
+  private[this] final val VERSION = 1100028
   private[this] final val readMapper = mappers.getReadMapper
   private[this] final val writeMapper = mappers.getWriteMapper
 
@@ -44,22 +44,17 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
     out.end()
   }
 
-  def read(in: Deserializer): (CompileAnalysis, MiniSetup) =
-    try {
-      readVersion(in)
-      val setup = readMiniSetup(in)
-      val relations = readRelations(in)
-      val stamps = readStamps(in)
-      val apis = readAPIs(in, setup.storeApis())
-      val infos = readSourceInfos(in)
-      readVersion(in)
-      in.end()
-      (Analysis.Empty.copy(stamps, apis, relations, infos, Compilations.of(Nil)), setup)
-    } catch {
-      case t: Throwable =>
-        t.printStackTrace() // TODO
-        throw t
-    }
+  def read(in: Deserializer): (CompileAnalysis, MiniSetup) = {
+    readVersion(in)
+    val setup = readMiniSetup(in)
+    val relations = readRelations(in)
+    val stamps = readStamps(in)
+    val apis = readAPIs(in, setup.storeApis())
+    val infos = readSourceInfos(in)
+    readVersion(in)
+    in.end()
+    (Analysis.Empty.copy(stamps, apis, relations, infos, Compilations.of(Nil)), setup)
+  }
 
   @inline
   private[this] final def writeMaybeSortedStringMap[V](
@@ -172,7 +167,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
       val hm = in.bool()
       val p = in.string()
       val nhNames = in.readStringArray()
-      val nhScopes = in.readArray[UseScope]() { UseScope.values()(in.byte()) }
+      val nhScopes = in.readArray[UseScope]() { UseScope.values()(in.byte().toInt) }
       val nhHashes = in.readArray[Int]() { in.int() }
       val nameHashes = new Array[NameHash](nhNames.length)
       var i = 0
@@ -189,7 +184,11 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
 
   private[this] def writeAPIs(out: Serializer, apis: APIs, storeApis: Boolean): Unit = {
     def write(n: String, m: Map[String, AnalyzedClass]): Unit =
-      writeMaybeSortedStringMap(out, n, m.mapValues(_.withCompilationTimestamp(-1L))) { ac =>
+      writeMaybeSortedStringMap(
+        out,
+        n,
+        m.mapValues(_.withCompilationTimestamp(DefaultCompilationTimestamp))
+      ) { ac =>
         writeAnalyzedClass(out, ac, storeApis)
       }
     write("internal", apis.internal)
@@ -304,7 +303,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
       val scalacOptions = in.readArray() { readMapper.mapScalacOption(in.string()) }
       val javacOptions = in.readArray() { readMapper.mapJavacOption(in.string()) }
       val compilerVersion = in.string()
-      val compileOrder = CompileOrder.values()(in.byte())
+      val compileOrder = CompileOrder.values()(in.byte().toInt)
       val skipApiStoring = in.bool()
       val extra = in.readArray(2) { InterfaceUtil.t2(in.string() -> in.string()) }
       readMapper.mapMiniSetup(MiniSetup.of(
@@ -414,7 +413,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
   private[this] def readUsedNameSet(in: Deserializer): Set[UsedName] = {
     in.readBlock {
       val data = in.readColl[Vector[UsedName], Vector[Vector[UsedName]]](Vector, 2) {
-        val i = in.byte()
+        val i = in.byte().toInt
         val names = in.readStringSeq()
         names.iterator.map { n => UsedName(n, useScopes(i)) }.toVector
       }
@@ -440,7 +439,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
   private[this] def readClassLike(in: Deserializer): ClassLike = in.readBlock {
     val name = in.string()
     val access = readAccess(in)
-    val modifiers = InternalApiProxy.Modifiers(in.byte())
+    val modifiers = InternalApiProxy.Modifiers(in.byte().toInt)
     val annotations = in.readArray[Annotation]()(readAnnotation(in))
     val definitionType = readDefinitionType(in)
     val selfType = SafeLazyProxy.strict(readType(in))
@@ -508,7 +507,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
     out.byte(dt.ordinal().toByte)
 
   private[this] def readDefinitionType(in: Deserializer): DefinitionType =
-    DefinitionType.values()(in.byte())
+    DefinitionType.values()(in.byte().toInt)
 
   private[this] def writeTypeParameter(out: Serializer, tp: TypeParameter): Unit =
     out.writeBlock("TypeParameter") {
@@ -525,7 +524,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
       in.string(),
       in.readArray[Annotation]()(readAnnotation(in)),
       in.readArray[TypeParameter]()(readTypeParameter(in)),
-      Variance.values()(in.byte()),
+      Variance.values()(in.byte().toInt),
       readType(in),
       readType(in)
     )
@@ -639,7 +638,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
   private[this] def readClassDefinition(in: Deserializer): ClassDefinition = in.readBlock {
     val name = in.string()
     val access = readAccess(in)
-    val modifiers = InternalApiProxy.Modifiers(in.byte())
+    val modifiers = InternalApiProxy.Modifiers(in.byte().toInt)
     val annotations = in.readArray[Annotation]()(readAnnotation(in))
     in.byte() match {
       case 0 => ClassLikeDef.of(
@@ -699,7 +698,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
           in.string(),
           readType(in),
           in.bool(),
-          ParameterModifier.values()(in.byte())
+          ParameterModifier.values()(in.byte().toInt)
         )
       },
       in.bool()
@@ -777,14 +776,16 @@ object ConsistentAnalysisFormat {
   private final val ThisQualifierSingleton = ThisQualifier.of()
   private final val UnqualifiedSingleton = Unqualified.of()
   private final val PublicSingleton = Public.of()
+  private final val DefaultCompilationTimestamp: Long = 1262304042000L // 2010-01-01T00:00:42Z
 
-  private final val useScopes: Array[EnumSet[UseScope]] = Array.tabulate(8) { i =>
-    val e = EnumSet.noneOf(classOf[UseScope])
-    if ((i & 1) != 0) e.add(UseScope.Default)
-    if ((i & 2) != 0) e.add(UseScope.Implicit)
-    if ((i & 4) != 0) e.add(UseScope.PatMatTarget)
-    e
-  }
+  private final val useScopes: Array[EnumSet[UseScope]] =
+    Array.tabulate(8) { i =>
+      val e = EnumSet.noneOf(classOf[UseScope])
+      if ((i & 1) != 0) e.add(UseScope.Default)
+      if ((i & 2) != 0) e.add(UseScope.Implicit)
+      if ((i & 4) != 0) e.add(UseScope.PatMatTarget)
+      e
+    }
 
   private final val nameHashComparator: Comparator[NameHash] = new Comparator[NameHash] {
     def compare(o1: NameHash, o2: NameHash): Int = {

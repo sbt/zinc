@@ -228,14 +228,14 @@ class TextSerializer(out: Writer) extends Serializer {
         case '\n' => out.write("\\n")
         case '\r' => out.write("\\r")
         case '\\' => out.write("\\\\")
-        case c    => out.write(c)
+        case c    => out.write(c.toInt)
       }
       out.write('\n')
     }
   }
   def bool(b: Boolean): Unit = long(if (b) 1 else 0)
-  def int(i: Int): Unit = long(i)
-  def byte(b: Byte): Unit = long(b)
+  def int(i: Int): Unit = long(i.toLong)
+  def byte(b: Byte): Unit = long(b.toLong)
   def long(l: Long): Unit = {
     count()
     printIndent()

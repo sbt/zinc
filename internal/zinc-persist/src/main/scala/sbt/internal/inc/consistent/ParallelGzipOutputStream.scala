@@ -50,17 +50,14 @@ object ParallelGzipOutputStream {
   private val header = Array[Byte](0x1f.toByte, 0x8b.toByte, Deflater.DEFLATED, 0, 0, 0, 0, 0, 0, 0)
 }
 
-final class ParallelGzipOutputStream(
-    out: OutputStream,
-    ec: ExecutionContext = ExecutionContext.global, // NOLINT
-    parallelism: Int = Runtime.getRuntime.availableProcessors()
-) extends FilterOutputStream(out) {
+final class ParallelGzipOutputStream(out: OutputStream, ec: ExecutionContext, parallelism: Int)
+    extends FilterOutputStream(out) {
   import ParallelGzipOutputStream._
 
   private final val crc = new CRC32
   private final val queueLimit = parallelism * 3
-  private final val pending =
-    mutable.Queue.empty[Future[Block]] // new mutable.ArrayDeque[Future[Block]](queueLimit)
+  // preferred on 2.13: new mutable.ArrayDeque[Future[Block]](queueLimit)
+  private final val pending = mutable.Queue.empty[Future[Block]]
   private var current: Block = new Block
   private var free: Block = _
   private var total = 0L

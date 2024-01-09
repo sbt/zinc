@@ -14,8 +14,9 @@ import scala.util.Random
 import org.scalatest.funsuite.AnyFunSuite
 import sbt.internal.inc.consistent._
 import sbt.io.IO
-
 import Compat._
+
+import scala.concurrent.ExecutionContext
 
 class ConsistentAnalysisFormatSuite extends AnyFunSuite {
 
@@ -99,7 +100,7 @@ class ConsistentAnalysisFormatSuite extends AnyFunSuite {
       val a = new Array[Byte](size)
       rnd.nextBytes(a)
       val bout = new ByteArrayOutputStream()
-      val gout = new ParallelGzipOutputStream(bout, parallelism = threads)
+      val gout = new ParallelGzipOutputStream(bout, ExecutionContext.global, parallelism = threads)
       gout.write(a)
       gout.close()
       val gin =

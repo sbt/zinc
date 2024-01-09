@@ -14,24 +14,51 @@ package sbt.internal.inc.consistent
 
 import java.io.{ File, FileInputStream, FileOutputStream }
 import java.util.Optional
-
 import sbt.io.{ IO, Using }
 import xsbti.compile.{ AnalysisContents, AnalysisStore => XAnalysisStore }
-import scala.util.control.Exception.allCatch
 
+import scala.util.control.Exception.allCatch
 import xsbti.compile.analysis.ReadWriteMappers
 
-object ConsistentFileAnalysisStore {
-  def text(file: File, mappers: ReadWriteMappers, sort: Boolean = true): XAnalysisStore =
-    new AStore(file, new ConsistentAnalysisFormat(mappers, sort), SerializerFactory.text)
+import scala.concurrent.ExecutionContext
 
-  def binary(file: File, mappers: ReadWriteMappers, sort: Boolean = true): XAnalysisStore =
-    new AStore(file, new ConsistentAnalysisFormat(mappers, sort), SerializerFactory.binary)
+object ConsistentFileAnalysisStore {
+  def text(
+      file: File,
+      mappers: ReadWriteMappers,
+      sort: Boolean = true,
+      ec: ExecutionContext = ExecutionContext.global,
+      parallelism: Int = Runtime.getRuntime.availableProcessors()
+  ): XAnalysisStore =
+    new AStore(
+      file,
+      new ConsistentAnalysisFormat(mappers, sort),
+      SerializerFactory.text,
+      ec,
+      parallelism
+    )
+
+  def binary(
+      file: File,
+      mappers: ReadWriteMappers,
+      sort: Boolean = true,
+      ec: ExecutionContext = ExecutionContext.global,
+      parallelism: Int = Runtime.getRuntime.availableProcessors()
+  ): XAnalysisStore =
+    new AStore(
+      file,
+      new ConsistentAnalysisFormat(mappers, sort),
+      SerializerFactory.binary,
+      ec,
+      parallelism
+    )
 
   private final class AStore[S <: Serializer, D <: Deserializer](
       file: File,
       format: ConsistentAnalysisFormat,
-      sf: SerializerFactory[S, D]
+      sf: SerializerFactory[S, D],
+      ec: ExecutionContext = ExecutionContext.global,
+      parallelism: Int = Runtime.getRuntime.availableProcessors()
   ) extends XAnalysisStore {
 
     def set(analysisContents: AnalysisContents): Unit = {
@@ -41,7 +68,7 @@ object ConsistentFileAnalysisStore {
       if (!file.getParentFile.exists()) file.getParentFile.mkdirs()
       val fout = new FileOutputStream(tmpAnalysisFile)
       try {
-        val gout = new ParallelGzipOutputStream(fout)
+        val gout = new ParallelGzipOutputStream(fout, ec, parallelism)
         val ser = sf.serializerFor(gout)
         format.write(ser, analysis, setup)
         gout.close()
