@@ -93,6 +93,7 @@ object JavaCompiler {
       cpOptions: ClasspathOptions
   ): Seq[String] = {
     val cp = classpath.map(converter.toPath)
+    // this seems to duplicate scala-library
     val augmentedClasspath: Seq[Path] =
       if (!cpOptions.autoBoot) cp
       else cp ++ scalaInstance.libraryJars.map(_.toPath)
