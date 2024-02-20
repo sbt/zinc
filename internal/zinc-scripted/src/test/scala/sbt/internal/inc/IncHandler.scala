@@ -196,7 +196,12 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
       toCache
     }
     val analyzingCompiler = scalaCompiler(si, compilerBridge)
-    val cs = incrementalCompiler.compilers(si, ClasspathOptionsUtil.noboot(si.version), None, analyzingCompiler)
+    val cs = incrementalCompiler.compilers(
+      si,
+      ClasspathOptionsUtil.noboot(si.version),
+      None,
+      analyzingCompiler
+    )
     IncState(si, cs, 0)
   }
 
