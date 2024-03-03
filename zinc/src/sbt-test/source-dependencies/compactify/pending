@@ -1,3 +1,4 @@
+# The test passes in Scala 2.12 but not Scala 2.13
 > checkNoClassFiles
 > compile
 -> checkNoClassFiles
