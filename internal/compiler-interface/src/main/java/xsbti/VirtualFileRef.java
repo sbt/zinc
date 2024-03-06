@@ -26,7 +26,7 @@ package xsbti;
  * following flow of operation.
  * </p>
  *
- * <h3>Flow of operation</h3>
+ * <h2>Flow of operation</h2>
  * <p>Suppose that there are two people Alice and Bob who are working on the same repo.
  * On Alice's machine, the build tool would construct
  * an instance of {@link FileConverter} used for the entire build.
