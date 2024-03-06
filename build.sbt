@@ -477,6 +477,9 @@ lazy val compilerBridge = (projectMatrix in internalPath / "compiler-bridge")
   .settings(
     name := "Compiler Bridge",
     autoScalaLibrary := false,
+    semanticdbEnabled := {
+      semanticdbEnabled.value && !scalaVersion.value.startsWith("2.10")
+    },
     baseSettings,
     compilerVersionDependentScalacOptions,
     // We need this for import Compat._
