@@ -1,6 +1,6 @@
 {
   "projects": [
-    { "name": "lib", "scalaVersion": "2.13.12" },
-    { "name": "app", "scalaVersion": "2.13.12", "dependsOn": [ "lib" ] }
+    { "name": "lib", "scalaVersion": "2.13.13" },
+    { "name": "app", "scalaVersion": "2.13.13", "dependsOn": [ "lib" ] }
   ]
 }
