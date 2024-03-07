@@ -7,7 +7,7 @@ object Dependencies {
 
   val scala210 = "2.10.7"
   val scala211 = "2.11.12"
-  val scala212 = "2.12.18"
+  val scala212 = "2.12.19"
   val scala213 = "2.13.13"
   val defaultScalaVersion = scala212
   val allScalaVersions = Seq(defaultScalaVersion, scala210, scala211, scala213)
