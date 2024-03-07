@@ -1,7 +1,7 @@
 {
   "projects": [
-    {"name": "main", "dependsOn": ["a", "c"], "scalaVersion": "2.13.12"},
-    {"name": "c", "dependsOn": ["a"], "scalaVersion": "2.13.12"},
-    {"name": "a", "scalaVersion": "2.13.12"}
+    {"name": "main", "dependsOn": ["a", "c"], "scalaVersion": "2.13.13"},
+    {"name": "c", "dependsOn": ["a"], "scalaVersion": "2.13.13"},
+    {"name": "a", "scalaVersion": "2.13.13"}
   ]
 }
