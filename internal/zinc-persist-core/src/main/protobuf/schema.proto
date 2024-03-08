@@ -467,6 +467,7 @@ message Relations {
     ClassDependencies memberRef = 7;
     ClassDependencies inheritance = 8;
     ClassDependencies localInheritance = 9;
+    ClassDependencies macroExpansion = 10;
 }
 
 message Analysis {

@@ -285,6 +285,7 @@ trait InvalidationProfilerUtils {
   final val LocalInheritanceKind = "local inheritance"
   final val InheritanceKind = "inheritance"
   final val MemberReferenceKind = "member reference"
+  final val MacroExpansionKind = "macro expansion"
 }
 
 // So that others users from outside [[IncrementalCommon]] can use the labels

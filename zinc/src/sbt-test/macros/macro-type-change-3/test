@@ -1,0 +1,3 @@
+> app/run false
+$ copy-file A/changes/A.scala A/A.scala
+> app/run true

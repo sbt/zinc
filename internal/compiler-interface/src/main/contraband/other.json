@@ -263,6 +263,12 @@
             "    }",
             "  }"
           ]
+        },
+        {
+          "name": "DependencyByMacroExpansion",
+          "doc": [
+            "Represents a dependency to symbols inspected during macro expansion"
+          ]
         }
       ]
     },
