@@ -590,7 +590,7 @@ private final class AnalysisCallback(
     progress: Option[CompileProgress],
     incHandlerOpt: Option[Incremental.IncrementalCallback],
     log: Logger
-) extends xsbti.AnalysisCallback2 {
+) extends xsbti.AnalysisCallback3 {
   import Incremental.CompileCycleResult
 
   // This must have a unique value per AnalysisCallback
@@ -673,6 +673,8 @@ private final class AnalysisCallback(
     srcs.add(source)
     ()
   }
+
+  override def toVirtualFile(path: Path): VirtualFile = converter.toVirtualFile(path)
 
   override def problem2(
       category: String,

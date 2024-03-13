@@ -11,7 +11,7 @@
 
 package xsbt
 
-import xsbti.{ AnalysisCallback, Severity }
+import xsbti.{ AnalysisCallback, AnalysisCallback3, PathBasedFile, Severity }
 import xsbti.compile._
 
 import scala.tools.nsc._
@@ -20,6 +20,7 @@ import java.nio.file.{ Files, Path }
 
 import scala.reflect.io.PlainFile
 import scala.reflect.ReflectAccess._
+import scala.reflect.internal.util.BatchSourceFile
 
 /** Defines the interface of the incremental compiler hiding implementation details. */
 sealed abstract class CallbackGlobal(
@@ -77,6 +78,19 @@ sealed abstract class CallbackGlobal(
 sealed class ZincCompiler(settings: Settings, dreporter: DelegatingReporter, output: Output)
     extends CallbackGlobal(settings, dreporter, output)
     with ZincGlobalCompat {
+
+  override def getSourceFile(f: AbstractFile): BatchSourceFile = {
+    val file = (f, callback) match {
+      case (plainFile: PlainFile, callback3: AnalysisCallback3) =>
+        val virtualFile = callback3.toVirtualFile(plainFile.file.toPath)
+        virtualFile match {
+          case underlying: PathBasedFile => new ZincPlainFile(underlying)
+          case _                         => f
+        }
+      case _ => f
+    }
+    super.getSourceFile(file)
+  }
 
   final class ZincRun(compileProgress: CompileProgress) extends Run {
     override def informUnitStarting(phase: Phase, unit: CompilationUnit): Unit = {
