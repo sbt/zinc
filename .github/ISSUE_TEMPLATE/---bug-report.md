@@ -7,6 +7,10 @@ assignees: ''
 
 ---
 
+## Scala 2 or 3?
+
+Zinc is for Scala 2 only. To report a bug in incremental compilation of Scala 3 code, visit https://github.com/lampepfl/dotty/issues
+
 ## steps
 
 <!-- Describe exact steps to reproduce your problems on our computer, include versions and snippets  -->

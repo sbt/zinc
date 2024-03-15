@@ -1,4 +1,4 @@
-**Zinc** is the incremental compiler for Scala.
+**Zinc** is the incremental compiler for **Scala 2**.
 
 Most Scala developers use it constantly without noticing. It's leveraged by build tools
 such as [sbt][], [IntelliJ][], [Maven][], [Gradle][], [Mill][], [Pants][], [Bazel][],
@@ -8,6 +8,12 @@ Zinc reduces compilation times without sacrificing
 correctness. When you change a source file, Zinc analyzes the structure of
 your code and recompiles only the source files affected by your
 change. The result should be identical to the output of a clean compile.
+
+## Scala 3?
+
+Zinc isn't used for Scala 3. Instead, the Scala 3 compiler has built-in
+ability to do incremental compilation. (To report an issue with that,
+visit [lampepfl/dotty](https://github.com/lampepfl/dotty/issues).)
 
 ## Code of conduct
 
