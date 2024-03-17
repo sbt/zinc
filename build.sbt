@@ -2,7 +2,6 @@ import Util._
 import Dependencies._
 import localzinc.Scripted, Scripted._
 import com.typesafe.tools.mima.core._, ProblemFilters._
-import com.github.os72.protocjar.Protoc
 
 // == INTELLIJ IMPORT ==
 //
@@ -291,10 +290,7 @@ lazy val zincPersistCore = (project in internalPath / "zinc-persist-core")
     crossPaths := false,
     autoScalaLibrary := false,
     exportJars := true,
-    ProtobufConfig / version := "3.11.4", // sync version w/ plugins.sbt
-    ProtobufConfig / protobufRunProtoc := { args =>
-      Protoc.runProtoc(s"-v${(ProtobufConfig / version).value}" +: args.toArray)
-    },
+    ProtobufConfig / version := "3.25.3", // sync version w/ plugins.sbt
     publish / skip := true,
     assembly / assemblyShadeRules := Seq(
       ShadeRule
