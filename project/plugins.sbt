@@ -11,5 +11,5 @@ libraryDependencies += "com.github.os72" % "protoc-jar" % "3.11.4"
 addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "1.1.3")
 addSbtPlugin("com.eed3si9n" % "sbt-buildinfo" % "0.12.0")
 addSbtPlugin("com.eed3si9n" % "sbt-projectmatrix" % "0.10.0")
-addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "2.1.5")
+addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "2.2.0")
 addSbtPlugin("org.jetbrains.scala" % "sbt-ide-settings" % "1.1.2")
