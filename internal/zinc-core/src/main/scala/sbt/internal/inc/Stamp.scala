@@ -410,19 +410,17 @@ private class InitialStamps(
   import scala.collection.JavaConverters._
 
   // cached stamps for files that do not change during compilation
-  private val sources: Map[VirtualFileRef, XStamp] = new ConcurrentHashMap().asScala
   private val libraries: Map[VirtualFileRef, XStamp] = new ConcurrentHashMap().asScala
 
   override def getAllLibraryStamps: util.Map[VirtualFileRef, XStamp] =
     libraries.asJava
   override def getAllSourceStamps: util.Map[VirtualFileRef, XStamp] =
-    sources.asJava
+    underlying.getAllSourceStamps
   override def getAllProductStamps: util.Map[VirtualFileRef, XStamp] =
     new util.HashMap()
 
   override def product(prod: VirtualFileRef): XStamp = underlying.product(prod)
-  override def source(src: VirtualFile): XStamp =
-    sources.getOrElseUpdate(src, underlying.source(src))
+  override def source(src: VirtualFile): XStamp = underlying.source(src)
   override def library(lib: VirtualFileRef): XStamp =
     libraries.getOrElseUpdate(lib, underlying.library(lib))
 }
