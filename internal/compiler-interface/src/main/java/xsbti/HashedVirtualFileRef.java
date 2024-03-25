@@ -16,9 +16,15 @@ package xsbti;
  * with content hash.
  */
 public interface HashedVirtualFileRef extends VirtualFileRef {
+  // TODO: remove this
   static HashedVirtualFileRef of(String id, String contentHashStr) {
-    return new BasicHashedVirtualFileRef(id, contentHashStr);
+    return new BasicHashedVirtualFileRef(id, contentHashStr, 0L);
+  }
+
+  static HashedVirtualFileRef of(String id, String contentHashStr, long sizeBytes) {
+    return new BasicHashedVirtualFileRef(id, contentHashStr, sizeBytes);
   }
 
   String contentHashStr();
+  long sizeBytes();
 }

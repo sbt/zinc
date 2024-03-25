@@ -17,22 +17,28 @@ public class BasicHashedVirtualFileRef
         extends BasicVirtualFileRef
         implements HashedVirtualFileRef {
     private final String contentHashStr;
+    private final long sizeBytes;
 
-    protected BasicHashedVirtualFileRef(String id, String contentHashStr) {
+    protected BasicHashedVirtualFileRef(String id, String contentHashStr, long sizeBytes) {
         super(id);
         this.contentHashStr = contentHashStr;
+        this.sizeBytes = sizeBytes;
     }
 
     public String contentHashStr() { return contentHashStr; }
 
-    public String toString() { return id() + ">" + contentHashStr; }
+    public long sizeBytes() { return sizeBytes; }
+
+    public String toString() { return id() + ">" + contentHashStr + "/" + Long.toString(sizeBytes); }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof BasicHashedVirtualFileRef)) return false;
         BasicHashedVirtualFileRef that = (BasicHashedVirtualFileRef) o;
-        return Objects.equals(id(), that.id()) && Objects.equals(contentHashStr, that.contentHashStr);
+        return Objects.equals(id(), that.id()) &&
+            Objects.equals(contentHashStr, that.contentHashStr) &&
+            (sizeBytes == that.sizeBytes);
     }
 
     @Override
@@ -40,6 +46,7 @@ public class BasicHashedVirtualFileRef
         return Objects.hash(
             "xsbti.BasicHashedVirtualFileRef",
             id(),
-            contentHashStr
+            contentHashStr,
+            Long.valueOf(sizeBytes)
         ); }
 }
