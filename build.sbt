@@ -2,7 +2,6 @@ import ZincBuildUtil._
 import Dependencies._
 import localzinc.Scripted, Scripted._
 import com.typesafe.tools.mima.core._, ProblemFilters._
-import com.github.os72.protocjar.Protoc
 
 def zincRootPath: File = file(sys.props.getOrElse("sbtzinc.path", ".")).getCanonicalFile
 def internalPath = zincRootPath / "internal"
@@ -313,9 +312,6 @@ lazy val zincPersistCore = (project in internalPath / "zinc-persist-core")
     autoScalaLibrary := false,
     exportJars := true,
     ProtobufConfig / version := "3.24.4",
-    ProtobufConfig / protobufRunProtoc := { args =>
-      Protoc.runProtoc(s"-v${(ProtobufConfig / version).value}" +: args.toArray)
-    },
     publish / skip := true,
     assembly / assemblyShadeRules := Seq(
       ShadeRule
