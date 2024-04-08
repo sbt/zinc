@@ -121,7 +121,9 @@ private[inc] class IncrementalNameHashingCommon(
     log.debug(s"Getting classes that directly depend on (external) $modifiedBinaryClassName.")
     val memberRefB = memberRefInv(relations.memberRef.external)(modifiedBinaryClassName)
 
-    transitiveInheritance ++ localInheritance ++ memberRefA ++ memberRefB
+    val macroExpansion = relations.macroExpansion.external.reverse(modifiedBinaryClassName)
+
+    transitiveInheritance ++ localInheritance ++ memberRefA ++ memberRefB ++ macroExpansion
   }
 
   private def invalidateByInheritance(relations: Relations, modified: String): Set[String] = {
@@ -137,6 +139,13 @@ private[inc] class IncrementalNameHashingCommon(
     if (localInheritanceDeps.nonEmpty)
       log.debug(s"Invalidate by local inheritance: $modified -> $localInheritanceDeps")
     localInheritanceDeps
+  }
+
+  private def invalidateByMacroExpansion(relations: Relations, modified: String): Set[String] = {
+    val macroExpansionDeps = relations.macroExpansion.internal.reverse(modified)
+    if (macroExpansionDeps.nonEmpty)
+      log.debug(s"Invalidate by macro expansion: $modified -> $macroExpansionDeps")
+    macroExpansionDeps
   }
 
   /** @inheritdoc */
@@ -161,7 +170,11 @@ private[inc] class IncrementalNameHashingCommon(
     val reason3 = s"The invalidated class names refer directly or transitively to $modifiedClass."
     profiler.registerEvent(MemberReferenceKind, transitiveInheritance, memberRef, reason3)
 
-    val all = transitiveInheritance ++ localInheritance ++ memberRef
+    val macroExpansion = invalidateByMacroExpansion(relations, modifiedClass)
+    val reason4 = s"The invalidated class is touched by macro expansion in ${modifiedClass}"
+    profiler.registerEvent(MacroExpansionKind, List(modifiedClass), macroExpansion, reason4)
+
+    val all = transitiveInheritance ++ localInheritance ++ memberRef ++ macroExpansion
     log.debug {
       if (all.isEmpty) s"Change $change does not affect any class."
       else {
@@ -171,6 +184,7 @@ private[inc] class IncrementalNameHashingCommon(
            |  > ${ppxs("by transitive inheritance", transitiveInheritance)}
            |  > ${ppxs("by local inheritance", localInheritance)}
            |  > ${ppxs("by member reference", memberRef)}
+           |  > ${ppxs("by macro expansion", macroExpansion)}
         """.stripMargin
       }
     }

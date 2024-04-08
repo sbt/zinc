@@ -153,7 +153,7 @@ private class MAnalysis(
 
   def --(sources: Iterable[VirtualFileRef]): Analysis = {
     val newRelations = relations -- sources
-    def keep[T](f: (Relations, T) => Set[_]): T => Boolean = f(newRelations, _).nonEmpty
+    def keep[T](f: (Relations, T) => Set[?]): T => Boolean = f(newRelations, _).nonEmpty
 
     val classesInSrcs = sources.flatMap(relations.classNames)
     val newAPIs = apis.removeInternal(classesInSrcs).filterExt(keep(_.usesExternal(_)))

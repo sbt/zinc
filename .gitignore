@@ -8,3 +8,6 @@ zinc/src/test/resources/bin
 metals.sbt
 .bsp
 .DS_Store
+.vscode
+.metals
+.bloop

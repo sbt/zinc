@@ -640,7 +640,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
 
   def fromClassLike(classLike: Schema.ClassLike): ClassLike = {
     def expectedMsg(msg: String) = ReadersFeedback.expected(msg, Classes.ClassLike)
-    def expected(clazz: Class[_]) = expectedMsg(clazz.getName)
+    def expected(clazz: Class[?]) = expectedMsg(clazz.getName)
     val name = classLike.getName.intern()
     val access =
       if (classLike.hasAccess) fromAccess(classLike.getAccess)
@@ -776,6 +776,9 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
     val localInheritance =
       if (relations.hasLocalInheritance) fromClassDependencies(relations.getLocalInheritance)
       else expected("local inheritance").!!
+    val macroExpansion =
+      if (relations.hasMacroExpansion) fromClassDependencies(relations.getMacroExpansion)
+      else expected("macro expansion").!!
     val classes = fromMap(relations.getClassesMap, stringToSource, stringId)
     val productClassName =
       fromMap(relations.getProductClassNameMap, stringId, stringId)
@@ -784,14 +787,16 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
       Map(
         DependencyContext.DependencyByMemberRef -> memberRef.internal,
         DependencyContext.DependencyByInheritance -> inheritance.internal,
-        DependencyContext.LocalDependencyByInheritance -> localInheritance.internal
+        DependencyContext.LocalDependencyByInheritance -> localInheritance.internal,
+        DependencyContext.DependencyByMacroExpansion -> macroExpansion.internal,
       )
     )
     val external = ExternalDependencies(
       Map(
         DependencyContext.DependencyByMemberRef -> memberRef.external,
         DependencyContext.DependencyByInheritance -> inheritance.external,
-        DependencyContext.LocalDependencyByInheritance -> localInheritance.external
+        DependencyContext.LocalDependencyByInheritance -> localInheritance.external,
+        DependencyContext.DependencyByMacroExpansion -> macroExpansion.external,
       )
     )
     Relations.make(
@@ -828,7 +833,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
   }
 
   def fromAnalysis(analysis: Schema.Analysis): Analysis = {
-    def expected(clazz: Class[_]) = ReadersFeedback.expected(clazz, Classes.Analysis)
+    def expected(clazz: Class[?]) = ReadersFeedback.expected(clazz, Classes.Analysis)
     val stamps =
       if (analysis.hasStamps) fromStamps(analysis.getStamps)
       else expected(Classes.Stamps).!!

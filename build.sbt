@@ -7,7 +7,7 @@ import com.github.os72.protocjar.Protoc
 def zincRootPath: File = file(sys.props.getOrElse("sbtzinc.path", ".")).getCanonicalFile
 def internalPath = zincRootPath / "internal"
 
-def mimaSettings: Seq[Setting[_]] = Seq(
+def mimaSettings: Seq[Setting[?]] = Seq(
   mimaPreviousArtifacts := {
     val pre140 = Set(
       "1.0.0",
@@ -83,7 +83,7 @@ Global / concurrentRestrictions += Tags.limit(Tags.Test, 4)
 ThisBuild / Test / fork := true
 Global / excludeLintKeys += ideSkipProject
 
-def baseSettings: Seq[Setting[_]] = Seq(
+def baseSettings: Seq[Setting[?]] = Seq(
   testOptions += Tests.Argument(TestFrameworks.ScalaCheck, "-w", "1", "-verbosity", "2"),
   testFrameworks += new TestFramework("verify.runner.Framework"),
   compile / javacOptions ++= Seq("-Xlint", "-Xlint:-serial"),
@@ -104,7 +104,7 @@ def baseSettings: Seq[Setting[_]] = Seq(
   ideSkipProject := scalaVersion.value != defaultScalaVersion,
 )
 
-def compilerVersionDependentScalacOptions: Seq[Setting[_]] = Seq(
+def compilerVersionDependentScalacOptions: Seq[Setting[?]] = Seq(
   scalacOptions := {
     scalaBinaryVersion.value match {
       case "2.12" | "2.13" =>
@@ -376,10 +376,10 @@ lazy val zincBenchmarks = (projectMatrix in internalPath / "zinc-benchmarks")
   .enablePlugins(JmhPlugin)
   .settings(
     publish / skip := true,
-    ideSkipProject := true, // otherwise IntelliJ complains
+    baseSettings,
     name := "Benchmarks of Zinc and the compiler bridge",
     libraryDependencies ++= Seq(
-      "org.eclipse.jgit" % "org.eclipse.jgit" % "6.7.0.202309050840-r",
+      "org.eclipse.jgit" % "org.eclipse.jgit" % "6.9.0.202403050737-r",
       "net.openhft" % "affinity" % "3.23.3",
     ),
     Test / javaOptions ++= List("-Xmx600M", "-Xms600M"),
@@ -553,7 +553,7 @@ lazy val compilerBridgeTest = (projectMatrix in internalPath / "compiler-bridge-
 
 val scalaPartialVersion = Def.setting(CrossVersion.partialVersion(scalaVersion.value))
 
-def inBoth(ss: Setting[_]*): Seq[Setting[_]] = Seq(Compile, Test).flatMap(inConfig(_)(ss))
+def inBoth(ss: Setting[?]*): Seq[Setting[?]] = Seq(Compile, Test).flatMap(inConfig(_)(ss))
 
 // defines operations on the API of a source, including determining whether it has changed and converting it to a string
 //   and discovery of classes and annotations
@@ -697,11 +697,12 @@ crossTestBridges := (compilerBridgeTest.jvm(scala213) / Test / test).dependsOn(p
 addCommandAlias(
   "runBenchmarks", {
     val dir = IO.createTemporaryDirectory.getAbsolutePath
+    val pattern = sys.props.getOrElse("benchmark.pattern", "")
     Seq(
       s"${compilerBridge213.id}/packageBin",
       s"${compilerBridge212.id}/packageBin",
-      s"${zincBenchmarks.jvm(scala212).id}/Test/run $dir",
-      s"${zincBenchmarks.jvm(scala212).id}/jmh:run -p _tempDir=$dir -prof gc -foe true",
+      s"${zincBenchmarks.jvm(scala212).id}/Test/run $dir $pattern",
+      s"${zincBenchmarks.jvm(scala212).id}/jmh:run -p _tempDir=$dir -prof gc -foe true $pattern",
       s"""eval IO.delete(file("$dir"))""",
     ).mkString(";", ";", "")
   }

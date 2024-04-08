@@ -20,7 +20,7 @@ import java.util.Collections
 
 /** A class loader that always fails to load classes and resources. */
 final class NullLoader extends ClassLoader {
-  override final def loadClass(className: String, resolve: Boolean): Class[_] =
+  override final def loadClass(className: String, resolve: Boolean): Class[?] =
     throw new ClassNotFoundException("No classes can be loaded from the null loader")
   override def getResource(name: String): URL = null
   override def getResources(name: String): Enumeration[URL] =
@@ -59,7 +59,7 @@ class DualLoader(
       bOnly: String => Boolean
   ) =
     this(parentA, aOnly, aOnly, parentB, bOnly, bOnly)
-  override final def loadClass(className: String, resolve: Boolean): Class[_] = {
+  override final def loadClass(className: String, resolve: Boolean): Class[?] = {
     val c =
       if (aOnlyClasses(className))
         parentA.loadClass(className)

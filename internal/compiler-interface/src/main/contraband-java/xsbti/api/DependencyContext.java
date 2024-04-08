@@ -34,6 +34,8 @@ public enum DependencyContext {
              * }
              * }
              */
-            LocalDependencyByInheritance;
+            LocalDependencyByInheritance,
+            /** Represents a dependency to symbols inspected during macro expansion */
+            DependencyByMacroExpansion;
             
         }

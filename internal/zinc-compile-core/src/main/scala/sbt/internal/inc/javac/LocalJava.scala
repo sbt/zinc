@@ -88,10 +88,10 @@ object LocalJava {
     toolsJar map { jar =>
       new URLClassLoader(Array(jar.toUri.toURL))
     }
-  private[javac] lazy val standardDocletClass: Option[Class[_]] =
+  private[javac] lazy val standardDocletClass: Option[Class[?]] =
     try {
       toolsJarClassLoader flatMap { cl =>
-        Option(cl.loadClass(standardDoclet)): Option[Class[_]]
+        Option(cl.loadClass(standardDoclet)): Option[Class[?]]
       }
     } catch {
       case NonFatal(_) => None
@@ -374,14 +374,14 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
       Class.forName("com.sun.tools.javac.file.JavacFileManager", true, classLoader)
 
     val `Options.instance` = optionsClass.getMethod("instance", contextClass)
-    val `context.put` = contextClass.getMethod("put", classOf[Class[_]], classOf[Object])
+    val `context.put` = contextClass.getMethod("put", classOf[Class[?]], classOf[Object])
     val `options.put` = optionsClass.getMethod("put", classOf[String], classOf[String])
     val `new JavacFileManager` =
       javacFileManagerClass.getConstructor(contextClass, classOf[Boolean], classOf[Charset])
 
     val context = contextClass.getDeclaredConstructor().newInstance().asInstanceOf[AnyRef]
     `context.put`.invoke(context, classOf[Locale], null)
-    `context.put`.invoke(context, classOf[DiagnosticListener[_]], diagnostics)
+    `context.put`.invoke(context, classOf[DiagnosticListener[?]], diagnostics)
     val options = `Options.instance`.invoke(null, context)
     `options.put`.invoke(options, "useOptimizedZip", "false")
 

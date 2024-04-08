@@ -147,6 +147,8 @@ abstract class Compat {
   }
 
   protected def processOriginalTreeAttachment(in: Tree)(func: Tree => Unit): Unit = ()
+  protected def processSAMAttachment(f: Function)(addDependency: Symbol => Unit): Unit =
+    ()
 }
 
 /** Defines compatibility utils for [[ZincCompiler]]. */
@@ -181,6 +183,8 @@ object Compat {
   implicit final class SettingsCompat(val settings: Settings) extends AnyVal {
     // Introduced in 2.11
     @inline final def fatalWarnings = settings.Xwarnfatal
+
+    @inline final def optInlinerEnabled: Boolean = false
   }
 
   implicit final class PositionOps(val self: sriu.Position) extends AnyVal {

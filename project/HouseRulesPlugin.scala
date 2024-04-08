@@ -7,9 +7,9 @@ object HouseRulesPlugin extends AutoPlugin {
   override def requires = plugins.JvmPlugin
   override def trigger = allRequirements
 
-  override def projectSettings: Seq[Def.Setting[_]] = baseSettings
+  override def projectSettings: Seq[Def.Setting[?]] = baseSettings
 
-  lazy val baseSettings: Seq[Def.Setting[_]] = Seq(
+  lazy val baseSettings: Seq[Def.Setting[?]] = Seq(
     scalacOptions ++= Seq("-encoding", "utf8"),
     scalacOptions ++= Seq("-deprecation", "-feature", "-unchecked", "-Xlint"),
     scalacOptions += "-language:higherKinds",

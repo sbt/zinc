@@ -116,7 +116,7 @@ object ClasspathUtil {
   ): ClassLoader =
     toLoader(classpath, parent, createClasspathResources(classpath, instance), nativeTemp)
 
-  private[sbt] def printSource(c: Class[_]) =
+  private[sbt] def printSource(c: Class[?]) =
     println(c.getName + " loader=" + c.getClassLoader + " location=" + IO.classLocationPath(c))
 
   def isArchive(file: Path): Boolean = isArchive(file, contentFallback = false)

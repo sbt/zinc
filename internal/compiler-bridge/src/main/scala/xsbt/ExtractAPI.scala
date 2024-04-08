@@ -327,7 +327,7 @@ class ExtractAPI[GlobalType <: Global](
         case returnType =>
           val retType = processType(in, dropConst(returnType))
           xsbti.api.Def.of(
-            simpleName(s),
+            simpleNameForMethod(s),
             getAccess(s),
             getModifiers(s),
             annotations(in, s),
@@ -519,9 +519,13 @@ class ExtractAPI[GlobalType <: Global](
   }
   private def getModifiers(s: Symbol): xsbti.api.Modifiers = {
     import Flags._
+    import xsbt.Compat._
     val absOver = s.hasFlag(ABSOVERRIDE)
     val abs = s.hasFlag(ABSTRACT) || s.hasFlag(DEFERRED) || absOver
     val over = s.hasFlag(OVERRIDE) || absOver
+    val hasInline = global.settings.optInlinerEnabled && s.annotations.exists(
+      _.symbol.tpe == typeOf[scala.inline]
+    )
     new xsbti.api.Modifiers(
       abs,
       over,
@@ -529,7 +533,7 @@ class ExtractAPI[GlobalType <: Global](
       s.hasFlag(SEALED),
       isImplicit(s),
       s.hasFlag(LAZY),
-      s.hasFlag(MACRO),
+      s.hasFlag(MACRO) || hasInline,
       s.hasFlag(SUPERACCESSOR)
     )
   }
@@ -823,9 +827,22 @@ class ExtractAPI[GlobalType <: Global](
   }
 
   private def simpleName(s: Symbol): String = {
-    val n = s.unexpandedName
-    val n2 = if (n == nme.CONSTRUCTOR) constructorNameAsString(s.enclClass) else n.decode.toString
-    n2.trim
+    s.unexpandedName.decode.trim
+  }
+
+  private def simpleNameForMethod(s: Symbol): String = {
+    val name = s.unexpandedName
+    val untrimmedName = if (name == nme.CONSTRUCTOR)
+      constructorNameAsString(s.enclClass)
+    else {
+      val decoded = name.decode
+      val constructorWithDefaultArgument = "<init>\\$default\\$(\\d+)".r
+      decoded match {
+        case constructorWithDefaultArgument(index) => constructorNameAsString(s.enclClass, index)
+        case _                                     => decoded
+      }
+    }
+    untrimmedName.trim
   }
 
   private def staticAnnotations(annotations: List[AnnotationInfo]): List[AnnotationInfo] =

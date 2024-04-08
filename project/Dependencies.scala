@@ -7,14 +7,14 @@ object Dependencies {
 
   val scala210 = "2.10.7"
   val scala211 = "2.11.12"
-  val scala212 = "2.12.18"
-  val scala213 = "2.13.12" // Sync with defaultScalaVersion in IncHandler.scala
+  val scala212 = "2.12.19"
+  val scala213 = "2.13.13" // Sync with defaultScalaVersion in IncHandler.scala
   val defaultScalaVersion = scala212
   val allScalaVersions = Seq(defaultScalaVersion, scala210, scala211, scala213)
   val scala212_213 = Seq(defaultScalaVersion, scala213)
 
-  private val ioVersion = nightlyVersion.getOrElse("1.9.7")
-  private val utilVersion = nightlyVersion.getOrElse("1.9.7")
+  private val ioVersion = nightlyVersion.getOrElse("1.9.9")
+  private val utilVersion = nightlyVersion.getOrElse("1.9.9")
 
   private val sbtIO = "org.scala-sbt" %% "io" % ioVersion
 
@@ -74,7 +74,7 @@ object Dependencies {
   val sbinary = "org.scala-sbt" %% "sbinary" % "0.5.1"
   val scalaXml = "org.scala-lang.modules" %% "scala-xml" % "2.2.0"
   val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.17.0"
-  val scalatest = "org.scalatest" %% "scalatest" % "3.2.17"
+  val scalatest = "org.scalatest" %% "scalatest" % "3.2.18"
   val verify = "com.eed3si9n.verify" %% "verify" % "2.0.1"
   val sjsonnew = Def.setting {
     "com.eed3si9n" %% "sjson-new-core" % contrabandSjsonNewVersion.value
@@ -82,7 +82,7 @@ object Dependencies {
   val sjsonnewScalaJson = Def.setting {
     "com.eed3si9n" %% "sjson-new-scalajson" % contrabandSjsonNewVersion.value
   }
-  val zeroAllocationHashing = "net.openhft" % "zero-allocation-hashing" % "0.10.1"
+  val zeroAllocationHashing = "net.openhft" % "zero-allocation-hashing" % "0.16"
 
   def addTestDependencies(p: Project): Project =
     p.settings(
