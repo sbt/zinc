@@ -259,6 +259,8 @@ trait Relations {
    */
   private[inc] def localInheritance: ClassDependencies
 
+  private[inc] def macroExpansion: ClassDependencies
+
   /** The relation between a source file and the fully qualified names of classes generated from it.*/
   def classes: Relation[VirtualFileRef, String]
 
@@ -591,6 +593,12 @@ private class MRelationsNameHashing(
     new ClassDependencies(
       internalDependencies.dependencies.getOrElse(DependencyByMemberRef, Relation.empty),
       externalDependencies.dependencies.getOrElse(DependencyByMemberRef, Relation.empty)
+    )
+
+  override def macroExpansion: ClassDependencies =
+    new ClassDependencies(
+      internalDependencies.dependencies.getOrElse(DependencyByMacroExpansion, Relation.empty),
+      externalDependencies.dependencies.getOrElse(DependencyByMacroExpansion, Relation.empty)
     )
 
   def ++(o: Relations): Relations = {
