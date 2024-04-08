@@ -6,15 +6,15 @@
         "macros",
         "A"
       ],
-      "scalaVersion": "2.13.12"
+      "scalaVersion": "2.13.13"
     },
     {
       "name": "macros",
-      "scalaVersion": "2.13.12"
+      "scalaVersion": "2.13.13"
     },
     {
       "name": "A",
-      "scalaVersion": "2.13.12"
+      "scalaVersion": "2.13.13"
     }
   ]
 }

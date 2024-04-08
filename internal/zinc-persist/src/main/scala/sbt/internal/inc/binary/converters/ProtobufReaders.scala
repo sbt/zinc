@@ -778,7 +778,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
       else expected("local inheritance").!!
     val macroExpansion =
       if (relations.hasMacroExpansion) fromClassDependencies(relations.getMacroExpansion)
-      else expected("macro expansion").!!
+      else new ClassDependencies(Relation.empty, Relation.empty)
     val classes = fromMap(relations.getClassesMap, stringToSource, stringId)
     val productClassName =
       fromMap(relations.getProductClassNameMap, stringId, stringId)
