@@ -311,10 +311,10 @@ final class AnalyzingCompiler(
 
   // see https://docs.oracle.com/javase/8/docs/api/java/util/ServiceLoader.html
   private def loadService[A](cls: Class[A], loader: ClassLoader): Option[A] = {
+    import scala.collection.JavaConverters._
     val sl = ServiceLoader.load(cls, loader)
-    val it = sl.iterator
-    if (it.hasNext) Some(it.next)
-    else None
+    val list = sl.iterator.asScala.toList
+    list.lastOption
   }
 
   private def bridgeInstance(bridgeClassName: String, loader: ClassLoader): (AnyRef, Class[?]) = {
