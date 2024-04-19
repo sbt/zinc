@@ -351,20 +351,20 @@ final class AnalyzingCompiler(
       scalaLoader: ClassLoader,
       log: Logger
   ): ClassLoader = {
-    val interfaceJar = provider.fetchCompiledBridge(scalaInstance, log)
-    def createInterfaceLoader =
+    val compilerBridgeJar = provider.fetchCompiledBridge(scalaInstance, log)
+    def createCompilerBridgeLoader =
       new URLClassLoader(
-        Array(interfaceJar.toURI.toURL),
+        Array(compilerBridgeJar.toURI.toURL),
         createDualLoader(scalaLoader, getClass.getClassLoader)
       )
 
     classLoaderCache match {
       case Some(cache) =>
         cache.cachedCustomClassloader(
-          interfaceJar :: scalaJars,
-          () => createInterfaceLoader
+          compilerBridgeJar :: scalaJars,
+          () => createCompilerBridgeLoader
         )
-      case None => createInterfaceLoader
+      case None => createCompilerBridgeLoader
     }
   }
 
