@@ -311,10 +311,10 @@ final class AnalyzingCompiler(
 
   // see https://docs.oracle.com/javase/8/docs/api/java/util/ServiceLoader.html
   private def loadService[A](cls: Class[A], loader: ClassLoader): Option[A] = {
+    import scala.collection.JavaConverters._
     val sl = ServiceLoader.load(cls, loader)
-    val it = sl.iterator
-    if (it.hasNext) Some(it.next)
-    else None
+    val list = sl.iterator.asScala.toList
+    list.lastOption
   }
 
   private def bridgeInstance(bridgeClassName: String, loader: ClassLoader): (AnyRef, Class[?]) = {
@@ -351,20 +351,20 @@ final class AnalyzingCompiler(
       scalaLoader: ClassLoader,
       log: Logger
   ): ClassLoader = {
-    val interfaceJar = provider.fetchCompiledBridge(scalaInstance, log)
-    def createInterfaceLoader =
+    val compilerBridgeJar = provider.fetchCompiledBridge(scalaInstance, log)
+    def createCompilerBridgeLoader =
       new URLClassLoader(
-        Array(interfaceJar.toURI.toURL),
+        Array(compilerBridgeJar.toURI.toURL),
         createDualLoader(scalaLoader, getClass.getClassLoader)
       )
 
     classLoaderCache match {
       case Some(cache) =>
         cache.cachedCustomClassloader(
-          interfaceJar :: scalaJars,
-          () => createInterfaceLoader
+          compilerBridgeJar :: scalaJars,
+          () => createCompilerBridgeLoader
         )
-      case None => createInterfaceLoader
+      case None => createCompilerBridgeLoader
     }
   }
 

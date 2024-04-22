@@ -2,7 +2,7 @@
   "projects": [
     {
       "name": "mirtest",
-      "scalaVersion": "2.12.19"
+      "scalaVersion": "2.12.x"
     }
   ]
 }

@@ -194,6 +194,23 @@ lazy val zinc = (projectMatrix in (zincRootPath / "zinc"))
       BuildInfoKey.map(compilerBridge213 / scalaVersion)("scalaVersion213" -> _._2),
       BuildInfoKey.map(compilerBridge213 / scalaInstance)("scalaJars213" -> _._2.allJars.toList),
       BuildInfoKey.map(compilerBridge213 / Compile / classDirectory)("classDirectory213" -> _._2),
+      BuildInfoKey.map(compilerBridgeScala213Bin / scalaVersion)("scalaVersion213Bin" -> _._2),
+      BuildInfoKey.map(compilerBridgeScala213Bin / scalaInstance)(
+        "scalaJars213Bin" -> _._2.allJars.toList
+      ),
+      BuildInfoKey.map(compilerBridgeScala213Bin / Compile / externalDependencyClasspath)(
+        "compilerBridge213Bin" -> _._2.toList.head.data
+      ),
+      BuildInfoKey.map(compilerBridgeScala3Bin / scalaVersion)("scalaVersion3Bin" -> _._2),
+      BuildInfoKey.map(compilerBridgeScala3Bin / scalaInstance)(
+        "scalaJars3Bin" -> _._2.allJars.toList
+      ),
+      BuildInfoKey.map(compilerBridgeScala3Bin / Compile / externalDependencyClasspath)(
+        "compilerBridge3Bin" -> _._2.toList.head.data
+      ),
+      BuildInfoKey.map(compilerInterface.jvm(false) / Compile / packageBin)(
+        "compilerInterface" -> _._2
+      ),
     ),
     Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
     // so we have full access to com.sun.tools.javac on JDK 17
@@ -516,12 +533,28 @@ lazy val compilerBridge = (projectMatrix in internalPath / "compiler-bridge")
     }.toList),
   )
   .defaultAxes(VirtualAxis.jvm)
-  .jvmPlatform(scalaVersions = allScalaVersions)
+  .jvmPlatform(scalaVersions = compilerBridgeVersions)
 
 lazy val compilerBridge210 = compilerBridge.jvm(scala210)
 lazy val compilerBridge211 = compilerBridge.jvm(scala211)
 lazy val compilerBridge212 = compilerBridge.jvm(scala212)
 lazy val compilerBridge213 = compilerBridge.jvm(scala213)
+lazy val compilerBridgeScala213Bin = (project in internalPath / "compilerBridgeScala213Bin")
+  .settings(
+    name := "compilerBridgeScala213Bin",
+    publish / skip := true,
+    autoScalaLibrary := false,
+    scalaVersion := scala213,
+    libraryDependencies += scala2BinaryBridge,
+  )
+lazy val compilerBridgeScala3Bin = (project in internalPath / "compilerBridgeScala3Bin")
+  .settings(
+    name := "compilerBridgeScala3Bin",
+    publish / skip := true,
+    autoScalaLibrary := false,
+    scalaVersion := scala3ForBridge,
+    libraryDependencies += scala3BinaryBridge,
+  )
 
 /**
  * Tests for the compiler bridge.

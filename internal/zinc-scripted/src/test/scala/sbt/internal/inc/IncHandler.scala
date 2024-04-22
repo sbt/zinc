@@ -120,7 +120,7 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
     val build = initBuild
     build.projects.foreach { p =>
       val in: Path = p.in.getOrElse(directory / p.name)
-      val version = p.scalaVersion.getOrElse(scala.util.Properties.versionNumberString)
+      val version = switchScalaVersion(p.scalaVersion)
       val deps = p.dependsOn.toVector.flatten
       val project = ProjectStructure(
         p.name,
