@@ -75,7 +75,7 @@ object Dependencies {
   val parserCombinator = "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2"
   val sbinary = "org.scala-sbt" %% "sbinary" % "0.5.1"
   val scalaXml = "org.scala-lang.modules" %% "scala-xml" % "2.3.0"
-  val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.17.1"
+  val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.18.0"
   val scalatest = "org.scalatest" %% "scalatest" % "3.2.18"
   val verify = "com.eed3si9n.verify" %% "verify" % "2.0.1"
   val sjsonnew = Def.setting {
