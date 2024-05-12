@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -137,8 +137,8 @@ final class CompilerArguments(
     bootClasspath(hasLibrary(classpath))
 
   def extClasspath: Seq[Path] =
-    List("java.ext.dirs", "scala.ext.dirs").flatMap(
-      k => (IO.parseClasspath(System.getProperty(k, "")) * "*.jar").get().map(_.toPath)
+    List("java.ext.dirs", "scala.ext.dirs").flatMap(k =>
+      (IO.parseClasspath(System.getProperty(k, "")) * "*.jar").get().map(_.toPath)
     )
 
   private[this] def include(flag: Boolean, jars: Path*) =

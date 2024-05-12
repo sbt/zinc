@@ -148,9 +148,13 @@ case class CompilerSetup(
 case class ProjectPaths(baseDir: Path) {}
 
 object ProjectSetup {
-  def simple(baseDir: Path, classes: Seq[String]): ProjectSetup = {
+  def simple(
+      baseDir: Path,
+      classes: Seq[String],
+      scalacOptions: Seq[String] = Nil
+  ): ProjectSetup = {
     val sources = Map(Paths.get("src") -> classes.map(Paths.get(_)))
-    ProjectSetup(VirtualSubproject(baseDir), sources, Nil, Map.empty)
+    ProjectSetup(VirtualSubproject(baseDir), sources, Nil, Map.empty, scalacOptions = scalacOptions)
   }
 }
 

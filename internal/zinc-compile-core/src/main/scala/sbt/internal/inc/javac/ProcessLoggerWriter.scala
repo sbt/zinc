@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -16,6 +16,7 @@ package inc
 package javac
 
 import sbt.util.Level
+import scala.annotation.tailrec
 import scala.sys.process.ProcessLogger
 
 /** Delegates a stream into a process logger. Mimics LoggerWriter, but for the ProcessLogger interface which differs. */
@@ -39,6 +40,7 @@ private class ProcessLoggerWriter(
       process()
     }
 
+  @tailrec
   private[this] def process(): Unit = {
     val i = buffer.indexOf(nl)
     if (i >= 0) {

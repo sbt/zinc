@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -153,7 +153,7 @@ private class MAnalysis(
 
   def --(sources: Iterable[VirtualFileRef]): Analysis = {
     val newRelations = relations -- sources
-    def keep[T](f: (Relations, T) => Set[_]): T => Boolean = f(newRelations, _).nonEmpty
+    def keep[T](f: (Relations, T) => Set[?]): T => Boolean = f(newRelations, _).nonEmpty
 
     val classesInSrcs = sources.flatMap(relations.classNames)
     val newAPIs = apis.removeInternal(classesInSrcs).filterExt(keep(_.usesExternal(_)))

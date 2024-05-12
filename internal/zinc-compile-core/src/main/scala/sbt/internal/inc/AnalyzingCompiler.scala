@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -311,19 +311,19 @@ final class AnalyzingCompiler(
 
   // see https://docs.oracle.com/javase/8/docs/api/java/util/ServiceLoader.html
   private def loadService[A](cls: Class[A], loader: ClassLoader): Option[A] = {
+    import scala.collection.JavaConverters._
     val sl = ServiceLoader.load(cls, loader)
-    val it = sl.iterator
-    if (it.hasNext) Some(it.next)
-    else None
+    val list = sl.iterator.asScala.toList
+    list.lastOption
   }
 
-  private def bridgeInstance(bridgeClassName: String, loader: ClassLoader): (AnyRef, Class[_]) = {
+  private def bridgeInstance(bridgeClassName: String, loader: ClassLoader): (AnyRef, Class[?]) = {
     val bridgeClass = getBridgeClass(bridgeClassName, loader)
     (bridgeClass.getDeclaredConstructor().newInstance().asInstanceOf[AnyRef], bridgeClass)
   }
 
-  private def invoke(bridge: AnyRef, bridgeClass: Class[_], methodName: String, log: Logger)(
-      argTypes: Class[_]*
+  private def invoke(bridge: AnyRef, bridgeClass: Class[?], methodName: String, log: Logger)(
+      argTypes: Class[?]*
   )(args: AnyRef*): AnyRef = {
     val method = bridgeClass.getMethod(methodName, argTypes: _*)
     try method.invoke(bridge, args: _*)
@@ -351,20 +351,20 @@ final class AnalyzingCompiler(
       scalaLoader: ClassLoader,
       log: Logger
   ): ClassLoader = {
-    val interfaceJar = provider.fetchCompiledBridge(scalaInstance, log)
-    def createInterfaceLoader =
+    val compilerBridgeJar = provider.fetchCompiledBridge(scalaInstance, log)
+    def createCompilerBridgeLoader =
       new URLClassLoader(
-        Array(interfaceJar.toURI.toURL),
+        Array(compilerBridgeJar.toURI.toURL),
         createDualLoader(scalaLoader, getClass.getClassLoader)
       )
 
     classLoaderCache match {
       case Some(cache) =>
         cache.cachedCustomClassloader(
-          interfaceJar :: scalaJars,
-          () => createInterfaceLoader
+          compilerBridgeJar :: scalaJars,
+          () => createCompilerBridgeLoader
         )
-      case None => createInterfaceLoader
+      case None => createCompilerBridgeLoader
     }
   }
 

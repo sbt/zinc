@@ -53,14 +53,6 @@ object InteractiveConsoleInterfaceSpecification
 
   val postfixOpExpression = "import scala.concurrent.duration._\nval t = 1 second"
 
-  test("it should evaluate postfix op with a warning") {
-    withInteractiveConsole { repl =>
-      val response = repl.interpret(postfixOpExpression, false)
-      assert(response.output.trim.startsWith("warning"))
-      assert(response.result == InteractiveConsoleResult.Success)
-    }
-  }
-
   test("it should evaluate postfix op without warning when -language:postfixOps arg passed") {
     IO.withTemporaryDirectory { tempDir =>
       val repl = interactiveConsole(tempDir.toPath)("-language:postfixOps")

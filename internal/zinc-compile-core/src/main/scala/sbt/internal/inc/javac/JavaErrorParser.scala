@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -65,9 +65,10 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
 
   val JAVAC: Parser[String] = literal("javac")
   val SEMICOLON: Parser[String] = literal(":") | literal("\uff1a")
-  val SYMBOL
-      : Parser[String] = allUntilChar(':') // We ignore whether it actually says "symbol" for i18n
-  val LOCATION: Parser[String] = allUntilChar(':') // We ignore whether it actually says "location" for i18n.
+  val SYMBOL: Parser[String] =
+    allUntilChar(':') // We ignore whether it actually says "symbol" for i18n
+  val LOCATION: Parser[String] =
+    allUntilChar(':') // We ignore whether it actually says "location" for i18n.
   val WARNING: Parser[String] = allUntilChar(':') ^? {
     case x if WARNING_PREFIXES.exists(x.trim.startsWith) => x
   }
@@ -155,7 +156,7 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
     val windowsRootFile = linuxFile ~ SEMICOLON ~ linuxFile ^^ {
       case root ~ _ ~ path => s"$root:$path"
     }
-    val linuxOption = linuxFile ~ SEMICOLON ~ line ^^ { case f ~ _ ~ l         => (f, l) }
+    val linuxOption = linuxFile ~ SEMICOLON ~ line ^^ { case f ~ _ ~ l => (f, l) }
     val windowsOption = windowsRootFile ~ SEMICOLON ~ line ^^ { case f ~ _ ~ l => (f, l) }
     (linuxOption | windowsOption)
   }
@@ -242,6 +243,15 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
           s"javac:$error"
         )
     }
+  val javacWarning: Parser[Problem] =
+    WARNING ~ SEMICOLON ~ restOfLine ^^ {
+      case _ ~ _ ~ warning =>
+        new JavaProblem(
+          JavaNoPosition,
+          Severity.Warn,
+          s"javac:$warning"
+        )
+    }
 
   val outputSumamry: Parser[Unit] =
     """(\s*)(\d+) (\w+)""".r ~ restOfLine ^^ {
@@ -249,7 +259,8 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
         ()
     }
 
-  val potentialProblem: Parser[Problem] = warningMessage | errorMessage | noteMessage | javacError
+  val potentialProblem: Parser[Problem] =
+    warningMessage | errorMessage | noteMessage | javacError | javacWarning
 
   val javacOutput: Parser[Seq[Problem]] = rep(potentialProblem) <~ opt(outputSumamry)
 

@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -14,6 +14,7 @@ package xsbt.api
 import xsbti.api._
 
 import Function.tupled
+import scala.annotation.tailrec
 import scala.collection.{ immutable, mutable }
 
 /** Checks the API of two source files for equality.*/
@@ -112,6 +113,7 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
     def sameDefs(a: List[Definition], b: List[Definition]): Boolean = {
       a match {
         case adef :: atail =>
+          @tailrec
           def sameDef(seen: List[Definition], remaining: List[Definition]): Boolean =
             remaining match {
               case Nil => debug(flag = false, "Definition different in new API: \n" + adef.name)
@@ -133,7 +135,7 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
   def sameDefinitionContent(a: Definition, b: Definition): Boolean =
     samePending(a, b)(sameDefinitionContentDirect)
   def sameDefinitionContentDirect(a: Definition, b: Definition): Boolean = {
-    //a.name == b.name &&
+    // a.name == b.name &&
     debug(sameAccess(a.access, b.access), "Access differed") &&
     debug(sameModifiers(a.modifiers, b.modifiers), "Modifiers differed") &&
     debug(sameAnnotations(a.annotations, b.annotations), "Annotations differed") &&
@@ -226,7 +228,10 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
   def sameAliasSpecificAPI(a: TypeAlias, b: TypeAlias): Boolean =
     debug(sameType(a.tpe, b.tpe), "Different alias type for " + a.name)
   def sameDeclarationSpecificAPI(a: TypeDeclaration, b: TypeDeclaration): Boolean =
-    debug(sameType(a.lowerBound, b.lowerBound), "Different lower bound for declaration " + a.name) &&
+    debug(
+      sameType(a.lowerBound, b.lowerBound),
+      "Different lower bound for declaration " + a.name
+    ) &&
       debug(sameType(a.upperBound, b.upperBound), "Different upper bound for declaration " + a.name)
   def sameFieldSpecificAPI(a: FieldLike, b: FieldLike): Boolean =
     debug(

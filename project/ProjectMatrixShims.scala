@@ -2,6 +2,7 @@ import sbt.Keys.scalaVersion
 import sbt.Project.{ projectToLocalProject, projectToRef }
 import sbt.{ Keys, LocalProject, Project, ProjectRef }
 import scala.language.experimental.macros
+import scala.language.implicitConversions
 
 object ProjectMatrixShims {
 

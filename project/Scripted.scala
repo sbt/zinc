@@ -50,12 +50,12 @@ object Scripted {
         page <- pageP
         files = pagedFilenames(group, page)
         // TODO -  Fail the parser if we don't have enough files for the given page size
-        //if !files.isEmpty
+        // if !files.isEmpty
       } yield files map (f => group + '/' + f)
 
     val testID = (for (group <- groupP; name <- nameP(group)) yield (group, name))
     val testIdAsGroup = matched(testID) map (test => Seq(test))
-    //(token(Space) ~> matched(testID)).*
+    // (token(Space) ~> matched(testID)).*
     (token(Space) ~> (PagedIds | testIdAsGroup)).* map (_.flatten)
   }
 
@@ -79,7 +79,7 @@ object Scripted {
   ): Unit = {
     val noJLine =
       new classpath.FilteredLoader(scriptedSbtInstance.loader, "xsbti." :: "jline." :: Nil)
-    val loader = classpath.ClasspathUtilities.toLoader(scriptedSbtClasspath.files, noJLine)
+    val loader = classpath.ClasspathUtil.toLoader(scriptedSbtClasspath.files, noJLine)
     val bridgeClass = Class.forName("sbt.inc.ScriptedMain$", true, loader)
     val bridge = bridgeClass.getField("MODULE$").get(null).asInstanceOf[ScriptedMain]
     try {

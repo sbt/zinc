@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -31,11 +31,11 @@ object ReflectUtilities {
     buffer.toString
   }
 
-  def ancestry(clazz: Class[_]): List[Class[_]] =
+  def ancestry(clazz: Class[?]): List[Class[?]] =
     if (clazz == classOf[AnyRef] || !classOf[AnyRef].isAssignableFrom(clazz)) List(clazz)
     else clazz :: ancestry(clazz.getSuperclass);
 
-  def fields(clazz: Class[_]) =
+  def fields(clazz: Class[?]) =
     mutable.OpenHashMap(ancestry(clazz).flatMap(_.getDeclaredFields).map(f => (f.getName, f)): _*)
 
   /**
@@ -48,8 +48,10 @@ object ReflectUtilities {
     val correspondingFields = fields(self.getClass)
     for (method <- self.getClass.getMethods) {
       if (method.getParameterTypes.isEmpty && clazz.isAssignableFrom(method.getReturnType)) {
-        for (field <- correspondingFields.get(method.getName)
-             if field.getType == method.getReturnType) {
+        for (
+          field <- correspondingFields.get(method.getName)
+          if field.getType == method.getReturnType
+        ) {
           val value = method.invoke(self).asInstanceOf[T]
           if (value == null)
             throw new UninitializedVal(method.getName, method.getDeclaringClass.getName)

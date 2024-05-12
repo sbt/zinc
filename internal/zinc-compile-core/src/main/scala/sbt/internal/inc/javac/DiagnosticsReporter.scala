@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -36,7 +36,7 @@ final class DiagnosticsReporter(reporter: Reporter) extends DiagnosticListener[J
   private[this] var errorEncountered = false
   def hasErrors: Boolean = errorEncountered
 
-  override def report(d: Diagnostic[_ <: JavaFileObject]): Unit = {
+  override def report(d: Diagnostic[? <: JavaFileObject]): Unit = {
     val severity: Severity = {
       d.getKind match {
         case Diagnostic.Kind.ERROR                                       => Severity.Error
@@ -49,7 +49,16 @@ final class DiagnosticsReporter(reporter: Reporter) extends DiagnosticListener[J
     val msg = d.getMessage(null)
     val pos: xsbti.Position = PositionImpl(d)
     if (severity == Severity.Error) errorEncountered = true
-    reporter.log(problem("", pos, msg, severity, None))
+    reporter.log(problem(
+      cat = "",
+      pos = pos,
+      msg = msg,
+      sev = severity,
+      rendered = None,
+      diagnosticCode = None,
+      diagnosticRelatedInformation = Nil,
+      actions = Nil,
+    ))
   }
 }
 
@@ -155,7 +164,7 @@ object DiagnosticsReporter {
      * This caused a race condition on the Diagnostic object, resulting in a NullPointerException.
      * See https://github.com/sbt/sbt/issues/3623
      */
-    def apply(d: Diagnostic[_ <: JavaFileObject]): PositionImpl = {
+    def apply(d: Diagnostic[? <: JavaFileObject]): PositionImpl = {
       // https://docs.oracle.com/javase/7/docs/api/javax/tools/Diagnostic.html
       // Negative values (except NOPOS) and 0 are not valid line or column numbers,
       // except that you can cause this number to occur by putting "abc {}" in A.java.

@@ -3,6 +3,7 @@ package internal
 package inc
 
 import org.scalatest.diagrams.Diagrams
+import xsbti.UseScope
 
 class ExtractUsedNamesSpecification
     extends UnitSpec
@@ -223,7 +224,6 @@ class ExtractUsedNamesSpecification
   }
 
   // This doesn't work in 2.13.0-RC1
-  /*
   it should "extract sealed classes scope" in {
     val sealedClassName = "Sealed"
     val sealedClass =
@@ -238,12 +238,12 @@ class ExtractUsedNamesSpecification
       val (_, callback) = compileSrcs(List(List(sealedClass, in)))
       val clientNames = callback.usedNamesAndScopes.filterKeys(!_.startsWith("base."))
 
-      val names: Set[String] = clientNames.flatMap {
+      val names = clientNames.flatMap {
         case (_, usages) =>
           usages.filter(_.scopes.contains(UseScope.PatMatTarget)).map(_.name)
-      }(collection.breakOut)
+      }
 
-      names
+      names.toSet
     }
 
     def classWithPatMatOfType(tpe: String) =
@@ -259,13 +259,15 @@ class ExtractUsedNamesSpecification
 
     // findPatMatUsages(classWithPatMatOfType()) shouldEqual Set(sealedClassName)
 
-    Option is sealed
+    // Option is sealed
     findPatMatUsages(classWithPatMatOfType(s"Option[$sealedClassName]")) shouldEqual Set(
       sealedClassName,
-      "Option")
+      "Option"
+    )
     // Seq and Set is not
     findPatMatUsages(classWithPatMatOfType(s"Seq[Set[$sealedClassName]]")) shouldEqual Set(
-      sealedClassName)
+      sealedClassName
+    )
 
     def inNestedCase(tpe: String) =
       s"""package client
@@ -293,7 +295,6 @@ class ExtractUsedNamesSpecification
     findPatMatUsages(notUsedInPatternMatch) shouldEqual Set()
     ()
   }
-   */
 
   /**
    * Standard names that appear in every compilation unit that has any class

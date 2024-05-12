@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -26,7 +26,7 @@ class Visit {
     visitString(p.name)
   }
 
-  def visitDefinitions(ds: Array[_ <: Definition]) = visitArray(ds, visitDefinition)
+  def visitDefinitions(ds: Array[? <: Definition]) = visitArray(ds, visitDefinition)
   def visitDefinition(d: Definition): Unit = {
     visitString(d.name)
     visitAnnotations(d.annotations)

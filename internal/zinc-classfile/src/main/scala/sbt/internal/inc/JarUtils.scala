@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -309,8 +309,8 @@ object JarUtils {
    */
   def getJarInClassInJar(path: Path): Option[Path] = {
     path.toString.split("!") match {
-      case Array(jar, _) if jar.toString.endsWith(".jar") => Some(Paths.get(jar))
-      case _                                              => None
+      case Array(jar, _) if jar.endsWith(".jar") => Some(Paths.get(jar))
+      case _                                     => None
     }
   }
 

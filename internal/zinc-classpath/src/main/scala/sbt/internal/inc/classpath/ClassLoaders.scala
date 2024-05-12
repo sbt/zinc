@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -26,7 +26,7 @@ abstract class LoaderBase(urls: Seq[URL], parent: ClassLoader)
     extends URLClassLoader(urls.toArray, parent) {
   require(parent != null) // included because a null parent is legitimate in Java
   @throws(classOf[ClassNotFoundException])
-  override final def loadClass(className: String, resolve: Boolean): Class[_] = {
+  override final def loadClass(className: String, resolve: Boolean): Class[?] = {
     val loaded = findLoadedClass(className)
     val found =
       if (loaded == null)
@@ -40,10 +40,10 @@ abstract class LoaderBase(urls: Seq[URL], parent: ClassLoader)
   }
 
   /** Provides the implementation of finding a class that has not yet been loaded.*/
-  protected def doLoadClass(className: String): Class[_]
+  protected def doLoadClass(className: String): Class[?]
 
   /** Provides access to the default implementation of 'loadClass'.*/
-  protected final def defaultLoadClass(className: String): Class[_] =
+  protected final def defaultLoadClass(className: String): Class[?] =
     super.loadClass(className, false)
 }
 
@@ -51,7 +51,7 @@ abstract class LoaderBase(urls: Seq[URL], parent: ClassLoader)
 final class SelfFirstLoader(classpath: Seq[URL], parent: ClassLoader)
     extends LoaderBase(classpath, parent) {
   @throws(classOf[ClassNotFoundException])
-  override final def doLoadClass(className: String): Class[_] = {
+  override final def doLoadClass(className: String): Class[?] = {
     try {
       findClass(className)
     } catch {
@@ -81,14 +81,14 @@ final class ClasspathFilter(parent: ClassLoader, root: ClassLoader, classpath: S
   private[this] val directories: Seq[Path] = classpath.toSeq.filter { p =>
     !p.toString.endsWith(".jar") && Files.isDirectory(p)
   }
-  override def loadClass(className: String, resolve: Boolean): Class[_] = {
+  override def loadClass(className: String, resolve: Boolean): Class[?] = {
     val c = super.loadClass(className, resolve)
     if (includeLoader(c.getClassLoader, root) || fromClasspath(c))
       c
     else
       throw new ClassNotFoundException(className)
   }
-  private[this] def fromClasspath(c: Class[_]): Boolean = {
+  private[this] def fromClasspath(c: Class[?]): Boolean = {
     val codeSource = c.getProtectionDomain.getCodeSource
     (codeSource eq null) ||
     onClasspath(codeSource.getLocation)
@@ -129,7 +129,7 @@ final class FilteredLoader(parent: ClassLoader, filter: ClassFilter) extends Cla
     this(parent, new ExcludePackagesFilter(excludePackages))
 
   @throws(classOf[ClassNotFoundException])
-  override final def loadClass(className: String, resolve: Boolean): Class[_] = {
+  override final def loadClass(className: String, resolve: Boolean): Class[?] = {
     if (filter.include(className))
       super.loadClass(className, resolve)
     else

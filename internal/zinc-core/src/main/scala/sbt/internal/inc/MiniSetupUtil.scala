@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -25,6 +25,8 @@ import xsbti.compile.{
   SingleOutput,
   Output => APIOutput
 }
+
+import scala.annotation.tailrec
 
 /**
  * Define all the implicit instances that are used in the Scala implementation
@@ -106,12 +108,12 @@ object MiniSetupUtil {
       def equiv(out1: APIOutput, out2: APIOutput) = (out1, out2) match {
         case (m1: MultipleOutput, m2: MultipleOutput) =>
           (m1.getOutputGroups.length == m2.getOutputGroups.length) &&
-            (m1.getOutputGroups.sorted zip m2.getOutputGroups.sorted forall {
-              case (a, b) =>
-                equivFile
-                  .equiv(a.getSourceDirectoryAsPath, b.getSourceDirectoryAsPath) && equivFile
-                  .equiv(a.getOutputDirectoryAsPath, b.getOutputDirectoryAsPath)
-            })
+          (m1.getOutputGroups.sorted zip m2.getOutputGroups.sorted forall {
+            case (a, b) =>
+              equivFile
+                .equiv(a.getSourceDirectoryAsPath, b.getSourceDirectoryAsPath) && equivFile
+                .equiv(a.getOutputDirectoryAsPath, b.getOutputDirectoryAsPath)
+          })
         case (s1: SingleOutput, s2: SingleOutput) =>
           equivFile.equiv(s1.getOutputDirectoryAsPath, s2.getOutputDirectoryAsPath)
         case _ =>
@@ -154,6 +156,7 @@ object MiniSetupUtil {
   def equivCompilerOptions(ignoredRegexes: Array[String]): Equiv[Array[String]] = {
     def groupWithParams(opts: Array[String]): Set[String] = {
       def isParam(s: String) = !s.startsWith("-")
+      @tailrec
       def recur(opts: List[String], res: Set[String]): Set[String] = opts match {
         case opt :: param :: rest if isParam(param) => recur(rest, res + s"$opt $param")
         case opt :: rest                            => recur(rest, res + opt)

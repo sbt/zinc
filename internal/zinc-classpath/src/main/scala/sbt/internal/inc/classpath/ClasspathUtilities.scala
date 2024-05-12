@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -19,6 +19,7 @@ import java.net.{ URI, URL, URLClassLoader }
 import sbt.io.{ IO, PathFinder }
 import xsbti.compile.ScalaInstance
 import java.io.InputStream
+import scala.annotation.tailrec
 import scala.util.control.Exception.catching
 
 object ClasspathUtil {
@@ -62,6 +63,7 @@ object ClasspathUtil {
       .map(_.toPath)
 
   lazy val rootLoader = {
+    @tailrec
     def parent(loader: ClassLoader): ClassLoader = {
       val p = loader.getParent
       if (p eq null) loader else parent(p)
@@ -114,13 +116,15 @@ object ClasspathUtil {
   ): ClassLoader =
     toLoader(classpath, parent, createClasspathResources(classpath, instance), nativeTemp)
 
-  private[sbt] def printSource(c: Class[_]) =
+  private[sbt] def printSource(c: Class[?]) =
     println(c.getName + " loader=" + c.getClassLoader + " location=" + IO.classLocationPath(c))
 
   def isArchive(file: Path): Boolean = isArchive(file, contentFallback = false)
 
   def isArchive(file: Path, contentFallback: Boolean): Boolean =
-    Files.isRegularFile(file) && (isArchiveName(file.getFileName.toString) || (contentFallback && hasZipContent(
+    Files.isRegularFile(file) && (isArchiveName(
+      file.getFileName.toString
+    ) || (contentFallback && hasZipContent(
       file
     )))
 
@@ -197,7 +201,8 @@ object ClasspathUtil {
     val basePath = toAbsolutePath(base).normalize
     val filePath = toAbsolutePath(file).normalize
     if (filePath startsWith basePath) {
-      val relativePath = catching(classOf[IllegalArgumentException]) opt (basePath relativize filePath)
+      val relativePath =
+        catching(classOf[IllegalArgumentException]) opt (basePath relativize filePath)
       relativePath map (_.toString)
     } else None
   }

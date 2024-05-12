@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -83,10 +83,12 @@ class ZincInvalidationProfiler extends InvalidationProfiler with XInvalidationPr
 
   private[inc] final class ZincXRunProfilerImplementation extends XRunProfiler {
     private def memo(string: String): Int = { // was "toStringTableIndices"
-      stringTableIndices.getOrElseUpdate(string, {
-        stringTable += string
-        stringTable.length - 1
-      })
+      stringTableIndices.getOrElseUpdate(
+        string, {
+          stringTable += string
+          stringTable.length - 1
+        }
+      )
     }
 
     private var compilationStartNanos: Long = 0L
@@ -120,6 +122,11 @@ class ZincInvalidationProfiler extends InvalidationProfiler with XInvalidationPr
           Zprof.ApiChange.newBuilder
             .setModifiedClass(memo(change.modifiedClass))
             .setReason("API change due to macro definition.")
+            .build
+        case change: APIChangeDueToAnnotationDefinition =>
+          Zprof.ApiChange.newBuilder
+            .setModifiedClass(memo(change.modifiedClass))
+            .setReason("API change due to annotation definition.")
             .build
         case change: TraitPrivateMembersModified =>
           Zprof.ApiChange.newBuilder
@@ -278,6 +285,7 @@ trait InvalidationProfilerUtils {
   final val LocalInheritanceKind = "local inheritance"
   final val InheritanceKind = "inheritance"
   final val MemberReferenceKind = "member reference"
+  final val MacroExpansionKind = "macro expansion"
 }
 
 // So that others users from outside [[IncrementalCommon]] can use the labels

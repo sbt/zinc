@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -55,7 +55,7 @@ object LoggedReporter {
   }
 
   lazy val problemFormats: ProblemFormats = new ProblemFormats with SeverityFormats
-  with PositionFormats with sjsonnew.BasicJsonProtocol {}
+    with PositionFormats with sjsonnew.BasicJsonProtocol {}
   lazy val problemStringFormats: ProblemStringFormats = new ProblemStringFormats {}
 }
 
@@ -129,12 +129,19 @@ class LoggedReporter(
       (problem0.category, problem0.position, problem0.message, problem0.severity, problem0.rendered)
     // Note: positions in reported errors can be fixed with `sourcePositionMapper`.
     val transformedPos: Position = sourcePositionMapper(position)
+    val transformed = transformedPos.sourceFile != position.sourceFile
     val problem = InterfaceUtil.problem(
-      category,
-      transformedPos,
-      message,
-      severity,
-      InterfaceUtil.jo2o(rendered)
+      cat = category,
+      pos = transformedPos,
+      msg = message,
+      sev = severity,
+      // When the source mapping is performed,
+      // the information based on the `transformedPos` should be displayed
+      // even if the `rendered` is defined.
+      rendered = if (transformed) None else InterfaceUtil.jo2o(rendered),
+      diagnosticCode = InterfaceUtil.jo2o(problem0.diagnosticCode()),
+      diagnosticRelatedInformation = InterfaceUtil.jl2l(problem0.diagnosticRelatedInformation()),
+      actions = InterfaceUtil.jl2l(problem0.actions()),
     )
     allProblems += problem0
     severity match {

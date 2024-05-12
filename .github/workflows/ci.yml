@@ -15,46 +15,69 @@ jobs:
           - os: ubuntu-latest
             java: 11
             jobtype: 1
+          - os: ubuntu-latest
+            java: 21
+            jobtype: 1
           - os: windows-latest
             java: 8
             jobtype: 2
           - os: ubuntu-latest
-            java: 11
+            java: 21
             jobtype: 3
+          - os: ubuntu-latest
+            java: 21
+            jobtype: 4
+          - os: ubuntu-latest
+            java: 21
+            jobtype: 5
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
-    - name: Setup
-      uses: olafurpg/setup-scala@v13
+      uses: actions/checkout@v4
+    - name: Setup JDK
+      uses: actions/setup-java@v4
       with:
-        java-version: "adopt@1.${{ matrix.java }}"
-    - name: Coursier cache
-      uses: coursier/cache-action@v5
-    - name: Cache sbt
-      uses: actions/cache@v1
-      with:
-        path: ~/.sbt
-        key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
-    - name: Build and test
+        distribution: temurin
+        java-version: ${{ matrix.java }}
+        cache: sbt
+    - name: Build and test (1)
+      if: ${{ matrix.jobtype == 1 }}
+      shell: bash
+      run: bin/run-ci.sh
+    - name: Build and test (2)
+      if: ${{ matrix.jobtype == 2 }}
       shell: bash
       run: |
-        case ${{ matrix.jobtype }} in
-          1)
-            bin/run-ci.sh
-            ;;
-          2)
-            sbt -v -Dfile.encoding=UTF-8 -J-XX:ReservedCodeCacheSize=512M -Dsbt.supershell=never -J-Xms1024M -J-Xmx2048M -J-server "crossTestBridges" "zincRoot/test" "zincScriptedJVM2_12/test:run"
-            ;;
-          3)
-            sbt -v -Dfile.encoding=UTF-8 -J-XX:ReservedCodeCacheSize=512M -J-Xms1024M -J-Xmx2048M -J-server "runBenchmarks"
-            ;;
-          *)
-            echo unknown jobtype
-            exit 1
-        esac
-        rm -rf "$HOME/.ivy2/local"
-        find $HOME/Library/Caches/Coursier/v1        -name "ivydata-*.properties" -delete || true
-        find $HOME/.ivy2/cache                       -name "ivydata-*.properties" -delete || true
-        find $HOME/.cache/coursier/v1                -name "ivydata-*.properties" -delete || true
-        find $HOME/.sbt                              -name "*.lock"               -delete || true
+        sbt -v -Dfile.encoding=UTF-8 -Dsbt.supershell=never "crossTestBridges" "zincRoot/test" "zincScripted/Test/run"
+    - name: Build and test (3)
+      if: ${{ matrix.jobtype == 3 }}
+      shell: bash
+      run: |
+        sbt -v -Dfile.encoding=UTF-8 scalafmtCheckAll scalafmtSbtCheck
+    - name: Benchmark (Scalac) (4)
+      if: ${{ matrix.jobtype == 4 }}
+      shell: bash
+      run: |
+        sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Scalac.*" "runBenchmarks"
+    - name: Benchmark (Shapeless) (5)
+      if: ${{ matrix.jobtype == 5 }}
+      shell: bash
+      run: |
+        sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Shapeless.*" "runBenchmarks"
+    - name: Checkout Develop Branch (4, 5)
+      if: ${{ github.event_name == 'pull_request' && (matrix.jobtype == 4 || matrix.jobtype == 5) }}
+      uses: actions/checkout@v4
+      with:
+        clean: false
+        ref: develop
+    - name: Benchmark (Scalac) against Develop Branch (4)
+      if: ${{ github.event_name == 'pull_request' && matrix.jobtype == 4 }}
+      shell: bash
+      run: |
+        sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Scalac.*" "zincBenchmarks/jmh:clean" "runBenchmarks"
+    - name: Benchmark (Shapeless) against Develop Branch (5)
+      if: ${{ github.event_name == 'pull_request' && matrix.jobtype == 5 }}
+      shell: bash
+      run: |
+        sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Shapeless.*" "zincBenchmarks/jmh:clean" "runBenchmarks"
+        

@@ -5,11 +5,11 @@
       "dependsOn": [
         "core"
       ],
-      "scalaVersion": "2.13.6"
+      "scalaVersion": "2.13.x"
     },
     {
       "name": "core",
-      "scalaVersion": "2.13.6"
+      "scalaVersion": "2.13.x"
     }
   ]
 }

@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -65,6 +65,8 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
     case _: TraitPrivateMembersModified => NoInvalidation
     case _: APIChangeDueToMacroDefinition =>
       new InvalidateUnconditionally(memberRef)
+    case _: APIChangeDueToAnnotationDefinition =>
+      new InvalidateUnconditionally(memberRef)
     case NamesChange(_, modifiedNames) if modifiedNames.in(UseScope.Implicit).nonEmpty =>
       new InvalidateUnconditionally(memberRef)
     case NamesChange(_, modifiedNames) =>
@@ -76,6 +78,8 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
       s"The private signature of trait ${modifiedClass} changed."
     case APIChangeDueToMacroDefinition(modifiedSrcFile) =>
       s"The $modifiedSrcFile source file declares a macro."
+    case APIChangeDueToAnnotationDefinition(modifiedSrcFile) =>
+      s"The $modifiedSrcFile source file declares an annotation."
     case NamesChange(modifiedClass, modifiedNames) =>
       modifiedNames.in(UseScope.Implicit) match {
         case changedImplicits if changedImplicits.isEmpty =>
@@ -116,7 +120,7 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
   }
 
   private def formatInvalidated(invalidated: Set[String]): String = {
-    //val sortedFiles = invalidated.toSeq.sortBy(_.getAbsolutePath)
+    // val sortedFiles = invalidated.toSeq.sortBy(_.getAbsolutePath)
     invalidated.toSeq.sorted.map(cls => "\t" + cls).mkString("\n")
   }
 

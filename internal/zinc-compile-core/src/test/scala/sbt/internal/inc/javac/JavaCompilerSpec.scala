@@ -98,8 +98,15 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
   }
 
   def findsErrors(compiler: XJavaTools) = IO.withTemporaryDirectory { out =>
+    val options = Seq("-deprecation") ++ {
+      if (scala.util.Properties.isJavaAtLeast("21")) {
+        Seq("-proc:none")
+      } else {
+        Nil
+      }
+    }
     val (result, problems) =
-      compile(compiler, Seq(knownSampleErrorFile), Seq("-deprecation"), out.toPath)
+      compile(compiler, Seq(knownSampleErrorFile), options, out.toPath)
     assert(result == false)
     assert(problems.size == {
       sys.props("java.specification.version") match {
@@ -110,7 +117,13 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
     val importWarn = warnOnLine(lineno = 12, lineContent = Some("java.rmi.RMISecurityException"))
     val enclosingError = errorOnLine(lineno = 25, message = Some("not an enclosing class: C.D"))
     val beAnExpectedError =
-      List(importWarn, errorOnLine(14), errorOnLine(15), warnOnLine(18), enclosingError) reduce (_ or _)
+      List(
+        importWarn,
+        errorOnLine(14),
+        errorOnLine(15),
+        warnOnLine(18),
+        enclosingError
+      ) reduce (_ or _)
     problems foreach { p =>
       p should beAnExpectedError
     }
@@ -202,7 +215,11 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
     val content = lineContent.fold("")(s => s""" with content = "$s"""")
     Matcher { (p: Problem) =>
       MatchResult(
-        messageMatches(p, lineno, message) && lineMatches(p, lineno, lineContent) && p.severity == severity,
+        messageMatches(p, lineno, message) && lineMatches(
+          p,
+          lineno,
+          lineContent
+        ) && p.severity == severity,
         s"Expected $problemType on line $lineno$msg$content, but found $p",
         "Problem matched: " + p
       )
@@ -216,10 +233,18 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
   }
 
   def forkSameAsLocal() = IO.withTemporaryDirectory { out =>
+    val options = Seq("-deprecation") ++ {
+      if (scala.util.Properties.isJavaAtLeast("21")) {
+        Seq("-proc:none")
+      } else {
+        Nil
+      }
+    }
+
     val (fresult, fproblems) =
-      compile(forked, Seq(knownSampleErrorFile), Seq("-deprecation"), out.toPath)
+      compile(forked, Seq(knownSampleErrorFile), options, out.toPath)
     val (lresult, lproblems) =
-      compile(local, Seq(knownSampleErrorFile), Seq("-deprecation"), out.toPath)
+      compile(local, Seq(knownSampleErrorFile), options, out.toPath)
     assert(fresult == lresult)
 
     (fproblems zip lproblems) foreach {

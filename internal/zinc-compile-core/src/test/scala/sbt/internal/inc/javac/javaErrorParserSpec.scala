@@ -16,12 +16,14 @@ package javac
 
 import sbt.internal.util.ConsoleLogger
 import org.scalatest.diagrams.Diagrams
+import xsbti.Severity
 
 class JavaErrorParserSpec extends UnitSpec with Diagrams {
 
   "The JavaErrorParser" should "be able to parse Linux errors" in parseSampleLinux()
   it should "be able to parse windows file names" in parseWindowsFile()
   it should "be able to parse windows errors" in parseSampleWindows()
+  it should "be able to parse javac warnings" in parseJavacWarning()
   it should "be able to parse javac errors" in parseSampleJavac()
   it should "register the position of errors" in parseErrorPosition()
   it should "be able to parse multiple errors" in parseMultipleErrors()
@@ -43,7 +45,6 @@ class JavaErrorParserSpec extends UnitSpec with Diagrams {
 
     assert(problems.size == 1)
     problems(0).position.sourcePath.get shouldBe (windowsFile)
-
   }
 
   def parseWindowsFile() = {
@@ -55,6 +56,15 @@ class JavaErrorParserSpec extends UnitSpec with Diagrams {
       case parser.Failure(msg, next) =>
         assert(false, "Failed to parse: " + msg + ", " + next.pos.longString)
     }
+  }
+
+  def parseJavacWarning() = {
+    val parser = new JavaErrorParser()
+    val logger = ConsoleLogger()
+    val problems = parser.parseProblems(sampleJavacWarning, logger)
+    assert(problems.size == 1)
+    problems(0).severity shouldBe Severity.Warn
+    problems(0).position.offset.isPresent shouldBe false
   }
 
   def parseSampleJavac() = {
@@ -123,6 +133,9 @@ class JavaErrorParserSpec extends UnitSpec with Diagrams {
       |location: class Foo
       |return baz();
     """.stripMargin
+
+  def sampleJavacWarning =
+    "warning: [options] system modules path not set in conjunction with -source 17"
 
   def windowsFile = """C:\Projects\sample\src\main\java\Test.java"""
   def windowsFileAndLine = s"""$windowsFile:4"""

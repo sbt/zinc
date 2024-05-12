@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -17,6 +17,8 @@ import java.nio.file.{ Files, InvalidPathException, Path }
 import java.util.zip.{ ZipException, ZipFile }
 import xsbti.{ PathBasedFile, VirtualFile }
 import xsbti.compile.{ DefinesClass, PerClasspathEntryLookup }
+
+import scala.annotation.tailrec
 
 object Locate {
 
@@ -33,6 +35,7 @@ object Locate {
     className => find(className, gets)
   }
 
+  @tailrec
   private def find[S](
       name: String,
       gets: Iterator[String => Either[Boolean, S]]
@@ -81,10 +84,12 @@ object Locate {
         val entry = x.toPath
         if (Files.isDirectory(entry))
           new DirectoryDefinesClass(entry)
-        else if (Files.exists(entry) && classpath.ClasspathUtil.isArchive(
-                   entry,
-                   contentFallback = true
-                 ))
+        else if (
+          Files.exists(entry) && classpath.ClasspathUtil.isArchive(
+            entry,
+            contentFallback = true
+          )
+        )
           new JarDefinesClass(entry)
         else
           FalseDefinesClass
@@ -99,13 +104,14 @@ object Locate {
   private class JarDefinesClass(entry: Path) extends DefinesClass {
     import collection.JavaConverters._
     private val entries = {
-      val jar = try {
-        new ZipFile(entry.toFile, ZipFile.OPEN_READ)
-      } catch {
-        // ZipException doesn't include the file name :(
-        case e: ZipException =>
-          throw new RuntimeException("Error opening zip file: " + entry.getFileName.toString, e)
-      }
+      val jar =
+        try {
+          new ZipFile(entry.toFile, ZipFile.OPEN_READ)
+        } catch {
+          // ZipException doesn't include the file name :(
+          case e: ZipException =>
+            throw new RuntimeException("Error opening zip file: " + entry.getFileName.toString, e)
+        }
       try {
         jar.entries.asScala.map(e => toClassName(e.getName)).toSet
       } finally {

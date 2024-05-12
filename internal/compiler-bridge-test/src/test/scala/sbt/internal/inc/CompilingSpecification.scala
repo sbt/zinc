@@ -15,6 +15,7 @@ import sbt.util.Logger
 import xsbti.TestCallback.ExtractedClassDependencies
 import xsbti.{
   InteractiveConsoleInterface,
+  Reporter,
   ReporterUtil,
   TestCallback,
   UseScope,
@@ -34,10 +35,11 @@ trait CompilingSpecification extends AbstractBridgeProviderTestkit {
       .get("zinc.build.compilerbridge.scalaVersion")
       .getOrElse(sys.error("zinc.build.compilerbridge.scalaVersion property not found"))
   def maxErrors = 100
+  def scala213 = "2.13.13"
 
   def scalaCompiler(instance: xsbti.compile.ScalaInstance, bridgeJar: Path): AnalyzingCompiler = {
     val bridgeProvider = ZincUtil.constantBridgeProvider(instance, bridgeJar)
-    val classpath = ClasspathOptionsUtil.boot
+    val classpath = ClasspathOptionsUtil.noboot(instance.version)
     val cache = Some(new ClassLoaderCache(new URLClassLoader(Array())))
     new AnalyzingCompiler(instance, bridgeProvider, classpath, _ => (), cache)
   }
@@ -69,9 +71,13 @@ trait CompilingSpecification extends AbstractBridgeProviderTestkit {
     val (_, testCallback) = compileSrcs(srcs)
     val binaryDependencies = testCallback.binaryDependencies.toSeq
     ExtractedClassDependencies.fromPairs(
-      binaryDependencies.collect { case (_, bin, src, DependencyByMemberRef)        => src -> bin },
-      binaryDependencies.collect { case (_, bin, src, DependencyByInheritance)      => src -> bin },
-      binaryDependencies.collect { case (_, bin, src, LocalDependencyByInheritance) => src -> bin },
+      binaryDependencies.toList.collect { case (_, bin, src, DependencyByMemberRef) => src -> bin },
+      binaryDependencies.toList.collect { case (_, bin, src, DependencyByInheritance) =>
+        src -> bin
+      },
+      binaryDependencies.toList.collect { case (_, bin, src, LocalDependencyByInheritance) =>
+        src -> bin
+      },
     )
   }
 
@@ -99,7 +105,10 @@ trait CompilingSpecification extends AbstractBridgeProviderTestkit {
     if (assertDefaultScope) for {
       (className, used) <- analysisCallback.usedNamesAndScopes
       analysisCallback.TestUsedName(name, scopes) <- used
-    } assert(scopes.size() == 1 && scopes.contains(UseScope.Default), s"$className uses $name in $scopes")
+    } assert(
+      scopes.size() == 1 && scopes.contains(UseScope.Default),
+      s"$className uses $name in $scopes"
+    )
 
     val classesInActualSrc = analysisCallback.classNames(tempSrcFile).map(_._1)
     classesInActualSrc.map(className => className -> analysisCallback.usedNames(className)).toMap
@@ -128,13 +137,13 @@ trait CompilingSpecification extends AbstractBridgeProviderTestkit {
   def extractDependenciesFromSrcs(srcs: String*): ExtractedClassDependencies = {
     val (_, testCallback) = compileSrcs(srcs: _*)
 
-    val memberRefDeps = testCallback.classDependencies.toSeq collect {
+    val memberRefDeps = testCallback.classDependencies.toList collect {
       case (target, src, DependencyByMemberRef) => (src, target)
     }
-    val inheritanceDeps = testCallback.classDependencies.toSeq collect {
+    val inheritanceDeps = testCallback.classDependencies.toList collect {
       case (target, src, DependencyByInheritance) => (src, target)
     }
-    val localInheritanceDeps = testCallback.classDependencies.toSeq collect {
+    val localInheritanceDeps = testCallback.classDependencies.toList collect {
       case (target, src, LocalDependencyByInheritance) => (src, target)
     }
     ExtractedClassDependencies.fromPairs(memberRefDeps, inheritanceDeps, localInheritanceDeps)
@@ -166,17 +175,20 @@ trait CompilingSpecification extends AbstractBridgeProviderTestkit {
     ReporterManager.getReporter(log, reporterConfig)
   }
 
-  def mkScalaCompiler(baseDir: Path): (xsbti.compile.ScalaInstance, AnalyzingCompiler) = {
+  def mkScalaCompiler(
+      baseDir: Path,
+      scalaVersion0: String
+  ): (xsbti.compile.ScalaInstance, AnalyzingCompiler) = {
     val noLogger = Logger.Null
     val compilerBridge = getCompilerBridge(baseDir, noLogger, scalaVersion)
-    val si = scalaInstance(scalaVersion, baseDir, noLogger)
+    val si = scalaInstance(scalaVersion0, baseDir, noLogger)
     val sc = scalaCompiler(si, compilerBridge)
     (si, sc)
   }
 
   def compileSrcs(groupedSrcs: List[List[String]]): (Seq[VirtualFile], TestCallback) =
     IO.withTemporaryDirectory { tempDir =>
-      compileSrcs(tempDir.toPath)(groupedSrcs)
+      compileSrcs(tempDir.toPath, mkReporter)(groupedSrcs)
     }
 
   /**
@@ -191,7 +203,9 @@ trait CompilingSpecification extends AbstractBridgeProviderTestkit {
    * callback is returned as a result.
    */
   def compileSrcs(
-      baseDir: Path
+      baseDir: Path,
+      reporter: Reporter = mkReporter,
+      scalaVersion0: String = scalaVersion
   )(groupedSrcs: List[List[String]]): (Seq[VirtualFile], TestCallback) = {
     val rootPaths: Map[String, Path] = Map(
       "BASE" -> baseDir,
@@ -211,15 +225,14 @@ trait CompilingSpecification extends AbstractBridgeProviderTestkit {
           StringVirtualFile(fileName, content)
       }
       val sources = srcFiles.toArray[VirtualFile]
-      val (si, sc) = mkScalaCompiler(baseDir)
+      val (si, sc) = mkScalaCompiler(baseDir, scalaVersion0)
       val cp = ((si.allJars).map(_.toPath) ++ Array(targetDir)).map(converter.toVirtualFile)
-      val reporter = mkReporter
       sc.compile(
         sources = sources,
         classpath = cp,
         converter = converter,
         changes = emptyChanges,
-        options = Array(),
+        options = Array("-deprecation", "-Yrangepos"),
         output = CompileOutput(targetDir),
         callback = analysisCallback,
         reporter = reporter,
@@ -246,7 +259,7 @@ trait CompilingSpecification extends AbstractBridgeProviderTestkit {
   }
 
   def compileSrcs(baseDir: Path, srcs: String*): (Seq[VirtualFile], TestCallback) = {
-    compileSrcs(baseDir)(List(srcs.toList))
+    compileSrcs(baseDir, mkReporter)(List(srcs.toList))
   }
 
   def doc(baseDir: Path)(sourceContents: List[String]): Unit = {
@@ -258,7 +271,7 @@ trait CompilingSpecification extends AbstractBridgeProviderTestkit {
     val converter = new MappedFileConverter(rootPaths, false)
     val targetDir = baseDir / "target"
     Files.createDirectory(targetDir)
-    val (si, sc) = mkScalaCompiler(baseDir)
+    val (si, sc) = mkScalaCompiler(baseDir, scalaVersion)
     val reporter = mkReporter
     val sources = sourceContents.zipWithIndex map {
       case (content, i) =>
@@ -288,7 +301,7 @@ trait CompilingSpecification extends AbstractBridgeProviderTestkit {
     val converter = new MappedFileConverter(rootPaths, false)
     val targetDir = baseDir / "target"
     Files.createDirectory(targetDir)
-    val (si, sc) = mkScalaCompiler(baseDir)
+    val (si, sc) = mkScalaCompiler(baseDir, scalaVersion)
     val cp = (si.allJars).map(_.toPath) ++ Array(targetDir)
     val classpath = cp.map(converter.toVirtualFile)
     sc.console(
@@ -310,7 +323,7 @@ trait CompilingSpecification extends AbstractBridgeProviderTestkit {
     val converter = new MappedFileConverter(rootPaths, false)
     val targetDir = baseDir / "target"
     Files.createDirectory(targetDir)
-    val (si, sc) = mkScalaCompiler(baseDir)
+    val (si, sc) = mkScalaCompiler(baseDir, scalaVersion)
     val cp = (si.allJars).map(_.toPath) ++ Array(targetDir)
     val classpath = cp.map(converter.toVirtualFile)
     sc.interactiveConsole(

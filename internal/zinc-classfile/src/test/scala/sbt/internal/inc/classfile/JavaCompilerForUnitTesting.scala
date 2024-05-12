@@ -58,7 +58,7 @@ object JavaCompilerForUnitTesting {
   }
 
   def compileJavaSrcs(srcs: (String, String)*)(
-      readAPI: (AnalysisCallback, VirtualFileRef, Seq[Class[_]]) => Set[(String, String)]
+      readAPI: (AnalysisCallback, VirtualFileRef, Seq[Class[?]]) => Set[(String, String)]
   ): (Seq[VirtualFile], TestCallback) = {
     IO.withTemporaryDirectory { temp =>
       val srcFiles0 = srcs.map {
@@ -83,6 +83,7 @@ object JavaCompilerForUnitTesting {
       val classloader = new URLClassLoader(Array(classesDir.toURI.toURL))
 
       val logger = ConsoleLogger()
+      // logger.setLevel(sbt.util.Level.Debug)
 
       // we pass extractParents as readAPI. In fact, Analyze expect readAPI to do both things:
       // - extract api representation out of Class (and saved it via a side effect)
@@ -108,10 +109,13 @@ object JavaCompilerForUnitTesting {
     srcFile
   }
 
-  private val extractParents: Seq[Class[_]] => Set[(String, String)] = { classes =>
-    def canonicalNames(p: (Class[_], Class[_])): (String, String) =
+  private val extractParents: Seq[Class[?]] => Set[(String, String)] = { classes =>
+    def canonicalNames(p: (Class[?], Class[?])): (String, String) =
       p._1.getCanonicalName -> p._2.getCanonicalName
-    val parents = classes.map(c => c -> c.getSuperclass)
+    val parents =
+      classes
+        .map(c => c -> c.getSuperclass)
+        .filterNot(_._2 == null) // may be null for an interface
     val parentInterfaces = classes.flatMap(c => c.getInterfaces.map(i => c -> i))
     (parents ++ parentInterfaces).map(canonicalNames).toSet
   }

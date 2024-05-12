@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -17,7 +17,19 @@ import sbt.internal.inc.Relations.ClassDependencies
 import sbt.internal.inc._
 import sbt.internal.inc.binary.converters.ProtobufDefaults.EmptyLazyCompanions
 import sbt.util.InterfaceUtil
-import xsbti.{ Position, Problem, Severity, T2, UseScope, VirtualFileRef }
+import xsbti.{
+  Action,
+  DiagnosticCode,
+  DiagnosticRelatedInformation,
+  Position,
+  Problem,
+  Severity,
+  T2,
+  TextEdit,
+  UseScope,
+  VirtualFileRef,
+  WorkspaceEdit,
+}
 import xsbti.compile.{ CompileOrder, FileHash, MiniOptions, MiniSetup, Output, OutputGroup }
 import xsbti.compile.analysis.{ Compilation, ReadMapper, SourceInfo, Stamp }
 import sbt.internal.inc.binary.converters.ProtobufDefaults.Feedback.StringToException
@@ -171,6 +183,37 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
   private def fromInt(value: Int): Option[Integer] =
     if (value == MissingInt) None else Some(value)
 
+  private def fromDiagnosticCode(diagnosticCode: Schema.DiagnosticCode): DiagnosticCode =
+    DiagnosticsUtil.diagnosticCode(
+      code = diagnosticCode.getCode(),
+      explanation = fromString(diagnosticCode.getExplanation()),
+    )
+
+  private def fromDiagnosticRelatedInformation(info: Schema.DiagnosticRelatedInformation)
+      : DiagnosticRelatedInformation =
+    DiagnosticsUtil.diagnosticRelatedInformation(
+      position = fromPosition(info.getPosition()),
+      message = info.getMessage(),
+    )
+
+  private def fromAction(action: Schema.Action): Action =
+    InterfaceUtil.action(
+      title = action.getTitle(),
+      description = fromString(action.getDescription()),
+      edit = fromWorkspaceEdit(action.getEdit()),
+    )
+
+  private def fromWorkspaceEdit(edit: Schema.WorkspaceEdit): WorkspaceEdit =
+    InterfaceUtil.workspaceEdit(
+      changes = edit.getChangesList().asScala.iterator.map(fromTextEdit).toList
+    )
+
+  private def fromTextEdit(edit: Schema.TextEdit): TextEdit =
+    InterfaceUtil.textEdit(
+      position = fromPosition(edit.getPosition()),
+      newText = edit.getNewText(),
+    )
+
   def fromProblem(problem: Schema.Problem): Problem = {
     val category = problem.getCategory
     val message = problem.getMessage
@@ -179,7 +222,23 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
       if (problem.hasPosition) fromPosition(problem.getPosition)
       else ReadersFeedback.ExpectedPositionInProblem.!!
     val rendered = fromString(problem.getRendered)
-    InterfaceUtil.problem(category, position, message, severity, rendered)
+    val diagnosticCode =
+      if (problem.hasDiagnosticCode) Some(fromDiagnosticCode(problem.getDiagnosticCode()))
+      else None
+    val infos = problem.getDiagnosticRelatedInformationList().asScala.iterator
+      .map(fromDiagnosticRelatedInformation).toList
+    val actions = problem.getActionsList().asScala.iterator
+      .map(fromAction).toList
+    InterfaceUtil.problem(
+      cat = category,
+      pos = position,
+      msg = message,
+      sev = severity,
+      rendered = rendered,
+      diagnosticCode = diagnosticCode,
+      diagnosticRelatedInformation = infos,
+      actions = actions,
+    )
   }
 
   def fromSourceInfo(sourceInfo: Schema.SourceInfo): SourceInfo = {
@@ -581,7 +640,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
 
   def fromClassLike(classLike: Schema.ClassLike): ClassLike = {
     def expectedMsg(msg: String) = ReadersFeedback.expected(msg, Classes.ClassLike)
-    def expected(clazz: Class[_]) = expectedMsg(clazz.getName)
+    def expected(clazz: Class[?]) = expectedMsg(clazz.getName)
     val name = classLike.getName.intern()
     val access =
       if (classLike.hasAccess) fromAccess(classLike.getAccess)
@@ -717,6 +776,9 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
     val localInheritance =
       if (relations.hasLocalInheritance) fromClassDependencies(relations.getLocalInheritance)
       else expected("local inheritance").!!
+    val macroExpansion =
+      if (relations.hasMacroExpansion) fromClassDependencies(relations.getMacroExpansion)
+      else new ClassDependencies(Relation.empty, Relation.empty)
     val classes = fromMap(relations.getClassesMap, stringToSource, stringId)
     val productClassName =
       fromMap(relations.getProductClassNameMap, stringId, stringId)
@@ -725,14 +787,16 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
       Map(
         DependencyContext.DependencyByMemberRef -> memberRef.internal,
         DependencyContext.DependencyByInheritance -> inheritance.internal,
-        DependencyContext.LocalDependencyByInheritance -> localInheritance.internal
+        DependencyContext.LocalDependencyByInheritance -> localInheritance.internal,
+        DependencyContext.DependencyByMacroExpansion -> macroExpansion.internal,
       )
     )
     val external = ExternalDependencies(
       Map(
         DependencyContext.DependencyByMemberRef -> memberRef.external,
         DependencyContext.DependencyByInheritance -> inheritance.external,
-        DependencyContext.LocalDependencyByInheritance -> localInheritance.external
+        DependencyContext.LocalDependencyByInheritance -> localInheritance.external,
+        DependencyContext.DependencyByMacroExpansion -> macroExpansion.external,
       )
     )
     Relations.make(
@@ -769,7 +833,7 @@ final class ProtobufReaders(mapper: ReadMapper, currentVersion: Schema.Version) 
   }
 
   def fromAnalysis(analysis: Schema.Analysis): Analysis = {
-    def expected(clazz: Class[_]) = ReadersFeedback.expected(clazz, Classes.Analysis)
+    def expected(clazz: Class[?]) = ReadersFeedback.expected(clazz, Classes.Analysis)
     val stamps =
       if (analysis.hasStamps) fromStamps(analysis.getStamps)
       else expected(Classes.Stamps).!!

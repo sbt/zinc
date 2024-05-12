@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -14,8 +14,21 @@ package sbt.internal.inc.binary.converters
 import java.io.File
 import java.nio.file.Path
 
+import scala.collection.JavaConverters._
 import sbt.internal.inc._
-import xsbti.{ Position, Problem, Severity, T2, UseScope, VirtualFileRef }
+import xsbti.{
+  Action,
+  DiagnosticCode,
+  DiagnosticRelatedInformation,
+  Position,
+  Problem,
+  Severity,
+  T2,
+  TextEdit,
+  UseScope,
+  VirtualFileRef,
+  WorkspaceEdit,
+}
 import xsbti.compile.analysis.{ SourceInfo, Stamp, WriteMapper }
 import sbt.internal.inc.binary.converters.ProtobufDefaults.Feedback.{ Writers => WritersFeedback }
 import sbt.internal.inc.binary.converters.ProtobufDefaults.WritersConstants
@@ -111,8 +124,8 @@ final class ProtobufWriters(mapper: WriteMapper) {
     val productStamps = toProductSchemaMap(stamps.products)
 
     val builder = Schema.Stamps.newBuilder
-    binaryStamps.foreach { case (k, v)  => builder.putBinaryStamps(k, v) }
-    sourceStamps.foreach { case (k, v)  => builder.putSourceStamps(k, v) }
+    binaryStamps.foreach { case (k, v) => builder.putBinaryStamps(k, v) }
+    sourceStamps.foreach { case (k, v) => builder.putSourceStamps(k, v) }
     productStamps.foreach { case (k, v) => builder.putProductStamps(k, v) }
     builder.build
   }
@@ -191,12 +204,54 @@ final class ProtobufWriters(mapper: WriteMapper) {
     val message = problem.message()
     val position = toPosition(problem.position())
     val severity = toSeverity(problem.severity())
-    Schema.Problem.newBuilder
+    val builder = Schema.Problem.newBuilder
       .setCategory(category)
       .setMessage(message)
       .setPosition(position)
       .setSeverity(severity)
-      .build
+    problem.rendered.toOption.foreach(r => builder.setRendered(r))
+    problem.diagnosticCode.toOption.foreach(d => builder.setDiagnosticCode(toDiagnosticCode(d)))
+    problem.diagnosticRelatedInformation.asScala
+      .foreach(d => builder.addDiagnosticRelatedInformation(toDiagnosticRelatedInformation(d)))
+    problem.actions.asScala.foreach(a => builder.addActions(toAction(a)))
+    builder.build
+  }
+
+  def toAction(action: Action): Schema.Action = {
+    val edit = toWorkspaceEdit(action.edit())
+    val builder = Schema.Action.newBuilder
+      .setTitle(action.title)
+      .setEdit(edit)
+    action.description.toOption.foreach(d => builder.setDescription(d))
+    builder.build
+  }
+
+  def toWorkspaceEdit(edit: WorkspaceEdit): Schema.WorkspaceEdit = {
+    val builder = Schema.WorkspaceEdit.newBuilder
+    edit.changes.asScala.foreach(c => builder.addChanges(toTextEdit(c)))
+    builder.build
+  }
+
+  def toTextEdit(edit: TextEdit): Schema.TextEdit = {
+    val builder = Schema.TextEdit.newBuilder
+      .setPosition(toPosition(edit.position))
+      .setNewText(edit.newText)
+    builder.build
+  }
+
+  def toDiagnosticCode(diagnosticCode: DiagnosticCode): Schema.DiagnosticCode = {
+    val builder = Schema.DiagnosticCode.newBuilder
+      .setCode(diagnosticCode.code())
+    diagnosticCode.explanation().toOption.foreach(d => builder.setExplanation(d))
+    builder.build
+  }
+
+  def toDiagnosticRelatedInformation(info: DiagnosticRelatedInformation)
+      : Schema.DiagnosticRelatedInformation = {
+    val builder = Schema.DiagnosticRelatedInformation.newBuilder
+    builder.setPosition(toPosition(info.position()))
+    builder.setMessage(info.message())
+    builder.build
   }
 
   def toSourceInfo(sourceInfo: SourceInfo): Schema.SourceInfo = {
@@ -684,6 +739,8 @@ final class ProtobufWriters(mapper: WriteMapper) {
     val inheritanceExternal = toMap(relations.inheritance.external, stringId, stringId)
     val localInheritanceInternal = toMap(relations.localInheritance.internal, stringId, stringId)
     val localInheritanceExternal = toMap(relations.localInheritance.external, stringId, stringId)
+    val macroExpansionInternal = toMap(relations.macroExpansion.internal, stringId, stringId)
+    val macroExpansionExternal = toMap(relations.macroExpansion.external, stringId, stringId)
     val classes = toMap(relations.classes, sourceToString, stringId)
     val productClassName = toMap(relations.productClassName, stringId, stringId)
     val names = toUsedNamesMap(relations.names)
@@ -708,17 +765,25 @@ final class ProtobufWriters(mapper: WriteMapper) {
       builder.build
     }
 
+    val macroExpansion = {
+      val builder = Schema.ClassDependencies.newBuilder
+      macroExpansionInternal.foreach { case (k, v) => builder.putInternal(k, v) }
+      macroExpansionExternal.foreach { case (k, v) => builder.putExternal(k, v) }
+      builder.build
+    }
+
     val builder = Schema.Relations.newBuilder
-    srcProd.foreach { case (k, v)          => builder.putSrcProd(k, v) }
-    libraryDep.foreach { case (k, v)       => builder.putLibraryDep(k, v) }
+    srcProd.foreach { case (k, v) => builder.putSrcProd(k, v) }
+    libraryDep.foreach { case (k, v) => builder.putLibraryDep(k, v) }
     libraryClassName.foreach { case (k, v) => builder.putLibraryClassName(k, v) }
-    classes.foreach { case (k, v)          => builder.putClasses(k, v) }
+    classes.foreach { case (k, v) => builder.putClasses(k, v) }
     productClassName.foreach { case (k, v) => builder.putProductClassName(k, v) }
-    names.foreach { case (k, v)            => builder.putNames(k, v) }
+    names.foreach { case (k, v) => builder.putNames(k, v) }
     builder
       .setMemberRef(memberRef)
       .setInheritance(inheritance)
       .setLocalInheritance(localInheritance)
+      .setMacroExpansion(macroExpansion)
       .build
   }
 

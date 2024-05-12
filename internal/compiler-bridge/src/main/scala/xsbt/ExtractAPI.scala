@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -139,7 +139,7 @@ class ExtractAPI[GlobalType <: Global](
 
     def leaveExistentialTypeVariables(typeVariables: Seq[Symbol]): Unit = {
       nestingLevel -= 1
-      assert(nestingLevel >= 0)
+      assert(nestingLevel >= 0, s"nestingLevel = $nestingLevel")
       typeVariables.foreach(renameTo.remove)
     }
     def enterExistentialTypeVariables(typeVariables: Seq[Symbol]): Unit = {
@@ -180,6 +180,7 @@ class ExtractAPI[GlobalType <: Global](
   private def thisPath(sym: Symbol) = path(pathComponents(sym, Constants.thisPath :: Nil))
   private def path(components: List[PathComponent]) =
     xsbti.api.Path.of(components.toArray[PathComponent])
+  @tailrec
   private def pathComponents(sym: Symbol, postfix: List[PathComponent]): List[PathComponent] = {
     if (sym == NoSymbol || sym.isRoot || sym.isEmptyPackageClass || sym.isRootPackage) postfix
     else pathComponents(sym.owner, xsbti.api.Id.of(simpleName(sym)) :: postfix)
@@ -304,6 +305,7 @@ class ExtractAPI[GlobalType <: Global](
   private def viewer(s: Symbol) = (if (s.isModule) s.moduleClass else s).thisType
 
   private def defDef(in: Symbol, s: Symbol): xsbti.api.Def = {
+    @tailrec
     def build(
         t: Type,
         typeParams: Array[xsbti.api.TypeParameter],
@@ -315,8 +317,8 @@ class ExtractAPI[GlobalType <: Global](
       }
       t match {
         case PolyType(typeParams0, base) =>
-          assert(typeParams.isEmpty)
-          assert(valueParameters.isEmpty)
+          assert(typeParams.isEmpty, typeParams.toString)
+          assert(valueParameters.isEmpty, valueParameters.toString)
           build(base, typeParameters(in, typeParams0), Nil)
         case MethodType(params, resultType) =>
           build(resultType, typeParams, parameterList(params) :: valueParameters)
@@ -325,7 +327,7 @@ class ExtractAPI[GlobalType <: Global](
         case returnType =>
           val retType = processType(in, dropConst(returnType))
           xsbti.api.Def.of(
-            simpleName(s),
+            simpleNameForMethod(s),
             getAccess(s),
             getModifiers(s),
             annotations(in, s),
@@ -340,7 +342,6 @@ class ExtractAPI[GlobalType <: Global](
       makeParameter(simpleName(s), tp, tp.typeSymbol, s)
     }
 
-    // paramSym is only for 2.8 and is to determine if the parameter has a default
     def makeParameter(
         name: String,
         tpe: Type,
@@ -458,7 +459,8 @@ class ExtractAPI[GlobalType <: Global](
     val decls = info.decls.toList
     val declsNoModuleCtor = if (s.isModuleClass) removeConstructors(decls) else decls
     val declSet = decls.toSet
-    val inherited = info.nonPrivateMembers.toList.filterNot(declSet) // private members are not inherited
+    val inherited =
+      info.nonPrivateMembers.toList.filterNot(declSet) // private members are not inherited
     mkStructure(s, ancestorTypes, declsNoModuleCtor, inherited)
   }
 
@@ -517,9 +519,13 @@ class ExtractAPI[GlobalType <: Global](
   }
   private def getModifiers(s: Symbol): xsbti.api.Modifiers = {
     import Flags._
+    import xsbt.Compat._
     val absOver = s.hasFlag(ABSOVERRIDE)
     val abs = s.hasFlag(ABSTRACT) || s.hasFlag(DEFERRED) || absOver
     val over = s.hasFlag(OVERRIDE) || absOver
+    val hasInline = global.settings.optInlinerEnabled && s.annotations.exists(
+      _.symbol.tpe == typeOf[scala.inline]
+    )
     new xsbti.api.Modifiers(
       abs,
       over,
@@ -527,7 +533,7 @@ class ExtractAPI[GlobalType <: Global](
       s.hasFlag(SEALED),
       isImplicit(s),
       s.hasFlag(LAZY),
-      s.hasFlag(MACRO),
+      s.hasFlag(MACRO) || hasInline,
       s.hasFlag(SUPERACCESSOR)
     )
   }
@@ -691,9 +697,7 @@ class ExtractAPI[GlobalType <: Global](
   private def tparamID(s: Symbol): String =
     existentialRenamings.renaming(s) match {
       case Some(rename) =>
-        // can't use debuglog because it doesn't exist in Scala 2.9.x
-        if (settings.debug.value)
-          log("Renaming existential type variable " + s.fullName + " to " + rename)
+        debuglog(s"Renaming existential type variable ${s.fullName} to $rename")
         rename
       case None =>
         s.fullName
@@ -823,28 +827,34 @@ class ExtractAPI[GlobalType <: Global](
   }
 
   private def simpleName(s: Symbol): String = {
-    val n = s.unexpandedName
-    val n2 = if (n == nme.CONSTRUCTOR) constructorNameAsString(s.enclClass) else n.decode.toString
-    n2.trim
+    s.unexpandedName.decode.trim
+  }
+
+  private def simpleNameForMethod(s: Symbol): String = {
+    val name = s.unexpandedName
+    val untrimmedName = if (name == nme.CONSTRUCTOR)
+      constructorNameAsString(s.enclClass)
+    else {
+      val decoded = name.decode
+      val constructorWithDefaultArgument = "<init>\\$default\\$(\\d+)".r
+      decoded match {
+        case constructorWithDefaultArgument(index) => constructorNameAsString(s.enclClass, index)
+        case _                                     => decoded
+      }
+    }
+    untrimmedName.trim
   }
 
   private def staticAnnotations(annotations: List[AnnotationInfo]): List[AnnotationInfo] =
     if (annotations == Nil) Nil
     else {
-      // compat stub for 2.8/2.9
-      class IsStatic(ann: AnnotationInfo) {
-        def isStatic: Boolean =
-          ann.atp.typeSymbol isNonBottomSubClass definitions.StaticAnnotationClass
-      }
-      implicit def compat(ann: AnnotationInfo): IsStatic = new IsStatic(ann)
-
       // `isStub` for scala/bug#11679: annotations of inherited members may be absent from the compile time
       // classpath so avoid calling `isNonBottomSubClass` on these stub symbols which would trigger an error.
       //
       // `initialize` for sbt/zinc#998: 2.13 identifies Java annotations by flags. Up to 2.13.6, this is done
       // without forcing the info of `ann.atp.typeSymbol`, flags are missing it's still a `ClassfileLoader`.
-      annotations.filter(
-        ann => !isStub(ann.atp.typeSymbol) && { ann.atp.typeSymbol.initialize; ann.isStatic }
+      annotations.filter(ann =>
+        !isStub(ann.atp.typeSymbol) && { ann.atp.typeSymbol.initialize; ann.isStatic }
       )
     }
 

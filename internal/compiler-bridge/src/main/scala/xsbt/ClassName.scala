@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -57,6 +57,9 @@ trait ClassName extends Compat {
 
   protected def constructorNameAsString(cls: Symbol): String =
     cls.fullName(';') ++ ";init;"
+
+  protected def constructorNameAsString(cls: Symbol, index: String): String =
+    cls.fullName(';') ++ s";init;default;$index"
 
   /**
    * Mangle a JVM symbol name in a format better suited for internal uses by sbt.

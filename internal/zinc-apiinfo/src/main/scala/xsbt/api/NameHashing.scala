@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -40,13 +40,14 @@ class NameHashing(optimizedSealed: Boolean) {
     val (regularDefs, implicitDefs) = apiPublicDefs.partition(deff => !deff.modifiers.isImplicit)
     val location = Location(classApi.name, NameType(classApi.definitionType))
 
-    val forPatMat = if (optimizedSealed) {
-      val classDefs = apiPublicDefs.collect {
-        case classLike: ClassLike if classLike.modifiers().isSealed =>
-          classLike
-      }
-      nameHashesForDefinitions(classDefs, location, UseScope.PatMatTarget)
-    } else Array.empty[NameHash]
+    val forPatMat =
+      if (optimizedSealed) {
+        val classDefs = apiPublicDefs.collect {
+          case classLike: ClassLike if classLike.modifiers().isSealed =>
+            classLike
+        }
+        nameHashesForDefinitions(classDefs, location, UseScope.PatMatTarget)
+      } else Array.empty[NameHash]
 
     nameHashesForDefinitions(regularDefs, location, UseScope.Default) ++
       nameHashesForDefinitions(implicitDefs, location, UseScope.Implicit) ++ forPatMat

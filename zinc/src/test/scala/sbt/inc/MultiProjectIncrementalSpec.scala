@@ -19,7 +19,7 @@ import TestResource._
 import xsbti.compile.CompileResult
 
 class MultiProjectIncrementalSpec extends BaseCompilerSpec {
-  //override def logLevel = sbt.util.Level.Debug
+  // override def logLevel = sbt.util.Level.Debug
 
   "incremental compiler" should "detect shadowing" in {
     IO.withTemporaryDirectory { tempDir =>

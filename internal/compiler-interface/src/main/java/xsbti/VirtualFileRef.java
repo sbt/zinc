@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -55,7 +55,7 @@ package xsbti;
  * be called the same, hopefully he can resume incremental compilation.
  * </p>
  *
- * <h3>Difference between VirtualFileRef and VirtualFile</h3>
+ * <h2>Difference between VirtualFileRef and VirtualFile</h2>
  * <p><code>VirtualFileRef</code> on its own can only have identity
  * information to be compared against another.
  * At the most basic level this could be implemented as
@@ -72,7 +72,7 @@ package xsbti;
  * represent something more concrete, like a local file or
  * an in-memory file.
  *
- * <h3>ok, so how would the compiler compile this?</h3>
+ * <h2>ok, so how would the compiler compile this?</h2>
  * See <code>IncrementalCompile.scala</code>.
  * At the top layer of Zinc, we are passing in the source files as a
  * sequence of {@link VirtualFile}s.

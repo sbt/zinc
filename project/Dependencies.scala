@@ -7,16 +7,18 @@ object Dependencies {
 
   val scala210 = "2.10.7"
   val scala211 = "2.11.12"
-  val scala212 = "2.12.15"
-  val scala213 = "2.13.12"
+  val scala212 = "2.12.19"
+  val scala213 = "2.13.13"
   val scala3 = "3.3.1"
+  val scala3ForBridge = "3.3.1"
+  val scala213ForBridge = "2.13.13"
   val defaultScalaVersion = scala3
-  val allScalaVersions = Seq(scala212, scala210, scala211, scala213)
+  val compilerBridgeVersions = Seq(scala212, scala210, scala211, scala213)
   val scala212_213 = Seq(defaultScalaVersion, scala213)
   val scala3_only = Seq(scala3)
 
-  private val ioVersion = nightlyVersion.getOrElse("1.9.7")
-  private val utilVersion = nightlyVersion.getOrElse("2.0.0-alpha8")
+  private val ioVersion = nightlyVersion.getOrElse("1.10.0")
+  private val utilVersion = nightlyVersion.getOrElse("2.0.0-alpha10")
 
   private val sbtIO = "org.scala-sbt" %% "io" % ioVersion
 
@@ -27,7 +29,7 @@ object Dependencies {
   private val utilInterface = "org.scala-sbt" % "util-interface" % utilVersion
   private val utilScripted = "org.scala-sbt" %% "util-scripted" % utilVersion
 
-  val launcherInterface = "org.scala-sbt" % "launcher-interface" % "1.1.3"
+  val launcherInterface = "org.scala-sbt" % "launcher-interface" % "1.4.2"
 
   def getSbtModulePath(key: String, name: String) = {
     val localProps = new java.util.Properties()
@@ -75,25 +77,21 @@ object Dependencies {
   val parserCombinator = "org.scala-lang.modules" %% "scala-parser-combinators" % "2.1.0"
   // sbinary 0.5.2 uses 2.13 build of scala-xml, so use 0.5.1
   val sbinary = "org.scala-sbt" %% "sbinary" % "0.5.1"
-  val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.15.4"
-  val scalatest = "org.scalatest" %% "scalatest" % "3.2.10"
   val junit = "junit" % "junit" % "4.12"
-  val verify = "com.eed3si9n.verify" %% "verify" % "1.0.0"
   val sjsonNewVersion = "0.14.0-M1"
+  val scalaXml = "org.scala-lang.modules" %% "scala-xml" % "2.3.0"
+  val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.17.1"
+  val scalatest = "org.scalatest" %% "scalatest" % "3.2.18"
+  val verify = "com.eed3si9n.verify" %% "verify" % "1.0.0"
   val sjsonnew = Def.setting {
     "com.eed3si9n" %% "sjson-new-core" % sjsonNewVersion
   }
   val sjsonnewScalaJson = Def.setting {
     "com.eed3si9n" %% "sjson-new-scalajson" % sjsonNewVersion
   }
-  val zeroAllocationHashing = "net.openhft" % "zero-allocation-hashing" % "0.10.1"
-
-  def log4jVersion = "2.16.0"
-  val log4jApi = "org.apache.logging.log4j" % "log4j-api" % log4jVersion
-  val log4jCore = "org.apache.logging.log4j" % "log4j-core" % log4jVersion
-  val log4jSlf4jImpl = "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion
-  // specify all of log4j modules to prevent misalignment
-  val log4jDependencies = Vector(log4jApi, log4jCore, log4jSlf4jImpl)
+  val zeroAllocationHashing = "net.openhft" % "zero-allocation-hashing" % "0.16"
+  val scala2BinaryBridge = "org.scala-lang" % "scala2-sbt-bridge" % scala213ForBridge
+  val scala3BinaryBridge = "org.scala-lang" % "scala3-sbt-bridge" % scala3ForBridge
 
   def addTestDependencies(p: Project): Project =
     p.settings(
@@ -101,7 +99,6 @@ object Dependencies {
         scalaCheck % Test,
         scalatest % Test,
         verify % Test,
-        junit % Test
       )
     )
 }

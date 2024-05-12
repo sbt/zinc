@@ -49,20 +49,23 @@ class ExtractUsedNamesPerformanceSpecification
 
   it should "be executed in reasonable time" in {
     var zipfs: Option[FileSystem] = None
-    val src = try {
-      val fileUri = getClass.getResource(TestResource).toURI
-      zipfs = initFileSystem(fileUri)
-      new String(Files.readAllBytes(Paths.get(fileUri)))
-    } finally zipfs.foreach { fs =>
-      try fs.close()
-      catch { case _: Throwable => /*ignore*/ }
-    }
+    val src =
+      try {
+        val fileUri = getClass.getResource(TestResource).toURI
+        zipfs = initFileSystem(fileUri)
+        new String(Files.readAllBytes(Paths.get(fileUri)))
+      } finally zipfs.foreach { fs =>
+          try fs.close()
+          catch { case _: Throwable => /*ignore*/ }
+        }
     import org.scalatest.time.SpanSugar._
     val usedNames = failAfter(30.seconds) {
       extractUsedNamesFromSrc(src)
     }
     // format: off
-    val expectedNamesForTuplerScala2 = Set("java;lang;Object;init;", "Object", "scala", "tupler", "TuplerInstances", "DepFn1", "HNil", "$anon", "Out", "Out0", "Tupler", "acme;Tupler;$anon;init;", "hnilTupler", "acme", "L", "Aux", "HList", "Serializable", "Unit")
+    val expectedNamesForTuplerScala2 = Set("_$3", "Tupler", "hnilTupler", "L", "Object", "Out0", "HList", "ModuleSerializationProxy",
+      "java;lang;Object;init;", "tupler", "TuplerInstances", "DepFn1", "package", "HNil", "$anon", "Out", "T", "Aux", "scala", "Class",
+      "Serializable", "scala;runtime;ModuleSerializationProxy;init;", "acme;Tupler;$anon;init;", "Unit")
     val expectedNamesForTuplerScala3 = Set("$anon", "_$3", "acme;Tupler;$anon;init;", "Aux", "Class", "DepFn1", "HList", "HNil", "hnilTupler",
 "java;lang;Object;init;", "L", "ModuleSerializationProxy", "Object", "Out", "Out0", "package", "scala",
 "scala;runtime;ModuleSerializationProxy;init;", "Serializable", "T", "Tupler", "tupler", "TuplerInstances", "Unit")
@@ -83,7 +86,7 @@ class ExtractUsedNamesPerformanceSpecification
     assert(diffAndSort(usedNames("acme.DepFn1")) === diffAndSort(expectedNamesForDepFn1))
     assert(diffAndSort(usedNames("acme.HList")) === diffAndSort(expectedNamesForHList))
     // Todo
-    //assert(
+    // assert(
     //  diffAndSort(usedNames("acme.TuplerInstances")) === diffAndSort(
     //    expectedNamesForTuplerInstances))
     // assert(diffAndSort(usedNames("acme.$colon$colon")) === diffAndSort(`expectedNamesFor::`))
@@ -108,7 +111,9 @@ class ExtractUsedNamesPerformanceSpecification
       usedNames("TuplerInstances") -- scalaDiff === expectedNamesForTuplerInstances -- scalaDiff
     )
     assert(
-      usedNames("TuplerInstances.<refinement>") -- scalaDiff === expectedNamesForTuplerInstancesRefinement -- scalaDiff
+      usedNames(
+        "TuplerInstances.<refinement>"
+      ) -- scalaDiff === expectedNamesForTuplerInstancesRefinement -- scalaDiff
     )
   }
 

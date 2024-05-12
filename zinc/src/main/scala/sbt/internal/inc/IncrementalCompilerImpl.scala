@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -332,7 +332,12 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       compilerRun
     } catch {
       case e: xsbti.CompileFailed =>
-        throw new sbt.internal.inc.CompileFailed(e.arguments, e.toString, e.problems, e) // just ignore
+        throw new sbt.internal.inc.CompileFailed(
+          e.arguments,
+          e.toString,
+          e.problems,
+          e
+        ) // just ignore
       case e: CompileFailed        => throw e // just ignore
       case e: InterruptedException => throw e // just ignore
       case e: Throwable =>
@@ -476,11 +481,12 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         CompileResult.of(prev, currentSetup, false)
       } else {
         JarUtils.setupTempClassesDir(temporaryClassesDirectory)
-        val (changed, analysis) = if (recompileAllJava) {
-          compileAllJava(MixedAnalyzingCompiler(config)(logger))
-        } else {
-          compileInternal(MixedAnalyzingCompiler(config)(logger))
-        }
+        val (changed, analysis) =
+          if (recompileAllJava) {
+            compileAllJava(MixedAnalyzingCompiler(config)(logger))
+          } else {
+            compileInternal(MixedAnalyzingCompiler(config)(logger))
+          }
         CompileResult.of(analysis, currentSetup, changed)
       }
     }
@@ -534,9 +540,15 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
     val equiv = equivCompileSetup(mixedCompiler.log, equivOpts)
     previousSetup match {
       // The dummy output needs to be changed to .jar for this to work again.
-      //case _ if compileToJarSwitchedOn(mixedCompiler.config)             => Analysis.empty
-      case Some(prev) if equiv.equiv(prev, currentSetup)                   => previousAnalysis
-      case Some(prev) if !equivPairs.equiv(prev.extra, currentSetup.extra) => Analysis.empty
+      // case _ if compileToJarSwitchedOn(mixedCompiler.config)             => Analysis.empty
+      case Some(prev) if equiv.equiv(prev, currentSetup) => previousAnalysis
+      case Some(prev) if !equivPairs.equiv(prev.extra, currentSetup.extra) =>
+        import sbt.internal.inc.ClassFileManager
+        val classFileManager =
+          ClassFileManager.getClassFileManager(incOptions, output, outputJarContent)
+        val products = previousAnalysis.asInstanceOf[Analysis].relations.allProducts
+        classFileManager.delete(products.map(converter.toVirtualFile).toArray)
+        Analysis.empty
       case _ =>
         val srcs = config.sources.toSet
         Incremental.prune(srcs, previousAnalysis, output, outputJarContent, converter, incOptions)

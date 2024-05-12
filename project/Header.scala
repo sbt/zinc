@@ -11,16 +11,16 @@ object CustomHeaderPlugin extends AutoPlugin {
 
   override def projectSettings = Seq(
     SbtHeaderKeys.headerMappings ++= Map(
-      HeaderFileType.scala -> HeaderCommentStyle.CStyleBlockComment,
-      HeaderFileType.java -> HeaderCommentStyle.CStyleBlockComment
+      HeaderFileType.scala -> HeaderCommentStyle.cStyleBlockComment,
+      HeaderFileType.java -> HeaderCommentStyle.cStyleBlockComment
     ),
     SbtHeaderKeys.headerLicense := Some(
       HeaderLicense.Custom(
         """|Zinc - The incremental compiler for Scala.
-         |Copyright Lightbend, Inc. and Mark Harrah
+         |Copyright Scala Center, Lightbend, and Mark Harrah
          |
          |Licensed under Apache License 2.0
-         |(http://www.apache.org/licenses/LICENSE-2.0).
+         |SPDX-License-Identifier: Apache-2.0
          |
          |See the NOTICE file distributed with this work for
          |additional information regarding copyright ownership.

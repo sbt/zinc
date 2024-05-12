@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -16,8 +16,17 @@ import java.nio.file.{ Path, Paths }
 
 import sbt.internal.inc._
 import sbt.util.InterfaceUtil
-import sbt.util.InterfaceUtil.{ jo2o, position, problem }
-import xsbti.{ T2, UseScope, VirtualFileRef }
+import sbt.util.InterfaceUtil.{ jl2l, jo2o, position, problem }
+import xsbti.{
+  Action,
+  DiagnosticCode,
+  DiagnosticRelatedInformation,
+  T2,
+  TextEdit,
+  UseScope,
+  VirtualFileRef,
+  WorkspaceEdit
+}
 import xsbti.api._
 import xsbti.compile._
 import xsbti.compile.analysis.{ ReadWriteMappers, SourceInfo, Stamp }
@@ -49,26 +58,23 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
     asProduct3(read)(a => (a.name(), a.scope().name(), a.hash()))
   }
   private implicit val companionsFomrat: Format[Companions] = CompanionsFormat
-  private implicit def problemFormat: Format[Problem] =
-    asProduct5(problem)(p => (p.category, p.position, p.message, p.severity, jo2o(p.rendered)))
   private implicit def positionFormat: Format[Position] =
-    asProduct13(position)(
-      p =>
-        (
-          jo2o(p.line),
-          p.lineContent,
-          jo2o(p.offset),
-          jo2o(p.pointer),
-          jo2o(p.pointerSpace),
-          jo2o(p.sourcePath),
-          jo2o(p.sourceFile),
-          jo2o(p.startOffset),
-          jo2o(p.endOffset),
-          jo2o(p.startLine),
-          jo2o(p.startColumn),
-          jo2o(p.endLine),
-          jo2o(p.endColumn)
-        )
+    asProduct13(position)(p =>
+      (
+        jo2o(p.line),
+        p.lineContent,
+        jo2o(p.offset),
+        jo2o(p.pointer),
+        jo2o(p.pointerSpace),
+        jo2o(p.sourcePath),
+        jo2o(p.sourceFile),
+        jo2o(p.startOffset),
+        jo2o(p.endOffset),
+        jo2o(p.startLine),
+        jo2o(p.startColumn),
+        jo2o(p.endLine),
+        jo2o(p.endColumn)
+      )
     )
   private implicit val severityFormat: Format[Severity] =
     wrap[Severity, Byte](_.ordinal.toByte, b => Severity.values.apply(b.toInt))
@@ -78,7 +84,8 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
     AnalyzedClassFormats.analyzedClassFormat
   private implicit def infoFormat: Format[SourceInfo] =
     wrap[SourceInfo, (Seq[Problem], Seq[Problem], Seq[String])](
-      si => (si.getReportedProblems, si.getUnreportedProblems, si.getMainClasses), {
+      si => (si.getReportedProblems, si.getUnreportedProblems, si.getMainClasses),
+      {
         case (a, b, c) => SourceInfos.makeInfo(a.toVector, b.toVector, c.toVector)
       }
     )
@@ -88,7 +95,53 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
     asProduct2((file: Path, hash: Int) => FileHash.of(file, hash))(h => (h.file, h.hash))
   private implicit def seqFormat[T](implicit optionFormat: Format[T]): Format[Seq[T]] =
     viaSeq[Seq[T], T](x => x)
+  private implicit def listFormat[A](implicit optionFormat: Format[A]): Format[List[A]] =
+    wrap[List[A], Seq[A]](_.toSeq, _.toList)
   private def t2[A1, A2](a1: A1, a2: A2): T2[A1, A2] = InterfaceUtil.t2(a1 -> a2)
+  private implicit def diagnosticCodeFormat: Format[DiagnosticCode] =
+    asProduct2(DiagnosticsUtil.diagnosticCode)(d => (d.code(), jo2o(d.explanation())))
+  private implicit def diagnosticRelatedInformationFormat: Format[DiagnosticRelatedInformation] =
+    asProduct2(DiagnosticsUtil.diagnosticRelatedInformation)(d => (d.position(), d.message()))
+  private implicit def problemFormat: Format[Problem] = {
+    implicit val ev: Format[List[DiagnosticRelatedInformation]] =
+      listFormat(diagnosticRelatedInformationFormat)
+    implicit val ev2: Format[List[Action]] =
+      listFormat(actionFormat)
+    asProduct8(problem)(p =>
+      (
+        p.category,
+        p.position,
+        p.message,
+        p.severity,
+        jo2o(p.rendered),
+        jo2o(p.diagnosticCode),
+        jl2l(p.diagnosticRelatedInformation),
+        jl2l(p.actions),
+      )
+    )
+  }
+  private implicit def actionFormat: Format[Action] =
+    asProduct3(InterfaceUtil.action)((a: Action) =>
+      (
+        a.title,
+        jo2o(a.description),
+        a.edit,
+      )
+    )
+  private implicit def workspaceEditFormat: Format[WorkspaceEdit] = {
+    implicit val ev: Format[List[TextEdit]] = listFormat(textEditFormat)
+    wrap[WorkspaceEdit, List[TextEdit]](
+      (e: WorkspaceEdit) => jl2l(e.changes),
+      InterfaceUtil.workspaceEdit
+    )
+  }
+  private implicit def textEditFormat: Format[TextEdit] =
+    asProduct2(InterfaceUtil.textEdit)((e: TextEdit) =>
+      (
+        e.position,
+        e.newText,
+      )
+    )
 
   // Companions portion of the API info is written in a separate entry later.
   def write(out: Writer, analysis: CompileAnalysis, setup: MiniSetup): Unit = {
@@ -134,7 +187,7 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
   }
 
   private[this] object VersionF {
-    val currentVersion = "6"
+    val currentVersion = "7"
 
     def write(out: Writer): Unit = {
       out.write(s"format version: $currentVersion\n")
@@ -436,9 +489,14 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
       writeSeq(out)(Headers.compilerVersion, setup.compilerVersion :: Nil, identity[String])
       writeSeq(out)(Headers.compileOrder, setup.order.name :: Nil, identity[String])
       writeSeq(out)(Headers.skipApiStoring, setup.storeApis() :: Nil, (b: Boolean) => b.toString)
-      writePairs[String, String](out)(Headers.extra, setup.extra.toList map { x =>
-        (x.get1, x.get2)
-      }, identity[String], identity[String])
+      writePairs[String, String](out)(
+        Headers.extra,
+        setup.extra.toList map { x =>
+          (x.get1, x.get2)
+        },
+        identity[String],
+        identity[String]
+      )
     }
 
     def read(in: BufferedReader): MiniSetup = {

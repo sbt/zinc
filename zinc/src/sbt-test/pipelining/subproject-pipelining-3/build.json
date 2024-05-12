@@ -1,0 +1,15 @@
+{
+  "projects": [
+    {
+      "name": "use",
+      "dependsOn": [
+        "dep"
+      ],
+      "scalaVersion": "3.x"
+    },
+    {
+      "name": "dep",
+      "scalaVersion": "3.x"
+    }
+  ]
+}

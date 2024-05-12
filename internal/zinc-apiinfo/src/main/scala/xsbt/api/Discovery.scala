@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -14,6 +14,8 @@ package xsbt.api
 import xsbti.api.{ Path => APath, _ }
 
 import Discovery._
+
+import scala.annotation.tailrec
 
 class Discovery(baseClasses: Set[String], annotations: Set[String]) {
   def apply(s: Seq[Definition]): Seq[(Definition, Discovered)] =
@@ -66,9 +68,12 @@ object Discovery {
   def defAnnotations(s: Structure, pred: String => Boolean): Set[String] =
     defAnnotations(s.declared, pred) ++ defAnnotations(s.inherited, pred)
   def defAnnotations(defs: Seq[Definition], pred: String => Boolean): Set[String] =
-    findAnnotations(defs.flatMap {
-      case d: Def if isPublic(d) => d.annotations.toSeq; case _ => Nil
-    }, pred)
+    findAnnotations(
+      defs.flatMap {
+        case d: Def if isPublic(d) => d.annotations.toSeq; case _ => Nil
+      },
+      pred
+    )
 
   def isConcrete(a: Definition): Boolean = isConcrete(a.modifiers)
   def isConcrete(m: Modifiers) = !m.isAbstract
@@ -97,7 +102,11 @@ object Discovery {
       p.tpe
     )
   def isStringArray(t: Type): Boolean =
-    isParameterized(t, "scala.Array", "java.lang.String") // doesn't handle scala.this#Predef#String, should API phase dealias?
+    isParameterized(
+      t,
+      "scala.Array",
+      "java.lang.String"
+    ) // doesn't handle scala.this#Predef#String, should API phase dealias?
 
   def isParameterized(t: Type, base: String, args: String*): Boolean = t match {
     case p: Parameterized =>
@@ -108,6 +117,7 @@ object Discovery {
   }
   def named(t: Type, nme: String) = simpleName(t) == Some(nme)
 
+  @tailrec
   def simpleName(t: Type): Option[String] = t match {
     case a: Annotated => simpleName(a.baseType)
     case _: Singleton => None

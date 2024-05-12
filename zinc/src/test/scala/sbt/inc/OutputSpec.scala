@@ -17,7 +17,7 @@ import sbt.io.IO.{ withTemporaryDirectory => withTmpDir }
 import sbt.internal.inc.{ StringVirtualFile, JarUtils }
 
 class OutputSpec extends BaseCompilerSpec {
-  //override val logLevel = sbt.util.Level.Debug
+  // override val logLevel = sbt.util.Level.Debug
   behavior.of("incremental compiler")
 
   it should "compile directly to JAR" in withTmpDir { baseDir =>

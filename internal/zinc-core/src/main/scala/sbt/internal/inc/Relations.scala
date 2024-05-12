@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -259,6 +259,8 @@ trait Relations {
    */
   private[inc] def localInheritance: ClassDependencies
 
+  private[inc] def macroExpansion: ClassDependencies
+
   /** The relation between a source file and the fully qualified names of classes generated from it.*/
   def classes: Relation[VirtualFileRef, String]
 
@@ -429,7 +431,10 @@ private case class ExternalDependencies(
       dependencies.updated(
         dep.context,
         dependencies
-          .getOrElse(dep.context, Relation.empty) + (dep.sourceClassName, dep.targetProductClassName)
+          .getOrElse(
+            dep.context,
+            Relation.empty
+          ) + (dep.sourceClassName, dep.targetProductClassName)
       )
     )
 
@@ -590,6 +595,12 @@ private class MRelationsNameHashing(
       externalDependencies.dependencies.getOrElse(DependencyByMemberRef, Relation.empty)
     )
 
+  override def macroExpansion: ClassDependencies =
+    new ClassDependencies(
+      internalDependencies.dependencies.getOrElse(DependencyByMacroExpansion, Relation.empty),
+      externalDependencies.dependencies.getOrElse(DependencyByMacroExpansion, Relation.empty)
+    )
+
   def ++(o: Relations): Relations = {
     new MRelationsNameHashing(
       srcProd ++ o.srcProd,
@@ -640,7 +651,7 @@ private class MRelationsNameHashing(
   override def equals(other: Any) = other match {
     case o: MRelationsNameHashing =>
       srcProd == o.srcProd && libraryDep == o.libraryDep && memberRef == o.memberRef &&
-        inheritance == o.inheritance && classes == o.classes
+      inheritance == o.inheritance && classes == o.classes
     case _ => false
   }
 
@@ -651,7 +662,7 @@ private class MRelationsNameHashing(
   private val userDir = sys.props("user.dir").stripSuffix("/") + "/"
   private def nocwd(s: String) = s.stripPrefix(userDir)
   private def line_s(k: Any, v: Any) = s"    ${nocwd(s"$k")} -> ${nocwd(s"$v")}\n"
-  def relation_s(r: Relation[_, _]) = {
+  def relation_s(r: Relation[?, ?]) = {
     if (r.forwardMap.isEmpty) "Relation [ ]"
     else r.all.toSeq.map(kv => line_s(kv._1, kv._2)).sorted.mkString("Relation [\n", "", "]")
   }
@@ -664,7 +675,7 @@ private class MRelationsNameHashing(
   }
 
   override def toString: String = {
-    def deps_s(m: Map[_, Relation[_, _]]) =
+    def deps_s(m: Map[?, Relation[?, ?]]) =
       m.iterator.map {
         case (k, vs) => s"\n    $k ${relation_s(vs)}"
       }.mkString

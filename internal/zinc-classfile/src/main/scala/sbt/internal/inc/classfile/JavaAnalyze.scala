@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -38,7 +38,7 @@ private[sbt] object JavaAnalyze {
   )(
       analysis: xsbti.AnalysisCallback,
       loader: ClassLoader,
-      readAPI: (VirtualFileRef, Seq[Class[_]]) => Set[(String, String)]
+      readAPI: (VirtualFileRef, Seq[Class[?]]) => Set[(String, String)]
   ): Unit = {
     val sourceMap = sources
       .toSet[VirtualFile]
@@ -48,7 +48,7 @@ private[sbt] object JavaAnalyze {
     val directOutputJarOrNull: Path = JarUtils.getOutputJar(output).getOrElse(null)
     val mappedOutputJarOrNull: Path = finalJarOutput.getOrElse(null)
 
-    def load(tpe: String, errMsg: => Option[String]): Option[Class[_]] = {
+    def load(tpe: String, errMsg: => Option[String]): Option[Class[?]] = {
       if (tpe.endsWith("module-info")) None
       else
         try {
@@ -74,7 +74,7 @@ private[sbt] object JavaAnalyze {
       sources.map(vf => vf -> new ArrayBuffer[ClassFile]): _*
     )
 
-    val binaryClassNameToLoadedClass = new mutable.HashMap[String, Class[_]]
+    val binaryClassNameToLoadedClass = new mutable.HashMap[String, Class[?]]
 
     val classfilesCache = mutable.Map.empty[String, Path]
 
@@ -82,7 +82,7 @@ private[sbt] object JavaAnalyze {
     // as class->class dependencies that must be mapped back to source->class dependencies using the source+class assignment
     for {
       newClass <- newClasses
-      classFile = Parser(newClass)
+      classFile = Parser(newClass, log)
       _ <- classFile.sourceFile orElse guessSourceName(newClass.getFileName.toString)
       source <- guessSourcePath(sourceMap, classFile, log)
       binaryClassName = classFile.className
@@ -169,8 +169,8 @@ private[sbt] object JavaAnalyze {
           context: DependencyContext,
           fromBinaryClassName: String
       ): Unit =
-        binaryClassNames.foreach(
-          binaryClassName => processDependency(binaryClassName, context, fromBinaryClassName)
+        binaryClassNames.foreach(binaryClassName =>
+          processDependency(binaryClassName, context, fromBinaryClassName)
         )
 
       // Get all references to types in a given class file (via constant pool)
@@ -182,7 +182,7 @@ private[sbt] object JavaAnalyze {
           processDependencies(binaryClassNameDeps, DependencyByMemberRef, binaryClassName)
       }
 
-      def readInheritanceDependencies(classes: Seq[Class[_]]) = {
+      def readInheritanceDependencies(classes: Seq[Class[?]]) = {
         val api = readAPI(source, classes)
         // avoid .mapValues(...) because of its viewness (scala/bug#10919)
         api.groupBy(_._1).iterator.map { case (k, v) => k -> v.map(_._2) }
@@ -268,10 +268,11 @@ private[sbt] object JavaAnalyze {
   private def trimClassExt(name: String) =
     if (name.endsWith(ClassExt)) name.substring(0, name.length - ClassExt.length) else name
   private def classNameToClassFile(name: String) = name.replace('.', '/') + ClassExt
-  private def binaryToSourceName(loadedClass: Class[_]): Option[String] =
+  private def binaryToSourceName(loadedClass: Class[?]): Option[String] =
     Option(loadedClass.getCanonicalName)
 
-  private def loadEnclosingClass(clazz: Class[_]): Option[String] = {
+  @tailrec
+  private def loadEnclosingClass(clazz: Class[?]): Option[String] = {
     binaryToSourceName(clazz) match {
       case None if clazz.getEnclosingClass != null =>
         loadEnclosingClass(clazz.getEnclosingClass)
@@ -336,9 +337,12 @@ private[sbt] object JavaAnalyze {
         fs(fs.keys.min)
       }
 
-    refine((sourceNameMap get sourceFileName).toList.flatten map { x =>
-      (x, x.names.toList.reverse.drop(1))
-    }, pkg.reverse)
+    refine(
+      (sourceNameMap get sourceFileName).toList.flatten map { x =>
+        (x, x.names.toList.reverse.drop(1))
+      },
+      pkg.reverse
+    )
   }
 
 }

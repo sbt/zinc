@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -149,7 +149,10 @@ private final class CachedCompiler0(
       underlyingReporter: DelegatingReporter,
       compileProgress: CompileProgress
   ): Unit = {
+    // cast down to AnalysisCallback2
+    val callback2 = callback.asInstanceOf[xsbti.AnalysisCallback2]
 
+    compiler.set(callback, underlyingReporter)
     if (command.shouldStopWithInfo) {
       underlyingReporter.info(null, command.getInfoMessage(compiler), true)
       throw new InterfaceCompileFailed(args, Array(), StopInfoError)
@@ -157,13 +160,22 @@ private final class CachedCompiler0(
 
     if (noErrors(underlyingReporter)) {
       debug(log, prettyPrintCompilationArguments(args))
-      compiler.set(callback, underlyingReporter)
       val run = new compiler.ZincRun(compileProgress)
 
       run.compileFiles(sources)
       processUnreportedWarnings(run)
-      underlyingReporter.problems.foreach(
-        p => callback.problem(p.category, p.position, p.message, p.severity, true)
+      underlyingReporter.problems.foreach(p =>
+        callback2.problem2(
+          p.category,
+          p.position,
+          p.message,
+          p.severity,
+          true,
+          p.rendered,
+          p.diagnosticCode,
+          p.diagnosticRelatedInformation,
+          p.actions
+        )
       )
     }
 

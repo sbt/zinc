@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -83,20 +83,21 @@ private[inc] class APIDiff {
         acc.reverse
       } else {
         val head = str.charAt(0).toInt
-        val (token, rest) = if (Character.isAlphabetic(head) || Character.isDigit(head)) {
-          str.span { c =>
-            val i = c.toInt
-            Character.isAlphabetic(i) || Character.isDigit(i)
+        val (token, rest) =
+          if (Character.isAlphabetic(head) || Character.isDigit(head)) {
+            str.span { c =>
+              val i = c.toInt
+              Character.isAlphabetic(i) || Character.isDigit(i)
+            }
+          } else if (Character.isMirrored(head) || Character.isWhitespace(head)) {
+            str.splitAt(1)
+          } else {
+            str.span { c =>
+              val i = c.toInt
+              !Character.isAlphabetic(i) && !Character.isDigit(i) &&
+              !Character.isMirrored(i) && !Character.isWhitespace(i)
+            }
           }
-        } else if (Character.isMirrored(head) || Character.isWhitespace(head)) {
-          str.splitAt(1)
-        } else {
-          str.span { c =>
-            val i = c.toInt
-            !Character.isAlphabetic(i) && !Character.isDigit(i) &&
-            !Character.isMirrored(i) && !Character.isWhitespace(i)
-          }
-        }
         splitTokens(rest, token :: acc)
       }
     }

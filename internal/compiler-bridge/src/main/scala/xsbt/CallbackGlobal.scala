@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -19,6 +19,7 @@ import io.AbstractFile
 import java.nio.file.{ Files, Path }
 
 import scala.reflect.io.PlainFile
+import scala.reflect.ReflectAccess._
 
 /** Defines the interface of the incremental compiler hiding implementation details. */
 sealed abstract class CallbackGlobal(
@@ -92,29 +93,33 @@ sealed class ZincCompiler(settings: Settings, dreporter: DelegatingReporter, out
 
   /** Phase that analyzes the generated class files and maps them to sources. */
   object sbtAnalyzer extends {
-    val global: ZincCompiler.this.type = ZincCompiler.this
-    val phaseName = Analyzer.name
-    val runsAfter = List("jvm")
-    override val runsBefore = List("terminal")
-    val runsRightAfter = None
-  } with SubComponent {
+        val global: ZincCompiler.this.type = ZincCompiler.this
+        val phaseName = Analyzer.name
+        val runsAfter = List("jvm")
+        override val runsBefore = List("terminal")
+        val runsRightAfter = None
+      } with SubComponent {
     val analyzer = new Analyzer(global)
     def newPhase(prev: Phase) = analyzer.newPhase(prev)
     def name = phaseName
+
+    def description = "analyze the generated class files and map them to sources"
   }
 
   /** Phase that extracts dependency information */
   object sbtDependency extends {
-    val global: ZincCompiler.this.type = ZincCompiler.this
-    val phaseName = Dependency.name
-    val runsAfter = List(API.name)
-    override val runsBefore = List("refchecks")
-    // Keep API and dependency close to each other -- we may want to merge them in the future.
-    override val runsRightAfter = Some(API.name)
-  } with SubComponent {
+        val global: ZincCompiler.this.type = ZincCompiler.this
+        val phaseName = Dependency.name
+        val runsAfter = List(API.name)
+        override val runsBefore = List("refchecks")
+        // Keep API and dependency close to each other -- we may want to merge them in the future.
+        override val runsRightAfter = Some(API.name)
+      } with SubComponent {
     val dependency = new Dependency(global)
     def newPhase(prev: Phase) = dependency.newPhase(prev)
     def name = phaseName
+
+    def description = "extract dependency information"
   }
 
   /**
@@ -124,24 +129,29 @@ sealed class ZincCompiler(settings: Settings, dreporter: DelegatingReporter, out
    *       irrespective of whether we typecheck from source or unpickle previously compiled classes.
    */
   object apiExtractor extends {
-    val global: ZincCompiler.this.type = ZincCompiler.this
-    val phaseName = API.name
-    val runsAfter = List("typer")
-    override val runsBefore = List("erasure")
-    // TODO: Consider migrating to "uncurry" for `runsBefore`.
-    // TODO: Consider removing the system property to modify which phase is used for API extraction.
-    val runsRightAfter = Option(System.getProperty("sbt.api.phase")) orElse Some("pickler")
-  } with SubComponent {
+        val global: ZincCompiler.this.type = ZincCompiler.this
+        val phaseName = API.name
+        val runsAfter = List("typer")
+        override val runsBefore = List("erasure")
+        // TODO: Consider migrating to "uncurry" for `runsBefore`.
+        // TODO: Consider removing the system property to modify which phase is used for API extraction.
+        val runsRightAfter = Option(System.getProperty("sbt.api.phase")) orElse Some("pickler")
+      } with SubComponent {
     val api = new API(global)
     def newPhase(prev: Phase) = api.newPhase(prev)
     def name = phaseName
+
+    def description = "construct a representation of the public API"
   }
 
   override lazy val phaseDescriptors = {
     phasesSet += sbtAnalyzer
+    phasesDescMap(sbtAnalyzer) = sbtAnalyzer.description
     if (callback.enabled()) {
       phasesSet += sbtDependency
+      phasesDescMap(sbtDependency) = sbtDependency.description
       phasesSet += apiExtractor
+      phasesDescMap(apiExtractor) = apiExtractor.description
     }
     this.computePhaseDescriptors
   }
@@ -205,8 +215,7 @@ sealed class ZincCompiler(settings: Settings, dreporter: DelegatingReporter, out
    *
    * Changes compared to the normal version in the compiler:
    *
-   * 1. It will use the encoded name instead of the normal name.
-   * 2. It will not skip the name of the package object class (required for the class file path).
+   * 1. It will use the encoded name instead of the normal n2. It will not skip the name of the package object class (required for the class file path).
    *
    * Note that using `javaBinaryName` is not useful for these symbols because we
    * need the encoded names. Zinc keeps track of encoded names in both the binary
@@ -226,19 +235,19 @@ sealed class ZincCompiler(settings: Settings, dreporter: DelegatingReporter, out
   ): String = {
     var b: java.lang.StringBuffer = null
     def loop(size: Int, sym: Symbol): Unit = {
-      val symName = sym.name
+      val symName = flattenedName(this)(sym)
       // Use of encoded to produce correct paths for names that have symbols
       val encodedName = symName.encode
       val nSize = encodedName.length - (if (symName.endsWith(nme.LOCAL_SUFFIX_STRING)) 1 else 0)
-      if (sym.isRoot || sym.isRootPackage || sym == NoSymbol || sym.owner.isEffectiveRoot) {
+      val owner = flattenedOwner(this)(sym)
+      if (sym.isRoot || sym.isRootPackage || sym == NoSymbol || owner.isEffectiveRoot) {
         val capacity = size + nSize
         b = new java.lang.StringBuffer(capacity)
         b.append(chrs, encodedName.start, nSize)
       } else {
-        val next = if (sym.owner.isPackageObjectClass) sym.owner else sym.effectiveOwner.enclClass
+        val next = if (owner.isPackageObjectClass) owner else owner.skipPackageObject
         loop(size + nSize + 1, next)
-        // Addition to normal `fullName` to produce correct names for nested non-local classes
-        if (sym.isNestedClass) b.append(nme.MODULE_SUFFIX_STRING) else b.append(separator)
+        if (owner.isPackageObjectClass) b.append(nme.MODULE_SUFFIX_STRING) else b.append(separator)
         b.append(chrs, encodedName.start, nSize)
       }
       ()

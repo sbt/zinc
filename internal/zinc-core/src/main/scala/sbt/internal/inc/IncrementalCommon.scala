@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -98,6 +98,7 @@ private[inc] abstract class IncrementalCommon(
         invalidatedSources,
         classfileManager,
         pruned,
+        previous,
         classesToRecompile,
         profiler.registerCycle(
           invalidatedClasses,
@@ -148,6 +149,7 @@ private[inc] abstract class IncrementalCommon(
         invalidatedSources: Set[VirtualFile],
         classFileManager: XClassFileManager,
         pruned: Analysis,
+        override val previousAnalysis: Analysis,
         classesToRecompile: Set[String],
         registerCycle: (Set[String], APIChanges, Set[String], Boolean) => Unit
     ) extends IncrementalCallback(classFileManager) {
@@ -176,7 +178,7 @@ private[inc] abstract class IncrementalCommon(
           if (isFullCompilation) Set.empty[String]
           else
             invalidateAfterInternalCompilation(
-              analysis.relations,
+              analysis,
               newApiChanges,
               recompiledClasses,
               cycleNum >= options.transitiveStep,
@@ -282,7 +284,7 @@ private[inc] abstract class IncrementalCommon(
         invalidated
       else {
         log.debug(
-          s"Recompiling all sources: number of invalidated sources > ${recompileAllFraction * 100.00}% of all sources"
+          s"Recompiling all sources: number of invalidated sources > ${recompileAllFraction * 100.00} percent of all sources"
         )
         allSources ++ invalidated // Union because `all` doesn't contain removed sources
       }
@@ -312,7 +314,14 @@ private[inc] abstract class IncrementalCommon(
         val hasMacro = a.hasMacro || b.hasMacro
         if (hasMacro && IncOptions.getRecompileOnMacroDef(options)) {
           Some(APIChangeDueToMacroDefinition(className))
-        } else findAPIChange(className, a, b)
+        } else if (
+          APIUtil.isAnnotationDefinition(a.api().classApi()) ||
+          APIUtil.isAnnotationDefinition(b.api().classApi())
+        ) {
+          Some(APIChangeDueToAnnotationDefinition(className))
+        } else {
+          findAPIChange(className, a, b)
+        }
       }
     }
     val apiChanges = recompiledClasses.flatMap(name => classDiff(name, oldAPI(name), newAPI(name)))
@@ -434,7 +443,7 @@ private[inc] abstract class IncrementalCommon(
   /**
    * Invalidates classes internally to a project after an incremental compiler run.
    *
-   * @param relations The relations produced by the immediate previous incremental compiler cycle.
+   * @param analysis The analysis produced by the immediate previous incremental compiler cycle.
    * @param changes The changes produced by the immediate previous incremental compiler cycle.
    * @param recompiledClasses The immediately recompiled class names.
    * @param invalidateTransitively A flag that tells whether transitive invalidations should be
@@ -444,21 +453,23 @@ private[inc] abstract class IncrementalCommon(
    * @return A list of invalidated class names for the next incremental compiler run.
    */
   def invalidateAfterInternalCompilation(
-      relations: Relations,
+      analysis: Analysis,
       changes: APIChanges,
       recompiledClasses: Set[String],
       invalidateTransitively: Boolean,
       isScalaClass: String => Boolean
   ): Set[String] = {
+    val relations = analysis.relations
     val initial = changes.allModified.toSet
     val dependsOnClass = findClassDependencies(_, relations)
     val firstClassInvalidation: Set[String] = {
-      val invalidated = if (invalidateTransitively) {
-        // Invalidate by brute force (normally happens when we've done more than 3 incremental runs)
-        IncrementalCommon.transitiveDeps(initial, log)(dependsOnClass)
-      } else {
-        changes.apiChanges.flatMap(invalidateClassesInternally(relations, _, isScalaClass)).toSet
-      }
+      val invalidated =
+        if (invalidateTransitively) {
+          // Invalidate by brute force (normally happens when we've done more than 3 incremental runs)
+          IncrementalCommon.transitiveDeps(initial, log)(dependsOnClass)
+        } else {
+          changes.apiChanges.flatMap(invalidateClassesInternally(relations, _, isScalaClass)).toSet
+        }
       val included = includeTransitiveInitialInvalidations(initial, invalidated, dependsOnClass)
       log.debug("Final step, transitive dependencies:\n\t" + included)
       included
@@ -469,14 +480,36 @@ private[inc] abstract class IncrementalCommon(
     if (secondClassInvalidation.nonEmpty)
       log.debug(s"Invalidated due to generated class file collision: ${secondClassInvalidation}")
 
-    val newInvalidations = (firstClassInvalidation -- recompiledClasses) ++ secondClassInvalidation
+    // Invalidate macro classes that transitively depend on any of the recompiled classes
+    //
+    // The macro expansion tree can depend on the behavioural change of any upstream code change,
+    // not just API changes, so correctness requires aggressive recompilation of downstream classes.
+    //
+    // Technically the macro doesn't need to be recompiled - it's the classes downstream of the macro
+    // that need to be recompiled, so that the macros can be re-expanded.  But recompiling is the most
+    // straightforward way to signal any classes downstream of the _macro_ that they need to recompile.
+    //
+    // Also, note, that this solution only works for behavioural changes in sources within the same
+    // subproject as the macro.  Changes in behaviour in upstream subprojects don't cause downstream
+    // macro classes to recompile - because downstream projects only have visibility of the upstream
+    // API, and if it changed, which is insufficient, and upstream projects have no other way than
+    // their API to signal to downstream.
+    val thirdClassInvalidation = {
+      val transitive = IncrementalCommon.transitiveDeps(recompiledClasses, log)(dependsOnClass)
+      (transitive -- recompiledClasses).filter(analysis.apis.internalAPI(_).hasMacro)
+    }
+
+    val newInvalidations =
+      (firstClassInvalidation -- recompiledClasses) ++ secondClassInvalidation ++ thirdClassInvalidation
     if (newInvalidations.isEmpty) {
       log.debug("No classes were invalidated.")
       Set.empty
     } else {
-      val allInvalidations = firstClassInvalidation ++ secondClassInvalidation
-      log.debug(s"Invalidated classes: ${allInvalidations.mkString(", ")}")
-      allInvalidations
+      if (invalidateTransitively) {
+        newInvalidations ++ recompiledClasses
+      } else {
+        firstClassInvalidation ++ secondClassInvalidation ++ thirdClassInvalidation
+      }
     }
   }
 
@@ -500,7 +533,14 @@ private[inc] abstract class IncrementalCommon(
     val removedClasses = classNames(removedSrcs)
     val dependentOnRemovedClasses = removedClasses.flatMap(previous.memberRef.internal.reverse)
     val modifiedClasses = classNames(modifiedSrcs)
-    val invalidatedClasses = removedClasses ++ dependentOnRemovedClasses ++ modifiedClasses
+    val mutualDependentOnModifiedClasses = {
+      val dependentOnModifiedClasses = modifiedClasses.flatMap(previous.memberRef.internal.reverse)
+      dependentOnModifiedClasses.filter(dependent =>
+        previous.memberRef.internal.reverse(dependent).exists(modifiedClasses)
+      )
+    }
+    val invalidatedClasses =
+      removedClasses ++ dependentOnRemovedClasses ++ modifiedClasses ++ mutualDependentOnModifiedClasses
 
     val byProduct = changes.removedProducts.flatMap(previous.produced)
     val byLibraryDep = changes.libraryDeps.flatMap(previous.usesLibrary)
@@ -588,6 +628,8 @@ private[inc] abstract class IncrementalCommon(
       apiChanges foreach {
         case APIChangeDueToMacroDefinition(src) =>
           wrappedLog.debug(s"Detected API change because $src contains a macro definition.")
+        case APIChangeDueToAnnotationDefinition(src) =>
+          wrappedLog.debug(s"Detected API change because $src contains an annotation definition.")
         case TraitPrivateMembersModified(modifiedClass) =>
           wrappedLog.debug(s"Detect change in private members of trait ${modifiedClass}.")
         case apiChange: NamesChange =>
@@ -595,7 +637,7 @@ private[inc] abstract class IncrementalCommon(
           val oldApi = oldAPIMapping(src)
           val newApi = newAPIMapping(src)
           val apiUnifiedPatch =
-            apiDiff.generateApiDiff(src.toString, oldApi.api, newApi.api, contextSize)
+            apiDiff.generateApiDiff(src, oldApi.api, newApi.api, contextSize)
           wrappedLog.debug(s"Detected a change in a public API ($src):\n$apiUnifiedPatch")
       }
     } catch {
@@ -744,8 +786,10 @@ object IncrementalCommon {
 
       def isLibraryChanged(file: VirtualFileRef): Boolean = {
         def compareOriginClassFile(className: String, classpathEntry: VirtualFileRef): Boolean = {
-          if (classpathEntry.id.endsWith(".jar") &&
-              (converter.toPath(classpathEntry).toString != converter.toPath(file).toString))
+          if (
+            classpathEntry.id.endsWith(".jar") &&
+            (converter.toPath(classpathEntry).toString != converter.toPath(file).toString)
+          )
             invalidateBinary(s"${className} is now provided by ${classpathEntry}")
           else compareStamps(file, classpathEntry)
         }

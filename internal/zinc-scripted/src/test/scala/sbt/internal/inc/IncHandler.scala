@@ -120,7 +120,7 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
     val build = initBuild
     build.projects.foreach { p =>
       val in: Path = p.in.getOrElse(directory / p.name)
-      val version = p.scalaVersion.getOrElse(scala.util.Properties.versionNumberString)
+      val version = switchScalaVersion(p.scalaVersion)
       val deps = p.dependsOn.toVector.flatten
       val project = ProjectStructure(
         p.name,
@@ -165,7 +165,7 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
     val (project, commandToRun) = splitCommands match {
       case sub :: cmd :: Nil => buildStructure(sub) -> cmd
       case cmd :: Nil        => buildStructure(RootIdentifier) -> cmd
-      case _                 => sys.error(s"The command is either empty or has more than one `/`: $command")
+      case _ => sys.error(s"The command is either empty or has more than one `/`: $command")
     }
     val runner = (ii: IncState) => commands(commandToRun)(project, arguments, ii)
     Some(onIncState(state, project)(runner))
@@ -175,7 +175,7 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
       run: IncState => Future[Unit]
   ): IncState = {
     val instance = i.getOrElse(onNewIncState(p))
-    try Await.result(run(instance), 60.seconds)
+    try Await.result(run(instance), 600.seconds)
     catch {
       case NonFatal(e) =>
         instance.compilations.clear()
@@ -196,7 +196,12 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
       toCache
     }
     val analyzingCompiler = scalaCompiler(si, compilerBridge)
-    val cs = incrementalCompiler.compilers(si, ClasspathOptionsUtil.boot, None, analyzingCompiler)
+    val cs = incrementalCompiler.compilers(
+      si,
+      ClasspathOptionsUtil.noboot(si.version),
+      None,
+      analyzingCompiler
+    )
     IncState(si, cs, 0)
   }
 
@@ -204,16 +209,22 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
 
   def scalaCompiler(instance: XScalaInstance, bridgeJar: Path): AnalyzingCompiler = {
     val bridgeProvider = ZincUtil.constantBridgeProvider(instance, bridgeJar)
-    val classpath = ClasspathOptionsUtil.boot
+    val classpath = ClasspathOptionsUtil.noboot(instance.version)
     new AnalyzingCompiler(instance, bridgeProvider, classpath, unit, IncHandler.classLoaderCache)
   }
 
+  // hopefully the meaning of the commands can be understood by looking at examples.
+  // the `check-recompilations` test is a good one for seeing how `checkDependencies`
+  // and `checkRecompilations` work.
   lazy val commands: Map[String, IncCommand] = Map(
     noArgs("compile") { case (p, i) => p.compile(i).map(_ => ()) },
-    noArgs("clean") { case (p, _)   => p.clean() },
+    noArgs("clean") { case (p, _) => p.clean() },
     onArgs("checkIterations") {
       case (p, x :: Nil, i) => p.checkNumberOfCompilerIterations(i, x.toInt)
     },
+    // note that this can only tell us the *last* round a class got compiled in.
+    // it can't tell us *every* round something got compiled in, since only
+    // still-extant classfiles are available for inspection
     onArgs("checkRecompilations") {
       case (p, step :: classNames, i) => p.checkRecompilations(i, step.toInt, classNames)
     },
@@ -226,15 +237,18 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
     onArgs("checkProducts") {
       case (p, src :: products, i) => p.checkProducts(i, dropRightColon(src), products)
     },
+    onArgs("checkProductsExists") {
+      case (p, src :: Nil, i) => p.checkProductsExist(i, src)
+    },
     onArgs("checkDependencies") {
       case (p, cls :: dependencies, i) => p.checkDependencies(i, dropRightColon(cls), dependencies)
     },
     onArgs("checkNameExistsInClass") {
       case (p, cls :: name :: Nil, i) => p.checkNameExistsInClass(i, dropRightColon(cls), name)
     },
-    noArgs("checkSame") { case (p, i)   => p.checkSame(i) },
+    noArgs("checkSame") { case (p, i) => p.checkSame(i) },
     onArgs("run") { case (p, params, i) => p.run(i, params) },
-    noArgs("package") { case (p, i)     => p.packageBin(i) },
+    noArgs("package") { case (p, i) => p.packageBin(i) },
     onArgs("checkWarnings") {
       case (p, count :: Nil, _) => p.checkMessages(count.toInt, Severity.Warn)
     },
@@ -435,28 +449,32 @@ case class ProjectStructure(
       ()
     }
 
+  def getProducts(analysis: Analysis)(srcFile: String): Set[VirtualFileRef] =
+    analysis.relations.products(converter.toVirtualFile(baseDirectory / srcFile))
+
   def checkProducts(i: IncState, src: String, expected: List[String]): Future[Unit] =
     compile(i).map { analysis =>
-      // def isWindows: Boolean = sys.props("os.name").toLowerCase.startsWith("win")
-      // def relativeClassDir(f: File): File = f.relativeTo(classesDir) getOrElse f
-      // def normalizePath(path: String): String = {
-      //   if (isWindows) path.replace('\\', '/') else path
-      // }
-      def products(srcFile: String): Set[String] = {
-        val productFiles = analysis.relations.products(converter.toVirtualFile(baseDirectory / src))
-        productFiles.map { file: VirtualFileRef =>
-          // if (JarUtils.isClassInJar(file)) {
-          //   JarUtils.ClassInJar.fromPath(output.toPath).toClassFilePath
-          // } else {
-          //   normalizePath(relativeClassDir(file).getPath)
-          // }
-          file.id
-        }
-      }
       def assertClasses(expected: Set[String], actual: Set[String]) =
-        assert(expected == actual, s"Expected $expected products, got $actual")
+        assert(
+          expected == actual,
+          s"""Mismatch:
+             |Expected:${expected.toList.sorted.map("\n  " + _).mkString}
+             |Obtained:${actual.toList.sorted.map("\n  " + _).mkString}""".stripMargin
+        )
 
-      assertClasses(expected.toSet, products(src))
+      assertClasses(expected.toSet, getProducts(analysis)(src).map(_.id))
+      ()
+    }
+
+  def checkProductsExist(i: IncState, src: String): Future[Unit] =
+    compile(i).map { analysis =>
+      val missing =
+        for (p <- getProducts(analysis)(src).toList if !Files.exists(converter.toPath(p))) yield p
+      assert(
+        missing.isEmpty,
+        s"""Missing ${missing.size} products:${missing.map("\n  " + _).mkString}
+           |Generated:${generatedClassFiles.get.toList.map("\n  " + _).mkString}""".stripMargin
+      )
       ()
     }
 
@@ -495,7 +513,8 @@ case class ProjectStructure(
     compile(i).map { analysis =>
       discoverMainClasses(Some(analysis.apis)) match {
         case Seq(mainClassName) =>
-          val cp = ((i.si.allJars.map(_.toPath) :+ classesDir) ++ outputJar).map(_.toAbsolutePath)
+          val jars = i.si.allJars.map(_.toPath)
+          val cp = (jars ++ (unmanagedJars :+ output) ++ internalClasspath).map(_.toAbsolutePath)
           val loader = ClasspathUtil.makeLoader(cp, i.si, baseDirectory)
           val buffer = new ByteArrayOutputStream(8192)
           val oldOut = System.out
@@ -567,7 +586,8 @@ case class ProjectStructure(
               } else {
                 triggerDeps(dep)._1.map(_ => dep.output)
               }
-            } else triggerDeps(dep)._1.map(_ => dep.output)
+            }
+          else triggerDeps(dep)._1.map(_ => dep.output)
         }
         val futureScalaAnalysis = earlyDeps.map { internalCp =>
           blocking {
@@ -767,7 +787,7 @@ case class ProjectStructure(
       .of()
       .withPipelining(defaultPipelining)
       .withApiDebug(true)
-    //.withRelationsDebug(true)
+    // .withRelationsDebug(true)
     val incOptions = {
       val opts = IncOptionsUtil.fromStringMap(base, map, scriptedLog)
       if (opts.recompileAllFraction() != IncOptions.defaultRecompileAllFraction()) opts
@@ -822,6 +842,14 @@ case class ProjectStructure(
       }
       ()
     }
+
+  def assertShort(assertion: Boolean, message: => Any) = {
+    if (!assertion) {
+      val err = new AssertionError("assertion failed: " + message)
+      err.setStackTrace(Array())
+      throw err
+    }
+  }
 }
 
 object IncHandler {

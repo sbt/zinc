@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -16,7 +16,6 @@ package xsbti.compile;
  * that create typical classpath options based on the desired use-case.
  */
 public interface ClasspathOptionsUtil {
-
     /**
      * Define a manual {@link ClasspathOptions} where the client manages everything.
      */
@@ -35,6 +34,16 @@ public interface ClasspathOptionsUtil {
     }
 
     /**
+     * Define {@link ClasspathOptions} where the Scala standard library is present in the classpath.
+     */
+    public static ClasspathOptions noboot(String scalaVersion) {
+        if (!scalaVersion.startsWith("2.") || scalaVersion.startsWith("2.13."))
+            return ClasspathOptions.of(false, false, false, false, false);
+        else
+            return boot();
+    }
+
+    /**
      * Define auto {@link ClasspathOptions} where:
      * 1. the Scala standard library is present in the classpath;
      * 2. the Compiler JAR is present in the classpath;
@@ -44,6 +53,19 @@ public interface ClasspathOptionsUtil {
      */
     public static ClasspathOptions auto() {
         return ClasspathOptions.of(true, true, true, true, true);
+    }
+
+    /**
+     * Define auto {@link ClasspathOptions} where:
+     * 1. the Scala standard library is present in the classpath;
+     * 2. the Compiler JAR is present in the classpath;
+     * 3. the extra JARs present in the Scala instance are added to the classpath.
+     */
+    public static ClasspathOptions autoNoboot(String scalaVersion) {
+        if (!scalaVersion.startsWith("2.") || scalaVersion.startsWith("2.13."))
+            return ClasspathOptions.of(false, true, true, false, false);
+        else
+            return auto();
     }
 
     /**
@@ -68,5 +90,15 @@ public interface ClasspathOptionsUtil {
      */
     public static ClasspathOptions repl() {
         return auto();
+    }
+
+    /**
+     * Define repl {@link ClasspathOptions} where:
+     * 1. the Scala standard library is present in the classpath;
+     * 2. the Compiler JAR is present in the classpath;
+     * 3. the extra JARs present in the Scala instance are added to the classpath.
+     */
+    public static ClasspathOptions replNoboot(String scalaVersion) {
+        return autoNoboot(scalaVersion);
     }
 }

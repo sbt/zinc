@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -95,12 +95,14 @@ private[sbt] final case class AttributeInfo(name: Option[String], value: Array[B
   def isNamed(s: String) = name.exists(s == _)
   def isSignature = isNamed("Signature")
   def isSourceFile = isNamed("SourceFile")
+  def isRuntimeVisibleAnnotations = isNamed("RuntimeVisibleAnnotations")
+  def isRuntimeInvisibleAnnotations = isNamed("RuntimeInvisibleAnnotations")
 }
 private[sbt] object Constants {
   final val ACC_STATIC = 0x0008
   final val ACC_PUBLIC = 0x0001
 
-  final val JavaMagic = 0xCAFEBABE
+  final val JavaMagic = 0xcafebabe
   final val ConstantUTF8 = 1
   final val ConstantUnicode = 2
   final val ConstantInteger = 3

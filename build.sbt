@@ -1,22 +1,12 @@
-import Util._
+import ZincBuildUtil._
 import Dependencies._
 import localzinc.Scripted, Scripted._
 import com.typesafe.tools.mima.core._, ProblemFilters._
 
-// == INTELLIJ IMPORT ==
-//
-// Uncomment this line to remove usage of sbt-project-matrix by specializing scalaVersion := 2.12
-// Ideally we could replace this with: `SettingKey[Boolean]("ideSkipProject") := scalaVersion.value != defaultScalaVersion`
-// in `commonSettings`, but when I tried this the IntelliJ import fails with `Cannot find project dependency: compilerBridgeJVM2_13`
-// See: https://github.com/sbt/sbt-projectmatrix/issues/25
-//
-// This hack is documented in CONTRIBUTING.md, please keep that in sync.
-// import ProjectMatrixShims.{ projectMatrix, _ }
-
 def zincRootPath: File = file(sys.props.getOrElse("sbtzinc.path", ".")).getCanonicalFile
 def internalPath = zincRootPath / "internal"
 
-def mimaSettings: Seq[Setting[_]] = Seq(
+def mimaSettings: Seq[Setting[?]] = Seq(
   mimaPreviousArtifacts := {
     val pre140 = Set(
       "1.0.0",
@@ -37,6 +27,8 @@ def mimaSettings: Seq[Setting[_]] = Seq(
     val post140: Set[String] = Set(
       "1.4.0",
       "1.5.0",
+      "1.6.0",
+      "1.7.0",
     )
     val versions =
       if (scalaVersion.value.startsWith("2.12.")) pre140 ++ post140
@@ -86,27 +78,35 @@ ThisBuild / publishTo := {
 ThisBuild / mimaPreviousArtifacts := Set.empty
 // limit the number of concurrent test so testQuick works
 Global / concurrentRestrictions += Tags.limit(Tags.Test, 4)
-Global / semanticdbVersion := "4.4.28"
+// Global / semanticdbVersion := "4.5.9"
 ThisBuild / Test / fork := true
+Global / excludeLintKeys += ideSkipProject
 
-def baseSettings: Seq[Setting[_]] = Seq(
-  resolvers += Resolver.typesafeIvyRepo("releases"),
-  resolvers += Resolver.sonatypeRepo("snapshots"),
+def baseSettings: Seq[Setting[?]] = Seq(
   testOptions += Tests.Argument(TestFrameworks.ScalaCheck, "-w", "1", "-verbosity", "2"),
   testFrameworks += new TestFramework("verify.runner.Framework"),
   compile / javacOptions ++= Seq("-Xlint", "-Xlint:-serial"),
   Test / publishArtifact := false,
-  scalacOptions ++= Seq("-YdisableFlatCpCaching", "-target:jvm-1.8"),
+  scalacOptions ++= Seq("-YdisableFlatCpCaching"),
+  scalacOptions += {
+    scalaBinaryVersion.value match {
+      case "2.10" | "2.11" =>
+        "-target:jvm-1.8"
+      case _ =>
+        "-release:8"
+    }
+  },
   semanticdbCompilerPlugin := {
     ("org.scalameta" % "semanticdb-scalac" % semanticdbVersion.value)
       .cross(CrossVersion.full)
   },
+  ideSkipProject := scalaVersion.value != defaultScalaVersion,
 )
 
-def compilerVersionDependentScalacOptions: Seq[Setting[_]] = Seq(
+def compilerVersionDependentScalacOptions: Seq[Setting[?]] = Seq(
   scalacOptions := {
     scalaBinaryVersion.value match {
-      case "2.12" =>
+      case "2.12" | "2.13" =>
         scalacOptions.value ++ List(
           "-opt-inline-from:<sources>",
           "-opt:l:inline",
@@ -126,15 +126,6 @@ def compilerVersionDependentScalacOptions: Seq[Setting[_]] = Seq(
 
 def addBaseSettingsAndTestDeps(p: Project): Project =
   p.settings(baseSettings).configure(addTestDependencies)
-
-val noPublish: Seq[Setting[_]] = List(
-  publish := {},
-  publishLocal := {},
-  Compile / publishArtifact := false,
-  Test / publishArtifact := false,
-  publishArtifact := false,
-  publish / skip := true,
-)
 
 // zincRoot is now only 2.12 (2.11.x is not supported anymore)
 lazy val aggregated: Seq[ProjectReference] = compilerInterface.projectRefs ++
@@ -162,7 +153,7 @@ lazy val zincRoot: Project = (project in file("."))
     scripted / watchTriggers += baseDirectory.value.toGlob / "zinc" / "src" / "sbt-test" / **,
     Scripted.scriptedSource := (zinc3 / sourceDirectory).value / "sbt-test",
     Scripted.scriptedCompileToJar := false,
-    noPublish,
+    publish / skip := true,
     commands += Command.command("release") { state =>
       "clean" :: "+compile" :: "+publishSigned" :: "reload" :: state
     }, // clean is required b/c the version is generated in properties file
@@ -202,8 +193,37 @@ lazy val zinc = (projectMatrix in (zincRootPath / "zinc"))
       BuildInfoKey.map(compilerBridge213 / scalaVersion)("scalaVersion213" -> _._2),
       BuildInfoKey.map(compilerBridge213 / scalaInstance)("scalaJars213" -> _._2.allJars.toList),
       BuildInfoKey.map(compilerBridge213 / Compile / classDirectory)("classDirectory213" -> _._2),
+      BuildInfoKey.map(compilerBridgeScala213Bin / scalaVersion)("scalaVersion213Bin" -> _._2),
+      BuildInfoKey.map(compilerBridgeScala213Bin / scalaInstance)(
+        "scalaJars213Bin" -> _._2.allJars.toList
+      ),
+      BuildInfoKey.map(compilerBridgeScala213Bin / Compile / externalDependencyClasspath)(
+        "compilerBridge213Bin" -> _._2.toList.head.data
+      ),
+      BuildInfoKey.map(compilerBridgeScala3Bin / scalaVersion)("scalaVersion3Bin" -> _._2),
+      BuildInfoKey.map(compilerBridgeScala3Bin / scalaInstance)(
+        "scalaJars3Bin" -> _._2.allJars.toList
+      ),
+      BuildInfoKey.map(compilerBridgeScala3Bin / Compile / externalDependencyClasspath)(
+        "compilerBridge3Bin" -> _._2.toList.head.data
+      ),
+      BuildInfoKey.map(compilerInterface.jvm(false) / Compile / packageBin)(
+        "compilerInterface" -> _._2
+      ),
     ),
     Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
+    // so we have full access to com.sun.tools.javac on JDK 17
+    Test / javaOptions ++= (
+      if (System.getProperty("java.version").startsWith("1.8"))
+        Seq()
+      else
+        Seq(
+          "--add-opens",
+          "jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
+          "--add-opens",
+          "jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
+        )
+    ),
     mimaSettings,
     mimaBinaryIssueFilters ++= Seq(
       exclude[DirectMissingMethodProblem]("sbt.internal.*"),
@@ -231,8 +251,10 @@ lazy val zincTesting = (projectMatrix in internalPath / "zinc-testing")
   .settings(
     name := "zinc Testing",
     baseSettings,
-    noPublish,
-    libraryDependencies ++= Seq(scalaCheck, scalatest, junit, verify, sjsonnewScalaJson.value)
+    publish / skip := true,
+    libraryDependencies ++= Seq(scalaCheck, scalatest, verify, sjsonnewScalaJson.value),
+    // scala-compiler depends on 1.x, but 2.x works too
+    dependencyOverrides += "org.scala-lang.modules" %% "scala-xml" % "2.3.0"
   )
   .jvmPlatform(scalaVersions = scala3_only)
   .configure(addSbtIO, addSbtUtilLogging)
@@ -259,7 +281,7 @@ lazy val zincPersist = (projectMatrix in internalPath / "zinc-persist")
     }),
     Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
     mimaSettings,
-    mimaBinaryIssueFilters ++= Util.excludeInternalProblems,
+    mimaBinaryIssueFilters ++= ZincBuildUtil.excludeInternalProblems,
     mimaBinaryIssueFilters ++= Seq(
       exclude[IncompatibleMethTypeProblem]("xsbti.*"),
       exclude[ReversedMissingMethodProblem]("xsbti.*"),
@@ -299,7 +321,7 @@ lazy val zincPersistCore = (project in internalPath / "zinc-persist-core")
     ),
     assembly / assemblyMergeStrategy := { // remove *.proto files
       case PathList(ps @ _*) if ps.last.endsWith(".proto") => MergeStrategy.discard
-      case x                                               => (assembly / assemblyMergeStrategy).value(x)
+      case x => (assembly / assemblyMergeStrategy).value(x)
     },
   )
 
@@ -326,7 +348,7 @@ lazy val zincCore = (projectMatrix in internalPath / "zinc-core")
     name := "zinc Core",
     compileOrder := sbt.CompileOrder.Mixed,
     mimaSettings,
-    mimaBinaryIssueFilters ++= Util.excludeInternalProblems,
+    mimaBinaryIssueFilters ++= ZincBuildUtil.excludeInternalProblems,
     mimaBinaryIssueFilters ++= Seq(
       exclude[IncompatibleMethTypeProblem]("xsbti.*"),
       exclude[ReversedMissingMethodProblem]("xsbti.*"),
@@ -351,11 +373,12 @@ lazy val zincBenchmarks = (projectMatrix in internalPath / "zinc-benchmarks")
   .dependsOn(zinc % "test->test")
   .enablePlugins(JmhPlugin)
   .settings(
-    noPublish,
+    publish / skip := true,
+    baseSettings,
     name := "Benchmarks of Zinc and the compiler bridge",
     libraryDependencies ++= Seq(
-      "org.eclipse.jgit" % "org.eclipse.jgit" % "5.4.2.201908231537-r",
-      "net.openhft" % "affinity" % "3.1.11"
+      "org.eclipse.jgit" % "org.eclipse.jgit" % "6.9.0.202403050737-r",
+      "net.openhft" % "affinity" % "3.23.3",
     ),
     Test / javaOptions ++= List("-Xmx600M", "-Xms600M"),
     inConfig(Jmh)(
@@ -394,7 +417,7 @@ lazy val zincCompileCore = (projectMatrix in internalPath / "zinc-compile-core")
     Compile / managedSourceDirectories += (Compile / generateContrabands / sourceManaged).value,
     Compile / generateContrabands / sourceManaged := (internalPath / "zinc-compile-core" / "src" / "main" / "contraband-java").getAbsoluteFile,
     mimaSettings,
-    mimaBinaryIssueFilters ++= Util.excludeInternalProblems,
+    mimaBinaryIssueFilters ++= ZincBuildUtil.excludeInternalProblems,
   )
   .jvmPlatform(scalaVersions = scala3_only)
   .configure(addBaseSettingsAndTestDeps, addSbtUtilLogging, addSbtIO, addSbtUtilControl)
@@ -456,6 +479,7 @@ lazy val compilerInterface = (projectMatrix in internalPath / "compiler-interfac
       exclude[InheritedNewAbstractMethodProblem]("xsbti.InteractiveConsoleInterface.close"),
     ),
   )
+  .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
   .jvmPlatform(autoScalaLibrary = false)
   .configure(addSbtUtilInterface(_))
 
@@ -493,19 +517,36 @@ lazy val compilerBridge = (projectMatrix in internalPath / "compiler-bridge")
       case (2, y) if y >= 13            => new File(scalaSource.value.getPath + "_2.13")
     }.toList),
   )
-  .jvmPlatform(scalaVersions = allScalaVersions)
+  .defaultAxes(VirtualAxis.jvm)
+  .jvmPlatform(scalaVersions = compilerBridgeVersions)
 
 lazy val compilerBridge210 = compilerBridge.jvm(scala210)
 lazy val compilerBridge211 = compilerBridge.jvm(scala211)
 lazy val compilerBridge212 = compilerBridge.jvm(scala212)
 lazy val compilerBridge213 = compilerBridge.jvm(scala213)
+lazy val compilerBridgeScala213Bin = (project in internalPath / "compilerBridgeScala213Bin")
+  .settings(
+    name := "compilerBridgeScala213Bin",
+    publish / skip := true,
+    autoScalaLibrary := false,
+    scalaVersion := scala213,
+    libraryDependencies += scala2BinaryBridge,
+  )
+lazy val compilerBridgeScala3Bin = (project in internalPath / "compilerBridgeScala3Bin")
+  .settings(
+    name := "compilerBridgeScala3Bin",
+    publish / skip := true,
+    autoScalaLibrary := false,
+    scalaVersion := scala3ForBridge,
+    libraryDependencies += scala3BinaryBridge,
+  )
 
 /**
  * Tests for the compiler bridge.
  * This is split into a separate subproject because testing introduces more dependencies
  * (Zinc API Info, which transitively depends on IO).
  */
-lazy val compilerBridgeTest = (project in internalPath / "compiler-bridge-test")
+lazy val compilerBridgeTest = (projectMatrix in internalPath / "compiler-bridge-test")
   .dependsOn(
     zinc3 % "compile->compile;test->test",
     compilerInterface.jvm(false)
@@ -525,10 +566,12 @@ lazy val compilerBridgeTest = (project in internalPath / "compiler-bridge-test")
     Test / javaOptions += s"-Dzinc.build.compilerbridge.scalaVersion=${scala213}",
     publish / skip := true,
   )
+  .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
+  .jvmPlatform(scalaVersions = scala212_213)
 
 val scalaPartialVersion = Def.setting(CrossVersion.partialVersion(scalaVersion.value))
 
-def inBoth(ss: Setting[_]*): Seq[Setting[_]] = Seq(Compile, Test).flatMap(inConfig(_)(ss))
+def inBoth(ss: Setting[?]*): Seq[Setting[?]] = Seq(Compile, Test).flatMap(inConfig(_)(ss))
 
 // defines operations on the API of a source, including determining whether it has changed and converting it to a string
 //   and discovery of classes and annotations
@@ -608,6 +651,12 @@ lazy val zincClassfile = (projectMatrix in internalPath / "zinc-classfile")
   .settings(
     name := "zinc Classfile",
     compilerVersionDependentScalacOptions,
+    Compile / headerSources ~= { xs =>
+      val excluded = Set("ZipCentralDir.java", "ZipConstants.java", "ZipUtils.java")
+      xs filter { x =>
+        !excluded(x.getName)
+      }
+    },
     mimaSettings,
     mimaBinaryIssueFilters ++= Seq(
       exclude[DirectMissingMethodProblem]("sbt.internal.inc.classfile.Analyze.apply"),
@@ -619,7 +668,7 @@ lazy val zincClassfile = (projectMatrix in internalPath / "zinc-classfile")
       exclude[IncompatibleResultTypeProblem]("sbt.internal.inc.IndexBasedZipOps.*"),
       exclude[ReversedMissingMethodProblem]("sbt.internal.inc.IndexBasedZipOps.*"),
     ),
-    mimaBinaryIssueFilters ++= Util.excludeInternalProblems,
+    mimaBinaryIssueFilters ++= ZincBuildUtil.excludeInternalProblems,
   )
   .jvmPlatform(scalaVersions = scala3_only)
   .configure(addBaseSettingsAndTestDeps, addSbtIO, addSbtUtilLogging)
@@ -630,9 +679,9 @@ lazy val zincScripted = (projectMatrix in internalPath / "zinc-scripted")
   .enablePlugins(BuildInfoPlugin)
   .settings(
     baseSettings,
-    noPublish,
+    ideSkipProject := true, // otherwise IntelliJ complains
+    publish / skip := true,
     name := "zinc Scripted",
-    libraryDependencies ++= log4jDependencies,
     Compile / buildInfo := Nil, // Only generate build info for tests
     BuildInfoPlugin.buildInfoScopedSettings(Test),
     Test / buildInfoPackage := "sbt.internal.inc",
@@ -664,16 +713,17 @@ val publishBridges = taskKey[Unit]("")
 val crossTestBridges = taskKey[Unit]("")
 
 publishBridges := Def.task(()).dependsOn(bridges: _*).value
-crossTestBridges := (compilerBridgeTest / Test / test).dependsOn(publishBridges).value
+crossTestBridges := (compilerBridgeTest.jvm(scala213) / Test / test).dependsOn(publishBridges).value
 
 addCommandAlias(
   "runBenchmarks", {
     val dir = IO.createTemporaryDirectory.getAbsolutePath
+    val pattern = sys.props.getOrElse("benchmark.pattern", "")
     Seq(
       s"${compilerBridge213.id}/packageBin",
       s"${compilerBridge212.id}/packageBin",
-      s"${zincBenchmarks.jvm(scala3).id}/Test/run $dir",
-      s"${zincBenchmarks.jvm(scala3).id}/jmh:run -p _tempDir=$dir -prof gc -foe true",
+      s"${zincBenchmarks.jvm(scala3).id}/Test/run $dir $pattern",
+      s"${zincBenchmarks.jvm(scala3).id}/jmh:run -p _tempDir=$dir -prof gc -foe true $pattern",
       s"""eval IO.delete(file("$dir"))""",
     ).mkString(";", ";", "")
   }
@@ -690,10 +740,3 @@ def scriptedTask: Def.Initialize[InputTask[Unit]] = Def.inputTask {
     scriptedCompileToJar.value,
   )
 }
-
-ThisBuild / whitesourceProduct := "Lightbend Reactive Platform"
-ThisBuild / whitesourceAggregateProjectName := "sbt-zinc-master"
-ThisBuild / whitesourceAggregateProjectToken := "4b57f35176864c6397b872277d51bc27b89503de0f1742b8bc4dfa2e33b95c5c"
-ThisBuild / whitesourceIgnoredScopes += "scalafmt"
-ThisBuild / whitesourceFailOnError := sys.env.contains("WHITESOURCE_PASSWORD") // fail if pwd is present
-ThisBuild / whitesourceForceCheckAllDependencies := true

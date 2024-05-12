@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -61,7 +61,7 @@ object ClasspathCache {
             (lastModified, attrs.size())
           Option(cacheMetadataJar.get(file)) match {
             case Some((metadata, hashHit)) if metadata == currentMetadata => hashHit
-            case _                                                        => genFileHash(file, currentMetadata)
+            case _ => genFileHash(file, currentMetadata)
           }
         }
       } catch { case _: NoSuchFileException => emptyFileHash(file) }

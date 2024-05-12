@@ -8,9 +8,12 @@
 
 # introduces first compile iteration
 > compile
+> checkRecompilations 0 A A2 B C
 $ copy-file changes/A1.scala src/main/scala/A.scala
 # second iteration and third iteration (due to invalidation of C)
 > compile
+> checkRecompilations 1 A A.AA A2
+> checkRecompilations 2 C
 $ copy-file changes/A2.scala src/main/scala/A.scala
 # fourth iteration
 > compile

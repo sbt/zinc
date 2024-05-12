@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -42,7 +42,7 @@ trait RelationsTextFormat extends FormatCommons {
   private def stringsDescriptor(header: String, rels: Relations => Relation[String, String]) =
     descriptor(header, rels, Mapper.forString, Mapper.forString)
 
-  private val allRelations: List[Descriptor[_, _]] = {
+  private val allRelations: List[Descriptor[?, ?]] = {
     List(
       descriptor("products", _.srcProd, sourcesMapper, productsMapper),
       descriptor("library dependencies", _.libraryDep, sourcesMapper, binariesMapper),
@@ -53,6 +53,8 @@ trait RelationsTextFormat extends FormatCommons {
       stringsDescriptor("inheritance external dependencies", _.inheritance.external),
       stringsDescriptor("local internal inheritance dependencies", _.localInheritance.internal),
       stringsDescriptor("local external inheritance dependencies", _.localInheritance.external),
+      stringsDescriptor("macro expansion internal dependencies", _.macroExpansion.internal),
+      stringsDescriptor("macro expansion external dependencies", _.macroExpansion.external),
       descriptor("class names", _.classes, sourcesMapper, Mapper.forString),
       Descriptor("used names", _.names.toMultiMap, Mapper.forString, Mapper.forUsedName),
       stringsDescriptor("product class names", _.productClassName)
@@ -106,17 +108,18 @@ trait RelationsTextFormat extends FormatCommons {
    * Reconstructs a Relations from a list of Relation
    * The order in which the relations are read matters and is defined by `existingRelations`.
    */
-  private def construct(relations: List[Map[_, Set[_]]]) =
+  private def construct(relations: List[Map[?, Set[?]]]) =
     relations match {
-      case p :: bin :: lcn :: mri :: mre :: ii :: ie :: lii :: lie :: cn :: un :: bcn :: Nil =>
-        def toMultiMap[K, V](m: Map[_, _]): Map[K, Set[V]] = m.asInstanceOf[Map[K, Set[V]]]
-        def toRelation[K, V](m: Map[_, _]): Relation[K, V] = Relation.reconstruct(toMultiMap(m))
+      case p :: bin :: lcn :: mri :: mre :: ii :: ie :: lii :: lie :: mei :: mee :: cn :: un :: bcn :: Nil =>
+        def toMultiMap[K, V](m: Map[?, ?]): Map[K, Set[V]] = m.asInstanceOf[Map[K, Set[V]]]
+        def toRelation[K, V](m: Map[?, ?]): Relation[K, V] = Relation.reconstruct(toMultiMap(m))
 
         val internal = InternalDependencies(
           Map(
             DependencyByMemberRef -> toRelation(mri),
             DependencyByInheritance -> toRelation(ii),
             LocalDependencyByInheritance -> toRelation(lii),
+            DependencyByMacroExpansion -> toRelation(mei),
           )
         )
         val external = ExternalDependencies(
@@ -124,6 +127,7 @@ trait RelationsTextFormat extends FormatCommons {
             DependencyByMemberRef -> toRelation(mre),
             DependencyByInheritance -> toRelation(ie),
             LocalDependencyByInheritance -> toRelation(lie),
+            DependencyByMacroExpansion -> toRelation(mee),
           )
         )
         Relations.make(

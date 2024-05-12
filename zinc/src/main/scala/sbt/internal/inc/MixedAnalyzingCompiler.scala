@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -25,18 +25,19 @@ import xsbti.{
   VirtualFile,
   VirtualFileRef
 }
-import xsbti.compile._
 import xsbti.compile.CompileOrder._
-import xsbti.compile.{ ClassFileManager => XClassFileManager }
-import xsbti.compile.analysis.ReadStamps
+import xsbti.compile.{ ClassFileManager => XClassFileManager, FileAnalysisStore => _, _ }
+import xsbti.compile.analysis.{ ReadStamps, ReadWriteMappers }
 import sbt.io.{ IO, DirectoryFilter }
 import sbt.util.{ InterfaceUtil, Logger }
+import sbt.internal.inc.consistent.ConsistentFileAnalysisStore
 import sbt.internal.inc.JavaInterfaceUtil.EnrichOption
 import sbt.internal.inc.JavaInterfaceUtil.EnrichOptional
 import sbt.internal.inc.VirtualFileUtil.toAbsolute
 import sbt.internal.inc.caching.ClasspathCache
 import sbt.internal.inc.javac.AnalyzingJavaCompiler
 import sbt.internal.util.ConsoleAppender
+import scala.concurrent.ExecutionContext
 
 /** An instance of an analyzing compiler that can run both javac + scalac. */
 final class MixedAnalyzingCompiler(
@@ -165,9 +166,10 @@ final class MixedAnalyzingCompiler(
             if (config.currentSetup.order == Mixed) incSrc
             else scalaSrcs
 
-          val cp0: Vector[VirtualFile] = (extraClasspath.toVector map { x =>
-            config.converter.toVirtualFile(x.toAbsolutePath)
-          }) ++ absClasspath.toVector
+          val cp0: Vector[VirtualFile] =
+            (extraClasspath.toVector map { x =>
+              config.converter.toVirtualFile(x.toAbsolutePath)
+            }) ++ absClasspath.toVector
           val cp =
             if (scalaSrcs.isEmpty && pickleJava) {
               // we are invoking Scala compiler just for the sake of generating pickles for Java, which
@@ -495,14 +497,49 @@ object MixedAnalyzingCompiler {
 
   /**
    * Create a an analysis store cache at the desired location.
-   *
-   * Note: This method will be deprecated after Zinc 1.1.
    */
-  def staticCachedStore(analysisFile: Path, useTextAnalysis: Boolean): AnalysisStore = {
-    import xsbti.compile.AnalysisStore
-    val fileStore =
-      if (useTextAnalysis) sbt.internal.inc.FileAnalysisStore.text(analysisFile.toFile)
-      else sbt.internal.inc.FileAnalysisStore.binary(analysisFile.toFile)
+  def staticCachedStore(analysisFile: Path, useTextAnalysis: Boolean): AnalysisStore =
+    staticCachedStore(
+      analysisFile = analysisFile,
+      useTextAnalysis = useTextAnalysis,
+      useConsistent = false,
+      mappers = ReadWriteMappers.getEmptyMappers(),
+      sort = true,
+      ec = ExecutionContext.global,
+      parallelism = Runtime.getRuntime.availableProcessors(),
+    )
+
+  def staticCachedStore(
+      analysisFile: Path,
+      useTextAnalysis: Boolean,
+      useConsistent: Boolean,
+      mappers: ReadWriteMappers,
+      sort: Boolean,
+      ec: ExecutionContext,
+      parallelism: Int,
+  ): AnalysisStore = {
+    val fileStore = (useTextAnalysis, useConsistent) match {
+      case (false, false) =>
+        FileAnalysisStore.binary(analysisFile.toFile, mappers)
+      case (false, true) =>
+        ConsistentFileAnalysisStore.binary(
+          file = analysisFile.toFile,
+          mappers = mappers,
+          sort = sort,
+          ec = ec,
+          parallelism = parallelism,
+        )
+      case (true, false) =>
+        FileAnalysisStore.text(analysisFile.toFile, mappers)
+      case (true, true) =>
+        ConsistentFileAnalysisStore.text(
+          file = analysisFile.toFile,
+          mappers = mappers,
+          sort = sort,
+          ec = ec,
+          parallelism = parallelism,
+        )
+    }
     val cachedStore = AnalysisStore.getCachedStore(fileStore)
     staticCache(analysisFile, AnalysisStore.getThreadSafeStore(cachedStore))
   }

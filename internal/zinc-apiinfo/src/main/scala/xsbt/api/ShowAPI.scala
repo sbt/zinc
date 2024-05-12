@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -133,17 +133,17 @@ object ShowAPI {
     ">: " + showType(lower) + " <: " + showType(upper)
 
   private def showValueParams(ps: Seq[ParameterList])(implicit nesting: Int): String =
-    ps.map(
-        pl =>
-          pl.parameters
-            .map(
-              mp =>
-                mp.name + ": " + showParameterModifier(showType(mp.tpe), mp.modifier) + (if (mp.hasDefault)
-                                                                                           "= ..."
-                                                                                         else "")
-            )
-            .mkString(if (pl.isImplicit) "(implicit " else "(", ", ", ")")
-      )
+    ps.map(pl =>
+      pl.parameters
+        .map(mp =>
+          mp.name + ": " + showParameterModifier(showType(mp.tpe), mp.modifier) + (if (
+                                                                                     mp.hasDefault
+                                                                                   )
+                                                                                     "= ..."
+                                                                                   else "")
+        )
+        .mkString(if (pl.isImplicit) "(implicit " else "(", ", ", ")")
+    )
       .mkString("")
 
   private def showParameterModifier(base: String, pm: ParameterModifier): String = pm match {

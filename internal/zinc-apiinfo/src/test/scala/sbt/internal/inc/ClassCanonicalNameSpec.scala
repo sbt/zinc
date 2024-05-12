@@ -35,7 +35,7 @@ class ClassCanonicalNameSpec extends AnyFlatSpec with Matchers with Diagrams {
   import scala.reflect._
   def check[T: ClassTag](expected: Expected) = checkClass(expected, classTag[T].runtimeClass, "tag")
   def checkRef(expected: Expected, x: AnyRef) = checkClass(expected, x.getClass, "ref")
-  def checkClass(expected: Expected, c: Class[_], classSource: String) = {
+  def checkClass(expected: Expected, c: Class[?], classSource: String) = {
     import expected._
     it should f"for $nesting%-5s ($classSource) return $canonicalClassName" in {
       assert(getCustomCanonicalName(c) === canonicalClassName)
@@ -45,7 +45,7 @@ class ClassCanonicalNameSpec extends AnyFlatSpec with Matchers with Diagrams {
     }
   }
 
-  def getCustomCanonicalName(c: Class[_]) = strip(ClassToAPI.classCanonicalName(c))
+  def getCustomCanonicalName(c: Class[?]) = strip(ClassToAPI.classCanonicalName(c))
 
   // Yes, that's the only way to write these types.
   import scala.language.existentials

@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -250,6 +250,9 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
 
     private def handleClassicTreeNode(tree: Tree): Unit = tree match {
       // Register names from pattern match target type in PatMatTarget scope
+      case matchNode: Match =>
+        updateCurrentOwner()
+        PatMatDependencyTraverser.traverse(matchNode.selector.tpe)
       case ValDef(mods, _, tpt, _) if mods.isCase && mods.isSynthetic =>
         updateCurrentOwner()
         PatMatDependencyTraverser.traverse(tpt.tpe)

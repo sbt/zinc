@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -102,10 +102,11 @@ abstract class Compat {
       sym.setter(base, hasExpandedName)
 
     // copied from 2.12.1 sources
-    private def needsExpandedSetterName: Boolean = (
-      if (sym.isMethod) sym.hasStableFlag && !sym.isLazy
-      else sym.hasNoFlags(LAZY | MUTABLE)
-    )
+    private def needsExpandedSetterName: Boolean =
+      (
+        if (sym.isMethod) sym.hasStableFlag && !sym.isLazy
+        else sym.hasNoFlags(LAZY | MUTABLE)
+      )
 
     // unexpandedName replaces originalName in 2.11
     @inline final def unexpandedName: Name = sym.originalName
@@ -146,6 +147,8 @@ abstract class Compat {
   }
 
   protected def processOriginalTreeAttachment(in: Tree)(func: Tree => Unit): Unit = ()
+  protected def processSAMAttachment(f: Function)(addDependency: Symbol => Unit): Unit =
+    ()
 }
 
 /** Defines compatibility utils for [[ZincCompiler]]. */
@@ -180,6 +183,8 @@ object Compat {
   implicit final class SettingsCompat(val settings: Settings) extends AnyVal {
     // Introduced in 2.11
     @inline final def fatalWarnings = settings.Xwarnfatal
+
+    @inline final def optInlinerEnabled: Boolean = false
   }
 
   implicit final class PositionOps(val self: sriu.Position) extends AnyVal {

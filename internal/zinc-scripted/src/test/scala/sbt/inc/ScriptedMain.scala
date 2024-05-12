@@ -29,7 +29,7 @@ object ScriptedMain {
     run(baseDir, buffer = !disableBuffering, compileToJar, tests)
   }
 
-  private def detectScriptedTests(scriptedBase: File): Map[String, Set[String]] = {
+  def detectScriptedTests(scriptedBase: File): Map[String, Set[String]] = {
     val scriptedFiles: NameFilter = ("test": NameFilter) | "pending"
     val pairs = (scriptedBase * AllPassFilter * AllPassFilter * scriptedFiles).get.map { f =>
       val p = f.getParentFile
@@ -53,8 +53,8 @@ object ScriptedMain {
           case Some(tests) if tests.isEmpty          => fail(s"No tests in ${directoryPath}")
           case Some(_) if target == "*"              => Some(ScriptedTest(directory, target))
           case Some(tests) if tests.contains(target) => Some(ScriptedTest(directory, target))
-          case Some(_)                               => fail(s"Missing test directory ${directoryPath / target}")
-          case None                                  => fail(s"Missing parent directory ${directoryPath}")
+          case Some(_) => fail(s"Missing test directory ${directoryPath / target}")
+          case None    => fail(s"Missing parent directory ${directoryPath}")
         }
       case _ => fail("Expected only one '/' in the target scripted test(s).")
     }

@@ -20,7 +20,7 @@ import java.util.Optional
 import xsbti.VirtualFile
 
 class IncrementalCompilerSpec extends BaseCompilerSpec {
-  //override val logLevel = sbt.util.Level.Debug
+  // override val logLevel = sbt.util.Level.Debug
   behavior.of("incremental compiler")
 
   it should "compile" in withTmpDir { tmp =>
@@ -120,6 +120,21 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
     } finally comp.close()
   }
 
+  it should "delete all products if extra changes" in withTmpDir { tempDir =>
+    val comp =
+      ProjectSetup.simple(tempDir.toPath, Seq(SourceFiles.Good, SourceFiles.Foo)).createCompiler()
+    val comp2 =
+      ProjectSetup.simple(tempDir.toPath, Seq(SourceFiles.Foo)).createCompiler()
+    try {
+      val cacheFile = tempDir / "target" / "inc_compile.zip"
+      val fileStore = AnalysisStore.getCachedStore(FileAnalysisStore.binary(cacheFile))
+      comp.doCompileWithStore(fileStore)
+      val newSetup = comp2.setup.withExtra(Array())
+      comp2.doCompileWithStore(fileStore, _.withSetup(newSetup))
+      assertNotExists(comp.output / "pkg" / "Good$.class")
+    } finally comp.close()
+  }
+
   it should "not trigger full compilation for small Scala changes in a mixed project" in withTmpDir {
     tmp =>
       val project = VirtualSubproject(tmp.toPath / "p1")
@@ -166,11 +181,11 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
         def incrementalJavaInputs(sources: VirtualFile*)(in: Inputs): Inputs = {
           comp.withSrcs(sources.toArray)(
             in.withOptions(
-                in.options
-                  .withEarlyOutput(Optional.empty[Output])
-                    // remove -YpickleXXX args
-                  .withScalacOptions(comp.scalacOptions.toArray)
-              )
+              in.options
+                .withEarlyOutput(Optional.empty[Output])
+                // remove -YpickleXXX args
+                .withScalacOptions(comp.scalacOptions.toArray)
+            )
               .withSetup(
                 in.setup.withIncrementalCompilerOptions(
                   // remove pipelining
@@ -210,5 +225,19 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
     } finally {
       comp.close()
     }
+  }
+
+  it should "not throw NullPointerException when passing -Xshow-phases to scalac" in withTmpDir {
+    tmp =>
+      val comp = ProjectSetup.simple(
+        tmp.toPath,
+        Seq(SourceFiles.Good),
+        Seq("-Xshow-phases")
+      ).createCompiler()
+      try {
+        assertThrows[CompileFailed] {
+          comp.doCompile()
+        }
+      } finally comp.close()
   }
 }

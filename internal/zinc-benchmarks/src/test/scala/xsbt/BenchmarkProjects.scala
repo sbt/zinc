@@ -15,14 +15,14 @@ object BenchmarkProjects {
   object Shapeless
       extends BenchmarkProject(
         "milessabin/shapeless",
-        "43140dbfa340f55bd753e2ab5977cc177debd559",
+        "62611554399e0d04466da95591253706b2d3020d",
         List("coreJVM")
       )
 
   object Scalac
       extends BenchmarkProject(
         "scala/scala",
-        "e99c3fb8e383002d9bd96f7d43017cf999815872",
+        "31539736462078b1da615880ef11890a6538b45e",
         List("library")
       )
 }

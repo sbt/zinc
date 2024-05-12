@@ -1,0 +1,8 @@
+{
+  "projects": [
+    {"name": "main", "dependsOn": ["a", "b","c"], "scalaVersion": "2.13.x"},
+    {"name": "c", "dependsOn": ["a","b"], "scalaVersion": "2.13.x"},
+    {"name": "b", "dependsOn": ["a"], "scalaVersion": "2.13.x"},
+    {"name": "a", "scalaVersion": "2.13.x"}
+  ]
+}

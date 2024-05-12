@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -68,7 +68,7 @@ class FilteredReporter(
 
     severity != Severity.Error && (
       (pos.sourceFile.isPresent && isFiltered(fileFilters, pos.sourceFile.get.toPath)) ||
-      (isFiltered(msgFilters, msg))
+        (isFiltered(msgFilters, msg))
     )
   }
 
@@ -90,14 +90,17 @@ class FilteredReporter(
       // Even if we don't display, we do want to register the problem
       import sbt.util.InterfaceUtil
       val transformedPos: Position = positionMapper(position)
-      val problem = InterfaceUtil.problem(
-        category,
-        transformedPos,
-        message,
-        severity,
-        InterfaceUtil.jo2o(rendered)
+      val prob = InterfaceUtil.problem(
+        cat = category,
+        pos = transformedPos,
+        msg = message,
+        sev = severity,
+        rendered = InterfaceUtil.jo2o(rendered),
+        diagnosticCode = InterfaceUtil.jo2o(problem.diagnosticCode()),
+        diagnosticRelatedInformation = InterfaceUtil.jl2l(problem.diagnosticRelatedInformation()),
+        actions = InterfaceUtil.jl2l(problem.actions()),
       )
-      allProblems += problem
+      allProblems += prob
       ()
     }
   }

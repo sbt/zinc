@@ -1,9 +1,9 @@
 /*
  * Zinc - The incremental compiler for Scala.
- * Copyright Lightbend, Inc. and Mark Harrah
+ * Copyright Scala Center, Lightbend, and Mark Harrah
  *
  * Licensed under Apache License 2.0
- * (http://www.apache.org/licenses/LICENSE-2.0).
+ * SPDX-License-Identifier: Apache-2.0
  *
  * See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -24,6 +24,12 @@ abstract class Compat {
   protected def processOriginalTreeAttachment(in: Tree)(func: Tree => Unit): Unit = {
     Compat.OriginalTreeTraverser.Instance.traverseOriginal(in)(func)
   }
+
+  protected def processSAMAttachment(f: Function)(addDependency: Symbol => Unit): Unit = {
+    f.attachments.get[SAMFunction].foreach(sam => {
+      addDependency(sam.samTp.typeSymbol)
+    })
+  }
 }
 object Compat {
   // IR is renamed to Results
@@ -37,9 +43,10 @@ object Compat {
   }
 
   object OriginalTreeTraverser {
-    private[this] val cls = try {
-      Class.forName("scala.tools.nsc.typechecker.StdAttachments$OriginalTreeAttachment")
-    } catch { case _: Throwable => null }
+    private[this] val cls =
+      try {
+        Class.forName("scala.tools.nsc.typechecker.StdAttachments$OriginalTreeAttachment")
+      } catch { case _: Throwable => null }
 
     private object Reflective extends OriginalTreeTraverser {
       private[this] val ct = scala.reflect.ClassTag[AnyRef](cls)
