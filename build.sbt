@@ -255,7 +255,7 @@ lazy val zincTesting = (projectMatrix in internalPath / "zinc-testing")
     baseSettings,
     publish / skip := true,
     libraryDependencies ++= Seq(scalaCheck, scalatest, verify, sjsonnewScalaJson.value),
-    dependencyOverrides += "org.scala-lang.modules" %% "scala-xml" % "2.3.0"
+    dependencyOverrides += scalaXml,
   )
   .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
   .jvmPlatform(scalaVersions = List(scala212, scala213))
