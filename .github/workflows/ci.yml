@@ -48,7 +48,7 @@ jobs:
       if: ${{ matrix.jobtype == 2 }}
       shell: bash
       run: |
-        sbt -v -Dfile.encoding=UTF-8 -Dsbt.supershell=never "crossTestBridges" "zincRoot/test" 
+        sbt -v -Dfile.encoding=UTF-8 -Dsbt.supershell=never "Test/compile" "crossTestBridges" "zincRoot/test" 
       # "zincScripted/Test/run"
     - name: Build and test (3)
       if: ${{ matrix.jobtype == 3 }}
