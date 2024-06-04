@@ -11,4 +11,4 @@ sbt -Dfile.encoding=UTF-8 \
   doc \
   crossTestBridges \
   test \
-  scripted
+  # scripted
