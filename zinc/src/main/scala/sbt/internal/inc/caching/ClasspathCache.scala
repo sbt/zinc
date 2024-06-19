@@ -16,7 +16,7 @@ import java.nio.file.attribute.{ BasicFileAttributes, FileTime }
 import java.util.concurrent.ConcurrentHashMap
 
 import xsbti.compile.FileHash
-import sbt.internal.inc.{ EmptyStamp, Stamper }
+import sbt.internal.inc.Stamper
 import sbt.io.IO
 import scala.util.control.NonFatal
 
@@ -38,8 +38,7 @@ object ClasspathCache {
   // For more safety, store both the time and size
   private type JarMetadata = (FileTime, Long)
   private[this] val cacheMetadataJar = new ConcurrentHashMap[Path, (JarMetadata, FileHash)]()
-  private[this] final val emptyStampCode = EmptyStamp.hashCode()
-  private def emptyFileHash(file: Path) = FileHash.of(file, emptyStampCode)
+  private def emptyFileHash(file: Path) = FileHash.of(file, 42)
   private def genFileHash(file: Path, metadata: JarMetadata): FileHash = {
     val newHash = FileHash.of(file, Stamper.forFarmHashP(file).getValueId())
     cacheMetadataJar.put(file, (metadata, newHash))
