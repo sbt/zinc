@@ -14,9 +14,11 @@ package internal
 package inc
 
 import java.io.File
+import java.io.FileOutputStream
 import java.nio.file.{ Files, Path }
 import java.lang.ref.{ SoftReference, Reference }
 import java.util.Optional
+import java.util.zip.ZipOutputStream
 
 import xsbti.{
   FileConverter,
@@ -112,14 +114,19 @@ final class MixedAnalyzingCompiler(
   // We had this as lazy val, but that caused issues https://github.com/sbt/sbt/issues/5951
   def ensureOutput = {
     val output = config.currentSetup.output
-    val outputDirs = outputDirectories(output)
-    outputDirs.foreach { d =>
-      val dir =
-        if (d.toString.endsWith(".jar")) d.getParent
-        else d
-      Files.createDirectories(dir)
+    JarUtils.getOutputJar(output) match {
+      case Some(jar) =>
+        if (!Files.exists(jar)) {
+          Files.createDirectories(jar.getParent)
+          val outputStream = new ZipOutputStream(new FileOutputStream(jar.toFile))
+          outputStream.close()
+        }
+        Seq(jar)
+      case None =>
+        val dirs = outputDirectories(output)
+        dirs.foreach(Files.createDirectories(_))
+        dirs
     }
-    outputDirs
   }
 
   /**
