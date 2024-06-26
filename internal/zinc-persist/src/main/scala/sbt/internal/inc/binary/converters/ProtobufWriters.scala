@@ -332,7 +332,7 @@ final class ProtobufWriters(mapper: WriteMapper) {
     val compilerVersion = miniSetup.compilerVersion()
     val compileOrder = toCompileOrder(miniSetup.order())
     val storeApis = miniSetup.storeApis()
-    val miniBuilder = setMiniSetupOutput(CompileOutput.empty, builder)
+    val miniBuilder = setMiniSetupOutput(miniSetup.output(), builder)
       .setMiniOptions(miniOptions)
       .setCompilerVersion(compilerVersion)
       .setCompileOrder(compileOrder)
