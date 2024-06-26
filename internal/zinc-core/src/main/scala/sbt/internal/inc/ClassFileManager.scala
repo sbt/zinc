@@ -262,7 +262,7 @@ object ClassFileManager {
       deleteImpl(classes0.toVector.map(toPath(_).toFile))
     private def deleteImpl(classes: Vector[File]): Unit = {
       val relClasses =
-        allFiles(classes).map(c => JarUtils.ClassInJar.fromFile(c).toClassFilePath.get)
+        allFiles(classes).flatMap(c => JarUtils.ClassInJar.fromFile(c).toClassFilePath)
       outputJarContent.removeClasses(relClasses.toSet)
       JarUtils.removeFromJar(outputJar, relClasses)
     }
@@ -297,14 +297,14 @@ object ClassFileManager {
       val classPaths = classes.toVector.map(_.toPath)
       val filesInJar =
         allPaths(classPaths)
-          .map(c => JarUtils.ClassInJar.fromPath(c).toClassFilePath.get)
+          .flatMap(c => JarUtils.ClassInJar.fromPath(c).toClassFilePath)
       JarUtils.removeFromJar(outputJar, filesInJar)
       outputJarContent.removeClasses(filesInJar.toSet)
     }
     override def delete(classes: Array[VirtualFile]): Unit = {
       val classPaths = classes.toVector.map(toPath)
       val filesInJar =
-        allPaths(classPaths).map(c => JarUtils.ClassInJar.fromPath(c).toClassFilePath.get)
+        allPaths(classPaths).flatMap(c => JarUtils.ClassInJar.fromPath(c).toClassFilePath)
       JarUtils.removeFromJar(outputJar, filesInJar)
       outputJarContent.removeClasses(filesInJar.toSet)
     }
