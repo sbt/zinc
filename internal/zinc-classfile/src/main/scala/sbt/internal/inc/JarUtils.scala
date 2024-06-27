@@ -13,7 +13,9 @@ package sbt.internal.inc
 
 import sbt.io.IO
 import java.util.zip.ZipFile
+import java.util.zip.ZipOutputStream
 import java.io.File
+import java.io.FileOutputStream
 import java.util.UUID
 
 import sbt.io.syntax.URL
@@ -237,6 +239,7 @@ object JarUtils {
         cleanupPreviousJar(prevJar, outputJar)
       case None =>
         compile(Nil)
+        createOutputJarIfMissing(output)
     }
   }
 
@@ -330,6 +333,12 @@ object JarUtils {
       case _ => None
     }
   }
+
+  def createOutputJarIfMissing(output: Output): Unit =
+    getOutputJar(output).filter(!Files.exists(_)).foreach { jar =>
+      val outputStream = new ZipOutputStream(new FileOutputStream(jar.toFile))
+      outputStream.close()
+    }
 
   /**
    * As some javac implementations do not support compiling directly to jar it is
