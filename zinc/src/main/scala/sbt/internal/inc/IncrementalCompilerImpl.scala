@@ -540,7 +540,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
     val equiv = equivCompileSetup(mixedCompiler.log, equivOpts)
     previousSetup match {
       // The dummy output needs to be changed to .jar for this to work again.
-      // case _ if compileToJarSwitchedOn(mixedCompiler.config)             => Analysis.empty
+      case _ if compileToJarSwitchedOn(config)           => Analysis.empty
       case Some(prev) if equiv.equiv(prev, currentSetup) => previousAnalysis
       case Some(prev) if !equivPairs.equiv(prev.extra, currentSetup.extra) =>
         import sbt.internal.inc.ClassFileManager
@@ -555,19 +555,12 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
     }
   }
 
-  // private def compileToJarSwitchedOn(config: CompileConfiguration): Boolean = {
-  //   def isCompilingToJar = JarUtils.isCompilingToJar(config.output)
-  //   def previousCompilationWasToJar = config.previousAnalysis match {
-  //     case analysis: Analysis =>
-  //       analysis.relations.allProducts.headOption match {
-  //         case Some(product) => JarUtils.isClassInJar(product)
-  //         case None          => true // we can assume it was, as it doesn't matter if there were no products
-  //       }
-  //     case _ => true
-  //   }
-  //
-  //   isCompilingToJar && !previousCompilationWasToJar
-  // }
+  private def compileToJarSwitchedOn(config: CompileConfiguration): Boolean = {
+    def isCompilingToJar = JarUtils.isCompilingToJar(config.currentSetup.output)
+    def previousCompilationWasToJar =
+      config.previousSetup.exists(s => JarUtils.isCompilingToJar(s.output))
+    isCompilingToJar && !previousCompilationWasToJar
+  }
 
   def setup(
       lookup: PerClasspathEntryLookup,

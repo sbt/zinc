@@ -112,14 +112,15 @@ final class MixedAnalyzingCompiler(
   // We had this as lazy val, but that caused issues https://github.com/sbt/sbt/issues/5951
   def ensureOutput = {
     val output = config.currentSetup.output
-    val outputDirs = outputDirectories(output)
-    outputDirs.foreach { d =>
-      val dir =
-        if (d.toString.endsWith(".jar")) d.getParent
-        else d
-      Files.createDirectories(dir)
+    JarUtils.getOutputJar(output) match {
+      case Some(jar) =>
+        Files.createDirectories(jar.getParent)
+        Seq(jar)
+      case None =>
+        val dirs = outputDirectories(output)
+        dirs.foreach(Files.createDirectories(_))
+        dirs
     }
-    outputDirs
   }
 
   /**
