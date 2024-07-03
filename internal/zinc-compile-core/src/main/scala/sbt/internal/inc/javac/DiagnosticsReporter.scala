@@ -200,7 +200,8 @@ object DiagnosticsReporter {
       def endPosition: Option[Long] = checkNoPos(d.getEndPosition)
 
       val line: Optional[Integer] = o2jo(checkNoPos(d.getLineNumber) map (_.toInt))
-      val pointer: Optional[Integer] = o2jo(checkNoPos(d.getColumnNumber) map (_.toInt))
+      // column number is 1-based, xsbti.Position#pointer is 0-based.
+      val pointer: Optional[Integer] = o2jo(checkNoPos(d.getColumnNumber - 1) map (_.toInt))
       val offset: Optional[Integer] = o2jo(checkNoPos(d.getPosition) map (_.toInt))
       val startOffset: Optional[Integer] = o2jo(startPosition map (_.toInt))
       val endOffset: Optional[Integer] = o2jo(endPosition map (_.toInt))
