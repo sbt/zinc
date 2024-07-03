@@ -635,8 +635,8 @@ private final class AnalysisCallback(
   private[this] val localClasses = new TrieMap[VirtualFileRef, ConcurrentSet[VirtualFileRef]]
   // mapping between src class name and binary (flat) class name for classes generated from src file
   private[this] val classNames = new TrieMap[VirtualFileRef, ConcurrentSet[(String, String)]]
-  // generated class file to its source class name
-  private[this] val classToSource = new TrieMap[VirtualFileRef, String]
+  // generated class name to its source class name
+  private[this] val binaryNameToSourceName = new TrieMap[String, String]
   // internal source dependencies
   private[this] val intSrcDeps = new TrieMap[String, ConcurrentSet[InternalDependency]]
   // external source dependencies
@@ -779,8 +779,7 @@ private final class AnalysisCallback(
         // dependency is a product of a source not included in this compilation
         classDependency(dependsOn, fromClassName, context)
       case None =>
-        val vf = converter.toVirtualFile(classFile)
-        classToSource.get(vf) match {
+        binaryNameToSourceName.get(onBinaryClassName) match {
           case Some(dependsOn) =>
             // dependency is a product of a source in this compilation step,
             //  but not in the same compiler run (as in javac v. scalac)
@@ -842,7 +841,7 @@ private final class AnalysisCallback(
     val vf = converter.toVirtualFile(classFile)
     add(nonLocalClasses, source, (vf, binaryClassName))
     add(classNames, source, (srcClassName, binaryClassName))
-    classToSource.put(vf, srcClassName)
+    binaryNameToSourceName.put(binaryClassName, srcClassName)
     ()
   }
 
