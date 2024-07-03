@@ -80,8 +80,8 @@ class JavaErrorParserSpec extends UnitSpec with Diagrams {
     val logger = ConsoleLogger()
     val problems = parser.parseProblems(sampleErrorPosition, logger)
     assert(problems.size == 1)
-    problems(0).position.offset.isPresent shouldBe true
-    problems(0).position.offset.get shouldBe 23
+    problems(0).position.pointer.isPresent shouldBe true
+    problems(0).position.pointer.get shouldBe 23
   }
 
   def parseMultipleErrors() = {
