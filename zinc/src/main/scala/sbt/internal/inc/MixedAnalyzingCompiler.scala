@@ -70,7 +70,8 @@ final class MixedAnalyzingCompiler(
 
         def toVirtualFile(p: Path) = config.converter.toVirtualFile(p.toAbsolutePath)
 
-        JarUtils.getOutputJar(output) match {
+        val outputJarOpt = JarUtils.getOutputJar(output)
+        outputJarOpt match {
           case Some(outputJar) if !javac.supportsDirectToJar =>
             val outputDir = JarUtils.javacTempOutput(outputJar)
             Files.createDirectories(outputDir)
@@ -80,7 +81,7 @@ final class MixedAnalyzingCompiler(
               config.converter,
               joptions,
               CompileOutput(outputDir),
-              Some(outputJar),
+              outputJarOpt,
               callback,
               incToolOptions,
               config.reporter,
@@ -96,7 +97,7 @@ final class MixedAnalyzingCompiler(
                 config.converter,
                 joptions,
                 output,
-                None,
+                outputJarOpt,
                 callback,
                 incToolOptions,
                 config.reporter,
