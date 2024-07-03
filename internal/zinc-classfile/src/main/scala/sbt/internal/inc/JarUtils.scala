@@ -238,8 +238,8 @@ object JarUtils {
         }
         cleanupPreviousJar(prevJar, outputJar)
       case None =>
-        compile(Nil)
         createOutputJarIfMissing(output)
+        compile(Nil)
     }
   }
 
