@@ -72,6 +72,8 @@ object DiagnosticsReporter {
       override val line: Optional[Integer],
       override val lineContent: String,
       override val offset: Optional[Integer],
+      override val pointer: Optional[Integer],
+      override val pointerSpace: Optional[String],
       override val startOffset: Optional[Integer],
       override val endOffset: Optional[Integer],
       override val startLine: Optional[Integer],
@@ -81,8 +83,6 @@ object DiagnosticsReporter {
   ) extends xsbti.Position {
     override val sourcePath: Optional[String] = o2jo(sourceUri)
     override val sourceFile: Optional[File] = o2jo(sourceUri.map(new File(_)))
-    override val pointer: Optional[Integer] = o2jo(Option.empty[Integer])
-    override val pointerSpace: Optional[String] = o2jo(Option.empty[String])
 
     override def toString: String =
       if (sourceUri.isDefined) s"${sourceUri.get}:${if (line.isPresent) line.get else -1}"
@@ -200,6 +200,7 @@ object DiagnosticsReporter {
       def endPosition: Option[Long] = checkNoPos(d.getEndPosition)
 
       val line: Optional[Integer] = o2jo(checkNoPos(d.getLineNumber) map (_.toInt))
+      val pointer: Optional[Integer] = o2jo(checkNoPos(d.getColumnNumber) map (_.toInt))
       val offset: Optional[Integer] = o2jo(checkNoPos(d.getPosition) map (_.toInt))
       val startOffset: Optional[Integer] = o2jo(startPosition map (_.toInt))
       val endOffset: Optional[Integer] = o2jo(endPosition map (_.toInt))
@@ -241,11 +242,20 @@ object DiagnosticsReporter {
           case _ => noPositionInfo
         }
 
+      val pointerSpace = pointer.map[String] { p =>
+        lineContent.toList.take(p.intValue()).map {
+          case '\t' => '\t'
+          case _    => ' '
+        }.mkString
+      }
+
       new PositionImpl(
         sourcePath,
         line,
         lineContent,
         offset,
+        pointer,
+        pointerSpace,
         startOffset,
         endOffset,
         startLine,
