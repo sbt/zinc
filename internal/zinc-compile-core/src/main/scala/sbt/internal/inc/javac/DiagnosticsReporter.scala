@@ -244,10 +244,10 @@ object DiagnosticsReporter {
         }
 
       val pointerSpace = pointer.map[String] { p =>
-        lineContent.toList.take(p.intValue()).map {
+        lineContent.take(p.intValue()).map {
           case '\t' => '\t'
           case _    => ' '
-        }.mkString
+        }
       }
 
       new PositionImpl(
