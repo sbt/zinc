@@ -34,14 +34,15 @@ private[sbt] object JavaAnalyze {
       sources: Seq[VirtualFile],
       log: Logger,
       output: Output,
-      finalJarOutput: Option[Path]
+      finalJarOutput: Option[Path],
+      previousJarOutput: Option[Path]
   )(
       analysis: xsbti.AnalysisCallback,
       loader: ClassLoader,
       readAPI: (VirtualFileRef, Seq[Class[?]]) => Set[(String, String)]
   ): Unit = {
-    val classFileMapper = new JavaClassFileMapper(output, finalJarOutput)
-    val cachedLoader = new CachedClassLoader(loader, finalJarOutput, log)
+    val classFileMapper = new JavaClassFileMapper(output, finalJarOutput, previousJarOutput)
+    val cachedLoader = new CachedClassLoader(loader, finalJarOutput.toSeq ++ previousJarOutput, log)
     val analyzer = new JavaAnalyzer(sources, log, classFileMapper, analysis, cachedLoader, readAPI)
     analyzer.analyze(newClasses)
   }
@@ -260,7 +261,28 @@ private class JavaAnalyzer(
     }
 }
 
-/**
+private class JavaClassFileMapper(
+    output: Output,
+    finalJarOutput: Option[Path],
+    previousJarOutput: Option[Path]
+) {
+  // For performance reasons, precompute these as they are static throughout this analysis
+  val singleOutputOrNull: Path = output.getSingleOutputAsPath.orElse(null)
+  val jarOutputOrNull: Path = finalJarOutput.getOrElse(null)
+  val previousJarOrNull: Path = previousJarOutput.getOrElse(null)
+
+  def remap(classFile: Path): Path =
+    if (jarOutputOrNull != null) {
+      if (classFile.getFileSystem.provider.getScheme == "jar")
+        // convert to the class-in-jar path format that zinc uses. we make an assumption here that
+        // if we've got a jar-based path, it's referring to a class in the output jar
+        JarUtils
+          .ClassInJar(jarOutputOrNull, classFile.getRoot.relativize(classFile).toString)
+          .toPath
+      else resolveFinalClassFile(classFile)
+    } else classFile
+
+  /**
   * When straight-to-jar compilation is enabled on a javac which doesn't support it, classes are compiled to a
   * temporary directory because javac cannot compile to jar directly. The paths to class files that can be observed
   * here through the file system or class loaders are located in temporary output directory for
@@ -272,39 +294,26 @@ private class JavaAnalyzer(
   *   `/develop/zinc/target/output.jar-javac-output/sbt/internal/inc/Compile.class`
   * into
   *   `/develop/zinc/target/output.jar!/sbt/internal/inc/Compile.class`
+  * 
+  * Similarly if the file is in the previous jar we remap it to the output jar.
   */
-private class JavaClassFileMapper(output: Output, finalJarOutput: Option[Path]) {
-  // For performance reasons, precompute these as they are static throughout this analysis
-  val singleOutputOrNull: Path = output.getSingleOutputAsPath.orElse(null)
-  val directOutputJarOrNull: Path = JarUtils.getOutputJar(output).getOrElse(null)
-  val mappedOutputJarOrNull: Path = finalJarOutput.getOrElse(null)
+  private def resolveFinalClassFile(realClassFile: Path): Path = {
+    def fromOutputDir =
+      if (singleOutputOrNull != null) IO.relativize(singleOutputOrNull.toFile, realClassFile.toFile)
+      else None
 
-  def remap(classFile: Path): Path =
-    if (directOutputJarOrNull != null && classFile.getFileSystem.provider.getScheme == "jar")
-      // convert to the class-in-jar path format that zinc uses. we make an assumption here that
-      // if we've got a jar-based path, it's referring to a class in the output jar.
-      JarUtils
-        .ClassInJar(directOutputJarOrNull, classFile.getRoot.relativize(classFile).toString)
-        .toPath
-    else if (singleOutputOrNull != null && mappedOutputJarOrNull != null)
-      resolveFinalClassFile(classFile, singleOutputOrNull, mappedOutputJarOrNull)
-    else
-      classFile
+    def fromPreviousJar =
+      if (previousJarOrNull != null) JarUtils.relativize(previousJarOrNull, realClassFile)
+      else None
 
-  private def resolveFinalClassFile(
-      realClassFile: Path,
-      outputDir: Path,
-      outputJar: Path
-  ): Path = {
-    def toFile(p: Path): File = if (p == null) null else p.toFile
-    IO.relativize(toFile(outputDir), toFile(realClassFile)) match {
-      case Some(relativeClass) => JarUtils.ClassInJar(outputJar, relativeClass).toPath
-      case None                => realClassFile
-    }
+    fromOutputDir
+      .orElse(fromPreviousJar)
+      .map(JarUtils.ClassInJar(jarOutputOrNull, _).toPath)
+      .getOrElse(realClassFile)
   }
 }
 
-private class CachedClassLoader(loader: ClassLoader, finalOutputJar: Option[Path], log: Logger) {
+private class CachedClassLoader(loader: ClassLoader, outputJars: Seq[Path], log: Logger) {
   private val classFilesCache = mutable.Map.empty[String, Option[Path]]
   private val loadedClassCache = mutable.Map.empty[String, Option[Class[?]]]
 
@@ -350,11 +359,8 @@ private class CachedClassLoader(loader: ClassLoader, finalOutputJar: Option[Path
       IO.urlAsFile(url).map { file =>
         val p = file.toPath
         // IO.urlAsFile removes the class reference in the jar url, let's add it back.
-        if (finalOutputJar.exists(_ == p)) {
-          JarUtils.ClassInJar.fromURL(url, p).toPath
-        } else {
-          p
-        }
+        if (outputJars.exists(_ == p)) JarUtils.ClassInJar.fromURL(url, p).toPath
+        else p
       }
     } catch {
       case e: Exception =>

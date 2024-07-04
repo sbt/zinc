@@ -105,6 +105,7 @@ final class AnalyzingJavaCompiler private[sbt] (
       options: Seq[String],
       output: Output,
       finalJarOutput: Option[Path],
+      previousJarOutput: Option[Path],
       callback: AnalysisCallback,
       incToolOptions: IncToolOptions,
       reporter: XReporter,
@@ -209,7 +210,7 @@ final class AnalyzingJavaCompiler private[sbt] (
           val classes = classFinder.classes
           try {
             val newClasses = Set(classes.paths: _*) -- oldClasses
-            JavaAnalyze(newClasses.toSeq, srcs, log, output, finalJarOutput)(
+            JavaAnalyze(newClasses.toSeq, srcs, log, output, finalJarOutput, previousJarOutput)(
               callback,
               loader,
               readAPI

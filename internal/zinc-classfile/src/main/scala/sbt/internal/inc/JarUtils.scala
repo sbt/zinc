@@ -113,9 +113,9 @@ object JarUtils {
      */
     def fromURL(url: URL, jar: Path): ClassInJar = {
       val path = url.getPath
-      if (!path.contains("!")) sys.error(s"unexpected URL $url that does not include '!'")
+      if (!path.contains("!/")) sys.error(s"unexpected URL $url that does not include '!'")
       else {
-        val Array(_, cls) = url.getPath.split("!")
+        val Array(_, cls) = url.getPath.split("!/")
         apply(jar, cls)
       }
     }
@@ -298,6 +298,12 @@ object JarUtils {
   }
 
   val prevJarPrefix: String = "prev-jar"
+
+  def relativize(jar: Path, file: Path): Option[String] = {
+    val prefix = jar.toString + "!"
+    val filePath = file.toString
+    Option.when(filePath.startsWith(prefix))(filePath.stripPrefix(prefix))
+  }
 
   /** Checks if given file stores a ClassInJar */
   def isClassInJar(file: File): Boolean = {

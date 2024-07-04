@@ -94,7 +94,14 @@ object JavaCompilerForUnitTesting {
         override def getOutputDirectoryAsPath: Path = classesDir.toPath
         override def getOutputDirectory: File = getOutputDirectoryAsPath.toFile
       }
-      JavaAnalyze(classFiles, srcFiles, logger, output, finalJarOutput = None)(
+      JavaAnalyze(
+        classFiles,
+        srcFiles,
+        logger,
+        output,
+        finalJarOutput = None,
+        previousJarOutput = None
+      )(
         analysisCallback,
         classloader,
         readAPI(analysisCallback, _, _)
