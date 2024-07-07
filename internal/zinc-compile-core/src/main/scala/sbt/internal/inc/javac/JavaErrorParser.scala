@@ -22,16 +22,21 @@ import sbt.util.InterfaceUtil.o2jo
 import xsbti.{ Problem, Severity, Position }
 
 /** A wrapper around xsbti.Position so we can pass in Java input. */
-final case class JavaPosition(_sourceFilePath: String, _line: Int, _contents: String, _offset: Int)
-    extends Position {
+final case class JavaPosition(
+    _sourceFilePath: String,
+    _line: Int,
+    _contents: String,
+    _pointer: Int,
+    _pointerSpace: String
+) extends Position {
   def line: Optional[Integer] = o2jo(Some(_line))
   def lineContent: String = _contents
-  def offset: Optional[Integer] = o2jo(Some(_offset))
-  def pointer: Optional[Integer] = o2jo(None)
-  def pointerSpace: Optional[String] = o2jo(None)
+  def offset: Optional[Integer] = o2jo(None)
+  def pointer: Optional[Integer] = o2jo(Some(_pointer))
+  def pointerSpace: Optional[String] = o2jo(Option(_pointerSpace))
   def sourcePath: Optional[String] = o2jo(Option(_sourceFilePath))
   def sourceFile: Optional[File] = o2jo(Option(new File(_sourceFilePath)))
-  override def toString = s"${_sourceFilePath}:${_line}:${_offset}"
+  override def toString = s"${_sourceFilePath}:${_line}:${_pointer}"
 }
 
 /** A position which has no information, because there is none. */
@@ -181,6 +186,11 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
     }
     fileLineMessage ~ (allUntilCaret ~ '^' ~ restOfLine).? ~ (nonPathLines.?) ^^ {
       case (file, line, msg) ~ contentsOpt ~ ind =>
+        val (pointer, pointerSpace) = contentsOpt match {
+          case Some(contents ~ _ ~ _) => getPointer(contents)
+          case _                      => (0, "")
+        }
+
         new JavaProblem(
           new JavaPosition(
             findFileSource(file),
@@ -190,10 +200,8 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
               case _                      => ""
             }) + ind
               .getOrElse(""), // TODO - Actually parse caret position out of here.
-            (contentsOpt match {
-              case Some(contents ~ _ ~ _) => getOffset(contents)
-              case _                      => 0
-            })
+            pointer,
+            pointerSpace
           ),
           Severity.Error,
           msg
@@ -208,6 +216,11 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
     }
     fileLineMessage ~ (allUntilCaret ~ '^' ~ restOfLine).? ~ (nonPathLines.?) ^^ {
       case (file, line, msg) ~ contentsOpt ~ ind =>
+        val (pointer, pointerSpace) = contentsOpt match {
+          case Some(contents ~ _ ~ _) => getPointer(contents)
+          case _                      => (0, "")
+        }
+
         new JavaProblem(
           new JavaPosition(
             findFileSource(file),
@@ -216,10 +229,8 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
               case Some(contents ~ _ ~ r) => contents + '^' + r
               case _                      => ""
             }) + ind.getOrElse(""),
-            (contentsOpt match {
-              case Some(contents ~ _ ~ _) => getOffset(contents)
-              case _                      => 0
-            })
+            pointer,
+            pointerSpace
           ),
           Severity.Warn,
           msg
@@ -292,7 +303,6 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
         Seq.empty
     }
 
-  private def getOffset(contents: String): Int =
-    contents.linesIterator.toList.lastOption map (_.length) getOrElse 0
-
+  private def getPointer(contents: String): (Int, String) =
+    contents.linesIterator.toList.lastOption.map(line => (line.length, line)).getOrElse((0, ""))
 }
