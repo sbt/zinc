@@ -203,13 +203,7 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
   ): Boolean = {
     def lineContentCheck = lineContent forall (content => p.position.lineContent contains content)
     def lineNumberCheck = p.position.line.isPresent && (p.position.line.get == lineno)
-    def columnCheck = {
-      val res = p.position.pointer.isPresent && (p.position.pointer.get == colno)
-      if (!res) {
-        println(s"got ${p.position().pointer().get}, expected $colno, problem $p")
-      }
-      res
-    }
+    def columnCheck = p.position.pointer.isPresent && (p.position.pointer.get == colno)
     lineNumberCheck && columnCheck && lineContentCheck
   }
 
