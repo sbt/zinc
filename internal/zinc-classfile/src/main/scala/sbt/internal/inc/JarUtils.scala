@@ -113,9 +113,9 @@ object JarUtils {
      */
     def fromURL(url: URL, jar: Path): ClassInJar = {
       val path = url.getPath
-      if (!path.contains("!")) sys.error(s"unexpected URL $url that does not include '!'")
+      if (!path.contains("!/")) sys.error(s"unexpected URL $url that does not include '!/'")
       else {
-        val Array(_, cls) = url.getPath.split("!")
+        val Array(_, cls) = url.getPath.split("!/")
         apply(jar, cls)
       }
     }
