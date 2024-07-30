@@ -89,7 +89,7 @@ object ProtobufDefaults {
 
   object Feedback {
     implicit class StringToException(str: String) {
-      def `!!` : Nothing = sys.error(str)
+      def `!!`: Nothing = sys.error(str)
     }
 
     object Writers {
