@@ -101,7 +101,8 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
   ): Boolean =
     debug(
       sameStrings(a.keySet, b.keySet),
-      "\tDefinition strings differed (a: " + (a.keySet -- b.keySet) + ", b: " + (b.keySet -- a.keySet) + ")"
+      "\tDefinition strings differed (a: " + (a.keySet -- b.keySet) + ", b: " + (b.keySet -- a
+        .keySet) + ")"
     ) &&
       zippedEntries(a, b).forall(tupled(sameNamedDefinitions))
 
@@ -236,7 +237,8 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
   def sameFieldSpecificAPI(a: FieldLike, b: FieldLike): Boolean =
     debug(
       sameFieldCategory(a, b),
-      "Different field categories (" + a.name + "=" + a.getClass.getName + " -- " + a.name + "=" + a.getClass.getName + ")"
+      "Different field categories (" + a.name + "=" + a.getClass.getName + " -- " + a.name + "=" + a
+        .getClass.getName + ")"
     ) &&
       debug(sameType(a.tpe, b.tpe), "Different field type for " + a.name)
 
@@ -350,7 +352,8 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
   def differentCategory(label: String, a: AnyRef, b: AnyRef): Boolean =
     debug(
       flag = false,
-      "Different category of " + label + " (" + a.getClass.getName + " and " + b.getClass.getName + ") for (" + a + " and " + b + ")"
+      "Different category of " + label + " (" + a.getClass.getName + " and " + b.getClass
+        .getName + ") for (" + a + " and " + b + ")"
     )
 
   def sameParameterized(a: Parameterized, b: Parameterized): Boolean =

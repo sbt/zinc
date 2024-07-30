@@ -430,7 +430,8 @@ lazy val zincCompileCore = (projectMatrix in internalPath / "zinc-compile-core")
     ),
     Test / unmanagedJars := Seq((compilerBridge212 / Compile / packageSrc).value).classpath,
     Compile / managedSourceDirectories += (Compile / generateContrabands / sourceManaged).value,
-    Compile / generateContrabands / sourceManaged := (internalPath / "zinc-compile-core" / "src" / "main" / "contraband-java").getAbsoluteFile,
+    Compile / generateContrabands / sourceManaged := (internalPath / "zinc-compile-core" / "src" / "main" / "contraband-java")
+      .getAbsoluteFile,
     mimaSettings,
     mimaBinaryIssueFilters ++= ZincBuildUtil.excludeInternalProblems,
   )
