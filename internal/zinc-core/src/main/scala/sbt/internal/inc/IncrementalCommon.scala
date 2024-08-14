@@ -786,12 +786,11 @@ object IncrementalCommon {
 
       def isLibraryChanged(file: VirtualFileRef): Boolean = {
         def compareOriginClassFile(className: String, classpathEntry: VirtualFileRef): Boolean = {
-          if (
-            classpathEntry.id.endsWith(".jar") &&
-            (converter.toPath(classpathEntry).toString != converter.toPath(file).toString)
-          )
-            invalidateBinary(s"${className} is now provided by ${classpathEntry}")
-          else compareStamps(file, classpathEntry)
+          if (classpathEntry.id.endsWith(".jar")) compareStamps(file, classpathEntry)
+          else {
+            val resolved = Locate.classFile(converter.toPath(classpathEntry), className)
+            compareStamps(file, converter.toVirtualFile(resolved))
+          }
         }
 
         val classNames = previousRelations.libraryClassNames(file)

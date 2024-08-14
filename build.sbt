@@ -255,8 +255,7 @@ lazy val zincTesting = (projectMatrix in internalPath / "zinc-testing")
     baseSettings,
     publish / skip := true,
     libraryDependencies ++= Seq(scalaCheck, scalatest, verify, sjsonnewScalaJson.value),
-    // scala-compiler depends on 1.x, but 2.x works too
-    dependencyOverrides += "org.scala-lang.modules" %% "scala-xml" % "2.2.0"
+    dependencyOverrides += scalaXml,
   )
   .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
   .jvmPlatform(scalaVersions = List(scala212, scala213))
@@ -392,7 +391,7 @@ lazy val zincBenchmarks = (projectMatrix in internalPath / "zinc-benchmarks")
     baseSettings,
     name := "Benchmarks of Zinc and the compiler bridge",
     libraryDependencies ++= Seq(
-      "org.eclipse.jgit" % "org.eclipse.jgit" % "6.9.0.202403050737-r",
+      "org.eclipse.jgit" % "org.eclipse.jgit" % "6.10.0.202406032230-r",
       "net.openhft" % "affinity" % "3.23.3",
     ),
     Test / javaOptions ++= List("-Xmx600M", "-Xms600M"),
@@ -431,7 +430,8 @@ lazy val zincCompileCore = (projectMatrix in internalPath / "zinc-compile-core")
     ),
     Test / unmanagedJars := Seq((compilerBridge212 / Compile / packageSrc).value).classpath,
     Compile / managedSourceDirectories += (Compile / generateContrabands / sourceManaged).value,
-    Compile / generateContrabands / sourceManaged := (internalPath / "zinc-compile-core" / "src" / "main" / "contraband-java").getAbsoluteFile,
+    Compile / generateContrabands / sourceManaged := (internalPath / "zinc-compile-core" / "src" / "main" / "contraband-java")
+      .getAbsoluteFile,
     mimaSettings,
     mimaBinaryIssueFilters ++= ZincBuildUtil.excludeInternalProblems,
   )

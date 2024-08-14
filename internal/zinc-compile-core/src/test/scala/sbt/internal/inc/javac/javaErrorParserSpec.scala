@@ -80,8 +80,17 @@ class JavaErrorParserSpec extends UnitSpec with Diagrams {
     val logger = ConsoleLogger()
     val problems = parser.parseProblems(sampleErrorPosition, logger)
     assert(problems.size == 1)
-    problems(0).position.offset.isPresent shouldBe true
-    problems(0).position.offset.get shouldBe 23
+    val position = problems.head.position
+
+    position.sourcePath.isPresent shouldBe true
+    position.sourcePath.get shouldBe "/home/me/projects/sample/src/main/java/A.java"
+    position.line.isPresent shouldBe true
+    position.line.get shouldBe 6
+    position.lineContent should include("System.out.println(foobar);")
+    position.pointer.isPresent shouldBe true
+    position.pointer.get shouldBe 23
+    position.pointerSpace.isPresent shouldBe true
+    position.pointerSpace.get shouldBe (" " * 23)
   }
 
   def parseMultipleErrors() = {
@@ -89,6 +98,61 @@ class JavaErrorParserSpec extends UnitSpec with Diagrams {
     val logger = ConsoleLogger()
     val problems = parser.parseProblems(sampleMultipleErrors, logger)
     assert(problems.size == 5)
+
+    val position1 = problems(0).position
+    position1.sourcePath.isPresent shouldBe true
+    position1.sourcePath.get shouldBe "/home/foo/sbt/internal/inc/javac/test1.java"
+    position1.line.isPresent shouldBe true
+    position1.line.get shouldBe 3
+    position1.lineContent should include("public class Test {")
+    position1.pointer.isPresent shouldBe true
+    position1.pointer.get shouldBe 7
+    position1.pointerSpace.isPresent shouldBe true
+    position1.pointerSpace.get shouldBe (" " * 7)
+
+    val position2 = problems(1).position
+    position2.sourcePath.isPresent shouldBe true
+    position2.sourcePath.get shouldBe "/home/foo/sbt/internal/inc/javac/test1.java"
+    position2.line.isPresent shouldBe true
+    position2.line.get shouldBe 1
+    position2.lineContent should include("import java.rmi.RMISecurityException;")
+    position2.pointer.isPresent shouldBe true
+    position2.pointer.get shouldBe 15
+    position2.pointerSpace.isPresent shouldBe true
+    position2.pointerSpace.get shouldBe (" " * 15)
+
+    val position3 = problems(2).position
+    position3.sourcePath.isPresent shouldBe true
+    position3.sourcePath.get shouldBe "/home/foo/sbt/internal/inc/javac/test1.java"
+    position3.line.isPresent shouldBe true
+    position3.line.get shouldBe 4
+    position3.lineContent should include("public NotFound foo() { return 5; }")
+    position3.pointer.isPresent shouldBe true
+    position3.pointer.get shouldBe 11
+    position3.pointerSpace.isPresent shouldBe true
+    position3.pointerSpace.get shouldBe (" " * 11)
+
+    val position4 = problems(3).position
+    position4.sourcePath.isPresent shouldBe true
+    position4.sourcePath.get shouldBe "/home/foo/sbt/internal/inc/javac/test1.java"
+    position4.line.isPresent shouldBe true
+    position4.line.get shouldBe 7
+    position4.lineContent should include("""throw new RMISecurityException("O NOES");""")
+    position4.pointer.isPresent shouldBe true
+    position4.pointer.get shouldBe 18
+    position4.pointerSpace.isPresent shouldBe true
+    position4.pointerSpace.get shouldBe (" " * 18)
+
+    val position5 = problems(4).position
+    position5.sourcePath.isPresent shouldBe true
+    position5.sourcePath.get shouldBe "/home/foo/sbt/internal/inc/javac/test1.java"
+    position5.line.isPresent shouldBe true
+    position5.line.get shouldBe 7
+    position5.lineContent should include("""throw new RMISecurityException("O NOES");""")
+    position5.pointer.isPresent shouldBe true
+    position5.pointer.get shouldBe 14
+    position5.pointerSpace.isPresent shouldBe true
+    position5.pointerSpace.get shouldBe (" " * 14)
   }
 
   def parseMultipleErrors2() = {
@@ -144,7 +208,7 @@ class JavaErrorParserSpec extends UnitSpec with Diagrams {
 
   def sampleErrorPosition =
     """
-      |A.java:6: cannot find symbol
+      |/home/me/projects/sample/src/main/java/A.java:6: cannot find symbol
       |symbol  : variable foobar
       |location: class A
       |    System.out.println(foobar);

@@ -114,14 +114,17 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
         case _           => 5
       }
     })
-    val importWarn = warnOnLine(lineno = 12, lineContent = Some("java.rmi.RMISecurityException"))
-    val enclosingError = errorOnLine(lineno = 25, message = Some("not an enclosing class: C.D"))
+    val importWarn =
+      warnOnLine(lineno = 12, colno = 15, lineContent = Some("java.rmi.RMISecurityException"))
+    val enclosingError =
+      errorOnLine(lineno = 25, colno = 9, message = Some("not an enclosing class: C.D"))
     val beAnExpectedError =
       List(
         importWarn,
-        errorOnLine(14),
-        errorOnLine(15),
-        warnOnLine(18),
+        errorOnLine(14, 7),
+        errorOnLine(15, 11),
+        warnOnLine(18, 18),
+        warnOnLine(18, 14), // could be expected depending on Java version
         enclosingError
       ) reduce (_ or _)
     problems foreach { p =>
@@ -140,7 +143,7 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
       }
     })
     assert(problems.size == 2)
-    val beAnExpectedError = List(errorOnLine(14), errorOnLine(15)) reduce (_ or _)
+    val beAnExpectedError = List(errorOnLine(14, 7), errorOnLine(15, 11)) reduce (_ or _)
     problems foreach { p =>
       p should beAnExpectedError
     }
@@ -192,20 +195,37 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
     lineNumberCheck && messageCheck
   }
 
-  def lineMatches(p: Problem, lineno: Int, lineContent: Option[String] = None): Boolean = {
+  def lineMatches(
+      p: Problem,
+      lineno: Int,
+      colno: Int,
+      lineContent: Option[String] = None
+  ): Boolean = {
     def lineContentCheck = lineContent forall (content => p.position.lineContent contains content)
     def lineNumberCheck = p.position.line.isPresent && (p.position.line.get == lineno)
-    lineNumberCheck && lineContentCheck
+    def columnCheck = p.position.pointer.isPresent && (p.position.pointer.get == colno)
+    lineNumberCheck && columnCheck && lineContentCheck
   }
 
-  def errorOnLine(lineno: Int, message: Option[String] = None, lineContent: Option[String] = None) =
-    problemOnLine(lineno, Severity.Error, message, lineContent)
+  def errorOnLine(
+      lineno: Int,
+      colno: Int,
+      message: Option[String] = None,
+      lineContent: Option[String] = None
+  ) =
+    problemOnLine(lineno, colno, Severity.Error, message, lineContent)
 
-  def warnOnLine(lineno: Int, message: Option[String] = None, lineContent: Option[String] = None) =
-    problemOnLine(lineno, Severity.Warn, message, lineContent)
+  def warnOnLine(
+      lineno: Int,
+      colno: Int,
+      message: Option[String] = None,
+      lineContent: Option[String] = None
+  ) =
+    problemOnLine(lineno, colno, Severity.Warn, message, lineContent)
 
   private def problemOnLine(
       lineno: Int,
+      colno: Int,
       severity: Severity,
       message: Option[String],
       lineContent: Option[String]
@@ -218,9 +238,10 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
         messageMatches(p, lineno, message) && lineMatches(
           p,
           lineno,
+          colno,
           lineContent
         ) && p.severity == severity,
-        s"Expected $problemType on line $lineno$msg$content, but found $p",
+        s"Expected $problemType on line $lineno, column $colno$msg$content, but found $p",
         "Problem matched: " + p
       )
     }

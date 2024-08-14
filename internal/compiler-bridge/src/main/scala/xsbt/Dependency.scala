@@ -452,7 +452,8 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
         val inheritanceSymbols = inheritanceTypes.flatMap(flattenTypeToSymbols)
 
         debuglog(
-          "Parent types for " + tree.symbol + " (self: " + self.tpt.tpe + "): " + inheritanceTypes + " with symbols " + inheritanceSymbols
+          "Parent types for " + tree.symbol + " (self: " + self.tpt
+            .tpe + "): " + inheritanceTypes + " with symbols " + inheritanceSymbols
             .map(_.fullName)
         )
 
