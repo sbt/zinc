@@ -281,6 +281,8 @@ final class LocalJavadoc() extends XJavadoc {
 final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaCompiler {
   override def supportsDirectToJar: Boolean = true
 
+  private val standardFileManager = compiler.getStandardFileManager(null, null, null)
+
   override def run(
       sources: Array[VirtualFile],
       options: Array[String],
@@ -302,8 +304,6 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
       log.warn("Javac is running in 'local' mode. These flags have been removed:")
       log.warn(invalidOptions.mkString("\t", ", ", ""))
     }
-
-    def standardFileManager = compiler.getStandardFileManager(diagnostics, null, null)
 
     val (fileManager, javacOptions) = JarUtils.getOutputJar(output) match {
       case Some(outputJar) =>
