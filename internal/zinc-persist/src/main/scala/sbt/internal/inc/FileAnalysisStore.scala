@@ -17,9 +17,6 @@ import java.io._
 import java.nio.file.Files
 import java.util.Optional
 import java.util.zip.{ ZipEntry, ZipInputStream }
-
-import sbt.internal.shaded.com.google.protobuf.{ CodedInputStream, CodedOutputStream }
-import sbt.internal.inc.binary.BinaryAnalysisFormat
 import sbt.internal.inc.text.TextAnalysisFormat
 import sbt.io.{ IO, Using }
 import xsbti.api.Companions
@@ -35,13 +32,6 @@ object FileAnalysisStore {
   private final val companionsFileName = s"api_companions.$BinExtension"
   private final val defaultTmpDir = new File(System.getProperty("java.io.tmpdir"))
 
-  def binary(analysisFile: File): XAnalysisStore =
-    binary(analysisFile, ReadWriteMappers.getEmptyMappers())
-  def binary(analysisFile: File, mappers: ReadWriteMappers): XAnalysisStore =
-    binary(analysisFile, mappers, defaultTmpDir)
-  def binary(analysisFile: File, mappers: ReadWriteMappers, tmpDir: File): XAnalysisStore =
-    new BinaryFileStore(analysisFile, mappers, tmpDir)
-
   def text(file: File): XAnalysisStore =
     text(file, TextAnalysisFormat)
   def text(file: File, mappers: ReadWriteMappers): XAnalysisStore =
@@ -51,62 +41,10 @@ object FileAnalysisStore {
   def text(file: File, format: TextAnalysisFormat, tmpDir: File): XAnalysisStore =
     new FileBasedStoreImpl(file, format, tmpDir)
 
-  private final class BinaryFileStore(file: File, readWriteMappers: ReadWriteMappers, tmpDir: File)
-      extends XAnalysisStore {
-
-    private final val format = new BinaryAnalysisFormat(readWriteMappers)
-    private final val TmpEnding = ".tmp"
-
-    /**
-     * Get `CompileAnalysis` and `MiniSetup` instances for current `Analysis`.
-     */
-    override def get: Optional[AnalysisContents] = {
-      import JavaInterfaceUtil.EnrichOption
-      val nestedRead: Option[Option[AnalysisContents]] = allCatch.opt {
-        Using.zipInputStream(new FileInputStream(file)) { inputStream =>
-          lookupEntry(inputStream, analysisFileName)
-          val reader = CodedInputStream.newInstance(inputStream)
-          val (analysis, miniSetup) = format.read(reader)
-          val analysisWithAPIs = allCatch.opt {
-            lookupEntry(inputStream, companionsFileName)
-            format.readAPIs(reader, analysis, miniSetup.storeApis)
-          }
-
-          analysisWithAPIs.map(analysis => AnalysisContents.create(analysis, miniSetup))
-        }
-      }
-      nestedRead.flatten.toOptional
-    }
-
-    override def unsafeGet: AnalysisContents = get.get
-
-    /**
-     * Write the zipped analysis contents into a temporary file before
-     * overwriting the old analysis file and avoiding data race conditions.
-     *
-     * See https://github.com/sbt/zinc/issues/220 for more details.
-     */
-    override def set(contents: AnalysisContents): Unit = {
-      val analysis = contents.getAnalysis
-      val setup = contents.getMiniSetup
-      val tmpAnalysisFile = Files.createTempFile(tmpDir.toPath, file.getName, TmpEnding).toFile
-      if (!file.getParentFile.exists())
-        file.getParentFile.mkdirs()
-
-      val outputStream = new FileOutputStream(tmpAnalysisFile)
-      Using.zipOutputStream(outputStream) { outputStream =>
-        val protobufWriter = CodedOutputStream.newInstance(outputStream)
-        outputStream.putNextEntry(new ZipEntry(analysisFileName))
-        format.write(protobufWriter, analysis, setup)
-        outputStream.closeEntry()
-
-        outputStream.putNextEntry(new ZipEntry(companionsFileName))
-        format.writeAPIs(protobufWriter, analysis, setup.storeApis())
-        outputStream.closeEntry()
-      }
-      IO.move(tmpAnalysisFile, file)
-    }
-  }
+  def binary(file: File): XAnalysisStore =
+    consistent.ConsistentFileAnalysisStore.binary(file)
+  def binary(file: File, mappers: ReadWriteMappers): XAnalysisStore =
+    consistent.ConsistentFileAnalysisStore.binary(file, mappers)
 
   private final class FileBasedStoreImpl(file: File, format: TextAnalysisFormat, tmpDir: File)
       extends XAnalysisStore {

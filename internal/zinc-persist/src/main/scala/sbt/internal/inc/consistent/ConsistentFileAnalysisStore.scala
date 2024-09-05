@@ -38,10 +38,27 @@ object ConsistentFileAnalysisStore {
       parallelism
     )
 
+  def binary(file: File): XAnalysisStore =
+    binary(
+      file,
+      mappers = ReadWriteMappers.getEmptyMappers(),
+      sort = true,
+    )
+
+  def binary(
+      file: File,
+      mappers: ReadWriteMappers
+  ): XAnalysisStore =
+    binary(
+      file,
+      mappers,
+      sort = true,
+    )
+
   def binary(
       file: File,
       mappers: ReadWriteMappers,
-      sort: Boolean = true,
+      sort: Boolean,
       ec: ExecutionContext = ExecutionContext.global,
       parallelism: Int = Runtime.getRuntime.availableProcessors()
   ): XAnalysisStore =
