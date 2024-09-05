@@ -11,8 +11,7 @@
 
 package sbt.internal.inc
 
-import sbt.internal.prof.Zprof
-
+// import sbt.internal.prof.Zprof
 import xsbti.UseScope._
 import xsbti.VirtualFileRef
 import xsbti.compile.{ APIChange => XAPIChange }
@@ -34,22 +33,23 @@ import scala.collection.mutable.ArrayBuffer
  * this class is not thread safe.
  */
 abstract class InvalidationProfiler {
-  def profileRun(): RunProfiler
-  def registerRun(run: Zprof.ZincRun): Unit
+  // def profileRun(): RunProfiler
+  // def registerRun(run: Zprof.ZincRun): Unit
 }
 
 object InvalidationProfiler {
   final val empty: InvalidationProfiler = new InvalidationProfiler {
-    override def profileRun(): RunProfiler = RunProfiler.empty
-    override def registerRun(run: Zprof.ZincRun): Unit = ()
+    // override def profileRun(): RunProfiler = RunProfiler.empty
+    // override def registerRun(run: Zprof.ZincRun): Unit = ()
   }
 }
 
+/*
 class ZincInvalidationProfiler extends InvalidationProfiler with XInvalidationProfiler { profiler =>
   /* The string table contains any kind of repeated string that is likely to occur
-   * in the protobuf profiling data. This includes used names, class names, source
-   * files and class files (their paths), as well as other repeated strings. This is
-   * done to keep the memory overhead of the profiler to a minimum. */
+ * in the protobuf profiling data. This includes used names, class names, source
+ * files and class files (their paths), as well as other repeated strings. This is
+ * done to keep the memory overhead of the profiler to a minimum. */
   private final val stringTable: ArrayBuffer[String] = new ArrayBuffer[String](1000)
   private final val stringTableIndices: mutable.HashMap[String, Int] =
     new mutable.HashMap[String, Int]
@@ -61,17 +61,17 @@ class ZincInvalidationProfiler extends InvalidationProfiler with XInvalidationPr
   def registerRun(run: Zprof.ZincRun): Unit = runs ::= run
 
   /**
-   * Returns an immutable zprof profile that can be serialized.
-   *
-   * It is recommended to only perform this operation when we are
-   * going to persist the profiled protobuf data to disk. Do not
-   * call this function after every compiler iteration as you will
-   * write a symbol table in every persisted protobuf file. It's
-   * better to persist this file periodically after several runs
-   * so that the overhead to disk is not high.
-   *
-   * @return An immutable zprof profile that can be persisted via protobuf.
-   */
+ * Returns an immutable zprof profile that can be serialized.
+ *
+ * It is recommended to only perform this operation when we are
+ * going to persist the profiled protobuf data to disk. Do not
+ * call this function after every compiler iteration as you will
+ * write a symbol table in every persisted protobuf file. It's
+ * better to persist this file periodically after several runs
+ * so that the overhead to disk is not high.
+ *
+ * @return An immutable zprof profile that can be persisted via protobuf.
+ */
   def toProfile: Zprof.Profile =
     Zprof.Profile.newBuilder
       .addAllRuns(runs.asJava)
@@ -208,6 +208,7 @@ class ZincInvalidationProfiler extends InvalidationProfiler with XInvalidationPr
     private def listMap[A, B](xs: Iterable[A])(f: A => B) = xs.iterator.map(f).toList.asJava
   }
 }
+ */
 
 /**
  * Defines the interface of a profiler. This interface is used in the guts of
@@ -288,5 +289,7 @@ trait InvalidationProfilerUtils {
   final val MacroExpansionKind = "macro expansion"
 }
 
+/*
 // So that others users from outside [[IncrementalCommon]] can use the labels
 object InvalidationProfilerUtils extends InvalidationProfilerUtils
+ */

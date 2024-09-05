@@ -138,8 +138,6 @@ lazy val aggregated: Seq[ProjectReference] = compilerInterface.projectRefs ++
   zincCompile.projectRefs ++
   zincCore.projectRefs ++
   zincPersist.projectRefs ++
-  Seq(zincPersistCore: ProjectReference) ++
-  zincPersistCoreAssembly.projectRefs ++
   zincTesting.projectRefs ++
   zinc.projectRefs
 
@@ -278,9 +276,9 @@ lazy val zincCompile = (projectMatrix in zincRootPath / "zinc-compile")
   .jvmPlatform(scalaVersions = scala212_213)
   .configure(addBaseSettingsAndTestDeps, addSbtUtilTracking)
 
-// Persists the incremental data structures using Protobuf
+// Persists the incremental data structures
 lazy val zincPersist = (projectMatrix in internalPath / "zinc-persist")
-  .dependsOn(zincCore, zincCompileCore, zincPersistCoreAssembly, zincCore % "test->test")
+  .dependsOn(zincCore, zincCompileCore, zincCore % "test->test")
   .settings(
     name := "zinc Persist",
     libraryDependencies ++= Seq(
@@ -309,37 +307,6 @@ lazy val zincPersist = (projectMatrix in internalPath / "zinc-persist")
   .jvmPlatform(scalaVersions = scala212_213)
   .configure(addBaseSettingsAndTestDeps)
 
-lazy val zincPersistCoreAssembly = (projectMatrix in internalPath / "zinc-persist-core-assembly")
-  .jvmPlatform(autoScalaLibrary = false)
-  .settings(
-    name := "zinc-persist-core-assembly",
-    crossPaths := false,
-    autoScalaLibrary := false,
-    exportJars := true,
-    Compile / packageBin := (zincPersistCore / Compile / assembly).value,
-    mimaPreviousArtifacts := Set.empty,
-  )
-
-lazy val zincPersistCore = (project in internalPath / "zinc-persist-core")
-  .enablePlugins(ProtobufPlugin)
-  .settings(
-    name := "zinc-persist-core",
-    crossPaths := false,
-    autoScalaLibrary := false,
-    exportJars := true,
-    ProtobufConfig / version := "3.24.4",
-    publish / skip := true,
-    assembly / assemblyShadeRules := Seq(
-      ShadeRule
-        .rename("com.google.protobuf.**" -> "sbt.internal.shaded.com.google.protobuf.@1")
-        .inAll
-    ),
-    assembly / assemblyMergeStrategy := { // remove *.proto files
-      case PathList(ps @ _*) if ps.last.endsWith(".proto") => MergeStrategy.discard
-      case x => (assembly / assemblyMergeStrategy).value(x)
-    },
-  )
-
 // Implements the core functionality of detecting and propagating changes incrementally.
 //   Defines the data structures for representing file fingerprints and relationships and the overall source analysis
 lazy val zincCore = (projectMatrix in internalPath / "zinc-core")
@@ -348,7 +315,6 @@ lazy val zincCore = (projectMatrix in internalPath / "zinc-core")
     zincApiInfo,
     zincClasspath,
     compilerInterface,
-    zincPersistCoreAssembly,
     compilerBridge % Test,
     zincTesting % Test
   )
