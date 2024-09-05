@@ -35,7 +35,7 @@ class AnalysisFormatBenchmark {
       IO.copyFile(f, f2)
       assert(f2.exists())
     }
-    this.cached = readAll("", FileAnalysisStore.binary(_))
+    this.cached = readAll("", FileAnalysisStore.text(_))
     writeAll("-ref-text", FileAnalysisStore.text(_), cached)
     // writeAll("-ref-ctext", ConsistentFileAnalysisStore.text(_, ReadWriteMappers.getEmptyMappers), cached)
     writeAll(
