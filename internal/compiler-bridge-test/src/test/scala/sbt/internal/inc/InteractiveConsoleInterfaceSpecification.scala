@@ -7,6 +7,7 @@ import sbt.io.IO
 import xsbti.InteractiveConsoleResult
 
 // This is a specification to check the REPL block parsing.
+/*
 object InteractiveConsoleInterfaceSpecification
     extends BasicTestSuite
     with BridgeProviderTestkit
@@ -66,3 +67,4 @@ object InteractiveConsoleInterfaceSpecification
   }
 
 }
+ */

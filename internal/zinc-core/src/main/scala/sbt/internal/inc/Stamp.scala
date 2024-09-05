@@ -240,7 +240,7 @@ object Stamper {
       cache: collection.concurrent.Map[VirtualFileRef, (Long, XStamp)],
       converter: FileConverter,
       getStamp: VirtualFileRef => XStamp
-  ): VirtualFileRef => XStamp = { key: VirtualFileRef =>
+  ): VirtualFileRef => XStamp = { (key: VirtualFileRef) =>
     import scala.collection.JavaConverters._
     val p = converter.toPath(key)
     val ts =

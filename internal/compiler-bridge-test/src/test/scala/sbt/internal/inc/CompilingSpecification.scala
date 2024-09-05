@@ -69,7 +69,7 @@ trait CompilingSpecification extends AbstractBridgeProviderTestkit {
 
   def extractBinaryDependenciesFromSrcs(srcs: List[List[String]]): ExtractedClassDependencies = {
     val (_, testCallback) = compileSrcs(srcs)
-    val binaryDependencies = testCallback.binaryDependencies
+    val binaryDependencies = testCallback.binaryDependencies.toSeq
     ExtractedClassDependencies.fromPairs(
       binaryDependencies.toList.collect { case (_, bin, src, DependencyByMemberRef) => src -> bin },
       binaryDependencies.toList.collect { case (_, bin, src, DependencyByInheritance) =>

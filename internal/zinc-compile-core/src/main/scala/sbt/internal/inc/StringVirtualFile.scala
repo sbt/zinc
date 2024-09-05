@@ -21,6 +21,8 @@ case class StringVirtualFile(path: String, content: String)
     extends BasicVirtualFileRef(path)
     with VirtualFile {
   override def contentHash: Long = HashUtil.farmHash(content.getBytes("UTF-8"))
+  override def sizeBytes: Long = content.getBytes("UTF-8").size
+  override lazy val contentHashStr: String = HashUtil.sha256HashStr(input)
   override def input: InputStream = new ByteArrayInputStream(content.getBytes("UTF-8"))
   override def toString: String = s"StringVirtualFile($path, <content>)"
 }

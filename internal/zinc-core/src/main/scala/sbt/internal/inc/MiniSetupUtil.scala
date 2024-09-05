@@ -102,7 +102,7 @@ object MiniSetupUtil {
 
   implicit val equivOutput: Equiv[APIOutput] = {
     new Equiv[APIOutput] {
-      implicit val outputGroupsOrdering =
+      implicit val outputGroupsOrdering: Ordering[OutputGroup] =
         Ordering.by((og: OutputGroup) => og.getSourceDirectoryAsPath)
 
       def equiv(out1: APIOutput, out2: APIOutput) = (out1, out2) match {
