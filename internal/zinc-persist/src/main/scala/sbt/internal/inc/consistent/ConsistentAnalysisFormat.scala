@@ -411,11 +411,12 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
   }
 
   private[this] def readUsedNameSet(in: Deserializer): Set[UsedName] = {
+    import scala.jdk.CollectionConverters.*
     in.readBlock {
       val data = in.readColl[Vector[UsedName], Vector[Vector[UsedName]]](Vector, 2) {
         val i = in.byte().toInt
         val names = in.readStringSeq()
-        names.iterator.map { n => UsedName(n, useScopes(i)) }.toVector
+        names.iterator.map { n => UsedName(n, useScopes(i).asScala) }.toVector
       }
       data.flatten.toSet
     }

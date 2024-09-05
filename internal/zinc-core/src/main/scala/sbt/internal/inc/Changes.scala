@@ -132,7 +132,7 @@ abstract class UnderlyingChanges[A] extends Changes[A] {
   override def getChanged: java.util.Set[A] = changed.asJava
   override def getRemoved: java.util.Set[A] = removed.asJava
   override def getUnmodified: java.util.Set[A] = unmodified.asJava
-  override def isEmpty = added.isEmpty && removed.isEmpty && changed.isEmpty
+  override def isEmpty(): java.lang.Boolean = added.isEmpty && removed.isEmpty && changed.isEmpty
 
   override def toString: String = {
     s"""Changes(added = $added, removed = $removed, changed = $changed, unmodified = ...)""".stripMargin

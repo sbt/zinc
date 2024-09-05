@@ -90,7 +90,7 @@ final class MixedAnalyzingCompiler(
             )
             putJavacOutputInJar(outputJar.toFile, outputDir.toFile)
           case _ =>
-            JarUtils.withPreviousJar(output) { extraClasspath: Seq[Path] =>
+            JarUtils.withPreviousJar(output) { (extraClasspath: Seq[Path]) =>
               javac.compile(
                 javaSrcs,
                 extraClasspath map toVirtualFile,
@@ -163,7 +163,7 @@ final class MixedAnalyzingCompiler(
           case _ => config.currentSetup.options.scalacOptions
         }
 
-        JarUtils.withPreviousJar(output) { extraClasspath: Seq[Path] =>
+        JarUtils.withPreviousJar(output) { (extraClasspath: Seq[Path]) =>
           val sources =
             if (config.currentSetup.order == Mixed) incSrc
             else scalaSrcs

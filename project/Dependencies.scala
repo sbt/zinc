@@ -9,14 +9,16 @@ object Dependencies {
   val scala211 = "2.11.12"
   val scala212 = "2.12.19"
   val scala213 = "2.13.14"
+  val scala3 = "3.3.1"
   val scala3ForBridge = "3.3.1"
-  val scala213ForBridge = "2.13.14"
-  val defaultScalaVersion = scala212
+  val scala213ForBridge = "2.13.13"
+  val defaultScalaVersion = scala3
   val compilerBridgeVersions = Seq(scala212, scala210, scala211, scala213)
   val scala212_213 = Seq(defaultScalaVersion, scala213)
+  val scala3_only = Seq(scala3)
 
   private val ioVersion = nightlyVersion.getOrElse("1.10.0")
-  private val utilVersion = nightlyVersion.getOrElse("1.10.1")
+  private val utilVersion = nightlyVersion.getOrElse("2.0.0-alpha10")
 
   private val sbtIO = "org.scala-sbt" %% "io" % ioVersion
 
@@ -72,17 +74,20 @@ object Dependencies {
   val scalaLibrary = Def.setting { "org.scala-lang" % "scala-library" % scalaVersion.value }
   val scalaCompiler = Def.setting { "org.scala-lang" % "scala-compiler" % scalaVersion.value }
 
-  val parserCombinator = "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2"
+  val parserCombinator = "org.scala-lang.modules" %% "scala-parser-combinators" % "2.1.0"
+  // sbinary 0.5.2 uses 2.13 build of scala-xml, so use 0.5.1
   val sbinary = "org.scala-sbt" %% "sbinary" % "0.5.1"
+  val junit = "junit" % "junit" % "4.12"
+  val sjsonNewVersion = "0.14.0-M1"
   val scalaXml = "org.scala-lang.modules" %% "scala-xml" % "2.3.0"
   val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.18.0"
   val scalatest = "org.scalatest" %% "scalatest" % "3.2.19"
-  val verify = "com.eed3si9n.verify" %% "verify" % "2.0.1"
+  val verify = "com.eed3si9n.verify" %% "verify" % "1.0.0"
   val sjsonnew = Def.setting {
-    "com.eed3si9n" %% "sjson-new-core" % contrabandSjsonNewVersion.value
+    "com.eed3si9n" %% "sjson-new-core" % sjsonNewVersion
   }
   val sjsonnewScalaJson = Def.setting {
-    "com.eed3si9n" %% "sjson-new-scalajson" % contrabandSjsonNewVersion.value
+    "com.eed3si9n" %% "sjson-new-scalajson" % sjsonNewVersion
   }
   val zeroAllocationHashing = "net.openhft" % "zero-allocation-hashing" % "0.16"
   val scala2BinaryBridge = "org.scala-lang" % "scala2-sbt-bridge" % scala213ForBridge

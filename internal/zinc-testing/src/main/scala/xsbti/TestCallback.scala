@@ -152,7 +152,7 @@ class TestCallback extends AnalysisCallback2 {
 
   override def isPickleJava: Boolean = false
 
-  override def getPickleJarPair = Optional.empty()
+  override def getPickleJarPair: Optional[T2[Path, Path]] = Optional.empty()
 }
 
 object TestCallback {

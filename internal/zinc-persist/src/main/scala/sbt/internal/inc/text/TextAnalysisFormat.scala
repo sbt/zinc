@@ -190,7 +190,7 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
     val currentVersion = "7"
 
     def write(out: Writer): Unit = {
-      out.write("format version: %s\n".format(currentVersion))
+      out.write(s"format version: $currentVersion\n")
     }
 
     private val versionPattern = """format version: (\w+)""".r
@@ -206,8 +206,7 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
       // TODO: Support backwards compatibility?
       if (version != currentVersion) {
         throw new ReadException(
-          "File uses format version %s, but we are compatible with version %s only."
-            .format(version, currentVersion)
+          s"File uses format version $version, but we are compatible with version $currentVersion only."
         )
       }
     }

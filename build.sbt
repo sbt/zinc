@@ -43,7 +43,7 @@ ThisBuild / version := {
   nightlyVersion match {
     case Some(v) => v
     case _ =>
-      if ((ThisBuild / isSnapshot).value) "1.10.0-SNAPSHOT"
+      if ((ThisBuild / isSnapshot).value) "2.0.0-alpha15-SNAPSHOT"
       else old
   }
 }
@@ -135,7 +135,6 @@ lazy val aggregated: Seq[ProjectReference] = compilerInterface.projectRefs ++
   zincClasspath.projectRefs ++
   zincClassfile.projectRefs ++
   zincCompileCore.projectRefs ++
-  zincCompile.projectRefs ++
   zincCore.projectRefs ++
   zincPersist.projectRefs ++
   Seq(zincPersistCore: ProjectReference) ++
@@ -152,7 +151,7 @@ lazy val zincRoot: Project = (project in file("."))
     scriptedBufferLog := true,
     scripted := scriptedTask.evaluated,
     scripted / watchTriggers += baseDirectory.value.toGlob / "zinc" / "src" / "sbt-test" / **,
-    Scripted.scriptedSource := (zinc212 / sourceDirectory).value / "sbt-test",
+    Scripted.scriptedSource := (zinc3 / sourceDirectory).value / "sbt-test",
     Scripted.scriptedCompileToJar := false,
     publish / skip := true,
     commands += Command.command("release") { state =>
@@ -235,8 +234,7 @@ lazy val zinc = (projectMatrix in (zincRootPath / "zinc"))
       exclude[IncompatibleResultTypeProblem]("sbt.internal.*"),
     )
   )
-  .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
-  .jvmPlatform(scalaVersions = scala212_213)
+  .jvmPlatform(scalaVersions = scala3_only)
   .configure(addBaseSettingsAndTestDeps)
 
 def resGenFile = (zincRootPath / "zinc" / "resGenerator").getAbsoluteFile
@@ -246,7 +244,7 @@ lazy val jar2 = (project in resGenFile / "jar2").settings(sampleProjectSettings(
 lazy val classesDep1 =
   (project in resGenFile / "classesDep1").settings(sampleProjectSettings("zip"))
 
-lazy val zinc212 = zinc.jvm(scala212)
+lazy val zinc3 = zinc.jvm(scala3)
 
 lazy val zincTesting = (projectMatrix in internalPath / "zinc-testing")
   .dependsOn(compilerInterface)
@@ -257,36 +255,23 @@ lazy val zincTesting = (projectMatrix in internalPath / "zinc-testing")
     libraryDependencies ++= Seq(scalaCheck, scalatest, verify, sjsonnewScalaJson.value),
     dependencyOverrides += scalaXml,
   )
-  .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
-  .jvmPlatform(scalaVersions = List(scala212, scala213))
+  .jvmPlatform(scalaVersions = scala3_only)
   .configure(addSbtIO, addSbtUtilLogging)
-
-lazy val zincCompile = (projectMatrix in zincRootPath / "zinc-compile")
-  .dependsOn(zincCompileCore, zincCompileCore % "test->test")
-  .settings(
-    name := "zinc Compile",
-    mimaSettings,
-    mimaBinaryIssueFilters ++= Seq(
-      exclude[IncompatibleSignatureProblem]("sbt.inc.Doc*"),
-      exclude[IncompatibleResultTypeProblem]("sbt.inc.Doc*"),
-      exclude[IncompatibleMethTypeProblem]("sbt.inc.Doc*"),
-      exclude[DirectMissingMethodProblem]("sbt.inc.Doc*"),
-      exclude[ReversedMissingMethodProblem]("sbt.inc.Doc*"),
-    ),
-  )
-  .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
-  .jvmPlatform(scalaVersions = scala212_213)
-  .configure(addBaseSettingsAndTestDeps, addSbtUtilTracking)
 
 // Persists the incremental data structures using Protobuf
 lazy val zincPersist = (projectMatrix in internalPath / "zinc-persist")
   .dependsOn(zincCore, zincCompileCore, zincPersistCoreAssembly, zincCore % "test->test")
   .settings(
     name := "zinc Persist",
-    libraryDependencies ++= Seq(
-      sbinary.exclude("org.scala-lang.modules", "scala-xml_" + scalaBinaryVersion.value),
-      scalaXml
-    ),
+    libraryDependencies += sbinary,
+    libraryDependencies ++= {
+      scalaPartialVersion.value match {
+        case Some((major, minor)) if major == 3 || minor >= 13 =>
+          List("org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4")
+        case _ =>
+          List()
+      }
+    },
     compileOrder := sbt.CompileOrder.Mixed,
     Compile / scalacOptions ++= (scalaVersion.value match {
       case VersionNumber(Seq(2, 12, _*), _, _) =>
@@ -305,8 +290,7 @@ lazy val zincPersist = (projectMatrix in internalPath / "zinc-persist")
       exclude[MissingClassProblem]("xsbti.api.InternalApiProxy")
     ),
   )
-  .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
-  .jvmPlatform(scalaVersions = scala212_213)
+  .jvmPlatform(scalaVersions = scala3_only)
   .configure(addBaseSettingsAndTestDeps)
 
 lazy val zincPersistCoreAssembly = (projectMatrix in internalPath / "zinc-persist-core-assembly")
@@ -327,7 +311,7 @@ lazy val zincPersistCore = (project in internalPath / "zinc-persist-core")
     crossPaths := false,
     autoScalaLibrary := false,
     exportJars := true,
-    ProtobufConfig / version := "3.24.4",
+    ProtobufConfig / version := "3.24.4", // sync version w/ plugins.sbt
     publish / skip := true,
     assembly / assemblyShadeRules := Seq(
       ShadeRule
@@ -349,7 +333,7 @@ lazy val zincCore = (projectMatrix in internalPath / "zinc-core")
     zincClasspath,
     compilerInterface,
     zincPersistCoreAssembly,
-    compilerBridge % Test,
+    // compilerBridge % Test,
     zincTesting % Test
   )
   .settings(
@@ -371,16 +355,17 @@ lazy val zincCore = (projectMatrix in internalPath / "zinc-core")
     ),
     libraryDependencies ++= {
       scalaPartialVersion.value match {
-        case Some((2, major)) if major >= 13 =>
-          // should match version in sbt's util-collection module
-          List("org.scala-lang.modules" %% "scala-parallel-collections" % "0.2.0")
+        case Some((major, minor)) if major == 3 || minor >= 13 =>
+          List(
+            "org.scala-lang" % "scala-reflect" % scala213,
+            "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4"
+          )
         case _ =>
           List()
       }
     },
   )
-  .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
-  .jvmPlatform(scalaVersions = scala212_213)
+  .jvmPlatform(scalaVersions = scala3_only)
   .configure(addBaseSettingsAndTestDeps, addSbtIO, addSbtUtilLogging, addSbtUtilRelation)
 
 lazy val zincBenchmarks = (projectMatrix in internalPath / "zinc-benchmarks")
@@ -407,8 +392,7 @@ lazy val zincBenchmarks = (projectMatrix in internalPath / "zinc-benchmarks")
       )
     ),
   )
-  .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
-  .jvmPlatform(scalaVersions = scala212_213)
+  .jvmPlatform(scalaVersions = scala3_only)
 
 // sbt-side interface to compiler.  Calls compiler-side interface reflectively
 lazy val zincCompileCore = (projectMatrix in internalPath / "zinc-compile-core")
@@ -423,7 +407,7 @@ lazy val zincCompileCore = (projectMatrix in internalPath / "zinc-compile-core")
   .settings(
     name := "zinc Compile Core",
     libraryDependencies ++= Seq(
-      scalaCompiler.value % Test,
+      // scalaCompiler.value % Test,
       launcherInterface,
       parserCombinator,
       zeroAllocationHashing
@@ -435,8 +419,7 @@ lazy val zincCompileCore = (projectMatrix in internalPath / "zinc-compile-core")
     mimaSettings,
     mimaBinaryIssueFilters ++= ZincBuildUtil.excludeInternalProblems,
   )
-  .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
-  .jvmPlatform(scalaVersions = List(scala212, scala213))
+  .jvmPlatform(scalaVersions = scala3_only)
   .configure(addBaseSettingsAndTestDeps, addSbtUtilLogging, addSbtIO, addSbtUtilControl)
 
 // defines Java structures used across Scala versions, such as the API structures and relationships extracted by
@@ -447,10 +430,9 @@ lazy val compilerInterface = (projectMatrix in internalPath / "compiler-interfac
   .settings(
     baseSettings,
     name := "Compiler Interface",
-    scalaVersion := scala212,
-    crossScalaVersions := Seq(scala212),
+    scalaVersion := scala3,
+    crossScalaVersions := Seq(scala3),
     compilerVersionDependentScalacOptions,
-    libraryDependencies ++= Seq(scalaLibrary.value % Test),
     libraryDependencies ++= Seq(scalatest % Test),
     exportJars := true,
     Compile / resourceGenerators += Def.task {
@@ -515,6 +497,9 @@ lazy val compilerBridge = (projectMatrix in internalPath / "compiler-bridge")
   .settings(
     name := "Compiler Bridge",
     autoScalaLibrary := false,
+    semanticdbEnabled := {
+      semanticdbEnabled.value && !scalaVersion.value.startsWith("2.10")
+    },
     baseSettings,
     compilerVersionDependentScalacOptions,
     // We need this for import Compat._
@@ -562,10 +547,14 @@ lazy val compilerBridgeScala3Bin = (project in internalPath / "compilerBridgeSca
  * (Zinc API Info, which transitively depends on IO).
  */
 lazy val compilerBridgeTest = (projectMatrix in internalPath / "compiler-bridge-test")
-  .dependsOn(zinc % "compile->compile;test->test", compilerInterface)
+  .dependsOn(
+    zinc3 % "compile->compile;test->test",
+    compilerInterface.jvm(false)
+  )
   .settings(
     name := "Compiler Bridge Test",
     baseSettings,
+    scalaVersion := scala3,
     compilerVersionDependentScalacOptions,
     // we need to fork because in unit tests we set usejavacp = true which means
     // we are expecting all of our dependencies to be on classpath so Scala compiler
@@ -574,7 +563,7 @@ lazy val compilerBridgeTest = (projectMatrix in internalPath / "compiler-bridge-
     // needed because we fork tests and tests are ran in parallel so we have multiple Scala
     // compiler instances that are memory hungry
     Test / javaOptions += "-Xmx1G",
-    Test / javaOptions += s"-Dzinc.build.compilerbridge.scalaVersion=${scalaVersion.value}",
+    Test / javaOptions += s"-Dzinc.build.compilerbridge.scalaVersion=${scala213}",
     publish / skip := true,
   )
   .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
@@ -587,7 +576,11 @@ def inBoth(ss: Setting[?]*): Seq[Setting[?]] = Seq(Compile, Test).flatMap(inConf
 // defines operations on the API of a source, including determining whether it has changed and converting it to a string
 //   and discovery of classes and annotations
 lazy val zincApiInfo = (projectMatrix in internalPath / "zinc-apiinfo")
-  .dependsOn(compilerInterface, compilerBridge, zincClassfile % "compile;test->test")
+  .dependsOn(
+    compilerInterface,
+    // compilerBridge,
+    zincClassfile % "compile;test->test"
+  )
   .settings(
     name := "zinc ApiInfo",
     compilerVersionDependentScalacOptions,
@@ -616,8 +609,7 @@ lazy val zincApiInfo = (projectMatrix in internalPath / "zinc-apiinfo")
       exclude[DirectMissingMethodProblem]("sbt.internal.inc.ClassToAPI.handleMalformedNameOf*"),
     ),
   )
-  .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
-  .jvmPlatform(scalaVersions = scala212_213)
+  .jvmPlatform(scalaVersions = scala3_only)
   .configure(addBaseSettingsAndTestDeps(_))
 
 // Utilities related to reflection, managing Scala versions, and custom class loaders
@@ -626,7 +618,10 @@ lazy val zincClasspath = (projectMatrix in internalPath / "zinc-classpath")
   .settings(
     name := "zinc Classpath",
     compilerVersionDependentScalacOptions,
-    libraryDependencies ++= Seq(scalaCompiler.value, launcherInterface),
+    libraryDependencies ++= Seq(
+      // scalaCompiler.value,
+      launcherInterface
+    ),
     mimaSettings,
     mimaBinaryIssueFilters ++= Seq(
       // private[sbt]
@@ -647,8 +642,7 @@ lazy val zincClasspath = (projectMatrix in internalPath / "zinc-classpath")
       exclude[IncompatibleMethTypeProblem]("sbt.internal.inc.classpath.NativeCopyConfig.*"),
     ),
   )
-  .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
-  .jvmPlatform(scalaVersions = scala212_213)
+  .jvmPlatform(scalaVersions = scala3_only)
   .configure(addBaseSettingsAndTestDeps, addSbtIO)
 
 // class file reader and analyzer
@@ -676,8 +670,7 @@ lazy val zincClassfile = (projectMatrix in internalPath / "zinc-classfile")
     ),
     mimaBinaryIssueFilters ++= ZincBuildUtil.excludeInternalProblems,
   )
-  .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
-  .jvmPlatform(scalaVersions = scala212_213)
+  .jvmPlatform(scalaVersions = scala3_only)
   .configure(addBaseSettingsAndTestDeps, addSbtIO, addSbtUtilLogging)
 
 // re-implementation of scripted engine
@@ -692,17 +685,16 @@ lazy val zincScripted = (projectMatrix in internalPath / "zinc-scripted")
     Compile / buildInfo := Nil, // Only generate build info for tests
     BuildInfoPlugin.buildInfoScopedSettings(Test),
     Test / buildInfoPackage := "sbt.internal.inc",
-    Test / buildInfoKeys := Seq[BuildInfoKey](zinc212 / sourceDirectory),
+    Test / buildInfoKeys := Seq[BuildInfoKey](zinc3 / sourceDirectory),
     conflictWarning := ConflictWarning.disable,
   )
-  .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
-  .jvmPlatform(scalaVersions = List(scala212))
+  .jvmPlatform(scalaVersions = scala3_only)
   .configure(
     _.dependsOn(compilerBridge210, compilerBridge211, compilerBridge212, compilerBridge213)
   )
   .configure(addSbtUtilScripted)
 
-lazy val zincScripted212 = zincScripted.jvm(scala212)
+lazy val zincScripted3 = zincScripted.jvm(scala3)
 
 def bridges = {
   if (sys.props("java.specification.version") == "1.8") {
@@ -730,8 +722,8 @@ addCommandAlias(
     Seq(
       s"${compilerBridge213.id}/packageBin",
       s"${compilerBridge212.id}/packageBin",
-      s"${zincBenchmarks.jvm(scala212).id}/Test/run $dir $pattern",
-      s"${zincBenchmarks.jvm(scala212).id}/jmh:run -p _tempDir=$dir -prof gc -foe true $pattern",
+      s"${zincBenchmarks.jvm(scala3).id}/Test/run $dir $pattern",
+      s"${zincBenchmarks.jvm(scala3).id}/jmh:run -p _tempDir=$dir -prof gc -foe true $pattern",
       s"""eval IO.delete(file("$dir"))""",
     ).mkString(";", ";", "")
   }
@@ -740,8 +732,8 @@ addCommandAlias(
 def scriptedTask: Def.Initialize[InputTask[Unit]] = Def.inputTask {
   val result = scriptedSource(dir => (_: State) => scriptedParser(dir)).parsed
   doScripted(
-    (zincScripted212 / Test / fullClasspath).value,
-    (zincScripted212 / scalaInstance).value,
+    (zincScripted3 / Test / fullClasspath).value,
+    (zincScripted3 / scalaInstance).value,
     scriptedSource.value,
     result,
     scriptedBufferLog.value,

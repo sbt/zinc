@@ -432,7 +432,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       val outputJars = outputs.flatMap(out => (JarUtils.getOutputJar(out): Option[Path]).toList)
       val classpathPaths = classpath.map(converter.toPath)
       val outputJarsOnCp = outputJars.exists { outputJar =>
-        classpathPaths.exists { x: Path =>
+        classpathPaths.exists { (x: Path) =>
           x.toAbsolutePath == outputJar.toAbsolutePath
         }
       }
@@ -655,7 +655,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
 
   private[sbt] def foldMappers[A](mappers: Array[JavaFunction[A, Optional[A]]]) = {
     mappers.foldRight(InterfaceUtil.toJavaFunction[A, A](identity)) { (mapper, mappers) =>
-      InterfaceUtil.toJavaFunction[A, A]({ p: A =>
+      InterfaceUtil.toJavaFunction[A, A]({ (p: A) =>
         mapper(p).toOption.getOrElse(mappers(p))
       })
     }
