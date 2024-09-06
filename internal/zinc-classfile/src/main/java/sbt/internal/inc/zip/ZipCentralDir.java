@@ -302,8 +302,8 @@ public class ZipCentralDir {
         IndexNode child;  // 1st child
     }
 
-    private static void zerror(String msg) {
-        throw new ZipError(msg);
+    private static void zerror(String msg) throws ZipException {
+        throw new ZipException(msg);
     }
 
     private void buildNodeTree() {
