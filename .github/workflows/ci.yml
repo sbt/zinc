@@ -75,10 +75,10 @@ jobs:
       if: ${{ github.event_name == 'pull_request' && matrix.jobtype == 4 }}
       shell: bash
       run: |
-        sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Scalac.*" "zincBenchmarks/jmh:clean" "runBenchmarks"
+        sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Scalac.*" "zincBenchmarks3/Jmh/clean" "runBenchmarks"
     - name: Benchmark (Shapeless) against Develop Branch (5)
       if: ${{ github.event_name == 'pull_request' && matrix.jobtype == 5 }}
       shell: bash
       run: |
-        sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Shapeless.*" "zincBenchmarks/jmh:clean" "runBenchmarks"
+        sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Shapeless.*" "zincBenchmarks3/Jmh/clean" "runBenchmarks"
         
