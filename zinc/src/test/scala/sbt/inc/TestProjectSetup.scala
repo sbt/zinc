@@ -12,6 +12,7 @@
 package sbt
 package inc
 
+import java.io.FileNotFoundException
 import java.net.URLClassLoader
 import java.nio.file.{ Files, Path, Paths }
 import java.util.Optional
@@ -136,7 +137,14 @@ case class CompilerSetup(
       store: AnalysisStore,
       newInputs: Inputs => Inputs,
   ): CompileResult = {
-    val prevRes = store.get().toOption.fold(zinc.emptyPreviousResult)(zinc.previousResult(_))
+    // only allow FileNotFoundException to silently use empty previous result
+    val prevRes =
+      try {
+        zinc.previousResult(store.unsafeGet())
+      } catch {
+        case _: FileNotFoundException  => zinc.emptyPreviousResult
+        case _: NoSuchElementException => zinc.emptyPreviousResult
+      }
     val newResult = doCompile(inputs => newInputs(inputs.withPreviousResult(prevRes)))
     store.set(AnalysisContents.create(newResult.analysis, newResult.setup))
     newResult
