@@ -548,8 +548,11 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
     val equiv = equivCompileSetup(mixedCompiler.log, equivOpts)
     previousSetup match {
       // The dummy output needs to be changed to .jar for this to work again.
-      case _ if compileToJarSwitchedOn(config)           => Analysis.empty
-      case Some(prev) if equiv.equiv(prev, currentSetup) => previousAnalysis
+      case _ if compileToJarSwitchedOn(config) =>
+        log.debug(s"prevAnalysis: compileToJar has changed")
+        Analysis.empty
+      case Some(prev) if equiv.equiv(prev, currentSetup) =>
+        previousAnalysis
       case Some(prev) if !equivPairs.equiv(prev.extra, currentSetup.extra) =>
         import sbt.internal.inc.ClassFileManager
         val classFileManager =
