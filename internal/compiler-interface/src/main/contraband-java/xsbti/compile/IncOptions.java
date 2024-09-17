@@ -10,7 +10,7 @@ package xsbti.compile;
  */
 public final class IncOptions implements java.io.Serializable {
     public static int defaultTransitiveStep() {
-        return 3;
+        return 5;
     }
     public static double defaultRecompileAllFraction() {
         return 0.5;

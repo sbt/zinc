@@ -106,7 +106,7 @@ type IncOptions {
   @since("1.4.0")
 
   #x public static int defaultTransitiveStep() {
-  #x     return 3;
+  #x     return 5;
   #x }
   #x public static double defaultRecompileAllFraction() {
   #x     return 0.5;
