@@ -28,7 +28,7 @@ import Compat._
 class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
   import ConsistentAnalysisFormat._
 
-  private[this] final val VERSION = 1100028
+  private[this] final val VERSION = 1100029
   private[this] final val readMapper = mappers.getReadMapper
   private[this] final val writeMapper = mappers.getWriteMapper
 
@@ -40,6 +40,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
     writeStamps(out, analysis0.stamps)
     writeAPIs(out, analysis0.apis, setup.storeApis())
     writeSourceInfos(out, analysis0.infos)
+    // we do not read or write the Compilations
     out.int(VERSION)
     out.end()
   }
@@ -51,9 +52,11 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
     val stamps = readStamps(in)
     val apis = readAPIs(in, setup.storeApis())
     val infos = readSourceInfos(in)
+    // we do not read or write the Compilations
+    val compilations = Compilations.of(Nil)
     readVersion(in)
     in.end()
-    (Analysis.Empty.copy(stamps, apis, relations, infos, Compilations.of(Nil)), setup)
+    (Analysis.Empty.copy(stamps, apis, relations, infos, compilations), setup)
   }
 
   @inline
@@ -292,6 +295,13 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
       out.byte(setup.order.ordinal().toByte)
       out.bool(setup.storeApis())
       out.writeArray("extra", setup.extra, 2) { t => out.string(t.get1); out.string(t.get2) }
+      val singleOutput = setup.output().getSingleOutputAsPath()
+      val outputPath = singleOutput match {
+        case o if o.isPresent() && o.get().getFileName().toString().endsWith(".jar") =>
+          Analysis.dummyOutputJarPath
+        case _ => Analysis.dummyOutputPath
+      }
+      out.string(outputPath.toString())
     }
   }
 
@@ -306,8 +316,9 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
       val compileOrder = CompileOrder.values()(in.byte().toInt)
       val skipApiStoring = in.bool()
       val extra = in.readArray(2) { InterfaceUtil.t2(in.string() -> in.string()) }
+      val outputPath = in.string()
       readMapper.mapMiniSetup(MiniSetup.of(
-        CompileOutput(Analysis.dummyOutputPath),
+        CompileOutput(Paths.get(outputPath)),
         MiniOptions.of(classpathHash, scalacOptions, javacOptions),
         compilerVersion,
         compileOrder,

@@ -9,6 +9,9 @@ import sbt.io.IO
 import xsbti.compile.{ AnalysisContents, AnalysisStore }
 import xsbti.compile.analysis.ReadWriteMappers
 
+// $ cp $HOME/work/scala-modules/scala/target/library/zinc/inc_compile.zip test-data/library.zip
+// $ cp $HOME/work/scala-modules/scala/target/reflect/zinc/inc_compile.zip test-data/reflect.zip
+// $ cp $HOME/work/scala-modules/scala/target/compiler/zinc/inc_compile.zip test-data/compiler.zip
 class ConsistentAnalysisFormatIntegrationSuite extends AnyFunSuite {
   val data =
     Seq("compiler.zip", "library.zip", "reflect.zip").map(f => new File("../../../test-data", f))
@@ -16,7 +19,7 @@ class ConsistentAnalysisFormatIntegrationSuite extends AnyFunSuite {
   test("Consistent output") {
     for (d <- data) {
       assert(d.exists())
-      val api = read(FileAnalysisStore.binary(d))
+      val api = read(FileAnalysisStore.text(d))
       val f1 = write("cbin1.zip", api)
       val f2 = write("cbin2.zip", api)
       assert(Arrays.equals(IO.readBytes(f1), IO.readBytes(f2)), s"same output for $d")
@@ -26,7 +29,7 @@ class ConsistentAnalysisFormatIntegrationSuite extends AnyFunSuite {
   test("Roundtrip") {
     for (d <- data) {
       assert(d.exists())
-      val api = read(FileAnalysisStore.binary(d))
+      val api = read(FileAnalysisStore.text(d))
       val f1 = write("cbin1.zip", api)
       val api2 = read(ConsistentFileAnalysisStore.binary(f1, ReadWriteMappers.getEmptyMappers))
       val f2 = write("cbin2.zip", api2)
@@ -37,7 +40,7 @@ class ConsistentAnalysisFormatIntegrationSuite extends AnyFunSuite {
   test("Unsorted roundtrip") {
     for (d <- data) {
       assert(d.exists())
-      val api = read(FileAnalysisStore.binary(d))
+      val api = read(FileAnalysisStore.text(d))
       val f1 = write("cbin1.zip", api)
       val api2 = read(ConsistentFileAnalysisStore.binary(f1, ReadWriteMappers.getEmptyMappers))
       val f2 = write("cbin2.zip", api2, sort = false)

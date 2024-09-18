@@ -54,7 +54,7 @@ sealed abstract class UsedNames private {
 }
 
 object UsedNames {
-  def fromJavaMap(map: ju.Map[String, Schema.UsedNames]) = JavaUsedNames(map)
+  // def fromJavaMap(map: ju.Map[String, Schema.UsedNames]) = JavaUsedNames(map)
   def fromMultiMap(map: sc.Map[String, sc.Set[UsedName]]) = ScalaUsedNames(map)
 
   final case class ScalaUsedNames(map: sc.Map[String, sc.Set[UsedName]]) extends UsedNames {
@@ -67,87 +67,5 @@ object UsedNames {
       map(from).iterator.exists(modifiedNames.isModified)
     def affectedNames(modifiedNames: ModifiedNames, from: String): String =
       map(from).iterator.filter(modifiedNames.isModified).mkString(", ")
-  }
-
-  final case class JavaUsedNames(map: ju.Map[String, Schema.UsedNames]) extends UsedNames {
-
-    import scala.collection.JavaConverters._
-
-    private def fromUseScope(useScope: Schema.UseScope, id: Int): UseScope = useScope match {
-      case Schema.UseScope.DEFAULT  => UseScope.Default
-      case Schema.UseScope.IMPLICIT => UseScope.Implicit
-      case Schema.UseScope.PATMAT   => UseScope.PatMatTarget
-      case Schema.UseScope.UNRECOGNIZED =>
-        sys.error(s"Unrecognized ${classOf[Schema.UseScope].getName} with value `$id`.")
-    }
-
-    private def fromUsedName(usedName: Schema.UsedName): UsedName = {
-      val name = usedName.getName.intern() // ?
-      val useScopes = ju.EnumSet.noneOf(classOf[UseScope])
-      val len = usedName.getScopesCount
-      for (i <- 0 to len - 1)
-        useScopes.add(fromUseScope(usedName.getScopes(i), usedName.getScopesValue(i)))
-      UsedName.make(name, useScopes)
-    }
-
-    private def fromUsedNamesMap(map: ju.Map[String, Schema.UsedNames]) =
-      for ((k, used) <- map.asScala)
-        yield k -> used.getUsedNamesList.asScala.iterator.map(fromUsedName).toSet
-
-    lazy val toMultiMap: sc.Map[String, sc.Set[UsedName]] = fromUsedNamesMap(map)
-    private lazy val convert: UsedNames = fromMultiMap(toMultiMap)
-
-    def isEmpty = map.isEmpty
-
-    def ++(other: UsedNames) = convert ++ other
-
-    def --(classes: Iterable[String]) = convert -- classes
-
-    def iterator = convert.iterator
-
-    def hasAffectedNames(modifiedNames: ModifiedNames, from: String): Boolean = {
-      val usedNames = map.get(from)
-      var i = 0
-      val n = usedNames.getUsedNamesCount
-      while (i < n) {
-        val usedName = usedNames.getUsedNames(i)
-        val name = usedName.getName
-        var i2 = 0
-        val n2 = usedName.getScopesCount
-        while (i2 < n2) {
-          val scope = fromUseScope(usedName.getScopes(i2), usedName.getScopesValue(i2))
-          if (modifiedNames.isModifiedRaw(name, scope)) {
-            return true
-          }
-          i2 += 1
-        }
-        i += 1
-      }
-      false
-    }
-
-    def affectedNames(modifiedNames: ModifiedNames, from: String): String = {
-      val b = new StringBuilder()
-      val usedNames = map.get(from)
-      var first = true
-      var i = 0
-      val n = usedNames.getUsedNamesCount
-      while (i < n) {
-        val usedName = usedNames.getUsedNames(i)
-        val name = usedName.getName
-        var i2 = 0
-        val n2 = usedName.getScopesCount
-        while (i2 < n2) {
-          val scope = fromUseScope(usedName.getScopes(i2), usedName.getScopesValue(i2))
-          if (modifiedNames.isModifiedRaw(name, scope)) {
-            if (first) first = false else b.append(", ")
-            b.append(name)
-          }
-          i2 += 1
-        }
-        i += 1
-      }
-      b.toString
-    }
   }
 }

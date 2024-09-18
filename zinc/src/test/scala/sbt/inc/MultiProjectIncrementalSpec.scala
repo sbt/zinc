@@ -121,8 +121,13 @@ class MultiProjectIncrementalSpec extends BaseCompilerSpec {
 
       c1.compile(f1)
       val result = c2.compileBoth(f2, f3)
-      assert(startTimes(result) == startTimes(c2.compileBoth(f2, f3)))
-      assert(startTimes(result) != startTimes(c2.compileBoth(f2, f4)))
+      val noopResult = c2.compileBoth(f2, f3)
+      // comparing startTime is no longer a good test
+      assert(!noopResult.hasModified())
+
+      // comparing startTime is no longer a good test
+      val changedResult = c2.compileBoth(f2, f4)
+      assert(changedResult.hasModified())
     } finally {
       c1.close()
       c2.close()
