@@ -506,7 +506,7 @@ private[inc] abstract class IncrementalCommon(
           dependsOnClass
         )
         log.debug("Invalidate by brute force:\n\t" + firstClassTransitiveInvalidation)
-        firstClassTransitiveInvalidation ++ secondClassInvalidation ++ thirdClassInvalidation
+        firstClassTransitiveInvalidation ++ secondClassInvalidation ++ thirdClassInvalidation ++ recompiledClasses
       } else {
         firstClassInvalidation ++ secondClassInvalidation ++ thirdClassInvalidation
       }
