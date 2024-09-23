@@ -886,7 +886,7 @@ private final class AnalysisCallback(
                 val externalParentsAPI = externalParents.map(analysis.apis.externalAPI)
                 val internalParentsAPI = internalParents.map(analysis.apis.internalAPI)
                 val parentsHashes = (externalParentsAPI ++ internalParentsAPI).map(_.extraHash())
-                parentsHashes.fold(currentExtraHash)(_ ^ _)
+                parentsHashes.hashCode
               case None => currentExtraHash
             }
           }
