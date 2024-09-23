@@ -30,6 +30,9 @@ jobs:
           - os: ubuntu-latest
             java: 21
             jobtype: 5
+          - os: ubuntu-latest
+            java: 21
+            jobtype: 6
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout
@@ -65,8 +68,13 @@ jobs:
       shell: bash
       run: |
         sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Shapeless.*" "runBenchmarks"
-    - name: Checkout Target Branch (4, 5)
-      if: ${{ github.event_name == 'pull_request' && (matrix.jobtype == 4 || matrix.jobtype == 5) }}
+    - name: Benchmark (AnalysisFormatBenchmark) (6)
+      if: ${{ matrix.jobtype == 6 }}
+      shell: bash
+      run: |
+        sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*AnalysisFormatBenchmark.*" "zincBenchmarks3/Jmh/clean" "runBenchmarks"
+    - name: Checkout Target Branch (4, 5, 6)
+      if: ${{ github.event_name == 'pull_request' && (matrix.jobtype == 4 || matrix.jobtype == 5 || matrix.jobtype == 6) }}
       uses: actions/checkout@v4
       with:
         clean: false
@@ -81,4 +89,8 @@ jobs:
       shell: bash
       run: |
         sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Shapeless.*" "zincBenchmarks3/Jmh/clean" "runBenchmarks"
-        
+    - name: Benchmark (AnalysisFormatBenchmark) against Target Branch (6)
+      if: ${{ github.event_name == 'pull_request' && matrix.jobtype == 6 }}
+      shell: bash
+      run: |
+        sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*AnalysisFormatBenchmark.*" "zincBenchmarks3/Jmh/clean" "runBenchmarks"
