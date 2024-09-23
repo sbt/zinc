@@ -65,18 +65,18 @@ jobs:
       shell: bash
       run: |
         sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Shapeless.*" "runBenchmarks"
-    - name: Checkout Develop Branch (4, 5)
+    - name: Checkout Target Branch (4, 5)
       if: ${{ github.event_name == 'pull_request' && (matrix.jobtype == 4 || matrix.jobtype == 5) }}
       uses: actions/checkout@v4
       with:
         clean: false
-        ref: develop
-    - name: Benchmark (Scalac) against Develop Branch (4)
+        ref: ${{ github.event.pull_request.base.ref }}
+    - name: Benchmark (Scalac) against Target Branch (4)
       if: ${{ github.event_name == 'pull_request' && matrix.jobtype == 4 }}
       shell: bash
       run: |
         sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Scalac.*" "zincBenchmarks3/Jmh/clean" "runBenchmarks"
-    - name: Benchmark (Shapeless) against Develop Branch (5)
+    - name: Benchmark (Shapeless) against Target Branch (5)
       if: ${{ github.event_name == 'pull_request' && matrix.jobtype == 5 }}
       shell: bash
       run: |
