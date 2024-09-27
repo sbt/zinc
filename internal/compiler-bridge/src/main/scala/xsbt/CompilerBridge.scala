@@ -18,6 +18,8 @@ import scala.collection.mutable
 import scala.reflect.io.AbstractFile
 import scala.tools.nsc.CompilerCommand
 import Log.debug
+import xsbti.compile.analysis.ReadSourceInfos
+
 import java.io.File
 
 /**
@@ -48,6 +50,16 @@ class InterfaceCompileFailed(
     val problems: Array[Problem],
     override val toString: String
 ) extends xsbti.CompileFailed
+
+class InterfaceCompileFailed2(
+    val arguments: Array[String],
+    val sourceInfos: ReadSourceInfos,
+    override val toString: String
+) extends xsbti.CompileFailed2 {
+  import scala.collection.JavaConverters._
+  val problems: Array[Problem] =
+    sourceInfos.getAllSourceInfos.values().asScala.flatMap(_.getReportedProblems).toArray
+}
 
 class InterfaceCompileCancelled(val arguments: Array[String], override val toString: String)
     extends xsbti.CompileCancelled
@@ -149,8 +161,8 @@ private final class CachedCompiler0(
       underlyingReporter: DelegatingReporter,
       compileProgress: CompileProgress
   ): Unit = {
-    // cast down to AnalysisCallback2
-    val callback2 = callback.asInstanceOf[xsbti.AnalysisCallback2]
+    // cast down to AnalysisCallback3
+    val callback3 = callback.asInstanceOf[xsbti.AnalysisCallback3]
 
     compiler.set(callback, underlyingReporter)
     if (command.shouldStopWithInfo) {
@@ -165,7 +177,7 @@ private final class CachedCompiler0(
       run.compileFiles(sources)
       processUnreportedWarnings(run)
       underlyingReporter.problems.foreach(p =>
-        callback2.problem2(
+        callback3.problem2(
           p.category,
           p.position,
           p.message,
@@ -180,8 +192,10 @@ private final class CachedCompiler0(
     }
 
     underlyingReporter.printSummary()
-    if (!noErrors(underlyingReporter))
-      handleErrors(underlyingReporter, log)
+    if (!noErrors(underlyingReporter)) {
+      val infos = callback3.getSourceInfos
+      handleErrors(infos, log)
+    }
 
     // the case where we cancelled compilation _after_ some compilation errors got reported
     // will be handled by line above so errors still will be reported properly just potentially not
@@ -193,6 +207,11 @@ private final class CachedCompiler0(
   def handleErrors(dreporter: DelegatingReporter, log: Logger): Nothing = {
     debug(log, "Compilation failed (CompilerInterface)")
     throw new InterfaceCompileFailed(args, dreporter.problems, "Compilation failed")
+  }
+
+  def handleErrors(sourceInfos: ReadSourceInfos, log: Logger): Nothing = {
+    debug(log, "Compilation failed (CompilerInterface)")
+    throw new InterfaceCompileFailed2(args, sourceInfos, "Compilation failed")
   }
 
   def handleCompilationCancellation(dreporter: DelegatingReporter, log: Logger): Nothing = {
