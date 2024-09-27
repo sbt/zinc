@@ -674,6 +674,8 @@ private final class AnalysisCallback(
     ()
   }
 
+  override def toVirtualFile(path: Path): VirtualFile = converter.toVirtualFile(path)
+
   override def problem2(
       category: String,
       pos: Position,
