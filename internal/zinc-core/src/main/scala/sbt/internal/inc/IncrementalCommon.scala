@@ -492,6 +492,7 @@ private[inc] abstract class IncrementalCommon(
       val transitive = IncrementalCommon.transitiveDeps(recompiledClasses, log)(dependsOnClass)
       (transitive -- recompiledClasses).filter(analysis.apis.internalAPI(_).hasMacro)
     }
+    log.debug(s"Invalidated macros due to upstream dependencies change: ${thirdClassInvalidation}")
 
     val newInvalidations =
       (firstClassInvalidation -- recompiledClasses) ++ secondClassInvalidation ++ thirdClassInvalidation
