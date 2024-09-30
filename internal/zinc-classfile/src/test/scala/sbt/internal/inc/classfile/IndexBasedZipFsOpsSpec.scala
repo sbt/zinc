@@ -3,7 +3,7 @@ package classfile
 
 import java.nio.file._
 import java.nio.file.spi.FileSystemProvider
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class IndexBasedZipFsOpsSpec extends UnitSpec {
   private val XL = 0xffff // minimum size to be zip64, which I'm calling "XL"

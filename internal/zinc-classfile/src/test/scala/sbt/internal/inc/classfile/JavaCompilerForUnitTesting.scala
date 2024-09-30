@@ -26,7 +26,7 @@ import xsbti.{ AnalysisCallback, BasicVirtualFileRef, TestCallback, VirtualFile,
 import xsbti.TestCallback.ExtractedClassDependencies
 import xsbti.compile.SingleOutput
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object JavaCompilerForUnitTesting {
   private class TestVirtualFile(p: Path) extends BasicVirtualFileRef(p.toString) with VirtualFile {

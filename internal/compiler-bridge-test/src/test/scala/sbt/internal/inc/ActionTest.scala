@@ -4,7 +4,7 @@ package inc
 
 import verify._
 import sbt.io.IO.withTemporaryDirectory
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 /** This is a basic test for compiler bridge, mostly wrapped as
  * AnalyzingCompiler.

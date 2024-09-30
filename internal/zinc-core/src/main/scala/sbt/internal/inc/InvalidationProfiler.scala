@@ -19,7 +19,7 @@ import xsbti.compile.{ InitialChanges => XInitialChanges }
 import xsbti.compile.{ InvalidationProfiler => XInvalidationProfiler }
 import xsbti.compile.{ RunProfiler => XRunProfiler }
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 

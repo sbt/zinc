@@ -23,7 +23,7 @@ import sbt.internal.inc.JavaInterfaceUtil.EnrichOption
 import sbt.util.{ InterfaceUtil, Level, Logger }
 import sbt.util.InterfaceUtil.{ jl2l, jo2o, l2jl, t2 }
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 import scala.util.control.NonFatal
 import xsbti.{ FileConverter, Position, Problem, Severity, UseScope, VirtualFile, VirtualFileRef }
@@ -1010,7 +1010,7 @@ private final class AnalysisCallback(
   }
 
   def addProductsAndDeps(base: Analysis): Analysis = {
-    import scala.collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
     srcs.asScala.foldLeft(base) {
       case (a, src) =>
         val stamp = stampReader.source(src)

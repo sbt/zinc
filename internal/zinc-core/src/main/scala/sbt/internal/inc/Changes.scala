@@ -13,7 +13,7 @@ package sbt
 package internal
 package inc
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 import xsbti.{ UseScope, VirtualFileRef }
 import xsbti.api.NameHash
@@ -127,7 +127,7 @@ abstract class UnderlyingChanges[A] extends Changes[A] {
   def changed: Set[A]
   def unmodified: Set[A]
 
-  import scala.collection.JavaConverters.setAsJavaSetConverter
+  import scala.jdk.CollectionConverters._
   override def getAdded: java.util.Set[A] = added.asJava
   override def getChanged: java.util.Set[A] = changed.asJava
   override def getRemoved: java.util.Set[A] = removed.asJava

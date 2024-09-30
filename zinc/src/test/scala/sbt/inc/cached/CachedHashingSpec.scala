@@ -22,7 +22,7 @@ import sbt.internal.inc.{
 }
 import sbt.io.IO
 
-import scala.collection.JavaConverters.asScalaIteratorConverter
+import scala.jdk.CollectionConverters._
 
 class CachedHashingSpec extends BaseCompilerSpec {
   lazy val isWindows: Boolean =

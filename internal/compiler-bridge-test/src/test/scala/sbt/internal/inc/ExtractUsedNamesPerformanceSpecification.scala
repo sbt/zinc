@@ -22,7 +22,7 @@ class ExtractUsedNamesPerformanceSpecification
     catch {
       case _: FileSystemNotFoundException =>
         val env = Map("create" -> "true")
-        import scala.collection.JavaConverters._
+        import scala.jdk.CollectionConverters._
         Option(FileSystems.newFileSystem(uri, env.asJava))
       case _: IllegalArgumentException =>
         Option(FileSystems.getDefault)

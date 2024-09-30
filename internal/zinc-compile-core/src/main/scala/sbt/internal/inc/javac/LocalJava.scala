@@ -38,7 +38,7 @@ import javax.tools.{
 import sbt.internal.util.LoggerWriter
 import sbt.util.{ Level, Logger }
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.control.NonFatal
 import xsbti.{ Reporter, Logger => XLogger, PathBasedFile, VirtualFile, VirtualFileRef }
 import xsbti.compile.{
@@ -104,7 +104,7 @@ object LocalJava {
   ): Int = {
     (javadocTool, standardDocletClass) match {
       case (Some(m), Some(clz)) =>
-        import scala.collection.JavaConverters._
+        import scala.jdk.CollectionConverters._
         val task = m.getTask(
           out,
           null,

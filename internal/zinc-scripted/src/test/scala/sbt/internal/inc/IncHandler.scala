@@ -780,7 +780,7 @@ case class ProjectStructure(
   }
 
   def loadIncOptions(properties: Properties): (IncOptions, Array[String]) = {
-    import scala.collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
     val map = new java.util.HashMap[String, String]
     properties.asScala foreach { case (k: String, v: String) => map.put(k, v) }
     val base = IncOptions
