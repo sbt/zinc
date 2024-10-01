@@ -108,7 +108,7 @@ final class ClasspathFilter(parent: ClassLoader, root: ClassLoader, classpath: S
   }
 
   override def getResources(name: String): java.util.Enumeration[URL] = {
-    import scala.collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
     val us = super.getResources(name)
     if (us ne null) us.asScala.filter(onClasspath).asJavaEnumeration else null
   }

@@ -17,7 +17,7 @@ import java.nio.file.{ Path, Paths }
 import sbt.internal.inc.UsedName
 import xsbti.{ UseScope, VirtualFileRef }
 import xsbti.compile.analysis.Stamp
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 case class Mapper[V](read: String => V, write: V => String)
 case class ContextAwareMapper[C, V](read: (C, String) => V, write: (C, V) => String)

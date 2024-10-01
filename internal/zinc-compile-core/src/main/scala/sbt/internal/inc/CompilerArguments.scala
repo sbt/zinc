@@ -103,7 +103,7 @@ final class CompilerArguments(
    */
   def createBootClasspath(addLibrary: Boolean): String = {
     def findBoot: String = {
-      import scala.collection.JavaConverters._
+      import scala.jdk.CollectionConverters._
       System.getProperties.asScala.iterator
         .collectFirst {
           case (k, v) if k.endsWith(".boot.class.path") => v

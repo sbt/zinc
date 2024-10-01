@@ -528,7 +528,7 @@ private[inc] abstract class IncrementalCommon(
   ): (Set[String], Set[VirtualFileRef]) = {
     def classNames(srcs: Set[VirtualFileRef]): Set[String] = srcs.flatMap(previous.classNames)
     def toImmutableSet(srcs: java.util.Set[VirtualFileRef]): Set[VirtualFileRef] = {
-      import scala.collection.JavaConverters.asScalaIteratorConverter
+      import scala.jdk.CollectionConverters._
       srcs.iterator().asScala.toSet
     }
 

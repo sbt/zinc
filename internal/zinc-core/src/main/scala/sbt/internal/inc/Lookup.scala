@@ -66,7 +66,7 @@ trait Lookup extends ExternalLookup {
  */
 trait ExternalLookup extends ExternalHooks.Lookup {
   import sbt.internal.inc.JavaInterfaceUtil.EnrichOption
-  import scala.collection.JavaConverters._
+  import scala.jdk.CollectionConverters._
 
   /**
    * Find the external `AnalyzedClass` (from another analysis) given a class name and, if available,
@@ -130,7 +130,7 @@ trait ExternalLookup extends ExternalHooks.Lookup {
       changedClasses: util.Set[String],
       previousAnalysis: CompileAnalysis
   ): Boolean = {
-    import scala.collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
     shouldDoIncrementalCompilation(changedClasses.iterator().asScala.toSet, previousAnalysis)
   }
 

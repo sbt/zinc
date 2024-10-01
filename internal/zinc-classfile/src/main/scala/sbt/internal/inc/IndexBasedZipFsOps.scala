@@ -16,7 +16,7 @@ import java.nio.file.Path
 
 import sbt.internal.inc.zip.ZipCentralDir
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.immutable.Seq
 
 /**
