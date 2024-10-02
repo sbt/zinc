@@ -686,7 +686,6 @@ lazy val zincScripted = (projectMatrix in internalPath / "zinc-scripted")
   .enablePlugins(BuildInfoPlugin)
   .settings(
     baseSettings,
-    ideSkipProject := true, // otherwise IntelliJ complains
     publish / skip := true,
     name := "zinc Scripted",
     Compile / buildInfo := Nil, // Only generate build info for tests
