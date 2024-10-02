@@ -53,8 +53,8 @@ final class ScriptedTests(
     // Test group and names may be file filters (like '*')
     val groupAndNameDirs = for {
       ScriptedTest(group, name) <- tests
-      groupDir <- resourceBaseDirectory.toFile.glob(group).get.map(_.toPath)
-      testDir <- groupDir.toFile.*(name).get.map(_.toPath)
+      groupDir <- resourceBaseDirectory.toFile.glob(group).get().map(_.toPath)
+      testDir <- groupDir.toFile.*(name).get().map(_.toPath)
     } yield (groupDir, testDir)
 
     val labelsAndDirs = groupAndNameDirs.map {
@@ -157,7 +157,7 @@ final class ScriptedTests(
           // Run the test and delete files (except global that holds local scala jars)
           val runTest = () => commonRunTest(label, batchTmpDir, handlers, runner, states, logger)
           val result = runOrHandleDisabled(label, batchTmpDir, runTest, logger)
-          IO.delete(batchTmpDir.toFile.*("*" -- "global").get)
+          IO.delete(batchTmpDir.toFile.*("*" -- "global").get())
           result
       }
     finally runner.cleanUpHandlers(seqHandlers, states)

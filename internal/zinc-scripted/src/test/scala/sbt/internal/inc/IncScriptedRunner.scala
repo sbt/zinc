@@ -19,6 +19,7 @@ import sbt.io.IO
 import sbt.util.{ Level, Logger }
 
 import scala.collection.parallel.ParSeq
+import collection.parallel.CollectionsHaveToParArray
 import sbt.inc.ScriptedMain._
 
 object ScriptedRunnerImpl {
