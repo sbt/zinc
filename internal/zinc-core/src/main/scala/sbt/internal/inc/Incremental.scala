@@ -1005,7 +1005,8 @@ private final class AnalysisCallback(
       nameHashes,
       hasMacro,
       extraHash,
-      provenance
+      provenance,
+      bytecodeHash,
     )
   }
 
