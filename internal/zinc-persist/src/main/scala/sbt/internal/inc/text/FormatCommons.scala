@@ -155,7 +155,7 @@ trait FormatCommons {
 
   protected def readMappedPairs[K, V](
       in: BufferedReader
-  )(expectedHeader: String, s2k: String => K, s2v: (K, String) => V): Traversable[(K, V)] = {
+  )(expectedHeader: String, s2k: String => K, s2v: (K, String) => V): Iterable[(K, V)] = {
     def toPair(s: String): (K, V) = {
       if (s == null) throw new EOFException
       val p = s.indexOf(" -> ")

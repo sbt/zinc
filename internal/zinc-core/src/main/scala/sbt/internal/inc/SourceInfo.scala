@@ -38,7 +38,7 @@ object SourceInfos {
   ): SourceInfo =
     new UnderlyingSourceInfo(reported, unreported, mainClasses)
 
-  def merge(infos: Traversable[SourceInfos]): SourceInfos =
+  def merge(infos: Iterable[SourceInfos]): SourceInfos =
     infos.foldLeft(SourceInfos.empty)(_ ++ _)
 
   def merge1(info1: SourceInfo, info2: SourceInfo) = {

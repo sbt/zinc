@@ -143,7 +143,7 @@ final class HashAPI private (
       i += 1
     }
   }
-  final def hashSymmetric[T](ts: TraversableOnce[T], hashF: T => Unit): Unit = {
+  final def hashSymmetric[T](ts: IterableOnce[T], hashF: T => Unit): Unit = {
     val current = hash
     val tsHash: Hash = ts match {
       case ts: collection.Iterable[T] =>
@@ -218,7 +218,7 @@ final class HashAPI private (
    *
    * NOTE: This method doesn't perform any filtering of passed definitions.
    */
-  def hashDefinitionsWithExtraHash(ds: TraversableOnce[Definition], extraHash: Hash): Unit = {
+  def hashDefinitionsWithExtraHash(ds: IterableOnce[Definition], extraHash: Hash): Unit = {
     def hashDefinitionCombined(d: Definition): Unit = {
       hashDefinition(d)
       extend(extraHash)

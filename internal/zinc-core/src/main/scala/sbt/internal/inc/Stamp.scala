@@ -311,7 +311,7 @@ object Stamps {
   ): Stamps =
     new MStamps(products, sources, libraries)
 
-  def merge(stamps: Traversable[Stamps]): Stamps = stamps.foldLeft(Stamps.empty)(_ ++ _)
+  def merge(stamps: Iterable[Stamps]): Stamps = stamps.foldLeft(Stamps.empty)(_ ++ _)
 }
 
 private class MStamps(
