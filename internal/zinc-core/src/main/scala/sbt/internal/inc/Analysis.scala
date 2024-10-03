@@ -100,8 +100,8 @@ object Analysis {
   case class Sources(java: Set[String], scala: Set[String])
 
   def computeBytecodeHash(
-      localProducts: Iterable[LocalProduct],
-      nonLocalProduct: Iterable[NonLocalProduct]
+      localProducts: scala.collection.Set[LocalProduct],
+      nonLocalProduct: scala.collection.Set[NonLocalProduct]
   ): Int = {
     val hashes =
       localProducts.map(_.classFileStamp.getHash) ++ nonLocalProduct.map(_.classFileStamp.getHash)
