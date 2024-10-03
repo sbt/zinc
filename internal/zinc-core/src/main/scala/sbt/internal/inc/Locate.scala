@@ -49,7 +49,7 @@ object Locate {
       }
   }
   def find[S](name: String, gets: Stream[String => Either[Boolean, S]]): Either[Boolean, S] =
-    find[S](name, gets.toIterator)
+    find[S](name, gets.iterator)
 
   /**
    * Returns a function that searches the provided class path for
