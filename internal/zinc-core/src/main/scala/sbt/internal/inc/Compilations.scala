@@ -30,7 +30,7 @@ trait Compilations extends ReadCompilations {
 object Compilations {
   val empty: Compilations = new MCompilations(Seq.empty)
   def of(s: Seq[Compilation]): Compilations = new MCompilations(s)
-  def merge(s: Traversable[Compilations]): Compilations =
+  def merge(s: Iterable[Compilations]): Compilations =
     of((s flatMap { _.allCompilations }).toSeq.distinct)
 }
 
