@@ -151,7 +151,7 @@ object AnalysisGenerators {
   val genFileVORefRelation = genVirtualFileRefRelation(unique(genFileVRef)) _
 
   def rel[A, B](a: Seq[A], b: Seq[B]): Relation[A, B] =
-    Relation.reconstruct(zipMap(a, b).mapValues(Set(_)).toMap)
+    Relation.reconstruct(zipMap(a, b).view.mapValues(Set(_)).toMap)
 
   def genStringStringRelation(num: Int): Gen[Relation[String, String]] =
     for {

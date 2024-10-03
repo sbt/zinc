@@ -86,7 +86,7 @@ private class MAPIs(
   def removeInternal(removeClasses: Iterable[String]): APIs =
     new MAPIs(internal -- removeClasses, external)
   def filterExt(keep: String => Boolean): APIs =
-    new MAPIs(internal, external.filterKeys(keep).toMap)
+    new MAPIs(internal, external.view.filterKeys(keep).toMap)
 
   def internalAPI(className: String) = getAPI(internal, className)
   def externalAPI(ext: String) = getAPI(external, ext)

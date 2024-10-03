@@ -37,7 +37,7 @@ class TestCallback extends AnalysisCallback2 {
   val apis: scala.collection.mutable.Map[VirtualFileRef, Set[ClassLike]] =
     scala.collection.mutable.Map.empty
 
-  def usedNames = usedNamesAndScopes.mapValues(_.map(_.name))
+  def usedNames = usedNamesAndScopes.view.mapValues(_.map(_.name))
 
   override def startSource(source: File): Unit = ???
   override def startSource(source: VirtualFile): Unit = {
@@ -182,7 +182,7 @@ object TestCallback {
           acc.addBinding(key, value)
       }
       // convert all collections to immutable variants
-      multiMap.toMap.mapValues(_.toSet).toMap.withDefaultValue(Set.empty)
+      multiMap.toMap.view.mapValues(_.toSet).toMap.withDefaultValue(Set.empty)
     }
   }
 }
