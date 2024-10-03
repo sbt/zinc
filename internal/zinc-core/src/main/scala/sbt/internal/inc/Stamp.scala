@@ -352,13 +352,13 @@ private class MStamps(
       lib: VirtualFileRef => Boolean
   ): Stamps =
     new MStamps(
-      products.filterKeys(prod).toMap, {
+      products.view.filterKeys(prod).toMap, {
         val rs = removeSources.toSet
         Map(sources.toSeq.filter {
           case (file, stamp) => !rs(file)
         }: _*)
       },
-      libraries.filterKeys(lib).toMap
+      libraries.view.filterKeys(lib).toMap
     )
 
   def groupBy[K](
@@ -370,9 +370,9 @@ private class MStamps(
 
     val constFalse = (f: VirtualFileRef) => false
     def kStamps(k: K): Stamps = new MStamps(
-      products.filterKeys(prod.getOrElse(k, constFalse)).toMap,
+      products.view.filterKeys(prod.getOrElse(k, constFalse)).toMap,
       sourcesMap.getOrElse(k, Map.empty[VirtualFileRef, XStamp]),
-      libraries.filterKeys(lib.getOrElse(k, constFalse)).toMap
+      libraries.view.filterKeys(lib.getOrElse(k, constFalse)).toMap
     )
 
     (for (k <- prod.keySet ++ sourcesMap.keySet ++ lib.keySet) yield (k, kStamps(k))).toMap

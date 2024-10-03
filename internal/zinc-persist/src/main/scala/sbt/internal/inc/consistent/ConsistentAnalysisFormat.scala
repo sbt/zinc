@@ -190,7 +190,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
       writeMaybeSortedStringMap(
         out,
         n,
-        m.mapValues(_.withCompilationTimestamp(DefaultCompilationTimestamp))
+        m.view.mapValues(_.withCompilationTimestamp(DefaultCompilationTimestamp))
       ) { ac =>
         writeAnalyzedClass(out, ac, storeApis)
       }
