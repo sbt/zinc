@@ -12,16 +12,16 @@
 package sbt.internal.inc
 
 // import sbt.internal.prof.Zprof
-import xsbti.UseScope._
+// import xsbti.UseScope._
 import xsbti.VirtualFileRef
 import xsbti.compile.{ APIChange => XAPIChange }
-import xsbti.compile.{ InitialChanges => XInitialChanges }
-import xsbti.compile.{ InvalidationProfiler => XInvalidationProfiler }
+// import xsbti.compile.{ InitialChanges => XInitialChanges }
+// import xsbti.compile.{ InvalidationProfiler => XInvalidationProfiler }
 import xsbti.compile.{ RunProfiler => XRunProfiler }
 
-import scala.collection.JavaConverters._
-import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
+// import scala.collection.JavaConverters._
+// import scala.collection.mutable
+// import scala.collection.mutable.ArrayBuffer
 
 /**
  * Defines a profiler interface that translates to the profiling protobuf schema.
