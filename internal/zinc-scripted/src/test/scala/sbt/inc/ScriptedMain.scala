@@ -31,12 +31,12 @@ object ScriptedMain {
 
   def detectScriptedTests(scriptedBase: File): Map[String, Set[String]] = {
     val scriptedFiles: NameFilter = ("test": NameFilter) | "pending"
-    val pairs = (scriptedBase * AllPassFilter * AllPassFilter * scriptedFiles).get.map { f =>
+    val pairs = (scriptedBase * AllPassFilter * AllPassFilter * scriptedFiles).get().map { f =>
       val p = f.getParentFile
       (p.getParentFile.getName, p.getName)
     }
 
-    pairs.groupBy(_._1).mapValues(_.map(_._2).toSet)
+    pairs.groupBy(_._1).view.mapValues(_.map(_._2).toSet).toMap
   }
 
   private def parseScripted(

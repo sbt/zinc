@@ -51,7 +51,6 @@ import sbt.internal.scripted.{ StatementHandler, TestFailed }
 import sbt.internal.util.ManagedLogger
 import sjsonnew.support.scalajson.unsafe.{ Converter, Parser => JsonParser }
 
-import scala.{ PartialFunction => ?=> }
 import scala.collection.mutable
 import scala.concurrent.{ blocking, Await, Future, Promise }
 import scala.concurrent.duration._
@@ -141,11 +140,19 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
 
   def initBuild: Build = {
     if (Files.exists(directory / "build.json")) {
-      import sjsonnew._, BasicJsonProtocol._
-      implicit val pathFormat = IsoString.iso[Path](_.toString, Paths.get(_))
-      implicit val projectFormat =
-        caseClass(Project.apply _, Project.unapply _)("name", "dependsOn", "in", "scalaVersion")
-      implicit val buildFormat = caseClass(Build.apply _, Build.unapply _)("projects")
+      import sjsonnew.{ IsoString, JsonFormat }
+      import sjsonnew.BasicJsonProtocol._
+      given pathISOString: IsoString[Path] = IsoString.iso[Path](_.toString, Paths.get(_))
+      given pathFormat: JsonFormat[Path] = isoStringFormat[Path](using pathISOString)
+      given projectFormat: JsonFormat[Project] =
+        caseClass4(Project.apply, p => Some(p.name, p.dependsOn, p.in, p.scalaVersion))(
+          "name",
+          "dependsOn",
+          "in",
+          "scalaVersion",
+        )
+      given buildFormat: JsonFormat[Build] =
+        caseClass1(Build.apply, b => Some(b.projects))("projects")
       // Do not parseFromFile as it leaves file open, causing problems on Windows.
       val json = {
         val channel = Files.newByteChannel(directory / "build.json")
@@ -267,20 +274,21 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
   private def dropRightColon(s: String) = if (s endsWith ":") s.dropRight(1) else s
 
   private def onArgs(commandName: String)(
-      pf: (ProjectStructure, List[String], IncState) ?=> Future[Unit]
+      pf: PartialFunction[(ProjectStructure, List[String], IncState), Future[Unit]]
   ): (String, IncCommand) =
     commandName ->
       ((p, xs, i) => applyOrElse(pf, (p, xs, i), p.unrecognizedArguments(commandName, xs)))
 
   private def noArgs(commandName: String)(
-      pf: (ProjectStructure, IncState) ?=> Future[Unit]
+      pf: PartialFunction[(ProjectStructure, IncState), Future[Unit]]
   ): (String, IncCommand) =
     commandName ->
       ((p, xs, i) => {
         applyOrElse(pf, (p, i), p.acceptsNoArguments(commandName, xs))
       })
 
-  private def applyOrElse[A, B](pf: A ?=> B, x: A, fb: => B): B = pf.applyOrElse(x, (_: A) => fb)
+  private def applyOrElse[A, B](pf: PartialFunction[A, B], x: A, fb: => B): B =
+    pf.applyOrElse(x, (_: A) => fb)
 }
 
 case class ProjectStructure(
@@ -312,12 +320,12 @@ case class ProjectStructure(
   val javaSourceDirectory = baseDirectory / "src" / "main" / "java"
 
   def scalaSources: List[Path] =
-    ((scalaSourceDirectory.toFile ** "*.scala").get ++ (baseDirectory.toFile * "*.scala").get)
+    ((scalaSourceDirectory.toFile ** "*.scala").get() ++ (baseDirectory.toFile * "*.scala").get())
       .map(_.toPath)
       .toList
 
   def javaSources: List[Path] =
-    ((javaSourceDirectory.toFile ** "*.java").get ++ (baseDirectory.toFile * "*.java").get)
+    ((javaSourceDirectory.toFile ** "*.java").get() ++ (baseDirectory.toFile * "*.java").get())
       .map(_.toPath)
       .toList
 
@@ -369,7 +377,7 @@ case class ProjectStructure(
   }
 
   def unmanagedJars: List[Path] =
-    ((baseDirectory / "lib").toFile ** "*.jar").get.toList.map(_.toPath)
+    ((baseDirectory / "lib").toFile ** "*.jar").get().toList.map(_.toPath)
 
   def dependsOnRef: Vector[ProjectStructure] = dependsOn.map(lookupProject(_))
 
@@ -473,14 +481,14 @@ case class ProjectStructure(
       assert(
         missing.isEmpty,
         s"""Missing ${missing.size} products:${missing.map("\n  " + _).mkString}
-           |Generated:${generatedClassFiles.get.toList.map("\n  " + _).mkString}""".stripMargin
+           |Generated:${generatedClassFiles.get().toList.map("\n  " + _).mkString}""".stripMargin
       )
       ()
     }
 
   def checkNoGeneratedClassFiles(): Future[Unit] =
     Future {
-      val allPlainClassFiles = generatedClassFiles.get.toList.map(_.toString)
+      val allPlainClassFiles = generatedClassFiles.get().toList.map(_.toString)
       val allClassesInJar: List[String] =
         outputJar.toList.filter(Files.exists(_)).flatMap(p => JarUtils.listClassFiles(p.toFile))
       if (allPlainClassFiles.nonEmpty || allClassesInJar.nonEmpty) {
@@ -711,7 +719,7 @@ case class ProjectStructure(
           IO.copy(Seq(currentJar.toFile -> targetJar.toFile))
           ()
         case None =>
-          val sources = (classesDir.toFile ** -DirectoryFilter).get.flatMap { f =>
+          val sources = (classesDir.toFile ** -DirectoryFilter).get().flatMap { f =>
             IO.relativize(classesDir.toFile, f) match {
               case Some(path) => List((f, path))
               case _          => Nil
