@@ -99,7 +99,7 @@ trait FormatCommons {
     val fmtStr = "%%0%dd".format(numDigits)
     // We only use this for relatively short seqs, so creating this extra map won't be a performance hit.
     val m: Map[String, T] = s.zipWithIndex.map(x => fmtStr.format(x._2) -> x._1).toMap
-    writeMap(out)(header, m, identity[String] _, t2s)
+    writeMap(out)(header, m, identity[String], t2s)
   }
 
   protected def writeMap[K, V](

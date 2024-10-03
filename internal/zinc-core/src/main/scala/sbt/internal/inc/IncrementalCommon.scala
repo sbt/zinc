@@ -184,7 +184,7 @@ private[inc] abstract class IncrementalCommon(
               newApiChanges,
               recompiledClasses,
               cycleNum >= options.transitiveStep,
-              IncrementalCommon.comesFromScalaSource(previous.relations, Some(analysis.relations)) _
+              IncrementalCommon.comesFromScalaSource(previous.relations, Some(analysis.relations))
             )
 
         // No matter what shouldDoIncrementalCompilation returns, we are not in fact going to
@@ -554,7 +554,7 @@ private[inc] abstract class IncrementalCommon(
     val byLibraryDep = changes.libraryDeps.flatMap(previous.usesLibrary)
     val byExtSrcDep = {
       // Invalidate changes
-      val isScalaSource = IncrementalCommon.comesFromScalaSource(previous) _
+      val isScalaSource = IncrementalCommon.comesFromScalaSource(previous)
       changes.external.apiChanges.iterator.flatMap { externalAPIChange =>
         invalidateClassesExternally(previous, externalAPIChange, isScalaSource)
       }.toSet

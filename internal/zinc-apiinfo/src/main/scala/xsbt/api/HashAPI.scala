@@ -223,7 +223,7 @@ final class HashAPI private (
       hashDefinition(d)
       extend(extraHash)
     }
-    hashSymmetric(ds, hashDefinitionCombined _)
+    hashSymmetric(ds, hashDefinitionCombined)
   }
   def hashDefinition(d: Definition): Unit = {
     hashString(d.name)

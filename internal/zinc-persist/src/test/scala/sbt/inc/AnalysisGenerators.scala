@@ -147,8 +147,8 @@ object AnalysisGenerators {
       entries <- listOfN(srcs.length, containerOfN[Set, T](n, g))
     } yield Relation.reconstruct(zipMap(srcs, entries))
 
-  val genStringRelation = genVirtualFileRefRelation(unique(identifier)) _
-  val genFileVORefRelation = genVirtualFileRefRelation(unique(genFileVRef)) _
+  val genStringRelation = genVirtualFileRefRelation(unique(identifier))
+  val genFileVORefRelation = genVirtualFileRefRelation(unique(genFileVRef))
 
   def rel[A, B](a: Seq[A], b: Seq[B]): Relation[A, B] =
     Relation.reconstruct(zipMap(a, b).view.mapValues(Set(_)).toMap)

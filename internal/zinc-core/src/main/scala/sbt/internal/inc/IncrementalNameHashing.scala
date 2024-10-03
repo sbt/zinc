@@ -43,7 +43,7 @@ private[inc] class IncrementalNameHashingCommon(
       relations: Relations,
       apis: APIs
   ): Set[String] = {
-    val findSubclasses = relations.inheritance.internal.reverse _
+    val findSubclasses = relations.inheritance.internal.reverse
     val invalidatedClassesAndCodefinedClasses = for {
       cls <- invalidatedClasses.iterator
       file <- relations.definesClass(cls).iterator
@@ -127,7 +127,7 @@ private[inc] class IncrementalNameHashingCommon(
   }
 
   private def invalidateByInheritance(relations: Relations, modified: String): Set[String] = {
-    val inheritanceDeps = relations.inheritance.internal.reverse _
+    val inheritanceDeps = relations.inheritance.internal.reverse
     log.debug(s"Invalidating (transitively) by inheritance from $modified...")
     val transitiveInheritance = transitiveDeps(Set(modified), log)(inheritanceDeps)
     log.debug("Invalidated by transitive inheritance dependency: " + transitiveInheritance)

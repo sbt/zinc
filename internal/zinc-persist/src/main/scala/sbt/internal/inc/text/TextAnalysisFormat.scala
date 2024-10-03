@@ -312,8 +312,8 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
       val external = "external apis"
     }
 
-    val stringToAnalyzedClass = ObjectStringifier.stringToObj[AnalyzedClass] _
-    val analyzedClassToString = ObjectStringifier.objToString[AnalyzedClass] _
+    val stringToAnalyzedClass = ObjectStringifier.stringToObj[AnalyzedClass]
+    val analyzedClassToString = ObjectStringifier.objToString[AnalyzedClass]
 
     def write(out: Writer, apis: APIs): Unit = {
       writeMap(out)(
@@ -362,8 +362,8 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
       val external = "external companions"
     }
 
-    val stringToCompanions = ObjectStringifier.stringToObj[Companions] _
-    val companionsToString = ObjectStringifier.objToString[Companions] _
+    val stringToCompanions = ObjectStringifier.stringToObj[Companions]
+    val companionsToString = ObjectStringifier.objToString[Companions]
 
     def write(out: Writer, apis: APIs): Unit = {
       val internal = apis.internal map { case (k, v) => k -> v.api }
@@ -405,8 +405,8 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
       val infos = "source infos"
     }
 
-    val stringToSourceInfo = ObjectStringifier.stringToObj[SourceInfo] _
-    val sourceInfoToString = ObjectStringifier.objToString[SourceInfo] _
+    val stringToSourceInfo = ObjectStringifier.stringToObj[SourceInfo]
+    val sourceInfoToString = ObjectStringifier.objToString[SourceInfo]
 
     def write(out: Writer, infos: SourceInfos): Unit =
       writeMap(out)(
@@ -426,8 +426,8 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
       val compilations = "compilations"
     }
 
-    val stringToCompilation = ObjectStringifier.stringToObj[Compilation] _
-    val compilationToString = ObjectStringifier.objToString[Compilation] _
+    val stringToCompilation = ObjectStringifier.stringToObj[Compilation]
+    val compilationToString = ObjectStringifier.objToString[Compilation]
 
     def write(out: Writer, compilations: Compilations): Unit =
       writeSeq(out)(Headers.compilations, Nil, compilationToString)
@@ -451,8 +451,8 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
     private[this] val singleOutputMode = "single"
     private[this] val multipleOutputMode = "multiple"
 
-    val stringToFileHash = ObjectStringifier.stringToObj[FileHash] _
-    val fileHashToString = ObjectStringifier.objToString[FileHash] _
+    val stringToFileHash = ObjectStringifier.stringToObj[FileHash]
+    val fileHashToString = ObjectStringifier.objToString[FileHash]
 
     final val sourceDirMapper = Mapper(
       (str: String) => readMapper.mapSourceDir(Mapper.forPath.read(str)),
