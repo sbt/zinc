@@ -946,7 +946,7 @@ private final class AnalysisCallback(
 
   private def getAnalysis: Analysis = {
     val analysis0 = addProductsAndDeps(Analysis.empty)
-    addUsedNames(addCompilation(analysis0))
+    addUsedNames(addCompilation(addExtraBytecodeHash(analysis0)))
   }
 
   def getPostJavaAnalysis: Analysis = {
@@ -963,6 +963,24 @@ private final class AnalysisCallback(
     base.copy(
       relations = base.relations.addUsedNames(UsedNames.fromMultiMap(usedNames))
     )
+  }
+
+  private def addExtraBytecodeHash(base: Analysis): Analysis = {
+    import base.{ apis, relations }
+    val findUpstream = relations.memberRef.internal.forward _
+    val internalAPIs = apis.internal.map { case (className, analyzedClass) =>
+      if (!analyzedClass.hasMacro) {
+        (className, analyzedClass)
+      } else {
+        val upstreamClasses =
+          IncrementalCommon.transitiveDeps(Set(className), log, logging = false)(findUpstream)
+        val upstreamAnalyzedClasses = upstreamClasses.map(apis.internalAPI)
+        val upstreamHashes = upstreamAnalyzedClasses.map(_.bytecodeHash())
+        (className, analyzedClass.withExtraBytecodeHash(upstreamHashes.hashCode()))
+      }
+    }
+    val APIs = new MAPIs(internalAPIs, apis.external)
+    base.copy(apis = APIs)
   }
 
   private def companionsWithHash(className: String): (Companions, HashAPI.Hash, HashAPI.Hash) = {
@@ -1007,6 +1025,7 @@ private final class AnalysisCallback(
       extraHash,
       provenance,
       bytecodeHash,
+      0,
     )
   }
 

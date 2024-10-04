@@ -41,8 +41,6 @@ private[inc] abstract class IncrementalCommon(
     options: IncOptions,
     profiler: RunProfiler
 ) extends InvalidationProfilerUtils {
-  private final val TIMESTAMP_2020 = 1577854800000L
-
   // Work around bugs in classpath handling such as the "currently" problematic -javabootclasspath
   private[this] def enableShallowLookup: Boolean =
     java.lang.Boolean.getBoolean("xsbt.skip.cp.lookup")
@@ -309,11 +307,16 @@ private[inc] abstract class IncrementalCommon(
       newAPI: String => AnalyzedClass
   ): APIChanges = {
     // log.debug(s"[zinc] detectAPIChanges(recompiledClasses = $recompiledClasses)")
+    def hashesMatch(a: AnalyzedClass, b: AnalyzedClass, hasMacro: Boolean): Boolean = {
+      (a.bytecodeHash() == b.bytecodeHash()) &&
+      (a.apiHash == b.apiHash) &&
+      (a.extraHash == b.extraHash) &&
+      (!hasMacro || a.extraBytecodeHash() == b.extraBytecodeHash())
+    }
     def classDiff(className: String, a: AnalyzedClass, b: AnalyzedClass): Option[APIChange] = {
       // log.debug(s"[zinc] classDiff($className, ${a.name}, ${b.name})")
-      if (
-        (a.bytecodeHash() == b.bytecodeHash()) && (a.apiHash == b.apiHash) && (a.extraHash == b.extraHash)
-      ) None
+      val hasMacro = a.hasMacro || b.hasMacro
+      if (hashesMatch(a, b, hasMacro)) None
       else {
         val hasMacro = a.hasMacro || b.hasMacro
         if (hasMacro && IncOptions.getRecompileOnMacroDef(options)) {
