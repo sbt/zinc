@@ -60,7 +60,7 @@ class ClassToAPISpecification extends UnitSpec {
     val (Seq(tempSrcFile), analysisCallback) =
       JavaCompilerForUnitTesting.compileJavaSrcs(src)(readAPI)
     val apis = analysisCallback.apis(tempSrcFile)
-    apis.groupBy(_.name).map((companions _).tupled).toSet
+    apis.groupBy(_.name).map(companions.tupled).toSet
   }
 
   private def companions(className: String, classes: Set[ClassLike]): Companions = {
