@@ -310,7 +310,7 @@ private[inc] abstract class IncrementalCommon(
       (a.bytecodeHash() == b.bytecodeHash()) &&
       (a.apiHash == b.apiHash) &&
       (a.extraHash == b.extraHash) &&
-      (!hasMacro || a.extraBytecodeHash() == b.extraBytecodeHash())
+      (!hasMacro || a.transitiveBytecodeHash() == b.transitiveBytecodeHash())
     }
     // log.debug(s"[zinc] detectAPIChanges(recompiledClasses = $recompiledClasses)")
     def classDiff(className: String, a: AnalyzedClass, b: AnalyzedClass): Option[APIChange] = {

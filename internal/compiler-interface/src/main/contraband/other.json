@@ -31,7 +31,7 @@
         },
         {
           "name": "bytecodeHash",
-          "type": "int",
+          "type": "long",
           "default": "0",
           "since": "2.0.0",
           "doc": [
@@ -39,8 +39,8 @@
           ]
         },
         {
-          "name": "extraBytecodeHash",
-          "type": "int",
+          "name": "transitiveBytecodeHash",
+          "type": "long",
           "default": "0",
           "since": "2.0.0",
           "doc": [

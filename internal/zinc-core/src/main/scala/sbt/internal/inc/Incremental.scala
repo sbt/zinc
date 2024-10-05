@@ -946,7 +946,7 @@ private final class AnalysisCallback(
 
   private def getAnalysis: Analysis = {
     val analysis0 = addProductsAndDeps(Analysis.empty)
-    addUsedNames(addCompilation(addExtraBytecodeHash(analysis0)))
+    addUsedNames(addCompilation(addTransitiveBytecodeHash(analysis0)))
   }
 
   def getPostJavaAnalysis: Analysis = {
@@ -965,7 +965,7 @@ private final class AnalysisCallback(
     )
   }
 
-  private def addExtraBytecodeHash(base: Analysis): Analysis = {
+  private def addTransitiveBytecodeHash(base: Analysis): Analysis = {
     import base.{ apis, relations }
     val findUpstream = relations.memberRef.internal.forward _
     val internalAPIs = apis.internal.map { case (className, analyzedClass) =>
@@ -976,7 +976,7 @@ private final class AnalysisCallback(
           IncrementalCommon.transitiveDeps(Set(className), log, logging = false)(findUpstream)
         val upstreamAnalyzedClasses = upstreamClasses.map(apis.internalAPI)
         val upstreamHashes = upstreamAnalyzedClasses.map(_.bytecodeHash())
-        (className, analyzedClass.withExtraBytecodeHash(upstreamHashes.hashCode()))
+        (className, analyzedClass.withTransitiveBytecodeHash(upstreamHashes.hashCode()))
       }
     }
     val APIs = new MAPIs(internalAPIs, apis.external)

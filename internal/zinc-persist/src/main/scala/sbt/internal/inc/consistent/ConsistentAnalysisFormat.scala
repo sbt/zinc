@@ -146,8 +146,8 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
       out.bool(ac.hasMacro)
       out.string(ac.provenance())
       out.int(ac.extraHash())
-      out.int(ac.bytecodeHash())
-      out.int(ac.extraBytecodeHash())
+      out.long(ac.bytecodeHash())
+      out.long(ac.transitiveBytecodeHash())
       val nh0 = ac.nameHashes()
       val nh = if (nh0.length > 1 && sort) {
         val nh = nh0.clone()
@@ -173,8 +173,8 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
       val hm = in.bool()
       val p = in.string()
       val eh = in.int()
-      val bh = in.int()
-      val ebh = in.int()
+      val bh = in.long()
+      val ebh = in.long()
       val nhNames = in.readStringArray()
       val nhScopes = in.readArray[UseScope]() { UseScope.values()(in.byte().toInt) }
       val nhHashes = in.readArray[Int]() { in.int() }
