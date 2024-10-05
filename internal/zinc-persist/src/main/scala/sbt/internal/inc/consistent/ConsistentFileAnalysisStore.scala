@@ -22,22 +22,16 @@ import xsbti.compile.{ AnalysisContents, AnalysisStore => XAnalysisStore }
 import scala.util.control.Exception.allCatch
 import xsbti.compile.analysis.ReadWriteMappers
 
-import scala.concurrent.ExecutionContext
-
 object ConsistentFileAnalysisStore {
   def text(
       file: File,
       mappers: ReadWriteMappers,
       sort: Boolean = true,
-      ec: ExecutionContext = ExecutionContext.global,
-      parallelism: Int = Runtime.getRuntime.availableProcessors()
   ): XAnalysisStore =
     new AStore(
       file,
       new ConsistentAnalysisFormat(mappers, sort),
       SerializerFactory.text,
-      ec,
-      parallelism
     )
 
   def binary(file: File): XAnalysisStore =
@@ -61,23 +55,17 @@ object ConsistentFileAnalysisStore {
       file: File,
       mappers: ReadWriteMappers,
       sort: Boolean,
-      ec: ExecutionContext = ExecutionContext.global,
-      parallelism: Int = Runtime.getRuntime.availableProcessors()
   ): XAnalysisStore =
     new AStore(
       file,
       new ConsistentAnalysisFormat(mappers, sort),
       SerializerFactory.binary,
-      ec,
-      parallelism
     )
 
   private final class AStore[S <: Serializer, D <: Deserializer](
       file: File,
       format: ConsistentAnalysisFormat,
       sf: SerializerFactory[S, D],
-      ec: ExecutionContext = ExecutionContext.global,
-      parallelism: Int = Runtime.getRuntime.availableProcessors()
   ) extends XAnalysisStore {
 
     def set(analysisContents: AnalysisContents): Unit = {
