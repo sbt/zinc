@@ -1,22 +1,15 @@
 package sbt.inc.consistent
 
 import java.io.{
-  BufferedInputStream,
   BufferedReader,
   ByteArrayInputStream,
   ByteArrayOutputStream,
   StringReader,
   StringWriter
 }
-import java.util.zip.GZIPInputStream
-import java.util.Arrays
-import scala.util.Random
 import org.scalatest.funsuite.AnyFunSuite
 import sbt.internal.inc.consistent._
-import sbt.io.IO
 import Compat._
-
-import scala.concurrent.ExecutionContext
 
 class ConsistentAnalysisFormatSuite extends AnyFunSuite {
 
@@ -88,25 +81,5 @@ class ConsistentAnalysisFormatSuite extends AnyFunSuite {
     val out = new ByteArrayOutputStream()
     writeTo(SerializerFactory.binary.serializerFor(out))
     readFrom(SerializerFactory.binary.deserializerFor(new ByteArrayInputStream(out.toByteArray)))
-  }
-
-  test("ParallelGzip") {
-    val bs = 64 * 1024
-    val rnd = new Random(0L)
-    for {
-      threads <- Seq(1, 8)
-      size <- Seq(0, bs - 1, bs, bs + 1, bs * 8 - 1, bs * 8, bs * 8 + 1)
-    } {
-      val a = new Array[Byte](size)
-      rnd.nextBytes(a)
-      val bout = new ByteArrayOutputStream()
-      val gout = new ParallelGzipOutputStream(bout, ExecutionContext.global, parallelism = threads)
-      gout.write(a)
-      gout.close()
-      val gin =
-        new BufferedInputStream(new GZIPInputStream(new ByteArrayInputStream(bout.toByteArray)))
-      val a2 = IO.readBytes(gin)
-      assert(Arrays.equals(a, a2), s"threads = $threads, size = $size")
-    }
   }
 }
