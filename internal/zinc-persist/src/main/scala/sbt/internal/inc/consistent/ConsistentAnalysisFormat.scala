@@ -344,6 +344,8 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
     wrS("inheritance.external", rs.inheritance.external)
     wrS("localInheritance.internal", rs.localInheritance.internal)
     wrS("localInheritance.external", rs.localInheritance.external)
+    wrS("macroExpansion.internal", rs.macroExpansion.internal)
+    wrS("macroExpansion.external", rs.macroExpansion.external)
     wrS("productClassNames", rs.productClassName)
   }
 
@@ -367,23 +369,25 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
     val bin = rd(mapSource, mapBinary)
     val lcn = rd(mapBinary, identity[String])
     val cn = rd(mapSource, identity[String])
-    val mri, mre, ii, ie, lii, lie, bcn = rdS()
+    val mri, mre, ii, ie, lii, lie, mei, mee, bcn = rdS()
     def deps(
         m: Relation[String, String],
         i: Relation[String, String],
-        l: Relation[String, String]
+        l: Relation[String, String],
+        me: Relation[String, String],
     ) =
       Map(
         DependencyContext.DependencyByMemberRef -> m,
         DependencyContext.DependencyByInheritance -> i,
-        DependencyContext.LocalDependencyByInheritance -> l
+        DependencyContext.LocalDependencyByInheritance -> l,
+        DependencyContext.DependencyByMacroExpansion -> me,
       )
     Relations.make(
       p,
       bin,
       lcn,
-      InternalDependencies(deps(mri, ii, lii)),
-      ExternalDependencies(deps(mre, ie, lie)),
+      InternalDependencies(deps(mri, ii, lii, mei)),
+      ExternalDependencies(deps(mre, ie, lie, mee)),
       cn,
       un,
       bcn
