@@ -90,6 +90,7 @@ object Dependencies {
     "com.eed3si9n" %% "sjson-new-scalajson" % sjsonNewVersion
   }
   val zeroAllocationHashing = "net.openhft" % "zero-allocation-hashing" % "0.16"
+  val snappy = "org.xerial.snappy" % "snappy-java" % "1.1.10.7"
   val scala2BinaryBridge = "org.scala-lang" % "scala2-sbt-bridge" % scala213ForBridge
   val scala3BinaryBridge = "org.scala-lang" % "scala3-sbt-bridge" % scala3ForBridge
 

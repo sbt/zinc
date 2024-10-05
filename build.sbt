@@ -261,7 +261,10 @@ lazy val zincPersist = (projectMatrix in internalPath / "zinc-persist")
   .dependsOn(zincCore, zincCompileCore, zincCore % "test->test")
   .settings(
     name := "zinc Persist",
-    libraryDependencies += sbinary,
+    libraryDependencies ++= Seq(
+      sbinary,
+      snappy,
+    ),
     libraryDependencies ++= {
       scalaPartialVersion.value match {
         case Some((major, minor)) if major == 3 || minor >= 13 =>
