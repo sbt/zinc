@@ -18,7 +18,7 @@ import java.nio.file.{ Files, Path, Paths }
 import java.{ util => ju }
 import ju.{ EnumSet, Optional, UUID }
 import ju.concurrent.atomic.AtomicBoolean
-import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct }
+import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct, computeBytecodeHash }
 import sbt.internal.inc.JavaInterfaceUtil.EnrichOption
 import sbt.util.{ InterfaceUtil, Level, Logger }
 import sbt.util.InterfaceUtil.{ jl2l, jo2o, l2jl, t2 }
@@ -946,7 +946,7 @@ private final class AnalysisCallback(
 
   private def getAnalysis: Analysis = {
     val analysis0 = addProductsAndDeps(Analysis.empty)
-    addUsedNames(addCompilation(analysis0))
+    addUsedNames(addCompilation(addExtraBytecodeHash(analysis0)))
   }
 
   def getPostJavaAnalysis: Analysis = {
@@ -963,6 +963,24 @@ private final class AnalysisCallback(
     base.copy(
       relations = base.relations.addUsedNames(UsedNames.fromMultiMap(usedNames))
     )
+  }
+
+  private def addExtraBytecodeHash(base: Analysis): Analysis = {
+    import base.{ apis, relations }
+    val findUpstream = relations.memberRef.internal.forward _
+    val internalAPIs = apis.internal.map { case (className, analyzedClass) =>
+      if (!analyzedClass.hasMacro) {
+        (className, analyzedClass)
+      } else {
+        val upstreamClasses =
+          IncrementalCommon.transitiveDeps(Set(className), log, logging = false)(findUpstream)
+        val upstreamAnalyzedClasses = upstreamClasses.map(apis.internalAPI)
+        val upstreamHashes = upstreamAnalyzedClasses.map(_.bytecodeHash())
+        (className, analyzedClass.withExtraBytecodeHash(upstreamHashes.hashCode()))
+      }
+    }
+    val APIs = new MAPIs(internalAPIs, apis.external)
+    base.copy(apis = APIs)
   }
 
   private def companionsWithHash(className: String): (Companions, HashAPI.Hash, HashAPI.Hash) = {
@@ -992,7 +1010,7 @@ private final class AnalysisCallback(
     }
   }
 
-  private def analyzeClass(name: String): AnalyzedClass = {
+  private def analyzeClass(name: String, bytecodeHash: Int): AnalyzedClass = {
     val hasMacro: Boolean = macroClasses.contains(name)
     val (companions, apiHash, extraHash) = companionsWithHash(name)
     val nameHashes = nameHashesForCompanions(name)
@@ -1005,7 +1023,9 @@ private final class AnalysisCallback(
       nameHashes,
       hasMacro,
       extraHash,
-      provenance
+      provenance,
+      bytecodeHash,
+      0,
     )
   }
 
@@ -1018,7 +1038,6 @@ private final class AnalysisCallback(
           .getOrElse(src, ConcurrentHashMap.newKeySet[(String, String)]())
           .asScala
           .map(_._1)
-        val analyzedApis = classesInSrc.map(analyzeClass)
         val info = SourceInfos.makeInfo(
           getOrNil(reporteds.iterator.map { case (k, v) => k -> v.asScala.toSeq }.toMap, src),
           getOrNil(unreporteds.iterator.map { case (k, v) => k -> v.asScala.toSeq }.toMap, src),
@@ -1052,6 +1071,9 @@ private final class AnalysisCallback(
           extSrcDeps.getOrElse(cls, ConcurrentHashMap.newKeySet[ExternalDependency]()).asScala
         )
         val libDeps = libraries.map(d => (d, binaryClassName(d), stampReader.library(d)))
+
+        val bytecodeHash = computeBytecodeHash(localProds, nonLocalProds)
+        val analyzedApis = classesInSrc.map(analyzeClass(_, bytecodeHash))
 
         a.addSource(
           src,
