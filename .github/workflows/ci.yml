@@ -11,7 +11,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            java: 17
+            java: 8
             jobtype: 1
           - os: ubuntu-latest
             java: 11
