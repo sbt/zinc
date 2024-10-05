@@ -318,7 +318,6 @@ private[inc] abstract class IncrementalCommon(
       val hasMacro = a.hasMacro || b.hasMacro
       if (hashesMatch(a, b, hasMacro)) None
       else {
-        val hasMacro = a.hasMacro || b.hasMacro
         if (hasMacro && IncOptions.getRecompileOnMacroDef(options)) {
           Some(APIChangeDueToMacroDefinition(className))
         } else if (
