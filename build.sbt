@@ -283,7 +283,8 @@ lazy val zincPersist = (projectMatrix in internalPath / "zinc-persist")
     name := "zinc Persist",
     libraryDependencies ++= Seq(
       sbinary.exclude("org.scala-lang.modules", "scala-xml_" + scalaBinaryVersion.value),
-      scalaXml
+      scalaXml,
+      snappy,
     ),
     compileOrder := sbt.CompileOrder.Mixed,
     Compile / scalacOptions ++= (scalaVersion.value match {

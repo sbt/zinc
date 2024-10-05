@@ -12,6 +12,8 @@ package sbt.internal.inc.consistent
  * additional information regarding copyright ownership.
  */
 
+import org.xerial.snappy.{ SnappyInputStream, SnappyOutputStream }
+
 import java.io.{ File, FileInputStream, FileOutputStream }
 import java.util.Optional
 import sbt.io.{ IO, Using }
@@ -85,7 +87,7 @@ object ConsistentFileAnalysisStore {
       if (!file.getParentFile.exists()) file.getParentFile.mkdirs()
       val fout = new FileOutputStream(tmpAnalysisFile)
       try {
-        val gout = new ParallelGzipOutputStream(fout, ec, parallelism)
+        val gout = new SnappyOutputStream(fout)
         val ser = sf.serializerFor(gout)
         format.write(ser, analysis, setup)
         gout.close()
@@ -98,11 +100,14 @@ object ConsistentFileAnalysisStore {
       allCatch.opt(unsafeGet()).toOptional
     }
 
-    def unsafeGet(): AnalysisContents =
-      Using.gzipInputStream(new FileInputStream(file)) { in =>
+    def unsafeGet(): AnalysisContents = {
+      Using.resource(new SnappyInputStream(_: FileInputStream))(
+        new FileInputStream(file)
+      ) { in =>
         val deser = sf.deserializerFor(in)
         val (analysis, setup) = format.read(deser)
         AnalysisContents.create(analysis, setup)
       }
+    }
   }
 }
