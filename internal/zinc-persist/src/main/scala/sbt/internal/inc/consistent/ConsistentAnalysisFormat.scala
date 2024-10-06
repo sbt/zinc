@@ -142,6 +142,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
       out.int(ac.apiHash())
       out.bool(ac.hasMacro)
       out.string(ac.provenance())
+      out.int(ac.extraHash())
       val nh0 = ac.nameHashes()
       val nh = if (nh0.length > 1 && sort) {
         val nh = nh0.clone()
@@ -166,6 +167,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
       val ah = in.int()
       val hm = in.bool()
       val p = in.string()
+      val eh = in.int()
       val nhNames = in.readStringArray()
       val nhScopes = in.readArray[UseScope]() { UseScope.values()(in.byte().toInt) }
       val nhHashes = in.readArray[Int]() { in.int() }
@@ -178,7 +180,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
       val comp =
         if (storeApis) Companions.of(readClassLike(in), readClassLike(in))
         else APIs.emptyCompanions
-      AnalyzedClass.of(ts, name, SafeLazyProxy.strict(comp), ah, nameHashes, hm, ah, p)
+      AnalyzedClass.of(ts, name, SafeLazyProxy.strict(comp), ah, nameHashes, hm, eh, p)
     }
   }
 
