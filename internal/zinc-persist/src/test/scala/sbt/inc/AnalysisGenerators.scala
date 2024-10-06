@@ -79,7 +79,7 @@ object AnalysisGenerators {
     import VirtualFileUtil._
 
     def stamp(xs: Iterable[VirtualFileRef]) =
-      for (stamps <- listOfN(xs.size, genStamp)) yield TreeMap(xs.toList.zip(stamps): _*)
+      for (stamps <- listOfN(xs.size, genStamp)) yield TreeMap(xs.toList.zip(stamps)*)
 
     for {
       prods <- stamp(rel.allProducts)

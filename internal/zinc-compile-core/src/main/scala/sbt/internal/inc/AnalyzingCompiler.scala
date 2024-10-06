@@ -325,8 +325,8 @@ final class AnalyzingCompiler(
   private def invoke(bridge: AnyRef, bridgeClass: Class[?], methodName: String, log: Logger)(
       argTypes: Class[?]*
   )(args: AnyRef*): AnyRef = {
-    val method = bridgeClass.getMethod(methodName, argTypes: _*)
-    try method.invoke(bridge, args: _*)
+    val method = bridgeClass.getMethod(methodName, argTypes*)
+    try method.invoke(bridge, args*)
     catch {
       case e: InvocationTargetException =>
         e.getCause match {

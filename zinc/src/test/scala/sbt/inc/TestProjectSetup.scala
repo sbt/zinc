@@ -126,8 +126,8 @@ case class CompilerSetup(
   }
 
   def compileBoth(sources: VirtualFile*) = {
-    val res = compile(sources: _*)
-    if (res.hasModified) compileAllJava(sources: _*) else res
+    val res = compile(sources*)
+    if (res.hasModified) compileAllJava(sources*) else res
   }
 
   def withSrcs(vs: Array[VirtualFile]) = (in: Inputs) => in.withOptions(in.options.withSources(vs))

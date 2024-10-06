@@ -208,7 +208,7 @@ final class AnalyzingJavaCompiler private[sbt] (
         } {
           val classes = classFinder.classes
           try {
-            val newClasses = Set(classes.paths: _*) -- oldClasses
+            val newClasses = Set(classes.paths*) -- oldClasses
             JavaAnalyze(newClasses.toSeq, srcs, log, output, finalJarOutput)(
               callback,
               loader,

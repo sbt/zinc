@@ -88,9 +88,9 @@ final class CompilerArguments(
    */
   def finishClasspath(classpath: Seq[Path]): Seq[Path] = {
     val filteredClasspath = filterLibrary(classpath)
-    val extraCompiler = include(cpOptions.compiler, scalaInstance.compilerJars.map(_.toPath): _*)
+    val extraCompiler = include(cpOptions.compiler, scalaInstance.compilerJars.map(_.toPath)*)
     val otherJars = scalaInstance.otherJars.toList.map(_.toPath)
-    val extraClasspath = include(cpOptions.extra, otherJars: _*)
+    val extraClasspath = include(cpOptions.extra, otherJars*)
     filteredClasspath ++ extraCompiler ++ extraClasspath
   }
 

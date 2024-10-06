@@ -36,7 +36,7 @@ object ReflectUtilities {
     else clazz :: ancestry(clazz.getSuperclass);
 
   def fields(clazz: Class[?]) =
-    mutable.OpenHashMap(ancestry(clazz).flatMap(_.getDeclaredFields).map(f => (f.getName, f)): _*)
+    mutable.OpenHashMap(ancestry(clazz).flatMap(_.getDeclaredFields).map(f => (f.getName, f))*)
 
   /**
    * Collects all `val`s of type `T` defined on value `self`.
