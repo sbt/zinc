@@ -73,7 +73,7 @@ jobs:
       run: |
         sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*AnalysisFormatBenchmark.*" "runBenchmarks"
     - name: Checkout Target Branch (4-6)
-      if: ${{ github.event_name == 'pull_request' && (matrix.jobtype >= 4 || matrix.jobtype <= 6) }}
+      if: ${{ github.event_name == 'pull_request' && (matrix.jobtype >= 4 && matrix.jobtype <= 6) }}
       uses: actions/checkout@v4
       with:
         ref: ${{ github.event.pull_request.base.ref }}
