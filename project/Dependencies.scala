@@ -80,7 +80,7 @@ object Dependencies {
   val junit = "junit" % "junit" % "4.12"
   val sjsonNewVersion = "0.14.0-M1"
   val scalaXml = "org.scala-lang.modules" %% "scala-xml" % "2.3.0"
-  val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.18.0"
+  val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.18.1"
   val scalatest = "org.scalatest" %% "scalatest" % "3.2.19"
   val verify = "com.eed3si9n.verify" %% "verify" % "1.0.0"
   val sjsonnew = Def.setting {

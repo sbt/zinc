@@ -15,6 +15,7 @@ package inc
 
 import java.nio.file.Path
 import sbt.internal.util.FeedbackProvidedException
+import xsbti.compile.analysis.ReadSourceInfos
 import xsbti.compile.{ ClasspathOptions, ScalaInstance => XScalaInstance }
 
 /**
@@ -98,11 +99,12 @@ class CompileFailed(
     val arguments: Array[String],
     override val toString: String,
     val problems: Array[xsbti.Problem],
+    val sourceInfosOption: Option[ReadSourceInfos],
     cause: Throwable
 ) extends xsbti.CompileFailed(cause)
     with FeedbackProvidedException {
 
   def this(arguments: Array[String], toString: String, problems: Array[xsbti.Problem]) = {
-    this(arguments, toString, problems, null)
+    this(arguments, toString, problems, None, null)
   }
 }

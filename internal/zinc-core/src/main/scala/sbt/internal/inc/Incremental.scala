@@ -590,7 +590,7 @@ private final class AnalysisCallback(
     progress: Option[CompileProgress],
     incHandlerOpt: Option[Incremental.IncrementalCallback],
     log: Logger
-) extends xsbti.AnalysisCallback2 {
+) extends xsbti.AnalysisCallback3 {
   import Incremental.CompileCycleResult
 
   // This must have a unique value per AnalysisCallback
@@ -886,7 +886,7 @@ private final class AnalysisCallback(
                 val externalParentsAPI = externalParents.map(analysis.apis.externalAPI)
                 val internalParentsAPI = internalParents.map(analysis.apis.internalAPI)
                 val parentsHashes = (externalParentsAPI ++ internalParentsAPI).map(_.extraHash())
-                parentsHashes.fold(currentExtraHash)(_ ^ _)
+                (parentsHashes + currentExtraHash).hashCode()
               case None => currentExtraHash
             }
           }
@@ -1086,6 +1086,25 @@ private final class AnalysisCallback(
           externalDeps,
           libDeps
         )
+    }
+  }
+
+  def getSourceInfos: SourceInfos = {
+    // Collect Source Info from current run
+    val sources = reporteds.keySet ++ unreporteds.keySet ++ mainClasses.keySet
+    val sourceToInfo = sources.map { source =>
+      val info = SourceInfos.makeInfo(
+        getOrNil(reporteds.iterator.map { case (k, v) => k -> v.asScala.toSeq }.toMap, source),
+        getOrNil(unreporteds.iterator.map { case (k, v) => k -> v.asScala.toSeq }.toMap, source),
+        getOrNil(mainClasses.iterator.map { case (k, v) => k -> v.asScala.toSeq }.toMap, source)
+      )
+      (source, info)
+    }.toMap
+    val sourceInfoFromCurrentRun = SourceInfos.of(sourceToInfo)
+    // Collect reported problems from previous run
+    incHandlerOpt.map(_.previousAnalysisPruned) match {
+      case Some(prevAnalysis) => prevAnalysis.infos ++ sourceInfoFromCurrentRun
+      case None               => sourceInfoFromCurrentRun
     }
   }
 
