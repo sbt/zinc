@@ -129,7 +129,7 @@ object LocalJava {
   ): Int =
     javadocTool match {
       case Some(m) =>
-        m.run(in, out, err, args: _*)
+        m.run(in, out, err, args*)
       case _ =>
         System.err.println(JavadocFailure)
         -1

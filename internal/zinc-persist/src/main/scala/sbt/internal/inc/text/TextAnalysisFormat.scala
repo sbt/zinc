@@ -287,7 +287,7 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
           keyMapper: Mapper[File],
           valueMapper: ContextAwareMapper[File, Stamp]
       ): TreeMap[File, Stamp] = {
-        TreeMap(readMappedPairs(in)(expectedHeader, keyMapper.read, valueMapper.read).toSeq: _*)
+        TreeMap(readMappedPairs(in)(expectedHeader, keyMapper.read, valueMapper.read).toSeq*)
       }
       def doReadMapV(
           expectedHeader: String,
@@ -295,7 +295,7 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
           valueMapper: ContextAwareMapper[VirtualFileRef, Stamp]
       ): TreeMap[VirtualFileRef, Stamp] = {
         import VirtualFileUtil._
-        TreeMap(readMappedPairs(in)(expectedHeader, keyMapper.read, valueMapper.read).toSeq: _*)
+        TreeMap(readMappedPairs(in)(expectedHeader, keyMapper.read, valueMapper.read).toSeq*)
       }
 
       val products = doReadMapV(Headers.products, productsMapper, productsStampsMapper)

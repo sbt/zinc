@@ -20,17 +20,17 @@ object ClassLikeHelpers {
     Structure.of(lzy(Array.empty[Type]), lzy(defs.toArray), emptyMembers)
 
   def simpleTrait(name: String, defs: List[ClassDefinition]): ClassLike = {
-    val structure = simpleStructure(defs: _*)
+    val structure = simpleStructure(defs*)
     simpleClassLike(name, structure, dt = DefinitionType.Trait)
   }
 
   def simpleClass(name: String, defs: ClassDefinition*): ClassLike = {
-    val structure = simpleStructure(defs: _*)
+    val structure = simpleStructure(defs*)
     simpleClassLike(name, structure)
   }
 
   def simpleObject(name: String, defs: ClassDefinition*): ClassLike = {
-    val structure = simpleStructure(defs: _*)
+    val structure = simpleStructure(defs*)
     simpleClassLike(name, structure, dt = DefinitionType.Module)
   }
 
