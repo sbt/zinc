@@ -99,6 +99,15 @@ object Analysis {
 
   case class Sources(java: Set[String], scala: Set[String])
 
+  def computeBytecodeHash(
+      localProducts: scala.collection.Set[LocalProduct],
+      nonLocalProduct: scala.collection.Set[NonLocalProduct]
+  ): Int = {
+    val hashes =
+      localProducts.map(_.classFileStamp.getHash) ++ nonLocalProduct.map(_.classFileStamp.getHash)
+    hashes.hashCode()
+  }
+
   def sources(a: Analysis): Sources = {
     def sourceFileForClass(className: String): VirtualFileRef =
       a.relations.definesClass(className).headOption.getOrElse {

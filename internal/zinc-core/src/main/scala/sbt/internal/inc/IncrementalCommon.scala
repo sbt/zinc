@@ -41,8 +41,6 @@ private[inc] abstract class IncrementalCommon(
     options: IncOptions,
     profiler: RunProfiler
 ) extends InvalidationProfilerUtils {
-  private final val TIMESTAMP_2020 = 1577854800000L
-
   // Work around bugs in classpath handling such as the "currently" problematic -javabootclasspath
   private[this] def enableShallowLookup: Boolean =
     java.lang.Boolean.getBoolean("xsbt.skip.cp.lookup")
@@ -308,18 +306,18 @@ private[inc] abstract class IncrementalCommon(
       oldAPI: String => AnalyzedClass,
       newAPI: String => AnalyzedClass
   ): APIChanges = {
-    // ignore timestamp pre-2020 since that likely means that we have a hardcoded 2010 timestamp
-    def timeStampIsSame(ts1: Long, ts2: Long): Boolean = {
-      (ts1 < TIMESTAMP_2020) || (ts2 < TIMESTAMP_2020) || (ts1 == ts2)
+    def hashesMatch(a: AnalyzedClass, b: AnalyzedClass, hasMacro: Boolean): Boolean = {
+      (a.bytecodeHash() == b.bytecodeHash()) &&
+      (a.apiHash == b.apiHash) &&
+      (a.extraHash == b.extraHash) &&
+      (!hasMacro || a.transitiveBytecodeHash() == b.transitiveBytecodeHash())
     }
     // log.debug(s"[zinc] detectAPIChanges(recompiledClasses = $recompiledClasses)")
     def classDiff(className: String, a: AnalyzedClass, b: AnalyzedClass): Option[APIChange] = {
       // log.debug(s"[zinc] classDiff($className, ${a.name}, ${b.name})")
-      if (
-        timeStampIsSame(a.compilationTimestamp(), b.compilationTimestamp()) && (a.apiHash == b.apiHash)
-      ) None
+      val hasMacro = a.hasMacro || b.hasMacro
+      if (hashesMatch(a, b, hasMacro)) None
       else {
-        val hasMacro = a.hasMacro || b.hasMacro
         if (hasMacro && IncOptions.getRecompileOnMacroDef(options)) {
           Some(APIChangeDueToMacroDefinition(className))
         } else if (
