@@ -6,6 +6,7 @@ on:
 jobs:
   test:
     strategy:
+      timeout-minutes: 25
       fail-fast: false
       matrix:
         include:
