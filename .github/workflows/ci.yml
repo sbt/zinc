@@ -27,6 +27,8 @@ jobs:
           distribution: ${{ matrix.distribution }}
           java-version: ${{ matrix.java }}
           cache: sbt
+      - name: Setup SBT
+        uses: sbt/setup-sbt@v1
       - name: Build and test (1)
         if: ${{ matrix.jobtype == 1 }}
         shell: bash
