@@ -327,7 +327,7 @@ lazy val zincPersistCore = (project in internalPath / "zinc-persist-core")
     crossPaths := false,
     autoScalaLibrary := false,
     exportJars := true,
-    ProtobufConfig / version := "3.24.4",
+    ProtobufConfig / version := "3.25.5",
     publish / skip := true,
     assembly / assemblyShadeRules := Seq(
       ShadeRule
@@ -686,7 +686,6 @@ lazy val zincScripted = (projectMatrix in internalPath / "zinc-scripted")
   .enablePlugins(BuildInfoPlugin)
   .settings(
     baseSettings,
-    ideSkipProject := true, // otherwise IntelliJ complains
     publish / skip := true,
     name := "zinc Scripted",
     Compile / buildInfo := Nil, // Only generate build info for tests
