@@ -40,6 +40,8 @@ jobs:
         distribution: temurin
         java-version: ${{ matrix.java }}
         cache: sbt
+    - name: Setup SBT
+      uses: sbt/setup-sbt@v1
     - name: Build and test (1)
       if: ${{ matrix.jobtype == 1 }}
       shell: bash
@@ -71,6 +73,9 @@ jobs:
       with:
         clean: false
         ref: ${{ github.event.pull_request.base.ref }}
+    - name: Setup SBT
+      uses: sbt/setup-sbt@v1
+      if: ${{ github.event_name == 'pull_request' && (matrix.jobtype >= 4 && matrix.jobtype <= 6) }}
     - name: Benchmark (Scalac) against Target Branch (4)
       if: ${{ github.event_name == 'pull_request' && matrix.jobtype == 4 }}
       shell: bash
