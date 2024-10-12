@@ -1,21 +1,14 @@
 package sbt.inc.consistent
 
-import java.io.{
-  BufferedInputStream,
-  BufferedReader,
-  ByteArrayInputStream,
-  ByteArrayOutputStream,
-  StringReader,
-  StringWriter
-}
-import java.util.zip.GZIPInputStream
-import java.util.Arrays
-import scala.util.Random
 import org.scalatest.funsuite.AnyFunSuite
-import sbt.internal.inc.consistent._
+import sbt.internal.inc.consistent.*
+import sbt.internal.inc.consistent.Compat.*
 import sbt.io.IO
 
-import scala.concurrent.ExecutionContext
+import java.io.*
+import java.util.Arrays
+import java.util.zip.GZIPInputStream
+import scala.util.Random
 
 class ConsistentAnalysisFormatSuite extends AnyFunSuite {
 
@@ -99,7 +92,7 @@ class ConsistentAnalysisFormatSuite extends AnyFunSuite {
       val a = new Array[Byte](size)
       rnd.nextBytes(a)
       val bout = new ByteArrayOutputStream()
-      val gout = new ParallelGzipOutputStream(bout, ExecutionContext.global, parallelism = threads)
+      val gout = new ParallelGzipOutputStream(bout, parallelism = threads)
       gout.write(a)
       gout.close()
       val gin =
