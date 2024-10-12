@@ -194,7 +194,7 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
               )
           )
         }
-        comp.doCompileWithStore(newInputs = incrementalJavaInputs(sources: _*))
+        comp.doCompileWithStore(newInputs = incrementalJavaInputs(sources*))
       }
 
       val res1 = compileJava(f1, f2, f3)

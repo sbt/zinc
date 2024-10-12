@@ -71,7 +71,7 @@ private[sbt] object JavaAnalyze {
         classFile
 
     val sourceToClassFiles = mutable.HashMap[VirtualFile, Buffer[ClassFile]](
-      sources.map(vf => vf -> new ArrayBuffer[ClassFile]): _*
+      sources.map(vf => vf -> new ArrayBuffer[ClassFile])*
     )
 
     val binaryClassNameToLoadedClass = new mutable.HashMap[String, Class[?]]

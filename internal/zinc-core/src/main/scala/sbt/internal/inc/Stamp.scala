@@ -356,7 +356,7 @@ private class MStamps(
         val rs = removeSources.toSet
         Map(sources.toSeq.filter {
           case (file, stamp) => !rs(file)
-        }: _*)
+        }*)
       },
       libraries.view.filterKeys(lib).toMap
     )

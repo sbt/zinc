@@ -37,7 +37,7 @@ object JavaCompilerForUnitTesting {
   }
 
   def extractDependenciesFromSrcs(srcs: (String, String)*): ExtractedClassDependencies = {
-    val (_, testCallback) = compileJavaSrcs(srcs: _*)((_, _, classes) => extractParents(classes))
+    val (_, testCallback) = compileJavaSrcs(srcs*)((_, _, classes) => extractParents(classes))
 
     val memberRefDeps = testCallback.classDependencies
       .collect({
