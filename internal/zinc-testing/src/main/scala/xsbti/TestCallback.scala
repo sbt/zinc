@@ -154,6 +154,10 @@ class TestCallback extends AnalysisCallback3 {
 
   override def getPickleJarPair: Optional[T2[Path, Path]] = Optional.empty()
 
+  override def toVirtualFile(path: Path): VirtualFile = {
+    throw new UnsupportedOperationException("This method should not be called in tests")
+  }
+
   override def getSourceInfos: ReadSourceInfos = new TestSourceInfos
 }
 
