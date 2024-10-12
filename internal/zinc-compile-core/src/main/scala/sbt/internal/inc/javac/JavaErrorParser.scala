@@ -280,7 +280,7 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
     warningMessage | errorMessage | noteMessage | javacError | javacWarning
 
   val javacOutput: Parser[Seq[Problem]] =
-    nonProblem ~> rep(potentialProblem) <~ opt(outputSumamry)
+    opt(nonProblem) ~> rep(potentialProblem) <~ opt(outputSumamry)
 
   /**
    * Example:
