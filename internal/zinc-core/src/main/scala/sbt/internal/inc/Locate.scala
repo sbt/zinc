@@ -48,7 +48,7 @@ object Locate {
         case x           => x
       }
   }
-  def find[S](name: String, gets: Stream[String => Either[Boolean, S]]): Either[Boolean, S] =
+  def find[S](name: String, gets: LazyList[String => Either[Boolean, S]]): Either[Boolean, S] =
     find[S](name, gets.iterator)
 
   /**
@@ -102,7 +102,7 @@ object Locate {
   }
 
   private class JarDefinesClass(entry: Path) extends DefinesClass {
-    import collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
     private val entries = {
       val jar =
         try {
@@ -148,6 +148,6 @@ object Locate {
   def components(className: String): (Seq[String], String) = {
     assume(!className.isEmpty)
     val parts = className.split("\\.")
-    if (parts.length == 1) (Nil, parts(0)) else (parts.init, parts.last)
+    if (parts.length == 1) (Nil, parts(0)) else (parts.init.toIndexedSeq, parts.last)
   }
 }

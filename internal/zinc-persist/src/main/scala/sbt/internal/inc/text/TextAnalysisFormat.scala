@@ -31,6 +31,7 @@ import xsbti.api._
 import xsbti.compile._
 import xsbti.compile.analysis.{ ReadWriteMappers, SourceInfo, Stamp }
 import scala.collection.Seq
+import scala.collection.immutable.ArraySeq
 
 // A text-based serialization format for Analysis objects.
 // This code has been tuned for high performance, and therefore has non-idiomatic areas.
@@ -483,9 +484,21 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
         .map(fh => fh.withFile(writeMapper.mapClasspathEntry(fh.file)))
       writeSeq(out)(Headers.outputMode, mode :: Nil, identity[String])
       writeMap(out)(Headers.outputDir, outputAsMap, sourceDirMapper.write, outputDirMapper.write)
-      writeSeq(out)(Headers.classpathHash, mappedClasspathHash, fileHashToString)
-      writeSeq(out)(Headers.compileOptions, setup.options.scalacOptions, soptionsMapper.write)
-      writeSeq(out)(Headers.javacOptions, setup.options.javacOptions, joptionsMapper.write)
+      writeSeq(out)(
+        Headers.classpathHash,
+        ArraySeq.unsafeWrapArray(mappedClasspathHash),
+        fileHashToString
+      )
+      writeSeq(out)(
+        Headers.compileOptions,
+        ArraySeq.unsafeWrapArray(setup.options.scalacOptions),
+        soptionsMapper.write
+      )
+      writeSeq(out)(
+        Headers.javacOptions,
+        ArraySeq.unsafeWrapArray(setup.options.javacOptions),
+        joptionsMapper.write
+      )
       writeSeq(out)(Headers.compilerVersion, setup.compilerVersion :: Nil, identity[String])
       writeSeq(out)(Headers.compileOrder, setup.order.name :: Nil, identity[String])
       writeSeq(out)(Headers.skipApiStoring, setup.storeApis() :: Nil, (b: Boolean) => b.toString)

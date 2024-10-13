@@ -185,7 +185,7 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
     val leftAPI = compileWithPrimitive(leftType, left)
     val rightAPI = compileWithPrimitive(rightType, right)
     assert(leftAPI.size == rightAPI.size)
-    assert(((leftAPI, rightAPI).zipped forall SameAPI.apply) == (left == right))
+    assert(leftAPI.lazyZip(rightAPI).forall(SameAPI.apply) == (left == right))
     ()
   }
 

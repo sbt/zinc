@@ -29,7 +29,7 @@ sealed trait FileValueCache[T] {
 object FileValueCache {
   def apply[T](f: Path => T): FileValueCache[T] = make(Stamper.forLastModifiedP)(f)
   def make[T](stamp: Path => XStamp)(f: Path => T): FileValueCache[T] =
-    new FileValueCache0[T](stamp, f)
+    new FileValueCache0[T](stamp, f)(Equiv.universal)
 }
 
 private[this] final class FileValueCache0[T](getStamp: Path => XStamp, make: Path => T)(

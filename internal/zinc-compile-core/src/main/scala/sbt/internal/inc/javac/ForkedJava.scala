@@ -78,7 +78,7 @@ object ForkedJava {
     }
   }
   // javac's argument file seems to allow naive space escaping with quotes.  escaping a quote with a backslash does not work
-  private def escapeSpaces(s: String): String = '\"' + normalizeSlash(s) + '\"'
+  private def escapeSpaces(s: String): String = s"\"${normalizeSlash(s)}\""
   private def normalizeSlash(s: String) = s.replace(File.separatorChar, '/')
 
   /** create the executable name for java */
@@ -100,7 +100,15 @@ final class ForkedJavaCompiler(javaHome: Option[Path]) extends XJavaCompiler {
       reporter: Reporter,
       log: XLogger
   ): Boolean =
-    ForkedJava.launch(javaHome, "javac", sources, options, output, log, reporter)
+    ForkedJava.launch(
+      javaHome,
+      "javac",
+      sources.toIndexedSeq,
+      options.toIndexedSeq,
+      output,
+      log,
+      reporter,
+    )
 }
 final class ForkedJavadoc(javaHome: Option[Path]) extends XJavadoc {
   def run(
@@ -111,5 +119,13 @@ final class ForkedJavadoc(javaHome: Option[Path]) extends XJavadoc {
       reporter: Reporter,
       log: XLogger
   ): Boolean =
-    ForkedJava.launch(javaHome, "javadoc", sources, options, output, log, reporter)
+    ForkedJava.launch(
+      javaHome,
+      "javadoc",
+      sources.toIndexedSeq,
+      options.toIndexedSeq,
+      output,
+      log,
+      reporter,
+    )
 }
