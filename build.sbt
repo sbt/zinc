@@ -653,9 +653,6 @@ lazy val zincScripted = (projectMatrix in internalPath / "zinc-scripted")
     conflictWarning := ConflictWarning.disable,
   )
   .jvmPlatform(scalaVersions = scala3_only)
-  .configure(
-    _.dependsOn(compilerBridge210, compilerBridge211, compilerBridge212, compilerBridge213)
-  )
   .configure(addSbtUtilScripted)
 
 lazy val zincScripted3 = zincScripted.jvm(scala3)
@@ -703,4 +700,4 @@ def scriptedTask: Def.Initialize[InputTask[Unit]] = Def.inputTask {
     scriptedBufferLog.value,
     scriptedCompileToJar.value,
   )
-}
+}.dependsOn(publishBridges)
