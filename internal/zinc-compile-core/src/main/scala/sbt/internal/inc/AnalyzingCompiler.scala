@@ -80,8 +80,8 @@ final class AnalyzingCompiler(
       log: xLogger
   ): Unit = {
     val progress = if (progressOpt.isPresent) progressOpt.get else IgnoreProgress
-    val cp = classpath.map(converter.toPath)
-    val arguments = compArgs.makeArguments(Nil, cp, options).toArray
+    val cp = classpath.map(converter.toPath).toIndexedSeq
+    val arguments = compArgs.makeArguments(Nil, cp, options.toIndexedSeq).toArray
     // hold reference to compiler bridge class loader to prevent its being evicted
     // from the compiler cache (sbt/zinc#914)
     val loader = getCompilerLoader(log)
@@ -454,7 +454,7 @@ object AnalyzingCompiler {
           val scalaLibraryJars = compiler.scalaInstance.libraryJars
           val restClasspath = xsbtiJars.toSeq ++ sourceJars
           val classpath = scalaLibraryJars.map(_.toPath) ++ restClasspath
-          compiler(sourceFiles, classpath, outputDirectory.toPath, "-nowarn" :: Nil)
+          compiler(sourceFiles, classpath.toIndexedSeq, outputDirectory.toPath, "-nowarn" :: Nil)
 
           val end = (System.currentTimeMillis - start) / 1000.0
           log.info(s"  Compilation completed in ${end}s.")

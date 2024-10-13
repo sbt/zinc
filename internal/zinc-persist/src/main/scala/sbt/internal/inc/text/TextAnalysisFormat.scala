@@ -484,9 +484,21 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
         .map(fh => fh.withFile(writeMapper.mapClasspathEntry(fh.file)))
       writeSeq(out)(Headers.outputMode, mode :: Nil, identity[String])
       writeMap(out)(Headers.outputDir, outputAsMap, sourceDirMapper.write, outputDirMapper.write)
-      writeSeq(out)(Headers.classpathHash, mappedClasspathHash, fileHashToString)
-      writeSeq(out)(Headers.compileOptions, setup.options.scalacOptions, soptionsMapper.write)
-      writeSeq(out)(Headers.javacOptions, setup.options.javacOptions, joptionsMapper.write)
+      writeSeq(out)(
+        Headers.classpathHash,
+        mappedClasspathHash.toIndexedSeq,
+        fileHashToString
+      )
+      writeSeq(out)(
+        Headers.compileOptions,
+        setup.options.scalacOptions.toIndexedSeq,
+        soptionsMapper.write
+      )
+      writeSeq(out)(
+        Headers.javacOptions,
+        setup.options.javacOptions.toIndexedSeq,
+        joptionsMapper.write
+      )
       writeSeq(out)(Headers.compilerVersion, setup.compilerVersion :: Nil, identity[String])
       writeSeq(out)(Headers.compileOrder, setup.order.name :: Nil, identity[String])
       writeSeq(out)(Headers.skipApiStoring, setup.storeApis() :: Nil, (b: Boolean) => b.toString)
