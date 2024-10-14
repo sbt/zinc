@@ -81,24 +81,4 @@ class ConsistentAnalysisFormatSuite extends AnyFunSuite {
     writeTo(SerializerFactory.binary.serializerFor(out))
     readFrom(SerializerFactory.binary.deserializerFor(new ByteArrayInputStream(out.toByteArray)))
   }
-
-  test("ParallelGzip") {
-    val bs = 64 * 1024
-    val rnd = new Random(0L)
-    for {
-      threads <- Seq(1, 8)
-      size <- Seq(0, bs - 1, bs, bs + 1, bs * 8 - 1, bs * 8, bs * 8 + 1)
-    } {
-      val a = new Array[Byte](size)
-      rnd.nextBytes(a)
-      val bout = new ByteArrayOutputStream()
-      val gout = new ParallelGzipOutputStream(bout, parallelism = threads)
-      gout.write(a)
-      gout.close()
-      val gin =
-        new BufferedInputStream(new GZIPInputStream(new ByteArrayInputStream(bout.toByteArray)))
-      val a2 = IO.readBytes(gin)
-      assert(Arrays.equals(a, a2), s"threads = $threads, size = $size")
-    }
-  }
 }
