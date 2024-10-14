@@ -17,7 +17,7 @@ import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable
 import scala.reflect.ClassTag
-import Compat._
+import scala.collection.Factory
 
 /** Structural serialization for text and binary formats. */
 abstract class Serializer {

@@ -23,6 +23,7 @@ import xsbti.{ FileConverter, VirtualFile, VirtualFileRef }
 import xsbti.compile.analysis.{ ReadStamps, Stamp => XStamp }
 
 import scala.collection.immutable.TreeMap
+import scala.jdk.CollectionConverters._
 import scala.util.matching.Regex
 
 /**
@@ -241,7 +242,6 @@ object Stamper {
       converter: FileConverter,
       getStamp: VirtualFileRef => XStamp
   ): VirtualFileRef => XStamp = { (key: VirtualFileRef) =>
-    import scala.collection.JavaConverters._
     val p = converter.toPath(key)
     val ts =
       try IO.getModifiedTimeOrZero(p.toFile)
@@ -320,13 +320,12 @@ private class MStamps(
     val libraries: Map[VirtualFileRef, XStamp]
 ) extends Stamps {
 
-  import scala.collection.JavaConverters.mapAsJavaMapConverter
   override def getAllLibraryStamps: util.Map[VirtualFileRef, XStamp] =
-    mapAsJavaMapConverter(libraries).asJava
+    libraries.asJava
   override def getAllProductStamps: util.Map[VirtualFileRef, XStamp] =
-    mapAsJavaMapConverter(products).asJava
+    products.asJava
   override def getAllSourceStamps: util.Map[VirtualFileRef, XStamp] =
-    mapAsJavaMapConverter(sources).asJava
+    sources.asJava
 
   def allSources: collection.Set[VirtualFileRef] = sources.keySet
   def allLibraries: collection.Set[VirtualFileRef] = libraries.keySet
@@ -407,7 +406,6 @@ private class InitialStamps(
 ) extends ReadStamps {
   import collection.concurrent.Map
   import java.util.concurrent.ConcurrentHashMap
-  import scala.collection.JavaConverters._
 
   // cached stamps for files that do not change during compilation
   private val libraries: Map[VirtualFileRef, XStamp] = new ConcurrentHashMap().asScala
@@ -431,7 +429,6 @@ private class TimeWrapBinaryStamps(
 ) extends ReadStamps {
   import collection.concurrent.Map
   import java.util.concurrent.ConcurrentHashMap
-  import scala.collection.JavaConverters._
 
   // cached stamps for files that do not change during compilation
   private val libraries: Map[VirtualFileRef, (Long, XStamp)] = new ConcurrentHashMap().asScala
@@ -460,8 +457,7 @@ private class UncachedStamps(
     libStamp: VirtualFileRef => XStamp
 ) extends ReadStamps {
   import VirtualFileUtil._
-  import scala.collection.JavaConverters.mapAsJavaMapConverter
-  val eSt = mapAsJavaMapConverter(TreeMap.empty[VirtualFileRef, XStamp]).asJava
+  val eSt = TreeMap.empty[VirtualFileRef, XStamp].asJava
 
   override def getAllLibraryStamps: util.Map[VirtualFileRef, XStamp] = eSt
   override def getAllSourceStamps: util.Map[VirtualFileRef, XStamp] = eSt

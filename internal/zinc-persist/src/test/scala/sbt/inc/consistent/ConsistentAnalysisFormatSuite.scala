@@ -14,7 +14,6 @@ import scala.util.Random
 import org.scalatest.funsuite.AnyFunSuite
 import sbt.internal.inc.consistent._
 import sbt.io.IO
-import Compat._
 
 import scala.concurrent.ExecutionContext
 

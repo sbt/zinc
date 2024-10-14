@@ -445,7 +445,6 @@ lazy val compilerInterface = (projectMatrix in internalPath / "compiler-interfac
       exclude[InheritedNewAbstractMethodProblem]("xsbti.InteractiveConsoleInterface.close"),
     ),
   )
-  .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
   .jvmPlatform(autoScalaLibrary = false)
   .configure(addSbtUtilInterface(_))
 
@@ -532,8 +531,7 @@ lazy val compilerBridgeTest = (projectMatrix in internalPath / "compiler-bridge-
     Test / javaOptions += s"-Dzinc.build.compilerbridge.scalaVersion=${scala213}",
     publish / skip := true,
   )
-  .defaultAxes(VirtualAxis.jvm, VirtualAxis.scalaPartialVersion(scala212))
-  .jvmPlatform(scalaVersions = scala212_213)
+  .jvmPlatform(scalaVersions = scala3_only)
 
 val scalaPartialVersion = Def.setting(CrossVersion.partialVersion(scalaVersion.value))
 
@@ -679,7 +677,7 @@ val publishBridges = taskKey[Unit]("")
 val crossTestBridges = taskKey[Unit]("")
 
 publishBridges := Def.task(()).dependsOn(bridges: _*).value
-crossTestBridges := (compilerBridgeTest.jvm(scala213) / Test / test).dependsOn(publishBridges).value
+crossTestBridges := (compilerBridgeTest.jvm(scala3) / Test / test).dependsOn(publishBridges).value
 
 addCommandAlias(
   "runBenchmarks", {
