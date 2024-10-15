@@ -270,10 +270,17 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
         ()
     }
 
+  val nonProblem: Parser[Unit] = {
+    val skipLine =
+      ("Loading source file" | "Constructing Javadoc information") ~ """[^\r\n]*(\r\n|\n)?""".r
+    rep(skipLine) ^^ (_ => ())
+  }
+
   val potentialProblem: Parser[Problem] =
     warningMessage | errorMessage | noteMessage | javacError | javacWarning
 
-  val javacOutput: Parser[Seq[Problem]] = rep(potentialProblem) <~ opt(outputSumamry)
+  val javacOutput: Parser[Seq[Problem]] =
+    opt(nonProblem) ~> rep(potentialProblem) <~ opt(outputSumamry)
 
   /**
    * Example:

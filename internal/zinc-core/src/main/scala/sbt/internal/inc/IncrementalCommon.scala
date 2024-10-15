@@ -470,16 +470,10 @@ private[inc] abstract class IncrementalCommon(
     val dependsOnClass = findClassDependencies(_, relations)
     val firstClassInvalidation: Set[String] = {
       val invalidated =
-        if (invalidateTransitively) {
-          // Invalidate by brute force (normally happens when we've done more than 3 incremental runs)
-          IncrementalCommon.transitiveDeps(initial, log)(dependsOnClass)
-        } else {
-          changes.apiChanges.flatMap(invalidateClassesInternally(relations, _, isScalaClass)).toSet
-        }
-      val included = includeTransitiveInitialInvalidations(initial, invalidated, dependsOnClass)
-      log.debug("Final step, transitive dependencies:\n\t" + included)
-      included
+        changes.apiChanges.flatMap(invalidateClassesInternally(relations, _, isScalaClass)).toSet
+      includeTransitiveInitialInvalidations(initial, invalidated, dependsOnClass)
     }
+    log.debug("Final step, transitive dependencies:\n\t" + firstClassInvalidation)
 
     // Invalidate classes linked with a class file that is produced by more than one source file
     val secondClassInvalidation = IncrementalCommon.invalidateNamesProducingSameClassFile(relations)
@@ -504,6 +498,7 @@ private[inc] abstract class IncrementalCommon(
       val transitive = IncrementalCommon.transitiveDeps(recompiledClasses, log)(dependsOnClass)
       (transitive -- recompiledClasses).filter(analysis.apis.internalAPI(_).hasMacro)
     }
+    log.debug(s"Invalidated macros due to upstream dependencies change: ${thirdClassInvalidation}")
 
     val newInvalidations =
       (firstClassInvalidation -- recompiledClasses) ++ secondClassInvalidation ++ thirdClassInvalidation
@@ -512,7 +507,13 @@ private[inc] abstract class IncrementalCommon(
       Set.empty
     } else {
       if (invalidateTransitively) {
-        newInvalidations ++ recompiledClasses
+        val firstClassTransitiveInvalidation = includeTransitiveInitialInvalidations(
+          initial,
+          IncrementalCommon.transitiveDeps(initial, log)(dependsOnClass),
+          dependsOnClass
+        )
+        log.debug("Invalidate by brute force:\n\t" + firstClassTransitiveInvalidation)
+        firstClassTransitiveInvalidation ++ secondClassInvalidation ++ thirdClassInvalidation ++ recompiledClasses
       } else {
         firstClassInvalidation ++ secondClassInvalidation ++ thirdClassInvalidation
       }

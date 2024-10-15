@@ -1,0 +1,6 @@
+> compile
+
+$ copy-file changes/B.scala src/main/scala/B.scala
+$ touch src/main/scala/A.scala
+
+> compile
