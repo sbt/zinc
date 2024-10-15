@@ -47,7 +47,6 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.zip.ZipError;
 import java.util.zip.ZipException;
 
 import static java.nio.file.StandardOpenOption.READ;
