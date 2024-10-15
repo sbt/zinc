@@ -28,12 +28,6 @@ object ParallelGzipOutputStream {
     val deflater = new Deflater(compression, true)
     val dos = new DeflaterOutputStream(output, deflater, true)
 
-    def write(buf: Array[Byte], off: Int, len: Int): Int = {
-      val n = math.min(len, input.length - inputN)
-      System.arraycopy(buf, off, input, inputN, n)
-      n
-    }
-
     def compress(): Unit = {
       deflater.reset()
       output.reset()
