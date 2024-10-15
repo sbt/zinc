@@ -1,11 +1,11 @@
 package sbt.inc.consistent
 
-import java.io.File
+import java.io.{ File, FileInputStream }
 import java.util.Arrays
 import org.scalatest.funsuite.AnyFunSuite
 import sbt.internal.inc.consistent.ConsistentFileAnalysisStore
 import sbt.internal.inc.{ Analysis, FileAnalysisStore }
-import sbt.io.IO
+import sbt.io.{ IO, Using }
 import xsbti.compile.{ AnalysisContents, AnalysisStore }
 import xsbti.compile.analysis.ReadWriteMappers
 
@@ -47,6 +47,22 @@ class ConsistentAnalysisFormatIntegrationSuite extends AnyFunSuite {
       val api3 = read(ConsistentFileAnalysisStore.binary(f2, ReadWriteMappers.getEmptyMappers))
       val f3 = write("cbin3.zip", api3)
       assert(Arrays.equals(IO.readBytes(f1), IO.readBytes(f3)), s"same output for $d")
+    }
+  }
+
+  test("compression ratio") {
+    for (d <- data) {
+      assert(d.exists())
+      val api = read(FileAnalysisStore.text(d))
+      val file = write("cbin1.zip", api)
+      val uncompressedSize = Using.gzipInputStream(new FileInputStream(file)) { in =>
+        val content = IO.readBytes(in)
+        content.length
+      }
+      val compressedSize = d.length()
+      val compressionRatio = compressedSize.toDouble / uncompressedSize.toDouble
+      assert(compressionRatio < 0.85)
+      // compression rate for each data: 0.8185090254676337, 0.7247774786370688, 0.8346021341469837
     }
   }
 
