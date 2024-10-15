@@ -2,7 +2,6 @@ package sbt.inc.consistent
 
 import org.scalatest.funsuite.AnyFunSuite
 import sbt.internal.inc.consistent.*
-import sbt.internal.inc.consistent.Compat.*
 import sbt.io.IO
 
 import java.io.*

@@ -67,7 +67,7 @@ class ParallelGzipOutputStreamSpecification extends AnyFlatSpec with Matchers {
   def sanitizedFilename(fileName: String): String = {
     fileName.replaceAll("[^a-zA-Z0-9-_.]", "_")
   }
-  
+
   def handleFailure(
       compressed: Array[Byte],
       data: Array[Byte],

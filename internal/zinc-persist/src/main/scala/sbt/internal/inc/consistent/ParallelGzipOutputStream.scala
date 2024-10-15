@@ -99,7 +99,6 @@ object ParallelGzipOutputStream {
     }
 
     override def run(): Unit = {
-      out.write(header)
       loop()
     }
   }
@@ -128,6 +127,8 @@ final class ParallelGzipOutputStream(out: OutputStream, parallelism: Int)
   private val workerCount = math.max(1, parallelism - 1)
   private val workers = new ArrayBlockingQueue[Worker](workerCount)
   private val buffers = new LinkedTransferQueue[Block]()
+
+  out.write(header)
   private val scribe = new Scribe(out, buffers)
   scribe.start()
 
