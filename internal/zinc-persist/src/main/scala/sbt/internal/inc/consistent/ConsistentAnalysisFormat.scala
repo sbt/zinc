@@ -142,6 +142,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
       out.int(ac.apiHash())
       out.bool(ac.hasMacro)
       out.string(ac.provenance())
+      out.int(ac.extraHash())
       val nh0 = ac.nameHashes()
       val nh = if (nh0.length > 1 && sort) {
         val nh = nh0.clone()
@@ -166,6 +167,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
       val ah = in.int()
       val hm = in.bool()
       val p = in.string()
+      val eh = in.int()
       val nhNames = in.readStringArray()
       val nhScopes = in.readArray[UseScope]() { UseScope.values()(in.byte().toInt) }
       val nhHashes = in.readArray[Int]() { in.int() }
@@ -178,7 +180,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
       val comp =
         if (storeApis) Companions.of(readClassLike(in), readClassLike(in))
         else APIs.emptyCompanions
-      AnalyzedClass.of(ts, name, SafeLazyProxy.strict(comp), ah, nameHashes, hm, ah, p)
+      AnalyzedClass.of(ts, name, SafeLazyProxy.strict(comp), ah, nameHashes, hm, eh, p)
     }
   }
 
@@ -344,6 +346,8 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
     wrS("inheritance.external", rs.inheritance.external)
     wrS("localInheritance.internal", rs.localInheritance.internal)
     wrS("localInheritance.external", rs.localInheritance.external)
+    wrS("macroExpansion.internal", rs.macroExpansion.internal)
+    wrS("macroExpansion.external", rs.macroExpansion.external)
     wrS("productClassNames", rs.productClassName)
   }
 
@@ -367,23 +371,25 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
     val bin = rd(mapSource, mapBinary)
     val lcn = rd(mapBinary, identity[String])
     val cn = rd(mapSource, identity[String])
-    val mri, mre, ii, ie, lii, lie, bcn = rdS()
+    val mri, mre, ii, ie, lii, lie, mei, mee, bcn = rdS()
     def deps(
         m: Relation[String, String],
         i: Relation[String, String],
-        l: Relation[String, String]
+        l: Relation[String, String],
+        me: Relation[String, String],
     ) =
       Map(
         DependencyContext.DependencyByMemberRef -> m,
         DependencyContext.DependencyByInheritance -> i,
-        DependencyContext.LocalDependencyByInheritance -> l
+        DependencyContext.LocalDependencyByInheritance -> l,
+        DependencyContext.DependencyByMacroExpansion -> me,
       )
     Relations.make(
       p,
       bin,
       lcn,
-      InternalDependencies(deps(mri, ii, lii)),
-      ExternalDependencies(deps(mre, ie, lie)),
+      InternalDependencies(deps(mri, ii, lii, mei)),
+      ExternalDependencies(deps(mre, ie, lie, mee)),
       cn,
       un,
       bcn
