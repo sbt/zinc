@@ -523,7 +523,7 @@ case class ProjectStructure(
         case Seq(mainClassName) =>
           val jars = i.si.allJars.map(_.toPath)
           val cp = (jars ++ (unmanagedJars :+ output) ++ internalClasspath).map(_.toAbsolutePath)
-          val loader = ClasspathUtil.makeLoader(cp, i.si, baseDirectory)
+          val loader = ClasspathUtil.makeLoader(cp.toIndexedSeq, i.si, baseDirectory)
           val buffer = new ByteArrayOutputStream(8192)
           val oldOut = System.out
           try {

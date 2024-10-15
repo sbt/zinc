@@ -22,7 +22,7 @@ object GlobalBenchmarkSetup {
 
   def runSetup(setupDir: File, pattern: String): (Int, String) = {
     val projectsPreparation = projects
-      .filterKeys { _.matches(pattern) }
+      .view.filterKeys { _.matches(pattern) }
       .map { case (_, project) =>
         val benchmark = new ZincBenchmark(project)
         project -> benchmark.writeSetup(new File(setupDir, project.repo))

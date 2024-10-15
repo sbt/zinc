@@ -11,8 +11,8 @@ import xsbti.compile._
 import xsbti.compile.analysis.{ ReadWriteMappers, SourceInfo, Stamp }
 
 import scala.collection.immutable.TreeMap
+import scala.collection.immutable.ArraySeq
 import sbt.internal.inc.binary.converters.InternalApiProxy
-import Compat._
 
 /** A new implementation of zinc's incremental state serialization.
  * - Full structural serialization (like the existing protobuf format), no shortcuts with sbinary
@@ -277,8 +277,8 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
     ) {
       val file = readMapper.mapSourceFile(VirtualFileRef.of(in.string()))
       val mainClasses = in.readStringSeq()
-      val reportedProblems = in.readArray()(readProblem())
-      val unreportedProblems = in.readArray()(readProblem())
+      val reportedProblems = ArraySeq.unsafeWrapArray(in.readArray()(readProblem()))
+      val unreportedProblems = ArraySeq.unsafeWrapArray(in.readArray()(readProblem()))
       val info = SourceInfos.makeInfo(reportedProblems, unreportedProblems, mainClasses)
       (file, info)
     })

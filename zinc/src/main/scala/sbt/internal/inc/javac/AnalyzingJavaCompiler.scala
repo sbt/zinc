@@ -142,7 +142,7 @@ final class AnalyzingJavaCompiler private[sbt] (
       }
 
       // Memoize the known class files in the Javac output location
-      val memo = for { (Some(outputPath), srcs) <- chunks } yield {
+      val memo = for { case (Some(outputPath), srcs) <- chunks } yield {
         val classFinder =
           if (outputPath.toString.endsWith(".jar")) new JarClassFinder(outputPath)
           else new DirectoryClassFinder(outputPath)

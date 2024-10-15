@@ -104,7 +104,6 @@ object LocalJava {
   ): Int = {
     (javadocTool, standardDocletClass) match {
       case (Some(m), Some(clz)) =>
-        import scala.jdk.CollectionConverters._
         val task = m.getTask(
           out,
           null,
@@ -290,7 +289,6 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
       log0: XLogger
   ): Boolean = {
     val log: Logger = log0
-    import collection.JavaConverters._
     val logger = new LoggerWriter(log)
     val logWriter = new PrintWriter(logger)
     log.debug("Attempting to call " + compiler + " directly...")

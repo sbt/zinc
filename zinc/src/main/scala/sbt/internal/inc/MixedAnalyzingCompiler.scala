@@ -79,7 +79,7 @@ final class MixedAnalyzingCompiler(
               javaSrcs,
               Seq(toVirtualFile(outputJar)),
               config.converter,
-              joptions,
+              joptions.toIndexedSeq,
               CompileOutput(outputDir),
               outputJarOpt,
               callback,
@@ -95,7 +95,7 @@ final class MixedAnalyzingCompiler(
                 javaSrcs,
                 extraClasspath map toVirtualFile,
                 config.converter,
-                joptions,
+                joptions.toIndexedSeq,
                 output,
                 outputJarOpt,
                 callback,
@@ -144,7 +144,8 @@ final class MixedAnalyzingCompiler(
     val incSrc = config.sources.filter(include)
     val (javaSrcs, scalaSrcs) = incSrc.partition(MixedAnalyzingCompiler.javaOnly)
     logInputs(log, javaSrcs.size, scalaSrcs.size, outputDirs)
-    val pickleJava = Incremental.isPickleJava(config.currentSetup.options.scalacOptions)
+    val pickleJava =
+      Incremental.isPickleJava(config.currentSetup.options.scalacOptions.toIndexedSeq)
 
     // Compile Scala sources.
     def compileScala(): Unit =
@@ -241,7 +242,8 @@ final class MixedAnalyzingCompiler(
   private[this] def outputDirectories(output: Output): Seq[Path] = {
     output match {
       case single: SingleOutput => List(single.getOutputDirectoryAsPath)
-      case mult: MultipleOutput => mult.getOutputGroups map (_.getOutputDirectoryAsPath)
+      case mult: MultipleOutput =>
+        mult.getOutputGroups.toIndexedSeq map (_.getOutputDirectoryAsPath)
     }
   }
 
@@ -416,7 +418,7 @@ object MixedAnalyzingCompiler {
     val cArgs =
       new CompilerArguments(compiler.scalaInstance, compiler.classpathOptions)
     val searchClasspath: Seq[VirtualFile] = explicitBootClasspath(
-      scalacOptions,
+      scalacOptions.toIndexedSeq,
       converter
     ) ++
       withBootclasspath(
@@ -507,7 +509,6 @@ object MixedAnalyzingCompiler {
       useConsistent = false,
       mappers = ReadWriteMappers.getEmptyMappers(),
       sort = true,
-      ec = ExecutionContext.global,
       parallelism = Runtime.getRuntime.availableProcessors(),
     )
 
@@ -517,7 +518,6 @@ object MixedAnalyzingCompiler {
       useConsistent: Boolean,
       mappers: ReadWriteMappers,
       sort: Boolean,
-      ec: ExecutionContext,
       parallelism: Int,
   ): AnalysisStore = {
     val fileStore = (useTextAnalysis, useConsistent) match {
@@ -528,7 +528,6 @@ object MixedAnalyzingCompiler {
           file = analysisFile.toFile,
           mappers = mappers,
           sort = sort,
-          ec = ec,
           parallelism = parallelism,
         )
       case (true, false) =>
@@ -538,7 +537,6 @@ object MixedAnalyzingCompiler {
           file = analysisFile.toFile,
           mappers = mappers,
           sort = sort,
-          ec = ec,
           parallelism = parallelism,
         )
     }
