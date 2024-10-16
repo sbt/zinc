@@ -133,6 +133,7 @@ object Analysis {
     }
 
   lazy val dummyOutputPath: Path = Paths.get("/tmp/dummy")
+  lazy val dummyOutputJarPath: Path = Paths.get("/tmp/dummy/output.jar")
 }
 
 private class MAnalysis(
