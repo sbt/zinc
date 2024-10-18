@@ -9,7 +9,6 @@ import java.util.Optional
 
 import sbt.internal.inc.classpath.ClassLoaderCache
 import sbt.io.IO
-import sbt.io.syntax._
 import xsbti.compile._
 import sbt.util.Logger
 import xsbti.TestCallback.ExtractedClassDependencies
