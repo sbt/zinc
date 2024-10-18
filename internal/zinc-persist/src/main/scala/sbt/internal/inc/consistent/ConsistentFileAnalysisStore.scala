@@ -12,44 +12,55 @@ package sbt.internal.inc.consistent
  * additional information regarding copyright ownership.
  */
 
-import java.io.{ File, FileInputStream, FileOutputStream }
-import java.util.Optional
 import sbt.io.{ IO, Using }
+import xsbti.compile.analysis.ReadWriteMappers
 import xsbti.compile.{ AnalysisContents, AnalysisStore => XAnalysisStore }
 
+import java.io.{ File, FileInputStream, FileOutputStream }
+import java.util.Optional
 import scala.util.control.Exception.allCatch
-import xsbti.compile.analysis.ReadWriteMappers
-
-import scala.concurrent.ExecutionContext
 
 object ConsistentFileAnalysisStore {
   def text(
       file: File,
       mappers: ReadWriteMappers,
       sort: Boolean = true,
-      ec: ExecutionContext = ExecutionContext.global,
       parallelism: Int = Runtime.getRuntime.availableProcessors()
   ): XAnalysisStore =
     new AStore(
       file,
       new ConsistentAnalysisFormat(mappers, sort),
       SerializerFactory.text,
-      ec,
       parallelism
+    )
+
+  def binary(file: File): XAnalysisStore =
+    binary(
+      file,
+      mappers = ReadWriteMappers.getEmptyMappers(),
+      sort = true,
+    )
+
+  def binary(
+      file: File,
+      mappers: ReadWriteMappers
+  ): XAnalysisStore =
+    binary(
+      file,
+      mappers,
+      sort = true,
     )
 
   def binary(
       file: File,
       mappers: ReadWriteMappers,
-      sort: Boolean = true,
-      ec: ExecutionContext = ExecutionContext.global,
+      sort: Boolean,
       parallelism: Int = Runtime.getRuntime.availableProcessors()
   ): XAnalysisStore =
     new AStore(
       file,
       new ConsistentAnalysisFormat(mappers, sort),
       SerializerFactory.binary,
-      ec,
       parallelism
     )
 
@@ -57,7 +68,6 @@ object ConsistentFileAnalysisStore {
       file: File,
       format: ConsistentAnalysisFormat,
       sf: SerializerFactory[S, D],
-      ec: ExecutionContext = ExecutionContext.global,
       parallelism: Int = Runtime.getRuntime.availableProcessors()
   ) extends XAnalysisStore {
 
@@ -68,7 +78,7 @@ object ConsistentFileAnalysisStore {
       if (!file.getParentFile.exists()) file.getParentFile.mkdirs()
       val fout = new FileOutputStream(tmpAnalysisFile)
       try {
-        val gout = new ParallelGzipOutputStream(fout, ec, parallelism)
+        val gout = new ParallelGzipOutputStream(fout, parallelism)
         val ser = sf.serializerFor(gout)
         format.write(ser, analysis, setup)
         gout.close()
