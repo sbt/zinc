@@ -432,8 +432,8 @@ final class HashAPI private (
     extend(StructureHash)
     hashTypes(structure.parents, includeDefinitions)
     if (includeDefinitions) {
-      hashDefinitions(structure.declared, false, isTrait)
-      hashDefinitions(structure.inherited, false, isTrait)
+      hashDefinitions(structure.declared.toIndexedSeq, false, isTrait)
+      hashDefinitions(structure.inherited.toIndexedSeq, false, isTrait)
     }
   }
   def hashParameters(parameters: Array[TypeParameter], base: Type): Unit = {

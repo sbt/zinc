@@ -273,8 +273,8 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
     ) {
       val file = readMapper.mapSourceFile(VirtualFileRef.of(in.string()))
       val mainClasses = in.readStringSeq()
-      val reportedProblems = in.readArray()(readProblem())
-      val unreportedProblems = in.readArray()(readProblem())
+      val reportedProblems = in.readArray()(readProblem()).toIndexedSeq
+      val unreportedProblems = in.readArray()(readProblem()).toIndexedSeq
       val info = SourceInfos.makeInfo(reportedProblems, unreportedProblems, mainClasses)
       (file, info)
     })

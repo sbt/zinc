@@ -266,7 +266,7 @@ object ScalaInstance {
 
   /** Return all the required Scala jars from a path `scalaHome`. */
   def allJars(scalaHome: File): Seq[File] =
-    IO.listFiles(scalaLib(scalaHome)).filter(f => !blacklist(f.getName))
+    IO.listFiles(scalaLib(scalaHome)).toIndexedSeq.filter(f => !blacklist(f.getName))
 
   private[this] def scalaLib(scalaHome: File): File =
     new File(scalaHome, "lib")

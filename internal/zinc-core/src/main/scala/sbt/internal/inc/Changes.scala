@@ -91,7 +91,6 @@ final case class TraitPrivateMembersModified(modified: String) extends APIChange
 final case class ModifiedNames(names: Set[UsedName]) {
   def in(scope: UseScope): Set[UsedName] = names.filter(_.scopes.contains(scope))
 
-  import collection.JavaConverters._
   private lazy val lookupMap: Set[(String, UseScope)] =
     names.flatMap(n => n.scopes.asScala.map(n.name -> _))
 

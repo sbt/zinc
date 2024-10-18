@@ -139,7 +139,10 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
     // a.name == b.name &&
     debug(sameAccess(a.access, b.access), "Access differed") &&
     debug(sameModifiers(a.modifiers, b.modifiers), "Modifiers differed") &&
-    debug(sameAnnotations(a.annotations, b.annotations), "Annotations differed") &&
+    debug(
+      sameAnnotations(a.annotations.toIndexedSeq, b.annotations.toIndexedSeq),
+      "Annotations differed"
+    ) &&
     debug(sameDefinitionSpecificAPI(a, b), "Definition-specific differed")
   }
 
@@ -184,7 +187,7 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
   def sameAnnotation(a: Annotation, b: Annotation): Boolean =
     debug(sameType(a.base, b.base), "Annotation base type differed") &&
       debug(
-        sameAnnotationArguments(a.arguments, b.arguments),
+        sameAnnotationArguments(a.arguments.toIndexedSeq, b.arguments.toIndexedSeq),
         "Annotation arguments differed (" + a + ") and (" + b + ")"
       )
   def sameAnnotationArguments(a: Seq[AnnotationArgument], b: Seq[AnnotationArgument]): Boolean =
@@ -203,7 +206,7 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
 
   def sameParameterizedDefinition(a: ParameterizedDefinition, b: ParameterizedDefinition): Boolean =
     debug(
-      sameTypeParameters(a.typeParameters, b.typeParameters),
+      sameTypeParameters(a.typeParameters.toIndexedSeq, b.typeParameters.toIndexedSeq),
       "Different type parameters for " + a.name
     ) &&
       sameParameterizedSpecificAPI(a, b)
@@ -222,7 +225,7 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
 
   def sameDefSpecificAPI(a: Def, b: Def): Boolean =
     debug(
-      sameValueParameters(a.valueParameters, b.valueParameters),
+      sameValueParameters(a.valueParameters.toIndexedSeq, b.valueParameters.toIndexedSeq),
       "Different def value parameters for " + a.name
     ) &&
       debug(sameType(a.returnType, b.returnType), "Different def return type for " + a.name)
@@ -253,7 +256,7 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
     debug(sameTopLevel(a, b), "Top level flag differs") &&
     sameDefinitionType(a.definitionType, b.definitionType) &&
     sameType(a.selfType, b.selfType) &&
-    sameSeq(a.childrenOfSealedClass, b.childrenOfSealedClass)(sameType) &&
+    sameSeq(a.childrenOfSealedClass.toIndexedSeq, b.childrenOfSealedClass.toIndexedSeq)(sameType) &&
     sameStructure(a.structure, b.structure)
   }
 
@@ -265,7 +268,7 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
 
   def sameParameterList(a: ParameterList, b: ParameterList): Boolean =
     (a.isImplicit == b.isImplicit) &&
-      sameParameters(a.parameters, b.parameters)
+      sameParameters(a.parameters.toIndexedSeq, b.parameters.toIndexedSeq)
   def sameParameters(a: Seq[MethodParameter], b: Seq[MethodParameter]): Boolean =
     sameSeq(a, b)(sameMethodParameter)
   def sameMethodParameter(a: MethodParameter, b: MethodParameter): Boolean =
@@ -283,8 +286,11 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
   def sameTypeParameters(a: Seq[TypeParameter], b: Seq[TypeParameter]): Boolean =
     debug(sameSeq(a, b)(sameTypeParameter), "Different type parameters")
   def sameTypeParameter(a: TypeParameter, b: TypeParameter): Boolean = {
-    sameTypeParameters(a.typeParameters, b.typeParameters) &&
-    debug(sameAnnotations(a.annotations, b.annotations), "Different type parameter annotations") &&
+    sameTypeParameters(a.typeParameters.toIndexedSeq, b.typeParameters.toIndexedSeq) &&
+    debug(
+      sameAnnotations(a.annotations.toIndexedSeq, b.annotations.toIndexedSeq),
+      "Different type parameter annotations"
+    ) &&
     debug(sameVariance(a.variance, b.variance), "Different variance") &&
     debug(sameType(a.lowerBound, b.lowerBound), "Different lower bound") &&
     debug(sameType(a.upperBound, b.upperBound), "Different upper bound") &&
@@ -326,14 +332,14 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
     sameType(ca.baseType, cb.baseType) &&
       ca.value == cb.value
   def sameExistentialType(a: Existential, b: Existential): Boolean =
-    sameTypeParameters(a.clause, b.clause) &&
+    sameTypeParameters(a.clause.toIndexedSeq, b.clause.toIndexedSeq) &&
       sameType(a.baseType, b.baseType)
   def samePolymorphicType(a: Polymorphic, b: Polymorphic): Boolean =
-    sameTypeParameters(a.parameters, b.parameters) &&
+    sameTypeParameters(a.parameters.toIndexedSeq, b.parameters.toIndexedSeq) &&
       sameType(a.baseType, b.baseType)
   def sameAnnotatedType(a: Annotated, b: Annotated): Boolean =
     sameType(a.baseType, b.baseType) &&
-      sameAnnotations(a.annotations, b.annotations)
+      sameAnnotations(a.annotations.toIndexedSeq, b.annotations.toIndexedSeq)
   def sameStructure(a: Structure, b: Structure): Boolean =
     samePending(a, b)(sameStructureDirect)
 
@@ -341,9 +347,9 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
     if (pending add ((a, b))) f(a, b) else true
 
   def sameStructureDirect(a: Structure, b: Structure): Boolean = {
-    sameSeq(a.parents, b.parents)(sameType) &&
-    sameMembers(a.declared, b.declared) &&
-    sameMembers(a.inherited, b.inherited)
+    sameSeq(a.parents.toIndexedSeq, b.parents.toIndexedSeq)(sameType) &&
+    sameMembers(a.declared.toIndexedSeq, b.declared.toIndexedSeq) &&
+    sameMembers(a.inherited.toIndexedSeq, b.inherited.toIndexedSeq)
   }
 
   def sameMembers(a: Seq[Definition], b: Seq[Definition]): Boolean =
@@ -358,7 +364,7 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
 
   def sameParameterized(a: Parameterized, b: Parameterized): Boolean =
     sameType(a.baseType, b.baseType) &&
-      sameSeq(a.typeArguments, b.typeArguments)(sameType)
+      sameSeq(a.typeArguments.toIndexedSeq, b.typeArguments.toIndexedSeq)(sameType)
   def sameParameterRef(a: ParameterRef, b: ParameterRef): Boolean = sameTags(a.id, b.id)
   def sameSingleton(a: Singleton, b: Singleton): Boolean =
     samePath(a.path, b.path)
@@ -367,7 +373,7 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
       (a.id == b.id)
 
   def samePath(a: Path, b: Path): Boolean =
-    samePathComponents(a.components, b.components)
+    samePathComponents(a.components.toIndexedSeq, b.components.toIndexedSeq)
   def samePathComponents(a: Seq[PathComponent], b: Seq[PathComponent]): Boolean =
     sameSeq(a, b)(samePathComponent)
   def samePathComponent(a: PathComponent, b: PathComponent): Boolean =

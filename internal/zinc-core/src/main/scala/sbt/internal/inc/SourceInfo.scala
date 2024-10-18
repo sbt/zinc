@@ -38,14 +38,17 @@ object SourceInfos {
   ): SourceInfo =
     new UnderlyingSourceInfo(reported, unreported, mainClasses)
 
-  def merge(infos: Traversable[SourceInfos]): SourceInfos =
+  def merge(infos: Iterable[SourceInfos]): SourceInfos =
     infos.foldLeft(SourceInfos.empty)(_ ++ _)
 
   def merge1(info1: SourceInfo, info2: SourceInfo) = {
     makeInfo(
-      mergeProblems(info1.getReportedProblems, info2.getReportedProblems),
-      mergeProblems(info1.getUnreportedProblems, info2.getUnreportedProblems),
-      (info1.getMainClasses ++ info2.getMainClasses).distinct,
+      mergeProblems(info1.getReportedProblems.toIndexedSeq, info2.getReportedProblems.toIndexedSeq),
+      mergeProblems(
+        info1.getUnreportedProblems.toIndexedSeq,
+        info2.getUnreportedProblems.toIndexedSeq,
+      ),
+      (info1.getMainClasses ++ info2.getMainClasses).distinct.toIndexedSeq,
     )
   }
 
@@ -98,8 +101,8 @@ private final class MSourceInfos(val allInfos: Map[VirtualFileRef, SourceInfo])
     allInfos.getOrElse(file, SourceInfos.emptyInfo)
 
   override def getAllSourceInfos: java.util.Map[VirtualFileRef, SourceInfo] = {
-    import scala.collection.JavaConverters.mapAsJavaMapConverter
-    mapAsJavaMapConverter(allInfos).asJava
+    import scala.collection.JavaConverters._
+    allInfos.asJava
   }
 }
 

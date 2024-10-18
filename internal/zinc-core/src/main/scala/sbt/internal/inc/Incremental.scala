@@ -201,7 +201,7 @@ object Incremental {
         earlyOutput,
         progress,
         log
-      )
+      )(Equiv.universal)
     } catch {
       case _: xsbti.CompileCancelled =>
         log.info("Compilation has been cancelled")
@@ -371,7 +371,7 @@ object Incremental {
           )
       }
     }
-    val pickleJava = isPickleJava(scalacOptions)
+    val pickleJava = isPickleJava(scalacOptions.toIndexedSeq)
     val hasModified = initialInvClasses.nonEmpty || initialInvSources0.nonEmpty
     if (javaSources.nonEmpty && earlyOutput.isDefined && !pickleJava) {
       log.warn(

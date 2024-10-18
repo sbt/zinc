@@ -67,8 +67,11 @@ class FilteredReporter(
       filters.exists(f => f(value).booleanValue())
 
     severity != Severity.Error && (
-      (pos.sourceFile.isPresent && isFiltered(fileFilters, pos.sourceFile.get.toPath)) ||
-        (isFiltered(msgFilters, msg))
+      (pos.sourceFile.isPresent && isFiltered(
+        fileFilters.toIndexedSeq,
+        pos.sourceFile.get.toPath
+      )) ||
+        (isFiltered(msgFilters.toIndexedSeq, msg))
     )
   }
 

@@ -104,7 +104,7 @@ object AnalysisGenerators {
   private[this] def lzy[T <: AnyRef](x: T) = SafeLazyProxy.strict(x)
 
   def genNameHash(name: String): Gen[NameHash] =
-    for (scope <- oneOf(UseScope.values()))
+    for (scope <- oneOf(UseScope.values().toIndexedSeq))
       yield NameHash.of(name, scope, (name, scope).hashCode())
 
   def genClass(name: String): Gen[AnalyzedClass] =

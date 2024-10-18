@@ -9,7 +9,6 @@ import java.util.Optional
 
 import sbt.internal.inc.classpath.ClassLoaderCache
 import sbt.io.IO
-import sbt.io.syntax._
 import xsbti.compile._
 import sbt.util.Logger
 import xsbti.TestCallback.ExtractedClassDependencies
@@ -281,8 +280,8 @@ trait CompilingSpecification extends AbstractBridgeProviderTestkit {
     val cp = (si.allJars).map(_.toPath) ++ Array(targetDir)
     val classpath = cp.map(converter.toVirtualFile)
     sc.doc(
-      sources = sources.toArray[VirtualFile],
-      classpath = classpath,
+      sources = sources.toIndexedSeq,
+      classpath = classpath.toIndexedSeq,
       converter = converter,
       outputDirectory = targetDir,
       options = Nil,
@@ -305,7 +304,7 @@ trait CompilingSpecification extends AbstractBridgeProviderTestkit {
     val cp = (si.allJars).map(_.toPath) ++ Array(targetDir)
     val classpath = cp.map(converter.toVirtualFile)
     sc.console(
-      classpath = classpath,
+      classpath = classpath.toIndexedSeq,
       converter = converter,
       options = Nil,
       initialCommands = initial,
@@ -327,7 +326,7 @@ trait CompilingSpecification extends AbstractBridgeProviderTestkit {
     val cp = (si.allJars).map(_.toPath) ++ Array(targetDir)
     val classpath = cp.map(converter.toVirtualFile)
     sc.interactiveConsole(
-      classpath = classpath,
+      classpath = classpath.toIndexedSeq,
       converter = converter,
       options = args.toSeq,
       initialCommands = "",
