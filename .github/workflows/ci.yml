@@ -55,6 +55,8 @@ jobs:
           distribution: temurin
           java-version: 21
           cache: sbt
+      - name: Setup SBT
+        uses: sbt/setup-sbt@v1
       - name: Build and test (3)
         if: ${{ matrix.jobtype == 3 }}
         shell: bash

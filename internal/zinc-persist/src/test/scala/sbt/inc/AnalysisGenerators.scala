@@ -206,18 +206,21 @@ object AnalysisGenerators {
       memberRef <- genRClassDependencies(classNames)
       inheritance <- genSubRClassDependencies(memberRef)
       localInheritance <- genSubRClassDependencies(memberRef)
+      macroExpansion <- genSubRClassDependencies(memberRef)
       internal <- InternalDependencies(
         Map(
           DependencyByMemberRef -> memberRef.internal,
           DependencyByInheritance -> inheritance.internal,
-          LocalDependencyByInheritance -> localInheritance.internal
+          LocalDependencyByInheritance -> localInheritance.internal,
+          DependencyByMacroExpansion -> macroExpansion.internal,
         )
       )
       external <- ExternalDependencies(
         Map(
           DependencyByMemberRef -> memberRef.external,
           DependencyByInheritance -> inheritance.external,
-          LocalDependencyByInheritance -> localInheritance.external
+          LocalDependencyByInheritance -> localInheritance.external,
+          DependencyByMacroExpansion -> macroExpansion.external,
         )
       )
       classes = rel(srcs, classNames)
