@@ -34,13 +34,13 @@ class Discovery(baseClasses: Set[String], annotations: Set[String]) {
       case _ => Discovered.empty
     }
   def discover(c: ClassLike): Discovered = {
-    val onClass = Discovery.findAnnotations(c.annotations, annotations)
+    val onClass = Discovery.findAnnotations(c.annotations.toIndexedSeq, annotations)
     val onDefs = Discovery.defAnnotations(c.structure, annotations) ++ c.savedAnnotations.filter(
       annotations
     )
     val module = isModule(c)
     new Discovered(
-      bases(c.name, c.structure.parents),
+      bases(c.name, c.structure.parents.toIndexedSeq),
       onClass ++ onDefs,
       module && hasMainMethod(c),
       module
@@ -66,7 +66,7 @@ object Discovery {
       simpleName(a.base).filter(pred)
     }.toSet
   def defAnnotations(s: Structure, pred: String => Boolean): Set[String] =
-    defAnnotations(s.declared, pred) ++ defAnnotations(s.inherited, pred)
+    defAnnotations(s.declared.toIndexedSeq, pred) ++ defAnnotations(s.inherited, pred)
   def defAnnotations(defs: Seq[Definition], pred: String => Boolean): Set[String] =
     findAnnotations(
       defs.flatMap {
@@ -82,19 +82,21 @@ object Discovery {
   def isModule(c: ClassLike) = c.definitionType == DefinitionType.Module
 
   def hasMainMethod(c: ClassLike): Boolean =
-    hasMainMethod(c.structure.declared) || hasMainMethod(c.structure.inherited)
+    hasMainMethod(c.structure.declared.toIndexedSeq) || hasMainMethod(
+      c.structure.inherited.toIndexedSeq
+    )
   def hasMainMethod(defs: Seq[Definition]): Boolean =
     defs.exists(isMainMethod)
   def isMainMethod(d: Definition): Boolean =
     d match {
       case d: Def =>
         d.name == "main" && isPublic(d) && isConcrete(d) && isUnit(d.returnType) && isStringArray(
-          d.valueParameters
+          d.valueParameters.toIndexedSeq
         )
       case _ => false
     }
   def isStringArray(vp: IndexedSeq[ParameterList]): Boolean =
-    vp.length == 1 && isStringArray(vp(0).parameters)
+    vp.length == 1 && isStringArray(vp(0).parameters.toIndexedSeq)
   def isStringArray(params: Seq[MethodParameter]): Boolean =
     params.length == 1 && isStringArray(params(0))
   def isStringArray(p: MethodParameter): Boolean =

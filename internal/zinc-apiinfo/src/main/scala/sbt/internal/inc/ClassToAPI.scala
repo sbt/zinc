@@ -507,11 +507,11 @@ object ClassToAPI {
    * We need this logic to trigger recompilation due to changes to pattern exhaustivity checking results.
    */
   private def childrenOfSealedClass(c: Class[?]): Seq[api.Type] =
-    if (!c.isEnum) emptyTypeArray
+    if (!c.isEnum) emptyTypeArray.toIndexedSeq
     else {
       // Calling getCanonicalName() on classes from enum constants yields same string as enumClazz.getCanonicalName
       // Moreover old behaviour create new instance of enum - what may fail (e.g. in static block )
-      Array(reference(c))
+      Seq(reference(c))
     }
 
   // full information not available from reflection
@@ -556,7 +556,7 @@ object ClassToAPI {
     }
 
   def pathFromString(s: String): api.Path =
-    pathFromStrings(s.split("\\."))
+    pathFromStrings(s.split("\\.").toIndexedSeq)
   def pathFromStrings(ss: Seq[String]): api.Path =
     api.Path.of((ss.map(api.Id.of(_)) :+ ThisRef).toArray)
   def packageName(c: Class[?]) = packageAndName(c)._1

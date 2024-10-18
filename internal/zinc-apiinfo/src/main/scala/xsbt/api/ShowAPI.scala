@@ -41,12 +41,14 @@ object ShowAPI {
     case v: Val => showMonoDef(v, "val") + ": " + showType(v.tpe)
     case v: Var => showMonoDef(v, "var") + ": " + showType(v.tpe)
     case d: Def =>
-      showPolyDef(d, "def") + showValueParams(d.valueParameters) + ": " + showType(d.returnType)
+      showPolyDef(d, "def") + showValueParams(d.valueParameters.toIndexedSeq) + ": " + showType(
+        d.returnType
+      )
     case ta: TypeAlias       => showPolyDef(ta, "type") + " = " + showType(ta.tpe)
     case td: TypeDeclaration => showPolyDef(td, "type") + showBounds(td.lowerBound, td.upperBound)
     case cl: ClassLike =>
       showMonoDef(d, showDefinitionType(cl.definitionType)) +
-        showTypeParameters(cl.typeParameters) + " extends " + showTemplate(cl)
+        showTypeParameters(cl.typeParameters.toIndexedSeq) + " extends " + showTemplate(cl)
     case cl: ClassLikeDef => showPolyDef(cl, showDefinitionType(cl.definitionType))
   }
 
@@ -59,9 +61,11 @@ object ShowAPI {
 
       cl.structure.parents.map(showNestedType).mkString("", " with ", " {") + showSelf +
         lines(
-          truncateDecls(cl.structure.inherited).map(d => "^inherited^ " + showNestedDefinition(d))
+          truncateDecls(cl.structure.inherited).toIndexedSeq.map(d =>
+            "^inherited^ " + showNestedDefinition(d)
+          )
         ) +
-        lines(truncateDecls(cl.structure.declared).map(showNestedDefinition)) +
+        lines(truncateDecls(cl.structure.declared).toIndexedSeq.map(showNestedDefinition)) +
         "}"
     }
 
@@ -73,7 +77,7 @@ object ShowAPI {
     case p: Parameterized =>
       showType(p.baseType) + p.typeArguments.map(showType).mkString("[", ", ", "]")
     case c: Constant  => showType(c.baseType) + "(" + c.value + ")"
-    case a: Annotated => showAnnotations(a.annotations) + " " + showType(a.baseType)
+    case a: Annotated => showAnnotations(a.annotations.toIndexedSeq) + " " + showType(a.baseType)
     case s: Structure =>
       s.parents.map(showType).mkString(" with ") + (
         if (nesting <= 0) "{ <nesting level reached> }"
@@ -90,7 +94,7 @@ object ShowAPI {
     case p: Polymorphic =>
       showType(p.baseType) + (
         if (nesting <= 0) " [ <nesting level reached> ]"
-        else showNestedTypeParameters(p.parameters)
+        else showNestedTypeParameters(p.parameters.toIndexedSeq)
       )
   }
 
@@ -103,22 +107,22 @@ object ShowAPI {
 
   private def space(s: String) = if (s.isEmpty) s else s + " "
   private def showMonoDef(d: Definition, label: String)(implicit nesting: Int): String =
-    space(showAnnotations(d.annotations)) + space(showAccess(d.access)) + space(
+    space(showAnnotations(d.annotations.toIndexedSeq)) + space(showAccess(d.access)) + space(
       showModifiers(d.modifiers)
     ) + space(label) + d.name
 
   private def showPolyDef(d: ParameterizedDefinition, label: String)(
       implicit nesting: Int
   ): String =
-    showMonoDef(d, label) + showTypeParameters(d.typeParameters)
+    showMonoDef(d, label) + showTypeParameters(d.typeParameters.toIndexedSeq)
 
   private def showTypeParameters(tps: Seq[TypeParameter])(implicit nesting: Int): String =
     if (tps.isEmpty) ""
     else tps.map(showTypeParameter).mkString("[", ", ", "]")
 
   private def showTypeParameter(tp: TypeParameter)(implicit nesting: Int): String =
-    showAnnotations(tp.annotations) + " " + showVariance(tp.variance) + tp.id + showTypeParameters(
-      tp.typeParameters
+    showAnnotations(tp.annotations.toIndexedSeq) + " " + showVariance(tp.variance) + tp.id + showTypeParameters(
+      tp.typeParameters.toIndexedSeq
     ) + " " + showBounds(tp.lowerBound, tp.upperBound)
 
   private def showAnnotations(as: Seq[Annotation])(implicit nesting: Int) =
