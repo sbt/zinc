@@ -87,6 +87,7 @@ def baseSettings: Seq[Setting[?]] = Seq(
   testFrameworks += new TestFramework("verify.runner.Framework"),
   compile / javacOptions ++= Seq("-Xlint", "-Xlint:-serial"),
   Test / publishArtifact := false,
+  scalacOptions ++= Seq("-Wunused:all"),
   scalacOptions ++= Seq("-YdisableFlatCpCaching"),
   scalacOptions += {
     scalaBinaryVersion.value match {
@@ -468,7 +469,7 @@ lazy val compilerBridge = (projectMatrix in internalPath / "compiler-bridge")
     baseSettings,
     compilerVersionDependentScalacOptions,
     // We need this for import Compat._
-    Compile / scalacOptions --= Seq("-Ywarn-unused-import", "-Xfatal-warnings"),
+    Compile / scalacOptions --= Seq("-Ywarn-unused-import", "-Xfatal-warnings", "-Wunused:all"),
     Compile / scalacOptions ++= (scalaVersion.value match {
       case VersionNumber(Seq(2, 12, _*), _, _) =>
         List("-Ywarn-unused:-imports,-locals,-implicits,-explicits,-privates")
