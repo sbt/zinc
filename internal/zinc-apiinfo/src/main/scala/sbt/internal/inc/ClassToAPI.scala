@@ -191,14 +191,29 @@ object ClassToAPI {
       cmap: ClassMap
   ): (api.Structure, api.Structure) = {
     lazy val cf = classFileForClass(c)
-    val methods = mergeMap(c, c.getDeclaredMethods, c.getMethods, methodToDef(enclPkg))
-    val fields = mergeMap(c, c.getDeclaredFields, c.getFields, fieldToDef(c, cf, enclPkg))
+    val methods = mergeMap(
+      c,
+      c.getDeclaredMethods.toIndexedSeq,
+      c.getMethods.toIndexedSeq,
+      methodToDef(enclPkg)
+    )
+    val fields = mergeMap(
+      c,
+      c.getDeclaredFields.toIndexedSeq,
+      c.getFields.toIndexedSeq,
+      fieldToDef(c, cf, enclPkg)
+    )
     val constructors =
-      mergeMap(c, c.getDeclaredConstructors, c.getConstructors, constructorToDef(enclPkg))
+      mergeMap(
+        c,
+        c.getDeclaredConstructors.toIndexedSeq,
+        c.getConstructors.toIndexedSeq,
+        constructorToDef(enclPkg)
+      )
     val classes = merge[Class[?]](
       c,
-      c.getDeclaredClasses,
-      c.getClasses,
+      c.getDeclaredClasses.toIndexedSeq,
+      c.getClasses.toIndexedSeq,
       toDefinitions(cmap),
       (_: Seq[Class[?]]).partition(isStatic),
       _.getEnclosingClass != c
@@ -240,7 +255,7 @@ object ClassToAPI {
   private def allSuperTypes(t: Type): Seq[Type] = {
     @tailrec def accumulate(t: Type, accum: Seq[Type] = Seq.empty): Seq[Type] = t match {
       case c: Class[?] =>
-        val (parent, interfaces) = (c.getGenericSuperclass, c.getGenericInterfaces)
+        val (parent, interfaces) = (c.getGenericSuperclass, c.getGenericInterfaces.toIndexedSeq)
         accumulate(parent, (accum :+ parent) ++ flattenAll(interfaces))
       case p: ParameterizedType =>
         accumulate(p.getRawType, accum)
@@ -263,7 +278,7 @@ object ClassToAPI {
   def types(ts: Seq[Type]): Array[api.Type] =
     ts.filter(_ ne null).map(reference).toArray
   def upperBounds(ts: Array[Type]): api.Type =
-    api.Structure.of(lzy(types(ts)), lzyEmptyDefArray, lzyEmptyDefArray)
+    api.Structure.of(lzy(types(ts.toIndexedSeq)), lzyEmptyDefArray, lzyEmptyDefArray)
 
   @deprecated("No longer used", "0.13.0")
   def parents(c: Class[?]): Seq[api.Type] = types(allSuperTypes(c))

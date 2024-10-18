@@ -66,7 +66,7 @@ object Discovery {
       simpleName(a.base).filter(pred)
     }.toSet
   def defAnnotations(s: Structure, pred: String => Boolean): Set[String] =
-    defAnnotations(s.declared.toIndexedSeq, pred) ++ defAnnotations(s.inherited, pred)
+    defAnnotations(s.declared.toIndexedSeq, pred) ++ defAnnotations(s.inherited.toIndexedSeq, pred)
   def defAnnotations(defs: Seq[Definition], pred: String => Boolean): Set[String] =
     findAnnotations(
       defs.flatMap {
