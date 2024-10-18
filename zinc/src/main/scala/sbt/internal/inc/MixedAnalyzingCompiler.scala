@@ -37,7 +37,6 @@ import sbt.internal.inc.VirtualFileUtil.toAbsolute
 import sbt.internal.inc.caching.ClasspathCache
 import sbt.internal.inc.javac.AnalyzingJavaCompiler
 import sbt.internal.util.ConsoleAppender
-import scala.concurrent.ExecutionContext
 
 /** An instance of an analyzing compiler that can run both javac + scalac. */
 final class MixedAnalyzingCompiler(
@@ -507,7 +506,6 @@ object MixedAnalyzingCompiler {
       useConsistent = false,
       mappers = ReadWriteMappers.getEmptyMappers(),
       sort = true,
-      ec = ExecutionContext.global,
       parallelism = Runtime.getRuntime.availableProcessors(),
     )
 
@@ -517,7 +515,6 @@ object MixedAnalyzingCompiler {
       useConsistent: Boolean,
       mappers: ReadWriteMappers,
       sort: Boolean,
-      ec: ExecutionContext,
       parallelism: Int,
   ): AnalysisStore = {
     val fileStore = (useTextAnalysis, useConsistent) match {
@@ -528,7 +525,6 @@ object MixedAnalyzingCompiler {
           file = analysisFile.toFile,
           mappers = mappers,
           sort = sort,
-          ec = ec,
           parallelism = parallelism,
         )
       case (true, false) =>
@@ -538,7 +534,6 @@ object MixedAnalyzingCompiler {
           file = analysisFile.toFile,
           mappers = mappers,
           sort = sort,
-          ec = ec,
           parallelism = parallelism,
         )
     }
