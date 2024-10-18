@@ -240,4 +240,25 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
         }
       } finally comp.close()
   }
+
+  it should "emit SourceInfos when incremental compilation fails" in withTmpDir {
+    tmp =>
+      val project = VirtualSubproject(tmp.toPath / "p1")
+      val comp = project.setup.createCompiler()
+      val s1 = "object A { final val i = 1"
+      val f1 = StringVirtualFile("A.scala", s1)
+      try {
+        val exception = intercept[CompileFailed] {
+          comp.compile(f1)
+        }
+        exception.sourceInfosOption match {
+          case Some(sourceInfos) =>
+            assert(
+              !sourceInfos.getAllSourceInfos.isEmpty,
+              "Expected non-empty source infos"
+            )
+          case None => fail("Expected sourceInfos")
+        }
+      } finally comp.close()
+  }
 }

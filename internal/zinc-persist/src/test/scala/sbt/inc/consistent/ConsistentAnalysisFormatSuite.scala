@@ -2,12 +2,7 @@ package sbt.inc.consistent
 
 import org.scalatest.funsuite.AnyFunSuite
 import sbt.internal.inc.consistent.*
-import sbt.io.IO
-
 import java.io.*
-import java.util.Arrays
-import java.util.zip.GZIPInputStream
-import scala.util.Random
 
 class ConsistentAnalysisFormatSuite extends AnyFunSuite {
 

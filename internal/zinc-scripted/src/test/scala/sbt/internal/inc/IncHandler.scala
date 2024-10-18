@@ -803,7 +803,10 @@ case class ProjectStructure(
     }
     val scalacOptions: List[String] =
       Option(map.get("scalac.options")).toList
-        .flatMap(_.toString.split(" +").toList) ++
+        .flatMap(_.toString.split(" +").toList.map(_.replace(
+          "[basedir]",
+          baseDirectory.toAbsolutePath.toString
+        ))) ++
         // for now assume export pipelining for all pipelining subprojects
         (if (incOptions.pipelining) List("-Ypickle-java", "-Ypickle-write", earlyOutput.toString)
          else Nil)
