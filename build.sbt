@@ -29,6 +29,9 @@ def mimaSettings: Seq[Setting[?]] = Seq(
       "1.5.0",
       "1.6.0",
       "1.7.0",
+      "1.8.0",
+      "1.9.0",
+      "1.10.0",
     )
     val versions =
       if (scalaVersion.value.startsWith("2.12.")) pre140 ++ post140
@@ -640,6 +643,9 @@ lazy val zincClasspath = (projectMatrix in internalPath / "zinc-classpath")
       exclude[IncompatibleSignatureProblem]("sbt.internal.inc.classpath.ClasspathFilter.this"),
       exclude[IncompatibleResultTypeProblem](
         "sbt.internal.inc.classpath.NativeCopyConfig.*"
+      ),
+      exclude[IncompatibleResultTypeProblem](
+        "sbt.internal.inc.ReflectUtilities.fields"
       ),
       exclude[IncompatibleSignatureProblem](
         "sbt.internal.inc.classpath.NativeCopyConfig.*"
