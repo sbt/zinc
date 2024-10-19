@@ -181,11 +181,18 @@ object TestCallback {
     }
 
     private def pairsToMultiMap[A, B](pairs: Seq[(A, B)]): Map[A, Set[B]] = {
-      import scala.collection.mutable.{ HashMap, MultiMap }
-      val emptyMultiMap = new HashMap[A, scala.collection.mutable.Set[B]] with MultiMap[A, B]
-      val multiMap = pairs.foldLeft(emptyMultiMap) {
-        case (acc, (key, value)) =>
-          acc.addBinding(key, value)
+      import scala.collection.mutable.HashMap
+      val multiMap = HashMap.empty[A, scala.collection.mutable.Set[B]]
+      pairs.foreach {
+        case (key, value) =>
+          multiMap.get(key) match {
+            case None =>
+              val set = collection.mutable.Set.empty[B]
+              set += value
+              multiMap(key) = set
+            case Some(set) =>
+              set += value
+          }
       }
       // convert all collections to immutable variants
       multiMap.toMap.mapValues(_.toSet).toMap.withDefaultValue(Set.empty)
