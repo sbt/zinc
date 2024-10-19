@@ -17,7 +17,7 @@ object Dependencies {
   val scala212_213 = Seq(defaultScalaVersion, scala213)
   val scala3_only = Seq(scala3)
 
-  private val ioVersion = nightlyVersion.getOrElse("1.10.0")
+  private val ioVersion = nightlyVersion.getOrElse("1.10.1")
   private val utilVersion = nightlyVersion.getOrElse("2.0.0-M1")
 
   private val sbtIO = "org.scala-sbt" %% "io" % ioVersion
@@ -29,7 +29,7 @@ object Dependencies {
   private val utilInterface = "org.scala-sbt" % "util-interface" % utilVersion
   private val utilScripted = "org.scala-sbt" %% "util-scripted" % utilVersion
 
-  val launcherInterface = "org.scala-sbt" % "launcher-interface" % "1.4.3"
+  val launcherInterface = "org.scala-sbt" % "launcher-interface" % "1.4.4"
 
   def getSbtModulePath(key: String, name: String) = {
     val localProps = new java.util.Properties()

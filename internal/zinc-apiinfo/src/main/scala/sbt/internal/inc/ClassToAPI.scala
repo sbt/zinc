@@ -191,14 +191,29 @@ object ClassToAPI {
       cmap: ClassMap
   ): (api.Structure, api.Structure) = {
     lazy val cf = classFileForClass(c)
-    val methods = mergeMap(c, c.getDeclaredMethods, c.getMethods, methodToDef(enclPkg))
-    val fields = mergeMap(c, c.getDeclaredFields, c.getFields, fieldToDef(c, cf, enclPkg))
+    val methods = mergeMap(
+      c,
+      c.getDeclaredMethods.toIndexedSeq,
+      c.getMethods.toIndexedSeq,
+      methodToDef(enclPkg)
+    )
+    val fields = mergeMap(
+      c,
+      c.getDeclaredFields.toIndexedSeq,
+      c.getFields.toIndexedSeq,
+      fieldToDef(c, cf, enclPkg)
+    )
     val constructors =
-      mergeMap(c, c.getDeclaredConstructors, c.getConstructors, constructorToDef(enclPkg))
+      mergeMap(
+        c,
+        c.getDeclaredConstructors.toIndexedSeq,
+        c.getConstructors.toIndexedSeq,
+        constructorToDef(enclPkg)
+      )
     val classes = merge[Class[?]](
       c,
-      c.getDeclaredClasses,
-      c.getClasses,
+      c.getDeclaredClasses.toIndexedSeq,
+      c.getClasses.toIndexedSeq,
       toDefinitions(cmap),
       (_: Seq[Class[?]]).partition(isStatic),
       _.getEnclosingClass != c
@@ -240,7 +255,7 @@ object ClassToAPI {
   private def allSuperTypes(t: Type): Seq[Type] = {
     @tailrec def accumulate(t: Type, accum: Seq[Type] = Seq.empty): Seq[Type] = t match {
       case c: Class[?] =>
-        val (parent, interfaces) = (c.getGenericSuperclass, c.getGenericInterfaces)
+        val (parent, interfaces) = (c.getGenericSuperclass, c.getGenericInterfaces.toIndexedSeq)
         accumulate(parent, (accum :+ parent) ++ flattenAll(interfaces))
       case p: ParameterizedType =>
         accumulate(p.getRawType, accum)
@@ -263,7 +278,7 @@ object ClassToAPI {
   def types(ts: Seq[Type]): Array[api.Type] =
     ts.filter(_ ne null).map(reference).toArray
   def upperBounds(ts: Array[Type]): api.Type =
-    api.Structure.of(lzy(types(ts)), lzyEmptyDefArray, lzyEmptyDefArray)
+    api.Structure.of(lzy(types(ts.toIndexedSeq)), lzyEmptyDefArray, lzyEmptyDefArray)
 
   @deprecated("No longer used", "0.13.0")
   def parents(c: Class[?]): Seq[api.Type] = types(allSuperTypes(c))
@@ -507,11 +522,11 @@ object ClassToAPI {
    * We need this logic to trigger recompilation due to changes to pattern exhaustivity checking results.
    */
   private def childrenOfSealedClass(c: Class[?]): Seq[api.Type] =
-    if (!c.isEnum) emptyTypeArray
+    if (!c.isEnum) emptyTypeArray.toIndexedSeq
     else {
       // Calling getCanonicalName() on classes from enum constants yields same string as enumClazz.getCanonicalName
       // Moreover old behaviour create new instance of enum - what may fail (e.g. in static block )
-      Array(reference(c))
+      Seq(reference(c))
     }
 
   // full information not available from reflection
@@ -556,7 +571,7 @@ object ClassToAPI {
     }
 
   def pathFromString(s: String): api.Path =
-    pathFromStrings(s.split("\\."))
+    pathFromStrings(s.split("\\.").toIndexedSeq)
   def pathFromStrings(ss: Seq[String]): api.Path =
     api.Path.of((ss.map(api.Id.of(_)) :+ ThisRef).toArray)
   def packageName(c: Class[?]) = packageAndName(c)._1
