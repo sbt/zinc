@@ -82,7 +82,7 @@ trait RelationsTextFormat extends FormatCommons {
     def read(in: BufferedReader): Relations = {
       def readRelation[A, B](relDesc: Descriptor[A, B]): Map[A, Set[B]] = {
         import relDesc._
-        val items = readPairs(in)(header, keyMapper.read, valueMapper.read).toIterator
+        val items = readPairs(in)(header, keyMapper.read, valueMapper.read).iterator
         // Reconstruct the multi-map efficiently, using the writing strategy above
         val builder = Map.newBuilder[A, Set[B]]
         var currentKey = null.asInstanceOf[A]
