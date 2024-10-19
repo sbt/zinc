@@ -100,7 +100,15 @@ final class ForkedJavaCompiler(javaHome: Option[Path]) extends XJavaCompiler {
       reporter: Reporter,
       log: XLogger
   ): Boolean =
-    ForkedJava.launch(javaHome, "javac", sources, options, output, log, reporter)
+    ForkedJava.launch(
+      javaHome,
+      "javac",
+      sources.toIndexedSeq,
+      options.toIndexedSeq,
+      output,
+      log,
+      reporter,
+    )
 }
 final class ForkedJavadoc(javaHome: Option[Path]) extends XJavadoc {
   def run(
@@ -111,5 +119,13 @@ final class ForkedJavadoc(javaHome: Option[Path]) extends XJavadoc {
       reporter: Reporter,
       log: XLogger
   ): Boolean =
-    ForkedJava.launch(javaHome, "javadoc", sources, options, output, log, reporter)
+    ForkedJava.launch(
+      javaHome,
+      "javadoc",
+      sources.toIndexedSeq,
+      options.toIndexedSeq,
+      output,
+      log,
+      reporter,
+    )
 }

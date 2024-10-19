@@ -49,7 +49,7 @@ object Locate {
       }
   }
   def find[S](name: String, gets: Stream[String => Either[Boolean, S]]): Either[Boolean, S] =
-    find[S](name, gets.toIterator)
+    find[S](name, gets.iterator)
 
   /**
    * Returns a function that searches the provided class path for
@@ -148,6 +148,6 @@ object Locate {
   def components(className: String): (Seq[String], String) = {
     assume(!className.isEmpty)
     val parts = className.split("\\.")
-    if (parts.length == 1) (Nil, parts(0)) else (parts.init, parts.last)
+    if (parts.length == 1) (Nil, parts(0)) else (parts.init.toIndexedSeq, parts.last)
   }
 }

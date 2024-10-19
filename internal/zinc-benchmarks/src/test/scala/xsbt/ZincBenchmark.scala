@@ -185,7 +185,7 @@ private[xsbt] object ZincBenchmark {
          |  // Resolve project dynamically to avoid name clashes/overloading
          |  val project = LocalProject("$sbtProject")
          |  Def.task {
-         |    val file = new File("${outputFile.getAbsolutePath.replaceAllLiterally("\\", "/")}")
+         |    val file = new File("${outputFile.getAbsolutePath.replace("\\", "/")}")
          |    val rawSources = (sources in Compile in project).value
          |    val sourcesLine = rawSources.map(_.getCanonicalPath).mkString(" ")
          |    val rawClasspath = (dependencyClasspath in Compile in project).value

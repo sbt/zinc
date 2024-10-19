@@ -35,7 +35,7 @@ object UsedName {
 
   private def escapeControlChars(name: String) = {
     if (name.indexOf('\n') > 0) // optimize for common case to regex overhead
-      name.replaceAllLiterally("\n", "\u26680A")
+      name.replace("\n", "\u26680A")
     else
       name
   }
