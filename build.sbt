@@ -641,6 +641,9 @@ lazy val zincClasspath = (projectMatrix in internalPath / "zinc-classpath")
       exclude[IncompatibleResultTypeProblem](
         "sbt.internal.inc.classpath.NativeCopyConfig.*"
       ),
+      exclude[IncompatibleResultTypeProblem](
+        "sbt.internal.inc.ReflectUtilities.fields"
+      ),
       exclude[IncompatibleSignatureProblem](
         "sbt.internal.inc.classpath.NativeCopyConfig.*"
       ),
