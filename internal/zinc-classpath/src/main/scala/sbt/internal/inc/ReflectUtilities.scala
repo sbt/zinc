@@ -13,6 +13,7 @@ package sbt
 package internal
 package inc
 
+import java.lang.reflect.Field
 import scala.collection._
 
 object ReflectUtilities {
@@ -33,10 +34,10 @@ object ReflectUtilities {
 
   def ancestry(clazz: Class[?]): List[Class[?]] =
     if (clazz == classOf[AnyRef] || !classOf[AnyRef].isAssignableFrom(clazz)) List(clazz)
-    else clazz :: ancestry(clazz.getSuperclass);
+    else clazz :: ancestry(clazz.getSuperclass)
 
-  def fields(clazz: Class[?]) =
-    mutable.OpenHashMap(ancestry(clazz).flatMap(_.getDeclaredFields).map(f => (f.getName, f))*)
+  def fields(clazz: Class[?]): mutable.Map[String, Field] =
+    mutable.AnyRefMap(ancestry(clazz).flatMap(_.getDeclaredFields).map(f => (f.getName, f))*)
 
   /**
    * Collects all `val`s of type `T` defined on value `self`.
