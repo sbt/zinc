@@ -9,8 +9,8 @@ object Dependencies {
   val scala211 = "2.11.12"
   val scala212 = "2.12.20"
   val scala213 = "2.13.15"
-  val scala3 = "3.3.1"
-  val scala3ForBridge = "3.3.1"
+  val scala3 = "3.3.4"
+  val scala3ForBridge = "3.3.4"
   val scala213ForBridge = "2.13.15"
   val defaultScalaVersion = scala3
   val compilerBridgeVersions = Seq(scala212, scala210, scala211, scala213)
