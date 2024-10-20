@@ -66,12 +66,12 @@ object ReflectUtilities {
   /**
    * Collects all `val`s of type `T` defined on value `self`.
    * The returned Map maps the name of each `val` to its value.
-   * This requires an available `Manifest` for `T` and depends on scalac implementation details to determine
+   * This requires an available `ClassTag` for `T` and depends on scalac implementation details to determine
    * what is a `val` using only Java reflection.
    */
   def allVals[T](
       self: AnyRef
-  )(implicit mt: scala.reflect.Manifest[T]): immutable.SortedMap[String, T] =
+  )(implicit mt: scala.reflect.ClassTag[T]): immutable.SortedMap[String, T] =
     allValsC(self, mt.runtimeClass).asInstanceOf[immutable.SortedMap[String, T]]
 }
 
