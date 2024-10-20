@@ -29,6 +29,9 @@ def mimaSettings: Seq[Setting[?]] = Seq(
       "1.5.0",
       "1.6.0",
       "1.7.0",
+      "1.8.0",
+      "1.9.0",
+      "1.10.0",
     )
     val versions =
       if (scalaVersion.value.startsWith("2.12.")) pre140 ++ post140
@@ -87,7 +90,6 @@ def baseSettings: Seq[Setting[?]] = Seq(
   testFrameworks += new TestFramework("verify.runner.Framework"),
   compile / javacOptions ++= Seq("-Xlint", "-Xlint:-serial"),
   Test / publishArtifact := false,
-  scalacOptions ++= Seq("-YdisableFlatCpCaching"),
   scalacOptions += {
     scalaBinaryVersion.value match {
       case "2.10" | "2.11" =>
@@ -101,27 +103,6 @@ def baseSettings: Seq[Setting[?]] = Seq(
       .cross(CrossVersion.full)
   },
   ideSkipProject := scalaVersion.value != defaultScalaVersion,
-)
-
-def compilerVersionDependentScalacOptions: Seq[Setting[?]] = Seq(
-  scalacOptions := {
-    scalaBinaryVersion.value match {
-      case "2.12" | "2.13" =>
-        scalacOptions.value ++ List(
-          "-opt-inline-from:<sources>",
-          "-opt:l:inline",
-          "-Yopt-inline-heuristics:at-inline-annotated"
-        )
-      case _ =>
-        scalacOptions.value.filterNot(
-          Set(
-            "-Xfatal-warnings",
-            "-deprecation",
-            "-YdisableFlatCpCaching",
-          )
-        )
-    }
-  }
 )
 
 def addBaseSettingsAndTestDeps(p: Project): Project =
@@ -261,21 +242,11 @@ lazy val zincPersist = (projectMatrix in internalPath / "zinc-persist")
   .dependsOn(zincCore, zincCompileCore, zincCore % "test->test")
   .settings(
     name := "zinc Persist",
-    libraryDependencies += sbinary,
-    libraryDependencies ++= {
-      scalaPartialVersion.value match {
-        case Some((major, minor)) if major == 3 || minor >= 13 =>
-          List("org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4")
-        case _ =>
-          List()
-      }
-    },
+    libraryDependencies ++= List(
+      sbinary,
+      "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4",
+    ),
     compileOrder := sbt.CompileOrder.Mixed,
-    Compile / scalacOptions ++= (scalaVersion.value match {
-      case VersionNumber(Seq(2, 12, _*), _, _) =>
-        List("-Ywarn-unused:-imports,-locals,-implicits,-explicits,-privates")
-      case _ => Nil
-    }),
     Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
     mimaSettings,
     mimaBinaryIssueFilters ++= ZincBuildUtil.excludeInternalProblems,
@@ -319,17 +290,10 @@ lazy val zincCore = (projectMatrix in internalPath / "zinc-core")
       exclude[ReversedMissingMethodProblem]("xsbti.*"),
       exclude[MissingClassProblem]("xsbti.*"),
     ),
-    libraryDependencies ++= {
-      scalaPartialVersion.value match {
-        case Some((major, minor)) if major == 3 || minor >= 13 =>
-          List(
-            "org.scala-lang" % "scala-reflect" % scala213,
-            "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4"
-          )
-        case _ =>
-          List()
-      }
-    },
+    libraryDependencies ++= List(
+      "org.scala-lang" % "scala-reflect" % scala213,
+      "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4"
+    ),
   )
   .jvmPlatform(scalaVersions = scala3_only)
   .configure(addBaseSettingsAndTestDeps, addSbtIO, addSbtUtilLogging, addSbtUtilRelation)
@@ -397,8 +361,6 @@ lazy val compilerInterface = (projectMatrix in internalPath / "compiler-interfac
     baseSettings,
     name := "Compiler Interface",
     scalaVersion := scala3,
-    crossScalaVersions := Seq(scala3),
-    compilerVersionDependentScalacOptions,
     libraryDependencies ++= Seq(scalatest % Test),
     exportJars := true,
     Compile / resourceGenerators += Def.task {
@@ -466,7 +428,6 @@ lazy val compilerBridge = (projectMatrix in internalPath / "compiler-bridge")
       semanticdbEnabled.value && !scalaVersion.value.startsWith("2.10")
     },
     baseSettings,
-    compilerVersionDependentScalacOptions,
     // We need this for import Compat._
     Compile / scalacOptions --= Seq("-Ywarn-unused-import", "-Xfatal-warnings"),
     Compile / scalacOptions ++= (scalaVersion.value match {
@@ -520,7 +481,6 @@ lazy val compilerBridgeTest = (projectMatrix in internalPath / "compiler-bridge-
     name := "Compiler Bridge Test",
     baseSettings,
     scalaVersion := scala3,
-    compilerVersionDependentScalacOptions,
     // we need to fork because in unit tests we set usejavacp = true which means
     // we are expecting all of our dependencies to be on classpath so Scala compiler
     // can use them while constructing its own classpath for compilation
@@ -547,7 +507,6 @@ lazy val zincApiInfo = (projectMatrix in internalPath / "zinc-apiinfo")
   )
   .settings(
     name := "zinc ApiInfo",
-    compilerVersionDependentScalacOptions,
     mimaSettings,
     mimaBinaryIssueFilters ++= Seq(
       exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashTypeParameters"),
@@ -581,7 +540,6 @@ lazy val zincClasspath = (projectMatrix in internalPath / "zinc-classpath")
   .dependsOn(compilerInterface)
   .settings(
     name := "zinc Classpath",
-    compilerVersionDependentScalacOptions,
     libraryDependencies ++= Seq(
       // scalaCompiler.value,
       launcherInterface
@@ -600,6 +558,9 @@ lazy val zincClasspath = (projectMatrix in internalPath / "zinc-classpath")
       exclude[IncompatibleResultTypeProblem](
         "sbt.internal.inc.classpath.NativeCopyConfig.*"
       ),
+      exclude[IncompatibleResultTypeProblem](
+        "sbt.internal.inc.ReflectUtilities.fields"
+      ),
       exclude[IncompatibleSignatureProblem](
         "sbt.internal.inc.classpath.NativeCopyConfig.*"
       ),
@@ -614,7 +575,6 @@ lazy val zincClassfile = (projectMatrix in internalPath / "zinc-classfile")
   .dependsOn(compilerInterface, zincTesting % Test)
   .settings(
     name := "zinc Classfile",
-    compilerVersionDependentScalacOptions,
     Compile / headerSources ~= { xs =>
       val excluded = Set("ZipCentralDir.java", "ZipConstants.java", "ZipUtils.java")
       xs filter { x =>
@@ -643,7 +603,6 @@ lazy val zincScripted = (projectMatrix in internalPath / "zinc-scripted")
   .enablePlugins(BuildInfoPlugin)
   .settings(
     baseSettings,
-    ideSkipProject := true, // otherwise IntelliJ complains
     publish / skip := true,
     name := "zinc Scripted",
     Compile / buildInfo := Nil, // Only generate build info for tests

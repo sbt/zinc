@@ -7,17 +7,17 @@ object Dependencies {
 
   val scala210 = "2.10.7"
   val scala211 = "2.11.12"
-  val scala212 = "2.12.19"
-  val scala213 = "2.13.14"
+  val scala212 = "2.12.20"
+  val scala213 = "2.13.15"
   val scala3 = "3.3.4"
   val scala3ForBridge = "3.3.4"
-  val scala213ForBridge = "2.13.13"
+  val scala213ForBridge = "2.13.15"
   val defaultScalaVersion = scala3
   val compilerBridgeVersions = Seq(scala212, scala210, scala211, scala213)
   val scala212_213 = Seq(defaultScalaVersion, scala213)
   val scala3_only = Seq(scala3)
 
-  private val ioVersion = nightlyVersion.getOrElse("1.10.0")
+  private val ioVersion = nightlyVersion.getOrElse("1.10.1")
   private val utilVersion = nightlyVersion.getOrElse("2.0.0-M1")
 
   private val sbtIO = "org.scala-sbt" %% "io" % ioVersion
@@ -29,7 +29,7 @@ object Dependencies {
   private val utilInterface = "org.scala-sbt" % "util-interface" % utilVersion
   private val utilScripted = "org.scala-sbt" %% "util-scripted" % utilVersion
 
-  val launcherInterface = "org.scala-sbt" % "launcher-interface" % "1.4.3"
+  val launcherInterface = "org.scala-sbt" % "launcher-interface" % "1.4.4"
 
   def getSbtModulePath(key: String, name: String) = {
     val localProps = new java.util.Properties()
@@ -80,7 +80,7 @@ object Dependencies {
   val junit = "junit" % "junit" % "4.12"
   val sjsonNewVersion = "0.14.0-M1"
   val scalaXml = "org.scala-lang.modules" %% "scala-xml" % "2.3.0"
-  val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.18.0"
+  val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.18.1"
   val scalatest = "org.scalatest" %% "scalatest" % "3.2.19"
   val verify = "com.eed3si9n.verify" %% "verify" % "1.0.0"
   val sjsonnew = Def.setting {

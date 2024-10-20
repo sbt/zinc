@@ -39,13 +39,13 @@ import Constants._
 private[sbt] object Parser {
 
   def apply(file: Path, log: Logger): ClassFile =
-    Using.bufferedInputStream(Files.newInputStream(file))(parse(file.toString, log)).right.get
+    Using.bufferedInputStream(Files.newInputStream(file))(parse(file.toString, log)).toOption.get
 
   def apply(file: File, log: Logger): ClassFile =
-    Using.fileInputStream(file)(parse(file.toString, log)).right.get
+    Using.fileInputStream(file)(parse(file.toString, log)).toOption.get
 
   def apply(url: URL, log: Logger): ClassFile =
-    usingUrlInputStreamWithoutCaching(url)(parse(url.toString, log)).right.get
+    usingUrlInputStreamWithoutCaching(url)(parse(url.toString, log)).toOption.get
 
   // JarURLConnection with caching enabled will never close the jar
   private val usingUrlInputStreamWithoutCaching = Using.resource((u: URL) =>
@@ -106,7 +106,7 @@ private[sbt] object Parser {
           in.readUnsignedShort(),
           toString(in.readUnsignedShort()),
           toString(in.readUnsignedShort()),
-          array(in.readUnsignedShort())(parseAttribute())
+          array(in.readUnsignedShort())(parseAttribute()).toIndexedSeq
         )
       private def parseAttribute() = {
         val nameIndex = in.readUnsignedShort()

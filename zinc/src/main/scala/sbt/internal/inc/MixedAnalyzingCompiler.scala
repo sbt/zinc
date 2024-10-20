@@ -37,7 +37,6 @@ import sbt.internal.inc.VirtualFileUtil.toAbsolute
 import sbt.internal.inc.caching.ClasspathCache
 import sbt.internal.inc.javac.AnalyzingJavaCompiler
 import sbt.internal.util.ConsoleAppender
-import scala.concurrent.ExecutionContext
 
 /** An instance of an analyzing compiler that can run both javac + scalac. */
 final class MixedAnalyzingCompiler(
