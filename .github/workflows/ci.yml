@@ -90,8 +90,8 @@ jobs:
       shell: bash
       run: |
         sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Shapeless.*" "runBenchmarks"
-#    - name: Benchmark (AnalysisFormatBenchmark) against Target Branch (6)
-#      if: ${{ github.event_name == 'pull_request' && matrix.jobtype == 6 }}
-#      shell: bash
-#      run: |
-#        sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*AnalysisFormatBenchmark.*" "runBenchmarks"
+    - name: Benchmark (AnalysisFormatBenchmark) against Target Branch (6)
+      if: ${{ github.event_name == 'pull_request' && matrix.jobtype == 6 }}
+      shell: bash
+      run: |
+        sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*AnalysisFormatBenchmark.*" "runBenchmarks"
