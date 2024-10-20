@@ -3,8 +3,7 @@ package sbt.inc.consistent
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.io.{ BufferedInputStream, ByteArrayInputStream, ByteArrayOutputStream }
-import java.util.zip.GZIPInputStream
+import java.io.{ ByteArrayInputStream, ByteArrayOutputStream }
 import java.nio.file.{ Files, Paths, StandardOpenOption }
 import sbt.internal.inc.consistent.ParallelGzipOutputStream
 import sbt.io.IO

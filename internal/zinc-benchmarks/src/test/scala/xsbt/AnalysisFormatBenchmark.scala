@@ -35,7 +35,7 @@ class AnalysisFormatBenchmark {
       IO.copyFile(f, f2)
       assert(f2.exists())
     }
-    this.cached = readAll("", FileAnalysisStore.binary(_))
+    this.cached = readAll("", FileAnalysisStore.text(_))
     writeAll("-ref-text", FileAnalysisStore.text(_), cached)
     // writeAll("-ref-ctext", ConsistentFileAnalysisStore.text(_, ReadWriteMappers.getEmptyMappers), cached)
     writeAll(
@@ -63,24 +63,10 @@ class AnalysisFormatBenchmark {
   }
 
   @Benchmark
-  def readBinary(bh: Blackhole): Unit = bh.consume(readAll("", FileAnalysisStore.binary(_)))
-
-  @Benchmark
-  def readText(bh: Blackhole): Unit = bh.consume(readAll("-ref-text", FileAnalysisStore.text(_)))
-
-  @Benchmark
   def readConsistentBinary(bh: Blackhole): Unit =
     bh.consume(
       readAll("-ref-cbin", ConsistentFileAnalysisStore.binary(_, ReadWriteMappers.getEmptyMappers))
     )
-
-  @Benchmark
-  def writeBinary(bh: Blackhole): Unit =
-    bh.consume(writeAll("-test-bin", FileAnalysisStore.binary(_), cached))
-
-  @Benchmark
-  def writeText(bh: Blackhole): Unit =
-    bh.consume(writeAll("-test-text", FileAnalysisStore.text(_), cached))
 
   @Benchmark
   def writeConsistentBinary(bh: Blackhole): Unit =

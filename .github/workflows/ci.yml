@@ -31,6 +31,9 @@ jobs:
           - os: ubuntu-latest
             java: 21
             jobtype: 5
+          - os: ubuntu-latest
+            java: 21
+            jobtype: 6
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout
@@ -67,23 +70,28 @@ jobs:
       shell: bash
       run: |
         sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Shapeless.*" "runBenchmarks"
-    - name: Checkout Target Branch (4, 5)
-      if: ${{ github.event_name == 'pull_request' && (matrix.jobtype == 4 || matrix.jobtype == 5) }}
+    - name: Benchmark (AnalysisFormatBenchmark) (6)
+      if: ${{ matrix.jobtype == 6 }}
+      shell: bash
+      run: |
+        sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*AnalysisFormatBenchmark.*" "runBenchmarks"
+    - name: Checkout Target Branch (4-6)
+      if: ${{ github.event_name == 'pull_request' && (matrix.jobtype >= 4 && matrix.jobtype <= 6) }}
       uses: actions/checkout@v4
       with:
-        clean: false
         ref: ${{ github.event.pull_request.base.ref }}
-    - name: Setup SBT
-      uses: sbt/setup-sbt@v1
-      if: ${{ github.event_name == 'pull_request' && (matrix.jobtype >= 4 && matrix.jobtype <= 6) }}
     - name: Benchmark (Scalac) against Target Branch (4)
       if: ${{ github.event_name == 'pull_request' && matrix.jobtype == 4 }}
       shell: bash
       run: |
-        sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Scalac.*" "zincBenchmarks3/Jmh/clean" "runBenchmarks"
+        sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Scalac.*" "runBenchmarks"
     - name: Benchmark (Shapeless) against Target Branch (5)
       if: ${{ github.event_name == 'pull_request' && matrix.jobtype == 5 }}
       shell: bash
       run: |
-        sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Shapeless.*" "zincBenchmarks3/Jmh/clean" "runBenchmarks"
-        
+        sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Shapeless.*" "runBenchmarks"
+#    - name: Benchmark (AnalysisFormatBenchmark) against Target Branch (6)
+#      if: ${{ github.event_name == 'pull_request' && matrix.jobtype == 6 }}
+#      shell: bash
+#      run: |
+#        sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*AnalysisFormatBenchmark.*" "runBenchmarks"

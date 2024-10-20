@@ -23,6 +23,7 @@ class JavaErrorParserSpec extends UnitSpec with Diagrams {
   "The JavaErrorParser" should "be able to parse Linux errors" in parseSampleLinux()
   it should "be able to parse windows file names" in parseWindowsFile()
   it should "be able to parse windows errors" in parseSampleWindows()
+  it should "be able to parse javac non-problems" in parseSampleNonProblem()
   it should "be able to parse javac warnings" in parseJavacWarning()
   it should "be able to parse javac errors" in parseSampleJavac()
   it should "register the position of errors" in parseErrorPosition()
@@ -45,6 +46,14 @@ class JavaErrorParserSpec extends UnitSpec with Diagrams {
 
     assert(problems.size == 1)
     problems(0).position.sourcePath.get shouldBe (windowsFile)
+  }
+
+  def parseSampleNonProblem() = {
+    val parser = new JavaErrorParser()
+    val logger = ConsoleLogger()
+    val problems = parser.parseProblems(sampleNonProblemMessage, logger)
+
+    assert(problems.size == 2)
   }
 
   def parseWindowsFile() = {
@@ -197,6 +206,21 @@ class JavaErrorParserSpec extends UnitSpec with Diagrams {
       |location: class Foo
       |return baz();
     """.stripMargin
+
+  def sampleNonProblemMessage =
+    raw"""
+       |Loading source file D:\Repos\zinc\internal\zinc-compile-core\target\jvm-2.13\test-classes\sbt\internal\inc\javac\test1.java...
+       |Constructing Javadoc information...
+       |D:\Repos\zinc\internal\zinc-compile-core\target\jvm-2.13\test-classes\sbt\internal\inc\javac\test1.java:14: error: class Test is public, should be declared in a file named Test.java
+       |public class Test {
+       |       ^
+       |D:\Repos\zinc\internal\zinc-compile-core\target\jvm-2.13\test-classes\sbt\internal\inc\javac\test1.java:15: error: cannot find symbol
+       |    public NotFound foo() { return 5; }
+       |           ^
+       |  symbol:   class NotFound
+       |  location: class Test
+       |2 errors
+    """.stripMargin.trim
 
   def sampleJavacWarning =
     "warning: [options] system modules path not set in conjunction with -source 17"

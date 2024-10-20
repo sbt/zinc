@@ -81,7 +81,7 @@ object ClasspathUtil {
       classpath: Seq[Path],
       instance: ScalaInstance
   ): Map[String, String] = {
-    createClasspathResources(classpath, instance.libraryJars.map(_.toPath))
+    createClasspathResources(classpath, instance.libraryJars.toIndexedSeq.map(_.toPath))
   }
 
   def createClasspathResources(appPaths: Seq[Path], bootPaths: Seq[Path]): Map[String, String] = {
