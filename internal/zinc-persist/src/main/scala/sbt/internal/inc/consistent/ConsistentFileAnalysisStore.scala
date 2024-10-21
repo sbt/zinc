@@ -24,12 +24,12 @@ object ConsistentFileAnalysisStore {
   def text(
       file: File,
       mappers: ReadWriteMappers,
-      sort: Boolean = true,
+      reproducible: Boolean = true,
       parallelism: Int = Runtime.getRuntime.availableProcessors()
   ): XAnalysisStore =
     new AStore(
       file,
-      new ConsistentAnalysisFormat(mappers, sort),
+      new ConsistentAnalysisFormat(mappers, reproducible),
       SerializerFactory.text,
       parallelism
     )
@@ -38,7 +38,7 @@ object ConsistentFileAnalysisStore {
     binary(
       file,
       mappers = ReadWriteMappers.getEmptyMappers(),
-      sort = true,
+      reproducible = true,
     )
 
   def binary(
@@ -48,18 +48,18 @@ object ConsistentFileAnalysisStore {
     binary(
       file,
       mappers,
-      sort = true,
+      reproducible = true,
     )
 
   def binary(
       file: File,
       mappers: ReadWriteMappers,
-      sort: Boolean,
+      reproducible: Boolean,
       parallelism: Int = Runtime.getRuntime.availableProcessors()
   ): XAnalysisStore =
     new AStore(
       file,
-      new ConsistentAnalysisFormat(mappers, sort),
+      new ConsistentAnalysisFormat(mappers, reproducible),
       SerializerFactory.binary,
       parallelism
     )

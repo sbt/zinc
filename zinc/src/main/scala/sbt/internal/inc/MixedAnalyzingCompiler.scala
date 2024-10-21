@@ -507,7 +507,7 @@ object MixedAnalyzingCompiler {
       useTextAnalysis = useTextAnalysis,
       useConsistent = false,
       mappers = ReadWriteMappers.getEmptyMappers(),
-      sort = true,
+      reproducible = true,
       parallelism = Runtime.getRuntime.availableProcessors(),
     )
 
@@ -516,7 +516,7 @@ object MixedAnalyzingCompiler {
       useTextAnalysis: Boolean,
       useConsistent: Boolean,
       mappers: ReadWriteMappers,
-      sort: Boolean,
+      reproducible: Boolean,
       parallelism: Int,
   ): AnalysisStore = {
     val fileStore = (useTextAnalysis, useConsistent) match {
@@ -526,7 +526,7 @@ object MixedAnalyzingCompiler {
         ConsistentFileAnalysisStore.binary(
           file = analysisFile.toFile,
           mappers = mappers,
-          sort = sort,
+          reproducible = reproducible,
           parallelism = parallelism,
         )
       case (true, false) =>
@@ -535,7 +535,7 @@ object MixedAnalyzingCompiler {
         ConsistentFileAnalysisStore.text(
           file = analysisFile.toFile,
           mappers = mappers,
-          sort = sort,
+          reproducible = reproducible,
           parallelism = parallelism,
         )
     }

@@ -25,7 +25,7 @@ import Compat._
  * - Faster serialization and deserialization than the existing binary format.
  * - Smaller implementation than either of the existing formats.
  */
-class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
+class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Boolean) {
   import ConsistentAnalysisFormat._
 
   private[this] final val VERSION = 1100029
@@ -41,6 +41,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
     writeAPIs(out, analysis0.apis, setup.storeApis())
     writeSourceInfos(out, analysis0.infos)
     // we do not read or write the Compilations
+    // as zinc does not use Compilations from deserialized analysis
     out.int(VERSION)
     out.end()
   }
@@ -53,6 +54,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
     val apis = readAPIs(in, setup.storeApis())
     val infos = readSourceInfos(in)
     // we do not read or write the Compilations
+    // as zinc does not use Compilations from deserialized analysis
     val compilations = Compilations.of(Nil)
     readVersion(in)
     in.end()
@@ -65,9 +67,12 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
       name: String,
       map: scala.collection.Iterable[(String, V)],
       perEntry: Int = 1
-  )(f: V => Unit): Unit =
-    if (sort) out.writeSortedStringMap(name, map, perEntry)(f)
+  )(f: V => Unit): Unit = {
+    // For reproducible output, need to write strings in sorted order
+    // otherwise strings may be written in different order resulting in different output
+    if (reproducible) out.writeSortedStringMap(name, map, perEntry)(f)
     else out.writeColl(name, map, perEntry + 1) { kv => out.string(kv._1); f(kv._2) }
+  }
 
   private[this] def readVersion(in: Deserializer): Unit = {
     val ver = in.int()
@@ -147,7 +152,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
       out.string(ac.provenance())
       out.int(ac.extraHash())
       val nh0 = ac.nameHashes()
-      val nh = if (nh0.length > 1 && sort) {
+      val nh = if (nh0.length > 1 && reproducible) {
         val nh = nh0.clone()
         Arrays.sort(nh, nameHashComparator)
         nh
@@ -188,14 +193,17 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
   }
 
   private[this] def writeAPIs(out: Serializer, apis: APIs, storeApis: Boolean): Unit = {
-    def write(n: String, m: Map[String, AnalyzedClass]): Unit =
+    def write(n: String, m: Map[String, AnalyzedClass]): Unit = {
       writeMaybeSortedStringMap(
         out,
         n,
-        m.mapValues(_.withCompilationTimestamp(DefaultCompilationTimestamp))
+        if (reproducible) m.mapValues(_.withCompilationTimestamp(DefaultCompilationTimestamp))
+        else m
       ) { ac =>
         writeAnalyzedClass(out, ac, storeApis)
       }
+    }
+
     write("internal", apis.internal)
     write("external", apis.external)
   }
@@ -342,7 +350,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
         rel.forwardMap.view.map { case (k, vs) => kf(k) -> vs }
       ) { vs =>
         val a = vs.iterator.map(vf).toArray
-        if (sort) Arrays.sort(a, implicitly[Ordering[String]])
+        if (reproducible) Arrays.sort(a, implicitly[Ordering[String]])
         out.writeColl("item", a)(out.string)
       }
     def wrS(name: String, rel: Relation[String, String]): Unit =
@@ -417,11 +425,11 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, sort: Boolean) {
         if (sc.contains(UseScope.PatMatTarget)) i += 4
         (un.name, i.toByte)
       }.toArray.groupBy(_._2)
-      val groups = if (sort) groups0.toVector.sortBy(_._1) else groups0
+      val groups = if (reproducible) groups0.toVector.sortBy(_._1) else groups0
       out.writeColl("groups", groups, 2) { case (g, gNames) =>
         out.byte(g)
         val names = gNames.map(_._1)
-        if (sort) Arrays.sort(names, implicitly[Ordering[String]])
+        if (reproducible) Arrays.sort(names, implicitly[Ordering[String]])
         out.writeStringColl("names", names)
       }
     }
