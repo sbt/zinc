@@ -9,90 +9,91 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-latest
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
+        java: [ 8, 11, 17, 21 ]
+        distribution: [ temurin ]
+        jobtype: [ 1, 2 ]
+        exclude:
+          # Exclude JDK 8 on macOS as GitHub Actions do not support it
+          - os: macos-latest
             java: 8
-            jobtype: 1
-          - os: ubuntu-latest
-            java: 11
-            jobtype: 1
-          - os: ubuntu-latest
-            java: 21
-            jobtype: 1
-          - os: windows-latest
-            java: 8
-            jobtype: 2
-          - os: ubuntu-latest
-            java: 21
-            jobtype: 3
-          - os: ubuntu-latest
-            java: 21
-            jobtype: 4
-          - os: ubuntu-latest
-            java: 21
-            jobtype: 5
-          - os: ubuntu-latest
-            java: 21
-            jobtype: 6
     runs-on: ${{ matrix.os }}
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    - name: Setup JDK
-      uses: actions/setup-java@v4
-      with:
-        distribution: temurin
-        java-version: ${{ matrix.java }}
-        cache: sbt
-    - name: Setup SBT
-      uses: sbt/setup-sbt@v1
-    - name: Build and test (1)
-      if: ${{ matrix.jobtype == 1 }}
-      shell: bash
-      run: bin/run-ci.sh
-    - name: Build and test (2)
-      if: ${{ matrix.jobtype == 2 }}
-      shell: bash
-      run: |
-        sbt -v -Dfile.encoding=UTF-8 -Dsbt.supershell=never "crossTestBridges" "zincRoot/test" "zincScripted/Test/run"
-    - name: Build and test (3)
-      if: ${{ matrix.jobtype == 3 }}
-      shell: bash
-      run: |
-        sbt -v -Dfile.encoding=UTF-8 scalafmtCheckAll scalafmtSbtCheck generateContrabands
-        git diff --exit-code
-    - name: Benchmark (Scalac) (4)
-      if: ${{ matrix.jobtype == 4 }}
-      shell: bash
-      run: |
-        sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Scalac.*" "runBenchmarks"
-    - name: Benchmark (Shapeless) (5)
-      if: ${{ matrix.jobtype == 5 }}
-      shell: bash
-      run: |
-        sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Shapeless.*" "runBenchmarks"
-    - name: Benchmark (AnalysisFormatBenchmark) (6)
-      if: ${{ matrix.jobtype == 6 }}
-      shell: bash
-      run: |
-        sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*AnalysisFormatBenchmark.*" "runBenchmarks"
-    - name: Checkout Target Branch (4-6)
-      if: ${{ github.event_name == 'pull_request' && (matrix.jobtype >= 4 && matrix.jobtype <= 6) }}
-      uses: actions/checkout@v4
-      with:
-        ref: ${{ github.event.pull_request.base.ref }}
-    - name: Benchmark (Scalac) against Target Branch (4)
-      if: ${{ github.event_name == 'pull_request' && matrix.jobtype == 4 }}
-      shell: bash
-      run: |
-        sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Scalac.*" "runBenchmarks"
-    - name: Benchmark (Shapeless) against Target Branch (5)
-      if: ${{ github.event_name == 'pull_request' && matrix.jobtype == 5 }}
-      shell: bash
-      run: |
-        sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Shapeless.*" "runBenchmarks"
-    - name: Benchmark (AnalysisFormatBenchmark) against Target Branch (6)
-      if: ${{ github.event_name == 'pull_request' && matrix.jobtype == 6 }}
-      shell: bash
-      run: |
-        sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*AnalysisFormatBenchmark.*" "runBenchmarks"
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: ${{ matrix.distribution }}
+          java-version: ${{ matrix.java }}
+          cache: sbt
+      - name: Setup SBT
+        uses: sbt/setup-sbt@v1
+      - name: Build and test (1)
+        if: ${{ matrix.jobtype == 1 }}
+        shell: bash
+        run: bin/run-ci.sh
+      - name: Build and test (2)
+        if: ${{ matrix.jobtype == 2 }}
+        shell: bash
+        run: |
+          sbt -v -Dfile.encoding=UTF-8 -Dsbt.supershell=never "crossTestBridges" "zincRoot/test" "zincScripted/Test/run"
+
+  format-and-benchmark:
+    timeout-minutes: 25
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        jobtype: [ 3, 4, 5, 6 ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: sbt
+      - name: Setup SBT
+        uses: sbt/setup-sbt@v1
+      - name: Build and test (3)
+        if: ${{ matrix.jobtype == 3 }}
+        shell: bash
+        run: |
+          sbt -v -Dfile.encoding=UTF-8 scalafmtCheckAll scalafmtSbtCheck
+      - name: Benchmark (Scalac) (4)
+        if: ${{ matrix.jobtype == 4 }}
+        shell: bash
+        run: |
+          sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Scalac.*" "runBenchmarks"
+      - name: Benchmark (Shapeless) (5)
+        if: ${{ matrix.jobtype == 5 }}
+        shell: bash
+        run: |
+          sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Shapeless.*" "runBenchmarks"
+      - name: Benchmark (AnalysisFormatBenchmark) (6)
+        if: ${{ matrix.jobtype == 6 }}
+        shell: bash
+        run: |
+          sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*AnalysisFormatBenchmark.*" "runBenchmarks"
+      - name: Checkout Target Branch (4-6)
+        if: ${{ github.event_name == 'pull_request' && (matrix.jobtype >= 4 && matrix.jobtype <= 6) }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+      - name: Benchmark (Scalac) against Target Branch (4)
+        if: ${{ github.event_name == 'pull_request' && matrix.jobtype == 4 }}
+        shell: bash
+        run: |
+          sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Scalac.*" "runBenchmarks"
+      - name: Benchmark (Shapeless) against Target Branch (5)
+        if: ${{ github.event_name == 'pull_request' && matrix.jobtype == 5 }}
+        shell: bash
+        run: |
+          sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Shapeless.*" "runBenchmarks"
+      - name: Benchmark (AnalysisFormatBenchmark) against Target Branch (6)
+        if: ${{ github.event_name == 'pull_request' && matrix.jobtype == 6 }}
+        shell: bash
+        run: |
+          sbt -v -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*AnalysisFormatBenchmark.*" "runBenchmarks"
