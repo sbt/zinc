@@ -330,7 +330,7 @@ lazy val zincPersistCore = (project in internalPath / "zinc-persist-core")
     crossPaths := false,
     autoScalaLibrary := false,
     exportJars := true,
-    ProtobufConfig / version := "3.25.5",
+    ProtobufConfig / version := "4.28.3",
     publish / skip := true,
     assembly / assemblyShadeRules := Seq(
       ShadeRule
