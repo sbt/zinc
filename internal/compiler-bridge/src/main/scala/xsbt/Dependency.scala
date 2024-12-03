@@ -291,9 +291,12 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
       assert(fromClass.isClass, Feedback.expectedClassSymbol(fromClass))
       val depClass = enclOrModuleClass(dep)
       val dependency = ClassDependency(fromClass, depClass)
+      // An anonymous class be the enclosing class of an existential type symbol inferred from refinements,
+      // prior to https://github.com/scala/scala/pull/10940. Allowing this here leads to a dependency on class name
+      // that does not exist. Guard against it here to avoid the issue with legacy compiler versions.
       if (
         !cache.contains(dependency) &&
-        !depClass.isRefinementClass
+        !depClass.isAnonOrRefinementClass
       ) {
         process(dependency)
         cache.add(dependency)
@@ -484,7 +487,8 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
 
       case m @ MacroExpansionOf(original) if inspectedOriginalTrees.add(original) =>
         // TODO: typesTouchedDuringMacroExpansion can be provided by compiler
-        // in the form of tree attachment
+        // in the form
+        // of tree attachment
         val typesTouchedDuringMacroExpansion = original match {
           case Apply(TypeApply(_, args), _) => args.map(_.tpe)
           case TypeApply(_, args)           => args.map(_.tpe)
