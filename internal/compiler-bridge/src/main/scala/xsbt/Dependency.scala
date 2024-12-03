@@ -189,6 +189,27 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
                  * but when it does we must ensure the incremental compiler tries its best no to lose
                  * any dependency. Therefore, we do a last-time effort to get the origin of the symbol
                  * by inspecting the classpath manually.
+                 *
+                 * UPDATE: This can also happen without compiler bugs if the symbol is simply uninitialized.
+                 * Example, `class Client { def foo = Server.foo }`. When compiling client, the type `Foo` returned
+                 * by `Server.foo` does not need to be initialized as we do not select from it or check its
+                 * conformance to another type.
+                 *
+                 * Initializing `targetSymbol` before calling `assosicatedFile` would work but is problematic
+                 * see zinc/zinc#949
+                 *
+                 * Perhaps consider this?
+                 * val file = targetSymbol.associatedFile match {
+                 *   case NoAbstractFile => sym.rawInfo match {
+                 *     case cfl: global.loaders.ClassfileLoader =>
+                 *       val f = cfl.associatedFile(sym) // Gets the file from the loader
+                 *       if (f.exists) f else NoAbstractFile
+                 *     case f => f
+                 *   }
+                 * }
+                 *
+                 * Or the status quo might just be perfectly fine -- if compilation doesn't need to force `Foo`,
+                 * then there isn't a real dependency.
                  */
                 val fqn = fullName(targetSymbol, '.', targetSymbol.moduleSuffix, false)
                 global.findAssociatedFile(fqn) match {
