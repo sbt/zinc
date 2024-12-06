@@ -26,11 +26,14 @@ import xsbti.{ FileConverter, Problem, Severity, VirtualFileRef, VirtualFile }
 import xsbti.compile.{
   AnalysisContents,
   AnalysisStore,
+  ClassFileManager => XClassFileManager,
   ClasspathOptionsUtil,
   CompileAnalysis,
   CompileOrder,
   CompileProgress,
+  DefaultExternalHooks,
   DefinesClass,
+  ExternalHooks,
   IncOptions,
   IncOptionsUtil,
   PerClasspathEntryLookup,
@@ -222,6 +225,9 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
     onArgs("checkIterations") {
       case (p, x :: Nil, i) => p.checkNumberOfCompilerIterations(i, x.toInt)
     },
+    onArgs("checkCycles") {
+      case (p, x :: Nil, i) => p.checkNumberOfCycles(i, x.toInt)
+    },
     // note that this can only tell us the *last* round a class got compiled in.
     // it can't tell us *every* round something got compiled in, since only
     // still-extant classfiles are available for inspection
@@ -328,6 +334,7 @@ case class ProjectStructure(
   val earlyCacheFile = baseDirectory / "target" / "early" / "inc_compile.zip"
   val earlyAnalysisStore = FileAnalysisStore.binary(earlyCacheFile.toFile)
   // val earlyCachedStore = AnalysisStore.cached(fileStore)
+  val profiler = new ZincInvalidationProfiler
 
   // We specify the class file manager explicitly even though it's noew possible
   // to specify it in the incremental option property file (this is the default for sbt)
@@ -421,6 +428,15 @@ case class ProjectStructure(
 
       assert(step < allCompilations.size)
       recompiledClassesInIteration(step, expected.toSet)
+      ()
+    }
+
+  def checkNumberOfCycles(i: IncState, expected: Int): Future[Unit] =
+    compile(i).map { _ =>
+      import scala.collection.JavaConverters._
+      val count = profiler.toProfile.getRunsList.asScala.map(_.getCyclesList.size).sum
+      val msg = s"Expected $expected cycles, got $count"
+      assert(count == expected, msg)
       ()
     }
 
@@ -783,10 +799,13 @@ case class ProjectStructure(
     import scala.collection.JavaConverters._
     val map = new java.util.HashMap[String, String]
     properties.asScala foreach { case (k: String, v: String) => map.put(k, v) }
+    val externalHooks = new DefaultExternalHooks(Optional.empty[ExternalHooks.Lookup], Optional.empty[XClassFileManager])
+      .withInvalidationProfiler(profiler)
     val base = IncOptions
       .of()
       .withPipelining(defaultPipelining)
       .withApiDebug(true)
+      .withExternalHooks(externalHooks)
     // .withRelationsDebug(true)
     val incOptions = {
       val opts = IncOptionsUtil.fromStringMap(base, map, scriptedLog)

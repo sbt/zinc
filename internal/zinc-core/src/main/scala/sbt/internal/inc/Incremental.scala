@@ -70,14 +70,18 @@ object Incremental {
      * Merge latest analysis as of pickling into pruned previous analysis, compute invalidations
      * and decide whether we need another cycle.
      */
-    def mergeAndInvalidate(partialAnalysis: Analysis, completingCycle: Boolean): CompileCycleResult
+    def mergeAndInvalidate(
+        partialAnalysis: Analysis,
+        shouldRegisterCycle: Boolean
+    ): CompileCycleResult
 
     /**
      * Merge latest analysis as of analyzer into pruned previous analysis and inform file manager.
      */
     def completeCycle(
         prev: Option[CompileCycleResult],
-        partialAnalysis: Analysis
+        partialAnalysis: Analysis,
+        shouldRegisterCycle: Boolean
     ): CompileCycleResult
 
     def previousAnalysisPruned: Analysis
@@ -938,7 +942,13 @@ private final class AnalysisCallback(
         if (!writtenEarlyArtifacts) // writing implies the updates merge has happened
           mergeUpdates() // must merge updates each cycle or else scalac will clobber it
       }
-      incHandler.completeCycle(invalidationResults, getAnalysis)
+
+      val partialAnalysis = getAnalysis
+      val hasScala = Analysis.sources(partialAnalysis).scala.nonEmpty
+      // If we had early output and scala sources, then the cycle has already been registered
+      val shouldRegisterCycle = earlyOutput.isEmpty || !hasScala
+
+      incHandler.completeCycle(invalidationResults, partialAnalysis, shouldRegisterCycle)
     } else {
       throw new IllegalStateException(
         "can't call AnalysisCallback#getCycleResultOnce more than once"
@@ -1090,12 +1100,12 @@ private final class AnalysisCallback(
 
   override def apiPhaseCompleted(): Unit = {
     // If we know we're done with cycles (presumably because all sources were invalidated) we can store early analysis
-    // and picke data now.  Otherwise, we need to wait for dependency information to decide if there are more cycles.
+    // and pickle data now.  Otherwise, we need to wait for dependency information to decide if there are more cycles.
     incHandlerOpt foreach { incHandler =>
       if (earlyOutput.isDefined && incHandler.isFullCompilation) {
         val a = getAnalysis
         val CompileCycleResult(continue, invalidations, merged) =
-          incHandler.mergeAndInvalidate(a, false)
+          incHandler.mergeAndInvalidate(a, shouldRegisterCycle = true)
         if (lookup.shouldDoEarlyOutput(merged)) {
           assert(
             !continue && invalidations.isEmpty,
@@ -1113,7 +1123,7 @@ private final class AnalysisCallback(
     if (earlyOutput.isDefined && invalidationResults.isEmpty) {
       val a = getAnalysis
       val CompileCycleResult(continue, invalidations, merged) =
-        incHandler.mergeAndInvalidate(a, false)
+        incHandler.mergeAndInvalidate(a, shouldRegisterCycle = true)
       // Store invalidations and continuation decision; the analysis will be computed again after Analyze phase.
       invalidationResults = Some(CompileCycleResult(continue, invalidations, Analysis.empty))
       // If there will be no more compilation cycles, store the early analysis file and update the pickle jar

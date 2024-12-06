@@ -158,7 +158,7 @@ private[inc] abstract class IncrementalCommon(
 
       override def mergeAndInvalidate(
           partialAnalysis: Analysis,
-          completingCycle: Boolean
+          shouldRegisterCycle: Boolean,
       ): CompileCycleResult = {
         val analysis =
           if (isFullCompilation)
@@ -190,10 +190,7 @@ private[inc] abstract class IncrementalCommon(
         val continue = nextInvalidations.nonEmpty &&
           lookup.shouldDoIncrementalCompilation(nextInvalidations, analysis)
 
-        val hasScala = Analysis.sources(partialAnalysis).scala.nonEmpty
-
-        // If we're completing the cycle and we had scala sources, then mergeAndInvalidate has already been called
-        if (!completingCycle || !hasScala) {
+        if (shouldRegisterCycle) {
           registerCycle(recompiledClasses, newApiChanges, nextInvalidations, continue)
         }
         CompileCycleResult(continue, nextInvalidations, analysis)
@@ -201,12 +198,13 @@ private[inc] abstract class IncrementalCommon(
 
       override def completeCycle(
           prev: Option[CompileCycleResult],
-          partialAnalysis: Analysis
+          partialAnalysis: Analysis,
+          shouldRegisterCycle: Boolean
       ): CompileCycleResult = {
         classFileManager.generated(partialAnalysis.relations.allProducts.map(toVf).toArray)
         prev match {
           case Some(prev) => prev.copy(analysis = pruned ++ partialAnalysis)
-          case _          => mergeAndInvalidate(partialAnalysis, true)
+          case _          => mergeAndInvalidate(partialAnalysis, shouldRegisterCycle)
         }
       }
     }
