@@ -62,7 +62,7 @@ object APIUtil {
   def minimizeDefinition(d: Definition): Array[Definition] =
     d match {
       case c: ClassLike => Array(minimizeClass(c))
-      case _            => Array()
+      case _            => emptyDefs
     }
   def minimizeClass(c: ClassLike): ClassLike = {
     val savedAnnotations = Discovery.defAnnotations(c.structure, (_: Any) => true).toArray[String]
@@ -73,7 +73,7 @@ object APIUtil {
       c.modifiers,
       c.annotations,
       c.definitionType,
-      lzy(emptyType),
+      emptyTypeLzy,
       lzy(struct),
       savedAnnotations,
       c.childrenOfSealedClass,
@@ -91,8 +91,10 @@ object APIUtil {
   def filterDefinitions(
       ds: Array[ClassDefinition],
       isModule: Boolean
-  ): Lazy[Array[ClassDefinition]] =
-    lzy(if (isModule) ds filter Discovery.isMainMethod else Array())
+  ): Lazy[Array[ClassDefinition]] = {
+    val mains = if (isModule) ds.filter(Discovery.isMainMethod) else emptyClassDefs
+    if (mains.isEmpty) emptyClassDefsLzy else lzy(mains)
+  }
 
   def isNonPrivate(d: Definition): Boolean = isNonPrivate(d.access)
 
@@ -104,23 +106,41 @@ object APIUtil {
     }
   private val emptyModifiers =
     new Modifiers(false, false, false, false, false, false, false, false)
-  private val emptyStructure = Structure.of(lzy(Array.empty), lzy(Array.empty), lzy(Array.empty))
-  def emptyClassLike(name: String, definitionType: DefinitionType): ClassLike =
-    xsbti.api.ClassLike.of(
-      name,
+  private[this] val emptyType = EmptyType.of()
+  private val emptyTypeLzy = lzy(emptyType: Type)
+  private val emptyDefs = Array.empty[Definition]
+  private val emptyClassDefs = Array.empty[ClassDefinition]
+  private val emptyClassDefsLzy = lzy(emptyClassDefs)
+  private val emptyStructure = Structure.of(lzy(Array.empty), emptyClassDefsLzy, emptyClassDefsLzy)
+  private val emptyStructureLzy = lzy(emptyStructure)
+  private val emptyClassLikeTemplate =
+    ClassLike.of(
+      null,
       Public.of(),
       emptyModifiers,
       Array.empty,
-      definitionType,
-      lzy(emptyType),
-      lzy(emptyStructure),
+      null,
+      emptyTypeLzy,
+      emptyStructureLzy,
       Array.empty,
       Array.empty,
       true,
       Array.empty
     )
+  def emptyClassLike(name: String, definitionType: DefinitionType): ClassLike =
+    ClassLike.of(
+      name,
+      emptyClassLikeTemplate.access,
+      emptyClassLikeTemplate.modifiers,
+      emptyClassLikeTemplate.annotations,
+      definitionType,
+      emptyTypeLzy,
+      emptyStructureLzy,
+      emptyClassLikeTemplate.savedAnnotations,
+      emptyClassLikeTemplate.childrenOfSealedClass,
+      emptyClassLikeTemplate.topLevel,
+      emptyClassLikeTemplate.typeParameters,
+    )
 
   private[this] def lzy[T <: AnyRef](t: T): Lazy[T] = SafeLazyProxy.strict(t)
-
-  private[this] val emptyType = EmptyType.of()
 }
