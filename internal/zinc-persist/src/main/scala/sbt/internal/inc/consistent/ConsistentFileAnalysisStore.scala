@@ -1,3 +1,14 @@
+/*
+ * Zinc - The incremental compiler for Scala.
+ * Copyright Scala Center, Lightbend, and Mark Harrah
+ *
+ * Licensed under Apache License 2.0
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * See the NOTICE file distributed with this work for
+ * additional information regarding copyright ownership.
+ */
+
 // Based on zinc's FileAnalysisStore:
 package sbt.internal.inc.consistent
 
@@ -24,12 +35,12 @@ object ConsistentFileAnalysisStore {
   def text(
       file: File,
       mappers: ReadWriteMappers,
-      sort: Boolean = true,
+      reproducible: Boolean = true,
       parallelism: Int = Runtime.getRuntime.availableProcessors()
   ): XAnalysisStore =
     new AStore(
       file,
-      new ConsistentAnalysisFormat(mappers, sort),
+      new ConsistentAnalysisFormat(mappers, reproducible),
       SerializerFactory.text,
       parallelism
     )
@@ -38,7 +49,7 @@ object ConsistentFileAnalysisStore {
     binary(
       file,
       mappers = ReadWriteMappers.getEmptyMappers(),
-      sort = true,
+      reproducible = true,
     )
 
   def binary(
@@ -48,18 +59,18 @@ object ConsistentFileAnalysisStore {
     binary(
       file,
       mappers,
-      sort = true,
+      reproducible = true,
     )
 
   def binary(
       file: File,
       mappers: ReadWriteMappers,
-      sort: Boolean,
+      reproducible: Boolean,
       parallelism: Int = Runtime.getRuntime.availableProcessors()
   ): XAnalysisStore =
     new AStore(
       file,
-      new ConsistentAnalysisFormat(mappers, sort),
+      new ConsistentAnalysisFormat(mappers, reproducible),
       SerializerFactory.binary,
       parallelism
     )

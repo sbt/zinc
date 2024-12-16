@@ -266,12 +266,12 @@ object ScalaInstance {
 
   /** Return all the required Scala jars from a path `scalaHome`. */
   def allJars(scalaHome: File): Seq[File] =
-    IO.listFiles(scalaLib(scalaHome)).toIndexedSeq.filter(f => !blacklist(f.getName))
+    IO.listFiles(scalaLib(scalaHome)).toIndexedSeq.filter(f => !excludeList(f.getName))
 
   private[this] def scalaLib(scalaHome: File): File =
     new File(scalaHome, "lib")
 
-  private[this] val blacklist: Set[String] = Set(
+  private[this] val excludeList: Set[String] = Set(
     "scala-actors.jar",
     "scalacheck.jar",
     "scala-partest.jar",

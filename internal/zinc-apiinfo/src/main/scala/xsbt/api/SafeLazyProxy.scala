@@ -15,7 +15,7 @@ import java.util.function.Supplier
 
 /**
  * Proxy `SafeLazy` functionality from the Java implementation
- * implementation in xsbt.api.SafeLazy to Scala helpers.
+ * in xsbt.api.SafeLazy to Scala helpers.
  *
  * The implementation of these helpers are not reused between each
  * other because they create intermediate anonymous functions and
@@ -35,7 +35,6 @@ object SafeLazyProxy {
    * Return a lazy implementation of a strict value.
    */
   def strict[T](s: T): Lazy[T] = {
-    val sbtThunk = new Supplier[T] { override def get() = s }
-    SafeLazy.apply(sbtThunk)
+    SafeLazy.strict(s)
   }
 }

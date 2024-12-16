@@ -19,6 +19,7 @@ import xsbti.api._
 import scala.annotation.tailrec
 import scala.tools.nsc.Global
 import scala.PartialFunction.cond
+import ExtractAPI.ConstructorWithDefaultArgument
 
 /**
  * Extracts full (including private members) API representation out of Symbols and Types.
@@ -836,9 +837,8 @@ class ExtractAPI[GlobalType <: Global](
       constructorNameAsString(s.enclClass)
     else {
       val decoded = name.decode
-      val constructorWithDefaultArgument = "<init>\\$default\\$(\\d+)".r
       decoded match {
-        case constructorWithDefaultArgument(index) => constructorNameAsString(s.enclClass, index)
+        case ConstructorWithDefaultArgument(index) => constructorNameAsString(s.enclClass, index)
         case _                                     => decoded
       }
     }
@@ -866,4 +866,5 @@ class ExtractAPI[GlobalType <: Global](
 
 object ExtractAPI {
   private val emptyAnnotationArray = new Array[xsbti.api.Annotation](0)
+  private val ConstructorWithDefaultArgument = "<init>\\$default\\$(\\d+)".r
 }

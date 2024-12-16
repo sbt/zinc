@@ -165,18 +165,20 @@ final class AnalyzingJavaCompiler private[sbt] (
           options,
           scalaInstance,
           classpathOptions
-        )
+        ).toArray
         val javaSources: Array[VirtualFile] =
           sources.sortBy(_.id).toArray
+        // TODO: https://github.com/sbt/sbt/issues/7883
+        // debug(log, prettyPrintCompilationArguments(args))
         val success =
-          javac.run(javaSources, args.toArray, output, incToolOptions, reporter, log)
+          javac.run(javaSources, args, output, incToolOptions, reporter, log)
         if (!success) {
           /* Assume that no Scalac problems are reported for a Javac-related
            * reporter. This relies on the incremental compiler will not run
            * Javac compilation if Scala compilation fails, which means that
            * the same reporter won't be used for `AnalyzingJavaCompiler`. */
           val msg = "javac returned non-zero exit code"
-          throw new CompileFailed(args.toArray, msg, reporter.problems())
+          throw new CompileFailed(args, msg, reporter.problems())
         }
       }
 
@@ -264,4 +266,7 @@ final class AnalyzingJavaCompiler private[sbt] (
     log.debug(label + " took " + (elapsed / 1e9) + " s")
     result
   }
+
+  private def prettyPrintCompilationArguments(args: Array[String]) =
+    args.mkString("[zinc] The Java compiler is invoked with:\n\t", "\n\t", "")
 }

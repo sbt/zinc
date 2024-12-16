@@ -100,6 +100,11 @@ public interface AnalysisStore {
      */
     void set(AnalysisContents analysisContents);
 
+    /**
+     * Resets in memory cached {@link AnalysisContents}
+     */
+    default void clearCache() {}
+
     final class CachedAnalysisStore implements AnalysisStore {
         private AnalysisStore underlying;
         private Optional<AnalysisContents> lastStore = Optional.empty();
@@ -121,6 +126,10 @@ public interface AnalysisStore {
             underlying.set(analysisContents);
             lastStore = Optional.of(analysisContents);
         }
+
+        public void clearCache() {
+            lastStore = Optional.empty();
+        }
     }
 
     final class SyncedAnalysisStore implements AnalysisStore {
@@ -139,6 +148,12 @@ public interface AnalysisStore {
         public void set(AnalysisContents analysisContents) {
             synchronized(this) {
                 underlying.set(analysisContents);
+            }
+        }
+
+        public void clearCache() {
+            if (underlying instanceof CachedAnalysisStore) {
+                underlying.clearCache();
             }
         }
     }

@@ -1,3 +1,14 @@
+/*
+ * Zinc - The incremental compiler for Scala.
+ * Copyright Scala Center, Lightbend, and Mark Harrah
+ *
+ * Licensed under Apache License 2.0
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * See the NOTICE file distributed with this work for
+ * additional information regarding copyright ownership.
+ */
+
 // Original code by Stefan Zeiger (see https://github.com/szeiger/zinc/blob/1d296b2fbeaae1cf14e4c00db0bbc2203f9783a4/internal/zinc-persist/src/main/scala/sbt/internal/inc/consistent/NewParallelGzipOutputStream.scala)
 // Modified by Rex Kerr to use Java threads directly rather than Future
 package sbt.internal.inc.consistent
