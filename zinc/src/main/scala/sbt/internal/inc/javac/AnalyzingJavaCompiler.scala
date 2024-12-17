@@ -32,7 +32,6 @@ import xsbti.{
 
 import sbt.util.InterfaceUtil
 import sbt.util.Logger
-import xsbt.Log.debug
 
 /**
  * Define a Java compiler that reports on any discovered source dependencies or
@@ -169,7 +168,7 @@ final class AnalyzingJavaCompiler private[sbt] (
         ).toArray
         val javaSources: Array[VirtualFile] =
           sources.sortBy(_.id).toArray
-        debug(log, prettyPrintCompilationArguments(args))
+        log.debug(InterfaceUtil.toSupplier(prettyPrintCompilationArguments(args)))
         val success =
           javac.run(javaSources, args, output, incToolOptions, reporter, log)
         if (!success) {
