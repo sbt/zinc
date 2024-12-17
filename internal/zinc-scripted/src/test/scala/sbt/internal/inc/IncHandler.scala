@@ -225,6 +225,9 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
     onArgs("checkIterations") {
       case (p, x :: Nil, i) => p.checkNumberOfCompilerIterations(i, x.toInt)
     },
+    onArgs("checkNumberOfLibraries") {
+      case (p, x :: Nil, i) => p.checkNumberOfLibraries(i, x.toInt)
+    },
     onArgs("checkCycles") {
       case (p, x :: Nil, i) => p.checkNumberOfCycles(i, x.toInt)
     },
@@ -522,6 +525,14 @@ case class ProjectStructure(
   def checkNameExistsInClass(i: IncState, className: String, name: String): Future[Unit] =
     compile(i).map[Unit] { analysis =>
       assert(analysis.apis.externalAPI(className).nameHashes.exists(_.name == name))
+      ()
+    }
+
+  def checkNumberOfLibraries(i: IncState, expected: Int): Future[Unit] =
+    compile(i).map { analysis =>
+      val count = analysis.stamps.libraries.size
+      val msg = s"analysis.stamps.libraries.size = $count (expected $expected)"
+      assert(count == expected, msg)
       ()
     }
 
