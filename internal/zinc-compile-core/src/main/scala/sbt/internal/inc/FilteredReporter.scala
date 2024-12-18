@@ -36,8 +36,8 @@ class ManagedFilteredReporter(
     logger: ManagedLogger,
     positionMapper: Position => Position
 ) extends FilteredReporter(fileFilters, msgFilters, maximumErrors, logger, positionMapper) {
-  import LoggedReporter.problemFormats._
-  import LoggedReporter.problemStringFormats._
+  import LoggedReporter.problemFormats.given
+  import LoggedReporter.problemStringFormats.given
   logger.registerStringCodec[Problem]
 
   override def logError(problem: Problem): Unit = logger.errorEvent(problem)

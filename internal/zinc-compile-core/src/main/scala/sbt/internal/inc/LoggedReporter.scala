@@ -79,8 +79,8 @@ class ManagedLoggedReporter(
     logger: ManagedLogger,
     sourcePositionMapper: Position => Position = identity[Position]
 ) extends LoggedReporter(maximumErrors, logger, sourcePositionMapper) {
-  import problemFormats._
-  import problemStringFormats._
+  import problemFormats.given
+  import problemStringFormats.given
   logger.registerStringCodec[Problem]
 
   override def logError(problem: Problem): Unit = logger.errorEvent(problem)
