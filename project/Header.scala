@@ -17,7 +17,7 @@ object CustomHeaderPlugin extends AutoPlugin {
     SbtHeaderKeys.headerLicense := Some(
       HeaderLicense.Custom(
         """|Zinc - The incremental compiler for Scala.
-         |Copyright Scala Center, Lightbend, and Mark Harrah
+         |Copyright Scala Center, Lightbend, Inc. dba Akka, and Mark Harrah
          |
          |Licensed under Apache License 2.0
          |SPDX-License-Identifier: Apache-2.0
