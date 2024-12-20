@@ -456,10 +456,6 @@ lazy val compilerInterface = (projectMatrix in internalPath / "compiler-interfac
     libraryDependencies ++= Seq(scalaLibrary.value % Test),
     libraryDependencies ++= Seq(scalatest % Test),
     exportJars := true,
-    Compile / resourceGenerators += Def.task {
-      val a = (Compile / compile).value
-      generateVersionFile(version.value, resourceManaged.value, streams.value, a)
-    }.taskValue,
     Compile / generateContrabands / sourceManaged :=
       (internalPath / "compiler-interface" / "src" / "main" / "contraband-java").getAbsoluteFile,
     Compile / managedSourceDirectories += (Compile / generateContrabands / sourceManaged).value,
