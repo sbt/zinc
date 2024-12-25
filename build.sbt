@@ -376,7 +376,7 @@ lazy val zincCore = (projectMatrix in internalPath / "zinc-core")
       scalaPartialVersion.value match {
         case Some((2, major)) if major >= 13 =>
           // should match version in sbt's util-collection module
-          List("org.scala-lang.modules" %% "scala-parallel-collections" % "0.2.0")
+          List("org.scala-lang.modules" %% "scala-parallel-collections" % "1.1.0")
         case _ =>
           List()
       }
