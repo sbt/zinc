@@ -98,7 +98,6 @@ private[inc] abstract class IncrementalCommon(
         invalidatedSources,
         classfileManager,
         pruned,
-        previous,
         classesToRecompile,
         profiler.registerCycle(
           invalidatedClasses,
@@ -149,11 +148,11 @@ private[inc] abstract class IncrementalCommon(
         invalidatedSources: Set[VirtualFile],
         classFileManager: XClassFileManager,
         pruned: Analysis,
-        override val previousAnalysis: Analysis,
         classesToRecompile: Set[String],
         registerCycle: (Set[String], APIChanges, Set[String], Boolean) => Unit
     ) extends IncrementalCallback(classFileManager) {
       override val isFullCompilation: Boolean = allSources.subsetOf(invalidatedSources)
+      override val previousAnalysis: Analysis = previous
       override val previousAnalysisPruned: Analysis = pruned
 
       override def mergeAndInvalidate(
@@ -165,10 +164,12 @@ private[inc] abstract class IncrementalCommon(
             partialAnalysis.copy(compilations = pruned.compilations ++ partialAnalysis.compilations)
           else pruned ++ partialAnalysis
 
-        // Represents classes detected as changed externally and internally (by a previous cycle)
+        // Represents all classes that were compiled as a result of external and internal invalidation (by a previous cycle)
         // Maps the changed sources by the user to class names we can count as invalidated
         val getClasses = (a: Analysis) => initialChangedSources.flatMap(a.relations.classNames)
-        val recompiledClasses = classesToRecompile ++ getClasses(previous) ++ getClasses(analysis)
+        val recompiledClasses = classesToRecompile ++
+          getClasses(previous) ++ getClasses(analysis) ++
+          invalidatedSources.flatMap(previous.relations.classNames)
 
         val newApiChanges =
           detectAPIChanges(recompiledClasses, previous.apis.internalAPI, analysis.apis.internalAPI)
@@ -499,13 +500,14 @@ private[inc] abstract class IncrementalCommon(
       Set.empty
     } else {
       if (invalidateTransitively) {
-        val firstClassTransitiveInvalidation = includeTransitiveInitialInvalidations(
-          initial,
-          IncrementalCommon.transitiveDeps(initial, log)(dependsOnClass),
-          dependsOnClass
-        )
+        // NOTE: As member reference relations do not include local relations, this invalidation will fully propagate
+        // thus we can't rely solely on `firstClassTransitiveInvalidation`. Better bet is to try to find transitive
+        // dependencies from result of `firstClassInvalidation`
+        val firstClassTransitiveInvalidation =
+          IncrementalCommon.transitiveDeps(firstClassInvalidation, log)(dependsOnClass)
         log.debug("Invalidate by brute force:\n\t" + firstClassTransitiveInvalidation)
-        firstClassTransitiveInvalidation ++ secondClassInvalidation ++ thirdClassInvalidation ++ recompiledClasses
+        firstClassInvalidation ++ firstClassTransitiveInvalidation ++ secondClassInvalidation ++
+          thirdClassInvalidation ++ recompiledClasses
       } else {
         firstClassInvalidation ++ secondClassInvalidation ++ thirdClassInvalidation
       }

@@ -184,13 +184,14 @@ trait Relations {
   private[inc] def externalDependencies: ExternalDependencies
 
   /**
-   * The class dependency relation between classes introduced by member reference.
+   * The class dependency relation between classes introduced by member reference excluding local references
    *
    * NOTE: All inheritance dependencies are included in this relation because in order to
    * inherit from a member you have to refer to it. If you check documentation of `inheritance`
    * you'll see that there's small oddity related to traits being the first parent of a
    * class/trait that results in additional parents being introduced due to normalization.
-   * This relation properly accounts for that so the invariant that `memberRef` is a superset
+   *
+   * Because `inheritance` includes local relations, `memberRef` is not a superset of `inheritance`
    * of `inheritance` is preserved.
    */
   private[inc] def memberRef: ClassDependencies
