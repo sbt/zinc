@@ -56,7 +56,9 @@ class ExtractUsedNamesPerformanceSpecification
         new String(Files.readAllBytes(Paths.get(fileUri)))
       } finally zipfs.foreach { fs =>
           try fs.close()
-          catch { case _: Throwable => /*ignore*/ }
+          catch {
+            case _: Throwable => /*ignore*/
+          }
         }
     import org.scalatest.time.SpanSugar._
     val usedNames = failAfter(30 seconds) {
@@ -114,7 +116,8 @@ class ExtractUsedNamesPerformanceSpecification
 
   it should "correctly collect used names from macro extension" in {
     pending
-    val ext = """|package acme
+    val ext =
+      """|package acme
                  |import scala.reflect.macros.blackbox.Context
                  |
                  |object Foo {
