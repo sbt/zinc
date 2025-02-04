@@ -121,7 +121,9 @@ object ShowAPI {
     else tps.map(showTypeParameter).mkString("[", ", ", "]")
 
   private def showTypeParameter(tp: TypeParameter)(implicit nesting: Int): String =
-    showAnnotations(tp.annotations.toIndexedSeq) + " " + showVariance(tp.variance) + tp.id + showTypeParameters(
+    showAnnotations(tp.annotations.toIndexedSeq) + " " + showVariance(
+      tp.variance
+    ) + tp.id + showTypeParameters(
       tp.typeParameters.toIndexedSeq
     ) + " " + showBounds(tp.lowerBound, tp.upperBound)
 
