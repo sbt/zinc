@@ -506,8 +506,7 @@ private[inc] abstract class IncrementalCommon(
         val firstClassTransitiveInvalidation =
           IncrementalCommon.transitiveDeps(firstClassInvalidation, log)(dependsOnClass)
         log.debug("Invalidate by brute force:\n\t" + firstClassTransitiveInvalidation)
-        firstClassInvalidation ++ firstClassTransitiveInvalidation ++ secondClassInvalidation ++
-          thirdClassInvalidation ++ recompiledClasses
+        firstClassTransitiveInvalidation ++ secondClassInvalidation ++ thirdClassInvalidation ++ recompiledClasses
       } else {
         firstClassInvalidation ++ secondClassInvalidation ++ thirdClassInvalidation
       }
