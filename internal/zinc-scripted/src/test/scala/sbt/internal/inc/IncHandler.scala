@@ -810,7 +810,10 @@ case class ProjectStructure(
     import scala.collection.JavaConverters._
     val map = new java.util.HashMap[String, String]
     properties.asScala foreach { case (k: String, v: String) => map.put(k, v) }
-    val externalHooks = new DefaultExternalHooks(Optional.empty[ExternalHooks.Lookup], Optional.empty[XClassFileManager])
+    val externalHooks = new DefaultExternalHooks(
+      Optional.empty[ExternalHooks.Lookup],
+      Optional.empty[XClassFileManager]
+    )
       .withInvalidationProfiler(profiler)
     val base = IncOptions
       .of()
