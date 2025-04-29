@@ -146,23 +146,37 @@ final class MixedAnalyzingCompiler(
     val pickleJava =
       Incremental.isPickleJava(config.currentSetup.options.scalacOptions.toIndexedSeq)
 
+    def convertToPath(value: String): String =
+      if (!value.contains("$")) value
+      else {
+        val vf = VirtualFileRef.of(value)
+        val p = config.converter.toPath(vf)
+        p.toString()
+      }
+
     // Compile Scala sources.
     def compileScala(): Unit =
       if (scalaSrcs.nonEmpty || pickleJava) {
         val pickleJarPair = callback.getPickleJarPair.toOption.map(t2 => (t2.get1, t2.get2))
-        val scalacOpts = pickleJarPair match {
+        val scalacOpts0 = config.currentSetup.options.scalacOptions.toVector
+        val scalacOpts1: Vector[String] = scalacOpts0.map { x =>
+          if (!x.contains("$")) x
+          else (x.split(":").toVector.map { y =>
+            y.split(",").toVector.map(convertToPath).mkString(",")
+          }).mkString(":")
+        }
+        val scalacOpts: Vector[String] = pickleJarPair match {
           case Some((originalJar, updatesJar)) =>
             val path = originalJar.toString
             // ^ Path#toString uses '\' on Windows
             // but the path could've been specified with '/' in scalacOptions
             val fwdSlashPath = path.replace('\\', '/')
-            config.currentSetup.options.scalacOptions.map {
+            scalacOpts1.map {
               case s if s == path || s == fwdSlashPath => updatesJar.toString
               case s                                   => s
             }
-          case _ => config.currentSetup.options.scalacOptions
+          case _ => scalacOpts1
         }
-
         JarUtils.withPreviousJar(output) { (extraClasspath: Seq[Path]) =>
           val sources =
             if (config.currentSetup.order == Mixed) incSrc
