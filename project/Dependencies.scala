@@ -8,17 +8,17 @@ object Dependencies {
   val scala210 = "2.10.7"
   val scala211 = "2.11.12"
   val scala212 = "2.12.20"
-  val scala213 = "2.13.15"
-  val scala3 = "3.6.2"
+  val scala213 = "2.13.16"
+  val scala3 = "3.6.4"
   val scala3ForBridge = "3.3.4"
-  val scala213ForBridge = "2.13.15"
+  val scala213ForBridge = "2.13.16"
   val defaultScalaVersion = scala3
   val compilerBridgeVersions = Seq(scala212, scala210, scala211, scala213)
   val scala212_213 = Seq(defaultScalaVersion, scala213)
   val scala3_only = Seq(scala3)
 
-  private val ioVersion = nightlyVersion.getOrElse("1.10.2")
-  private val utilVersion = nightlyVersion.getOrElse("2.0.0-M3")
+  private val ioVersion = nightlyVersion.getOrElse("1.10.5")
+  private val utilVersion = nightlyVersion.getOrElse("2.0.0-M4")
 
   private val sbtIO = "org.scala-sbt" %% "io" % ioVersion
 

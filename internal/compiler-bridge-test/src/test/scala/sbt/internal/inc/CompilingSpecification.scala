@@ -34,7 +34,7 @@ trait CompilingSpecification extends AbstractBridgeProviderTestkit {
       .get("zinc.build.compilerbridge.scalaVersion")
       .getOrElse(sys.error("zinc.build.compilerbridge.scalaVersion property not found"))
   def maxErrors = 100
-  def scala213 = "2.13.15"
+  def scala213 = "2.13.16"
 
   def scalaCompiler(instance: xsbti.compile.ScalaInstance, bridgeJar: Path): AnalyzingCompiler = {
     val bridgeProvider = ZincUtil.constantBridgeProvider(instance, bridgeJar)
