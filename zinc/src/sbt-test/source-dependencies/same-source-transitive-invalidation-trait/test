@@ -1,0 +1,21 @@
+#####################  FAILURE  ############################
+# clean build that compiles with transitiveStep = 1
+> compile
+
+# incremental build that should fail with transitiveStep = 1
+$ copy-file changes/A.scala A.scala
+-> compile
+
+#####################  FAILURE  ############################
+
+# rerun the test with transitiveStep = 3
+> clean
+$ copy-file changes/OriginalA.scala A.scala
+$ copy-file changes/incOptions.properties incOptions.properties
+
+# clean build that compiles with transitiveStep = 3
+> compile
+
+# incremental build that should fail with transitiveStep = 3
+$ copy-file changes/A.scala A.scala
+-> compile
