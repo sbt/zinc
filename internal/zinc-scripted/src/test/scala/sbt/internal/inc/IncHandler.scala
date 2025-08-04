@@ -232,9 +232,9 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
     onArgs("checkIterations") {
       case (p, x :: Nil, i) => p.checkNumberOfCompilerIterations(i, x.toInt)
     },
-    // onArgs("checkCycles") {
-    //   case (p, x :: Nil, i) => p.checkNumberOfCycles(i, x.toInt)
-    // },
+    onArgs("checkNumberOfLibraries") {
+      case (p, x :: Nil, i) => p.checkNumberOfLibraries(i, x.toInt)
+    },
     // note that this can only tell us the *last* round a class got compiled in.
     // it can't tell us *every* round something got compiled in, since only
     // still-extant classfiles are available for inspection
@@ -533,6 +533,14 @@ case class ProjectStructure(
       ()
     }
 
+  def checkNumberOfLibraries(i: IncState, expected: Int): Future[Unit] =
+    compile(i).map { analysis =>
+      val count = analysis.stamps.libraries.size
+      val msg = s"analysis.stamps.libraries.size = $count (expected $expected)"
+      assert(count == expected, msg)
+      ()
+    }
+
   def run(i: IncState, params: Seq[String]): Future[Unit] =
     compile(i).map { analysis =>
       discoverMainClasses(Some(analysis.apis)) match {
@@ -811,7 +819,6 @@ case class ProjectStructure(
       Optional.empty[ExternalHooks.Lookup],
       Optional.empty[XClassFileManager]
     )
-    // .withInvalidationProfiler(profiler)
     val base = IncOptions
       .of()
       .withPipelining(defaultPipelining)

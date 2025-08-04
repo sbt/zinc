@@ -169,7 +169,7 @@ final class AnalyzingJavaCompiler private[sbt] (
         val javaSources: Array[VirtualFile] =
           sources.sortBy(_.id).toArray
         // TODO: https://github.com/sbt/sbt/issues/7883
-        // debug(log, prettyPrintCompilationArguments(args))
+        // log.debug(InterfaceUtil.toSupplier(prettyPrintCompilationArguments(args)))
         val success =
           javac.run(javaSources, args, output, incToolOptions, reporter, log)
         if (!success) {
