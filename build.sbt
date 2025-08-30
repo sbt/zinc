@@ -292,7 +292,6 @@ lazy val zincCore = (projectMatrix in internalPath / "zinc-core")
       exclude[MissingClassProblem]("xsbti.*"),
     ),
     libraryDependencies ++= List(
-      "org.scala-lang" % "scala-reflect" % scala213,
       "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4"
     ),
   )

@@ -16,7 +16,6 @@ package inc
 import java.nio.file.{ FileVisitResult, Files, Path, SimpleFileVisitor }
 import java.nio.file.attribute.BasicFileAttributes
 import sbt.util.Logger
-import scala.reflect.io.RootPath
 import sbt.internal.io.Retry
 
 object PickleJar {
