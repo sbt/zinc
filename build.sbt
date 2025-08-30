@@ -8,34 +8,9 @@ def internalPath = zincRootPath / "internal"
 
 def mimaSettings: Seq[Setting[?]] = Seq(
   mimaPreviousArtifacts := {
-    val pre140 = Set(
-      "1.0.0",
-      "1.0.1",
-      "1.0.2",
-      "1.0.3",
-      "1.0.4",
-      "1.0.5",
-      "1.1.0",
-      "1.1.1",
-      "1.1.2",
-      "1.1.3",
-      "1.2.0",
-      "1.2.1",
-      "1.2.2",
-      "1.3.0",
+    val versions: Set[String] = Set(
+      "2.0.0-M6"
     )
-    val post140: Set[String] = Set(
-      "1.4.0",
-      "1.5.0",
-      "1.6.0",
-      "1.7.0",
-      "1.8.0",
-      "1.9.0",
-      "1.10.0",
-    )
-    val versions =
-      if (scalaVersion.value.startsWith("2.12.")) pre140 ++ post140
-      else post140
     val cross = if (crossPaths.value) CrossVersion.binary else CrossVersion.disabled
     versions.map(version => organization.value %% moduleName.value % version cross cross)
   },
