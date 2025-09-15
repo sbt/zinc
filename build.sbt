@@ -245,7 +245,7 @@ lazy val zincPersist = (projectMatrix in internalPath / "zinc-persist")
     name := "zinc Persist",
     libraryDependencies ++= List(
       sbinary,
-      "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4",
+      "org.scala-lang.modules" %% "scala-parallel-collections" % "1.2.0",
     ),
     compileOrder := sbt.CompileOrder.Mixed,
     Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
@@ -292,7 +292,7 @@ lazy val zincCore = (projectMatrix in internalPath / "zinc-core")
       exclude[MissingClassProblem]("xsbti.*"),
     ),
     libraryDependencies ++= List(
-      "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4"
+      "org.scala-lang.modules" %% "scala-parallel-collections" % "1.2.0"
     ),
   )
   .jvmPlatform(scalaVersions = scala3_only)
