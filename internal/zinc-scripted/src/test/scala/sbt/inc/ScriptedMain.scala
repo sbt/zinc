@@ -75,9 +75,6 @@ object ScriptedMain {
     else
       println(s"About to run tests: ${tests.mkString("\n * ", "\n * ", "\n")}")
 
-    // Force Log4J to not use a thread context classloader otherwise it throws a CCE
-    sys.props(org.apache.logging.log4j.util.LoaderUtil.IGNORE_TCCL_PROPERTY) = "true"
-
     IO.withTemporaryDirectory { tempDir =>
       // Create a global temporary directory to store the bridge et al
       val handlers = new IncScriptedHandlers(tempDir.toPath, compileToJar)
