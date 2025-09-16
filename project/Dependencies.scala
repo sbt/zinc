@@ -79,7 +79,7 @@ object Dependencies {
   val sbinary = "org.scala-sbt" %% "sbinary" % "0.5.1"
   val junit = "junit" % "junit" % "4.12"
   val sjsonNewVersion = "0.14.0-M5"
-  val scalaXml = "org.scala-lang.modules" %% "scala-xml" % "2.3.0"
+  val scalaXml = "org.scala-lang.modules" %% "scala-xml" % "2.4.0"
   val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.19.0"
   val scalatest = "org.scalatest" %% "scalatest" % "3.2.19"
   val verify = "com.eed3si9n.verify" %% "verify" % "1.0.0"
