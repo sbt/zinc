@@ -1,8 +1,8 @@
 import sbt._
 import Keys._
 
-import de.heikoseeberger.sbtheader.HeaderPlugin
-import de.heikoseeberger.sbtheader.HeaderPlugin.{ autoImport => SbtHeaderKeys }
+import sbtheader.HeaderPlugin
+import sbtheader.HeaderPlugin.{ autoImport => SbtHeaderKeys }
 
 object CustomHeaderPlugin extends AutoPlugin {
   override def requires = plugins.JvmPlugin && HeaderPlugin
