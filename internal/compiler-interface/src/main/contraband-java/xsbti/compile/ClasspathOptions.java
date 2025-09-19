@@ -92,7 +92,7 @@ public final class ClasspathOptions implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.compile.ClasspathOptions".hashCode()) + Boolean.valueOf(bootLibrary()).hashCode()) + Boolean.valueOf(compiler()).hashCode()) + Boolean.valueOf(extra()).hashCode()) + Boolean.valueOf(autoBoot()).hashCode()) + Boolean.valueOf(filterLibrary()).hashCode());
+        return 37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.compile.ClasspathOptions".hashCode()) + Boolean.hashCode(bootLibrary())) + Boolean.hashCode(compiler())) + Boolean.hashCode(extra())) + Boolean.hashCode(autoBoot())) + Boolean.hashCode(filterLibrary()));
     }
     public String toString() {
         return "ClasspathOptions("  + "bootLibrary: " + bootLibrary() + ", " + "compiler: " + compiler() + ", " + "extra: " + extra() + ", " + "autoBoot: " + autoBoot() + ", " + "filterLibrary: " + filterLibrary() + ")";

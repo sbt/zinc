@@ -43,7 +43,7 @@ public final class ParameterList implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (17 + "xsbti.api.ParameterList".hashCode()) + java.util.Arrays.deepHashCode(parameters())) + Boolean.valueOf(isImplicit()).hashCode());
+        return 37 * (37 * (37 * (17 + "xsbti.api.ParameterList".hashCode()) + java.util.Arrays.deepHashCode(parameters())) + Boolean.hashCode(isImplicit()));
     }
     public String toString() {
         return "ParameterList("  + "parameters: " + parameters() + ", " + "isImplicit: " + isImplicit() + ")";
