@@ -53,7 +53,7 @@ public final class CompileResult implements xsbti.compile.AnalysisContents, java
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (17 + "xsbti.compile.CompileResult".hashCode()) + analysis().hashCode()) + setup().hashCode()) + Boolean.valueOf(hasModified()).hashCode());
+        return 37 * (37 * (37 * (37 * (17 + "xsbti.compile.CompileResult".hashCode()) + analysis().hashCode()) + setup().hashCode()) + Boolean.hashCode(hasModified()));
     }
     public String toString() {
         return "CompileResult("  + "analysis: " + analysis() + ", " + "setup: " + setup() + ", " + "hasModified: " + hasModified() + ")";

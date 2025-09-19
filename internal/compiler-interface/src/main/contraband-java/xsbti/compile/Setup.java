@@ -198,7 +198,7 @@ public final class Setup implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.compile.Setup".hashCode()) + perClasspathEntryLookup().hashCode()) + Boolean.valueOf(skip()).hashCode()) + cachePath().hashCode()) + cache().hashCode()) + incrementalCompilerOptions().hashCode()) + reporter().hashCode()) + progress().hashCode()) + earlyAnalysisStore().hashCode()) + java.util.Arrays.deepHashCode(extra()));
+        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.compile.Setup".hashCode()) + perClasspathEntryLookup().hashCode()) + Boolean.hashCode(skip())) + cachePath().hashCode()) + cache().hashCode()) + incrementalCompilerOptions().hashCode()) + reporter().hashCode()) + progress().hashCode()) + earlyAnalysisStore().hashCode()) + java.util.Arrays.deepHashCode(extra()));
     }
     public String toString() {
         return "Setup("  + "perClasspathEntryLookup: " + perClasspathEntryLookup() + ", " + "skip: " + skip() + ", " + "cachePath: " + cachePath() + ", " + "cache: " + cache() + ", " + "incrementalCompilerOptions: " + incrementalCompilerOptions() + ", " + "reporter: " + reporter() + ", " + "progress: " + progress() + ", " + "earlyAnalysisStore: " + earlyAnalysisStore() + ", " + "extra: " + extra() + ")";

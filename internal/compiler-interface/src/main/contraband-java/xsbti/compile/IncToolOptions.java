@@ -66,7 +66,7 @@ public final class IncToolOptions implements java.io.Serializable {
         }
     }
     public int hashCode() {
-        return 37 * (37 * (37 * (17 + "xsbti.compile.IncToolOptions".hashCode()) + classFileManager().hashCode()) + Boolean.valueOf(useCustomizedFileManager()).hashCode());
+        return 37 * (37 * (37 * (17 + "xsbti.compile.IncToolOptions".hashCode()) + classFileManager().hashCode()) + Boolean.hashCode(useCustomizedFileManager()));
     }
     public String toString() {
         return "IncToolOptions("  + "classFileManager: " + classFileManager() + ", " + "useCustomizedFileManager: " + useCustomizedFileManager() + ")";
