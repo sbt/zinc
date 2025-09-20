@@ -32,9 +32,9 @@ import xsbti.compile.{ AnalysisContents, AnalysisStore }
 @State(Scope.Benchmark)
 class AnalysisFormatBenchmark {
 
-  var temp: File = _
+  var temp: File = compiletime.uninitialized
   val sets = IndexedSeq("compiler", "reflect", "library")
-  var cached: Map[String, AnalysisContents] = _
+  var cached: Map[String, AnalysisContents] = compiletime.uninitialized
 
   @Setup
   def setup(): Unit = {

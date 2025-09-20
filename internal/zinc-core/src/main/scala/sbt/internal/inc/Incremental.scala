@@ -205,7 +205,7 @@ object Incremental {
         earlyOutput,
         progress,
         log
-      )(Equiv.universal)
+      )(using Equiv.universal)
     } catch {
       case _: xsbti.CompileCancelled =>
         log.info("Compilation has been cancelled")
@@ -979,7 +979,7 @@ private final class AnalysisCallback(
 
   private def addTransitiveBytecodeHash(base: Analysis): Analysis = {
     import base.{ apis, relations }
-    val findUpstream = relations.memberRef.internal.forward _
+    val findUpstream = relations.memberRef.internal.forward
     val internalAPIs = apis.internal.map { case (className, analyzedClass) =>
       if (!analyzedClass.hasMacro) {
         (className, analyzedClass)

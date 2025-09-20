@@ -105,9 +105,9 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
     asProduct2(DiagnosticsUtil.diagnosticRelatedInformation)(d => (d.position(), d.message()))
   private implicit def problemFormat: Format[Problem] = {
     implicit val ev: Format[List[DiagnosticRelatedInformation]] =
-      listFormat(diagnosticRelatedInformationFormat)
+      listFormat(using diagnosticRelatedInformationFormat)
     implicit val ev2: Format[List[Action]] =
-      listFormat(actionFormat)
+      listFormat(using actionFormat)
     asProduct8(problem)(p =>
       (
         p.category,
@@ -130,7 +130,7 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
       )
     )
   private implicit def workspaceEditFormat: Format[WorkspaceEdit] = {
-    implicit val ev: Format[List[TextEdit]] = listFormat(textEditFormat)
+    implicit val ev: Format[List[TextEdit]] = listFormat(using textEditFormat)
     wrap[WorkspaceEdit, List[TextEdit]](
       (e: WorkspaceEdit) => jl2l(e.changes),
       InterfaceUtil.workspaceEdit
