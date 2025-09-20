@@ -234,7 +234,7 @@ private[sbt] object JavaAnalyze {
     }
   }
 
-  private[this] def urlAsFile(url: URL, log: Logger, finalJarOutput: Option[Path]): Option[Path] =
+  private def urlAsFile(url: URL, log: Logger, finalJarOutput: Option[Path]): Option[Path] =
     try urlAsFile(url, finalJarOutput)
     catch {
       case e: Exception =>

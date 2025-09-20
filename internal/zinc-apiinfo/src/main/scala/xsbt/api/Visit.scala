@@ -15,8 +15,8 @@ import xsbti.api._
 import scala.collection.mutable
 
 class Visit {
-  private[this] val visitedStructures = new mutable.HashSet[Structure]
-  private[this] val visitedClassLike = new mutable.HashSet[ClassLike]
+  private val visitedStructures = new mutable.HashSet[Structure]
+  private val visitedClassLike = new mutable.HashSet[ClassLike]
 
   def visitAPI(c: ClassLike): Unit = {
     visitDefinition(c)

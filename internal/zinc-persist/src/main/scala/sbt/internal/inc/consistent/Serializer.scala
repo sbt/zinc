@@ -185,13 +185,13 @@ abstract class Deserializer {
 }
 
 class TextSerializer(out: Writer) extends Serializer {
-  private[this] final class Block(val array: Boolean, val expected: Int, var actual: Int)
-  private[this] var indent = 0
-  private[this] var stack: List[Block] = Nil
-  private[this] def printIndent(): Unit = (0 until indent * 2).foreach(_ => out.write(' '))
-  private[this] def count(): Unit =
+  private final class Block(val array: Boolean, val expected: Int, var actual: Int)
+  private var indent = 0
+  private var stack: List[Block] = Nil
+  private def printIndent(): Unit = (0 until indent * 2).foreach(_ => out.write(' '))
+  private def count(): Unit =
     if (stack.nonEmpty) stack.head.actual += 1
-  private[this] def println(s: String): Unit = {
+  private def println(s: String): Unit = {
     out.write(s)
     out.write('\n')
   }
@@ -259,11 +259,11 @@ class TextSerializer(out: Writer) extends Serializer {
 }
 
 class TextDeserializer(in: BufferedReader) extends Deserializer {
-  private[this] final class Block(val array: Boolean, val expected: Int, var actual: Int)
-  private[this] var indent = 0
-  private[this] var stack: List[Block] = Nil
-  private[this] def raw(): String = in.readLine().drop(indent * 2)
-  private[this] def count(): Unit =
+  private final class Block(val array: Boolean, val expected: Int, var actual: Int)
+  private var indent = 0
+  private var stack: List[Block] = Nil
+  private def raw(): String = in.readLine().drop(indent * 2)
+  private def count(): Unit =
     if (stack.nonEmpty) stack.head.actual += 1
   def startBlock(): Unit = {
     count()
@@ -332,18 +332,18 @@ class TextDeserializer(in: BufferedReader) extends Deserializer {
 }
 
 class BinarySerializer(_out: OutputStream) extends Serializer {
-  private[this] val stringsMap: mutable.Map[String, Int] = mutable.Map.empty
-  private[this] val buffer: Array[Byte] = new Array(65536)
-  private[this] var pos: Int = 0
+  private val stringsMap: mutable.Map[String, Int] = mutable.Map.empty
+  private val buffer: Array[Byte] = new Array(65536)
+  private var pos: Int = 0
   // Ensure that at least `count` bytes can be written to the buffer starting at `pos`
-  @inline private[this] def ensure(count: Int): Unit =
+  @inline private def ensure(count: Int): Unit =
     if (pos + count > buffer.length) flush()
   // Flush unconditionally, ensuring `pos` = 0
-  @inline private[this] def flush(): Unit = {
+  @inline private def flush(): Unit = {
     if (pos > 0) _out.write(buffer, 0, pos)
     pos = 0
   }
-  @inline private[this] def unsafeWriteByte(b: Byte): Unit = {
+  @inline private def unsafeWriteByte(b: Byte): Unit = {
     buffer(pos) = b
     pos += 1
   }
@@ -396,11 +396,11 @@ class BinarySerializer(_out: OutputStream) extends Serializer {
 }
 
 class BinaryDeserializer(_in: InputStream) extends Deserializer {
-  private[this] val strings: ArrayBuffer[String] = ArrayBuffer.empty
-  private[this] val buffer: Array[Byte] = new Array(8192)
-  private[this] var pos: Int = buffer.length
-  private[this] var bufLen: Int = buffer.length
-  @inline @tailrec private[this] def readAllUnderlying(
+  private val strings: ArrayBuffer[String] = ArrayBuffer.empty
+  private val buffer: Array[Byte] = new Array(8192)
+  private var pos: Int = buffer.length
+  private var bufLen: Int = buffer.length
+  @inline @tailrec private def readAllUnderlying(
       a: Array[Byte],
       off: Int,
       len: Int,
@@ -413,7 +413,7 @@ class BinaryDeserializer(_in: InputStream) extends Deserializer {
     else readAllUnderlying(a, off + read, len - read, accum + read)
   }
   // Ensure that there are at least `count` bytes to read in the buffer starting at `pos`
-  @inline private[this] def ensure(count: Int): Unit = {
+  @inline private def ensure(count: Int): Unit = {
     if (pos + count > bufLen) {
       if (pos + count > buffer.length || pos >= buffer.length / 2) moveToLeft()
       while ({
@@ -425,18 +425,18 @@ class BinaryDeserializer(_in: InputStream) extends Deserializer {
     }
   }
   // Move the data in the buffer so that `pos` = 0
-  @inline private[this] def moveToLeft(): Unit = {
+  @inline private def moveToLeft(): Unit = {
     val rem = bufLen - pos
     if (rem > 0 && pos > 0) System.arraycopy(buffer, pos, buffer, 0, rem)
     pos = 0
     bufLen = rem
   }
-  @inline private[this] def unsafeReadByte(): Byte = {
+  @inline private def unsafeReadByte(): Byte = {
     val b = buffer(pos)
     pos += 1
     b
   }
-  @inline private[this] def readInto(a: Array[Byte]): Int = {
+  @inline private def readInto(a: Array[Byte]): Int = {
     var off = 0
     var len = a.length
     if (pos < bufLen) {

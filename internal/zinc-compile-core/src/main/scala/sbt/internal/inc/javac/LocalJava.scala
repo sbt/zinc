@@ -59,9 +59,9 @@ object LocalJava {
   /** True if we can call a forked Javadoc. */
   def hasLocalJavadoc: Boolean = javadocTool.isDefined
 
-  private[this] val javadocClass = "com.sun.tools.javadoc.Main"
-  private[this] val sunStandard = "com.sun.tools.doclets.standard.Standard"
-  private[this] val standardDoclet = "jdk.javadoc.doclet.StandardDoclet"
+  private val javadocClass = "com.sun.tools.javadoc.Main"
+  private val sunStandard = "com.sun.tools.doclets.standard.Standard"
+  private val standardDoclet = "jdk.javadoc.doclet.StandardDoclet"
 
   /** Get the javadoc tool. */
   private[javac] def javadocTool: Option[javax.tools.DocumentationTool] = {
@@ -72,7 +72,7 @@ object LocalJava {
     }
   }
 
-  private[this] lazy val toolsJar: Option[Path] = {
+  private lazy val toolsJar: Option[Path] = {
     val javaHome: Path = Paths.get(sys.props("java.home"))
     val tools0 = javaHome.resolve("lib").resolve("tools.jar")
     val tools1 = javaHome.getParent.resolve("lib").resolve("tools.jar")
@@ -84,7 +84,7 @@ object LocalJava {
       case _                         => None
     }
   }
-  private[this] lazy val toolsJarClassLoader: Option[URLClassLoader] =
+  private lazy val toolsJarClassLoader: Option[URLClassLoader] =
     toolsJar map { jar =>
       new URLClassLoader(Array(jar.toUri.toURL))
     }
@@ -135,7 +135,7 @@ object LocalJava {
     }
 
   /** Get the javadoc execute method reflectively from current class loader. */
-  private[this] def javadocMethod = {
+  private def javadocMethod = {
     try {
       // Get the class from current class loader
       val javadocClz = Class.forName(javadocClass)

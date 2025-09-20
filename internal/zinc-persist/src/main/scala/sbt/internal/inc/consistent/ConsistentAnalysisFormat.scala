@@ -39,9 +39,9 @@ import sbt.internal.inc.binary.converters.InternalApiProxy
 class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Boolean) {
   import ConsistentAnalysisFormat._
 
-  private[this] final val VERSION = 1100029
-  private[this] final val readMapper = mappers.getReadMapper
-  private[this] final val writeMapper = mappers.getWriteMapper
+  private final val VERSION = 1100029
+  private final val readMapper = mappers.getReadMapper
+  private final val writeMapper = mappers.getWriteMapper
 
   def write(out: Serializer, analysis: CompileAnalysis, setup: MiniSetup): Unit = {
     val analysis0 = analysis match { case analysis: Analysis => analysis }
@@ -73,7 +73,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
   }
 
   @inline
-  private[this] final def writeMaybeSortedStringMap[V](
+  private final def writeMaybeSortedStringMap[V](
       out: Serializer,
       name: String,
       map: scala.collection.Iterable[(String, V)],
@@ -85,26 +85,26 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     else out.writeColl(name, map, perEntry + 1) { kv => out.string(kv._1); f(kv._2) }
   }
 
-  private[this] def readVersion(in: Deserializer): Unit = {
+  private def readVersion(in: Deserializer): Unit = {
     val ver = in.int()
     if (ver != VERSION) throw new Exception(s"Unsupported format version $ver")
   }
 
-  private[this] def writeStamp2(out: Serializer, stamp: Stamp): Unit = stamp match {
+  private def writeStamp2(out: Serializer, stamp: Stamp): Unit = stamp match {
     case hash: FarmHash     => out.byte(0); out.long(hash.hashValue)
     case hash: Hash         => out.byte(1); out.string(hash.hexHash)
     case hash: LastModified => out.byte(2); out.long(hash.value)
     case _                  => out.byte(3); out.string(stamp.toString)
   }
 
-  private[this] def readStamp2(in: Deserializer): Stamp = in.byte() match {
+  private def readStamp2(in: Deserializer): Stamp = in.byte() match {
     case 0 => FarmHash.fromLong(in.long())
     case 1 => Hash.unsafeFromString(in.string())
     case 2 => new LastModified(in.long())
     case 3 => StampImpl.fromString(in.string())
   }
 
-  private[this] def writeStamps(out: Serializer, stamps: Stamps): Unit = {
+  private def writeStamps(out: Serializer, stamps: Stamps): Unit = {
     writeMaybeSortedStringMap(
       out,
       "stamps.products",
@@ -131,7 +131,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     )(writeStamp2(out, _))
   }
 
-  private[this] def readStamps(in: Deserializer): Stamps = {
+  private def readStamps(in: Deserializer): Stamps = {
     import VirtualFileUtil._
     val products =
       in.readColl[(VirtualFileRef, Stamp), TreeMap[VirtualFileRef, Stamp]](TreeMap, 3) {
@@ -150,7 +150,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     Stamps(products, sources, libraries)
   }
 
-  private[this] def writeAnalyzedClass(
+  private def writeAnalyzedClass(
       out: Serializer,
       ac: AnalyzedClass,
       storeApis: Boolean
@@ -181,7 +181,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     }
   }
 
-  private[this] def readAnalyzedClass(in: Deserializer, storeApis: Boolean): AnalyzedClass = {
+  private def readAnalyzedClass(in: Deserializer, storeApis: Boolean): AnalyzedClass = {
     in.readBlock {
       val name = in.string()
       val ts = in.long()
@@ -207,7 +207,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     }
   }
 
-  private[this] def writeAPIs(out: Serializer, apis: APIs, storeApis: Boolean): Unit = {
+  private def writeAPIs(out: Serializer, apis: APIs, storeApis: Boolean): Unit = {
     def write(n: String, m: Map[String, AnalyzedClass]): Unit = {
       writeMaybeSortedStringMap(
         out,
@@ -223,14 +223,14 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     write("external", apis.external)
   }
 
-  private[this] def readAPIs(in: Deserializer, storeApis: Boolean): APIs = {
+  private def readAPIs(in: Deserializer, storeApis: Boolean): APIs = {
     def read() = in.readColl[(String, AnalyzedClass), Map[String, AnalyzedClass]](Map, 2) {
       (in.string(), readAnalyzedClass(in, storeApis))
     }
     APIs(read(), read())
   }
 
-  private[this] def writeSourceInfos(out: Serializer, infos: SourceInfos): Unit = {
+  private def writeSourceInfos(out: Serializer, infos: SourceInfos): Unit = {
     def writeProblem(p: Problem): Unit = out.writeBlock("problem") {
       out.string(p.category())
       out.byte(p.severity().ordinal().toByte)
@@ -261,7 +261,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     }
   }
 
-  private[this] def readSourceInfos(in: Deserializer): SourceInfos = {
+  private def readSourceInfos(in: Deserializer): SourceInfos = {
     def readProblem(): Problem = in.readBlock {
       val category = in.string()
       val severity = Severity.values.apply(in.byte().toInt)
@@ -303,7 +303,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     })
   }
 
-  private[this] def writeMiniSetup(out: Serializer, setup0: MiniSetup): Unit = {
+  private def writeMiniSetup(out: Serializer, setup0: MiniSetup): Unit = {
     val setup = writeMapper.mapMiniSetup(setup0)
     out.writeBlock("MiniSetup") {
       out.writeArray("classpathHash", setup.options.classpathHash, 2) { fh =>
@@ -330,7 +330,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     }
   }
 
-  private[this] def readMiniSetup(in: Deserializer): MiniSetup = {
+  private def readMiniSetup(in: Deserializer): MiniSetup = {
     in.readBlock {
       val classpathHash = in.readArray(2) {
         FileHash.of(readMapper.mapClasspathEntry(Paths.get(in.string())), in.int())
@@ -353,7 +353,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     }
   }
 
-  private[this] def writeRelations(out: Serializer, rs: Relations): Unit = {
+  private def writeRelations(out: Serializer, rs: Relations): Unit = {
     writeMaybeSortedStringMap(out, "usedNames", rs.names.toMultiMap)(writeUsedNameSet(out, _))
     def mapProduct(f: VirtualFileRef) = writeMapper.mapProductFile(f).id
     def mapSource(f: VirtualFileRef) = writeMapper.mapSourceFile(f).id
@@ -385,7 +385,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     wrS("productClassNames", rs.productClassName)
   }
 
-  private[this] def readRelations(in: Deserializer): Relations = {
+  private def readRelations(in: Deserializer): Relations = {
     val un =
       UsedNames.fromMultiMap(in.readColl[(String, Set[UsedName]), Map[String, Set[UsedName]]](
         Map,
@@ -430,7 +430,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     )
   }
 
-  private[this] def writeUsedNameSet(out: Serializer, uns: scala.collection.Set[UsedName]): Unit = {
+  private def writeUsedNameSet(out: Serializer, uns: scala.collection.Set[UsedName]): Unit = {
     out.writeBlock("UsedName") {
       val groups0 = uns.iterator.map { un =>
         val sc = un.scopes
@@ -450,7 +450,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     }
   }
 
-  private[this] def readUsedNameSet(in: Deserializer): Set[UsedName] = {
+  private def readUsedNameSet(in: Deserializer): Set[UsedName] = {
     import scala.jdk.CollectionConverters.*
     in.readBlock {
       val data = in.readColl[Vector[UsedName], Vector[Vector[UsedName]]](Vector, 2) {
@@ -462,7 +462,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     }
   }
 
-  private[this] def writeClassLike(out: Serializer, cl: ClassLike): Unit =
+  private def writeClassLike(out: Serializer, cl: ClassLike): Unit =
     out.writeBlock("ClassLike") {
       out.string(cl.name())
       writeAccess(out, cl.access())
@@ -477,7 +477,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
       out.writeArray("typeParameters", cl.typeParameters())(writeTypeParameter(out, _))
     }
 
-  private[this] def readClassLike(in: Deserializer): ClassLike = in.readBlock {
+  private def readClassLike(in: Deserializer): ClassLike = in.readBlock {
     val name = in.string()
     val access = readAccess(in)
     val modifiers = InternalApiProxy.Modifiers(in.byte().toInt)
@@ -504,7 +504,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     )
   }
 
-  private[this] def writeAccess(out: Serializer, access: Access): Unit = out.writeBlock("Access") {
+  private def writeAccess(out: Serializer, access: Access): Unit = out.writeBlock("Access") {
     def writeQualifier(q: Qualifier): Unit = q match {
       case q: IdQualifier   => out.byte(0); out.string(q.value())
       case _: ThisQualifier => out.byte(1)
@@ -517,7 +517,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     }
   }
 
-  private[this] def readAccess(in: Deserializer): Access = in.readBlock {
+  private def readAccess(in: Deserializer): Access = in.readBlock {
     def readQualifier(): Qualifier = in.byte() match {
       case 0 => IdQualifier.of(in.string())
       case 1 => ThisQualifierSingleton
@@ -530,7 +530,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     }
   }
 
-  private[this] def writeAnnotation(out: Serializer, a: Annotation): Unit =
+  private def writeAnnotation(out: Serializer, a: Annotation): Unit =
     out.writeBlock("Annotation") {
       writeType(out, a.base())
       out.writeArray("arguments", a.arguments(), 2) { a =>
@@ -538,19 +538,19 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
       }
     }
 
-  private[this] def readAnnotation(in: Deserializer): Annotation = in.readBlock {
+  private def readAnnotation(in: Deserializer): Annotation = in.readBlock {
     val base = readType(in)
     val args = in.readArray(2)(AnnotationArgument.of(in.string(), in.string()))
     Annotation.of(base, args)
   }
 
-  private[this] def writeDefinitionType(out: Serializer, dt: DefinitionType): Unit =
+  private def writeDefinitionType(out: Serializer, dt: DefinitionType): Unit =
     out.byte(dt.ordinal().toByte)
 
-  private[this] def readDefinitionType(in: Deserializer): DefinitionType =
+  private def readDefinitionType(in: Deserializer): DefinitionType =
     DefinitionType.values()(in.byte().toInt)
 
-  private[this] def writeTypeParameter(out: Serializer, tp: TypeParameter): Unit =
+  private def writeTypeParameter(out: Serializer, tp: TypeParameter): Unit =
     out.writeBlock("TypeParameter") {
       out.string(tp.id())
       out.writeArray("annotations", tp.annotations())(writeAnnotation(out, _))
@@ -560,7 +560,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
       writeType(out, tp.upperBound())
     }
 
-  private[this] def readTypeParameter(in: Deserializer): TypeParameter = in.readBlock {
+  private def readTypeParameter(in: Deserializer): TypeParameter = in.readBlock {
     TypeParameter.of(
       in.string(),
       in.readArray[Annotation]()(readAnnotation(in)),
@@ -571,7 +571,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     )
   }
 
-  private[this] def writeType(out: Serializer, tpe: Type): Unit = out.writeBlock("Type") {
+  private def writeType(out: Serializer, tpe: Type): Unit = out.writeBlock("Type") {
     tpe match {
       case tpe: ParameterRef =>
         out.byte(0)
@@ -610,7 +610,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     }
   }
 
-  private[this] def readType(in: Deserializer): Type = in.readBlock {
+  private def readType(in: Deserializer): Type = in.readBlock {
     in.byte() match {
       case 0 => ParameterRef.of(in.string())
       case 1 => Parameterized.of(readType(in), in.readArray[Type]()(readType(in)))
@@ -625,14 +625,14 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     }
   }
 
-  private[this] def writeStructure(out: Serializer, tpe: Structure): Unit =
+  private def writeStructure(out: Serializer, tpe: Structure): Unit =
     out.writeBlock("Structure") {
       out.writeArray("parents", tpe.parents())(writeType(out, _))
       out.writeArray("declared", tpe.declared())(writeClassDefinition(out, _))
       out.writeArray("inherited", tpe.inherited())(writeClassDefinition(out, _))
     }
 
-  private[this] def readStructure(in: Deserializer): Structure = in.readBlock {
+  private def readStructure(in: Deserializer): Structure = in.readBlock {
     val parents = in.readArray[Type]()(readType(in))
     val declared, inherited = in.readArray[ClassDefinition]()(readClassDefinition(in))
     Structure.of(
@@ -642,7 +642,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     )
   }
 
-  private[this] def writeClassDefinition(out: Serializer, cd: ClassDefinition): Unit =
+  private def writeClassDefinition(out: Serializer, cd: ClassDefinition): Unit =
     out.writeBlock("ClassDefinition") {
       out.string(cd.name())
       writeAccess(out, cd.access())
@@ -676,7 +676,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
       }
     }
 
-  private[this] def readClassDefinition(in: Deserializer): ClassDefinition = in.readBlock {
+  private def readClassDefinition(in: Deserializer): ClassDefinition = in.readBlock {
     val name = in.string()
     val access = readAccess(in)
     val modifiers = InternalApiProxy.Modifiers(in.byte().toInt)
@@ -721,7 +721,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     }
   }
 
-  private[this] def writeParameterList(out: Serializer, pl: ParameterList): Unit =
+  private def writeParameterList(out: Serializer, pl: ParameterList): Unit =
     out.writeBlock("ParameterList") {
       out.writeArray("parameters", pl.parameters(), 4) { mp =>
         out.string(mp.name())
@@ -732,7 +732,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
       out.bool(pl.isImplicit)
     }
 
-  private[this] def readParameterList(in: Deserializer): ParameterList = in.readBlock {
+  private def readParameterList(in: Deserializer): ParameterList = in.readBlock {
     ParameterList.of(
       in.readArray[MethodParameter](4) {
         MethodParameter.of(
@@ -746,7 +746,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     )
   }
 
-  private[this] def isSimplePath(comps: Array[PathComponent]): Boolean = {
+  private def isSimplePath(comps: Array[PathComponent]): Boolean = {
     if (comps.isEmpty || !comps.last.isInstanceOf[This]) false
     else {
       var i = 0
@@ -758,7 +758,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     }
   }
 
-  private[this] def writePath(out: Serializer, path: Path): Unit = out.writeBlock("Path") {
+  private def writePath(out: Serializer, path: Path): Unit = out.writeBlock("Path") {
     out.dedup(path)(_.components().length) {
       val comps = path.components()
       val simple = isSimplePath(comps)
@@ -783,7 +783,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     }
   }
 
-  private[this] def readPath(in: Deserializer): Path = {
+  private def readPath(in: Deserializer): Path = {
     in.dedup[Path] { len =>
       val comps = new Array[PathComponent](len)
       val kind = in.byte()

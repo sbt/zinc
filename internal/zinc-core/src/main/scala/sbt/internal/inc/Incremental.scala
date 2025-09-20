@@ -598,8 +598,8 @@ private final class AnalysisCallback(
   import Incremental.CompileCycleResult
 
   // This must have a unique value per AnalysisCallback
-  private[this] val compileStartTime: Long = System.currentTimeMillis()
-  private[this] val compilation: Compilation = Compilation(compileStartTime, output)
+  private val compileStartTime: Long = System.currentTimeMillis()
+  private val compilation: Compilation = Compilation(compileStartTime, output)
 
   private val hooks = options.externalHooks
   private val provenance =
@@ -622,38 +622,38 @@ private final class AnalysisCallback(
 
   private type ConcurrentSet[A] = ConcurrentHashMap.KeySetView[A, java.lang.Boolean]
 
-  private[this] val srcs = ConcurrentHashMap.newKeySet[VirtualFile]()
-  private[this] val classApis = new TrieMap[String, ApiInfo]
-  private[this] val objectApis = new TrieMap[String, ApiInfo]
-  private[this] val classPublicNameHashes = new TrieMap[String, Array[NameHash]]
-  private[this] val objectPublicNameHashes = new TrieMap[String, Array[NameHash]]
-  private[this] val usedNames = new TrieMap[String, mutable.Set[UsedName]]
-  private[this] val unreporteds = new TrieMap[VirtualFileRef, ConcurrentLinkedQueue[Problem]]
-  private[this] val reporteds = new TrieMap[VirtualFileRef, ConcurrentLinkedQueue[Problem]]
-  private[this] val mainClasses = new TrieMap[VirtualFileRef, ConcurrentLinkedQueue[String]]
-  private[this] val libraryDeps = new TrieMap[VirtualFileRef, ConcurrentSet[VirtualFile]]
+  private val srcs = ConcurrentHashMap.newKeySet[VirtualFile]()
+  private val classApis = new TrieMap[String, ApiInfo]
+  private val objectApis = new TrieMap[String, ApiInfo]
+  private val classPublicNameHashes = new TrieMap[String, Array[NameHash]]
+  private val objectPublicNameHashes = new TrieMap[String, Array[NameHash]]
+  private val usedNames = new TrieMap[String, mutable.Set[UsedName]]
+  private val unreporteds = new TrieMap[VirtualFileRef, ConcurrentLinkedQueue[Problem]]
+  private val reporteds = new TrieMap[VirtualFileRef, ConcurrentLinkedQueue[Problem]]
+  private val mainClasses = new TrieMap[VirtualFileRef, ConcurrentLinkedQueue[String]]
+  private val libraryDeps = new TrieMap[VirtualFileRef, ConcurrentSet[VirtualFile]]
 
   // source file to set of generated (class file, binary class name); only non local classes are stored here
-  private[this] val nonLocalClasses =
+  private val nonLocalClasses =
     new TrieMap[VirtualFileRef, ConcurrentSet[(VirtualFileRef, String)]]
-  private[this] val localClasses = new TrieMap[VirtualFileRef, ConcurrentSet[VirtualFileRef]]
+  private val localClasses = new TrieMap[VirtualFileRef, ConcurrentSet[VirtualFileRef]]
   // mapping between src class name and binary (flat) class name for classes generated from src file
-  private[this] val classNames = new TrieMap[VirtualFileRef, ConcurrentSet[(String, String)]]
+  private val classNames = new TrieMap[VirtualFileRef, ConcurrentSet[(String, String)]]
   // generated class name to its source class name
-  private[this] val binaryNameToSourceName = new TrieMap[String, String]
+  private val binaryNameToSourceName = new TrieMap[String, String]
   // internal source dependencies
-  private[this] val intSrcDeps = new TrieMap[String, ConcurrentSet[InternalDependency]]
+  private val intSrcDeps = new TrieMap[String, ConcurrentSet[InternalDependency]]
   // external source dependencies
-  private[this] val extSrcDeps = new TrieMap[String, ConcurrentSet[ExternalDependency]]
-  private[this] val binaryClassName = new TrieMap[VirtualFile, String]
+  private val extSrcDeps = new TrieMap[String, ConcurrentSet[ExternalDependency]]
+  private val binaryClassName = new TrieMap[VirtualFile, String]
   // source files containing a macro def.
-  private[this] val macroClasses = ConcurrentHashMap.newKeySet[String]()
+  private val macroClasses = ConcurrentHashMap.newKeySet[String]()
   // source files containing a Java annotation definition
-  private[this] val annotationClasses = ConcurrentHashMap.newKeySet[String]()
+  private val annotationClasses = ConcurrentHashMap.newKeySet[String]()
 
   // Results of invalidation calculations (including whether to continue cycles) - the analysis at this point is
   // not useful and so isn't included.
-  @volatile private[this] var invalidationResults: Option[CompileCycleResult] = None
+  @volatile private var invalidationResults: Option[CompileCycleResult] = None
 
   private def add[A, B](map: TrieMap[A, ConcurrentSet[B]], a: A, b: B): Unit = {
     map.getOrElseUpdate(a, ConcurrentHashMap.newKeySet[B]()).add(b)
@@ -734,7 +734,7 @@ private final class AnalysisCallback(
       add(intSrcDeps, sourceClassName, InternalDependency.of(sourceClassName, onClassName, context))
   }
 
-  private[this] def externalLibraryDependency(
+  private def externalLibraryDependency(
       binary: VirtualFile,
       className: String,
       source: VirtualFileRef,
@@ -744,7 +744,7 @@ private final class AnalysisCallback(
     add(libraryDeps, source, binary)
   }
 
-  private[this] def externalSourceDependency(
+  private def externalSourceDependency(
       sourceClassName: String,
       targetBinaryClassName: String,
       targetClass: AnalyzedClass,
@@ -795,7 +795,7 @@ private final class AnalysisCallback(
         }
     }
 
-  private[this] def externalDependency(
+  private def externalDependency(
       classFile: Path,
       onBinaryName: String,
       sourceClassName: String,
@@ -924,7 +924,7 @@ private final class AnalysisCallback(
 
   override def enabled(): Boolean = options.enabled
 
-  private[this] val gotten: AtomicBoolean = new AtomicBoolean(false)
+  private val gotten: AtomicBoolean = new AtomicBoolean(false)
   def getCycleResultOnce: CompileCycleResult = {
     if (gotten.compareAndSet(false, true)) {
       val incHandler = incHandlerOpt.getOrElse(sys.error("incHandler was expected"))
@@ -1160,7 +1160,7 @@ private final class AnalysisCallback(
     outputJarContent.get().asJava
   }
 
-  @volatile private[this] var writtenEarlyArtifacts: Boolean = false
+  @volatile private var writtenEarlyArtifacts: Boolean = false
 
   private def writeEarlyArtifacts(merged: Analysis): Unit = {
     writtenEarlyArtifacts = true

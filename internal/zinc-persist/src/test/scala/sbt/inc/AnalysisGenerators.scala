@@ -88,20 +88,20 @@ object AnalysisGenerators {
     } yield Stamps(prods, srcs, libs)
   }
 
-  private[this] def arr[A <: AnyRef: ClassTag] = new Array[A](0)
-  private[this] val noTpe = lzy[Type](EmptyType.of())
-  private[this] val noMods = emptyModifiers
-  private[this] val noStruct = lzy(Structure.of(lzy(arr), lzy(arr), lzy(arr)))
+  private def arr[A <: AnyRef: ClassTag] = new Array[A](0)
+  private val noTpe = lzy[Type](EmptyType.of())
+  private val noMods = emptyModifiers
+  private val noStruct = lzy(Structure.of(lzy(arr), lzy(arr), lzy(arr)))
 
   // We need "proper" definitions with specific class names,
   // as groupBy use these to pick a representative top-level class when splitting.
-  private[this] def makeClassLike(name: String, defnTpe: DefinitionType): ClassLike =
+  private def makeClassLike(name: String, defnTpe: DefinitionType): ClassLike =
     ClassLike.of(name, Public.of(), noMods, arr, defnTpe, noTpe, noStruct, arr, arr, true, arr)
 
-  private[this] def makeCompanions(name: String): Companions =
+  private def makeCompanions(name: String): Companions =
     Companions.of(makeClassLike(name, ClassDef), makeClassLike(name, Module))
 
-  private[this] def lzy[T <: AnyRef](x: T) = SafeLazyProxy.strict(x)
+  private def lzy[T <: AnyRef](x: T) = SafeLazyProxy.strict(x)
 
   def genNameHash(name: String): Gen[NameHash] =
     for (scope <- oneOf(UseScope.values().toIndexedSeq))

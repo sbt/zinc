@@ -234,12 +234,12 @@ object ClassToAPI {
   }
 
   /** TODO: over time, ClassToAPI should switch the majority of access to the classfile parser */
-  private[this] def classFileForClass(c: Class[?]): ClassFile =
+  private def classFileForClass(c: Class[?]): ClassFile =
     classfile.Parser.apply(IO.classfileLocation(c), Logger.Null)
 
-  @inline private[this] def lzyS[T <: AnyRef](t: T): xsbti.api.Lazy[T] = SafeLazyProxy.strict(t)
+  @inline private def lzyS[T <: AnyRef](t: T): xsbti.api.Lazy[T] = SafeLazyProxy.strict(t)
   @inline final def lzy[T <: AnyRef](t: => T): xsbti.api.Lazy[T] = SafeLazyProxy(t)
-  private[this] def lzy[T <: AnyRef](t: => T, cmap: ClassMap): xsbti.api.Lazy[T] = {
+  private def lzy[T <: AnyRef](t: => T, cmap: ClassMap): xsbti.api.Lazy[T] = {
     val s = lzy(t)
     cmap.lz += s
     s
@@ -551,7 +551,7 @@ object ClassToAPI {
   }
 
   // sbt/zinc#389: Ignore nulls coming from generic parameter types of lambdas
-  private[this] def ignoreNulls[T](genericTypes: Array[T]): Array[T] =
+  private def ignoreNulls[T](genericTypes: Array[T]): Array[T] =
     genericTypes.filter(_ != null)
 
   def referenceP(t: ParameterizedType): api.Parameterized = {
@@ -599,30 +599,30 @@ object ClassToAPI {
   val Throws = reference("scala.throws")
   val NothingRef = reference("scala.Nothing")
 
-  private[this] def PrimitiveNames =
+  private def PrimitiveNames =
     Seq("boolean", "byte", "char", "short", "int", "long", "float", "double")
-  private[this] def PrimitiveMap = PrimitiveNames.map(j => (j, j.capitalize)) :+ ("void" -> "Unit")
-  private[this] val PrimitiveRefs = PrimitiveMap.map {
+  private def PrimitiveMap = PrimitiveNames.map(j => (j, j.capitalize)) :+ ("void" -> "Unit")
+  private val PrimitiveRefs = PrimitiveMap.map {
     case (n, sn) => (n, reference("scala." + sn))
   }.toMap
   def primitive(name: String): api.Type = PrimitiveRefs(name)
 
-  private[this] def returnType(f: Field): Type = f.getGenericType
-  private[this] def returnType(m: Method): Type = m.getGenericReturnType
-  private[this] def exceptionTypes(c: Constructor[?]): Array[Type] = c.getGenericExceptionTypes
+  private def returnType(f: Field): Type = f.getGenericType
+  private def returnType(m: Method): Type = m.getGenericReturnType
+  private def exceptionTypes(c: Constructor[?]): Array[Type] = c.getGenericExceptionTypes
 
-  private[this] def exceptionTypes(m: Method): Array[Type] = m.getGenericExceptionTypes
+  private def exceptionTypes(m: Method): Array[Type] = m.getGenericExceptionTypes
 
-  private[this] def parameterTypes(m: Method): Array[Type] =
+  private def parameterTypes(m: Method): Array[Type] =
     ignoreNulls(m.getGenericParameterTypes)
 
-  private[this] def parameterTypes(c: Constructor[?]): Array[Type] =
+  private def parameterTypes(c: Constructor[?]): Array[Type] =
     ignoreNulls(c.getGenericParameterTypes)
 
-  private[this] def typeParameterTypes[T](m: Constructor[T]): Array[TypeVariable[Constructor[T]]] =
+  private def typeParameterTypes[T](m: Constructor[T]): Array[TypeVariable[Constructor[T]]] =
     m.getTypeParameters
-  private[this] def typeParameterTypes[T](m: Class[T]): Array[TypeVariable[Class[T]]] =
+  private def typeParameterTypes[T](m: Class[T]): Array[TypeVariable[Class[T]]] =
     m.getTypeParameters
-  private[this] def typeParameterTypes(m: Method): Array[TypeVariable[Method]] =
+  private def typeParameterTypes(m: Method): Array[TypeVariable[Method]] =
     m.getTypeParameters
 }

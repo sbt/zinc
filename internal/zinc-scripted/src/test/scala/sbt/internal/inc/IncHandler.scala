@@ -196,7 +196,7 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
 
   private final val noLogger = Logger.Null
 
-  private[this] def onNewIncState(p: ProjectStructure): IncState = {
+  private def onNewIncState(p: ProjectStructure): IncState = {
     val scalaVersion = p.scalaVersion
     val (compilerBridge, si) = IncHandler.getCompilerCacheFor(scalaVersion).getOrElse {
       val compilerBridge = getCompilerBridge(cacheDir, noLogger, scalaVersion)
@@ -894,7 +894,7 @@ case class ProjectStructure(
 
 object IncHandler {
   type Cached = (Path, XScalaInstance)
-  private[this] final val scriptedCompilerCache = new mutable.WeakHashMap[String, Cached]()
+  private final val scriptedCompilerCache = new mutable.WeakHashMap[String, Cached]()
 
   def getCompilerCacheFor(scalaVersion: String): Option[Cached] =
     synchronized(scriptedCompilerCache.get(scalaVersion))

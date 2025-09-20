@@ -157,8 +157,8 @@ class AnalysisFormatBenchmark {
 }
 
 class NullSerializer extends Serializer {
-  private[this] val strings = mutable.HashMap.empty[String, String]
-  private[this] var _count = 0
+  private val strings = mutable.HashMap.empty[String, String]
+  private var _count = 0
   def count: Int = _count
   def startBlock(name: String): Unit = _count += 1
   def startArray(name: String, length: Int): Unit = _count += 1

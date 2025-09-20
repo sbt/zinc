@@ -142,14 +142,14 @@ final class CompilerArguments(
       (IO.parseClasspath(System.getProperty(k, "")) * "*.jar").get().map(_.toPath)
     )
 
-  private[this] def include(flag: Boolean, jars: Path*) =
+  private def include(flag: Boolean, jars: Path*) =
     if (flag) jars
     else Nil
 
-  private[this] def abs(files: Seq[Path]) =
+  private def abs(files: Seq[Path]) =
     files.map(_.toAbsolutePath.toString).sortWith(_ < _)
 
-  private[this] def checkScalaHomeUnset(): Unit = {
+  private def checkScalaHomeUnset(): Unit = {
     val scalaHome = System.getProperty("scala.home")
     assert(
       (scalaHome eq null) || scalaHome.isEmpty,
@@ -157,7 +157,7 @@ final class CompilerArguments(
     )
   }
 
-  private[this] val isScalaLibrary: Path => Boolean = file => {
+  private val isScalaLibrary: Path => Boolean = file => {
     val name = file.getFileName.toString
     name.contains(ArtifactInfo.ScalaLibraryID) ||
     scalaInstance.libraryJars.exists(_.getName == name)

@@ -268,10 +268,10 @@ object ScalaInstance {
   def allJars(scalaHome: File): Seq[File] =
     IO.listFiles(scalaLib(scalaHome)).toIndexedSeq.filter(f => !excludeList(f.getName))
 
-  private[this] def scalaLib(scalaHome: File): File =
+  private def scalaLib(scalaHome: File): File =
     new File(scalaHome, "lib")
 
-  private[this] val excludeList: Set[String] = Set(
+  private val excludeList: Set[String] = Set(
     "scala-actors.jar",
     "scalacheck.jar",
     "scala-partest.jar",

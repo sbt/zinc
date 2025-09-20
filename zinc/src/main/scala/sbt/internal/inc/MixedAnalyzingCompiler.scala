@@ -46,7 +46,7 @@ final class MixedAnalyzingCompiler(
     val log: Logger,
     outputJarContent: JarUtils.OutputJarContent
 ) {
-  private[this] val absClasspath = config.classpath.map(toAbsolute(_))
+  private val absClasspath = config.classpath.map(toAbsolute(_))
 
   /**
    * Compile java and run analysis.
@@ -252,7 +252,7 @@ final class MixedAnalyzingCompiler(
     IO.delete(outputDir)
   }
 
-  private[this] def outputDirectories(output: Output): Seq[Path] = {
+  private def outputDirectories(output: Output): Seq[Path] = {
     output match {
       case single: SingleOutput => List(single.getOutputDirectoryAsPath)
       case mult: MultipleOutput =>
@@ -261,7 +261,7 @@ final class MixedAnalyzingCompiler(
   }
 
   // Debugging method to time how long it takes to run various compilation tasks.
-  private[this] def timed[T](label: String, log: Logger)(t: => T): T = {
+  private def timed[T](label: String, log: Logger)(t: => T): T = {
     val start = System.nanoTime
     val result = t
     val elapsed = System.nanoTime - start
@@ -269,7 +269,7 @@ final class MixedAnalyzingCompiler(
     result
   }
 
-  private[this] def logInputs(
+  private def logInputs(
       log: Logger,
       javaCount: Int,
       scalaCount: Int,
@@ -480,7 +480,7 @@ object MixedAnalyzingCompiler {
       args.finishClasspath(cp).map(converter.toVirtualFile(_))
   }
 
-  private[this] def explicitBootClasspath(
+  private def explicitBootClasspath(
       options: Seq[String],
       converter: FileConverter
   ): Seq[VirtualFile] = {
@@ -494,7 +494,7 @@ object MixedAnalyzingCompiler {
       .map(converter.toVirtualFile(_))
   }
 
-  private[this] val cache =
+  private val cache =
     new collection.mutable.HashMap[Path, Reference[AnalysisStore]]
 
   private def staticCache(

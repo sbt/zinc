@@ -115,7 +115,7 @@ private class MAPIs(
     "APIs(internal: %d, subproject: %d)".format(internal.size, external.size)
   // s"MAPIs(internal = $internal, external = $external)"
 
-  private[this] def sorted[T](
+  private def sorted[T](
       m: Map[T, AnalyzedClass]
   )(implicit ord: math.Ordering[T]): Seq[(T, AnalyzedClass)] =
     m.toSeq.sortBy(_._1)
