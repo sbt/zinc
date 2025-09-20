@@ -180,17 +180,17 @@ private[xsbt] object ZincBenchmark {
          |// This task is instrumented by the benchmarks in the Zinc compiler
          |lazy val `$taskName` =
          |  taskKey[Unit]("Get source files and classpath of subprojects")
-         |`$taskName` in ThisBuild := `$taskName-impl`.value
+         |ThisBuild / `$taskName` := `$taskName-impl`.value
          |lazy val `$taskName-impl` = Def.taskDyn {
          |  // Resolve project dynamically to avoid name clashes/overloading
          |  val project = LocalProject("$sbtProject")
          |  Def.task {
          |    val file = new File("${outputFile.getAbsolutePath.replace("\\", "/")}")
-         |    val rawSources = (sources in Compile in project).value
+         |    val rawSources = (project / Compile / sources).value
          |    val sourcesLine = rawSources.map(_.getCanonicalPath).mkString(" ")
-         |    val rawClasspath = (dependencyClasspath in Compile in project).value
+         |    val rawClasspath = (project / Compile / dependencyClasspath).value
          |    val classpathLine = rawClasspath.map(_.data.getCanonicalPath).mkString(java.io.File.pathSeparator)
-         |    val optionsLine = (scalacOptions in Compile in project).value.mkString(" ")
+         |    val optionsLine = (project / Compile / scalacOptions).value.mkString(" ")
          |    IO.writeLines(file, Seq(sourcesLine, classpathLine, optionsLine))
          |  }
          |}
