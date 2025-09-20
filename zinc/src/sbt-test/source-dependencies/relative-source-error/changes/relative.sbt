@@ -1,1 +1,1 @@
-scalaSource in Compile := file("src")
+Compile / scalaSource := file("src")

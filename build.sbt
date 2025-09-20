@@ -316,7 +316,7 @@ lazy val zincBenchmarks = (projectMatrix in internalPath / "zinc-benchmarks")
         sourceDirectory := (Test / sourceDirectory).value,
         classDirectory := (Test / classDirectory).value,
         dependencyClasspath := (Test / dependencyClasspath).value,
-        // rewire tasks, so that 'jmh:run' automatically invokes 'jmh:compile' (otherwise a clean 'jmh:run' would fail)
+        // rewire tasks, so that 'Jmh/run' automatically invokes 'Jmh/compile' (otherwise a clean 'Jmh/run' would fail)
         compile := compile.dependsOn(Test / compile).value,
         run := run.dependsOn(Test / compile).evaluated,
       )
@@ -643,7 +643,7 @@ addCommandAlias(
       s"${compilerBridge213.id}/packageBin",
       s"${compilerBridge212.id}/packageBin",
       s"${zincBenchmarks.jvm(scala3).id}/Test/run $dir $pattern",
-      s"${zincBenchmarks.jvm(scala3).id}/jmh:run -p _tempDir=$dir -prof gc -foe true $pattern",
+      s"${zincBenchmarks.jvm(scala3).id}/Jmh/run -p _tempDir=$dir -prof gc -foe true $pattern",
       s"""eval IO.delete(file("$dir"))""",
     ).mkString(";", ";", "")
   }
