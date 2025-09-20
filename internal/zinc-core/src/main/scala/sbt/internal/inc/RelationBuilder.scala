@@ -16,9 +16,9 @@ import sbt.internal.util.Relation
 import scala.collection.{ immutable, mutable }
 
 final class RelationBuilder[A, B]() {
-  private[this] val forward =
+  private val forward =
     new java.util.HashMap[A, (A, mutable.Builder[B, immutable.HashSet[B]])]()
-  private[this] val reverse =
+  private val reverse =
     new java.util.HashMap[B, (B, mutable.Builder[A, immutable.HashSet[A]])]()
 
   def update(a: A, b: B): Unit = {

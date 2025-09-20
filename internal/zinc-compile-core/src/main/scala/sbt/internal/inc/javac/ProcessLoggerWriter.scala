@@ -25,7 +25,7 @@ private class ProcessLoggerWriter(
     level: Level.Value,
     nl: String = System.getProperty("line.separator")
 ) extends java.io.Writer {
-  private[this] val buffer = new StringBuilder
+  private val buffer = new StringBuilder
   override def close() = flush()
   override def flush(): Unit =
     synchronized {
@@ -41,7 +41,7 @@ private class ProcessLoggerWriter(
     }
 
   @tailrec
-  private[this] def process(): Unit = {
+  private def process(): Unit = {
     val i = buffer.indexOf(nl)
     if (i >= 0) {
       log(buffer.substring(0, i))
@@ -49,7 +49,7 @@ private class ProcessLoggerWriter(
       process()
     }
   }
-  private[this] def log(s: String): Unit = level match {
+  private def log(s: String): Unit = level match {
     case Level.Warn | Level.Error => delegate.err(s)
     case Level.Info               => delegate.out(s)
   }

@@ -33,7 +33,7 @@ final class DiagnosticsReporter(reporter: Reporter) extends DiagnosticListener[J
   val END_OF_LINE_MATCHER = "(\r\n)|[\r]|[\n]"
   val EOL = System.getProperty("line.separator")
 
-  private[this] var errorEncountered = false
+  private var errorEncountered = false
   def hasErrors: Boolean = errorEncountered
 
   override def report(d: Diagnostic[? <: JavaFileObject]): Unit = {

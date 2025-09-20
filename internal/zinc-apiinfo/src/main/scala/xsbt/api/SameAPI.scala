@@ -74,7 +74,7 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
   import SameAPI._
 
   private val pending = new mutable.HashSet[AnyRef]
-  private[this] val debugEnabled = java.lang.Boolean.getBoolean("xsbt.api.debug")
+  private val debugEnabled = java.lang.Boolean.getBoolean("xsbt.api.debug")
   def debug(flag: Boolean, msg: => String): Boolean = {
     if (debugEnabled && !flag) println(msg)
     flag
@@ -343,7 +343,7 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
   def sameStructure(a: Structure, b: Structure): Boolean =
     samePending(a, b)(sameStructureDirect)
 
-  private[this] def samePending[T](a: T, b: T)(f: (T, T) => Boolean): Boolean =
+  private def samePending[T](a: T, b: T)(f: (T, T) => Boolean): Boolean =
     if (pending add ((a, b))) f(a, b) else true
 
   def sameStructureDirect(a: Structure, b: Structure): Boolean = {

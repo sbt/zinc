@@ -32,10 +32,10 @@ object FileValueCache {
     new FileValueCache0[T](stamp, f)(Equiv.universal)
 }
 
-private[this] final class FileValueCache0[T](getStamp: Path => XStamp, make: Path => T)(
+private final class FileValueCache0[T](getStamp: Path => XStamp, make: Path => T)(
     implicit equiv: Equiv[XStamp]
 ) extends FileValueCache[T] {
-  private[this] val backing = new ConcurrentHashMap[Path, FileCache]
+  private val backing = new ConcurrentHashMap[Path, FileCache]
 
   def clear(): Unit = backing.clear()
   def get = file => {
@@ -44,8 +44,8 @@ private[this] final class FileValueCache0[T](getStamp: Path => XStamp, make: Pat
     (if (cache eq null) ifAbsent else cache).get()
   }
 
-  private[this] final class FileCache(file: Path) {
-    private[this] var stampedValue: Option[(XStamp, T)] = None
+  private final class FileCache(file: Path) {
+    private var stampedValue: Option[(XStamp, T)] = None
     def get(): T = synchronized {
       val latest = getStamp(file)
       stampedValue match {
@@ -54,7 +54,7 @@ private[this] final class FileValueCache0[T](getStamp: Path => XStamp, make: Pat
       }
     }
 
-    private[this] def update(stamp: XStamp): T = {
+    private def update(stamp: XStamp): T = {
       val value = make(file)
       stampedValue = Some((stamp, value))
       value

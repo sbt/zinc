@@ -24,7 +24,7 @@ import sbt.inc.ScriptedMain._
 
 object ScriptedRunnerImpl {
   type TestRunner = () => Seq[Option[String]]
-  private[this] val random = new java.util.Random()
+  private val random = new java.util.Random()
 
   def run(
       baseDir: Path,

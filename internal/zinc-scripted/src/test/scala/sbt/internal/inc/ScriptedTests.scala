@@ -32,8 +32,8 @@ final class ScriptedTests(
 ) {
   import ScriptedTests._
 
-  private[this] val batchIdGenerator: AtomicInteger = new AtomicInteger
-  private[this] val runIdGenerator: AtomicInteger = new AtomicInteger
+  private val batchIdGenerator: AtomicInteger = new AtomicInteger
+  private val runIdGenerator: AtomicInteger = new AtomicInteger
 
   final val ScriptFilename = "test"
   final val PendingScriptFilename = "pending"

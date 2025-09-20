@@ -78,7 +78,7 @@ final class ClasspathFilter(parent: ClassLoader, root: ClassLoader, classpath: S
         |  cp = $classpath
         |)""".stripMargin
 
-  private[this] val directories: Seq[Path] = classpath.toSeq.filter { p =>
+  private val directories: Seq[Path] = classpath.toSeq.filter { p =>
     !p.toString.endsWith(".jar") && Files.isDirectory(p)
   }
   override def loadClass(className: String, resolve: Boolean): Class[?] = {
@@ -88,12 +88,12 @@ final class ClasspathFilter(parent: ClassLoader, root: ClassLoader, classpath: S
     else
       throw new ClassNotFoundException(className)
   }
-  private[this] def fromClasspath(c: Class[?]): Boolean = {
+  private def fromClasspath(c: Class[?]): Boolean = {
     val codeSource = c.getProtectionDomain.getCodeSource
     (codeSource eq null) ||
     onClasspath(codeSource.getLocation)
   }
-  private[this] def onClasspath(src: URL): Boolean =
+  private def onClasspath(src: URL): Boolean =
     (src eq null) || (
       ClasspathUtil.asFile(src).headOption match {
         case Some(f) =>
@@ -113,7 +113,7 @@ final class ClasspathFilter(parent: ClassLoader, root: ClassLoader, classpath: S
     if (us ne null) us.asScala.filter(onClasspath).asJavaEnumeration else null
   }
 
-  @tailrec private[this] def includeLoader(c: ClassLoader, base: ClassLoader): Boolean =
+  @tailrec private def includeLoader(c: ClassLoader, base: ClassLoader): Boolean =
     (base ne null) &&
       (c ne null) &&
       ((c eq base) || includeLoader(c.getParent, base))
@@ -184,24 +184,24 @@ trait NativeCopyLoader extends ClassLoader {
   protected val config: NativeCopyConfig
   import config._
 
-  private[this] val mapped = new collection.mutable.HashMap[String, String]
+  private val mapped = new collection.mutable.HashMap[String, String]
 
   override protected def findLibrary(name: String): String =
     synchronized { mapped.getOrElseUpdate(name, findLibrary0(name)) }
 
-  private[this] def findLibrary0(name: String): String = {
+  private def findLibrary0(name: String): String = {
     val mappedName = System.mapLibraryName(name)
     val explicit = explicitLibraries.iterator.filter(_.getFileName.toString == mappedName)
     val search = searchPaths.iterator flatMap relativeLibrary(mappedName)
     val combined = explicit ++ search
     if (combined.hasNext) copy(combined.next()) else null
   }
-  private[this] def relativeLibrary(mappedName: String)(base: Path): Seq[Path] = {
+  private def relativeLibrary(mappedName: String)(base: Path): Seq[Path] = {
     val f = base.resolve(mappedName)
     if (Files.isRegularFile(f)) f :: Nil
     else Nil
   }
-  private[this] def copy(f: Path): String = {
+  private def copy(f: Path): String = {
     val target = tempDirectory.resolve(f.getFileName.toString)
     Files.copy(f, target, StandardCopyOption.REPLACE_EXISTING)
     target.toAbsolutePath.toString

@@ -259,7 +259,7 @@ final class AnalyzingJavaCompiler private[sbt] (
   ): Boolean = javac.run(sources, options, output, incToolOptions, reporter, log)
 
   /** Time how long it takes to run various compilation tasks. */
-  private[this] def timed[T](label: String, log: Logger)(t: => T): T = {
+  private def timed[T](label: String, log: Logger)(t: => T): T = {
     val start = System.nanoTime
     val result = t
     val elapsed = System.nanoTime - start

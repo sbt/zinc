@@ -38,7 +38,7 @@ object RawURL {
   def apply(file: String)(value: => InputStream): URL =
     new URL("raw", null, -1, file, new RawStreamHandler(value))
 
-  private[this] final class RawStreamHandler(value: => InputStream) extends URLStreamHandler {
+  private final class RawStreamHandler(value: => InputStream) extends URLStreamHandler {
     override protected def openConnection(url: URL, p: Proxy): URLConnection =
       openConnection(url)
     override protected def openConnection(url: URL): URLConnection =

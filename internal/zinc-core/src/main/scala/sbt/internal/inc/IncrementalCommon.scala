@@ -42,10 +42,10 @@ private[inc] abstract class IncrementalCommon(
     profiler: RunProfiler
 ) extends InvalidationProfilerUtils {
   // Work around bugs in classpath handling such as the "currently" problematic -javabootclasspath
-  private[this] def enableShallowLookup: Boolean =
+  private def enableShallowLookup: Boolean =
     java.lang.Boolean.getBoolean("xsbt.skip.cp.lookup")
 
-  private[this] final val wrappedLog = new PrefixingLogger("[inv] ")(log)
+  private final val wrappedLog = new PrefixingLogger("[inv] ")(log)
   def debug(s: => String): Unit = if (options.relationsDebug) wrappedLog.debug(s) else ()
 
   final def iterations(state0: CycleState): Iterator[CycleState] =
@@ -589,7 +589,7 @@ private[inc] abstract class IncrementalCommon(
    * @param findClassDependencies
    * @return
    */
-  private[this] def includeTransitiveInitialInvalidations(
+  private def includeTransitiveInitialInvalidations(
       previousInvalidations: Set[String],
       currentInvalidations: Set[String],
       findClassDependencies: String => Set[String]

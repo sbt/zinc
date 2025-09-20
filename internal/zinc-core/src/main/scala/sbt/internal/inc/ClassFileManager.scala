@@ -190,8 +190,8 @@ object ClassFileManager {
     Files.createDirectories(tempDir)
     logger.debug(s"Created transactional ClassFileManager with tempDir = $tempDir")
 
-    private[this] val generatedFiles = new mutable.HashSet[File]
-    private[this] val movedFiles = new mutable.HashMap[File, File]
+    private val generatedFiles = new mutable.HashSet[File]
+    private val movedFiles = new mutable.HashMap[File, File]
 
     private def showFiles(files: Iterable[File]): String =
       files.map(f => s"\t${f.getName}").mkString("\n")

@@ -187,7 +187,7 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
     CompanionsF.read(in)
   }
 
-  private[this] object VersionF {
+  private object VersionF {
     val currentVersion = "7"
 
     def write(out: Writer): Unit = {
@@ -228,7 +228,7 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
     (file: VirtualFileRef) => Mapper.forFileV.write(writeMapper.mapBinaryFile(file))
   )
 
-  private[this] object StampsF {
+  private object StampsF {
     object Headers {
       val products = "product stamps"
       val sources = "source stamps"
@@ -307,7 +307,7 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
     }
   }
 
-  private[this] object APIsF {
+  private object APIsF {
     object Headers {
       val internal = "internal apis"
       val external = "external apis"
@@ -357,7 +357,7 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
     }
   }
 
-  private[this] object CompanionsF {
+  private object CompanionsF {
     object Headers {
       val internal = "internal companions"
       val external = "external companions"
@@ -400,7 +400,7 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
     }
   }
 
-  private[this] object SourceInfosF {
+  private object SourceInfosF {
     import VirtualFileUtil._
     object Headers {
       val infos = "source infos"
@@ -422,7 +422,7 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
   }
 
   // Path is no serializable, so this is currently stubbed.
-  private[this] object CompilationsF {
+  private object CompilationsF {
     object Headers {
       val compilations = "compilations"
     }
@@ -436,7 +436,7 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
     def read(in: BufferedReader): Compilations = Compilations.of(Nil)
   }
 
-  private[this] object MiniSetupF {
+  private object MiniSetupF {
     object Headers {
       val outputMode = "output mode"
       val outputDir = "output directories"
@@ -449,8 +449,8 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
       val extra = "extra"
     }
 
-    private[this] val singleOutputMode = "single"
-    private[this] val multipleOutputMode = "multiple"
+    private val singleOutputMode = "single"
+    private val multipleOutputMode = "multiple"
 
     val stringToFileHash = ObjectStringifier.stringToObj[FileHash]
     val fileHashToString = ObjectStringifier.objToString[FileHash]
@@ -554,7 +554,7 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
     }
   }
 
-  private[this] object ObjectStringifier {
+  private object ObjectStringifier {
     def objToString[T](o: T)(implicit fmt: sbinary.Format[T]) = {
       val baos = new ByteArrayOutputStream()
       val out = new sbinary.JavaOutput(baos)

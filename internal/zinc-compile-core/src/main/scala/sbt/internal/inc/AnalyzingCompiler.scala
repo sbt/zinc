@@ -53,7 +53,7 @@ final class AnalyzingCompiler(
 ) extends ScalaCompiler {
 
   /** Mechanism to work with compiler arguments. */
-  private[this] val compArgs = new CompilerArguments(scalaInstance, classpathOptions)
+  private val compArgs = new CompilerArguments(scalaInstance, classpathOptions)
 
   def onArgs(f: Seq[String] => Unit): AnalyzingCompiler =
     new AnalyzingCompiler(scalaInstance, provider, classpathOptions, f, classLoaderCache)
@@ -236,7 +236,7 @@ final class AnalyzingCompiler(
     ()
   }
 
-  private[this] def consoleClasspaths(
+  private def consoleClasspaths(
       classpath: Seq[VirtualFile],
       converter: FileConverter
   ): (String, String) = {
@@ -337,16 +337,16 @@ final class AnalyzingCompiler(
     }
   }
 
-  private[this] def getCompilerLoader(log: Logger): ClassLoader = {
+  private def getCompilerLoader(log: Logger): ClassLoader = {
     // could crash if the `CompilerBridge` tries to load classes
     // that are not in `scalaInstance.compilerJars`
     getDualLoader(scalaInstance.compilerJars.toList, scalaInstance.loaderCompilerOnly, log)
   }
 
-  private[this] def getDocLoader(log: Logger): ClassLoader =
+  private def getDocLoader(log: Logger): ClassLoader =
     getDualLoader(scalaInstance.allJars.toList, scalaInstance.loader, log)
 
-  private[this] def getDualLoader(
+  private def getDualLoader(
       scalaJars: List[File],
       scalaLoader: ClassLoader,
       log: Logger
@@ -368,7 +368,7 @@ final class AnalyzingCompiler(
     }
   }
 
-  private[this] def getBridgeClass(name: String, loader: ClassLoader) =
+  private def getBridgeClass(name: String, loader: ClassLoader) =
     Class.forName(name, true, loader)
 
   protected def createDualLoader(
@@ -470,4 +470,4 @@ object AnalyzingCompiler {
     name.endsWith(".scala") || name.endsWith(".java")
 }
 
-private[this] object IgnoreProgress extends CompileProgress
+private object IgnoreProgress extends CompileProgress

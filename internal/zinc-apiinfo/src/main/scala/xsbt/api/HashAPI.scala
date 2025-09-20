@@ -78,10 +78,10 @@ final class HashAPI private (
   import scala.collection.mutable
   import MurmurHash3.{ mix, stringHash, unorderedHash }
 
-  private[this] val visitedStructures = visitedMap[Structure]
-  private[this] val visitedClassLike = visitedMap[ClassLike]
-  private[this] def visitedMap[T] = new mutable.HashMap[T, List[Hash]]
-  private[this] def visit[T](map: mutable.Map[T, List[Hash]], t: T)(hashF: T => Unit): Unit = {
+  private val visitedStructures = visitedMap[Structure]
+  private val visitedClassLike = visitedMap[ClassLike]
+  private def visitedMap[T] = new mutable.HashMap[T, List[Hash]]
+  private def visit[T](map: mutable.Map[T, List[Hash]], t: T)(hashF: T => Unit): Unit = {
     map.put(t, hash :: map.getOrElse(t, Nil)) match {
       case Some(x :: _) => extend(x)
       case _ =>
@@ -93,45 +93,45 @@ final class HashAPI private (
     }
   }
 
-  private[this] final val ValHash = 1
-  private[this] final val VarHash = 2
-  private[this] final val DefHash = 3
-  private[this] final val ClassDefHash = 4
-  private[this] final val TypeDeclHash = 5
-  private[this] final val TypeAliasHash = 6
+  private final val ValHash = 1
+  private final val VarHash = 2
+  private final val DefHash = 3
+  private final val ClassDefHash = 4
+  private final val TypeDeclHash = 5
+  private final val TypeAliasHash = 6
 
-  private[this] final val PublicHash = 30
-  private[this] final val ProtectedHash = 31
-  private[this] final val PrivateHash = 32
-  private[this] final val UnqualifiedHash = 33
-  private[this] final val ThisQualifierHash = 34
-  private[this] final val IdQualifierHash = 35
+  private final val PublicHash = 30
+  private final val ProtectedHash = 31
+  private final val PrivateHash = 32
+  private final val UnqualifiedHash = 33
+  private final val ThisQualifierHash = 34
+  private final val IdQualifierHash = 35
 
-  private[this] final val IdPathHash = 20
-  private[this] final val SuperHash = 21
-  private[this] final val ThisPathHash = 22
+  private final val IdPathHash = 20
+  private final val SuperHash = 21
+  private final val ThisPathHash = 22
 
-  private[this] final val ValueParamsHash = 40
-  private[this] final val ClassPendingHash = 41
-  private[this] final val StructurePendingHash = 42
+  private final val ValueParamsHash = 40
+  private final val ClassPendingHash = 41
+  private final val StructurePendingHash = 42
 
-  private[this] final val EmptyTypeHash = 51
-  private[this] final val ParameterRefHash = 52
-  private[this] final val SingletonHash = 53
-  private[this] final val ProjectionHash = 54
-  private[this] final val ParameterizedHash = 55
-  private[this] final val AnnotatedHash = 56
-  private[this] final val PolymorphicHash = 57
-  private[this] final val ConstantHash = 58
-  private[this] final val ExistentialHash = 59
-  private[this] final val StructureHash = 60
+  private final val EmptyTypeHash = 51
+  private final val ParameterRefHash = 52
+  private final val SingletonHash = 53
+  private final val ProjectionHash = 54
+  private final val ParameterizedHash = 55
+  private final val AnnotatedHash = 56
+  private final val PolymorphicHash = 57
+  private final val ConstantHash = 58
+  private final val ExistentialHash = 59
+  private final val StructureHash = 60
 
-  private[this] val ClassHash = 70
+  private val ClassHash = 70
 
-  private[this] final val TrueHash = 97
-  private[this] final val FalseHash = 98
+  private final val TrueHash = 97
+  private final val FalseHash = 98
 
-  private[this] var hash: Hash = 0
+  private var hash: Hash = 0
 
   final def hashString(s: String): Unit = extend(stringHash(s))
   final def hashBoolean(b: Boolean): Unit = extend(if (b) TrueHash else FalseHash)
@@ -421,11 +421,11 @@ final class HashAPI private (
     else hashStructure0NoDefs
   }
 
-  private[this] final val hashStructure0WithDefsTrait = (s: Structure) =>
+  private final val hashStructure0WithDefsTrait = (s: Structure) =>
     hashStructure0(s, includeDefinitions = true, isTrait = true)
-  private[this] final val hashStructure0WithDefs = (s: Structure) =>
+  private final val hashStructure0WithDefs = (s: Structure) =>
     hashStructure0(s, includeDefinitions = true, isTrait = false)
-  private[this] final val hashStructure0NoDefs = (s: Structure) =>
+  private final val hashStructure0NoDefs = (s: Structure) =>
     hashStructure0(s, includeDefinitions = false, isTrait = false)
 
   def hashStructure0(structure: Structure, includeDefinitions: Boolean, isTrait: Boolean): Unit = {

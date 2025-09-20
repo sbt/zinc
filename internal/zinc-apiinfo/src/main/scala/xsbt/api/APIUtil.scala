@@ -39,7 +39,7 @@ object APIUtil {
     c.structure.parents.flatMap(Discovery.simpleName)
       .contains("java.lang.annotation.Annotation")
 
-  private[this] class HasMacro extends Visit {
+  private class HasMacro extends Visit {
     var hasMacro = false
 
     // Don't visit inherited definitions since we consider that a class
@@ -106,7 +106,7 @@ object APIUtil {
     }
   private val emptyModifiers =
     new Modifiers(false, false, false, false, false, false, false, false)
-  private[this] val emptyType = EmptyType.of()
+  private val emptyType = EmptyType.of()
   private val emptyTypeLzy = lzy(emptyType: Type)
   private val emptyDefs = Array.empty[Definition]
   private val emptyClassDefs = Array.empty[ClassDefinition]
@@ -142,5 +142,5 @@ object APIUtil {
       emptyClassLikeTemplate.typeParameters,
     )
 
-  private[this] def lzy[T <: AnyRef](t: T): Lazy[T] = SafeLazyProxy.strict(t)
+  private def lzy[T <: AnyRef](t: T): Lazy[T] = SafeLazyProxy.strict(t)
 }

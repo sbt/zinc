@@ -37,7 +37,7 @@ object ClasspathCache {
   }
   // For more safety, store both the time and size
   private type JarMetadata = (FileTime, Long)
-  private[this] val cacheMetadataJar = new ConcurrentHashMap[Path, (JarMetadata, FileHash)]()
+  private val cacheMetadataJar = new ConcurrentHashMap[Path, (JarMetadata, FileHash)]()
   private def emptyFileHash(file: Path) = FileHash.of(file, 42)
   private def genFileHash(file: Path, metadata: JarMetadata): FileHash = {
     val newHash = FileHash.of(file, Stamper.forFarmHashP(file).getValueId())

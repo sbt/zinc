@@ -59,7 +59,7 @@ final class ClassLoaderCache(private val abstractClassLoaderCache: AbstractClass
 
 private final class ClassLoaderCacheImpl(val commonParent: ClassLoader)
     extends AbstractClassLoaderCache {
-  private[this] val delegate =
+  private val delegate =
     new HashMap[List[File], Reference[CachedClassLoader]]
 
   /**
@@ -94,7 +94,7 @@ private final class ClassLoaderCacheImpl(val commonParent: ClassLoader)
     delegate.clear()
   }
 
-  private[this] def getFromReference(
+  private def getFromReference(
       files: List[File],
       stamps: List[Long],
       existingRef: Reference[CachedClassLoader],
@@ -105,7 +105,7 @@ private final class ClassLoaderCacheImpl(val commonParent: ClassLoader)
     else
       get(files, stamps, existingRef.get, mkLoader)
 
-  private[this] def get(
+  private def get(
       files: List[File],
       stamps: List[Long],
       existing: CachedClassLoader,
@@ -116,7 +116,7 @@ private final class ClassLoaderCacheImpl(val commonParent: ClassLoader)
     } else
       existing.loader
 
-  private[this] def newEntry(
+  private def newEntry(
       files: List[File],
       stamps: List[Long],
       mkLoader: () => ClassLoader
