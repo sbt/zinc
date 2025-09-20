@@ -68,7 +68,7 @@ import static sbt.internal.inc.zip.ZipUtils.*;
  * for Straight to Jar but it does not work in place (has to recreate zips) and does
  * not allow to disable compression that makes it not efficient enough.
  */
-public class ZipCentralDir {
+public final class ZipCentralDir {
 
     private final byte[] cen; // CEN & ENDHDR
     private END end;
