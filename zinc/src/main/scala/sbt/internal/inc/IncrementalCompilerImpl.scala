@@ -79,7 +79,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       extraOptions,
       conv,
       stamper.toOption.getOrElse(defaultStampReader),
-    )(logger)
+    )(using logger)
   }
 
   /**
@@ -134,7 +134,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       extraOptions,
       conv,
       stamper.toOption.getOrElse(defaultStampReader),
-    )(logger)
+    )(using logger)
   }
 
   /**
@@ -224,7 +224,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       extraInScala,
       converter,
       stampReader
-    )(logger)
+    )(using logger)
   }
 
   /**
@@ -316,7 +316,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       extraInScala,
       conveter,
       stampReader
-    )(logger)
+    )(using logger)
   }
 
   /**
@@ -491,9 +491,9 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         JarUtils.setupTempClassesDir(temporaryClassesDirectory)
         val (changed, analysis) =
           if (recompileAllJava) {
-            compileAllJava(MixedAnalyzingCompiler(config)(logger))
+            compileAllJava(MixedAnalyzingCompiler(config)(using logger))
           } else {
-            compileInternal(MixedAnalyzingCompiler(config)(logger))
+            compileInternal(MixedAnalyzingCompiler(config)(using logger))
           }
         CompileResult.of(analysis, currentSetup, changed)
       }

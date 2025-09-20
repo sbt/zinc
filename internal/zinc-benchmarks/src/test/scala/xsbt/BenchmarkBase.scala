@@ -24,20 +24,20 @@ import xsbti.compile.IncOptions
 @State(Scope.Benchmark)
 class BenchmarkBase extends BridgeProviderSpecification {
   /* Necessary data to run a benchmark. */
-  @Param(Array("")) var _tempDir: String = _
-  var _project: BenchmarkProject = _
-  var _subprojectToRun: String = _
+  @Param(Array("")) var _tempDir: String = compiletime.uninitialized
+  var _project: BenchmarkProject = compiletime.uninitialized
+  var _subprojectToRun: String = compiletime.uninitialized
   @Param(Array("true"))
-  var zincEnabled: Boolean = _
+  var zincEnabled: Boolean = compiletime.uninitialized
 
   /* Data filled in by the benchmark setup. */
-  var _dir: File = _
-  var _setup: ProjectSetup = _
-  var _compilerSetup: CompilerSetup = _
-  var _subprojectsSetup: List[ProjectSetup] = _
+  var _dir: File = compiletime.uninitialized
+  var _setup: ProjectSetup = compiletime.uninitialized
+  var _compilerSetup: CompilerSetup = compiletime.uninitialized
+  var _subprojectsSetup: List[ProjectSetup] = compiletime.uninitialized
 
   /* Java thread affinity (install JNA to run this benchmark). */
-  var _lock: AffinityLock = _
+  var _lock: AffinityLock = compiletime.uninitialized
 
   @Setup(Level.Trial)
   def setUpCompilerRuns(): Unit = {

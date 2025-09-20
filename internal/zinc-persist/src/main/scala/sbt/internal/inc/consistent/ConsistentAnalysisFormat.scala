@@ -212,7 +212,8 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
       writeMaybeSortedStringMap(
         out,
         n,
-        if (reproducible) m.mapValues(_.withCompilationTimestamp(DefaultCompilationTimestamp))
+        if (reproducible)
+          m.view.mapValues(_.withCompilationTimestamp(DefaultCompilationTimestamp)).toMap
         else m
       ) { ac =>
         writeAnalyzedClass(out, ac, storeApis)

@@ -20,9 +20,9 @@ object DefaultShowAPI {
     java.lang.Integer.parseInt(sys.props.get("sbt.inc.apidiff.depth").get)
   } getOrElse 2
 
-  def apply(d: Definition) = ShowAPI.showDefinition(d)(defaultNesting)
-  def apply(d: Type) = ShowAPI.showType(d)(defaultNesting)
-  def apply(a: ClassLike) = ShowAPI.showApi(a)(defaultNesting)
+  def apply(d: Definition) = ShowAPI.showDefinition(d)(using defaultNesting)
+  def apply(d: Type) = ShowAPI.showType(d)(using defaultNesting)
+  def apply(a: ClassLike) = ShowAPI.showApi(a)(using defaultNesting)
 }
 
 object ShowAPI {
@@ -192,11 +192,11 @@ object ShowAPI {
   }
 
   // limit nesting to prevent cycles and generally keep output from getting humongous
-  private def showNestedType(tp: Type)(implicit nesting: Int) = showType(tp)(nesting - 1)
+  private def showNestedType(tp: Type)(implicit nesting: Int) = showType(tp)(using (nesting - 1))
   private def showNestedTypeParameter(tp: TypeParameter)(implicit nesting: Int) =
-    showTypeParameter(tp)(nesting - 1)
+    showTypeParameter(tp)(using (nesting - 1))
   private def showNestedTypeParameters(tps: Seq[TypeParameter])(implicit nesting: Int) =
-    showTypeParameters(tps)(nesting - 1)
+    showTypeParameters(tps)(using (nesting - 1))
   private def showNestedDefinition(d: Definition)(implicit nesting: Int) =
-    showDefinition(d)(nesting - 1)
+    showDefinition(d)(using (nesting - 1))
 }
