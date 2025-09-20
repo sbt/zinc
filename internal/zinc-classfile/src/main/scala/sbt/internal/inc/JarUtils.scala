@@ -274,7 +274,7 @@ object JarUtils {
     IO.move(prevJar, outputJar)
   }
 
-  private var tempDir: Path = _
+  private var tempDir: Path = compiletime.uninitialized
 
   /**
    * Ensures that temporary directory exists.

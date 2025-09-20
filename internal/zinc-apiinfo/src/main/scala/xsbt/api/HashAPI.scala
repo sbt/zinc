@@ -156,7 +156,7 @@ final class HashAPI private (
         }
         unorderedHash(new HashIterator(ts.iterator))
       case _ =>
-        unorderedHash(ts.toList.map { t =>
+        unorderedHash(ts.iterator.to(List).map { t =>
           hash = 1
           hashF(t)
           finalizeHash
