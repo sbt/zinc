@@ -16,7 +16,7 @@ package inc
 import java.io.File
 import xsbti.ArtifactInfo.ScalaOrganization
 import sbt.io.IO
-import scala.language.reflectiveCalls
+import scala.reflect.Selectable.reflectiveSelectable
 import sbt.internal.inc.classpath.ClasspathUtil
 
 /**

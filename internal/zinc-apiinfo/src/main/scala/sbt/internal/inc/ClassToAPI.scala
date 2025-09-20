@@ -384,7 +384,7 @@ object ClassToAPI {
   ): api.Def = {
     val varArgPosition = if (varArgs) paramTypes.length - 1 else -1
     val isVarArg = List.tabulate(paramTypes.length)(_ == varArgPosition)
-    val pa = (paramAnnots, paramTypes, isVarArg).zipped map {
+    val pa = paramAnnots.lazyZip(paramTypes).lazyZip(isVarArg).map {
       case (a, p, v) => parameter(a, p, v)
     }
     val params = api.ParameterList.of(pa.toArray, false)
