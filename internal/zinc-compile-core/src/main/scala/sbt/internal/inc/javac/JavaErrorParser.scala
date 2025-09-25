@@ -173,7 +173,7 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
   private def findFileSource(f: String): String = {
     // If a file looks like an absolute path, leave it as is.
     def isAbsolute(f: String) =
-      (f startsWith "/") || (f matches """[^\\]+:\\.*""")
+      (f.startsWith("/")) || (f.matches("""[^\\]+:\\.*"""))
     // TODO - we used to use existence checks, that may be the right way to go
     if (isAbsolute(f)) f
     else (new File(relativeDir, f)).getAbsolutePath

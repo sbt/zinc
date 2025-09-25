@@ -61,7 +61,7 @@ object UsedNames {
     def isEmpty = map.isEmpty
     def toMultiMap = map
     def ++(other: UsedNames) = fromMultiMap(map ++ other.iterator)
-    def --(classes: Iterable[String]) = fromMultiMap(map -- classes)
+    def --(classes: Iterable[String]) = fromMultiMap(map.toMap -- classes)
     def iterator = map.iterator
     def hasAffectedNames(modifiedNames: ModifiedNames, from: String): Boolean =
       map(from).iterator.exists(modifiedNames.isModified)

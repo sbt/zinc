@@ -295,7 +295,7 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
     val diagnostics = new DiagnosticsReporter(reporter)
 
     /* Local Java compiler doesn't accept `-J<flag>` options, strip them. */
-    val (invalidOptions, cleanedOptions) = options partition (_ startsWith "-J")
+    val (invalidOptions, cleanedOptions) = options partition (_.startsWith("-J"))
     if (invalidOptions.nonEmpty) {
       log.warn("Javac is running in 'local' mode. These flags have been removed:")
       log.warn(invalidOptions.mkString("\t", ", ", ""))

@@ -116,7 +116,7 @@ class ClassCanonicalNameSpec extends AnyFlatSpec with Matchers with Diagrams {
   // Strip the shared prefix to the class name
   def strip(s: String) = {
     val prefix = "sbt.internal.inc.p"
-    if (s startsWith prefix) s stripPrefix prefix drop 2
+    if (s.startsWith(prefix)) s stripPrefix prefix drop 2
     else s
   }
 }

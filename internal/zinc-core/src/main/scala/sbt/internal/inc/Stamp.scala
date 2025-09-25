@@ -90,7 +90,7 @@ object FarmHash {
     fromLong(HashUtil.farmHash(path))
 
   def fromString(s: String): Option[FarmHash] = {
-    val m = Pattern.pattern matcher s
+    val m = Pattern.pattern.matcher(s)
     if (m.matches()) Some(FarmHash.fromLong(BoxedLong.parseUnsignedLong(m.group(1), 16)))
     else None
   }
@@ -116,8 +116,8 @@ private[sbt] object Hash {
     new Hash(IOHash toHex IOHash(f)) // assume toHex returns a hex string
 
   def fromString(s: String): Option[Hash] = {
-    val m = Pattern.pattern matcher s
-    if (m.matches()) Some(new Hash(m group 1))
+    val m = Pattern.pattern.matcher(s)
+    if (m.matches()) Some(new Hash(m.group(1)))
     else None
   }
 

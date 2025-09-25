@@ -190,7 +190,7 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
   }
 
   def messageMatches(p: Problem, lineno: Int, message: Option[String] = None): Boolean = {
-    def messageCheck = message forall (message => p.message contains message)
+    def messageCheck = message forall (message => p.message.contains(message))
     def lineNumberCheck = p.position.line.isPresent && (p.position.line.get == lineno)
     lineNumberCheck && messageCheck
   }
@@ -201,7 +201,7 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
       colno: Int,
       lineContent: Option[String] = None
   ): Boolean = {
-    def lineContentCheck = lineContent forall (content => p.position.lineContent contains content)
+    def lineContentCheck = lineContent forall (content => p.position.lineContent.contains(content))
     def lineNumberCheck = p.position.line.isPresent && (p.position.line.get == lineno)
     def columnCheck = p.position.pointer.isPresent && (p.position.pointer.get == colno)
     lineNumberCheck && columnCheck && lineContentCheck
