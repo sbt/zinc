@@ -80,7 +80,7 @@ object MiniSetupUtil {
       private def comparable(
           a: Array[T2[String, String]]
       ): Set[(String, String)] = {
-        a.filterNot(_.get1 startsWith "info.")
+        a.filterNot(_.get1.startsWith("info."))
           .map(v => v.get1() -> v.get2())
           .toSet
       }

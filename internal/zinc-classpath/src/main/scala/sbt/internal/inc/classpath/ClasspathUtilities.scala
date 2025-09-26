@@ -180,7 +180,7 @@ object ClasspathUtil {
     makeString(paths, java.io.File.pathSeparator)
   private[sbt] def makeString(paths: Seq[Path], sep: String): String = {
     val separated = paths.map(_.toAbsolutePath.toString)
-    separated.find(_ contains sep).foreach(p => sys.error(s"Path '$p' contains separator '$sep'"))
+    separated.find(_.contains(sep)).foreach(p => sys.error(s"Path '$p' contains separator '$sep'"))
     separated.mkString(sep)
   }
 
@@ -200,9 +200,9 @@ object ClasspathUtil {
     }
     val basePath = toAbsolutePath(base).normalize
     val filePath = toAbsolutePath(file).normalize
-    if (filePath startsWith basePath) {
+    if (filePath.startsWith(basePath)) {
       val relativePath =
-        catching(classOf[IllegalArgumentException]) opt (basePath relativize filePath)
+        catching(classOf[IllegalArgumentException]) opt (basePath.relativize(filePath))
       relativePath map (_.toString)
     } else None
   }

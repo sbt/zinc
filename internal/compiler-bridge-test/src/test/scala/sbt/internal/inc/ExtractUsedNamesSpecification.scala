@@ -236,7 +236,7 @@ class ExtractUsedNamesSpecification
 
     def findPatMatUsages(in: String): Set[String] = {
       val (_, callback) = compileSrcs(List(List(sealedClass, in)))
-      val clientNames = callback.usedNamesAndScopes.filterKeys(!_.startsWith("base."))
+      val clientNames = callback.usedNamesAndScopes.view.filterKeys(!_.startsWith("base.")).toMap
 
       val names = clientNames.flatMap {
         case (_, usages) =>

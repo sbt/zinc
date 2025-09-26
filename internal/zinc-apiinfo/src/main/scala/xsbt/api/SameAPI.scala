@@ -101,7 +101,8 @@ class SameAPI(includePrivate: Boolean, includeParamNames: Boolean) {
   ): Boolean =
     debug(
       sameStrings(a.keySet, b.keySet),
-      "\tDefinition strings differed (a: " + (a.keySet -- b.keySet) + ", b: " + (b.keySet -- a
+      "\tDefinition strings differed (a: " + (a.keySet.toSet -- b.keySet) + ", b: " + (b.keySet
+        .toSet -- a
         .keySet) + ")"
     ) &&
       zippedEntries(a, b).forall(tupled(sameNamedDefinitions))

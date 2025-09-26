@@ -105,8 +105,8 @@ class NameHashingSpecification extends UnitSpec {
     val nameHashes2 = nameHashing.nameHashes(classBar2)
     assertNameHashEqualForRegularName("Bar", nameHashes1, nameHashes2)
     assertNameHashEqualForRegularName("foo", nameHashes1, nameHashes2)
-    nameHashes1 namesIn UseScope.Default should not contain "bar"
-    nameHashes2 namesIn UseScope.Default should contain("bar")
+    nameHashes1.namesIn(UseScope.Default) should not contain "bar"
+    nameHashes2.namesIn(UseScope.Default) should contain("bar")
   }
 
   /**

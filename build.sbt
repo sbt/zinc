@@ -91,6 +91,16 @@ def baseSettings: Seq[Setting[?]] = Seq(
   testFrameworks += new TestFramework("verify.runner.Framework"),
   compile / javacOptions ++= Seq("-Xlint", "-Xlint:-serial"),
   Test / publishArtifact := false,
+  Compile / compile / scalacOptions ++= {
+    scalaBinaryVersion.value match {
+      case "3" =>
+        Seq(
+          "-Werror",
+        )
+      case _ =>
+        Nil
+    }
+  },
   scalacOptions += {
     scalaBinaryVersion.value match {
       case "2.10" | "2.11" =>

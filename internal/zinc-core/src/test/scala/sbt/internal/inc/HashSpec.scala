@@ -21,5 +21,5 @@ class HashSpec extends UnitSpec {
 
   private def reject(s: String) = assert(run(s).isEmpty)
   private def accept(s: String) = assert(run(s) exists (_.hexHash == s))
-  private def run(s: String) = Hash fromString s"hash($s)"
+  private def run(s: String) = Hash.fromString(s"hash($s)")
 }
