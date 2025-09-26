@@ -241,7 +241,8 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
       case (p, src :: products, i) => p.checkClasses(i, dropRightColon(src), products)
     },
     onArgs("checkMainClasses") {
-      case (p, src :: products, i) => p.checkMainClasses(i, dropRightColon(src), products)
+      case (p, javaV :: src :: products, i) =>
+        p.checkMainClasses(i, javaV, dropRightColon(src), products)
     },
     onArgs("checkProducts") {
       case (p, src :: products, i) => p.checkProducts(i, dropRightColon(src), products)
@@ -455,8 +456,14 @@ case class ProjectStructure(
       ()
     }
 
-  def checkMainClasses(i: IncState, src: String, expected: List[String]): Future[Unit] =
+  def checkMainClasses(
+      i: IncState,
+      javaV: String,
+      src: String,
+      expected: List[String]
+  ): Future[Unit] =
     compile(i).map { analysis =>
+      val is25Plus = scala.util.Properties.isJavaAtLeast("25")
       def mainClasses(src: String): Set[String] =
         analysis.infos.get(converter.toVirtualFile(baseDirectory / src)).getMainClasses.toSet
       def assertClasses(expected: Set[String], actual: Set[String]) = {
@@ -464,7 +471,8 @@ case class ProjectStructure(
         assert(expected == actual, msg)
       }
 
-      assertClasses(expected.toSet, mainClasses(src))
+      if (is25Plus == (javaV == "25")) assertClasses(expected.toSet, mainClasses(src))
+      else ()
       ()
     }
 
