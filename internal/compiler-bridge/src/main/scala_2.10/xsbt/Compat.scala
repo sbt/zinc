@@ -110,6 +110,8 @@ abstract class Compat {
 
     // unexpandedName replaces originalName in 2.11
     @inline final def unexpandedName: Name = sym.originalName
+
+    @inline final def isAbstract: Boolean = false
   }
 
   val DummyValue = 0
