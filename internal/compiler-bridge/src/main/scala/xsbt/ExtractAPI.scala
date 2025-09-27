@@ -80,6 +80,18 @@ class ExtractAPI[GlobalType <: Global](
   private[this] val allNonLocalClassSymbols = perRunCaches.newSet[Symbol]()
   private[this] val allNonLocalClassesInSrc = perRunCaches.newSet[xsbti.api.ClassLike]()
   private[this] val _mainClasses = perRunCaches.newSet[String]()
+  private[this] val javaVersion: Int =
+    try {
+      val version = sys.props("java.specification.version").split("\\.").toList.map(_.toInt)
+      version match {
+        case 1 :: minor :: _ => minor
+        case major :: _      => major
+        case _               => 0
+      }
+    } catch {
+      case _: Throwable => 0
+    }
+  private[this] def isJava25Plus: Boolean = javaVersion >= 25
 
   /**
    * Implements a work-around for https://github.com/sbt/sbt/issues/823
@@ -775,7 +787,13 @@ class ExtractAPI[GlobalType <: Global](
     allNonLocalClassesInSrc += classWithMembers
     allNonLocalClassSymbols += sym
 
-    if (sym.isStatic && defType == DefinitionType.Module && definitions.hasJavaMainMethod(sym)) {
+    if (isJava25Plus) {
+      if (hasJava25MainMethod(sym)) {
+        _mainClasses += name
+      }
+    } else if (
+      sym.isStatic && defType == DefinitionType.Module && definitions.hasJavaMainMethod(sym)
+    ) {
       _mainClasses += name
     }
 
@@ -789,6 +807,18 @@ class ExtractAPI[GlobalType <: Global](
     ) // use original symbol (which is a term symbol when `c.isModule`) for `name` and other non-classy stuff
     classDef
   }
+
+  private[this] def hasJava25MainMethod(sym: Symbol): Boolean =
+    !sym.isAbstract && sym.tpe.member(nme.main).alternatives.exists(isJava25MainMethod)
+
+  private[this] def isJava25MainMethod(sym: Symbol): Boolean =
+    (sym.name == nme.main) && (sym.info match {
+      case MethodType(Nil, restpe) => restpe.typeSymbol == definitions.UnitClass
+      case MethodType(p :: Nil, restpe) =>
+        definitions.isArrayOfSymbol(p.tpe, definitions.StringClass) && restpe
+          .typeSymbol == definitions.UnitClass
+      case _ => false
+    })
 
   // TODO: could we restrict ourselves to classes, ignoring the term symbol for modules,
   // since everything we need to track about a module is in the module's class (`moduleSym.moduleClass`)?
