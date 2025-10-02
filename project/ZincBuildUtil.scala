@@ -40,6 +40,7 @@ object ZincBuildUtil {
 
   def sampleProjectSettings(ext: String) =
     Seq(
+      publish / skip := true,
       (Compile / scalaSource) := baseDirectory.value / "src",
       genTestResTask := {
         def resurcesDir = (file("zinc") / "src" / "test" / "resources" / "bin").getAbsoluteFile

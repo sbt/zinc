@@ -130,7 +130,15 @@ lazy val aggregated: Seq[ProjectReference] = compilerInterface.projectRefs ++
   zincCore.projectRefs ++
   zincPersist.projectRefs ++
   zincTesting.projectRefs ++
-  zinc.projectRefs
+  compilerBridgeTest.projectRefs ++
+  zinc.projectRefs ++ Seq[ProjectReference](
+    classesDep1,
+    compilerBridgeScala213Bin,
+    compilerBridgeScala3Bin,
+    jar1,
+    jar2,
+    zincScripted3
+  )
 
 lazy val zincRoot: Project = (project in file("."))
   .aggregate(aggregated: _*)
@@ -230,9 +238,12 @@ lazy val zinc = (projectMatrix in (zincRootPath / "zinc"))
 def resGenFile = (zincRootPath / "zinc" / "resGenerator").getAbsoluteFile
 
 lazy val jar1 = (project in resGenFile / "jar1").settings(sampleProjectSettings("jar"))
+  .disablePlugins(HeaderPlugin)
 lazy val jar2 = (project in resGenFile / "jar2").settings(sampleProjectSettings("jar"))
+  .disablePlugins(HeaderPlugin)
 lazy val classesDep1 =
   (project in resGenFile / "classesDep1").settings(sampleProjectSettings("zip"))
+    .disablePlugins(HeaderPlugin)
 
 lazy val zinc3 = zinc.jvm(scala3)
 
@@ -483,6 +494,7 @@ lazy val compilerBridgeScala3Bin = (project in internalPath / "compilerBridgeSca
  * (Zinc API Info, which transitively depends on IO).
  */
 lazy val compilerBridgeTest = (projectMatrix in internalPath / "compiler-bridge-test")
+  .disablePlugins(HeaderPlugin)
   .dependsOn(
     zinc3 % "compile->compile;test->test",
     compilerInterface.jvm(false)
@@ -611,6 +623,7 @@ lazy val zincClassfile = (projectMatrix in internalPath / "zinc-classfile")
 lazy val zincScripted = (projectMatrix in internalPath / "zinc-scripted")
   .dependsOn(zinc % "compile;test->test")
   .enablePlugins(BuildInfoPlugin)
+  .disablePlugins(HeaderPlugin)
   .settings(
     baseSettings,
     publish / skip := true,
