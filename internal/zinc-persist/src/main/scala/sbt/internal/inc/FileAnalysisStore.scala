@@ -66,6 +66,7 @@ object FileAnalysisStore {
         Using.zipInputStream(new FileInputStream(file)) { inputStream =>
           lookupEntry(inputStream, analysisFileName)
           val reader = CodedInputStream.newInstance(inputStream)
+          reader.setRecursionLimit(200)
           val (analysis, miniSetup) = format.read(reader)
           val analysisWithAPIs = allCatch.opt {
             lookupEntry(inputStream, companionsFileName)
