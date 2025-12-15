@@ -145,7 +145,7 @@ final class AnalyzingCompiler(
     val cp = classpath.map(converter.toPath)
     // hold reference to compiler bridge class loader to prevent its being evicted
     // from the compiler cache (sbt/zinc#914)
-    val loader = getDocLoader(log)
+    val loader = getAllJarLoader(log)
     loadService(classOf[ScaladocInterface2], loader) match {
       case Some(intf) =>
         val arguments =
@@ -192,7 +192,7 @@ final class AnalyzingCompiler(
     val values = values0.toArray[Any].asInstanceOf[Array[AnyRef]]
     // hold reference to compiler bridge class loader to prevent its being evicted
     // from the compiler cache (sbt/zinc#914)
-    val classLoader = getCompilerLoader(log)
+    val classLoader = getAllJarLoader(log)
 
     loadService(classOf[ConsoleInterface1], classLoader) match {
       case Some(intf) =>
@@ -343,7 +343,7 @@ final class AnalyzingCompiler(
     getDualLoader(scalaInstance.compilerJars.toList, scalaInstance.loaderCompilerOnly, log)
   }
 
-  private def getDocLoader(log: Logger): ClassLoader =
+  private def getAllJarLoader(log: Logger): ClassLoader =
     getDualLoader(scalaInstance.allJars.toList, scalaInstance.loader, log)
 
   private def getDualLoader(
