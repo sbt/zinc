@@ -272,7 +272,14 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
 
   val nonProblem: Parser[Unit] = {
     val skipLine =
-      ("Loading source file" | "Constructing Javadoc information") ~ """[^\r\n]*(\r\n|\n)?""".r
+      (
+        "Loading source file" |
+          "Constructing Javadoc information" |
+          "Building index for all the packages and classes" |
+          "Standard Doclet version" |
+          "Building tree for all the packages and classes" |
+          "Generating"
+      ) ~ """[^\r\n]*(\r\n|\n)?""".r
     rep(skipLine) ^^ (_ => ())
   }
 
