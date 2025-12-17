@@ -22,6 +22,7 @@ class JavaProcessLoggerSpec extends UnitSpec {
   "The javac process logger" should "parse regular semantic errors" in logSemanticErrors()
   it should "parse semantic errors passed in one by one" in logSeparateSemanticErrors()
   it should "log errors that could not be parsed" in logUnparsableErrors()
+  it should "ignore javadoc info logs" in ignoreJavadocInfoLogs()
 
   def logSemanticErrors(): Unit = {
     val reporter = new CollectingReporter()
@@ -86,6 +87,28 @@ class JavaProcessLoggerSpec extends UnitSpec {
       .messages(Level.Warn)(0)
       .contains("javadoc: error - invalid flag: -target") shouldBe true
     errorLogger.messages(Level.Warn)(1).contains("javadoc exited with exit code -1") shouldBe true
+    ()
+  }
+
+  def ignoreJavadocInfoLogs(): Unit = {
+    val reporter = new CollectingReporter()
+    val errorLogger = new CollectingLogger()
+    val javacLogger = new JavacLogger(errorLogger, reporter, cwd = new File("."))
+
+    val javadocLogs =
+      """|Loading source file /foo/bar/MyClass.java...
+         |Constructing Javadoc information...
+         |Building index for all the packages and classes...
+         |Standard Doclet version 21.0.4+7-LTS
+         |Building tree for all the packages and classes...
+         |Generating /foo/bar/MyClass.html...
+         |""".stripMargin
+
+    javacLogger.err(javadocLogs)
+    javacLogger.flush("javadoc", 0)
+
+    reporter.problems shouldBe empty
+    errorLogger.messages shouldBe empty
     ()
   }
 }
