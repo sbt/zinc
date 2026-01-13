@@ -159,7 +159,8 @@ final class CompilerArguments(
 
   private val isScalaLibrary: Path => Boolean = file => {
     val name = file.getFileName.toString
-    name.contains(ArtifactInfo.ScalaLibraryID) ||
+    name == s"${ArtifactInfo.ScalaLibraryID}.jar" ||
+    name.startsWith(s"${ArtifactInfo.ScalaLibraryID}-") ||
     scalaInstance.libraryJars.exists(_.getName == name)
   }
 }
