@@ -15,6 +15,7 @@ package inc
 
 import java.lang.reflect.Field
 import scala.collection._
+import scala.reflect.ClassTag
 
 object ReflectUtilities {
 
@@ -64,15 +65,15 @@ object ReflectUtilities {
   }
 
   /**
-   * Collects all `val`s of type `T` defined on value `self`.
+   * Collects all `val`s of type `A` defined on value `self`.
    * The returned Map maps the name of each `val` to its value.
-   * This requires an available `Manifest` for `T` and depends on scalac implementation details to determine
+   * This requires an available `ClassTag` for `A` and depends on scalac implementation details to determine
    * what is a `val` using only Java reflection.
    */
-  def allVals[T](
+  def allVals[A1: ClassTag](
       self: AnyRef
-  )(implicit mt: scala.reflect.Manifest[T]): immutable.SortedMap[String, T] =
-    allValsC(self, mt.runtimeClass).asInstanceOf[immutable.SortedMap[String, T]]
+  ): immutable.SortedMap[String, A1] =
+    allValsC(self, summon[ClassTag[A1]].runtimeClass).asInstanceOf[immutable.SortedMap[String, A1]]
 }
 
 /** An exception to indicate that while traversing the `val`s for an instance of `className`, the `val` named `valName` was `null`. */
