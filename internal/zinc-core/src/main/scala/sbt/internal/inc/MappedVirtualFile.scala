@@ -125,7 +125,7 @@ class MappedFileConverter(rootPaths: Map[String, Path], allowMachinePath: Boolea
   def toDirectory(path: Path, encodedPath: String) = {
     val list = view.list(Glob(path, RecursiveGlob), IsRegularFile && IsNotHidden)
       .map(_._1)
-      .sortBy(x => x.toUri().toString())
+      .sorted
     val items = list.map(toVirtualFile)
     MappedDirectory(encodedPath, rootPaths, items.toList)
   }
