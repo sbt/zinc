@@ -23,7 +23,7 @@ class MappedVirtualFile(encodedPath: String, rootPathsMap: Map[String, Path])
     extends BasicVirtualFileRef(encodedPath)
     with PathBasedFile {
   private def path: Path = MappedVirtualFile.toPath(encodedPath, rootPathsMap)
-  override def contentHash: Long = HashUtil.farmHash(path)
+  override lazy val contentHash: Long = HashUtil.farmHash(path)
   override def sizeBytes: Long = Files.size(path)
   override lazy val contentHashStr: String = HashUtil.sha256HashStr(input)
   override def input(): InputStream = Files.newInputStream(path)
@@ -122,11 +122,25 @@ class MappedFileConverter(rootPaths: Map[String, Path], allowMachinePath: Boolea
     }
   }
 
+  // Optimized version that skips isDirectory check - use when path is known to be a regular file
+  private def toVirtualFileForRegularFile(path: Path): VirtualFile = {
+    rootPaths2.find { case (_, rootPath) => path.startsWith(rootPath) } match {
+      case Some((key, rootPath)) =>
+        val encodedPath = s"$${$key}/${rootPath.relativize(path)}".replace('\\', '/')
+        MappedVirtualFile(encodedPath, rootPaths)
+      case _ =>
+        if (allowMachinePath) {
+          val encodedPath = s"$path".replace('\\', '/')
+          MappedVirtualFile(encodedPath, rootPaths)
+        } else sys.error(s"$path cannot be mapped using the root paths $rootPaths")
+    }
+  }
+
   def toDirectory(path: Path, encodedPath: String) = {
     val list = view.list(Glob(path, RecursiveGlob), IsRegularFile && IsNotHidden)
       .map(_._1)
-      .sortBy(x => x.toUri().toString())
-    val items = list.map(toVirtualFile)
+      .sorted
+    val items = list.map(toVirtualFileForRegularFile)
     MappedDirectory(encodedPath, rootPaths, items.toList)
   }
 }
