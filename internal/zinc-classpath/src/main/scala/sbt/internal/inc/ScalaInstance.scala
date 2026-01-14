@@ -268,8 +268,23 @@ object ScalaInstance {
   def allJars(scalaHome: File): Seq[File] =
     IO.listFiles(scalaLib(scalaHome)).toIndexedSeq.filter(f => !excludeList(f.getName))
 
-  private def scalaLib(scalaHome: File): File =
-    new File(scalaHome, "lib")
+  private def scalaLib(scalaHome: File): File = {
+    val candidates = Seq(
+      new File(scalaHome, "lib"),
+      new File(scalaHome, "build/pack/lib"),
+      new File(scalaHome, "dist/target/pack/lib")
+    )
+    candidates.find(d => d.isDirectory && hasScalaLibrary(d))
+      .getOrElse(new File(scalaHome, "lib"))
+  }
+
+  private def hasScalaLibrary(dir: File): Boolean = {
+    val files = Option(dir.listFiles()).getOrElse(Array.empty[File])
+    files.exists { f =>
+      val name = f.getName
+      name == "scala-library.jar" || name.startsWith("scala3-library_3")
+    }
+  }
 
   private val excludeList: Set[String] = Set(
     "scala-actors.jar",
@@ -283,8 +298,17 @@ object ScalaInstance {
   /** Get a scala artifact from a given directory. */
   def scalaJar(scalaHome: File, name: String) =
     new File(scalaLib(scalaHome), name)
-  private def libraryJar(scalaHome: File) =
-    scalaJar(scalaHome, "scala-library.jar")
+
+  private def libraryJar(scalaHome: File): File = {
+    val libDir = scalaLib(scalaHome)
+    val scala2Lib = new File(libDir, "scala-library.jar")
+    if (scala2Lib.exists()) scala2Lib
+    else {
+      val files = Option(libDir.listFiles()).getOrElse(Array.empty[File])
+      files.find(_.getName.startsWith("scala3-library_3"))
+        .getOrElse(scala2Lib)
+    }
+  }
 
   /** Gets the version of Scala in the compiler.properties file from the loader.*/
   private def actualVersion(scalaLoader: ClassLoader)(label: String) = {
