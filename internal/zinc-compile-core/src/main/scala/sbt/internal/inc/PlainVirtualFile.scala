@@ -18,7 +18,7 @@ import java.nio.file.{ Files, Path, Paths }
 import xsbti.{ BasicVirtualFileRef, FileConverter, PathBasedFile, VirtualFileRef, VirtualFile }
 
 class PlainVirtualFile(path: Path) extends BasicVirtualFileRef(path.toString) with PathBasedFile {
-  override def contentHash: Long = HashUtil.farmHash(path)
+  override lazy val contentHash: Long = HashUtil.farmHash(path)
   override def sizeBytes: Long = Files.size(path)
   override lazy val contentHashStr: String = HashUtil.sha256HashStr(input)
   override def name(): String = path.getFileName.toString
