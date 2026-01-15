@@ -71,6 +71,30 @@ object ConsistentFileAnalysisStore {
       parallelism: Int = Runtime.getRuntime.availableProcessors()
   ) extends XAnalysisStore {
 
+    private def moveWithRetry(source: File, target: File): Unit = {
+      val retries = 5
+      val delayMs = 100L
+      var lastException: Exception = null
+      var i = 0
+      while (i < retries) {
+        try {
+          IO.move(source, target)
+          return // Success, exit
+        } catch {
+          case e: java.io.FileNotFoundException
+              if e.getMessage != null && e.getMessage.contains("Access is denied") =>
+            lastException = e
+            if (i < retries - 1) {
+              Thread.sleep(delayMs)
+            }
+          case e: Exception =>
+            throw e // Re-throw other exceptions immediately
+        }
+        i += 1
+      }
+      if (lastException != null) throw lastException
+    }
+
     def set(analysisContents: AnalysisContents): Unit = {
       val analysis = analysisContents.getAnalysis
       val setup = analysisContents.getMiniSetup
@@ -83,7 +107,7 @@ object ConsistentFileAnalysisStore {
         format.write(ser, analysis, setup)
         gout.close()
       } finally fout.close
-      IO.move(tmpAnalysisFile, file)
+      moveWithRetry(tmpAnalysisFile, file) // Changed from IO.move(tmpAnalysisFile, file)
     }
 
     def get(): Optional[AnalysisContents] = {
