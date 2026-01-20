@@ -227,6 +227,73 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
     }
   }
 
+  it should "recompile subclass when superclass changes from abstract class to trait" in withTmpDir {
+    tmp =>
+      val project = VirtualSubproject(tmp.toPath / "p1")
+      val comp = project.setup.createCompiler()
+      try {
+        // Initial sources: A is an abstract class, B extends A
+        val aAbstractClass =
+          """abstract class A
+          |object Test { new B }""".stripMargin
+
+        val aAsTrait =
+          """trait A
+          |object Test { new B }""".stripMargin
+
+        val bSource = "class B extends A"
+
+        val f1 = StringVirtualFile("A.scala", aAbstractClass)
+        val f1Modified = StringVirtualFile("A.scala", aAsTrait)
+        val f2 = StringVirtualFile("B.scala", bSource)
+
+        val res1 = comp.compile(f1, f2)
+        val res2 = comp.compile(f1Modified, f2)
+
+        assert(recompiled(res1, res2) == Set("A", "B", "Test"))
+      } finally {
+        comp.close()
+      }
+  }
+
+  it should "not recompile all files in a cycle for non-API changes" in withTmpDir { tmp =>
+    val project = VirtualSubproject(tmp.toPath / "p1")
+    val comp = project.setup.createCompiler()
+    try {
+      // Create a cyclic dependency: X references Y, Y references X
+      val xSource =
+        """class X {
+          |  def x: Y = null
+          |  def impl = 1
+          |}""".stripMargin
+      // Only implementation change, no API change
+      val xSourceModified =
+        """class X {
+          |  def x: Y = null
+          |  def impl = 2
+          |}""".stripMargin
+
+      val ySource =
+        """class Y {
+          |  def y: X = null
+          |}""".stripMargin
+
+      val zSource = "class Z { def z = 1 }"
+
+      val fX = StringVirtualFile("X.scala", xSource)
+      val fXModified = StringVirtualFile("X.scala", xSourceModified)
+      val fY = StringVirtualFile("Y.scala", ySource)
+      val fZ = StringVirtualFile("Z.scala", zSource)
+
+      val res1 = comp.compile(fX, fY, fZ)
+      val res2 = comp.compile(fXModified, fY, fZ)
+
+      assert(recompiled(res1, res2) == Set("X"))
+    } finally {
+      comp.close()
+    }
+  }
+
   it should "not throw NullPointerException when passing -Xshow-phases to scalac" in withTmpDir {
     tmp =>
       val comp = ProjectSetup.simple(
