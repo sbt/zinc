@@ -744,7 +744,7 @@ private final class AnalysisCallback(
     // representative class name is picked for each binary avoiding non-deterministic output
     binaryClassName.updateWith(binary) {
       case Some(existing) if className.compareTo(existing) >= 0 => Some(existing)
-      case None                                                 => Some(className)
+      case _                                                    => Some(className)
     }
     add(libraryDeps, source, binary)
   }
