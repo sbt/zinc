@@ -740,7 +740,14 @@ private final class AnalysisCallback(
       source: VirtualFileRef,
       context: DependencyContext
   ): Unit = {
-    binaryClassName.put(binary, className)
+    // The callback is invoked concurrently; "last write wins" makes output depend on
+    // scheduling and causes nondeterministic analysis serialization. Pick a stable
+    // representative class name per binary instead.
+    binaryClassName.updateWith(binary) {
+      case Some(existing) =>
+        if (className.compareTo(existing) < 0) Some(className) else Some(existing)
+      case None => Some(className)
+    }
     add(libraryDeps, source, binary)
   }
 
