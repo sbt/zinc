@@ -740,7 +740,12 @@ private final class AnalysisCallback(
       source: VirtualFileRef,
       context: DependencyContext
   ): Unit = {
-    binaryClassName.put(binary, className)
+    // Break ties via lexicographic ordering on the className, which ensures a stable
+    // representative class name is picked for each binary avoiding non-deterministic output
+    binaryClassName.updateWith(binary) {
+      case Some(existing) if className.compareTo(existing) >= 0 => Some(existing)
+      case _                                                    => Some(className)
+    }
     add(libraryDeps, source, binary)
   }
 
