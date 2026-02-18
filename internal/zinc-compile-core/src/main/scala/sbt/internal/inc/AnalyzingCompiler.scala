@@ -143,13 +143,15 @@ final class AnalyzingCompiler(
       reporter: Reporter
   ): Unit = {
     val cp = classpath.map(converter.toPath)
+    // Filter out compiler plugin options that are not understood by Scaladoc (sbt/sbt#8740)
+    val docOptions = AnalyzingCompiler.filterPluginOptions(options)
     // hold reference to compiler bridge class loader to prevent its being evicted
     // from the compiler cache (sbt/zinc#914)
     val loader = getAllJarLoader(log)
     loadService(classOf[ScaladocInterface2], loader) match {
       case Some(intf) =>
         val arguments =
-          compArgs.makeArguments(Nil, cp, Some(outputDirectory), options)
+          compArgs.makeArguments(Nil, cp, Some(outputDirectory), docOptions)
         onArgsHandler(arguments)
         intf.run(sources.toArray, arguments.toArray[String], log, reporter)
       case _ =>
@@ -157,7 +159,7 @@ final class AnalyzingCompiler(
           case Some(intf) =>
             val fileSources: Seq[Path] = sources.map(converter.toPath(_))
             val arguments =
-              compArgs.makeArguments(fileSources, cp, Some(outputDirectory), options)
+              compArgs.makeArguments(fileSources, cp, Some(outputDirectory), docOptions)
             onArgsHandler(arguments)
             intf.run(arguments.toArray[String], log, reporter)
           case _ =>
@@ -166,7 +168,7 @@ final class AnalyzingCompiler(
             val (bridge, bridgeClass) = bridgeInstance(scaladocBridgeClassName, loader)
             val fileSources: Seq[Path] = sources.map(converter.toPath(_))
             val arguments =
-              compArgs.makeArguments(fileSources, cp, Some(outputDirectory), options)
+              compArgs.makeArguments(fileSources, cp, Some(outputDirectory), docOptions)
             onArgsHandler(arguments)
             invoke(bridge, bridgeClass, "run", log)(
               classOf[Array[String]],
@@ -468,6 +470,14 @@ object AnalyzingCompiler {
 
   private def isSourceName(name: String): Boolean =
     name.endsWith(".scala") || name.endsWith(".java")
+
+  /** Filter out compiler plugin options not understood by Scaladoc. See sbt/sbt#8740. */
+  private[inc] def filterPluginOptions(options: Seq[String]): Seq[String] =
+    options.filterNot { opt =>
+      opt.startsWith("-Xplugin:") ||
+      opt.startsWith("-Xplugin-require:") ||
+      opt.startsWith("-P:")
+    }
 }
 
 private object IgnoreProgress extends CompileProgress
