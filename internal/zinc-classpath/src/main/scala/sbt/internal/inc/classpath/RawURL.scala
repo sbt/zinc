@@ -17,6 +17,7 @@ package classpath
 import java.io.{ ByteArrayInputStream, InputStream }
 import java.net.{ Proxy, URL, URLConnection, URLStreamHandler }
 import java.util.Enumeration
+import scala.annotation.nowarn
 
 object RawURL {
 
@@ -35,6 +36,7 @@ object RawURL {
    * Constructs a URL with scheme `raw` and path `file` that will use `value` to construct the `InputStream` used when a connection
    * to the URL is opened.
    */
+  @nowarn("msg=constructor URL in class URL is deprecated")
   def apply(file: String)(value: => InputStream): URL =
     new URL("raw", null, -1, file, new RawStreamHandler(value))
 

@@ -101,12 +101,14 @@ def baseSettings: Seq[Setting[?]] = Seq(
         Nil
     }
   },
-  scalacOptions += {
+  scalacOptions ++= {
     scalaBinaryVersion.value match {
       case "2.10" | "2.11" =>
-        "-target:jvm-1.8"
+        Seq("-target:jvm-1.8")
+      case "3" =>
+        Nil
       case _ =>
-        "-release:8"
+        Seq("-release:8")
     }
   },
   semanticdbCompilerPlugin := {

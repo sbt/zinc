@@ -11,19 +11,15 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            java: 8
+            java: 17
             distribution: zulu
-            jobtype: 1
-          - os: ubuntu-latest
-            java: 11
-            distribution: temurin
             jobtype: 1
           - os: ubuntu-latest
             java: 25
             distribution: zulu
             jobtype: 1
           - os: windows-latest
-            java: 8
+            java: 17
             distribution: zulu
             jobtype: 2
           - os: ubuntu-latest
