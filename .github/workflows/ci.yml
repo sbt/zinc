@@ -45,11 +45,11 @@ jobs:
     - name: Setup JDK
       uses: actions/setup-java@v5
       with:
-        distribution: temurin
+        distribution: ${{ matrix.distribution }}
         java-version: ${{ matrix.java }}
         cache: sbt
     - name: Setup SBT
-      uses: sbt/setup-sbt@ae54f7cfe46ec0d24ade661d77f007360ab48bda # v1.1.16
+      uses: sbt/setup-sbt@v1
     - name: Build and test (1)
       if: ${{ matrix.jobtype == 1 }}
       shell: bash
