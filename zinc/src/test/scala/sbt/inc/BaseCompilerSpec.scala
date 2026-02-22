@@ -18,7 +18,7 @@ import sbt.util.Logger
 import xsbti.compile.{ CompileResult, IncOptions }
 
 class BaseCompilerSpec extends BridgeProviderSpecification {
-  val scalaVersion: String = "2.13.16"
+  val scalaVersion: String = "2.13.18"
 
   val incOptions: IncOptions = IncOptions.of().withPipelining(true)
 
