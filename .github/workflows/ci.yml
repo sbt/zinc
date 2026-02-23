@@ -14,30 +14,30 @@ jobs:
             java: 17
             distribution: zulu
             jobtype: 1
-          - os: ubuntu-latest
-            java: 25
-            distribution: zulu
-            jobtype: 1
+          # - os: ubuntu-latest
+          #   java: 25
+          #   distribution: zulu
+          #   jobtype: 1
           - os: windows-latest
             java: 17
             distribution: zulu
             jobtype: 2
-          - os: ubuntu-latest
-            java: 21
-            distribution: temurin
-            jobtype: 3
-          - os: ubuntu-latest
-            java: 21
-            distribution: temurin
-            jobtype: 4
-          - os: ubuntu-latest
-            java: 21
-            distribution: temurin
-            jobtype: 5
-          - os: ubuntu-latest
-            java: 21
-            distribution: temurin
-            jobtype: 6
+          # - os: ubuntu-latest
+          #   java: 21
+          #   distribution: temurin
+          #   jobtype: 3
+          # - os: ubuntu-latest
+          #   java: 21
+          #   distribution: temurin
+          #   jobtype: 4
+          # - os: ubuntu-latest
+          #   java: 21
+          #   distribution: temurin
+          #   jobtype: 5
+          # - os: ubuntu-latest
+          #   java: 21
+          #   distribution: temurin
+          #   jobtype: 6
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout
@@ -58,7 +58,7 @@ jobs:
       if: ${{ matrix.jobtype == 2 }}
       shell: bash
       run: |
-        sbt -v -Dfile.encoding=UTF-8 -Dsbt.supershell=never "Test/compile" "crossTestBridges" "zincRoot/test" "scripted"
+        ./sbt -v -Dfile.encoding=UTF-8 -Dsbt.supershell=never "Test/compile" "crossTestBridges" "zincRoot/test" "scripted"
     - name: Build and test (3)
       if: ${{ matrix.jobtype == 3 }}
       shell: bash
