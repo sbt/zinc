@@ -23,19 +23,19 @@ import xsbti.Logger
 import xsbti.compile.CompilerBridgeProvider
 import xsbti.compile.{ ScalaInstance => XScalaInstance }
 
-case class ScalaBridge(version: String, jars: Seq[File], bridgeJarOrDir: Either[File, File])
+case class ScalaBridge(version: String, jars: Seq[File], bridgeJarOrDir: Either[Seq[File], File])
 
 final class ConstantBridgeProvider(bridges: List[ScalaBridge], tempDir: Path)
     extends CompilerBridgeProvider {
 
   override def fetchCompiledBridge(instance: XScalaInstance, logger: Logger): File =
     bridgeOrBoom(instance.version).bridgeJarOrDir match {
-      case Left(classesDir) =>
+      case Left(classesDirs) =>
         val javaClassVersion = sys.props("java.class.version")
         val jarName = s"scriptedCompilerBridge-bin_${instance.version}__$javaClassVersion.jar"
         val bridgeJar = tempDir.resolve(jarName).toFile
         // Generate jar from compilation dirs, the resources and a target jarName
-        IO.zip(contentOf(classesDir), bridgeJar, Some(0L))
+        IO.zip(classesDirs.flatMap(contentOf), bridgeJar, Some(0L))
         bridgeJar
       case Right(bridgeJar) => bridgeJar
     }

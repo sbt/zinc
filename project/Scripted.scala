@@ -15,15 +15,15 @@ object Scripted {
   case class ScriptedTestPage(page: Int, total: Int)
   def scriptedParser(scriptedBase: File): Parser[Seq[String]] = {
     val scriptedFiles: NameFilter = ("test": NameFilter) | "pending"
-    val pairs = (scriptedBase * AllPassFilter * AllPassFilter * scriptedFiles).get map {
+    val pairs = (scriptedBase * AllPassFilter * AllPassFilter * scriptedFiles).get() map {
       (f: File) =>
         val p = f.getParentFile
         (p.getParentFile.getName, p.getName)
     }
-    val pairMap = pairs.groupBy(_._1).mapValues(_.map(_._2).toSet);
+    val pairMap = pairs.groupBy(_._1).view.mapValues(_.map(_._2).toSet).toMap;
 
     val id = charClass(c => !c.isWhitespace && c != '/').+.string
-    val groupP = token(id.examples(pairMap.keySet)) <~ token('/')
+    val groupP = token(id.examples(pairMap.keySet.toSet)) <~ token('/')
 
     // A parser for page definitions
     val pageP: Parser[ScriptedTestPage] = ("*" ~ NatBasic ~ "of" ~ NatBasic) map {
@@ -66,7 +66,7 @@ object Scripted {
   ): Unit = {
     val noJLine =
       new classpath.FilteredLoader(scriptedSbtInstance.loader, "xsbti." :: "jline." :: Nil)
-    val loader = classpath.ClasspathUtil.toLoader(scriptedSbtClasspath.files, noJLine)
+    val loader = classpath.ClasspathUtil.toLoader(scriptedSbtClasspath.map(_.data), noJLine)
     val bridgeClass = Class.forName("sbt.inc.ScriptedMain$", true, loader)
     val mainObject = bridgeClass.getField("MODULE$").get(null)
     val method = bridgeClass.getMethod(

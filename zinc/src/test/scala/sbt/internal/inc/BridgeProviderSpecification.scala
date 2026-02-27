@@ -22,13 +22,29 @@ class BridgeProviderSpecification extends UnitSpec with BridgeProviderTestkit {}
 trait BridgeProviderTestkit extends AbstractBridgeProviderTestkit {
   lazy val bridges: List[ScalaBridge] = {
     val compilerBridge210 =
-      ScalaBridge(scalaVersion210, scalaJars210.toList, Left(classDirectory210))
+      ScalaBridge(
+        scalaVersion210,
+        scalaJars210.toList,
+        Left(classDirectory210 +: resourceDirectories210)
+      )
     val compilerBridge211 =
-      ScalaBridge(scalaVersion211, scalaJars211.toList, Left(classDirectory211))
+      ScalaBridge(
+        scalaVersion211,
+        scalaJars211.toList,
+        Left(classDirectory211 +: resourceDirectories211)
+      )
     val compilerBridge212 =
-      ScalaBridge(scalaVersion212, scalaJars212.toList, Left(classDirectory212))
+      ScalaBridge(
+        scalaVersion212,
+        scalaJars212.toList,
+        Left(classDirectory212 +: resourceDirectories212)
+      )
     val compilerBridge213 =
-      ScalaBridge(scalaVersion213, scalaJars213.toList, Left(classDirectory213))
+      ScalaBridge(
+        scalaVersion213,
+        scalaJars213.toList,
+        Left(classDirectory213 +: resourceDirectories213)
+      )
     val bridge213Bin =
       ScalaBridge(scalaVersion213Bin, scalaJars213Bin.toList, Right(compilerBridge213Bin))
     val bridge3Bin =

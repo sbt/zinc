@@ -1,6 +1,7 @@
 package zincbuild
 
 import sbt._
+import sbt.librarymanagement.LibraryManagementCodec.given
 import Keys._
 
 object HouseRulesPlugin extends AutoPlugin {

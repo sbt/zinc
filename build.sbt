@@ -84,7 +84,6 @@ ThisBuild / mimaPreviousArtifacts := Set.empty
 Global / concurrentRestrictions += Tags.limit(Tags.Test, 4)
 // Global / semanticdbVersion := "4.5.9"
 ThisBuild / Test / fork := true
-Global / excludeLintKeys += ideSkipProject
 
 def baseSettings: Seq[Setting[?]] = Seq(
   testOptions += Tests.Argument(TestFrameworks.ScalaCheck, "-w", "1", "-verbosity", "2"),
@@ -115,7 +114,6 @@ def baseSettings: Seq[Setting[?]] = Seq(
     ("org.scalameta" % "semanticdb-scalac" % semanticdbVersion.value)
       .cross(CrossVersion.full)
   },
-  ideSkipProject := scalaVersion.value != defaultScalaVersion,
 )
 
 def addBaseSettingsAndTestDeps(p: Project): Project =
@@ -151,8 +149,22 @@ lazy val zincRoot: Project = (project in file("."))
     }, // clean is required b/c the version is generated in properties file
     crossScalaVersions := Nil,
     publishBridges := Def.task(()).dependsOn(bridges *).value,
-    crossTestBridges := (compilerBridgeTest.jvm(scala3) / Test / test).dependsOn(publishBridges).value
+    crossTestBridges := Def.uncached(
+      (compilerBridgeTest.jvm(scala3) / Test / test).dependsOn(publishBridges).value
+    )
   )
+
+def mapBuildInfoKey[A1, A2: sbtbuildinfo.PluginCompat.Manifest](
+    key: SettingKey[A1],
+    name: String
+)(f: A1 => A2): sbtbuildinfo.Entry[A2] =
+  BuildInfoKey.map(key)(value => name -> f(value._2))
+
+def mapBuildInfoKey[A1, A2: sbtbuildinfo.PluginCompat.Manifest](
+    key: TaskKey[A1],
+    name: String
+)(f: A1 => A2): sbtbuildinfo.Entry[A2] =
+  BuildInfoKey.map(key)(value => name -> f(value._2))
 
 lazy val zinc = (projectMatrix in (zincRootPath / "zinc"))
   .dependsOn(
@@ -165,46 +177,82 @@ lazy val zinc = (projectMatrix in (zincRootPath / "zinc"))
   .enablePlugins(BuildInfoPlugin)
   .settings(
     name := "zinc",
+    exportJars := false,
     Test / resourceGenerators ++= Seq(
       (jar1 / genTestResTask).taskValue,
       (jar2 / genTestResTask).taskValue,
       (classesDep1 / genTestResTask).taskValue
     ),
-    Compile / buildInfo := Nil, // Only generate build info for tests
+    Compile / buildInfo := Def.uncached(Nil), // Only generate build info for tests
     BuildInfoPlugin.buildInfoScopedSettings(Test),
     Test / buildInfoPackage := "sbt.internal.inc",
     Test / buildInfoObject := "ZincBuildInfo",
-    Test / buildInfoKeys := List[BuildInfoKey](
-      BuildInfoKey.map(compilerBridge210 / scalaVersion)("scalaVersion210" -> _._2),
-      BuildInfoKey.map(compilerBridge210 / scalaInstance)("scalaJars210" -> _._2.allJars.toList),
-      BuildInfoKey.map(compilerBridge210 / Compile / classDirectory)("classDirectory210" -> _._2),
-      BuildInfoKey.map(compilerBridge211 / scalaVersion)("scalaVersion211" -> _._2),
-      BuildInfoKey.map(compilerBridge211 / scalaInstance)("scalaJars211" -> _._2.allJars.toList),
-      BuildInfoKey.map(compilerBridge211 / Compile / classDirectory)("classDirectory211" -> _._2),
-      BuildInfoKey.map(compilerBridge212 / scalaVersion)("scalaVersion212" -> _._2),
-      BuildInfoKey.map(compilerBridge212 / scalaInstance)("scalaJars212" -> _._2.allJars.toList),
-      BuildInfoKey.map(compilerBridge212 / Compile / classDirectory)("classDirectory212" -> _._2),
-      BuildInfoKey.map(compilerBridge213 / scalaVersion)("scalaVersion213" -> _._2),
-      BuildInfoKey.map(compilerBridge213 / scalaInstance)("scalaJars213" -> _._2.allJars.toList),
-      BuildInfoKey.map(compilerBridge213 / Compile / classDirectory)("classDirectory213" -> _._2),
-      BuildInfoKey.map(compilerBridgeScala213Bin / scalaVersion)("scalaVersion213Bin" -> _._2),
-      BuildInfoKey.map(compilerBridgeScala213Bin / scalaInstance)(
-        "scalaJars213Bin" -> _._2.allJars.toList
-      ),
-      BuildInfoKey.map(compilerBridgeScala213Bin / Compile / externalDependencyClasspath)(
-        "compilerBridge213Bin" -> _._2.toList.head.data
-      ),
-      BuildInfoKey.map(compilerBridgeScala3Bin / scalaVersion)("scalaVersion3Bin" -> _._2),
-      BuildInfoKey.map(compilerBridgeScala3Bin / scalaInstance)(
-        "scalaJars3Bin" -> _._2.allJars.toList
-      ),
-      BuildInfoKey.map(compilerBridgeScala3Bin / Compile / externalDependencyClasspath)(
-        "compilerBridge3Bin" -> _._2.toList.head.data
-      ),
-      BuildInfoKey.map(compilerInterface.jvm(false) / Compile / packageBin)(
-        "compilerInterface" -> _._2
-      ),
-    ),
+    Test / buildInfoKeys := {
+      val converter = fileConverter.value
+      List[BuildInfoKey](
+        mapBuildInfoKey(compilerBridge210 / scalaVersion, "scalaVersion210")(identity),
+        mapBuildInfoKey(compilerBridge210 / scalaInstance, "scalaJars210")(_.allJars.toList),
+        mapBuildInfoKey(compilerBridge210 / Compile / classDirectory, "classDirectory210")(
+          identity
+        ),
+        mapBuildInfoKey(
+          compilerBridge210 / Compile / resourceDirectories,
+          "resourceDirectories210"
+        )(
+          identity
+        ),
+        mapBuildInfoKey(compilerBridge211 / scalaVersion, "scalaVersion211")(identity),
+        mapBuildInfoKey(compilerBridge211 / scalaInstance, "scalaJars211")(_.allJars.toList),
+        mapBuildInfoKey(compilerBridge211 / Compile / classDirectory, "classDirectory211")(
+          identity
+        ),
+        mapBuildInfoKey(
+          compilerBridge211 / Compile / resourceDirectories,
+          "resourceDirectories211"
+        )(
+          identity
+        ),
+        mapBuildInfoKey(compilerBridge212 / scalaVersion, "scalaVersion212")(identity),
+        mapBuildInfoKey(compilerBridge212 / scalaInstance, "scalaJars212")(_.allJars.toList),
+        mapBuildInfoKey(compilerBridge212 / Compile / classDirectory, "classDirectory212")(
+          identity
+        ),
+        mapBuildInfoKey(
+          compilerBridge212 / Compile / resourceDirectories,
+          "resourceDirectories212"
+        )(
+          identity
+        ),
+        mapBuildInfoKey(compilerBridge213 / scalaVersion, "scalaVersion213")(identity),
+        mapBuildInfoKey(compilerBridge213 / scalaInstance, "scalaJars213")(_.allJars.toList),
+        mapBuildInfoKey(compilerBridge213 / Compile / classDirectory, "classDirectory213")(
+          identity
+        ),
+        mapBuildInfoKey(
+          compilerBridge213 / Compile / resourceDirectories,
+          "resourceDirectories213"
+        )(
+          identity
+        ),
+        mapBuildInfoKey(compilerBridgeScala213Bin / scalaVersion, "scalaVersion213Bin")(identity),
+        mapBuildInfoKey(compilerBridgeScala213Bin / scalaInstance, "scalaJars213Bin")(
+          _.allJars.toList
+        ),
+        mapBuildInfoKey(
+          compilerBridgeScala213Bin / Compile / externalDependencyClasspath,
+          "compilerBridge213Bin"
+        )(bin => converter.toPath(bin.toList.head.data).toFile),
+        mapBuildInfoKey(compilerBridgeScala3Bin / scalaVersion, "scalaVersion3Bin")(identity),
+        mapBuildInfoKey(compilerBridgeScala3Bin / scalaInstance, "scalaJars3Bin")(_.allJars.toList),
+        mapBuildInfoKey(
+          compilerBridgeScala3Bin / Compile / externalDependencyClasspath,
+          "compilerBridge3Bin"
+        )(bin => converter.toPath(bin.toList.head.data).toFile),
+        mapBuildInfoKey(compilerInterface.jvm(false) / Compile / packageBin, "compilerInterface")(
+          converter.toPath(_).toFile
+        ),
+      )
+    },
     Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
     // so we have full access to com.sun.tools.javac on JDK 17
     Test / javaOptions ++= Seq(
@@ -326,7 +374,7 @@ lazy val zincBenchmarks = (projectMatrix in internalPath / "zinc-benchmarks")
         classDirectory := (Test / classDirectory).value,
         dependencyClasspath := (Test / dependencyClasspath).value,
         // rewire tasks, so that 'Jmh/run' automatically invokes 'Jmh/compile' (otherwise a clean 'Jmh/run' would fail)
-        compile := compile.dependsOn(Test / compile).value,
+        compile := Def.uncached(compile.dependsOn(Test / compile).value),
         run := run.dependsOn(Test / compile).evaluated,
       )
     ),
@@ -345,6 +393,7 @@ lazy val zincCompileCore = (projectMatrix in internalPath / "zinc-compile-core")
   )
   .settings(
     name := "zinc Compile Core",
+    exportJars := false,
     libraryDependencies ++= Seq(
       // scalaCompiler.value % Test,
       launcherInterface,
@@ -614,10 +663,10 @@ lazy val zincScripted = (projectMatrix in internalPath / "zinc-scripted")
     baseSettings,
     publish / skip := true,
     name := "zinc Scripted",
-    Compile / buildInfo := Nil, // Only generate build info for tests
+    Compile / buildInfo := Def.uncached(Nil), // Only generate build info for tests
     BuildInfoPlugin.buildInfoScopedSettings(Test),
     Test / buildInfoPackage := "sbt.internal.inc",
-    Test / buildInfoKeys := Seq[BuildInfoKey](zinc3 / sourceDirectory),
+    Test / buildInfoKeys := Seq[BuildInfoKey]((zinc3 / sourceDirectory): SettingKey[File]),
     conflictWarning := ConflictWarning.disable,
   )
   .jvmPlatform(scalaVersions = scala3_only)
@@ -658,7 +707,7 @@ addCommandAlias(
 def scriptedTask: Def.Initialize[InputTask[Unit]] = Def.inputTask {
   val result = scriptedSource(dir => (_: State) => scriptedParser(dir)).parsed
   doScripted(
-    (zincScripted3 / Test / fullClasspath).value,
+    (zincScripted3 / Test / fullClasspath).value.map(_.map(fileConverter.value.toPath(_).toFile)),
     (zincScripted3 / scalaInstance).value,
     scriptedSource.value,
     result,
