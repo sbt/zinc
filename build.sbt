@@ -135,7 +135,7 @@ lazy val aggregated: Seq[ProjectReference] = compilerInterface.projectRefs ++
   zinc.projectRefs
 
 lazy val zincRoot: Project = (project in file("."))
-  .aggregate(aggregated: _*)
+  .aggregate(aggregated *)
   .settings(
     baseSettings,
     name := "zinc Root",
@@ -644,7 +644,7 @@ def bridges = {
 val publishBridges = taskKey[Unit]("")
 val crossTestBridges = taskKey[Unit]("")
 
-publishBridges := Def.task(()).dependsOn(bridges: _*).value
+publishBridges := Def.task(()).dependsOn(bridges *).value
 crossTestBridges := (compilerBridgeTest.jvm(scala3) / Test / test).dependsOn(publishBridges).value
 
 addCommandAlias(
