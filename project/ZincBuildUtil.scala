@@ -3,7 +3,6 @@ import Keys._
 import xsbti.compile.CompileAnalysis
 
 object ZincBuildUtil {
-  lazy val apiDefinitions = TaskKey[Seq[File]]("api-definitions")
   lazy val genTestResTask = TaskKey[Seq[File]]("gen-test-resources")
 
   def lastCompilationTime(analysis0: CompileAnalysis): Long = {
