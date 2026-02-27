@@ -8,7 +8,6 @@ import scala.language.reflectiveCalls
 
 object Scripted {
   def scriptedPath = file("scripted")
-  val publishLocalBinAll = taskKey[Unit]("")
   val scriptedSource = settingKey[File]("")
   val scriptedCompileToJar = settingKey[Boolean]("Compile directly to jar in scripted tests")
 

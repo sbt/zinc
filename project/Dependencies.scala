@@ -25,7 +25,6 @@ object Dependencies {
   private val utilLogging = "org.scala-sbt" %% "util-logging" % utilVersion
   private val utilControl = "org.scala-sbt" %% "util-control" % utilVersion
   private val utilRelation = "org.scala-sbt" %% "util-relation" % utilVersion
-  private val utilTracking = "org.scala-sbt" %% "util-tracking" % utilVersion
   private val utilInterface = "org.scala-sbt" % "util-interface" % utilVersion
   private val utilScripted = "org.scala-sbt" %% "util-scripted" % utilVersion
 
@@ -68,16 +67,12 @@ object Dependencies {
     addSbtModule(p, sbtUtilPath, "utilRelation", utilRelation)
   def addSbtUtilScripted(p: Project): Project =
     addSbtModule(p, sbtUtilPath, "utilScripted", utilScripted, Some(Test))
-  def addSbtUtilTracking(p: Project): Project =
-    addSbtModule(p, sbtUtilPath, "utilTracking", utilTracking)
 
-  val scalaLibrary = Def.setting { "org.scala-lang" % "scala-library" % scalaVersion.value }
   val scalaCompiler = Def.setting { "org.scala-lang" % "scala-compiler" % scalaVersion.value }
 
   val parserCombinator = "org.scala-lang.modules" %% "scala-parser-combinators" % "2.1.0"
   // sbinary 0.5.2 uses 2.13 build of scala-xml, so use 0.5.1
   val sbinary = "org.scala-sbt" %% "sbinary" % "0.5.1"
-  val junit = "junit" % "junit" % "4.12"
   val sjsonNewVersion = "0.14.0-M5"
   val scalaXml = "org.scala-lang.modules" %% "scala-xml" % "2.4.0"
   val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.19.0"
