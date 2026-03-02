@@ -103,14 +103,14 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
   val javaHome = Paths.get(sys.props("java.home"))
 
   val localCoursierCache: Map[String, Path] = Map(
-    List(
+    (List(
       "C_CACHE1" -> Paths.get(sys.props("user.home")).resolve(".coursier").resolve("cache"),
       "C_CACHE2" -> Paths.get(sys.props("user.home")).resolve(".cache").resolve("coursier"),
       "C_CACHE3" -> Paths.get(sys.props("user.home"), "Library/Caches/Coursier/v1")
     ) ++ sys.env
       .get("LOCALAPPDATA")
       .map(s => "C_CACHE4" -> Paths.get(s.replace('\\', '/'), "Coursier/cache/v1"))
-      .toList: _*
+      .toList)*
   )
   def rootPaths: Map[String, Path] =
     Map("BASE" -> directory, "SBT_BOOT" -> localBoot, "JAVA_HOME" -> javaHome) ++ localCoursierCache
@@ -610,9 +610,9 @@ case class ProjectStructure(
       if (exportPipelining) {
         // Initiate compilation
         val triggerDeps: Map[ProjectStructure, (Future[Analysis], Future[Boolean])] =
-          Map(dependsOnRef map { dep =>
+          Map(dependsOnRef.map { dep =>
             dep -> dep.startCompilation(i)
-          }: _*)
+          }*)
         val wholeDeps = Future.traverse(dependsOnRef) { dep =>
           triggerDeps(dep)._1.map(_ => dep.output)
         }
