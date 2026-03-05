@@ -25,7 +25,7 @@ declare use_sbtn=
 declare use_jvm_client=
 declare no_server=
 declare sbtn_command="$SBTN_CMD"
-declare sbtn_version="1.12.1"
+declare sbtn_version="1.12.5"
 declare use_colors=1
 declare is_this_dir_sbt=""
 declare hide_jdk_warnings=1
@@ -506,6 +506,18 @@ checkJava() {
   fi
 }
 
+# sbt 2.x requires JDK 17+
+checkJava17ForSbt2() {
+  local sbtV="$build_props_sbt_version"
+  [[ "$sbtV" == "" ]] && sbtV="$init_sbt_version"
+  [[ "$sbtV" == "" ]] && return
+  local sbtMajor=$(echo "$sbtV" | sed 's/^\([0-9]*\).*/\1/')
+  if (( sbtMajor >= 2 )) && [[ "$java_version" != "no_java" ]] && (( java_version < 17 )); then
+    echoerr "[error] sbt 2.x requires JDK 17 or above, but you have JDK $java_version"
+    exit 1
+  fi
+}
+
 copyRt() {
   local at_least_9="$(expr $java_version ">=" 9)"
   if [[ "$at_least_9" == "1" ]]; then
@@ -575,7 +587,10 @@ run() {
     execRunner "$java_cmd" -jar "$sbt_jar" "sbtVersion" | tail -1 | sed -e 's/\[info\]//g'
   elif [[ $print_version ]]; then
     if [[ -n "$is_this_dir_sbt" ]]; then
-      execRunner "$java_cmd" -jar "$sbt_jar" "sbtVersion" | tail -1 | sed -e 's/\[info\]/sbt version in this project:/g'
+      local project_sbt_version
+      if project_sbt_version="$(projectSbtVersion)"; then
+        echo "sbt version in this project: $project_sbt_version"
+      fi
     fi
     echo "sbt runner version: $init_sbt_version"
     echoerr ""
@@ -723,6 +738,47 @@ map_args () {
   declare -p commands
 }
 
+# Parse a line into words, respecting single and double quotes.
+# This is used for .sbtopts so that options like:
+#   -sbt-dir "/Users/a' dog"
+# are split into two arguments: -sbt-dir and /Users/a' dog
+parseLineIntoWords() {
+  local line="$1"
+  local word=""
+  local i=0
+  local len=${#line}
+  local in_dq=0
+  local in_sq=0
+  while (( i < len )); do
+    local c="${line:$i:1}"
+    if (( in_dq )); then
+      if [[ "$c" == '"' ]]; then
+        in_dq=0
+      else
+        word+="$c"
+      fi
+    elif (( in_sq )); then
+      if [[ "$c" == "'" ]]; then
+        in_sq=0
+      else
+        word+="$c"
+      fi
+    else
+      case "$c" in
+        '"')  in_dq=1 ;;
+        "'")  in_sq=1 ;;
+        ' '|$'\t')
+          [[ -n "$word" ]] && printf '%s\n' "$word"
+          word=""
+          ;;
+        *)    word+="$c" ;;
+      esac
+    fi
+    ((i++))
+  done
+  [[ -n "$word" ]] && printf '%s\n' "$word"
+}
+
 process_args () {
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -772,11 +828,26 @@ process_args () {
 loadConfigFile() {
   # Make sure the last line is read even if it doesn't have a terminating \n
   # Output lines literally without shell expansion to handle special characters safely
-  cat "$1" | sed $'/^\#/d;s/\r$//' | while read -r line || [[ -n "$line" ]]; do
+  cat "$1" | sed $'/^\#/d;s/[[:space:]]\{1,\}#.*//;s/\r$//' | while read -r line || [[ -n "$line" ]]; do
     # Use printf with properly quoted variable to prevent shell expansion
     # This safely handles special characters like |, *, &, etc.
     printf '%s\n' "$line"
   done
+}
+
+# Append tokens from an sbtopts-style file into the global sbt_file_opts array.
+# Each non-empty, non-comment line is split using parseLineIntoWords so that
+# quoted values with spaces (and embedded quotes) are preserved as single arguments.
+appendSbtoptsFromFile() {
+  local file="$1"
+  [[ ! -f "$file" ]] && return
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line=$(printf '%s' "$line" | sed $'/^\#/d;s/[[:space:]]\{1,\}#.*//;s/\r$//')
+    [[ -z "$line" ]] && continue
+    while IFS= read -r token; do
+      [[ -n "$token" ]] && sbt_file_opts+=("$token")
+    done < <(parseLineIntoWords "$line")
+  done < "$file"
 }
 
 loadPropFile() {
@@ -790,6 +861,16 @@ loadPropFile() {
   done <<< "$(cat "$1" | sed $'/^\#/d;s/\r$//')"
 }
 
+projectSbtVersion() {
+  local version
+  version="$(trimString "$build_props_sbt_version")"
+  if [[ -n "$version" ]]; then
+    echo "$version"
+    return 0
+  fi
+  return 1
+}
+
 detectNativeClient() {
   if [[ "$sbtn_command" != "" ]]; then
     :
@@ -797,7 +878,7 @@ detectNativeClient() {
     arch=$(uname -m)
     [[ -f "${sbt_bin_dir}/sbtn-${arch}-pc-linux" ]] && sbtn_command="${sbt_bin_dir}/sbtn-${arch}-pc-linux"
   elif [[ "$OSTYPE" == "darwin"* ]]; then
-    [[ -f "${sbt_bin_dir}/sbtn-x86_64-apple-darwin" ]] && sbtn_command="${sbt_bin_dir}/sbtn-x86_64-apple-darwin"
+    [[ -f "${sbt_bin_dir}/sbtn-universal-apple-darwin" ]] && sbtn_command="${sbt_bin_dir}/sbtn-universal-apple-darwin"
   elif [[ "$OSTYPE" == "cygwin" ]] || [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "win32" ]]; then
     [[ -f "${sbt_bin_dir}/sbtn-x86_64-pc-win32.exe" ]] && sbtn_command="${sbt_bin_dir}/sbtn-x86_64-pc-win32.exe"
   elif [[ "$OSTYPE" == "freebsd"* ]]; then
@@ -862,16 +943,20 @@ original_args=("$@")
 
 sbt_file_opts=()
 
+if [[ -f "$JAVACMD" ]]; then
+  java_cmd="$JAVACMD"
+fi
+
 # Pull in the machine-wide settings configuration.
 if [[ -f "$machine_sbt_opts_file" ]]; then
-  sbt_file_opts+=($(loadConfigFile "$machine_sbt_opts_file"))
+  appendSbtoptsFromFile "$machine_sbt_opts_file"
 else
   # Otherwise pull in the default settings configuration.
-  [[ -f "$dist_sbt_opts_file" ]] && sbt_file_opts+=($(loadConfigFile "$dist_sbt_opts_file"))
+  [[ -f "$dist_sbt_opts_file" ]] && appendSbtoptsFromFile "$dist_sbt_opts_file"
 fi
 
 # Pull in the project-level config file, if it exists (highest priority, overrides machine/dist).
-[[ -f "$sbt_opts_file" ]] && sbt_file_opts+=($(loadConfigFile "$sbt_opts_file"))
+[[ -f "$sbt_opts_file" ]] && appendSbtoptsFromFile "$sbt_opts_file"
 
 # Prepend sbtopts so command line args appear last and win for duplicate properties.
 if (( ${#sbt_file_opts[@]} > 0 )); then
@@ -912,13 +997,15 @@ if [[ $print_sbt_script_version ]]; then
   exit 0
 fi
 
+java_version="$(jdk_version)"
+vlog "[process_args] java_version = '$java_version'"
+checkJava17ForSbt2
+
 if [[ "$(isRunNativeClient)" == "true" ]] && [[ -z "$print_version" ]]; then
   set -- "${residual_args[@]}"
   argumentCount=$#
   runNativeClient
 else
-  java_version="$(jdk_version)"
-  vlog "[process_args] java_version = '$java_version'"
   addDefaultMemory
   addSbtScriptProperty
   addJdkWorkaround
