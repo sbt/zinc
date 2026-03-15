@@ -241,7 +241,7 @@ class ClassNameSpecification
       expectedLocalNames: Set[String] = Set.empty
   )(implicit p: Position): Unit = {
     val (Seq(tempSrcFile), analysisCallback) = this.compileSrcs(src)
-    val binaryClassNames = analysisCallback.classNames(tempSrcFile).toSet
+    val binaryClassNames = analysisCallback.classNames(tempSrcFile)
     val generatedProducts = analysisCallback.productClassesToSources.keySet.toSet
 
     if (binaryClassNames === expectedNames) {
