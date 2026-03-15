@@ -904,10 +904,10 @@ private final class AnalysisCallback(
         }
 
         classApis(className) = ApiInfo(apiHash, extraApiHash, savedClassApi)
-        classPublicNameHashes(className) = nameHashes.toArray
+        classPublicNameHashes(className) = nameHashes
       case DefinitionType.Module | DefinitionType.PackageModule =>
         objectApis(className) = ApiInfo(apiHash, apiHash, savedClassApi)
-        objectPublicNameHashes(className) = nameHashes.toArray
+        objectPublicNameHashes(className) = nameHashes
     }
   }
 
