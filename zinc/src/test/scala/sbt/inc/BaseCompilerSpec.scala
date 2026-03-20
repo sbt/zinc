@@ -49,7 +49,7 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
     classes2.collect { case (clazz, time) if !classes1.get(clazz).contains(time) => clazz }.toSet
   }
 
-  implicit class ProjectSetupOps(setup: ProjectSetup) {
+  extension (setup: ProjectSetup) {
     def createCompiler(): CompilerSetup = setup.createCompiler(scalaVersion, incOptions)
 
     def createCompiler(sv: String, incOptions: IncOptions): CompilerSetup = {
