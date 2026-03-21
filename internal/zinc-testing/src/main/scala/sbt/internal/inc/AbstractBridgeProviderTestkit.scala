@@ -38,7 +38,7 @@ trait AbstractBridgeProviderTestkit extends LogTestkit {
   def scalaInstance(scalaVersion: String, targetDir: Path, logger: Logger): ScalaInstance =
     getZincProvider(targetDir, logger).fetchScalaInstance(scalaVersion, logger)
 
-  implicit class RichPath(p: Path) {
+  extension (p: Path) {
     def /(sub: String): Path = p.resolve(sub)
   }
 }

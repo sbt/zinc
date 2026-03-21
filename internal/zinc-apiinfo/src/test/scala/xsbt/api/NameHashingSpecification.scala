@@ -18,7 +18,7 @@ import xsbt.api.ClassLikeHelpers._
 
 class NameHashingSpecification extends UnitSpec {
 
-  implicit class NameHashesOpts(nameHashes: Array[NameHash]) {
+  extension (nameHashes: Array[NameHash]) {
 
     def in(s: UseScope): Array[NameHash] =
       nameHashes.filter(_.scope() == s)
