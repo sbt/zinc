@@ -213,7 +213,7 @@ object ClassToAPI {
         c.getConstructors.toIndexedSeq,
         constructorToDef(enclPkg)
       )
-    val classes = innerClassesOf(c, cf, cmap)
+    val classes = innerClassesFromClassfile(c, cf, cmap)
     val all = methods ++ fields ++ constructors ++ classes
     val parentJavaTypes = allSuperTypes(c)
     if (!Modifier.isPrivate(c.getModifiers))
@@ -229,28 +229,7 @@ object ClassToAPI {
     (staticStructure, instanceStructure)
   }
 
-  /** Uses reflection for inner classes, falling back to classfile parsing on error. sbt/sbt#117 */
-  private def innerClassesOf(
-      c: Class[?],
-      cf: => ClassFile,
-      cmap: ClassMap
-  ): Defs =
-    try
-      merge[Class[?]](
-        c,
-        c.getDeclaredClasses.toIndexedSeq,
-        c.getClasses.toIndexedSeq,
-        toDefinitions(cmap),
-        (_: Seq[Class[?]]).partition(isStatic),
-        _.getEnclosingClass != c
-      )
-    catch {
-      case e: (NoClassDefFoundError) =>
-        cmap.log.warn(s"Could not reflect on inner classes of ${c.getName}: $e")
-        cmap.log.warn(s"Falling back to classfile parsing")
-        innerClassesFromClassfile(c, cf, cmap)
-    }
-
+  /** Enumerates inner classes from the classfile instead of reflection. sbt/sbt#117 */
   private def innerClassesFromClassfile(
       c: Class[?],
       cf: => ClassFile,
@@ -259,30 +238,40 @@ object ClassToAPI {
     val cl = c.getClassLoader
     val name = c.getName
     val declaredClasses = new mutable.ArrayBuffer[Class[?]]()
-    val publicClasses = new mutable.ArrayBuffer[Class[?]]()
-    for (info <- cf.innerClasses) {
-      if (info.outerClassName == name) {
-        try {
-          val innerClass = cl.loadClass(info.innerClassName)
-          declaredClasses += innerClass
-          if (info.isPublic) {
-            publicClasses += innerClass
-          }
-        } catch {
-          case e: (ClassNotFoundException | NoClassDefFoundError) =>
-            cmap.log.warn(s"Could not load inner class ${info.innerClassName} of $name: $e")
-        }
-      }
+    val inheritedClasses = new mutable.ArrayBuffer[Class[?]]()
+    // direct inner classes from this class's classfile
+    for (info <- cf.innerClasses if info.outerClassName == name) {
+      loadInnerClass(cl, info, cmap.log).foreach(declaredClasses += _)
+    }
+    // inherited public inner classes from parent classfiles
+    for {
+      parent <- allSuperTypes(c).collect { case c: Class[?] => c }
+      parentCf = classFileForClass(parent)
+      info <- parentCf.innerClasses if info.outerClassName == parent.getName && info.isPublic
+    } {
+      loadInnerClass(cl, info, cmap.log).foreach(inheritedClasses += _)
     }
     merge[Class[?]](
       c,
       declaredClasses.toIndexedSeq,
-      publicClasses.toIndexedSeq,
+      (declaredClasses.filter(cls => Modifier.isPublic(cls.getModifiers)) ++ inheritedClasses).toIndexedSeq,
       toDefinitions(cmap),
       (_: Seq[Class[?]]).partition(isStatic),
       _.getEnclosingClass != c
     )
   }
+
+  private def loadInnerClass(
+      cl: ClassLoader,
+      info: classfile.InnerClassInfo,
+      log: Logger
+  ): Option[Class[?]] =
+    try Some(cl.loadClass(info.innerClassName))
+    catch {
+      case e: (ClassNotFoundException | NoClassDefFoundError) =>
+        log.warn(s"Could not load inner class ${info.innerClassName}: $e")
+        None
+    }
 
   /** TODO: over time, ClassToAPI should switch the majority of access to the classfile parser */
   private def classFileForClass(c: Class[?]): ClassFile =
