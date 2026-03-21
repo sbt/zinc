@@ -42,4 +42,26 @@ class ParserSpecification extends UnitSpec {
       assert(classfile.types.nonEmpty)
     }
 
+  it should "parse InnerClasses attribute for AbstractMap.SimpleEntry" in {
+    val logger = ConsoleLogger()
+    val c = classOf[java.util.AbstractMap.SimpleEntry[String, String]]
+    val cf = Parser(sbt.io.IO.classfileLocation(c), logger)
+    val innerClasses = cf.innerClasses
+    assert(innerClasses.nonEmpty)
+    val self = innerClasses.find(_.innerClassName == "java.util.AbstractMap$SimpleEntry")
+    assert(self.isDefined)
+    assert(self.get.outerClassName == "java.util.AbstractMap")
+  }
+
+  it should "parse InnerClasses attribute for AbstractMap" in {
+    val logger = ConsoleLogger()
+    val c = classOf[java.util.AbstractMap[?, ?]]
+    val cf = Parser(sbt.io.IO.classfileLocation(c), logger)
+    val innerClasses = cf.innerClasses
+    val entry = innerClasses.find(_.innerClassName == "java.util.AbstractMap$SimpleEntry")
+    assert(entry.isDefined)
+    assert(entry.get.outerClassName == "java.util.AbstractMap")
+    assert(entry.get.isPublic)
+  }
+
 }

@@ -13,7 +13,9 @@ package sbt
 package internal
 package inc
 
+import java.io.File
 import sbt.internal.inc.classfile.JavaCompilerForUnitTesting
+import sbt.io.IO
 import xsbti.{ AnalysisCallback, VirtualFileRef }
 import xsbti.api.{ ClassLike, ClassLikeDef, DefinitionType }
 
@@ -50,6 +52,52 @@ class ClassToAPISpecification extends UnitSpec {
       """.stripMargin
     val apis = extractApisFromSrc("A.java" -> src).map(c => c.name -> c).toMap
     assert(apis.keySet === Set("A", "A.B"))
+  }
+
+  // sbt/sbt#117
+  it should "not throw NoClassDefFoundError when inner class references missing type" in {
+    IO.withTemporaryDirectory { temp =>
+      val libDir = new File(temp, "lib")
+      val srcDir = new File(temp, "src")
+      libDir.mkdir()
+      srcDir.mkdir()
+
+      val missingFile = new File(temp, "Missing.java")
+      IO.write(missingFile, "public class Missing {}")
+      compileJava(Seq(missingFile), libDir, Seq.empty)
+
+      val outerFile = new File(temp, "Outer.java")
+      IO.write(
+        outerFile,
+        """|public class Outer {
+           |  public class Inner extends Missing {}
+           |  public void hello() {}
+           |}
+           |""".stripMargin
+      )
+      compileJava(Seq(outerFile), srcDir, Seq(libDir))
+
+      val classloader = new java.net.URLClassLoader(Array(srcDir.toURI.toURL), null)
+      val outerClass = classloader.loadClass("Outer")
+      val (apis, _, _) = ClassToAPI.process(Seq(outerClass))
+
+      val names = apis.map(_.name).toSet
+      assert(names.contains("Outer"))
+      assert(!names.contains("Outer.Inner"))
+    }
+  }
+
+  private def compileJava(files: Seq[File], outputDir: File, classpath: Seq[File]): Unit = {
+    import javax.tools.{ StandardLocation, ToolProvider }
+    import scala.jdk.CollectionConverters._
+    val compiler = ToolProvider.getSystemJavaCompiler()
+    val fileManager = compiler.getStandardFileManager(null, null, null)
+    fileManager.setLocation(StandardLocation.CLASS_OUTPUT, Seq(outputDir).asJava)
+    if (classpath.nonEmpty)
+      fileManager.setLocation(StandardLocation.CLASS_PATH, classpath.asJava)
+    val units = fileManager.getJavaFileObjectsFromFiles(files.asJava)
+    compiler.getTask(null, fileManager, null, null, null, units).call()
+    fileManager.close()
   }
 
   /**

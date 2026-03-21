@@ -28,6 +28,7 @@ private[sbt] trait ClassFile {
   val methods: Array[FieldOrMethodInfo]
   val attributes: Array[AttributeInfo]
   def sourceFile: Option[String]
+  def innerClasses: Array[InnerClassInfo]
   def types: Set[String]
   def stringValue(a: AttributeInfo): String
 
@@ -95,8 +96,18 @@ private[sbt] final case class AttributeInfo(name: Option[String], value: Array[B
   def isNamed(s: String) = name.exists(s == _)
   def isSignature = isNamed("Signature")
   def isSourceFile = isNamed("SourceFile")
+  def isInnerClasses = isNamed("InnerClasses")
   def isRuntimeVisibleAnnotations = isNamed("RuntimeVisibleAnnotations")
   def isRuntimeInvisibleAnnotations = isNamed("RuntimeInvisibleAnnotations")
+}
+private[sbt] final case class InnerClassInfo(
+    accessFlags: Int,
+    innerName: Option[String],
+    innerClassName: String,
+    outerClassName: String
+) {
+  def isStatic = (accessFlags & ACC_STATIC) == ACC_STATIC
+  def isPublic = (accessFlags & ACC_PUBLIC) == ACC_PUBLIC
 }
 private[sbt] object Constants {
   final val ACC_STATIC = 0x0008
