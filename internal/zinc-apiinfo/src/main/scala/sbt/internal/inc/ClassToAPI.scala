@@ -28,9 +28,10 @@ object ClassToAPI {
 
   // (api, public inherited classes)
   def process(
-      classes: Seq[Class[?]]
+      classes: Seq[Class[?]],
+      log: Logger = Logger.Null
   ): (Seq[api.ClassLike], Seq[String], Set[(Class[?], Class[?])]) = {
-    val cmap = emptyClassMap
+    val cmap = emptyClassMap(log)
     classes.foreach(toDefinitions(cmap)) // force recording of class definitions
     cmap.lz.toList
       .foreach(_.get()) // force thunks to ensure all inherited dependencies are recorded
@@ -66,7 +67,8 @@ object ClassToAPI {
       private[sbt] val inherited: mutable.Set[(Class[?], Class[?])],
       private[sbt] val lz: mutable.Buffer[xsbti.api.Lazy[?]],
       private[sbt] val allNonLocalClasses: mutable.Set[api.ClassLike],
-      private[sbt] val mainClasses: mutable.Set[String]
+      private[sbt] val mainClasses: mutable.Set[String],
+      private[sbt] val log: Logger
   ) {
     def clear(): Unit = {
       memo.clear()
@@ -74,13 +76,14 @@ object ClassToAPI {
       lz.clear()
     }
   }
-  def emptyClassMap: ClassMap =
+  def emptyClassMap(log: Logger = Logger.Null): ClassMap =
     new ClassMap(
       new mutable.HashMap,
       new mutable.HashSet,
       new mutable.ListBuffer,
       new mutable.HashSet,
-      new mutable.HashSet
+      new mutable.HashSet,
+      log
     )
 
   /**
@@ -210,14 +213,7 @@ object ClassToAPI {
         c.getConstructors.toIndexedSeq,
         constructorToDef(enclPkg)
       )
-    val classes = merge[Class[?]](
-      c,
-      c.getDeclaredClasses.toIndexedSeq,
-      c.getClasses.toIndexedSeq,
-      toDefinitions(cmap),
-      (_: Seq[Class[?]]).partition(isStatic),
-      _.getEnclosingClass != c
-    )
+    val classes = innerClassesOf(c, cf, cmap)
     val all = methods ++ fields ++ constructors ++ classes
     val parentJavaTypes = allSuperTypes(c)
     if (!Modifier.isPrivate(c.getModifiers))
@@ -231,6 +227,61 @@ object ClassToAPI {
       lzyS(all.staticInherited.toArray)
     )
     (staticStructure, instanceStructure)
+  }
+
+  /** Uses reflection for inner classes, falling back to classfile parsing on error. sbt/sbt#117 */
+  private def innerClassesOf(
+      c: Class[?],
+      cf: => ClassFile,
+      cmap: ClassMap
+  ): Defs =
+    try
+      merge[Class[?]](
+        c,
+        c.getDeclaredClasses.toIndexedSeq,
+        c.getClasses.toIndexedSeq,
+        toDefinitions(cmap),
+        (_: Seq[Class[?]]).partition(isStatic),
+        _.getEnclosingClass != c
+      )
+    catch {
+      case e: (NoClassDefFoundError) =>
+        cmap.log.warn(s"Could not reflect on inner classes of ${c.getName}: $e")
+        cmap.log.warn(s"Falling back to classfile parsing")
+        innerClassesFromClassfile(c, cf, cmap)
+    }
+
+  private def innerClassesFromClassfile(
+      c: Class[?],
+      cf: => ClassFile,
+      cmap: ClassMap
+  ): Defs = {
+    val cl = c.getClassLoader
+    val name = c.getName
+    val declaredClasses = new mutable.ArrayBuffer[Class[?]]()
+    val publicClasses = new mutable.ArrayBuffer[Class[?]]()
+    for (info <- cf.innerClasses) {
+      if (info.outerClassName == name) {
+        try {
+          val innerClass = cl.loadClass(info.innerClassName)
+          declaredClasses += innerClass
+          if (info.isPublic) {
+            publicClasses += innerClass
+          }
+        } catch {
+          case e: (ClassNotFoundException | NoClassDefFoundError) =>
+            cmap.log.warn(s"Could not load inner class ${info.innerClassName} of $name: $e")
+        }
+      }
+    }
+    merge[Class[?]](
+      c,
+      declaredClasses.toIndexedSeq,
+      publicClasses.toIndexedSeq,
+      toDefinitions(cmap),
+      (_: Seq[Class[?]]).partition(isStatic),
+      _.getEnclosingClass != c
+    )
   }
 
   /** TODO: over time, ClassToAPI should switch the majority of access to the classfile parser */

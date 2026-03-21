@@ -17,7 +17,7 @@ package classfile
 import java.net.URL
 import java.nio.file.Files
 import java.nio.file.Path
-import java.io.{ BufferedInputStream, InputStream, File, DataInputStream }
+import java.io.{ BufferedInputStream, ByteArrayInputStream, InputStream, File, DataInputStream }
 
 import sbt.internal.io.ErrorHandling
 
@@ -79,6 +79,33 @@ private[sbt] object Parser {
       val methods = readFieldsOrMethods()
 
       val attributes = array(in.readUnsignedShort())(parseAttribute())
+
+      lazy val innerClasses: Array[InnerClassInfo] = {
+        attributes
+          .find(_.isInnerClasses)
+          .map(parseInnerClasses)
+          .getOrElse(Array.empty)
+      }
+
+      private def parseInnerClasses(a: AttributeInfo): Array[InnerClassInfo] = {
+        val bais = new ByteArrayInputStream(a.value)
+        val data = new DataInputStream(bais)
+        val numberOfClasses = data.readUnsignedShort()
+        Array.tabulate(numberOfClasses) { _ =>
+          val innerClassInfoIndex = data.readUnsignedShort()
+          val outerClassInfoIndex = data.readUnsignedShort()
+          val innerNameIndex = data.readUnsignedShort()
+          val innerClassAccessFlags = data.readUnsignedShort()
+          val innerName = if (innerNameIndex == 0) None else Some(toUTF8(innerNameIndex))
+          val innerCN =
+            if (innerClassInfoIndex == 0) ""
+            else getClassConstantName(innerClassInfoIndex)
+          val outerCN =
+            if (outerClassInfoIndex == 0) ""
+            else getClassConstantName(outerClassInfoIndex)
+          InnerClassInfo(innerClassAccessFlags, innerName, innerCN, outerCN)
+        }
+      }
 
       override lazy val sourceFile: Option[String] =
         for (sourceFileAttribute <- attributes.find(_.isSourceFile))
