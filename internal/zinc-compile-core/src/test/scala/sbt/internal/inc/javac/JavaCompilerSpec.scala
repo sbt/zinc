@@ -19,6 +19,7 @@ import java.nio.file.{ Path, Paths }
 import java.net.URLClassLoader
 import java.util.Optional
 import scala.collection.mutable.HashSet
+import scala.util.Using
 
 import xsbt.api.SameAPI
 import xsbti.{ PathBasedFile, Problem, Severity }
@@ -91,10 +92,11 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
         (if (forked) HashSet() else dealiasSymlinks(HashSet(classfile)))
     )
 
-    val cl = new URLClassLoader(Array(out.toURI.toURL))
-    val clazzz = cl.loadClass("good")
-    val mthd = clazzz.getDeclaredMethod("test")
-    assert(mthd.invoke(null) == "Hello")
+    Using.resource(new URLClassLoader(Array(out.toURI.toURL))) { cl =>
+      val clazzz = cl.loadClass("good")
+      val mthd = clazzz.getDeclaredMethod("test")
+      assert(mthd.invoke(null) == "Hello")
+    }
   }
 
   def findsErrors(compiler: XJavaTools) = IO.withTemporaryDirectory { out =>
@@ -176,8 +178,10 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
         // then compile it
         val (result, _) = compile(local, Seq(input), Seq(), out.toPath)
         assert(result)
-        val clazzz = new URLClassLoader(Array(out.toURI.toURL)).loadClass("hasstaticfinal")
-        ClassToAPI(Seq(clazzz))
+        Using.resource(new URLClassLoader(Array(out.toURI.toURL))) { loader =>
+          val clazzz = loader.loadClass("hasstaticfinal")
+          ClassToAPI(Seq(clazzz))
+        }
       }
 
     // compile with two different primitive values, and confirm that they match if their
