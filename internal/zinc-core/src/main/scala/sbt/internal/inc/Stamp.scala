@@ -113,7 +113,7 @@ private[sbt] object Hash {
   private val Pattern = """hash\(((?:[0-9a-fA-F][0-9a-fA-F])+)\)""".r
 
   def ofFile(f: File): Hash =
-    new Hash(IOHash toHex IOHash(f)) // assume toHex returns a hex string
+    new Hash(IOHash.toHex(IOHash(f))) // assume toHex returns a hex string
 
   def fromString(s: String): Option[Hash] = {
     val m = Pattern.pattern.matcher(s)

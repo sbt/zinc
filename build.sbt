@@ -168,6 +168,7 @@ lazy val zinc = (projectMatrix in (zincRootPath / "zinc"))
       (jar2 / genTestResTask).taskValue,
       (classesDep1 / genTestResTask).taskValue
     ),
+    libraryDependencySchemes += "org.scala-sbt" %% "io" % VersionScheme.Always,
     Compile / buildInfo := Nil, // Only generate build info for tests
     BuildInfoPlugin.buildInfoScopedSettings(Test),
     Test / buildInfoPackage := "sbt.internal.inc",
@@ -246,6 +247,7 @@ lazy val zincTesting = (projectMatrix in internalPath / "zinc-testing")
     publish / skip := true,
     libraryDependencies ++= Seq(scalaCheck, scalatest, verify, sjsonnewScalaJson.value),
     dependencyOverrides += scalaXml,
+    libraryDependencySchemes += "org.scala-sbt" %% "io" % VersionScheme.Always,
   )
   .jvmPlatform(scalaVersions = scala3_only)
   .configure(addSbtIO, addSbtUtilLogging)
@@ -259,6 +261,7 @@ lazy val zincPersist = (projectMatrix in internalPath / "zinc-persist")
       sbinary,
       "org.scala-lang.modules" %% "scala-parallel-collections" % "1.2.0",
     ),
+    libraryDependencySchemes += "org.scala-sbt" %% "io" % VersionScheme.Always,
     compileOrder := sbt.CompileOrder.Mixed,
     Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
     mimaSettings,
@@ -306,6 +309,7 @@ lazy val zincCore = (projectMatrix in internalPath / "zinc-core")
     libraryDependencies ++= List(
       "org.scala-lang.modules" %% "scala-parallel-collections" % "1.2.0"
     ),
+    libraryDependencySchemes += "org.scala-sbt" %% "io" % VersionScheme.Always,
   )
   .jvmPlatform(scalaVersions = scala3_only)
   .configure(addBaseSettingsAndTestDeps, addSbtIO, addSbtUtilLogging, addSbtUtilRelation)
@@ -354,6 +358,7 @@ lazy val zincCompileCore = (projectMatrix in internalPath / "zinc-compile-core")
       parserCombinator,
       zeroAllocationHashing
     ),
+    libraryDependencySchemes += "org.scala-sbt" %% "io" % VersionScheme.Always,
     Test / unmanagedJars := Seq((compilerBridge212 / Compile / packageSrc).value).classpath,
     Compile / managedSourceDirectories += (Compile / generateContrabands / sourceManaged).value,
     Compile / generateContrabands / sourceManaged := (internalPath / "zinc-compile-core" / "src" / "main" / "contraband-java")
@@ -493,6 +498,7 @@ lazy val compilerBridgeTest = (projectMatrix in internalPath / "compiler-bridge-
     name := "Compiler Bridge Test",
     baseSettings,
     scalaVersion := scala3,
+    libraryDependencySchemes += "org.scala-sbt" %% "io" % VersionScheme.Always,
     // we need to fork because in unit tests we set usejavacp = true which means
     // we are expecting all of our dependencies to be on classpath so Scala compiler
     // can use them while constructing its own classpath for compilation
@@ -519,6 +525,7 @@ lazy val zincApiInfo = (projectMatrix in internalPath / "zinc-apiinfo")
   )
   .settings(
     name := "zinc ApiInfo",
+    libraryDependencySchemes += "org.scala-sbt" %% "io" % VersionScheme.Always,
     mimaSettings,
     mimaBinaryIssueFilters ++= Seq(
       exclude[IncompatibleMethTypeProblem]("xsbt.api.HashAPI.hashTypeParameters"),
@@ -593,6 +600,7 @@ lazy val zincClassfile = (projectMatrix in internalPath / "zinc-classfile")
         !excluded(x.getName)
       }
     },
+    libraryDependencySchemes += "org.scala-sbt" %% "io" % VersionScheme.Always,
     mimaSettings,
     mimaBinaryIssueFilters ++= Seq(
       exclude[DirectMissingMethodProblem]("sbt.internal.inc.classfile.Analyze.apply"),
@@ -617,6 +625,7 @@ lazy val zincScripted = (projectMatrix in internalPath / "zinc-scripted")
     baseSettings,
     publish / skip := true,
     name := "zinc Scripted",
+    libraryDependencySchemes += "org.scala-sbt" %% "io" % VersionScheme.Always,
     Compile / buildInfo := Nil, // Only generate build info for tests
     BuildInfoPlugin.buildInfoScopedSettings(Test),
     Test / buildInfoPackage := "sbt.internal.inc",
