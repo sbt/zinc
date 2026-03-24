@@ -14,6 +14,7 @@ package internal
 package inc
 
 import java.io.File
+import scala.util.Using
 import sbt.internal.inc.classfile.JavaCompilerForUnitTesting
 import sbt.io.IO
 import xsbti.{ AnalysisCallback, VirtualFileRef }
@@ -77,13 +78,14 @@ class ClassToAPISpecification extends UnitSpec {
       )
       compileJava(Seq(outerFile), srcDir, Seq(libDir))
 
-      val classloader = new java.net.URLClassLoader(Array(srcDir.toURI.toURL), null)
-      val outerClass = classloader.loadClass("Outer")
-      val (apis, _, _) = ClassToAPI.process(Seq(outerClass))
+      Using.resource(new java.net.URLClassLoader(Array(srcDir.toURI.toURL), null)) { classloader =>
+        val outerClass = classloader.loadClass("Outer")
+        val (apis, _, _) = ClassToAPI.process(Seq(outerClass))
 
-      val names = apis.map(_.name).toSet
-      assert(names.contains("Outer"))
-      assert(!names.contains("Outer.Inner"))
+        val names = apis.map(_.name).toSet
+        assert(names.contains("Outer"))
+        assert(!names.contains("Outer.Inner"))
+      }
     }
   }
 
