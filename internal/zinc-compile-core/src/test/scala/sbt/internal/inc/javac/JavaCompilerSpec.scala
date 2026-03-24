@@ -110,12 +110,7 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
     val (result, problems) =
       compile(compiler, Seq(knownSampleErrorFile), options, out.toPath)
     assert(result == false)
-    assert(problems.size == {
-      sys.props("java.specification.version") match {
-        case "1.8" | "9" => 6
-        case _           => 5
-      }
-    })
+    assert(problems.size == 5)
     val importWarn =
       warnOnLine(lineno = 12, colno = 15, lineContent = Some("java.rmi.RMISecurityException"))
     val enclosingError =
@@ -137,13 +132,7 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
   def findsDocErrors(compiler: XJavaTools) = IO.withTemporaryDirectory { out =>
     val (result, problems) =
       doc(compiler, Seq(knownSampleErrorFile), Seq(), out.toPath)
-    // exit code for `javadoc` commandline is JDK dependent
-    assert(result == {
-      sys.props("java.specification.version") match {
-        case "1.8" | "9" => true
-        case _           => false
-      }
-    })
+    assert(result == false)
     assert(problems.size == 2)
     val beAnExpectedError = List(errorOnLine(14, 7), errorOnLine(15, 11)) reduce (_ or _)
     problems foreach { p =>
