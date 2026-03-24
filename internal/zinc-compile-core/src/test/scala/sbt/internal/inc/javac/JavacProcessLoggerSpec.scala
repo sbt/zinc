@@ -18,7 +18,7 @@ import java.io.File
 
 import sbt.util.Level
 
-class JavaProcessLoggerSpec extends UnitSpec {
+class JavacProcessLoggerSpec extends UnitSpec {
   "The javac process logger" should "parse regular semantic errors" in logSemanticErrors()
   it should "parse semantic errors passed in one by one" in logSeparateSemanticErrors()
   it should "log errors that could not be parsed" in logUnparsableErrors()
