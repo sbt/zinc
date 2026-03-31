@@ -1,5 +1,4 @@
 import sbt._
-import Keys._
 
 import sbtheader.HeaderPlugin
 import sbtheader.HeaderPlugin.{ autoImport => SbtHeaderKeys }

@@ -1,5 +1,4 @@
 import sbt._, Keys._
-import sbt.contraband.ContrabandPlugin.autoImport._
 
 object Dependencies {
   def nightlyVersion: Option[String] =
@@ -14,7 +13,6 @@ object Dependencies {
   val scala213ForBridge = "2.13.16"
   val defaultScalaVersion = scala3
   val compilerBridgeVersions = Seq(scala212, scala210, scala211, scala213)
-  val scala212_213 = Seq(defaultScalaVersion, scala213)
   val scala3_only = Seq(scala3)
 
   private val ioVersion = nightlyVersion.getOrElse("1.10.5")
