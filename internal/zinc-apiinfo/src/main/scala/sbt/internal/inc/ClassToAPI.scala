@@ -427,7 +427,7 @@ object ClassToAPI {
     val pa = paramAnnots.lazyZip(paramTypes).lazyZip(isVarArg).map {
       case (a, p, v) => parameter(a, p, v)
     }
-    val params = api.ParameterList.of(pa.toArray, false)
+    val params = api.ParameterList.of(pa, false)
     val ret = retType match { case Some(rt) => reference(rt); case None => Empty }
     api.Def.of(
       name,

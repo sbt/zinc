@@ -25,7 +25,7 @@ object Scripted {
     val pairMap = pairs.groupBy(_._1).mapValues(_.map(_._2).toSet);
 
     val id = charClass(c => !c.isWhitespace && c != '/').+.string
-    val groupP = token(id.examples(pairMap.keySet.toSet)) <~ token('/')
+    val groupP = token(id.examples(pairMap.keySet)) <~ token('/')
 
     // A parser for page definitions
     val pageP: Parser[ScriptedTestPage] = ("*" ~ NatBasic ~ "of" ~ NatBasic) map {
