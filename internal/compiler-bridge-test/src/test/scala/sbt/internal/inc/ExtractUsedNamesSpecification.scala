@@ -200,7 +200,7 @@ class ExtractUsedNamesSpecification
     assert(usedNames("A") === expectedNames)
   }
 
-  // pending test for https://issues.scala-lang.org/browse/SI-7173
+  // pending test for https://github.com/scala/bug/issues/7173
   it should "extract names of constants" in pendingUntilFixed {
     val src = "class A { final val foo = 12; def bar: Int = foo }"
     val usedNames = extractUsedNamesFromSrc(src)

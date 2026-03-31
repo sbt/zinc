@@ -78,7 +78,7 @@ private[sbt] final case class Constant(
   def wide = tag == ConstantLong || tag == ConstantDouble
 
   // Override hashCode to prevent warning with -Ywarn-numeric-widen in Scala 2.10
-  // See https://issues.scala-lang.org/browse/SI-8340
+  // See https://github.com/scala/bug/issues/8340
   override def hashCode: Int =
     37 * (37 * (37 * (37 * (17 + tag.##) + nameIndex.##) + typeIndex.##) + value.##)
 }
