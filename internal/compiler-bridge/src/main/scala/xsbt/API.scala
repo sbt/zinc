@@ -123,7 +123,7 @@ final class API(val global: CallbackGlobal) extends Compat with GlobalHelpers wi
    * and registering their stamps. However, to be on the safe side, we will continue to
    * register the local products in `Analyzer`.
    *
-   * @param allClassSymbols The class symbols found in all the compilation units.
+   * @param classSymbols The class symbols found in all the compilation units.
    */
   def registerGeneratedClasses(classSymbols: Iterator[Symbol]): Unit = {
     // Guard against a local class in case it surreptitiously leaks here
