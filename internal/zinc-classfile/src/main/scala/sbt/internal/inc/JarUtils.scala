@@ -223,7 +223,6 @@ object JarUtils {
    * compilation.
    *
    * @param output output for scalac compilation
-   * @param callback analysis callback used to set previus jar
    * @param compile function that given extra classpath for compiler runs the compilation
    */
   def withPreviousJar(output: Output)(compile: /*extra classpath: */ Seq[Path] => Unit): Unit = {

@@ -307,7 +307,6 @@ object Incremental {
    * @param log  The log where we write debugging information
    * @param options  Incremental compilation options
    * @param outputJarContent Object that holds cached content of output jar
-   * @param profiler An implementation of an invalidation profiler, empty by default.
    * @param equivS  The means of testing whether two "Stamps" are the same.
    * @return
    *         A flag of whether or not compilation completed successfully, and the resulting dependency analysis object.
