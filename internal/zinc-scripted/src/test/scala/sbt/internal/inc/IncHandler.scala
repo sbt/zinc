@@ -681,7 +681,7 @@ case class ProjectStructure(
   ): Analysis = {
     import i._
     val sources = scalaSources ++ javaSources
-    val vs = sources.toList.map(converter.toVirtualFile)
+    val vs = sources.map(converter.toVirtualFile)
     val entryLookup = new PerClasspathEntryLookupImpl(lookupAnalysis, Locate.definesClass)
     val reporter = new ManagedLoggedReporter(maxErrors, scriptedLog)
     val extra = Array(t2(("key", "value")))

@@ -82,7 +82,7 @@ trait CompilingSpecification extends AbstractBridgeProviderTestkit {
 
   def extractBinaryClassNamesFromSrc(src: String): Set[(String, String)] = {
     val (Seq(tempSrcFile), analysisCallback) = compileSrcs(src)
-    analysisCallback.classNames(tempSrcFile).toSet
+    analysisCallback.classNames(tempSrcFile)
   }
 
   /**
