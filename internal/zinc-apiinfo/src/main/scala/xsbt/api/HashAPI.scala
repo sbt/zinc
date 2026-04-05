@@ -146,7 +146,7 @@ final class HashAPI private (
   final def hashSymmetric[T](ts: IterableOnce[T], hashF: T => Unit): Unit = {
     val current = hash
     val tsHash: Hash = ts match {
-      case ts: collection.Iterable[T] =>
+      case ts: collection.Iterable[T] @unchecked =>
         // Avoid creation of a temporary collection and avoid boxing of hashCodes by passing
         // this iterator to `unorderedHash`. It returns itself each time with a different hashCode.
         class HashIterator(delegate: Iterator[T]) extends Iterator[AnyRef] {
