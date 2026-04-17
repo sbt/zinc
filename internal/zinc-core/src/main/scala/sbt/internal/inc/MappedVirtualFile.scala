@@ -34,12 +34,17 @@ object MappedVirtualFile {
   def apply(encodedPath: String, rootPaths: Map[String, Path]): MappedVirtualFile =
     new MappedVirtualFile(encodedPath, rootPaths)
 
-  def toPath(encodedPath: String, rootPaths: Map[String, Path]): Path = {
+  private[inc] def toPathMapped[A](encodedPath: String, rootPaths: Map[String, Path])(
+      modifyResolvedPath: Path => A,
+      modifyOrigPath: String => A
+  ): A =
     rootPaths.toSeq.find { case (key, _) => encodedPath.startsWith(s"$${$key}/") } match {
-      case Some((key, p)) => p.resolve(encodedPath.stripPrefix(s"$${$key}/"))
-      case None           => Paths.get(encodedPath)
+      case Some((key, p)) => modifyResolvedPath(p.resolve(encodedPath.stripPrefix(s"$${$key}/")))
+      case None           => modifyOrigPath(encodedPath)
     }
-  }
+
+  def toPath(encodedPath: String, rootPaths: Map[String, Path]): Path =
+    toPathMapped(encodedPath, rootPaths)(identity, Paths.get(_))
 }
 
 class MappedDirectory(
@@ -78,7 +83,7 @@ object MappedDirectory {
     new MappedDirectory(encodedPath, rootPaths, items)
 }
 
-class MappedFileConverter(rootPaths: Map[String, Path], allowMachinePath: Boolean)
+class MappedFileConverter(val rootPaths: Map[String, Path], allowMachinePath: Boolean)
     extends FileConverter {
 
   import MappedFileConverter.view
