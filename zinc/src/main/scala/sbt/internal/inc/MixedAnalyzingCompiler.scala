@@ -147,11 +147,11 @@ final class MixedAnalyzingCompiler(
       Incremental.isPickleJava(config.currentSetup.options.scalacOptions.toIndexedSeq)
 
     def convertToPath(value: String): String =
-      if (!value.contains("$")) value
-      else {
-        val vf = VirtualFileRef.of(value)
-        val p = config.converter.toPath(vf)
-        p.toString()
+      config.converter match {
+        case c: MappedFileConverter =>
+          MappedVirtualFile.toPathMapped(value, c.rootPaths)(_.toString(), identity)
+
+        case _ => value
       }
 
     // Compile Scala sources.
