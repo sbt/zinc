@@ -4,8 +4,6 @@ import sbt._
 import sbt.internal.inc.ScalaInstance
 import sbt.internal.inc.classpath
 
-import scala.language.reflectiveCalls
-
 object Scripted {
   def scriptedPath = file("scripted")
   val scriptedSource = settingKey[File]("")
@@ -58,16 +56,6 @@ object Scripted {
     (token(Space) ~> (PagedIds | testIdAsGroup)).* map (_.flatten)
   }
 
-  // Interface to cross class loader
-  type ScriptedMain = {
-    def run(
-        baseDir: File,
-        bufferLog: Boolean,
-        compileToJar: Boolean,
-        testSpecs: Array[String],
-    ): Unit
-  }
-
   def doScripted(
       scriptedSbtClasspath: Seq[Attributed[File]],
       scriptedSbtInstance: ScalaInstance,
@@ -80,9 +68,22 @@ object Scripted {
       new classpath.FilteredLoader(scriptedSbtInstance.loader, "xsbti." :: "jline." :: Nil)
     val loader = classpath.ClasspathUtil.toLoader(scriptedSbtClasspath.files, noJLine)
     val bridgeClass = Class.forName("sbt.inc.ScriptedMain$", true, loader)
-    val bridge = bridgeClass.getField("MODULE$").get(null).asInstanceOf[ScriptedMain]
+    val mainObject = bridgeClass.getField("MODULE$").get(null)
+    val method = bridgeClass.getMethod(
+      "run",
+      classOf[File],
+      classOf[Boolean],
+      classOf[Boolean],
+      classOf[Array[String]]
+    )
     try {
-      bridge.run(sourcePath, bufferLog, compileToJar, args.toArray)
+      method.invoke(
+        mainObject,
+        sourcePath,
+        java.lang.Boolean.valueOf(bufferLog),
+        java.lang.Boolean.valueOf(compileToJar),
+        args.toArray
+      )
     } catch { case ite: java.lang.reflect.InvocationTargetException => throw ite.getCause }
   }
 }
