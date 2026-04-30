@@ -150,6 +150,8 @@ lazy val zincRoot: Project = (project in file("."))
       "clean" :: "+compile" :: "+publishSigned" :: "reload" :: state
     }, // clean is required b/c the version is generated in properties file
     crossScalaVersions := Nil,
+    publishBridges := Def.task(()).dependsOn(bridges *).value,
+    crossTestBridges := (compilerBridgeTest.jvm(scala3) / Test / test).dependsOn(publishBridges).value
   )
 
 lazy val zinc = (projectMatrix in (zincRootPath / "zinc"))
@@ -638,9 +640,6 @@ def bridges = {
 
 val publishBridges = taskKey[Unit]("")
 val crossTestBridges = taskKey[Unit]("")
-
-publishBridges := Def.task(()).dependsOn(bridges *).value
-crossTestBridges := (compilerBridgeTest.jvm(scala3) / Test / test).dependsOn(publishBridges).value
 
 addCommandAlias(
   "runBenchmarks", {
