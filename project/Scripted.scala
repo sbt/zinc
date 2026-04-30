@@ -51,9 +51,9 @@ object Scripted {
       } yield files map (f => group + '/' + f)
 
     val testID = (for (group <- groupP; name <- nameP(group)) yield (group, name))
-    val testIdAsGroup = matched(testID) map (test => Seq(test))
+    val testIdAsGroup = matched(testID).map(test => Seq(test))
     // (token(Space) ~> matched(testID)).*
-    (token(Space) ~> (PagedIds | testIdAsGroup)).* map (_.flatten)
+    (token(Space) ~> (PagedIds | testIdAsGroup)).*.map(_.flatten)
   }
 
   def doScripted(

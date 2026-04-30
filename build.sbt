@@ -37,7 +37,7 @@ def mimaSettings: Seq[Setting[?]] = Seq(
       if (scalaVersion.value.startsWith("2.12.")) pre140 ++ post140
       else post140
     val cross = if (crossPaths.value) CrossVersion.binary else CrossVersion.disabled
-    versions.map(version => organization.value %% moduleName.value % version cross cross)
+    versions.map(version => (organization.value %% moduleName.value % version).cross(cross))
   },
 )
 

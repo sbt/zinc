@@ -31,7 +31,7 @@ object Dependencies {
   def getSbtModulePath(key: String, name: String) = {
     val localProps = new java.util.Properties()
     IO.load(localProps, file("project/local.properties"))
-    val path = Option(localProps getProperty key) orElse (sys.props get key)
+    val path = Option(localProps.getProperty(key)) orElse (sys.props get key)
     path foreach (f => println(s"Using $name from $f"))
     path
   }
@@ -45,9 +45,9 @@ object Dependencies {
   ) =
     path match {
       case Some(f) =>
-        p dependsOn ClasspathDependency(ProjectRef(file(f), projectName), c.map(_.name))
+        p.dependsOn(ClasspathDependency(ProjectRef(file(f), projectName), c.map(_.name)))
       case None =>
-        p settings (libraryDependencies += m.withConfigurations(c.map(_.name)))
+        p.settings(libraryDependencies += m.withConfigurations(c.map(_.name)))
     }
 
   lazy val sbtIoPath = getSbtModulePath("sbtio.path", "sbt/io")
