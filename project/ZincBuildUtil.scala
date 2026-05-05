@@ -49,6 +49,7 @@ object ZincBuildUtil {
     ) ++ relaxNon212
 
   def relaxNon212: Seq[Setting[?]] = Seq(
+    scalaVersion := Dependencies.scala212,
     scalacOptions := {
       val old = scalacOptions.value
       scalaBinaryVersion.value match {
