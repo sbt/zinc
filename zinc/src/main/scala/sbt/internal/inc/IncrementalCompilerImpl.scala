@@ -20,6 +20,7 @@ import java.nio.file.Path
 import sbt.internal.inc.JavaInterfaceUtil._
 import sbt.internal.inc.MiniSetupUtil._
 import sbt.util.InterfaceUtil
+import scala.jdk.OptionConverters._
 import xsbti._
 import xsbti.compile.CompileOrder.Mixed
 import xsbti.compile.{ ClasspathOptions => XClasspathOptions, JavaTools => XJavaTools, _ }
@@ -53,7 +54,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
     val javacChosen = compilers.javaTools.javac
     val scalac = compilers.scalac
     val extraOptions = extra.toList.map(_.toScalaTuple)
-    val conv = converter.toOption.getOrElse(MappedFileConverter.empty)
+    val conv = converter.toScala.getOrElse(MappedFileConverter.empty)
     val defaultStampReader = Stamps.timeWrapBinaryStamps(conv)
     compileIncrementally(
       scalac,
@@ -61,24 +62,24 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       sources.toIndexedSeq,
       classpath.toIndexedSeq,
       CompileOutput(classesDirectory),
-      earlyOutput.toOption,
-      earlyAnalysisStore.toOption,
+      earlyOutput.toScala,
+      earlyAnalysisStore.toScala,
       cache,
-      progress().toOption,
+      progress().toScala,
       scalacOptions.toIndexedSeq,
       javacOptions.toIndexedSeq,
-      in.previousResult.analysis.toOption,
-      in.previousResult.setup.toOption,
+      in.previousResult.analysis.toScala,
+      in.previousResult.setup.toScala,
       perClasspathEntryLookup,
       reporter,
       order,
       skip = false,
       recompileAllJava = true,
       incrementalCompilerOptions,
-      temporaryClassesDirectory.toOption,
+      temporaryClassesDirectory.toScala,
       extraOptions,
       conv,
-      stamper.toOption.getOrElse(defaultStampReader),
+      stamper.toScala.getOrElse(defaultStampReader),
     )(using logger)
   }
 
@@ -108,7 +109,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
     val javacChosen = compilers.javaTools.javac
     val scalac = compilers.scalac
     val extraOptions = extra.toList.map(_.toScalaTuple)
-    val conv = converter.toOption.getOrElse(MappedFileConverter.empty)
+    val conv = converter.toScala.getOrElse(MappedFileConverter.empty)
     val defaultStampReader = Stamps.timeWrapBinaryStamps(conv)
     compileIncrementally(
       scalac,
@@ -116,24 +117,24 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       sources.toIndexedSeq,
       classpath.toIndexedSeq,
       CompileOutput(classesDirectory),
-      earlyOutput.toOption,
-      earlyAnalysisStore.toOption,
+      earlyOutput.toScala,
+      earlyAnalysisStore.toScala,
       cache,
-      progress().toOption,
+      progress().toScala,
       scalacOptions.toIndexedSeq,
       javacOptions.toIndexedSeq,
-      in.previousResult.analysis.toOption,
-      in.previousResult.setup.toOption,
+      in.previousResult.analysis.toScala,
+      in.previousResult.setup.toScala,
       perClasspathEntryLookup,
       reporter,
       order,
       skip,
       recompileAllJava = false,
       incrementalCompilerOptions,
-      temporaryClassesDirectory.toOption,
+      temporaryClassesDirectory.toScala,
       extraOptions,
       conv,
-      stamper.toOption.getOrElse(defaultStampReader),
+      stamper.toScala.getOrElse(defaultStampReader),
     )(using logger)
   }
 
@@ -206,21 +207,21 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       sources.toVector,
       classpath.toSeq,
       output,
-      earlyOutput.toOption,
-      earlyAnalysisStore.toOption,
+      earlyOutput.toScala,
+      earlyAnalysisStore.toScala,
       cache,
-      progress.toOption,
+      progress.toScala,
       scalaOptions.toSeq,
       javaOptions.toSeq,
-      previousAnalysis.toOption,
-      previousSetup.toOption,
+      previousAnalysis.toScala,
+      previousSetup.toScala,
       perClasspathEntryLookup,
       reporter,
       compileOrder,
       skip: Boolean,
       recompileAllJava = false,
       incrementalOptions,
-      temporaryClassesDirectory.toOption,
+      temporaryClassesDirectory.toScala,
       extraInScala,
       converter,
       stampReader
@@ -298,21 +299,21 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       vs.toIndexedSeq,
       cp,
       output,
-      earlyOutput.toOption,
-      earlyAnalysisStore.toOption,
+      earlyOutput.toScala,
+      earlyAnalysisStore.toScala,
       cache,
-      progress.toOption,
+      progress.toScala,
       scalaOptions.toSeq,
       javaOptions.toSeq,
-      previousAnalysis.toOption,
-      previousSetup.toOption,
+      previousAnalysis.toScala,
+      previousSetup.toScala,
       perClasspathEntryLookup,
       reporter,
       compileOrder,
       skip: Boolean,
       recompileAllJava = false,
       incrementalOptions,
-      temporaryClassesDirectory.toOption,
+      temporaryClassesDirectory.toScala,
       extraInScala,
       conveter,
       stampReader
@@ -591,8 +592,8 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       cache,
       incOptions,
       reporter,
-      progress.toOptional,
-      earlyAnalysisStore.toOptional,
+      progress.toJava,
+      earlyAnalysisStore.toJava,
       extra
     )
 
@@ -633,9 +634,9 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         foldMappers(sourcePositionMappers),
         order,
         temporaryClassesDirectory,
-        Option(converter).toOptional,
-        Option(stampReader).toOptional,
-        (earlyJarPath map { CompileOutput(_) }).toOptional,
+        Option(converter).toJava,
+        Option(stampReader).toJava,
+        (earlyJarPath map { CompileOutput(_) }).toJava,
       )
     }
     inputs(compileOptions, compilers, setup, pr)
@@ -667,7 +668,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
   private[sbt] def foldMappers[A](mappers: Array[JavaFunction[A, Optional[A]]]) = {
     mappers.foldRight(InterfaceUtil.toJavaFunction[A, A](identity)) { (mapper, mappers) =>
       InterfaceUtil.toJavaFunction[A, A]({ (p: A) =>
-        mapper(p).toOption.getOrElse(mappers(p))
+        mapper(p).toScala.getOrElse(mappers(p))
       })
     }
   }

@@ -26,8 +26,8 @@ case class CacheAwareStore(
 
   final val Empty = Optional.empty[AnalysisContents]
   override def get: Optional[AnalysisContents] = {
-    import sbt.internal.inc.JavaInterfaceUtil.EnrichOptional
-    val previous = localStore.get().toOption.map(f => (f.getAnalysis, f.getMiniSetup))
+    import scala.jdk.OptionConverters._
+    val previous = localStore.get().toScala.map(f => (f.getAnalysis, f.getMiniSetup))
     val cache = cacheProvider.findCache(previous)
     val cachedResult = cache.flatMap(_.loadCache(projectLocation))
     val optResult = cachedResult.orElse(previous)

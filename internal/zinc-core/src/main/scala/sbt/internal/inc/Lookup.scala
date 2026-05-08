@@ -65,7 +65,7 @@ trait Lookup extends ExternalLookup {
  * of abstraction and only allow to modify the inputs of the initial change detection.
  */
 trait ExternalLookup extends ExternalHooks.Lookup {
-  import sbt.internal.inc.JavaInterfaceUtil.EnrichOption
+  import scala.jdk.OptionConverters._
   import scala.jdk.CollectionConverters._
 
   /**
@@ -92,7 +92,7 @@ trait ExternalLookup extends ExternalHooks.Lookup {
   override def getChangedSources(
       previousAnalysis: CompileAnalysis
   ): Optional[Changes[VirtualFileRef]] =
-    changedSources(previousAnalysis).toOptional
+    changedSources(previousAnalysis).toJava
 
   /**
    * Used to provide information from external tools into sbt (e.g. IDEs)
@@ -104,7 +104,7 @@ trait ExternalLookup extends ExternalHooks.Lookup {
   override def getChangedBinaries(
       previousAnalysis: CompileAnalysis
   ): Optional[util.Set[VirtualFileRef]] =
-    changedBinaries(previousAnalysis).map(_.asJava).toOptional
+    changedBinaries(previousAnalysis).map(_.asJava).toJava
 
   /**
    * Used to provide information from external tools into sbt (e.g. IDEs)
@@ -116,7 +116,7 @@ trait ExternalLookup extends ExternalHooks.Lookup {
   override def getRemovedProducts(
       previousAnalysis: CompileAnalysis
   ): Optional[util.Set[VirtualFileRef]] =
-    removedProducts(previousAnalysis).map(_.asJava).toOptional
+    removedProducts(previousAnalysis).map(_.asJava).toJava
 
   /**
    * Used to provide information from external tools into sbt (e.g. IDEs)

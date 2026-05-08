@@ -17,6 +17,7 @@ import java.io.File
 import java.nio.file.{ Files, Path }
 import java.lang.ref.{ SoftReference, Reference }
 import java.util.Optional
+import scala.jdk.OptionConverters._
 
 import xsbti.{
   FileConverter,
@@ -31,8 +32,6 @@ import xsbti.compile.analysis.{ ReadStamps, ReadWriteMappers }
 import sbt.io.{ IO, DirectoryFilter }
 import sbt.util.{ InterfaceUtil, Logger }
 import sbt.internal.inc.consistent.ConsistentFileAnalysisStore
-import sbt.internal.inc.JavaInterfaceUtil.EnrichOption
-import sbt.internal.inc.JavaInterfaceUtil.EnrichOptional
 import sbt.internal.inc.VirtualFileUtil.toAbsolute
 import sbt.internal.inc.caching.ClasspathCache
 import sbt.internal.inc.javac.AnalyzingJavaCompiler
@@ -157,7 +156,7 @@ final class MixedAnalyzingCompiler(
     // Compile Scala sources.
     def compileScala(): Unit =
       if (scalaSrcs.nonEmpty || pickleJava) {
-        val pickleJarPair = callback.getPickleJarPair.toOption.map(t2 => (t2.get1, t2.get2))
+        val pickleJarPair = callback.getPickleJarPair.toScala.map(t2 => (t2.get1, t2.get2))
         val scalacOpts0 = config.currentSetup.options.scalacOptions.toVector
         val scalacOpts1: Vector[String] = scalacOpts0.map { x =>
           if (!x.contains("$")) x
@@ -206,7 +205,7 @@ final class MixedAnalyzingCompiler(
               output,
               callback,
               config.reporter,
-              config.progress.toOptional,
+              config.progress.toJava,
               log
             )
           }

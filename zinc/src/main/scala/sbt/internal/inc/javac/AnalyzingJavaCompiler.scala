@@ -17,7 +17,6 @@ package javac
 import java.nio.file.Path
 import java.net.URLClassLoader
 
-import sbt.internal.inc.JavaInterfaceUtil._
 import sbt.internal.inc.classfile.JavaAnalyze
 import sbt.internal.inc.classpath.ClasspathUtil
 import xsbti.compile._
@@ -32,6 +31,7 @@ import xsbti.{
 
 import sbt.util.InterfaceUtil
 import sbt.util.Logger
+import scala.jdk.OptionConverters._
 
 /**
  * Define a Java compiler that reports on any discovered source dependencies or
@@ -200,7 +200,7 @@ final class AnalyzingJavaCompiler private[sbt] (
       }
       // Construct class loader to analyze dependencies of generated class files
       val loader = ClasspathUtil.toLoader(
-        output.getSingleOutputAsPath.toOption.toSeq ++
+        output.getSingleOutputAsPath.toScala.toSeq ++
           (extraClasspath ++ searchClasspath).map(converter.toPath)
       )
 

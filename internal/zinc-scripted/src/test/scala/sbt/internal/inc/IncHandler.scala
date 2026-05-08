@@ -20,7 +20,6 @@ import java.util.jar.Manifest
 
 import sbt.util.Logger
 import sbt.util.InterfaceUtil._
-import sbt.internal.inc.JavaInterfaceUtil.{ EnrichOption, EnrichOptional }
 import xsbt.api.Discovery
 import xsbti.{ FileConverter, Problem, Severity, VirtualFileRef, VirtualFile }
 import xsbti.compile.{
@@ -57,6 +56,7 @@ import sjsonnew.support.scalajson.unsafe.{ Converter, Parser => JsonParser }
 import scala.collection.mutable
 import scala.concurrent.{ blocking, Await, Future, Promise }
 import scala.concurrent.duration._
+import scala.jdk.OptionConverters._
 import scala.util.control.NonFatal
 import scala.util.Success
 
@@ -368,7 +368,7 @@ case class ProjectStructure(
 
   def prev(useCachedAnalysis: Boolean = true) = {
     val store = if (useCachedAnalysis) cachedStore else fileStore
-    store.get.toOption match {
+    store.get.toScala match {
       case Some(contents) =>
         PreviousResult.of(Optional.of(contents.getAnalysis), Optional.of(contents.getMiniSetup))
       case _ => incrementalCompiler.emptyPreviousResult
@@ -377,7 +377,7 @@ case class ProjectStructure(
 
   def earlyPreviousResult: PreviousResult = {
     val store = earlyAnalysisStore
-    store.get.toOption match {
+    store.get.toScala match {
       case Some(contents) =>
         PreviousResult.of(Optional.of(contents.getAnalysis), Optional.of(contents.getMiniSetup))
       case _ => incrementalCompiler.emptyPreviousResult
@@ -393,7 +393,7 @@ case class ProjectStructure(
     dependsOnRef.flatMap(proj => Vector(proj.classesDir) ++ proj.outputJar)
 
   def checkSame(i: IncState): Future[Unit] =
-    cachedStore.get.toOption.fold(Future.unit) { contents =>
+    cachedStore.get.toScala.fold(Future.unit) { contents =>
       val prevAnalysis = contents.getAnalysis.asInstanceOf[Analysis]
       compile(i).map { analysis =>
         analysis.apis.internal.foreach {
@@ -579,12 +579,12 @@ case class ProjectStructure(
     def traditionalLookupAnalysis: VirtualFile => Option[CompileAnalysis] = {
       val f0: PartialFunction[VirtualFile, Option[CompileAnalysis]] = {
         case x if converter.toPath(x).toAbsolutePath == classesDir.toAbsolutePath =>
-          prev().analysis.toOption
+          prev().analysis.toScala
       }
       val f1 = dependsOnRef.foldLeft(f0) { (acc, dep) =>
         acc.orElse {
           case x if converter.toPath(x).toAbsolutePath == dep.classesDir.toAbsolutePath =>
-            dep.prev().analysis.toOption
+            dep.prev().analysis.toScala
         }
       }
       f1 orElse { case _ => None }
@@ -592,14 +592,14 @@ case class ProjectStructure(
     def pipelinedLookupAnalysis: VirtualFile => Option[CompileAnalysis] = {
       val f0: PartialFunction[VirtualFile, Option[CompileAnalysis]] = {
         case x if converter.toPath(x).toAbsolutePath == classesDir.toAbsolutePath =>
-          prev().analysis.toOption
+          prev().analysis.toScala
       }
       val f1 = dependsOnRef.foldLeft(f0) { (acc, dep) =>
         acc.orElse {
           case x if converter.toPath(x).toAbsolutePath == dep.classesDir.toAbsolutePath =>
-            dep.prev().analysis().toOption
+            dep.prev().analysis().toScala
           case x if converter.toPath(x).toAbsolutePath == dep.earlyOutput.toAbsolutePath =>
-            dep.earlyPreviousResult.analysis().toOption
+            dep.earlyPreviousResult.analysis().toScala
         }
       }
       f1.orElse { case _ => None }
@@ -666,7 +666,7 @@ case class ProjectStructure(
       am: VirtualFile => Option[CompileAnalysis],
       definesClassLookup: VirtualFile => DefinesClass
   ) extends PerClasspathEntryLookup {
-    override def analysis(classpathEntry: VirtualFile) = am(classpathEntry).toOptional
+    override def analysis(classpathEntry: VirtualFile) = am(classpathEntry).toJava
     override def definesClass(classpathEntry: VirtualFile) = definesClassLookup(classpathEntry)
   }
 
@@ -850,7 +850,7 @@ case class ProjectStructure(
   }
 
   def getProblems(): Seq[Problem] =
-    cachedStore.get.toOption match {
+    cachedStore.get.toScala match {
       case Some(analysisContents) =>
         val analysis = analysisContents.getAnalysis.asInstanceOf[Analysis]
         val allInfos = analysis.infos.allInfos.values.toSeq

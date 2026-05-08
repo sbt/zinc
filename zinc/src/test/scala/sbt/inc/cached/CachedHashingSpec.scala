@@ -23,6 +23,7 @@ import sbt.internal.inc.{
 import sbt.io.IO
 
 import scala.jdk.CollectionConverters._
+import scala.jdk.OptionConverters._
 
 class CachedHashingSpec extends BaseCompilerSpec {
   lazy val isWindows: Boolean =
@@ -63,14 +64,14 @@ class CachedHashingSpec extends BaseCompilerSpec {
           scalac,
           javac,
           options.sources.toIndexedSeq,
-          options.converter.toOption.get,
+          options.converter.toScala.get,
           giganticClasspath,
           setup.cache,
-          setup.progress.toOption,
+          setup.progress.toScala,
           options.scalacOptions.toIndexedSeq,
           options.javacOptions.toIndexedSeq,
           Analysis.empty,
-          previousResult.setup.toOption,
+          previousResult.setup.toScala,
           setup.perClasspathEntryLookup,
           setup.reporter,
           options.order,
@@ -78,9 +79,9 @@ class CachedHashingSpec extends BaseCompilerSpec {
           setup.incrementalCompilerOptions,
           output,
           JarUtils.createOutputJarContent(output),
-          options.earlyOutput.toOption,
-          setup.earlyAnalysisStore.toOption,
-          options.stamper.toOption.get,
+          options.earlyOutput.toScala,
+          setup.earlyAnalysisStore.toScala,
+          options.stamper.toScala.get,
           setup.extra.toList.map(_.toScalaTuple)
         )
 
