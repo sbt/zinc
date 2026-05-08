@@ -1,8 +1,11 @@
 import sbt._
+import sbt.given
 import Keys._
 import xsbti.compile.CompileAnalysis
+import sbt.librarymanagement.LibraryManagementCodec.given
 
 object ZincBuildUtil {
+  @transient
   lazy val genTestResTask = TaskKey[Seq[File]]("gen-test-resources")
 
   def lastCompilationTime(analysis0: CompileAnalysis): Long = {
@@ -43,7 +46,7 @@ object ZincBuildUtil {
       genTestResTask := {
         def resurcesDir = (file("zinc") / "src" / "test" / "resources" / "bin").getAbsoluteFile
         val target = resurcesDir / s"${name.value}.$ext"
-        IO.copyFile((Compile / packageBin).value, target)
+        IO.copyFile(fileConverter.value.toPath((Compile / packageBin).value).toFile, target)
         Seq(target)
       }
     ) ++ relaxNon212
