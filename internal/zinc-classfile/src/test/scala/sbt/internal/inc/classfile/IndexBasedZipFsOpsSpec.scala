@@ -38,19 +38,19 @@ class IndexBasedZipFsOpsSpec extends UnitSpec {
   private def assertMerge(size1: Int, size2: Int) = {
     val a = createJar(size1)
     val b = createJar(size2, "b", size1)
-    safely(IndexBasedZipFsOps.mergeArchives(a, b))
+    IndexBasedZipFsOps.mergeArchives(a, b)
     assertSize(a, size1 + size2)
   }
 
   private def assertShrink(size1: Int, size2: Int) = {
     val a = createJar(size1)
     val files = for (i <- size2 until size1) yield classFileName(i)
-    safely(IndexBasedZipFsOps.removeEntries(a.toFile, files))
+    IndexBasedZipFsOps.removeEntries(a.toFile, files)
     assertSize(a, size2)
   }
 
   private def assertSize(p: Path, size: Int) = {
-    val cen = safely(IndexBasedZipFsOps.readCentralDir(p.toFile))
+    val cen = IndexBasedZipFsOps.readCentralDir(p.toFile)
     assert(cen.getHeaders.size() == size)
     Files.delete(p)
   }
@@ -68,19 +68,4 @@ class IndexBasedZipFsOpsSpec extends UnitSpec {
   }
 
   private def classFileName(i: Int) = f"C$i%032d.class"
-
-  private def safely[A](op: => A) =
-    try op
-    catch { case ex: java.util.zip.ZipError => throw new ZipException(ex) }
-}
-
-// Avoid java.util.zip.ZipError, which is a VirtualMachineError!!?!
-final class ZipException(val cause: Throwable) extends Exception
-    with scala.util.control.NoStackTrace {
-  override def toString: String = cause.toString
-  override def getCause: Throwable = cause.getCause
-  override def getMessage: String = cause.getMessage
-  override def getStackTrace: Array[StackTraceElement] = cause.getStackTrace
-  override def printStackTrace(s: java.io.PrintStream): Unit = cause.printStackTrace(s)
-  override def printStackTrace(s: java.io.PrintWriter): Unit = cause.printStackTrace(s)
 }
