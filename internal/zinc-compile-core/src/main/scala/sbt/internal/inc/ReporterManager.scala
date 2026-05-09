@@ -19,6 +19,7 @@ import sbt.internal.util.{ MainAppender, ManagedLogger, Terminal => UTerminal }
 import sbt.util.LoggerContext
 import sbt.util.{ Level => SbtLevel }
 import xsbti.{ Position, Reporter, ReporterConfig }
+import scala.jdk.FunctionConverters.*
 
 object ReporterManager {
   import java.util.concurrent.atomic.AtomicInteger
@@ -59,26 +60,21 @@ object ReporterManager {
   private val UseColor = UTerminal.isColorEnabled
   private val NoPositionMapper = java.util.function.Function.identity[Position]()
 
-  import java.util.function.{ Function => JavaFunction }
-  private implicit class EnrichedJava[T, R](f: JavaFunction[T, R]) {
-    def toScala: Function[T, R] = (t: T) => f.apply(t)
-  }
-
   /** Returns sane defaults with a long tradition in sbt. */
   def getDefaultReporterConfig: ReporterConfig =
     ReporterConfig.of(DefaultName, 100, UseColor, Array(), Array(), Level.INFO, NoPositionMapper)
 
   def getReporter(logger: xsbti.Logger, config: ReporterConfig): Reporter = {
     val maxErrors = config.maximumErrors()
-    val posMapper = config.positionMapper().toScala
+    val posMapper = config.positionMapper().asScala
     if (config.fileFilters().isEmpty && config.msgFilters.isEmpty) {
       logger match {
         case managed: ManagedLogger => new ManagedLoggedReporter(maxErrors, managed, posMapper)
         case _                      => new LoggedReporter(maxErrors, logger, posMapper)
       }
     } else {
-      val fileFilters = config.fileFilters().map(_.toScala)
-      val msgFilters = config.msgFilters().map(_.toScala)
+      val fileFilters = config.fileFilters().map(_.asScala)
+      val msgFilters = config.msgFilters().map(_.asScala)
       logger match {
         case managed: ManagedLogger =>
           new ManagedFilteredReporter(fileFilters, msgFilters, maxErrors, managed, posMapper)
