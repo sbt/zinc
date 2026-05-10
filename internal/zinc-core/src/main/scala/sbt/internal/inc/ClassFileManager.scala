@@ -78,7 +78,7 @@ object ClassFileManager {
       output: Output,
       outputJarContent: JarUtils.OutputJarContent
   ): XClassFileManager = {
-    import sbt.internal.inc.JavaInterfaceUtil.{ EnrichOption, EnrichOptional }
+    import scala.jdk.OptionConverters._
     val internal =
       getDefaultClassFileManager(
         options.classfileManagerType,
@@ -86,8 +86,8 @@ object ClassFileManager {
         outputJarContent,
         options.auxiliaryClassFiles
       )
-    val external = Option(options.externalHooks()).flatMap(_.getExternalClassFileManager.toOption)
-    xsbti.compile.WrappedClassFileManager.of(internal, external.toOptional)
+    val external = Option(options.externalHooks()).flatMap(_.getExternalClassFileManager.toScala)
+    xsbti.compile.WrappedClassFileManager.of(internal, external.toJava)
   }
 
   private final class DeleteClassFileManager(auxiliaryFiles: Array[AuxiliaryClassFiles])

@@ -22,10 +22,10 @@ class LookupImpl(compileConfiguration: CompileConfiguration, previousSetup: Opti
   private val classpathHash: Vector[FileHash] =
     compileConfiguration.currentSetup.options.classpathHash.toVector
 
-  import sbt.internal.inc.JavaInterfaceUtil.EnrichOptional
+  import scala.jdk.OptionConverters._
   lazy val analyses: Vector[Analysis] = {
     classpath flatMap { entry =>
-      compileConfiguration.perClasspathEntryLookup.analysis(entry).toOption.map {
+      compileConfiguration.perClasspathEntryLookup.analysis(entry).toScala.map {
         case a: Analysis => a
       }
     }
@@ -52,7 +52,7 @@ class LookupImpl(compileConfiguration: CompileConfiguration, previousSetup: Opti
       .map(compileConfiguration.converter.toVirtualFile(_))
 
   lazy val externalLookup = Option(compileConfiguration.incOptions.externalHooks())
-    .flatMap(ext => ext.getExternalLookup().toOption)
+    .flatMap(ext => ext.getExternalLookup().toScala)
     .collect { case externalLookup: ExternalLookup => externalLookup }
 
   override def lookupAnalyzedClass(binaryClassName: String, file: Option[VirtualFileRef]) = {

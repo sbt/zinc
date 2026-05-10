@@ -27,14 +27,14 @@ trait CompilationCache {
 
 case class ProjectRebasedCache(remoteRoot: Path, cacheLocation: Path) extends CompilationCache {
   override def loadCache(projectLocation: File): Option[(CompileAnalysis, MiniSetup)] = {
-    import JavaInterfaceUtil.EnrichOptional
+    import scala.jdk.OptionConverters._
     import scala.jdk.CollectionConverters._
     val projectLocationPath = projectLocation.toPath
     val readMapper = new RebaseReadWriteMapper(remoteRoot, projectLocationPath)
     val writeMapper = new RebaseReadWriteMapper(projectLocationPath, remoteRoot)
     val mappers = new ReadWriteMappers(readMapper, writeMapper)
     val store = FileAnalysisStore.binary(cacheLocation.toFile, mappers)
-    store.get().toOption match {
+    store.get().toScala match {
       case Some(analysisContents) =>
         val originalAnalysis = analysisContents.getAnalysis
         val originalSetup = analysisContents.getMiniSetup

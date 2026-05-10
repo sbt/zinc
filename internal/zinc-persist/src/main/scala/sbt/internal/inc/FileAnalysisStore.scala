@@ -70,8 +70,8 @@ object FileAnalysisStore {
     }
 
     def get(): Optional[AnalysisContents] = {
-      import JavaInterfaceUtil.EnrichOption
-      allCatch.opt(unsafeGet()).toOptional
+      import scala.jdk.OptionConverters._
+      allCatch.opt(unsafeGet()).toJava
     }
 
     def unsafeGet(): AnalysisContents =

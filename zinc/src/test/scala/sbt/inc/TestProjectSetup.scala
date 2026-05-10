@@ -18,13 +18,12 @@ import java.nio.file.{ Files, Path, Paths }
 import java.util.Optional
 
 import sbt.internal.inc._
-import sbt.internal.inc.JavaInterfaceUtil.EnrichOption
-import sbt.internal.inc.JavaInterfaceUtil.EnrichOptional
 import sbt.internal.inc.classpath.ClassLoaderCache
 import sbt.internal.util.ManagedLogger
 import sbt.io.IO
 import sbt.io.syntax._
 import sbt.util.InterfaceUtil
+import scala.jdk.OptionConverters._
 
 import xsbti.{ FileConverter, VirtualFile }
 import xsbti.compile.{ ScalaInstance => XScalaInstance, _ }
@@ -54,8 +53,8 @@ case class CompilerSetup(
   }
 
   val perClasspathEntryLookup = new PerClasspathEntryLookup {
-    def read(p: Path) = FileAnalysisStore.getDefault(p.toFile).get().toOption.map(_.getAnalysis)
-    def analysis(cpEntry: VirtualFile) = analysisForCp.get(cpEntry).flatMap(read).toOptional
+    def read(p: Path) = FileAnalysisStore.getDefault(p.toFile).get().toScala.map(_.getAnalysis)
+    def analysis(cpEntry: VirtualFile) = analysisForCp.get(cpEntry).flatMap(read).toJava
     def definesClass(cpEntry: VirtualFile) = Locate.definesClass(cpEntry)
   }
 

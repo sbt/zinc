@@ -19,11 +19,11 @@ import java.{ util => ju }
 import ju.{ EnumSet, Optional, UUID }
 import ju.concurrent.atomic.AtomicBoolean
 import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct, computeBytecodeHash }
-import sbt.internal.inc.JavaInterfaceUtil.EnrichOption
 import sbt.util.{ InterfaceUtil, Level, Logger }
 import sbt.util.InterfaceUtil.{ jl2l, jo2o, l2jl, t2 }
 
 import scala.jdk.CollectionConverters._
+import scala.jdk.OptionConverters._
 import scala.collection.mutable
 import scala.util.control.NonFatal
 import xsbti.{ FileConverter, Position, Problem, Severity, UseScope, VirtualFile, VirtualFileRef }
@@ -663,7 +663,7 @@ private final class AnalysisCallback(
     currentSetup.options.scalacOptions.contains("-Ypickle-java")
   }
 
-  override def getPickleJarPair = pickleJarPair.map { case (p1, p2) => t2((p1, p2)) }.toOptional
+  override def getPickleJarPair = pickleJarPair.map { case (p1, p2) => t2((p1, p2)) }.toJava
 
   override def startSource(source: File): Unit = startSource(converter.toVirtualFile(source.toPath))
   override def startSource(source: VirtualFile): Unit = {
