@@ -46,7 +46,7 @@ ThisBuild / version := {
   nightlyVersion match {
     case Some(v) => v
     case _ =>
-      if ((ThisBuild / isSnapshot).value) "2.0.0-M9-SNAPSHOT"
+      if ((ThisBuild / isSnapshot).value) "2.0.0-M17-SNAPSHOT"
       else old
   }
 }
