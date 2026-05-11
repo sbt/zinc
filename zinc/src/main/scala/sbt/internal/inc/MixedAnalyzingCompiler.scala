@@ -501,7 +501,7 @@ object MixedAnalyzingCompiler {
       backing: => AnalysisStore
   ): AnalysisStore = {
     synchronized {
-      cache get file flatMap { ref =>
+      cache.get(file).flatMap { ref =>
         Option(ref.get)
       } getOrElse {
         val b = backing
@@ -519,6 +519,25 @@ object MixedAnalyzingCompiler {
       analysisFile = analysisFile,
       useTextAnalysis = useTextAnalysis,
       useConsistent = false,
+      cacheLast = true,
+      mappers = ReadWriteMappers.getEmptyMappers(),
+      reproducible = true,
+      parallelism = Runtime.getRuntime.availableProcessors(),
+    )
+
+  /**
+   * Create a an analysis store cache at the desired location.
+   */
+  def staticCachedStore(
+      analysisFile: Path,
+      useTextAnalysis: Boolean,
+      cacheLast: Boolean
+  ): AnalysisStore =
+    staticCachedStore(
+      analysisFile = analysisFile,
+      useTextAnalysis = useTextAnalysis,
+      useConsistent = false,
+      cacheLast = cacheLast,
       mappers = ReadWriteMappers.getEmptyMappers(),
       reproducible = true,
       parallelism = Runtime.getRuntime.availableProcessors(),
@@ -528,6 +547,25 @@ object MixedAnalyzingCompiler {
       analysisFile: Path,
       useTextAnalysis: Boolean,
       useConsistent: Boolean,
+      mappers: ReadWriteMappers,
+      reproducible: Boolean,
+      parallelism: Int,
+  ): AnalysisStore =
+    staticCachedStore(
+      analysisFile = analysisFile,
+      useTextAnalysis = useTextAnalysis,
+      useConsistent = useConsistent,
+      cacheLast = true,
+      mappers = mappers,
+      reproducible = reproducible,
+      parallelism = parallelism,
+    )
+
+  def staticCachedStore(
+      analysisFile: Path,
+      useTextAnalysis: Boolean,
+      useConsistent: Boolean,
+      cacheLast: Boolean,
       mappers: ReadWriteMappers,
       reproducible: Boolean,
       parallelism: Int,
@@ -552,7 +590,9 @@ object MixedAnalyzingCompiler {
           parallelism = parallelism,
         )
     }
-    val cachedStore = AnalysisStore.getCachedStore(fileStore)
-    staticCache(analysisFile, AnalysisStore.getThreadSafeStore(cachedStore))
+    val store1 =
+      if cacheLast then AnalysisStore.getCachedStore(fileStore)
+      else fileStore
+    staticCache(analysisFile, AnalysisStore.getThreadSafeStore(store1))
   }
 }
