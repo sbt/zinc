@@ -55,6 +55,26 @@ class ClassToAPISpecification extends UnitSpec {
     assert(apis.keySet === Set("A", "A.B"))
   }
 
+  // Regression: NPE in loadInnerClass when a JDK ancestor is bootstrap-loaded
+  // and has a public InnerClasses entry (e.g. java.lang.Thread.Builder on JDK 21+).
+  it should "not throw NPE when a parent JDK class is bootstrap-loaded" in {
+    IO.withTemporaryDirectory { temp =>
+      val outDir = new File(temp, "out")
+      outDir.mkdir()
+      val src = new File(temp, "MyThread.java")
+      IO.write(src, "public class MyThread extends Thread {}")
+      compileJava(Seq(src), outDir, Seq.empty)
+
+      Using.resource(new java.net.URLClassLoader(Array(outDir.toURI.toURL))) { classloader =>
+        val myThread = classloader.loadClass("MyThread")
+        val (apis, _, _) = ClassToAPI.process(Seq(myThread))
+        // Force the lazy structure so the inner-class walk runs.
+        apis.foreach(_.structure.declared.toIndexedSeq)
+        assert(apis.map(_.name).toSet.contains("MyThread"))
+      }
+    }
+  }
+
   // sbt/sbt#117
   it should "not throw NoClassDefFoundError when inner class references missing type" in {
     IO.withTemporaryDirectory { temp =>
