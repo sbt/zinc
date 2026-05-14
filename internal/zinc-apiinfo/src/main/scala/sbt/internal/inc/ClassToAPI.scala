@@ -265,13 +265,17 @@ object ClassToAPI {
       cl: ClassLoader,
       info: classfile.InnerClassInfo,
       log: Logger
-  ): Option[Class[?]] =
-    try Some(cl.loadClass(info.innerClassName))
+  ): Option[Class[?]] = {
+    // Bootstrap-loaded classes (e.g. java.lang.Thread.Builder on JDK 21+)
+    // report a null ClassLoader; fall back to the system class loader.
+    val loader = if (cl == null) ClassLoader.getSystemClassLoader else cl
+    try Some(loader.loadClass(info.innerClassName))
     catch {
       case e: (ClassNotFoundException | NoClassDefFoundError) =>
         log.warn(s"Could not load inner class ${info.innerClassName}: $e")
         None
     }
+  }
 
   /** TODO: over time, ClassToAPI should switch the majority of access to the classfile parser */
   private def classFileForClass(c: Class[?]): ClassFile =
