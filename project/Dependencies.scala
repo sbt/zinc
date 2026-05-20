@@ -10,7 +10,7 @@ object Dependencies {
   val scala213 = "2.13.16"
   val scala3 = "3.8.3"
   val scala3ForBridge = "3.3.4"
-  val scala213ForBridge = "2.13.16"
+  val scala213ForBridge = "2.13.18"
   val defaultScalaVersion = scala3
   val compilerBridgeVersions = Seq(scala212, scala210, scala211, scala213)
   val scala3_only = Seq(scala3)
