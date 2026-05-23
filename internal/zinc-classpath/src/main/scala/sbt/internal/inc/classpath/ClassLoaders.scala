@@ -94,7 +94,9 @@ final class ClasspathFilter(parent: ClassLoader, root: ClassLoader, classpath: S
     onClasspath(codeSource.getLocation)
   }
   private def onClasspath(src: URL): Boolean =
-    (src eq null) || (
+    // `jrt:` URLs identify JDK platform-module classes/resources (java.sql, etc.),
+    // which are always implicitly available to user code.
+    (src eq null) || src.getProtocol == "jrt" || (
       ClasspathUtil.asFile(src).headOption match {
         case Some(f) =>
           classpath(f) || directories.exists(dir => ClasspathUtil.relativize(dir, f).isDefined)
