@@ -351,8 +351,7 @@ lazy val zincCompileCore = (projectMatrix in internalPath / "zinc-compile-core")
     libraryDependencies ++= Seq(
       // scalaCompiler.value % Test,
       launcherInterface,
-      parserCombinator,
-      zeroAllocationHashing
+      parserCombinator
     ),
     Test / unmanagedJars := Seq((compilerBridge212 / Compile / packageSrc).value).classpath,
     Compile / managedSourceDirectories += (Compile / generateContrabands / sourceManaged).value,

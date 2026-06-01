@@ -18,7 +18,7 @@ object Dependencies {
   val scala3_only = Seq(scala3)
 
   private val ioVersion = nightlyVersion.getOrElse("1.10.5")
-  private val utilVersion = nightlyVersion.getOrElse("2.0.0-RC9")
+  private val utilVersion = nightlyVersion.getOrElse("2.0.0-RC14")
 
   private val sbtIO = "org.scala-sbt" %% "io" % ioVersion
 
@@ -73,7 +73,7 @@ object Dependencies {
   val parserCombinator = "org.scala-lang.modules" %% "scala-parser-combinators" % "2.1.0"
   // sbinary 0.5.2 uses 2.13 build of scala-xml, so use 0.5.1
   val sbinary = "org.scala-sbt" %% "sbinary" % "0.5.1"
-  val sjsonNewVersion = "0.14.0-M5"
+  val sjsonNewVersion = "0.15.0"
   val scalaXml = "org.scala-lang.modules" %% "scala-xml" % "2.4.0"
   val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.19.0"
   val scalatest = "org.scalatest" %% "scalatest" % "3.2.19"
@@ -84,7 +84,6 @@ object Dependencies {
   val sjsonnewScalaJson = Def.setting {
     "com.eed3si9n" %% "sjson-new-scalajson" % sjsonNewVersion
   }
-  val zeroAllocationHashing = "net.openhft" % "zero-allocation-hashing" % "0.16"
   val scala2BinaryBridge = "org.scala-lang" % "scala2-sbt-bridge" % scala213ForBridge
   val scala3BinaryBridge = "org.scala-lang" % "scala3-sbt-bridge" % scala3ForBridge
 

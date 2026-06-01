@@ -13,10 +13,9 @@ package sbt
 package internal
 package inc
 
-import net.openhft.hashing.LongHashFunction
-
 import java.io.{ BufferedInputStream, InputStream }
 import java.nio.file.{ Files, Path }
+import sbt.internal.util.hashing.Hashing
 import sbt.io.Hash
 
 object HashUtil {
@@ -24,7 +23,7 @@ object HashUtil {
     s"farm64-${digest.toHexString}"
 
   def farmHash(bytes: Array[Byte]): Long =
-    LongHashFunction.farmNa().hashBytes(bytes)
+    Hashing.farmNaHash64.hash(bytes, 0, bytes.size)
 
   def farmHash(path: Path): Long = {
     import sbt.io.Hash
