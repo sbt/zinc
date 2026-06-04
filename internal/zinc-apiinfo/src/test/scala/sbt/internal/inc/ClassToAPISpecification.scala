@@ -109,6 +109,206 @@ class ClassToAPISpecification extends UnitSpec {
     }
   }
 
+  // sbt/sbt#117 (reflection-fallback variant): a method's return type lives in
+  // an optional dep that's no longer on the classpath. Reflection throws when
+  // forced; the classfile-based fallback should rebuild the Def from the descriptor.
+  it should "fall back to classfile parser when a method return type is missing" in {
+    withMissingDep("public Missing foo() { return null; }") { (api, name) =>
+      val outer = api.find(_.name == "Outer").get
+      val foo = outer.structure.declared.collectFirst {
+        case d: xsbti.api.Def if d.name == "foo" => d
+      }.getOrElse(fail(s"foo() not in declared: ${outer.structure.declared.toSeq}"))
+      assert(projectionId(foo.returnType).contains("Missing"))
+    }
+  }
+
+  it should "fall back to classfile parser when a method parameter type is missing" in {
+    withMissingDep("public void foo(Missing m) {}") { (api, _) =>
+      val outer = api.find(_.name == "Outer").get
+      val foo = outer.structure.declared.collectFirst {
+        case d: xsbti.api.Def if d.name == "foo" => d
+      }.getOrElse(fail("foo(Missing) not in declared"))
+      val paramType = foo.valueParameters.head.parameters.head.tpe
+      assert(projectionId(paramType).contains("Missing"))
+    }
+  }
+
+  it should "fall back to classfile parser when a field type is missing" in {
+    withMissingDep("public Missing field;") { (api, _) =>
+      val outer = api.find(_.name == "Outer").get
+      val field = outer.structure.declared.collectFirst {
+        case v: xsbti.api.Var if v.name == "field" => v
+      }.getOrElse(fail("field not in declared"))
+      assert(projectionId(field.tpe).contains("Missing"))
+    }
+  }
+
+  // Known limitation: when only the annotation *type* is missing (and nothing
+  // else in the class triggers a reflection failure), modern JDKs silently
+  // drop the unresolvable Annotation from c.getAnnotations() rather than
+  // throwing. classAnnotationsSafe only triggers fallback on exception, so
+  // the @Missing annotation is lost. Recovering it would require either
+  // always reading class annotations from the classfile (Phase 4 territory)
+  // or detecting count mismatches between reflection and classfile.
+  it should "(limitation) lose missing-type class annotations when reflection silently drops them" in {
+    IO.withTemporaryDirectory { temp =>
+      val libDir = new File(temp, "lib"); libDir.mkdir()
+      val srcDir = new File(temp, "src"); srcDir.mkdir()
+
+      val missingAnn = new File(temp, "Missing.java")
+      IO.write(
+        missingAnn,
+        """|import java.lang.annotation.*;
+           |@Retention(RetentionPolicy.RUNTIME)
+           |public @interface Missing {}
+           |""".stripMargin
+      )
+      compileJava(Seq(missingAnn), libDir, Seq.empty)
+
+      val outerFile = new File(temp, "Outer.java")
+      IO.write(outerFile, "@Missing public class Outer {}")
+      compileJava(Seq(outerFile), srcDir, Seq(libDir))
+
+      Using.resource(new java.net.URLClassLoader(Array(srcDir.toURI.toURL), null)) { cl =>
+        val outerClass = cl.loadClass("Outer")
+        val (apis, _, _) = ClassToAPI.process(Seq(outerClass))
+        val outer = apis.find(_.name == "Outer").get
+        // Pins current behavior. When we fix the limitation, this assertion
+        // will start failing and should flip to .exists(... "Missing" ...).
+        assert(!outer.annotations.exists(a => projectionId(a.base).contains("Missing")))
+      }
+    }
+  }
+
+  // Regression: inherited members carry attributes whose constant-pool indices
+  // belong to the *parent's* classfile, not the child's. The classfile fallback
+  // must read those attributes with the parent's ClassFile or it returns garbage
+  // (or trips the `entry.tag == ConstantUTF8` assertion in Parser#toUTF8).
+  it should "read inherited member annotations against the parent's constant pool" in {
+    IO.withTemporaryDirectory { temp =>
+      val libDir = new File(temp, "lib"); libDir.mkdir()
+      val srcDir = new File(temp, "src"); srcDir.mkdir()
+
+      val missing = new File(temp, "Missing.java")
+      IO.write(missing, "public class Missing {}")
+      compileJava(Seq(missing), libDir, Seq.empty)
+
+      val parent = new File(temp, "Parent.java")
+      IO.write(
+        parent,
+        """|public class Parent {
+           |  // Reference to Missing forces the reflection path to throw,
+           |  // which triggers the classfile fallback on Child too.
+           |  public Missing dep() { return null; }
+           |  @Deprecated public void inheritedMethod() {}
+           |}
+           |""".stripMargin
+      )
+      val child = new File(temp, "Child.java")
+      IO.write(child, "public class Child extends Parent {}")
+      compileJava(Seq(parent, child), srcDir, Seq(libDir))
+
+      Using.resource(new java.net.URLClassLoader(Array(srcDir.toURI.toURL), null)) { cl =>
+        val childClass = cl.loadClass("Child")
+        val (apis, _, _) = ClassToAPI.process(Seq(childClass))
+        val childApi = apis.find(_.name == "Child").get
+        val inheritedMethod = childApi.structure.inherited.collectFirst {
+          case d: xsbti.api.Def if d.name == "inheritedMethod" => d
+        }.getOrElse {
+          fail(
+            s"inheritedMethod not found in Child.structure.inherited: " +
+              childApi.structure.inherited.map(_.name).mkString(", ")
+          )
+        }
+        assert(
+          inheritedMethod.annotations.exists(a => projectionId(a.base).contains("Deprecated")),
+          s"expected @Deprecated on inherited method; got: " +
+            inheritedMethod.annotations.map(a => projectionId(a.base)).mkString(", ")
+        )
+      }
+    }
+  }
+
+  it should "emit @throws annotations on classfile-fallback methods" in {
+    withMissingDep(
+      """|public Missing dep() { return null; }
+         |public void thrower() throws java.io.IOException {}
+         |""".stripMargin
+    ) { (api, _) =>
+      val outer = api.find(_.name == "Outer").get
+      val thrower = outer.structure.declared.collectFirst {
+        case d: xsbti.api.Def if d.name == "thrower" => d
+      }.getOrElse(fail("thrower() not in declared"))
+      val throwsAnn = thrower.annotations.find(a => projectionId(a.base).contains("throws"))
+      assert(throwsAnn.isDefined, s"no @throws annotation: ${thrower.annotations.toSeq}")
+      assert(
+        throwsAnn.get.arguments.exists(_.value.contains("IOException")),
+        s"expected IOException in throws args; got: ${throwsAnn.get.arguments.toSeq}"
+      )
+    }
+  }
+
+  it should "log a warning when falling back to the classfile parser" in {
+    IO.withTemporaryDirectory { temp =>
+      val libDir = new File(temp, "lib"); libDir.mkdir()
+      val srcDir = new File(temp, "src"); srcDir.mkdir()
+      val missing = new File(temp, "Missing.java")
+      IO.write(missing, "public class Missing {}")
+      compileJava(Seq(missing), libDir, Seq.empty)
+      val outer = new File(temp, "Outer.java")
+      IO.write(outer, "public class Outer { public Missing foo() { return null; } }")
+      compileJava(Seq(outer), srcDir, Seq(libDir))
+
+      Using.resource(new java.net.URLClassLoader(Array(srcDir.toURI.toURL), null)) { cl =>
+        val outerClass = cl.loadClass("Outer")
+        val recording = new RecordingLogger
+        val (_, _, _) = ClassToAPI.process(Seq(outerClass), recording)
+        assert(
+          recording.warns.exists(_.contains("falling back to classfile parser")),
+          s"no fallback-warn observed; messages: ${recording.warns.mkString(" | ")}"
+        )
+      }
+    }
+  }
+
+  // ---- helpers ----
+
+  private def withMissingDep(outerBody: String)(
+      check: (Seq[ClassLike], String) => Unit
+  ): Unit = IO.withTemporaryDirectory { temp =>
+    val libDir = new File(temp, "lib"); libDir.mkdir()
+    val srcDir = new File(temp, "src"); srcDir.mkdir()
+
+    val missing = new File(temp, "Missing.java")
+    IO.write(missing, "public class Missing {}")
+    compileJava(Seq(missing), libDir, Seq.empty)
+
+    val outerFile = new File(temp, "Outer.java")
+    IO.write(outerFile, s"public class Outer {\n$outerBody\n}\n")
+    compileJava(Seq(outerFile), srcDir, Seq(libDir))
+
+    Using.resource(new java.net.URLClassLoader(Array(srcDir.toURI.toURL), null)) { cl =>
+      val outerClass = cl.loadClass("Outer")
+      val (apis, _, _) = ClassToAPI.process(Seq(outerClass))
+      check(apis, "Outer")
+    }
+  }
+
+  private def projectionId(t: xsbti.api.Type): Option[String] = t match {
+    case p: xsbti.api.Projection => Some(p.id)
+    case _                       => None
+  }
+
+  private class RecordingLogger extends sbt.util.Logger {
+    private val buf = collection.mutable.ListBuffer.empty[(sbt.util.Level.Value, String)]
+    override def trace(t: => Throwable): Unit = ()
+    override def success(message: => String): Unit = ()
+    override def log(level: sbt.util.Level.Value, message: => String): Unit =
+      buf.synchronized(buf += ((level, message)))
+    def warns: Seq[String] =
+      buf.synchronized(buf.collect { case (sbt.util.Level.Warn, msg) => msg }.toSeq)
+  }
+
   private def compileJava(files: Seq[File], outputDir: File, classpath: Seq[File]): Unit = {
     import javax.tools.{ StandardLocation, ToolProvider }
     import scala.jdk.CollectionConverters._

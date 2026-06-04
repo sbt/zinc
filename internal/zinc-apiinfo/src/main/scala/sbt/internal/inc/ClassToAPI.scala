@@ -307,8 +307,22 @@ object ClassToAPI {
 
   /**
    * Best-effort supertype walk for the classfile fallback: tolerates the same
-   * reflection failures that triggered the fallback. We use the classfile's
-   * superClassName / interfaceNames when reflection on the parents throws.
+   * reflection failures that triggered the fallback.
+   *
+   * TODO: returning Seq.empty on failure drops two pieces of information that
+   * incremental compilation relies on: (1) the inheritance edges in
+   * `cmap.inherited`, which gate downstream invalidation when a parent's API
+   * changes, and (2) the parent types in the instance Structure, which feed
+   * into the class's API hash. A proper fallback should:
+   *   1. Retry with raw `getSuperclass` / `getInterfaces` (no generics) — most
+   *      TypeNotPresentException cases come from parameterized supertypes like
+   *      `extends Foo<Missing>` and raw reflection sidesteps the type-arg
+   *      resolution.
+   *   2. If raw reflection still throws, read `cf.superClassName` and
+   *      `cf.interfaceNames` from the classfile (just strings — no class
+   *      loading) to populate `parentTypes`, and try `cl.loadClass(name)` per
+   *      parent for inherited-member enumeration, skipping parents the
+   *      classloader can't resolve.
    */
   private def allSuperTypesSafe(c: Class[?]): Seq[Type] =
     try allSuperTypes(c)
@@ -321,6 +335,16 @@ object ClassToAPI {
    * fails when an annotation lives in an optional/provided dep that isn't on the analysis
    * classpath. Fall back to parsing the classfile's RuntimeVisible/Invisible Annotations
    * attributes when reflection blows up.
+   *
+   * TODO: modern JDKs silently *drop* annotation entries whose type isn't loadable
+   * rather than throwing — so for a class whose only problem is a missing annotation
+   * type, this fallback never triggers and the annotation is lost from the API
+   * (ClassToAPISpecification pins this as a known limitation). Two recovery paths
+   * worth considering: (a) always read class-level annotations from the classfile and
+   * skip reflection here entirely, or (b) read both, compare counts, and merge.
+   * Option (a) is simpler and aligns with the long-term direction documented on
+   * `classFileForClass`. Same applies to method/field annotations on the reflection
+   * primary path.
    */
   private def classAnnotationsSafe(c: Class[?], cmap: ClassMap): Array[api.Annotation] =
     try annotations(c.getAnnotations)
@@ -338,8 +362,15 @@ object ClassToAPI {
 
   /**
    * `c.getTypeParameters` triggers resolution of generic bound types. Fall back to an
-   * empty array when that fails — the Signature attribute parser (deferred) would let us
-   * recover the type parameters from the classfile bytes.
+   * empty array when that fails.
+   *
+   * TODO: an empty type-parameter list is a fidelity loss vs. the reflection path
+   * and will change the API hash for any generic class that hits the fallback.
+   * Recover the type parameters (and their bounds) by parsing the `Signature`
+   * classfile attribute (JVMS §4.7.9 — ClassSignature: `<T extends Bound>...`).
+   * The Signature attribute is also what the method/field fallbacks need to
+   * recover generic return types, parameter types, and field types, so the
+   * parser should be designed as a single shared component (Phase 4).
    */
   private def classTypeParametersSafe(c: Class[?], cmap: ClassMap): Array[api.TypeParameter] =
     try typeParameters(typeParameterTypes(c))
@@ -561,6 +592,7 @@ object ClassToAPI {
     }
   }
 
+  /** TODO: over time, ClassToAPI should switch the majority of access to the classfile parser */
   private def classFileForClass(c: Class[?]): ClassFile =
     classfile.Parser.apply(IO.classfileLocation(c), Logger.Null)
 
