@@ -33,6 +33,27 @@ private[sbt] trait ClassFile {
   def stringValue(a: AttributeInfo): String
 
   /**
+   * Parses Runtime{Visible,Invisible}Annotations attributes (JVMS 4.7.16) from the given
+   * attribute list. Returns annotations across both visibility variants in declaration order.
+   */
+  def annotations(attrs: IndexedSeq[AttributeInfo]): IndexedSeq[ParsedAnnotation]
+
+  /**
+   * Parses Runtime{Visible,Invisible}ParameterAnnotations attributes (JVMS 4.7.18).
+   * Result is indexed by parameter position; for each position, annotations from both
+   * visibility variants are concatenated.
+   */
+  def parameterAnnotations(
+      attrs: IndexedSeq[AttributeInfo]
+  ): IndexedSeq[IndexedSeq[ParsedAnnotation]]
+
+  /**
+   * Parses the Exceptions attribute (JVMS 4.7.5). Returns checked-exception class names
+   * in declaration order.
+   */
+  def methodExceptions(attrs: IndexedSeq[AttributeInfo]): IndexedSeq[String]
+
+  /**
    * If the given fieldName represents a ConstantValue field, parses its representation from
    * the constant pool and returns it.
    */
@@ -90,6 +111,15 @@ private[sbt] final case class FieldOrMethodInfo(
 ) {
   def isStatic = (accessFlags & ACC_STATIC) == ACC_STATIC
   def isPublic = (accessFlags & ACC_PUBLIC) == ACC_PUBLIC
+  def isPrivate = (accessFlags & ACC_PRIVATE) == ACC_PRIVATE
+  def isProtected = (accessFlags & ACC_PROTECTED) == ACC_PROTECTED
+  def isFinal = (accessFlags & ACC_FINAL) == ACC_FINAL
+  def isAbstract = (accessFlags & ACC_ABSTRACT) == ACC_ABSTRACT
+  def isVarArgs = (accessFlags & ACC_VARARGS) == ACC_VARARGS
+  def isBridge = (accessFlags & ACC_BRIDGE) == ACC_BRIDGE
+  def isSynthetic = (accessFlags & ACC_SYNTHETIC) == ACC_SYNTHETIC
+  def isConstructor = name.exists(_ == "<init>")
+  def isStaticInit = name.exists(_ == "<clinit>")
   def isMain = isPublic && isStatic && descriptor.exists(_ == "([Ljava/lang/String;)V")
 }
 private[sbt] final case class AttributeInfo(name: Option[String], value: Array[Byte]) {
@@ -99,7 +129,32 @@ private[sbt] final case class AttributeInfo(name: Option[String], value: Array[B
   def isInnerClasses = isNamed("InnerClasses")
   def isRuntimeVisibleAnnotations = isNamed("RuntimeVisibleAnnotations")
   def isRuntimeInvisibleAnnotations = isNamed("RuntimeInvisibleAnnotations")
+  def isRuntimeVisibleParameterAnnotations = isNamed("RuntimeVisibleParameterAnnotations")
+  def isRuntimeInvisibleParameterAnnotations = isNamed("RuntimeInvisibleParameterAnnotations")
+  def isExceptions = isNamed("Exceptions")
 }
+
+/**
+ * Structured form of a Java annotation parsed from the classfile.
+ *
+ * @param typeDescriptor JVM field descriptor of the annotation type (e.g. "Ljava/lang/Deprecated;")
+ * @param arguments      named element/value pairs in declaration order
+ */
+private[sbt] final case class ParsedAnnotation(
+    typeDescriptor: String,
+    arguments: IndexedSeq[ParsedAnnotationArg]
+)
+
+/**
+ * One element/value pair within a Java annotation.
+ *
+ * @param name  element name
+ * @param value serialized element value; the format mirrors java.lang.Object#toString-style
+ *              rendering so it can be stored in api.AnnotationArgument and contribute stably
+ *              to the API hash. The exact format is intentionally not part of any contract:
+ *              it only needs to be stable across compilations of identical classfiles.
+ */
+private[sbt] final case class ParsedAnnotationArg(name: String, value: String)
 private[sbt] final case class InnerClassInfo(
     accessFlags: Int,
     innerName: Option[String],
@@ -110,8 +165,17 @@ private[sbt] final case class InnerClassInfo(
   def isPublic = (accessFlags & ACC_PUBLIC) == ACC_PUBLIC
 }
 private[sbt] object Constants {
-  final val ACC_STATIC = 0x0008
   final val ACC_PUBLIC = 0x0001
+  final val ACC_PRIVATE = 0x0002
+  final val ACC_PROTECTED = 0x0004
+  final val ACC_STATIC = 0x0008
+  final val ACC_FINAL = 0x0010
+  final val ACC_INTERFACE = 0x0200
+  final val ACC_ABSTRACT = 0x0400
+  final val ACC_BRIDGE = 0x0040
+  final val ACC_VARARGS = 0x0080
+  final val ACC_SYNTHETIC = 0x1000
+  final val ACC_ENUM = 0x4000
 
   final val JavaMagic = 0xcafebabe
   final val ConstantUTF8 = 1

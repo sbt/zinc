@@ -237,6 +237,117 @@ private[sbt] object Parser {
         }
         next(1, Nil)
       }
+
+      // ---- structured annotation / exception parsing (JVMS 4.7.5, 4.7.16, 4.7.18) ----
+
+      def annotations(attrs: IndexedSeq[AttributeInfo]): IndexedSeq[ParsedAnnotation] = {
+        val relevant = attrs.filter(a =>
+          a.isRuntimeVisibleAnnotations || a.isRuntimeInvisibleAnnotations
+        )
+        if (relevant.isEmpty) IndexedSeq.empty
+        else relevant.flatMap(parseAnnotationsAttr).toIndexedSeq
+      }
+
+      def parameterAnnotations(
+          attrs: IndexedSeq[AttributeInfo]
+      ): IndexedSeq[IndexedSeq[ParsedAnnotation]] = {
+        val relevant = attrs.filter(a =>
+          a.isRuntimeVisibleParameterAnnotations || a.isRuntimeInvisibleParameterAnnotations
+        )
+        if (relevant.isEmpty) IndexedSeq.empty
+        else {
+          val perAttr = relevant.map(parseParameterAnnotationsAttr)
+          val maxLen = perAttr.iterator.map(_.length).maxOption.getOrElse(0)
+          IndexedSeq.tabulate(maxLen) { i =>
+            perAttr.flatMap(p => if (i < p.length) p(i) else IndexedSeq.empty)
+          }
+        }
+      }
+
+      def methodExceptions(attrs: IndexedSeq[AttributeInfo]): IndexedSeq[String] =
+        attrs.find(_.isExceptions) match {
+          case None => IndexedSeq.empty
+          case Some(attr) =>
+            val in = new DataInputStream(new ByteArrayInputStream(attr.value))
+            val n = in.readUnsignedShort()
+            IndexedSeq.tabulate(n) { _ =>
+              val idx = in.readUnsignedShort()
+              if (idx == 0) "" else getClassConstantName(idx)
+            }
+        }
+
+      private def parseAnnotationsAttr(attr: AttributeInfo): IndexedSeq[ParsedAnnotation] = {
+        val in = new DataInputStream(new ByteArrayInputStream(attr.value))
+        val n = in.readUnsignedShort()
+        IndexedSeq.tabulate(n)(_ => parseStructuredAnnotation(in))
+      }
+
+      private def parseParameterAnnotationsAttr(
+          attr: AttributeInfo
+      ): IndexedSeq[IndexedSeq[ParsedAnnotation]] = {
+        val in = new DataInputStream(new ByteArrayInputStream(attr.value))
+        val numParams = in.readUnsignedByte()
+        IndexedSeq.tabulate(numParams) { _ =>
+          val numAnnotations = in.readUnsignedShort()
+          IndexedSeq.tabulate(numAnnotations)(_ => parseStructuredAnnotation(in))
+        }
+      }
+
+      private def parseStructuredAnnotation(in: DataInputStream): ParsedAnnotation = {
+        val typeDesc = toUTF8(in.readUnsignedShort())
+        val numPairs = in.readUnsignedShort()
+        val args = IndexedSeq.tabulate(numPairs) { _ =>
+          val name = toUTF8(in.readUnsignedShort())
+          val value = serializeElementValue(in)
+          ParsedAnnotationArg(name, value)
+        }
+        ParsedAnnotation(typeDesc, args)
+      }
+
+      private def serializeElementValue(in: DataInputStream): String = {
+        val tag = in.readUnsignedByte().toChar
+        tag match {
+          case 'B' => "(byte)" + constantInt(in.readUnsignedShort())
+          case 'C' => "'" + constantInt(in.readUnsignedShort()).toChar.toString + "'"
+          case 'D' => constantDouble(in.readUnsignedShort()).toString + "d"
+          case 'F' => constantFloat(in.readUnsignedShort()).toString + "f"
+          case 'I' => constantInt(in.readUnsignedShort()).toString
+          case 'J' => constantLong(in.readUnsignedShort()).toString + "L"
+          case 'S' => "(short)" + constantInt(in.readUnsignedShort())
+          case 'Z' => if (constantInt(in.readUnsignedShort()) == 0) "false" else "true"
+          case 's' => "\"" + toUTF8(in.readUnsignedShort()) + "\""
+          case 'e' =>
+            val typeDesc = toUTF8(in.readUnsignedShort())
+            val constName = toUTF8(in.readUnsignedShort())
+            stripFieldDescriptor(typeDesc) + "." + constName
+          case 'c' =>
+            stripFieldDescriptor(toUTF8(in.readUnsignedShort())) + ".class"
+          case '@' =>
+            val nested = parseStructuredAnnotation(in)
+            val argList = nested.arguments.map(a => s"${a.name}=${a.value}").mkString(", ")
+            s"@${stripFieldDescriptor(nested.typeDescriptor)}($argList)"
+          case '[' =>
+            val n = in.readUnsignedShort()
+            val parts = (0 until n).map(_ => serializeElementValue(in))
+            parts.mkString("{", ", ", "}")
+          case other =>
+            sys.error(s"Unknown annotation element_value tag: '$other'")
+        }
+      }
+
+      private def stripFieldDescriptor(desc: String): String =
+        if (desc.startsWith("L") && desc.endsWith(";"))
+          slashesToDots(desc.substring(1, desc.length - 1))
+        else desc
+
+      private def constantInt(idx: Int): Int =
+        constantPool(idx).value.get.asInstanceOf[java.lang.Integer].intValue
+      private def constantLong(idx: Int): Long =
+        constantPool(idx).value.get.asInstanceOf[java.lang.Long].longValue
+      private def constantFloat(idx: Int): Float =
+        constantPool(idx).value.get.asInstanceOf[java.lang.Float].floatValue
+      private def constantDouble(idx: Int): Double =
+        constantPool(idx).value.get.asInstanceOf[java.lang.Double].doubleValue
     }
   }
   private def array[T: scala.reflect.ClassTag](size: Int)(f: => T) = Array.tabulate(size)(_ => f)
