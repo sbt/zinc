@@ -16,6 +16,7 @@ package inc
 import java.io.{ ByteArrayInputStream, DataInputStream }
 import java.lang.reflect.Modifier
 import scala.collection.mutable.ArrayBuffer
+import scala.util.control.NonFatal
 import xsbti.api
 import xsbti.api.SafeLazyProxy
 import sbt.internal.inc.classfile.{ AttributeInfo, ClassFile, FieldOrMethodInfo }
@@ -76,7 +77,7 @@ object ClassfileToAPI:
             val classConstant = cf.constantPool(in.readUnsignedShort())
             cf.constantPool(classConstant.nameIndex).value.fold("")(_.toString).replace('/', '.')
           }
-        catch case _: Throwable => Nil
+        catch case NonFatal(_) => Nil
 
   /** Declared annotation type names from RuntimeVisible/Invisible annotations (JVMS 4.7.16). */
   private def annotationTypeNames(cf: ClassFile, attrs: Seq[AttributeInfo]): Seq[String] =
@@ -100,7 +101,7 @@ object ClassfileToAPI:
           (0 until pairs).foreach { _ => in.readUnsignedShort(); skipElementValue() }
         val num = in.readUnsignedShort()
         (0 until num).foreach(_ => readAnnotation())
-      catch case _: Throwable => ()
+      catch case NonFatal(_) => ()
     names.toSeq
   end annotationTypeNames
 
@@ -200,7 +201,7 @@ object ClassfileToAPI:
     val constant: Option[AnyRef] =
       if mods.isFinal then
         (try cf.constantValue(name)
-        catch case _: Throwable => None)
+        catch case NonFatal(_) => None)
       else None
     val tpe = constant match
       case Some(value) =>
