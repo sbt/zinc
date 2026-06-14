@@ -38,7 +38,8 @@ private[sbt] object JavaAnalyze {
   )(
       analysis: xsbti.AnalysisCallback,
       loader: ClassLoader,
-      readAPI: (VirtualFileRef, Seq[Class[?]]) => Set[(String, String)]
+      readAPI: (VirtualFileRef, Seq[Class[?]]) => Set[(String, String)],
+      readClassfileAPI: (VirtualFileRef, Seq[(String, ClassFile)]) => Unit = (_, _) => ()
   ): Unit = {
     val sourceMap = sources
       .toSet[VirtualFile]
@@ -226,6 +227,16 @@ private[sbt] object JavaAnalyze {
           (classFile.superClassName +: classFile.interfaceNames.toIndexedSeq).filter(_.nonEmpty)
         processDependencies(parents, DependencyByInheritance, classFile.className)
       }
+
+      // sbt/zinc#837 (Phase 2): record API for un-loadable classes from the classfile, so
+      // name-hashing detects changes to their own public shape (reflection can't load them).
+      val unloadableNamed = classFiles.iterator
+        .filter(cf => binaryClassNameToSourceName.contains(cf.className))
+        .map(cf => binaryClassNameToSourceName(cf.className) -> cf)
+        .toSeq
+      // Best-effort: never let classfile-based API extraction fail a compile that would otherwise
+      // succeed (these classes already couldn't be loaded), matching load()/loadInnerClass.
+      if (unloadableNamed.nonEmpty) trapAndLog(log)(readClassfileAPI(source, unloadableNamed))
     }
   }
 

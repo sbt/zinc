@@ -90,7 +90,9 @@ private[sbt] final case class FieldOrMethodInfo(
 ) {
   def isStatic = (accessFlags & ACC_STATIC) == ACC_STATIC
   def isPublic = (accessFlags & ACC_PUBLIC) == ACC_PUBLIC
-  def isMain = isPublic && isStatic && descriptor.exists(_ == "([Ljava/lang/String;)V")
+  def isMain =
+    isPublic && isStatic && name.contains("main") &&
+      descriptor.exists(_ == "([Ljava/lang/String;)V")
 }
 private[sbt] final case class AttributeInfo(name: Option[String], value: Array[Byte]) {
   def isNamed(s: String) = name.exists(s == _)
