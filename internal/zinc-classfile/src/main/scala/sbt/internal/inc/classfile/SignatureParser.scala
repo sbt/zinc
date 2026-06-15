@@ -30,7 +30,8 @@ private[sbt] object SignatureModel {
   sealed trait SigType
 
   /** `Lpkg/Outer<args>.Inner<args>;` — `name` is the dotted outer class name; `inners` the suffixes. */
-  final case class SigClass(name: String, args: List[SigArg], inners: List[SigInner]) extends SigType
+  final case class SigClass(name: String, args: List[SigArg], inners: List[SigInner])
+      extends SigType
 
   /** `TX;` — a reference to a type variable named `X`. */
   final case class SigVar(name: String) extends SigType
@@ -96,7 +97,8 @@ private[sbt] object SignatureParser {
       val params = ListBuffer.empty[SigType]
       while (c.peek != ')') params += parseJavaType(c)
       c.expect(')')
-      val result = if (c.peek == 'V') { c.next(); SigVoid } else parseJavaType(c)
+      val result = if (c.peek == 'V') { c.next(); SigVoid }
+      else parseJavaType(c)
       val throws = ListBuffer.empty[SigType]
       while (!c.atEnd && c.peek == '^') { c.next(); throws += parseThrowsSignature(c) }
       MethodSignature(typeParams, params.toList, result, throws.toList)
@@ -172,9 +174,9 @@ private[sbt] object SignatureParser {
   // TypeArgument: [+|-] ReferenceTypeSignature | *
   private def parseTypeArg(c: Cursor): SigArg =
     c.peek match {
-      case '*'           => c.next(); SigWildcard
+      case '*'             => c.next(); SigWildcard
       case v @ ('+' | '-') => c.next(); SigBounded(v, parseReferenceType(c))
-      case _             => SigBounded('=', parseReferenceType(c))
+      case _               => SigBounded('=', parseReferenceType(c))
     }
 
   // TypeParameters: < (Identifier ClassBound InterfaceBound*)+ >
