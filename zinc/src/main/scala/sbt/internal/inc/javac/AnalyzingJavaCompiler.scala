@@ -17,7 +17,7 @@ package javac
 import java.nio.file.Path
 import java.net.URLClassLoader
 
-import sbt.internal.inc.classfile.{ ClassFile, JavaAnalyze }
+import sbt.internal.inc.classfile.{ ClassFile, JavaAnalyze, Parser }
 import sbt.internal.inc.classpath.ClasspathUtil
 import xsbti.compile._
 import xsbti.{
@@ -97,6 +97,9 @@ final class AnalyzingJavaCompiler private[sbt] (
    * @param log       A place where we can log debugging/error messages.
    * @param progressOpt An optional compilation progress reporter to report
    *                    back what files are currently under compilation.
+   * @param classfileApiOnly When true, extract each Java class's API from its classfile instead of
+   *                    by reflectively loading it (IncOptions.classfileJavaApi); avoids the class
+   *                    loading that triggers sbt/zinc#837, #151, and #1697.
    */
   def compile(
       sources: Seq[VirtualFile],
@@ -109,7 +112,8 @@ final class AnalyzingJavaCompiler private[sbt] (
       incToolOptions: IncToolOptions,
       reporter: XReporter,
       log: XLogger,
-      progressOpt: Option[CompileProgress]
+      progressOpt: Option[CompileProgress],
+      classfileApiOnly: Boolean
   ): Unit = {
     val sourceDirs = collection.mutable.Map.empty[Path, VirtualFileRef]
 
@@ -182,6 +186,12 @@ final class AnalyzingJavaCompiler private[sbt] (
         }
       }
 
+      // Construct class loader to analyze dependencies of generated class files
+      val loader = ClasspathUtil.toLoader(
+        output.getSingleOutputAsPath.toScala.toSeq ++
+          (extraClasspath ++ searchClasspath).map(converter.toPath)
+      )
+
       // Read the API information from [[Class]] to analyze dependencies.
       def readAPI(source: VirtualFileRef, classes: Seq[Class[?]]): Set[(String, String)] = {
         val (apis, mainClasses, inherits) = ClassToAPI.process(classes, log)
@@ -192,10 +202,21 @@ final class AnalyzingJavaCompiler private[sbt] (
         }
       }
 
+      // Read a parent class's bytes (for inherited members) without loading/linking it — so this
+      // stays immune to the module/classpath issues that motivated the classfile path (sbt/zinc#837).
+      def resolveParent(binaryName: String): Option[ClassFile] = {
+        val resource = binaryName.replace('.', '/') + ".class"
+        Option(loader.getResource(resource))
+          .orElse(Option(ClassLoader.getSystemResource(resource)))
+          .flatMap(u =>
+            try Some(Parser(u, log))
+            catch { case _: Throwable => None }
+          )
+      }
       // Read the API of classes that couldn't be reflectively loaded, from their classfiles
       // (sbt/zinc#837), so name-hashing still tracks changes to their own public shape.
       def readClassfileAPI(source: VirtualFileRef, classFiles: Seq[(String, ClassFile)]): Unit = {
-        val (apis, mainClasses) = ClassfileToAPI.process(classFiles, log)
+        val (apis, mainClasses) = ClassfileToAPI.process(classFiles, resolveParent(_), log)
         apis.foreach(callback.api(source, _))
         mainClasses.foreach(callback.mainClass(source, _))
       }
@@ -206,12 +227,6 @@ final class AnalyzingJavaCompiler private[sbt] (
         progress.startUnit(javaAnalysisPhase, "")
         progress.advance(1, 2, javaCompilationPhase, javaAnalysisPhase)
       }
-      // Construct class loader to analyze dependencies of generated class files
-      val loader = ClasspathUtil.toLoader(
-        output.getSingleOutputAsPath.toScala.toSeq ++
-          (extraClasspath ++ searchClasspath).map(converter.toPath)
-      )
-
       timed(javaAnalysisPhase, log) {
         for {
           (classFinder, oldClasses, srcs) <- memo
@@ -223,7 +238,8 @@ final class AnalyzingJavaCompiler private[sbt] (
               callback,
               loader,
               readAPI,
-              readClassfileAPI
+              readClassfileAPI,
+              classfileApiOnly
             )
           } finally classes.close()
         }

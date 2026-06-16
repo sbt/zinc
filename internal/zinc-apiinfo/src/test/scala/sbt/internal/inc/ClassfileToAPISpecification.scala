@@ -84,8 +84,8 @@ class ClassfileToAPISpecification extends UnitSpec {
       val callback = JavaCompilerForUnitTesting.analyze(
         classesDir,
         Seq(outerFile),
-        (cb, src, named) => {
-          val (apis, _) = ClassfileToAPI.process(named)
+        (cb, src, named, resolve) => {
+          val (apis, _) = ClassfileToAPI.process(named, resolve)
           apis.foreach(cb.api(src, _))
         }
       )
@@ -99,6 +99,55 @@ class ClassfileToAPISpecification extends UnitSpec {
       val memberDefs =
         innerClass.structure.declared.collect { case d: xsbti.api.Def => d.name }.toSet
       assert(memberDefs.contains("answer"))
+    }
+  }
+
+  // Step D (de-reflection): with classfileApiOnly set, JavaAnalyze must route *loadable* classes
+  // through ClassfileToAPI instead of Class.forName, recovering declared members from the class's
+  // own bytes and inherited members from its parents' bytes — never loading anything.
+  it should "route loadable classes through the classfile path when classfileApiOnly is set" in {
+    IO.withTemporaryDirectory { temp =>
+      val classesDir = new File(temp, "classes")
+      classesDir.mkdir()
+      val baseFile = new File(temp, "Base.java")
+      IO.write(baseFile, "public class Base { public int baseM() { return 0; } }")
+      val greeterFile = new File(temp, "Greeter.java")
+      IO.write(
+        greeterFile,
+        "public class Greeter extends Base { public String hello(int n) { return null; } }"
+      )
+      JavaCompilerForUnitTesting.compileJava(Seq(baseFile, greeterFile), classesDir, Seq.empty)
+
+      // The classfile extractor is the only thing that records API here, so what it captures is
+      // exactly what JavaAnalyze routed to the classfile path.
+      def recordedApis(classfileApiOnly: Boolean): Set[ClassLike] =
+        JavaCompilerForUnitTesting
+          .analyze(
+            classesDir,
+            Seq(baseFile, greeterFile),
+            (cb, src, named, resolve) => {
+              val (apis, _) = ClassfileToAPI.process(named, resolve)
+              apis.foreach(cb.api(src, _))
+            },
+            classfileApiOnly = classfileApiOnly
+          )
+          .apis
+          .values
+          .flatten
+          .toSet
+
+      // Off: both classes load fine, so they take the reflection path and never reach ClassfileToAPI.
+      assert(recordedApis(classfileApiOnly = false).isEmpty)
+
+      // On: every class is extracted from its classfile instead of being loaded.
+      val recorded = recordedApis(classfileApiOnly = true)
+      val greeter = recorded
+        .find(c => c.name == "Greeter" && c.definitionType == DefinitionType.ClassDef)
+        .get
+      val declared = greeter.structure.declared.collect { case d: xsbti.api.Def => d.name }.toSet
+      val inherited = greeter.structure.inherited.collect { case d: xsbti.api.Def => d.name }.toSet
+      assert(declared.contains("hello")) // its own method, from Greeter.class
+      assert(inherited.contains("baseM")) // from Base.class, via the byte-reading resolver
     }
   }
 
@@ -159,6 +208,44 @@ class ClassfileToAPISpecification extends UnitSpec {
         temp,
         "b",
         "import java.util.List;\npublic class Sample { public List<Integer> answer() { return null; } }"
+      )
+      assert(hashAll(a) != hashAll(b))
+    }
+  }
+
+  // P1 (variance): the mapped api.Type drops wildcard variance, so `List<? extends Number>` and
+  // `List<? super Number>` collapse to the same type. The always-folded raw Signature must still
+  // distinguish them — otherwise a variance change would not invalidate dependents (under-compilation).
+  it should "detect wildcard variance changes that the mapped type collapses" in {
+    IO.withTemporaryDirectory { temp =>
+      val a = sampleApis(
+        temp,
+        "a",
+        "import java.util.List;\npublic class Sample { public List<? extends Number> f; }"
+      )
+      val b = sampleApis(
+        temp,
+        "b",
+        "import java.util.List;\npublic class Sample { public List<? super Number> f; }"
+      )
+      assert(hashAll(a) != hashAll(b))
+    }
+  }
+
+  // P1 (generic throws): only the erased `Exceptions` attribute is modelled, so two methods that
+  // throw different type variables sharing the same erased bound are distinguished only by the
+  // folded raw Signature.
+  it should "detect a generic throws change that shares an erased exception bound" in {
+    IO.withTemporaryDirectory { temp =>
+      val a = sampleApis(
+        temp,
+        "a",
+        "public class Sample { public <E extends Exception, F extends Exception> void run() throws E {} }"
+      )
+      val b = sampleApis(
+        temp,
+        "b",
+        "public class Sample { public <E extends Exception, F extends Exception> void run() throws F {} }"
       )
       assert(hashAll(a) != hashAll(b))
     }

@@ -29,6 +29,13 @@ private[sbt] trait ClassFile {
   val attributes: Array[AttributeInfo]
   def sourceFile: Option[String]
   def innerClasses: Array[InnerClassInfo]
+
+  /**
+   * The binary name of the immediately enclosing class from the `EnclosingMethod` attribute
+   * (JVMS 4.7.7), present on local and anonymous classes. `None` for other classes. Lets analysis
+   * map a local class to its enclosing class without reflectively loading it.
+   */
+  def enclosingClass: Option[String]
   def types: Set[String]
   def stringValue(a: AttributeInfo): String
 

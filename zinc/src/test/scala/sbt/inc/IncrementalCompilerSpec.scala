@@ -14,7 +14,14 @@ package sbt.inc
 import sbt.internal.inc._
 import sbt.io.IO.{ withTemporaryDirectory => withTmpDir }
 import sbt.io.syntax._
-import xsbti.compile.{ AnalysisStore, CompileAnalysis, DefaultExternalHooks, Inputs, Output }
+import xsbti.compile.{
+  AnalysisStore,
+  CompileAnalysis,
+  DefaultExternalHooks,
+  IncOptions,
+  Inputs,
+  Output
+}
 import java.util.Optional
 
 import xsbti.VirtualFile
@@ -203,6 +210,56 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
     } finally {
       comp.close()
     }
+  }
+
+  // Step D end-to-end: with IncOptions.classfileJavaApi on, a change to a Java method's public
+  // signature must invalidate its dependents — and produce the *same* recompiled set as the default
+  // reflection path — all without loading any class. The flag is a per-invocation option (no global
+  // state), so the two scenarios just use different IncOptions.
+  it should "drive the same Java invalidation under classfileJavaApi as reflection" in withTmpDir {
+    tmp =>
+      val a1 = "public class A { public int value() { return 1; } }"
+      val a2 = "public class A { public long value() { return 1L; } }" // public signature change
+      // B depends on A.value(); its own source is unchanged and compiles against both versions.
+      val b = "public class B { public long use() { return new A().value(); } }"
+
+      def scenario(subdir: String, opts: IncOptions): Set[String] = {
+        val comp = VirtualSubproject(tmp.toPath / subdir).setup.createCompiler(scalaVersion, opts)
+        try {
+          def compileJava(sources: VirtualFile*) =
+            comp.doCompileWithStore(newInputs =
+              (in: Inputs) =>
+                comp.withSrcs(sources.toArray)(
+                  in.withOptions(
+                    in.options
+                      .withEarlyOutput(Optional.empty[Output])
+                      .withScalacOptions(comp.scalacOptions.toArray) // drop -Ypickle* args
+                  ).withSetup(
+                    in.setup.withIncrementalCompilerOptions(
+                      in.setup.incrementalCompilerOptions.withPipelining(false)
+                    )
+                  )
+                )
+            )
+          val res1 = compileJava(StringVirtualFile("A.java", a1), StringVirtualFile("B.java", b))
+          val res2 = compileJava(StringVirtualFile("A.java", a2), StringVirtualFile("B.java", b))
+          recompiled(res1, res2)
+        } finally comp.close()
+      }
+
+      val withReflection = scenario("reflect", incOptions)
+      val withClassfile = scenario("classfile", incOptions.withClassfileJavaApi(true))
+
+      // The dependent B is invalidated by A's API change ...
+      assert(
+        withClassfile.contains("A") && withClassfile.contains("B"),
+        s"classfile path under-invalidated: $withClassfile"
+      )
+      // ... and the classfile path matches the reflection path exactly.
+      assert(
+        withClassfile == withReflection,
+        s"invalidation differs — classfile=$withClassfile reflect=$withReflection"
+      )
   }
 
   it should "track dependencies on constants" in withTmpDir { tmp =>
