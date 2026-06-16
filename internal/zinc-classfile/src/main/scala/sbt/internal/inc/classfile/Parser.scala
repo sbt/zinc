@@ -106,6 +106,16 @@ private[sbt] object Parser:
           InnerClassInfo(innerClassAccessFlags, innerName, innerCN, outerCN)
         }
 
+      override lazy val enclosingClass: Option[String] =
+        attributes
+          .find(_.isNamed("EnclosingMethod"))
+          .map { a =>
+            // EnclosingMethod: { u2 class_index; u2 method_index; } — class_index -> CONSTANT_Class.
+            val data = new DataInputStream(new ByteArrayInputStream(a.value))
+            getClassConstantName(data.readUnsignedShort())
+          }
+          .filter(_.nonEmpty)
+
       override lazy val sourceFile: Option[String] =
         for sourceFileAttribute <- attributes.find(_.isSourceFile)
         yield toUTF8(entryIndex(sourceFileAttribute))
