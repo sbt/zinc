@@ -158,6 +158,10 @@ final class AnalyzingJavaCompiler private[sbt] (
         progress.advance(0, 2, somePhase, javaCompilationPhase)
       }
 
+      // sbt/zinc#145: dependencies on inlined `static final` constants, keyed
+      // `usingClassBinaryName -> ownerBinaryNames`, populated by the Java compilation below.
+      var constantDeps: Map[String, Set[String]] = Map.empty
+
       timed(javaCompilationPhase, log) {
         val args = sbt.internal.inc.javac.JavaCompiler.commandArguments(
           absClasspath,
@@ -170,8 +174,20 @@ final class AnalyzingJavaCompiler private[sbt] (
           sources.sortBy(_.id).toArray
         // TODO: https://github.com/sbt/sbt/issues/7883
         // log.debug(InterfaceUtil.toSupplier(prettyPrintCompilationArguments(args)))
-        val success =
-          javac.run(javaSources, args, output, incToolOptions, reporter, log)
+        // sbt/zinc#145: the local compiler also returns dependencies on inlined `static final`
+        // constants recovered from javac's attributed AST (the bytecode erases them). This only
+        // covers in-process javac; a forked compiler can't be hooked, so those rare cross-module
+        // constant-only dependencies (annotation values / switch-case labels referencing a constant
+        // from a separately-compiled class) are not tracked under forked javac.
+        val success = javac match {
+          case ljc: LocalJavaCompiler =>
+            val (ok, deps) =
+              ljc.runWithConstantDeps(javaSources, args, output, incToolOptions, reporter, log)
+            constantDeps = deps
+            ok
+          case _ =>
+            javac.run(javaSources, args, output, incToolOptions, reporter, log)
+        }
         if (!success) {
           /* Assume that no Scalac problems are reported for a Javac-related
            * reporter. This relies on the incremental compiler will not run
@@ -214,7 +230,8 @@ final class AnalyzingJavaCompiler private[sbt] (
             JavaAnalyze(newClasses.toSeq, srcs, log, output, finalJarOutput)(
               callback,
               loader,
-              readAPI
+              readAPI,
+              constantDeps
             )
           } finally classes.close()
         }
