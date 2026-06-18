@@ -24,6 +24,7 @@ public final class ParameterRef extends xsbti.api.Type implements java.io.Serial
     public ParameterRef withId(String id) {
         return new ParameterRef(id);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -34,9 +35,11 @@ public final class ParameterRef extends xsbti.api.Type implements java.io.Serial
             return this.id().equals(o.id());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (17 + "xsbti.api.ParameterRef".hashCode()) + id().hashCode());
     }
+    @Override
     public String toString() {
         return "ParameterRef("  + "id: " + id() + ")";
     }

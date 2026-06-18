@@ -32,6 +32,7 @@ public final class Constant extends xsbti.api.Type implements java.io.Serializab
     public Constant withValue(String value) {
         return new Constant(baseType, value);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -42,9 +43,11 @@ public final class Constant extends xsbti.api.Type implements java.io.Serializab
             return this.baseType().equals(o.baseType()) && this.value().equals(o.value());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (17 + "xsbti.api.Constant".hashCode()) + baseType().hashCode()) + value().hashCode());
     }
+    @Override
     public String toString() {
         return "Constant("  + "baseType: " + baseType() + ", " + "value: " + value() + ")";
     }

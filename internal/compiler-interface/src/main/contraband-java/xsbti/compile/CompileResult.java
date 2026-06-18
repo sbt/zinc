@@ -42,6 +42,7 @@ public final class CompileResult implements xsbti.compile.AnalysisContents, java
     public CompileResult withHasModified(boolean hasModified) {
         return new CompileResult(analysis, setup, hasModified);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -52,9 +53,11 @@ public final class CompileResult implements xsbti.compile.AnalysisContents, java
             return this.analysis().equals(o.analysis()) && this.setup().equals(o.setup()) && (this.hasModified() == o.hasModified());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (37 * (17 + "xsbti.compile.CompileResult".hashCode()) + analysis().hashCode()) + setup().hashCode()) + Boolean.hashCode(hasModified()));
     }
+    @Override
     public String toString() {
         return "CompileResult("  + "analysis: " + analysis() + ", " + "setup: " + setup() + ", " + "hasModified: " + hasModified() + ")";
     }

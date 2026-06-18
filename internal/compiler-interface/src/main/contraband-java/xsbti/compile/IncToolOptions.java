@@ -55,6 +55,7 @@ public final class IncToolOptions implements java.io.Serializable {
     public IncToolOptions withUseCustomizedFileManager(boolean useCustomizedFileManager) {
         return new IncToolOptions(classFileManager, useCustomizedFileManager);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -65,9 +66,11 @@ public final class IncToolOptions implements java.io.Serializable {
             return this.classFileManager().equals(o.classFileManager()) && (this.useCustomizedFileManager() == o.useCustomizedFileManager());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (17 + "xsbti.compile.IncToolOptions".hashCode()) + classFileManager().hashCode()) + Boolean.hashCode(useCustomizedFileManager()));
     }
+    @Override
     public String toString() {
         return "IncToolOptions("  + "classFileManager: " + classFileManager() + ", " + "useCustomizedFileManager: " + useCustomizedFileManager() + ")";
     }

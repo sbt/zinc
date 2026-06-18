@@ -19,6 +19,7 @@ public final class Unqualified extends xsbti.api.Qualifier implements java.io.Se
     }
     
     
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -29,9 +30,11 @@ public final class Unqualified extends xsbti.api.Qualifier implements java.io.Se
             return true;
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (17 + "xsbti.api.Unqualified".hashCode());
     }
+    @Override
     public String toString() {
         return "Unqualified("  + ")";
     }

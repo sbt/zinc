@@ -19,6 +19,7 @@ public final class EmptyType extends xsbti.api.Type implements java.io.Serializa
     }
     
     
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -29,9 +30,11 @@ public final class EmptyType extends xsbti.api.Type implements java.io.Serializa
             return true;
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (17 + "xsbti.api.EmptyType".hashCode());
     }
+    @Override
     public String toString() {
         return "EmptyType("  + ")";
     }
