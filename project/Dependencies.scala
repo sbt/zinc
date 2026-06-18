@@ -8,7 +8,7 @@ object Dependencies {
   val scala211 = "2.11.12"
   val scala212 = "2.12.21"
   val scala213 = "2.13.16"
-  val scala3 = "3.8.3"
+  val scala3 = "3.8.4"
   val scala3ForBridge = "3.3.4"
   val scala213ForBridge = "2.13.16"
   val defaultScalaVersion = scala3
