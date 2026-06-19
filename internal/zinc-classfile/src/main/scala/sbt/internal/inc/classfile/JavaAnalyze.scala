@@ -103,7 +103,7 @@ private[sbt] object JavaAnalyze {
           // module not exported to the unnamed module). Fall back to the classfile so the product
           // and member-ref dependencies are still recorded; the API and inheritance dependencies
           // need the loaded Class and are skipped.
-          classFileSourceName(classFile) match {
+          canonicalClassName(classFile) match {
             case Some(className) =>
               analysis.generatedNonLocalClass(source, finalClassFile, binaryClassName, className)
               binaryClassNameToSourceName.update(binaryClassName, className)
@@ -302,13 +302,13 @@ private[sbt] object JavaAnalyze {
   }
 
   /**
-   * Reconstructs the source (canonical) name of a class from its classfile's InnerClasses
-   * attribute, for classes that cannot be reflectively loaded (sbt/zinc#837). This mirrors the
-   * canonical name that [[loadEnclosingClass]] derives via reflection for member and top-level
-   * classes, using the authoritative simple names from the attribute. Returns None for local and
-   * anonymous classes (which have no canonical name and are recorded as local products instead).
+   * Reconstructs the canonical name of a class from its classfile's InnerClasses attribute, for
+   * classes that cannot be reflectively loaded (sbt/zinc#837). This mirrors the canonical name that
+   * [[loadEnclosingClass]] derives via reflection for member and top-level classes, using the
+   * authoritative simple names from the attribute. Returns None for local and anonymous classes
+   * (which have no canonical name and are recorded as local products instead).
    */
-  private def classFileSourceName(classFile: ClassFile): Option[String] = {
+  private def canonicalClassName(classFile: ClassFile): Option[String] = {
     val inners = classFile.innerClasses
     def canonical(binaryName: String): Option[String] =
       inners.find(_.innerClassName == binaryName) match {
