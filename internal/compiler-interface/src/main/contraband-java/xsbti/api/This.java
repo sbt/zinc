@@ -19,6 +19,7 @@ public final class This extends xsbti.api.PathComponent implements java.io.Seria
     }
     
     
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -29,9 +30,11 @@ public final class This extends xsbti.api.PathComponent implements java.io.Seria
             return true;
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (17 + "xsbti.api.This".hashCode());
     }
+    @Override
     public String toString() {
         return "This("  + ")";
     }

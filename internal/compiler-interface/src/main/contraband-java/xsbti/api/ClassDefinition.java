@@ -13,6 +13,7 @@ public abstract class ClassDefinition extends xsbti.api.Definition implements ja
     }
     
     
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -23,9 +24,11 @@ public abstract class ClassDefinition extends xsbti.api.Definition implements ja
             return this.name().equals(o.name()) && this.access().equals(o.access()) && this.modifiers().equals(o.modifiers()) && java.util.Arrays.deepEquals(this.annotations(), o.annotations());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (37 * (37 * (17 + "xsbti.api.ClassDefinition".hashCode()) + name().hashCode()) + access().hashCode()) + modifiers().hashCode()) + java.util.Arrays.deepHashCode(annotations()));
     }
+    @Override
     public String toString() {
         return "ClassDefinition("  + "name: " + name() + ", " + "access: " + access() + ", " + "modifiers: " + modifiers() + ", " + "annotations: " + annotations() + ")";
     }

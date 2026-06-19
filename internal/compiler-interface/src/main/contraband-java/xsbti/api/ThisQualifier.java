@@ -19,6 +19,7 @@ public final class ThisQualifier extends xsbti.api.Qualifier implements java.io.
     }
     
     
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -29,9 +30,11 @@ public final class ThisQualifier extends xsbti.api.Qualifier implements java.io.
             return true;
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (17 + "xsbti.api.ThisQualifier".hashCode());
     }
+    @Override
     public String toString() {
         return "ThisQualifier("  + ")";
     }

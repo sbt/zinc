@@ -37,6 +37,7 @@ public final class Compilers implements java.io.Serializable {
     public Compilers withJavaTools(xsbti.compile.JavaTools javaTools) {
         return new Compilers(scalac, javaTools);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -47,9 +48,11 @@ public final class Compilers implements java.io.Serializable {
             return this.scalac().equals(o.scalac()) && this.javaTools().equals(o.javaTools());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (17 + "xsbti.compile.Compilers".hashCode()) + scalac().hashCode()) + javaTools().hashCode());
     }
+    @Override
     public String toString() {
         return "Compilers("  + "scalac: " + scalac() + ", " + "javaTools: " + javaTools() + ")";
     }

@@ -21,6 +21,7 @@ public final class Protected extends xsbti.api.Qualified implements java.io.Seri
     public Protected withQualifier(Qualifier qualifier) {
         return new Protected(qualifier);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -31,9 +32,11 @@ public final class Protected extends xsbti.api.Qualified implements java.io.Seri
             return this.qualifier().equals(o.qualifier());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (17 + "xsbti.api.Protected".hashCode()) + qualifier().hashCode());
     }
+    @Override
     public String toString() {
         return "Protected("  + "qualifier: " + qualifier() + ")";
     }

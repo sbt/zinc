@@ -24,6 +24,7 @@ public final class Super extends xsbti.api.PathComponent implements java.io.Seri
     public Super withQualifier(Path qualifier) {
         return new Super(qualifier);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -34,9 +35,11 @@ public final class Super extends xsbti.api.PathComponent implements java.io.Seri
             return this.qualifier().equals(o.qualifier());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (17 + "xsbti.api.Super".hashCode()) + qualifier().hashCode());
     }
+    @Override
     public String toString() {
         return "Super("  + "qualifier: " + qualifier() + ")";
     }

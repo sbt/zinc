@@ -50,6 +50,7 @@ public final class PreviousResult implements java.io.Serializable {
     public PreviousResult withSetup(xsbti.compile.MiniSetup setup) {
         return new PreviousResult(analysis, java.util.Optional.<xsbti.compile.MiniSetup>ofNullable(setup));
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -60,9 +61,11 @@ public final class PreviousResult implements java.io.Serializable {
             return this.analysis().equals(o.analysis()) && this.setup().equals(o.setup());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (17 + "xsbti.compile.PreviousResult".hashCode()) + analysis().hashCode()) + setup().hashCode());
     }
+    @Override
     public String toString() {
         return "PreviousResult("  + "analysis: " + analysis() + ", " + "setup: " + setup() + ")";
     }
