@@ -32,6 +32,7 @@ public final class Existential extends xsbti.api.Type implements java.io.Seriali
     public Existential withClause(TypeParameter[] clause) {
         return new Existential(baseType, clause);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -42,9 +43,11 @@ public final class Existential extends xsbti.api.Type implements java.io.Seriali
             return this.baseType().equals(o.baseType()) && java.util.Arrays.deepEquals(this.clause(), o.clause());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (17 + "xsbti.api.Existential".hashCode()) + baseType().hashCode()) + java.util.Arrays.deepHashCode(clause()));
     }
+    @Override
     public String toString() {
         return "Existential("  + "baseType: " + baseType() + ", " + "clause: " + clause() + ")";
     }

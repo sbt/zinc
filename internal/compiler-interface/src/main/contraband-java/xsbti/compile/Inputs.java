@@ -52,6 +52,7 @@ public final class Inputs implements java.io.Serializable {
     public Inputs withPreviousResult(xsbti.compile.PreviousResult previousResult) {
         return new Inputs(compilers, options, setup, previousResult);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -62,9 +63,11 @@ public final class Inputs implements java.io.Serializable {
             return this.compilers().equals(o.compilers()) && this.options().equals(o.options()) && this.setup().equals(o.setup()) && this.previousResult().equals(o.previousResult());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (37 * (37 * (17 + "xsbti.compile.Inputs".hashCode()) + compilers().hashCode()) + options().hashCode()) + setup().hashCode()) + previousResult().hashCode());
     }
+    @Override
     public String toString() {
         return "Inputs("  + "compilers: " + compilers() + ", " + "options: " + options() + ", " + "setup: " + setup() + ", " + "previousResult: " + previousResult() + ")";
     }

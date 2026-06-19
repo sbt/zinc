@@ -40,6 +40,7 @@ public final class NameHash implements java.io.Serializable {
     public NameHash withHash(int hash) {
         return new NameHash(name, scope, hash);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -50,9 +51,11 @@ public final class NameHash implements java.io.Serializable {
             return this.name().equals(o.name()) && this.scope().equals(o.scope()) && (this.hash() == o.hash());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (37 * (17 + "xsbti.api.NameHash".hashCode()) + name().hashCode()) + scope().hashCode()) + Integer.hashCode(hash()));
     }
+    @Override
     public String toString() {
         return "NameHash("  + "name: " + name() + ", " + "scope: " + scope() + ", " + "hash: " + hash() + ")";
     }

@@ -32,6 +32,7 @@ public final class Parameterized extends xsbti.api.Type implements java.io.Seria
     public Parameterized withTypeArguments(Type[] typeArguments) {
         return new Parameterized(baseType, typeArguments);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -42,9 +43,11 @@ public final class Parameterized extends xsbti.api.Type implements java.io.Seria
             return this.baseType().equals(o.baseType()) && java.util.Arrays.deepEquals(this.typeArguments(), o.typeArguments());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (17 + "xsbti.api.Parameterized".hashCode()) + baseType().hashCode()) + java.util.Arrays.deepHashCode(typeArguments()));
     }
+    @Override
     public String toString() {
         return "Parameterized("  + "baseType: " + baseType() + ", " + "typeArguments: " + typeArguments() + ")";
     }

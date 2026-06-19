@@ -16,6 +16,7 @@ public abstract class FieldLike extends xsbti.api.ClassDefinition implements jav
         return this.tpe;
     }
     
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -26,9 +27,11 @@ public abstract class FieldLike extends xsbti.api.ClassDefinition implements jav
             return this.name().equals(o.name()) && this.access().equals(o.access()) && this.modifiers().equals(o.modifiers()) && java.util.Arrays.deepEquals(this.annotations(), o.annotations()) && this.tpe().equals(o.tpe());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.api.FieldLike".hashCode()) + name().hashCode()) + access().hashCode()) + modifiers().hashCode()) + java.util.Arrays.deepHashCode(annotations())) + tpe().hashCode());
     }
+    @Override
     public String toString() {
         return "FieldLike("  + "name: " + name() + ", " + "access: " + access() + ", " + "modifiers: " + modifiers() + ", " + "annotations: " + annotations() + ", " + "tpe: " + tpe() + ")";
     }
