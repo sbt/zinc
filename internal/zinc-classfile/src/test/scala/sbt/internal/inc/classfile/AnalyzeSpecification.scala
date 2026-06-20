@@ -14,6 +14,10 @@ package internal
 package inc
 package classfile
 
+import java.io.File
+import sbt.io.IO
+import xsbti.api.DependencyContext._
+
 class AnalyzeSpecification extends UnitSpec {
 
   "Analyze" should "extract dependencies of inner classes" in {
@@ -212,6 +216,98 @@ class AnalyzeSpecification extends UnitSpec {
     )
     assert(deps.memberRef("Foo").contains("A1"))
     assert(deps.memberRef("Foo").contains("A2"))
+  }
+
+  // sbt/zinc#837: an inner class whose superclass is inaccessible can't be reflectively loaded,
+  // but JavaAnalyze should still record its product and member-ref deps from the classfile rather
+  // than dropping it (or crashing).
+  "Analyze" should "record products for inner classes that cannot be reflectively loaded" in {
+    IO.withTemporaryDirectory { temp =>
+      val classesDir = new File(temp, "classes")
+      val libDir = new File(temp, "lib")
+      classesDir.mkdir()
+      libDir.mkdir()
+
+      // Compile against a public Base so Outer.Inner compiles cleanly.
+      val baseFile = new File(temp, "Base.java")
+      IO.write(baseFile, "package pkg; public class Base {}")
+      JavaCompilerForUnitTesting.compileJava(Seq(baseFile), libDir, Seq.empty)
+
+      val outerFile = new File(temp, "Outer.java")
+      IO.write(
+        outerFile,
+        """|public class Outer {
+           |  public class Inner extends pkg.Base {}
+           |}
+           |""".stripMargin
+      )
+      JavaCompilerForUnitTesting.compileJava(Seq(outerFile), classesDir, Seq(libDir))
+
+      // Overwrite Base with a package-private version: Outer$Inner (in the default package) can no
+      // longer access its superclass, so it fails to load with IllegalAccessError during analysis.
+      IO.write(baseFile, "package pkg; class Base {}")
+      JavaCompilerForUnitTesting.compileJava(Seq(baseFile), classesDir, Seq.empty)
+
+      val callback = JavaCompilerForUnitTesting.analyze(classesDir, Seq(outerFile))
+
+      // The product for the un-loadable inner class is still recorded, derived from the classfile.
+      val products = callback.productClassesToSources.keySet.map(_.getFileName.toString)
+      assert(products.contains("Outer.class"))
+      assert(products.contains("Outer$Inner.class"))
+
+      // ... under its classfile-derived source (canonical) name.
+      val recordedNames = callback.classNames.values.flatten.toSet
+      assert(recordedNames.contains(("Outer.Inner", "Outer$Inner")))
+
+      // Member-ref deps to the un-loadable class are recorded (Outer references Outer.Inner) ...
+      assert(
+        callback.classDependencies.contains(("Outer.Inner", "Outer", DependencyByMemberRef))
+      )
+      // ... as are member-ref deps from it (Outer.Inner references its external superclass pkg.Base).
+      assert(
+        callback.binaryDependencies.exists {
+          case (_, onBinaryName, fromClassName, ctx) =>
+            onBinaryName == "pkg.Base" &&
+            fromClassName == "Outer.Inner" &&
+            ctx == DependencyByMemberRef
+        }
+      )
+      // ... and crucially the inheritance edge that caused the issue (Outer.Inner extends pkg.Base),
+      // recovered from the classfile since the class can't be loaded to extract its API.
+      assert(
+        callback.binaryDependencies.exists {
+          case (_, onBinaryName, fromClassName, ctx) =>
+            onBinaryName == "pkg.Base" &&
+            fromClassName == "Outer.Inner" &&
+            ctx == DependencyByInheritance
+        }
+      )
+    }
+  }
+
+  // sbt/zinc#837 regression: the unloadable-class fallback must not record module-info.class, which
+  // load() deliberately skips (it is not a real class).
+  "Analyze" should "not record module-info as a generated class" in {
+    IO.withTemporaryDirectory { temp =>
+      val classesDir = new File(temp, "classes")
+      classesDir.mkdir()
+
+      val moduleInfo = new File(temp, "module-info.java")
+      IO.write(moduleInfo, "module foo {}")
+      val fooFile = new File(temp, "Foo.java")
+      IO.write(fooFile, "package p; public class Foo {}")
+      JavaCompilerForUnitTesting.compileJava(Seq(moduleInfo, fooFile), classesDir, Seq.empty)
+
+      val callback = JavaCompilerForUnitTesting.analyze(classesDir, Seq(moduleInfo, fooFile))
+
+      val products = callback.productClassesToSources.keySet.map(_.getFileName.toString)
+      assert(products.contains("Foo.class"))
+      assert(!products.contains("module-info.class"))
+
+      val recordedNames =
+        callback.classNames.values.flatten.toSet.map((p: (String, String)) => p._1)
+      assert(!recordedNames.contains("module-info"))
+    }
   }
 
 }
