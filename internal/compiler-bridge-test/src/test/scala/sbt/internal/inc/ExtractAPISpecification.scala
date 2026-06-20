@@ -172,6 +172,44 @@ class ExtractAPISpecification
    * Checks if self type is properly extracted in various cases of declaring a self type
    * with our without a self variable.
    */
+  // Regression guard for https://github.com/sbt/zinc/issues/88.
+  // A member of a refinement type (here `universe` in `Context { val universe: ... }`,
+  // the inferred type of `_openMacros`) must get a stable modifier set whether the
+  // enclosing types are compiled from source or unpickled from class files. Otherwise a
+  // spurious `override` flickers onto the member (scala/bug#7361), changing the API hash
+  // across compiles and forcing needless recompilation of dependents. Both the reporter's
+  // original (`List`) and minimized (vararg) forms are covered.
+  it should "give a stable modifier to a refinement member (#88)" in {
+    val deps =
+      """|class Global
+         |trait Analyzer extends AnyRef with StdAttachments { val global: Global }
+         |trait StdAttachments { self: Analyzer =>
+         |  type MacroContext = Context { val universe: self.global.type }
+         |}
+         |abstract class Context { val universe: Global }
+         |class Foo[A]
+         |""".stripMargin
+    val macros =
+      """|trait Macros { self: Analyzer =>
+         |  // original report: inferred List type over the refinement
+         |  var _openMacrosOrig = List[MacroContext]()
+         |  def pushMacroContext(c: MacroContext) = _openMacrosOrig ::= c
+         |  // minimized report: inferred type via a vararg method
+         |  val _openMacros = foo[MacroContext]()
+         |  def foo[A](xs: A*): Foo[A] = null
+         |}
+         |""".stripMargin
+    // compile everything together (from source), then recompile `macros` alone,
+    // unpickling the support types from class files.
+    val apis = extractApisFromSrcs(List(deps, macros), List(macros))
+    val _ :: macrosFromSource :: macrosUnpickled :: Nil = apis.toList: @unchecked
+    def macrosClass(as: Set[ClassLike]): ClassLike = as.find(_.name == "Macros").get
+    assert(
+      SameAPI(macrosClass(macrosFromSource), macrosClass(macrosUnpickled)),
+      "Macros API differs between compiling from source and unpickling"
+    )
+  }
+
   it should "represent a self type correctly" in {
     val srcX = "trait X"
     val srcY = "trait Y"
