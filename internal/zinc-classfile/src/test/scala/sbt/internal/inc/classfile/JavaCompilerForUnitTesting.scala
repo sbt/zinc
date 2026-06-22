@@ -120,7 +120,12 @@ object JavaCompilerForUnitTesting {
    * the given `srcFiles`. Unlike [[compileJavaSrcs]] this does not compile, so the caller can stage
    * the class files (e.g. compile against one classpath, then swap a dependency) before analysis.
    */
-  def analyze(classesDir: File, srcFiles: Seq[File]): TestCallback = {
+  def analyze(
+      classesDir: File,
+      srcFiles: Seq[File],
+      readClassfileAPI: (AnalysisCallback, VirtualFileRef, Seq[(String, ClassFile)]) => Unit =
+        (_, _, _) => ()
+  ): TestCallback = {
     val srcs: List[VirtualFile] = srcFiles.toList.map(f => new TestVirtualFile(f.toPath))
     val analysisCallback = new TestCallback
     val classFiles = (sbt.io.PathFinder(classesDir) ** "*.class").get().map(_.toPath)
@@ -132,7 +137,8 @@ object JavaCompilerForUnitTesting {
     JavaAnalyze(classFiles, srcs, ConsoleLogger(), output, finalJarOutput = None)(
       analysisCallback,
       classloader,
-      (_, classes) => extractParents(classes)
+      (_, classes) => extractParents(classes),
+      readClassfileAPI(analysisCallback, _, _)
     )
     analysisCallback
   }
