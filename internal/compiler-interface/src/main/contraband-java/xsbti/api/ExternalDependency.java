@@ -48,6 +48,7 @@ public final class ExternalDependency implements java.io.Serializable {
     public ExternalDependency withContext(xsbti.api.DependencyContext context) {
         return new ExternalDependency(sourceClassName, targetProductClassName, targetClass, context);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -58,9 +59,11 @@ public final class ExternalDependency implements java.io.Serializable {
             return this.sourceClassName().equals(o.sourceClassName()) && this.targetProductClassName().equals(o.targetProductClassName()) && this.targetClass().equals(o.targetClass()) && this.context().equals(o.context());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (37 * (37 * (17 + "xsbti.api.ExternalDependency".hashCode()) + sourceClassName().hashCode()) + targetProductClassName().hashCode()) + targetClass().hashCode()) + context().hashCode());
     }
+    @Override
     public String toString() {
         return "ExternalDependency("  + "sourceClassName: " + sourceClassName() + ", " + "targetProductClassName: " + targetProductClassName() + ", " + "targetClass: " + targetClass() + ", " + "context: " + context() + ")";
     }

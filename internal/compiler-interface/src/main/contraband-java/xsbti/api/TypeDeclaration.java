@@ -47,6 +47,7 @@ public final class TypeDeclaration extends xsbti.api.TypeMember implements java.
     public TypeDeclaration withUpperBound(Type upperBound) {
         return new TypeDeclaration(name(), access(), modifiers(), annotations(), typeParameters(), lowerBound, upperBound);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -57,9 +58,11 @@ public final class TypeDeclaration extends xsbti.api.TypeMember implements java.
             return this.name().equals(o.name()) && this.access().equals(o.access()) && this.modifiers().equals(o.modifiers()) && java.util.Arrays.deepEquals(this.annotations(), o.annotations()) && java.util.Arrays.deepEquals(this.typeParameters(), o.typeParameters()) && this.lowerBound().equals(o.lowerBound()) && this.upperBound().equals(o.upperBound());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.api.TypeDeclaration".hashCode()) + name().hashCode()) + access().hashCode()) + modifiers().hashCode()) + java.util.Arrays.deepHashCode(annotations())) + java.util.Arrays.deepHashCode(typeParameters())) + lowerBound().hashCode()) + upperBound().hashCode());
     }
+    @Override
     public String toString() {
         return "TypeDeclaration("  + "name: " + name() + ", " + "access: " + access() + ", " + "modifiers: " + modifiers() + ", " + "annotations: " + annotations() + ", " + "typeParameters: " + typeParameters() + ", " + "lowerBound: " + lowerBound() + ", " + "upperBound: " + upperBound() + ")";
     }

@@ -46,6 +46,7 @@ public final class MiniOptions implements java.io.Serializable {
     public MiniOptions withJavacOptions(String[] javacOptions) {
         return new MiniOptions(classpathHash, scalacOptions, javacOptions);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -56,9 +57,11 @@ public final class MiniOptions implements java.io.Serializable {
             return java.util.Arrays.deepEquals(this.classpathHash(), o.classpathHash()) && java.util.Arrays.deepEquals(this.scalacOptions(), o.scalacOptions()) && java.util.Arrays.deepEquals(this.javacOptions(), o.javacOptions());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (37 * (17 + "xsbti.compile.MiniOptions".hashCode()) + java.util.Arrays.deepHashCode(classpathHash())) + java.util.Arrays.deepHashCode(scalacOptions())) + java.util.Arrays.deepHashCode(javacOptions()));
     }
+    @Override
     public String toString() {
         return "MiniOptions("  + "classpathHash: " + classpathHash() + ", " + "scalacOptions: " + scalacOptions() + ", " + "javacOptions: " + javacOptions() + ")";
     }

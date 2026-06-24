@@ -17,7 +17,7 @@ package javac
 import java.nio.file.Path
 import java.net.URLClassLoader
 
-import sbt.internal.inc.classfile.JavaAnalyze
+import sbt.internal.inc.classfile.{ ClassFile, JavaAnalyze }
 import sbt.internal.inc.classpath.ClasspathUtil
 import xsbti.compile._
 import xsbti.{
@@ -208,6 +208,14 @@ final class AnalyzingJavaCompiler private[sbt] (
         }
       }
 
+      // Read the API of classes that couldn't be reflectively loaded, from their classfiles
+      // (sbt/zinc#837), so name-hashing still tracks changes to their own public shape.
+      def readClassfileAPI(source: VirtualFileRef, classFiles: Seq[(String, ClassFile)]): Unit = {
+        val (apis, mainClasses) = ClassfileToAPI.process(classFiles, log)
+        apis.foreach(callback.api(source, _))
+        mainClasses.foreach(callback.mainClass(source, _))
+      }
+
       // Record progress for java analysis
       val javaAnalysisPhase = "Java analysis"
       progressOpt.map { progress =>
@@ -231,6 +239,7 @@ final class AnalyzingJavaCompiler private[sbt] (
               callback,
               loader,
               readAPI,
+              readClassfileAPI,
               constantDeps
             )
           } finally classes.close()

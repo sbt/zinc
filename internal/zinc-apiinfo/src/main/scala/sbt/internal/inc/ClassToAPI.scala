@@ -271,7 +271,11 @@ object ClassToAPI {
     val loader = if (cl == null) ClassLoader.getSystemClassLoader else cl
     try Some(loader.loadClass(info.innerClassName))
     catch {
-      case e: (ClassNotFoundException | NoClassDefFoundError) =>
+      // Skip inner classes that can't be loaded for analysis: a missing referenced type
+      // (NoClassDefFoundError, sbt/sbt#117), or a superclass in a module not exported to the
+      // unnamed module (IllegalAccessError from --add-exports, sbt/zinc#837). Structural failures
+      // such as VerifyError / ClassFormatError are left to propagate as real classfile problems.
+      case e: (ClassNotFoundException | NoClassDefFoundError | IllegalAccessError) =>
         log.warn(s"Could not load inner class ${info.innerClassName}: $e")
         None
     }

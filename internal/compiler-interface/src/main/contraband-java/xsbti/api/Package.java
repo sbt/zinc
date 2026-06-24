@@ -24,6 +24,7 @@ public final class Package implements java.io.Serializable {
     public Package withName(String name) {
         return new Package(name);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -34,9 +35,11 @@ public final class Package implements java.io.Serializable {
             return this.name().equals(o.name());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (17 + "xsbti.api.Package".hashCode()) + name().hashCode());
     }
+    @Override
     public String toString() {
         return "Package("  + "name: " + name() + ")";
     }

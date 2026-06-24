@@ -32,6 +32,7 @@ public final class FileHash implements java.io.Serializable {
     public FileHash withHash(int hash) {
         return new FileHash(file, hash);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -42,9 +43,11 @@ public final class FileHash implements java.io.Serializable {
             return this.file().equals(o.file()) && (this.hash() == o.hash());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (17 + "xsbti.compile.FileHash".hashCode()) + file().hashCode()) + Integer.hashCode(hash()));
     }
+    @Override
     public String toString() {
         return "FileHash("  + "file: " + file() + ", " + "hash: " + hash() + ")";
     }

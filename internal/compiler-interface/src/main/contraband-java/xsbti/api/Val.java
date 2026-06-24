@@ -33,6 +33,7 @@ public final class Val extends xsbti.api.FieldLike implements java.io.Serializab
     public Val withTpe(Type tpe) {
         return new Val(name(), access(), modifiers(), annotations(), tpe);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -43,9 +44,11 @@ public final class Val extends xsbti.api.FieldLike implements java.io.Serializab
             return this.name().equals(o.name()) && this.access().equals(o.access()) && this.modifiers().equals(o.modifiers()) && java.util.Arrays.deepEquals(this.annotations(), o.annotations()) && this.tpe().equals(o.tpe());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.api.Val".hashCode()) + name().hashCode()) + access().hashCode()) + modifiers().hashCode()) + java.util.Arrays.deepHashCode(annotations())) + tpe().hashCode());
     }
+    @Override
     public String toString() {
         return "Val("  + "name: " + name() + ", " + "access: " + access() + ", " + "modifiers: " + modifiers() + ", " + "annotations: " + annotations() + ", " + "tpe: " + tpe() + ")";
     }

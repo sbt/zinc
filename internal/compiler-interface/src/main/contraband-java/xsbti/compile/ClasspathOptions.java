@@ -81,6 +81,7 @@ public final class ClasspathOptions implements java.io.Serializable {
     public ClasspathOptions withFilterLibrary(boolean filterLibrary) {
         return new ClasspathOptions(bootLibrary, compiler, extra, autoBoot, filterLibrary);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -91,9 +92,11 @@ public final class ClasspathOptions implements java.io.Serializable {
             return (this.bootLibrary() == o.bootLibrary()) && (this.compiler() == o.compiler()) && (this.extra() == o.extra()) && (this.autoBoot() == o.autoBoot()) && (this.filterLibrary() == o.filterLibrary());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.compile.ClasspathOptions".hashCode()) + Boolean.hashCode(bootLibrary())) + Boolean.hashCode(compiler())) + Boolean.hashCode(extra())) + Boolean.hashCode(autoBoot())) + Boolean.hashCode(filterLibrary()));
     }
+    @Override
     public String toString() {
         return "ClasspathOptions("  + "bootLibrary: " + bootLibrary() + ", " + "compiler: " + compiler() + ", " + "extra: " + extra() + ", " + "autoBoot: " + autoBoot() + ", " + "filterLibrary: " + filterLibrary() + ")";
     }

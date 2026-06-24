@@ -24,6 +24,7 @@ public final class Path implements java.io.Serializable {
     public Path withComponents(PathComponent[] components) {
         return new Path(components);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -34,9 +35,11 @@ public final class Path implements java.io.Serializable {
             return java.util.Arrays.deepEquals(this.components(), o.components());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (17 + "xsbti.api.Path".hashCode()) + java.util.Arrays.deepHashCode(components()));
     }
+    @Override
     public String toString() {
         return "Path("  + "components: " + components() + ")";
     }
