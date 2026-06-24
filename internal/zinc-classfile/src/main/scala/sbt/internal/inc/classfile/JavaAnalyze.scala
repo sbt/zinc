@@ -17,6 +17,7 @@ package classfile
 import scala.collection.mutable
 import mutable.{ ArrayBuffer, Buffer }
 import scala.annotation.tailrec
+import scala.util.control.NonFatal
 import java.io.File
 import java.net.URL
 
@@ -115,6 +116,74 @@ private[sbt] object JavaAnalyze {
       sourceToClassFiles(source) += classFile
     }
 
+    // sbt/zinc#148: javac (since JDK 8) requires every transitive superclass and superinterface of a
+    // referenced type to be on the compile classpath, even though the referencing classfile's constant
+    // pool names only the referenced type itself. We record those ancestors as member-ref dependencies
+    // of the referencing class so the dependency graph reflects what javac actually needs — in
+    // particular for build tools that minimize the classpath from Zinc's analysis. Ancestors are read
+    // from classfile bytes (the already-parsed classfile for compiled classes, otherwise via the
+    // classloader) — never by loading the class — and memoized across the whole analysis.
+    val classFileByBinaryName: Map[String, ClassFile] =
+      sourceToClassFiles.valuesIterator.flatten.map(cf => cf.className -> cf).toMap
+    val resourceUrls = mutable.Map.empty[String, Option[URL]]
+    val resolvedClassFiles = mutable.Map.empty[String, Option[ClassFile]]
+    val transitiveAncestorsCache = mutable.Map.empty[String, Set[String]]
+
+    def resourceUrl(binaryName: String): Option[URL] =
+      resourceUrls.getOrElseUpdate(
+        binaryName,
+        Option(loader.getResource(classNameToClassFile(binaryName)))
+      )
+
+    // A "platform" class is always on the bootclasspath, so it never needs dependency tracking and its
+    // (deep) ancestry must not be walked. This is decided by ORIGIN, not by package name: many javax.*
+    // APIs (servlet, JAX-RS, JAXB, javax.annotation) ship as ordinary classpath jars and MUST stay
+    // tracked for build tools that minimize the classpath from Zinc's analysis (sbt/zinc#148). A class is
+    // platform iff its classfile is served from the JDK runtime image (`jrt:`); `java.*` is a reserved
+    // namespace (always the JDK), so we skip the lookup for it. Classes compiled in this run are never
+    // platform.
+    def isPlatformClass(binaryName: String): Boolean =
+      binaryName.startsWith("java.") ||
+        (!classFileByBinaryName.contains(binaryName) &&
+          resourceUrl(binaryName).exists(_.getProtocol == "jrt"))
+
+    def resolveClassFile(binaryName: String): Option[ClassFile] =
+      classFileByBinaryName
+        .get(binaryName)
+        .orElse(
+          resolvedClassFiles.getOrElseUpdate(
+            binaryName,
+            resourceUrl(binaryName).flatMap { url =>
+              try Some(Parser(url, log))
+              catch {
+                case NonFatal(e) =>
+                  log.debug(s"[zinc] sbt/zinc#148: couldn't read parents of $binaryName ($e)")
+                  None
+              }
+            }
+          )
+        )
+
+    // Transitive super/interface closure of `binaryName`, excluding `binaryName` itself and the
+    // JDK/platform classes that are always on the bootclasspath (so never need tracking).
+    def transitiveAncestors(binaryName: String): Set[String] =
+      transitiveAncestorsCache.getOrElseUpdate(
+        binaryName, {
+          val acc = mutable.Set.empty[String]
+          val queue = mutable.Queue(binaryName)
+          while (queue.nonEmpty) {
+            val directParents = resolveClassFile(queue.dequeue()) match {
+              case Some(cf) =>
+                (cf.superClassName +: cf.interfaceNames.toIndexedSeq).filter(_.nonEmpty)
+              case None => IndexedSeq.empty[String]
+            }
+            for (parent <- directParents if !isPlatformClass(parent) && acc.add(parent))
+              queue.enqueue(parent)
+          }
+          acc.toSet
+        }
+      )
+
     // get class to class dependencies and map back to source to class dependencies
     for ((source, classFiles) <- sourceToClassFiles) {
       analysis.startSource(source)
@@ -193,6 +262,16 @@ private[sbt] object JavaAnalyze {
       typesInSource foreach {
         case (binaryClassName, binaryClassNameDeps) =>
           processDependencies(binaryClassNameDeps, DependencyByMemberRef, binaryClassName)
+          // sbt/zinc#148: also depend on the transitive ancestry of each referenced type (see above).
+          val ancestors = binaryClassNameDeps.iterator
+            .filterNot(isPlatformClass)
+            .flatMap(transitiveAncestors)
+            .toSet
+          processDependencies(
+            ancestors -- binaryClassNameDeps,
+            DependencyByMemberRef,
+            binaryClassName
+          )
       }
 
       def readInheritanceDependencies(classes: Seq[Class[?]]) = {

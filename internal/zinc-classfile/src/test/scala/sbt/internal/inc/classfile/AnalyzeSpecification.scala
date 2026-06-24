@@ -310,4 +310,113 @@ class AnalyzeSpecification extends UnitSpec {
     }
   }
 
+  // sbt/zinc#148: JDK8+ javac requires every transitive superclass and superinterface of a referenced
+  // type on the compile classpath, even though the referencing classfile names only the type itself.
+  // JavaAnalyze records that ancestry as member-ref deps of the referencing class, so `Test` (which only
+  // calls `Foo.other()`) depends on Foo AND on Base/IFoo/IBase.
+  "Analyze" should "record the transitive ancestry of a member-referenced type (sbt/zinc#148)" in {
+    val srcIBase = "public interface IBase { void base(); }\n"
+    val srcIFoo = "public interface IFoo extends IBase { void foo(); }\n"
+    val srcBase = "public abstract class Base implements IFoo {}\n"
+    val srcFoo =
+      """|public class Foo extends Base {
+         |  public void base() {}
+         |  public void foo() {}
+         |  public void other() {}
+         |}
+         |""".stripMargin
+    val srcTest =
+      """|public class Test {
+         |  void m(Foo f) { f.other(); }
+         |}
+         |""".stripMargin
+
+    val deps = JavaCompilerForUnitTesting.extractDependenciesFromSrcs(
+      "IBase.java" -> srcIBase,
+      "IFoo.java" -> srcIFoo,
+      "Base.java" -> srcBase,
+      "Foo.java" -> srcFoo,
+      "Test.java" -> srcTest,
+    )
+
+    // Test depends on Foo and its full transitive ancestry by member-ref (the #148 fix), recorded as
+    // member-ref (not inheritance) since Test references Foo without inheriting from it.
+    assert(deps.memberRef("Test") === Set("Foo", "Base", "IFoo", "IBase"))
+    assert(deps.inheritance("Test") === Set.empty)
+
+    // The hierarchy is also still tracked as direct-parent inheritance edges on each owner.
+    assert(deps.inheritance("Foo") === Set("Base"))
+    assert(deps.inheritance("Base") === Set("IFoo"))
+    assert(deps.inheritance("IFoo") === Set("IBase"))
+  }
+
+  // sbt/zinc#148: the transitive ancestry of a referenced *library* type (resolved from the classpath,
+  // not compiled here) is recorded too — as binary member-ref deps — which is what classpath-minimizing
+  // build tools need. JDK ancestors are not walked (they are always on the bootclasspath).
+  "Analyze" should "record transitive ancestry of a referenced classpath type as binary deps (sbt/zinc#148)" in {
+    IO.withTemporaryDirectory { temp =>
+      val classesDir = new File(temp, "classes")
+      classesDir.mkdir()
+
+      val libIface = new File(temp, "LibIface.java")
+      IO.write(libIface, "package pkg; public interface LibIface {}")
+      val libBase = new File(temp, "LibBase.java")
+      IO.write(libBase, "package pkg; public abstract class LibBase {}")
+      val lib = new File(temp, "Lib.java")
+      IO.write(
+        lib,
+        "package pkg; public class Lib extends LibBase implements LibIface { public void hello() {} }"
+      )
+      val client = new File(temp, "Client.java")
+      IO.write(client, "public class Client { void m(pkg.Lib x) { x.hello(); } }")
+
+      // Compile the library and the client together, then analyze ONLY Client — so the library types
+      // are resolved as classpath classfiles (via the classloader), exactly like a real dependency jar.
+      JavaCompilerForUnitTesting.compileJava(
+        Seq(libIface, libBase, lib, client),
+        classesDir,
+        Seq.empty
+      )
+      val callback = JavaCompilerForUnitTesting.analyze(classesDir, Seq(client))
+
+      def hasBinaryMemberRef(on: String): Boolean =
+        callback.binaryDependencies.exists {
+          case (_, onName, fromName, ctx) =>
+            onName == on && fromName == "Client" && ctx == DependencyByMemberRef
+        }
+
+      assert(hasBinaryMemberRef("pkg.Lib")) // the directly referenced type
+      assert(hasBinaryMemberRef("pkg.LibBase")) // transitive superclass
+      assert(hasBinaryMemberRef("pkg.LibIface")) // transitive interface
+    }
+  }
+
+  // sbt/zinc#148: "platform" must be decided by origin, not package name. Many javax.* APIs (servlet,
+  // JAX-RS, JAXB, javax.annotation) are ordinary classpath jars, so their ancestors must still be
+  // tracked — a package-prefix filter that drops javax.* would re-introduce the very #148 miss.
+  "Analyze" should "track a javax.* ancestor served from the classpath, not the JDK (sbt/zinc#148)" in {
+    IO.withTemporaryDirectory { temp =>
+      val classesDir = new File(temp, "classes")
+      classesDir.mkdir()
+
+      // A user class in a javax.* package (allowed; only java.* is a reserved namespace) — i.e. exactly
+      // the shape of a servlet/JAX-RS base class shipped as a normal dependency jar.
+      val base = new File(temp, "Base.java")
+      IO.write(base, "package javax.foo; public class Base {}")
+      val foo = new File(temp, "Foo.java")
+      IO.write(foo, "public class Foo extends javax.foo.Base { public void hi() {} }")
+      val client = new File(temp, "Client.java")
+      IO.write(client, "public class Client { void m(Foo f) { f.hi(); } }")
+
+      JavaCompilerForUnitTesting.compileJava(Seq(base, foo, client), classesDir, Seq.empty)
+      val callback = JavaCompilerForUnitTesting.analyze(classesDir, Seq(client))
+
+      // javax.foo.Base resolves to a classpath classfile (not `jrt:`), so the ancestry walk records it.
+      assert(callback.binaryDependencies.exists {
+        case (_, onName, fromName, ctx) =>
+          onName == "javax.foo.Base" && fromName == "Client" && ctx == DependencyByMemberRef
+      })
+    }
+  }
+
 }
