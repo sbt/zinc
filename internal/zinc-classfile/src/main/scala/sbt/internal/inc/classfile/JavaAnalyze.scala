@@ -254,7 +254,13 @@ private[sbt] object JavaAnalyze {
         .toSeq
       // Best-effort: never let classfile-based API extraction fail a compile that would otherwise
       // succeed (these classes already couldn't be loaded), matching load()/loadInnerClass.
-      if (unloadableNamed.nonEmpty) trapAndLog(log)(readClassfileAPI(source, unloadableNamed))
+      // Exception: under classfileApiOnly the classfile path is the *primary* one for every class,
+      // so a failure there is a real regression, not a tolerable gap. -Dzinc.classfileJavaApi.strict
+      // makes it propagate (the scripted CI matrix sets it) so such breakage fails the build.
+      if (unloadableNamed.nonEmpty) {
+        if (classfileApiOnly && strictClassfileApi) readClassfileAPI(source, unloadableNamed)
+        else trapAndLog(log)(readClassfileAPI(source, unloadableNamed))
+      }
     }
   }
 
@@ -303,6 +309,12 @@ private[sbt] object JavaAnalyze {
       }
     }
   }
+
+  // Test/CI affordance: make classfile-API extraction failures fatal under classfileApiOnly so the
+  // scripted matrix (CONTRIBUTING.md) catches crashes in that path instead of silently swallowing
+  // them. Off in production, where the path stays best-effort.
+  private def strictClassfileApi: Boolean =
+    java.lang.Boolean.getBoolean("zinc.classfileJavaApi.strict")
 
   private def trapAndLog(log: Logger)(execute: => Unit): Unit = {
     try {

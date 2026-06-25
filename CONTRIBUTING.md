@@ -126,12 +126,27 @@ runner can force it on or off for the whole run via a system property, so the sa
 can be checked under both paths:
 
 ```
-$ sbt -Dzinc.scripted.classfileJavaApi=true  scripted   # classfile-based Java API path
-$ sbt -Dzinc.scripted.classfileJavaApi=false scripted   # reflection path (the default)
+$ sbt -Dzinc.scripted.classfileJavaApi=true -Dzinc.classfileJavaApi.strict=true scripted  # classfile path
+$ sbt -Dzinc.scripted.classfileJavaApi=false scripted                                      # reflection (default)
 ```
 
-Without the property, each test uses its own value (the default, unless its
-`incOptions.properties` overrides it).
+Two properties are involved:
+
+- `-Dzinc.scripted.classfileJavaApi=true|false` forces `IncOptions.classfileJavaApi` for the whole
+  scripted run. Without it, each test uses its own value (the default, unless its
+  `incOptions.properties` overrides it).
+- `-Dzinc.classfileJavaApi.strict=true` makes a failure *inside* the classfile-based extractor
+  propagate instead of being logged and swallowed. In production that path is deliberately
+  best-effort (it must never fail a compile that would otherwise succeed), but under
+  `classfileApiOnly` it is the primary path for every Java class, so for testing we want a crash
+  there to fail the build. Pair it with the property above when running the matrix.
+
+Note: the scripted suite is good at catching *crashes and structural breakage* in the classfile
+path, but it is largely insensitive to *fine-grained* Java API-hash regressions (e.g. a dropped
+method return type) because cross-unit invalidation there is dominated by source changes and
+inheritance edges. That fine-grained correctness is pinned by the unit tests in `zinc-apiinfo`
+(`ClassfileToAPISpecification`, `DifferentialApiSpecification`, `FBoundStressSpecification`) and by
+`IncrementalCompilerSpec`'s classfileJavaApi-vs-reflection invalidation check.
 
 ### Reaching out for help
 
