@@ -240,4 +240,53 @@ class DifferentialApiSpecification extends UnitSpec {
       assert(r == c, s"inner-class ctor param count differs — reflect=$r classfile=$c")
     }
   }
+
+  // The simple (Projection) name of a parent type reference, e.g. "Marker"/"Object". ClassToAPI and
+  // ClassfileToAPI both build parent references via ClassToAPI.reference, which yields a Projection.
+  private def parentSimpleName(t: xsbti.api.Type): Option[String] = t match {
+    case p: xsbti.api.Projection    => Some(p.id)
+    case p: xsbti.api.Parameterized => parentSimpleName(p.baseType)
+    case _                          => None
+  }
+  private def parentNames(apis: Seq[ClassLike]): Set[String] =
+    apis.flatMap(_.structure.parents.toSeq.flatMap(parentSimpleName)).toSet
+
+  // KNOWN-BUG WITNESS (deviation #1): ClassToAPI lists the *transitive* supertype closure in a
+  // class's `parents` (ClassToAPI.allSuperTypes), whereas ClassfileToAPI lists only the *direct*
+  // supertypes (ClassfileToAPI.classLikes: superclass +: interfaces). So a subtyping relationship
+  // that `C` holds only through an intermediate `B` is invisible to the classfile path. With a
+  // member-less marker interface there is nothing for collectInherited to surface either, so C's
+  // classfile API — and thus its hash — does not change when B stops implementing the marker, even
+  // though C is no longer a Marker. Reflection's hash does change. This pins that gap empirically;
+  // once #1 is fixed (walk the transitive closure in classLikes), the two classfile hashes below
+  // will differ and this test should be updated to assert agreement with reflection.
+  it should "(known bug #1) miss a transitive-supertype change that reflection catches" in {
+    IO.withTemporaryDirectory { temp =>
+      // v1: C -> B -> Marker (C is transitively a Marker).  v2: B no longer implements Marker.
+      val v1 = "interface Marker {} class B implements Marker {} public class C extends B {}"
+      val v2 = "interface Marker {} class B {} public class C extends B {}"
+      val (reflect1, classfile1) = buildApis(temp, 100, "C", v1)
+      val (reflect2, classfile2) = buildApis(temp, 101, "C", v2)
+
+      // Structural witness: reflection's parents for C include the transitive Marker; classfile's
+      // direct-only parents do not.
+      val (pR, pC) = (parentNames(reflect1), parentNames(classfile1))
+      println(s"[parents] reflect C parents=$pR  classfile C parents=$pC")
+      assert(pR.contains("Marker"), s"reflection should list transitive Marker: $pR")
+      assert(!pC.contains("Marker"), s"classfile (direct-only) should NOT list Marker yet: $pC")
+
+      // Consequence witness: reflection invalidates (hash changes when B drops Marker); the
+      // classfile path does not (C's bytes and member-less inherited set are identical across v1/v2).
+      val (hR1, hR2) = (reflect1.map(HashAPI(_)).sum, reflect2.map(HashAPI(_)).sum)
+      val (hC1, hC2) = (classfile1.map(HashAPI(_)).sum, classfile2.map(HashAPI(_)).sum)
+      println(s"[hash] reflect $hR1 -> $hR2 (changed=${hR1 != hR2}); " +
+        s"classfile $hC1 -> $hC2 (changed=${hC1 != hC2})")
+      assert(hR1 != hR2, "reflection hash must change when B drops `implements Marker`")
+      assert(
+        hC1 == hC2,
+        "BUG #1 witness: classfile hash does NOT change on the transitive-supertype change " +
+          s"(under-invalidation) — got $hC1 vs $hC2"
+      )
+    }
+  }
 }
