@@ -310,10 +310,8 @@ class AnalyzeSpecification extends UnitSpec {
     }
   }
 
-  // sbt/zinc#148: JDK8+ javac requires every transitive superclass and superinterface of a referenced
-  // type on the compile classpath, even though the referencing classfile names only the type itself.
-  // JavaAnalyze records that ancestry as member-ref deps of the referencing class, so `Test` (which only
-  // calls `Foo.other()`) depends on Foo AND on Base/IFoo/IBase.
+  // sbt/zinc#148: Test only names Foo, but javac needs Foo's whole ancestry present, so it is
+  // recorded as member-ref deps of Test.
   "Analyze" should "record the transitive ancestry of a member-referenced type (sbt/zinc#148)" in {
     val srcIBase = "public interface IBase { void base(); }\n"
     val srcIFoo = "public interface IFoo extends IBase { void foo(); }\n"
@@ -339,8 +337,7 @@ class AnalyzeSpecification extends UnitSpec {
       "Test.java" -> srcTest,
     )
 
-    // Test depends on Foo and its full transitive ancestry by member-ref (the #148 fix), recorded as
-    // member-ref (not inheritance) since Test references Foo without inheriting from it.
+    // Recorded as member-ref, not inheritance: Test uses Foo without inheriting from it.
     assert(deps.memberRef("Test") === Set("Foo", "Base", "IFoo", "IBase"))
     assert(deps.inheritance("Test") === Set.empty)
 
@@ -350,9 +347,8 @@ class AnalyzeSpecification extends UnitSpec {
     assert(deps.inheritance("IFoo") === Set("IBase"))
   }
 
-  // sbt/zinc#148: the transitive ancestry of a referenced *library* type (resolved from the classpath,
-  // not compiled here) is recorded too — as binary member-ref deps — which is what classpath-minimizing
-  // build tools need. JDK ancestors are not walked (they are always on the bootclasspath).
+  // sbt/zinc#148: the ancestry of a referenced classpath (library) type is recorded too, as
+  // binary deps.
   "Analyze" should "record transitive ancestry of a referenced classpath type as binary deps (sbt/zinc#148)" in {
     IO.withTemporaryDirectory { temp =>
       val classesDir = new File(temp, "classes")
@@ -391,16 +387,15 @@ class AnalyzeSpecification extends UnitSpec {
     }
   }
 
-  // sbt/zinc#148: "platform" must be decided by origin, not package name. Many javax.* APIs (servlet,
-  // JAX-RS, JAXB, javax.annotation) are ordinary classpath jars, so their ancestors must still be
-  // tracked — a package-prefix filter that drops javax.* would re-introduce the very #148 miss.
+  // sbt/zinc#148 regression: javax.* ancestors are ordinary classpath jars, so origin-based (not
+  // package-prefix) platform detection must keep tracking them.
   "Analyze" should "track a javax.* ancestor served from the classpath, not the JDK (sbt/zinc#148)" in {
     IO.withTemporaryDirectory { temp =>
       val classesDir = new File(temp, "classes")
       classesDir.mkdir()
 
-      // A user class in a javax.* package (allowed; only java.* is a reserved namespace) — i.e. exactly
-      // the shape of a servlet/JAX-RS base class shipped as a normal dependency jar.
+      // A user class in a javax.* package (only java.* is reserved) — like a servlet base in a
+      // dependency jar.
       val base = new File(temp, "Base.java")
       IO.write(base, "package javax.foo; public class Base {}")
       val foo = new File(temp, "Foo.java")

@@ -116,13 +116,11 @@ private[sbt] object JavaAnalyze {
       sourceToClassFiles(source) += classFile
     }
 
-    // sbt/zinc#148: javac (since JDK 8) requires every transitive superclass and superinterface of a
-    // referenced type to be on the compile classpath, even though the referencing classfile's constant
-    // pool names only the referenced type itself. We record those ancestors as member-ref dependencies
-    // of the referencing class so the dependency graph reflects what javac actually needs — in
-    // particular for build tools that minimize the classpath from Zinc's analysis. Ancestors are read
-    // from classfile bytes (the already-parsed classfile for compiled classes, otherwise via the
-    // classloader) — never by loading the class — and memoized across the whole analysis.
+    // sbt/zinc#148: since JDK 8, javac requires every transitive superclass/superinterface of a
+    // referenced type on the classpath, even though the referencing classfile names only the type
+    // itself. We record that ancestry as member-ref deps of the referencing class, chiefly for
+    // build tools that minimize the classpath from Zinc's analysis. Parents are read from classfile
+    // bytes (never by loading the class) and memoized.
     val classFileByBinaryName: Map[String, ClassFile] =
       sourceToClassFiles.valuesIterator.flatten.map(cf => cf.className -> cf).toMap
     val resourceUrls = mutable.Map.empty[String, Option[URL]]
@@ -135,13 +133,11 @@ private[sbt] object JavaAnalyze {
         Option(loader.getResource(classNameToClassFile(binaryName)))
       )
 
-    // A "platform" class is always on the bootclasspath, so it never needs dependency tracking and its
-    // (deep) ancestry must not be walked. This is decided by ORIGIN, not by package name: many javax.*
-    // APIs (servlet, JAX-RS, JAXB, javax.annotation) ship as ordinary classpath jars and MUST stay
-    // tracked for build tools that minimize the classpath from Zinc's analysis (sbt/zinc#148). A class is
-    // platform iff its classfile is served from the JDK runtime image (`jrt:`); `java.*` is a reserved
-    // namespace (always the JDK), so we skip the lookup for it. Classes compiled in this run are never
-    // platform.
+    // Whether a class is "platform" (on the JDK runtime, so never tracked and not walked) is
+    // decided by ORIGIN, not package name: many javax.* APIs (servlet, JAX-RS, JAXB) ship as
+    // ordinary classpath jars and must stay tracked. A class is platform iff its classfile is
+    // served from the runtime image (`jrt:`); `java.*` is reserved (always the JDK) so we skip the
+    // lookup. Compiled classes are never platform.
     def isPlatformClass(binaryName: String): Boolean =
       binaryName.startsWith("java.") ||
         (!classFileByBinaryName.contains(binaryName) &&
@@ -164,8 +160,7 @@ private[sbt] object JavaAnalyze {
           )
         )
 
-    // Transitive super/interface closure of `binaryName`, excluding `binaryName` itself and the
-    // JDK/platform classes that are always on the bootclasspath (so never need tracking).
+    // Transitive super/interface closure of `binaryName`, excluding itself and platform classes.
     def transitiveAncestors(binaryName: String): Set[String] =
       transitiveAncestorsCache.getOrElseUpdate(
         binaryName, {
