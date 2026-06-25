@@ -310,4 +310,124 @@ class AnalyzeSpecification extends UnitSpec {
     }
   }
 
+  // issue: sbt/zinc#146 (parameter annotations, JVMS 4.7.18)
+  "Analyze" should "detect annotation on method parameter" in {
+    val srcTest =
+      """|import java.lang.annotation.Retention;
+         |import java.lang.annotation.RetentionPolicy;
+         |@Retention(RetentionPolicy.RUNTIME)
+         |public @interface Test { }
+         |""".stripMargin
+    val srcFoo =
+      """|public class Foo {
+         |  int foo(@Test int x) { return x; }
+         |}
+         |""".stripMargin
+    val deps = JavaCompilerForUnitTesting.extractDependenciesFromSrcs(
+      "Test.java" -> srcTest,
+      "Foo.java" -> srcFoo,
+    )
+    assert(deps.memberRef("Foo").contains("Test"))
+  }
+
+  // issue: sbt/zinc#146 (type annotations, JVMS 4.7.20)
+  "Analyze" should "detect type-use annotation on a field type" in {
+    val srcTest =
+      """|import java.lang.annotation.ElementType;
+         |import java.lang.annotation.Target;
+         |@Target(ElementType.TYPE_USE)
+         |public @interface Test { }
+         |""".stripMargin
+    val srcFoo =
+      """|public class Foo {
+         |  @Test String s = "";
+         |}
+         |""".stripMargin
+    val deps = JavaCompilerForUnitTesting.extractDependenciesFromSrcs(
+      "Test.java" -> srcTest,
+      "Foo.java" -> srcFoo,
+    )
+    assert(deps.memberRef("Foo").contains("Test"))
+  }
+
+  // issue: sbt/zinc#146 (type annotations nested in the Code attribute, JVMS 4.7.3)
+  "Analyze" should "detect type-use annotation on a local variable" in {
+    val srcTest =
+      """|import java.lang.annotation.ElementType;
+         |import java.lang.annotation.Target;
+         |@Target(ElementType.TYPE_USE)
+         |public @interface Test { }
+         |""".stripMargin
+    val srcFoo =
+      """|public class Foo {
+         |  void m() {
+         |    @Test String s = "";
+         |  }
+         |}
+         |""".stripMargin
+    val deps = JavaCompilerForUnitTesting.extractDependenciesFromSrcs(
+      "Test.java" -> srcTest,
+      "Foo.java" -> srcFoo,
+    )
+    assert(deps.memberRef("Foo").contains("Test"))
+  }
+
+  // issue: sbt/zinc#146 (annotations on record components, JVMS 4.7.30)
+  "Analyze" should "detect annotation on a record component" in {
+    val srcTest =
+      """|import java.lang.annotation.ElementType;
+         |import java.lang.annotation.Target;
+         |@Target(ElementType.RECORD_COMPONENT)
+         |public @interface Test { }
+         |""".stripMargin
+    val srcFoo =
+      """|public record Foo(@Test int x) { }
+         |""".stripMargin
+    val deps = JavaCompilerForUnitTesting.extractDependenciesFromSrcs(
+      "Test.java" -> srcTest,
+      "Foo.java" -> srcFoo,
+    )
+    assert(deps.memberRef("Foo").contains("Test"))
+  }
+
+  // issue: sbt/zinc#146 (types referenced by an annotation default, JVMS 4.7.22)
+  "Analyze" should "detect a type referenced by an annotation default value" in {
+    val srcColor =
+      """|public enum Color { RED, GREEN }
+         |""".stripMargin
+    val srcHolder =
+      """|public @interface Holder {
+         |  Color color() default Color.RED;
+         |}
+         |""".stripMargin
+    val deps = JavaCompilerForUnitTesting.extractDependenciesFromSrcs(
+      "Color.java" -> srcColor,
+      "Holder.java" -> srcHolder,
+    )
+    assert(deps.memberRef("Holder").contains("Color"))
+  }
+
+  // issue: sbt/zinc#146 (class-literal element value stored as an array descriptor `[LBar;`)
+  "Analyze" should "detect a type in an array class-literal annotation argument" in {
+    val srcTest =
+      """|import java.lang.annotation.Retention;
+         |import java.lang.annotation.RetentionPolicy;
+         |@Retention(RetentionPolicy.RUNTIME)
+         |public @interface Test { Class<?> value(); }
+         |""".stripMargin
+    val srcBar =
+      """|public class Bar { }
+         |""".stripMargin
+    val srcFoo =
+      """|@Test(Bar[].class)
+         |public class Foo { }
+         |""".stripMargin
+    val deps = JavaCompilerForUnitTesting.extractDependenciesFromSrcs(
+      "Test.java" -> srcTest,
+      "Bar.java" -> srcBar,
+      "Foo.java" -> srcFoo,
+    )
+    assert(deps.memberRef("Foo").contains("Bar"))
+  }
+
 }

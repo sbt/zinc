@@ -99,8 +99,15 @@ private[sbt] final case class AttributeInfo(name: Option[String], value: Array[B
   def isSignature = isNamed("Signature")
   def isSourceFile = isNamed("SourceFile")
   def isInnerClasses = isNamed("InnerClasses")
+  def isCode = isNamed("Code")
+  def isRecord = isNamed("Record")
   def isRuntimeVisibleAnnotations = isNamed("RuntimeVisibleAnnotations")
   def isRuntimeInvisibleAnnotations = isNamed("RuntimeInvisibleAnnotations")
+  def isRuntimeVisibleParameterAnnotations = isNamed("RuntimeVisibleParameterAnnotations")
+  def isRuntimeInvisibleParameterAnnotations = isNamed("RuntimeInvisibleParameterAnnotations")
+  def isRuntimeVisibleTypeAnnotations = isNamed("RuntimeVisibleTypeAnnotations")
+  def isRuntimeInvisibleTypeAnnotations = isNamed("RuntimeInvisibleTypeAnnotations")
+  def isAnnotationDefault = isNamed("AnnotationDefault")
 }
 private[sbt] final case class InnerClassInfo(
     accessFlags: Int,
