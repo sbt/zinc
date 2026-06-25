@@ -1,0 +1,25 @@
+# sbt/zinc#145: `use` depends on `dep` ONLY through dep's inlined static-final constant B.MAX,
+# referenced as a switch-case label. javac inlines the value and erases every reference to B from
+# A.class (verified with javap), so the cross-module A->B dependency must be recovered from javac's
+# attributed AST or this incremental compile goes stale.
+# This must be cross-module: within a single module zinc recompiles all Java sources together
+# (compileAllJava), so the missing edge would be masked. Ordinary constant uses (field/method
+# bodies) keep B as a CONSTANT_Class entry and are already tracked; only annotation values and
+# switch labels actually erase the owner, hence the switch-case fixture. Pipelining is disabled
+# (incOptions.properties) because it recompiles all Java sources every cycle, which also masks the
+# missing edge.
+
+> use/compile
+
+# done this way because last modified times often have ~1s resolution
+$ sleep 2000
+
+# change B.MAX from int to String: A's `case B.MAX` no longer compiles IF A is recompiled, which
+# happens only when the cross-module A->B constant dependency was recorded.
+$ copy-file changes/B2.java dep/B.java
+-> use/compile
+
+# verify the change really is a compile error by doing a full recompilation
+> use/clean
+> dep/clean
+-> use/compile
