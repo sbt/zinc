@@ -21,7 +21,16 @@ import java.util.Locale
 import java.nio.{ ByteBuffer, CharBuffer }
 import java.nio.charset.{ Charset, CodingErrorAction }
 import java.nio.file.{ Files, FileSystems, Path, Paths }
-import javax.lang.model.element.{ Modifier, NestingKind }
+import javax.lang.model.element.{ Modifier, NestingKind, TypeElement, VariableElement }
+import javax.lang.model.util.Elements
+import com.sun.source.tree.{
+  ClassTree,
+  CompilationUnitTree,
+  IdentifierTree,
+  MemberSelectTree,
+  Tree
+}
+import com.sun.source.util.{ JavacTask, TaskEvent, TaskListener, TreePath, TreePathScanner, Trees }
 import javax.tools.JavaFileManager.Location
 import javax.tools.JavaFileObject.Kind
 import javax.tools.{
@@ -287,7 +296,24 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
       incToolOptions: IncToolOptions,
       reporter: Reporter,
       log0: XLogger
-  ): Boolean = {
+  ): Boolean =
+    runWithConstantDeps(sources, options, output, incToolOptions, reporter, log0)._1
+
+  /**
+   * Like [[run]], but also returns the Java->Java dependencies on inlined `static final` constants
+   * recovered from javac's attributed AST (sbt/zinc#145). javac inlines such constants and erases
+   * the reference to the declaring class from the using class's bytecode, so they can only be
+   * observed here. The map is keyed `usingClassBinaryName -> ownerBinaryNames`. Returned (rather
+   * than stashed on the instance) so a shared compiler can serve concurrent compiles safely.
+   */
+  private[sbt] def runWithConstantDeps(
+      sources: Array[VirtualFile],
+      options: Array[String],
+      output: Output,
+      incToolOptions: IncToolOptions,
+      reporter: Reporter,
+      log0: XLogger
+  ): (Boolean, Map[String, Set[String]]) = {
     val log: Logger = log0
     val logger = new LoggerWriter(log)
     val logWriter = new PrintWriter(logger)
@@ -332,17 +358,28 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
     }
 
     var compileSuccess = false
+    var constantDeps: Map[String, Set[String]] = Map.empty
     try {
-      val success = compiler
-        .getTask(
-          logWriter,
-          customizedFileManager,
-          diagnostics,
-          javacOptions.toList.asJava,
-          null,
-          jfiles.asJava
-        )
-        .call()
+      // sbt/zinc#145: collect Java->Java dependencies on inlined `static final` constants from
+      // javac's attributed AST, which retains the reference that the emitted bytecode erases.
+      val deps = new JavaConstantDeps
+      val task = compiler.getTask(
+        logWriter,
+        customizedFileManager,
+        diagnostics,
+        javacOptions.toList.asJava,
+        null,
+        jfiles.asJava
+      )
+      try task match {
+          case jt: JavacTask => jt.addTaskListener(new ConstantDepListener(jt, deps))
+          case _             => () // not the system javac; constant deps are simply not tracked
+        }
+      catch {
+        case NonFatal(e) => log.debug("Could not install constant-dependency listener: " + e)
+      }
+      val success = task.call()
+      constantDeps = deps.result
 
       /* Double check success variables for the Java compiler.
        * The local compiler may report successful compilations even though
@@ -353,7 +390,7 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
       customizedFileManager.close()
       logger.flushLines(if (compileSuccess) Level.Warn else Level.Error)
     }
-    compileSuccess
+    (compileSuccess, constantDeps)
   }
 
   /**
@@ -392,6 +429,157 @@ final class LocalJavaCompiler(compiler: javax.tools.JavaCompiler) extends XJavaC
 final class SameFileFixFileManager(underlying: JavaFileManager)
     extends ForwardingJavaFileManager[JavaFileManager](underlying) {
   override def isSameFile(a: FileObject, b: FileObject): Boolean = LocalJava.isSameFile(a, b)
+}
+
+/**
+ * Mutable accumulator for Java->Java dependencies on inlined `static final` constants (sbt/zinc#145).
+ * Keys and values are JVM binary names (e.g. `pkg.Outer$Inner`), matching what `JavaAnalyze` records.
+ */
+private[sbt] final class JavaConstantDeps {
+  private val deps =
+    scala.collection.mutable.Map.empty[String, scala.collection.mutable.Set[String]]
+  def add(from: String, on: String): Unit =
+    deps.getOrElseUpdate(from, scala.collection.mutable.Set.empty[String]) += on
+  def result: Map[String, Set[String]] =
+    deps.iterator.map { case (k, v) => k -> v.toSet }.toMap
+}
+
+/**
+ * Registers [[ConstantDepScanner]] on each top-level class once it has been attributed (the
+ * `ANALYZE` task event), when resolved symbols — including references to inlined constants — are
+ * available. Failures are swallowed so analysis never fails the compile.
+ */
+private[sbt] final class ConstantDepListener(task: JavacTask, sink: JavaConstantDeps)
+    extends TaskListener {
+  private val trees = Trees.instance(task)
+  private val elements = task.getElements
+
+  override def started(e: TaskEvent): Unit = ()
+
+  override def finished(e: TaskEvent): Unit =
+    if (e.getKind == TaskEvent.Kind.ANALYZE) {
+      val te = e.getTypeElement
+      if (te != null)
+        try {
+          val path = trees.getPath(te)
+          if (path != null) new ConstantDepScanner(trees, elements, sink).scan(path, null)
+        } catch { case NonFatal(_) => () }
+    }
+}
+
+/**
+ * Walks an attributed Java AST and records, for every reference that resolves to a compile-time
+ * constant field (`VariableElement.getConstantValue != null`), an edge from the enclosing class to
+ * the class that declares the constant (the value source, taken from the resolved element so
+ * `import static` references are captured too) and, for a qualified reference, to the qualifier type
+ * when it differs from the declaring class.
+ */
+private[sbt] final class ConstantDepScanner(
+    trees: Trees,
+    elements: Elements,
+    sink: JavaConstantDeps
+) extends TreePathScanner[Void, Void] {
+
+  private def record(qualifier: Option[Tree]): Unit =
+    try {
+      val path = getCurrentPath
+      trees.getElement(path) match {
+        case v: VariableElement if v.getConstantValue != null =>
+          enclosingTypeBinaryName(path).foreach { from =>
+            // the class that declares the constant — a change to its value must recompile `from`
+            v.getEnclosingElement match {
+              case owner: TypeElement => addEdge(from, owner)
+              case _                  => ()
+            }
+            // sbt/zinc#145: when the constant is named through a subtype rather than its declaring
+            // class (`Sub.K`, or a bare `K` brought in by `import static p.Sub.K` / `p.Sub.*`, where
+            // K is inherited from Base), javac erases both Base and Sub from the bytecode. Record the
+            // named (qualifier) type(s) too, so a change to one (it gains its own K, or changes its
+            // inheritance) recompiles `from` as well.
+            namedTypes(path, qualifier, v).foreach(addEdge(from, _))
+          }
+        case _ => ()
+      }
+    } catch { case NonFatal(_) => () }
+
+  /** The type(s) named at the reference site: a member-select qualifier, or static-import types. */
+  private def namedTypes(
+      path: TreePath,
+      qualifier: Option[Tree],
+      field: VariableElement
+  ): List[TypeElement] =
+    qualifier match {
+      case Some(q) =>
+        trees.getElement(new TreePath(path, q)) match {
+          case te: TypeElement => te :: Nil
+          case _               => Nil
+        }
+      case None => staticImportTypes(path.getCompilationUnit, field)
+    }
+
+  /**
+   * Every statically-imported type that actually contributes `field` — covering both explicit
+   * (`import static p.Sub.K`) and on-demand (`import static p.Sub.*`) imports. The import must name
+   * the field (or be a wildcard) AND the type must actually have it (`getAllMembers`, which includes
+   * inherited members): the name guard rejects an unrelated `import static p.Sub.M` (which would
+   * otherwise match just because `Sub` also inherits `K`), and the membership guard rejects a
+   * same-named import of a *different* constant.
+   */
+  private def staticImportTypes(
+      cu: CompilationUnitTree,
+      field: VariableElement
+  ): List[TypeElement] = {
+    val cuPath = new TreePath(cu)
+    cu.getImports.asScala.iterator
+      .filter(_.isStatic)
+      .flatMap { imp =>
+        // both `import static p.Sub.K` and `import static p.Sub.*` name the type in `getExpression`
+        imp.getQualifiedIdentifier match {
+          case ms: MemberSelectTree
+              if ms.getIdentifier.contentEquals("*") ||
+                ms.getIdentifier.contentEquals(field.getSimpleName) =>
+            val typePath =
+              new TreePath(new TreePath(new TreePath(cuPath, imp), ms), ms.getExpression)
+            trees.getElement(typePath) match {
+              case te: TypeElement if elements.getAllMembers(te).contains(field) => Some(te)
+              case _                                                             => None
+            }
+          case _ => None
+        }
+      }
+      .toList
+  }
+
+  private def addEdge(from: String, to: TypeElement): Unit = {
+    val on = elements.getBinaryName(to).toString
+    if (from != on) sink.add(from, on)
+  }
+
+  private def enclosingTypeBinaryName(path: TreePath): Option[String] = {
+    var p = path
+    while (p != null) {
+      p.getLeaf match {
+        case _: ClassTree =>
+          return trees.getElement(p) match {
+            case te: TypeElement => Some(elements.getBinaryName(te).toString)
+            case _               => None
+          }
+        case _ => ()
+      }
+      p = p.getParentPath
+    }
+    None
+  }
+
+  override def visitIdentifier(node: IdentifierTree, p: Void): Void = {
+    record(None)
+    super.visitIdentifier(node, p)
+  }
+
+  override def visitMemberSelect(node: MemberSelectTree, p: Void): Void = {
+    record(Some(node.getExpression))
+    super.visitMemberSelect(node, p)
+  }
 }
 
 /**

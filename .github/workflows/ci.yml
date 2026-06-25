@@ -41,7 +41,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
     - name: Setup JDK
       uses: actions/setup-java@v5
       with:
@@ -82,7 +82,7 @@ jobs:
         sbt -v --server -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*AnalysisFormatBenchmark.*" "runBenchmarks"
     - name: Checkout Target Branch (4-6)
       if: ${{ github.event_name == 'pull_request' && (matrix.jobtype >= 4 && matrix.jobtype <= 6) }}
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
       with:
         ref: ${{ github.event.pull_request.base.ref }}
     - name: Benchmark (Scalac) against Target Branch (4)
