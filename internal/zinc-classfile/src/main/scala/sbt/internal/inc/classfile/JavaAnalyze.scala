@@ -39,7 +39,10 @@ private[sbt] object JavaAnalyze {
       analysis: xsbti.AnalysisCallback,
       loader: ClassLoader,
       readAPI: (VirtualFileRef, Seq[Class[?]]) => Set[(String, String)],
-      readClassfileAPI: (VirtualFileRef, Seq[(String, ClassFile)]) => Unit = (_, _) => ()
+      readClassfileAPI: (VirtualFileRef, Seq[(String, ClassFile)]) => Unit = (_, _) => (),
+      // sbt/zinc#145: extra member-ref edges for inlined `static final` constants that javac erases
+      // from the bytecode, recovered from the attributed AST. Keyed `fromBinaryName -> onBinaryNames`.
+      constantDeps: Map[String, Set[String]] = Map.empty
   ): Unit = {
     val sourceMap = sources
       .toSet[VirtualFile]
@@ -194,6 +197,15 @@ private[sbt] object JavaAnalyze {
         case (binaryClassName, binaryClassNameDeps) =>
           processDependencies(binaryClassNameDeps, DependencyByMemberRef, binaryClassName)
       }
+
+      // sbt/zinc#145: javac inlines `static final` constants, erasing the reference to the declaring
+      // class from this class's bytecode. The AST-derived `constantDeps` restore those member-ref
+      // edges. Process them here (inside the per-source loop) so the classpath-origin branch of
+      // `processDependency` resolves against the right `source`.
+      for {
+        binaryClassName <- typesInSource.keysIterator
+        onBinaryName <- constantDeps.getOrElse(binaryClassName, Set.empty)
+      } processDependency(onBinaryName, DependencyByMemberRef, binaryClassName)
 
       def readInheritanceDependencies(classes: Seq[Class[?]]) = {
         val api = readAPI(source, classes)
