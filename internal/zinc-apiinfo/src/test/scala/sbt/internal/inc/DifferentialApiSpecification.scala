@@ -283,4 +283,80 @@ class DifferentialApiSpecification extends UnitSpec {
       )
     }
   }
+
+  // Deviation #2 (fixed): ClassfileToAPI now reads RuntimeVisible/InvisibleParameterAnnotations and
+  // folds them into the method's synthetic annotation, so a parameter-annotation-only change changes
+  // its hash — matching reflection (which carries them on the parameter type via api.Annotated). Was
+  // a green known-bug witness before the fix; now asserts both paths invalidate.
+  it should "detect a parameter-annotation change, matching reflection" in {
+    IO.withTemporaryDirectory { temp =>
+      val pa =
+        "import java.lang.annotation.*;\n" +
+          "@Retention(RetentionPolicy.RUNTIME) @Target(ElementType.PARAMETER) @interface PA {}\n"
+      val v1 = pa + "public class C { public void m(@PA String x) {} }"
+      val v2 = pa + "public class C { public void m(String x) {} }"
+      val (reflect1, classfile1) = buildApis(temp, 110, "C", v1)
+      val (reflect2, classfile2) = buildApis(temp, 111, "C", v2)
+      val (hR1, hR2) = (reflect1.map(HashAPI(_)).sum, reflect2.map(HashAPI(_)).sum)
+      val (hC1, hC2) = (classfile1.map(HashAPI(_)).sum, classfile2.map(HashAPI(_)).sum)
+      println(s"[param-anno hash] reflect changed=${hR1 != hR2}; classfile changed=${hC1 != hC2}")
+      assert(hR1 != hR2, "reflection hash must change when the parameter annotation is removed")
+      assert(
+        hC1 != hC2,
+        s"classfile hash must now change on a param-annotation change — $hC1 vs $hC2"
+      )
+    }
+  }
+
+  // The names of classes `process` reports as having a `main`, from each path.
+  private def mainClasses(temp: File, idx: Int, names: Seq[(String, String)], query: String) = {
+    val dir = new File(temp, s"m$idx")
+    dir.mkdir()
+    val srcs = names.map {
+      case (n, src) =>
+        val f = new File(dir, s"$n.java"); IO.write(f, src); f
+    }
+    JavaCompilerForUnitTesting.compileJava(srcs, dir, Seq.empty)
+    val loader = new URLClassLoader(Array(dir.toURI.toURL), null)
+    val resolve: String => Option[ClassFile] = bn => {
+      val res = bn.replace('.', '/') + ".class"
+      Option(loader.getResource(res))
+        .orElse(Option(ClassLoader.getSystemResource(res)))
+        .flatMap(u =>
+          try Some(Parser(u, Logger.Null))
+          catch { case _: Throwable => None }
+        )
+    }
+    val reflectMains = ClassToAPI.process(Seq(loader.loadClass(query)))._2
+    val cf = Parser(new File(dir, s"$query.class").toPath, Logger.Null)
+    val classfileMains = ClassfileToAPI.process(Seq(query -> cf), resolve)._2
+    (reflectMains, classfileMains)
+  }
+
+  // Deviation #3 (fixed): ClassfileToAPI.hasMain now also checks the inherited (superclass-chain)
+  // public static main, mirroring ClassToAPI's use of c.getMethods, so a subclass that inherits
+  // `main` is reported as a main class. Was a green known-bug witness before the fix; now asserts
+  // agreement with reflection.
+  it should "report an inherited main, matching reflection" in {
+    IO.withTemporaryDirectory { temp =>
+      val (reflectMains, classfileMains) = mainClasses(
+        temp,
+        0,
+        Seq(
+          "A" -> "public class A { public static void main(String[] a) {} }",
+          "B" -> "public class B extends A {}"
+        ),
+        query = "B"
+      )
+      println(s"[main] reflect=$reflectMains classfile=$classfileMains")
+      assert(
+        reflectMains.contains("B"),
+        s"reflection should report inherited main on B: $reflectMains"
+      )
+      assert(
+        classfileMains.contains("B"),
+        s"classfile should now report inherited main on B: $classfileMains"
+      )
+    }
+  }
 }

@@ -92,39 +92,69 @@ object ClassfileToAPI {
         } catch { case NonFatal(_) => Nil }
     }
 
+  // Decodes one `annotation` structure (JVMS 4.7.16) from `in` into a `type(name=value,...)` string,
+  // capturing element values too (so `@A("a")` differs from `@A("b")`). Length-prefixes each composed
+  // value so concatenation can't collide (e.g. {"a,b","c"} vs {"a","b,c"}); we only need distinct,
+  // deterministic strings for hashing, not parseability.
+  private def decodeAnnotation(in: DataInputStream, cf: ClassFile): String = {
+    def poolStr(i: Int): String = cf.constantPool(i).value.fold("")(_.toString)
+    def lp(s: String): String = s.length.toString + ":" + s
+    def elementValue(): String =
+      in.readUnsignedByte().toChar match {
+        case 'e' => poolStr(in.readUnsignedShort()) + "." + poolStr(in.readUnsignedShort())
+        case 'c' => poolStr(in.readUnsignedShort())
+        case '@' => annotationString()
+        case '[' =>
+          val n = in.readUnsignedShort()
+          (0 until n).map(_ => lp(elementValue())).mkString("[", "", "]")
+        case _ => poolStr(in.readUnsignedShort())
+      }
+    def annotationString(): String = {
+      val tpe = poolStr(in.readUnsignedShort()).stripPrefix("L").stripSuffix(";").replace('/', '.')
+      val pairs = in.readUnsignedShort()
+      val args =
+        (0 until pairs).map(_ => lp(poolStr(in.readUnsignedShort()) + "=" + elementValue()))
+      if (args.isEmpty) tpe else args.mkString(tpe + "(", "", ")")
+    }
+    annotationString()
+  }
+
   /**
    * Declared annotations rendered as `type(name=value,...)` strings, from RuntimeVisible/Invisible
-   * attributes (JVMS 4.7.16) — capturing element values too, so `@A("a")` differs from `@A("b")`.
+   * attributes (JVMS 4.7.16).
    */
   private def annotationStrings(cf: ClassFile, attrs: Seq[AttributeInfo]): Seq[String] = {
     val out = ArrayBuffer.empty[String]
     for (a <- attrs if a.isRuntimeVisibleAnnotations || a.isRuntimeInvisibleAnnotations) {
       try {
         val in = new DataInputStream(new ByteArrayInputStream(a.value))
-        def poolStr(i: Int): String = cf.constantPool(i).value.fold("")(_.toString)
-        // Length-prefix each composed value so concatenation can't collide (e.g. {"a,b","c"} vs
-        // {"a","b,c"}); we only need distinct, deterministic strings for hashing, not parseability.
-        def lp(s: String): String = s.length.toString + ":" + s
-        def elementValue(): String =
-          in.readUnsignedByte().toChar match {
-            case 'e' => poolStr(in.readUnsignedShort()) + "." + poolStr(in.readUnsignedShort())
-            case 'c' => poolStr(in.readUnsignedShort())
-            case '@' => annotationString()
-            case '[' =>
-              val n = in.readUnsignedShort()
-              (0 until n).map(_ => lp(elementValue())).mkString("[", "", "]")
-            case _ => poolStr(in.readUnsignedShort())
-          }
-        def annotationString(): String = {
-          val tpe =
-            poolStr(in.readUnsignedShort()).stripPrefix("L").stripSuffix(";").replace('/', '.')
-          val pairs = in.readUnsignedShort()
-          val args =
-            (0 until pairs).map(_ => lp(poolStr(in.readUnsignedShort()) + "=" + elementValue()))
-          if (args.isEmpty) tpe else args.mkString(tpe + "(", "", ")")
-        }
         val num = in.readUnsignedShort()
-        (0 until num).foreach(_ => out += annotationString())
+        (0 until num).foreach(_ => out += decodeAnnotation(in, cf))
+      } catch { case NonFatal(_) => () }
+    }
+    out.toSeq
+  }
+
+  /**
+   * Parameter annotations rendered as `index:type(...)` strings, from RuntimeVisible/Invisible
+   * ParameterAnnotations attributes (JVMS 4.7.18–19). Position-prefixed so moving an annotation
+   * between parameters is a change. ClassToAPI carries these on the parameter type (api.Annotated);
+   * folding them into the method's synthetic annotation is enough to track changes for hashing.
+   */
+  private def parameterAnnotationStrings(cf: ClassFile, attrs: Seq[AttributeInfo]): Seq[String] = {
+    val out = ArrayBuffer.empty[String]
+    for (
+      a <- attrs
+      if a.isNamed("RuntimeVisibleParameterAnnotations") ||
+        a.isNamed("RuntimeInvisibleParameterAnnotations")
+    ) {
+      try {
+        val in = new DataInputStream(new ByteArrayInputStream(a.value))
+        val numParams = in.readUnsignedByte()
+        (0 until numParams).foreach { p =>
+          val n = in.readUnsignedShort()
+          (0 until n).foreach(_ => out += s"$p:" + decodeAnnotation(in, cf))
+        }
       } catch { case NonFatal(_) => () }
     }
     out.toSeq
@@ -147,7 +177,7 @@ object ClassfileToAPI {
     val mainClasses = ArrayBuffer.empty[String]
     for ((name, cf) <- named) {
       classApis ++= classLikes(name, cf, cachedResolve)
-      if (cf.methods.exists(_.isMain)) mainClasses += name
+      if (hasMain(cf, cachedResolve)) mainClasses += name
     }
     (classApis.toSeq, mainClasses.toSeq)
   }
@@ -314,7 +344,8 @@ object ClassfileToAPI {
     val annots = syntheticAnnotations(
       "signature" -> rawSignature(sigStr),
       "throws" -> exceptionNames(cf, m.attributes),
-      "annotations" -> annotationStrings(cf, m.attributes)
+      "annotations" -> annotationStrings(cf, m.attributes),
+      "paramAnnotations" -> parameterAnnotationStrings(cf, m.attributes)
     )
     val d = api.Def.of(name, acc, mods, annots, typeParams, Array(paramList), returnType)
     (m.isStatic, d)
@@ -501,6 +532,29 @@ object ClassfileToAPI {
   // interfaceNames (e.g. `pkg.Outer<String>.Inner` -> "pkg.Outer$Inner").
   private def erasedSigClassName(s: SigClass): String =
     (s.name +: s.inners.map(_.name)).mkString("$")
+
+  /**
+   * Whether the class has a `main` method — its own or one inherited from a superclass — mirroring
+   * ClassToAPI's use of `getMethods` (which includes inherited methods). The superclass chain is
+   * walked via parent classfiles; a static method declared on an interface is not inherited (matching
+   * getMethods and [[collectInherited]]), so it never counts. Cycle-safe and fail-soft.
+   */
+  private def hasMain(cf: ClassFile, resolveParent: String => Option[ClassFile]): Boolean =
+    cf.methods.exists(_.isMain) || {
+      val visited = scala.collection.mutable.Set(cf.className)
+      val queue = scala.collection.mutable.Queue.empty[String]
+      queue ++= superTypeNames(cf)
+      var found = false
+      while (!found && queue.nonEmpty) {
+        val n = queue.dequeue()
+        if (visited.add(n)) resolveParent(n).foreach { pcf =>
+          val isIface = Modifier.isInterface(pcf.accessFlags)
+          if (pcf.methods.exists(m => m.isMain && !isIface)) found = true
+          else queue ++= superTypeNames(pcf)
+        }
+      }
+      found
+    }
 
   private val ObjectRef = ClassToAPI.reference("java.lang.Object")
 
