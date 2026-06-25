@@ -50,9 +50,16 @@ import sbt.util.Logger
  *
  * Two differences from [[ClassToAPI]] are intentional and do not under-invalidate:
  *   - Annotations are read from both the RuntimeVisible and RuntimeInvisible attributes, so
- *     CLASS-retention annotations are captured here even though reflection's `getAnnotations` (which
- *     sees only RUNTIME retention) would miss them. This is strictly more conservative — it can only
- *     add hash sensitivity, never remove it.
+ *     CLASS-retention annotations (the default when no `@Retention` is given) are captured here even
+ *     though reflection's `getAnnotations` does not see them. The relevant criterion for invalidation
+ *     is whether compiling a *dependent* against this classfile can observe the annotation, not
+ *     whether it survives to runtime: javac exposes RuntimeInvisible annotations through
+ *     `javax.lang.model` (`getAnnotationMirrors`), so an annotation processor introspecting this type
+ *     during a dependent's compilation can act on a CLASS-retained annotation and emit different
+ *     output. Reflection's omission is thus a limitation of its runtime-only lens, not a designed
+ *     semantic — capturing these here is closer to what a dependent compiler can actually see. (SOURCE
+ *     retention is absent from the classfile, so neither path sees it, correctly.) The cost is mild
+ *     over-invalidation: a CLASS-retained annotation that no processor reads still bumps the hash.
  *   - A member class referenced in its *outer's* declared members ([[nestedClassDefs]]) carries no
  *     type parameters or annotations, whereas reflection's reference does. The member class's own
  *     `ClassLike` entry models them in full, so a change there still invalidates its dependents; only
