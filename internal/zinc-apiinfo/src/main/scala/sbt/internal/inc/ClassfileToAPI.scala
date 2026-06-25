@@ -188,19 +188,13 @@ object ClassfileToAPI {
 
     val classSigStr = cf.attributes.find(_.isSignature).map(cf.stringValue)
     val classSig = classSigStr.flatMap(SignatureParser.classSignature)
-    val (typeParams, parents): (Array[api.TypeParameter], Array[api.Type]) = classSig match {
-      case Some(cs) =>
-        (
-          cs.typeParams.map(toTypeParam).toArray,
-          (cs.superclass +: cs.interfaces).map(toType).toArray
-        )
-      case None =>
-        val erased = (cf.superClassName +: cf.interfaceNames.toIndexedSeq)
-          .filter(_.nonEmpty)
-          .map(ClassToAPI.reference)
-          .toArray
-        (noTypeParameters, erased)
-    }
+    val typeParams: Array[api.TypeParameter] =
+      classSig.map(_.typeParams.map(toTypeParam).toArray).getOrElse(noTypeParameters)
+    // Parents are the *transitive* supertype closure (matching ClassToAPI.allSuperTypes), resolved
+    // through parent classfiles — not just the direct supertypes. Otherwise a subtyping relationship
+    // this class holds only through an intermediate (e.g. a member-less marker interface that a
+    // superclass stops implementing) would not change its API, under-invalidating its dependents.
+    val parents: Array[api.Type] = collectParents(cf, resolveParent)
 
     val classAnnots = syntheticAnnotations(
       "signature" -> rawSignature(classSigStr),
@@ -460,6 +454,53 @@ object ClassfileToAPI {
     }
     (instance.toArray, static.toArray)
   }
+
+  /**
+   * The transitive supertype closure as api type references, resolved through parent classfiles
+   * (byte-only, no class loading) — the classfile analogue of [[ClassToAPI.allSuperTypes]]. Direct
+   * supertypes keep their generic form from the `Signature` attribute; ancestors are followed via
+   * their erased (`$`-joined) binary names. Cycle-safe (a visited set keyed on the erased name) and
+   * fail-soft (an unresolved parent just ends that branch). `java.lang.Object` is included for a
+   * class but not for an interface, matching reflection (an interface's `getGenericSuperclass` is
+   * null). The class itself is excluded.
+   */
+  private def collectParents(
+      cf: ClassFile,
+      resolveParent: String => Option[ClassFile]
+  ): Array[api.Type] = {
+    // (erased binary name, reference) for each direct supertype of `c` — generic when a Signature is
+    // present, erased otherwise; Object dropped for interfaces (via superTypeNames' class/iface split).
+    def directSupers(c: ClassFile): Seq[(String, api.Type)] = {
+      val isIface = Modifier.isInterface(c.accessFlags)
+      c.attributes
+        .find(_.isSignature)
+        .map(c.stringValue)
+        .flatMap(SignatureParser.classSignature) match {
+        case Some(cs) =>
+          val supers = if (isIface) cs.interfaces else cs.superclass +: cs.interfaces
+          supers.collect { case s: SigClass => erasedSigClassName(s) -> toType(s) }
+        case None =>
+          superTypeNames(c).map(n => n -> ClassToAPI.reference(n))
+      }
+    }
+    val out = ArrayBuffer.empty[api.Type]
+    val visited = scala.collection.mutable.Set(cf.className) // exclude self
+    val queue = scala.collection.mutable.Queue.empty[(String, api.Type)]
+    queue ++= directSupers(cf)
+    while (queue.nonEmpty) {
+      val (name, ref) = queue.dequeue()
+      if (visited.add(name)) {
+        out += ref
+        resolveParent(name).foreach(pcf => queue ++= directSupers(pcf))
+      }
+    }
+    out.toArray
+  }
+
+  // The erased ($-joined) binary name of a class-type signature, matching cf.superClassName /
+  // interfaceNames (e.g. `pkg.Outer<String>.Inner` -> "pkg.Outer$Inner").
+  private def erasedSigClassName(s: SigClass): String =
+    (s.name +: s.inners.map(_.name)).mkString("$")
 
   private val ObjectRef = ClassToAPI.reference("java.lang.Object")
 
