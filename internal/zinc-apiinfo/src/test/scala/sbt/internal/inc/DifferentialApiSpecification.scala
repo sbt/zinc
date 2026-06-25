@@ -359,4 +359,40 @@ class DifferentialApiSpecification extends UnitSpec {
       )
     }
   }
+
+  // Deviation #4 (fixed): reflection's topLevel is `getEnclosingClass == null`, false for member,
+  // local, AND anonymous classes. ClassfileToAPI now marks a class non-top-level on the mere presence
+  // of an InnerClasses self entry (no longer requiring a non-empty outer), so anonymous/local classes
+  // — whose self entry has outer index 0 — agree with reflection. Was a green known-bug witness
+  // before the fix.
+  it should "mark an anonymous class as non-top-level, matching reflection" in {
+    IO.withTemporaryDirectory { temp =>
+      val dir = new File(temp, "d4")
+      dir.mkdir()
+      val src = new File(dir, "Outer.java")
+      IO.write(src, "public class Outer { Runnable r = new Runnable() { public void run() {} }; }")
+      JavaCompilerForUnitTesting.compileJava(Seq(src), dir, Seq.empty)
+      val loader = new URLClassLoader(Array(dir.toURI.toURL), null)
+      val resolve: String => Option[ClassFile] = bn => {
+        val res = bn.replace('.', '/') + ".class"
+        Option(loader.getResource(res))
+          .orElse(Option(ClassLoader.getSystemResource(res)))
+          .flatMap(u =>
+            try Some(Parser(u, Logger.Null))
+            catch { case _: Throwable => None }
+          )
+      }
+      val binary = "Outer$1" // the anonymous Runnable
+      val reflect = ClassToAPI.process(Seq(loader.loadClass(binary)))._1.filter(_.name == binary)
+      val cf = Parser(new File(dir, binary + ".class").toPath, Logger.Null)
+      val classfile = ClassfileToAPI.process(Seq(binary -> cf), resolve)._1.filter(_.name == binary)
+      val (rTop, cTop) = (reflect.map(_.topLevel).toSet, classfile.map(_.topLevel).toSet)
+      println(s"[topLevel] reflect=$rTop classfile=$cTop")
+      assert(rTop == Set(false), s"reflection: anon class is not top-level: $rTop")
+      assert(
+        cTop == rTop,
+        s"classfile topLevel must now match reflection — reflect=$rTop classfile=$cTop"
+      )
+    }
+  }
 }

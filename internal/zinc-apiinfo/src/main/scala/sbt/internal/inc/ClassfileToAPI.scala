@@ -194,9 +194,11 @@ object ClassfileToAPI {
     val acc = ClassToAPI.access(cf.accessFlags, enclPkg)
     val isInterface = Modifier.isInterface(cf.accessFlags)
     val tpe = if (isInterface) Trait else ClassDef
-    // Top-level unless the classfile's InnerClasses attribute lists itself as a member of another.
-    val topLevel =
-      !cf.innerClasses.exists(i => i.innerClassName == cf.className && i.outerClassName.nonEmpty)
+    // Top-level unless the InnerClasses attribute has a self entry — present for member, local, and
+    // anonymous classes (JVMS 4.7.6 requires it for any non-package-member). Matches reflection's
+    // `getEnclosingClass == null`. Local/anonymous self entries have an empty outer (outer index 0),
+    // so the entry's presence — not its outer — is what marks the class as nested.
+    val topLevel = !cf.innerClasses.exists(_.innerClassName == cf.className)
 
     val fields = cf.fields.toIndexedSeq.map(fieldDef(cf, _, enclPkg))
     val methods = cf.methods.toIndexedSeq.collect {
