@@ -107,6 +107,32 @@ benchmarks and include them in *both* the commit message and PR description.
 The richer the descriptions the better. If you're not changing the compiler
 bridge, you don't need to run these benchmarks.
 
+### Running scripted tests
+
+Zinc's integration tests live in `zinc/src/sbt-test` and are run with the `scripted` sbt
+task, which replays each `test`/`pending` script against a real incremental compile:
+
+```
+$ sbt scripted                                   # the whole suite
+$ sbt "scripted source-dependencies/*"           # one group
+$ sbt "scripted source-dependencies/java-basic"  # a single test
+```
+
+#### Running scripted tests in the classfile Java API mode
+
+`IncOptions.classfileJavaApi` makes Zinc extract each Java class's API from its class file
+instead of by reflectively loading it (sbt/zinc#837). It is off by default. The scripted
+runner can force it on or off for the whole run via a system property, so the same scenarios
+can be checked under both paths:
+
+```
+$ sbt -Dzinc.scripted.classfileJavaApi=true  scripted   # classfile-based Java API path
+$ sbt -Dzinc.scripted.classfileJavaApi=false scripted   # reflection path (the default)
+```
+
+Without the property, each test uses its own value (the default, unless its
+`incOptions.properties` overrides it).
+
 ### Reaching out for help
 
 If you need any help, consider opening a draft pull request and asking
