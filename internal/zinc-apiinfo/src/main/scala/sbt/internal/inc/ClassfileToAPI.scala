@@ -47,6 +47,16 @@ import sbt.util.Logger
  * API byte-for-byte (e.g. type-variable names are unqualified, and wildcards keep only their bound);
  * it only needs to be deterministic and to change when the class's public shape changes. See
  * docs/design/classfile-based-java-api.md.
+ *
+ * Two differences from [[ClassToAPI]] are intentional and do not under-invalidate:
+ *   - Annotations are read from both the RuntimeVisible and RuntimeInvisible attributes, so
+ *     CLASS-retention annotations are captured here even though reflection's `getAnnotations` (which
+ *     sees only RUNTIME retention) would miss them. This is strictly more conservative — it can only
+ *     add hash sensitivity, never remove it.
+ *   - A member class referenced in its *outer's* declared members ([[nestedClassDefs]]) carries no
+ *     type parameters or annotations, whereas reflection's reference does. The member class's own
+ *     `ClassLike` entry models them in full, so a change there still invalidates its dependents; only
+ *     the outer's view of it is abbreviated.
  */
 object ClassfileToAPI {
   import api.DefinitionType.{ ClassDef, Module, Trait }
