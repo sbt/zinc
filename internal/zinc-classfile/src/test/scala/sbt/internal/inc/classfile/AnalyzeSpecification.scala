@@ -310,6 +310,110 @@ class AnalyzeSpecification extends UnitSpec {
     }
   }
 
+  // sbt/zinc#148: Test only names Foo, but javac needs Foo's whole ancestry present, so it is
+  // recorded as member-ref deps of Test.
+  "Analyze" should "record the transitive ancestry of a member-referenced type (sbt/zinc#148)" in {
+    val srcIBase = "public interface IBase { void base(); }\n"
+    val srcIFoo = "public interface IFoo extends IBase { void foo(); }\n"
+    val srcBase = "public abstract class Base implements IFoo {}\n"
+    val srcFoo =
+      """|public class Foo extends Base {
+         |  public void base() {}
+         |  public void foo() {}
+         |  public void other() {}
+         |}
+         |""".stripMargin
+    val srcTest =
+      """|public class Test {
+         |  void m(Foo f) { f.other(); }
+         |}
+         |""".stripMargin
+
+    val deps = JavaCompilerForUnitTesting.extractDependenciesFromSrcs(
+      "IBase.java" -> srcIBase,
+      "IFoo.java" -> srcIFoo,
+      "Base.java" -> srcBase,
+      "Foo.java" -> srcFoo,
+      "Test.java" -> srcTest,
+    )
+
+    // Recorded as member-ref, not inheritance: Test uses Foo without inheriting from it.
+    assert(deps.memberRef("Test") === Set("Foo", "Base", "IFoo", "IBase"))
+    assert(deps.inheritance("Test") === Set.empty)
+
+    // The hierarchy is also still tracked as direct-parent inheritance edges on each owner.
+    assert(deps.inheritance("Foo") === Set("Base"))
+    assert(deps.inheritance("Base") === Set("IFoo"))
+    assert(deps.inheritance("IFoo") === Set("IBase"))
+  }
+
+  // sbt/zinc#148: the ancestry of a referenced classpath (library) type is recorded too, as
+  // binary deps.
+  "Analyze" should "record transitive ancestry of a referenced classpath type as binary deps (sbt/zinc#148)" in {
+    IO.withTemporaryDirectory { temp =>
+      val classesDir = new File(temp, "classes")
+      classesDir.mkdir()
+
+      val libIface = new File(temp, "LibIface.java")
+      IO.write(libIface, "package pkg; public interface LibIface {}")
+      val libBase = new File(temp, "LibBase.java")
+      IO.write(libBase, "package pkg; public abstract class LibBase {}")
+      val lib = new File(temp, "Lib.java")
+      IO.write(
+        lib,
+        "package pkg; public class Lib extends LibBase implements LibIface { public void hello() {} }"
+      )
+      val client = new File(temp, "Client.java")
+      IO.write(client, "public class Client { void m(pkg.Lib x) { x.hello(); } }")
+
+      // Compile the library and the client together, then analyze ONLY Client — so the library types
+      // are resolved as classpath classfiles (via the classloader), exactly like a real dependency jar.
+      JavaCompilerForUnitTesting.compileJava(
+        Seq(libIface, libBase, lib, client),
+        classesDir,
+        Seq.empty
+      )
+      val callback = JavaCompilerForUnitTesting.analyze(classesDir, Seq(client))
+
+      def hasBinaryMemberRef(on: String): Boolean =
+        callback.binaryDependencies.exists {
+          case (_, onName, fromName, ctx) =>
+            onName == on && fromName == "Client" && ctx == DependencyByMemberRef
+        }
+
+      assert(hasBinaryMemberRef("pkg.Lib")) // the directly referenced type
+      assert(hasBinaryMemberRef("pkg.LibBase")) // transitive superclass
+      assert(hasBinaryMemberRef("pkg.LibIface")) // transitive interface
+    }
+  }
+
+  // sbt/zinc#148 regression: javax.* ancestors are ordinary classpath jars, so origin-based (not
+  // package-prefix) platform detection must keep tracking them.
+  "Analyze" should "track a javax.* ancestor served from the classpath, not the JDK (sbt/zinc#148)" in {
+    IO.withTemporaryDirectory { temp =>
+      val classesDir = new File(temp, "classes")
+      classesDir.mkdir()
+
+      // A user class in a javax.* package (only java.* is reserved) — like a servlet base in a
+      // dependency jar.
+      val base = new File(temp, "Base.java")
+      IO.write(base, "package javax.foo; public class Base {}")
+      val foo = new File(temp, "Foo.java")
+      IO.write(foo, "public class Foo extends javax.foo.Base { public void hi() {} }")
+      val client = new File(temp, "Client.java")
+      IO.write(client, "public class Client { void m(Foo f) { f.hi(); } }")
+
+      JavaCompilerForUnitTesting.compileJava(Seq(base, foo, client), classesDir, Seq.empty)
+      val callback = JavaCompilerForUnitTesting.analyze(classesDir, Seq(client))
+
+      // javax.foo.Base resolves to a classpath classfile (not `jrt:`), so the ancestry walk records it.
+      assert(callback.binaryDependencies.exists {
+        case (_, onName, fromName, ctx) =>
+          onName == "javax.foo.Base" && fromName == "Client" && ctx == DependencyByMemberRef
+      })
+    }
+  }
+
   // issue: sbt/zinc#146 (parameter annotations, JVMS 4.7.18)
   "Analyze" should "detect annotation on method parameter" in {
     val srcTest =

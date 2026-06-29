@@ -17,6 +17,7 @@ package classfile
 import scala.collection.mutable
 import mutable.{ ArrayBuffer, Buffer }
 import scala.annotation.tailrec
+import scala.util.control.NonFatal
 import java.io.File
 import java.net.URL
 
@@ -118,6 +119,69 @@ private[sbt] object JavaAnalyze {
       sourceToClassFiles(source) += classFile
     }
 
+    // sbt/zinc#148: since JDK 8, javac requires every transitive superclass/superinterface of a
+    // referenced type on the classpath, even though the referencing classfile names only the type
+    // itself. We record that ancestry as member-ref deps of the referencing class, chiefly for
+    // build tools that minimize the classpath from Zinc's analysis. Parents are read from classfile
+    // bytes (never by loading the class) and memoized.
+    val classFileByBinaryName: Map[String, ClassFile] =
+      sourceToClassFiles.valuesIterator.flatten.map(cf => cf.className -> cf).toMap
+    val resourceUrls = mutable.Map.empty[String, Option[URL]]
+    val resolvedClassFiles = mutable.Map.empty[String, Option[ClassFile]]
+    val transitiveAncestorsCache = mutable.Map.empty[String, Set[String]]
+
+    def resourceUrl(binaryName: String): Option[URL] =
+      resourceUrls.getOrElseUpdate(
+        binaryName,
+        Option(loader.getResource(classNameToClassFile(binaryName)))
+      )
+
+    // Whether a class is "platform" (on the JDK runtime, so never tracked and not walked) is
+    // decided by ORIGIN, not package name: many javax.* APIs (servlet, JAX-RS, JAXB) ship as
+    // ordinary classpath jars and must stay tracked. A class is platform iff its classfile is
+    // served from the runtime image (`jrt:`); `java.*` is reserved (always the JDK) so we skip the
+    // lookup. Compiled classes are never platform.
+    def isPlatformClass(binaryName: String): Boolean =
+      binaryName.startsWith("java.") ||
+        (!classFileByBinaryName.contains(binaryName) &&
+          resourceUrl(binaryName).exists(_.getProtocol == "jrt"))
+
+    def resolveClassFile(binaryName: String): Option[ClassFile] =
+      classFileByBinaryName
+        .get(binaryName)
+        .orElse(
+          resolvedClassFiles.getOrElseUpdate(
+            binaryName,
+            resourceUrl(binaryName).flatMap { url =>
+              try Some(Parser(url, log))
+              catch {
+                case NonFatal(e) =>
+                  log.debug(s"[zinc] sbt/zinc#148: couldn't read parents of $binaryName ($e)")
+                  None
+              }
+            }
+          )
+        )
+
+    // Transitive super/interface closure of `binaryName`, excluding itself and platform classes.
+    def transitiveAncestors(binaryName: String): Set[String] =
+      transitiveAncestorsCache.getOrElseUpdate(
+        binaryName, {
+          val acc = mutable.Set.empty[String]
+          val queue = mutable.Queue(binaryName)
+          while (queue.nonEmpty) {
+            val directParents = resolveClassFile(queue.dequeue()) match {
+              case Some(cf) =>
+                (cf.superClassName +: cf.interfaceNames.toIndexedSeq).filter(_.nonEmpty)
+              case None => IndexedSeq.empty[String]
+            }
+            for (parent <- directParents if !isPlatformClass(parent) && acc.add(parent))
+              queue.enqueue(parent)
+          }
+          acc.toSet
+        }
+      )
+
     // get class to class dependencies and map back to source to class dependencies
     for ((source, classFiles) <- sourceToClassFiles) {
       analysis.startSource(source)
@@ -196,6 +260,16 @@ private[sbt] object JavaAnalyze {
       typesInSource foreach {
         case (binaryClassName, binaryClassNameDeps) =>
           processDependencies(binaryClassNameDeps, DependencyByMemberRef, binaryClassName)
+          // sbt/zinc#148: also depend on the transitive ancestry of each referenced type (see above).
+          val ancestors = binaryClassNameDeps.iterator
+            .filterNot(isPlatformClass)
+            .flatMap(transitiveAncestors)
+            .toSet
+          processDependencies(
+            ancestors -- binaryClassNameDeps,
+            DependencyByMemberRef,
+            binaryClassName
+          )
       }
 
       // sbt/zinc#145: javac inlines `static final` constants, erasing the reference to the declaring
