@@ -248,6 +248,7 @@ public final class CompileOptions implements java.io.Serializable {
     public CompileOptions withEarlyOutput(xsbti.compile.Output earlyOutput) {
         return new CompileOptions(classpath, sources, classesDirectory, scalacOptions, javacOptions, maxErrors, sourcePositionMapper, order, temporaryClassesDirectory, converter, stamper, java.util.Optional.<xsbti.compile.Output>ofNullable(earlyOutput));
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -258,9 +259,11 @@ public final class CompileOptions implements java.io.Serializable {
             return java.util.Arrays.deepEquals(this.classpath(), o.classpath()) && java.util.Arrays.deepEquals(this.sources(), o.sources()) && this.classesDirectory().equals(o.classesDirectory()) && java.util.Arrays.deepEquals(this.scalacOptions(), o.scalacOptions()) && java.util.Arrays.deepEquals(this.javacOptions(), o.javacOptions()) && (this.maxErrors() == o.maxErrors()) && this.sourcePositionMapper().equals(o.sourcePositionMapper()) && this.order().equals(o.order()) && this.temporaryClassesDirectory().equals(o.temporaryClassesDirectory()) && this.converter().equals(o.converter()) && this.stamper().equals(o.stamper()) && this.earlyOutput().equals(o.earlyOutput());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.compile.CompileOptions".hashCode()) + java.util.Arrays.deepHashCode(classpath())) + java.util.Arrays.deepHashCode(sources())) + classesDirectory().hashCode()) + java.util.Arrays.deepHashCode(scalacOptions())) + java.util.Arrays.deepHashCode(javacOptions())) + Integer.hashCode(maxErrors())) + sourcePositionMapper().hashCode()) + order().hashCode()) + temporaryClassesDirectory().hashCode()) + converter().hashCode()) + stamper().hashCode()) + earlyOutput().hashCode());
     }
+    @Override
     public String toString() {
         return "CompileOptions("  + "classpath: " + classpath() + ", " + "sources: " + sources() + ", " + "classesDirectory: " + classesDirectory() + ", " + "scalacOptions: " + scalacOptions() + ", " + "javacOptions: " + javacOptions() + ", " + "maxErrors: " + maxErrors() + ", " + "sourcePositionMapper: " + sourcePositionMapper() + ", " + "order: " + order() + ", " + "temporaryClassesDirectory: " + temporaryClassesDirectory() + ", " + "converter: " + converter() + ", " + "stamper: " + stamper() + ", " + "earlyOutput: " + earlyOutput() + ")";
     }

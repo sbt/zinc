@@ -32,6 +32,7 @@ public final class AnnotationArgument implements java.io.Serializable {
     public AnnotationArgument withValue(String value) {
         return new AnnotationArgument(name, value);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -42,9 +43,11 @@ public final class AnnotationArgument implements java.io.Serializable {
             return this.name().equals(o.name()) && this.value().equals(o.value());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (17 + "xsbti.api.AnnotationArgument".hashCode()) + name().hashCode()) + value().hashCode());
     }
+    @Override
     public String toString() {
         return "AnnotationArgument("  + "name: " + name() + ", " + "value: " + value() + ")";
     }

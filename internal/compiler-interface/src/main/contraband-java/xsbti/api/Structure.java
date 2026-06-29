@@ -40,12 +40,15 @@ public final class Structure extends xsbti.api.Type implements java.io.Serializa
     public Structure withInherited(xsbti.api.Lazy<ClassDefinition[]> inherited) {
         return new Structure(parents, declared, inherited);
     }
+    @Override
     public boolean equals(Object obj) {
         return this == obj; // We have lazy members, so use object identity to avoid circularity.
     }
+    @Override
     public int hashCode() {
         return super.hashCode(); // Avoid evaluating lazy members in hashCode to avoid circularity.
     }
+    @Override
     public String toString() {
         return super.toString(); // Avoid evaluating lazy members in toString to avoid circularity.
     }

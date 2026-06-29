@@ -24,6 +24,7 @@ public final class Id extends xsbti.api.PathComponent implements java.io.Seriali
     public Id withId(String id) {
         return new Id(id);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -34,9 +35,11 @@ public final class Id extends xsbti.api.PathComponent implements java.io.Seriali
             return this.id().equals(o.id());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (17 + "xsbti.api.Id".hashCode()) + id().hashCode());
     }
+    @Override
     public String toString() {
         return "Id("  + "id: " + id() + ")";
     }

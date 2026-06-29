@@ -37,6 +37,7 @@ public final class TransactionalManagerType extends xsbti.compile.ClassFileManag
     public TransactionalManagerType withLogger(xsbti.Logger logger) {
         return new TransactionalManagerType(backupDirectory, logger);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -47,9 +48,11 @@ public final class TransactionalManagerType extends xsbti.compile.ClassFileManag
             return this.backupDirectory().equals(o.backupDirectory()) && this.logger().equals(o.logger());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (17 + "xsbti.compile.TransactionalManagerType".hashCode()) + backupDirectory().hashCode()) + logger().hashCode());
     }
+    @Override
     public String toString() {
         return "TransactionalManagerType("  + "backupDirectory: " + backupDirectory() + ", " + "logger: " + logger() + ")";
     }

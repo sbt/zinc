@@ -606,6 +606,7 @@ public final class IncOptions implements java.io.Serializable {
     public IncOptions withPipelining(boolean pipelining) {
         return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -616,9 +617,11 @@ public final class IncOptions implements java.io.Serializable {
             return (this.transitiveStep() == o.transitiveStep()) && (this.recompileAllFraction() == o.recompileAllFraction()) && (this.relationsDebug() == o.relationsDebug()) && (this.apiDebug() == o.apiDebug()) && (this.apiDiffContextSize() == o.apiDiffContextSize()) && this.apiDumpDirectory().equals(o.apiDumpDirectory()) && this.classfileManagerType().equals(o.classfileManagerType()) && java.util.Arrays.deepEquals(this.auxiliaryClassFiles(), o.auxiliaryClassFiles()) && (this.useCustomizedFileManager() == o.useCustomizedFileManager()) && this.recompileOnMacroDef().equals(o.recompileOnMacroDef()) && (this.useOptimizedSealed() == o.useOptimizedSealed()) && (this.storeApis() == o.storeApis()) && (this.enabled() == o.enabled()) && this.extra().equals(o.extra()) && (this.logRecompileOnMacro() == o.logRecompileOnMacro()) && this.externalHooks().equals(o.externalHooks()) && java.util.Arrays.deepEquals(this.ignoredScalacOptions(), o.ignoredScalacOptions()) && (this.strictMode() == o.strictMode()) && (this.allowMachinePath() == o.allowMachinePath()) && (this.pipelining() == o.pipelining());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.compile.IncOptions".hashCode()) + Integer.hashCode(transitiveStep())) + Double.hashCode(recompileAllFraction())) + Boolean.hashCode(relationsDebug())) + Boolean.hashCode(apiDebug())) + Integer.hashCode(apiDiffContextSize())) + apiDumpDirectory().hashCode()) + classfileManagerType().hashCode()) + java.util.Arrays.deepHashCode(auxiliaryClassFiles())) + Boolean.hashCode(useCustomizedFileManager())) + recompileOnMacroDef().hashCode()) + Boolean.hashCode(useOptimizedSealed())) + Boolean.hashCode(storeApis())) + Boolean.hashCode(enabled())) + extra().hashCode()) + Boolean.hashCode(logRecompileOnMacro())) + externalHooks().hashCode()) + java.util.Arrays.deepHashCode(ignoredScalacOptions())) + Boolean.hashCode(strictMode())) + Boolean.hashCode(allowMachinePath())) + Boolean.hashCode(pipelining()));
     }
+    @Override
     public String toString() {
         return "IncOptions("  + "transitiveStep: " + transitiveStep() + ", " + "recompileAllFraction: " + recompileAllFraction() + ", " + "relationsDebug: " + relationsDebug() + ", " + "apiDebug: " + apiDebug() + ", " + "apiDiffContextSize: " + apiDiffContextSize() + ", " + "apiDumpDirectory: " + apiDumpDirectory() + ", " + "classfileManagerType: " + classfileManagerType() + ", " + "auxiliaryClassFiles: " + auxiliaryClassFiles() + ", " + "useCustomizedFileManager: " + useCustomizedFileManager() + ", " + "recompileOnMacroDef: " + recompileOnMacroDef() + ", " + "useOptimizedSealed: " + useOptimizedSealed() + ", " + "storeApis: " + storeApis() + ", " + "enabled: " + enabled() + ", " + "extra: " + extra() + ", " + "logRecompileOnMacro: " + logRecompileOnMacro() + ", " + "externalHooks: " + externalHooks() + ", " + "ignoredScalacOptions: " + ignoredScalacOptions() + ", " + "strictMode: " + strictMode() + ", " + "allowMachinePath: " + allowMachinePath() + ", " + "pipelining: " + pipelining() + ")";
     }

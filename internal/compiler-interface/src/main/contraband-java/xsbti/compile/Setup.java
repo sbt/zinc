@@ -187,6 +187,7 @@ public final class Setup implements java.io.Serializable {
     public Setup withExtra(xsbti.T2<String, String>[] extra) {
         return new Setup(perClasspathEntryLookup, skip, cachePath, cache, incrementalCompilerOptions, reporter, progress, earlyAnalysisStore, extra);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -197,9 +198,11 @@ public final class Setup implements java.io.Serializable {
             return this.perClasspathEntryLookup().equals(o.perClasspathEntryLookup()) && (this.skip() == o.skip()) && this.cachePath().equals(o.cachePath()) && this.cache().equals(o.cache()) && this.incrementalCompilerOptions().equals(o.incrementalCompilerOptions()) && this.reporter().equals(o.reporter()) && this.progress().equals(o.progress()) && this.earlyAnalysisStore().equals(o.earlyAnalysisStore()) && java.util.Arrays.deepEquals(this.extra(), o.extra());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.compile.Setup".hashCode()) + perClasspathEntryLookup().hashCode()) + Boolean.hashCode(skip())) + cachePath().hashCode()) + cache().hashCode()) + incrementalCompilerOptions().hashCode()) + reporter().hashCode()) + progress().hashCode()) + earlyAnalysisStore().hashCode()) + java.util.Arrays.deepHashCode(extra()));
     }
+    @Override
     public String toString() {
         return "Setup("  + "perClasspathEntryLookup: " + perClasspathEntryLookup() + ", " + "skip: " + skip() + ", " + "cachePath: " + cachePath() + ", " + "cache: " + cache() + ", " + "incrementalCompilerOptions: " + incrementalCompilerOptions() + ", " + "reporter: " + reporter() + ", " + "progress: " + progress() + ", " + "earlyAnalysisStore: " + earlyAnalysisStore() + ", " + "extra: " + extra() + ")";
     }

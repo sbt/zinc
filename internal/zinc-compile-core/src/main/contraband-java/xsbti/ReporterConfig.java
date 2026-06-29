@@ -72,6 +72,7 @@ public final class ReporterConfig implements java.io.Serializable {
     public ReporterConfig withPositionMapper(java.util.function.Function<Position, Position> positionMapper) {
         return new ReporterConfig(loggerName, maximumErrors, useColor, msgFilters, fileFilters, logLevel, positionMapper);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -82,9 +83,11 @@ public final class ReporterConfig implements java.io.Serializable {
             return this.loggerName().equals(o.loggerName()) && (this.maximumErrors() == o.maximumErrors()) && (this.useColor() == o.useColor()) && java.util.Arrays.deepEquals(this.msgFilters(), o.msgFilters()) && java.util.Arrays.deepEquals(this.fileFilters(), o.fileFilters()) && this.logLevel().equals(o.logLevel()) && this.positionMapper().equals(o.positionMapper());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.ReporterConfig".hashCode()) + loggerName().hashCode()) + Integer.hashCode(maximumErrors())) + Boolean.hashCode(useColor())) + java.util.Arrays.deepHashCode(msgFilters())) + java.util.Arrays.deepHashCode(fileFilters())) + logLevel().hashCode()) + positionMapper().hashCode());
     }
+    @Override
     public String toString() {
         return "ReporterConfig("  + "loggerName: " + loggerName() + ", " + "maximumErrors: " + maximumErrors() + ", " + "useColor: " + useColor() + ", " + "msgFilters: " + msgFilters() + ", " + "fileFilters: " + fileFilters() + ", " + "logLevel: " + logLevel() + ", " + "positionMapper: " + positionMapper() + ")";
     }

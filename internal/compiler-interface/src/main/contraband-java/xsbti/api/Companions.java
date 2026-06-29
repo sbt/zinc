@@ -32,6 +32,7 @@ public final class Companions implements java.io.Serializable {
     public Companions withObjectApi(ClassLike objectApi) {
         return new Companions(classApi, objectApi);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -42,9 +43,11 @@ public final class Companions implements java.io.Serializable {
             return this.classApi().equals(o.classApi()) && this.objectApi().equals(o.objectApi());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (17 + "xsbti.api.Companions".hashCode()) + classApi().hashCode()) + objectApi().hashCode());
     }
+    @Override
     public String toString() {
         return "Companions("  + "classApi: " + classApi() + ", " + "objectApi: " + objectApi() + ")";
     }

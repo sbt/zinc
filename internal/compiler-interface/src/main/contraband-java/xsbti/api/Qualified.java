@@ -16,6 +16,7 @@ public abstract class Qualified extends xsbti.api.Access implements java.io.Seri
         return this.qualifier;
     }
     
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -26,9 +27,11 @@ public abstract class Qualified extends xsbti.api.Access implements java.io.Seri
             return this.qualifier().equals(o.qualifier());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (17 + "xsbti.api.Qualified".hashCode()) + qualifier().hashCode());
     }
+    @Override
     public String toString() {
         return "Qualified("  + "qualifier: " + qualifier() + ")";
     }

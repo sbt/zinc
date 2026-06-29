@@ -65,6 +65,7 @@ public final class MiniSetup implements java.io.Serializable {
     public MiniSetup withExtra(xsbti.T2<String, String>[] extra) {
         return new MiniSetup(output, options, compilerVersion, order, storeApis, extra);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -75,9 +76,11 @@ public final class MiniSetup implements java.io.Serializable {
             return this.output().equals(o.output()) && this.options().equals(o.options()) && this.compilerVersion().equals(o.compilerVersion()) && this.order().equals(o.order()) && (this.storeApis() == o.storeApis()) && java.util.Arrays.deepEquals(this.extra(), o.extra());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.compile.MiniSetup".hashCode()) + output().hashCode()) + options().hashCode()) + compilerVersion().hashCode()) + order().hashCode()) + Boolean.hashCode(storeApis())) + java.util.Arrays.deepHashCode(extra()));
     }
+    @Override
     public String toString() {
         return "MiniSetup("  + "output: " + output() + ", " + "options: " + options() + ", " + "compilerVersion: " + compilerVersion() + ", " + "order: " + order() + ", " + "storeApis: " + storeApis() + ", " + "extra: " + extra() + ")";
     }

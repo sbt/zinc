@@ -40,6 +40,7 @@ public final class InternalDependency implements java.io.Serializable {
     public InternalDependency withContext(xsbti.api.DependencyContext context) {
         return new InternalDependency(sourceClassName, targetClassName, context);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -50,9 +51,11 @@ public final class InternalDependency implements java.io.Serializable {
             return this.sourceClassName().equals(o.sourceClassName()) && this.targetClassName().equals(o.targetClassName()) && this.context().equals(o.context());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (37 * (17 + "xsbti.api.InternalDependency".hashCode()) + sourceClassName().hashCode()) + targetClassName().hashCode()) + context().hashCode());
     }
+    @Override
     public String toString() {
         return "InternalDependency("  + "sourceClassName: " + sourceClassName() + ", " + "targetClassName: " + targetClassName() + ", " + "context: " + context() + ")";
     }

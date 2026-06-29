@@ -24,6 +24,7 @@ public final class Singleton extends xsbti.api.Type implements java.io.Serializa
     public Singleton withPath(Path path) {
         return new Singleton(path);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -34,9 +35,11 @@ public final class Singleton extends xsbti.api.Type implements java.io.Serializa
             return this.path().equals(o.path());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (17 + "xsbti.api.Singleton".hashCode()) + path().hashCode());
     }
+    @Override
     public String toString() {
         return "Singleton("  + "path: " + path() + ")";
     }

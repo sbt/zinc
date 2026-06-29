@@ -32,6 +32,7 @@ public final class Projection extends xsbti.api.Type implements java.io.Serializ
     public Projection withId(String id) {
         return new Projection(prefix, id);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -42,9 +43,11 @@ public final class Projection extends xsbti.api.Type implements java.io.Serializ
             return this.prefix().equals(o.prefix()) && this.id().equals(o.id());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (17 + "xsbti.api.Projection".hashCode()) + prefix().hashCode()) + id().hashCode());
     }
+    @Override
     public String toString() {
         return "Projection("  + "prefix: " + prefix() + ", " + "id: " + id() + ")";
     }

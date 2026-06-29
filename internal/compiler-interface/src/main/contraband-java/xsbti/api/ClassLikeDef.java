@@ -39,6 +39,7 @@ public final class ClassLikeDef extends xsbti.api.ParameterizedDefinition implem
     public ClassLikeDef withDefinitionType(DefinitionType definitionType) {
         return new ClassLikeDef(name(), access(), modifiers(), annotations(), typeParameters(), definitionType);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -49,9 +50,11 @@ public final class ClassLikeDef extends xsbti.api.ParameterizedDefinition implem
             return this.name().equals(o.name()) && this.access().equals(o.access()) && this.modifiers().equals(o.modifiers()) && java.util.Arrays.deepEquals(this.annotations(), o.annotations()) && java.util.Arrays.deepEquals(this.typeParameters(), o.typeParameters()) && this.definitionType().equals(o.definitionType());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.api.ClassLikeDef".hashCode()) + name().hashCode()) + access().hashCode()) + modifiers().hashCode()) + java.util.Arrays.deepHashCode(annotations())) + java.util.Arrays.deepHashCode(typeParameters())) + definitionType().hashCode());
     }
+    @Override
     public String toString() {
         return "ClassLikeDef("  + "name: " + name() + ", " + "access: " + access() + ", " + "modifiers: " + modifiers() + ", " + "annotations: " + annotations() + ", " + "typeParameters: " + typeParameters() + ", " + "definitionType: " + definitionType() + ")";
     }
