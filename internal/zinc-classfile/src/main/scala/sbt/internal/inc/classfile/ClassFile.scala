@@ -90,15 +90,24 @@ private[sbt] final case class FieldOrMethodInfo(
 ) {
   def isStatic = (accessFlags & ACC_STATIC) == ACC_STATIC
   def isPublic = (accessFlags & ACC_PUBLIC) == ACC_PUBLIC
-  def isMain = isPublic && isStatic && descriptor.exists(_ == "([Ljava/lang/String;)V")
+  def isMain =
+    isPublic && isStatic && name.contains("main") &&
+      descriptor.exists(_ == "([Ljava/lang/String;)V")
 }
 private[sbt] final case class AttributeInfo(name: Option[String], value: Array[Byte]) {
   def isNamed(s: String) = name.exists(s == _)
   def isSignature = isNamed("Signature")
   def isSourceFile = isNamed("SourceFile")
   def isInnerClasses = isNamed("InnerClasses")
+  def isCode = isNamed("Code")
+  def isRecord = isNamed("Record")
   def isRuntimeVisibleAnnotations = isNamed("RuntimeVisibleAnnotations")
   def isRuntimeInvisibleAnnotations = isNamed("RuntimeInvisibleAnnotations")
+  def isRuntimeVisibleParameterAnnotations = isNamed("RuntimeVisibleParameterAnnotations")
+  def isRuntimeInvisibleParameterAnnotations = isNamed("RuntimeInvisibleParameterAnnotations")
+  def isRuntimeVisibleTypeAnnotations = isNamed("RuntimeVisibleTypeAnnotations")
+  def isRuntimeInvisibleTypeAnnotations = isNamed("RuntimeInvisibleTypeAnnotations")
+  def isAnnotationDefault = isNamed("AnnotationDefault")
 }
 private[sbt] final case class InnerClassInfo(
     accessFlags: Int,

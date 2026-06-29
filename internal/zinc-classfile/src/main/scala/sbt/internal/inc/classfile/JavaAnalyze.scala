@@ -17,6 +17,7 @@ package classfile
 import scala.collection.mutable
 import mutable.{ ArrayBuffer, Buffer }
 import scala.annotation.tailrec
+import scala.util.control.NonFatal
 import java.io.File
 import java.net.URL
 
@@ -38,7 +39,11 @@ private[sbt] object JavaAnalyze {
   )(
       analysis: xsbti.AnalysisCallback,
       loader: ClassLoader,
-      readAPI: (VirtualFileRef, Seq[Class[?]]) => Set[(String, String)]
+      readAPI: (VirtualFileRef, Seq[Class[?]]) => Set[(String, String)],
+      readClassfileAPI: (VirtualFileRef, Seq[(String, ClassFile)]) => Unit = (_, _) => (),
+      // sbt/zinc#145: extra member-ref edges for inlined `static final` constants that javac erases
+      // from the bytecode, recovered from the attributed AST. Keyed `fromBinaryName -> onBinaryNames`.
+      constantDeps: Map[String, Set[String]] = Map.empty
   ): Unit = {
     val sourceMap = sources
       .toSet[VirtualFile]
@@ -48,15 +53,11 @@ private[sbt] object JavaAnalyze {
     val directOutputJarOrNull: Path = JarUtils.getOutputJar(output).getOrElse(null)
     val mappedOutputJarOrNull: Path = finalJarOutput.getOrElse(null)
 
-    def load(tpe: String, errMsg: => Option[String]): Option[Class[?]] = {
-      if (tpe.endsWith("module-info")) None
-      else
-        try {
-          Some(Class.forName(tpe, false, loader))
-        } catch {
-          case e: Throwable => errMsg.foreach(msg => log.warn(msg + " : " + e.toString)); None
-        }
-    }
+    def load(tpe: String, errMsg: => Option[String]): Option[Class[?]] =
+      try Some(Class.forName(tpe, false, loader))
+      catch {
+        case e: Throwable => errMsg.foreach(msg => log.warn(msg + " : " + e.toString)); None
+      }
 
     def remapClassFile(classFile: Path) =
       if (directOutputJarOrNull != null && classFile.getFileSystem.provider.getScheme == "jar")
@@ -75,6 +76,9 @@ private[sbt] object JavaAnalyze {
     )
 
     val binaryClassNameToLoadedClass = new mutable.HashMap[String, Class[?]]
+    // Source (canonical) names of classes that couldn't be reflectively loaded (sbt/zinc#837),
+    // derived from the classfile so their products and member-ref dependencies are still recorded.
+    val binaryClassNameToSourceName = new mutable.HashMap[String, String]
 
     val classfilesCache = mutable.Map.empty[String, Path]
 
@@ -86,28 +90,102 @@ private[sbt] object JavaAnalyze {
       _ <- classFile.sourceFile orElse guessSourceName(newClass.getFileName.toString)
       source <- guessSourcePath(sourceMap, classFile, log)
       binaryClassName = classFile.className
-      loadedClass <- load(
-        binaryClassName,
-        Some("Error reading API from class file: " + binaryClassName)
-      )
+      // module-info.class is not a real class; it has no API or dependencies to analyze, and is
+      // deliberately excluded (do not let it fall into the unloadable-class fallback below).
+      if !binaryClassName.endsWith("module-info")
     } {
-      binaryClassNameToLoadedClass.update(binaryClassName, loadedClass)
-
-      val srcClassName = loadEnclosingClass(loadedClass)
       val finalClassFile: Path = remapClassFile(newClass)
-      srcClassName match {
-        case Some(className) =>
-          analysis.generatedNonLocalClass(source, finalClassFile, binaryClassName, className)
-        case None => analysis.generatedLocalClass(source, finalClassFile)
+      load(binaryClassName, Some("Error reading API from class file: " + binaryClassName)) match {
+        case Some(loadedClass) =>
+          binaryClassNameToLoadedClass.update(binaryClassName, loadedClass)
+          loadEnclosingClass(loadedClass) match {
+            case Some(className) =>
+              analysis.generatedNonLocalClass(source, finalClassFile, binaryClassName, className)
+            case None => analysis.generatedLocalClass(source, finalClassFile)
+          }
+        case None =>
+          // sbt/zinc#837: the class can't be reflectively loaded (e.g. its superclass is in a
+          // module not exported to the unnamed module). Fall back to the classfile so the product
+          // and member-ref dependencies are still recorded; the API and inheritance dependencies
+          // need the loaded Class and are skipped.
+          canonicalClassName(classFile) match {
+            case Some(className) =>
+              analysis.generatedNonLocalClass(source, finalClassFile, binaryClassName, className)
+              binaryClassNameToSourceName.update(binaryClassName, className)
+            case None => analysis.generatedLocalClass(source, finalClassFile)
+          }
       }
 
       sourceToClassFiles(source) += classFile
     }
 
+    // sbt/zinc#148: since JDK 8, javac requires every transitive superclass/superinterface of a
+    // referenced type on the classpath, even though the referencing classfile names only the type
+    // itself. We record that ancestry as member-ref deps of the referencing class, chiefly for
+    // build tools that minimize the classpath from Zinc's analysis. Parents are read from classfile
+    // bytes (never by loading the class) and memoized.
+    val classFileByBinaryName: Map[String, ClassFile] =
+      sourceToClassFiles.valuesIterator.flatten.map(cf => cf.className -> cf).toMap
+    val resourceUrls = mutable.Map.empty[String, Option[URL]]
+    val resolvedClassFiles = mutable.Map.empty[String, Option[ClassFile]]
+    val transitiveAncestorsCache = mutable.Map.empty[String, Set[String]]
+
+    def resourceUrl(binaryName: String): Option[URL] =
+      resourceUrls.getOrElseUpdate(
+        binaryName,
+        Option(loader.getResource(classNameToClassFile(binaryName)))
+      )
+
+    // Whether a class is "platform" (on the JDK runtime, so never tracked and not walked) is
+    // decided by ORIGIN, not package name: many javax.* APIs (servlet, JAX-RS, JAXB) ship as
+    // ordinary classpath jars and must stay tracked. A class is platform iff its classfile is
+    // served from the runtime image (`jrt:`); `java.*` is reserved (always the JDK) so we skip the
+    // lookup. Compiled classes are never platform.
+    def isPlatformClass(binaryName: String): Boolean =
+      binaryName.startsWith("java.") ||
+        (!classFileByBinaryName.contains(binaryName) &&
+          resourceUrl(binaryName).exists(_.getProtocol == "jrt"))
+
+    def resolveClassFile(binaryName: String): Option[ClassFile] =
+      classFileByBinaryName
+        .get(binaryName)
+        .orElse(
+          resolvedClassFiles.getOrElseUpdate(
+            binaryName,
+            resourceUrl(binaryName).flatMap { url =>
+              try Some(Parser(url, log))
+              catch {
+                case NonFatal(e) =>
+                  log.debug(s"[zinc] sbt/zinc#148: couldn't read parents of $binaryName ($e)")
+                  None
+              }
+            }
+          )
+        )
+
+    // Transitive super/interface closure of `binaryName`, excluding itself and platform classes.
+    def transitiveAncestors(binaryName: String): Set[String] =
+      transitiveAncestorsCache.getOrElseUpdate(
+        binaryName, {
+          val acc = mutable.Set.empty[String]
+          val queue = mutable.Queue(binaryName)
+          while (queue.nonEmpty) {
+            val directParents = resolveClassFile(queue.dequeue()) match {
+              case Some(cf) =>
+                (cf.superClassName +: cf.interfaceNames.toIndexedSeq).filter(_.nonEmpty)
+              case None => IndexedSeq.empty[String]
+            }
+            for (parent <- directParents if !isPlatformClass(parent) && acc.add(parent))
+              queue.enqueue(parent)
+          }
+          acc.toSet
+        }
+      )
+
     // get class to class dependencies and map back to source to class dependencies
     for ((source, classFiles) <- sourceToClassFiles) {
       analysis.startSource(source)
-      val loadedClasses = classFiles.map(c => binaryClassNameToLoadedClass(c.className))
+      val loadedClasses = classFiles.flatMap(c => binaryClassNameToLoadedClass.get(c.className))
       // Local classes are either local, anonymous or inner Java classes
       val (nonLocalClasses, localClassesOrStale) =
         loadedClasses.partition(_.getCanonicalName != null)
@@ -127,7 +205,9 @@ private[sbt] object JavaAnalyze {
           loadedClass <- binaryClassNameToLoadedClass.get(className)
           sourceName <- binaryToSourceName(loadedClass)
         } yield sourceName
-        nonLocalSourceName.orElse(localClassesToSources.get(className))
+        nonLocalSourceName
+          .orElse(binaryClassNameToSourceName.get(className))
+          .orElse(localClassesToSources.get(className))
       }
 
       def processDependency(
@@ -180,7 +260,26 @@ private[sbt] object JavaAnalyze {
       typesInSource foreach {
         case (binaryClassName, binaryClassNameDeps) =>
           processDependencies(binaryClassNameDeps, DependencyByMemberRef, binaryClassName)
+          // sbt/zinc#148: also depend on the transitive ancestry of each referenced type (see above).
+          val ancestors = binaryClassNameDeps.iterator
+            .filterNot(isPlatformClass)
+            .flatMap(transitiveAncestors)
+            .toSet
+          processDependencies(
+            ancestors -- binaryClassNameDeps,
+            DependencyByMemberRef,
+            binaryClassName
+          )
       }
+
+      // sbt/zinc#145: javac inlines `static final` constants, erasing the reference to the declaring
+      // class from this class's bytecode. The AST-derived `constantDeps` restore those member-ref
+      // edges. Process them here (inside the per-source loop) so the classpath-origin branch of
+      // `processDependency` resolves against the right `source`.
+      for {
+        binaryClassName <- typesInSource.keysIterator
+        onBinaryName <- constantDeps.getOrElse(binaryClassName, Set.empty)
+      } processDependency(onBinaryName, DependencyByMemberRef, binaryClassName)
 
       def readInheritanceDependencies(classes: Seq[Class[?]]) = {
         val api = readAPI(source, classes)
@@ -205,6 +304,25 @@ private[sbt] object JavaAnalyze {
         case (className, inheritanceDeps) =>
           processDependencies(inheritanceDeps, LocalDependencyByInheritance, className)
       }
+
+      // sbt/zinc#837: classes that couldn't be reflectively loaded have no extractable API, but
+      // their direct superclass and interfaces are still in the classfile, so record those
+      // inheritance edges (e.g. the `Inner extends pkg.Base` relationship that caused the issue).
+      for (classFile <- classFiles if binaryClassNameToSourceName.contains(classFile.className)) {
+        val parents =
+          (classFile.superClassName +: classFile.interfaceNames.toIndexedSeq).filter(_.nonEmpty)
+        processDependencies(parents, DependencyByInheritance, classFile.className)
+      }
+
+      // sbt/zinc#837 (Phase 2): record API for un-loadable classes from the classfile, so
+      // name-hashing detects changes to their own public shape (reflection can't load them).
+      val unloadableNamed = classFiles.iterator
+        .filter(cf => binaryClassNameToSourceName.contains(cf.className))
+        .map(cf => binaryClassNameToSourceName(cf.className) -> cf)
+        .toSeq
+      // Best-effort: never let classfile-based API extraction fail a compile that would otherwise
+      // succeed (these classes already couldn't be loaded), matching load()/loadInnerClass.
+      if (unloadableNamed.nonEmpty) trapAndLog(log)(readClassfileAPI(source, unloadableNamed))
     }
   }
 
@@ -278,6 +396,25 @@ private[sbt] object JavaAnalyze {
         loadEnclosingClass(clazz.getEnclosingClass)
       case other => other
     }
+  }
+
+  /**
+   * Reconstructs the canonical name of a class from its classfile's InnerClasses attribute, for
+   * classes that cannot be reflectively loaded (sbt/zinc#837). This mirrors the canonical name that
+   * [[loadEnclosingClass]] derives via reflection for member and top-level classes, using the
+   * authoritative simple names from the attribute. Returns None for local and anonymous classes
+   * (which have no canonical name and are recorded as local products instead).
+   */
+  private def canonicalClassName(classFile: ClassFile): Option[String] = {
+    val inners = classFile.innerClasses
+    def canonical(binaryName: String): Option[String] =
+      inners.find(_.innerClassName == binaryName) match {
+        case None                                      => Some(binaryName) // top-level class
+        case Some(info) if info.outerClassName.isEmpty => None // local or anonymous class
+        case Some(info) =>
+          canonical(info.outerClassName).map(_ + "." + info.innerName.getOrElse(binaryName))
+      }
+    canonical(classFile.className)
   }
 
   /*

@@ -32,6 +32,7 @@ public final class Annotated extends xsbti.api.Type implements java.io.Serializa
     public Annotated withAnnotations(Annotation[] annotations) {
         return new Annotated(baseType, annotations);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -42,9 +43,11 @@ public final class Annotated extends xsbti.api.Type implements java.io.Serializa
             return this.baseType().equals(o.baseType()) && java.util.Arrays.deepEquals(this.annotations(), o.annotations());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (17 + "xsbti.api.Annotated".hashCode()) + baseType().hashCode()) + java.util.Arrays.deepHashCode(annotations()));
     }
+    @Override
     public String toString() {
         return "Annotated("  + "baseType: " + baseType() + ", " + "annotations: " + annotations() + ")";
     }

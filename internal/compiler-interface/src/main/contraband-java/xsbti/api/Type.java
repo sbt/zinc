@@ -13,6 +13,7 @@ public abstract class Type implements java.io.Serializable {
     }
     
     
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -23,9 +24,11 @@ public abstract class Type implements java.io.Serializable {
             return true;
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (17 + "xsbti.api.Type".hashCode());
     }
+    @Override
     public String toString() {
         return "Type("  + ")";
     }

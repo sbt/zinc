@@ -103,6 +103,46 @@ object JavaCompilerForUnitTesting {
     }
   }
 
+  /** Compiles the given Java sources to `outputDir`, with `classpath` available at compile time. */
+  def compileJava(files: Seq[File], outputDir: File, classpath: Seq[File]): Unit = {
+    val compiler = ToolProvider.getSystemJavaCompiler()
+    val fileManager = compiler.getStandardFileManager(null, null, null)
+    fileManager.setLocation(StandardLocation.CLASS_OUTPUT, Seq(outputDir).asJava)
+    if (classpath.nonEmpty)
+      fileManager.setLocation(StandardLocation.CLASS_PATH, classpath.asJava)
+    val units = fileManager.getJavaFileObjectsFromFiles(files.asJava)
+    compiler.getTask(null, fileManager, null, null, null, units).call()
+    fileManager.close()
+  }
+
+  /**
+   * Runs [[JavaAnalyze]] over the class files already present in `classesDir`, mapping them back to
+   * the given `srcFiles`. Unlike [[compileJavaSrcs]] this does not compile, so the caller can stage
+   * the class files (e.g. compile against one classpath, then swap a dependency) before analysis.
+   */
+  def analyze(
+      classesDir: File,
+      srcFiles: Seq[File],
+      readClassfileAPI: (AnalysisCallback, VirtualFileRef, Seq[(String, ClassFile)]) => Unit =
+        (_, _, _) => ()
+  ): TestCallback = {
+    val srcs: List[VirtualFile] = srcFiles.toList.map(f => new TestVirtualFile(f.toPath))
+    val analysisCallback = new TestCallback
+    val classFiles = (sbt.io.PathFinder(classesDir) ** "*.class").get().map(_.toPath)
+    val classloader = new URLClassLoader(Array(classesDir.toURI.toURL), null)
+    val output = new SingleOutput {
+      override def getOutputDirectoryAsPath: Path = classesDir.toPath
+      override def getOutputDirectory: File = classesDir
+    }
+    JavaAnalyze(classFiles, srcs, ConsoleLogger(), output, finalJarOutput = None)(
+      analysisCallback,
+      classloader,
+      (_, classes) => extractParents(classes),
+      readClassfileAPI(analysisCallback, _, _)
+    )
+    analysisCallback
+  }
+
   private def prepareSrcFile(baseDir: File, fileName: String, src: String): File = {
     val srcFile = new File(baseDir, fileName)
     IO.write(srcFile, src)

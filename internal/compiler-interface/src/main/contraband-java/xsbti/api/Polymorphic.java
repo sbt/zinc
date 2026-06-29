@@ -32,6 +32,7 @@ public final class Polymorphic extends xsbti.api.Type implements java.io.Seriali
     public Polymorphic withParameters(TypeParameter[] parameters) {
         return new Polymorphic(baseType, parameters);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -42,9 +43,11 @@ public final class Polymorphic extends xsbti.api.Type implements java.io.Seriali
             return this.baseType().equals(o.baseType()) && java.util.Arrays.deepEquals(this.parameters(), o.parameters());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (17 + "xsbti.api.Polymorphic".hashCode()) + baseType().hashCode()) + java.util.Arrays.deepHashCode(parameters()));
     }
+    @Override
     public String toString() {
         return "Polymorphic("  + "baseType: " + baseType() + ", " + "parameters: " + parameters() + ")";
     }

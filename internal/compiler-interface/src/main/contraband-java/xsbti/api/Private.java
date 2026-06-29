@@ -21,6 +21,7 @@ public final class Private extends xsbti.api.Qualified implements java.io.Serial
     public Private withQualifier(Qualifier qualifier) {
         return new Private(qualifier);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -31,9 +32,11 @@ public final class Private extends xsbti.api.Qualified implements java.io.Serial
             return this.qualifier().equals(o.qualifier());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (17 + "xsbti.api.Private".hashCode()) + qualifier().hashCode());
     }
+    @Override
     public String toString() {
         return "Private("  + "qualifier: " + qualifier() + ")";
     }

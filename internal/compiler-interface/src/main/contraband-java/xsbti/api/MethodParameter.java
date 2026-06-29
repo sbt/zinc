@@ -48,6 +48,7 @@ public final class MethodParameter implements java.io.Serializable {
     public MethodParameter withModifier(ParameterModifier modifier) {
         return new MethodParameter(name, tpe, hasDefault, modifier);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -58,9 +59,11 @@ public final class MethodParameter implements java.io.Serializable {
             return this.name().equals(o.name()) && this.tpe().equals(o.tpe()) && (this.hasDefault() == o.hasDefault()) && this.modifier().equals(o.modifier());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (37 * (37 * (17 + "xsbti.api.MethodParameter".hashCode()) + name().hashCode()) + tpe().hashCode()) + Boolean.hashCode(hasDefault())) + modifier().hashCode());
     }
+    @Override
     public String toString() {
         return "MethodParameter("  + "name: " + name() + ", " + "tpe: " + tpe() + ", " + "hasDefault: " + hasDefault() + ", " + "modifier: " + modifier() + ")";
     }

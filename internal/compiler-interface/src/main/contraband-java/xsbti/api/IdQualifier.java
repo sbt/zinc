@@ -24,6 +24,7 @@ public final class IdQualifier extends xsbti.api.Qualifier implements java.io.Se
     public IdQualifier withValue(String value) {
         return new IdQualifier(value);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -34,9 +35,11 @@ public final class IdQualifier extends xsbti.api.Qualifier implements java.io.Se
             return this.value().equals(o.value());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (17 + "xsbti.api.IdQualifier".hashCode()) + value().hashCode());
     }
+    @Override
     public String toString() {
         return "IdQualifier("  + "value: " + value() + ")";
     }

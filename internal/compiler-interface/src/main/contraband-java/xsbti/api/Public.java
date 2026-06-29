@@ -19,6 +19,7 @@ public final class Public extends xsbti.api.Access implements java.io.Serializab
     }
     
     
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -29,9 +30,11 @@ public final class Public extends xsbti.api.Access implements java.io.Serializab
             return true;
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (17 + "xsbti.api.Public".hashCode());
     }
+    @Override
     public String toString() {
         return "Public("  + ")";
     }

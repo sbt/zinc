@@ -109,6 +109,85 @@ class ClassToAPISpecification extends UnitSpec {
     }
   }
 
+  // sbt/zinc#837
+  it should "not throw IllegalAccessError when inner class superclass is inaccessible" in {
+    IO.withTemporaryDirectory { temp =>
+      val libDir = new File(temp, "lib")
+      val srcDir = new File(temp, "src")
+      libDir.mkdir()
+      srcDir.mkdir()
+
+      // Compile against a public Base so Outer.Inner compiles cleanly.
+      val baseFile = new File(temp, "Base.java")
+      IO.write(baseFile, "package pkg; public class Base {}")
+      compileJava(Seq(baseFile), libDir, Seq.empty)
+
+      val outerFile = new File(temp, "Outer.java")
+      IO.write(
+        outerFile,
+        """|public class Outer {
+           |  public class Inner extends pkg.Base {}
+           |  public void hello() {}
+           |}
+           |""".stripMargin
+      )
+      compileJava(Seq(outerFile), srcDir, Seq(libDir))
+
+      // Overwrite Base with a package-private version: Outer$Inner (in the default package) can no
+      // longer access its superclass, so loading it throws IllegalAccessError at link time, the
+      // same failure mode as classes compiled with --add-exports.
+      IO.write(baseFile, "package pkg; class Base {}")
+      compileJava(Seq(baseFile), srcDir, Seq.empty)
+
+      Using.resource(new java.net.URLClassLoader(Array(srcDir.toURI.toURL), null)) { classloader =>
+        val outerClass = classloader.loadClass("Outer")
+        val (apis, _, _) = ClassToAPI.process(Seq(outerClass))
+
+        val names = apis.map(_.name).toSet
+        assert(names.contains("Outer"))
+        assert(!names.contains("Outer.Inner"))
+      }
+    }
+  }
+
+  // sbt/zinc#837 completeness probe: a class that LOADS but references an inaccessible type only in
+  // its generic supertype and member positions must not crash ClassToAPI. Reflection resolves such
+  // types without an access check, so IllegalAccessError only arises at class-load (caught by
+  // JavaAnalyze.load / loadInnerClass), not during the reflective supertype/member walk.
+  it should "not crash when a loaded class references an inaccessible type in supertype/members" in {
+    IO.withTemporaryDirectory { temp =>
+      val srcDir = new File(temp, "src")
+      srcDir.mkdir()
+
+      val containerFile = new File(temp, "Container.java")
+      IO.write(containerFile, "package pkg; public class Container<T> {}")
+      val secretFile = new File(temp, "Secret.java")
+      IO.write(secretFile, "package pkg; public class Secret {}")
+      val holderFile = new File(temp, "Holder.java")
+      IO.write(
+        holderFile,
+        """|public class Holder extends pkg.Container<pkg.Secret> {
+           |  public pkg.Secret field;
+           |  public pkg.Secret get(pkg.Secret p) { return null; }
+           |}
+           |""".stripMargin
+      )
+      compileJava(Seq(containerFile, secretFile, holderFile), srcDir, Seq.empty)
+
+      // Make Secret package-private: Holder (default package) can no longer access it, but its raw
+      // supertype pkg.Container stays public so Holder still loads. Secret is now reachable only via
+      // the generic supertype signature and Holder's members.
+      IO.write(secretFile, "package pkg; class Secret {}")
+      compileJava(Seq(secretFile), srcDir, Seq.empty)
+
+      Using.resource(new java.net.URLClassLoader(Array(srcDir.toURI.toURL), null)) { classloader =>
+        val holder = classloader.loadClass("Holder")
+        val (apis, _, _) = ClassToAPI.process(Seq(holder))
+        assert(apis.map(_.name).toSet.contains("Holder"))
+      }
+    }
+  }
+
   private def compileJava(files: Seq[File], outputDir: File, classpath: Seq[File]): Unit = {
     import javax.tools.{ StandardLocation, ToolProvider }
     import scala.jdk.CollectionConverters._

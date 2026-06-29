@@ -1,0 +1,11 @@
+# Verifies that changes to a Java annotation used on a *method parameter* cause
+# recompilation downstream (sbt/zinc#146; parameter annotations, JVMS 4.7.18)
+
+> compile
+> checkDependencies test.Foo: test.Test
+> checkRecompilations 0 test.Test test.Foo
+
+$ copy-file changes/Test1.java Test.java
+> compile
+> checkRecompilations 1 test.Test
+> checkRecompilations 2 test.Foo

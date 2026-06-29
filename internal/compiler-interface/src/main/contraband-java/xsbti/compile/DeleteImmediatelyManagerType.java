@@ -23,6 +23,7 @@ public final class DeleteImmediatelyManagerType extends xsbti.compile.ClassFileM
     }
     
     
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -33,9 +34,11 @@ public final class DeleteImmediatelyManagerType extends xsbti.compile.ClassFileM
             return true;
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (17 + "xsbti.compile.DeleteImmediatelyManagerType".hashCode());
     }
+    @Override
     public String toString() {
         return "DeleteImmediatelyManagerType("  + ")";
     }

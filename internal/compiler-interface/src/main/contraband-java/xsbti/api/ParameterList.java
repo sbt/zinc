@@ -32,6 +32,7 @@ public final class ParameterList implements java.io.Serializable {
     public ParameterList withIsImplicit(boolean isImplicit) {
         return new ParameterList(parameters, isImplicit);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -42,9 +43,11 @@ public final class ParameterList implements java.io.Serializable {
             return java.util.Arrays.deepEquals(this.parameters(), o.parameters()) && (this.isImplicit() == o.isImplicit());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (17 + "xsbti.api.ParameterList".hashCode()) + java.util.Arrays.deepHashCode(parameters())) + Boolean.hashCode(isImplicit()));
     }
+    @Override
     public String toString() {
         return "ParameterList("  + "parameters: " + parameters() + ", " + "isImplicit: " + isImplicit() + ")";
     }

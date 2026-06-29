@@ -32,6 +32,7 @@ public final class Annotation implements java.io.Serializable {
     public Annotation withArguments(AnnotationArgument[] arguments) {
         return new Annotation(base, arguments);
     }
+    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -42,9 +43,11 @@ public final class Annotation implements java.io.Serializable {
             return this.base().equals(o.base()) && java.util.Arrays.deepEquals(this.arguments(), o.arguments());
         }
     }
+    @Override
     public int hashCode() {
         return 37 * (37 * (37 * (17 + "xsbti.api.Annotation".hashCode()) + base().hashCode()) + java.util.Arrays.deepHashCode(arguments()));
     }
+    @Override
     public String toString() {
         return "Annotation("  + "base: " + base() + ", " + "arguments: " + arguments() + ")";
     }
