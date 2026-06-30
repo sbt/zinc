@@ -130,6 +130,29 @@ class ClassfileToAPISpecification extends UnitSpec {
     }
   }
 
+  // Covers the `cf.isInterface` switch in ClassfileToAPI (replacing the previous
+  // `Modifier.isInterface(cf.accessFlags)`). The ClassDef vs Trait distinction is what
+  // makes name-hashing track interface implementations correctly.
+  it should "tag an interface input as DefinitionType.Trait, not ClassDef" in {
+    IO.withTemporaryDirectory { temp =>
+      val src = new File(temp, "IFace.java")
+      IO.write(src, "public interface IFace { int answer(); }")
+      JavaCompilerForUnitTesting.compileJava(Seq(src), temp, Seq.empty)
+      val cf = Parser(new File(temp, "IFace.class").toPath, Logger.Null)
+      assert(cf.isInterface, "precondition: fixture is an interface at the classfile level")
+
+      val (apis, _) = ClassfileToAPI.process(Seq("IFace" -> cf))
+      val ifaceApi = apis
+        .find(a => a.name == "IFace" && a.definitionType == DefinitionType.Trait)
+        .getOrElse {
+          fail(s"IFace not recorded as Trait: ${apis.map(a => a.name -> a.definitionType).toSeq}")
+        }
+      // The trait should still expose the abstract method.
+      val defs = ifaceApi.structure.declared.collect { case d: xsbti.api.Def => d.name }.toSet
+      assert(defs.contains("answer"))
+    }
+  }
+
   // The fallback runs only for classes that already failed to load, so it must never throw on an
   // odd/truncated descriptor and turn a gracefully-skipped class into a compile failure.
   it should "degrade gracefully on malformed or truncated descriptors instead of throwing" in {

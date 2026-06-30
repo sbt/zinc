@@ -14,11 +14,10 @@ package internal
 package inc
 
 import java.io.{ ByteArrayInputStream, DataInputStream }
-import java.lang.reflect.Modifier
 import scala.collection.mutable.ArrayBuffer
 import xsbti.api
 import xsbti.api.SafeLazyProxy
-import sbt.internal.inc.classfile.{ AttributeInfo, ClassFile, FieldOrMethodInfo }
+import sbt.internal.inc.classfile.{ AttributeInfo, ClassFile, FieldInfo, MethodInfo }
 import sbt.util.Logger
 
 /**
@@ -133,7 +132,7 @@ object ClassfileToAPI {
     val enclPkg = ClassToAPI.packageAndName(cf.className)._1
     val mods = ClassToAPI.modifiers(cf.accessFlags)
     val acc = ClassToAPI.access(cf.accessFlags, enclPkg)
-    val isInterface = Modifier.isInterface(cf.accessFlags)
+    val isInterface = cf.isInterface
     val tpe = if (isInterface) Trait else ClassDef
     // Top-level unless the classfile's InnerClasses attribute lists itself as a member of another.
     val topLevel =
@@ -198,7 +197,7 @@ object ClassfileToAPI {
   /** (isStatic, FieldLike) for a classfile field. */
   private def fieldDef(
       cf: ClassFile,
-      f: FieldOrMethodInfo,
+      f: FieldInfo,
       enclPkg: Option[String]
   ): (Boolean, api.ClassDefinition) = {
     val name = f.name.getOrElse("")
@@ -230,7 +229,7 @@ object ClassfileToAPI {
   /** (isStatic, Def) for a classfile method; `<init>` is named like [[ClassToAPI]]'s constructors. */
   private def methodDef(
       cf: ClassFile,
-      m: FieldOrMethodInfo,
+      m: MethodInfo,
       binaryName: String,
       enclPkg: Option[String]
   ): (Boolean, api.ClassDefinition) = {

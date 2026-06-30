@@ -76,8 +76,8 @@ private[sbt] object Parser {
       val interfaceNames =
         array(in.readUnsignedShort())(getClassConstantName(in.readUnsignedShort()))
 
-      val fields = readFieldsOrMethods()
-      val methods = readFieldsOrMethods()
+      val fields = array(in.readUnsignedShort())(parseField())
+      val methods = array(in.readUnsignedShort())(parseMethod())
 
       val attributes = array(in.readUnsignedShort())(parseAttribute())
 
@@ -114,7 +114,6 @@ private[sbt] object Parser {
 
       def stringValue(a: AttributeInfo) = toUTF8(entryIndex(a))
 
-      private def readFieldsOrMethods() = array(in.readUnsignedShort())(parseFieldOrMethodInfo())
       private def toUTF8(entryIndex: Int) = {
         val entry = constantPool(entryIndex)
         assume(entry.tag == ConstantUTF8, "Constant pool entry is not a UTF8 type: " + entryIndex)
@@ -129,8 +128,15 @@ private[sbt] object Parser {
         if (index <= 0) None
         else Some(toUTF8(index))
       }
-      private def parseFieldOrMethodInfo() =
-        FieldOrMethodInfo(
+      private def parseField(): FieldInfo =
+        FieldInfo(
+          in.readUnsignedShort(),
+          toString(in.readUnsignedShort()),
+          toString(in.readUnsignedShort()),
+          array(in.readUnsignedShort())(parseAttribute()).toIndexedSeq
+        )
+      private def parseMethod(): MethodInfo =
+        MethodInfo(
           in.readUnsignedShort(),
           toString(in.readUnsignedShort()),
           toString(in.readUnsignedShort()),
@@ -162,13 +168,8 @@ private[sbt] object Parser {
         (classConstantReferences ++ fieldTypes ++ methodTypes ++ annotationsReferencesCarefully).toSet
       }
 
-      private def getTypes(fieldsOrMethods: Array[FieldOrMethodInfo]) =
-        fieldsOrMethods.flatMap { fieldOrMethod =>
-          descriptorToTypes(fieldOrMethod.descriptor)
-        }
-
-      private def fieldTypes = getTypes(fields)
-      private def methodTypes = getTypes(methods)
+      private def fieldTypes = fields.flatMap(f => descriptorToTypes(f.descriptor))
+      private def methodTypes = methods.flatMap(m => descriptorToTypes(m.descriptor))
 
       private def annotationsReferences: List[String] = {
         // Annotation metadata lives in several attribute kinds, some nested: type annotations on

@@ -24,13 +24,24 @@ private[sbt] trait ClassFile {
   val interfaceNames: Array[String]
   val accessFlags: Int
   val constantPool: Array[Constant]
-  val fields: Array[FieldOrMethodInfo]
-  val methods: Array[FieldOrMethodInfo]
+  val fields: Array[FieldInfo]
+  val methods: Array[MethodInfo]
   val attributes: Array[AttributeInfo]
   def sourceFile: Option[String]
   def innerClasses: Array[InnerClassInfo]
   def types: Set[String]
   def stringValue(a: AttributeInfo): String
+
+  // ----- Class-level access flag predicates -----
+  // JVMS Table 4.1-A:
+  // https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.1-200-E.1
+  def isPublic = (accessFlags & ClassAccessFlags.ACC_PUBLIC) != 0
+  def isFinal = (accessFlags & ClassAccessFlags.ACC_FINAL) != 0
+  def isInterface = (accessFlags & ClassAccessFlags.ACC_INTERFACE) != 0
+  def isAbstract = (accessFlags & ClassAccessFlags.ACC_ABSTRACT) != 0
+  def isSynthetic = (accessFlags & ClassAccessFlags.ACC_SYNTHETIC) != 0
+  def isAnnotation = (accessFlags & ClassAccessFlags.ACC_ANNOTATION) != 0
+  def isEnum = (accessFlags & ClassAccessFlags.ACC_ENUM) != 0
 
   /**
    * If the given fieldName represents a ConstantValue field, parses its representation from
@@ -82,18 +93,61 @@ private[sbt] final case class Constant(
   override def hashCode: Int =
     37 * (37 * (37 * (37 * (17 + tag.##) + nameIndex.##) + typeIndex.##) + value.##)
 }
-private[sbt] final case class FieldOrMethodInfo(
+
+/**
+ * A field entry in a classfile. Predicates read [[FieldAccessFlags]].
+ * JVMS Table 4.5-A:
+ * https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.5-200-A.1
+ */
+private[sbt] final case class FieldInfo(
     accessFlags: Int,
     name: Option[String],
     descriptor: Option[String],
     attributes: IndexedSeq[AttributeInfo]
 ) {
-  def isStatic = (accessFlags & ACC_STATIC) == ACC_STATIC
-  def isPublic = (accessFlags & ACC_PUBLIC) == ACC_PUBLIC
+  def isPublic = (accessFlags & FieldAccessFlags.ACC_PUBLIC) != 0
+  def isPrivate = (accessFlags & FieldAccessFlags.ACC_PRIVATE) != 0
+  def isProtected = (accessFlags & FieldAccessFlags.ACC_PROTECTED) != 0
+  def isStatic = (accessFlags & FieldAccessFlags.ACC_STATIC) != 0
+  def isFinal = (accessFlags & FieldAccessFlags.ACC_FINAL) != 0
+  def isVolatile = (accessFlags & FieldAccessFlags.ACC_VOLATILE) != 0
+  def isTransient = (accessFlags & FieldAccessFlags.ACC_TRANSIENT) != 0
+  def isSynthetic = (accessFlags & FieldAccessFlags.ACC_SYNTHETIC) != 0
+  def isEnum = (accessFlags & FieldAccessFlags.ACC_ENUM) != 0
+}
+
+/**
+ * A method entry in a classfile. Predicates read [[MethodAccessFlags]].
+ * JVMS Table 4.6-A:
+ * https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6-200-A.1
+ */
+private[sbt] final case class MethodInfo(
+    accessFlags: Int,
+    name: Option[String],
+    descriptor: Option[String],
+    attributes: IndexedSeq[AttributeInfo]
+) {
+  def isPublic = (accessFlags & MethodAccessFlags.ACC_PUBLIC) != 0
+  def isPrivate = (accessFlags & MethodAccessFlags.ACC_PRIVATE) != 0
+  def isProtected = (accessFlags & MethodAccessFlags.ACC_PROTECTED) != 0
+  def isStatic = (accessFlags & MethodAccessFlags.ACC_STATIC) != 0
+  def isFinal = (accessFlags & MethodAccessFlags.ACC_FINAL) != 0
+  def isSynchronized = (accessFlags & MethodAccessFlags.ACC_SYNCHRONIZED) != 0
+  def isBridge = (accessFlags & MethodAccessFlags.ACC_BRIDGE) != 0
+  def isVarArgs = (accessFlags & MethodAccessFlags.ACC_VARARGS) != 0
+  def isNative = (accessFlags & MethodAccessFlags.ACC_NATIVE) != 0
+  def isAbstract = (accessFlags & MethodAccessFlags.ACC_ABSTRACT) != 0
+  def isStrict = (accessFlags & MethodAccessFlags.ACC_STRICT) != 0
+  def isSynthetic = (accessFlags & MethodAccessFlags.ACC_SYNTHETIC) != 0
+
+  // Name-based — safe by construction.
+  def isConstructor = name.exists(_ == "<init>")
+  def isStaticInit = name.exists(_ == "<clinit>")
   def isMain =
     isPublic && isStatic && name.contains("main") &&
       descriptor.exists(_ == "([Ljava/lang/String;)V")
 }
+
 private[sbt] final case class AttributeInfo(name: Option[String], value: Array[Byte]) {
   def isNamed(s: String) = name.exists(s == _)
   def isSignature = isNamed("Signature")
@@ -109,19 +163,98 @@ private[sbt] final case class AttributeInfo(name: Option[String], value: Array[B
   def isRuntimeInvisibleTypeAnnotations = isNamed("RuntimeInvisibleTypeAnnotations")
   def isAnnotationDefault = isNamed("AnnotationDefault")
 }
+
+/**
+ * An entry in a classfile's `InnerClasses` attribute. Predicates read
+ * [[InnerClassAccessFlags]]. JVMS Table 4.7.6-A:
+ * https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.6-300-D.2-5
+ */
 private[sbt] final case class InnerClassInfo(
     accessFlags: Int,
     innerName: Option[String],
     innerClassName: String,
     outerClassName: String
 ) {
-  def isStatic = (accessFlags & ACC_STATIC) == ACC_STATIC
-  def isPublic = (accessFlags & ACC_PUBLIC) == ACC_PUBLIC
+  def isPublic = (accessFlags & InnerClassAccessFlags.ACC_PUBLIC) != 0
+  def isPrivate = (accessFlags & InnerClassAccessFlags.ACC_PRIVATE) != 0
+  def isProtected = (accessFlags & InnerClassAccessFlags.ACC_PROTECTED) != 0
+  def isStatic = (accessFlags & InnerClassAccessFlags.ACC_STATIC) != 0
+  def isFinal = (accessFlags & InnerClassAccessFlags.ACC_FINAL) != 0
+  def isInterface = (accessFlags & InnerClassAccessFlags.ACC_INTERFACE) != 0
+  def isAbstract = (accessFlags & InnerClassAccessFlags.ACC_ABSTRACT) != 0
+  def isSynthetic = (accessFlags & InnerClassAccessFlags.ACC_SYNTHETIC) != 0
+  def isAnnotation = (accessFlags & InnerClassAccessFlags.ACC_ANNOTATION) != 0
+  def isEnum = (accessFlags & InnerClassAccessFlags.ACC_ENUM) != 0
 }
-private[sbt] object Constants {
-  final val ACC_STATIC = 0x0008
-  final val ACC_PUBLIC = 0x0001
 
+/**
+ * Class access and property flags. JVMS §4.1, Table 4.1-A.
+ * https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.1-200-E.1
+ */
+private[sbt] object ClassAccessFlags {
+  final val ACC_PUBLIC = 0x0001
+  final val ACC_FINAL = 0x0010
+  final val ACC_SUPER = 0x0020
+  final val ACC_INTERFACE = 0x0200
+  final val ACC_ABSTRACT = 0x0400
+  final val ACC_SYNTHETIC = 0x1000
+  final val ACC_ANNOTATION = 0x2000
+  final val ACC_ENUM = 0x4000
+}
+
+/**
+ * Field access and property flags. JVMS §4.5, Table 4.5-A.
+ * https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.5-200-A.1
+ */
+private[sbt] object FieldAccessFlags {
+  final val ACC_PUBLIC = 0x0001
+  final val ACC_PRIVATE = 0x0002
+  final val ACC_PROTECTED = 0x0004
+  final val ACC_STATIC = 0x0008
+  final val ACC_FINAL = 0x0010
+  final val ACC_VOLATILE = 0x0040
+  final val ACC_TRANSIENT = 0x0080
+  final val ACC_SYNTHETIC = 0x1000
+  final val ACC_ENUM = 0x4000
+}
+
+/**
+ * Method access and property flags. JVMS §4.6, Table 4.6-A.
+ * https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6-200-A.1
+ */
+private[sbt] object MethodAccessFlags {
+  final val ACC_PUBLIC = 0x0001
+  final val ACC_PRIVATE = 0x0002
+  final val ACC_PROTECTED = 0x0004
+  final val ACC_STATIC = 0x0008
+  final val ACC_FINAL = 0x0010
+  final val ACC_SYNCHRONIZED = 0x0020
+  final val ACC_BRIDGE = 0x0040
+  final val ACC_VARARGS = 0x0080
+  final val ACC_NATIVE = 0x0100
+  final val ACC_ABSTRACT = 0x0400
+  final val ACC_STRICT = 0x0800
+  final val ACC_SYNTHETIC = 0x1000
+}
+
+/**
+ * Inner class access and property flags. JVMS §4.7.6, Table 4.7.6-A.
+ * https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.6-300-D.2-5
+ */
+private[sbt] object InnerClassAccessFlags {
+  final val ACC_PUBLIC = 0x0001
+  final val ACC_PRIVATE = 0x0002
+  final val ACC_PROTECTED = 0x0004
+  final val ACC_STATIC = 0x0008
+  final val ACC_FINAL = 0x0010
+  final val ACC_INTERFACE = 0x0200
+  final val ACC_ABSTRACT = 0x0400
+  final val ACC_SYNTHETIC = 0x1000
+  final val ACC_ANNOTATION = 0x2000
+  final val ACC_ENUM = 0x4000
+}
+
+private[sbt] object Constants {
   final val JavaMagic = 0xcafebabe
   final val ConstantUTF8 = 1
   final val ConstantUnicode = 2
