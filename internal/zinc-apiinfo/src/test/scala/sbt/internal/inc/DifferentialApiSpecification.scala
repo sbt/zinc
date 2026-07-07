@@ -79,7 +79,11 @@ class DifferentialApiSpecification extends UnitSpec {
     // — even though the erased superclass name (Outer$Inner) looks non-generic.
     "GenericInnerSuper" -> ("class Outer<T> { public class Inner { public class Member {} } } " +
       "public class GenericInnerSuper extends Outer<String>.Inner { " +
-      "GenericInnerSuper(Outer<String> o) { o.super(); } }")
+      "GenericInnerSuper(Outer<String> o) { o.super(); } }"),
+    // Field HIDING (not overriding): getFields keeps the hidden Base.x as inherited even though
+    // HiddenField declares its own x, so the classfile path must not dedup inherited fields by name.
+    "HiddenField" -> ("class HiddenBase { public int x; } " +
+      "public class HiddenField extends HiddenBase { public int x; }")
   )
 
   private def declared(apis: Seq[ClassLike]): Set[String] =
@@ -392,6 +396,52 @@ class DifferentialApiSpecification extends UnitSpec {
       assert(
         cTop == rTop,
         s"classfile topLevel must now match reflection — reflect=$rTop classfile=$cTop"
+      )
+    }
+  }
+
+  // Deviation #5 (fixed): field HIDING across two ancestor levels. Java fields hide rather than
+  // override, and getFields keeps every ancestor's public field — so with GrandBase.x and Base.x
+  // both hidden along the chain, reflection lists BOTH as inherited. The classfile path used to
+  // dedup inherited fields by bare name and kept only one; the name-SET corpus assertion cannot see
+  // that (both sides collapse to {x}), so this test compares inherited-field COUNTS.
+  it should "keep every hidden ancestor field as inherited, matching reflection" in {
+    IO.withTemporaryDirectory { temp =>
+      val dir = new File(temp, "d5")
+      dir.mkdir()
+      val src = new File(dir, "DeepHidden.java")
+      IO.write(
+        src,
+        "class GrandBase { public int x; } class MidBase extends GrandBase { public int x; } " +
+          "public class DeepHidden extends MidBase {}"
+      )
+      JavaCompilerForUnitTesting.compileJava(Seq(src), dir, Seq.empty)
+      val loader = new URLClassLoader(Array(dir.toURI.toURL), null)
+      val resolve: String => Option[ClassFile] = bn => {
+        val res = bn.replace('.', '/') + ".class"
+        Option(loader.getResource(res))
+          .orElse(Option(ClassLoader.getSystemResource(res)))
+          .flatMap(u =>
+            try Some(Parser(u, Logger.Null))
+            catch { case _: Throwable => None }
+          )
+      }
+      val name = "DeepHidden"
+      val reflect = ClassToAPI.process(Seq(loader.loadClass(name)))._1.filter(_.name == name)
+      val cf = Parser(new File(dir, name + ".class").toPath, Logger.Null)
+      val classfile = ClassfileToAPI.process(Seq(name -> cf), resolve)._1.filter(_.name == name)
+      def inheritedFieldCount(apis: Seq[ClassLike]): Int =
+        apis.map(_.structure.inherited.count {
+          case f: xsbti.api.FieldLike => f.name == "x"
+          case _                      => false
+        }).sum
+      val (rCount, cCount) =
+        (inheritedFieldCount(reflect.toSeq), inheritedFieldCount(classfile.toSeq))
+      println(s"[hidden-fields] reflect inherited x count=$rCount classfile=$cCount")
+      assert(rCount == 2, s"reflection keeps both hidden ancestor fields: $rCount")
+      assert(
+        cCount == rCount,
+        s"inherited hidden-field count differs — reflect=$rCount classfile=$cCount"
       )
     }
   }

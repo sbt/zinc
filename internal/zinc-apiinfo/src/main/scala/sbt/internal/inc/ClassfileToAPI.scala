@@ -440,21 +440,21 @@ object ClassfileToAPI {
   /**
    * Public members inherited from super + interfaces (transitively), as (instance, static) — read
    * from parent classfiles via `resolveParent` (byte-only, no class loading). Mirrors reflection's
-   * `getMethods`/`getFields`: most-derived wins (dedup by name+descriptor for methods, name for
-   * fields), constructors/initializers and static interface methods excluded. Missing parents are
-   * skipped (fail-soft).
+   * `getMethods`/`getFields`: methods dedup by name+descriptor (override semantics, most-derived
+   * wins), while fields are NOT deduped by name — Java fields hide rather than override, and
+   * `getFields` keeps a hidden ancestor field as inherited (its only dedup is by declaring class,
+   * which the visited-set provides). Constructors/initializers and static interface methods are
+   * excluded. Missing parents are skipped (fail-soft).
    */
   private def collectInherited(
       cf: ClassFile,
       resolveParent: String => Option[ClassFile]
   ): (Array[api.ClassDefinition], Array[api.ClassDefinition]) = {
     val seenMethods = scala.collection.mutable.Set.empty[(String, String)]
-    val seenFields = scala.collection.mutable.Set.empty[String]
     val seenNested = scala.collection.mutable.Set.empty[String]
     val ownCanonical = canonicalName(cf)
-    // Seed with the class's own members so overridden/hidden inherited ones are excluded.
+    // Seed with the class's own methods so overridden inherited ones are excluded.
     cf.methods.foreach(m => seenMethods += ((m.name.getOrElse(""), m.descriptor.getOrElse(""))))
-    cf.fields.foreach(f => seenFields += f.name.getOrElse(""))
     memberClasses(cf, publicOnly = false)
       .foreach(i => seenNested += ownCanonical + "." + i.innerName.getOrElse(""))
     val instance = ArrayBuffer.empty[api.ClassDefinition]
@@ -483,7 +483,7 @@ object ClassfileToAPI {
           }
         }
         for (f <- pcf.fields) {
-          if (f.isPublic && seenFields.add(f.name.getOrElse(""))) {
+          if (f.isPublic) {
             val (isStat, fl) = fieldDef(pcf, f, penc)
             if (isStat) static += fl else instance += fl
           }
