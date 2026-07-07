@@ -154,7 +154,7 @@ object JavaCompilerForUnitTesting {
       classloader,
       (_, classes) => extractParents(classes),
       readClassfileAPI(analysisCallback, _, _, resolve),
-      classfileApiOnly
+      classfileApiOnly = classfileApiOnly
     )
     analysisCallback
   }

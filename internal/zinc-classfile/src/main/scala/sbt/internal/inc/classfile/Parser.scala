@@ -22,6 +22,7 @@ import java.io.{ BufferedInputStream, ByteArrayInputStream, InputStream, File, D
 import sbt.internal.io.ErrorHandling
 
 import scala.annotation.{ switch, tailrec }
+import scala.util.control.NonFatal
 import sbt.io.Using
 import sbt.util.Logger
 
@@ -161,8 +162,10 @@ private[sbt] object Parser {
         def annotationsReferencesCarefully =
           try annotationsReferences
           catch {
-            case re: RuntimeException =>
-              log.warn(s"couldn't parse annotations in $readableName ($re)")
+            // NonFatal (not just RuntimeException): the nested Code/Record parsing reads raw byte
+            // counts, so malformed input can surface as EOFException etc. — still only warn.
+            case NonFatal(e) =>
+              log.warn(s"couldn't parse annotations in $readableName ($e)")
               List()
           }
         // the other aspects of classfile.Parser are long battle-tested
@@ -178,50 +181,219 @@ private[sbt] object Parser {
       private def methodTypes = getTypes(methods)
 
       private def annotationsReferences: List[String] = {
+        // Annotation metadata lives in several attribute kinds, some nested: type annotations on
+        // locals/casts/etc. sit inside a method's `Code` attribute (JVMS 4.7.3), and annotations on
+        // record components sit inside the class's `Record` attribute (JVMS 4.7.30). Surface those
+        // nested attributes alongside the top-level ones, then dispatch each to the parser for its
+        // shape.
+        val nestedCodeAttributes =
+          methods.flatMap(_.attributes).filter(_.isCode).flatMap(nestedAttributes)
+        val nestedRecordAttributes =
+          attributes.filter(_.isRecord).flatMap(recordComponentAttributes)
         val allAttributes =
           attributes ++
             fields.flatMap(_.attributes) ++
-            methods.flatMap(_.attributes)
-        allAttributes
-          .filter(x => x.isRuntimeVisibleAnnotations || x.isRuntimeInvisibleAnnotations)
-          .flatMap { attr =>
-            val in = new DataInputStream(new java.io.ByteArrayInputStream(attr.value))
-            val numAnnotations = in.readUnsignedShort()
-            val result = collection.mutable.ListBuffer[String]()
-            def parseElementValue(): Unit = { // JVMS 4.7.16.1
-              val c = in.readUnsignedByte().toChar
-              c match {
-                case 'e' =>
-                  result += slashesToDots(toUTF8(in.readUnsignedShort()))
-                  val _ = in.readUnsignedShort()
-                case 'c' =>
-                  result += slashesToDots(toUTF8(in.readUnsignedShort()))
-                case '@' =>
-                  parseAnnotation()
-                case '[' =>
-                  for (_ <- 0 until in.readUnsignedShort())
-                    parseElementValue()
-                case 'B' | 'C' | 'D' | 'F' | 'I' | 'J' | 'S' | 'Z' | 's' =>
-                  val _ = in.readUnsignedShort()
-                case _ =>
-                  // if we see something unexpected, we're likely already doomed and trying to
-                  // continue parsing will just make troubleshooting harder. so let's bail
-                  sys.error(s"unexpected tag in annotation: '$c'")
-              }
+            methods.flatMap(_.attributes) ++
+            nestedCodeAttributes ++
+            nestedRecordAttributes
+        allAttributes.flatMap(attributeReferences).toList
+      }
+
+      /** Type names referenced by a single annotation-bearing attribute (empty for any other). */
+      private def attributeReferences(attr: AttributeInfo): List[String] =
+        if (attr.isRuntimeVisibleAnnotations || attr.isRuntimeInvisibleAnnotations)
+          parseDeclarationAnnotations(attr.value) // JVMS 4.7.16
+        else if (
+          attr.isRuntimeVisibleParameterAnnotations || attr.isRuntimeInvisibleParameterAnnotations
+        )
+          parseParameterAnnotations(attr.value) // JVMS 4.7.18
+        else if (attr.isRuntimeVisibleTypeAnnotations || attr.isRuntimeInvisibleTypeAnnotations)
+          parseTypeAnnotations(attr.value) // JVMS 4.7.20
+        else if (attr.isAnnotationDefault)
+          parseAnnotationDefault(attr.value) // JVMS 4.7.22
+        else
+          Nil
+
+      // --- entry parsers: one per attribute shape, all over the shared body parsing below --------
+
+      /** RuntimeVisible/InvisibleAnnotations (JVMS 4.7.16): a count, then that many annotations. */
+      private def parseDeclarationAnnotations(value: Array[Byte]): List[String] =
+        withAnnotationStream(value)((in, result) => parseAnnotations(in, result))
+
+      /** RuntimeVisible/InvisibleParameterAnnotations (JVMS 4.7.18): a `u1 num_parameters` count,
+       *  each parameter then carrying its own `u2 num_annotations`. */
+      private def parseParameterAnnotations(value: Array[Byte]): List[String] =
+        withAnnotationStream(value) { (in, result) =>
+          val numParameters = in.readUnsignedByte()
+          for (_ <- 0 until numParameters)
+            parseAnnotations(in, result)
+        }
+
+      /** RuntimeVisible/InvisibleTypeAnnotations (JVMS 4.7.20): `u2 num_annotations`, each a
+       *  `type_annotation` whose `target_info`/`type_path` prefix we skip before the annotation. */
+      private def parseTypeAnnotations(value: Array[Byte]): List[String] =
+        withAnnotationStream(value) { (in, result) =>
+          for (_ <- 0 until in.readUnsignedShort()) {
+            skipTypeAnnotationTarget(in)
+            parseAnnotation(in, result)
+          }
+        }
+
+      /** AnnotationDefault (JVMS 4.7.22): a single `element_value` (the default for an `@interface`
+       *  element), which may itself reference enum/class/nested-annotation types. */
+      private def parseAnnotationDefault(value: Array[Byte]): List[String] =
+        withAnnotationStream(value)((in, result) => parseElementValue(in, result))
+
+      /** Sets up the stream/buffer and decodes the collected raw descriptors into type names via
+       *  [[descriptorToTypes]]. The collected values are JVM descriptors (annotation/enum types are
+       *  always `L...;`, but a `class` element value may be an array `[L...;` or a primitive like
+       *  `I`), so we decode rather than blindly strip — else array class literals leak a
+       *  `L`-prefixed name and primitives produce empty ones. */
+      private def withAnnotationStream(
+          value: Array[Byte]
+      )(f: (DataInputStream, collection.mutable.ListBuffer[String]) => Unit): List[String] = {
+        val in = new DataInputStream(new ByteArrayInputStream(value))
+        val result = collection.mutable.ListBuffer[String]()
+        f(in, result)
+        result.flatMap(descriptor => descriptorToTypes(Some(descriptor))).toList
+      }
+
+      // --- shared annotation-body parsing (JVMS 4.7.16) ------------------------------------------
+
+      private def parseAnnotations(
+          in: DataInputStream,
+          result: collection.mutable.ListBuffer[String]
+      ): Unit =
+        for (_ <- 0 until in.readUnsignedShort())
+          parseAnnotation(in, result)
+
+      private def parseAnnotation(
+          in: DataInputStream,
+          result: collection.mutable.ListBuffer[String]
+      ): Unit = { // JVMS 4.7.16
+        result += toUTF8(in.readUnsignedShort()) // type_index (a field descriptor)
+        for (_ <- 0 until in.readUnsignedShort()) {
+          in.readUnsignedShort() // skip element name index
+          parseElementValue(in, result)
+        }
+      }
+
+      private def parseElementValue(
+          in: DataInputStream,
+          result: collection.mutable.ListBuffer[String]
+      ): Unit = { // JVMS 4.7.16.1
+        val c = in.readUnsignedByte().toChar
+        c match {
+          case 'e' =>
+            result += toUTF8(in.readUnsignedShort()) // enum type_name_index (a field descriptor)
+            val _ = in.readUnsignedShort() // const_name_index
+          case 'c' =>
+            result += toUTF8(in.readUnsignedShort()) // class_info_index (a return descriptor)
+          case '@' =>
+            parseAnnotation(in, result)
+          case '[' =>
+            for (_ <- 0 until in.readUnsignedShort())
+              parseElementValue(in, result)
+          case 'B' | 'C' | 'D' | 'F' | 'I' | 'J' | 'S' | 'Z' | 's' =>
+            val _ = in.readUnsignedShort()
+          case _ =>
+            // if we see something unexpected, we're likely already doomed and trying to
+            // continue parsing will just make troubleshooting harder. so let's bail
+            sys.error(s"unexpected tag in annotation: '$c'")
+        }
+      }
+
+      /** Skips a `type_annotation`'s `target_info` and `type_path` (JVMS 4.7.20.1/4.7.20.2): they
+       *  locate where the annotation applies and carry no type references, so we only need to
+       *  consume them so the following annotation body is read from the right offset. */
+      private def skipTypeAnnotationTarget(in: DataInputStream): Unit = {
+        in.readUnsignedByte() match { // target_type, JVMS Table 4.7.20-A/B
+          case 0x00 | 0x01 => in.readUnsignedByte() // type_parameter_target
+          case 0x10        => in.readUnsignedShort() // supertype_target
+          case 0x11 | 0x12 => // type_parameter_bound_target
+            in.readUnsignedByte(); in.readUnsignedByte()
+          case 0x13 | 0x14 | 0x15 => () // empty_target
+          case 0x16               => in.readUnsignedByte() // formal_parameter_target
+          case 0x17               => in.readUnsignedShort() // throws_target
+          case 0x40 | 0x41 => // localvar_target
+            for (_ <- 0 until in.readUnsignedShort()) {
+              in.readUnsignedShort(); in.readUnsignedShort(); in.readUnsignedShort()
             }
-            def parseAnnotation(): Unit = { // JVMS 4.7.16
-              result += slashesToDots(toUTF8(in.readUnsignedShort()))
-              for (_ <- 0 until in.readUnsignedShort()) {
-                in.readUnsignedShort() // skip element name index
-                parseElementValue()
-              }
-            }
-            for (_ <- 0 until numAnnotations)
-              parseAnnotation()
-            // the type names in the constant pool have the form e.g. `Ljava/lang/Object;`;
-            // we've already used `slashesToDots`, but we still need to drop the `L` and the semicolon
-            result.map(name => name.slice(1, name.length - 1))
-          }.toList
+          case 0x42                      => in.readUnsignedShort() // catch_target
+          case 0x43 | 0x44 | 0x45 | 0x46 => in.readUnsignedShort() // offset_target
+          case 0x47 | 0x48 | 0x49 | 0x4a | 0x4b => // type_argument_target
+            in.readUnsignedShort(); in.readUnsignedByte()
+          case other => sys.error(s"unexpected type annotation target_type: 0x${other.toHexString}")
+        }
+        for (_ <- 0 until in.readUnsignedByte()) { // type_path: u1 path_length, then path entries
+          in.readUnsignedByte(); in.readUnsignedByte()
+        }
+      }
+
+      // --- nested attribute containers (Code / Record) -------------------------------------------
+
+      /** The nested attributes carried in a method's `Code` attribute (JVMS 4.7.3) — where type
+       *  annotations on locals, casts, `instanceof`, `new`, etc. live. */
+      private def nestedAttributes(code: AttributeInfo): Array[AttributeInfo] = {
+        val in = new DataInputStream(new ByteArrayInputStream(code.value))
+        in.readUnsignedShort() // max_stack
+        in.readUnsignedShort() // max_locals
+        skipFully(in, in.readInt()) // code[code_length]
+        // exception_table: each entry is 4 × u2 (start_pc, end_pc, handler_pc, catch_type)
+        for (_ <- 0 until in.readUnsignedShort()) skipFully(in, 8)
+        readNestedAttributes(in)
+      }
+
+      /** The attributes of every `record_component_info` in a class's `Record` attribute (JVMS
+       *  4.7.30) — where annotations targeting record components live. */
+      private def recordComponentAttributes(record: AttributeInfo): Array[AttributeInfo] = {
+        val in = new DataInputStream(new ByteArrayInputStream(record.value))
+        val componentsCount = in.readUnsignedShort()
+        Array
+          .fill(componentsCount) {
+            in.readUnsignedShort() // name_index
+            in.readUnsignedShort() // descriptor_index
+            readNestedAttributes(in)
+          }
+          .flatten
+      }
+
+      /** Reads an `attributes_count`-prefixed `attribute_info[]` block, materializing only the
+       *  annotation-bearing attributes (those [[attributeReferences]] consumes) and skipping the
+       *  rest in-stream. A `Code` attribute carries `LineNumberTable`, `StackMapTable`, etc. for
+       *  every method; copying those bytes (already held in the enclosing value) just to discard
+       *  them would be pure waste. */
+      private def readNestedAttributes(in: DataInputStream): Array[AttributeInfo] = {
+        val count = in.readUnsignedShort()
+        val attrs = collection.mutable.ArrayBuffer.empty[AttributeInfo]
+        for (_ <- 0 until count) {
+          val name = toUTF8(in.readUnsignedShort())
+          val length = in.readInt()
+          if (isAnnotationAttributeName(name)) {
+            val value = new Array[Byte](length)
+            in.readFully(value)
+            attrs += AttributeInfo(Some(name), value)
+          } else
+            skipFully(in, length)
+        }
+        attrs.toArray
+      }
+
+      /** The attribute names [[attributeReferences]] knows how to extract type references from. */
+      private def isAnnotationAttributeName(name: String): Boolean =
+        name == "RuntimeVisibleAnnotations" || name == "RuntimeInvisibleAnnotations" ||
+          name == "RuntimeVisibleParameterAnnotations" ||
+          name == "RuntimeInvisibleParameterAnnotations" ||
+          name == "RuntimeVisibleTypeAnnotations" || name == "RuntimeInvisibleTypeAnnotations" ||
+          name == "AnnotationDefault"
+
+      private def skipFully(in: DataInputStream, n: Int): Unit = {
+        var remaining = n
+        while (remaining > 0) {
+          val skipped = in.skipBytes(remaining)
+          if (skipped <= 0) { in.readByte(); remaining -= 1 }
+          else remaining -= skipped
+        }
       }
 
       private def classConstantReferences =
