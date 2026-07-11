@@ -1,0 +1,6 @@
+# C needs A (inherited field type) and B0 (transitive ancestor) on the classpath,
+# so both must appear in its recorded dependencies (sbt/zinc#150)
+> compile
+
+> checkDependencies B: A B0
+> checkDependencies C: A B B0

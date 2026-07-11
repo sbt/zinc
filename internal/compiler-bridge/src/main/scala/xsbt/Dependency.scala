@@ -423,6 +423,41 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
     }
 
     /*
+     * Record dependencies on class files scalac needs but this unit's trees never
+     * mention (sbt/zinc#150, strict-deps): every transitive ancestor, plus the
+     * signature types of concrete trait methods, whose forwarders/accessors are
+     * materialized into the mixing class. Abstract or superclass members and type
+     * aliases are not re-emitted, so they pin nothing. Scala 2 bridge only.
+     */
+    private def addInheritedDependencies(): Unit = {
+      def isRootClass(sym: Symbol): Boolean =
+        (sym eq definitions.ObjectClass) || (sym eq definitions.AnyClass) ||
+          (sym eq definitions.AnyValClass)
+
+      val classSym = enclOrModuleClass(currentOwner)
+      if (classSym.isClass && !classSym.hasPackageFlag && !classSym.isRefinementClass) {
+        val info = classSym.info
+        info.baseClasses.foreach { ancestor =>
+          if ((ancestor ne classSym) && !isRootClass(ancestor)) addDependency(ancestor)
+        }
+        if (!classSym.isTrait) {
+          val declared = info.decls.toList.toSet
+          val selfType = classSym.thisType
+          info.nonPrivateMembers.toList.foreach { member =>
+            if (
+              !declared(member) &&
+              member.isMethod &&
+              !member.isConstructor &&
+              member.owner.isTrait &&
+              !member.isDeferred
+            )
+              addTypeDependencies(selfType.memberInfo(member))
+          }
+        }
+      }
+    }
+
+    /*
      * Some macros appear to contain themselves as original tree.
      * We must check that we don't inspect the same tree over and over.
      * See https://github.com/scala/bug/issues/8486
@@ -488,6 +523,7 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
 
         inheritanceTypes.foreach(addTypeDependencies(_, false))
         addTypeDependencies(self.tpt.tpe)
+        addInheritedDependencies()
 
         traverseTrees(body)
 

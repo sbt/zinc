@@ -25,7 +25,8 @@ class DependencySpecification
     assert(inheritance("E") === Set.empty)
     assert(memberRef("F") === Set("A", "B", "D", "E", "G", "C")) // C is the underlying type of MyC
     assert(inheritance("F") === Set("A", "E"))
-    assert(memberRef("H") === Set("B", "E", "G"))
+    // D is a transitive ancestor of H (via the alias G.T[Int] = B extends D[A])
+    assert(memberRef("H") === Set("B", "E", "G", "D"))
     // aliases and applied type constructors are expanded so we have inheritance dependency on B
     assert(inheritance("H") === Set("B", "E"))
   }
@@ -62,9 +63,150 @@ class DependencySpecification
     // the invariant that says that memberRef is superset of inheritance relation is preserved
     assert(memberRef("C") === Set("A", "B"))
     assert(inheritance("C") === Set("A", "B"))
-    // same as above but indirect (C -> B -> A), note that only A is visible here
-    assert(memberRef("D") === Set("A", "C"))
+    // D extends C: A and C are direct parents (trait-as-first-parent oddity), B is a
+    // transitive ancestor now captured in memberRef so the whole classpath requirement is recorded
+    assert(memberRef("D") === Set("A", "B", "C"))
     assert(inheritance("D") === Set("A", "C"))
+  }
+
+  it should "extract dependencies on the types of inherited members" in {
+    val srcA = "class A"
+    val srcB = "trait B { val x: A = new A }"
+    val srcC = "class C extends B"
+
+    val classDependencies = extractDependenciesFromSrcs(srcA, srcB, srcC)
+    val memberRef = classDependencies.memberRef
+    val inheritance = classDependencies.inheritance
+
+    // B declares `x: A`, so it depends on A directly
+    assert(memberRef("B") === Set("A"))
+    assert(inheritance("B") === Set.empty)
+    // C needs A on the classpath for the inherited `x: A`, recorded as memberRef
+    assert(memberRef("C") === Set("A", "B"))
+    assert(inheritance("C") === Set("B"))
+  }
+
+  it should "extract dependencies on transitive ancestors" in {
+    val srcA = "trait A"
+    val srcB = "trait B extends A"
+    val srcC = "class C extends B"
+
+    val classDependencies = extractDependenciesFromSrcs(srcA, srcB, srcC)
+    val memberRef = classDependencies.memberRef
+    val inheritance = classDependencies.inheritance
+
+    // the transitive ancestor A (C -> B -> A) is recorded in memberRef
+    assert(memberRef("C") === Set("A", "B"))
+    assert(inheritance("C") === Set("B"))
+  }
+
+  it should "extract binary dependencies on the types of inherited members" in {
+    val srcA = "class A"
+    val srcB = "trait B { val x: A = new A }"
+    val srcC = "class C extends B"
+
+    // C compiles against A/B class files only, yet must record the A edge
+    val binaryDependencies =
+      extractBinaryDependenciesFromSrcs(List(List(srcA, srcB), List(srcC)))
+    val memberRef = binaryDependencies.memberRef
+
+    // exact set: no false edges beyond the field type, parent and superclass
+    assert(memberRef("C") === Set("A", "B", "java.lang.Object"))
+  }
+
+  // the authoritative shape from the issue: the singleton `A.type` of the mixed-in
+  // `create` pins A on C's classpath; the abstract `empty` does not
+  it should "extract dependencies through a singleton type of a concrete inherited member" in {
+    val srcA = "object A"
+    val srcB =
+      """|trait B {
+         |  def create: A.type = A
+         |  def empty: String
+         |}""".stripMargin
+    val srcC =
+      """|object C extends B {
+         |  def empty: String = ""
+         |}""".stripMargin
+
+    val classDependencies = extractDependenciesFromSrcs(srcA, srcB, srcC)
+    val memberRef = classDependencies.memberRef
+    val inheritance = classDependencies.inheritance
+
+    assert(memberRef("B") === Set("A"))
+    assert(inheritance("B") === Set.empty)
+    assert(memberRef("C") === Set("A", "B"))
+    assert(inheritance("C") === Set("B"))
+  }
+
+  // the same shape through the classfile/unpickled path, where the
+  // symbol/SingleType representation differs (the actual #150 scenario)
+  it should "extract binary dependencies through a singleton type of a concrete inherited member" in {
+    val srcA = "object A"
+    val srcB =
+      """|trait B {
+         |  def create: A.type = A
+         |  def empty: String
+         |}""".stripMargin
+    val srcC =
+      """|object C extends B {
+         |  def empty: String = ""
+         |}""".stripMargin
+
+    val memberRef =
+      extractBinaryDependenciesFromSrcs(List(List(srcA, srcB), List(srcC))).memberRef
+
+    // exact set: the mixed-in singleton, the parent, and library types from `empty`
+    assert(
+      memberRef("C") === Set(
+        "A$",
+        "B",
+        "java.lang.String",
+        "java.lang.Object",
+        "scala.Predef$"
+      )
+    )
+  }
+
+  it should "not record a type inherited only through an abstract member" in {
+    val srcA = "object A"
+    val srcB = "trait B { def foo: A.type }"
+    val srcC = "abstract class C extends B"
+
+    val memberRef = extractDependenciesFromSrcs(srcA, srcB, srcC).memberRef
+    // `foo` is abstract, so `C` materializes nothing for it and does not need `A`
+    assert(memberRef("C") === Set("B"))
+  }
+
+  it should "not record a type inherited through a concrete superclass member" in {
+    val srcA = "object A"
+    val srcD = "class D { def foo: A.type = A }"
+    val srcC = "class C extends D"
+
+    val memberRef = extractDependenciesFromSrcs(srcA, srcD, srcC).memberRef
+    // `foo` is concrete but its byte code lives in the superclass `D`; `C`
+    // inherits it without re-emitting, so `C` does not need `A`
+    assert(memberRef("C") === Set("D"))
+  }
+
+  it should "not record a type inherited by a trait from another trait" in {
+    val srcA = "object A"
+    val srcB = "trait B { def foo: A.type = A }"
+    val srcC = "trait C extends B"
+
+    val memberRef = extractDependenciesFromSrcs(srcA, srcB, srcC).memberRef
+    // a trait defers mixing in to the class that finally extends it, so the
+    // trait `C` does not need `A`
+    assert(memberRef("C") === Set("B"))
+  }
+
+  it should "not record a type inherited through a concrete type member" in {
+    val srcA = "class A"
+    val srcB = "trait B { type T = A }"
+    val srcC = "class C extends B"
+
+    val memberRef = extractDependenciesFromSrcs(srcA, srcB, srcC).memberRef
+    // a `type` alias is not materialized into the subclass, so `C` does not need `A`
+    assert(memberRef("C") === Set("B"))
   }
 
   it should "extract class dependencies from macro arguments" in {
