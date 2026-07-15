@@ -26,7 +26,7 @@ object Dependencies {
   private val utilInterface = "org.scala-sbt" % "util-interface" % utilVersion
   private val utilScripted = "org.scala-sbt" %% "util-scripted" % utilVersion
 
-  val launcherInterface = "org.scala-sbt" % "launcher-interface" % "1.6.1"
+  val launcherInterface = "org.scala-sbt" % "launcher-interface" % "1.6.2"
 
   def getSbtModulePath(key: String, name: String) = {
     val localProps = new java.util.Properties()
