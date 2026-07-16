@@ -1,0 +1,11 @@
+# https://github.com/sbt/zinc/issues/226
+# A companion object added next to an existing class reuses the class name key in
+# the analysis, so plain presence comparison of class names would miss it.
+> compile
+
+# add object B next to class p.B: the term B in A.scala becomes ambiguous
+# between the two wildcard imports
+$ copy-file changes/P.scala P.scala
+
+# A.scala must be recompiled and fail like in a clean compile
+-> compile

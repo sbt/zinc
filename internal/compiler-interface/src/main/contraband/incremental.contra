@@ -105,6 +105,12 @@ type IncOptions {
   pipelining: Boolean! = raw"xsbti.compile.IncOptions.defaultPipelining()"
   @since("1.4.0")
 
+  ## Whether same-project changes to a package scope (a new top-level name, an added or changed
+  ## package-scoped implicit, or a removed package) invalidate existing sources whose name or
+  ## implicit resolution they could change, e.g. through a wildcard import. See sbt/zinc#226.
+  invalidateScopeChanges: Boolean! = raw"xsbti.compile.IncOptions.defaultInvalidateScopeChanges()"
+  @since("2.0.2")
+
   #x public static int defaultTransitiveStep() {
   #x     return 3;
   #x }
@@ -174,6 +180,9 @@ type IncOptions {
   #x }
   #x public static boolean defaultPipelining() {
   #x     return false;
+  #x }
+  #x public static boolean defaultInvalidateScopeChanges() {
+  #x     return true;
   #x }
 }
 

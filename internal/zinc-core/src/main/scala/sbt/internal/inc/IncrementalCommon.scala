@@ -48,6 +48,8 @@ private[inc] abstract class IncrementalCommon(
   private final val wrappedLog = new PrefixingLogger("[inv] ")(log)
   def debug(s: => String): Unit = if (options.relationsDebug) wrappedLog.debug(s) else ()
 
+  private lazy val packageScopeInvalidator = new PackageScopeInvalidator(options, log)
+
   final def iterations(state0: CycleState): Iterator[CycleState] =
     new Iterator[CycleState] {
       var state: CycleState = state0
@@ -179,6 +181,7 @@ private[inc] abstract class IncrementalCommon(
           if (isFullCompilation) Set.empty[String]
           else
             invalidateAfterInternalCompilation(
+              previous,
               analysis,
               newApiChanges,
               recompiledClasses,
@@ -448,6 +451,7 @@ private[inc] abstract class IncrementalCommon(
   /**
    * Invalidates classes internally to a project after an incremental compiler run.
    *
+   * @param previous The analysis from before this incremental compiler cycle.
    * @param analysis The analysis produced by the immediate previous incremental compiler cycle.
    * @param changes The changes produced by the immediate previous incremental compiler cycle.
    * @param recompiledClasses The immediately recompiled class names.
@@ -458,6 +462,7 @@ private[inc] abstract class IncrementalCommon(
    * @return A list of invalidated class names for the next incremental compiler run.
    */
   def invalidateAfterInternalCompilation(
+      previous: Analysis,
       analysis: Analysis,
       changes: APIChanges,
       recompiledClasses: Set[String],
@@ -499,8 +504,17 @@ private[inc] abstract class IncrementalCommon(
     }
     log.debug(s"Invalidated macros due to upstream dependencies change: ${thirdClassInvalidation}")
 
+    // Invalidate classes that may resolve a simple name differently now that a top-level name
+    // was added to (or a package removed from) a scope they can see. See sbt/zinc#226.
+    val fourthClassInvalidation =
+      if (options.invalidateScopeChanges)
+        packageScopeInvalidator.invalidate(previous, analysis, recompiledClasses)
+      else Set.empty[String]
+    if (fourthClassInvalidation.nonEmpty)
+      log.debug(s"Invalidated due to package scope changes: $fourthClassInvalidation")
+
     val newInvalidations =
-      (firstClassInvalidation -- recompiledClasses) ++ secondClassInvalidation ++ thirdClassInvalidation
+      (firstClassInvalidation -- recompiledClasses) ++ secondClassInvalidation ++ thirdClassInvalidation ++ fourthClassInvalidation
     if (newInvalidations.isEmpty) {
       log.debug("No classes were invalidated.")
       Set.empty
@@ -512,9 +526,9 @@ private[inc] abstract class IncrementalCommon(
         val firstClassTransitiveInvalidation =
           IncrementalCommon.transitiveDeps(firstClassInvalidation, log)(dependsOnClass)
         log.debug("Invalidate by brute force:\n\t" + firstClassTransitiveInvalidation)
-        firstClassTransitiveInvalidation ++ secondClassInvalidation ++ thirdClassInvalidation ++ recompiledClasses
+        firstClassTransitiveInvalidation ++ secondClassInvalidation ++ thirdClassInvalidation ++ fourthClassInvalidation ++ recompiledClasses
       } else {
-        firstClassInvalidation ++ secondClassInvalidation ++ thirdClassInvalidation
+        firstClassInvalidation ++ secondClassInvalidation ++ thirdClassInvalidation ++ fourthClassInvalidation
       }
     }
   }
