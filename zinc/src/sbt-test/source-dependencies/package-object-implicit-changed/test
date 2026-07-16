@@ -1,0 +1,11 @@
+# https://github.com/sbt/zinc/issues/226
+# A changed signature of an existing package-object implicit can make it newly
+# applicable at use sites that never referenced it by name.
+> run
+
+# the implicit x changes type from String to Int, so Test.test now resolves it
+# instead of using the default argument
+$ copy-file changes/package.scala package.scala
+
+# Test.scala must be recompiled: on a clean compile the assert fails
+-> run
