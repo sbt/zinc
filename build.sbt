@@ -52,26 +52,26 @@ ThisBuild / version := {
 }
 ThisBuild / versionScheme := Some("early-semver")
 ThisBuild / organization := "org.scala-sbt"
-ThisBuild / licenses := List(("Apache-2.0", url("https://www.apache.org/licenses/LICENSE-2.0")))
+ThisBuild / licenses := List(("Apache-2.0", uri("https://www.apache.org/licenses/LICENSE-2.0")))
 ThisBuild / scalafmtOnCompile := !(Global / insideCI).value
 ThisBuild / Test / scalafmtOnCompile := !(Global / insideCI).value
 ThisBuild / scmInfo := Some(
-  ScmInfo(url("https://github.com/sbt/zinc"), "git@github.com:sbt/zinc.git")
+  ScmInfo(uri("https://github.com/sbt/zinc"), "git@github.com:sbt/zinc.git")
 )
 ThisBuild / description := "Incremental compiler of Scala"
-ThisBuild / homepage := Some(url("https://github.com/sbt/zinc"))
+ThisBuild / homepage := Some(uri("https://github.com/sbt/zinc"))
 ThisBuild / developers := List(
-  Developer("harrah", "Mark Harrah", "@harrah", url("https://github.com/harrah")),
-  Developer("eed3si9n", "Eugene Yokota", "@eed3si9n", url("http://eed3si9n.com/")),
-  Developer("dwijnand", "Dale Wijnand", "@dwijnand", url("https://github.com/dwijnand")),
+  Developer("harrah", "Mark Harrah", "@harrah", uri("https://github.com/harrah")),
+  Developer("eed3si9n", "Eugene Yokota", "@eed3si9n", uri("http://eed3si9n.com/")),
+  Developer("dwijnand", "Dale Wijnand", "@dwijnand", uri("https://github.com/dwijnand")),
   Developer(
     "gkossakowski",
     "Grzegorz Kossakowski",
     "@gkossakowski",
-    url("https://github.com/gkossakowski")
+    uri("https://github.com/gkossakowski")
   ),
-  Developer("jvican", "Jorge Vicente Cantero", "@jvican", url("https://github.com/jvican")),
-  Developer("Duhemm", "Martin Duhem", "@Duhemm", url("https://github.com/Duhemm")),
+  Developer("jvican", "Jorge Vicente Cantero", "@jvican", uri("https://github.com/jvican")),
+  Developer("Duhemm", "Martin Duhem", "@Duhemm", uri("https://github.com/Duhemm")),
 )
 ThisBuild / pomIncludeRepository := (_ => false) // drop repos other than Maven Central from POM
 ThisBuild / publishTo := {
