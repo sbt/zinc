@@ -56,7 +56,7 @@ class MappedDirectory(
   private def path: Path = MappedVirtualFile.toPath(encodedPath, rootPathsMap)
   override lazy val contentHash: Long = {
     val buffer = ByteBuffer.allocate(java.lang.Long.BYTES * items.size)
-    val hashes = items.foreach { item =>
+    items.foreach { item =>
       buffer.putLong(item.contentHash)
     }
     HashUtil.farmHash(buffer.array())
@@ -64,10 +64,10 @@ class MappedDirectory(
   override lazy val sizeBytes: Long = items.map(_.sizeBytes).sum
   override lazy val contentHashStr: String = {
     val sb = new StringBuilder
-    val hashes = items.foreach { item =>
+    items.foreach { item =>
       sb.append(item.contentHashStr)
     }
-    val stream = new ByteArrayInputStream(hashes.toString.getBytes("UTF-8"))
+    val stream = new ByteArrayInputStream(sb.toString.getBytes("UTF-8"))
     HashUtil.sha256HashStr(stream)
   }
   override def input(): InputStream = ???
