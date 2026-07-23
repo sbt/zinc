@@ -13,9 +13,12 @@ package sbt
 package internal
 package inc
 
-import java.io.{ ByteArrayInputStream, InputStream }
+import java.io.{ ByteArrayInputStream, IOException, InputStream }
+import java.lang.ref.SoftReference
 import java.nio.ByteBuffer
 import java.nio.file.{ Files, Path, Paths }
+import java.nio.file.attribute.{ BasicFileAttributes, FileTime }
+import java.util.concurrent.ConcurrentHashMap
 import xsbti.{ BasicVirtualFileRef, FileConverter, PathBasedFile, VirtualFile, VirtualFileRef }
 import sbt.nio.file.{ FileTreeView, Glob, IsNotHidden, IsRegularFile, RecursiveGlob }
 
@@ -50,7 +53,7 @@ object MappedVirtualFile {
 class MappedDirectory(
     encodedPath: String,
     rootPathsMap: Map[String, Path],
-    items: List[VirtualFile]
+    val items: List[VirtualFile]
 ) extends BasicVirtualFileRef(encodedPath)
     with PathBasedFile {
   private def path: Path = MappedVirtualFile.toPath(encodedPath, rootPathsMap)
@@ -141,11 +144,36 @@ class MappedFileConverter(val rootPaths: Map[String, Path], allowMachinePath: Bo
     }
   }
 
+  // Consumers of a shared classpath each convert its entries independently, and a directory entry
+  // wraps every contained file, so without interning a shared classes directory is re-materialized
+  // once per consumer - value-identical MappedVirtualFiles then accumulate on the heap on large
+  // multi-project builds (#1750). Keying by (lastModified, size) keeps a memoized content hash from
+  // being served across a content change, and the SoftReference bounds retention of this long-lived
+  // shared converter. Top-level conversions are deliberately excluded so they stay per-consumer:
+  // their lazy hashes must read content at first access, which incremental source change detection
+  // relies on.
+  private val itemCache =
+    new ConcurrentHashMap[Path, ((FileTime, Long), SoftReference[VirtualFile])]
+
+  private def toItem(path: Path): VirtualFile =
+    try {
+      val attrs = Files.readAttributes(path, classOf[BasicFileAttributes])
+      val metadata = (attrs.lastModifiedTime(), attrs.size())
+      val cached = itemCache.get(path)
+      val hit = if (cached != null && cached._1 == metadata) cached._2.get() else null
+      if (hit != null) hit
+      else {
+        val vf = toVirtualFileForRegularFile(path)
+        itemCache.put(path, (metadata, new SoftReference(vf)))
+        vf
+      }
+    } catch { case _: IOException => toVirtualFileForRegularFile(path) }
+
   def toDirectory(path: Path, encodedPath: String) = {
     val list = view.list(Glob(path, RecursiveGlob), IsRegularFile && IsNotHidden)
       .map(_._1)
       .sorted
-    val items = list.map(toVirtualFileForRegularFile)
+    val items = list.map(toItem)
     MappedDirectory(encodedPath, rootPaths, items.toList)
   }
 }
