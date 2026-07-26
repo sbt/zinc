@@ -13,12 +13,23 @@ package sbt.internal.inc
 
 import java.{ util => ju }
 import scala.{ collection => sc }
+import scala.util.hashing.MurmurHash3
 import xsbti.compile.{ UsedName => XUsedName }
 import xsbti.UseScope
 
+/**
+ * `scopes` must never be mutated after construction: instances may share one
+ * scope set (`make` uses the set it is given, and interning aliases equal
+ * instances), and the hash below is computed once.
+ */
 case class UsedName private (name: String, scopes: ju.EnumSet[UseScope]) extends XUsedName {
   override def getName: String = name
   override def getScopes: ju.EnumSet[UseScope] = scopes
+
+  // A canonical (interned) instance is inserted into one name-set per class that
+  // uses it, and EnumSet.hashCode iterates its elements; caching makes each
+  // re-hash a field read. Fits in the object's existing alignment padding.
+  override val hashCode: Int = MurmurHash3.caseClassHash(this)
 }
 
 object UsedName {
@@ -33,7 +44,7 @@ object UsedName {
     new UsedName(escapedName, useScopes)
   }
 
-  private def escapeControlChars(name: String) = {
+  private[inc] def escapeControlChars(name: String): String = {
     if (name.indexOf('\n') > 0) // optimize for common case to regex overhead
       name.replace("\n", "\u26680A")
     else

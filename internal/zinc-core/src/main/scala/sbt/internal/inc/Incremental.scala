@@ -920,9 +920,18 @@ private final class AnalysisCallback(
   }
 
   def usedName(className: String, name: String, useScopes: EnumSet[UseScope]) = {
+    // Canonicalize freshly-produced used names and their strings into the
+    // process-wide pools, so a just-compiled analysis shares them with every
+    // other resident analysis. (Api tree nodes are deduped only when an
+    // analysis is deserialized, not on this fresh-compile path.)
     usedNames
       .getOrElseUpdate(className, ConcurrentHashMap.newKeySet[UsedName].asScala)
-      .add(UsedName.make(name, useScopes))
+      .add(
+        AnalysisInterner.usedName(
+          AnalysisInterner.internString(name),
+          AnalysisInterner.scopeBits(useScopes)
+        )
+      )
     ()
   }
 

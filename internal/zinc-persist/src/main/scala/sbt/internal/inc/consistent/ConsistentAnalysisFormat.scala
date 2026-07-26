@@ -12,7 +12,7 @@
 package sbt.internal.inc.consistent
 
 import java.nio.file.Paths
-import java.util.{ Arrays, Comparator, EnumSet }
+import java.util.{ Arrays, Comparator }
 import sbt.internal.inc.{ UsedName, Stamp => StampImpl, _ }
 import sbt.internal.util.Relation
 import sbt.util.InterfaceUtil
@@ -192,7 +192,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
       val bh = in.long()
       val ebh = in.long()
       val nhNames = in.readStringArray()
-      val nhScopes = in.readArray[UseScope]() { UseScope.values()(in.byte().toInt) }
+      val nhScopes = in.readArray[UseScope]() { useScopeValues(in.byte().toInt) }
       val nhHashes = in.readArray[Int]() { in.int() }
       val nameHashes = new Array[NameHash](nhNames.length)
       var i = 0
@@ -265,7 +265,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
   private def readSourceInfos(in: Deserializer): SourceInfos = {
     def readProblem(): Problem = in.readBlock {
       val category = in.string()
-      val severity = Severity.values.apply(in.byte().toInt)
+      val severity = severityValues(in.byte().toInt)
       val message = in.string()
       val rendered = Option(in.string())
       def io(): Option[Integer] = in.int() match { case -1 => None; case i => Some(i) }
@@ -339,7 +339,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
       val scalacOptions = in.readArray() { readMapper.mapScalacOption(in.string()) }
       val javacOptions = in.readArray() { readMapper.mapJavacOption(in.string()) }
       val compilerVersion = in.string()
-      val compileOrder = CompileOrder.values()(in.byte().toInt)
+      val compileOrder = compileOrderValues(in.byte().toInt)
       val skipApiStoring = in.bool()
       val extra = in.readArray(2) { InterfaceUtil.t2(in.string() -> in.string()) }
       val outputPath = in.string()
@@ -434,12 +434,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
   private def writeUsedNameSet(out: Serializer, uns: scala.collection.Set[UsedName]): Unit = {
     out.writeBlock("UsedName") {
       val groups0 = uns.iterator.map { un =>
-        val sc = un.scopes
-        var i = 0
-        if (sc.contains(UseScope.Default)) i += 1
-        if (sc.contains(UseScope.Implicit)) i += 2
-        if (sc.contains(UseScope.PatMatTarget)) i += 4
-        (un.name, i.toByte)
+        (un.name, AnalysisInterner.scopeBits(un.scopes).toByte)
       }.toArray.groupBy(_._2)
       val groups = if (reproducible) groups0.toVector.sortBy(_._1) else groups0
       out.writeColl("groups", groups, 2) { case (g, gNames) =>
@@ -452,12 +447,14 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
   }
 
   private def readUsedNameSet(in: Deserializer): Set[UsedName] = {
-    import scala.jdk.CollectionConverters.*
     in.readBlock {
+      // The name and the scope bits fully determine a UsedName, so the interner
+      // can return the pooled instance without constructing a candidate first.
       val data = in.readColl[Vector[UsedName], Vector[Vector[UsedName]]](Vector, 2) {
-        val i = in.byte().toInt
-        val names = in.readStringSeq()
-        names.iterator.map { n => UsedName(n, useScopes(i).asScala) }.toVector
+        val scopeBits = in.byte().toInt
+        in.readColl[UsedName, Vector[UsedName]](Vector) {
+          AnalysisInterner.usedName(in.string(), scopeBits)
+        }
       }
       data.flatten.toSet
     }
@@ -542,14 +539,14 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
   private def readAnnotation(in: Deserializer): Annotation = in.readBlock {
     val base = readType(in)
     val args = in.readArray(2)(AnnotationArgument.of(in.string(), in.string()))
-    Annotation.of(base, args)
+    internNode(in, Annotation.of(base, args))
   }
 
   private def writeDefinitionType(out: Serializer, dt: DefinitionType): Unit =
     out.byte(dt.ordinal().toByte)
 
   private def readDefinitionType(in: Deserializer): DefinitionType =
-    DefinitionType.values()(in.byte().toInt)
+    definitionTypeValues(in.byte().toInt)
 
   private def writeTypeParameter(out: Serializer, tp: TypeParameter): Unit =
     out.writeBlock("TypeParameter") {
@@ -562,13 +559,16 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     }
 
   private def readTypeParameter(in: Deserializer): TypeParameter = in.readBlock {
-    TypeParameter.of(
-      in.string(),
-      in.readArray[Annotation]()(readAnnotation(in)),
-      in.readArray[TypeParameter]()(readTypeParameter(in)),
-      Variance.values()(in.byte().toInt),
-      readType(in),
-      readType(in)
+    internNode(
+      in,
+      TypeParameter.of(
+        in.string(),
+        in.readArray[Annotation]()(readAnnotation(in)),
+        in.readArray[TypeParameter]()(readTypeParameter(in)),
+        varianceValues(in.byte().toInt),
+        readType(in),
+        readType(in)
+      )
     )
   }
 
@@ -612,16 +612,21 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
   }
 
   private def readType(in: Deserializer): Type = in.readBlock {
+    // Structure (case 2) uses identity equality (lazy members), so dedup
+    // cannot canonicalize it; every other variant has value equality.
+    def i(t: Type): Type = internNode(in, t)
     in.byte() match {
-      case 0 => ParameterRef.of(in.string())
-      case 1 => Parameterized.of(readType(in), in.readArray[Type]()(readType(in)))
+      case 0 => i(ParameterRef.of(in.string()))
+      case 1 => i(Parameterized.of(readType(in), in.readArray[Type]()(readType(in))))
       case 2 => readStructure(in)
-      case 3 => Polymorphic.of(readType(in), in.readArray[TypeParameter]()(readTypeParameter(in)))
-      case 4 => Constant.of(readType(in), in.string())
-      case 5 => Existential.of(readType(in), in.readArray[TypeParameter]()(readTypeParameter(in)))
-      case 6 => Singleton.of(readPath(in))
-      case 7 => Projection.of(readType(in), in.string())
-      case 8 => Annotated.of(readType(in), in.readArray[Annotation]()(readAnnotation(in)))
+      case 3 =>
+        i(Polymorphic.of(readType(in), in.readArray[TypeParameter]()(readTypeParameter(in))))
+      case 4 => i(Constant.of(readType(in), in.string()))
+      case 5 =>
+        i(Existential.of(readType(in), in.readArray[TypeParameter]()(readTypeParameter(in))))
+      case 6 => i(Singleton.of(readPath(in)))
+      case 7 => i(Projection.of(readType(in), in.string()))
+      case 8 => i(Annotated.of(readType(in), in.readArray[Annotation]()(readAnnotation(in))))
       case 9 => EmptyTypeSingleton
     }
   }
@@ -740,7 +745,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
           in.string(),
           readType(in),
           in.bool(),
-          ParameterModifier.values()(in.byte().toInt)
+          parameterModifierValues(in.byte().toInt)
         )
       },
       in.bool()
@@ -813,21 +818,33 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
 }
 
 object ConsistentAnalysisFormat {
+
+  /**
+   * Dedups a value-equality `xsbti.api` tree node against the current read only.
+   * Nearly all node duplication is within a single analysis, so a plain per-read
+   * map captures it without weak-reference bookkeeping; the cache dies with the
+   * deserializer, so it cannot leak.
+   */
+  private[consistent] def internNode[A <: AnyRef](in: Deserializer, a: A): A = {
+    val prev = in.nodeCache.putIfAbsent(a, a)
+    if (prev == null) a else prev.asInstanceOf[A]
+  }
+
   private final val EmptyTypeSingleton = EmptyType.of()
   private final val ThisSingleton = This.of()
   private final val ThisQualifierSingleton = ThisQualifier.of()
   private final val UnqualifiedSingleton = Unqualified.of()
   private final val PublicSingleton = Public.of()
-  private final val DefaultCompilationTimestamp: Long = 1262304042000L // 2010-01-01T00:00:42Z
 
-  private final val useScopes: Array[EnumSet[UseScope]] =
-    Array.tabulate(8) { i =>
-      val e = EnumSet.noneOf(classOf[UseScope])
-      if ((i & 1) != 0) e.add(UseScope.Default)
-      if ((i & 2) != 0) e.add(UseScope.Implicit)
-      if ((i & 4) != 0) e.add(UseScope.PatMatTarget)
-      e
-    }
+  // Enum `values()` clones the backing array on every call; these are on per-node
+  // read paths, so cache one copy of each.
+  private final val useScopeValues = UseScope.values()
+  private final val severityValues = Severity.values()
+  private final val compileOrderValues = CompileOrder.values()
+  private final val definitionTypeValues = DefinitionType.values()
+  private final val varianceValues = Variance.values()
+  private final val parameterModifierValues = ParameterModifier.values()
+  private final val DefaultCompilationTimestamp: Long = 1262304042000L // 2010-01-01T00:00:42Z
 
   private final val nameHashComparator: Comparator[NameHash] = new Comparator[NameHash] {
     def compare(o1: NameHash, o2: NameHash): Int = {
