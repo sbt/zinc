@@ -30,6 +30,8 @@ import scala.collection.mutable
 import scala.reflect.ClassTag
 import scala.collection.Factory
 
+import sbt.internal.inc.AnalysisInterner
+
 /** Structural serialization for text and binary formats. */
 abstract class Serializer {
   private final val dedupMap: mutable.Map[AnyRef, Int] = mutable.Map.empty
@@ -115,6 +117,11 @@ abstract class Serializer {
 /** Derialization for text and binary formats produced by Serializer. */
 abstract class Deserializer {
   private final val dedupBuffer: ArrayBuffer[AnyRef] = ArrayBuffer.empty
+
+  // Per-read dedup state for value-equality `xsbti.api` tree nodes (used by
+  // ConsistentAnalysisFormat.internNode): dies with the deserializer, so it
+  // cannot leak.
+  private[consistent] final val nodeCache = new java.util.HashMap[AnyRef, AnyRef]()
 
   def startBlock(): Unit
   def startArray(): Int
@@ -467,7 +474,7 @@ class BinaryDeserializer(_in: InputStream) extends Deserializer {
     case -1 => null
     case 0  => ""
     case len if len > 0 =>
-      val s = if (len <= buffer.length) {
+      val raw = if (len <= buffer.length) {
         ensure(len)
         val s = new String(buffer, pos, len, StandardCharsets.UTF_8)
         pos += len
@@ -478,6 +485,9 @@ class BinaryDeserializer(_in: InputStream) extends Deserializer {
         assert(read == len)
         new String(a, StandardCharsets.UTF_8)
       }
+      // Canonicalize the freshly decoded string so the per-read table and all its
+      // back-references hold the cross-analysis-shared instance.
+      val s = AnalysisInterner.internString(raw)
       strings += s
       s
     case idx =>
