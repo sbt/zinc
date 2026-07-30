@@ -40,7 +40,7 @@ class AnalysisFormatBenchmark {
   def setup(): Unit = {
     this.temp = IO.createTemporaryDirectory
     sets.foreach { s =>
-      val f = new File("../../../test-data", s"${s}.zip")
+      val f = new File("test-data", s"${s}.zip")
       assert(f.exists())
       val f2 = new File(temp, f.getName)
       IO.copyFile(f, f2)
