@@ -53,10 +53,16 @@ object MappedVirtualFile {
 class MappedDirectory(
     encodedPath: String,
     rootPathsMap: Map[String, Path],
-    val items: List[VirtualFile]
+    items0: => List[VirtualFile]
 ) extends BasicVirtualFileRef(encodedPath)
     with PathBasedFile {
   private def path: Path = MappedVirtualFile.toPath(encodedPath, rootPathsMap)
+
+  // Only the hashes below read `items`; most consumers of a directory entry want just `toPath` or
+  // `definesClass`, so listing eagerly statted every classpath directory for nothing. The hashes
+  // therefore describe the directory as of first access.
+  lazy val items: List[VirtualFile] = items0
+
   override lazy val contentHash: Long = {
     val buffer = ByteBuffer.allocate(java.lang.Long.BYTES * items.size)
     items.foreach { item =>
@@ -81,7 +87,7 @@ object MappedDirectory {
   def apply(
       encodedPath: String,
       rootPaths: Map[String, Path],
-      items: List[VirtualFile]
+      items: => List[VirtualFile]
   ): MappedDirectory =
     new MappedDirectory(encodedPath, rootPaths, items)
 }
@@ -169,12 +175,15 @@ class MappedFileConverter(val rootPaths: Map[String, Path], allowMachinePath: Bo
       }
     } catch { case _: IOException => toVirtualFileForRegularFile(path) }
 
-  def toDirectory(path: Path, encodedPath: String) = {
-    val list = view.list(Glob(path, RecursiveGlob), IsRegularFile && IsNotHidden)
+  def toDirectory(path: Path, encodedPath: String): MappedDirectory = {
+    // Passed by name, so the walk runs on first access to items rather than here
+    def items = view
+      .list(Glob(path, RecursiveGlob), IsRegularFile && IsNotHidden)
       .map(_._1)
       .sorted
-    val items = list.map(toItem)
-    MappedDirectory(encodedPath, rootPaths, items.toList)
+      .map(toItem)
+      .toList
+    MappedDirectory(encodedPath, rootPaths, items)
   }
 }
 

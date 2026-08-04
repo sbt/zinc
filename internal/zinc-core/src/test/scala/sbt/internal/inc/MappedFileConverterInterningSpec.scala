@@ -52,10 +52,20 @@ class MappedFileConverterInterningSpec extends UnitSpec {
     Files.write(classes.resolve("A.class"), "a".getBytes("UTF-8"))
     val converter = MappedFileConverter.empty
     val first = directory(converter.toVirtualFile(classes))
+    first.items should have size 1 // forces the listing `first` memoizes
     Files.write(classes.resolve("B.class"), "bb".getBytes("UTF-8"))
     val second = directory(converter.toVirtualFile(classes))
     first.items should have size 1
     second.items should have size 2
+  }
+
+  it should "list the directory on first access to items, not at conversion" in withTempDir { dir =>
+    val classes = Files.createDirectories(dir.resolve("classes"))
+    Files.write(classes.resolve("A.class"), "a".getBytes("UTF-8"))
+    val converter = MappedFileConverter.empty
+    val vf = directory(converter.toVirtualFile(classes))
+    Files.write(classes.resolve("B.class"), "bb".getBytes("UTF-8"))
+    vf.items should have size 2 // B.class landed after the conversion
   }
 
   it should "convert fresh once a missing path exists" in withTempDir { dir =>
