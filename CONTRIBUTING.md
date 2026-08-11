@@ -99,8 +99,8 @@ while general infrastructure, sbt internal APIs and high-level compiler APIs for
 Zinc are available in the rest of projects inside `internal`.
 
 Incremental-compilation behaviour is covered end to end by the scripted tests in
-`zinc/src/sbt-test`. See [their README](zinc/src/sbt-test/README.md) for the test layout, the `test`
-script syntax, and the `incOptions.properties` file used to configure Zinc per test.
+`zinc/src/sbt-test`. See [Scripted tests](contributing-docs/scripted_tests.md) for the test layout,
+the `test` script syntax, and the `incOptions.properties` file used to configure Zinc per test.
 
 Zinc also has a JMH benchmark suite. This benchmark suite can benchmark
 any project that runs on 2.12.x/2.11.x. The Zinc team uses it
