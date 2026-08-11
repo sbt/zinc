@@ -17,6 +17,7 @@ import java.io.{ ByteArrayOutputStream, PrintStream }
 import java.nio.file.{ Files, Path, Paths }
 import java.net.URLClassLoader
 import java.util.jar.Manifest
+import java.util.concurrent.ConcurrentLinkedQueue
 
 import sbt.util.Logger
 import sbt.util.InterfaceUtil._
@@ -232,6 +233,9 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
     onArgs("checkIterations") {
       case (p, x :: Nil, i) => p.checkNumberOfCompilerIterations(i, x.toInt)
     },
+    onArgs("checkInvalidationLog") {
+      case (p, expectedLog :: Nil, _) => p.checkInvalidationLog(expectedLog)
+    },
     onArgs("checkNumberOfLibraries") {
       case (p, x :: Nil, i) => p.checkNumberOfLibraries(i, x.toInt)
     },
@@ -342,6 +346,16 @@ case class ProjectStructure(
   val cachedStore = AnalysisStore.cached(fileStore)
   val earlyCacheFile = baseDirectory / "target" / "early" / "inc_compile.zip"
   val earlyAnalysisStore = FileAnalysisStore.binary(earlyCacheFile.toFile)
+  private val invalidationLines = new ConcurrentLinkedQueue[String]()
+  private val compilerLog = new Logger {
+    override def trace(t: => Throwable): Unit = scriptedLog.trace(t)
+    override def success(message: => String): Unit = scriptedLog.success(message)
+    override def log(level: sbt.util.Level.Value, message: => String): Unit = {
+      val rendered = message
+      rendered.linesIterator.filter(_.startsWith("[inv] ")).foreach(invalidationLines.add)
+      scriptedLog.log(level, rendered)
+    }
+  }
   // val earlyCachedStore = AnalysisStore.cached(fileStore)
   // val profiler = new ZincInvalidationProfiler
 
@@ -417,6 +431,27 @@ case class ProjectStructure(
       assert(count == expected, msg)
       ()
     }
+
+  def checkInvalidationLog(expectedLog: String): Future[Unit] = Future {
+    import scala.jdk.CollectionConverters._
+    val expected = Files
+      .readAllLines(baseDirectory.resolve(expectedLog))
+      .asScala
+      .iterator
+      .filter(_.nonEmpty)
+      .toVector
+    val actual = invalidationLines.iterator.asScala.toVector
+    expected.foldLeft(actual) { (remaining, expectedLine) =>
+      remaining.dropWhile(_ != expectedLine) match {
+        case _ +: tail => tail
+        case _ =>
+          throw new AssertionError(
+            s"Expected invalidation-log line '$expectedLine' in order.\nActual log:\n${actual.mkString("\n")}"
+          )
+      }
+    }
+    ()
+  }
 
   def checkRecompilations(i: IncState, step: Int, expected: List[String]): Future[Unit] =
     compile(i).map { analysis =>
@@ -733,8 +768,8 @@ case class ProjectStructure(
       stamper
     )
     val result =
-      if (javaOnly) incrementalCompiler.compileAllJava(in, scriptedLog)
-      else incrementalCompiler.compile(in, scriptedLog)
+      if (javaOnly) incrementalCompiler.compileAllJava(in, compilerLog)
+      else incrementalCompiler.compile(in, compilerLog)
     val analysis = result.analysis match { case a: Analysis => a }
     cachedStore.set(AnalysisContents.create(analysis, result.setup))
     val javaOnlyStr = if (javaOnly) "(java-only) " else ""
