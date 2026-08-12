@@ -186,8 +186,8 @@ final class AnalyzingCompiler(
       cleanupCommands: String,
       log: Logger
   )(loader: Option[ClassLoader] = None, bindings: Seq[(String, Any)] = Nil): Unit = {
-    onArgsHandler(consoleCommandArguments(classpath, converter, options, log))
-    val (classpathString, bootClasspath) = consoleClasspaths(classpath, converter)
+    val (classpathString, bootClasspath) = consoleClasspaths(classpath, converter, options, log)
+    onArgsHandler(consoleCommandArguments(options, bootClasspath, classpathString, log))
     val (names, values0) = bindings.unzip
     val values = values0.toArray[Any].asInstanceOf[Array[AnyRef]]
     // hold reference to compiler bridge class loader to prevent its being evicted
@@ -236,14 +236,24 @@ final class AnalyzingCompiler(
     ()
   }
 
+  /**
+   * The console bridge applies `bootClasspath` on top of the parsed options, so an empty
+   * string is passed when the client already specified one (sbt/zinc#348).
+   */
   private def consoleClasspaths(
       classpath: Seq[VirtualFile],
-      converter: FileConverter
+      converter: FileConverter,
+      options: Seq[String],
+      log: Logger
   ): (String, String) = {
     val cp = classpath map { converter.toPath }
     val classpathString = CompilerArguments.absString(compArgs.finishClasspath(cp))
     val bootClasspath =
-      if (classpathOptions.autoBoot) compArgs.createBootClasspathFor(cp) else ""
+      if (!classpathOptions.autoBoot) ""
+      else if (CompilerArguments.explicitBootClasspath(options).isDefined) {
+        log.warn(CompilerArguments.ExplicitBootClasspathWarning)
+        ""
+      } else compArgs.createBootClasspathFor(cp)
     (classpathString, bootClasspath)
   }
 
@@ -253,7 +263,16 @@ final class AnalyzingCompiler(
       options: Seq[String],
       log: Logger
   ): Seq[String] = {
-    val (classpathString, bootClasspath) = consoleClasspaths(classpath, converter)
+    val (classpathString, bootClasspath) = consoleClasspaths(classpath, converter, options, log)
+    consoleCommandArguments(options, bootClasspath, classpathString, log)
+  }
+
+  private def consoleCommandArguments(
+      options: Seq[String],
+      bootClasspath: String,
+      classpathString: String,
+      log: Logger
+  ): Seq[String] = {
     // hold reference to compiler bridge class loader to prevent its being evicted
     // from the compiler cache (sbt/zinc#914)
     val loader = getCompilerLoader(log)
@@ -284,8 +303,8 @@ final class AnalyzingCompiler(
       loader: Option[ClassLoader] = None,
       bindings: Seq[(String, AnyRef)] = Nil
   ): xsbti.InteractiveConsoleInterface = {
-    onArgsHandler(consoleCommandArguments(classpath, converter, options, log))
-    val (classpathString, bootClasspath) = consoleClasspaths(classpath, converter)
+    val (classpathString, bootClasspath) = consoleClasspaths(classpath, converter, options, log)
+    onArgsHandler(consoleCommandArguments(options, bootClasspath, classpathString, log))
     val (names, values0) = bindings.unzip
     val values = values0.toArray[Any].asInstanceOf[Array[AnyRef]]
     // hold reference to compiler bridge class loader to prevent its being evicted
