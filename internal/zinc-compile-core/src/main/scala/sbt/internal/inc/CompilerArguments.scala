@@ -50,8 +50,17 @@ final class CompilerArguments(
       output: Option[Path],
       options: Seq[String]
   ): Seq[String] =
+    makeArguments(sources, classpath, output, options, sbt.util.Logger.Null)
+
+  def makeArguments(
+      sources: Seq[Path],
+      classpath: Seq[Path],
+      output: Option[Path],
+      options: Seq[String],
+      log: xsbti.Logger
+  ): Seq[String] =
     CompilerArguments.outputOption(output) ++
-      makeArguments(sources, classpath, options)
+      makeArguments(sources, classpath, options, log)
 
   def makeArguments(
       sources: Seq[Path],
@@ -59,13 +68,30 @@ final class CompilerArguments(
       output: Output,
       options: Seq[String]
   ): Seq[String] =
+    makeArguments(sources, classpath, output, options, sbt.util.Logger.Null)
+
+  def makeArguments(
+      sources: Seq[Path],
+      classpath: Seq[Path],
+      output: Output,
+      options: Seq[String],
+      log: xsbti.Logger
+  ): Seq[String] =
     CompilerArguments.outputOption(output) ++
-      makeArguments(sources, classpath, options)
+      makeArguments(sources, classpath, options, log)
 
   def makeArguments(
       sources: Seq[Path],
       classpath: Seq[Path],
       options: Seq[String]
+  ): Seq[String] =
+    makeArguments(sources, classpath, options, sbt.util.Logger.Null)
+
+  def makeArguments(
+      sources: Seq[Path],
+      classpath: Seq[Path],
+      options: Seq[String],
+      log: xsbti.Logger
   ): Seq[String] = {
     /* Add dummy to avoid Scalac misbehaviour for empty classpath (as of 2.9.1). */
     def dummy: String = "dummy_" + Integer.toHexString(util.Random.nextInt())
@@ -76,7 +102,17 @@ final class CompilerArguments(
       if (compilerClasspath.isEmpty) dummy
       else absString(compilerClasspath)
     val classpathOption = Seq("-classpath", stringClasspath)
-    val bootClasspath = bootClasspathOption(hasLibrary(classpath))
+    /* Respect a user-provided -bootclasspath: scalac takes the last occurrence of the
+     * flag, so appending Zinc's own would silently override the user's (sbt/zinc#348). */
+    val bootClasspath =
+      if (options.contains(BootClasspathOption)) {
+        if (cpOptions.autoBoot)
+          log.warn(() =>
+            s"$BootClasspathOption is already present in compiler options; Zinc will not add " +
+              "its own and assumes the provided boot classpath includes the Scala library."
+          )
+        Nil
+      } else bootClasspathOption(hasLibrary(classpath))
     options ++ bootClasspath ++ classpathOption ++ abs(sources)
   }
 

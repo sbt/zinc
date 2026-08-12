@@ -81,7 +81,7 @@ final class AnalyzingCompiler(
   ): Unit = {
     val progress = if (progressOpt.isPresent) progressOpt.get else IgnoreProgress
     val cp = classpath.map(converter.toPath).toIndexedSeq
-    val arguments = compArgs.makeArguments(Nil, cp, options.toIndexedSeq).toArray
+    val arguments = compArgs.makeArguments(Nil, cp, options.toIndexedSeq, log).toArray
     // hold reference to compiler bridge class loader to prevent its being evicted
     // from the compiler cache (sbt/zinc#914)
     val loader = getCompilerLoader(log)
@@ -149,7 +149,7 @@ final class AnalyzingCompiler(
     loadService(classOf[ScaladocInterface2], loader) match {
       case Some(intf) =>
         val arguments =
-          compArgs.makeArguments(Nil, cp, Some(outputDirectory), options)
+          compArgs.makeArguments(Nil, cp, Some(outputDirectory), options, log)
         onArgsHandler(arguments)
         intf.run(sources.toArray, arguments.toArray[String], log, reporter)
       case _ =>
@@ -157,7 +157,7 @@ final class AnalyzingCompiler(
           case Some(intf) =>
             val fileSources: Seq[Path] = sources.map(converter.toPath(_))
             val arguments =
-              compArgs.makeArguments(fileSources, cp, Some(outputDirectory), options)
+              compArgs.makeArguments(fileSources, cp, Some(outputDirectory), options, log)
             onArgsHandler(arguments)
             intf.run(arguments.toArray[String], log, reporter)
           case _ =>
@@ -166,7 +166,7 @@ final class AnalyzingCompiler(
             val (bridge, bridgeClass) = bridgeInstance(scaladocBridgeClassName, loader)
             val fileSources: Seq[Path] = sources.map(converter.toPath(_))
             val arguments =
-              compArgs.makeArguments(fileSources, cp, Some(outputDirectory), options)
+              compArgs.makeArguments(fileSources, cp, Some(outputDirectory), options, log)
             onArgsHandler(arguments)
             invoke(bridge, bridgeClass, "run", log)(
               classOf[Array[String]],
