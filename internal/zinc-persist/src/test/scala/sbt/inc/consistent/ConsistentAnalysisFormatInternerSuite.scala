@@ -37,6 +37,15 @@ class ConsistentAnalysisFormatInternerSuite extends AnyFunSuite {
     deser.string()
   }
 
+  private def roundTripTextString(s: String): String = {
+    val out = new ByteArrayOutputStream()
+    val ser = SerializerFactory.text.serializerFor(out)
+    ser.string(s)
+    ser.end()
+    val deser = SerializerFactory.text.deserializerFor(new ByteArrayInputStream(out.toByteArray))
+    deser.string()
+  }
+
   test("strings are canonicalized across independent reads (cross-analysis)") {
     val a = roundTripString(new String("com.example.CrossAnalysis"))
     val b = roundTripString(new String("com.example.CrossAnalysis"))
@@ -44,12 +53,47 @@ class ConsistentAnalysisFormatInternerSuite extends AnyFunSuite {
     assert(a `eq` b) // two separate reads share one canonical instance
   }
 
+  test("text strings are canonicalized across independent reads (cross-analysis)") {
+    val a = roundTripTextString(new String("com.example.CrossAnalysis"))
+    val b = roundTripTextString(new String("com.example.CrossAnalysis"))
+    assert(a == b)
+    assert(a `eq` b)
+  }
+
   test("api tree nodes are deduped within one read (per-read node cache)") {
     val deser =
       SerializerFactory.binary.deserializerFor(new ByteArrayInputStream(Array.empty[Byte]))
-    val t1 = ConsistentAnalysisFormat.internNode(deser, Projection.of(ParameterRef.of("P"), "x"))
-    val t2 = ConsistentAnalysisFormat.internNode(deser, Projection.of(ParameterRef.of("P"), "x"))
+    val p1 = ConsistentAnalysisFormat.internNode(deser, ParameterRef.of("P"))
+    val p2 = ConsistentAnalysisFormat.internNode(deser, ParameterRef.of("P"))
+    val t1 = ConsistentAnalysisFormat.internNode(deser, Projection.of(p1, "x"))
+    val t2 = ConsistentAnalysisFormat.internNode(deser, Projection.of(p2, "x"))
+    assert(p1 `eq` p2)
     assert(t1 `eq` t2)
+  }
+
+  test("api tree nodes with colliding value hashes are deduped without cache hash collisions") {
+    val deser =
+      SerializerFactory.binary.deserializerFor(new ByteArrayInputStream(Array.empty[Byte]))
+    val prefix = ConsistentAnalysisFormat.internNode(deser, ParameterRef.of("P"))
+    val bits = 10
+    val names = Array.tabulate(1 << bits) { value =>
+      val name = new StringBuilder(bits * 2)
+      var bit = 0
+      while (bit < bits) {
+        name.append(if (((value >>> bit) & 1) == 0) "Aa" else "BB")
+        bit += 1
+      }
+      name.result()
+    }
+    val nodes = names.map(Projection.of(prefix, _))
+    assert(nodes.iterator.map(_.hashCode).toSet.size == 1)
+    assert(nodes.iterator.map(NodeCache.fingerprint).toSet.size > nodes.length * 0.95)
+    val canonical = nodes.map(ConsistentAnalysisFormat.internNode(deser, _))
+    names.indices.foreach { index =>
+      val duplicate =
+        ConsistentAnalysisFormat.internNode(deser, Projection.of(prefix, names(index)))
+      assert(duplicate `eq` canonical(index))
+    }
   }
 
   private val mappers = ReadWriteMappers.getEmptyMappers()

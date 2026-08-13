@@ -121,7 +121,7 @@ abstract class Deserializer {
   // Per-read dedup state for value-equality `xsbti.api` tree nodes (used by
   // ConsistentAnalysisFormat.internNode): dies with the deserializer, so it
   // cannot leak.
-  private[consistent] final val nodeCache = new java.util.HashMap[AnyRef, AnyRef]()
+  private[consistent] final val nodeCache = new NodeCache
 
   def startBlock(): Unit
   def startArray(): Int
@@ -326,7 +326,7 @@ class TextDeserializer(in: BufferedReader) extends Deserializer {
       }
       i += 1
     }
-    b.result()
+    AnalysisInterner.internString(b.result())
   }
   def bool(): Boolean = long() == 1L
   def int(): Int = long().toInt
