@@ -188,7 +188,7 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
   }
 
   private object VersionF {
-    val currentVersion = "7"
+    val currentVersion = "8"
 
     def write(out: Writer): Unit = {
       out.write(s"format version: $currentVersion\n")
