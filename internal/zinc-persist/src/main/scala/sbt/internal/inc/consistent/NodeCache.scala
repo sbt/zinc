@@ -70,10 +70,26 @@ private[consistent] final class NodeCache {
 }
 
 private[consistent] object NodeCache {
-  private final val Offset = -3750763034362895579L
-  private final val Prime = 1099511628211L
+  private final val ParameterRefTag = 1L
+  private final val ParameterizedTag = 2L
+  private final val PolymorphicTag = 3L
+  private final val ConstantTag = 4L
+  private final val ExistentialTag = 5L
+  private final val SingletonTag = 6L
+  private final val ProjectionTag = 7L
+  private final val AnnotatedTag = 8L
+  private final val TypeParameterTag = 9L
+  private final val AnnotationTag = 10L
 
-  private def mix(hash: Long, value: Long): Long = (hash ^ value) * Prime
+  // FNV-1a 64-bit offset basis and prime.
+  private final val Fnv1a64OffsetBasis = -3750763034362895579L
+  private final val Fnv1a64Prime = 1099511628211L
+
+  // MurmurHash3 fmix64 multipliers.
+  private final val MurmurHash3Fmix64Multiplier1 = -49064778989728563L
+  private final val MurmurHash3Fmix64Multiplier2 = -4265267296055464877L
+
+  private def mix(hash: Long, value: Long): Long = (hash ^ value) * Fnv1a64Prime
 
   private def mixReference(hash: Long, value: AnyRef): Long =
     mix(hash, if (value == null) 0L else Integer.toUnsignedLong(System.identityHashCode(value)))
@@ -107,35 +123,56 @@ private[consistent] object NodeCache {
   }
 
   private[consistent] def fingerprint(value: AnyRef): Long = value match {
-    case node: ParameterRef => mixReference(mix(Offset, 1L), node.id())
+    case node: ParameterRef => mixReference(mix(Fnv1a64OffsetBasis, ParameterRefTag), node.id())
     case node: Parameterized =>
-      mixReferences(mixReference(mix(Offset, 2L), node.baseType()), node.typeArguments())
+      mixReferences(
+        mixReference(mix(Fnv1a64OffsetBasis, ParameterizedTag), node.baseType()),
+        node.typeArguments()
+      )
     case node: Polymorphic =>
-      mixReferences(mixReference(mix(Offset, 3L), node.baseType()), node.parameters())
+      mixReferences(
+        mixReference(mix(Fnv1a64OffsetBasis, PolymorphicTag), node.baseType()),
+        node.parameters()
+      )
     case node: Constant =>
-      mixReference(mixReference(mix(Offset, 4L), node.baseType()), node.value())
+      mixReference(
+        mixReference(mix(Fnv1a64OffsetBasis, ConstantTag), node.baseType()),
+        node.value()
+      )
     case node: Existential =>
-      mixReferences(mixReference(mix(Offset, 5L), node.baseType()), node.clause())
-    case node: Singleton => mixReference(mix(Offset, 6L), node.path())
+      mixReferences(
+        mixReference(mix(Fnv1a64OffsetBasis, ExistentialTag), node.baseType()),
+        node.clause()
+      )
+    case node: Singleton => mixReference(mix(Fnv1a64OffsetBasis, SingletonTag), node.path())
     case node: Projection =>
-      mixReference(mixReference(mix(Offset, 7L), node.prefix()), node.id())
+      mixReference(
+        mixReference(mix(Fnv1a64OffsetBasis, ProjectionTag), node.prefix()),
+        node.id()
+      )
     case node: Annotated =>
-      mixReferences(mixReference(mix(Offset, 8L), node.baseType()), node.annotations())
+      mixReferences(
+        mixReference(mix(Fnv1a64OffsetBasis, AnnotatedTag), node.baseType()),
+        node.annotations()
+      )
     case node: TypeParameter =>
-      val withId = mixReference(mix(Offset, 9L), node.id())
+      val withId = mixReference(mix(Fnv1a64OffsetBasis, TypeParameterTag), node.id())
       val withAnnotations = mixReferences(withId, node.annotations())
       val withParameters = mixReferences(withAnnotations, node.typeParameters())
       val withVariance = mix(withParameters, node.variance().ordinal().toLong)
       mixReference(mixReference(withVariance, node.lowerBound()), node.upperBound())
     case node: Annotation =>
-      mixArguments(mixReference(mix(Offset, 10L), node.base()), node.arguments())
-    case node => mix(Offset, Integer.toUnsignedLong(node.hashCode()))
+      mixArguments(
+        mixReference(mix(Fnv1a64OffsetBasis, AnnotationTag), node.base()),
+        node.arguments()
+      )
+    case node => mix(Fnv1a64OffsetBasis, Integer.toUnsignedLong(node.hashCode()))
   }
 
   private def index(hash: Long, length: Int): Int = {
     var mixed = hash
-    mixed = (mixed ^ (mixed >>> 33)) * -49064778989728563L
-    mixed = (mixed ^ (mixed >>> 33)) * -4265267296055464877L
+    mixed = (mixed ^ (mixed >>> 33)) * MurmurHash3Fmix64Multiplier1
+    mixed = (mixed ^ (mixed >>> 33)) * MurmurHash3Fmix64Multiplier2
     ((mixed ^ (mixed >>> 33)).toInt & Int.MaxValue) & (length - 1)
   }
 }
