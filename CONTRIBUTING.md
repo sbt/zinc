@@ -148,4 +148,4 @@ and sbt will put a copyright notice into it.
 ## Signing the CLA
 
 Contributing to Zinc requires you or your employer to sign the
-[Lightbend Contributor License Agreement](https://www.lightbend.com/contribute/cla).
+[Scala Contributor License Agreement](https://cla.scala-lang.org/sbt/zinc).
