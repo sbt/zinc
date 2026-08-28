@@ -826,8 +826,7 @@ object ConsistentAnalysisFormat {
    * deserializer, so it cannot leak.
    */
   private[consistent] def internNode[A <: AnyRef](in: Deserializer, a: A): A = {
-    val prev = in.nodeCache.putIfAbsent(a, a)
-    if (prev == null) a else prev.asInstanceOf[A]
+    in.nodeCache.intern(a)
   }
 
   private final val EmptyTypeSingleton = EmptyType.of()
