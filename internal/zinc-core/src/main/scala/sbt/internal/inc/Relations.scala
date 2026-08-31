@@ -689,16 +689,16 @@ private class MRelationsNameHashing(
     }
     def field(name: String, value: String): String =
       if (value == "none") s"$name: none" else s"$name:$value"
-    s"""
-    |Relations:
-    |  ${field("products", relation_s(srcProd))}
-    |  ${field("library deps", relation_s(libraryDep))}
-    |  ${field("library class names", relation_s(libraryClassName))}
-    |  ${field("internalDependencies", deps_s(internalDependencies.dependencies))}
-    |  ${field("externalDependencies", deps_s(externalDependencies.dependencies))}
-    |  ${field("class names", relation_s(classes))}
-    |  ${field("used names", usedNames_s(names))}
-    |  ${field("product class names", relation_s(productClassName))}
-    """.trim.stripMargin
+    // Joined with explicit "\n" so the rendering never inherits the source checkout's line endings.
+    Vector(
+      field("products", relation_s(srcProd)),
+      field("library deps", relation_s(libraryDep)),
+      field("library class names", relation_s(libraryClassName)),
+      field("internalDependencies", deps_s(internalDependencies.dependencies)),
+      field("externalDependencies", deps_s(externalDependencies.dependencies)),
+      field("class names", relation_s(classes)),
+      field("used names", usedNames_s(names)),
+      field("product class names", relation_s(productClassName)),
+    ).mkString("Relations:\n  ", "\n  ", "")
   }
 }
