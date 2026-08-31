@@ -54,7 +54,11 @@ import xsbti.UseScope
  * dependencies unconditionally. On the other hand, if api change is due to modified name hashes
  * of regular members then we'll invalidate sources that use those names.
  */
-private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolean) {
+private[inc] class MemberRefInvalidator(
+    log: Logger,
+    invalidationLog: InvalidationLog,
+    logRecompileOnMacro: Boolean
+) {
   private final val NoInvalidation = (_: String) => Set.empty[String]
   def get(
       memberRef: Relation[String, String],
@@ -83,11 +87,9 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
     case NamesChange(modifiedClass, modifiedNames) =>
       modifiedNames.in(UseScope.Implicit) match {
         case changedImplicits if changedImplicits.isEmpty =>
-          s"""|The $modifiedClass has the following regular definitions changed:
-              |\t${modifiedNames.names.mkString(", ")}.""".stripMargin
+          s"The $modifiedClass has changed definitions: ${InvalidationLog.formatUsedNames(modifiedNames.names).mkString(", ")}."
         case changedImplicits =>
-          s"""|The $modifiedClass has the following implicit definitions changed:
-              |\t${changedImplicits.mkString(", ")}.""".stripMargin
+          s"The $modifiedClass has changed implicit definitions: ${InvalidationLog.formatUsedNames(changedImplicits).mkString(", ")}."
       }
   }
 
@@ -111,9 +113,11 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
     def apply(from: String): Set[String] = {
       val invalidated = memberRef.reverse(from)
       if (invalidated.nonEmpty)
-        log.debug(
-          s"The following member ref dependencies of $from are invalidated:\n" +
-            formatInvalidated(invalidated)
+        invalidationLog.detail(
+          InvalidationLog.section(
+            s"Unconditional member-reference invalidation from $from",
+            Seq("invalidated classes" -> invalidated)
+          )
         )
       invalidated
     }
@@ -140,17 +144,27 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
       dependent.filter {
         case from if isScalaClass(from) =>
           if (!usedNames.hasAffectedNames(modifiedNames, from)) {
-            log.debug(
+            invalidationLog.detail(
               s"None of the modified names appears in source file of $from. This dependency is not being considered for invalidation."
             )
             false
           } else {
-            val affectedNames = usedNames.affectedNames(modifiedNames, from)
-            log.debug(s"The following modified names cause invalidation of $from: [$affectedNames]")
+            invalidationLog.debug(
+              InvalidationLog.section(
+                s"Member-reference invalidation of $from",
+                Seq(
+                  "modified names used by the class" -> Seq(
+                    usedNames.affectedNames(modifiedNames, from)
+                  )
+                )
+              )
+            )
             true
           }
         case from =>
-          log.debug(s"Name hashing optimization doesn't apply to non-Scala dependency: $from")
+          invalidationLog.detail(
+            s"Name hashing optimization doesn't apply to non-Scala dependency: $from"
+          )
           true
       }
     }

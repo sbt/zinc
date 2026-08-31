@@ -662,34 +662,43 @@ private class MRelationsNameHashing(
   /** Making large Relations a little readable. */
   private val userDir = sys.props("user.dir").stripSuffix("/") + "/"
   private def nocwd(s: String) = s.stripPrefix(userDir)
-  private def line_s(k: Any, v: Any) = s"    ${nocwd(s"$k")} -> ${nocwd(s"$v")}\n"
-  def relation_s(r: Relation[?, ?]) = {
-    if (r.forwardMap.isEmpty) "Relation [ ]"
-    else r.all.toSeq.map(kv => line_s(kv._1, kv._2)).sorted.mkString("Relation [\n", "", "]")
+  private def renderPairs(entries: Iterable[(String, String)], indentation: String): String = {
+    val sorted = entries.iterator.toVector.sortBy(identity)
+    if (sorted.isEmpty) "none"
+    else sorted.iterator.map { case (key, value) => s"\n$indentation$key -> $value" }.mkString
   }
+  def relation_s(r: Relation[?, ?], indentation: String = "    ") =
+    renderPairs(
+      r.all.iterator.map(kv => nocwd(s"${kv._1}") -> nocwd(s"${kv._2}")).toVector,
+      indentation
+    )
   def usedNames_s(r: Relations.UsedNames) = {
-    if (r.isEmpty) "UsedNames [ ]"
-    else {
-      val all = r.iterator.flatMap { case (a, bs) => bs.iterator.map(b => (a, b)) }
-      all.map(kv => line_s(kv._1, kv._2)).toSeq.sorted.mkString("UsedNames [\n", "", "]")
+    val all = r.iterator.flatMap { case (className, usedNames) =>
+      usedNames.iterator.map(usedName => className -> InvalidationLog.formatUsedName(usedName))
     }
+    renderPairs(all.toVector, "    ")
   }
 
   override def toString: String = {
-    def deps_s(m: Map[?, Relation[?, ?]]) =
-      m.iterator.map {
-        case (k, vs) => s"\n    $k ${relation_s(vs)}"
-      }.mkString
-    s"""
-    |Relations:
-    |  products: ${relation_s(srcProd)}
-    |  library deps: ${relation_s(libraryDep)}
-    |  library class names: ${relation_s(libraryClassName)}
-    |  internalDependencies: ${deps_s(internalDependencies.dependencies)}
-    |  externalDependencies: ${deps_s(externalDependencies.dependencies)}
-    |  class names: ${relation_s(classes)}
-    |  used names: ${usedNames_s(names)}
-    |  product class names: ${relation_s(productClassName)}
-    """.trim.stripMargin
+    def deps_s(m: Map[?, Relation[?, ?]]) = {
+      val rendered = m.iterator.toVector.sortBy(_._1.toString).map { case (kind, relation) =>
+        val values = relation_s(relation, "        ")
+        if (values == "none") s"\n    $kind: none" else s"\n    $kind:$values"
+      }
+      if (rendered.isEmpty) "none" else rendered.mkString
+    }
+    def field(name: String, value: String): String =
+      if (value == "none") s"$name: none" else s"$name:$value"
+    // Joined with explicit "\n" so the rendering never inherits the source checkout's line endings.
+    Vector(
+      field("products", relation_s(srcProd)),
+      field("library deps", relation_s(libraryDep)),
+      field("library class names", relation_s(libraryClassName)),
+      field("internalDependencies", deps_s(internalDependencies.dependencies)),
+      field("externalDependencies", deps_s(externalDependencies.dependencies)),
+      field("class names", relation_s(classes)),
+      field("used names", usedNames_s(names)),
+      field("product class names", relation_s(productClassName)),
+    ).mkString("Relations:\n  ", "\n  ", "")
   }
 }
