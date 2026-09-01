@@ -24,7 +24,9 @@ import xsbti.compile._
  * universe the compiler sees. See sbt/zinc#348.
  */
 class SearchClasspathSpec extends UnitSpec {
-  private val scalaLibraryJar = new File("/tmp/zinc-test/scala-library.jar")
+  // Absolute so that assertions match the absolutized entries on Windows too,
+  // where "/tmp/..." is only drive-relative.
+  private val scalaLibraryJar = new File("/tmp/zinc-test/scala-library.jar").getAbsoluteFile
   private val userBootJar = "/tmp/zinc-test/custom-library.jar"
   private val converter = PlainVirtualFileConverter.converter
 
