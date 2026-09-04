@@ -41,6 +41,32 @@ The full task list is the `commands` map in
 [`IncHandler.scala`](../internal/zinc-scripted/src/test/scala/sbt/internal/inc/IncHandler.scala#L229);
 file commands come from `ZincFileCommands` and sbt's `FileCommands`.
 
+Negative tests (expected compilation errors)
+--------------------------------------------
+
+`-> compile` alone passes on *any* failure, including environmental ones. To assert the failure is
+the expected one, follow it with the check commands: after a failed compile they read the problems
+of that failed attempt (captured from the `CompileFailed` exception, since a failed compile stores
+no analysis).
+
+```
+-> compile
+> checkErrors 1
+> checkError 0 "type mismatch"
+```
+
+`checkError <index> <substring>` is a contains-check on the problem message; quote multi-word
+substrings. `->` composes with the check commands too, so a test can also prove that a wrong
+expectation fails: `-> checkError 0 "nonexistent-message"`.
+
+Caveats: problem order is deterministic within one source file (reporting order) but not across
+files, so index-based `checkError` assertions should stick to single-file scenarios. Avoid file
+paths in substrings (platform-dependent), and remember message wording differs across Scala
+versions (e.g. Scala 3 capitalizes `Required:`). In a multi-project build the problems belong to
+the project whose compile failed: after `-> use/compile` fails because `dep` does not compile,
+assert with `> dep/checkErrors 1`, not `use/`. Examples: `reporter/errors-reported`,
+`reporter/errors-reported-multi`.
+
 Running
 -------
 

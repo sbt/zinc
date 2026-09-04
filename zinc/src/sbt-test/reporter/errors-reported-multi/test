@@ -1,0 +1,5 @@
+-> compile
+> checkErrors 2
+> checkError 0 "required: String"
+> checkError 1 "required: Int"
+-> checkErrors 1
