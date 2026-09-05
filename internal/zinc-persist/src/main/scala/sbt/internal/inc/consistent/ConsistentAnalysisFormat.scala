@@ -207,6 +207,14 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     }
   }
 
+  private[inc] def writeCompanions(out: Serializer, companions: Companions): Unit = {
+    writeClassLike(out, companions.classApi())
+    writeClassLike(out, companions.objectApi())
+  }
+
+  private[inc] def readCompanions(in: Deserializer): Companions =
+    Companions.of(readClassLike(in), readClassLike(in))
+
   private def writeAPIs(out: Serializer, apis: APIs, storeApis: Boolean): Unit = {
     def write(n: String, m: Map[String, AnalyzedClass]): Unit = {
       writeMaybeSortedStringMap(
