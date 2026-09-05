@@ -43,7 +43,8 @@ private[sbt] object JavaAnalyze {
       readClassfileAPI: (VirtualFileRef, Seq[(String, ClassFile)]) => Unit = (_, _) => (),
       // sbt/zinc#145: extra member-ref edges for inlined `static final` constants that javac erases
       // from the bytecode, recovered from the attributed AST. Keyed `fromBinaryName -> onBinaryNames`.
-      constantDeps: Map[String, Set[String]] = Map.empty
+      constantDeps: Map[String, Set[String]] = Map.empty,
+      classfileApiOnly: Boolean = false
   ): Unit = {
     val sourceMap = sources
       .toSet[VirtualFile]
@@ -95,7 +96,13 @@ private[sbt] object JavaAnalyze {
       if !binaryClassName.endsWith("module-info")
     } {
       val finalClassFile: Path = remapClassFile(newClass)
-      load(binaryClassName, Some("Error reading API from class file: " + binaryClassName)) match {
+      // Phase 3 (sbt/zinc#837, #151, #1697): when classfileApiOnly is set, skip reflective loading
+      // entirely so every class takes the classfile path below — no Class.forName, hence no
+      // static-initializer runs, inner-class load NPEs, or module access-check errors.
+      val loaded =
+        if (classfileApiOnly) None
+        else load(binaryClassName, Some("Error reading API from class file: " + binaryClassName))
+      loaded match {
         case Some(loadedClass) =>
           binaryClassNameToLoadedClass.update(binaryClassName, loadedClass)
           loadEnclosingClass(loadedClass) match {
@@ -191,13 +198,24 @@ private[sbt] object JavaAnalyze {
         loadedClasses.partition(_.getCanonicalName != null)
 
       // Map local classes to the sources of their enclosing classes
-      val localClassesToSources = {
-        val localToSourcesSeq = for {
-          cls <- localClassesOrStale
-          sourceOfEnclosing <- loadEnclosingClass(cls)
-        } yield (cls.getName, sourceOfEnclosing)
-        localToSourcesSeq.toMap
-      }
+      val localClassesToSources =
+        if (classfileApiOnly) {
+          // Classfile-only path: there are no loaded classes, so derive each local/anonymous class's
+          // enclosing source from the EnclosingMethod attribute instead of reflection. A local class
+          // shares its source with the enclosing class, so this source's classfiles suffice.
+          val cfByName = classFiles.iterator.map(cf => cf.className -> cf).toMap
+          (for {
+            cf <- classFiles
+            if canonicalClassName(cf).isEmpty // local or anonymous
+            enclosing <- enclosingNonLocalSourceName(cf.className, cfByName)
+          } yield cf.className -> enclosing).toMap
+        } else {
+          val localToSourcesSeq = for {
+            cls <- localClassesOrStale
+            sourceOfEnclosing <- loadEnclosingClass(cls)
+          } yield (cls.getName, sourceOfEnclosing)
+          localToSourcesSeq.toMap
+        }
 
       /* Get the mapped source file from a given class name. */
       def getMappedSource(className: String): Option[String] = {
@@ -322,7 +340,13 @@ private[sbt] object JavaAnalyze {
         .toSeq
       // Best-effort: never let classfile-based API extraction fail a compile that would otherwise
       // succeed (these classes already couldn't be loaded), matching load()/loadInnerClass.
-      if (unloadableNamed.nonEmpty) trapAndLog(log)(readClassfileAPI(source, unloadableNamed))
+      // Exception: under classfileApiOnly the classfile path is the *primary* one for every class,
+      // so a failure there is a real regression, not a tolerable gap. -Dzinc.classfileJavaApi.strict
+      // makes it propagate (the scripted CI matrix sets it) so such breakage fails the build.
+      if (unloadableNamed.nonEmpty) {
+        if (classfileApiOnly && strictClassfileApi) readClassfileAPI(source, unloadableNamed)
+        else trapAndLog(log)(readClassfileAPI(source, unloadableNamed))
+      }
     }
   }
 
@@ -372,6 +396,12 @@ private[sbt] object JavaAnalyze {
     }
   }
 
+  // Test/CI affordance: make classfile-API extraction failures fatal under classfileApiOnly so the
+  // scripted matrix (CONTRIBUTING.md) catches crashes in that path instead of silently swallowing
+  // them. Off in production, where the path stays best-effort.
+  private def strictClassfileApi: Boolean =
+    java.lang.Boolean.getBoolean("zinc.classfileJavaApi.strict")
+
   private def trapAndLog(log: Logger)(execute: => Unit): Unit = {
     try {
       execute
@@ -416,6 +446,31 @@ private[sbt] object JavaAnalyze {
       }
     canonical(classFile.className)
   }
+
+  /**
+   * The source (canonical) name of the nearest non-local class enclosing `binaryName`, derived from
+   * classfiles alone (the EnclosingMethod attribute walked up via [[canonicalClassName]]) — the
+   * classfile analogue of reflection's [[loadEnclosingClass]] for local/anonymous classes. `cfByName`
+   * indexes the current source's classfiles; a local class shares its source with its enclosing
+   * class, so they are all present. `None` if the chain can't be resolved (degrades gracefully).
+   */
+  @tailrec
+  private def enclosingNonLocalSourceName(
+      binaryName: String,
+      cfByName: Map[String, ClassFile]
+  ): Option[String] =
+    cfByName.get(binaryName) match {
+      case None => None
+      case Some(cf) =>
+        canonicalClassName(cf) match {
+          case named @ Some(_) => named // a non-local (member/top-level) enclosing class
+          case None =>
+            cf.enclosingClass match {
+              case Some(enclosing) => enclosingNonLocalSourceName(enclosing, cfByName)
+              case None            => None
+            }
+        }
+    }
 
   /*
    * given mapping between getName and sources, try to guess

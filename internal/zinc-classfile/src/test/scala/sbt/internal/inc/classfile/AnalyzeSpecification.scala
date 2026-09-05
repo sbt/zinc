@@ -310,6 +310,47 @@ class AnalyzeSpecification extends UnitSpec {
     }
   }
 
+  // Step D: under classfileApiOnly there are no loaded classes, so a local/anonymous class's
+  // enclosing source must be recovered from the EnclosingMethod attribute — otherwise a dependency
+  // referenced only inside the local class body (here `Dep`, used only in the anonymous Runnable)
+  // would be dropped, under-compiling. Before the EnclosingMethod mapping this assertion failed.
+  "Analyze" should "map local-class member-ref dependencies to the enclosing source under classfileApiOnly" in {
+    IO.withTemporaryDirectory { temp =>
+      val classesDir = new File(temp, "classes")
+      classesDir.mkdir()
+
+      val depFile = new File(temp, "Dep.java")
+      IO.write(depFile, "public class Dep {}")
+      val holderFile = new File(temp, "Holder.java")
+      IO.write(
+        holderFile,
+        """|public class Holder {
+           |  public Runnable make() {
+           |    return new Runnable() { public void run() { Dep d = new Dep(); } };
+           |  }
+           |}
+           |""".stripMargin
+      )
+      JavaCompilerForUnitTesting.compileJava(Seq(depFile, holderFile), classesDir, Seq.empty)
+
+      val callback =
+        JavaCompilerForUnitTesting.analyze(
+          classesDir,
+          Seq(depFile, holderFile),
+          classfileApiOnly = true
+        )
+
+      // The anonymous class is recorded as a local product (no canonical name).
+      val products = callback.productClassesToSources.keySet.map(_.getFileName.toString)
+      assert(products.contains("Holder$1.class"))
+
+      // `Dep` is referenced only inside the anonymous class, yet its member-ref dependency is
+      // attributed to the enclosing `Holder` source — proving the local→enclosing mapping works
+      // without loading any class.
+      assert(callback.classDependencies.contains(("Dep", "Holder", DependencyByMemberRef)))
+    }
+  }
+
   // sbt/zinc#148: Test only names Foo, but javac needs Foo's whole ancestry present, so it is
   // recorded as member-ref deps of Test.
   "Analyze" should "record the transitive ancestry of a member-referenced type (sbt/zinc#148)" in {
@@ -533,5 +574,4 @@ class AnalyzeSpecification extends UnitSpec {
     )
     assert(deps.memberRef("Foo").contains("Bar"))
   }
-
 }

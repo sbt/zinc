@@ -84,8 +84,8 @@ class ClassfileToAPISpecification extends UnitSpec {
       val callback = JavaCompilerForUnitTesting.analyze(
         classesDir,
         Seq(outerFile),
-        (cb, src, named) => {
-          val (apis, _) = ClassfileToAPI.process(named)
+        (cb, src, named, resolve) => {
+          val (apis, _) = ClassfileToAPI.process(named, resolve)
           apis.foreach(cb.api(src, _))
         }
       )
@@ -99,6 +99,55 @@ class ClassfileToAPISpecification extends UnitSpec {
       val memberDefs =
         innerClass.structure.declared.collect { case d: xsbti.api.Def => d.name }.toSet
       assert(memberDefs.contains("answer"))
+    }
+  }
+
+  // Step D (de-reflection): with classfileApiOnly set, JavaAnalyze must route *loadable* classes
+  // through ClassfileToAPI instead of Class.forName, recovering declared members from the class's
+  // own bytes and inherited members from its parents' bytes — never loading anything.
+  it should "route loadable classes through the classfile path when classfileApiOnly is set" in {
+    IO.withTemporaryDirectory { temp =>
+      val classesDir = new File(temp, "classes")
+      classesDir.mkdir()
+      val baseFile = new File(temp, "Base.java")
+      IO.write(baseFile, "public class Base { public int baseM() { return 0; } }")
+      val greeterFile = new File(temp, "Greeter.java")
+      IO.write(
+        greeterFile,
+        "public class Greeter extends Base { public String hello(int n) { return null; } }"
+      )
+      JavaCompilerForUnitTesting.compileJava(Seq(baseFile, greeterFile), classesDir, Seq.empty)
+
+      // The classfile extractor is the only thing that records API here, so what it captures is
+      // exactly what JavaAnalyze routed to the classfile path.
+      def recordedApis(classfileApiOnly: Boolean): Set[ClassLike] =
+        JavaCompilerForUnitTesting
+          .analyze(
+            classesDir,
+            Seq(baseFile, greeterFile),
+            (cb, src, named, resolve) => {
+              val (apis, _) = ClassfileToAPI.process(named, resolve)
+              apis.foreach(cb.api(src, _))
+            },
+            classfileApiOnly = classfileApiOnly
+          )
+          .apis
+          .values
+          .flatten
+          .toSet
+
+      // Off: both classes load fine, so they take the reflection path and never reach ClassfileToAPI.
+      assert(recordedApis(classfileApiOnly = false).isEmpty)
+
+      // On: every class is extracted from its classfile instead of being loaded.
+      val recorded = recordedApis(classfileApiOnly = true)
+      val greeter = recorded
+        .find(c => c.name == "Greeter" && c.definitionType == DefinitionType.ClassDef)
+        .get
+      val declared = greeter.structure.declared.collect { case d: xsbti.api.Def => d.name }.toSet
+      val inherited = greeter.structure.inherited.collect { case d: xsbti.api.Def => d.name }.toSet
+      assert(declared.contains("hello")) // its own method, from Greeter.class
+      assert(inherited.contains("baseM")) // from Base.class, via the byte-reading resolver
     }
   }
 
@@ -164,6 +213,44 @@ class ClassfileToAPISpecification extends UnitSpec {
     }
   }
 
+  // P1 (variance): the mapped api.Type drops wildcard variance, so `List<? extends Number>` and
+  // `List<? super Number>` collapse to the same type. The always-folded raw Signature must still
+  // distinguish them — otherwise a variance change would not invalidate dependents (under-compilation).
+  it should "detect wildcard variance changes that the mapped type collapses" in {
+    IO.withTemporaryDirectory { temp =>
+      val a = sampleApis(
+        temp,
+        "a",
+        "import java.util.List;\npublic class Sample { public List<? extends Number> f; }"
+      )
+      val b = sampleApis(
+        temp,
+        "b",
+        "import java.util.List;\npublic class Sample { public List<? super Number> f; }"
+      )
+      assert(hashAll(a) != hashAll(b))
+    }
+  }
+
+  // P1 (generic throws): only the erased `Exceptions` attribute is modelled, so two methods that
+  // throw different type variables sharing the same erased bound are distinguished only by the
+  // folded raw Signature.
+  it should "detect a generic throws change that shares an erased exception bound" in {
+    IO.withTemporaryDirectory { temp =>
+      val a = sampleApis(
+        temp,
+        "a",
+        "public class Sample { public <E extends Exception, F extends Exception> void run() throws E {} }"
+      )
+      val b = sampleApis(
+        temp,
+        "b",
+        "public class Sample { public <E extends Exception, F extends Exception> void run() throws F {} }"
+      )
+      assert(hashAll(a) != hashAll(b))
+    }
+  }
+
   // P2b: compilers inline static-final constants, so a value change must change the hash even though
   // the field descriptor is unchanged.
   it should "detect static final constant value changes" in {
@@ -214,6 +301,140 @@ class ClassfileToAPISpecification extends UnitSpec {
       assert(mainsOf("b", "public class Sample { public static void main(String[] a) {} }") == Seq(
         "Sample"
       ))
+    }
+  }
+
+  // Step 2: generic types are recovered from the Signature attribute as real api types, not folded.
+  it should "model generic types and type parameters from the Signature attribute" in {
+    IO.withTemporaryDirectory { temp =>
+      val src = new File(temp, "Box.java")
+      IO.write(
+        src,
+        """|import java.util.List;
+           |public class Box<T> {
+           |  public List<String> items;
+           |  public <U> U get(U u) { return u; }
+           |}
+           |""".stripMargin
+      )
+      JavaCompilerForUnitTesting.compileJava(Seq(src), temp, Seq.empty)
+      val cf = Parser(new File(temp, "Box.class").toPath, Logger.Null)
+      val cls = ClassfileToAPI
+        .process(Seq("Box" -> cf))
+        ._1
+        .find(_.definitionType == DefinitionType.ClassDef)
+        .get
+
+      // class type parameter T
+      assert(cls.typeParameters.map(_.id).toSeq == Seq("T"))
+
+      // field List<String> is a real Parameterized type, not erased or folded
+      val items = cls.structure.declared.collectFirst {
+        case f: xsbti.api.FieldLike if f.name == "items" => f
+      }.get
+      assert(items.tpe.isInstanceOf[xsbti.api.Parameterized])
+
+      // method <U> U get(U) has type parameter U and returns ParameterRef U
+      val get = cls.structure.declared.collectFirst {
+        case d: xsbti.api.Def if d.name == "get" => d
+      }.get
+      assert(get.typeParameters.map(_.id).toSeq == Seq("U"))
+      assert(get.returnType.asInstanceOf[xsbti.api.ParameterRef].id == "U")
+    }
+  }
+
+  // Step 2b: annotation element values are captured, so a value change is detected.
+  it should "detect annotation element value changes" in {
+    IO.withTemporaryDirectory { temp =>
+      val a = sampleApis(
+        temp,
+        "a",
+        "public class Sample { @Deprecated(since = \"1\") public void run() {} }"
+      )
+      val b = sampleApis(
+        temp,
+        "b",
+        "public class Sample { @Deprecated(since = \"2\") public void run() {} }"
+      )
+      assert(hashAll(a) != hashAll(b))
+    }
+  }
+
+  // Step 2c: a Java enum gets sealed-children modelled (mirroring ClassToAPI); a class does not.
+  it should "model enum children for an enum but not a plain class" in {
+    IO.withTemporaryDirectory { temp =>
+      def classDef(dirName: String, name: String, source: String): ClassLike = {
+        val dir = new File(temp, dirName)
+        dir.mkdir()
+        val src = new File(dir, name + ".java")
+        IO.write(src, source)
+        JavaCompilerForUnitTesting.compileJava(Seq(src), dir, Seq.empty)
+        val cf = Parser(new File(dir, name + ".class").toPath, Logger.Null)
+        ClassfileToAPI
+          .process(Seq(name -> cf))
+          ._1
+          .find(_.definitionType == DefinitionType.ClassDef)
+          .get
+      }
+      assert(classDef("e", "E", "public enum E { A, B }").childrenOfSealedClass.nonEmpty)
+      assert(classDef("c", "C", "public class C {}").childrenOfSealedClass.isEmpty)
+    }
+  }
+
+  // Step 2d: differential check vs the reflection path (ClassToAPI) on declared member names.
+  it should "agree with ClassToAPI on declared member names" in {
+    IO.withTemporaryDirectory { temp =>
+      val src = new File(temp, "Simple.java")
+      IO.write(
+        src,
+        "public class Simple { public int x; public String greet(int n) { return null; } }"
+      )
+      JavaCompilerForUnitTesting.compileJava(Seq(src), temp, Seq.empty)
+      val loader = new java.net.URLClassLoader(Array(temp.toURI.toURL), null)
+      val reflectApi = ClassToAPI
+        .process(Seq(loader.loadClass("Simple")))
+        ._1
+        .find(_.definitionType == DefinitionType.ClassDef)
+        .get
+      val cf = Parser(new File(temp, "Simple.class").toPath, Logger.Null)
+      val classfileApi = ClassfileToAPI
+        .process(Seq("Simple" -> cf))
+        ._1
+        .find(_.definitionType == DefinitionType.ClassDef)
+        .get
+      def names(c: ClassLike): Set[String] = c.structure.declared.map(_.name).toSet
+      assert(
+        names(classfileApi) == names(reflectApi),
+        s"classfile=${names(classfileApi)} vs reflect=${names(reflectApi)}"
+      )
+    }
+  }
+
+  // P2: varargs (`T...`) and array (`T[]`) parameters share a descriptor but differ via ACC_VARARGS.
+  it should "distinguish varargs from array parameters" in {
+    IO.withTemporaryDirectory { temp =>
+      val a = sampleApis(temp, "a", "public class Sample { public void m(String[] xs) {} }")
+      val b = sampleApis(temp, "b", "public class Sample { public void m(String... xs) {} }")
+      assert(hashAll(a) != hashAll(b))
+    }
+  }
+
+  // P2: constructors get an Empty return type (as ClassToAPI does), not void/Unit.
+  it should "give constructors an Empty return type" in {
+    IO.withTemporaryDirectory { temp =>
+      val src = new File(temp, "Sample.java")
+      IO.write(src, "public class Sample { public Sample(int x) {} }")
+      JavaCompilerForUnitTesting.compileJava(Seq(src), temp, Seq.empty)
+      val cf = Parser(new File(temp, "Sample.class").toPath, Logger.Null)
+      val cls = ClassfileToAPI
+        .process(Seq("Sample" -> cf))
+        ._1
+        .find(_.definitionType == DefinitionType.ClassDef)
+        .get
+      val ctor = cls.structure.declared.collectFirst {
+        case d: xsbti.api.Def if d.name.endsWith(";init;") => d
+      }.get
+      assert(ctor.returnType.isInstanceOf[xsbti.api.EmptyType])
     }
   }
 

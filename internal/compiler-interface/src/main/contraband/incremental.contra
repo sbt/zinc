@@ -105,6 +105,12 @@ type IncOptions {
   pipelining: Boolean! = raw"xsbti.compile.IncOptions.defaultPipelining()"
   @since("1.4.0")
 
+  ## Extract each Java class's API from its classfile instead of by reflectively loading it.
+  ## This avoids loading/linking Java classes during post-compile analysis (sbt/zinc#837, #151,
+  ## #1697). Off by default while the classfile-based path is validated as the eventual default.
+  classfileJavaApi: Boolean! = raw"xsbti.compile.IncOptions.defaultClassfileJavaApi()"
+  @since("2.0.0")
+
   #x public static int defaultTransitiveStep() {
   #x     return 3;
   #x }
@@ -173,6 +179,9 @@ type IncOptions {
   #x     return true;
   #x }
   #x public static boolean defaultPipelining() {
+  #x     return false;
+  #x }
+  #x public static boolean defaultClassfileJavaApi() {
   #x     return false;
   #x }
 }

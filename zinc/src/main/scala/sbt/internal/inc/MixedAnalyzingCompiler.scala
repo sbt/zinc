@@ -84,7 +84,8 @@ final class MixedAnalyzingCompiler(
               incToolOptions,
               config.reporter,
               log,
-              config.progress
+              config.progress,
+              config.incOptions.classfileJavaApi()
             )
             putJavacOutputInJar(outputJar.toFile, outputDir.toFile)
           case _ =>
@@ -100,7 +101,8 @@ final class MixedAnalyzingCompiler(
                 incToolOptions,
                 config.reporter,
                 log,
-                config.progress
+                config.progress,
+                config.incOptions.classfileJavaApi()
               )
             }
         }

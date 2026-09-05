@@ -111,6 +111,47 @@ benchmarks and include them in *both* the commit message and PR description.
 The richer the descriptions the better. If you're not changing the compiler
 bridge, you don't need to run these benchmarks.
 
+### Running scripted tests
+
+Zinc's integration tests live in `zinc/src/sbt-test` and are run with the `scripted` sbt
+task, which replays each `test`/`pending` script against a real incremental compile:
+
+```
+$ sbt scripted                                   # the whole suite
+$ sbt "scripted source-dependencies/*"           # one group
+$ sbt "scripted source-dependencies/java-basic"  # a single test
+```
+
+#### Running scripted tests in the classfile Java API mode
+
+`IncOptions.classfileJavaApi` makes Zinc extract each Java class's API from its class file
+instead of by reflectively loading it (sbt/zinc#837). It is off by default. The scripted
+runner can force it on or off for the whole run via a system property, so the same scenarios
+can be checked under both paths:
+
+```
+$ sbt -Dzinc.scripted.classfileJavaApi=true -Dzinc.classfileJavaApi.strict=true scripted  # classfile path
+$ sbt -Dzinc.scripted.classfileJavaApi=false scripted                                      # reflection (default)
+```
+
+Two properties are involved:
+
+- `-Dzinc.scripted.classfileJavaApi=true|false` forces `IncOptions.classfileJavaApi` for the whole
+  scripted run. Without it, each test uses its own value (the default, unless its
+  `incOptions.properties` overrides it).
+- `-Dzinc.classfileJavaApi.strict=true` makes a failure *inside* the classfile-based extractor
+  propagate instead of being logged and swallowed. In production that path is deliberately
+  best-effort (it must never fail a compile that would otherwise succeed), but under
+  `classfileApiOnly` it is the primary path for every Java class, so for testing we want a crash
+  there to fail the build. Pair it with the property above when running the matrix.
+
+Note: the scripted suite is good at catching *crashes and structural breakage* in the classfile
+path, but it is largely insensitive to *fine-grained* Java API-hash regressions (e.g. a dropped
+method return type) because cross-unit invalidation there is dominated by source changes and
+inheritance edges. That fine-grained correctness is pinned by the unit tests in `zinc-apiinfo`
+(`ClassfileToAPISpecification`, `DifferentialApiSpecification`, `FBoundStressSpecification`) and by
+`IncrementalCompilerSpec`'s classfileJavaApi-vs-reflection invalidation check.
+
 ### Reaching out for help
 
 If you need any help, consider opening a draft pull request and asking
