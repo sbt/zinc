@@ -15,7 +15,7 @@ object Dependencies {
   val compilerBridgeVersions = Seq(scala212, scala210, scala211, scala213)
   val scala3_only = Seq(scala3)
 
-  private val ioVersion = nightlyVersion.getOrElse("1.12.2")
+  private val ioVersion = nightlyVersion.getOrElse("1.13.1")
   private val utilVersion = nightlyVersion.getOrElse("2.0.6")
 
   private val sbtIO = "org.scala-sbt" %% "io" % ioVersion
