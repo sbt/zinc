@@ -1,0 +1,10 @@
+# https://github.com/sbt/zinc/issues/226
+# Unlike import-package (still pending), the imported package here contains a
+# class, so its disappearance is visible to the analysis.
+> compile
+
+# move C from package a.b to package a, so package a.b no longer exists
+$ copy-file changes/A.scala A.scala
+
+# 'import a.b' in B.scala must be recompiled and fail to resolve
+-> compile
