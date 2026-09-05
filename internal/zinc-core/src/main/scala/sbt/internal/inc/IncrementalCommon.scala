@@ -841,6 +841,26 @@ object IncrementalCommon {
   }
 
   /**
+   * Unchanged classes on a dependency path from an invalidated class to an invalidated class,
+   * over internal member-reference and inheritance edges. Their class files may be stale in a
+   * way the invalidated sources cannot compile against, see sbt/zinc#476.
+   */
+  def bridgingClasses(relations: Relations, invalidated: Set[String]): Set[String] = {
+    if (invalidated.isEmpty) Set.empty
+    else {
+      val memberRef = relations.memberRef.internal
+      val inheritance = relations.inheritance.internal
+      def dependsOn(cls: String): Set[String] = memberRef.forward(cls) ++ inheritance.forward(cls)
+      def dependedOnBy(cls: String): Set[String] =
+        memberRef.reverse(cls) ++ inheritance.reverse(cls)
+      val noLog = sbt.util.Logger.Null
+      val forward = transitiveDeps(invalidated, noLog, logging = false)(dependsOn)
+      val backward = transitiveDeps(invalidated, noLog, logging = false)(dependedOnBy)
+      forward.intersect(backward) -- invalidated
+    }
+  }
+
+  /**
    * Check that a collection of files are absolute and not relative.
    *
    * For legacy reasons, the logic to check the absolute path of source files has been

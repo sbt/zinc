@@ -45,6 +45,7 @@ public class IncOptionsUtil {
     public static final String STORE_APIS = "storeApis";
     public static final String ALLOW_MACHINE_PATH = "allowMachinePath";
     public static final String PIPELINING = "pipelining";
+    public static final String RETRY_ON_INITIAL_COMPILE_ERROR = "retryOnInitialCompileError";
     private static final String XSBTI_NOTHING = "NOTHING";
 
     // Small utility function for logging
@@ -175,6 +176,12 @@ public class IncOptionsUtil {
         if (values.containsKey(PIPELINING)) {
             logger.debug(f0("PIPELINING value was read."));
             base = base.withPipelining(Boolean.parseBoolean(values.get(PIPELINING)));
+        }
+
+        if (values.containsKey(RETRY_ON_INITIAL_COMPILE_ERROR)) {
+            logger.debug(f0("RETRY_ON_INITIAL_COMPILE_ERROR value was read."));
+            base = base.withRetryOnInitialCompileError(
+                Boolean.parseBoolean(values.get(RETRY_ON_INITIAL_COMPILE_ERROR)));
         }
 
         return base;
