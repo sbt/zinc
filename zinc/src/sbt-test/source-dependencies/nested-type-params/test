@@ -1,0 +1,10 @@
+> compile
+
+$ copy-file changes/Providers.scala Providers.scala
+$ copy-file changes/Bar.scala Bar.scala
+
+# The first round fails against Foo's stale class file and is retried with Foo added
+> compile
+> checkRecompilations 1 Bar Providers Provider Foo
+> clean
+> compile # Make sure that clean compile is fine

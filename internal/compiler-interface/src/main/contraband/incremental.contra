@@ -105,6 +105,12 @@ type IncOptions {
   pipelining: Boolean! = raw"xsbti.compile.IncOptions.defaultPipelining()"
   @since("1.4.0")
 
+  ## When the first round of an incremental compile fails, retry it once with the unchanged
+  ## classes that lie on a dependency path between changed classes added to the invalidated set.
+  ## Such classes may have stale class files that the changed sources cannot compile against.
+  retryOnInitialCompileError: Boolean! = raw"xsbti.compile.IncOptions.defaultRetryOnInitialCompileError()"
+  @since("2.0.0")
+
   #x public static int defaultTransitiveStep() {
   #x     return 3;
   #x }
@@ -174,6 +180,9 @@ type IncOptions {
   #x }
   #x public static boolean defaultPipelining() {
   #x     return false;
+  #x }
+  #x public static boolean defaultRetryOnInitialCompileError() {
+  #x     return true;
   #x }
 }
 
