@@ -16,6 +16,7 @@ package classfile
 
 import java.io.File
 import sbt.io.IO
+import sbt.util.Level
 import xsbti.api.DependencyContext._
 
 class AnalyzeSpecification extends UnitSpec {
@@ -532,6 +533,142 @@ class AnalyzeSpecification extends UnitSpec {
       "Foo.java" -> srcFoo,
     )
     assert(deps.memberRef("Foo").contains("Bar"))
+  }
+
+  // sbt/zinc#149: a referenced class whose classfile cannot be located on the analysis classpath
+  // is reported (once per missing class) instead of being silently dropped from the dependency
+  // graph.
+  "Analyze" should "warn when a referenced class is missing from the classpath (sbt/zinc#149)" in {
+    IO.withTemporaryDirectory { temp =>
+      val classesDir = new File(temp, "classes")
+      val libDir = new File(temp, "lib")
+      classesDir.mkdir()
+      libDir.mkdir()
+
+      val bFile = new File(temp, "B.java")
+      IO.write(bFile, "package pkg; public class B { public static void hello() {} }")
+      JavaCompilerForUnitTesting.compileJava(Seq(bFile), libDir, Seq.empty)
+
+      val aFile = new File(temp, "A.java")
+      IO.write(aFile, "public class A { void m() { pkg.B.hello(); } }")
+      val cFile = new File(temp, "C.java")
+      IO.write(cFile, "public class C { void m() { pkg.B.hello(); } }")
+      JavaCompilerForUnitTesting.compileJava(Seq(aFile, cFile), classesDir, Seq(libDir))
+      // pkg.B is only in libDir, so it is absent from the analysis classpath (classesDir).
+
+      val log = new CollectingLogger
+      val callback = JavaCompilerForUnitTesting.analyze(classesDir, Seq(aFile, cFile), log = log)
+
+      val warns = log.messages(Level.Warn)
+      val missingWarns = warns.filter(_.contains("pkg.B"))
+      // One aggregated warning for the missing class, naming every class that reached it.
+      assert(missingWarns.size === 1)
+      assert(
+        missingWarns.head ===
+          "While analyzing A (A.java), C (C.java), failed to locate pkg.B. This class must " +
+          "be present on the classpath in order to track dependencies on it."
+      )
+      // Platform classes are never reported (every classfile references java.lang.*).
+      assert(!warns.exists(_.contains("java.lang")))
+      // Diagnostic only: no dependency edge is fabricated for the missing class.
+      assert(!callback.binaryDependencies.exists(_._2 == "pkg.B"))
+    }
+  }
+
+  // sbt/zinc#149: when reflective API extraction crashes on a missing referenced class, the
+  // compile must not fail: the failing class falls back to classfile-based analysis
+  // (sbt/zinc#837) and its siblings from the same source are still analyzed reflectively.
+  "Analyze" should "fall back to classfile analysis when API extraction fails (sbt/zinc#149)" in {
+    IO.withTemporaryDirectory { temp =>
+      val classesDir = new File(temp, "classes")
+      classesDir.mkdir()
+
+      val baseFile = new File(temp, "Base.java")
+      IO.write(baseFile, "public class Base {}")
+      // Foo and Bar share one source: API extraction is batched per source, so this exercises
+      // the per-class retry that isolates the failing class from its sibling.
+      val fooFile = new File(temp, "Foo.java")
+      IO.write(
+        fooFile,
+        """|public class Foo extends Base {}
+           |class Bar extends Base {}
+           |""".stripMargin
+      )
+      JavaCompilerForUnitTesting.compileJava(Seq(baseFile, fooFile), classesDir, Seq.empty)
+
+      val log = new CollectingLogger
+      val demoted = scala.collection.mutable.Set.empty[String]
+      val callback = JavaCompilerForUnitTesting.analyze(
+        classesDir,
+        Seq(baseFile, fooFile),
+        readClassfileAPI = (_, _, named) => { demoted ++= named.map(_._1); () },
+        log = log,
+        readAPI = (_, _, classes) =>
+          if (classes.exists(_.getName == "Foo")) throw new NoClassDefFoundError("missing.B")
+          else JavaCompilerForUnitTesting.extractParents(classes)
+      )
+
+      val warns = log.messages(Level.Warn)
+      assert(
+        warns.exists(m => m.contains("While analyzing Foo") && m.contains("NoClassDefFoundError"))
+      )
+      assert(!warns.exists(_.contains("Bar")))
+      // The missing class extracted from the reflection failure joins the aggregated report.
+      assert(
+        warns.contains(
+          "While analyzing Foo (Foo.java), failed to locate missing.B. This class must " +
+            "be present on the classpath in order to track dependencies on it."
+        )
+      )
+      // The sibling from the same source is salvaged by the per-class retry ...
+      assert(callback.classDependencies.contains(("Base", "Bar", DependencyByInheritance)))
+      // ... and the failing class still gets its inheritance edge, from its classfile.
+      assert(callback.classDependencies.contains(("Base", "Foo", DependencyByInheritance)))
+      // Exactly the failing class is demoted to classfile-based API extraction.
+      assert(demoted.toSet === Set("Foo"))
+    }
+  }
+
+  // sbt/zinc#149: a local (anonymous) class whose API extraction fails is skipped with a warning;
+  // local classes have no canonical name and are not demoted to the classfile fallback.
+  "Analyze" should "skip local classes whose API extraction fails (sbt/zinc#149)" in {
+    IO.withTemporaryDirectory { temp =>
+      val classesDir = new File(temp, "classes")
+      classesDir.mkdir()
+
+      val fooFile = new File(temp, "Foo.java")
+      IO.write(
+        fooFile,
+        """|public class Foo {
+           |  Runnable r = new Runnable() { public void run() {} };
+           |}
+           |""".stripMargin
+      )
+      JavaCompilerForUnitTesting.compileJava(Seq(fooFile), classesDir, Seq.empty)
+
+      val log = new CollectingLogger
+      val demoted = scala.collection.mutable.Set.empty[String]
+      JavaCompilerForUnitTesting.analyze(
+        classesDir,
+        Seq(fooFile),
+        readClassfileAPI = (_, _, named) => { demoted ++= named.map(_._1); () },
+        log = log,
+        readAPI = (_, _, classes) =>
+          if (classes.exists(_.getName == "Foo$1")) throw new NoClassDefFoundError("missing.B")
+          else JavaCompilerForUnitTesting.extractParents(classes)
+      )
+
+      val warns = log.messages(Level.Warn)
+      assert(warns.exists(m => m.contains("Foo$1") && m.contains("local class")))
+      // The missing class is still reported, with the local class as the referrer.
+      assert(
+        warns.contains(
+          "While analyzing Foo$1 (Foo.java), failed to locate missing.B. This class must " +
+            "be present on the classpath in order to track dependencies on it."
+        )
+      )
+      assert(demoted.isEmpty)
+    }
   }
 
 }

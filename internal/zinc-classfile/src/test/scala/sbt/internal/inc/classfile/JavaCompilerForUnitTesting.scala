@@ -21,6 +21,7 @@ import java.nio.file.{ Files, Path }
 
 import sbt.io.IO
 import sbt.internal.util.ConsoleLogger
+import sbt.util.Logger
 import xsbti.api.DependencyContext._
 import xsbti.{ AnalysisCallback, BasicVirtualFileRef, TestCallback, VirtualFile, VirtualFileRef }
 import xsbti.TestCallback.ExtractedClassDependencies
@@ -124,7 +125,10 @@ object JavaCompilerForUnitTesting {
       classesDir: File,
       srcFiles: Seq[File],
       readClassfileAPI: (AnalysisCallback, VirtualFileRef, Seq[(String, ClassFile)]) => Unit =
-        (_, _, _) => ()
+        (_, _, _) => (),
+      log: Logger = ConsoleLogger(),
+      readAPI: (AnalysisCallback, VirtualFileRef, Seq[Class[?]]) => Set[(String, String)] =
+        (_, _, classes) => extractParents(classes)
   ): TestCallback = {
     val srcs: List[VirtualFile] = srcFiles.toList.map(f => new TestVirtualFile(f.toPath))
     val analysisCallback = new TestCallback
@@ -134,10 +138,10 @@ object JavaCompilerForUnitTesting {
       override def getOutputDirectoryAsPath: Path = classesDir.toPath
       override def getOutputDirectory: File = classesDir
     }
-    JavaAnalyze(classFiles, srcs, ConsoleLogger(), output, finalJarOutput = None)(
+    JavaAnalyze(classFiles, srcs, log, output, finalJarOutput = None)(
       analysisCallback,
       classloader,
-      (_, classes) => extractParents(classes),
+      readAPI(analysisCallback, _, _),
       readClassfileAPI(analysisCallback, _, _)
     )
     analysisCallback
@@ -149,7 +153,7 @@ object JavaCompilerForUnitTesting {
     srcFile
   }
 
-  private val extractParents: Seq[Class[?]] => Set[(String, String)] = { classes =>
+  private[classfile] val extractParents: Seq[Class[?]] => Set[(String, String)] = { classes =>
     def canonicalNames(p: (Class[?], Class[?])): (String, String) =
       p._1.getCanonicalName -> p._2.getCanonicalName
     val parents =
