@@ -397,21 +397,36 @@ object Incremental {
     val hasSubprojectChange = initialChanges.external.apiChanges.nonEmpty
     val analysis = withClassfileManager(options, converter, output, outputJarContent) {
       classfileManager =>
-        if (hasModified)
-          incremental.cycle(
-            initialInvClasses,
-            initialInvSources,
-            sources,
-            converter,
-            binaryChanges,
-            lookup,
-            previous,
-            doCompile(compile, callbackBuilder, classfileManager),
-            classfileManager,
-            output,
-            1,
-          )
-        else {
+        if (hasModified) {
+          def runCycle(invalidatedClasses: Set[String]): Analysis =
+            incremental.cycle(
+              invalidatedClasses,
+              initialInvSources,
+              sources,
+              converter,
+              binaryChanges,
+              lookup,
+              previous,
+              doCompile(compile, callbackBuilder, classfileManager),
+              classfileManager,
+              output,
+              1,
+            )
+          try runCycle(initialInvClasses)
+          catch {
+            case e: xsbti.CompileFailed if options.retryOnInitialCompileError =>
+              // The changed sources may have been compiled against stale class files of
+              // unchanged classes that sit between them (sbt/zinc#476). Retry once with those.
+              val bridging =
+                IncrementalCommon.bridgingClasses(previous.relations, initialInvClasses)
+              if (bridging.isEmpty) throw e
+              log.info(
+                "Compilation failed; retrying the first round with bridging classes: " +
+                  bridging.toSeq.sorted.mkString(", ")
+              )
+              runCycle(initialInvClasses ++ bridging)
+          }
+        } else {
           val analysis =
             if (hasSubprojectChange)
               previous.copy(

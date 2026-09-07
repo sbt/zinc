@@ -136,6 +136,9 @@ final class MixedAnalyzingCompiler(
       callback: XAnalysisCallback,
       classfileManager: XClassFileManager,
   ): Unit = {
+    // A round only starts after a failed one when the incremental compiler retries the first
+    // round (sbt/zinc#476). The bridge refuses to run while the reporter still holds errors.
+    if (config.reporter.hasErrors) config.reporter.reset()
     val output = config.currentSetup.output
     val outputDirs = ensureOutput
 

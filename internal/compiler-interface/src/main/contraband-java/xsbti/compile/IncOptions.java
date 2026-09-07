@@ -79,6 +79,9 @@ public final class IncOptions implements java.io.Serializable {
     public static boolean defaultPipelining() {
         return false;
     }
+    public static boolean defaultRetryOnInitialCompileError() {
+        return true;
+    }
     public static IncOptions create() {
         return new IncOptions();
     }
@@ -145,6 +148,18 @@ public final class IncOptions implements java.io.Serializable {
     public static IncOptions of(int _transitiveStep, double _recompileAllFraction, boolean _relationsDebug, boolean _apiDebug, int _apiDiffContextSize, java.io.File _apiDumpDirectory, xsbti.compile.ClassFileManagerType _classfileManagerType, xsbti.compile.AuxiliaryClassFiles[] _auxiliaryClassFiles, boolean _useCustomizedFileManager, boolean _recompileOnMacroDef, boolean _useOptimizedSealed, boolean _storeApis, boolean _enabled, java.util.Map<String, String> _extra, boolean _logRecompileOnMacro, xsbti.compile.ExternalHooks _externalHooks, String[] _ignoredScalacOptions, boolean _strictMode, boolean _allowMachinePath, boolean _pipelining) {
         return new IncOptions(_transitiveStep, _recompileAllFraction, _relationsDebug, _apiDebug, _apiDiffContextSize, _apiDumpDirectory, _classfileManagerType, _auxiliaryClassFiles, _useCustomizedFileManager, _recompileOnMacroDef, _useOptimizedSealed, _storeApis, _enabled, _extra, _logRecompileOnMacro, _externalHooks, _ignoredScalacOptions, _strictMode, _allowMachinePath, _pipelining);
     }
+    public static IncOptions create(int _transitiveStep, double _recompileAllFraction, boolean _relationsDebug, boolean _apiDebug, int _apiDiffContextSize, java.util.Optional<java.io.File> _apiDumpDirectory, java.util.Optional<xsbti.compile.ClassFileManagerType> _classfileManagerType, xsbti.compile.AuxiliaryClassFiles[] _auxiliaryClassFiles, boolean _useCustomizedFileManager, java.util.Optional<Boolean> _recompileOnMacroDef, boolean _useOptimizedSealed, boolean _storeApis, boolean _enabled, java.util.Map<String, String> _extra, boolean _logRecompileOnMacro, xsbti.compile.ExternalHooks _externalHooks, String[] _ignoredScalacOptions, boolean _strictMode, boolean _allowMachinePath, boolean _pipelining, boolean _retryOnInitialCompileError) {
+        return new IncOptions(_transitiveStep, _recompileAllFraction, _relationsDebug, _apiDebug, _apiDiffContextSize, _apiDumpDirectory, _classfileManagerType, _auxiliaryClassFiles, _useCustomizedFileManager, _recompileOnMacroDef, _useOptimizedSealed, _storeApis, _enabled, _extra, _logRecompileOnMacro, _externalHooks, _ignoredScalacOptions, _strictMode, _allowMachinePath, _pipelining, _retryOnInitialCompileError);
+    }
+    public static IncOptions of(int _transitiveStep, double _recompileAllFraction, boolean _relationsDebug, boolean _apiDebug, int _apiDiffContextSize, java.util.Optional<java.io.File> _apiDumpDirectory, java.util.Optional<xsbti.compile.ClassFileManagerType> _classfileManagerType, xsbti.compile.AuxiliaryClassFiles[] _auxiliaryClassFiles, boolean _useCustomizedFileManager, java.util.Optional<Boolean> _recompileOnMacroDef, boolean _useOptimizedSealed, boolean _storeApis, boolean _enabled, java.util.Map<String, String> _extra, boolean _logRecompileOnMacro, xsbti.compile.ExternalHooks _externalHooks, String[] _ignoredScalacOptions, boolean _strictMode, boolean _allowMachinePath, boolean _pipelining, boolean _retryOnInitialCompileError) {
+        return new IncOptions(_transitiveStep, _recompileAllFraction, _relationsDebug, _apiDebug, _apiDiffContextSize, _apiDumpDirectory, _classfileManagerType, _auxiliaryClassFiles, _useCustomizedFileManager, _recompileOnMacroDef, _useOptimizedSealed, _storeApis, _enabled, _extra, _logRecompileOnMacro, _externalHooks, _ignoredScalacOptions, _strictMode, _allowMachinePath, _pipelining, _retryOnInitialCompileError);
+    }
+    public static IncOptions create(int _transitiveStep, double _recompileAllFraction, boolean _relationsDebug, boolean _apiDebug, int _apiDiffContextSize, java.io.File _apiDumpDirectory, xsbti.compile.ClassFileManagerType _classfileManagerType, xsbti.compile.AuxiliaryClassFiles[] _auxiliaryClassFiles, boolean _useCustomizedFileManager, boolean _recompileOnMacroDef, boolean _useOptimizedSealed, boolean _storeApis, boolean _enabled, java.util.Map<String, String> _extra, boolean _logRecompileOnMacro, xsbti.compile.ExternalHooks _externalHooks, String[] _ignoredScalacOptions, boolean _strictMode, boolean _allowMachinePath, boolean _pipelining, boolean _retryOnInitialCompileError) {
+        return new IncOptions(_transitiveStep, _recompileAllFraction, _relationsDebug, _apiDebug, _apiDiffContextSize, _apiDumpDirectory, _classfileManagerType, _auxiliaryClassFiles, _useCustomizedFileManager, _recompileOnMacroDef, _useOptimizedSealed, _storeApis, _enabled, _extra, _logRecompileOnMacro, _externalHooks, _ignoredScalacOptions, _strictMode, _allowMachinePath, _pipelining, _retryOnInitialCompileError);
+    }
+    public static IncOptions of(int _transitiveStep, double _recompileAllFraction, boolean _relationsDebug, boolean _apiDebug, int _apiDiffContextSize, java.io.File _apiDumpDirectory, xsbti.compile.ClassFileManagerType _classfileManagerType, xsbti.compile.AuxiliaryClassFiles[] _auxiliaryClassFiles, boolean _useCustomizedFileManager, boolean _recompileOnMacroDef, boolean _useOptimizedSealed, boolean _storeApis, boolean _enabled, java.util.Map<String, String> _extra, boolean _logRecompileOnMacro, xsbti.compile.ExternalHooks _externalHooks, String[] _ignoredScalacOptions, boolean _strictMode, boolean _allowMachinePath, boolean _pipelining, boolean _retryOnInitialCompileError) {
+        return new IncOptions(_transitiveStep, _recompileAllFraction, _relationsDebug, _apiDebug, _apiDiffContextSize, _apiDumpDirectory, _classfileManagerType, _auxiliaryClassFiles, _useCustomizedFileManager, _recompileOnMacroDef, _useOptimizedSealed, _storeApis, _enabled, _extra, _logRecompileOnMacro, _externalHooks, _ignoredScalacOptions, _strictMode, _allowMachinePath, _pipelining, _retryOnInitialCompileError);
+    }
     private int transitiveStep;
     private double recompileAllFraction;
     private boolean relationsDebug;
@@ -165,6 +180,7 @@ public final class IncOptions implements java.io.Serializable {
     private boolean strictMode;
     private boolean allowMachinePath;
     private boolean pipelining;
+    private boolean retryOnInitialCompileError;
     protected IncOptions() {
         super();
         transitiveStep = xsbti.compile.IncOptions.defaultTransitiveStep();
@@ -187,6 +203,7 @@ public final class IncOptions implements java.io.Serializable {
         strictMode = xsbti.compile.IncOptions.defaultStrictMode();
         allowMachinePath = xsbti.compile.IncOptions.defaultAllowMachinePath();
         pipelining = xsbti.compile.IncOptions.defaultPipelining();
+        retryOnInitialCompileError = xsbti.compile.IncOptions.defaultRetryOnInitialCompileError();
     }
     protected IncOptions(int _transitiveStep, double _recompileAllFraction, boolean _relationsDebug, boolean _apiDebug, int _apiDiffContextSize, java.util.Optional<java.io.File> _apiDumpDirectory, java.util.Optional<xsbti.compile.ClassFileManagerType> _classfileManagerType, boolean _useCustomizedFileManager, java.util.Optional<Boolean> _recompileOnMacroDef, boolean _useOptimizedSealed, boolean _storeApis, boolean _enabled, java.util.Map<String, String> _extra, boolean _logRecompileOnMacro, xsbti.compile.ExternalHooks _externalHooks) {
         super();
@@ -210,6 +227,7 @@ public final class IncOptions implements java.io.Serializable {
         strictMode = xsbti.compile.IncOptions.defaultStrictMode();
         allowMachinePath = xsbti.compile.IncOptions.defaultAllowMachinePath();
         pipelining = xsbti.compile.IncOptions.defaultPipelining();
+        retryOnInitialCompileError = xsbti.compile.IncOptions.defaultRetryOnInitialCompileError();
     }
     protected IncOptions(int _transitiveStep, double _recompileAllFraction, boolean _relationsDebug, boolean _apiDebug, int _apiDiffContextSize, java.io.File _apiDumpDirectory, xsbti.compile.ClassFileManagerType _classfileManagerType, boolean _useCustomizedFileManager, boolean _recompileOnMacroDef, boolean _useOptimizedSealed, boolean _storeApis, boolean _enabled, java.util.Map<String, String> _extra, boolean _logRecompileOnMacro, xsbti.compile.ExternalHooks _externalHooks) {
         super();
@@ -233,6 +251,7 @@ public final class IncOptions implements java.io.Serializable {
         strictMode = xsbti.compile.IncOptions.defaultStrictMode();
         allowMachinePath = xsbti.compile.IncOptions.defaultAllowMachinePath();
         pipelining = xsbti.compile.IncOptions.defaultPipelining();
+        retryOnInitialCompileError = xsbti.compile.IncOptions.defaultRetryOnInitialCompileError();
     }
     protected IncOptions(int _transitiveStep, double _recompileAllFraction, boolean _relationsDebug, boolean _apiDebug, int _apiDiffContextSize, java.util.Optional<java.io.File> _apiDumpDirectory, java.util.Optional<xsbti.compile.ClassFileManagerType> _classfileManagerType, boolean _useCustomizedFileManager, java.util.Optional<Boolean> _recompileOnMacroDef, boolean _useOptimizedSealed, boolean _storeApis, boolean _enabled, java.util.Map<String, String> _extra, boolean _logRecompileOnMacro, xsbti.compile.ExternalHooks _externalHooks, String[] _ignoredScalacOptions) {
         super();
@@ -256,6 +275,7 @@ public final class IncOptions implements java.io.Serializable {
         strictMode = xsbti.compile.IncOptions.defaultStrictMode();
         allowMachinePath = xsbti.compile.IncOptions.defaultAllowMachinePath();
         pipelining = xsbti.compile.IncOptions.defaultPipelining();
+        retryOnInitialCompileError = xsbti.compile.IncOptions.defaultRetryOnInitialCompileError();
     }
     protected IncOptions(int _transitiveStep, double _recompileAllFraction, boolean _relationsDebug, boolean _apiDebug, int _apiDiffContextSize, java.io.File _apiDumpDirectory, xsbti.compile.ClassFileManagerType _classfileManagerType, boolean _useCustomizedFileManager, boolean _recompileOnMacroDef, boolean _useOptimizedSealed, boolean _storeApis, boolean _enabled, java.util.Map<String, String> _extra, boolean _logRecompileOnMacro, xsbti.compile.ExternalHooks _externalHooks, String[] _ignoredScalacOptions) {
         super();
@@ -279,6 +299,7 @@ public final class IncOptions implements java.io.Serializable {
         strictMode = xsbti.compile.IncOptions.defaultStrictMode();
         allowMachinePath = xsbti.compile.IncOptions.defaultAllowMachinePath();
         pipelining = xsbti.compile.IncOptions.defaultPipelining();
+        retryOnInitialCompileError = xsbti.compile.IncOptions.defaultRetryOnInitialCompileError();
     }
     protected IncOptions(int _transitiveStep, double _recompileAllFraction, boolean _relationsDebug, boolean _apiDebug, int _apiDiffContextSize, java.util.Optional<java.io.File> _apiDumpDirectory, java.util.Optional<xsbti.compile.ClassFileManagerType> _classfileManagerType, boolean _useCustomizedFileManager, java.util.Optional<Boolean> _recompileOnMacroDef, boolean _useOptimizedSealed, boolean _storeApis, boolean _enabled, java.util.Map<String, String> _extra, boolean _logRecompileOnMacro, xsbti.compile.ExternalHooks _externalHooks, String[] _ignoredScalacOptions, boolean _strictMode) {
         super();
@@ -302,6 +323,7 @@ public final class IncOptions implements java.io.Serializable {
         strictMode = _strictMode;
         allowMachinePath = xsbti.compile.IncOptions.defaultAllowMachinePath();
         pipelining = xsbti.compile.IncOptions.defaultPipelining();
+        retryOnInitialCompileError = xsbti.compile.IncOptions.defaultRetryOnInitialCompileError();
     }
     protected IncOptions(int _transitiveStep, double _recompileAllFraction, boolean _relationsDebug, boolean _apiDebug, int _apiDiffContextSize, java.io.File _apiDumpDirectory, xsbti.compile.ClassFileManagerType _classfileManagerType, boolean _useCustomizedFileManager, boolean _recompileOnMacroDef, boolean _useOptimizedSealed, boolean _storeApis, boolean _enabled, java.util.Map<String, String> _extra, boolean _logRecompileOnMacro, xsbti.compile.ExternalHooks _externalHooks, String[] _ignoredScalacOptions, boolean _strictMode) {
         super();
@@ -325,6 +347,7 @@ public final class IncOptions implements java.io.Serializable {
         strictMode = _strictMode;
         allowMachinePath = xsbti.compile.IncOptions.defaultAllowMachinePath();
         pipelining = xsbti.compile.IncOptions.defaultPipelining();
+        retryOnInitialCompileError = xsbti.compile.IncOptions.defaultRetryOnInitialCompileError();
     }
     protected IncOptions(int _transitiveStep, double _recompileAllFraction, boolean _relationsDebug, boolean _apiDebug, int _apiDiffContextSize, java.util.Optional<java.io.File> _apiDumpDirectory, java.util.Optional<xsbti.compile.ClassFileManagerType> _classfileManagerType, boolean _useCustomizedFileManager, java.util.Optional<Boolean> _recompileOnMacroDef, boolean _useOptimizedSealed, boolean _storeApis, boolean _enabled, java.util.Map<String, String> _extra, boolean _logRecompileOnMacro, xsbti.compile.ExternalHooks _externalHooks, String[] _ignoredScalacOptions, boolean _strictMode, boolean _allowMachinePath, boolean _pipelining) {
         super();
@@ -348,6 +371,7 @@ public final class IncOptions implements java.io.Serializable {
         strictMode = _strictMode;
         allowMachinePath = _allowMachinePath;
         pipelining = _pipelining;
+        retryOnInitialCompileError = xsbti.compile.IncOptions.defaultRetryOnInitialCompileError();
     }
     protected IncOptions(int _transitiveStep, double _recompileAllFraction, boolean _relationsDebug, boolean _apiDebug, int _apiDiffContextSize, java.io.File _apiDumpDirectory, xsbti.compile.ClassFileManagerType _classfileManagerType, boolean _useCustomizedFileManager, boolean _recompileOnMacroDef, boolean _useOptimizedSealed, boolean _storeApis, boolean _enabled, java.util.Map<String, String> _extra, boolean _logRecompileOnMacro, xsbti.compile.ExternalHooks _externalHooks, String[] _ignoredScalacOptions, boolean _strictMode, boolean _allowMachinePath, boolean _pipelining) {
         super();
@@ -371,6 +395,7 @@ public final class IncOptions implements java.io.Serializable {
         strictMode = _strictMode;
         allowMachinePath = _allowMachinePath;
         pipelining = _pipelining;
+        retryOnInitialCompileError = xsbti.compile.IncOptions.defaultRetryOnInitialCompileError();
     }
     protected IncOptions(int _transitiveStep, double _recompileAllFraction, boolean _relationsDebug, boolean _apiDebug, int _apiDiffContextSize, java.util.Optional<java.io.File> _apiDumpDirectory, java.util.Optional<xsbti.compile.ClassFileManagerType> _classfileManagerType, xsbti.compile.AuxiliaryClassFiles[] _auxiliaryClassFiles, boolean _useCustomizedFileManager, java.util.Optional<Boolean> _recompileOnMacroDef, boolean _useOptimizedSealed, boolean _storeApis, boolean _enabled, java.util.Map<String, String> _extra, boolean _logRecompileOnMacro, xsbti.compile.ExternalHooks _externalHooks, String[] _ignoredScalacOptions, boolean _strictMode, boolean _allowMachinePath, boolean _pipelining) {
         super();
@@ -394,6 +419,7 @@ public final class IncOptions implements java.io.Serializable {
         strictMode = _strictMode;
         allowMachinePath = _allowMachinePath;
         pipelining = _pipelining;
+        retryOnInitialCompileError = xsbti.compile.IncOptions.defaultRetryOnInitialCompileError();
     }
     protected IncOptions(int _transitiveStep, double _recompileAllFraction, boolean _relationsDebug, boolean _apiDebug, int _apiDiffContextSize, java.io.File _apiDumpDirectory, xsbti.compile.ClassFileManagerType _classfileManagerType, xsbti.compile.AuxiliaryClassFiles[] _auxiliaryClassFiles, boolean _useCustomizedFileManager, boolean _recompileOnMacroDef, boolean _useOptimizedSealed, boolean _storeApis, boolean _enabled, java.util.Map<String, String> _extra, boolean _logRecompileOnMacro, xsbti.compile.ExternalHooks _externalHooks, String[] _ignoredScalacOptions, boolean _strictMode, boolean _allowMachinePath, boolean _pipelining) {
         super();
@@ -417,6 +443,55 @@ public final class IncOptions implements java.io.Serializable {
         strictMode = _strictMode;
         allowMachinePath = _allowMachinePath;
         pipelining = _pipelining;
+        retryOnInitialCompileError = xsbti.compile.IncOptions.defaultRetryOnInitialCompileError();
+    }
+    protected IncOptions(int _transitiveStep, double _recompileAllFraction, boolean _relationsDebug, boolean _apiDebug, int _apiDiffContextSize, java.util.Optional<java.io.File> _apiDumpDirectory, java.util.Optional<xsbti.compile.ClassFileManagerType> _classfileManagerType, xsbti.compile.AuxiliaryClassFiles[] _auxiliaryClassFiles, boolean _useCustomizedFileManager, java.util.Optional<Boolean> _recompileOnMacroDef, boolean _useOptimizedSealed, boolean _storeApis, boolean _enabled, java.util.Map<String, String> _extra, boolean _logRecompileOnMacro, xsbti.compile.ExternalHooks _externalHooks, String[] _ignoredScalacOptions, boolean _strictMode, boolean _allowMachinePath, boolean _pipelining, boolean _retryOnInitialCompileError) {
+        super();
+        transitiveStep = _transitiveStep;
+        recompileAllFraction = _recompileAllFraction;
+        relationsDebug = _relationsDebug;
+        apiDebug = _apiDebug;
+        apiDiffContextSize = _apiDiffContextSize;
+        apiDumpDirectory = _apiDumpDirectory;
+        classfileManagerType = _classfileManagerType;
+        auxiliaryClassFiles = _auxiliaryClassFiles;
+        useCustomizedFileManager = _useCustomizedFileManager;
+        recompileOnMacroDef = _recompileOnMacroDef;
+        useOptimizedSealed = _useOptimizedSealed;
+        storeApis = _storeApis;
+        enabled = _enabled;
+        extra = _extra;
+        logRecompileOnMacro = _logRecompileOnMacro;
+        externalHooks = _externalHooks;
+        ignoredScalacOptions = _ignoredScalacOptions;
+        strictMode = _strictMode;
+        allowMachinePath = _allowMachinePath;
+        pipelining = _pipelining;
+        retryOnInitialCompileError = _retryOnInitialCompileError;
+    }
+    protected IncOptions(int _transitiveStep, double _recompileAllFraction, boolean _relationsDebug, boolean _apiDebug, int _apiDiffContextSize, java.io.File _apiDumpDirectory, xsbti.compile.ClassFileManagerType _classfileManagerType, xsbti.compile.AuxiliaryClassFiles[] _auxiliaryClassFiles, boolean _useCustomizedFileManager, boolean _recompileOnMacroDef, boolean _useOptimizedSealed, boolean _storeApis, boolean _enabled, java.util.Map<String, String> _extra, boolean _logRecompileOnMacro, xsbti.compile.ExternalHooks _externalHooks, String[] _ignoredScalacOptions, boolean _strictMode, boolean _allowMachinePath, boolean _pipelining, boolean _retryOnInitialCompileError) {
+        super();
+        transitiveStep = _transitiveStep;
+        recompileAllFraction = _recompileAllFraction;
+        relationsDebug = _relationsDebug;
+        apiDebug = _apiDebug;
+        apiDiffContextSize = _apiDiffContextSize;
+        apiDumpDirectory = java.util.Optional.<java.io.File>ofNullable(_apiDumpDirectory);
+        classfileManagerType = java.util.Optional.<xsbti.compile.ClassFileManagerType>ofNullable(_classfileManagerType);
+        auxiliaryClassFiles = _auxiliaryClassFiles;
+        useCustomizedFileManager = _useCustomizedFileManager;
+        recompileOnMacroDef = java.util.Optional.<Boolean>ofNullable(_recompileOnMacroDef);
+        useOptimizedSealed = _useOptimizedSealed;
+        storeApis = _storeApis;
+        enabled = _enabled;
+        extra = _extra;
+        logRecompileOnMacro = _logRecompileOnMacro;
+        externalHooks = _externalHooks;
+        ignoredScalacOptions = _ignoredScalacOptions;
+        strictMode = _strictMode;
+        allowMachinePath = _allowMachinePath;
+        pipelining = _pipelining;
+        retryOnInitialCompileError = _retryOnInitialCompileError;
     }
     /** After which step include whole transitive closure of invalidated source files. */
     public int transitiveStep() {
@@ -537,74 +612,85 @@ public final class IncOptions implements java.io.Serializable {
     public boolean pipelining() {
         return this.pipelining;
     }
+    /**
+     * When the first round of an incremental compile fails, retry it once with the unchanged
+     * classes that lie on a dependency path between changed classes added to the invalidated set.
+     * Such classes may have stale class files that the changed sources cannot compile against.
+     */
+    public boolean retryOnInitialCompileError() {
+        return this.retryOnInitialCompileError;
+    }
     public IncOptions withTransitiveStep(int transitiveStep) {
-        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining);
+        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining, retryOnInitialCompileError);
     }
     public IncOptions withRecompileAllFraction(double recompileAllFraction) {
-        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining);
+        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining, retryOnInitialCompileError);
     }
     public IncOptions withRelationsDebug(boolean relationsDebug) {
-        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining);
+        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining, retryOnInitialCompileError);
     }
     public IncOptions withApiDebug(boolean apiDebug) {
-        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining);
+        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining, retryOnInitialCompileError);
     }
     public IncOptions withApiDiffContextSize(int apiDiffContextSize) {
-        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining);
+        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining, retryOnInitialCompileError);
     }
     public IncOptions withApiDumpDirectory(java.util.Optional<java.io.File> apiDumpDirectory) {
-        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining);
+        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining, retryOnInitialCompileError);
     }
     public IncOptions withApiDumpDirectory(java.io.File apiDumpDirectory) {
-        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, java.util.Optional.<java.io.File>ofNullable(apiDumpDirectory), classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining);
+        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, java.util.Optional.<java.io.File>ofNullable(apiDumpDirectory), classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining, retryOnInitialCompileError);
     }
     public IncOptions withClassfileManagerType(java.util.Optional<xsbti.compile.ClassFileManagerType> classfileManagerType) {
-        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining);
+        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining, retryOnInitialCompileError);
     }
     public IncOptions withClassfileManagerType(xsbti.compile.ClassFileManagerType classfileManagerType) {
-        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, java.util.Optional.<xsbti.compile.ClassFileManagerType>ofNullable(classfileManagerType), auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining);
+        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, java.util.Optional.<xsbti.compile.ClassFileManagerType>ofNullable(classfileManagerType), auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining, retryOnInitialCompileError);
     }
     public IncOptions withAuxiliaryClassFiles(xsbti.compile.AuxiliaryClassFiles[] auxiliaryClassFiles) {
-        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining);
+        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining, retryOnInitialCompileError);
     }
     public IncOptions withUseCustomizedFileManager(boolean useCustomizedFileManager) {
-        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining);
+        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining, retryOnInitialCompileError);
     }
     public IncOptions withRecompileOnMacroDef(java.util.Optional<Boolean> recompileOnMacroDef) {
-        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining);
+        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining, retryOnInitialCompileError);
     }
     public IncOptions withRecompileOnMacroDef(boolean recompileOnMacroDef) {
-        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, java.util.Optional.<Boolean>ofNullable(recompileOnMacroDef), useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining);
+        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, java.util.Optional.<Boolean>ofNullable(recompileOnMacroDef), useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining, retryOnInitialCompileError);
     }
     public IncOptions withUseOptimizedSealed(boolean useOptimizedSealed) {
-        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining);
+        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining, retryOnInitialCompileError);
     }
     public IncOptions withStoreApis(boolean storeApis) {
-        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining);
+        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining, retryOnInitialCompileError);
     }
     public IncOptions withEnabled(boolean enabled) {
-        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining);
+        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining, retryOnInitialCompileError);
     }
     public IncOptions withExtra(java.util.Map<String, String> extra) {
-        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining);
+        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining, retryOnInitialCompileError);
     }
     public IncOptions withLogRecompileOnMacro(boolean logRecompileOnMacro) {
-        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining);
+        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining, retryOnInitialCompileError);
     }
     public IncOptions withExternalHooks(xsbti.compile.ExternalHooks externalHooks) {
-        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining);
+        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining, retryOnInitialCompileError);
     }
     public IncOptions withIgnoredScalacOptions(String[] ignoredScalacOptions) {
-        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining);
+        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining, retryOnInitialCompileError);
     }
     public IncOptions withStrictMode(boolean strictMode) {
-        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining);
+        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining, retryOnInitialCompileError);
     }
     public IncOptions withAllowMachinePath(boolean allowMachinePath) {
-        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining);
+        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining, retryOnInitialCompileError);
     }
     public IncOptions withPipelining(boolean pipelining) {
-        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining);
+        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining, retryOnInitialCompileError);
+    }
+    public IncOptions withRetryOnInitialCompileError(boolean retryOnInitialCompileError) {
+        return new IncOptions(transitiveStep, recompileAllFraction, relationsDebug, apiDebug, apiDiffContextSize, apiDumpDirectory, classfileManagerType, auxiliaryClassFiles, useCustomizedFileManager, recompileOnMacroDef, useOptimizedSealed, storeApis, enabled, extra, logRecompileOnMacro, externalHooks, ignoredScalacOptions, strictMode, allowMachinePath, pipelining, retryOnInitialCompileError);
     }
     @Override
     public boolean equals(Object obj) {
@@ -614,15 +700,15 @@ public final class IncOptions implements java.io.Serializable {
             return false;
         } else {
             IncOptions o = (IncOptions)obj;
-            return (this.transitiveStep() == o.transitiveStep()) && (this.recompileAllFraction() == o.recompileAllFraction()) && (this.relationsDebug() == o.relationsDebug()) && (this.apiDebug() == o.apiDebug()) && (this.apiDiffContextSize() == o.apiDiffContextSize()) && this.apiDumpDirectory().equals(o.apiDumpDirectory()) && this.classfileManagerType().equals(o.classfileManagerType()) && java.util.Arrays.deepEquals(this.auxiliaryClassFiles(), o.auxiliaryClassFiles()) && (this.useCustomizedFileManager() == o.useCustomizedFileManager()) && this.recompileOnMacroDef().equals(o.recompileOnMacroDef()) && (this.useOptimizedSealed() == o.useOptimizedSealed()) && (this.storeApis() == o.storeApis()) && (this.enabled() == o.enabled()) && this.extra().equals(o.extra()) && (this.logRecompileOnMacro() == o.logRecompileOnMacro()) && this.externalHooks().equals(o.externalHooks()) && java.util.Arrays.deepEquals(this.ignoredScalacOptions(), o.ignoredScalacOptions()) && (this.strictMode() == o.strictMode()) && (this.allowMachinePath() == o.allowMachinePath()) && (this.pipelining() == o.pipelining());
+            return (this.transitiveStep() == o.transitiveStep()) && (this.recompileAllFraction() == o.recompileAllFraction()) && (this.relationsDebug() == o.relationsDebug()) && (this.apiDebug() == o.apiDebug()) && (this.apiDiffContextSize() == o.apiDiffContextSize()) && this.apiDumpDirectory().equals(o.apiDumpDirectory()) && this.classfileManagerType().equals(o.classfileManagerType()) && java.util.Arrays.deepEquals(this.auxiliaryClassFiles(), o.auxiliaryClassFiles()) && (this.useCustomizedFileManager() == o.useCustomizedFileManager()) && this.recompileOnMacroDef().equals(o.recompileOnMacroDef()) && (this.useOptimizedSealed() == o.useOptimizedSealed()) && (this.storeApis() == o.storeApis()) && (this.enabled() == o.enabled()) && this.extra().equals(o.extra()) && (this.logRecompileOnMacro() == o.logRecompileOnMacro()) && this.externalHooks().equals(o.externalHooks()) && java.util.Arrays.deepEquals(this.ignoredScalacOptions(), o.ignoredScalacOptions()) && (this.strictMode() == o.strictMode()) && (this.allowMachinePath() == o.allowMachinePath()) && (this.pipelining() == o.pipelining()) && (this.retryOnInitialCompileError() == o.retryOnInitialCompileError());
         }
     }
     @Override
     public int hashCode() {
-        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.compile.IncOptions".hashCode()) + Integer.hashCode(transitiveStep())) + Double.hashCode(recompileAllFraction())) + Boolean.hashCode(relationsDebug())) + Boolean.hashCode(apiDebug())) + Integer.hashCode(apiDiffContextSize())) + apiDumpDirectory().hashCode()) + classfileManagerType().hashCode()) + java.util.Arrays.deepHashCode(auxiliaryClassFiles())) + Boolean.hashCode(useCustomizedFileManager())) + recompileOnMacroDef().hashCode()) + Boolean.hashCode(useOptimizedSealed())) + Boolean.hashCode(storeApis())) + Boolean.hashCode(enabled())) + extra().hashCode()) + Boolean.hashCode(logRecompileOnMacro())) + externalHooks().hashCode()) + java.util.Arrays.deepHashCode(ignoredScalacOptions())) + Boolean.hashCode(strictMode())) + Boolean.hashCode(allowMachinePath())) + Boolean.hashCode(pipelining()));
+        return 37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (37 * (17 + "xsbti.compile.IncOptions".hashCode()) + Integer.hashCode(transitiveStep())) + Double.hashCode(recompileAllFraction())) + Boolean.hashCode(relationsDebug())) + Boolean.hashCode(apiDebug())) + Integer.hashCode(apiDiffContextSize())) + apiDumpDirectory().hashCode()) + classfileManagerType().hashCode()) + java.util.Arrays.deepHashCode(auxiliaryClassFiles())) + Boolean.hashCode(useCustomizedFileManager())) + recompileOnMacroDef().hashCode()) + Boolean.hashCode(useOptimizedSealed())) + Boolean.hashCode(storeApis())) + Boolean.hashCode(enabled())) + extra().hashCode()) + Boolean.hashCode(logRecompileOnMacro())) + externalHooks().hashCode()) + java.util.Arrays.deepHashCode(ignoredScalacOptions())) + Boolean.hashCode(strictMode())) + Boolean.hashCode(allowMachinePath())) + Boolean.hashCode(pipelining())) + Boolean.hashCode(retryOnInitialCompileError()));
     }
     @Override
     public String toString() {
-        return "IncOptions("  + "transitiveStep: " + transitiveStep() + ", " + "recompileAllFraction: " + recompileAllFraction() + ", " + "relationsDebug: " + relationsDebug() + ", " + "apiDebug: " + apiDebug() + ", " + "apiDiffContextSize: " + apiDiffContextSize() + ", " + "apiDumpDirectory: " + apiDumpDirectory() + ", " + "classfileManagerType: " + classfileManagerType() + ", " + "auxiliaryClassFiles: " + auxiliaryClassFiles() + ", " + "useCustomizedFileManager: " + useCustomizedFileManager() + ", " + "recompileOnMacroDef: " + recompileOnMacroDef() + ", " + "useOptimizedSealed: " + useOptimizedSealed() + ", " + "storeApis: " + storeApis() + ", " + "enabled: " + enabled() + ", " + "extra: " + extra() + ", " + "logRecompileOnMacro: " + logRecompileOnMacro() + ", " + "externalHooks: " + externalHooks() + ", " + "ignoredScalacOptions: " + ignoredScalacOptions() + ", " + "strictMode: " + strictMode() + ", " + "allowMachinePath: " + allowMachinePath() + ", " + "pipelining: " + pipelining() + ")";
+        return "IncOptions("  + "transitiveStep: " + transitiveStep() + ", " + "recompileAllFraction: " + recompileAllFraction() + ", " + "relationsDebug: " + relationsDebug() + ", " + "apiDebug: " + apiDebug() + ", " + "apiDiffContextSize: " + apiDiffContextSize() + ", " + "apiDumpDirectory: " + apiDumpDirectory() + ", " + "classfileManagerType: " + classfileManagerType() + ", " + "auxiliaryClassFiles: " + auxiliaryClassFiles() + ", " + "useCustomizedFileManager: " + useCustomizedFileManager() + ", " + "recompileOnMacroDef: " + recompileOnMacroDef() + ", " + "useOptimizedSealed: " + useOptimizedSealed() + ", " + "storeApis: " + storeApis() + ", " + "enabled: " + enabled() + ", " + "extra: " + extra() + ", " + "logRecompileOnMacro: " + logRecompileOnMacro() + ", " + "externalHooks: " + externalHooks() + ", " + "ignoredScalacOptions: " + ignoredScalacOptions() + ", " + "strictMode: " + strictMode() + ", " + "allowMachinePath: " + allowMachinePath() + ", " + "pipelining: " + pipelining() + ", " + "retryOnInitialCompileError: " + retryOnInitialCompileError() + ")";
     }
 }

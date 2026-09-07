@@ -91,6 +91,7 @@ noted.
 | `useOptimizedSealed` | boolean: use the optimized sealed-children invalidation | false |
 | `storeApis` | boolean: persist extracted APIs in the analysis | true |
 | `pipelining` | boolean: pipelined compilation | **true** (`IncOptions` uses false) |
+| `retryOnInitialCompileError` | boolean: retry a failed first round with bridging classes added | true |
 | `scalac.options` | **space-separated** options passed to the compiler; `[basedir]` expands to the project's absolute base directory. Handled by `IncHandler`, not `IncOptionsUtil` | none |
 | `incOptions.storeApis` | boolean; same as `storeApis`, applied after parsing. Handled by `IncHandler` | true |
 

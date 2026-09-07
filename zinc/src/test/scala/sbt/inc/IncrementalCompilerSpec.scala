@@ -227,6 +227,67 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
     }
   }
 
+  // sbt/zinc#476: Bar and Providers change together; Foo sits between them and its class file
+  // still carries the dealiased old return type, so Bar cannot compile until Foo is rebuilt.
+  private val issue476Sources = Seq(
+    StringVirtualFile("A.scala", "trait A { def a = 1 }"),
+    StringVirtualFile("B.scala", "trait B { def b = 1.0 }"),
+    StringVirtualFile(
+      "Providers.scala",
+      "trait Provider { type Operations = A }; object Providers { type SomeProvider = Provider }"
+    ),
+    StringVirtualFile(
+      "Foo.scala",
+      "object Foo { def provide: Providers.type#SomeProvider#Operations = ??? }"
+    ),
+    StringVirtualFile("Bar.scala", "object Bar { Foo.provide.a }"),
+  )
+  private val issue476Changed = Seq(
+    StringVirtualFile(
+      "Providers.scala",
+      "trait Provider { type Operations = B }; object Providers { type SomeProvider = Provider }"
+    ),
+    StringVirtualFile("Bar.scala", "object Bar { Foo.provide.b }"),
+  )
+  private def issue476Edit(sources: Seq[VirtualFile]) =
+    sources.map(s => issue476Changed.find(_.id == s.id).getOrElse(s))
+
+  it should "retry the first round with bridging classes when it fails" in withTmpDir { tmp =>
+    val comp0 = VirtualSubproject(tmp.toPath / "p1").setup.createCompiler()
+    // Pin the recompiled set: with the default fraction, 4 of 5 sources would recompile all.
+    val comp = comp0.copy(incOptions = comp0.incOptions.withRecompileAllFraction(1.0))
+    try {
+      val res1 = comp.compile(issue476Sources*)
+      val res2 = comp.compile(issue476Edit(issue476Sources)*)
+      assert(recompiled(res1, res2) == Set("Bar", "Providers", "Provider", "Foo"))
+    } finally comp.close()
+  }
+
+  it should "not retry the first round when retryOnInitialCompileError is off" in withTmpDir {
+    tmp =>
+      val comp0 = VirtualSubproject(tmp.toPath / "p1").setup.createCompiler()
+      val comp = comp0.copy(incOptions = comp0.incOptions.withRetryOnInitialCompileError(false))
+      try {
+        comp.compile(issue476Sources*)
+        assertThrows[CompileFailed] {
+          comp.compile(issue476Edit(issue476Sources)*)
+        }
+      } finally comp.close()
+  }
+
+  it should "still fail after retrying when the error is genuine" in withTmpDir { tmp =>
+    val comp = VirtualSubproject(tmp.toPath / "p1").setup.createCompiler()
+    val bogus = StringVirtualFile("Bar.scala", "object Bar { Foo.provide.nope }")
+    try {
+      comp.compile(issue476Sources*)
+      val failure = intercept[CompileFailed] {
+        comp.compile(issue476Edit(issue476Sources).map(s => if (s.id == bogus.id) bogus else s)*)
+      }
+      // "member of B" proves the retry compiled Foo against the new alias before failing
+      assert(failure.problems.exists(_.message.contains("value nope is not a member of B")))
+    } finally comp.close()
+  }
+
   it should "not throw NullPointerException when passing -Xshow-phases to scalac" in withTmpDir {
     tmp =>
       val comp = ProjectSetup.simple(
