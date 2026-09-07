@@ -3,7 +3,7 @@ package internal
 package inc
 
 import xsbti.api._
-import xsbt.api.SameAPI
+import xsbt.api.{ SameAPI, ShowAPI }
 
 class ExtractAPISpecification
     extends UnitSpec
@@ -208,6 +208,58 @@ class ExtractAPISpecification
       SameAPI(macrosClass(macrosFromSource), macrosClass(macrosUnpickled)),
       "Macros API differs between compiling from source and unpickling"
     )
+  }
+
+  // Regression guard for https://github.com/sbt/sbt/issues/1079.
+  // A type parameter of a type alias declared inside a refinement (a type lambda) is named
+  // by `Symbol.fullName`, whose owner chain passes through the anonymous `<refinement>`
+  // class. The pickler rewrites that class's owner (scala/bug#6596), so the parameter is
+  // named `test.<refinement>.a` from source and `test.KleisliMonadReader.<refinement>.a`
+  // when unpickled, flipping the API hash of every class built on the type lambda.
+  it should "give stable names to type parameters owned by a refinement class (sbt/sbt#1079)" in {
+    val monadReader =
+      """|package test
+         |trait MonadReader[F[_], R] {
+         |  def ask: F[R]
+         |  def local[A](f: R => R)(fa: F[A]): F[A]
+         |}
+         |""".stripMargin
+    val kleisli =
+      """|package test
+         |case class Kleisli[F[_], R, A](run: R => F[A])
+         |trait KleisliMonadReader[F[_], R]
+         |    extends MonadReader[({ type l[a] = Kleisli[F, R, a] })#l, R] {
+         |  def ask: Kleisli[F, R, R] = ???
+         |  def local[A](f: R => R)(fa: Kleisli[F, R, A]): Kleisli[F, R, A] = ???
+         |}
+         |""".stripMargin
+    val impl =
+      """|package test
+         |class Impl extends KleisliMonadReader[Option, Int]
+         |""".stripMargin
+    // compile everything together (from source), then recompile `impl` alone,
+    // unpickling the support types from class files.
+    val apis = extractApisFromSrcs(List(monadReader, kleisli, impl), List(impl))
+    val _ :: _ :: implFromSource :: implUnpickled :: Nil = apis.toList: @unchecked
+    def implClass(as: Set[ClassLike]): ClassLike = as.find(_.name == "test.Impl").get
+    // nesting 10: the type lambda sits in a parent's type argument, deeper than
+    // DefaultShowAPI's default of 2 reaches.
+    def render(c: ClassLike): String = ShowAPI.showApi(c)(using 10)
+    val fromSource = implClass(implFromSource)
+    val unpickled = implClass(implUnpickled)
+    val fromSourceText = render(fromSource)
+    val unpickledText = render(unpickled)
+    assert(
+      SameAPI(fromSource, unpickled),
+      s"Impl API differs between compiling from source and unpickling:" +
+        s"\nfrom source:$fromSourceText\nunpickled:$unpickledText"
+    )
+    List("from source" -> fromSourceText, "unpickled" -> unpickledText).foreach {
+      case (label, rendered) =>
+        assert(rendered.contains("<refinement>.a"), s"$label:\n$rendered")
+        // no owner prefix survives; this test has a single, non-nested refinement
+        assert(!rendered.contains(".<refinement>"), s"$label:\n$rendered")
+    }
   }
 
   it should "represent a self type correctly" in {
