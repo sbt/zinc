@@ -19,5 +19,7 @@ final class InputWrapperStream(in: Input) extends java.io.InputStream {
     try {
       toInt(in.readByte)
     } catch { case _: sbinary.EOF => -1 }
-  override def read(b: Array[Byte], off: Int, len: Int) = in.readTo(b, off, len)
+  override def read(b: Array[Byte], off: Int, len: Int) =
+    try in.readTo(b, off, len)
+    catch { case _: sbinary.EOF => -1 }
 }

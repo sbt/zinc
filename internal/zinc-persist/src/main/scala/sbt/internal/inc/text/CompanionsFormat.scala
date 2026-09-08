@@ -12,24 +12,24 @@
 package sbt.internal.inc.text
 
 import sbinary._
+import sbt.internal.inc.consistent.{
+  BinaryDeserializer,
+  BinarySerializer,
+  ConsistentAnalysisFormat
+}
 import xsbti.api._
+import xsbti.compile.analysis.ReadWriteMappers
 
 object CompanionsFormat extends Format[Companions] {
-  import java.io._
-  def reads(in: Input): Companions = {
-    val oin = new ObjectInputStream(new InputWrapperStream(in))
-    try {
-      oin.readObject.asInstanceOf[Companions]
-    } finally {
-      oin.close()
-    }
-  }
+  private val structural =
+    new ConsistentAnalysisFormat(ReadWriteMappers.getEmptyMappers(), reproducible = false)
+
+  def reads(in: Input): Companions =
+    structural.readCompanions(new BinaryDeserializer(new InputWrapperStream(in)))
+
   def writes(out: Output, src: Companions): Unit = {
-    val oout = new ObjectOutputStream(new OutputWrapperStream(out))
-    try {
-      oout.writeObject(src)
-    } finally {
-      oout.close()
-    }
+    val serializer = new BinarySerializer(new OutputWrapperStream(out))
+    structural.writeCompanions(serializer, src)
+    serializer.end()
   }
 }
