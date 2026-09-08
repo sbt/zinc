@@ -1,0 +1,29 @@
+[inv] Cycle 1 API changes
+[inv]   detected:
+[inv]     A: modified names A, A;init;, x
+[inv] Member-reference invalidation of B
+[inv]   modified names used by the class:
+[inv]     A
+[inv]     A;init;
+[inv] Member-reference invalidation of C
+[inv]   modified names used by the class:
+[inv]     A
+[inv] API change: A: modified names A, A;init;, x
+[inv]   transitive inheritance:
+[inv]     A
+[inv]   member reference:
+[inv]     B
+[inv]     C
+[inv] Cycle 1 outcome
+[inv]   next-cycle invalidations:
+[inv]     B
+[inv]     C
+[inv] Cycle 2
+[inv]   invalidated classes:
+[inv]     B
+[inv]     C
+[inv]   sources selected for recompilation:
+[inv]     ${BASE}/B.scala
+[inv]     ${BASE}/C.scala
+[inv] Cycle 2 outcome
+[inv]   no further invalidations

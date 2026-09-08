@@ -337,7 +337,6 @@ object Incremental {
     val previous = previous0 match { case a: Analysis => a }
     val initialChanges =
       incremental.detectInitialChanges(sources, previous, current, lookup, converter, output)
-    log.debug(s"> initialChanges = $initialChanges")
     val binaryChanges = new DependencyChanges {
       override def modifiedBinaries: Array[File] =
         modifiedLibraries.map(converter.toPath(_).toFile)
@@ -384,15 +383,16 @@ object Incremental {
     val initialInvSources =
       if (pickleJava && hasModified) initialInvSources0 ++ javaSources
       else initialInvSources0
-    if (hasModified) {
-      if (initialInvSources == sources)
-        incremental.log.debug(s"all ${initialInvSources.size} sources are invalidated")
-      else
-        incremental.log.debug(
-          "All initially invalidated classes: " + initialInvClasses + "\n" +
-            "All initially invalidated sources:" + initialInvSources + "\n"
+    if (hasModified)
+      incremental.invalidationLog.debug(
+        InvalidationLog.section(
+          "Initial invalidation outcome",
+          Seq(
+            "classes" -> initialInvClasses,
+            "sources" -> initialInvSources.map(_.id),
+          )
         )
-    }
+      )
 
     val hasSubprojectChange = initialChanges.external.apiChanges.nonEmpty
     val analysis = withClassfileManager(options, converter, output, outputJarContent) {

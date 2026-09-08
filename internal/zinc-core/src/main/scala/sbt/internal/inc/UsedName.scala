@@ -77,6 +77,8 @@ object UsedNames {
     def hasAffectedNames(modifiedNames: ModifiedNames, from: String): Boolean =
       map(from).iterator.exists(modifiedNames.isModified)
     def affectedNames(modifiedNames: ModifiedNames, from: String): String =
-      map(from).iterator.filter(modifiedNames.isModified).mkString(", ")
+      InvalidationLog
+        .formatUsedNames(map(from).filter(modifiedNames.isModified))
+        .mkString("\n")
   }
 }
