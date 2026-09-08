@@ -429,15 +429,18 @@ object MixedAnalyzingCompiler {
     val absClasspath = classpath.map(toAbsolute(_))
     val cArgs =
       new CompilerArguments(compiler.scalaInstance, compiler.classpathOptions)
-    val searchClasspath: Seq[VirtualFile] = explicitBootClasspath(
-      scalacOptions.toIndexedSeq,
-      converter
-    ) ++
-      withBootclasspath(
-        cArgs,
-        absClasspath,
-        converter
-      )
+    val options = scalacOptions.toIndexedSeq
+    /* Mirror the compiler: when the client set its own boot classpath, Zinc does not add
+     * one, so analysis must not search one either (sbt/zinc#348). */
+    val clientSetBootClasspath = CompilerArguments.explicitBootClasspath(options).isDefined
+    val searchClasspath: Seq[VirtualFile] =
+      explicitBootClasspathFiles(options, converter) ++
+        withBootclasspath(
+          cArgs,
+          absClasspath,
+          converter,
+          addBootclasspath = !clientSetBootClasspath
+        )
     (searchClasspath, Locate.entry(searchClasspath, perClasspathEntryLookup))
   }
 
@@ -472,21 +475,32 @@ object MixedAnalyzingCompiler {
       args: CompilerArguments,
       classpath: Seq[VirtualFile],
       converter: FileConverter
+  ): Seq[VirtualFile] =
+    withBootclasspath(args, classpath, converter, addBootclasspath = true)
+
+  /** `addBootclasspath` is false when the client supplied its own boot classpath. */
+  def withBootclasspath(
+      args: CompilerArguments,
+      classpath: Seq[VirtualFile],
+      converter: FileConverter,
+      addBootclasspath: Boolean
   ): Seq[VirtualFile] = {
     val cp: Seq[Path] = classpath.map(converter.toPath)
-    args.bootClasspathFor(cp).map(converter.toVirtualFile(_)) ++
+    val bootClasspath =
+      if (addBootclasspath) args.bootClasspathFor(cp).map(converter.toVirtualFile(_))
+      else Nil
+    bootClasspath ++
       args.extClasspath.map(PlainVirtualFile(_)) ++
       args.finishClasspath(cp).map(converter.toVirtualFile(_))
   }
 
-  private def explicitBootClasspath(
+  private def explicitBootClasspathFiles(
       options: Seq[String],
       converter: FileConverter
   ): Seq[VirtualFile] = {
-    options
-      .dropWhile(_ != CompilerArguments.BootClasspathOption)
-      .slice(1, 2)
-      .headOption
+    CompilerArguments
+      .explicitBootClasspath(options)
+      .filter(_.nonEmpty)
       .toList
       .flatMap(IO.parseClasspath)
       .map(_.toPath)

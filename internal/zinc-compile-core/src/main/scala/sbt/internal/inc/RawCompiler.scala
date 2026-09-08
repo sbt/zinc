@@ -63,7 +63,7 @@ class RawCompiler(val scalaInstance: XScalaInstance, cp: ClasspathOptions, log: 
     // import scala.tools.nsc.Main.{ process => _, reporter => _ }
     val uniqueCompilerVersion = scalaInstance.actualVersion
     val compilerOut = Some(outputDirectory)
-    val arguments = compilerArguments.makeArguments(sources, classpath, compilerOut, options)
+    val arguments = compilerArguments.makeArguments(sources, classpath, compilerOut, options, log)
     val args = arguments.toArray
 
     log.debug(
