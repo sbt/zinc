@@ -1,0 +1,11 @@
+# https://github.com/sbt/zinc/issues/226
+# Every class implicitly sees the names of its enclosing packages, so a new
+# class in a nested package can shadow one from an outer package without any
+# wildcard import being written.
+> compile
+
+# add x.y.B, which shadows x.B inside package x.y
+$ copy-file changes/B2.scala B2.scala
+
+# Test.scala must be recompiled: (new B).m no longer exists on x.y.B
+-> compile

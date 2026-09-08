@@ -1,0 +1,10 @@
+# Adding a class whose simple name is used by nobody must not invalidate
+# anything (the cheap side of the sbt/zinc#226 fix).
+> compile
+
+$ copy-file changes/C.scala C.scala
+
+# only the new file itself is compiled
+> compile
+> checkRecompilations 1 n1.C
+> checkIterations 2

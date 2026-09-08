@@ -4,5 +4,6 @@
 $ copy-file changes/A.scala A.scala
 
 # 'import a.b' should now fail in B.scala
-# succeeds because scalac doesn't track this dependency
+# still pending: package a.b contains no classes, so neither its existence nor its
+# disappearance is visible in the analysis (contrast with import-package-removed)
 -> compile

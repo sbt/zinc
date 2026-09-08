@@ -45,6 +45,7 @@ public class IncOptionsUtil {
     public static final String STORE_APIS = "storeApis";
     public static final String ALLOW_MACHINE_PATH = "allowMachinePath";
     public static final String PIPELINING = "pipelining";
+    public static final String INVALIDATE_SCOPE_CHANGES = "invalidateScopeChanges";
     private static final String XSBTI_NOTHING = "NOTHING";
 
     // Small utility function for logging
@@ -175,6 +176,11 @@ public class IncOptionsUtil {
         if (values.containsKey(PIPELINING)) {
             logger.debug(f0("PIPELINING value was read."));
             base = base.withPipelining(Boolean.parseBoolean(values.get(PIPELINING)));
+        }
+
+        if (values.containsKey(INVALIDATE_SCOPE_CHANGES)) {
+            logger.debug(f0("INVALIDATE_SCOPE_CHANGES value was read."));
+            base = base.withInvalidateScopeChanges(Boolean.parseBoolean(values.get(INVALIDATE_SCOPE_CHANGES)));
         }
 
         return base;

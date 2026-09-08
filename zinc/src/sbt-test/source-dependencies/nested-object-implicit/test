@@ -1,0 +1,10 @@
+# An implicit added inside an object nested in a package object is not package-scoped,
+# so it must not invalidate other sources of the package (name hashes flatten nested
+# definitions; the scope-change invalidation must not trust them blindly).
+> compile
+
+$ copy-file changes/package.scala package.scala
+
+# only the package object itself recompiles; no third iteration for Test.scala
+> compile
+> checkIterations 2

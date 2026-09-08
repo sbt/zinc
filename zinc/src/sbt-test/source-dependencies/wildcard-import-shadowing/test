@@ -1,0 +1,8 @@
+# https://github.com/sbt/zinc/issues/226
+> compile
+
+# add p2.B, which makes the reference to B in A.scala ambiguous
+$ copy-file changes/P2.scala P2.scala
+
+# A.scala must be recompiled and fail like in a clean compile
+-> compile

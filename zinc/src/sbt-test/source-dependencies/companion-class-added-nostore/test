@@ -1,0 +1,10 @@
+# https://github.com/sbt/zinc/issues/226
+# The mirror of companion-shadowing: a class added next to an existing object turns the
+# term-only name B into a type, which makes the type reference in A.scala ambiguous.
+> compile
+
+# add class B next to object q.B
+$ copy-file changes/Q.scala Q.scala
+
+# type B in A.scala is now ambiguous between p.B and q.B; A must be recompiled and fail
+-> compile
