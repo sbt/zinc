@@ -50,10 +50,20 @@ class CachedHashingSpec extends BaseCompilerSpec {
         val scalac = compilers.scalac
 
         import java.nio.file._
-        val giganticClasspath = Files
-          .walk(Paths.get(sys.props("user.home"), ".ivy2"))
-          .iterator()
-          .asScala
+        val home = Paths.get(sys.props("user.home"))
+        val cacheDirs = List(
+          home.resolve(".ivy2"),
+          home.resolve(".coursier").resolve("cache"),
+          home.resolve(".cache").resolve("coursier"),
+          home.resolve("Library").resolve("Caches").resolve("Coursier")
+        ) ++ sys.env
+          .get("LOCALAPPDATA")
+          .map(s => Paths.get(s.replace('\\', '/'), "Coursier", "cache"))
+          .toList
+        val giganticClasspath = cacheDirs
+          .filter(Files.isDirectory(_))
+          .iterator
+          .flatMap(dir => Files.walk(dir).iterator().asScala)
           .filter(_.getFileName.toString.endsWith(".jar"))
           .take(500)
           .map(x => PlainVirtualFile(x))
