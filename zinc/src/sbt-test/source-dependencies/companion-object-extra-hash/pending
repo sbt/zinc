@@ -1,0 +1,11 @@
+> app/compile
+
+# Warm-up, needed due to trait-extends-trait-extra-round (pending)
+$ copy-file lib/changes/A1.scala lib/A.scala
+> app/compile
+
+$ copy-file lib/changes/A2.scala lib/A.scala
+> app/compile
+
+# currently: `app/checkRecompilations 2 D`
+> app/checkRecompilations 1 D
