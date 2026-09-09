@@ -90,11 +90,11 @@ Implement the approved scenario/query matrix with `warmBatch`, `firstLookup`, an
 operations. Make `queryCount` default to 10,000 and support the approved lifecycle sweep.
 
 **Acceptance criteria:**
-- [ ] Scenario N/A/class counts and expected query hit counts are checked outside timing;
+- [x] Scenario N/A/class counts and expected query hit counts are checked outside timing;
   both repeated and distinct strings are exercised with fixed seeds.
-- [ ] Timed calls use production lookup with unwrapped analyses. First-use/lifecycle timings
+- [x] Timed calls use production lookup with unwrapped analyses. First-use/lifecycle timings
   include lookup initialization and exclude fixture construction; results reach a `Blackhole`.
-- [ ] Operation/batch units are explicit, and JMH smoke runs need no new dependency/build change.
+- [x] Operation/batch units are explicit, and JMH smoke runs need no new dependency/build change.
 
 **Verify:**
 ```sh

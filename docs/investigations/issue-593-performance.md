@@ -21,3 +21,7 @@ JDK: Homebrew OpenJDK 17.0.20.1+0, 64-bit Server VM. sbt 2.0.8; Scala 3.9.0.
 2026-09-09: Original `LookupImpl` passes all 6 contract tests. Command:
 `sbt --server --batch 'zinc/testOnly sbt.internal.inc.LookupAnalysisSpec'`.
 Log: `contract-baseline.log` in the results directory. No production source changes.
+
+JMH discovery and the six empty/small smoke cases pass (`benchmark-smoke.log`).
+JMH 1.37 reports `us/op`: one operation is one first lookup, or one whole query batch.
+Smoke timings use a 600 MiB heap and are not acceptance evidence.

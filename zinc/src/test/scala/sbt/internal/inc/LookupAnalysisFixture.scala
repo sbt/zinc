@@ -19,6 +19,50 @@ import xsbti.{ VirtualFile, VirtualFileRef }
 import xsbti.compile.*
 
 private[inc] object LookupAnalysisFixture {
+  final case class Scenario(classpathSize: Int, analysisCount: Int, classesPerAnalysis: Int) {
+    def binaryName(analysisIndex: Int, classIndex: Int): String =
+      s"upstream$analysisIndex.pkg.Class$classIndex"
+
+    def fixture(): Fixture = new Fixture(Vector.tabulate(classpathSize) { i =>
+      if (i >= analysisCount) None
+      else Some(analysis(
+        i,
+        Vector.tabulate(classesPerAnalysis) { j =>
+          s"upstream$i.pkg.Source$j" -> binaryName(i, j)
+        }
+      ))
+    })
+
+    def queries(mix: String, count: Int): Array[String] = {
+      require(count > 0)
+      require(Set("first", "last", "miss", "mixed")(mix))
+      val random = new scala.util.Random(593L)
+      val repeatedMiss = "absent.Repeated"
+      Array.tabulate(count) { i =>
+        val hit = analysisCount > 0 && (mix != "miss") && (mix != "mixed" || i % 2 == 0)
+        if (!hit) {
+          if (i % 4 < 2) repeatedMiss else s"absent.Distinct$i"
+        } else {
+          val a = mix match {
+            case "first" => 0
+            case "last"  => analysisCount - 1
+            case _       => random.nextInt(analysisCount)
+          }
+          val name = binaryName(a, random.nextInt(classesPerAnalysis))
+          if (i % 4 < 2) name else new String(name.toCharArray)
+        }
+      }
+    }
+  }
+
+  val scenarios: Map[String, Scenario] = Map(
+    "empty" -> Scenario(0, 0, 0),
+    "small" -> Scenario(32, 2, 100),
+    "library-heavy" -> Scenario(2000, 2, 100),
+    "upstream-heavy" -> Scenario(2000, 1000, 100),
+    "class-heavy" -> Scenario(500, 200, 1000)
+  )
+
   final class Counters {
     val loads = new AtomicLong
     val visits = new AtomicLong
@@ -41,21 +85,25 @@ private[inc] object LookupAnalysisFixture {
   }
 
   private def proxy[A](cls: Class[A])(f: (Method, Array[Object]) => Object): A =
-    cls.cast(Proxy.newProxyInstance(cls.getClassLoader, Array(cls), new InvocationHandler {
-      def invoke(p: Object, m: Method, args: Array[Object]): Object =
-        f(m, if (args == null) Array.empty[Object] else args)
-    }))
+    cls.cast(Proxy.newProxyInstance(
+      cls.getClassLoader,
+      Array(cls),
+      new InvocationHandler {
+        def invoke(p: Object, m: Method, args: Array[Object]): Object =
+          f(m, if (args == null) Array.empty[Object] else args)
+      }
+    ))
 
   private val instance = proxy(classOf[ScalaInstance]) { (m, _) =>
     m.getName match {
       case "allJars" | "libraryJars" | "compilerJars" | "otherJars" => Array.empty[java.io.File]
-      case "version" | "actualVersion" => "3.9.0"
+      case "version" | "actualVersion"                              => "3.9.0"
       case name => throw new UnsupportedOperationException(s"Fixture ScalaInstance.$name")
     }
   }
   private val compiler = proxy(classOf[ScalaCompiler]) { (m, _) =>
     m.getName match {
-      case "scalaInstance" => instance
+      case "scalaInstance"    => instance
       case "classpathOptions" => ClasspathOptions.of(false, false, false, false, false)
       case name => throw new UnsupportedOperationException(s"Fixture ScalaCompiler.$name")
     }
@@ -71,9 +119,9 @@ private[inc] object LookupAnalysisFixture {
       counters match {
         case None => a
         case Some(c) => proxy(classOf[Analysis]) { (m, args) =>
-          if (m.getName == "relations") c.visits.incrementAndGet()
-          m.invoke(a, args*)
-        }
+            if (m.getName == "relations") c.visits.incrementAndGet()
+            m.invoke(a, args*)
+          }
       }
     })
     private val files: Vector[VirtualFile] = entries.indices.map { i =>
@@ -102,8 +150,23 @@ private[inc] object LookupAnalysisFixture {
       Array.empty
     )
     val config = new CompileConfiguration(
-      Nil, PlainVirtualFileConverter.converter, classpath, Analysis.empty, None, setup,
-      None, perEntry, null, compiler, null, null, options, null, None, None, null
+      Nil,
+      PlainVirtualFileConverter.converter,
+      classpath,
+      Analysis.empty,
+      None,
+      setup,
+      None,
+      perEntry,
+      null,
+      compiler,
+      null,
+      null,
+      options,
+      null,
+      None,
+      None,
+      null
     )
     def newLookup(): LookupImpl = new LookupImpl(config, None)
   }
