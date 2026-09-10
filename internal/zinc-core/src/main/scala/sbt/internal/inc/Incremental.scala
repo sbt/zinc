@@ -1015,12 +1015,12 @@ private final class AnalysisCallback(
     val emptyObject =
       ApiInfo(emptyHash, emptyHash, APIUtil.emptyClassLike(className, DefinitionType.Module))
     val ApiInfo(classApiHash, classHashExtra, classApi) = classApis.getOrElse(className, emptyClass)
-    val ApiInfo(objectApiHash, objectHashExtra, objectApi) =
-      objectApis.getOrElse(className, emptyObject)
+    val ApiInfo(objectApiHash, _, objectApi) = objectApis.getOrElse(className, emptyObject)
     val companions = Companions.of(classApi, objectApi)
     val apiHash = (classApiHash, objectApiHash).hashCode
-    val extraHash = (classHashExtra, objectHashExtra).hashCode
-    (companions, apiHash, extraHash)
+    // extraHash covers a trait's private members. An object's is a copy of its apiHash,
+    // already merged above, so only the class side contributes.
+    (companions, apiHash, classHashExtra)
   }
 
   private def nameHashesForCompanions(className: String): Array[NameHash] = {
