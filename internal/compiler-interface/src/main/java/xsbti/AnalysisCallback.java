@@ -43,8 +43,9 @@ public interface AnalysisCallback {
      * by sources not in the current compilation will be passed as binary
      * dependencies to the `binaryDependency` method.
      *
-     * @param onClassName Class name being depended on.
-     * @param sourceClassName Dependent class name.
+     * @param onClassName Source class name being depended on.
+     * @param sourceClassName Dependent source class name. A class and its
+     *                 companion object share it.
      * @param context The kind of dependency established between
      *                <code>onClassName</code> and <code>sourceClassName</code>.
      *
@@ -73,21 +74,19 @@ public interface AnalysisCallback {
      * @param onBinaryEntry A binary entry represents either the jar or the
      *                      concrete class file from which the Scala compiler
      *                      knows that <code>onBinaryClassName</code> comes from.
-     * @param onBinaryClassName Dependent binary name.
+     * @param onBinaryClassName Binary name being depended on.
      *                 Binary name with JVM-like representation. Inner classes
      *                 are represented with '$'. For more information on the
      *                 binary name format, check section 13.1 of the Java
      *                 Language Specification.
-     * @param fromClassName Represent the class file name where
-     *                 <code>onBinaryClassName</code> is defined.
-     *                 Binary name with JVM-like representation. Inner classes
-     *                 are represented with '$'. For more information on the
-     *                 binary name format, check section 13.1 of the Java
-     *                 Language Specification.
-     * @param fromSourceFile Source file where <code>onBinaryClassName</code>
+     * @param fromClassName Dependent class name, as in
+     *                 {@link #classDependency}: a source class name, which a
+     *                 class and its companion object share.
+     * @param fromSourceFile Source file where <code>fromClassName</code>
      *                       is defined.
      * @param context The kind of dependency established between
-     *                <code>onClassName</code> and <code>sourceClassName</code>.
+     *                <code>onBinaryClassName</code> and
+     *                <code>fromClassName</code>.
      *
      * @see xsbti.api.DependencyContext for more information on the context.
      */
