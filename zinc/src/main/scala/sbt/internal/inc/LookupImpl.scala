@@ -44,8 +44,14 @@ class LookupImpl(compileConfiguration: CompileConfiguration, previousSetup: Opti
 
   private val entry = MixedAnalyzingCompiler.classPathLookup(compileConfiguration)
 
+  private lazy val binaryClassNameToAnalysis: Map[String, Analysis] =
+    // Later map entries win, so reverse traversal preserves the first classpath definition.
+    analyses.reverseIterator.flatMap { analysis =>
+      analysis.relations.productClassName._2s.iterator.map(_ -> analysis)
+    }.toMap
+
   override def lookupAnalysis(binaryClassName: String): Option[CompileAnalysis] =
-    analyses.find(_.relations.productClassName._2s.contains(binaryClassName))
+    binaryClassNameToAnalysis.get(binaryClassName)
 
   override def lookupOnClasspath(binaryClassName: String): Option[VirtualFileRef] =
     entry(binaryClassName)

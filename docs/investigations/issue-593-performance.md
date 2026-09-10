@@ -25,3 +25,32 @@ Log: `contract-baseline.log` in the results directory. No production source chan
 JMH discovery and the six empty/small smoke cases pass (`benchmark-smoke.log`).
 JMH 1.37 reports `us/op`: one operation is one first lookup, or one whole query batch.
 Smoke timings use a 600 MiB heap and are not acceptance evidence.
+
+Baseline A completed successfully at revision `60303402e3afe1f9062440dbfca53e3ec2bf16fc`.
+All 12 targeted cases contain three independent forks with eight measured iterations each;
+JMH reports final heap flags `-Xms2g -Xmx2g`. Contract suite: 6/6 passing.
+Raw JSON: `baseline-A.json`; exact command and support hashes in the manifest.
+This first-order baseline alone cannot establish an acceptance verdict.
+
+2026-09-10: bounded-work guards fail on the original scan (550 visits in the small
+warm-query case; 480,800 visits for concurrent readers), then all 11 focused tests
+pass with the lazy index. A temporary forward iterator (last definition wins) fails
+four precedence/lifetime tests and is restored. Logs: `guard-original.log`,
+`guard-indexed.log`, `guard-last-wins.log`.
+
+The index is private, immutable and lazy; it derives from the existing overridable
+`analyses` accessor. Reverse traversal preserves the earliest analysis for duplicate
+binary names. Provider loading, external-hook dispatch and analyzed-class fallback
+are unchanged.
+
+Compiler integration: 16/16 tests passed, including the new comparison of downstream
+API hashes and product-class relations after incremental and clean compilation.
+Command: `sbt --server --batch 'compilerBridge2_13/compile'
+'zinc/testOnly sbt.internal.inc.LookupAnalysisSpec *MultiProjectIncrementalSpec *BinaryDepSpec'
+'zinc/compile'`. Log: `integration-bridge213.log`. Initial attempts lacked the
+Scala 2.13.16 bridge selected by `BaseCompilerSpec`; building Scala 2.12 was insufficient.
+The symlink/JAR hypothesis was disproved by direct packaging inspection. No bridge
+source or build configuration was changed. Fresh checkouts must compile the selected
+bridge before these integration suites.
+
+Hardware: Apple M3 Pro, 36 GiB physical memory.

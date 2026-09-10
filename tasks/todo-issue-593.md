@@ -112,10 +112,10 @@ Freeze a reproducible revision with the original lookup and new benchmark suppor
 editing production code. Record effective fork options and the source/fixture manifest.
 
 **Acceptance criteria:**
-- [ ] The independently runnable baseline uses actual original `LookupImpl`, not a copied scan.
-- [ ] At least three forks per targeted acceptance case produce valid results with normalized
+- [x] The independently runnable baseline uses actual original `LookupImpl`, not a copied scan.
+- [x] At least three forks per targeted acceptance case produce valid results with normalized
   allocation data and the effective 2 GiB fork heap.
-- [ ] Source hashes, expanded commands, query parameters, and raw baseline outputs are preserved.
+- [x] Source hashes, expanded commands, query parameters, and raw baseline outputs are preserved.
 
 **Verify:** Run the spec's baseline targeted JMH command with `-p queryCount=10000`, saving JSON
 in the unique results directory. Run the focused contract suite on the baseline; inspect JMH
@@ -127,9 +127,9 @@ must recapture them if support sources change.
 
 ## Checkpoint A: Trustworthy baseline
 
-- [ ] Tasks 1–4 are complete; original semantic tests pass and fixtures validate their data.
-- [ ] Each benchmark times exactly the lookup lifecycle it claims to measure.
-- [ ] A reproducible original-code revision and raw baseline evidence are available.
+- [x] Tasks 1–4 are complete; original semantic tests pass and fixtures validate their data.
+- [x] Each benchmark times exactly the lookup lifecycle it claims to measure.
+- [x] A reproducible original-code revision and raw baseline evidence are available.
 
 ## Task 5: Add the lazy index and bounded-work guard
 
@@ -137,11 +137,11 @@ Add the deterministic guard and observe it fail on the scan. Add the private laz
 map from `analyses` in reverse order through iterators, then query it from `lookupAnalysis`.
 
 **Acceptance criteria:**
-- [ ] After initialization, repeated and previously unseen hit/miss queries visit no analyses
+- [x] After initialization, repeated and previously unseen hit/miss queries visit no analyses
   and make no provider calls, for A = 2 and A = 2,000; the original scan fails this assertion.
-- [ ] Semantic tests pass without public-signature, provider, persistence, or analyzed-class
+- [x] Semantic tests pass without public-signature, provider, persistence, or analyzed-class
   fallback changes; first-match precedence is explicit and no per-query cache is retained.
-- [ ] A temporary last-wins construction fails the precedence test; all mutations are restored.
+- [x] A temporary last-wins construction fails the precedence test; all mutations are restored.
 
 **Verify:** Run `sbt --server --batch 'zinc/testOnly sbt.internal.inc.LookupAnalysisSpec'`
 before/after the edit and for the last-wins mutation; save expected red/green output. Run
@@ -156,11 +156,11 @@ Extend focused tests through real `LookupImpl` entry points. Use coordinated sta
 counters for concurrency, with bounded waits and guaranteed executor shutdown rather than sleeps.
 
 **Acceptance criteria:**
-- [ ] External positive/negative answers do not load analyses; missing provenance falls back;
+- [x] External positive/negative answers do not load analyses; missing provenance falls back;
   a subclass-supplied `analyses` vector controls index contents and order.
-- [ ] Concurrent first use publishes one complete index with expected provider counts and
+- [x] Concurrent first use publishes one complete index with expected provider counts and
   oracle-equivalent results for every reader.
-- [ ] Fresh instances observe added/removed definitions and reordered analyses after previous
+- [x] Fresh instances observe added/removed definitions and reordered analyses after previous
   hits/misses; reading `analyses` alone does not build the index.
 
 **Verify:** `sbt --server --batch 'zinc/testOnly sbt.internal.inc.LookupAnalysisSpec'`. Timeouts
@@ -176,10 +176,10 @@ Run existing multi-project/binary-dependency tests through compiler callbacks. A
 coverage needed for upstream changes, shadowing, and incremental-versus-clean behavior.
 
 **Acceptance criteria:**
-- [ ] Existing `MultiProjectIncrementalSpec` and `BinaryDepSpec` pass with the candidate.
-- [ ] Compiler-driven cases assert expected recompiled units and exposed behavior after an
+- [x] Existing `MultiProjectIncrementalSpec` and `BinaryDepSpec` pass with the candidate.
+- [x] Compiler-driven cases assert expected recompiled units and exposed behavior after an
   upstream change or shadowing, rather than merely absence of errors.
-- [ ] Incremental and equivalent clean compilation agree, without compiler-bridge or persisted
+- [x] Incremental and equivalent clean compilation agree, without compiler-bridge or persisted
   analysis-format changes.
 
 **Verify:**
@@ -193,9 +193,9 @@ report. Existing adequate coverage need not be rewritten. **Dependencies:** 6. *
 
 ## Checkpoint B: Correctness
 
-- [ ] Tasks 5–7 pass; original-scan and last-wins expected failures are saved.
-- [ ] Selection, lifecycle, hooks, concurrency, and compiler invalidation have direct evidence.
-- [ ] No debug instrumentation remains in production; benchmark support matches between variants.
+- [x] Tasks 5–7 pass; original-scan and last-wins expected failures are saved.
+- [x] Selection, lifecycle, hooks, concurrency, and compiler invalidation have direct evidence.
+- [x] No debug instrumentation remains in production; benchmark support matches between variants.
 
 ## Task 8: Add reproducible measurement analysis
 
