@@ -203,13 +203,13 @@ Add a standalone script reading manifests/JMH results and a memory-probe entry p
 the fixture with an externally supplied JOL 0.17 jar. Do not add a project dependency.
 
 **Acceptance criteria:**
-- [ ] The script preserves modes/units, summarizes within forks, respects paired run blocks,
+- [x] The script preserves modes/units, summarizes within forks, respects paired run blocks,
   and computes fixed-seed 10,000-resample one-sided 95% ratio bounds. Missing, incomparable,
   or insufficient independent data produce an explicit inconclusive result.
-- [ ] The memory probe reports reliable VM layout and shared-root footprint deltas before/after
+- [x] The memory probe reports reliable VM layout and shared-root footprint deltas before/after
   indexing and after distinct misses, excluding shared fixture/query-buffer growth and avoiding
   address-based `GraphLayout.subtract`.
-- [ ] The interfaces below are documented, source hashes enter the manifest, and both variants
+- [x] The interfaces below are documented, source hashes enter the manifest, and both variants
   use identical measurement support.
 
 **Verify:** Implement these interfaces, then run their smoke/self-check commands:

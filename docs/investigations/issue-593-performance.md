@@ -1,6 +1,6 @@
 # Issue #593 implementation and performance evidence
 
-Status: implementation underway; no acceptance performance measurements completed.
+Status: implementation underway; baseline recorded; candidate acceptance comparison pending.
 
 Base: `f4a48b2375e38089967d78ad8b480fba4f76ce7d`. Candidate checkout:
 `/private/tmp/zinc-593-candidate`, branch `codex/issue-593-lookup-analysis`.
@@ -54,3 +54,26 @@ source or build configuration was changed. Fresh checkouts must compile the sele
 bridge before these integration suites.
 
 Hardware: Apple M3 Pro, 36 GiB physical memory.
+
+Measurement tooling: comparison self-tests pass for known ratios, independent fork counts,
+missing variants and mismatched units. A baseline-only manifest correctly yields inconclusive
+cases. `LookupAnalysisMemoryProbe` loads external JOL 0.17 and requires successful JVM
+Instrumentation. It compares total reachable sizes of the same fixture/lookup roots before
+and after initialization, and after 10,000 and 110,000 distinct misses. This is additional
+reachable footprint under controlled shared roots, not a general dominator retained-size
+claim. Object sizes are measured by Instrumentation; JOL's warning concerns guessed addresses,
+which this probe never subtracts or otherwise uses. Alignment: 8 bytes; compressed references.
+
+Memory smoke (small, 200 unique names): 6,280 additional bytes, unchanged after both
+miss batches. This is an initial probe check; all-scenario paired measurements remain pending.
+Log: `memory-smoke-project.log`; data: `memory-smoke.json`. Run from the concrete project:
+
+```sh
+sbt --server --batch 'project zincBenchmarks' \
+  'set Test / javaOptions ++= Seq("-Djdk.attach.allowAttachSelf=true", "-Djol.skipHotspotSAAttach=true", "-Xms2g", "-Xmx2g")' \
+  'Test/runMain sbt.internal.inc.LookupAnalysisMemoryProbe --jol-jar /Users/iceo/Library/Caches/Coursier/v1/https/repo1.maven.org/maven2/org/openjdk/jol/jol-core/0.17/jol-core-0.17.jar --scenario small --output /private/tmp/zinc-593-results-20260909/memory-smoke.json'
+```
+
+The initial `set zincBenchmarks / ...` command failed because that build symbol is a
+ProjectMatrix; selecting `project zincBenchmarks` before `set Test / ...` resolves it.
+No persistent build settings or dependencies changed.
