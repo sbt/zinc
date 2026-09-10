@@ -21,7 +21,7 @@ import scala.util.control.NonFatal
 import java.io.File
 import java.net.URL
 
-import xsbti.{ VirtualFile, VirtualFileRef }
+import xsbti.{ ClassRef, NameKind, VirtualFile, VirtualFileRef }
 import xsbti.api.DependencyContext
 import xsbti.api.DependencyContext._
 import sbt.io.IO
@@ -45,6 +45,13 @@ private[sbt] object JavaAnalyze {
       // from the bytecode, recovered from the attributed AST. Keyed `fromBinaryName -> onBinaryNames`.
       constantDeps: Map[String, Set[String]] = Map.empty
   ): Unit = {
+    // Java has no modules, so every name a class file mentions is a type.
+    val analysis4 = analysis match {
+      case cb: xsbti.AnalysisCallback4 => Some(cb)
+      case _                           => None
+    }
+    def typeRef(className: String) = ClassRef.of(className, NameKind.Type)
+
     val sourceMap = sources
       .toSet[VirtualFile]
       .groupBy(_.name)
@@ -225,20 +232,35 @@ private[sbt] object JavaAnalyze {
         (getMappedSource(fromBinaryName), getMappedSource(onBinaryName)) match {
           case (Some(fromClassName), Some(onClassName)) =>
             trapAndLog(log) {
-              analysis.classDependency(onClassName, fromClassName, context)
+              analysis4 match {
+                case Some(cb) =>
+                  cb.classDependency(typeRef(onClassName), typeRef(fromClassName), context)
+                case None => analysis.classDependency(onClassName, fromClassName, context)
+              }
             }
           case (Some(fromClassName), None) =>
             trapAndLog(log) {
               val cachedOrigin = classfilesCache.get(onBinaryName)
               for (file <- cachedOrigin.orElse(loadFromClassloader())) {
                 val binaryFile: Path = remapClassFile(file)
-                analysis.binaryDependency(
-                  binaryFile,
-                  onBinaryName,
-                  fromClassName,
-                  source,
-                  context
-                )
+                analysis4 match {
+                  case Some(cb) =>
+                    cb.binaryDependency(
+                      binaryFile,
+                      onBinaryName,
+                      typeRef(fromClassName),
+                      source,
+                      context
+                    )
+                  case None =>
+                    analysis.binaryDependency(
+                      binaryFile,
+                      onBinaryName,
+                      fromClassName,
+                      source,
+                      context
+                    )
+                }
               }
             }
           case (None, _) => // It could be a stale class file, ignore

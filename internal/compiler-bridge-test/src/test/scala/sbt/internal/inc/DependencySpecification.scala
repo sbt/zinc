@@ -2,7 +2,9 @@ package sbt
 package internal
 package inc
 
+import xsbti.NameKind
 import xsbti.TestCallback.ExtractedClassDependencies
+import xsbti.api.DependencyContext.DependencyByInheritance
 
 class DependencySpecification
     extends UnitSpec
@@ -154,6 +156,26 @@ class DependencySpecification
     assert(deps("F") === Set.empty)
     assert(deps("foo.bar.G") === Set("abc.A"))
     assert(deps("H") === Set("abc.A"))
+  }
+
+  it should "qualify each endpoint of a class dependency with its namespace" in {
+    val srcA = "trait A"
+    val srcB = "trait B\nobject B extends A"
+    val srcC = "class C extends B"
+    val (_, callback) = compileSrcs(srcA, srcB, srcC)
+    val inheritance = callback.classRefDependencies.collect {
+      case (on, from, DependencyByInheritance) => (on.name, from.name, from.kind)
+    }.toSet
+    // `object B extends A` and `trait B extends A` are the same edge in the relations
+    assert(inheritance === Set(("A", "B", NameKind.Term), ("B", "C", NameKind.Type)))
+  }
+
+  it should "qualify each used name with its namespace" in {
+    val srcA = "object A { val a = 1 }\nclass A"
+    val srcB = "class B { def b: A = { A.a; null } }"
+    val (_, callback) = compileSrcs(srcA, srcB)
+    assert(callback.usedNameKinds("B").contains(("A", NameKind.Term)))
+    assert(callback.usedNameKinds("B").contains(("A", NameKind.Type)))
   }
 
   private def extractClassDependenciesPublic: ExtractedClassDependencies = {

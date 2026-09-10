@@ -15,7 +15,7 @@ import java.util.{ HashMap => JavaMap }
 import java.util.{ HashSet => JavaSet }
 import java.util.EnumSet
 
-import xsbti.UseScope
+import xsbti.{ AnalysisCallback4, NameKind, UseScope }
 // Left for compatibility
 import Compat._
 
@@ -62,6 +62,12 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
 
   import global._
   import JavaUtils._
+
+  // See the note on `Dependency.callback4`.
+  private val callback4: AnalysisCallback4 = callback match {
+    case cb: AnalysisCallback4 => cb
+    case _                     => null
+  }
 
   private final class NamesUsedInClass {
     // Default names and other scopes are separated for performance reasons
@@ -149,7 +155,9 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
             existingScopes
           }
         }
-        callback.usedName(className, useName, useScopes)
+        if (callback4 ne null)
+          callback4.usedName(className, useName, nameKind(rawUsedName), useScopes)
+        else callback.usedName(className, useName, useScopes)
       }
     }
   }
