@@ -1008,7 +1008,7 @@ private final class AnalysisCallback(
    */
   private final class ExtraHashes {
     private val apis = classApis.readOnlySnapshot()
-    private val objects = objectApis.readOnlySnapshot()
+    private val moduleNames = objectApis.readOnlySnapshot().keySet
 
     private val internalParents: Map[String, Set[String]] =
       intSrcDeps.readOnlySnapshot().iterator.map { case (from, deps) =>
@@ -1043,17 +1043,7 @@ private final class AnalysisCallback(
             hash
         }
 
-    // A companion pair publishes one extraHash, merged from the class and the object side.
     private def compute(className: String): HashAPI.Hash =
-      if (apis.contains(className) || objects.contains(className))
-        (classSide(className), objects.get(className).fold(emptyApiHash)(_.extraHash)).hashCode
-      else
-        previousApis.get(className) match {
-          case Some(previous) => previous.extraHash()
-          case None => sys.error(s"Failed to find the extra API hash of parent $className")
-        }
-
-    private def classSide(className: String): HashAPI.Hash =
       apis.get(className) match {
         case Some(info) if info.classLike.definitionType == DefinitionType.Trait =>
           visiting += className
@@ -1063,7 +1053,13 @@ private final class AnalysisCallback(
             (parents + info.extraHash).hashCode()
           } finally visiting -= className
         case Some(info) => info.extraHash
-        case None       => emptyApiHash
+        // A module-only name has no class side; match what companionsWithHash publishes.
+        case None if moduleNames.contains(className) => emptyApiHash
+        case None =>
+          previousApis.get(className) match {
+            case Some(previous) => previous.extraHash()
+            case None => sys.error(s"Failed to find the extra API hash of parent $className")
+          }
       }
 
     /**
@@ -1092,6 +1088,8 @@ private final class AnalysisCallback(
     val ApiInfo(objectApiHash, _, objectApi) = objectApis.getOrElse(className, emptyObject)
     val companions = Companions.of(classApi, objectApi)
     val apiHash = (classApiHash, objectApiHash).hashCode
+    // extraHash covers a trait's private members. An object's is a copy of its apiHash,
+    // already merged above, so only the class side contributes.
     (companions, apiHash, extraHashes(className))
   }
 
