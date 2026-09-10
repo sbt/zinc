@@ -2,7 +2,9 @@ package sbt
 package internal
 package inc
 
+import xsbti.NameKind
 import xsbti.TestCallback.ExtractedClassDependencies
+import xsbti.api.DependencyContext.DependencyByInheritance
 
 class DependencySpecification
     extends UnitSpec
@@ -154,6 +156,46 @@ class DependencySpecification
     assert(deps("F") === Set.empty)
     assert(deps("foo.bar.G") === Set("abc.A"))
     assert(deps("H") === Set("abc.A"))
+  }
+
+  it should "qualify each endpoint of a class dependency with its namespace" in {
+    val srcA = "trait A"
+    val srcB = "trait B\nobject B extends A"
+    val srcC = "class C extends B"
+    val (_, callback) = compileSrcs(srcA, srcB, srcC)
+    val inheritance = callback.classRefDependencies.collect {
+      case (on, from, DependencyByInheritance) => (on.name, from.name, from.kind)
+    }.toSet
+    // `object B extends A` and `trait B extends A` are the same edge in the relations
+    assert(inheritance === Set(("A", "B", NameKind.Term), ("B", "C", NameKind.Type)))
+  }
+
+  it should "record whether a selected member belongs to a class or its companion object" in {
+    val srcA =
+      """trait T { def inherited: Int = 0 }
+        |class A { def x: Int = 1; def y: Int = 2; def w: Int = 3 }
+        |object A extends T { def x: String = ""; def z: Int = 4; def w: Int = 5 }""".stripMargin
+    val srcB =
+      """import A.z
+        |class B {
+        |  def fromObject: String = A.x
+        |  def fromClass(a: A): Int = a.y
+        |  def fromBoth(a: A): Int = a.w + A.w
+        |  def fromTrait: Int = A.inherited
+        |  def fromImport: Int = z
+        |  def structural(m: { def s: Int }): Int = m.s
+        |}""".stripMargin
+    val (_, callback) = compileSrcs(srcA, srcB)
+    val owners = callback.usedNameOwnerKinds("B")
+    assert(owners("x") === Set(NameKind.Term))
+    assert(owners("y") === Set(NameKind.Type))
+    assert(owners("w") === Set(NameKind.Type, NameKind.Term))
+    // could be overridden or overloaded in object A
+    assert(owners("inherited") === Set(NameKind.Type, NameKind.Term))
+    // an import selector has no symbol
+    assert(owners("z") === Set(NameKind.Type, NameKind.Term))
+    // any class or object can define a structural member
+    assert(owners("s") === Set(NameKind.Type, NameKind.Term))
   }
 
   private def extractClassDependenciesPublic: ExtractedClassDependencies = {

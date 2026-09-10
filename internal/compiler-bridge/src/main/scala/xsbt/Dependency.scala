@@ -12,7 +12,7 @@
 package xsbt
 
 import java.nio.file.Path
-import xsbti.VirtualFile
+import xsbti.{ AnalysisCallback4, ClassRef, VirtualFile }
 import xsbti.api.DependencyContext
 import DependencyContext._
 
@@ -82,6 +82,12 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
       }
     }
 
+    // null against a Zinc that predates AnalysisCallback4, which leaves companions conflated.
+    private val callback4: AnalysisCallback4 = callback match {
+      case cb: AnalysisCallback4 => cb
+      case _                     => null
+    }
+
     private val sourceFile: VirtualFile = unit.source.file match { case AbstractZincFile(vf) => vf }
     private val responsibleOfImports = firstClassOrModuleClass(unit.body)
     private var orphanImportsReported = false
@@ -125,9 +131,12 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
         dep: ClassDependency
     ): Unit = {
       val fromClassName = classNameAsString(dep.from)
+      val fromClassRef = ClassRef.of(fromClassName, classNameKind(dep.from))
 
       def binaryDependency(file: Path, binaryClassName: String) = {
-        callback.binaryDependency(file, binaryClassName, fromClassName, sourceFile, context)
+        if (callback4 ne null)
+          callback4.binaryDependency(file, binaryClassName, fromClassRef, sourceFile, context)
+        else callback.binaryDependency(file, binaryClassName, fromClassName, sourceFile, context)
       }
       import scala.tools.nsc.io.AbstractFile
       def processExternalDependency(binaryClassName: String, at: AbstractFile): Unit = {
@@ -165,8 +174,9 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
           if (onSourceFile != sourceFile || allowLocal) {
             // We cannot ignore dependencies coming from the same source file because
             // the dependency info needs to propagate. See source-dependencies/trait-trait-211.
-            val onClassName = classNameAsString(dep.to)
-            callback.classDependency(onClassName, fromClassName, context)
+            if (callback4 ne null)
+              callback4.classDependency(classRef(dep.to), fromClassRef, context)
+            else callback.classDependency(classNameAsString(dep.to), fromClassName, context)
           } else ()
         // This could match null or scala.reflect.io.FileZipArchive$LeakyEntry
         case _ =>
