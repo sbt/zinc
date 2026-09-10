@@ -1,5 +1,4 @@
 # B extends A, D extends B. Comment-only edit to B should not recompile D.
-# Currently takes 3 iterations, not 2.
 > compile
 $ copy-file changes/B1.scala src/main/scala/B.scala
 > compile
