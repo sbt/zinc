@@ -7,5 +7,4 @@ $ copy-file lib/changes/A1.scala lib/A.scala
 $ copy-file lib/changes/A2.scala lib/A.scala
 > app/compile
 
-# currently: `app/checkRecompilations 2 D`
 > app/checkRecompilations 1 D
