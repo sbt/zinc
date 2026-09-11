@@ -65,7 +65,8 @@ final case class Project(
     name: String,
     dependsOn: Option[Vector[String]] = None,
     in: Option[Path] = None,
-    scalaVersion: Option[String] = None
+    scalaVersion: Option[String] = None,
+    compileOrder: Option[String] = None
 )
 
 final case class Build(projects: Seq[Project])
@@ -125,6 +126,7 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
       val in: Path = p.in.getOrElse(directory / p.name)
       val version = switchScalaVersion(p.scalaVersion)
       val deps = p.dependsOn.toVector.flatten
+      val order = p.compileOrder.fold(CompileOrder.Mixed)(CompileOrder.valueOf)
       val project = ProjectStructure(
         p.name,
         deps,
@@ -134,7 +136,8 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
         lookupProject,
         version,
         compileToJar,
-        incrementalCompiler
+        incrementalCompiler,
+        order
       )
       buildStructure(p.name) = project
     }
@@ -147,7 +150,13 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
       import sjsonnew._, BasicJsonProtocol._
       implicit val pathFormat = IsoString.iso[Path](_.toString, Paths.get(_))
       implicit val projectFormat =
-        caseClass(Project.apply _, Project.unapply _)("name", "dependsOn", "in", "scalaVersion")
+        caseClass(Project.apply _, Project.unapply _)(
+          "name",
+          "dependsOn",
+          "in",
+          "scalaVersion",
+          "compileOrder"
+        )
       implicit val buildFormat = caseClass(Build.apply _, Build.unapply _)("projects")
       // Do not parseFromFile as it leaves file open, causing problems on Windows.
       val json = {
@@ -302,7 +311,8 @@ case class ProjectStructure(
     lookupProject: String => ProjectStructure,
     scalaVersion: String,
     compileToJar: Boolean,
-    incrementalCompiler: IncrementalCompilerImpl
+    incrementalCompiler: IncrementalCompilerImpl,
+    compileOrder: CompileOrder = CompileOrder.Mixed
 ) extends BridgeProviderSpecification {
   import scala.concurrent.ExecutionContext.Implicits._
   // This will test pipelining unless incOptions.properties overrides it
@@ -720,7 +730,7 @@ case class ProjectStructure(
       javacOptions = Array(),
       maxErrors,
       sourcePositionMappers = Array(),
-      CompileOrder.Mixed,
+      compileOrder,
       cs,
       setup,
       previousResult,
