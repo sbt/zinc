@@ -258,12 +258,12 @@ build or promise a particular user-visible compilation speedup.
 
 ## Success criteria
 
-- [ ] All behavioral contracts are covered and pass against the optimized production path.
-- [ ] The bounded-work assertion distinguishes the original scan from the candidate without timing.
-- [ ] The duplicate-name test fails with the previous PR's last-wins construction.
-- [ ] Compiler-driven upstream-change and shadowing checks pass; relevant existing suites pass.
+- [x] All behavioral contracts are covered and pass against the optimized production path.
+- [x] The bounded-work assertion distinguishes the original scan from the candidate without timing.
+- [x] The duplicate-name test fails with the previous PR's last-wins construction.
+- [x] Compiler-driven upstream-change and shadowing checks pass; relevant existing suites pass.
 - [ ] Targeted and whole-compiler benchmark gates pass, with construction and memory documented.
-- [ ] Public APIs, persisted data, provider behavior, and external hooks remain compatible.
+- [x] Public APIs, persisted data, provider behavior, and external hooks remain compatible.
 - [ ] Tests, benchmarks, and the results report are reproducible without ignored investigation files.
 - [ ] Formatting, headers, and relevant binary-compatibility checks pass.
 

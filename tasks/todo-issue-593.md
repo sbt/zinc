@@ -301,6 +301,12 @@ any equivalent explicit JMH setup as in Task 10.
 Run affected-project checks and finalize a criterion-to-evidence index. Review API, provider,
 external-hook, and persistence compatibility. Mark only evidence-backed requirements complete.
 
+Validation progress (2026-09-11): all 43 zinc and 29 zinc-core tests pass, as do formatting
+and license-header checks. The historical MiMa command cannot resolve `zinc_3:1.8.0` on
+either the original baseline or candidate. A scoped MiMa comparison against the compiled
+original baseline passes; the report preserves both the limitation and the successful local
+check. Remaining performance diagnostics/compiler gates still prevent overall completion.
+
 **Acceptance criteria:**
 - [ ] Relevant tests, formatting, headers, and binary-compatibility checks pass; unrelated
   failures are documented separately without out-of-scope production edits.

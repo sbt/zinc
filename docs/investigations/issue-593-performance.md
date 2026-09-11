@@ -166,6 +166,20 @@ Bounds in the table are rounded upward; the JSON retains full precision. First-u
 query-shape, break-even, and compiler results must still be considered before completion.
 No whole-build non-regression claim follows from these lookup measurements.
 
+The same paired runs quantify the startup tradeoff. These are independent first-use
+measurements, including provider enumeration and index construction; they are not obtained
+by subtracting warm timing from lifecycle timing.
+
+| Scenario | Original first use (us) | Candidate first use (us) | Original allocation (MiB) | Candidate allocation (MiB) |
+|---|---:|---:|---:|---:|
+| small | 2.040 | 4.726 | 0.0078 | 0.0182 |
+| library-heavy | 139.817 | 140.374 | 0.3710 | 0.3814 |
+| upstream-heavy | 158.942 | 5,799.265 | 0.4452 | 5.7056 |
+| class-heavy | 43.790 | 9,478.165 | 0.1097 | 10.2518 |
+
+Few-query and first-hit-heavy workloads can pay an index cost without recovering it.
+The remaining query-shape measurements and query-count sweep must quantify that boundary.
+
 Tooling audit: `show zincBenchmarks/Test/discoveredMainClasses` reports the new memory
 probe and `xsbt.GlobalBenchmarkSetup`; `Test/mainClass` is `None` with a multiple-main
 warning. The `runBenchmarks` alias now names `Test/runMain xsbt.GlobalBenchmarkSetup`
@@ -177,3 +191,45 @@ The shortcut smoke passes: `sbt --server --batch '-Dbenchmark.pattern=-l' runBen
 Here `-l` matches no setup project and asks JMH to list benchmarks, so the command verifies
 explicit main selection, bridge packaging, JMH discovery, and temporary-directory cleanup
 without cloning a workload or collecting timing data. Log: `benchmark-entrypoint-after.log`.
+
+## Validation and remaining evidence
+
+Full affected-project validation at `3a8a366de`: all 43 `zinc/testFull` tests and all 29
+`zincCore/testFull` tests pass. `scalafmtCheckAll`, `scalafmtSbtCheck`, `headerCheck`, and
+`Test/headerCheck` pass. The intentional malformed-source compiler diagnostic in the test
+log is part of a passing test. Log: `final-checks.log`.
+
+The configured `zinc/mimaReportBinaryIssues` cannot resolve
+`org.scala-sbt:zinc_3:1.8.0` on either this candidate or the original baseline. This is
+recorded separately in `mima-original-baseline.log`; release settings and filters are
+unchanged. A scoped MiMa comparison against the actual original classes passes:
+
+```sh
+sbt --server --batch 'project zinc' \
+  'set mimaPreviousClassfiles := Map(("org.scala-sbt" % "zinc_3" % "issue-593-baseline") -> file("/private/tmp/zinc-593-baseline/target/out/jvm/scala-3.9.0/zinc/classes"))' \
+  mimaReportBinaryIssues
+```
+
+Log: `mima-local-baseline.log`. The manifest records different baseline/candidate
+`LookupImpl.class` hashes, confirming distinct comparison inputs. This checks the scoped
+change; it does not claim that the unresolved historical-release check passed.
+
+After the lookup gates, two empty-state diagnostic runs started on battery. The power
+mismatch was noticed before inspecting their timings; both raw runs are preserved under
+`excluded_measurements` and will be recaptured under AC power. The runner now checks AC
+at startup and completion and audits battery events as well as sleep. The user connected
+power, but restricted `pmset` reports AC while the actual benchmark environment's `pmset`
+reports battery and `ioreg` reports no external connection. Timings remain paused until
+that discrepancy is resolved. The accepted H1/H2 runs were completed earlier on AC and
+are unaffected. Query-shape/break-even diagnostics and all four compiler gates remain open.
+
+The original workspace's unrelated compiler-bridge diff is unchanged (SHA-256
+`0dc459f403aae9b67ace276b079ddab89e096c39a393aaaac11401257b91d3cb`). Other new unrelated
+workspace files and edits were observed and left untouched.
+
+Compiler fixture preparation completed while timing was paused. The existing setup helper
+prepared Scala library at `31539736462078b1da615880ef11890a6538b45e` (569 sources) and
+Shapeless coreJVM at `62611554399e0d04466da95591253706b2d3020d` (83 sources). Both Git
+revisions and every recorded source/classpath path were verified. The manifest retains
+commands, source-input hashes, build metadata, and `scalac-setup-early.log` /
+`shapeless-setup-early.log`. Preparation is not a compiler timing or an acceptance result.
