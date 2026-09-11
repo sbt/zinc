@@ -13,6 +13,8 @@ package xsbt
 
 import scala.tools.nsc.Global
 
+import xsbti.{ ClassRef, NameKind }
+
 /**
  * Utility methods for creating (source|binary) class names for a Symbol.
  */
@@ -35,6 +37,27 @@ trait ClassName extends Compat {
    * Create a String (source) name for a class symbol `s`.
    */
   protected def classNameAsString(s: Symbol): String = pickledNameAsString(s)
+
+  /**
+   * The namespace the name from `classNameAsString(s)` lives in. That name is the source name,
+   * so for a module class it is the object's, a term name - which is all that tells it from its
+   * companion class, the two having the same source name. Not the namespace of `s.name`, which
+   * is a type name for a module class like any other class.
+   */
+  protected def classNameKind(s: Symbol): NameKind =
+    if (s.isModuleClass) NameKind.Term else NameKind.Type
+
+  /**
+   * The namespace a name `n` lives in.
+   */
+  protected def nameKind(n: Name): NameKind =
+    if (n.isTermName) NameKind.Term else NameKind.Type
+
+  /**
+   * Create a (source) name for a class symbol `s`, qualified by its namespace.
+   */
+  protected def classRef(s: Symbol): ClassRef =
+    ClassRef.of(classNameAsString(s), classNameKind(s))
 
   /**
    * Given a class symbol `cls`, construct a name representing this constructor.

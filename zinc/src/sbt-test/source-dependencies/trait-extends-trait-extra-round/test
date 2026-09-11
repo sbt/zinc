@@ -1,0 +1,5 @@
+# B extends A, D extends B. Comment-only edit to B should not recompile D.
+> compile
+$ copy-file changes/B1.scala src/main/scala/B.scala
+> compile
+> checkIterations 2
