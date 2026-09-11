@@ -1,0 +1,3 @@
+# Generated goldens are compared byte for byte, so keep git from normalizing their line endings
+# or flagging the trailing spaces that encode Position.pointerSpace.
+test-data/analysis-format-*.txt -text whitespace=-trailing-space
