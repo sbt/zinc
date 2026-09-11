@@ -2,7 +2,7 @@
 
 Status: **Approved — Specify phase complete.** The user approved the requirements and numeric
 thresholds on 2026-09-09. The plan is also approved; the task breakdown is approved and implementation is underway.
-Implementation has not started.
+Implementation is underway; performance acceptance remains pending.
 Created 2026-09-09 against `f4a48b237`.
 
 ## Objective
@@ -56,6 +56,14 @@ Use a private, per-instance, lazily initialized immutable map from binary class 
 first analysis defining it, derived from the existing `analyses` accessor. The construction
 algorithm must preserve first-match precedence explicitly. A forward traversal followed by
 plain `toMap` does not preserve it.
+
+Construction refinement (2026-09-11): the initial Scala immutable-map builder did not
+establish the class-heavy lifecycle gate after six paired blocks. Evaluate a method-local
+Java `HashMap` populated in reverse analysis order and published through
+`Collections.unmodifiableMap`. The mutable backing reference never escapes initialization
+and is never retained separately, so published contents remain immutable. This preserves
+the approved contract and thresholds while reducing construction allocation; it introduces
+no dependency or adaptive lookup policy. Keep the initial candidate's evidence separate.
 
 Expected costs are O(B) index construction, O(U) additional entries for U distinct binary
 names, and expected constant-time warm lookups. Existing O(N) provider enumeration remains.

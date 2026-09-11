@@ -55,7 +55,8 @@ object LookupAnalysisMemoryProbe {
       val afterTenThousand = footprint()
       for (i <- 0 until 100000) lookup.lookupAnalysis(s"absent.Second$i")
       val afterHundredThousand = footprint()
-      val uniqueNames = fixture.analyses.iterator.flatMap(_.relations.productClassName._2s).toSet.size
+      val uniqueNames =
+        fixture.analyses.iterator.flatMap(_.relations.productClassName._2s).toSet.size
       def quote(value: String): String =
         "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"")
           .replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t") + "\""

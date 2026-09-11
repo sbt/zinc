@@ -232,6 +232,13 @@ optionally the shared fixture, and performance report.
 Run the approved matrix on actual baseline/candidate checkouts in both orders. Recompile and
 recapture the baseline if support changed after Task 4. Measure one process at a time.
 
+2026-09-11 continuation: the initial Scala-map candidate remains inconclusive after six
+paired blocks, so checkpoint C is still open. The documented construction refinement uses
+a local Java hash map published through an unmodifiable view, passes all 16 correctness
+tests, and has completed instrumented memory probes for both variants/all five scenarios.
+Fresh timing comparisons are recorded separately in
+`/private/tmp/zinc-593-hashmap-20260911/manifest.json`; prior candidate evidence is retained.
+
 **Acceptance criteria:**
 - [ ] Both large scenarios meet ≥50% warm mixed-query and ≥20% 10,000-query lifecycle gains
   beyond uncertainty; small/library-heavy lifecycle upper ratio bounds are ≤1.05. Otherwise

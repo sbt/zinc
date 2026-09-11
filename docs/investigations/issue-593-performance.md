@@ -103,3 +103,47 @@ The analysis script also supports JMH 1.37 sample-time histograms (verified agai
 its JSONResultFormat source): samples are pooled within each fork, then forks remain
 independent and equally weighted. A weighted-histogram self-check failed before
 implementation and passes afterward.
+
+The fixed additional sampling is complete. All six paired blocks are retained; the
+class-heavy lifecycle mean ratio is 0.8853 with a one-sided 95% upper bound of 1.0758,
+so this candidate does not establish the required 0.80 bound. Other five targeted gates
+pass. Source-equivalent runs vary substantially; no valid slow samples were discarded.
+`comparison-targeted-final.json` records this inconclusive outcome. Compiler acceptance
+runs have not started because checkpoint C has not passed.
+
+Next construction candidate: a locally built Java hash map, published through an
+unmodifiable view without retaining any mutable alias. The current Scala-map candidate
+allocates about 32.7 MiB for the class-heavy lifecycle. Measure whether avoiding its
+trie construction and intermediate pairs reduces first-use cost while preserving the
+same contract. Existing semantic/concurrency/integration tests remain the correctness
+guards. Previous candidate timings will not be pooled with the new implementation.
+
+## Revised construction measurements
+
+The revised implementation passes all 16 focused and integration tests
+(`hashmap-correctness.log` in the original results directory). Its evidence is isolated in
+`/private/tmp/zinc-593-hashmap-20260911/manifest.json`, including the exact production patch
+against `f695304ed`, source hashes, commands, and links to the prior candidate's evidence.
+
+An exploratory class-heavy run (three forks per method, approved timing/heap settings)
+averages 13.15 ms first-use, 10.43 ms lifecycle, and 83.0 microseconds per warm batch of
+10,000 queries. Lifecycle allocation is 10.33 MiB/op, compared with about 32.7 MiB/op
+for the previous candidate. This pilot is retained separately and is not pooled with
+the acceptance runs. Fresh fixed paired blocks H1/H2 run in both orders.
+
+Instrumented JOL measurements cover both revisions and all five scenarios with identical
+probe sources. The original scan adds zero bytes after the already-loaded analyses.
+The revised candidate's additional reachable footprint is:
+
+| Scenario | Distinct names U | Additional bytes | Bytes per name |
+|---|---:|---:|---:|
+| empty | 0 | 80 | — |
+| small | 200 | 8,544 | 42.72 |
+| library-heavy | 200 | 8,544 | 42.72 |
+| upstream-heavy | 100,000 | 4,248,672 | 42.49 |
+| class-heavy | 200,000 | 8,497,248 | 42.49 |
+
+For every scenario and both variants, initialized footprint is unchanged after 10,000
+and 110,000 distinct misses. These are measurements with the same shared roots, not
+unit-test byte budgets. Exact commands, tool hash, VM details, and raw outputs are in
+the new manifest's `memory_runs` entries.

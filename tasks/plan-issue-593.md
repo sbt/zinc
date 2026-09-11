@@ -31,12 +31,14 @@ Add one private lazy binary-name-to-analysis map next to `lookupAnalysis`; make 
 query the map. Leave `analyses` and `lookupAnalyzedClass` unchanged. Build through the existing
 `analyses` accessor so subclass overrides retain their meaning.
 
-Use reverse traversal of the ordered analysis vector and an iterator over each analysis's
-binary names when feeding an immutable map builder: later insertions overwrite earlier ones,
-so the earliest analysis in the original order wins. Avoid an intermediate flattened vector
-of all B pairs. A comment must explain why order is reversed. Retain immutable published state;
-any builder exists only during lazy initialization. No externally mutable map or query cache
-is introduced.
+Use reverse traversal of the ordered analysis vector and each analysis's binary names:
+later insertions overwrite earlier ones, so the earliest analysis in the original order wins.
+Following the inconclusive six-block Scala-map comparison, evaluate a method-local Java
+`HashMap` and publish only its `Collections.unmodifiableMap` view. The backing reference
+does not escape initialization; no code can mutate the published contents. Avoid intermediate
+pairs and a flattened vector of all B entries. A comment explains reversed order and ownership.
+No externally mutable map or query cache is introduced. Archive the first candidate's evidence
+and recapture comparisons for the changed construction path.
 
 Keep this logic private rather than extracting a new public helper or adding an `allAnalysis`
 provider method. Construction of the lookup and reads of `analyses` do not force the index;

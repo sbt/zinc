@@ -44,14 +44,20 @@ class LookupImpl(compileConfiguration: CompileConfiguration, previousSetup: Opti
 
   private val entry = MixedAnalyzingCompiler.classPathLookup(compileConfiguration)
 
-  private lazy val binaryClassNameToAnalysis: Map[String, Analysis] =
-    // Later map entries win, so reverse traversal preserves the first classpath definition.
-    analyses.reverseIterator.flatMap { analysis =>
-      analysis.relations.productClassName._2s.iterator.map(_ -> analysis)
-    }.toMap
+  private lazy val binaryClassNameToAnalysis: java.util.Map[String, Analysis] = {
+    val index = new java.util.HashMap[String, Analysis]()
+    // Later entries win, so reverse traversal preserves the first classpath definition.
+    analyses.reverseIterator.foreach { analysis =>
+      analysis.relations.productClassName._2s.foreach { name =>
+        index.put(name, analysis)
+      }
+    }
+    // Only this unmodifiable view escapes initialization; the backing map is never mutated again.
+    java.util.Collections.unmodifiableMap(index)
+  }
 
   override def lookupAnalysis(binaryClassName: String): Option[CompileAnalysis] =
-    binaryClassNameToAnalysis.get(binaryClassName)
+    Option(binaryClassNameToAnalysis.get(binaryClassName))
 
   override def lookupOnClasspath(binaryClassName: String): Option[VirtualFileRef] =
     entry(binaryClassName)
