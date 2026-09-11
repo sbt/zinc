@@ -147,3 +147,33 @@ For every scenario and both variants, initialized footprint is unchanged after 1
 and 110,000 distinct misses. These are measurements with the same shared roots, not
 unit-test byte budgets. Exact commands, tool hash, VM details, and raw outputs are in
 the new manifest's `memory_runs` entries.
+
+Fresh paired blocks H1/H2 are complete with no sleep interruptions. All six lookup gates
+pass (`comparison-acceptance.json`, seed 593, 10,000 hierarchical bootstrap resamples).
+Each row has six independent JVM forks per variant across both run orders. Time is
+microseconds per 10,000-query operation, including initialization for lifecycle rows.
+
+| Scenario / operation | Original | Candidate | Ratio | One-sided 95% upper | Limit |
+|---|---:|---:|---:|---:|---:|
+| class-heavy lifecycle | 35,627.34 | 11,272.10 | 0.3164 | 0.3471 | 0.80 |
+| upstream-heavy lifecycle | 145,329.88 | 6,382.59 | 0.0439 | 0.0563 | 0.80 |
+| small lifecycle | 226.50 | 59.91 | 0.2645 | 0.2913 | 1.05 |
+| library-heavy lifecycle | 370.51 | 194.46 | 0.5248 | 0.5596 | 1.05 |
+| class-heavy warm batch | 39,705.31 | 81.80 | 0.0021 | 0.0025 | 0.50 |
+| upstream-heavy warm batch | 188,987.17 | 86.56 | 0.0005 | 0.0007 | 0.50 |
+
+Bounds in the table are rounded upward; the JSON retains full precision. First-use,
+query-shape, break-even, and compiler results must still be considered before completion.
+No whole-build non-regression claim follows from these lookup measurements.
+
+Tooling audit: `show zincBenchmarks/Test/discoveredMainClasses` reports the new memory
+probe and `xsbt.GlobalBenchmarkSetup`; `Test/mainClass` is `None` with a multiple-main
+warning. The `runBenchmarks` alias now names `Test/runMain xsbt.GlobalBenchmarkSetup`
+explicitly, synchronized to both checkouts. The completed timings invoked `Jmh/run`
+directly and never used this alias; benchmark sources, settings, and runtime production
+sources are unchanged by this setup-selection fix.
+
+The shortcut smoke passes: `sbt --server --batch '-Dbenchmark.pattern=-l' runBenchmarks`.
+Here `-l` matches no setup project and asks JMH to list benchmarks, so the command verifies
+explicit main selection, bridge packaging, JMH discovery, and temporary-directory cleanup
+without cloning a workload or collecting timing data. Log: `benchmark-entrypoint-after.log`.

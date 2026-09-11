@@ -226,6 +226,11 @@ stable, and the compiler integration verification can be developed independently
 analysis. They share files and require coordination if work is delegated later. No delegation
 is needed by this plan.
 
+Measurement-tool integration: adding the memory probe creates a second Test main class.
+Keep the existing `runBenchmarks` shortcut usable by naming `xsbt.GlobalBenchmarkSetup`
+explicitly through `Test/runMain`. This changes setup selection only; preserve all compiler
+workload arguments and JMH settings. Synchronize the alias fix to the baseline checkout.
+
 Index implementation depends on the valid baseline fixture. Benchmarks and heap measurements
 must run sequentially on the same otherwise idle machine; running them alongside builds or
 tests would contaminate the comparison. Performance acceptance follows correctness.

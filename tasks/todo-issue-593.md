@@ -240,7 +240,7 @@ Fresh timing comparisons are recorded separately in
 `/private/tmp/zinc-593-hashmap-20260911/manifest.json`; prior candidate evidence is retained.
 
 **Acceptance criteria:**
-- [ ] Both large scenarios meet ≥50% warm mixed-query and ≥20% 10,000-query lifecycle gains
+- [x] Both large scenarios meet ≥50% warm mixed-query and ≥20% 10,000-query lifecycle gains
   beyond uncertainty; small/library-heavy lifecycle upper ratio bounds are ≤1.05. Otherwise
   record failure/inconclusive and stop the shipping path.
 - [ ] First/last/miss/mixed cases, empty scenario, full lifecycle query-count sweep, allocation,
@@ -257,9 +257,9 @@ memory probe for all five scenarios and both variants, then the Task 8 compariso
 
 ## Checkpoint C: Targeted evidence
 
-- [ ] Task 9's improvement and non-regression gates pass with independent-run uncertainty.
+- [x] Task 9's improvement and non-regression gates pass with independent-run uncertainty.
 - [ ] Construction/memory costs are documented; distinct misses retain no accumulating state.
-- [ ] Failed or inconclusive gates trigger more evidence/design work, not relaxed thresholds.
+- [x] Failed or inconclusive gates trigger more evidence/design work, not relaxed thresholds.
 
 ## Task 10: Measure Scalac regressions
 

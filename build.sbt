@@ -696,7 +696,7 @@ addCommandAlias(
     Seq(
       s"${compilerBridge213.id}/packageBin",
       s"${compilerBridge212.id}/packageBin",
-      s"${zincBenchmarks.jvm(scala3).id}/Test/run $dir $pattern",
+      s"${zincBenchmarks.jvm(scala3).id}/Test/runMain xsbt.GlobalBenchmarkSetup $dir $pattern",
       s"${zincBenchmarks.jvm(scala3).id}/Jmh/run -p _tempDir=$dir -prof gc -foe true $pattern",
       s"""eval IO.delete(file("$dir"))""",
     ).mkString(";", ";", "")
