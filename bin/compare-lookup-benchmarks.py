@@ -24,6 +24,24 @@ from pathlib import Path
 
 def fork_means(metric):
     """JMH rawData has one row per fork, with iteration summaries inside it."""
+    if "rawDataHistogram" in metric:
+        # JMH 1.37 JSONResultFormat: forks -> iterations -> [sample value, count] pairs.
+        # Pool samples within a fork, while keeping forks independent and equally weighted.
+        histograms = metric["rawDataHistogram"]
+        if not histograms:
+            raise ValueError("missing independent fork histograms")
+        means = []
+        for fork in histograms:
+            if not fork or any(not iteration for iteration in fork):
+                raise ValueError("empty sample-time iteration")
+            pairs = [pair for iteration in fork for pair in iteration]
+            if any(len(pair) != 2 or not isinstance(pair[0], (int, float))
+                   or not math.isfinite(pair[0]) or pair[0] <= 0
+                   or not isinstance(pair[1], int) or pair[1] <= 0 for pair in pairs):
+                raise ValueError("invalid sample-time histogram")
+            means.append(sum(value * count for value, count in pairs)
+                         / sum(count for _, count in pairs))
+        return means
     rows = metric.get("rawData", [])
     if not rows or any(not row for row in rows):
         raise ValueError("missing independent fork data")
@@ -34,6 +52,10 @@ def fork_means(metric):
 
 
 def threshold(benchmark, params):
+    if benchmark in {f"xsbt.{temperature}{workload}Benchmark.action"
+                     for temperature in ("Hot", "Cold")
+                     for workload in ("Scalac", "Shapeless")}:
+        return 1.05
     method = benchmark.rsplit(".", 1)[-1]
     if params.get("queryMix") != "mixed" or params.get("queryCount") != "10000":
         return None
@@ -145,12 +167,15 @@ def compare(manifest, directory, seed=593, resamples=10000):
         results.append(result)
     return {"seed": seed, "resamples": resamples,
             "sampling_unit": "fork mean, nested within paired run blocks",
-            "run_errors": run_errors, "cases": results}
+            "run_errors": run_errors,
+            "excluded_measurements": manifest.get("excluded_measurements", []),
+            "failed_attempts": manifest.get("failed_attempts", []), "cases": results}
 
 
 def self_test():
     import tempfile
     assert fork_means({"rawData": [[1, 3], [4, 6], [7, 9]]}) == [2, 5, 8]
+    assert fork_means({"rawDataHistogram": [[[[1, 9]], [[10, 1]]], [[[3, 2]]]]}) == [1.9, 3.0]
     for ratio in (1.0, 1.2):
         blocks = {b: {"baseline": [10.0] * 3, "candidate": [10.0 * ratio] * 3}
                   for b in ("A", "B")}

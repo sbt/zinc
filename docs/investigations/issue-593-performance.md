@@ -77,3 +77,29 @@ sbt --server --batch 'project zincBenchmarks' \
 The initial `set zincBenchmarks / ...` command failed because that build symbol is a
 ProjectMatrix; selecting `project zincBenchmarks` before `set Test / ...` resolves it.
 No persistent build settings or dependencies changed.
+
+## Measurement quality and initial valid comparison
+
+Power-event audit (`power-events.json`) found that baseline A and candidate B crossed
+system sleep. Baseline A also ran on battery. Their raw data remain in the manifest's
+`excluded_measurements` with objective reasons. The uninterrupted candidate A and
+baseline B retry form reverse-order block B; replacement block C runs baseline then
+candidate. New runs inhibit idle sleep with `caffeinate -i`, record power state and
+check sleep events after completion. No valid slow sample is omitted.
+
+Baseline B initially failed before JMH: the contraband generator cached an empty output
+list although all tracked generated sources existed. Preserving and invalidating only
+that local `gen-api` cache restored 67 generated output records. Generation and test
+compilation then passed with no tracked baseline source change. The failed attempt
+and cached metadata are retained.
+
+The initial valid comparison (`comparison-initial-valid.json`) passes five of six
+targeted gates. Class-heavy lifecycle is inconclusive: mean ratio 0.7509, one-sided
+95% upper bound 0.8975 versus required 0.80. Four additional paired blocks D/E/F/G
+are predeclared for only this case, with three forks per variant per block and
+alternating run order. All existing valid observations remain in the final comparison.
+
+The analysis script also supports JMH 1.37 sample-time histograms (verified against
+its JSONResultFormat source): samples are pooled within each fork, then forks remain
+independent and equally weighted. A weighted-histogram self-check failed before
+implementation and passes afterward.
