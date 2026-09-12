@@ -1,6 +1,7 @@
 # Issue #593 implementation and performance evidence
 
-Status: implementation underway; baseline recorded; candidate acceptance comparison pending.
+Status: implementation and affected-project tests pass; all six lookup acceptance gates pass.
+Query-pattern/query-count diagnostics and four whole-compiler gates remain pending.
 
 Base: `f4a48b2375e38089967d78ad8b480fba4f76ce7d`. Candidate checkout:
 `/private/tmp/zinc-593-candidate`, branch `codex/issue-593-lookup-analysis`.
@@ -219,9 +220,30 @@ mismatch was noticed before inspecting their timings; both raw runs are preserve
 `excluded_measurements` and will be recaptured under AC power. The runner now checks AC
 at startup and completion and audits battery events as well as sleep. The user connected
 power, but restricted `pmset` reports AC while the actual benchmark environment's `pmset`
-reports battery and `ioreg` reports no external connection. Timings remain paused until
-that discrepancy is resolved. The accepted H1/H2 runs were completed earlier on AC and
-are unaffected. Query-shape/break-even diagnostics and all four compiler gates remain open.
+reports battery and `ioreg` reports no external connection. Timings were paused until
+that discrepancy was resolved. On 2026-09-12, the actual benchmark environment reports
+AC power and charging; diagnostic measurements resumed with fresh `empty-ac` labels.
+The accepted H1/H2 runs were completed earlier on AC and are unaffected.
+Query-shape/break-even diagnostics and all four compiler gates remain open.
+
+The four replacement empty-state runs completed on AC in both orders. Their comparison
+(`comparison-empty.json`, six forks per variant, same bootstrap method) quantifies overhead
+when there are no definitions to index. Times are microseconds per operation; lifecycle
+and warm operations each contain 10,000 queries.
+
+| Empty-state operation | Original | Candidate | Ratio | One-sided 95% upper |
+|---|---:|---:|---:|---:|
+| first use | 0.236 | 0.294 | 1.2474 | 1.4381 |
+| lifecycle | 20.786 | 36.804 | 1.7707 | 2.0474 |
+| warm batch | 10.597 | 19.782 | 1.8667 | 2.3295 |
+
+These are diagnostic regressions, not additional acceptance gates. The absolute lifecycle
+increase is about 16 microseconds per 10,000 queries. The first query-pattern pair also
+completed successfully. The reversed-order candidate run switched to battery at
+2026-09-12 16:59:50 +0200, near its end. It is preserved in `excluded_measurements`, with
+the exclusion decision made before inspecting its timing results. The queue stopped at
+that run boundary; `run-diagnostics-resume.py` recaptures that entire run with a fresh label,
+then completes the reversed baseline and query-count sweep. Completed valid runs are retained.
 
 The original workspace's unrelated compiler-bridge diff is unchanged (SHA-256
 `0dc459f403aae9b67ace276b079ddab89e096c39a393aaaac11401257b91d3cb`). Other new unrelated
