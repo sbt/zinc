@@ -245,6 +245,33 @@ the exclusion decision made before inspecting its timing results. The queue stop
 that run boundary; `run-diagnostics-resume.py` recaptures that entire run with a fresh label,
 then completes the reversed baseline and query-count sweep. Completed valid runs are retained.
 
+The replacement candidate and reversed baseline query-pattern runs subsequently completed
+on AC without sleep. All first/last/miss cases now have six independent forks per variant
+across both orders (`comparison-query-patterns.json`, 33 completed cases including prior
+mixed/empty results). The six acceptance gates remain passing. The diagnostic lifecycle
+results below include initialization and 10,000 queries, in microseconds per operation.
+
+| Scenario / query pattern | Original | Candidate | Ratio | One-sided 95% upper |
+|---|---:|---:|---:|---:|
+| small / first hit | 157.425 | 60.253 | 0.3827 | 0.3900 |
+| small / last hit | 256.570 | 59.650 | 0.2325 | 0.2746 |
+| small / miss | 110.532 | 39.703 | 0.3592 | 0.3649 |
+| upstream-heavy / first hit | 319.931 | 5,139.196 | 16.0634 | 18.7551 |
+| upstream-heavy / last hit | 215,562.556 | 5,168.937 | 0.0240 | 0.0268 |
+| upstream-heavy / miss | 199,283.957 | 5,616.339 | 0.0282 | 0.0336 |
+
+The large graph's first-hit workload is a clear regression: about 0.32 ms becomes 5.14 ms,
+because the original scan can return from the first analysis while the candidate indexes
+all definitions. Its one-sided lower ratio bound is 13.4174. This workload differs from the
+approved mixed-query acceptance stream and is retained as a practical limitation, without
+changing thresholds. Large-graph last hits and misses save substantially more scanning work.
+
+The first query-count sweep then crossed system sleep, including a 919-second maintenance
+sleep. The full `baseline-sweep-1` run is preserved and excluded before examining its timing
+results (`sleep-condition-decision-20260912.txt`). No query-count sweep is accepted yet.
+The queue is paused; `run-sweep-resume.py` uses a new baseline label and resumes only the
+four sweep invocations, preserving every completed valid query-pattern measurement.
+
 The original workspace's unrelated compiler-bridge diff is unchanged (SHA-256
 `0dc459f403aae9b67ace276b079ddab89e096c39a393aaaac11401257b91d3cb`). Other new unrelated
 workspace files and edits were observed and left untouched.
