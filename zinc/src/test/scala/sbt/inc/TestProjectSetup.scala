@@ -247,12 +247,14 @@ case class VirtualSubproject(
     baseDir: Path,
     projectDeps: List[VirtualSubproject] = Nil,
     externalDeps: List[Path] = Nil,
+    converterOverride: Option[FileConverter] = None,
 ) {
   private val sbtBoot = Paths.get(sys.props("user.home")).resolve(".sbt/boot")
   private val javaHome = Paths.get(sys.props("java.home"))
   private val rootPaths = Map("BASE" -> baseDir, "SBT_BOOT" -> sbtBoot, "JAVA_HOME" -> javaHome)
 
-  val converter = new MappedFileConverter(rootPaths, allowMachinePath = true)
+  val converter: FileConverter =
+    converterOverride.getOrElse(new MappedFileConverter(rootPaths, allowMachinePath = true))
 
   val classesDir = baseDir.resolve("classes")
   val outputJar = baseDir.resolve("target/output.jar")

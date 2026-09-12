@@ -806,24 +806,28 @@ private final class AnalysisCallback(
       sourceFile: VirtualFileRef,
       context: DependencyContext
   ): Unit = {
-    // TODO: handle library JARs and rt.jar.
-    val vf = converter.toVirtualFile(classFile)
-    externalAPI(onBinaryName, Some(vf)) match {
-      case Some(api) =>
-        // dependency is a product of a source in another project
-        val targetBinaryClassName = onBinaryName
-        externalSourceDependency(sourceClassName, targetBinaryClassName, api, context)
-      case None =>
-        // dependency is some other binary on the classpath.
-        // exclude dependency tracking with rt.jar, for example java.lang.String -> rt.jar.
-        if (!vf.id.endsWith("rt.jar")) {
-          externalLibraryDependency(
-            vf,
-            onBinaryName,
-            sourceFile,
-            context
-          )
-        }
+    // Classes the JDK itself provides (rt.jar, the jrt:/ image, ct.sym under -release) are never
+    // tracked as library dependencies, whichever FileConverter is in use (sbt/zinc#609).
+    if (!JdkClassFiles.isJdkPath(classFile)) {
+      val vf = converter.toVirtualFile(classFile)
+      externalAPI(onBinaryName, Some(vf)) match {
+        case Some(api) =>
+          // dependency is a product of a source in another project
+          val targetBinaryClassName = onBinaryName
+          externalSourceDependency(sourceClassName, targetBinaryClassName, api, context)
+        case None =>
+          // dependency is some other binary on the classpath. The check below predates the
+          // JDK test above and is kept unchanged for compatibility: it is redundant for JDK
+          // inputs now, and it also matches unrelated jars such as jfxrt.jar.
+          if (!vf.id.endsWith("rt.jar")) {
+            externalLibraryDependency(
+              vf,
+              onBinaryName,
+              sourceFile,
+              context
+            )
+          }
+      }
     }
   }
 

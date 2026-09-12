@@ -115,13 +115,7 @@ class MappedFileConverter(val rootPaths: Map[String, Path], allowMachinePath: Bo
         if (isDirectory) toDirectory(path, encodedPath)
         else MappedVirtualFile(encodedPath, rootPaths)
       case _ =>
-        def isCtSym =
-          path.getFileSystem
-            .provider()
-            .getScheme == "jar" && path.getFileSystem.toString.endsWith("ct.sym")
-        def isJrt = path.getFileSystem.provider().getScheme == "jrt"
-        if (isJrt || path.getFileName.toString == "rt.jar" || isCtSym)
-          DummyVirtualFile("rt.jar", path)
+        if (JdkClassFiles.isJdkPath(path)) DummyVirtualFile("rt.jar", path)
         else if (allowMachinePath) {
           val encodedPath = s"$path".replace('\\', '/')
           if (isDirectory) toDirectory(path, encodedPath)
@@ -184,4 +178,19 @@ object MappedFileConverter {
   def empty: MappedFileConverter = new MappedFileConverter(Map(), true)
   def apply(rootPaths: Map[String, Path], allowMachinePath: Boolean): MappedFileConverter =
     new MappedFileConverter(rootPaths, allowMachinePath)
+}
+
+/**
+ * Class files the JDK itself serves: rt.jar on JDK 8, the jrt:/ runtime image on JDK 9+, and the
+ * ct.sym signatures scalac reads under `-release`. Zinc never tracks them as library dependencies
+ * (sbt/zinc#609), so every FileConverter must treat them alike.
+ */
+private[sbt] object JdkClassFiles {
+  def isJdkPath(path: Path): Boolean = {
+    val fs = path.getFileSystem
+    val scheme = fs.provider().getScheme
+    scheme == "jrt" ||
+    (scheme == "jar" && fs.toString.endsWith("ct.sym")) ||
+    (path.getFileName != null && path.getFileName.toString == "rt.jar")
+  }
 }
