@@ -65,7 +65,8 @@ final case class Project(
     name: String,
     dependsOn: Option[Vector[String]] = None,
     in: Option[Path] = None,
-    scalaVersion: Option[String] = None
+    scalaVersion: Option[String] = None,
+    compileOrder: Option[String] = None
 )
 
 final case class Build(projects: Seq[Project])
@@ -125,6 +126,7 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
       val in: Path = p.in.getOrElse(directory / p.name)
       val version = switchScalaVersion(p.scalaVersion)
       val deps = p.dependsOn.toVector.flatten
+      val order = p.compileOrder.fold(CompileOrder.Mixed)(CompileOrder.valueOf)
       val project = ProjectStructure(
         p.name,
         deps,
@@ -134,7 +136,8 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
         lookupProject,
         version,
         compileToJar,
-        incrementalCompiler
+        incrementalCompiler,
+        order
       )
       buildStructure(p.name) = project
     }
@@ -149,11 +152,15 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
       given pathISOString: IsoString[Path] = IsoString.iso[Path](_.toString, Paths.get(_))
       given pathFormat: JsonFormat[Path] = isoStringFormat[Path](using pathISOString)
       given projectFormat: JsonFormat[Project] =
-        caseClass4(Project.apply, p => Some(p.name, p.dependsOn, p.in, p.scalaVersion))(
+        caseClass5(
+          Project.apply,
+          p => Some(p.name, p.dependsOn, p.in, p.scalaVersion, p.compileOrder)
+        )(
           "name",
           "dependsOn",
           "in",
           "scalaVersion",
+          "compileOrder",
         )
       given buildFormat: JsonFormat[Build] =
         caseClass1(Build.apply, b => Some(b.projects))("projects")
@@ -311,7 +318,8 @@ case class ProjectStructure(
     lookupProject: String => ProjectStructure,
     scalaVersion: String,
     compileToJar: Boolean,
-    incrementalCompiler: IncrementalCompilerImpl
+    incrementalCompiler: IncrementalCompilerImpl,
+    compileOrder: CompileOrder = CompileOrder.Mixed
 ) extends BridgeProviderSpecification {
   import scala.concurrent.ExecutionContext.Implicits._
   // This will test pipelining unless incOptions.properties overrides it
@@ -759,7 +767,7 @@ case class ProjectStructure(
       javacOptions = Array(),
       maxErrors,
       sourcePositionMappers = Array(),
-      CompileOrder.Mixed,
+      compileOrder,
       cs,
       setup,
       previousResult,
