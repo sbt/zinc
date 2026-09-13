@@ -344,6 +344,20 @@ The complete run is preserved and excluded before timing inspection; the decisio
 The queue is paused pending stable AC. The runner's `--resume` option retains verified
 preparation and completed valid runs, and gives replacement measurements fresh labels.
 
+After AC returned, the replacement baseline and all other initial hot Shapeless runs
+completed without power/sleep interruptions. `comparison-shapeless-hot.json` is
+inconclusive: original mean 3,114.282 ms, candidate 2,991.847 ms, ratio 0.960686, one-sided
+95% upper bound 1.080543 versus the unchanged 1.05 limit. This is not a passing gate.
+Two additional paired hot blocks (3 and 4) are predeclared in
+`shapeless-hot-additional-plan.json`, three forks per variant per block with unchanged
+settings and alternating order. All existing valid data will remain in the comparison;
+the additional sampling is assessed only after both new pairs complete.
+
+The first cold Shapeless attempt failed before JMH with the same empty generator-output
+cache. The cache snapshot is preserved, regeneration restored 67 unchanged tracked files,
+and the baseline compile passed. No cold Shapeless measurements have completed yet.
+The current plan completes cold comparisons, then collects the two additional hot pairs.
+
 The original workspace's unrelated compiler-bridge diff is unchanged (SHA-256
 `0dc459f403aae9b67ace276b079ddab89e096c39a393aaaac11401257b91d3cb`). Other new unrelated
 workspace files and edits were observed and left untouched.
