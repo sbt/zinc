@@ -243,10 +243,14 @@ Fresh timing comparisons are recorded separately in
 - [x] Both large scenarios meet ≥50% warm mixed-query and ≥20% 10,000-query lifecycle gains
   beyond uncertainty; small/library-heavy lifecycle upper ratio bounds are ≤1.05. Otherwise
   record failure/inconclusive and stop the shipping path.
-- [ ] First/last/miss/mixed cases, empty scenario, full lifecycle query-count sweep, allocation,
+- [x] First/last/miss/mixed cases, empty scenario, full lifecycle query-count sweep, allocation,
   and retained memory are recorded with first-use costs, limitations, and regressions disclosed.
-- [ ] Raw results, source hashes, JVM options, reversed order, statistics, bytes per distinct
+- [x] Raw results, source hashes, JVM options, reversed order, statistics, bytes per distinct
   name, and the measured break-even range are reproducible.
+
+2026-09-13 evidence audit: the exact 58-case matrix is complete; all six gates pass.
+First-hit-heavy and empty-state regressions, discrete break-even ranges, normalized
+allocation and instrumented memory are documented. Task 9 and checkpoint C are complete.
 
 **Verify:** Run the spec's targeted/query-shape commands for each variant/order with
 `queryCount=10000`. Run `lifecycle` separately with
@@ -258,7 +262,7 @@ memory probe for all five scenarios and both variants, then the Task 8 compariso
 ## Checkpoint C: Targeted evidence
 
 - [x] Task 9's improvement and non-regression gates pass with independent-run uncertainty.
-- [ ] Construction/memory costs are documented; distinct misses retain no accumulating state.
+- [x] Construction/memory costs are documented; distinct misses retain no accumulating state.
 - [x] Failed or inconclusive gates trigger more evidence/design work, not relaxed thresholds.
 
 ## Task 10: Measure Scalac regressions

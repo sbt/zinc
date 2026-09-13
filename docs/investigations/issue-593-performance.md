@@ -1,7 +1,7 @@
 # Issue #593 implementation and performance evidence
 
 Status: implementation and affected-project tests pass; all six lookup acceptance gates pass.
-Query-pattern/query-count diagnostics and four whole-compiler gates remain pending.
+All 58 lookup cases and memory diagnostics are complete; four whole-compiler gates remain pending.
 
 Base: `f4a48b2375e38089967d78ad8b480fba4f76ce7d`. Candidate checkout:
 `/private/tmp/zinc-593-candidate`, branch `codex/issue-593-lookup-analysis`.
@@ -271,6 +271,42 @@ sleep. The full `baseline-sweep-1` run is preserved and excluded before examinin
 results (`sleep-condition-decision-20260912.txt`). No query-count sweep is accepted yet.
 The queue is paused; `run-sweep-resume.py` uses a new baseline label and resumes only the
 four sweep invocations, preserving every completed valid query-pattern measurement.
+
+## Completed lookup matrix
+
+All four replacement sweep runs completed on AC without sleep, using a continuous
+`caffeinate -is` wrapper across queue boundaries. `comparison-targeted-matrix.json`
+contains the exact 58 required cases: 15 mixed/empty method cases, 18 first/last/miss
+method cases, and 25 additional lifecycle/query-count cases. `audit-targeted.py` passes
+the exact matrix, both run orders, three forks per run, eight measured iterations,
+one-second warmup/measurement intervals, final 2 GiB heap flags, normalized allocation
+metrics, and power/sleep metadata. All six acceptance gates still pass. Each case has
+six independent forks per variant; the 10,000-query measurements are reused unchanged.
+
+The lifecycle sweep's candidate/original mean ratios are:
+
+| Scenario | Q=1 | Q=10 | Q=100 | Q=1,000 | Q=10,000 | Q=100,000 |
+|---|---:|---:|---:|---:|---:|---:|
+| empty | 1.0164 | 1.0410 | 1.0642 | 1.4095 | 1.7707 | 1.0362 |
+| small | 2.2313 | 2.0995 | 1.2717 | 0.6094 | 0.2645 | 0.2275 |
+| library-heavy | 1.0430 | 0.9865 | 1.0124 | 0.7621 | 0.5248 | 0.2787 |
+| upstream-heavy | 30.7269 | 19.4382 | 3.2656 | 0.3279 | 0.0439 | 0.0038 |
+| class-heavy | 273.9677 | 159.0784 | 34.9056 | 2.6585 | 0.3164 | 0.0311 |
+
+For small and upstream-heavy scenarios, the candidate is slower beyond uncertainty at
+100 queries and faster at 1,000; their measured crossing is bracketed by those counts.
+For class-heavy, the corresponding bracket is 1,000–10,000. Library-heavy measurements
+at 10 and 100 queries straddle equality; 1,000 is the first measured count with an upper
+ratio bound below one (0.8734), so a narrower crossing is not established. Empty-state
+lookups never demonstrate a gain. These are discrete measurements, not an interpolated
+universal break-even threshold. Q=1 is one hit for nonempty scenarios; larger measured
+counts contain the specified equal mix of hits and misses.
+
+The JSON retains both one-sided confidence bounds, per-fork data, and all raw normalized
+allocation measurements. Existing first-use and retained-footprint tables describe the
+construction/memory cost; misses do not accumulate retained state. The first-hit-heavy
+regression above remains a limitation even when the mixed-query gate passes.
+Task 9 and checkpoint C are complete. Whole-compiler non-regression remains unverified.
 
 The original workspace's unrelated compiler-bridge diff is unchanged (SHA-256
 `0dc459f403aae9b67ace276b079ddab89e096c39a393aaaac11401257b91d3cb`). Other new unrelated
