@@ -271,10 +271,10 @@ Run existing hot and cold Scalac workloads on both revisions, preserving modes a
 setup. Repeat independent runs and reverse variant order.
 
 **Acceptance criteria:**
-- [ ] Hot and cold Scalac one-sided 95% upper candidate/baseline ratio bounds are each ≤1.05.
-- [ ] Compensate for the hot benchmark's one-fork default with at least three independent runs
+- [x] Hot and cold Scalac one-sided 95% upper candidate/baseline ratio bounds are each ≤1.05.
+- [x] Compensate for the hot benchmark's one-fork default with at least three independent runs
   per variant across both run orders, adding runs when needed. Preserve cold single-shot modes.
-- [ ] Raw results, workload revision, effective flags, and calculations are in the manifest/report.
+- [x] Raw results, workload revision, effective flags, and calculations are in the manifest/report.
 
 **Verify:** Run `sbt --server --batch '-Dbenchmark.pattern=.*Scalac.*' runBenchmarks` per
 variant/run, capturing complete output. Feed fork/run summaries to the comparison script. An

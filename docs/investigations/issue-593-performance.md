@@ -1,7 +1,7 @@
 # Issue #593 implementation and performance evidence
 
 Status: implementation and affected-project tests pass; all six lookup acceptance gates pass.
-All 58 lookup cases and memory diagnostics are complete; four whole-compiler gates remain pending.
+All 58 lookup cases, memory diagnostics, and both Scalac gates pass. Two Shapeless gates remain pending.
 
 Base: `f4a48b2375e38089967d78ad8b480fba4f76ce7d`. Candidate checkout:
 `/private/tmp/zinc-593-candidate`, branch `codex/issue-593-lookup-analysis`.
@@ -307,6 +307,34 @@ allocation measurements. Existing first-use and retained-footprint tables descri
 construction/memory cost; misses do not accumulate retained state. The first-hit-heavy
 regression above remains a limitation even when the mixed-query gate passes.
 Task 9 and checkpoint C are complete. Whole-compiler non-regression remains unverified.
+
+## Scalac compiler comparison
+
+Both hot and cold Scalac non-regression gates pass (`comparison-scalac.json`). Times below
+are milliseconds per compiler invocation. Each variant has six hot forks and ten cold forks
+across both run orders. Hot runs preserve SampleTime, ten 10-second warmup iterations and
+five 10-second measured iterations; cold runs preserve SingleShotTime, zero warmup, one
+measurement per fork and `-XX:CICompilerCount=2`. Both use 2 GiB heaps and GC profiling.
+`scalac-audit.txt` verifies modes, flags, data, and uninterrupted AC conditions.
+
+| Workload | Original (ms) | Candidate (ms) | Ratio | One-sided 95% upper | Limit |
+|---|---:|---:|---:|---:|---:|
+| hot Scalac | 5,932.563 | 5,975.765 | 1.0073 | 1.0305 | 1.05 |
+| cold Scalac | 18,950.840 | 18,815.561 | 0.9929 | 1.0117 | 1.05 |
+
+These results establish the specified non-regression bound for this workload; they do not
+establish a compiler speedup. The pinned Scala-library fixture and identical benchmark
+support hashes are recorded in each run. JMH SampleTime samples are pooled within each
+fork; independent forks, not individual samples, determine uncertainty.
+
+The first reversed-order hot candidate run crossed a brief battery interval and was
+preserved/excluded before timing inspection, then recaptured on uninterrupted AC. The first
+cold baseline attempt failed before JMH because the compiler-interface generator again
+cached an empty output list despite the tracked generated sources being present. Its cache
+was preserved, 67 unchanged generated outputs were restored, and compilation passed.
+No failed timing was included and no generated source changed. The manifest retains the
+power decision, failed build, cache snapshot, recovery log and replacement run labels.
+Task 10 is complete; Shapeless hot/cold gates remain open.
 
 The original workspace's unrelated compiler-bridge diff is unchanged (SHA-256
 `0dc459f403aae9b67ace276b079ddab89e096c39a393aaaac11401257b91d3cb`). Other new unrelated
