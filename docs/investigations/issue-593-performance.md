@@ -1,7 +1,8 @@
 # Issue #593 implementation and performance evidence
 
 Status: implementation and affected-project tests pass; all six lookup acceptance gates pass.
-All 58 lookup cases, memory diagnostics, and both Scalac gates pass. Two Shapeless gates remain pending.
+All 58 lookup cases and memory diagnostics are complete. Six lookup and both Scalac gates
+pass; two Shapeless gates remain pending.
 
 Base: `f4a48b2375e38089967d78ad8b480fba4f76ce7d`. Candidate checkout:
 `/private/tmp/zinc-593-candidate`, branch `codex/issue-593-lookup-analysis`.
@@ -335,6 +336,13 @@ was preserved, 67 unchanged generated outputs were restored, and compilation pas
 No failed timing was included and no generated source changed. The manifest retains the
 power decision, failed build, cache snapshot, recovery log and replacement run labels.
 Task 10 is complete; Shapeless hot/cold gates remain open.
+
+Shapeless preparation passed on both revisions using the pinned coreJVM fixture. Its first
+hot baseline run switched to battery at 2026-09-13 17:37:36 +0200 and finished on battery.
+The complete run is preserved and excluded before timing inspection; the decision is in
+`shapeless-power-decision-20260913.txt`. No Shapeless performance result is accepted yet.
+The queue is paused pending stable AC. The runner's `--resume` option retains verified
+preparation and completed valid runs, and gives replacement measurements fresh labels.
 
 The original workspace's unrelated compiler-bridge diff is unchanged (SHA-256
 `0dc459f403aae9b67ace276b079ddab89e096c39a393aaaac11401257b91d3cb`). Other new unrelated
