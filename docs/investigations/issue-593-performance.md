@@ -358,6 +358,15 @@ cache. The cache snapshot is preserved, regeneration restored 67 unchanged track
 and the baseline compile passed. No cold Shapeless measurements have completed yet.
 The current plan completes cold comparisons, then collects the two additional hot pairs.
 
+Both initial cold Shapeless pairs subsequently completed on uninterrupted AC. Their result
+is also inconclusive (`comparison-shapeless-initial.json`): original mean 15,506.990 ms,
+candidate 15,620.717 ms, ratio 1.007334, one-sided 95% upper bound 1.126359. Four additional
+cold pairs (3–6), each with five independent forks per variant and alternating order, are
+predeclared in `shapeless-cold-additional-plan.json`. Mode, heap, compiler-thread count and
+threshold remain unchanged. All initial and additional valid samples remain included; the
+additional cold evidence is assessed only after all four new pairs complete. The two
+previously planned additional hot pairs are unchanged. Both Shapeless gates remain open.
+
 The original workspace's unrelated compiler-bridge diff is unchanged (SHA-256
 `0dc459f403aae9b67ace276b079ddab89e096c39a393aaaac11401257b91d3cb`). Other new unrelated
 workspace files and edits were observed and left untouched.
