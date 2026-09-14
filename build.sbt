@@ -160,11 +160,13 @@ def mapBuildInfoKey[A1, A2: sbtbuildinfo.PluginCompat.Manifest](
 )(f: A1 => A2): sbtbuildinfo.Entry[A2] =
   BuildInfoKey.map(key)(value => name -> f(value._2))
 
-def mapBuildInfoKey[A1, A2: sbtbuildinfo.PluginCompat.Manifest](
-    key: TaskKey[A1],
+// Takes the task, not its key: sbt-buildinfo evaluates a TaskKey entry with a nested `runTask`,
+// which runs the task a second time, concurrently with the build that is already running it.
+def mapBuildInfoKey[A1: sbtbuildinfo.PluginCompat.Manifest, A2: sbtbuildinfo.PluginCompat.Manifest](
+    task: Task[A1],
     name: String
 )(f: A1 => A2): sbtbuildinfo.Entry[A2] =
-  BuildInfoKey.map(key)(value => name -> f(value._2))
+  BuildInfoKey.map(sbtbuildinfo.Entry.TaskValue(task))(value => name -> f(value._2))
 
 lazy val zinc = (projectMatrix in (zincRootPath / "zinc"))
   .dependsOn(
@@ -191,7 +193,9 @@ lazy val zinc = (projectMatrix in (zincRootPath / "zinc"))
       val converter = fileConverter.value
       List[BuildInfoKey](
         mapBuildInfoKey(compilerBridge210 / scalaVersion, "scalaVersion210")(identity),
-        mapBuildInfoKey(compilerBridge210 / scalaInstance, "scalaJars210")(_.allJars.toList),
+        mapBuildInfoKey((compilerBridge210 / scalaInstance).taskValue, "scalaJars210")(
+          _.allJars.toList
+        ),
         mapBuildInfoKey(compilerBridge210 / Compile / classDirectory, "classDirectory210")(
           identity
         ),
@@ -202,7 +206,9 @@ lazy val zinc = (projectMatrix in (zincRootPath / "zinc"))
           identity
         ),
         mapBuildInfoKey(compilerBridge211 / scalaVersion, "scalaVersion211")(identity),
-        mapBuildInfoKey(compilerBridge211 / scalaInstance, "scalaJars211")(_.allJars.toList),
+        mapBuildInfoKey((compilerBridge211 / scalaInstance).taskValue, "scalaJars211")(
+          _.allJars.toList
+        ),
         mapBuildInfoKey(compilerBridge211 / Compile / classDirectory, "classDirectory211")(
           identity
         ),
@@ -213,7 +219,9 @@ lazy val zinc = (projectMatrix in (zincRootPath / "zinc"))
           identity
         ),
         mapBuildInfoKey(compilerBridge212 / scalaVersion, "scalaVersion212")(identity),
-        mapBuildInfoKey(compilerBridge212 / scalaInstance, "scalaJars212")(_.allJars.toList),
+        mapBuildInfoKey((compilerBridge212 / scalaInstance).taskValue, "scalaJars212")(
+          _.allJars.toList
+        ),
         mapBuildInfoKey(compilerBridge212 / Compile / classDirectory, "classDirectory212")(
           identity
         ),
@@ -224,7 +232,9 @@ lazy val zinc = (projectMatrix in (zincRootPath / "zinc"))
           identity
         ),
         mapBuildInfoKey(compilerBridge213 / scalaVersion, "scalaVersion213")(identity),
-        mapBuildInfoKey(compilerBridge213 / scalaInstance, "scalaJars213")(_.allJars.toList),
+        mapBuildInfoKey((compilerBridge213 / scalaInstance).taskValue, "scalaJars213")(
+          _.allJars.toList
+        ),
         mapBuildInfoKey(compilerBridge213 / Compile / classDirectory, "classDirectory213")(
           identity
         ),
@@ -235,20 +245,25 @@ lazy val zinc = (projectMatrix in (zincRootPath / "zinc"))
           identity
         ),
         mapBuildInfoKey(compilerBridgeScala213Bin / scalaVersion, "scalaVersion213Bin")(identity),
-        mapBuildInfoKey(compilerBridgeScala213Bin / scalaInstance, "scalaJars213Bin")(
+        mapBuildInfoKey((compilerBridgeScala213Bin / scalaInstance).taskValue, "scalaJars213Bin")(
           _.allJars.toList
         ),
         mapBuildInfoKey(
-          compilerBridgeScala213Bin / Compile / externalDependencyClasspath,
+          (compilerBridgeScala213Bin / Compile / externalDependencyClasspath).taskValue,
           "compilerBridge213Bin"
         )(bin => converter.toPath(bin.toList.head.data).toFile),
         mapBuildInfoKey(compilerBridgeScala3Bin / scalaVersion, "scalaVersion3Bin")(identity),
-        mapBuildInfoKey(compilerBridgeScala3Bin / scalaInstance, "scalaJars3Bin")(_.allJars.toList),
+        mapBuildInfoKey((compilerBridgeScala3Bin / scalaInstance).taskValue, "scalaJars3Bin")(
+          _.allJars.toList
+        ),
         mapBuildInfoKey(
-          compilerBridgeScala3Bin / Compile / externalDependencyClasspath,
+          (compilerBridgeScala3Bin / Compile / externalDependencyClasspath).taskValue,
           "compilerBridge3Bin"
         )(bin => converter.toPath(bin.toList.head.data).toFile),
-        mapBuildInfoKey(compilerInterface.jvm(false) / Compile / packageBin, "compilerInterface")(
+        mapBuildInfoKey(
+          (compilerInterface.jvm(false) / Compile / packageBin).taskValue,
+          "compilerInterface"
+        )(
           converter.toPath(_).toFile
         ),
       )
