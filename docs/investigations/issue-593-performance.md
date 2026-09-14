@@ -1,13 +1,27 @@
 # Issue #593 implementation and performance evidence
 
-Status: implementation and affected-project tests pass; all six lookup acceptance gates pass.
-All 58 lookup cases and memory diagnostics are complete. Six lookup and both Scalac gates
-pass; two Shapeless gates remain pending.
+Status (2026-09-14): **measurement campaign finalized; candidate not accepted for shipment.**
+Implementation and all 72 affected-project tests pass. All six lookup gates, both Scalac
+gates, and hot Shapeless pass. Cold Shapeless remains inconclusive after the complete
+predeclared additional sampling: its one-sided 95% upper ratio is 1.088252, above 1.05.
+This is insufficient evidence of non-regression, not evidence of a material regression.
+The spec's overall performance criterion and completion checkpoint remain open.
 
-Base: `f4a48b2375e38089967d78ad8b480fba4f76ce7d`. Candidate checkout:
-`/private/tmp/zinc-593-candidate`, branch `codex/issue-593-lookup-analysis`.
-Baseline reserved at `/private/tmp/zinc-593-baseline`. Raw results and provenance:
-`/private/tmp/zinc-593-results-20260909/manifest.json`.
+Base: `f4a48b2375e38089967d78ad8b480fba4f76ce7d`. Persistent candidate checkout:
+`/Users/iceo/Projects/zinc-593`, branch `codex/issue-593-lookup-analysis`.
+Production implementation: `06471465a`; benchmark entrypoint: `3a8a366de`.
+Original-scan benchmark baseline: `60303402e3afe1f9062440dbfca53e3ec2bf16fc`.
+The measured temporary checkouts were `/private/tmp/zinc-593-candidate` and
+`/private/tmp/zinc-593-baseline`. They subsequently lost files; restore fresh checkouts
+from the recorded commits before any further builds. The persistent candidate was restored
+from the intact branch, and its production/support hashes match the measured candidate.
+
+Final machine-readable results and audit: [issue-593-results.json](issue-593-results.json).
+Raw evidence is preserved under `/Users/iceo/Projects/zinc-593-evidence`, with separate
+`zinc-593-hashmap-20260911` (current Java-map candidate) and
+`zinc-593-results-20260909` (superseded Scala-map candidate) directories. Do not pool them.
+Original manifests retain the paths and commands actually used; the replay instructions
+below use a separate portable manifest. No PR, push, or merge was performed.
 
 The original workspace compiler-bridge diff is preserved separately and excluded.
 Approved requirements: [spec](../design/lookup-analysis-index.md). Progress:
@@ -15,8 +29,9 @@ Approved requirements: [spec](../design/lookup-analysis-index.md). Progress:
 
 ## Evidence
 
-Measurements below will distinguish completed checks from pending gates. No speedup
-or whole-build regression claim is made until the approved gates have been measured.
+The entries below retain the chronological investigation record; their pending/paused
+statements describe the state at that checkpoint. The status above and final assessment
+below supersede them. Lookup gains do not establish a whole-build speedup.
 
 JDK: Homebrew OpenJDK 17.0.20.1+0, 64-bit Server VM. sbt 2.0.8; Scala 3.9.0.
 
@@ -377,3 +392,79 @@ Shapeless coreJVM at `62611554399e0d04466da95591253706b2d3020d` (83 sources). Bo
 revisions and every recorded source/classpath path were verified. The manifest retains
 commands, source-input hashes, build metadata, and `scalac-setup-early.log` /
 `shapeless-setup-early.log`. Preparation is not a compiler timing or an acceptance result.
+
+## Final assessment — 2026-09-14
+
+All predeclared additional Shapeless pairs completed. Hot Shapeless now has four paired
+blocks and 12 independent forks per variant; cold has six paired blocks and 30 forks per
+variant. Both orders, all initial valid data, and every additional valid sample remain
+included. There were no source, setting, or threshold changes. An additional candidate
+hot-pair-4 build failed before JMH with the empty generator cache; its failed attempt and
+cache were preserved, 67 unchanged outputs regenerated, and a fresh retry completed.
+
+| Compiler workload | Original ms/op | Candidate ms/op | Ratio | One-sided 95% upper | Verdict (limit 1.05) |
+|---|---:|---:|---:|---:|---|
+| Hot Scalac | 5,932.563 | 5,975.765 | 1.007282 | 1.030403 | pass |
+| Cold Scalac | 18,950.840 | 18,815.561 | 0.992862 | 1.011656 | pass |
+| Hot Shapeless | 3,139.515 | 2,967.932 | 0.945347 | 1.019626 | pass |
+| Cold Shapeless | 15,161.691 | 15,124.384 | 0.997539 | 1.088252 | inconclusive |
+
+Cold Shapeless's lower one-sided bound is 0.918173. Its point estimate is about 0.25%
+faster, but that does not establish the required upper bound. Slow forks appear in both
+variants; no valid observations were discarded and no cause for the variability is proven.
+The final comparison contains 62 cases: nine passing gates, one inconclusive gate, and
+52 diagnostics, with no run errors. The audit verifies all 28 compiler invocations,
+expected pair/fork counts, recorded source hashes, modes, heap flags, GC metrics, and
+uninterrupted AC conditions. Candidate H1's recorded pre-commit patch was checked against
+its SHA-256 and the final committed implementation; the other hashes match their commits.
+
+The six lookup gates demonstrate the intended gain: at 10,000 mixed queries, lifecycle
+time falls about 68% for class-heavy and 96% for upstream-heavy fixtures. These gains have
+costs: roughly 5–9 ms first-use construction on large fixtures, about 42.5 additional bytes
+per unique binary name, and an approximately 16-fold lifecycle regression for the large
+first-hit-only workload. Empty and low-query workloads can also regress. The diagnostic
+tables above retain these results and measured break-even brackets. Misses add no retained
+state in the memory probes. No original-reporter-build speedup is claimed.
+
+The candidate remains available for review, but must not ship under the current acceptance
+criteria. Acceptance requires resolving the cold Shapeless uncertainty with better controlled,
+predeclared measurements or revising the candidate. Merely finishing this campaign does not
+complete the spec. No further timed runs are active or scheduled by this closeout.
+
+## Criterion-to-evidence index
+
+| Approved criterion | Evidence and outcome |
+|---|---|
+| Ordered lookup, laziness, hooks, instance lifetime and concurrent publication | `LookupAnalysisSpec`: 11 focused tests; original-scan bounded-work and last-wins mutation checks fail as intended. |
+| Compiler-driven invalidation matches clean compilation | `MultiProjectIncrementalSpec`, `BinaryDepSpec`, and affected-project suites; 43 zinc plus 29 zinc-core tests pass in `final-checks.log`. |
+| Lookup gain including construction | All six acceptance gates pass; 58-case lookup matrix and memory/query-pattern costs are retained above and in the final JSON. |
+| Whole-compiler non-regression | Three of four pass; cold Shapeless remains inconclusive as shown above. **Open.** |
+| Public API, provider, external-hook and persistence compatibility | Scoped source review and behavioral tests pass; no public interface or persistence change. Local-baseline MiMa passes. Historical `zinc_3:1.8.0` resolution fails on both baseline and candidate, separately documented. |
+| Formatting, headers, and affected tests | `final-checks.log`: 72 tests, scalafmt checks and both header checks pass. Only documentation changed after this validation; final branch diff passes `git diff --check`. |
+| Reproducibility and evidence retention | Tracked fixtures, comparator, memory probe, exact commands/revisions, portable raw-result replay, source hashes and evidence inventory. |
+
+## Preserved evidence and replay
+
+The persistent evidence directory holds 234 files, including raw JMH JSON, logs, manifests,
+sampling plans, recovery records, memory probes, and the previous candidate's evidence.
+`SHA256SUMS.json` inventories the preserved files; its digest is recorded in the tracked
+final results JSON. Rebuildable compiler-workload checkouts, dependencies and class outputs
+are excluded from this copy; their pinned revisions, setup logs and setup metadata remain.
+The original temporary results were left untouched. The previous candidate's raw records
+are retained for inspection, and are not inputs to the current comparison.
+
+To reproduce the final comparison without the temporary checkouts:
+
+```sh
+cd /Users/iceo/Projects/zinc-593
+python3 bin/compare-lookup-benchmarks.py --self-test
+python3 bin/compare-lookup-benchmarks.py \
+  --manifest /Users/iceo/Projects/zinc-593-evidence/zinc-593-hashmap-20260911/manifest-portable.json \
+  --seed 593 --resamples 10000 --output /private/tmp/issue-593-replay.json
+```
+
+Only included raw-result paths become relative in `manifest-portable.json`; original
+commands, revisions, exclusions and failed-attempt provenance are preserved. The portable replay was verified to reproduce all 62 cases and verdicts exactly. To move the evidence to
+another machine, copy the entire evidence directory and point the command at its portable
+manifest. For fresh timings, use the tracked benchmark/spec commands and recorded baseline
+and candidate commits, rebuild the compiler fixtures, and record new conditions explicitly.

@@ -1,9 +1,12 @@
 # Spec: Faster analysis lookup for Zinc #593
 
-Status: **Approved — Specify phase complete.** The user approved the requirements and numeric
-thresholds on 2026-09-09. The plan is also approved; the task breakdown is approved and implementation is underway.
-Implementation is underway; performance acceptance remains pending.
+Status: **Approved — Specify, Plan and Tasks phases complete.** The user approved the
+requirements, thresholds and implementation on 2026-09-09.
 Created 2026-09-09 against `f4a48b237`.
+
+Final campaign assessment (2026-09-14): implementation verified; nine performance gates pass,
+cold Shapeless remains inconclusive (upper ratio 1.088252 > 1.05). Overall acceptance remains
+incomplete; the candidate is not ready to ship. See the [final report](../investigations/issue-593-performance.md).
 
 ## Objective
 
@@ -264,8 +267,9 @@ build or promise a particular user-visible compilation speedup.
 - [x] Compiler-driven upstream-change and shadowing checks pass; relevant existing suites pass.
 - [ ] Targeted and whole-compiler benchmark gates pass, with construction and memory documented.
 - [x] Public APIs, persisted data, provider behavior, and external hooks remain compatible.
-- [ ] Tests, benchmarks, and the results report are reproducible without ignored investigation files.
-- [ ] Formatting, headers, and relevant binary-compatibility checks pass.
+- [x] Tests, benchmarks, and the results report are reproducible without ignored investigation files.
+- [x] Formatting and headers pass; local-baseline binary compatibility passes. Historical
+  MiMa artifact resolution fails on both revisions and remains a documented limitation.
 
 ## Review and open questions
 

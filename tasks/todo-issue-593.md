@@ -1,7 +1,8 @@
 # Tasks: Faster analysis lookup for Zinc #593
 
-Status: **Approved — implementation underway.** The user approved the task breakdown and
-authorized implementation on 2026-09-09.
+Status (2026-09-14): **Measurement campaign finalized; acceptance incomplete.** The user
+approved implementation on 2026-09-09. Nine gates pass; cold Shapeless remains inconclusive.
+The candidate is retained for review and must not ship under the current criteria.
 
 Spec: [lookup-analysis-index.md](../docs/design/lookup-analysis-index.md).
 Plan: [plan-issue-593.md](plan-issue-593.md).
@@ -290,9 +291,9 @@ Apply Task 10's independent-run protocol to the hot and cold Shapeless workloads
 
 **Acceptance criteria:**
 - [ ] Hot and cold Shapeless one-sided 95% upper candidate/baseline ratio bounds are each ≤1.05.
-- [ ] Independent runs, reversed order, modes, setup, and JVM settings follow Task 10's protocol;
+- [x] Independent runs, reversed order, modes, setup, and JVM settings follow Task 10's protocol;
   collect additional measurements if uncertainty requires them.
-- [ ] The report distinguishes passing non-regression from a claimed whole-build speedup.
+- [x] The report distinguishes passing non-regression from a claimed whole-build speedup.
 
 **Verify:** Run `sbt --server --batch '-Dbenchmark.pattern=.*Shapeless.*' runBenchmarks` per
 variant/run, retain outputs, and compute independent-run bounds with the Task 8 script. Record
@@ -309,14 +310,15 @@ Validation progress (2026-09-11): all 43 zinc and 29 zinc-core tests pass, as do
 and license-header checks. The historical MiMa command cannot resolve `zinc_3:1.8.0` on
 either the original baseline or candidate. A scoped MiMa comparison against the compiled
 original baseline passes; the report preserves both the limitation and the successful local
-check. Remaining performance diagnostics/compiler gates still prevent overall completion.
+check. Final audit: all diagnostics and nine gates are complete; cold Shapeless alone
+remains inconclusive after six pairs (30 forks per variant), upper ratio 1.088252 > 1.05.
 
 **Acceptance criteria:**
-- [ ] Relevant tests, formatting, headers, and binary-compatibility checks pass; unrelated
+- [x] Relevant tests, formatting, headers, and binary-compatibility checks pass; unrelated
   failures are documented separately without out-of-scope production edits.
 - [ ] Every approved success criterion links to evidence; all targeted gates and four compiler
   bounds pass, and the report includes failed attempts and practical limitations.
-- [ ] Only intended #593 changes remain; approved documents and durable tests/benchmarks/report
+- [x] Only intended #593 changes remain; approved documents and durable tests/benchmarks/report
   are version-controlled and reproducible without ignored investigation files.
 
 **Verify:**
@@ -338,10 +340,16 @@ fixes return to their owning task and invalidate affected evidence.
 ## Checkpoint D: Completion
 
 - [ ] Tasks 1–12 are complete with evidence for all approved requirements.
-- [ ] No production mutation, debug instrumentation, or unrelated edit is included.
-- [ ] The report states measured gains, first-use/memory costs, confidence bounds, exact
+- [x] No production mutation, debug instrumentation, or unrelated edit is included.
+- [x] The report states measured gains, first-use/memory costs, confidence bounds, exact
   commands/revisions, and limits without promising an unmeasured build speedup.
 
 If acceptance fails, record that outcome and retain useful benchmark/test work. Do not mark
 this checkpoint or the spec complete merely because measurements finished. Publishing or
 merging is not a task in this breakdown.
+
+Final evidence: [report](../docs/investigations/issue-593-performance.md#final-assessment--2026-09-14)
+and [results/audit](../docs/investigations/issue-593-results.json). Task 11's numeric gate,
+Task 12's all-gates criterion, and checkpoint D remain unchecked. All planned runs finished;
+this is an unresolved acceptance outcome, not a still-running queue. Further work must
+resolve cold-run uncertainty or revise the candidate before declaring completion.
