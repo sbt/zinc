@@ -468,3 +468,22 @@ commands, revisions, exclusions and failed-attempt provenance are preserved. The
 another machine, copy the entire evidence directory and point the command at its portable
 manifest. For fresh timings, use the tracked benchmark/spec commands and recorded baseline
 and candidate commits, rebuild the compiler fixtures, and record new conditions explicitly.
+
+
+## Review fixes — comparator validation
+
+The pre-PR code review found two tooling defects: comparisons could pass despite different
+JMH/JDK/VM, JVM arguments, thread counts or warmup/measurement settings; and empty JMH
+arrays could silently remove a complete paired block. Both are now rejected. Missing
+settings also make the affected case inconclusive. Settings must match across every variant
+and paired block for a case; JVM argument lists are compared exactly in order. Independent
+fork counts remain governed by the existing minimum, not the settings fingerprint.
+
+Regression checks first reproduced the false acceptance, then passed after each fix.
+`python3 bin/compare-lookup-benchmarks.py --self-test` now covers each differing/missing
+setting, environment changes between pairs, empty additional pairs, and entirely empty
+measurements. Empty-run errors are also printed by the CLI. The same portable replay
+command above, with seed 593 and 10,000 resamples, reproduced all 62 saved cases, confidence
+bounds and verdicts exactly, with no run errors. `git diff --check` passes. No timed code
+or benchmark fixture changed, so these fixes require no new compiler benchmark campaign.
+Cold Shapeless remains the previously documented acceptance blocker.

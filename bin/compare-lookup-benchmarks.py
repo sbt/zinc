@@ -10,6 +10,9 @@
 Each run has variant (baseline/candidate), block (paired run block), order, json,
 and sources (repository-relative path -> SHA-256). Paths may be absolute or relative
 to the manifest. All support sources must match; LookupImpl.scala may differ.
+Each case requires identical recorded JMH/JDK/VM, JVM arguments, thread count and
+warmup/measurement settings across variants and blocks. Argument lists are compared
+exactly and in order; missing settings and empty result files are inconclusive.
 Results retain JMH units: lookup batches are not individual lookups.
 """
 
@@ -20,6 +23,15 @@ import random
 import statistics
 from collections import defaultdict
 from pathlib import Path
+
+
+# Fork counts may differ when collecting more independent samples. The workload
+# and runtime settings must remain fixed; modes, parameters and units are case keys.
+COMPARABLE_SETTINGS = (
+    "jmhVersion", "jvm", "jdkVersion", "vmName", "vmVersion", "jvmArgs", "threads",
+    "warmupIterations", "warmupTime", "warmupBatchSize",
+    "measurementIterations", "measurementTime", "measurementBatchSize",
+)
 
 
 def fork_means(metric):
@@ -96,6 +108,7 @@ def compare(manifest, directory, seed=593, resamples=10000):
     errors = defaultdict(list)
     orders = defaultdict(dict)
     supports = defaultdict(dict)
+    settings = {}
     run_errors = []
     for run in manifest["runs"]:
         variant, block = run["variant"], run["block"]
@@ -107,6 +120,8 @@ def compare(manifest, directory, seed=593, resamples=10000):
         supports[block][variant] = support
         try:
             records = json.loads((directory / run["json"]).read_text())
+            if not isinstance(records, list) or not records:
+                raise ValueError("expected a nonempty JMH result array")
         except (OSError, ValueError) as error:
             run_errors.append(f"{block}/{variant}: {error}")
             continue
@@ -116,6 +131,15 @@ def compare(manifest, directory, seed=593, resamples=10000):
             key = (record["benchmark"], record["mode"], metric["scoreUnit"],
                    tuple(sorted(params.items())))
             try:
+                missing = [field for field in COMPARABLE_SETTINGS if record.get(field) is None]
+                if missing:
+                    raise ValueError("missing JMH settings: " + ", ".join(missing))
+                current = {field: record[field] for field in COMPARABLE_SETTINGS}
+                previous = settings.setdefault(key, current)
+                different = [field for field in COMPARABLE_SETTINGS
+                             if current[field] != previous[field]]
+                if different:
+                    raise ValueError("JMH settings differ: " + ", ".join(different))
                 values = fork_means(metric)
                 if len(values) != record["forks"]:
                     raise ValueError("fork count differs from JMH header")
@@ -191,6 +215,12 @@ def self_test():
                 path.write_text(json.dumps([{
                     "benchmark": "LookupAnalysisBenchmark.lifecycle", "mode": "avgt",
                     "params": {"scenario": "small", "queryMix": "mixed", "queryCount": "10000"},
+                    "jmhVersion": "1.37", "threads": 1, "jvm": "/jdk17/bin/java",
+                    "jvmArgs": ["-Xms2g", "-Xmx2g"], "jdkVersion": "17",
+                    "vmName": "OpenJDK 64-Bit Server VM", "vmVersion": "17+1",
+                    "warmupIterations": 5, "warmupTime": "1 s", "warmupBatchSize": 1,
+                    "measurementIterations": 8, "measurementTime": "1 s",
+                    "measurementBatchSize": 1,
                     "forks": 3, "primaryMetric": {"scoreUnit": "us/op", "rawData": [[10] * 8] * 3}
                 }]))
                 manifest["runs"].append({"block": block, "variant": variant,
@@ -206,7 +236,55 @@ def self_test():
         path.write_text(json.dumps(data))
         assert all(c["status"] == "inconclusive"
                    for c in compare(manifest, root, resamples=100)["cases"])
-    print("PASS: ratio bounds, independent forks, missing variants and mismatched units")
+        data[0]["primaryMetric"]["scoreUnit"] = "us/op"
+        original = json.dumps(data)
+        path.write_text(original)
+        assert compare(manifest, root, resamples=100)["cases"][0]["status"] == "pass"
+        # Each setting alone must prevent acceptance; missing metadata is not a match.
+        different_settings = {
+            "jmhVersion": "1.36", "threads": 2, "jvm": "/jdk21/bin/java",
+            "jvmArgs": ["-Xms32m", "-Xmx32m"], "jdkVersion": "21",
+            "vmName": "Other VM", "vmVersion": "17+2", "warmupIterations": 0,
+            "warmupTime": "2 s", "warmupBatchSize": 2, "measurementIterations": 4,
+            "measurementTime": "2 s", "measurementBatchSize": 2,
+        }
+        for field, value in different_settings.items():
+            for missing in (False, True):
+                changed = json.loads(original)
+                if missing:
+                    del changed[0][field]
+                else:
+                    changed[0][field] = value
+                path.write_text(json.dumps(changed))
+                case = compare(manifest, root, resamples=100)["cases"][0]
+                assert case["status"] == "inconclusive", (field, missing, case)
+                assert any(field in reason for reason in case["reasons"])
+        path.write_text(original)
+        # Matching within each pair is insufficient if the environment changes between pairs.
+        for run in manifest["runs"]:
+            if run["block"] == "B":
+                changed = json.loads(original)
+                changed[0]["jdkVersion"] = "21"
+                Path(run["json"]).write_text(json.dumps(changed))
+        case = compare(manifest, root, resamples=100)["cases"][0]
+        assert case["status"] == "inconclusive"
+        assert any("jdkVersion" in reason for reason in case["reasons"])
+        for run in manifest["runs"]:
+            Path(run["json"]).write_text(original)
+        assert compare(manifest, root, resamples=100)["cases"][0]["status"] == "pass"
+        # An entirely empty additional pair must not disappear from the comparison.
+        for variant in ("baseline", "candidate"):
+            empty_path = root / f"empty-{variant}.json"
+            empty_path.write_text("[]")
+            manifest["runs"].append({"block": "empty", "variant": variant,
+                "order": int(variant == "candidate"), "json": str(empty_path),
+                "sources": {"Fixture.scala": "same"}})
+        result = compare(manifest, root, resamples=100)
+        assert len(result["run_errors"]) == 2, result
+        assert all(case["status"] == "inconclusive" for case in result["cases"])
+        only_empty = {"runs": manifest["runs"][-2:]}
+        assert len(compare(only_empty, root, resamples=100)["run_errors"]) == 2
+    print("PASS: ratio bounds, independent forks, missing variants, units, settings and empty runs")
 
 
 def main():
@@ -225,6 +303,8 @@ def main():
     result = compare(json.loads(args.manifest.read_text()), args.manifest.parent,
                      args.seed, args.resamples)
     args.output.write_text(json.dumps(result, indent=2) + "\n")
+    for error in result["run_errors"]:
+        print("inconclusive:", error)
     for case in result["cases"]:
         print(case["benchmark"].rsplit(".", 1)[-1], case["params"], case["status"],
               case.get("ratio"), case.get("upper_95_one_sided"))
