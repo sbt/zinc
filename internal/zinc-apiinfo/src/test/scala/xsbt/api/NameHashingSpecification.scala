@@ -12,7 +12,7 @@
 package xsbt.api
 
 import xsbti.api._
-import xsbti.UseScope
+import xsbti.{ NameKind, UseScope }
 import sbt.internal.inc.UnitSpec
 import xsbt.api.ClassLikeHelpers._
 
@@ -287,8 +287,21 @@ class NameHashingSpecification extends UnitSpec {
     assert(merged.namesIn(UseScope.Default) === Set("Bar", "foo", "bar"))
     assertNameHashEqualForRegularName("foo", nameHashes1, merged)
     assertNameHashEqualForRegularName("bar", nameHashes2, merged)
-    assertNameHashNotEqualForRegularName("Bar", nameHashes1, merged)
-    assertNameHashNotEqualForRegularName("Bar", nameHashes2, merged)
+    // the class and the object each keep their own hash for the name they share
+    assert(merged.toSet === (nameHashes1 ++ nameHashes2).toSet)
+  }
+
+  it should "record whether a name is defined in the class or the object" in {
+    val nameHashing = new NameHashing(false)
+    val foo =
+      Def.of("foo", publicAccess, defaultMods, Array.empty, Array.empty, Array.empty, strTpe)
+    val classHashes = nameHashing.nameHashes(simpleClass("Bar", foo))
+    val objectHashes = nameHashing.nameHashes(simpleObject("Bar", foo))
+    assert(classHashes.map(_.ownerKind).toSet === Set(NameKind.Type))
+    assert(objectHashes.map(_.ownerKind).toSet === Set(NameKind.Term))
+    assert(
+      NameHashing.merge(classHashes, objectHashes).length === classHashes.length + objectHashes.length
+    )
   }
 
   /**

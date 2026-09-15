@@ -15,7 +15,7 @@ import java.io.File
 import java.nio.file.{ Path, Paths }
 
 import sbt.internal.inc.UsedName
-import xsbti.{ UseScope, VirtualFileRef }
+import xsbti.{ NameKind, UseScope, VirtualFileRef }
 import xsbti.compile.analysis.Stamp
 import scala.jdk.CollectionConverters._
 
@@ -31,11 +31,18 @@ object Mapper {
   val forStampV: ContextAwareMapper[VirtualFileRef, Stamp] =
     ContextAwareMapper((_, v) => sbt.internal.inc.Stamp.fromString(v), (_, s) => s.toString)
   val forUsedName: Mapper[UsedName] = {
-    val enumSetSerializer = EnumSetSerializer(UseScope.values())
+    val scopesSerializer = EnumSetSerializer(UseScope.values())
+    val ownerKindsSerializer = EnumSetSerializer(NameKind.values())
     def serialize(usedName: UsedName): String =
-      s"${enumSetSerializer.serialize(usedName.scopes)}${usedName.name}"
+      s"${scopesSerializer.serialize(usedName.scopes)}${ownerKindsSerializer
+          .serialize(usedName.ownerKinds)}${usedName.name}"
 
-    def deserialize(s: String) = UsedName(s.tail, enumSetSerializer.deserialize(s.head).asScala)
+    def deserialize(s: String) =
+      UsedName(
+        s.drop(2),
+        scopesSerializer.deserialize(s(0)).asScala,
+        ownerKindsSerializer.deserialize(s(1)).asScala
+      )
 
     Mapper(deserialize, serialize)
   }

@@ -13,7 +13,7 @@ package sbt.internal.inc
 
 import java.lang.ref.WeakReference
 import java.util.concurrent.{ Callable, CountDownLatch, Executors, TimeUnit }
-import xsbti.UseScope
+import xsbti.{ NameKind, UseScope }
 
 class AnalysisInternerSpec extends UnitSpec {
 
@@ -43,6 +43,21 @@ class AnalysisInternerSpec extends UnitSpec {
     assert(default `ne` patMat)
     assert(implicitScope.scopes.contains(UseScope.Implicit))
     assert(patMat.scopes.contains(UseScope.PatMatTarget))
+  }
+
+  it should "distinguish owner kinds for the same name, with none meaning both" in {
+    import AnalysisInterner.{ DEFAULT_SCOPE, TERM_OWNER, TYPE_OWNER }
+    val inClass = AnalysisInterner.usedName("map", DEFAULT_SCOPE | TYPE_OWNER)
+    val inObject = AnalysisInterner.usedName("map", DEFAULT_SCOPE | TERM_OWNER)
+    val both = AnalysisInterner.usedName("map", DEFAULT_SCOPE | TYPE_OWNER | TERM_OWNER)
+    assert(
+      inClass.ownerKinds.contains(NameKind.Type) && !inClass.ownerKinds.contains(NameKind.Term)
+    )
+    assert(
+      inObject.ownerKinds.contains(NameKind.Term) && !inObject.ownerKinds.contains(NameKind.Type)
+    )
+    assert(inClass `ne` inObject)
+    assert(AnalysisInterner.usedName("map", DEFAULT_SCOPE) `eq` both)
   }
 
   it should "pool names containing control characters under their escaped form" in {

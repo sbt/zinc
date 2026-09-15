@@ -1,0 +1,26 @@
+# Each change breaks one user. The build must fail: had the user not been
+# invalidated, its stale class file would let it succeed.
+> compile
+
+$ copy-file changes/ObjectX.scala A.scala
+-> compile
+$ copy-file changes/Original.scala A.scala
+> compile
+
+$ copy-file changes/ClassX.scala A.scala
+-> compile
+$ copy-file changes/Original.scala A.scala
+> compile
+
+$ copy-file changes/TraitInherited.scala A.scala
+-> compile
+$ copy-file changes/Original.scala A.scala
+> compile
+
+$ copy-file changes/ObjectZ.scala A.scala
+-> compile
+$ copy-file changes/Original.scala A.scala
+> compile
+
+$ copy-file changes/ObjectOverload.scala A.scala
+-> compile

@@ -21,6 +21,7 @@ import xsbti.{
   Action,
   DiagnosticCode,
   DiagnosticRelatedInformation,
+  NameKind,
   T2,
   TextEdit,
   UseScope,
@@ -54,9 +55,9 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
 
   private implicit val compilationF: Format[Compilation] = CompilationFormat
   private implicit val nameHashesFormat: Format[NameHash] = {
-    def read(name: String, scopeName: String, hash: Int) =
-      NameHash.of(name, UseScope.valueOf(scopeName), hash)
-    asProduct3(read)(a => (a.name(), a.scope().name(), a.hash()))
+    def read(name: String, scopeName: String, hash: Int, ownerKindName: String) =
+      NameHash.of(name, UseScope.valueOf(scopeName), hash, NameKind.valueOf(ownerKindName))
+    asProduct4(read)(a => (a.name(), a.scope().name(), a.hash(), a.ownerKind().name()))
   }
   private implicit val companionsFomrat: Format[Companions] = CompanionsFormat
   private implicit def positionFormat: Format[Position] =
@@ -188,7 +189,7 @@ class TextAnalysisFormat(val mappers: ReadWriteMappers)
   }
 
   private object VersionF {
-    val currentVersion = "8"
+    val currentVersion = "9"
 
     def write(out: Writer): Unit = {
       out.write(s"format version: $currentVersion\n")

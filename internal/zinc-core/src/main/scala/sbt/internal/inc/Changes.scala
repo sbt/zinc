@@ -15,7 +15,7 @@ package inc
 
 import scala.jdk.CollectionConverters._
 
-import xsbti.{ UseScope, VirtualFileRef }
+import xsbti.{ NameKind, UseScope, VirtualFileRef }
 import xsbti.api.NameHash
 import xsbti.compile.Changes
 import xsbti.compile.{ APIChange => XAPIChange }
@@ -91,14 +91,20 @@ final case class TraitPrivateMembersModified(modified: String) extends APIChange
 final case class ModifiedNames(names: Set[UsedName]) {
   def in(scope: UseScope): Set[UsedName] = names.filter(_.scopes.contains(scope))
 
-  private lazy val lookupMap: Set[(String, UseScope)] =
-    names.flatMap(n => n.scopes.asScala.map(n.name -> _))
+  private lazy val lookupMap: Set[(String, UseScope, NameKind)] =
+    for {
+      n <- names
+      scope <- n.scopes.asScala
+      kind <- n.ownerKinds.asScala
+    } yield (n.name, scope, kind)
 
   def isModified(usedName: UsedName): Boolean =
-    usedName.scopes.asScala.exists(scope => isModifiedRaw(usedName.name, scope))
+    usedName.scopes.asScala.exists { scope =>
+      usedName.ownerKinds.asScala.exists(kind => lookupMap.contains((usedName.name, scope, kind)))
+    }
 
   def isModifiedRaw(name: String, scope: UseScope): Boolean =
-    lookupMap.contains(name -> scope)
+    NameKind.values.exists(kind => lookupMap.contains((name, scope, kind)))
 
   override def toString: String =
     s"ModifiedNames(changes = ${names.mkString(", ")})"
@@ -109,10 +115,10 @@ object ModifiedNames {
     val ys = b.toSet
     val changed = (xs union ys) diff (xs intersect ys)
     val modifiedNames: Set[UsedName] = changed
-      .groupBy(_.name)
+      .groupBy(nameHash => (nameHash.name, nameHash.ownerKind))
       .map({
-        case (name, nameHashes) =>
-          UsedName(name, nameHashes.map(_.scope()))
+        case ((name, ownerKind), nameHashes) =>
+          UsedName(name, nameHashes.map(_.scope()), List(ownerKind))
       })
       .toSet
 

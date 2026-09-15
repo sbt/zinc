@@ -1,4 +1,4 @@
-1100029
+1100030
 MiniSetup {
   classpathHash [
     2
@@ -31,13 +31,13 @@ usedNames [
   UsedName {
     groups [
       4
-      1
+      25
       names [
         2
         alsoUsedByDefault
         usedByDefault
       ]
-      6
+      30
       names [
         1
         usedImplicitly
@@ -194,6 +194,10 @@ internal [
     nameHashes.hash [
       1
       13
+    ]
+    nameHashes.ownerKind [
+      1
+      1
     ]
     ClassLike {
       A
@@ -876,6 +880,10 @@ external [
       1
       13
     ]
+    nameHashes.ownerKind [
+      1
+      1
+    ]
     ClassLike {
       C
       Access {
@@ -968,6 +976,10 @@ external [
     nameHashes.hash [
       1
       13
+    ]
+    nameHashes.ownerKind [
+      1
+      1
     ]
     ClassLike {
       ExtInherit
@@ -1062,6 +1074,10 @@ external [
       1
       13
     ]
+    nameHashes.ownerKind [
+      1
+      1
+    ]
     ClassLike {
       ExtLocalInherit
       Access {
@@ -1154,6 +1170,10 @@ external [
     nameHashes.hash [
       1
       13
+    ]
+    nameHashes.ownerKind [
+      1
+      1
     ]
     ClassLike {
       ExtMacro
@@ -1279,4 +1299,4 @@ sourceInfos [
     }
   ]
 ]
-1100029
+1100030

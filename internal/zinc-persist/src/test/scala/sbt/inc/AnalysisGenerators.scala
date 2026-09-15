@@ -20,7 +20,7 @@ import org.scalacheck._, Arbitrary._, Gen._, Prop._
 import sbt.internal.inc.APIs.emptyModifiers
 import sbt.internal.util.Relation
 import xsbti.api._
-import xsbti.{ UseScope, VirtualFileRef }
+import xsbti.{ NameKind, UseScope, VirtualFileRef }
 import xsbti.api.DefinitionType.{ ClassDef, Module }
 import xsbti.api.DependencyContext._
 import xsbti.compile.analysis.{ Stamp => AStamp }
@@ -104,8 +104,10 @@ object AnalysisGenerators {
   private def lzy[T <: AnyRef](x: T) = SafeLazyProxy.strict(x)
 
   def genNameHash(name: String): Gen[NameHash] =
-    for (scope <- oneOf(UseScope.values().toIndexedSeq))
-      yield NameHash.of(name, scope, (name, scope).hashCode())
+    for {
+      scope <- oneOf(UseScope.values().toIndexedSeq)
+      ownerKind <- oneOf(NameKind.values().toIndexedSeq)
+    } yield NameHash.of(name, scope, (name, scope).hashCode(), ownerKind)
 
   def genClass(name: String): Gen[AnalyzedClass] =
     for {
@@ -185,8 +187,11 @@ object AnalysisGenerators {
     Gen.listOf(Gen.oneOf(Gen.choose('!', 'Z'), Gen.const('\n'))).map(_.toString())
 
   def genUsedName(namesGen: Gen[String] = genScalaName): Gen[UsedName] =
-    for (name <- namesGen; scopes <- Gen.someOf(UseScope.values()))
-      yield UsedName(name, UseScope.Default +: scopes)
+    for {
+      name <- namesGen
+      scopes <- Gen.someOf(UseScope.values())
+      ownerKinds <- Gen.atLeastOne(NameKind.values().toIndexedSeq)
+    } yield UsedName(name, UseScope.Default +: scopes, ownerKinds)
 
   def genUsedNames(classNames: Seq[String]): Gen[Relations.UsedNames] =
     for (allNames <- listOfN(classNames.length, containerOf[Set, UsedName](genUsedName())))

@@ -67,7 +67,17 @@
       "fields": [
         { "name": "name", "type": "String" },
         { "name": "scope", "type": "xsbti.UseScope" },
-        { "name": "hash", "type": "int"    }
+        { "name": "hash", "type": "int"    },
+        {
+          "name": "ownerKind",
+          "type": "xsbti.NameKind",
+          "since": "2.0.5",
+          "default": "xsbti.NameKind.Type",
+          "doc": [
+            "Whether the name is defined in the class (Type) or in the object (Term) of the",
+            "hashed class name, which a class and its companion object share."
+          ]
+        }
       ]
     },
     {

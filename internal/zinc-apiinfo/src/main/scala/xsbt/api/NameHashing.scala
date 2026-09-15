@@ -11,7 +11,7 @@
 
 package xsbt.api
 
-import xsbti.UseScope
+import xsbti.{ NameKind, UseScope }
 import xsbti.api.Definition
 import xsbti.api.DefinitionType
 import xsbti.api.ClassLike
@@ -62,7 +62,8 @@ class NameHashing(optimizedSealed: Boolean) {
     val groupedBySimpleName = defs.groupBy(locatedDef => localName(locatedDef.name))
     groupedBySimpleName.iterator.map {
       case (name, value) =>
-        NameHash.of(name, useScope, hashLocatedDefinitions(value, location, includeSealedChildren))
+        val hash = hashLocatedDefinitions(value, location, includeSealedChildren)
+        NameHash.of(name, useScope, hash, location.nameType.kind)
     }.toArray
   }
 
@@ -121,10 +122,10 @@ class NameHashing(optimizedSealed: Boolean) {
 object NameHashing {
   def merge(nm1: Array[NameHash], nm2: Array[NameHash]): Array[NameHash] = {
     import scala.collection.mutable.Map
-    val m: Map[(String, UseScope), Int] = Map.empty
-    nm1.foreach(nh => m += (nh.name, nh.scope) -> nh.hash)
+    val m: Map[(String, UseScope, NameKind), Int] = Map.empty
+    nm1.foreach(nh => m += (nh.name, nh.scope, nh.ownerKind) -> nh.hash)
     for (nh <- nm2) {
-      val key = (nh.name, nh.scope())
+      val key = (nh.name, nh.scope(), nh.ownerKind())
       m.get(key) match {
         case None               => m(key) = nh.hash
         case Some(existingHash) =>
@@ -132,7 +133,8 @@ object NameHashing {
           m(key) = Set(existingHash, nh.hash).hashCode()
       }
     }
-    m.map { case ((name, scope), hash) => NameHash.of(name, scope, hash) }.toArray
+    m.map { case ((name, scope, ownerKind), hash) => NameHash.of(name, scope, hash, ownerKind) }
+      .toArray
   }
 
   private case class LocatedDefinition(location: Location, definition: Definition)
@@ -151,7 +153,12 @@ object NameHashing {
    */
   private case class Location(className: String, nameType: NameType)
   private case class Selector(name: String, nameType: NameType)
-  private sealed trait NameType
+  private sealed trait NameType {
+    def kind: NameKind = this match {
+      case TypeName => NameKind.Type
+      case TermName => NameKind.Term
+    }
+  }
   private object NameType {
     import DefinitionType._
     def apply(dt: DefinitionType): NameType = dt match {

@@ -15,16 +15,24 @@ import java.{ util => ju }
 import scala.{ collection => sc }
 import scala.util.hashing.MurmurHash3
 import xsbti.compile.{ UsedName => XUsedName }
-import xsbti.UseScope
+import xsbti.{ NameKind, UseScope }
 
 /**
- * `scopes` must never be mutated after construction: instances may share one
- * scope set (`make` uses the set it is given, and interning aliases equal
+ * `scopes` and `ownerKinds` must never be mutated after construction: instances may
+ * share one set (`make` uses the sets it is given, and interning aliases equal
  * instances), and the hash below is computed once.
+ *
+ * `ownerKinds` says whether the name refers to a member of a class (Type) or of an
+ * object (Term); both when the use does not tell.
  */
-case class UsedName private (name: String, scopes: ju.EnumSet[UseScope]) extends XUsedName {
+case class UsedName private (
+    name: String,
+    scopes: ju.EnumSet[UseScope],
+    ownerKinds: ju.EnumSet[NameKind]
+) extends XUsedName {
   override def getName: String = name
   override def getScopes: ju.EnumSet[UseScope] = scopes
+  override def getOwnerKinds: ju.EnumSet[NameKind] = ownerKinds
 
   // A canonical (interned) instance is inserted into one name-set per class that
   // uses it, and EnumSet.hashCode iterates its elements; caching makes each
@@ -33,15 +41,29 @@ case class UsedName private (name: String, scopes: ju.EnumSet[UseScope]) extends
 }
 
 object UsedName {
-  def apply(name: String, scopes: Iterable[UseScope] = Nil): UsedName = {
+  def apply(
+      name: String,
+      scopes: Iterable[UseScope] = Nil,
+      ownerKinds: Iterable[NameKind] = NameKind.values.toList
+  ): UsedName = {
     val useScopes = java.util.EnumSet.noneOf(classOf[UseScope])
     scopes.foreach(useScopes.add)
-    UsedName.make(name, useScopes)
+    val kinds = java.util.EnumSet.noneOf(classOf[NameKind])
+    ownerKinds.foreach(kinds.add)
+    UsedName.make(name, useScopes, kinds)
   }
 
-  def make(name: String, useScopes: java.util.EnumSet[UseScope]): UsedName = {
+  def make(name: String, useScopes: java.util.EnumSet[UseScope]): UsedName =
+    make(name, useScopes, java.util.EnumSet.allOf(classOf[NameKind]))
+
+  def make(
+      name: String,
+      useScopes: java.util.EnumSet[UseScope],
+      ownerKinds: java.util.EnumSet[NameKind]
+  ): UsedName = {
+    require(!ownerKinds.isEmpty, s"no owner kind for used name $name")
     val escapedName = escapeControlChars(name)
-    new UsedName(escapedName, useScopes)
+    new UsedName(escapedName, useScopes, ownerKinds)
   }
 
   private[inc] def escapeControlChars(name: String): String = {

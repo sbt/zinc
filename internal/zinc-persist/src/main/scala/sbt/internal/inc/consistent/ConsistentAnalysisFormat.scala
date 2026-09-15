@@ -16,7 +16,7 @@ import java.util.{ Arrays, Comparator }
 import sbt.internal.inc.{ UsedName, Stamp => StampImpl, _ }
 import sbt.internal.util.Relation
 import sbt.util.InterfaceUtil
-import xsbti.{ Problem, Severity, UseScope, VirtualFileRef }
+import xsbti.{ NameKind, Problem, Severity, UseScope, VirtualFileRef }
 import xsbti.api._
 import xsbti.compile._
 import xsbti.compile.analysis.{ ReadWriteMappers, SourceInfo, Stamp }
@@ -39,7 +39,7 @@ import sbt.internal.inc.binary.converters.InternalApiProxy
 class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Boolean) {
   import ConsistentAnalysisFormat._
 
-  private final val VERSION = 1100029
+  private final val VERSION = 1100030
   private final val readMapper = mappers.getReadMapper
   private final val writeMapper = mappers.getWriteMapper
 
@@ -173,6 +173,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
       out.writeArray("nameHashes.name", nh) { h => out.string(h.name()) }
       out.writeArray("nameHashes.scope", nh) { h => out.byte(h.scope().ordinal().toByte) }
       out.writeArray("nameHashes.hash", nh) { h => out.int(h.hash()) }
+      out.writeArray("nameHashes.ownerKind", nh) { h => out.byte(h.ownerKind().ordinal().toByte) }
       if (storeApis) {
         val comp = ac.api()
         writeClassLike(out, comp.classApi())
@@ -194,10 +195,11 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
       val nhNames = in.readStringArray()
       val nhScopes = in.readArray[UseScope]() { useScopeValues(in.byte().toInt) }
       val nhHashes = in.readArray[Int]() { in.int() }
+      val nhOwnerKinds = in.readArray[NameKind]() { nameKindValues(in.byte().toInt) }
       val nameHashes = new Array[NameHash](nhNames.length)
       var i = 0
       while (i < nameHashes.length) {
-        nameHashes(i) = NameHash.of(nhNames(i), nhScopes(i), nhHashes(i))
+        nameHashes(i) = NameHash.of(nhNames(i), nhScopes(i), nhHashes(i), nhOwnerKinds(i))
         i += 1
       }
       val comp =
@@ -442,7 +444,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
   private def writeUsedNameSet(out: Serializer, uns: scala.collection.Set[UsedName]): Unit = {
     out.writeBlock("UsedName") {
       val groups0 = uns.iterator.map { un =>
-        (un.name, AnalysisInterner.scopeBits(un.scopes).toByte)
+        (un.name, AnalysisInterner.usedNameBits(un).toByte)
       }.toArray.groupBy(_._2)
       val groups = if (reproducible) groups0.toVector.sortBy(_._1) else groups0
       out.writeColl("groups", groups, 2) { case (g, gNames) =>
@@ -846,6 +848,7 @@ object ConsistentAnalysisFormat {
   // Enum `values()` clones the backing array on every call; these are on per-node
   // read paths, so cache one copy of each.
   private final val useScopeValues = UseScope.values()
+  private final val nameKindValues = NameKind.values()
   private final val severityValues = Severity.values()
   private final val compileOrderValues = CompileOrder.values()
   private final val definitionTypeValues = DefinitionType.values()
@@ -856,7 +859,11 @@ object ConsistentAnalysisFormat {
   private final val nameHashComparator: Comparator[NameHash] = new Comparator[NameHash] {
     def compare(o1: NameHash, o2: NameHash): Int = {
       o1.name().compareTo(o2.name()) match {
-        case 0 => o1.scope().ordinal() - o2.scope().ordinal()
+        case 0 =>
+          o1.scope().ordinal() - o2.scope().ordinal() match {
+            case 0 => o1.ownerKind().ordinal() - o2.ownerKind().ordinal()
+            case i => i
+          }
         case i => i
       }
     }

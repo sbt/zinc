@@ -11,10 +11,19 @@
 
 package xsbti.compile;
 
+import xsbti.NameKind;
 import xsbti.UseScope;
 
 public interface UsedName {
     String getName();
     java.util.EnumSet<UseScope> getScopes();
+
+    /**
+     * Whether the used name refers to a member of a class (Type) or of an object (Term);
+     * both when the use does not tell.
+     */
+    default java.util.EnumSet<NameKind> getOwnerKinds() {
+        return java.util.EnumSet.allOf(NameKind.class);
+    }
 }
 

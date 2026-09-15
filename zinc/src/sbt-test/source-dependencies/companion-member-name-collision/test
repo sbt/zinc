@@ -4,5 +4,4 @@
 $ copy-file changes/A1.scala A.scala
 > compile
 
-# currently B is recompiled in round 2
 > checkRecompilations 0 B
