@@ -133,7 +133,7 @@ lazy val aggregated: Seq[ProjectReference] = compilerInterface.projectRefs ++
   zinc.projectRefs
 
 lazy val zincRoot: Project = (project in file("."))
-  .aggregate(aggregated *)
+  .aggregate(aggregated*)
   .settings(
     baseSettings,
     name := "zinc Root",
@@ -148,7 +148,7 @@ lazy val zincRoot: Project = (project in file("."))
       "clean" :: "+compile" :: "+publishSigned" :: "reload" :: state
     }, // clean is required b/c the version is generated in properties file
     crossScalaVersions := Nil,
-    publishBridges := Def.task(()).dependsOn(bridges *).value,
+    publishBridges := Def.task(()).dependsOn(bridges*).value,
     crossTestBridges := Def.uncached(
       (compilerBridgeTest.jvm(scala3) / Test / test).dependsOn(publishBridges).value
     )
@@ -160,8 +160,8 @@ def mapBuildInfoKey[A1, A2: sbtbuildinfo.PluginCompat.Manifest](
 )(f: A1 => A2): sbtbuildinfo.Entry[A2] =
   BuildInfoKey.map(key)(value => name -> f(value._2))
 
-def mapBuildInfoKey[A1, A2: sbtbuildinfo.PluginCompat.Manifest](
-    key: TaskKey[A1],
+inline def mapBuildInfoKey[A1, A2: sbtbuildinfo.PluginCompat.Manifest](
+    inline key: TaskKey[A1],
     name: String
 )(f: A1 => A2): sbtbuildinfo.Entry[A2] =
   BuildInfoKey.map(key)(value => name -> f(value._2))
