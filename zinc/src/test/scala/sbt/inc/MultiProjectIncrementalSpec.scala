@@ -157,6 +157,18 @@ class MultiProjectIncrementalSpec extends BaseCompilerSpec {
       c1.compile(f1b)
       val result = c2.compile(f2, f3, f4)
       assert(lastClasses(result.analysis.asInstanceOf[Analysis]) == Set("pkg.B", "pkg.Z"))
+
+      val incremental = result.analysis.asInstanceOf[Analysis]
+      val cleanProject = VirtualSubproject(tmp.toPath / "clean").dependsOn(p1)
+      val cleanCompiler = cleanProject.setup.createCompiler()
+      try {
+        val clean = cleanCompiler.compile(f2, f3, f4).analysis.asInstanceOf[Analysis]
+        assert(clean.apis.allInternalClasses == incremental.apis.allInternalClasses)
+        clean.apis.allInternalClasses.foreach { name =>
+          assert(clean.apis.internalAPI(name).apiHash == incremental.apis.internalAPI(name).apiHash)
+        }
+        assert(clean.relations.productClassName == incremental.relations.productClassName)
+      } finally cleanCompiler.close()
     } finally {
       c1.close()
       c2.close()

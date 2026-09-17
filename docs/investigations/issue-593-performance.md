@@ -1,0 +1,489 @@
+# Issue #593 implementation and performance evidence
+
+Status (2026-09-14): **measurement campaign finalized; candidate not accepted for shipment.**
+Implementation and all 72 affected-project tests pass. All six lookup gates, both Scalac
+gates, and hot Shapeless pass. Cold Shapeless remains inconclusive after the complete
+predeclared additional sampling: its one-sided 95% upper ratio is 1.088252, above 1.05.
+This is insufficient evidence of non-regression, not evidence of a material regression.
+The spec's overall performance criterion and completion checkpoint remain open.
+
+Base: `f4a48b2375e38089967d78ad8b480fba4f76ce7d`. Persistent candidate checkout:
+`/Users/iceo/Projects/zinc-593`, branch `codex/issue-593-lookup-analysis`.
+Production implementation: `06471465a`; benchmark entrypoint: `3a8a366de`.
+Original-scan benchmark baseline: `60303402e3afe1f9062440dbfca53e3ec2bf16fc`.
+The measured temporary checkouts were `/private/tmp/zinc-593-candidate` and
+`/private/tmp/zinc-593-baseline`. They subsequently lost files; restore fresh checkouts
+from the recorded commits before any further builds. The persistent candidate was restored
+from the intact branch, and its production/support hashes match the measured candidate.
+
+Final machine-readable results and audit: [issue-593-results.json](issue-593-results.json).
+Raw evidence is preserved under `/Users/iceo/Projects/zinc-593-evidence`, with separate
+`zinc-593-hashmap-20260911` (current Java-map candidate) and
+`zinc-593-results-20260909` (superseded Scala-map candidate) directories. Do not pool them.
+Original manifests retain the paths and commands actually used; the replay instructions
+below use a separate portable manifest. No PR, push, or merge was performed.
+
+The original workspace compiler-bridge diff is preserved separately and excluded.
+Approved requirements: [spec](../design/lookup-analysis-index.md). Progress:
+[tasks](../../tasks/todo-issue-593.md).
+
+## Evidence
+
+The entries below retain the chronological investigation record; their pending/paused
+statements describe the state at that checkpoint. The status above and final assessment
+below supersede them. Lookup gains do not establish a whole-build speedup.
+
+JDK: Homebrew OpenJDK 17.0.20.1+0, 64-bit Server VM. sbt 2.0.8; Scala 3.9.0.
+
+2026-09-09: Original `LookupImpl` passes all 6 contract tests. Command:
+`sbt --server --batch 'zinc/testOnly sbt.internal.inc.LookupAnalysisSpec'`.
+Log: `contract-baseline.log` in the results directory. No production source changes.
+
+JMH discovery and the six empty/small smoke cases pass (`benchmark-smoke.log`).
+JMH 1.37 reports `us/op`: one operation is one first lookup, or one whole query batch.
+Smoke timings use a 600 MiB heap and are not acceptance evidence.
+
+Baseline A completed successfully at revision `60303402e3afe1f9062440dbfca53e3ec2bf16fc`.
+All 12 targeted cases contain three independent forks with eight measured iterations each;
+JMH reports final heap flags `-Xms2g -Xmx2g`. Contract suite: 6/6 passing.
+Raw JSON: `baseline-A.json`; exact command and support hashes in the manifest.
+This first-order baseline alone cannot establish an acceptance verdict.
+
+2026-09-10: bounded-work guards fail on the original scan (550 visits in the small
+warm-query case; 480,800 visits for concurrent readers), then all 11 focused tests
+pass with the lazy index. A temporary forward iterator (last definition wins) fails
+four precedence/lifetime tests and is restored. Logs: `guard-original.log`,
+`guard-indexed.log`, `guard-last-wins.log`.
+
+The index is private, immutable and lazy; it derives from the existing overridable
+`analyses` accessor. Reverse traversal preserves the earliest analysis for duplicate
+binary names. Provider loading, external-hook dispatch and analyzed-class fallback
+are unchanged.
+
+Compiler integration: 16/16 tests passed, including the new comparison of downstream
+API hashes and product-class relations after incremental and clean compilation.
+Command: `sbt --server --batch 'compilerBridge2_13/compile'
+'zinc/testOnly sbt.internal.inc.LookupAnalysisSpec *MultiProjectIncrementalSpec *BinaryDepSpec'
+'zinc/compile'`. Log: `integration-bridge213.log`. Initial attempts lacked the
+Scala 2.13.16 bridge selected by `BaseCompilerSpec`; building Scala 2.12 was insufficient.
+The symlink/JAR hypothesis was disproved by direct packaging inspection. No bridge
+source or build configuration was changed. Fresh checkouts must compile the selected
+bridge before these integration suites.
+
+Hardware: Apple M3 Pro, 36 GiB physical memory.
+
+Measurement tooling: comparison self-tests pass for known ratios, independent fork counts,
+missing variants and mismatched units. A baseline-only manifest correctly yields inconclusive
+cases. `LookupAnalysisMemoryProbe` loads external JOL 0.17 and requires successful JVM
+Instrumentation. It compares total reachable sizes of the same fixture/lookup roots before
+and after initialization, and after 10,000 and 110,000 distinct misses. This is additional
+reachable footprint under controlled shared roots, not a general dominator retained-size
+claim. Object sizes are measured by Instrumentation; JOL's warning concerns guessed addresses,
+which this probe never subtracts or otherwise uses. Alignment: 8 bytes; compressed references.
+
+Memory smoke (small, 200 unique names): 6,280 additional bytes, unchanged after both
+miss batches. This is an initial probe check; all-scenario paired measurements remain pending.
+Log: `memory-smoke-project.log`; data: `memory-smoke.json`. Run from the concrete project:
+
+```sh
+sbt --server --batch 'project zincBenchmarks' \
+  'set Test / javaOptions ++= Seq("-Djdk.attach.allowAttachSelf=true", "-Djol.skipHotspotSAAttach=true", "-Xms2g", "-Xmx2g")' \
+  'Test/runMain sbt.internal.inc.LookupAnalysisMemoryProbe --jol-jar /Users/iceo/Library/Caches/Coursier/v1/https/repo1.maven.org/maven2/org/openjdk/jol/jol-core/0.17/jol-core-0.17.jar --scenario small --output /private/tmp/zinc-593-results-20260909/memory-smoke.json'
+```
+
+The initial `set zincBenchmarks / ...` command failed because that build symbol is a
+ProjectMatrix; selecting `project zincBenchmarks` before `set Test / ...` resolves it.
+No persistent build settings or dependencies changed.
+
+## Measurement quality and initial valid comparison
+
+Power-event audit (`power-events.json`) found that baseline A and candidate B crossed
+system sleep. Baseline A also ran on battery. Their raw data remain in the manifest's
+`excluded_measurements` with objective reasons. The uninterrupted candidate A and
+baseline B retry form reverse-order block B; replacement block C runs baseline then
+candidate. New runs inhibit idle sleep with `caffeinate -i`, record power state and
+check sleep events after completion. No valid slow sample is omitted.
+
+Baseline B initially failed before JMH: the contraband generator cached an empty output
+list although all tracked generated sources existed. Preserving and invalidating only
+that local `gen-api` cache restored 67 generated output records. Generation and test
+compilation then passed with no tracked baseline source change. The failed attempt
+and cached metadata are retained.
+
+The initial valid comparison (`comparison-initial-valid.json`) passes five of six
+targeted gates. Class-heavy lifecycle is inconclusive: mean ratio 0.7509, one-sided
+95% upper bound 0.8975 versus required 0.80. Four additional paired blocks D/E/F/G
+are predeclared for only this case, with three forks per variant per block and
+alternating run order. All existing valid observations remain in the final comparison.
+
+The analysis script also supports JMH 1.37 sample-time histograms (verified against
+its JSONResultFormat source): samples are pooled within each fork, then forks remain
+independent and equally weighted. A weighted-histogram self-check failed before
+implementation and passes afterward.
+
+The fixed additional sampling is complete. All six paired blocks are retained; the
+class-heavy lifecycle mean ratio is 0.8853 with a one-sided 95% upper bound of 1.0758,
+so this candidate does not establish the required 0.80 bound. Other five targeted gates
+pass. Source-equivalent runs vary substantially; no valid slow samples were discarded.
+`comparison-targeted-final.json` records this inconclusive outcome. Compiler acceptance
+runs have not started because checkpoint C has not passed.
+
+Next construction candidate: a locally built Java hash map, published through an
+unmodifiable view without retaining any mutable alias. The current Scala-map candidate
+allocates about 32.7 MiB for the class-heavy lifecycle. Measure whether avoiding its
+trie construction and intermediate pairs reduces first-use cost while preserving the
+same contract. Existing semantic/concurrency/integration tests remain the correctness
+guards. Previous candidate timings will not be pooled with the new implementation.
+
+## Revised construction measurements
+
+The revised implementation passes all 16 focused and integration tests
+(`hashmap-correctness.log` in the original results directory). Its evidence is isolated in
+`/private/tmp/zinc-593-hashmap-20260911/manifest.json`, including the exact production patch
+against `f695304ed`, source hashes, commands, and links to the prior candidate's evidence.
+
+An exploratory class-heavy run (three forks per method, approved timing/heap settings)
+averages 13.15 ms first-use, 10.43 ms lifecycle, and 83.0 microseconds per warm batch of
+10,000 queries. Lifecycle allocation is 10.33 MiB/op, compared with about 32.7 MiB/op
+for the previous candidate. This pilot is retained separately and is not pooled with
+the acceptance runs. Fresh fixed paired blocks H1/H2 run in both orders.
+
+Instrumented JOL measurements cover both revisions and all five scenarios with identical
+probe sources. The original scan adds zero bytes after the already-loaded analyses.
+The revised candidate's additional reachable footprint is:
+
+| Scenario | Distinct names U | Additional bytes | Bytes per name |
+|---|---:|---:|---:|
+| empty | 0 | 80 | — |
+| small | 200 | 8,544 | 42.72 |
+| library-heavy | 200 | 8,544 | 42.72 |
+| upstream-heavy | 100,000 | 4,248,672 | 42.49 |
+| class-heavy | 200,000 | 8,497,248 | 42.49 |
+
+For every scenario and both variants, initialized footprint is unchanged after 10,000
+and 110,000 distinct misses. These are measurements with the same shared roots, not
+unit-test byte budgets. Exact commands, tool hash, VM details, and raw outputs are in
+the new manifest's `memory_runs` entries.
+
+Fresh paired blocks H1/H2 are complete with no sleep interruptions. All six lookup gates
+pass (`comparison-acceptance.json`, seed 593, 10,000 hierarchical bootstrap resamples).
+Each row has six independent JVM forks per variant across both run orders. Time is
+microseconds per 10,000-query operation, including initialization for lifecycle rows.
+
+| Scenario / operation | Original | Candidate | Ratio | One-sided 95% upper | Limit |
+|---|---:|---:|---:|---:|---:|
+| class-heavy lifecycle | 35,627.34 | 11,272.10 | 0.3164 | 0.3471 | 0.80 |
+| upstream-heavy lifecycle | 145,329.88 | 6,382.59 | 0.0439 | 0.0563 | 0.80 |
+| small lifecycle | 226.50 | 59.91 | 0.2645 | 0.2913 | 1.05 |
+| library-heavy lifecycle | 370.51 | 194.46 | 0.5248 | 0.5596 | 1.05 |
+| class-heavy warm batch | 39,705.31 | 81.80 | 0.0021 | 0.0025 | 0.50 |
+| upstream-heavy warm batch | 188,987.17 | 86.56 | 0.0005 | 0.0007 | 0.50 |
+
+Bounds in the table are rounded upward; the JSON retains full precision. First-use,
+query-shape, break-even, and compiler results must still be considered before completion.
+No whole-build non-regression claim follows from these lookup measurements.
+
+The same paired runs quantify the startup tradeoff. These are independent first-use
+measurements, including provider enumeration and index construction; they are not obtained
+by subtracting warm timing from lifecycle timing.
+
+| Scenario | Original first use (us) | Candidate first use (us) | Original allocation (MiB) | Candidate allocation (MiB) |
+|---|---:|---:|---:|---:|
+| small | 2.040 | 4.726 | 0.0078 | 0.0182 |
+| library-heavy | 139.817 | 140.374 | 0.3710 | 0.3814 |
+| upstream-heavy | 158.942 | 5,799.265 | 0.4452 | 5.7056 |
+| class-heavy | 43.790 | 9,478.165 | 0.1097 | 10.2518 |
+
+Few-query and first-hit-heavy workloads can pay an index cost without recovering it.
+The remaining query-shape measurements and query-count sweep must quantify that boundary.
+
+Tooling audit: `show zincBenchmarks/Test/discoveredMainClasses` reports the new memory
+probe and `xsbt.GlobalBenchmarkSetup`; `Test/mainClass` is `None` with a multiple-main
+warning. The `runBenchmarks` alias now names `Test/runMain xsbt.GlobalBenchmarkSetup`
+explicitly, synchronized to both checkouts. The completed timings invoked `Jmh/run`
+directly and never used this alias; benchmark sources, settings, and runtime production
+sources are unchanged by this setup-selection fix.
+
+The shortcut smoke passes: `sbt --server --batch '-Dbenchmark.pattern=-l' runBenchmarks`.
+Here `-l` matches no setup project and asks JMH to list benchmarks, so the command verifies
+explicit main selection, bridge packaging, JMH discovery, and temporary-directory cleanup
+without cloning a workload or collecting timing data. Log: `benchmark-entrypoint-after.log`.
+
+## Validation and remaining evidence
+
+Full affected-project validation at `3a8a366de`: all 43 `zinc/testFull` tests and all 29
+`zincCore/testFull` tests pass. `scalafmtCheckAll`, `scalafmtSbtCheck`, `headerCheck`, and
+`Test/headerCheck` pass. The intentional malformed-source compiler diagnostic in the test
+log is part of a passing test. Log: `final-checks.log`.
+
+The configured `zinc/mimaReportBinaryIssues` cannot resolve
+`org.scala-sbt:zinc_3:1.8.0` on either this candidate or the original baseline. This is
+recorded separately in `mima-original-baseline.log`; release settings and filters are
+unchanged. A scoped MiMa comparison against the actual original classes passes:
+
+```sh
+sbt --server --batch 'project zinc' \
+  'set mimaPreviousClassfiles := Map(("org.scala-sbt" % "zinc_3" % "issue-593-baseline") -> file("/private/tmp/zinc-593-baseline/target/out/jvm/scala-3.9.0/zinc/classes"))' \
+  mimaReportBinaryIssues
+```
+
+Log: `mima-local-baseline.log`. The manifest records different baseline/candidate
+`LookupImpl.class` hashes, confirming distinct comparison inputs. This checks the scoped
+change; it does not claim that the unresolved historical-release check passed.
+
+After the lookup gates, two empty-state diagnostic runs started on battery. The power
+mismatch was noticed before inspecting their timings; both raw runs are preserved under
+`excluded_measurements` and will be recaptured under AC power. The runner now checks AC
+at startup and completion and audits battery events as well as sleep. The user connected
+power, but restricted `pmset` reports AC while the actual benchmark environment's `pmset`
+reports battery and `ioreg` reports no external connection. Timings were paused until
+that discrepancy was resolved. On 2026-09-12, the actual benchmark environment reports
+AC power and charging; diagnostic measurements resumed with fresh `empty-ac` labels.
+The accepted H1/H2 runs were completed earlier on AC and are unaffected.
+Query-shape/break-even diagnostics and all four compiler gates remain open.
+
+The four replacement empty-state runs completed on AC in both orders. Their comparison
+(`comparison-empty.json`, six forks per variant, same bootstrap method) quantifies overhead
+when there are no definitions to index. Times are microseconds per operation; lifecycle
+and warm operations each contain 10,000 queries.
+
+| Empty-state operation | Original | Candidate | Ratio | One-sided 95% upper |
+|---|---:|---:|---:|---:|
+| first use | 0.236 | 0.294 | 1.2474 | 1.4381 |
+| lifecycle | 20.786 | 36.804 | 1.7707 | 2.0474 |
+| warm batch | 10.597 | 19.782 | 1.8667 | 2.3295 |
+
+These are diagnostic regressions, not additional acceptance gates. The absolute lifecycle
+increase is about 16 microseconds per 10,000 queries. The first query-pattern pair also
+completed successfully. The reversed-order candidate run switched to battery at
+2026-09-12 16:59:50 +0200, near its end. It is preserved in `excluded_measurements`, with
+the exclusion decision made before inspecting its timing results. The queue stopped at
+that run boundary; `run-diagnostics-resume.py` recaptures that entire run with a fresh label,
+then completes the reversed baseline and query-count sweep. Completed valid runs are retained.
+
+The replacement candidate and reversed baseline query-pattern runs subsequently completed
+on AC without sleep. All first/last/miss cases now have six independent forks per variant
+across both orders (`comparison-query-patterns.json`, 33 completed cases including prior
+mixed/empty results). The six acceptance gates remain passing. The diagnostic lifecycle
+results below include initialization and 10,000 queries, in microseconds per operation.
+
+| Scenario / query pattern | Original | Candidate | Ratio | One-sided 95% upper |
+|---|---:|---:|---:|---:|
+| small / first hit | 157.425 | 60.253 | 0.3827 | 0.3900 |
+| small / last hit | 256.570 | 59.650 | 0.2325 | 0.2746 |
+| small / miss | 110.532 | 39.703 | 0.3592 | 0.3649 |
+| upstream-heavy / first hit | 319.931 | 5,139.196 | 16.0634 | 18.7551 |
+| upstream-heavy / last hit | 215,562.556 | 5,168.937 | 0.0240 | 0.0268 |
+| upstream-heavy / miss | 199,283.957 | 5,616.339 | 0.0282 | 0.0336 |
+
+The large graph's first-hit workload is a clear regression: about 0.32 ms becomes 5.14 ms,
+because the original scan can return from the first analysis while the candidate indexes
+all definitions. Its one-sided lower ratio bound is 13.4174. This workload differs from the
+approved mixed-query acceptance stream and is retained as a practical limitation, without
+changing thresholds. Large-graph last hits and misses save substantially more scanning work.
+
+The first query-count sweep then crossed system sleep, including a 919-second maintenance
+sleep. The full `baseline-sweep-1` run is preserved and excluded before examining its timing
+results (`sleep-condition-decision-20260912.txt`). No query-count sweep is accepted yet.
+The queue is paused; `run-sweep-resume.py` uses a new baseline label and resumes only the
+four sweep invocations, preserving every completed valid query-pattern measurement.
+
+## Completed lookup matrix
+
+All four replacement sweep runs completed on AC without sleep, using a continuous
+`caffeinate -is` wrapper across queue boundaries. `comparison-targeted-matrix.json`
+contains the exact 58 required cases: 15 mixed/empty method cases, 18 first/last/miss
+method cases, and 25 additional lifecycle/query-count cases. `audit-targeted.py` passes
+the exact matrix, both run orders, three forks per run, eight measured iterations,
+one-second warmup/measurement intervals, final 2 GiB heap flags, normalized allocation
+metrics, and power/sleep metadata. All six acceptance gates still pass. Each case has
+six independent forks per variant; the 10,000-query measurements are reused unchanged.
+
+The lifecycle sweep's candidate/original mean ratios are:
+
+| Scenario | Q=1 | Q=10 | Q=100 | Q=1,000 | Q=10,000 | Q=100,000 |
+|---|---:|---:|---:|---:|---:|---:|
+| empty | 1.0164 | 1.0410 | 1.0642 | 1.4095 | 1.7707 | 1.0362 |
+| small | 2.2313 | 2.0995 | 1.2717 | 0.6094 | 0.2645 | 0.2275 |
+| library-heavy | 1.0430 | 0.9865 | 1.0124 | 0.7621 | 0.5248 | 0.2787 |
+| upstream-heavy | 30.7269 | 19.4382 | 3.2656 | 0.3279 | 0.0439 | 0.0038 |
+| class-heavy | 273.9677 | 159.0784 | 34.9056 | 2.6585 | 0.3164 | 0.0311 |
+
+For small and upstream-heavy scenarios, the candidate is slower beyond uncertainty at
+100 queries and faster at 1,000; their measured crossing is bracketed by those counts.
+For class-heavy, the corresponding bracket is 1,000–10,000. Library-heavy measurements
+at 10 and 100 queries straddle equality; 1,000 is the first measured count with an upper
+ratio bound below one (0.8734), so a narrower crossing is not established. Empty-state
+lookups never demonstrate a gain. These are discrete measurements, not an interpolated
+universal break-even threshold. Q=1 is one hit for nonempty scenarios; larger measured
+counts contain the specified equal mix of hits and misses.
+
+The JSON retains both one-sided confidence bounds, per-fork data, and all raw normalized
+allocation measurements. Existing first-use and retained-footprint tables describe the
+construction/memory cost; misses do not accumulate retained state. The first-hit-heavy
+regression above remains a limitation even when the mixed-query gate passes.
+Task 9 and checkpoint C are complete. Whole-compiler non-regression remains unverified.
+
+## Scalac compiler comparison
+
+Both hot and cold Scalac non-regression gates pass (`comparison-scalac.json`). Times below
+are milliseconds per compiler invocation. Each variant has six hot forks and ten cold forks
+across both run orders. Hot runs preserve SampleTime, ten 10-second warmup iterations and
+five 10-second measured iterations; cold runs preserve SingleShotTime, zero warmup, one
+measurement per fork and `-XX:CICompilerCount=2`. Both use 2 GiB heaps and GC profiling.
+`scalac-audit.txt` verifies modes, flags, data, and uninterrupted AC conditions.
+
+| Workload | Original (ms) | Candidate (ms) | Ratio | One-sided 95% upper | Limit |
+|---|---:|---:|---:|---:|---:|
+| hot Scalac | 5,932.563 | 5,975.765 | 1.0073 | 1.0305 | 1.05 |
+| cold Scalac | 18,950.840 | 18,815.561 | 0.9929 | 1.0117 | 1.05 |
+
+These results establish the specified non-regression bound for this workload; they do not
+establish a compiler speedup. The pinned Scala-library fixture and identical benchmark
+support hashes are recorded in each run. JMH SampleTime samples are pooled within each
+fork; independent forks, not individual samples, determine uncertainty.
+
+The first reversed-order hot candidate run crossed a brief battery interval and was
+preserved/excluded before timing inspection, then recaptured on uninterrupted AC. The first
+cold baseline attempt failed before JMH because the compiler-interface generator again
+cached an empty output list despite the tracked generated sources being present. Its cache
+was preserved, 67 unchanged generated outputs were restored, and compilation passed.
+No failed timing was included and no generated source changed. The manifest retains the
+power decision, failed build, cache snapshot, recovery log and replacement run labels.
+Task 10 is complete; Shapeless hot/cold gates remain open.
+
+Shapeless preparation passed on both revisions using the pinned coreJVM fixture. Its first
+hot baseline run switched to battery at 2026-09-13 17:37:36 +0200 and finished on battery.
+The complete run is preserved and excluded before timing inspection; the decision is in
+`shapeless-power-decision-20260913.txt`. No Shapeless performance result is accepted yet.
+The queue is paused pending stable AC. The runner's `--resume` option retains verified
+preparation and completed valid runs, and gives replacement measurements fresh labels.
+
+After AC returned, the replacement baseline and all other initial hot Shapeless runs
+completed without power/sleep interruptions. `comparison-shapeless-hot.json` is
+inconclusive: original mean 3,114.282 ms, candidate 2,991.847 ms, ratio 0.960686, one-sided
+95% upper bound 1.080543 versus the unchanged 1.05 limit. This is not a passing gate.
+Two additional paired hot blocks (3 and 4) are predeclared in
+`shapeless-hot-additional-plan.json`, three forks per variant per block with unchanged
+settings and alternating order. All existing valid data will remain in the comparison;
+the additional sampling is assessed only after both new pairs complete.
+
+The first cold Shapeless attempt failed before JMH with the same empty generator-output
+cache. The cache snapshot is preserved, regeneration restored 67 unchanged tracked files,
+and the baseline compile passed. No cold Shapeless measurements have completed yet.
+The current plan completes cold comparisons, then collects the two additional hot pairs.
+
+Both initial cold Shapeless pairs subsequently completed on uninterrupted AC. Their result
+is also inconclusive (`comparison-shapeless-initial.json`): original mean 15,506.990 ms,
+candidate 15,620.717 ms, ratio 1.007334, one-sided 95% upper bound 1.126359. Four additional
+cold pairs (3–6), each with five independent forks per variant and alternating order, are
+predeclared in `shapeless-cold-additional-plan.json`. Mode, heap, compiler-thread count and
+threshold remain unchanged. All initial and additional valid samples remain included; the
+additional cold evidence is assessed only after all four new pairs complete. The two
+previously planned additional hot pairs are unchanged. Both Shapeless gates remain open.
+
+The original workspace's unrelated compiler-bridge diff is unchanged (SHA-256
+`0dc459f403aae9b67ace276b079ddab89e096c39a393aaaac11401257b91d3cb`). Other new unrelated
+workspace files and edits were observed and left untouched.
+
+Compiler fixture preparation completed while timing was paused. The existing setup helper
+prepared Scala library at `31539736462078b1da615880ef11890a6538b45e` (569 sources) and
+Shapeless coreJVM at `62611554399e0d04466da95591253706b2d3020d` (83 sources). Both Git
+revisions and every recorded source/classpath path were verified. The manifest retains
+commands, source-input hashes, build metadata, and `scalac-setup-early.log` /
+`shapeless-setup-early.log`. Preparation is not a compiler timing or an acceptance result.
+
+## Final assessment — 2026-09-14
+
+All predeclared additional Shapeless pairs completed. Hot Shapeless now has four paired
+blocks and 12 independent forks per variant; cold has six paired blocks and 30 forks per
+variant. Both orders, all initial valid data, and every additional valid sample remain
+included. There were no source, setting, or threshold changes. An additional candidate
+hot-pair-4 build failed before JMH with the empty generator cache; its failed attempt and
+cache were preserved, 67 unchanged outputs regenerated, and a fresh retry completed.
+
+| Compiler workload | Original ms/op | Candidate ms/op | Ratio | One-sided 95% upper | Verdict (limit 1.05) |
+|---|---:|---:|---:|---:|---|
+| Hot Scalac | 5,932.563 | 5,975.765 | 1.007282 | 1.030403 | pass |
+| Cold Scalac | 18,950.840 | 18,815.561 | 0.992862 | 1.011656 | pass |
+| Hot Shapeless | 3,139.515 | 2,967.932 | 0.945347 | 1.019626 | pass |
+| Cold Shapeless | 15,161.691 | 15,124.384 | 0.997539 | 1.088252 | inconclusive |
+
+Cold Shapeless's lower one-sided bound is 0.918173. Its point estimate is about 0.25%
+faster, but that does not establish the required upper bound. Slow forks appear in both
+variants; no valid observations were discarded and no cause for the variability is proven.
+The final comparison contains 62 cases: nine passing gates, one inconclusive gate, and
+52 diagnostics, with no run errors. The audit verifies all 28 compiler invocations,
+expected pair/fork counts, recorded source hashes, modes, heap flags, GC metrics, and
+uninterrupted AC conditions. Candidate H1's recorded pre-commit patch was checked against
+its SHA-256 and the final committed implementation; the other hashes match their commits.
+
+The six lookup gates demonstrate the intended gain: at 10,000 mixed queries, lifecycle
+time falls about 68% for class-heavy and 96% for upstream-heavy fixtures. These gains have
+costs: roughly 5–9 ms first-use construction on large fixtures, about 42.5 additional bytes
+per unique binary name, and an approximately 16-fold lifecycle regression for the large
+first-hit-only workload. Empty and low-query workloads can also regress. The diagnostic
+tables above retain these results and measured break-even brackets. Misses add no retained
+state in the memory probes. No original-reporter-build speedup is claimed.
+
+The candidate remains available for review, but must not ship under the current acceptance
+criteria. Acceptance requires resolving the cold Shapeless uncertainty with better controlled,
+predeclared measurements or revising the candidate. Merely finishing this campaign does not
+complete the spec. No further timed runs are active or scheduled by this closeout.
+
+## Criterion-to-evidence index
+
+| Approved criterion | Evidence and outcome |
+|---|---|
+| Ordered lookup, laziness, hooks, instance lifetime and concurrent publication | `LookupAnalysisSpec`: 11 focused tests; original-scan bounded-work and last-wins mutation checks fail as intended. |
+| Compiler-driven invalidation matches clean compilation | `MultiProjectIncrementalSpec`, `BinaryDepSpec`, and affected-project suites; 43 zinc plus 29 zinc-core tests pass in `final-checks.log`. |
+| Lookup gain including construction | All six acceptance gates pass; 58-case lookup matrix and memory/query-pattern costs are retained above and in the final JSON. |
+| Whole-compiler non-regression | Three of four pass; cold Shapeless remains inconclusive as shown above. **Open.** |
+| Public API, provider, external-hook and persistence compatibility | Scoped source review and behavioral tests pass; no public interface or persistence change. Local-baseline MiMa passes. Historical `zinc_3:1.8.0` resolution fails on both baseline and candidate, separately documented. |
+| Formatting, headers, and affected tests | `final-checks.log`: 72 tests, scalafmt checks and both header checks pass. Only documentation changed after this validation; final branch diff passes `git diff --check`. |
+| Reproducibility and evidence retention | Tracked fixtures, comparator, memory probe, exact commands/revisions, portable raw-result replay, source hashes and evidence inventory. |
+
+## Preserved evidence and replay
+
+The persistent evidence directory holds 234 files, including raw JMH JSON, logs, manifests,
+sampling plans, recovery records, memory probes, and the previous candidate's evidence.
+`SHA256SUMS.json` inventories the preserved files; its digest is recorded in the tracked
+final results JSON. Rebuildable compiler-workload checkouts, dependencies and class outputs
+are excluded from this copy; their pinned revisions, setup logs and setup metadata remain.
+The original temporary results were left untouched. The previous candidate's raw records
+are retained for inspection, and are not inputs to the current comparison.
+
+To reproduce the final comparison without the temporary checkouts:
+
+```sh
+cd /Users/iceo/Projects/zinc-593
+python3 bin/compare-lookup-benchmarks.py --self-test
+python3 bin/compare-lookup-benchmarks.py \
+  --manifest /Users/iceo/Projects/zinc-593-evidence/zinc-593-hashmap-20260911/manifest-portable.json \
+  --seed 593 --resamples 10000 --output /private/tmp/issue-593-replay.json
+```
+
+Only included raw-result paths become relative in `manifest-portable.json`; original
+commands, revisions, exclusions and failed-attempt provenance are preserved. The portable replay was verified to reproduce all 62 cases and verdicts exactly. To move the evidence to
+another machine, copy the entire evidence directory and point the command at its portable
+manifest. For fresh timings, use the tracked benchmark/spec commands and recorded baseline
+and candidate commits, rebuild the compiler fixtures, and record new conditions explicitly.
+
+
+## Review fixes — comparator validation
+
+The pre-PR code review found two tooling defects: comparisons could pass despite different
+JMH/JDK/VM, JVM arguments, thread counts or warmup/measurement settings; and empty JMH
+arrays could silently remove a complete paired block. Both are now rejected. Missing
+settings also make the affected case inconclusive. Settings must match across every variant
+and paired block for a case; JVM argument lists are compared exactly in order. Independent
+fork counts remain governed by the existing minimum, not the settings fingerprint.
+
+Regression checks first reproduced the false acceptance, then passed after each fix.
+`python3 bin/compare-lookup-benchmarks.py --self-test` now covers each differing/missing
+setting, environment changes between pairs, empty additional pairs, and entirely empty
+measurements. Empty-run errors are also printed by the CLI. The same portable replay
+command above, with seed 593 and 10,000 resamples, reproduced all 62 saved cases, confidence
+bounds and verdicts exactly, with no run errors. `git diff --check` passes. No timed code
+or benchmark fixture changed, so these fixes require no new compiler benchmark campaign.
+Cold Shapeless remains the previously documented acceptance blocker.
