@@ -961,11 +961,11 @@ private final class AnalysisCallback(
     ()
   }
 
-  // `ownerKinds` is not used yet, it was added in preparation for fixing sbt/zinc#1796
+  // `qualifierKinds` is not used yet, it was added in preparation for fixing sbt/zinc#1796
   override def usedName(
       className: String,
       name: String,
-      ownerKinds: EnumSet[NameKind],
+      qualifierKinds: EnumSet[NameKind],
       useScopes: EnumSet[UseScope]
   ): Unit = usedName(className, name, useScopes)
 

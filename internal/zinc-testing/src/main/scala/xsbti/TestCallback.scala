@@ -138,7 +138,7 @@ class TestCallback extends AnalysisCallback4 {
   override def usedName(
       className: String,
       name: String,
-      ownerKinds: ju.EnumSet[NameKind],
+      qualifierKinds: ju.EnumSet[NameKind],
       scopes: ju.EnumSet[UseScope]
   ): Unit = usedName(className, name, scopes)
 
