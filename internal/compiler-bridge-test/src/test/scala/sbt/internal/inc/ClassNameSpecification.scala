@@ -200,7 +200,6 @@ class ClassNameSpecification
   }
 
   it should "not create binary names for local classes" in {
-    pending
     val src = """
       |class Container {
       |  def foo = {
@@ -226,12 +225,13 @@ class ClassNameSpecification
         "Container" -> "Container",
         "T" -> "T"
       ),
-      Set(
-        "Container$$anon$1",
-        "Container$C$1",
-        "Container$D$2",
-        "Container$D$3$"
-      )
+      // scala/scala#7203 (2.12.8, and 2.13 since M5) made LambdaLift's `renamable` set
+      // insertion-ordered, which changed the order fresh indices are handed out to the
+      // three `D` symbols, so `class D`/`object D` moved from $2/$3 to $1/$2.
+      if (scalaVersion.startsWith("2.10") || scalaVersion.startsWith("2.11"))
+        Set("Container$$anon$1", "Container$C$1", "Container$D$2", "Container$D$3$")
+      else
+        Set("Container$$anon$1", "Container$C$1", "Container$D$1", "Container$D$2$")
     )
   }
 
