@@ -15,7 +15,7 @@ import java.nio.file.{ Files, FileAlreadyExistsException, Path, StandardCopyOpti
 import sbt.util.Logger
 import xsbti.compile.CompilerBridgeProvider
 
-trait AbstractBridgeProviderTestkit extends LogTestkit {
+trait AbstractBridgeProviderTestkit extends LogTestkit:
   def getZincProvider(targetDir: Path, log: Logger): CompilerBridgeProvider
 
   def getCompilerBridge(targetDir: Path, log: Logger, scalaVersion: String): Path =
@@ -24,13 +24,11 @@ trait AbstractBridgeProviderTestkit extends LogTestkit {
       val scalaInstance = provider.fetchScalaInstance(scalaVersion, log)
       val bridge = provider.fetchCompiledBridge(scalaInstance, log).toPath
       val target = targetDir.resolve(s"target-bridge-$scalaVersion.jar")
-      if (!Files.exists(target)) {
-        try {
+      if !Files.exists(target) then
+        try
           Files.copy(bridge, target, StandardCopyOption.REPLACE_EXISTING)
-        } catch {
+        catch
           case _: FileAlreadyExistsException => ()
-        }
-      }
       target
     }
 
@@ -38,11 +36,9 @@ trait AbstractBridgeProviderTestkit extends LogTestkit {
   def scalaInstance(scalaVersion: String, targetDir: Path, logger: Logger): ScalaInstance =
     getZincProvider(targetDir, logger).fetchScalaInstance(scalaVersion, logger)
 
-  extension (p: Path) {
+  extension (p: Path)
     def /(sub: String): Path = p.resolve(sub)
-  }
-}
+end AbstractBridgeProviderTestkit
 
-object AbstractBridgeProviderTestkit {
+object AbstractBridgeProviderTestkit:
   private val lock = new AnyRef
-}

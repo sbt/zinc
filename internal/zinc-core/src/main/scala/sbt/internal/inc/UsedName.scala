@@ -11,10 +11,10 @@
 
 package sbt.internal.inc
 
-import java.{ util => ju }
-import scala.{ collection => sc }
+import java.util as ju
+import scala.collection as sc
 import scala.util.hashing.MurmurHash3
-import xsbti.compile.{ UsedName => XUsedName }
+import xsbti.compile.UsedName as XUsedName
 import xsbti.UseScope
 
 /**
@@ -22,7 +22,7 @@ import xsbti.UseScope
  * scope set (`make` uses the set it is given, and interning aliases equal
  * instances), and the hash below is computed once.
  */
-case class UsedName private (name: String, scopes: ju.EnumSet[UseScope]) extends XUsedName {
+case class UsedName private (name: String, scopes: ju.EnumSet[UseScope]) extends XUsedName:
   override def getName: String = name
   override def getScopes: ju.EnumSet[UseScope] = scopes
 
@@ -30,29 +30,24 @@ case class UsedName private (name: String, scopes: ju.EnumSet[UseScope]) extends
   // uses it, and EnumSet.hashCode iterates its elements; caching makes each
   // re-hash a field read. Fits in the object's existing alignment padding.
   override val hashCode: Int = MurmurHash3.caseClassHash(this)
-}
 
-object UsedName {
-  def apply(name: String, scopes: Iterable[UseScope] = Nil): UsedName = {
+object UsedName:
+  def apply(name: String, scopes: Iterable[UseScope] = Nil): UsedName =
     val useScopes = java.util.EnumSet.noneOf(classOf[UseScope])
     scopes.foreach(useScopes.add)
     UsedName.make(name, useScopes)
-  }
 
-  def make(name: String, useScopes: java.util.EnumSet[UseScope]): UsedName = {
+  def make(name: String, useScopes: java.util.EnumSet[UseScope]): UsedName =
     val escapedName = escapeControlChars(name)
     new UsedName(escapedName, useScopes)
-  }
 
-  private[inc] def escapeControlChars(name: String): String = {
-    if (name.indexOf('\n') > 0) // optimize for common case to regex overhead
+  private[inc] def escapeControlChars(name: String): String =
+    if name.indexOf('\n') > 0 then // optimize for common case to regex overhead
       name.replace("\n", "\u26680A")
     else
       name
-  }
-}
 
-sealed abstract class UsedNames private {
+sealed abstract class UsedNames:
   def isEmpty: Boolean
   def toMultiMap: sc.Map[String, sc.Set[UsedName]]
 
@@ -62,13 +57,12 @@ sealed abstract class UsedNames private {
 
   def hasAffectedNames(modifiedNames: ModifiedNames, from: String): Boolean
   def affectedNames(modifiedNames: ModifiedNames, from: String): String
-}
 
-object UsedNames {
+object UsedNames:
   // def fromJavaMap(map: ju.Map[String, Schema.UsedNames]) = JavaUsedNames(map)
   def fromMultiMap(map: sc.Map[String, sc.Set[UsedName]]) = ScalaUsedNames(map)
 
-  final case class ScalaUsedNames(map: sc.Map[String, sc.Set[UsedName]]) extends UsedNames {
+  final case class ScalaUsedNames(map: sc.Map[String, sc.Set[UsedName]]) extends UsedNames:
     def isEmpty = map.isEmpty
     def toMultiMap = map
     def ++(other: UsedNames) = fromMultiMap(map ++ other.iterator)
@@ -80,5 +74,3 @@ object UsedNames {
       InvalidationLog
         .formatUsedNames(map(from).filter(modifiedNames.isModified))
         .mkString("\n")
-  }
-}

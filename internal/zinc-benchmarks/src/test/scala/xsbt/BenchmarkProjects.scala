@@ -11,7 +11,7 @@
 
 package xsbt
 
-object BenchmarkProjects {
+object BenchmarkProjects:
   object Shapeless
       extends BenchmarkProject(
         "milessabin/shapeless",
@@ -25,4 +25,3 @@ object BenchmarkProjects {
         "31539736462078b1da615880ef11890a6538b45e",
         List("library")
       )
-}

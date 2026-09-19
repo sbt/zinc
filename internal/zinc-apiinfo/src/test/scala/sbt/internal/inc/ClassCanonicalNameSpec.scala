@@ -23,27 +23,42 @@ import org.scalatest.matchers.should.Matchers
 // etc..
 // Because of scala/bug#2034 we can't put these all in one package (you get "name clash" errors)
 // So instead we'll split them in 4 nice and even packages
-package p1 { object x { object y { object z; class z } } }
-package p2 { object x { class y { object z; class z } } }
-package p3 { class x { object y { object z; class z } } }
-package p4 { class x { class y { object z; class z } } }
+package p1 {
+  object x:
+    object y:
+      object z; class z
+}
+package p2 {
+  object x:
+    class y:
+      object z; class z
+}
+package p3 {
+  class x:
+    object y:
+      object z; class z
+}
+package p4 {
+  class x:
+    class y:
+      object z; class z
+}
 
-class ClassCanonicalNameSpec extends AnyFlatSpec with Matchers with Diagrams {
+class ClassCanonicalNameSpec extends AnyFlatSpec with Matchers with Diagrams:
   "ClassToAPI.classCanonicalName" should """return "" for null""" in
     assert(getCustomCanonicalName(null) === "")
 
-  import scala.reflect._
+  import scala.reflect.*
   def check[T: ClassTag](expected: Expected) = checkClass(expected, classTag[T].runtimeClass, "tag")
   def checkRef(expected: Expected, x: AnyRef) = checkClass(expected, x.getClass, "ref")
-  def checkClass(expected: Expected, c: Class[?], classSource: String) = {
-    import expected._
+  def checkClass(expected: Expected, c: Class[?], classSource: String) =
+    import expected.*
     it should f"for $nesting%-5s ($classSource) return $canonicalClassName" in {
       assert(getCustomCanonicalName(c) === canonicalClassName)
 
       // c.getCanonicalName is JDK implementation specific
       // assert(getNativeCanonicalName(c) === nativeCanonicalClassName)
     }
-  }
 
   def getCustomCanonicalName(c: Class[?]) = strip(ClassToAPI.classCanonicalName(c))
 
@@ -106,17 +121,14 @@ class ClassCanonicalNameSpec extends AnyFlatSpec with Matchers with Diagrams {
 
   class Expected(
       val canonicalClassName: String
-  ) {
-    val nesting = {
+  ):
+    val nesting =
       val n0 = getClass.getSimpleName stripSuffix "$"
       Seq(n0, "-" * (n0.length - 1)).flatMap(_.zipWithIndex).sortBy(_._2).map(_._1).mkString
-    }
-  }
 
   // Strip the shared prefix to the class name
-  def strip(s: String) = {
+  def strip(s: String) =
     val prefix = "sbt.internal.inc.p"
-    if (s.startsWith(prefix)) s stripPrefix prefix drop 2
+    if s.startsWith(prefix) then s stripPrefix prefix drop 2
     else s
-  }
-}
+end ClassCanonicalNameSpec

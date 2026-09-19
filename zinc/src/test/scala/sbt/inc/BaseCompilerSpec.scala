@@ -17,7 +17,7 @@ import sbt.internal.inc.{ Analysis, BridgeProviderSpecification }
 import sbt.util.Logger
 import xsbti.compile.{ CompileResult, IncOptions }
 
-class BaseCompilerSpec extends BridgeProviderSpecification {
+class BaseCompilerSpec extends BridgeProviderSpecification:
   val scalaVersion: String = "2.13.16"
 
   val incOptions: IncOptions = IncOptions.of().withPipelining(true)
@@ -26,13 +26,12 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
 
   def assertNotExists(p: Path) = assert(Files.notExists(p), s"$p exist")
 
-  def lastClasses(a: Analysis) = {
+  def lastClasses(a: Analysis) =
     a.compilations.allCompilations.map { c =>
       a.apis.internal.collect {
         case (className, api) if api.compilationTimestamp == c.getStartTime => className
       }.toSet
     }.last
-  }
 
   def classes(a: Analysis) = {
     a.compilations.allCompilations.flatMap { c =>
@@ -43,19 +42,16 @@ class BaseCompilerSpec extends BridgeProviderSpecification {
     }
   }.toMap
 
-  def recompiled(res1: CompileResult, res2: CompileResult): Set[String] = {
+  def recompiled(res1: CompileResult, res2: CompileResult): Set[String] =
     val classes1 = classes(res1.analysis.asInstanceOf[Analysis])
     val classes2 = classes(res2.analysis.asInstanceOf[Analysis])
     classes2.collect { case (clazz, time) if !classes1.get(clazz).contains(time) => clazz }.toSet
-  }
 
-  extension (setup: ProjectSetup) {
+  extension (setup: ProjectSetup)
     def createCompiler(): CompilerSetup = setup.createCompiler(scalaVersion, incOptions)
 
-    def createCompiler(sv: String, incOptions: IncOptions): CompilerSetup = {
+    def createCompiler(sv: String, incOptions: IncOptions): CompilerSetup =
       val si = scalaInstance(sv, setup.baseDir, Logger.Null)
       val bridge = getCompilerBridge(setup.baseDir, Logger.Null, sv)
       setup.createCompiler(sv, si, bridge, incOptions, log)
-    }
-  }
-}
+end BaseCompilerSpec

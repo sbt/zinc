@@ -20,7 +20,7 @@ import sbt.util.Logger
 import xsbt.api.HashAPI
 import xsbti.api.{ ClassLike, DefinitionType }
 
-class ClassfileToAPISpecification extends UnitSpec {
+class ClassfileToAPISpecification extends UnitSpec:
 
   // The point of Phase 2 (sbt/zinc#837): a class that can't be reflectively loaded still gets an
   // API recorded from its classfile, and that API's hash changes when the class's public shape
@@ -28,7 +28,7 @@ class ClassfileToAPISpecification extends UnitSpec {
   // one; it only needs to be deterministic and shape-sensitive.
   "ClassfileToAPI" should "build a deterministic API whose hash tracks the class's public shape" in {
     IO.withTemporaryDirectory { temp =>
-      def classApi(dirName: String, source: String): ClassLike = {
+      def classApi(dirName: String, source: String): ClassLike =
         val dir = new File(temp, dirName)
         dir.mkdir()
         val src = new File(dir, "Sample.java")
@@ -37,7 +37,6 @@ class ClassfileToAPISpecification extends UnitSpec {
         val cf = Parser(new File(dir, "Sample.class").toPath, Logger.Null)
         val (apis, _) = ClassfileToAPI.process(Seq("Sample" -> cf))
         apis.find(_.definitionType == DefinitionType.ClassDef).get
-      }
 
       val intGreet = "public class Sample { public int greet(int n) { return 0; } }"
       val a = classApi("a", intGreet)
@@ -84,10 +83,9 @@ class ClassfileToAPISpecification extends UnitSpec {
       val callback = JavaCompilerForUnitTesting.analyze(
         classesDir,
         Seq(outerFile),
-        (cb, src, named) => {
+        (cb, src, named) =>
           val (apis, _) = ClassfileToAPI.process(named)
           apis.foreach(cb.api(src, _))
-        }
       )
 
       val recorded = callback.apis.values.flatten.toSet
@@ -200,7 +198,7 @@ class ClassfileToAPISpecification extends UnitSpec {
   // P3: only a method actually named `main` (not just any public-static-void(String[])) is a main.
   it should "treat only a method named main as a main class" in {
     IO.withTemporaryDirectory { temp =>
-      def mainsOf(dirName: String, source: String): Seq[String] = {
+      def mainsOf(dirName: String, source: String): Seq[String] =
         val dir = new File(temp, dirName)
         dir.mkdir()
         val src = new File(dir, "Sample.java")
@@ -208,7 +206,6 @@ class ClassfileToAPISpecification extends UnitSpec {
         JavaCompilerForUnitTesting.compileJava(Seq(src), dir, Seq.empty)
         val cf = Parser(new File(dir, "Sample.class").toPath, Logger.Null)
         ClassfileToAPI.process(Seq("Sample" -> cf))._2
-      }
       // same descriptor as main but a different name -> not a main class
       assert(mainsOf("a", "public class Sample { public static void foo(String[] a) {} }").isEmpty)
       assert(mainsOf("b", "public class Sample { public static void main(String[] a) {} }") == Seq(
@@ -217,7 +214,7 @@ class ClassfileToAPISpecification extends UnitSpec {
     }
   }
 
-  private def sampleApis(temp: File, dirName: String, source: String): Seq[ClassLike] = {
+  private def sampleApis(temp: File, dirName: String, source: String): Seq[ClassLike] =
     val dir = new File(temp, dirName)
     dir.mkdir()
     val src = new File(dir, "Sample.java")
@@ -225,8 +222,6 @@ class ClassfileToAPISpecification extends UnitSpec {
     JavaCompilerForUnitTesting.compileJava(Seq(src), dir, Seq.empty)
     val cf = Parser(new File(dir, "Sample.class").toPath, Logger.Null)
     ClassfileToAPI.process(Seq("Sample" -> cf))._1
-  }
 
   private def hashAll(apis: Seq[ClassLike]): Int = apis.map(HashAPI(_)).sum
-
-}
+end ClassfileToAPISpecification

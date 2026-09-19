@@ -25,7 +25,7 @@ import sbt.util.LoggerContext
  * constants (sbt/zinc#145). javac inlines these constants and erases the reference to the declaring
  * class from the using class's bytecode, so they can only be recovered from the attributed AST.
  */
-class JavaConstantDepsSpec extends UnitSpec {
+class JavaConstantDepsSpec extends UnitSpec:
 
   "Local javac constant analysis" should "record a member-select constant dependency" in deps {
     d => assert(d.getOrElse("p.A", Set.empty).contains("p.B"))
@@ -189,7 +189,7 @@ class JavaConstantDepsSpec extends UnitSpec {
         |""".stripMargin
   )
 
-  private def compileAndCollect(tmp: Path): Map[String, Set[String]] = {
+  private def compileAndCollect(tmp: Path): Map[String, Set[String]] =
     val compiler = new LocalJavaCompiler(
       Option(javax.tools.ToolProvider.getSystemJavaCompiler)
         .getOrElse(sys.error("This test requires a JDK, not a JRE."))
@@ -207,7 +207,7 @@ class JavaConstantDepsSpec extends UnitSpec {
     val log = LoggerContext.globalContext.logger("JavaConstantDepsSpec", None, None)
     val reporter = new ManagedLoggedReporter(10, log)
     val options =
-      if (scala.util.Properties.isJavaAtLeast("21")) Array("-proc:none") else Array.empty[String]
+      if scala.util.Properties.isJavaAtLeast("21") then Array("-proc:none") else Array.empty[String]
     val (success, deps) = compiler.runWithConstantDeps(
       sources.map(PlainVirtualFile(_)).toArray,
       options,
@@ -218,5 +218,5 @@ class JavaConstantDepsSpec extends UnitSpec {
     )
     assert(success, "javac compilation of the fixtures failed")
     deps
-  }
-}
+  end compileAndCollect
+end JavaConstantDepsSpec

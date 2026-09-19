@@ -14,27 +14,26 @@ package sbt.internal.inc.cached
 import java.io.File
 import java.nio.file.Path
 
-import sbt.internal.inc._
+import sbt.internal.inc.*
 import sbt.internal.inc.mappers.MapperUtils
 import xsbti.compile.analysis.{ ReadMapper, ReadWriteMappers, Stamp, WriteMapper }
 import xsbti.compile.{ CompileAnalysis, MiniSetup }
 import xsbti.VirtualFileRef
 
-trait CompilationCache {
+trait CompilationCache:
   // TODO(jvican): Consider removing this interface or at least document it.
   def loadCache(projectLocation: File): Option[(CompileAnalysis, MiniSetup)]
-}
 
-case class ProjectRebasedCache(remoteRoot: Path, cacheLocation: Path) extends CompilationCache {
-  override def loadCache(projectLocation: File): Option[(CompileAnalysis, MiniSetup)] = {
-    import scala.jdk.OptionConverters._
-    import scala.jdk.CollectionConverters._
+case class ProjectRebasedCache(remoteRoot: Path, cacheLocation: Path) extends CompilationCache:
+  override def loadCache(projectLocation: File): Option[(CompileAnalysis, MiniSetup)] =
+    import scala.jdk.OptionConverters.*
+    import scala.jdk.CollectionConverters.*
     val projectLocationPath = projectLocation.toPath
     val readMapper = new RebaseReadWriteMapper(remoteRoot, projectLocationPath)
     val writeMapper = new RebaseReadWriteMapper(projectLocationPath, remoteRoot)
     val mappers = new ReadWriteMappers(readMapper, writeMapper)
     val store = FileAnalysisStore.binary(cacheLocation.toFile, mappers)
-    store.get().toScala match {
+    store.get().toScala match
       case Some(analysisContents) =>
         val originalAnalysis = analysisContents.getAnalysis
         val originalSetup = analysisContents.getMiniSetup
@@ -47,10 +46,9 @@ case class ProjectRebasedCache(remoteRoot: Path, cacheLocation: Path) extends Co
 
         Some(originalAnalysis -> originalSetup)
       case _ => None
-    }
-  }
+  end loadCache
 
-  final class RebaseReadWriteMapper(from: Path, to: Path) extends ReadMapper with WriteMapper {
+  final class RebaseReadWriteMapper(from: Path, to: Path) extends ReadMapper with WriteMapper:
     private def rebase(file: Path): Path = MapperUtils.rebase(file, from, to)
 
     override def mapSourceFile(sourceFile: VirtualFileRef): VirtualFileRef = sourceFile
@@ -73,5 +71,5 @@ case class ProjectRebasedCache(remoteRoot: Path, cacheLocation: Path) extends Co
       identity(binaryStamp)
 
     override def mapMiniSetup(miniSetup: MiniSetup): MiniSetup = identity(miniSetup)
-  }
-}
+  end RebaseReadWriteMapper
+end ProjectRebasedCache

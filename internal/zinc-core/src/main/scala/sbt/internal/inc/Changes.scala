@@ -13,21 +13,21 @@ package sbt
 package internal
 package inc
 
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 
 import xsbti.{ UseScope, VirtualFileRef }
 import xsbti.api.NameHash
 import xsbti.compile.Changes
-import xsbti.compile.{ APIChange => XAPIChange }
-import xsbti.compile.{ InitialChanges => XInitialChanges }
-import xsbti.compile.{ UsedName => XUsedName }
+import xsbti.compile.APIChange as XAPIChange
+import xsbti.compile.InitialChanges as XInitialChanges
+import xsbti.compile.UsedName as XUsedName
 
 final case class InitialChanges(
     internalSrc: Changes[VirtualFileRef],
     removedProducts: Set[VirtualFileRef],
     libraryDeps: Set[VirtualFileRef],
     external: APIChanges
-) extends XInitialChanges {
+) extends XInitialChanges:
 
   def isEmpty: Boolean =
     internalSrc.isEmpty &&
@@ -39,22 +39,18 @@ final case class InitialChanges(
   def getRemovedProducts: java.util.Set[VirtualFileRef] = removedProducts.asJava
   def getLibraryDeps: java.util.Set[VirtualFileRef] = libraryDeps.asJava
   def getExternal: Array[XAPIChange] = external.apiChanges.toArray
-}
 
-final class APIChanges(val apiChanges: Iterable[APIChange]) {
+final class APIChanges(val apiChanges: Iterable[APIChange]):
   override def toString = "API Changes: " + apiChanges
   def allModified: Iterable[String] = apiChanges.map(_.modifiedClass)
-}
 
-sealed abstract class APIChange(val modifiedClass: String) extends XAPIChange {
+sealed abstract class APIChange(val modifiedClass: String) extends XAPIChange:
   override def getModifiedClass: String = modifiedClass
-  override def getModifiedNames: java.util.Set[XUsedName] = this match {
+  override def getModifiedNames: java.util.Set[XUsedName] = this match
     case _: APIChangeDueToMacroDefinition      => java.util.Collections.emptySet[XUsedName]
     case _: APIChangeDueToAnnotationDefinition => java.util.Collections.emptySet[XUsedName]
     case _: TraitPrivateMembersModified        => java.util.Collections.emptySet[XUsedName]
     case NamesChange(_, modifiedNames)         => modifiedNames.names.map(x => x: XUsedName).asJava
-  }
-}
 
 /**
  * If we recompile a source file that contains a macro definition then we always assume that its
@@ -88,7 +84,7 @@ final case class TraitPrivateMembersModified(modified: String) extends APIChange
  * on whether modified name is implicit or not. Implicit names are much more difficult to handle
  * due to difficulty of reasoning about the implicit scope.
  */
-final case class ModifiedNames(names: Set[UsedName]) {
+final case class ModifiedNames(names: Set[UsedName]):
   def in(scope: UseScope): Set[UsedName] = names.filter(_.scopes.contains(scope))
 
   private lazy val lookupMap: Set[(String, UseScope)] =
@@ -102,9 +98,8 @@ final case class ModifiedNames(names: Set[UsedName]) {
 
   override def toString: String =
     s"ModifiedNames(changes = ${names.mkString(", ")})"
-}
-object ModifiedNames {
-  def compareTwoNameHashes(a: Array[NameHash], b: Array[NameHash]): ModifiedNames = {
+object ModifiedNames:
+  def compareTwoNameHashes(a: Array[NameHash], b: Array[NameHash]): ModifiedNames =
     val xs = a.toSet
     val ys = b.toSet
     val changed = (xs union ys) diff (xs intersect ys)
@@ -117,23 +112,19 @@ object ModifiedNames {
       .toSet
 
     ModifiedNames(modifiedNames)
-  }
-}
 
-abstract class UnderlyingChanges[A] extends Changes[A] {
+abstract class UnderlyingChanges[A] extends Changes[A]:
   def added: Set[A]
   def removed: Set[A]
   def changed: Set[A]
   def unmodified: Set[A]
 
-  import scala.jdk.CollectionConverters._
+  import scala.jdk.CollectionConverters.*
   override def getAdded: java.util.Set[A] = added.asJava
   override def getChanged: java.util.Set[A] = changed.asJava
   override def getRemoved: java.util.Set[A] = removed.asJava
   override def getUnmodified: java.util.Set[A] = unmodified.asJava
   override def isEmpty(): java.lang.Boolean = added.isEmpty && removed.isEmpty && changed.isEmpty
 
-  override def toString: String = {
+  override def toString: String =
     s"""Changes(added = $added, removed = $removed, changed = $changed, unmodified = ...)""".stripMargin
-  }
-}

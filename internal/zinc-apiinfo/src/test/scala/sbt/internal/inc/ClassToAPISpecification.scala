@@ -20,7 +20,7 @@ import sbt.io.IO
 import xsbti.{ AnalysisCallback, VirtualFileRef }
 import xsbti.api.{ ClassLike, ClassLikeDef, DefinitionType }
 
-class ClassToAPISpecification extends UnitSpec {
+class ClassToAPISpecification extends UnitSpec:
 
   "ClassToAPI" should "extract api of inner classes" in {
     val src =
@@ -188,41 +188,38 @@ class ClassToAPISpecification extends UnitSpec {
     }
   }
 
-  private def compileJava(files: Seq[File], outputDir: File, classpath: Seq[File]): Unit = {
+  private def compileJava(files: Seq[File], outputDir: File, classpath: Seq[File]): Unit =
     import javax.tools.{ StandardLocation, ToolProvider }
-    import scala.jdk.CollectionConverters._
+    import scala.jdk.CollectionConverters.*
     val compiler = ToolProvider.getSystemJavaCompiler()
     val fileManager = compiler.getStandardFileManager(null, null, null)
     fileManager.setLocation(StandardLocation.CLASS_OUTPUT, Seq(outputDir).asJava)
-    if (classpath.nonEmpty)
+    if classpath.nonEmpty then
       fileManager.setLocation(StandardLocation.CLASS_PATH, classpath.asJava)
     val units = fileManager.getJavaFileObjectsFromFiles(files.asJava)
     compiler.getTask(null, fileManager, null, null, null, units).call()
     fileManager.close()
-  }
 
   /**
    * Compiles given source code using Java compiler and returns API representation
    * extracted by ClassToAPI class.
    */
-  private def extractApisFromSrc(src: (String, String)): Set[Companions] = {
+  private def extractApisFromSrc(src: (String, String)): Set[Companions] =
     val (Seq(tempSrcFile), analysisCallback) =
       JavaCompilerForUnitTesting.compileJavaSrcs(src)(readAPI)
     val apis = analysisCallback.apis(tempSrcFile)
     apis.groupBy(_.name).map(companions.tupled).toSet
-  }
 
-  private def companions(className: String, classes: Set[ClassLike]): Companions = {
+  private def companions(className: String, classes: Set[ClassLike]): Companions =
     assert(classes.size <= 2, s"Too many classes named $className: $classes")
     def isClass(c: ClassLike) =
       (c.definitionType == DefinitionType.Trait) || (c.definitionType == DefinitionType.ClassDef)
-    def isModule(c: ClassLike) =
-      (c.definitionType == DefinitionType.Module) || (c.definitionType == DefinitionType.PackageModule)
+    def isModule(c: ClassLike) = (c.definitionType == DefinitionType.Module) ||
+      (c.definitionType == DefinitionType.PackageModule)
     // the ClassToAPI always create both class and object APIs
     val classApi = classes.find(isClass).get
     val objectApi = classes.find(isModule).get
     Companions(className, classApi, objectApi)
-  }
 
   private case class Companions(name: String, classApi: ClassLike, objectApi: ClassLike)
 
@@ -230,23 +227,20 @@ class ClassToAPISpecification extends UnitSpec {
       classApi: ClassLike,
       innerClassName: String,
       defType: DefinitionType
-  ): Option[ClassLikeDef] = {
+  ): Option[ClassLikeDef] =
     classApi.structure.declared.collectFirst({
       case c: ClassLikeDef if c.name == innerClassName && c.definitionType == defType => c
     })
-  }
 
   def readAPI(
       callback: AnalysisCallback,
       source: VirtualFileRef,
       classes: Seq[Class[?]]
-  ): Set[(String, String)] = {
+  ): Set[(String, String)] =
     val (apis, mainClasses, inherits) = ClassToAPI.process(classes)
     apis.foreach(callback.api(source, _))
     mainClasses.foreach(callback.mainClass(source, _))
     inherits.map {
       case (from, to) => (from.getName, to.getName)
     }
-  }
-
-}
+end ClassToAPISpecification

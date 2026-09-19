@@ -14,11 +14,10 @@ package sbt.internal.inc.classpath
 import java.net.URLClassLoader
 import verify.BasicTestSuite
 
-object ClasspathFilterTest extends BasicTestSuite {
+object ClasspathFilterTest extends BasicTestSuite:
   test("loadClass surfaces JDK platform-module classes") {
     val parent = new URLClassLoader(Array.empty, ClassLoader.getSystemClassLoader)
     val filter = new ClasspathFilter(parent, parent, Set.empty)
     val c = filter.loadClass("java.sql.Timestamp")
     assert(c.getName == "java.sql.Timestamp")
   }
-}

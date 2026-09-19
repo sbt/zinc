@@ -20,7 +20,7 @@ import xsbti.compile.{ DefinesClass, PerClasspathEntryLookup }
 
 import scala.annotation.tailrec
 
-object Locate {
+object Locate:
 
   /**
    * Right(src) provides the value for the found class
@@ -30,24 +30,21 @@ object Locate {
   def value[S](
       classpath: Seq[VirtualFile],
       get: VirtualFile => String => Option[S]
-  ): String => Either[Boolean, S] = {
+  ): String => Either[Boolean, S] =
     def gets = classpath.iterator.map(getValue(get))
     className => find(className, gets)
-  }
 
   @tailrec
   private def find[S](
       name: String,
       gets: Iterator[String => Either[Boolean, S]]
-  ): Either[Boolean, S] = {
-    if (!gets.hasNext)
+  ): Either[Boolean, S] =
+    if !gets.hasNext then
       Left(false)
     else
-      gets.next().apply(name) match {
+      gets.next().apply(name) match
         case Left(false) => find(name, gets)
         case x           => x
-      }
-  }
   def find[S](name: String, gets: LazyList[String => Either[Boolean, S]]): Either[Boolean, S] =
     find[S](name, gets.iterator)
 
@@ -58,7 +55,7 @@ object Locate {
   def entry(
       classpath: Seq[VirtualFile],
       lookup: PerClasspathEntryLookup
-  ): String => Option[VirtualFile] = {
+  ): String => Option[VirtualFile] =
     def entries = classpath.iterator.map { entry =>
       (entry, lookup.definesClass(entry))
     }
@@ -66,88 +63,76 @@ object Locate {
       // See sbt/zinc#757, sbt/zinc#925. Class name containing "<" is usually a synthetic
       // one that does not have a corresponding *.class file.
       // Yet the process of creating the path would fail only on Windows.
-      if (className.contains("<")) None
+      if className.contains("<") then None
       else entries.collectFirst { case (entry, defines) if defines(className) => entry }
-  }
 
   def getValue[S](
       get: VirtualFile => String => Option[S]
-  )(entry: VirtualFile): String => Either[Boolean, S] = {
+  )(entry: VirtualFile): String => Either[Boolean, S] =
     val defClass = definesClass(entry)
     val getF = get(entry)
-    className => if (defClass(className)) getF(className).toRight(true) else Left(false)
-  }
+    className => if defClass(className) then getF(className).toRight(true) else Left(false)
 
   def definesClass(entry0: VirtualFile): DefinesClass =
-    entry0 match {
+    entry0 match
       case x: PathBasedFile =>
         val entry = x.toPath
-        if (Files.isDirectory(entry))
+        if Files.isDirectory(entry) then
           new DirectoryDefinesClass(entry)
-        else if (
+        else if
           Files.exists(entry) && classpath.ClasspathUtil.isArchive(
             entry,
             contentFallback = true
           )
-        )
+        then
           new JarDefinesClass(entry)
         else
           FalseDefinesClass
       case _ =>
         sys.error(s"$entry0 (${entry0.getClass}) is not supported")
-    }
 
-  private object FalseDefinesClass extends DefinesClass {
+  private object FalseDefinesClass extends DefinesClass:
     override def apply(binaryClassName: String): Boolean = false
-  }
 
-  private class JarDefinesClass(entry: Path) extends DefinesClass {
-    import scala.jdk.CollectionConverters._
-    private val entries = {
+  private class JarDefinesClass(entry: Path) extends DefinesClass:
+    import scala.jdk.CollectionConverters.*
+    private val entries =
       val jar =
-        try {
+        try
           new ZipFile(entry.toFile, ZipFile.OPEN_READ)
-        } catch {
+        catch
           // ZipException doesn't include the file name :(
           case e: ZipException =>
             throw new RuntimeException("Error opening zip file: " + entry.getFileName.toString, e)
-        }
-      try {
+      try
         jar.entries.asScala.map(e => toClassName(e.getName)).toSet
-      } finally {
+      finally
         jar.close()
-      }
-    }
     override def apply(binaryClassName: String): Boolean =
       entries.contains(binaryClassName)
-  }
 
   def toClassName(entry: String): String =
     entry.stripSuffix(ClassExt).replace('/', '.')
 
   val ClassExt = ".class"
 
-  private class DirectoryDefinesClass(entry: Path) extends DefinesClass {
+  private class DirectoryDefinesClass(entry: Path) extends DefinesClass:
     override def apply(binaryClassName: String): Boolean =
-      try {
+      try
         Files.isRegularFile(classFile(entry, binaryClassName))
-      } catch {
+      catch
         case _: InvalidPathException => false // an invalid path doesn't exist. don't panic.
-      }
-  }
 
-  def classFile(baseDir: Path, className: String): Path = {
+  def classFile(baseDir: Path, className: String): Path =
     val (pkg, name) = components(className)
     val dir = subDirectory(baseDir, pkg)
     dir.resolve(name + ClassExt)
-  }
 
   def subDirectory(base: Path, parts: Seq[String]): Path =
     parts.foldLeft(base)((b, p) => b.resolve(p))
 
-  def components(className: String): (Seq[String], String) = {
+  def components(className: String): (Seq[String], String) =
     assume(!className.isEmpty)
     val parts = className.split("\\.")
-    if (parts.length == 1) (Nil, parts(0)) else (parts.init.toIndexedSeq, parts.last)
-  }
-}
+    if parts.length == 1 then (Nil, parts(0)) else (parts.init.toIndexedSeq, parts.last)
+end Locate

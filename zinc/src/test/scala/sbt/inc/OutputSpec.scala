@@ -13,10 +13,10 @@ package sbt.inc
 
 import java.io.File
 import java.nio.file.Files
-import sbt.io.IO.{ withTemporaryDirectory => withTmpDir }
+import sbt.io.IO.withTemporaryDirectory as withTmpDir
 import sbt.internal.inc.{ StringVirtualFile, JarUtils }
 
-class OutputSpec extends BaseCompilerSpec {
+class OutputSpec extends BaseCompilerSpec:
   // override val logLevel = sbt.util.Level.Debug
   behavior.of("incremental compiler")
 
@@ -46,4 +46,4 @@ class OutputSpec extends BaseCompilerSpec {
 
   def mkCompiler(baseDir: File, classes: Seq[String]) =
     ProjectSetup.simple(baseDir.toPath, classes).copy(outputToJar = true).createCompiler()
-}
+end OutputSpec

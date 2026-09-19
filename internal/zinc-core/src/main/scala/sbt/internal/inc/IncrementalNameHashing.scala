@@ -32,7 +32,7 @@ private[inc] class IncrementalNameHashingCommon(
     log: Logger,
     options: IncOptions,
     profiler: RunProfiler
-) extends IncrementalCommon(log, options, profiler) {
+) extends IncrementalCommon(log, options, profiler):
   import IncrementalCommon.transitiveDeps
 
   private val memberRefInvalidator =
@@ -43,13 +43,14 @@ private[inc] class IncrementalNameHashingCommon(
       invalidatedClasses: Set[String],
       relations: Relations,
       apis: APIs
-  ): Set[String] = {
+  ): Set[String] =
     val findSubclasses = relations.inheritance.internal.reverse
-    val invalidatedClassesAndCodefinedClasses = for {
-      cls <- invalidatedClasses.iterator
-      file <- relations.definesClass(cls).iterator
-      cls1 <- relations.classNames(file)
-    } yield cls1
+    val invalidatedClassesAndCodefinedClasses =
+      for
+        cls <- invalidatedClasses.iterator
+        file <- relations.definesClass(cls).iterator
+        cls1 <- relations.classNames(file)
+      yield cls1
 
     val invalidatedPackageObjects =
       transitiveDeps(invalidatedClassesAndCodefinedClasses.toSet, invalidationLog.detailLogger)(
@@ -64,22 +65,22 @@ private[inc] class IncrementalNameHashingCommon(
       )
     )
     invalidatedPackageObjects
-  }
+  end invalidatedPackageObjects
 
   /** @inheritdoc */
   override protected def findAPIChange(
       className: String,
       a: AnalyzedClass,
       b: AnalyzedClass
-  ): Option[APIChange] = {
-    if (SameAPI(a, b)) {
-      if (SameAPI.hasSameExtraHash(a, b)) None
-      else {
+  ): Option[APIChange] =
+    if SameAPI(a, b) then
+      if SameAPI.hasSameExtraHash(a, b) then None
+      else
         val isATrait = a.api().classApi().definitionType() == DefinitionType.Trait
         val isBTrait = b.api().classApi().definitionType() == DefinitionType.Trait
-        if (isATrait && isBTrait) {
+        if isATrait && isBTrait then
           Some(TraitPrivateMembersModified(className))
-        } else {
+        else
           // if the extra hash does not match up, but the API is "same" we can ignore it.
           // see also https://github.com/sbt/sbt/issues/4441
           debug(s"""different extra api hashes for non-traits:
@@ -87,23 +88,19 @@ private[inc] class IncrementalNameHashingCommon(
                |  `${b.name}`: ${b.extraHash()}
              """.stripMargin)
           None
-        }
-      }
-    } else {
+    else
       val aNameHashes = a.nameHashes
       val bNameHashes = b.nameHashes
       val modifiedNames = ModifiedNames.compareTwoNameHashes(aNameHashes, bNameHashes)
       val apiChange = NamesChange(className, modifiedNames)
       Some(apiChange)
-    }
-  }
 
   /** @inheritdoc */
   override protected def invalidateClassesExternally(
       relations: Relations,
       externalAPIChange: APIChange,
       isScalaClass: String => Boolean
-  ): Set[String] = {
+  ): Set[String] =
     val modifiedBinaryClassName = externalAPIChange.modifiedClass
     invalidationLog.detail(memberRefInvalidator.invalidationReason(externalAPIChange))
     invalidationLog.detail(
@@ -156,9 +153,9 @@ private[inc] class IncrementalNameHashingCommon(
       )
     )
     invalidated
-  }
+  end invalidateClassesExternally
 
-  private def invalidateByInheritance(relations: Relations, modified: String): Set[String] = {
+  private def invalidateByInheritance(relations: Relations, modified: String): Set[String] =
     val inheritanceDeps = relations.inheritance.internal.reverse
     invalidationLog.detail(s"Invalidating transitively by inheritance from $modified.")
     val transitiveInheritance =
@@ -171,11 +168,10 @@ private[inc] class IncrementalNameHashingCommon(
       )
     )
     transitiveInheritance
-  }
 
-  private def invalidateByLocalInheritance(relations: Relations, modified: String): Set[String] = {
+  private def invalidateByLocalInheritance(relations: Relations, modified: String): Set[String] =
     val localInheritanceDeps = relations.localInheritance.internal.reverse(modified)
-    if (localInheritanceDeps.nonEmpty)
+    if localInheritanceDeps.nonEmpty then
       invalidationLog.detail(
         InvalidationLog.section(
           s"Local-inheritance invalidation from $modified",
@@ -183,11 +179,10 @@ private[inc] class IncrementalNameHashingCommon(
         )
       )
     localInheritanceDeps
-  }
 
-  private def invalidateByMacroExpansion(relations: Relations, modified: String): Set[String] = {
+  private def invalidateByMacroExpansion(relations: Relations, modified: String): Set[String] =
     val macroExpansionDeps = relations.macroExpansion.internal.reverse(modified)
-    if (macroExpansionDeps.nonEmpty)
+    if macroExpansionDeps.nonEmpty then
       invalidationLog.detail(
         InvalidationLog.section(
           s"Macro-expansion invalidation from $modified",
@@ -195,14 +190,13 @@ private[inc] class IncrementalNameHashingCommon(
         )
       )
     macroExpansionDeps
-  }
 
   /** @inheritdoc */
   override protected def invalidateClassesInternally(
       relations: Relations,
       change: APIChange,
       isScalaClass: String => Boolean
-  ): Set[String] = {
+  ): Set[String] =
     val modifiedClass = change.modifiedClass
     val memberRefInv = memberRefInvalidator.get(_, relations.names, change, isScalaClass)
 
@@ -237,14 +231,14 @@ private[inc] class IncrementalNameHashingCommon(
       )
     )
     all
-  }
+  end invalidateClassesInternally
 
   /** @inheritdoc */
   override protected def findClassDependencies(
       className: String,
       relations: Relations
   ): Set[String] = relations.memberRef.internal.reverse(className)
-}
+end IncrementalNameHashingCommon
 
 private final class IncrementalNameHashing(log: Logger, options: IncOptions, profiler: RunProfiler)
     extends IncrementalNameHashingCommon(log, options, profiler)

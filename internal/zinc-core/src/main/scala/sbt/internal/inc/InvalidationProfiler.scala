@@ -12,14 +12,14 @@
 package sbt.internal.inc
 
 // import sbt.internal.prof.Zprof
-import xsbti.UseScope._
+import xsbti.UseScope.*
 import xsbti.VirtualFileRef
-import xsbti.compile.{ APIChange => XAPIChange }
-import xsbti.compile.{ InitialChanges => XInitialChanges }
-import xsbti.compile.{ InvalidationProfiler => XInvalidationProfiler }
-import xsbti.compile.{ RunProfiler => XRunProfiler }
+import xsbti.compile.APIChange as XAPIChange
+import xsbti.compile.InitialChanges as XInitialChanges
+import xsbti.compile.InvalidationProfiler as XInvalidationProfiler
+import xsbti.compile.RunProfiler as XRunProfiler
 
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
@@ -37,12 +37,11 @@ abstract class InvalidationProfiler {
   // def registerRun(run: Zprof.ZincRun): Unit
 }
 
-object InvalidationProfiler {
+object InvalidationProfiler:
   final val empty: InvalidationProfiler = new InvalidationProfiler {
     // override def profileRun(): RunProfiler = RunProfiler.empty
     // override def registerRun(run: Zprof.ZincRun): Unit = ()
   }
-}
 
 /*
 class ZincInvalidationProfiler extends InvalidationProfiler with XInvalidationProfiler { profiler =>
@@ -216,7 +215,7 @@ class ZincInvalidationProfiler extends InvalidationProfiler with XInvalidationPr
  * is instantiated afresh in `Incremental.compile` and then added to the profiler
  * instance managed by the client.
  */
-abstract class RunProfiler {
+abstract class RunProfiler:
   def timeCompilation(
       startNanos: Long,
       durationNanos: Long
@@ -243,15 +242,14 @@ abstract class RunProfiler {
       nextInvalidations: Iterable[String],
       shouldCompileIncrementally: Boolean
   ): Unit
-}
+end RunProfiler
 
-object RunProfiler {
+object RunProfiler:
   final val empty = new AdaptedRunProfiler(XRunProfiler.EMPTY.INSTANCE)
-}
 
 sealed class AdaptedRunProfiler(val profiler: XRunProfiler)
     extends RunProfiler
-    with XRunProfiler.DelegatingRunProfiler {
+    with XRunProfiler.DelegatingRunProfiler:
   override def registerInitial(changes: InitialChanges): Unit = profiler.registerInitial(changes)
 
   override def registerEvent(
@@ -280,14 +278,13 @@ sealed class AdaptedRunProfiler(val profiler: XRunProfiler)
     nextInvalidations.toArray,
     shouldCompileIncrementally,
   )
-}
+end AdaptedRunProfiler
 
-trait InvalidationProfilerUtils {
+trait InvalidationProfilerUtils:
   final val LocalInheritanceKind = "local inheritance"
   final val InheritanceKind = "inheritance"
   final val MemberReferenceKind = "member reference"
   final val MacroExpansionKind = "macro expansion"
-}
 
 /*
 // So that others users from outside [[IncrementalCommon]] can use the labels

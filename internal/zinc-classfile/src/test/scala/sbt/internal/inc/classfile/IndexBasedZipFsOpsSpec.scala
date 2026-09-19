@@ -12,11 +12,11 @@
 package sbt.internal.inc
 package classfile
 
-import java.nio.file._
+import java.nio.file.*
 import java.nio.file.spi.FileSystemProvider
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 
-class IndexBasedZipFsOpsSpec extends UnitSpec {
+class IndexBasedZipFsOpsSpec extends UnitSpec:
   private val XL = 0xffff // minimum size to be zip64, which I'm calling "XL"
   private val L = XL - 1 // last size to be standard zip, which I'm calling "L"
   private val tmpDir = Files.createTempDirectory("zinc-zipmergetest")
@@ -35,37 +35,32 @@ class IndexBasedZipFsOpsSpec extends UnitSpec {
   it should "merge  XL jars" in assertMerge(XL, 1)
   it should "shrink XL jars" in assertShrink(XL + 1, XL)
 
-  private def assertMerge(size1: Int, size2: Int) = {
+  private def assertMerge(size1: Int, size2: Int) =
     val a = createJar(size1)
     val b = createJar(size2, "b", size1)
     IndexBasedZipFsOps.mergeArchives(a, b)
     assertSize(a, size1 + size2)
-  }
 
-  private def assertShrink(size1: Int, size2: Int) = {
+  private def assertShrink(size1: Int, size2: Int) =
     val a = createJar(size1)
-    val files = for (i <- size2 until size1) yield classFileName(i)
+    val files = for i <- size2 until size1 yield classFileName(i)
     IndexBasedZipFsOps.removeEntries(a.toFile, files)
     assertSize(a, size2)
-  }
 
-  private def assertSize(p: Path, size: Int) = {
+  private def assertSize(p: Path, size: Int) =
     val cen = IndexBasedZipFsOps.readCentralDir(p.toFile)
     assert(cen.getHeaders.size() == size)
     Files.delete(p)
-  }
 
-  private def createJar(n: Int, name: String = "a", from: Int = 0) = {
+  private def createJar(n: Int, name: String = "a", from: Int = 0) =
     val out = tmpDir.resolve(s"$name.jar")
     val zipfs = zipFsProvider.newFileSystem(out, Map("create" -> "true").asJava)
     val root = zipfs.getRootDirectories.iterator().next()
-    for (i <- from until (from + n)) {
+    for i <- from until (from + n) do
       val empty = root.resolve(classFileName(i))
       Files.write(empty, Array.emptyByteArray)
-    }
     zipfs.close()
     out
-  }
 
   private def classFileName(i: Int) = f"C$i%032d.class"
-}
+end IndexBasedZipFsOpsSpec

@@ -27,7 +27,7 @@ import scala.concurrent.{ Await, Future }
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.*
 
-class ParallelGzipOutputStreamSpecification extends AnyFlatSpec with Matchers {
+class ParallelGzipOutputStreamSpecification extends AnyFlatSpec with Matchers:
   val defaultSize: Int = 64 * 1024
   val sizes: Seq[Int] = Seq(
     0,
@@ -46,37 +46,31 @@ class ParallelGzipOutputStreamSpecification extends AnyFlatSpec with Matchers {
   val numberOfGzipStreams: Seq[Int] = Seq(1, 2, 4, 8, 15)
   val parallelisms: Seq[Int] = 1 to 17
 
-  def decompress(data: Array[Byte]): Array[Byte] = {
+  def decompress(data: Array[Byte]): Array[Byte] =
     Using.gzipInputStream(new ByteArrayInputStream(data))(IO.readBytes)
-  }
 
-  def compress(data: Array[Byte], parallelism: Int, testSetup: String): Array[Byte] = {
+  def compress(data: Array[Byte], parallelism: Int, testSetup: String): Array[Byte] =
     val bout = new ByteArrayOutputStream()
     val gout = new ParallelGzipOutputStream(bout, parallelism)
-    try {
+    try
       gout.write(data)
-    } catch {
+    catch
       case e: Exception =>
         handleFailure(Array[Byte](), data, testSetup, "Compression Failed", Some(e))
-    } finally {
+    finally
       gout.close()
-    }
     bout.toByteArray
-  }
 
-  def writeToFile(data: Array[Byte], fileName: String): Unit = {
+  def writeToFile(data: Array[Byte], fileName: String): Unit =
     val outputDir = Paths.get("../../../test-gzip-output")
-    if (!Files.exists(outputDir)) {
+    if !Files.exists(outputDir) then
       Files.createDirectories(outputDir)
-    }
     val path = outputDir.resolve(fileName)
     Files.write(path, data, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
-  }
 
   // Need this in windows to produce valid windows filename
-  def sanitizedFilename(fileName: String): String = {
+  def sanitizedFilename(fileName: String): String =
     fileName.replaceAll("[^a-zA-Z0-9-_.]", "_")
-  }
 
   def handleFailure(
       compressed: Array[Byte],
@@ -84,28 +78,24 @@ class ParallelGzipOutputStreamSpecification extends AnyFlatSpec with Matchers {
       testSetup: String,
       errorCause: String,
       errorOpt: Option[Exception] = None,
-  ): Unit = {
+  ): Unit =
     val compressedFileName = sanitizedFilename(s"compressed_$testSetup.gz")
     val dataFileName = sanitizedFilename(s"data_$testSetup.bin")
     writeToFile(compressed, compressedFileName)
     writeToFile(data, dataFileName)
 
-    errorOpt match {
+    errorOpt match
       case Some(error) =>
         fail(s"$errorCause. See $compressedFileName and $dataFileName", error)
       case _ => fail(s"$errorCause. See $compressedFileName and $dataFileName")
-    }
 
-  }
-
-  def verifyRoundTrip(data: Array[Byte], parallelism: Int, testSetup: String): Unit = {
+  def verifyRoundTrip(data: Array[Byte], parallelism: Int, testSetup: String): Unit =
     val compressed = compress(data, parallelism, testSetup)
-    try {
+    try
       val decompressed = decompress(compressed)
-      if (!Arrays.equals(data, decompressed)) {
+      if !Arrays.equals(data, decompressed) then
         handleFailure(compressed, data, testSetup, "Compression and decompression mismatch.")
-      }
-    } catch {
+    catch
       case e: Exception =>
         handleFailure(
           compressed,
@@ -114,41 +104,35 @@ class ParallelGzipOutputStreamSpecification extends AnyFlatSpec with Matchers {
           "Decompression failed",
           Some(e),
         )
-    }
-  }
 
-  def randomArray(size: Int): Array[Byte] = {
+  def randomArray(size: Int): Array[Byte] =
     val rnd = new Random(0L)
     val data = new Array[Byte](size)
     rnd.nextBytes(data)
     data
-  }
 
   it should "compress and decompress data correctly" in {
-    for {
+    for
       parallelism <- parallelisms
       size <- sizes
-    } {
+    do
       val data = randomArray(size)
       verifyRoundTrip(data, parallelism, s"parallelism = $parallelism, size = $size")
-    }
   }
 
   it should "handle highly redundant data correctly" in {
-    for {
+    for
       parallelism <- parallelisms
       size <- sizes
-    } {
+    do
       val data = Array.fill(size)(0.toByte)
       verifyRoundTrip(data, parallelism, s"parallelism = $parallelism, size = $size, redundant")
-    }
   }
 
   it should "handle large data sizes" in {
     val largeData = randomArray(64 * 1024 * 1024) // 64 MB
-    for (parallelism <- parallelisms) {
+    for parallelism <- parallelisms do
       verifyRoundTrip(largeData, parallelism, s"parallelism = $parallelism, large data size")
-    }
   }
 
   it should "handle very large parallelism" in {
@@ -158,11 +142,11 @@ class ParallelGzipOutputStreamSpecification extends AnyFlatSpec with Matchers {
   }
 
   it should "handle multiple ParallelGzipOutputStream concurrently" in {
-    for {
+    for
       numberOfGzipStream <- numberOfGzipStreams
       parallelism <- parallelisms
       size <- sizes
-    } {
+    do
       val verifications = Future.traverse(1 to numberOfGzipStream)(numberOfGzipStream =>
         Future {
           val data = randomArray(size)
@@ -174,14 +158,13 @@ class ParallelGzipOutputStreamSpecification extends AnyFlatSpec with Matchers {
         }
       )
       Await.result(verifications, 60.seconds)
-    }
   }
 
   it should "handle multiple ParallelGzipOutputStream with varying config concurrently" in {
-    val verifications = Future.traverse(for {
+    val verifications = Future.traverse(for
       parallelism <- parallelisms.take(10)
       size <- sizes
-    } yield (parallelism, size)) { case (parallelism, size) =>
+    yield (parallelism, size)) { case (parallelism, size) =>
       Future {
         val data = randomArray(size)
         verifyRoundTrip(
@@ -193,4 +176,4 @@ class ParallelGzipOutputStreamSpecification extends AnyFlatSpec with Matchers {
     }
     Await.result(verifications, 60.seconds)
   }
-}
+end ParallelGzipOutputStreamSpecification

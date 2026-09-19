@@ -15,7 +15,7 @@ package internal
 package inc
 package javac
 
-import xsbti._
+import xsbti.*
 import java.io.File
 
 import scala.collection.mutable.ListBuffer
@@ -30,7 +30,7 @@ import scala.sys.process.ProcessLogger
  * @param reporter  A reporter for semantic Javac error messages.
  * @param cwd The current working directory of the Javac process, used when parsing Filenames.
  */
-final class JavacLogger(log: sbt.util.Logger, reporter: Reporter, cwd: File) extends ProcessLogger {
+final class JavacLogger(log: sbt.util.Logger, reporter: Reporter, cwd: File) extends ProcessLogger:
   private val out: ListBuffer[String] = new ListBuffer()
   private val err: ListBuffer[String] = new ListBuffer()
 
@@ -50,7 +50,7 @@ final class JavacLogger(log: sbt.util.Logger, reporter: Reporter, cwd: File) ext
 
   def flush(exitCode: Int): Unit = flush("tool", exitCode)
 
-  def flush(toolname: String, exitCode: Int): Unit = {
+  def flush(toolname: String, exitCode: Int): Unit =
     // TODO - NOTES may not be displayed correctly!
     synchronized {
       val parser = new JavaErrorParser(cwd)
@@ -58,11 +58,10 @@ final class JavacLogger(log: sbt.util.Logger, reporter: Reporter, cwd: File) ext
       parser.parseProblems(err.mkString("\n"), log).foreach(reporter.log(_))
       out.foreach(log.info(_))
 
-      if (exitCode != 0)
+      if exitCode != 0 then
         log.warn(s"$toolname exited with exit code $exitCode")
 
       out.clear()
       err.clear()
     }
-  }
-}
+end JavacLogger

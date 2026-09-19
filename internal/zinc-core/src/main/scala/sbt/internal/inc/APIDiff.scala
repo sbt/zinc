@@ -21,7 +21,7 @@ import xsbti.api.Companions
  * A class which computes diffs (unified diffs) between two textual representations of an API.
  *
  */
-private[inc] class APIDiff {
+private[inc] class APIDiff:
 
   /**
    * Generates an unified diff between textual representations of `api1` and `api2`.
@@ -31,11 +31,10 @@ private[inc] class APIDiff {
       api1: Companions,
       api2: Companions,
       contextSize: Int
-  ): String = {
+  ): String =
     val api1Str = DefaultShowAPI(api1.classApi) + "\n" + DefaultShowAPI(api1.objectApi)
     val api2Str = DefaultShowAPI(api2.classApi) + "\n" + DefaultShowAPI(api2.objectApi)
     DiffUtil.mkColoredCodeDiff(api2Str, api1Str, printDiffDel = true)
-  }
 
   /**
    * This class was directly copied from Dotty
@@ -66,7 +65,7 @@ private[inc] class APIDiff {
    * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
    * OF THE POSSIBILITY OF SUCH DAMAGE.
    */
-  private object DiffUtil {
+  private object DiffUtil:
 
     import scala.annotation.tailrec
     import scala.collection.mutable
@@ -78,32 +77,29 @@ private[inc] class APIDiff {
     private final val DELETION_COLOR = ANSI_RED
     private final val ADDITION_COLOR = ANSI_GREEN
 
-    @tailrec private def splitTokens(str: String, acc: List[String]): List[String] = {
-      if (str == "") {
+    @tailrec private def splitTokens(str: String, acc: List[String]): List[String] =
+      if str == "" then
         acc.reverse
-      } else {
+      else
         val head = str.charAt(0).toInt
         val (token, rest) =
-          if (Character.isAlphabetic(head) || Character.isDigit(head)) {
+          if Character.isAlphabetic(head) || Character.isDigit(head) then
             str.span { c =>
               val i = c.toInt
               Character.isAlphabetic(i) || Character.isDigit(i)
             }
-          } else if (Character.isMirrored(head) || Character.isWhitespace(head)) {
+          else if Character.isMirrored(head) || Character.isWhitespace(head) then
             str.splitAt(1)
-          } else {
+          else
             str.span { c =>
               val i = c.toInt
               !Character.isAlphabetic(i) && !Character.isDigit(i) &&
               !Character.isMirrored(i) && !Character.isWhitespace(i)
             }
-          }
         splitTokens(rest, token :: acc)
-      }
-    }
 
     /** @return a tuple of the (found, expected, changedPercentage) diffs as strings */
-    def mkColoredTypeDiff(found: String, expected: String): (String, String, Double) = {
+    def mkColoredTypeDiff(found: String, expected: String): (String, String, Double) =
       var totalChange = 0
       val foundTokens = splitTokens(found, Nil).toArray
       val expectedTokens = splitTokens(expected, Nil).toArray
@@ -113,22 +109,22 @@ private[inc] class APIDiff {
 
       val exp = diffExp.collect {
         case Unmodified(str) => str
-        case Inserted(str) =>
+        case Inserted(str)   =>
           totalChange += str.length
           ADDITION_COLOR + str + ANSI_DEFAULT
       }.mkString
 
       val fnd = diffAct.collect {
         case Unmodified(str) => str
-        case Inserted(str) =>
+        case Inserted(str)   =>
           totalChange += str.length
           DELETION_COLOR + str + ANSI_DEFAULT
       }.mkString
 
       (fnd, exp, totalChange.toDouble / (expected.length + found.length))
-    }
+    end mkColoredTypeDiff
 
-    def mkColoredLineDiff(expected: String, actual: String): String = {
+    def mkColoredLineDiff(expected: String, actual: String): String =
       val tokens = splitTokens(expected, Nil).toArray
       val lastTokens = splitTokens(actual, Nil).toArray
 
@@ -144,23 +140,21 @@ private[inc] class APIDiff {
         case Deleted(str) =>
           DELETION_COLOR + "\na |" + str + ANSI_DEFAULT
       }.mkString + "\n  |EOF"
-    }
 
-    def mkColoredCodeDiff(code: String, lastCode: String, printDiffDel: Boolean): String = {
+    def mkColoredCodeDiff(code: String, lastCode: String, printDiffDel: Boolean): String =
       val tokens = splitTokens(code, Nil).toArray
       val lastTokens = splitTokens(lastCode, Nil).toArray
 
       val diff = hirschberg(lastTokens, tokens)
 
       diff.collect {
-        case Unmodified(str) => str
-        case Inserted(str)   => ADDITION_COLOR + str + ANSI_DEFAULT
+        case Unmodified(str)                    => str
+        case Inserted(str)                      => ADDITION_COLOR + str + ANSI_DEFAULT
         case Modified(old, str) if printDiffDel =>
           DELETION_COLOR + old + ADDITION_COLOR + str + ANSI_DEFAULT
         case Modified(_, str)             => ADDITION_COLOR + str + ANSI_DEFAULT
         case Deleted(str) if printDiffDel => DELETION_COLOR + str + ANSI_DEFAULT
       }.mkString
-    }
 
     private sealed trait Patch
     private case class Unmodified(str: String) extends Patch
@@ -168,17 +162,17 @@ private[inc] class APIDiff {
     private case class Deleted(str: String) extends Patch
     private case class Inserted(str: String) extends Patch
 
-    private def hirschberg(a: Array[String], b: Array[String]): Array[Patch] = {
-      def build(x: Array[String], y: Array[String], builder: mutable.ArrayBuilder[Patch]): Unit = {
-        if (x.isEmpty) {
+    private def hirschberg(a: Array[String], b: Array[String]): Array[Patch] =
+      def build(x: Array[String], y: Array[String], builder: mutable.ArrayBuilder[Patch]): Unit =
+        if x.isEmpty then
           builder += Inserted(y.mkString)
           ()
-        } else if (y.isEmpty) {
+        else if y.isEmpty then
           builder += Deleted(x.mkString)
           ()
-        } else if (x.length == 1 || y.length == 1) {
+        else if x.length == 1 || y.length == 1 then
           needlemanWunsch(x, y, builder)
-        } else {
+        else
           val xlen = x.length
           val xmid = xlen / 2
 
@@ -194,77 +188,67 @@ private[inc] class APIDiff {
           val (y1, y2) = y.splitAt(ymid)
           build(x1, y1, builder)
           build(x2, y2, builder)
-        }
-      }
       val builder = Array.newBuilder[Patch]
       build(a, b, builder)
       builder.result()
-    }
+    end hirschberg
 
-    private def nwScore(x: Array[String], y: Array[String]): Array[Int] = {
+    private def nwScore(x: Array[String], y: Array[String]): Array[Int] =
       def ins(s: String) = -2
       def del(s: String) = -2
-      def sub(s1: String, s2: String) = if (s1 == s2) 2 else -1
+      def sub(s1: String, s2: String) = if s1 == s2 then 2 else -1
 
       val score = Array.fill(x.length + 1, y.length + 1)(0)
-      for (j <- 1 to y.length)
+      for j <- 1 to y.length do
         score(0)(j) = score(0)(j - 1) + ins(y(j - 1))
-      for (i <- 1 to x.length) {
+      for i <- 1 to x.length do
         score(i)(0) = score(i - 1)(0) + del(x(i - 1))
-        for (j <- 1 to y.length) {
+        for j <- 1 to y.length do
           val scoreSub = score(i - 1)(j - 1) + sub(x(i - 1), y(j - 1))
           val scoreDel = score(i - 1)(j) + del(x(i - 1))
           val scoreIns = score(i)(j - 1) + ins(y(j - 1))
           score(i)(j) = scoreSub max scoreDel max scoreIns
-        }
-      }
       Array.tabulate(y.length + 1)(j => score(x.length)(j))
-    }
 
     private def needlemanWunsch(
         x: Array[String],
         y: Array[String],
         builder: mutable.ArrayBuilder[Patch]
-    ): Unit = {
-      def similarity(a: String, b: String) = if (a == b) 2 else -1
+    ): Unit =
+      def similarity(a: String, b: String) = if a == b then 2 else -1
       val d = 1
       val score = Array.tabulate(x.length + 1, y.length + 1) { (i, j) =>
-        if (i == 0) d * j
-        else if (j == 0) d * i
+        if i == 0 then d * j
+        else if j == 0 then d * i
         else 0
       }
-      for (i <- 1 to x.length) {
-        for (j <- 1 to y.length) {
+      for i <- 1 to x.length do
+        for j <- 1 to y.length do
           val mtch = score(i - 1)(j - 1) + similarity(x(i - 1), y(j - 1))
           val delete = score(i - 1)(j) + d
           val insert = score(i)(j - 1) + d
           score(i)(j) = mtch max insert max delete
-        }
-      }
 
       var alignment = List.empty[Patch]
       var i = x.length
       var j = y.length
-      while (i > 0 || j > 0) {
-        if (i > 0 && j > 0 && score(i)(j) == score(i - 1)(j - 1) + similarity(x(i - 1), y(j - 1))) {
+      while i > 0 || j > 0 do
+        if i > 0 && j > 0 && score(i)(j) == score(i - 1)(j - 1) + similarity(x(i - 1), y(j - 1))
+        then
           val newHead =
-            if (x(i - 1) == y(j - 1)) Unmodified(x(i - 1))
+            if x(i - 1) == y(j - 1) then Unmodified(x(i - 1))
             else Modified(x(i - 1), y(j - 1))
           alignment = newHead :: alignment
           i = i - 1
           j = j - 1
-        } else if (i > 0 && score(i)(j) == score(i - 1)(j) + d) {
+        else if i > 0 && score(i)(j) == score(i - 1)(j) + d then
           alignment = Deleted(x(i - 1)) :: alignment
           i = i - 1
-        } else {
+        else
           alignment = Inserted(y(j - 1)) :: alignment
           j = j - 1
-        }
-      }
       builder ++= alignment
       ()
-    }
-
-  }
-
-}
+    end needlemanWunsch
+  end DiffUtil
+end APIDiff

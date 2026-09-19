@@ -13,12 +13,12 @@ package sbt.internal.inc.consistent
 
 import java.nio.file.Paths
 import java.util.{ Arrays, Comparator }
-import sbt.internal.inc.{ UsedName, Stamp => StampImpl, _ }
+import sbt.internal.inc.{ UsedName, Stamp as StampImpl, * }
 import sbt.internal.util.Relation
 import sbt.util.InterfaceUtil
 import xsbti.{ Problem, Severity, UseScope, VirtualFileRef }
-import xsbti.api._
-import xsbti.compile._
+import xsbti.api.*
+import xsbti.compile.*
 import xsbti.compile.analysis.{ ReadWriteMappers, SourceInfo, Stamp }
 
 import scala.collection.immutable.TreeMap
@@ -36,15 +36,16 @@ import sbt.internal.inc.binary.converters.InternalApiProxy
  * - Faster serialization and deserialization than the existing binary format.
  * - Smaller implementation than either of the existing formats.
  */
-class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Boolean) {
-  import ConsistentAnalysisFormat._
+class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Boolean):
+  import ConsistentAnalysisFormat.*
 
   private final val VERSION = 1100029
   private final val readMapper = mappers.getReadMapper
   private final val writeMapper = mappers.getWriteMapper
 
-  def write(out: Serializer, analysis: CompileAnalysis, setup: MiniSetup): Unit = {
-    val analysis0 = analysis match { case analysis: Analysis => analysis }
+  def write(out: Serializer, analysis: CompileAnalysis, setup: MiniSetup): Unit =
+    val analysis0 = analysis match
+      case analysis: Analysis => analysis
     out.int(VERSION)
     writeMiniSetup(out, setup)
     writeRelations(out, analysis0.relations)
@@ -55,9 +56,8 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     // as zinc does not use Compilations from deserialized analysis
     out.int(VERSION)
     out.end()
-  }
 
-  def read(in: Deserializer): (CompileAnalysis, MiniSetup) = {
+  def read(in: Deserializer): (CompileAnalysis, MiniSetup) =
     readVersion(in)
     val setup = readMiniSetup(in)
     val relations = readRelations(in)
@@ -70,7 +70,6 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     readVersion(in)
     in.end()
     (Analysis.Empty.copy(stamps, apis, relations, infos, compilations), setup)
-  }
 
   @inline
   private final def writeMaybeSortedStringMap[V](
@@ -78,33 +77,29 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
       name: String,
       map: scala.collection.Iterable[(String, V)],
       perEntry: Int = 1
-  )(f: V => Unit): Unit = {
+  )(f: V => Unit): Unit =
     // For reproducible output, need to write strings in sorted order
     // otherwise strings may be written in different order resulting in different output
-    if (reproducible) out.writeSortedStringMap(name, map, perEntry)(f)
+    if reproducible then out.writeSortedStringMap(name, map, perEntry)(f)
     else out.writeColl(name, map, perEntry + 1) { kv => out.string(kv._1); f(kv._2) }
-  }
 
-  private def readVersion(in: Deserializer): Unit = {
+  private def readVersion(in: Deserializer): Unit =
     val ver = in.int()
-    if (ver != VERSION) throw new Exception(s"Unsupported format version $ver")
-  }
+    if ver != VERSION then throw new Exception(s"Unsupported format version $ver")
 
-  private def writeStamp2(out: Serializer, stamp: Stamp): Unit = stamp match {
+  private def writeStamp2(out: Serializer, stamp: Stamp): Unit = stamp match
     case hash: FarmHash     => out.byte(0); out.long(hash.hashValue)
     case hash: Hash         => out.byte(1); out.string(hash.hexHash)
     case hash: LastModified => out.byte(2); out.long(hash.value)
     case _                  => out.byte(3); out.string(stamp.toString)
-  }
 
-  private def readStamp2(in: Deserializer): Stamp = in.byte() match {
+  private def readStamp2(in: Deserializer): Stamp = in.byte() match
     case 0 => FarmHash.fromLong(in.long())
     case 1 => Hash.unsafeFromString(in.string())
     case 2 => new LastModified(in.long())
     case 3 => StampImpl.fromString(in.string())
-  }
 
-  private def writeStamps(out: Serializer, stamps: Stamps): Unit = {
+  private def writeStamps(out: Serializer, stamps: Stamps): Unit =
     writeMaybeSortedStringMap(
       out,
       "stamps.products",
@@ -129,10 +124,10 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
       },
       2
     )(writeStamp2(out, _))
-  }
+  end writeStamps
 
-  private def readStamps(in: Deserializer): Stamps = {
-    import VirtualFileUtil._
+  private def readStamps(in: Deserializer): Stamps =
+    import VirtualFileUtil.*
     val products =
       in.readColl[(VirtualFileRef, Stamp), TreeMap[VirtualFileRef, Stamp]](TreeMap, 3) {
         val f = readMapper.mapProductFile(VirtualFileRef.of(in.string()))
@@ -148,13 +143,12 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
         (f, readMapper.mapBinaryStamp(f, readStamp2(in)))
       }
     Stamps(products, sources, libraries)
-  }
 
   private def writeAnalyzedClass(
       out: Serializer,
       ac: AnalyzedClass,
       storeApis: Boolean
-  ): Unit = {
+  ): Unit =
     out.writeBlock("analyzedClass") {
       out.string(ac.name())
       out.long(ac.compilationTimestamp())
@@ -165,23 +159,21 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
       out.long(ac.bytecodeHash())
       out.long(ac.transitiveBytecodeHash())
       val nh0 = ac.nameHashes()
-      val nh = if (nh0.length > 1 && reproducible) {
+      val nh = if nh0.length > 1 && reproducible then
         val nh = nh0.clone()
         Arrays.sort(nh, nameHashComparator)
         nh
-      } else nh0
+      else nh0
       out.writeArray("nameHashes.name", nh) { h => out.string(h.name()) }
       out.writeArray("nameHashes.scope", nh) { h => out.byte(h.scope().ordinal().toByte) }
       out.writeArray("nameHashes.hash", nh) { h => out.int(h.hash()) }
-      if (storeApis) {
+      if storeApis then
         val comp = ac.api()
         writeClassLike(out, comp.classApi())
         writeClassLike(out, comp.objectApi())
-      }
     }
-  }
 
-  private def readAnalyzedClass(in: Deserializer, storeApis: Boolean): AnalyzedClass = {
+  private def readAnalyzedClass(in: Deserializer, storeApis: Boolean): AnalyzedClass =
     in.readBlock {
       val name = in.string()
       val ts = in.long()
@@ -196,50 +188,44 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
       val nhHashes = in.readArray[Int]() { in.int() }
       val nameHashes = new Array[NameHash](nhNames.length)
       var i = 0
-      while (i < nameHashes.length) {
+      while i < nameHashes.length do
         nameHashes(i) = NameHash.of(nhNames(i), nhScopes(i), nhHashes(i))
         i += 1
-      }
       val comp =
-        if (storeApis) Companions.of(readClassLike(in), readClassLike(in))
+        if storeApis then Companions.of(readClassLike(in), readClassLike(in))
         else APIs.emptyCompanions
       AnalyzedClass.of(ts, name, SafeLazyProxy.strict(comp), ah, nameHashes, hm, eh, p, bh, ebh)
     }
-  }
 
-  private[inc] def writeCompanions(out: Serializer, companions: Companions): Unit = {
+  private[inc] def writeCompanions(out: Serializer, companions: Companions): Unit =
     writeClassLike(out, companions.classApi())
     writeClassLike(out, companions.objectApi())
-  }
 
   private[inc] def readCompanions(in: Deserializer): Companions =
     Companions.of(readClassLike(in), readClassLike(in))
 
-  private def writeAPIs(out: Serializer, apis: APIs, storeApis: Boolean): Unit = {
-    def write(n: String, m: Map[String, AnalyzedClass]): Unit = {
+  private def writeAPIs(out: Serializer, apis: APIs, storeApis: Boolean): Unit =
+    def write(n: String, m: Map[String, AnalyzedClass]): Unit =
       writeMaybeSortedStringMap(
         out,
         n,
-        if (reproducible)
+        if reproducible then
           m.view.mapValues(_.withCompilationTimestamp(DefaultCompilationTimestamp)).toMap
         else m
       ) { ac =>
         writeAnalyzedClass(out, ac, storeApis)
       }
-    }
 
     write("internal", apis.internal)
     write("external", apis.external)
-  }
 
-  private def readAPIs(in: Deserializer, storeApis: Boolean): APIs = {
+  private def readAPIs(in: Deserializer, storeApis: Boolean): APIs =
     def read() = in.readColl[(String, AnalyzedClass), Map[String, AnalyzedClass]](Map, 2) {
       (in.string(), readAnalyzedClass(in, storeApis))
     }
     APIs(read(), read())
-  }
 
-  private def writeSourceInfos(out: Serializer, infos: SourceInfos): Unit = {
+  private def writeSourceInfos(out: Serializer, infos: SourceInfos): Unit =
     def writeProblem(p: Problem): Unit = out.writeBlock("problem") {
       out.string(p.category())
       out.byte(p.severity().ordinal().toByte)
@@ -268,15 +254,17 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
       out.writeArray("reportedProblems", info.getReportedProblems)(writeProblem)
       out.writeArray("unreportedProblems", info.getUnreportedProblems)(writeProblem)
     }
-  }
+  end writeSourceInfos
 
-  private def readSourceInfos(in: Deserializer): SourceInfos = {
+  private def readSourceInfos(in: Deserializer): SourceInfos =
     def readProblem(): Problem = in.readBlock {
       val category = in.string()
       val severity = severityValues(in.byte().toInt)
       val message = in.string()
       val rendered = Option(in.string())
-      def io(): Option[Integer] = in.int() match { case -1 => None; case i => Some(i) }
+      def io(): Option[Integer] = in.int() match
+        case -1 => None;
+        case i  => Some(i)
       val line, offset, pointer = io()
       val lineContent = in.string()
       val pointerSpace, sourcePath = Option(in.string())
@@ -310,9 +298,9 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
       val info = SourceInfos.makeInfo(reportedProblems, unreportedProblems, mainClasses)
       (file, info)
     })
-  }
+  end readSourceInfos
 
-  private def writeMiniSetup(out: Serializer, setup0: MiniSetup): Unit = {
+  private def writeMiniSetup(out: Serializer, setup0: MiniSetup): Unit =
     val setup = writeMapper.mapMiniSetup(setup0)
     out.writeBlock("MiniSetup") {
       out.writeArray("classpathHash", setup.options.classpathHash, 2) { fh =>
@@ -330,16 +318,15 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
       out.bool(setup.storeApis())
       out.writeArray("extra", setup.extra, 2) { t => out.string(t.get1); out.string(t.get2) }
       val singleOutput = setup.output().getSingleOutputAsPath()
-      val outputPath = singleOutput match {
+      val outputPath = singleOutput match
         case o if o.isPresent() && o.get().getFileName().toString().endsWith(".jar") =>
           Analysis.dummyOutputJarPath
         case _ => Analysis.dummyOutputPath
-      }
       out.string(outputPath.toString())
     }
-  }
+  end writeMiniSetup
 
-  private def readMiniSetup(in: Deserializer): MiniSetup = {
+  private def readMiniSetup(in: Deserializer): MiniSetup =
     in.readBlock {
       val classpathHash = in.readArray(2) {
         FileHash.of(readMapper.mapClasspathEntry(Paths.get(in.string())), in.int())
@@ -360,9 +347,8 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
         extra
       ))
     }
-  }
 
-  private def writeRelations(out: Serializer, rs: Relations): Unit = {
+  private def writeRelations(out: Serializer, rs: Relations): Unit =
     writeMaybeSortedStringMap(out, "usedNames", rs.names.toMultiMap)(writeUsedNameSet(out, _))
     def mapProduct(f: VirtualFileRef) = writeMapper.mapProductFile(f).id
     def mapSource(f: VirtualFileRef) = writeMapper.mapSourceFile(f).id
@@ -374,7 +360,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
         rel.forwardMap.view.map { case (k, vs) => kf(k) -> vs }
       ) { vs =>
         val a = vs.iterator.map(vf).toArray
-        if (reproducible) Arrays.sort(a, implicitly[Ordering[String]])
+        if reproducible then Arrays.sort(a, implicitly[Ordering[String]])
         out.writeColl("item", a)(out.string)
       }
     def wrS(name: String, rel: Relation[String, String]): Unit =
@@ -392,9 +378,9 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     wrS("macroExpansion.internal", rs.macroExpansion.internal)
     wrS("macroExpansion.external", rs.macroExpansion.external)
     wrS("productClassNames", rs.productClassName)
-  }
+  end writeRelations
 
-  private def readRelations(in: Deserializer): Relations = {
+  private def readRelations(in: Deserializer): Relations =
     val un =
       UsedNames.fromMultiMap(in.readColl[(String, Set[UsedName]), Map[String, Set[UsedName]]](
         Map,
@@ -437,24 +423,23 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
       un,
       bcn
     )
-  }
+  end readRelations
 
-  private def writeUsedNameSet(out: Serializer, uns: scala.collection.Set[UsedName]): Unit = {
+  private def writeUsedNameSet(out: Serializer, uns: scala.collection.Set[UsedName]): Unit =
     out.writeBlock("UsedName") {
       val groups0 = uns.iterator.map { un =>
         (un.name, AnalysisInterner.scopeBits(un.scopes).toByte)
       }.toArray.groupBy(_._2)
-      val groups = if (reproducible) groups0.toVector.sortBy(_._1) else groups0
+      val groups = if reproducible then groups0.toVector.sortBy(_._1) else groups0
       out.writeColl("groups", groups, 2) { case (g, gNames) =>
         out.byte(g)
         val names = gNames.map(_._1)
-        if (reproducible) Arrays.sort(names, implicitly[Ordering[String]])
+        if reproducible then Arrays.sort(names, implicitly[Ordering[String]])
         out.writeStringColl("names", names)
       }
     }
-  }
 
-  private def readUsedNameSet(in: Deserializer): Set[UsedName] = {
+  private def readUsedNameSet(in: Deserializer): Set[UsedName] =
     in.readBlock {
       // The name and the scope bits fully determine a UsedName, so the interner
       // can return the pooled instance without constructing a candidate first.
@@ -466,7 +451,6 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
       }
       data.flatten.toSet
     }
-  }
 
   private def writeClassLike(out: Serializer, cl: ClassLike): Unit =
     out.writeBlock("ClassLike") {
@@ -511,29 +495,25 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
   }
 
   private def writeAccess(out: Serializer, access: Access): Unit = out.writeBlock("Access") {
-    def writeQualifier(q: Qualifier): Unit = q match {
+    def writeQualifier(q: Qualifier): Unit = q match
       case q: IdQualifier   => out.byte(0); out.string(q.value())
       case _: ThisQualifier => out.byte(1)
       case _: Unqualified   => out.byte(2)
-    }
-    access match {
+    access match
       case _: Public         => out.byte(0)
       case access: Protected => out.byte(1); writeQualifier(access.qualifier())
       case access: Private   => out.byte(2); writeQualifier(access.qualifier())
-    }
   }
 
   private def readAccess(in: Deserializer): Access = in.readBlock {
-    def readQualifier(): Qualifier = in.byte() match {
+    def readQualifier(): Qualifier = in.byte() match
       case 0 => IdQualifier.of(in.string())
       case 1 => ThisQualifierSingleton
       case 2 => UnqualifiedSingleton
-    }
-    in.byte() match {
+    in.byte() match
       case 0 => PublicSingleton
       case 1 => Protected.of(readQualifier())
       case 2 => Private.of(readQualifier())
-    }
   }
 
   private def writeAnnotation(out: Serializer, a: Annotation): Unit =
@@ -581,7 +561,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
   }
 
   private def writeType(out: Serializer, tpe: Type): Unit = out.writeBlock("Type") {
-    tpe match {
+    tpe match
       case tpe: ParameterRef =>
         out.byte(0)
         out.string(tpe.id())
@@ -616,14 +596,13 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
         writeType(out, tpe.baseType())
         out.writeArray("annotations", tpe.annotations())(writeAnnotation(out, _))
       case _: EmptyType => out.byte(9)
-    }
   }
 
   private def readType(in: Deserializer): Type = in.readBlock {
     // Structure (case 2) uses identity equality (lazy members), so dedup
     // cannot canonicalize it; every other variant has value equality.
     def i(t: Type): Type = internNode(in, t)
-    in.byte() match {
+    in.byte() match
       case 0 => i(ParameterRef.of(in.string()))
       case 1 => i(Parameterized.of(readType(in), in.readArray[Type]()(readType(in))))
       case 2 => readStructure(in)
@@ -636,7 +615,6 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
       case 7 => i(Projection.of(readType(in), in.string()))
       case 8 => i(Annotated.of(readType(in), in.readArray[Annotation]()(readAnnotation(in))))
       case 9 => EmptyTypeSingleton
-    }
   }
 
   private def writeStructure(out: Serializer, tpe: Structure): Unit =
@@ -662,7 +640,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
       writeAccess(out, cd.access())
       out.byte(cd.modifiers().raw())
       out.writeArray("annotations", cd.annotations())(writeAnnotation(out, _))
-      cd match {
+      cd match
         case cd: ClassLikeDef =>
           out.byte(0)
           out.writeArray("typeParameters", cd.typeParameters())(writeTypeParameter(out, _))
@@ -687,7 +665,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
           out.writeArray("typeParameters", cd.typeParameters())(writeTypeParameter(out, _))
           writeType(out, cd.lowerBound())
           writeType(out, cd.upperBound())
-      }
+      end match
     }
 
   private def readClassDefinition(in: Deserializer): ClassDefinition = in.readBlock {
@@ -695,7 +673,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     val access = readAccess(in)
     val modifiers = InternalApiProxy.Modifiers(in.byte().toInt)
     val annotations = in.readArray[Annotation]()(readAnnotation(in))
-    in.byte() match {
+    in.byte() match
       case 0 => ClassLikeDef.of(
           name,
           access,
@@ -732,7 +710,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
           readType(in),
           readType(in)
         )
-    }
+    end match
   }
 
   private def writeParameterList(out: Serializer, pl: ParameterList): Unit =
@@ -760,72 +738,60 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     )
   }
 
-  private def isSimplePath(comps: Array[PathComponent]): Boolean = {
-    if (comps.isEmpty || !comps.last.isInstanceOf[This]) false
-    else {
+  private def isSimplePath(comps: Array[PathComponent]): Boolean =
+    if comps.isEmpty || !comps.last.isInstanceOf[This] then false
+    else
       var i = 0
-      while (i < comps.length - 1) {
-        if (!comps(i).isInstanceOf[Id]) return false
+      while i < comps.length - 1 do
+        if !comps(i).isInstanceOf[Id] then return false
         i += 1
-      }
       true
-    }
-  }
 
   private def writePath(out: Serializer, path: Path): Unit = out.writeBlock("Path") {
     out.dedup(path)(_.components().length) {
       val comps = path.components()
       val simple = isSimplePath(comps)
-      if (simple) {
+      if simple then
         out.byte(0)
         var i = 0
-        while (i < comps.length - 1) {
+        while i < comps.length - 1 do
           out.string(comps(i).asInstanceOf[Id].id)
           i += 1
-        }
-      } else {
+      else
         var i = 0
-        while (i < comps.length) {
-          comps(i) match {
+        while i < comps.length do
+          comps(i) match
             case c: Id    => out.byte(1); out.string(c.id)
             case c: Super => out.byte(2); writePath(out, c.qualifier)
             case _: This  => out.byte(3); out.writeBlock("This") {}
-          }
           i += 1
-        }
-      }
     }
   }
 
-  private def readPath(in: Deserializer): Path = {
+  private def readPath(in: Deserializer): Path =
     in.dedup[Path] { len =>
       val comps = new Array[PathComponent](len)
       val kind = in.byte()
-      if (kind == 0) { // simple path
+      if kind == 0 then // simple path
         var i = 0
-        while (i < len - 1) {
+        while i < len - 1 do
           comps(i) = Id.of(in.string())
           i += 1
-        }
         comps(i) = ThisSingleton
-      } else {
+      else
         var i = 0
-        while (i < len) {
-          val k = if (i == 0) kind else in.byte() // we already read the first kind
-          comps(i) = k match {
+        while i < len do
+          val k = if i == 0 then kind else in.byte() // we already read the first kind
+          comps(i) = k match
             case 1 => Id.of(in.string())
             case 2 => Super.of(readPath(in))
             case 3 => in.readBlock {}; ThisSingleton
-          }
           i += 1
-        }
-      }
       Path.of(comps)
     }
-  }
-}
+end ConsistentAnalysisFormat
 
-object ConsistentAnalysisFormat {
+object ConsistentAnalysisFormat:
 
   /**
    * Dedups a value-equality `xsbti.api` tree node against the current read only.
@@ -833,9 +799,8 @@ object ConsistentAnalysisFormat {
    * map captures it without weak-reference bookkeeping; the cache dies with the
    * deserializer, so it cannot leak.
    */
-  private[consistent] def internNode[A <: AnyRef](in: Deserializer, a: A): A = {
+  private[consistent] def internNode[A <: AnyRef](in: Deserializer, a: A): A =
     in.nodeCache.intern(a)
-  }
 
   private final val EmptyTypeSingleton = EmptyType.of()
   private final val ThisSingleton = This.of()
@@ -853,12 +818,9 @@ object ConsistentAnalysisFormat {
   private final val parameterModifierValues = ParameterModifier.values()
   private final val DefaultCompilationTimestamp: Long = 1262304042000L // 2010-01-01T00:00:42Z
 
-  private final val nameHashComparator: Comparator[NameHash] = new Comparator[NameHash] {
-    def compare(o1: NameHash, o2: NameHash): Int = {
-      o1.name().compareTo(o2.name()) match {
+  private final val nameHashComparator: Comparator[NameHash] = new Comparator[NameHash]:
+    def compare(o1: NameHash, o2: NameHash): Int =
+      o1.name().compareTo(o2.name()) match
         case 0 => o1.scope().ordinal() - o2.scope().ordinal()
         case i => i
-      }
-    }
-  }
-}
+end ConsistentAnalysisFormat

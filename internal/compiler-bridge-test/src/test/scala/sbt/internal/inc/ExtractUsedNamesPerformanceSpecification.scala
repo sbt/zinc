@@ -56,7 +56,9 @@ class ExtractUsedNamesPerformanceSpecification
         new String(Files.readAllBytes(Paths.get(fileUri)))
       } finally zipfs.foreach { fs =>
           try fs.close()
-          catch { case _: Throwable => /*ignore*/ }
+          catch {
+            case _: Throwable => /*ignore*/
+          }
         }
     import org.scalatest.time.SpanSugar._
     val usedNames = failAfter(30.seconds) {
@@ -93,8 +95,9 @@ class ExtractUsedNamesPerformanceSpecification
     // assert(diffAndSort(usedNames("acme.HNil")) === diffAndSort(expectedNamesForHNil))
   }
 
-  it should "correctly find Out0 (not stored in inspected trees) both in TuplerInstances and TuplerInstances.<refinement>" in {
-    val src = """|sealed trait HList extends Product with Serializable
+  it should
+    "correctly find Out0 (not stored in inspected trees) both in TuplerInstances and TuplerInstances.<refinement>" in {
+      val src = """|sealed trait HList extends Product with Serializable
                  |trait DepFn1[T] {
                  |  type Out
                  |  def apply(t: T): Out
@@ -103,23 +106,24 @@ class ExtractUsedNamesPerformanceSpecification
                  |trait TuplerInstances {
                  |  type Aux[L <: HList, Out0] = Tupler[L] { type Out = Out0 }
                  |}""".stripMargin
-    val usedNames = extractUsedNamesFromSrc(src)
-    val expectedNamesForTuplerInstances =
-      Set("Tupler", "AnyRef", "L", "Out0", "scala", "HList", "Object")
-    val expectedNamesForTuplerInstancesRefinement = Set("Out0")
-    assert(
-      usedNames("TuplerInstances") -- scalaDiff === expectedNamesForTuplerInstances -- scalaDiff
-    )
-    assert(
-      usedNames(
-        "TuplerInstances.<refinement>"
-      ) -- scalaDiff === expectedNamesForTuplerInstancesRefinement -- scalaDiff
-    )
-  }
+      val usedNames = extractUsedNamesFromSrc(src)
+      val expectedNamesForTuplerInstances =
+        Set("Tupler", "AnyRef", "L", "Out0", "scala", "HList", "Object")
+      val expectedNamesForTuplerInstancesRefinement = Set("Out0")
+      assert(
+        usedNames("TuplerInstances") -- scalaDiff === expectedNamesForTuplerInstances -- scalaDiff
+      )
+      assert(
+        usedNames(
+          "TuplerInstances.<refinement>"
+        ) -- scalaDiff === expectedNamesForTuplerInstancesRefinement -- scalaDiff
+      )
+    }
 
   it should "correctly collect used names from macro extension" in {
     pending
-    val ext = """|package acme
+    val ext =
+      """|package acme
                  |import scala.reflect.macros.blackbox.Context
                  |
                  |object Foo {

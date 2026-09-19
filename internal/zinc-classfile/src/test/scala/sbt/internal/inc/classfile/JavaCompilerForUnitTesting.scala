@@ -21,22 +21,21 @@ import java.nio.file.{ Files, Path }
 
 import sbt.io.IO
 import sbt.internal.util.ConsoleLogger
-import xsbti.api.DependencyContext._
+import xsbti.api.DependencyContext.*
 import xsbti.{ AnalysisCallback, BasicVirtualFileRef, TestCallback, VirtualFile, VirtualFileRef }
 import xsbti.TestCallback.ExtractedClassDependencies
 import xsbti.compile.SingleOutput
 
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 
-object JavaCompilerForUnitTesting {
-  private class TestVirtualFile(p: Path) extends BasicVirtualFileRef(p.toString) with VirtualFile {
+object JavaCompilerForUnitTesting:
+  private class TestVirtualFile(p: Path) extends BasicVirtualFileRef(p.toString) with VirtualFile:
     override def contentHash(): Long = sbt.io.Hash(p.toFile).hashCode.toLong
     override def sizeBytes: Long = Files.size(p)
     override lazy val contentHashStr: String = contentHash().toHexString
     override def input(): InputStream = Files.newInputStream(p)
-  }
 
-  def extractDependenciesFromSrcs(srcs: (String, String)*): ExtractedClassDependencies = {
+  def extractDependenciesFromSrcs(srcs: (String, String)*): ExtractedClassDependencies =
     val (_, testCallback) = compileJavaSrcs(srcs*)((_, _, classes) => extractParents(classes))
 
     val memberRefDeps = testCallback.classDependencies
@@ -55,11 +54,10 @@ object JavaCompilerForUnitTesting {
       })
       .toSeq
     ExtractedClassDependencies.fromPairs(memberRefDeps, inheritanceDeps, localInheritanceDeps)
-  }
 
   def compileJavaSrcs(srcs: (String, String)*)(
       readAPI: (AnalysisCallback, VirtualFileRef, Seq[Class[?]]) => Set[(String, String)]
-  ): (Seq[VirtualFile], TestCallback) = {
+  ): (Seq[VirtualFile], TestCallback) =
     IO.withTemporaryDirectory { temp =>
       val srcFiles0 = srcs.map {
         case (fileName, src) => prepareSrcFile(temp, fileName, src)
@@ -90,10 +88,9 @@ object JavaCompilerForUnitTesting {
       // - extract all base classes.
       // we extract just parents as this is enough for testing
 
-      val output = new SingleOutput {
+      val output = new SingleOutput:
         override def getOutputDirectoryAsPath: Path = classesDir.toPath
         override def getOutputDirectory: File = getOutputDirectoryAsPath.toFile
-      }
       JavaAnalyze(classFiles, srcFiles, logger, output, finalJarOutput = None)(
         analysisCallback,
         classloader,
@@ -101,19 +98,17 @@ object JavaCompilerForUnitTesting {
       )
       (srcFiles, analysisCallback)
     }
-  }
 
   /** Compiles the given Java sources to `outputDir`, with `classpath` available at compile time. */
-  def compileJava(files: Seq[File], outputDir: File, classpath: Seq[File]): Unit = {
+  def compileJava(files: Seq[File], outputDir: File, classpath: Seq[File]): Unit =
     val compiler = ToolProvider.getSystemJavaCompiler()
     val fileManager = compiler.getStandardFileManager(null, null, null)
     fileManager.setLocation(StandardLocation.CLASS_OUTPUT, Seq(outputDir).asJava)
-    if (classpath.nonEmpty)
+    if classpath.nonEmpty then
       fileManager.setLocation(StandardLocation.CLASS_PATH, classpath.asJava)
     val units = fileManager.getJavaFileObjectsFromFiles(files.asJava)
     compiler.getTask(null, fileManager, null, null, null, units).call()
     fileManager.close()
-  }
 
   /**
    * Runs [[JavaAnalyze]] over the class files already present in `classesDir`, mapping them back to
@@ -125,15 +120,14 @@ object JavaCompilerForUnitTesting {
       srcFiles: Seq[File],
       readClassfileAPI: (AnalysisCallback, VirtualFileRef, Seq[(String, ClassFile)]) => Unit =
         (_, _, _) => ()
-  ): TestCallback = {
+  ): TestCallback =
     val srcs: List[VirtualFile] = srcFiles.toList.map(f => new TestVirtualFile(f.toPath))
     val analysisCallback = new TestCallback
     val classFiles = (sbt.io.PathFinder(classesDir) ** "*.class").get().map(_.toPath)
     val classloader = new URLClassLoader(Array(classesDir.toURI.toURL), null)
-    val output = new SingleOutput {
+    val output = new SingleOutput:
       override def getOutputDirectoryAsPath: Path = classesDir.toPath
       override def getOutputDirectory: File = classesDir
-    }
     JavaAnalyze(classFiles, srcs, ConsoleLogger(), output, finalJarOutput = None)(
       analysisCallback,
       classloader,
@@ -141,15 +135,13 @@ object JavaCompilerForUnitTesting {
       readClassfileAPI(analysisCallback, _, _)
     )
     analysisCallback
-  }
 
-  private def prepareSrcFile(baseDir: File, fileName: String, src: String): File = {
+  private def prepareSrcFile(baseDir: File, fileName: String, src: String): File =
     val srcFile = new File(baseDir, fileName)
     IO.write(srcFile, src)
     srcFile
-  }
 
-  private val extractParents: Seq[Class[?]] => Set[(String, String)] = { classes =>
+  private val extractParents: Seq[Class[?]] => Set[(String, String)] = classes =>
     def canonicalNames(p: (Class[?], Class[?])): (String, String) =
       p._1.getCanonicalName -> p._2.getCanonicalName
     val parents =
@@ -158,5 +150,4 @@ object JavaCompilerForUnitTesting {
         .filterNot(_._2 == null) // may be null for an interface
     val parentInterfaces = classes.flatMap(c => c.getInterfaces.map(i => c -> i))
     (parents ++ parentInterfaces).map(canonicalNames).toSet
-  }
-}
+end JavaCompilerForUnitTesting

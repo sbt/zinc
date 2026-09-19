@@ -1,7 +1,7 @@
-import ZincBuildUtil._
-import Dependencies._
-import localzinc.Scripted, Scripted._
-import com.typesafe.tools.mima.core._, ProblemFilters._
+import ZincBuildUtil.*
+import Dependencies.*
+import localzinc.Scripted, Scripted.*
+import com.typesafe.tools.mima.core.*, ProblemFilters.*
 
 def zincRootPath: File = file(sys.props.getOrElse("sbtzinc.path", ".")).getCanonicalFile
 def internalPath = zincRootPath / "internal"
@@ -34,21 +34,20 @@ def mimaSettings: Seq[Setting[?]] = Seq(
       "1.10.0",
     )
     val versions =
-      if (scalaVersion.value.startsWith("2.12.")) pre140 ++ post140
+      if scalaVersion.value.startsWith("2.12.") then pre140 ++ post140
       else post140
-    val cross = if (crossPaths.value) CrossVersion.binary else CrossVersion.disabled
+    val cross = if crossPaths.value then CrossVersion.binary else CrossVersion.disabled
     versions.map(version => (organization.value %% moduleName.value % version).cross(cross))
   },
 )
 
 ThisBuild / version := {
   val old = (ThisBuild / version).value
-  nightlyVersion match {
+  nightlyVersion match
     case Some(v) => v
-    case _ =>
-      if ((ThisBuild / isSnapshot).value) "2.0.0-M9-SNAPSHOT"
+    case _       =>
+      if (ThisBuild / isSnapshot).value then "2.0.0-M9-SNAPSHOT"
       else old
-  }
 }
 ThisBuild / versionScheme := Some("early-semver")
 ThisBuild / organization := "org.scala-sbt"
@@ -76,7 +75,7 @@ ThisBuild / developers := List(
 ThisBuild / pomIncludeRepository := (_ => false) // drop repos other than Maven Central from POM
 ThisBuild / publishTo := {
   val centralSnapshots = "https://central.sonatype.com/repository/maven-snapshots/"
-  if (isSnapshot.value) Some("central-snapshots" at centralSnapshots)
+  if isSnapshot.value then Some("central-snapshots" at centralSnapshots)
   else localStaging.value
 }
 ThisBuild / mimaPreviousArtifacts := Set.empty
@@ -91,24 +90,22 @@ def baseSettings: Seq[Setting[?]] = Seq(
   compile / javacOptions ++= Seq("-Xlint", "-Xlint:-serial"),
   Test / publishArtifact := false,
   Compile / compile / scalacOptions ++= {
-    scalaBinaryVersion.value match {
+    scalaBinaryVersion.value match
       case "3" =>
         Seq(
           "-Werror",
         )
       case _ =>
         Nil
-    }
   },
   scalacOptions ++= {
-    scalaBinaryVersion.value match {
+    scalaBinaryVersion.value match
       case "2.10" | "2.11" =>
         Seq("-target:jvm-1.8")
       case "3" =>
         Nil
       case _ =>
         Seq("-release:8")
-    }
   },
   semanticdbCompilerPlugin := {
     ("org.scalameta" % "semanticdb-scalac" % semanticdbVersion.value)
@@ -278,8 +275,9 @@ def resGenFile = (zincRootPath / "zinc" / "resGenerator").getAbsoluteFile
 
 lazy val jar1 = (project in resGenFile / "jar1").settings(sampleProjectSettings("jar"))
 lazy val jar2 = (project in resGenFile / "jar2").settings(sampleProjectSettings("jar"))
-lazy val classesDep1 =
-  (project in resGenFile / "classesDep1").settings(sampleProjectSettings("zip"))
+lazy val classesDep1 = (project in resGenFile / "classesDep1").settings(sampleProjectSettings(
+  "zip"
+))
 
 lazy val zinc3 = zinc.jvm(scala3)
 
@@ -401,8 +399,9 @@ lazy val zincCompileCore = (projectMatrix in internalPath / "zinc-compile-core")
     ),
     Test / unmanagedJars := Seq((compilerBridge212 / Compile / packageSrc).value).classpath,
     Compile / managedSourceDirectories += (Compile / generateContrabands / sourceManaged).value,
-    Compile / generateContrabands / sourceManaged := (internalPath / "zinc-compile-core" / "src" / "main" / "contraband-java")
-      .getAbsoluteFile,
+    Compile / generateContrabands / sourceManaged :=
+      (internalPath / "zinc-compile-core" / "src" / "main" / "contraband-java")
+        .getAbsoluteFile,
     mimaSettings,
     mimaBinaryIssueFilters ++= ZincBuildUtil.excludeInternalProblems,
   )
@@ -487,11 +486,11 @@ lazy val compilerBridge = (projectMatrix in internalPath / "compiler-bridge")
     baseSettings,
     // We need this for import Compat._
     Compile / scalacOptions --= Seq("-Ywarn-unused-import", "-Xfatal-warnings"),
-    Compile / scalacOptions ++= (scalaVersion.value match {
-      case VersionNumber(Seq(2, 12, _*), _, _) =>
-        List("-Ywarn-unused:-imports,-locals,-implicits,-explicits,-privates")
-      case _ => Nil
-    }),
+    Compile / scalacOptions ++=
+      (scalaVersion.value match
+        case VersionNumber(Seq(2, 12, _*), _, _) =>
+          List("-Ywarn-unused:-imports,-locals,-implicits,-explicits,-privates")
+        case _ => Nil),
     libraryDependencies += scalaCompiler.value % "provided",
     exportJars := true,
     inBoth(unmanagedSourceDirectories ++= scalaPartialVersion.value.collect {
@@ -673,18 +672,16 @@ lazy val zincScripted = (projectMatrix in internalPath / "zinc-scripted")
 
 lazy val zincScripted3 = zincScripted.jvm(scala3)
 
-def bridges = {
-  if (sys.props("java.specification.version") == "1.8") {
+def bridges =
+  if sys.props("java.specification.version") == "1.8" then
     List(compilerBridge210 / publishLocal, compilerBridge211 / publishLocal)
-  } else {
+  else
     List(
       compilerBridge210 / publishLocal,
       compilerBridge211 / publishLocal,
       compilerBridge212 / publishLocal,
       compilerBridge213 / publishLocal,
     )
-  }
-}
 
 val publishBridges = taskKey[Unit]("")
 val crossTestBridges = taskKey[Unit]("")

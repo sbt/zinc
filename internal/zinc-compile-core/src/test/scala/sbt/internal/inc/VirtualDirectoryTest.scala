@@ -14,9 +14,9 @@ package internal
 package inc
 
 import java.io.{ InputStreamReader, OutputStreamWriter }
-import verify._
+import verify.*
 
-object VirtualDirectoryTest extends BasicTestSuite {
+object VirtualDirectoryTest extends BasicTestSuite:
   test("root name is /") {
     val root = BasicVirtualDirectory.newRoot
     assert(root.id == "/")
@@ -46,4 +46,4 @@ object VirtualDirectoryTest extends BasicTestSuite {
 
     assert(item.contentHash != 0L)
   }
-}
+end VirtualDirectoryTest

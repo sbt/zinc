@@ -11,25 +11,24 @@
 
 package sbt.inc
 
-import sbt.internal.inc._
+import sbt.internal.inc.*
 import sbt.internal.scripted.ScriptedTest
-import sbt.io.syntax._
+import sbt.io.syntax.*
 import sbt.io.{ AllPassFilter, IO, NameFilter }
 
-object ScriptedMain {
+object ScriptedMain:
   private val DisableBuffering = "--no-buffer"
   private val CompileToJar = "--to-jar"
   private val Flags = Set(DisableBuffering, CompileToJar)
 
-  def main(args: Array[String]): Unit = {
+  def main(args: Array[String]): Unit =
     val compileToJar = args.contains(CompileToJar)
     val disableBuffering = args.contains(DisableBuffering)
     val tests = args.filterNot(Flags.contains)
     val baseDir = BuildInfo.sourceDirectory / "sbt-test"
     run(baseDir, buffer = !disableBuffering, compileToJar, tests)
-  }
 
-  def detectScriptedTests(scriptedBase: File): Map[String, Set[String]] = {
+  def detectScriptedTests(scriptedBase: File): Map[String, Set[String]] =
     val scriptedFiles: NameFilter = ("test": NameFilter) | "pending"
     val pairs = (scriptedBase * AllPassFilter * AllPassFilter * scriptedFiles).get().map { f =>
       val p = f.getParentFile
@@ -37,28 +36,24 @@ object ScriptedMain {
     }
 
     pairs.groupBy(_._1).view.mapValues(_.map(_._2).toSet).toMap
-  }
 
   private def parseScripted(
       testsMapping: Map[String, Set[String]],
       scriptedBase: File,
       toParse: String
-  ): Option[ScriptedTest] = {
-    toParse.split("/").map(_.trim) match {
-      case Array("") | Array("*") => None
-      case Array("*", target)     => Some(ScriptedTest("*", target))
+  ): Option[ScriptedTest] =
+    toParse.split("/").map(_.trim) match
+      case Array("") | Array("*")   => None
+      case Array("*", target)       => Some(ScriptedTest("*", target))
       case Array(directory, target) =>
         val directoryPath = (scriptedBase / directory).getAbsoluteFile
-        testsMapping.get(directory) match {
+        testsMapping.get(directory) match
           case Some(tests) if tests.isEmpty          => fail(s"No tests in ${directoryPath}")
           case Some(_) if target == "*"              => Some(ScriptedTest(directory, target))
           case Some(tests) if tests.contains(target) => Some(ScriptedTest(directory, target))
           case Some(_) => fail(s"Missing test directory ${directoryPath / target}")
           case None    => fail(s"Missing parent directory ${directoryPath}")
-        }
       case _ => fail("Expected only one '/' in the target scripted test(s).")
-    }
-  }
 
   // WARNING: called via reflection from project/Scripted.scala
   def run(
@@ -66,11 +61,11 @@ object ScriptedMain {
       buffer: Boolean,
       compileToJar: Boolean,
       testSpecs: Array[String],
-  ): Unit = {
+  ): Unit =
     val foundTests = detectScriptedTests(baseDir)
     val tests = testSpecs.toList.flatMap(arg => parseScripted(foundTests, baseDir, arg))
 
-    if (tests.isEmpty)
+    if tests.isEmpty then
       println(s"About to run all scripted tests\n")
     else
       println(s"About to run tests: ${tests.mkString("\n * ", "\n * ", "\n")}")
@@ -80,10 +75,8 @@ object ScriptedMain {
       val handlers = new IncScriptedHandlers(tempDir.toPath, compileToJar)
       ScriptedRunnerImpl.run(baseDir.toPath, buffer, tests, handlers, 4)
     }
-  }
 
-  private def fail(msg: String): Nothing = {
+  private def fail(msg: String): Nothing =
     println(msg)
     sys.exit(1)
-  }
-}
+end ScriptedMain

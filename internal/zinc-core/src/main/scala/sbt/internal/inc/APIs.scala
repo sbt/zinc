@@ -13,11 +13,11 @@ package sbt
 package internal
 package inc
 
-import xsbti.api._
+import xsbti.api.*
 import APIs.getAPI
 import xsbt.api.{ APIUtil, SameAPI }
 
-trait APIs {
+trait APIs:
 
   /**
    * The API for the class `className` at the time represented by this instance.
@@ -44,8 +44,8 @@ trait APIs {
 
   def internal: Map[String, AnalyzedClass]
   def external: Map[String, AnalyzedClass]
-}
-object APIs {
+end APIs
+object APIs:
   def apply(internal: Map[String, AnalyzedClass], external: Map[String, AnalyzedClass]): APIs =
     new MAPIs(internal, external)
   def empty: APIs = apply(Map.empty, Map.empty)
@@ -66,12 +66,12 @@ object APIs {
   )
   def getAPI[T](map: Map[T, AnalyzedClass], className: T): AnalyzedClass =
     map.getOrElse(className, emptyAnalyzedClass)
-}
+end APIs
 
 private class MAPIs(
     val internal: Map[String, AnalyzedClass],
     val external: Map[String, AnalyzedClass]
-) extends APIs {
+) extends APIs:
   def allInternalClasses: collection.Set[String] = internal.keySet
   def allExternals: collection.Set[String] = external.keySet
 
@@ -91,25 +91,22 @@ private class MAPIs(
   def internalAPI(className: String) = getAPI(internal, className)
   def externalAPI(ext: String) = getAPI(external, ext)
 
-  override def equals(other: Any): Boolean = other match {
-    case o: MAPIs => {
+  override def equals(other: Any): Boolean = other match
+    case o: MAPIs =>
       def areEqual[T](x: Map[T, AnalyzedClass], y: Map[T, AnalyzedClass])(
           using math.Ordering[T]
-      ) = {
-        x.size == y.size && (sorted(x) zip sorted(y) forall { z =>
-          z._1._1 == z._2._1 && SameAPI(z._1._2, z._2._2)
-        })
-      }
+      ) =
+        x.size == y.size &&
+          (sorted(x) zip sorted(y) forall { z =>
+            z._1._1 == z._2._1 && SameAPI(z._1._2, z._2._2)
+          })
       areEqual(internal, o.internal) && areEqual(external, o.external)
-    }
     case _ => false
-  }
 
-  override lazy val hashCode: Int = {
+  override lazy val hashCode: Int =
     def hash[T](m: Map[T, AnalyzedClass])(implicit ord: math.Ordering[T]) =
       sorted(m).map(x => (x._1, x._2.apiHash).hashCode).hashCode
     (hash(internal), hash(external)).hashCode
-  }
 
   override def toString: String =
     "APIs(internal: %d, subproject: %d)".format(internal.size, external.size)
@@ -119,4 +116,4 @@ private class MAPIs(
       m: Map[T, AnalyzedClass]
   )(implicit ord: math.Ordering[T]): Seq[(T, AnalyzedClass)] =
     m.toSeq.sortBy(_._1)
-}
+end MAPIs

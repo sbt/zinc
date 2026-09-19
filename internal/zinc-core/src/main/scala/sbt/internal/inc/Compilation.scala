@@ -19,21 +19,18 @@ import scala.runtime.ScalaRunTime
  * Note that this implementation of the interface is part of the public Zinc Scala API.
  */
 final class Compilation(startTime: Long, output: Output)
-    extends xsbti.compile.analysis.Compilation {
+    extends xsbti.compile.analysis.Compilation:
   override def getOutput: Output = output
   override def getStartTime: Long = startTime
   private val product = (startTime, output)
   override def hashCode(): Int = ScalaRunTime._hashCode(product)
-  override def equals(o: scala.Any): Boolean = o match {
+  override def equals(o: scala.Any): Boolean = o match
     case c2: Compilation => startTime == c2.getStartTime && output == c2.getOutput
     case _               => false
-  }
   override def toString: String = s"Compilation($startTime, $output)"
-}
 
-object Compilation {
+object Compilation:
 
   /** Instantiate a [[Compilation]] from a given output. */
   def apply(compileStartTime: Long, output: Output): Compilation =
     new Compilation(compileStartTime, output)
-}

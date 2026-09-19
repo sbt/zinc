@@ -25,28 +25,26 @@ import scala.annotation.tailrec
  * stream but instead of writing a full block to the underlying output, it is passed to a
  * thread pool for compression and the compressed blocks are collected when flushing.
  */
-object ParallelGzipOutputStream {
+object ParallelGzipOutputStream:
   private val blockSize = 64 * 1024
   private val compression = Deflater.DEFAULT_COMPRESSION
 
   // Holds an input buffer to load data and an output buffer to write
   // the compressed data into.  Compressing clears the input buffer.
   // Compressed data can be retrieved with `output.writeTo(OutputStream)`.
-  private final class Block(var index: Int) {
+  private final class Block(var index: Int):
     val input = new Array[Byte](blockSize)
     var inputN = 0
     val output = new ByteArrayOutputStream(blockSize + (blockSize >> 3))
     val deflater = new Deflater(compression, true)
     val dos = new DeflaterOutputStream(output, deflater, true)
 
-    def compress(): Unit = {
+    def compress(): Unit =
       deflater.reset()
       output.reset()
       dos.write(input, 0, inputN)
       dos.flush()
       inputN = 0
-    }
-  }
 
   // Waits for data to appear in a SynchronousQueue.
   // When it does, compress it and pass it along.  Also put self in a pool of workers awaiting more work.
@@ -54,25 +52,21 @@ object ParallelGzipOutputStream {
   private final class Worker(
       val workers: ArrayBlockingQueue[Worker],
       val compressed: LinkedTransferQueue[Either[Int, Block]]
-  ) extends Thread {
+  ) extends Thread:
     val work = new SynchronousQueue[Option[Block]]
 
     @tailrec
-    def loop(): Unit = {
-      work.take() match {
+    def loop(): Unit =
+      work.take() match
         case Some(block) =>
           block.compress()
           compressed.put(Right(block))
           workers.put(this)
           loop()
         case _ =>
-      }
-    }
 
-    override def run(): Unit = {
+    override def run(): Unit =
       loop()
-    }
-  }
 
   // Waits for data to appear in a LinkedTransferQueue.
   // When it does, place it into a sorted tree and, if the data is in order, write it out.
@@ -80,36 +74,32 @@ object ParallelGzipOutputStream {
   // If data does not appear but an integer appears instead, set a mark to quit once
   // that many blocks have been written.
   private final class Scribe(out: OutputStream, val completed: LinkedTransferQueue[Block])
-      extends Thread {
+      extends Thread:
     val work = new LinkedTransferQueue[Either[Int, Block]]
     private val tree = new collection.mutable.TreeMap[Int, Block]
     private var next = 0
     private var stopAt = Int.MaxValue
 
     @tailrec
-    def loop(): Unit = {
-      work.take() match {
+    def loop(): Unit =
+      work.take() match
         case Right(block) =>
           tree(block.index) = block
         case Left(limit) =>
           stopAt = limit
-      }
-      while (tree.nonEmpty && tree.head._2.index == next) {
+      while tree.nonEmpty && tree.head._2.index == next do
         val block = tree.remove(next).get
         block.output.writeTo(out)
         completed.put(block)
         next += 1
-      }
-      if (next < stopAt) loop()
-    }
+      if next < stopAt then loop()
 
-    override def run(): Unit = {
+    override def run(): Unit =
       loop()
-    }
-  }
+  end Scribe
 
   private val header = Array[Byte](0x1f.toByte, 0x8b.toByte, Deflater.DEFLATED, 0, 0, 0, 0, 0, 0, 0)
-}
+end ParallelGzipOutputStream
 
 /**
  * Implements a parallel chunked compression algorithm (using minimum of two extra threads).
@@ -118,8 +108,8 @@ object ParallelGzipOutputStream {
  * concurrent with or after a close operation is not defined.
  */
 final class ParallelGzipOutputStream(out: OutputStream, parallelism: Int)
-    extends FilterOutputStream(out) {
-  import ParallelGzipOutputStream._
+    extends FilterOutputStream(out):
+  import ParallelGzipOutputStream.*
 
   private val crc = new CRC32
   private var totalBlocks = 0
@@ -137,69 +127,58 @@ final class ParallelGzipOutputStream(out: OutputStream, parallelism: Int)
   private val scribe = new Scribe(out, buffers)
   scribe.start()
 
-  while (workers.remainingCapacity() > 0) {
+  while workers.remainingCapacity() > 0 do
     val w = new Worker(workers, scribe.work)
     workers.put(w)
     w.start()
-  }
 
   override def write(b: Int): Unit = write(Array[Byte]((b & 0xff).toByte))
   override def write(b: Array[Byte]): Unit = write(b, 0, b.length)
 
   @tailrec
-  override def write(b: Array[Byte], off: Int, len: Int): Unit = {
+  override def write(b: Array[Byte], off: Int, len: Int): Unit =
     val copy = math.min(len, blockSize - current.inputN)
     crc.update(b, off, copy)
     totalCount += copy
     System.arraycopy(b, off, current.input, current.inputN, copy)
     current.inputN += copy
-    if (copy < len) {
+    if copy < len then
       submit()
       write(b, off + copy, len - copy)
-    }
-  }
 
-  private def submit(): Unit = {
+  private def submit(): Unit =
     val w = workers.take()
     w.work.put(Some(current))
     totalBlocks += 1
     current = buffers.poll()
-    if (current eq null) {
-      if (bufferCount < bufferLimit) {
+    if current eq null then
+      if bufferCount < bufferLimit then
         current = new Block(totalBlocks)
         bufferCount += 1
-      } else {
+      else
         current = buffers.take()
-      }
-    }
     current.index = totalBlocks
-  }
 
-  private def flushImpl(shutdown: Boolean): Unit = {
+  private def flushImpl(shutdown: Boolean): Unit =
     val fetched = new Array[Block](bufferCount - 1)
     var n = 0
     // If we have all the buffers, all pending work is done.
-    while (n < fetched.length) {
+    while n < fetched.length do
       fetched(n) = buffers.take()
       n += 1
-    }
-    if (shutdown) {
+    if shutdown then
       // Send stop signal to workers and scribe
       n = workerCount
-      while (n > 0) {
+      while n > 0 do
         workers.take().work.put(None)
         n -= 1
-      }
       scribe.work.put(Left(totalBlocks))
-    } else {
+    else
       // Put all the buffers back so we can keep accepting data.
       n = 0
-      while (n < fetched.length) {
+      while n < fetched.length do
         buffers.put(fetched(n))
         n += 1
-      }
-    }
-  }
 
   /**
    * Blocks until all pending data is written.  Note that this is a poor use of a parallel data writing class.
@@ -207,14 +186,13 @@ final class ParallelGzipOutputStream(out: OutputStream, parallelism: Int)
    * have the trailing CRC checksum and therefore will not be a valid compressed file, so there is little point
    * flushing early.
    */
-  override def flush(): Unit = {
-    if (current.inputN > 0) submit()
+  override def flush(): Unit =
+    if current.inputN > 0 then submit()
     flushImpl(false)
     super.flush()
-  }
 
-  override def close(): Unit = {
-    if (current.inputN > 0) submit()
+  override def close(): Unit =
+    if current.inputN > 0 then submit()
     flushImpl(true)
 
     val buf = new Array[Byte](10)
@@ -226,5 +204,4 @@ final class ParallelGzipOutputStream(out: OutputStream, parallelism: Int)
     out.write(buf)
 
     out.close()
-  }
-}
+end ParallelGzipOutputStream

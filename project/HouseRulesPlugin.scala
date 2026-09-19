@@ -1,10 +1,10 @@
 package zincbuild
 
-import sbt._
+import sbt.*
 import sbt.librarymanagement.LibraryManagementCodec.given
-import Keys._
+import Keys.*
 
-object HouseRulesPlugin extends AutoPlugin {
+object HouseRulesPlugin extends AutoPlugin:
   override def requires = plugins.JvmPlugin
   override def trigger = allRequirements
 
@@ -17,15 +17,15 @@ object HouseRulesPlugin extends AutoPlugin {
     scalacOptions += "-language:implicitConversions",
     scalacOptions ++= "-Xfuture".ifScala212OrMinus.value.toList,
     scalacOptions ++= "-Xlint".ifScala213OrMinus.value,
-    scalacOptions ++= "-Xfatal-warnings"
-      .ifScala(v => {
-        sys.props.get("sbt.build.fatal") match {
-          case Some(_) => java.lang.Boolean.getBoolean("sbt.build.fatal")
-          case _       => v == 12
-        }
-      })
-      .value
-      .toList,
+    scalacOptions ++=
+      "-Xfatal-warnings"
+        .ifScala(v =>
+          sys.props.get("sbt.build.fatal") match
+            case Some(_) => java.lang.Boolean.getBoolean("sbt.build.fatal")
+            case _       => v == 12
+        )
+        .value
+        .toList,
     scalacOptions ++= "-Yinline-warnings".ifScala211OrMinus.value.toList,
     scalacOptions ++= "-Yno-adapted-args".ifScala212OrMinus.value.toList,
     scalacOptions ++= "-Ywarn-dead-code".ifScala213OrMinus.value,
@@ -38,7 +38,7 @@ object HouseRulesPlugin extends AutoPlugin {
 
   private def scalaPartV = Def.setting(CrossVersion.partialVersion(scalaVersion.value))
 
-  private implicit final class AnyWithIfScala[A](val __x: A) {
+  private implicit final class AnyWithIfScala[A](val __x: A):
     def ifScala(p: Long => Boolean) =
       Def.setting(scalaPartV.value collect { case (2, y) if p(y) => __x })
     def ifScalaLte(v: Long) = ifScala(_ <= v)
@@ -47,5 +47,4 @@ object HouseRulesPlugin extends AutoPlugin {
     def ifScala211OrPlus = ifScalaGte(11)
     def ifScala212OrMinus = ifScalaLte(12)
     def ifScala213OrMinus = ifScalaLte(13)
-  }
-}
+end HouseRulesPlugin

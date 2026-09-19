@@ -11,14 +11,14 @@
 
 package xsbt.api
 
-import xsbti.api._
+import xsbti.api.*
 import xsbti.UseScope
 import sbt.internal.inc.UnitSpec
-import xsbt.api.ClassLikeHelpers._
+import xsbt.api.ClassLikeHelpers.*
 
-class NameHashingSpecification extends UnitSpec {
+class NameHashingSpecification extends UnitSpec:
 
-  extension (nameHashes: Array[NameHash]) {
+  extension (nameHashes: Array[NameHash])
 
     def in(s: UseScope): Array[NameHash] =
       nameHashes.filter(_.scope() == s)
@@ -33,7 +33,6 @@ class NameHashingSpecification extends UnitSpec {
 
     def forNameIn(s: UseScope, name: String): NameHash =
       nameHashes.find(nameHash => nameHash.scope() == s && nameHash.name() == name).get
-  }
 
   "NameHashing" should "generate correct hashes for sealed classes" in {
     val def1 =
@@ -55,30 +54,28 @@ class NameHashingSpecification extends UnitSpec {
     val classWithAla = createClass(Ala)
     val classWithAlaAndOla = createClass(Ala, Ola)
 
-    def checkOptimizedNames(a: ClassLike, b: ClassLike, optimizedSealed: Boolean) = {
+    def checkOptimizedNames(a: ClassLike, b: ClassLike, optimizedSealed: Boolean) =
       val nameHashing = new NameHashing(optimizedSealed)
       val nameHashesA = nameHashing.nameHashes(a)
       val nameHashesB = nameHashing.nameHashes(b)
 
-      if (optimizedSealed) {
+      if optimizedSealed then
         nameHashesA.in(UseScope.Default) shouldEqual nameHashesB.in(UseScope.Default)
         assert(nameHashesA.in(UseScope.PatMatTarget).nonEmpty)
         assert(nameHashesB.in(UseScope.PatMatTarget).nonEmpty)
-      } else {
+      else
         assert(nameHashesA.in(UseScope.PatMatTarget).isEmpty)
         assert(nameHashesB.in(UseScope.PatMatTarget).isEmpty)
         nameHashesA.in(UseScope.Default) should not equal nameHashesB.in(UseScope.Default)
-      }
 
-      if (optimizedSealed) {
+      if optimizedSealed then
         nameHashesA.namesIn(UseScope.PatMatTarget) shouldEqual nameHashesB.namesIn(
           UseScope.PatMatTarget
         )
         nameHashesA.in(UseScope.PatMatTarget) should not equal nameHashesB.in(UseScope.PatMatTarget)
-      }
 
       HashAPI(a) should not equal HashAPI(b)
-    }
+    end checkOptimizedNames
 
     checkOptimizedNames(baseClass, classWithAla, optimizedSealed = true)
     checkOptimizedNames(baseClass, classWithAla, optimizedSealed = false)
@@ -93,21 +90,22 @@ class NameHashingSpecification extends UnitSpec {
    * Very basic test which checks whether a name hash is insensitive to
    * definition order (across the whole compilation unit).
    */
-  "NameHashing" should "generate hashes that are insensitive to the definition order when adding a new member" in {
-    val nameHashing = new NameHashing(false)
-    val def1 =
-      Def.of("foo", publicAccess, defaultMods, Array.empty, Array.empty, Array.empty, strTpe)
-    val def2 =
-      Def.of("bar", publicAccess, defaultMods, Array.empty, Array.empty, Array.empty, intTpe)
-    val classBar1 = simpleClass("Bar", def1)
-    val classBar2 = simpleClass("Bar", def1, def2)
-    val nameHashes1 = nameHashing.nameHashes(classBar1)
-    val nameHashes2 = nameHashing.nameHashes(classBar2)
-    assertNameHashEqualForRegularName("Bar", nameHashes1, nameHashes2)
-    assertNameHashEqualForRegularName("foo", nameHashes1, nameHashes2)
-    nameHashes1.namesIn(UseScope.Default) should not contain "bar"
-    nameHashes2.namesIn(UseScope.Default) should contain("bar")
-  }
+  "NameHashing" should
+    "generate hashes that are insensitive to the definition order when adding a new member" in {
+      val nameHashing = new NameHashing(false)
+      val def1 =
+        Def.of("foo", publicAccess, defaultMods, Array.empty, Array.empty, Array.empty, strTpe)
+      val def2 =
+        Def.of("bar", publicAccess, defaultMods, Array.empty, Array.empty, Array.empty, intTpe)
+      val classBar1 = simpleClass("Bar", def1)
+      val classBar2 = simpleClass("Bar", def1, def2)
+      val nameHashes1 = nameHashing.nameHashes(classBar1)
+      val nameHashes2 = nameHashing.nameHashes(classBar2)
+      assertNameHashEqualForRegularName("Bar", nameHashes1, nameHashes2)
+      assertNameHashEqualForRegularName("foo", nameHashes1, nameHashes2)
+      nameHashes1.namesIn(UseScope.Default) should not contain "bar"
+      nameHashes2.namesIn(UseScope.Default) should contain("bar")
+    }
 
   /**
    * Very basic test which checks whether a name hash is insensitive to
@@ -181,19 +179,17 @@ class NameHashingSpecification extends UnitSpec {
     val barMethod =
       Def.of("bar", publicAccess, defaultMods, Array.empty, Array.empty, Array.empty, intTpe)
     val parentB = simpleClass("Parent", barMethod)
-    val childA = {
+    val childA =
       val structure =
         Structure.of(lzy(Array[Type](parentA.structure)), emptyMembers, emptyMembers)
       simpleClassLike("Child", structure)
-    }
-    val childB = {
+    val childB =
       val structure = Structure.of(
         lzy(Array[Type](parentB.structure)),
         emptyMembers,
         lzy(Array[ClassDefinition](barMethod))
       )
       simpleClassLike("Child", structure)
-    }
     val parentANameHashes = nameHashesForClass(parentA)
     val parentBNameHashes = nameHashesForClass(parentB)
     Set("Parent") === parentANameHashes.namesIn(UseScope.Default)
@@ -224,7 +220,7 @@ class NameHashingSpecification extends UnitSpec {
   it should "generate hashes that account for structural types in definition" in {
 
     /** def foo: { bar: Int } */
-    val fooMethod1 = {
+    val fooMethod1 =
       val barMethod1 =
         Def.of("bar", publicAccess, defaultMods, Array.empty, Array.empty, Array.empty, intTpe)
       Def.of(
@@ -236,10 +232,9 @@ class NameHashingSpecification extends UnitSpec {
         Array.empty,
         simpleStructure(barMethod1)
       )
-    }
 
     /** def foo: { bar: String } */
-    val fooMethod2 = {
+    val fooMethod2 =
       val barMethod2 =
         Def.of("bar", publicAccess, defaultMods, Array.empty, Array.empty, Array.empty, strTpe)
       Def.of(
@@ -251,7 +246,6 @@ class NameHashingSpecification extends UnitSpec {
         Array.empty,
         simpleStructure(barMethod2)
       )
-    }
     val aClass1 = simpleClass("A", fooMethod1)
     val aClass2 = simpleClass("A", fooMethod2)
     val nameHashes1 = nameHashesForClass(aClass1)
@@ -310,11 +304,10 @@ class NameHashingSpecification extends UnitSpec {
       name: String,
       nameHashes1: Array[NameHash],
       nameHashes2: Array[NameHash]
-  ) = {
+  ) =
     val nameHash1 = nameHashes1.forNameIn(scope, name)
     val nameHash2 = nameHashes2.forNameIn(scope, name)
     assert(nameHash1 === nameHash2)
-  }
 
   private def assertNameHashEqualForRegularName(
       name: String,
@@ -327,15 +320,12 @@ class NameHashingSpecification extends UnitSpec {
       name: String,
       nameHashes1: Array[NameHash],
       nameHashes2: Array[NameHash]
-  ) = {
+  ) =
     val nameHash1 = nameHashes1.forNameIn(UseScope.Default, name)
     val nameHash2 = nameHashes2.forNameIn(UseScope.Default, name)
     assert(nameHash1 !== nameHash2)
-  }
 
-  private def nameHashesForClass(cl: ClassLike): Array[NameHash] = {
+  private def nameHashesForClass(cl: ClassLike): Array[NameHash] =
     val nameHashing = new NameHashing(false)
     nameHashing.nameHashes(cl)
-  }
-
-}
+end NameHashingSpecification

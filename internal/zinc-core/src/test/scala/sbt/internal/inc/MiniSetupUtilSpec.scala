@@ -11,9 +11,9 @@
 
 package sbt.internal.inc
 
-import MiniSetupUtil._
+import MiniSetupUtil.*
 
-class MiniSetupUtilSpec extends UnitSpec {
+class MiniSetupUtilSpec extends UnitSpec:
 
   it should "detect options change" in {
     val equiv = equivScalacOptions(ignoredRegexes = Array())
@@ -68,5 +68,4 @@ class MiniSetupUtilSpec extends UnitSpec {
 
     equiv.equiv(before, after) shouldBe true
   }
-
-}
+end MiniSetupUtilSpec

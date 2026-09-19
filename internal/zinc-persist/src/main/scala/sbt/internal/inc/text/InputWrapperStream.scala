@@ -13,13 +13,12 @@ package sbt.internal.inc.text
 
 import sbinary.Input
 
-final class InputWrapperStream(in: Input) extends java.io.InputStream {
-  def toInt(b: Byte) = if (b < 0) b + 256 else b.toInt
+final class InputWrapperStream(in: Input) extends java.io.InputStream:
+  def toInt(b: Byte) = if b < 0 then b + 256 else b.toInt
   def read() =
-    try {
+    try
       toInt(in.readByte)
-    } catch { case _: sbinary.EOF => -1 }
+    catch case _: sbinary.EOF => -1
   override def read(b: Array[Byte], off: Int, len: Int) =
     try in.readTo(b, off, len)
-    catch { case _: sbinary.EOF => -1 }
-}
+    catch case _: sbinary.EOF => -1

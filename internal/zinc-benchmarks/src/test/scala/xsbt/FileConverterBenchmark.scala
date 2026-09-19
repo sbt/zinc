@@ -14,13 +14,13 @@ package xsbt
 import java.lang.management.ManagementFactory
 import java.nio.file.{ Files, Path }
 import java.util.concurrent.TimeUnit
-import org.openjdk.jmh.annotations._
+import org.openjdk.jmh.annotations.*
 import sbt.internal.inc.MappedFileConverter
 import sbt.io.IO
 import xsbti.VirtualFile
 
 @State(Scope.Benchmark)
-class FileConverterState {
+class FileConverterState:
   @Param(Array("2000"))
   var fileCount: Int = 0
 
@@ -32,7 +32,7 @@ class FileConverterState {
   var shared: MappedFileConverter = null
 
   @Setup(Level.Trial)
-  def setup(): Unit = {
+  def setup(): Unit =
     rootDir = Files.createTempDirectory("file-converter-benchmark")
     classesDir = Files.createDirectories(rootDir.resolve("classes"))
     (0 until fileCount).foreach { i =>
@@ -40,13 +40,12 @@ class FileConverterState {
       Files.write(pkg.resolve(s"Class$i.class"), Array.fill[Byte](1024)((i % 127).toByte))
     }
     shared = newConverter
-  }
 
   @TearDown(Level.Trial)
   def teardown(): Unit = IO.delete(rootDir.toFile)
 
   def newConverter: MappedFileConverter = MappedFileConverter(Map("BASE" -> rootDir), true)
-}
+end FileConverterState
 
 /**
  * Conversion cost of one shared classes directory.
@@ -58,7 +57,7 @@ class FileConverterState {
 @Fork(1)
 @Warmup(iterations = 3, time = 2)
 @Measurement(iterations = 5, time = 2)
-class FileConverterBenchmark {
+class FileConverterBenchmark:
 
   @Benchmark
   def freshConverterPerConversion(state: FileConverterState): VirtualFile =
@@ -67,51 +66,45 @@ class FileConverterBenchmark {
   @Benchmark
   def sharedConverter(state: FileConverterState): VirtualFile =
     state.shared.toVirtualFile(state.classesDir)
-}
 
-object HeapMeter {
-  def usedHeap(): Long = {
+object HeapMeter:
+  def usedHeap(): Long =
     val bean = ManagementFactory.getMemoryMXBean
     (1 to 5).foreach { _ =>
       System.gc(); Thread.sleep(50)
     }
     bean.getHeapMemoryUsage.getUsed
-  }
-}
 
 @AuxCounters(AuxCounters.Type.EVENTS)
 @State(Scope.Thread)
-class RetainedCounters {
+class RetainedCounters:
   var retainedKB: Long = 0
-}
 
 /** Heap retained while `consumers` conversions of the same directory are held simultaneously. */
 @BenchmarkMode(Array(Mode.SingleShotTime))
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 @Fork(1)
-class FileConverterRetainedBenchmark {
+class FileConverterRetainedBenchmark:
 
   @Benchmark
   def retainedFreshConverters(
       state: FileConverterState,
       counters: RetainedCounters
-  ): Array[VirtualFile] = {
+  ): Array[VirtualFile] =
     val before = HeapMeter.usedHeap()
     val held =
       Array.tabulate(state.consumers)(_ => state.newConverter.toVirtualFile(state.classesDir))
     counters.retainedKB = (HeapMeter.usedHeap() - before) / 1024
     held
-  }
 
   @Benchmark
   def retainedSharedConverter(
       state: FileConverterState,
       counters: RetainedCounters
-  ): Array[VirtualFile] = {
+  ): Array[VirtualFile] =
     val before = HeapMeter.usedHeap()
     val converter = state.newConverter
     val held = Array.tabulate(state.consumers)(_ => converter.toVirtualFile(state.classesDir))
     counters.retainedKB = (HeapMeter.usedHeap() - before) / 1024
     held
-  }
-}
+end FileConverterRetainedBenchmark

@@ -21,20 +21,17 @@ import java.util.concurrent.atomic.AtomicInteger
 
 abstract class UnitSpec extends AnyFlatSpec with Matchers with LogTestkit {}
 
-trait LogTestkit {
+trait LogTestkit:
   def logLevel: Level.Value = Level.Warn
   lazy val log: ManagedLogger = UnitSpec.newLogger(logLevel)
-}
 
-object UnitSpec {
+object UnitSpec:
   val console = ConsoleOut.systemOut
   val consoleAppender = MainAppender.defaultScreen(console)
   val generateId: AtomicInteger = new AtomicInteger
-  def newLogger(level: Level.Value): ManagedLogger = {
+  def newLogger(level: Level.Value): ManagedLogger =
     val loggerName = "test-" + generateId.incrementAndGet
     val x = LoggerContext.globalContext.logger(loggerName, None, None)
     LoggerContext.globalContext.clearAppenders(loggerName)
     LoggerContext.globalContext.addAppender(loggerName, consoleAppender -> level)
     x
-  }
-}

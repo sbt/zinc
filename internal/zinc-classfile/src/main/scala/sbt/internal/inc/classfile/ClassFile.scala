@@ -14,9 +14,9 @@ package internal
 package inc
 package classfile
 
-import Constants._
+import Constants.*
 
-private[sbt] trait ClassFile {
+private[sbt] trait ClassFile:
   val majorVersion: Int
   val minorVersion: Int
   val className: String
@@ -64,14 +64,14 @@ private[sbt] trait ClassFile {
         case constant =>
           throw new IllegalStateException(s"Unsupported ConstantValue type: $constant")
       }
-}
+end ClassFile
 
 private[sbt] final case class Constant(
     tag: Byte,
     nameIndex: Int,
     typeIndex: Int,
     value: Option[AnyRef]
-) {
+):
   def this(tag: Byte, nameIndex: Int, typeIndex: Int) = this(tag, nameIndex, typeIndex, None)
   def this(tag: Byte, nameIndex: Int) = this(tag, nameIndex, -1)
   def this(tag: Byte, value: AnyRef) = this(tag, -1, -1, Some(value))
@@ -81,20 +81,18 @@ private[sbt] final case class Constant(
   // See https://github.com/scala/bug/issues/8340
   override def hashCode: Int =
     37 * (37 * (37 * (37 * (17 + tag.##) + nameIndex.##) + typeIndex.##) + value.##)
-}
 private[sbt] final case class FieldOrMethodInfo(
     accessFlags: Int,
     name: Option[String],
     descriptor: Option[String],
     attributes: IndexedSeq[AttributeInfo]
-) {
+):
   def isStatic = (accessFlags & ACC_STATIC) == ACC_STATIC
   def isPublic = (accessFlags & ACC_PUBLIC) == ACC_PUBLIC
   def isMain =
     isPublic && isStatic && name.contains("main") &&
       descriptor.exists(_ == "([Ljava/lang/String;)V")
-}
-private[sbt] final case class AttributeInfo(name: Option[String], value: Array[Byte]) {
+private[sbt] final case class AttributeInfo(name: Option[String], value: Array[Byte]):
   def isNamed(s: String) = name.exists(s == _)
   def isSignature = isNamed("Signature")
   def isSourceFile = isNamed("SourceFile")
@@ -108,17 +106,15 @@ private[sbt] final case class AttributeInfo(name: Option[String], value: Array[B
   def isRuntimeVisibleTypeAnnotations = isNamed("RuntimeVisibleTypeAnnotations")
   def isRuntimeInvisibleTypeAnnotations = isNamed("RuntimeInvisibleTypeAnnotations")
   def isAnnotationDefault = isNamed("AnnotationDefault")
-}
 private[sbt] final case class InnerClassInfo(
     accessFlags: Int,
     innerName: Option[String],
     innerClassName: String,
     outerClassName: String
-) {
+):
   def isStatic = (accessFlags & ACC_STATIC) == ACC_STATIC
   def isPublic = (accessFlags & ACC_PUBLIC) == ACC_PUBLIC
-}
-private[sbt] object Constants {
+private[sbt] object Constants:
   final val ACC_STATIC = 0x0008
   final val ACC_PUBLIC = 0x0001
 
@@ -142,4 +138,4 @@ private[sbt] object Constants {
   final val ConstantPackage = 20
   final val ConstantDynamic = 17 // http://openjdk.java.net/jeps/309
   final val ClassDescriptor = 'L'
-}
+end Constants

@@ -1,19 +1,19 @@
 package localzinc
 
-import sbt._
+import sbt.*
 import sbt.internal.inc.ScalaInstance
 import sbt.internal.inc.classpath
 
-object Scripted {
+object Scripted:
   def scriptedPath = file("scripted")
   val scriptedSource = settingKey[File]("")
   val scriptedCompileToJar = settingKey[Boolean]("Compile directly to jar in scripted tests")
 
-  import sbt.complete._
-  import DefaultParsers._
+  import sbt.complete.*
+  import DefaultParsers.*
   // Paging, 1-index based.
   case class ScriptedTestPage(page: Int, total: Int)
-  def scriptedParser(scriptedBase: File): Parser[Seq[String]] = {
+  def scriptedParser(scriptedBase: File): Parser[Seq[String]] =
     val scriptedFiles: NameFilter = ("test": NameFilter) | "pending"
     val pairs = (scriptedBase * AllPassFilter * AllPassFilter * scriptedFiles).get() map {
       (f: File) =>
@@ -30,31 +30,29 @@ object Scripted {
       case _ ~ page ~ _ ~ total => ScriptedTestPage(page, total)
     }
     // Grabs the filenames from a given test group in the current page definition.
-    def pagedFilenames(group: String, page: ScriptedTestPage): Seq[String] = {
+    def pagedFilenames(group: String, page: ScriptedTestPage): Seq[String] =
       val files = pairMap(group).toSeq.sortBy(_.toLowerCase)
-      val pageSize = if (page.total == 0) 0 else files.size / page.total
+      val pageSize = if page.total == 0 then 0 else files.size / page.total
       // The last page may loose some values, so we explicitly keep them
       val dropped = files.drop(pageSize * (page.page - 1))
-      if (page.page == page.total) dropped
+      if page.page == page.total then dropped
       else dropped.take(pageSize)
-    }
-    def nameP(group: String) = {
+    def nameP(group: String) =
       token("*".id | id.examples(pairMap(group)))
-    }
     val PagedIds: Parser[Seq[String]] =
-      for {
+      for
         group <- groupP
         page <- pageP
         files = pagedFilenames(group, page)
-        // TODO -  Fail the parser if we don't have enough files for the given page size
-        // if !files.isEmpty
-      } yield files map (f => group + '/' + f)
+      // TODO -  Fail the parser if we don't have enough files for the given page size
+      // if !files.isEmpty
+      yield files map (f => group + '/' + f)
 
-    val testID = (for (group <- groupP; name <- nameP(group)) yield (group, name))
+    val testID = (for group <- groupP; name <- nameP(group) yield (group, name))
     val testIdAsGroup = matched(testID).map(test => Seq(test))
     // (token(Space) ~> matched(testID)).*
     (token(Space) ~> (PagedIds | testIdAsGroup)).*.map(_.flatten)
-  }
+  end scriptedParser
 
   def doScripted(
       scriptedSbtClasspath: Seq[Attributed[File]],
@@ -63,7 +61,7 @@ object Scripted {
       args: Seq[String],
       bufferLog: Boolean,
       compileToJar: Boolean,
-  ): Unit = {
+  ): Unit =
     val noJLine =
       new classpath.FilteredLoader(scriptedSbtInstance.loader, "xsbti." :: "jline." :: Nil)
     val loader = classpath.ClasspathUtil.toLoader(scriptedSbtClasspath.map(_.data), noJLine)
@@ -76,7 +74,7 @@ object Scripted {
       classOf[Boolean],
       classOf[Array[String]]
     )
-    try {
+    try
       method.invoke(
         mainObject,
         sourcePath,
@@ -84,6 +82,6 @@ object Scripted {
         java.lang.Boolean.valueOf(compileToJar),
         args.toArray
       )
-    } catch { case ite: java.lang.reflect.InvocationTargetException => throw ite.getCause }
-  }
-}
+    catch case ite: java.lang.reflect.InvocationTargetException => throw ite.getCause
+  end doScripted
+end Scripted

@@ -18,13 +18,13 @@ import java.io.File
 
 import sbt.util.Level
 
-class JavacProcessLoggerSpec extends UnitSpec {
+class JavacProcessLoggerSpec extends UnitSpec:
   "The javac process logger" should "parse regular semantic errors" in logSemanticErrors()
   it should "parse semantic errors passed in one by one" in logSeparateSemanticErrors()
   it should "log errors that could not be parsed" in logUnparsableErrors()
   it should "ignore javadoc info logs" in ignoreJavadocInfoLogs()
 
-  def logSemanticErrors(): Unit = {
+  def logSemanticErrors(): Unit =
     val reporter = new CollectingReporter()
     val errorLogger = new CollectingLogger()
     val javacLogger = new JavacLogger(errorLogger, reporter, cwd = new File("."))
@@ -48,9 +48,9 @@ class JavacProcessLoggerSpec extends UnitSpec {
     errorLogger.messages shouldBe Map.empty
     reporter.problems.length shouldBe 2
     ()
-  }
+  end logSemanticErrors
 
-  def logSeparateSemanticErrors(): Unit = {
+  def logSeparateSemanticErrors(): Unit =
     val reporter = new CollectingReporter()
     val errorLogger = new CollectingLogger()
     val javacLogger = new JavacLogger(errorLogger, reporter, cwd = new File("."))
@@ -72,9 +72,9 @@ class JavacProcessLoggerSpec extends UnitSpec {
     errorLogger.messages shouldBe Map.empty
     reporter.problems.length shouldBe 2
     ()
-  }
+  end logSeparateSemanticErrors
 
-  def logUnparsableErrors(): Unit = {
+  def logUnparsableErrors(): Unit =
     val reporter = new CollectingReporter()
     val errorLogger = new CollectingLogger()
     val javacLogger = new JavacLogger(errorLogger, reporter, cwd = new File("."))
@@ -88,9 +88,8 @@ class JavacProcessLoggerSpec extends UnitSpec {
       .contains("javadoc: error - invalid flag: -target") shouldBe true
     errorLogger.messages(Level.Warn)(1).contains("javadoc exited with exit code -1") shouldBe true
     ()
-  }
 
-  def ignoreJavadocInfoLogs(): Unit = {
+  def ignoreJavadocInfoLogs(): Unit =
     val reporter = new CollectingReporter()
     val errorLogger = new CollectingLogger()
     val javacLogger = new JavacLogger(errorLogger, reporter, cwd = new File("."))
@@ -110,5 +109,4 @@ class JavacProcessLoggerSpec extends UnitSpec {
     reporter.problems shouldBe empty
     errorLogger.messages shouldBe empty
     ()
-  }
-}
+end JavacProcessLoggerSpec

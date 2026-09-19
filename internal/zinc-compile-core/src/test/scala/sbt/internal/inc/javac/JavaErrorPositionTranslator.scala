@@ -14,9 +14,10 @@ package internal
 package inc
 package javac
 
-class JavaErrorPositionTranslator extends UnitSpec {
+class JavaErrorPositionTranslator extends UnitSpec:
 
-  "The JavaErrorPositionTranslator" should "be able to translate file positions to line+column positions 1" in translate1()
+  "The JavaErrorPositionTranslator" should
+    "be able to translate file positions to line+column positions 1" in translate1()
   it should "be able to translate file positions to line+column positions 2" in translate2()
   it should "be able to translate file positions to line+column positions 3" in translate3()
   it should "be able to translate file positions to line+column positions 4" in translate4()
@@ -35,7 +36,7 @@ class JavaErrorPositionTranslator extends UnitSpec {
       code: String,
       startPos: Long,
       endPos: Long
-  )(startLine: Int, startCol: Int, endLine: Int, endCol: Int, text: String): Unit = {
+  )(startLine: Int, startCol: Int, endLine: Int, endCol: Int, text: String): Unit =
     val position = DiagnosticsReporter.contentAndRanges(code, startPos, endPos)
     position._5 shouldBe text
     position._1 shouldBe startLine
@@ -43,13 +44,12 @@ class JavaErrorPositionTranslator extends UnitSpec {
     position._3 shouldBe endLine
     position._4 shouldBe endCol
     ()
-  }
 
   private def testHighlight(
       code: String,
       startPos: Long,
       endPos: Long
-  )(startLine: Int, endLine: Int, startCol: Int, endCol: Int, text: String): Unit = {
+  )(startLine: Int, endLine: Int, startCol: Int, endCol: Int, text: String): Unit =
     // test with /n /r and /r/n variations
     val codeN = code.replace('\r', '\n')
     val textN = text.replace('\r', '\n')
@@ -61,11 +61,13 @@ class JavaErrorPositionTranslator extends UnitSpec {
       endCol,
       textN.replace('\n', '\r')
     )
-    val rnStartPos = startPos + codeN
-      .substring(0, startPos.toInt)
-      .map(f => if (f == '\n') 1 else 0)
-      .sum
-    val rnEndPos = endPos + codeN.substring(0, endPos.toInt).map(f => if (f == '\n') 1 else 0).sum
+    val rnStartPos = startPos +
+      codeN
+        .substring(0, startPos.toInt)
+        .map(f => if f == '\n' then 1 else 0)
+        .sum
+    val rnEndPos = endPos +
+      codeN.substring(0, endPos.toInt).map(f => if f == '\n' then 1 else 0).sum
     testSingleHighlight(codeN.replace("\n", "\r\n"), rnStartPos, rnEndPos)(
       startLine,
       endLine,
@@ -73,14 +75,13 @@ class JavaErrorPositionTranslator extends UnitSpec {
       endCol,
       textN.replace("\n", "\r\n")
     )
-  }
+  end testHighlight
 
   private def translate1(): Unit = testHighlight("hello", 0, 5)(1, 0, 1, 5, "hello")
-  private def translate2(): Unit = {
+  private def translate2(): Unit =
     // on Java an "; expected" error message has no text to return
     // should the first char of the next line be specified?
     testHighlight("foo", 3, 3)(1, 3, 1, 3, "")
-  }
   private def translate3(): Unit = testHighlight("\nhello", 1, 1)(2, 0, 2, 0, "")
   private def translate4(): Unit = testHighlight("\nhello", 0, 0)(1, 0, 1, 0, "")
   private def translate5(): Unit = testHighlight("\nhello", 1, 5)(2, 0, 2, 4, "hell")
@@ -114,4 +115,4 @@ class JavaErrorPositionTranslator extends UnitSpec {
       2,
       "protected void finalize() throws Throwable\n	{\n		try\n		{\n			dispose();\n		}\n		finally\n		{\n			super.finalize();\n		}\n	}"
     )
-}
+end JavaErrorPositionTranslator

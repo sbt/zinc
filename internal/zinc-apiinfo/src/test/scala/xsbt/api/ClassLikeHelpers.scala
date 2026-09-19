@@ -11,36 +11,33 @@
 
 package xsbt.api
 
-import xsbti.api._
+import xsbti.api.*
 
 object ClassLikeHelpers {
-  def lzy[T](x: T): Lazy[T] = new Lazy[T] { def get: T = x }
+  def lzy[T](x: T): Lazy[T] = new Lazy[T]:
+    def get: T = x
 
   def simpleStructure(defs: ClassDefinition*) =
     Structure.of(lzy(Array.empty[Type]), lzy(defs.toArray), emptyMembers)
 
-  def simpleTrait(name: String, defs: List[ClassDefinition]): ClassLike = {
+  def simpleTrait(name: String, defs: List[ClassDefinition]): ClassLike =
     val structure = simpleStructure(defs*)
     simpleClassLike(name, structure, dt = DefinitionType.Trait)
-  }
 
-  def simpleClass(name: String, defs: ClassDefinition*): ClassLike = {
+  def simpleClass(name: String, defs: ClassDefinition*): ClassLike =
     val structure = simpleStructure(defs*)
     simpleClassLike(name, structure)
-  }
 
-  def simpleObject(name: String, defs: ClassDefinition*): ClassLike = {
+  def simpleObject(name: String, defs: ClassDefinition*): ClassLike =
     val structure = simpleStructure(defs*)
     simpleClassLike(name, structure, dt = DefinitionType.Module)
-  }
 
   def simpleClassLikeDef(
       name: String,
       dt: DefinitionType = DefinitionType.ClassDef,
       access: Access = publicAccess
-  ): ClassLikeDef = {
+  ): ClassLikeDef =
     ClassLikeDef.of(name, access, defaultMods, Array.empty, Array.empty, dt)
-  }
 
   def simpleClassLike(
       name: String,

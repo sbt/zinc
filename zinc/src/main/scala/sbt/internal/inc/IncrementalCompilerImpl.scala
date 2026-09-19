@@ -14,19 +14,19 @@ package internal
 package inc
 
 import java.util.Optional
-import java.util.function.{ Function => JavaFunction }
+import java.util.function.Function as JavaFunction
 import java.nio.file.Path
 
-import sbt.internal.inc.JavaInterfaceUtil._
-import sbt.internal.inc.MiniSetupUtil._
+import sbt.internal.inc.JavaInterfaceUtil.*
+import sbt.internal.inc.MiniSetupUtil.*
 import sbt.util.InterfaceUtil
-import scala.jdk.OptionConverters._
-import xsbti._
+import scala.jdk.OptionConverters.*
+import xsbti.*
 import xsbti.compile.CompileOrder.Mixed
-import xsbti.compile.{ ClasspathOptions => XClasspathOptions, JavaTools => XJavaTools, _ }
+import xsbti.compile.{ ClasspathOptions as XClasspathOptions, JavaTools as XJavaTools, * }
 import xsbti.compile.analysis.ReadStamps
 
-class IncrementalCompilerImpl extends IncrementalCompiler {
+class IncrementalCompilerImpl extends IncrementalCompiler:
 
   /**
    * Compile all Java sources based on xsbti.compile.Inputs.
@@ -45,11 +45,11 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
    *         compilations that depend on the same inputs, check its api and its
    *         field `xsbti.compile.CompileAnalysis`.
    */
-  def compileAllJava(in: Inputs, logger: Logger): CompileResult = {
+  def compileAllJava(in: Inputs, logger: Logger): CompileResult =
     val config = in.options()
     val setup = in.setup()
-    import config._
-    import setup._
+    import config.*
+    import setup.*
     val compilers = in.compilers
     val javacChosen = compilers.javaTools.javac
     val scalac = compilers.scalac
@@ -81,7 +81,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       conv,
       stamper.toScala.getOrElse(defaultStampReader),
     )(using logger)
-  }
+  end compileAllJava
 
   /**
    * Performs an incremental compilation based on xsbti.compile.Inputs.
@@ -100,11 +100,11 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
    *         compilations that depend on the same inputs, check its api and its
    *         field `xsbti.compile.CompileAnalysis`.
    */
-  override def compile(in: Inputs, logger: Logger): CompileResult = {
+  override def compile(in: Inputs, logger: Logger): CompileResult =
     val config = in.options()
     val setup = in.setup()
-    import config._
-    import setup._
+    import config.*
+    import setup.*
     val compilers = in.compilers
     val javacChosen = compilers.javaTools.javac
     val scalac = compilers.scalac
@@ -136,7 +136,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       conv,
       stamper.toScala.getOrElse(defaultStampReader),
     )(using logger)
-  }
+  end compile
 
   /**
    *
@@ -199,7 +199,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       converter: FileConverter,
       stampReader: ReadStamps,
       logger: xsbti.Logger,
-  ) = {
+  ) =
     val extraInScala = extra.toList.map(_.toScalaTuple)
     compileIncrementally(
       scalaCompiler,
@@ -226,7 +226,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       converter,
       stampReader
     )(using logger)
-  }
+  end compile
 
   /**
    *
@@ -289,7 +289,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       conveter: FileConverter,
       stampReader: ReadStamps,
       logger: xsbti.Logger,
-  ) = {
+  ) =
     val extraInScala = extra.toList.map(_.toScalaTuple)
     val vs = sources.map(conveter.toVirtualFile(_))
     val cp = classpath.toSeq.map(conveter.toVirtualFile(_))
@@ -318,7 +318,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       conveter,
       stampReader
     )(using logger)
-  }
+  end compile
 
   /**
    * Handle the compilation error in an independent method to avoid
@@ -328,10 +328,10 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       sourceCount: Int,
       output: Output,
       logger: Logger
-  )(compilerRun: => CompileResult): CompileResult = {
-    try {
+  )(compilerRun: => CompileResult): CompileResult =
+    try
       compilerRun
-    } catch {
+    catch
       case e: xsbti.CompileFailed2 => throw new sbt.internal.inc.CompileFailed(
           e.arguments,
           e.toString,
@@ -349,10 +349,10 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         ) // just ignore
       case e: CompileFailed        => throw e // just ignore
       case e: InterruptedException => throw e // just ignore
-      case e: Throwable =>
+      case e: Throwable            =>
         val ex = e // For Intellij debugging purpose
         val numberSources = s"$sourceCount sources"
-        val outputString = output match {
+        val outputString = output match
           case singleOutput: SingleOutput =>
             singleOutput.getOutputDirectoryAsPath().toString
           case multiOutput: MultipleOutput =>
@@ -362,7 +362,6 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
               .mkString("[", ", ", "]")
           case _ =>
             s"other output ($output)"
-        }
 
         val msg =
           s"""## Exception when compiling $numberSources to $outputString
@@ -371,8 +370,6 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
            """
         logger.error(InterfaceUtil.toSupplier(msg.stripMargin))
         throw ex
-    }
-  }
 
   /**
    * Run the mixed compilation of Java and Scala sources. This is the
@@ -430,12 +427,11 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       extra: List[(String, String)],
       converter: FileConverter,
       stampReader: ReadStamps
-  )(implicit logger: Logger): CompileResult = {
+  )(implicit logger: Logger): CompileResult =
     handleCompilationError(sources.size, output, logger) {
-      val prev = previousAnalysis match {
+      val prev = previousAnalysis match
         case Some(previous) => previous.asInstanceOf[Analysis]
         case None           => Analysis.empty
-      }
       val javaSrcs = sources.filter(MixedAnalyzingCompiler.javaOnly)
       val outputs = output :: earlyOutput.toList
       val outputJars = outputs.flatMap(out => (JarUtils.getOutputJar(out): Option[Path]).toList)
@@ -447,22 +443,21 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       }
 
       // otherwise jars on classpath will not be closed, especially prev jar.
-      if (outputJarsOnCp) sys.props.put("scala.classpath.closeZip", "true")
+      if outputJarsOnCp then sys.props.put("scala.classpath.closeZip", "true")
 
-      val extraScalacOptions = {
-        if (outputJarsOnCp && Set("2.12", "2.13")(scalaCompiler.scalaInstance.version.take(4)))
+      val extraScalacOptions =
+        if outputJarsOnCp && Set("2.12", "2.13")(scalaCompiler.scalaInstance.version.take(4)) then
           JarUtils.scalacOptions
         else Nil
-      }
 
-      val extraJavacOptions = if (outputJarsOnCp) JarUtils.javacOptions else Nil
+      val extraJavacOptions = if outputJarsOnCp then JarUtils.javacOptions else Nil
 
       val outputJarContent = JarUtils.createOutputJarContent(output)
 
       val config = MixedAnalyzingCompiler.makeConfig(
         scalaCompiler,
         javaCompiler,
-        if (recompileAllJava) javaSrcs
+        if recompileAllJava then javaSrcs
         else sources,
         converter,
         classpath,
@@ -486,24 +481,21 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       )
       import config.currentSetup
 
-      if (skip && earlyOutput.isEmpty || recompileAllJava && javaSrcs.isEmpty) {
+      if skip && earlyOutput.isEmpty || recompileAllJava && javaSrcs.isEmpty then
         CompileResult.of(prev, currentSetup, false)
-      } else {
+      else
         JarUtils.setupTempClassesDir(temporaryClassesDirectory)
         val (changed, analysis) =
-          if (recompileAllJava) {
+          if recompileAllJava then
             compileAllJava(MixedAnalyzingCompiler(config)(using logger))
-          } else {
+          else
             compileInternal(MixedAnalyzingCompiler(config)(using logger))
-          }
         CompileResult.of(analysis, currentSetup, changed)
-      }
     }
-  }
 
   /** Compile all Java sources using the given mixed compiler. */
-  private[sbt] def compileAllJava(mixedCompiler: MixedAnalyzingCompiler): (Boolean, Analysis) = {
-    import mixedCompiler._, config._, currentSetup._
+  private[sbt] def compileAllJava(mixedCompiler: MixedAnalyzingCompiler): (Boolean, Analysis) =
+    import mixedCompiler.*, config.*, currentSetup.*
     val lookup = new LookupImpl(mixedCompiler.config, previousSetup)
     Incremental.compileAllJava(
       sources,
@@ -520,11 +512,10 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       progress,
       log
     )(mixedCompiler.compileJava)
-  }
 
   /** Run the incremental compiler using the given mixed compiler. */
-  private[sbt] def compileInternal(mixedCompiler: MixedAnalyzingCompiler): (Boolean, Analysis) = {
-    import mixedCompiler._, config._, currentSetup._
+  private[sbt] def compileInternal(mixedCompiler: MixedAnalyzingCompiler): (Boolean, Analysis) =
+    import mixedCompiler.*, config.*, currentSetup.*
     val lookup = new LookupImpl(mixedCompiler.config, previousSetup)
     Incremental.apply(
       sources.toSet,
@@ -541,13 +532,12 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       progress,
       log
     )(mixedCompiler.compile)
-  }
 
-  private def prevAnalysis(mixedCompiler: MixedAnalyzingCompiler) = {
-    import mixedCompiler._, config._, currentSetup._
+  private def prevAnalysis(mixedCompiler: MixedAnalyzingCompiler) =
+    import mixedCompiler.*, config.*, currentSetup.*
     val equivOpts = equivOpts0(equivScalacOptions(incOptions.ignoredScalacOptions))
     val equiv = equivCompileSetup(mixedCompiler.log, equivOpts)
-    previousSetup match {
+    previousSetup match
       // The dummy output needs to be changed to .jar for this to work again.
       case _ if compileToJarSwitchedOn(config) =>
         log.debug(s"prevAnalysis: compileToJar has changed")
@@ -564,15 +554,13 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       case _ =>
         val srcs = config.sources.toSet
         Incremental.prune(srcs, previousAnalysis, output, outputJarContent, converter, incOptions)
-    }
-  }
+  end prevAnalysis
 
-  private def compileToJarSwitchedOn(config: CompileConfiguration): Boolean = {
+  private def compileToJarSwitchedOn(config: CompileConfiguration): Boolean =
     def isCompilingToJar = JarUtils.isCompilingToJar(config.currentSetup.output)
     def previousCompilationWasToJar =
       config.previousSetup.exists(s => JarUtils.isCompilingToJar(s.output))
     isCompilingToJar && !previousCompilationWasToJar
-  }
 
   def setup(
       lookup: PerClasspathEntryLookup,
@@ -602,9 +590,8 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       compilers: Compilers,
       setup: Setup,
       pr: PreviousResult
-  ): Inputs = {
+  ): Inputs =
     Inputs.of(compilers, options, setup, pr)
-  }
 
   def inputs(
       classpath: Array[VirtualFile],
@@ -622,8 +609,8 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
       temporaryClassesDirectory: Optional[Path],
       converter: FileConverter,
       stampReader: ReadStamps
-  ): Inputs = {
-    val compileOptions = {
+  ): Inputs =
+    val compileOptions =
       CompileOptions.of(
         classpath,
         sources,
@@ -638,17 +625,14 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
         Option(stampReader).toJava,
         (earlyJarPath map { CompileOutput(_) }).toJava,
       )
-    }
     inputs(compileOptions, compilers, setup, pr)
-  }
+  end inputs
 
-  def previousResult(contents: AnalysisContents): PreviousResult = {
+  def previousResult(contents: AnalysisContents): PreviousResult =
     PreviousResult.of(Optional.of(contents.getAnalysis), Optional.of(contents.getMiniSetup))
-  }
 
-  def emptyPreviousResult: PreviousResult = {
+  def emptyPreviousResult: PreviousResult =
     PreviousResult.of(Optional.empty[CompileAnalysis], Optional.empty[MiniSetup])
-  }
 
   def compilers(
       instance: xsbti.compile.ScalaInstance,
@@ -665,11 +649,10 @@ class IncrementalCompilerImpl extends IncrementalCompiler {
   /* * Define helpers to convert from sbt Java interface to the Scala one  * */
   /* *********************************************************************** */
 
-  private[sbt] def foldMappers[A](mappers: Array[JavaFunction[A, Optional[A]]]) = {
+  private[sbt] def foldMappers[A](mappers: Array[JavaFunction[A, Optional[A]]]) =
     mappers.foldRight(InterfaceUtil.toJavaFunction[A, A](identity)) { (mapper, mappers) =>
       InterfaceUtil.toJavaFunction[A, A]({ (p: A) =>
         mapper(p).toScala.getOrElse(mappers(p))
       })
     }
-  }
-}
+end IncrementalCompilerImpl

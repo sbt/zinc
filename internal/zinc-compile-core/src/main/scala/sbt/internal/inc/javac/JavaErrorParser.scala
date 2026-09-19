@@ -28,7 +28,7 @@ final case class JavaPosition(
     _contents: String,
     _pointer: Int,
     _pointerSpace: String
-) extends Position {
+) extends Position:
   def line: Optional[Integer] = o2jo(Some(_line))
   def lineContent: String = _contents
   def offset: Optional[Integer] = o2jo(None)
@@ -37,10 +37,9 @@ final case class JavaPosition(
   def sourcePath: Optional[String] = o2jo(Option(_sourceFilePath))
   def sourceFile: Optional[File] = o2jo(Option(new File(_sourceFilePath)))
   override def toString = s"${_sourceFilePath}:${_line}:${_pointer}"
-}
 
 /** A position which has no information, because there is none. */
-object JavaNoPosition extends Position {
+object JavaNoPosition extends Position:
   def line: Optional[Integer] = o2jo(None)
   def lineContent: String = ""
   def offset: Optional[Integer] = o2jo(None)
@@ -49,19 +48,17 @@ object JavaNoPosition extends Position {
   def sourcePath: Optional[String] = o2jo(None)
   def sourceFile: Optional[File] = o2jo(None)
   override def toString = "NoPosition"
-}
 
 /** A wrapper around xsbti.Problem with java-specific options. */
 final case class JavaProblem(position: Position, severity: Severity, message: String)
-    extends xsbti.Problem {
+    extends xsbti.Problem:
   override def category: String =
     "javac" // TODO - what is this even supposed to be?  For now it appears unused.
   override def toString = s"$severity @ $position - $message"
-}
 
 /** A parser that is able to parse java's error output successfully. */
 class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath).getCanonicalFile)
-    extends scala.util.parsing.combinator.RegexParsers {
+    extends scala.util.parsing.combinator.RegexParsers:
   // Here we track special handlers to catch "Note:" and "Warning:" lines.
   private val NOTE_LINE_PREFIXES = Array("Note: ", "\u6ce8: ", "\u6ce8\u610f\uff1a ")
   private val WARNING_PREFIXES = Array("warning", "\u8b66\u544a", "\u8b66\u544a\uff1a")
@@ -92,71 +89,61 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
     }) ^^ {
       case xs => xs.mkString("\n")
     }
-  val nonPathLine: Parser[String] = {
-    val nonPathLine0 = new Parser[String] {
+  val nonPathLine: Parser[String] =
+    val nonPathLine0 = new Parser[String]:
       def isStopChar(c: Char): Boolean = c == '\n' || c == '\r'
 
-      def apply(in: Input) = {
+      def apply(in: Input) =
         val source = in.source
         val offset = in.offset
         var i = offset
-        while (i < source.length && !isStopChar(source.charAt(i))) {
+        while i < source.length && !isStopChar(source.charAt(i)) do
           i += 1
-        }
         val line = source.subSequence(offset, i).toString
-        if ((line.startsWith("/") || line.contains("\\")) && line.contains(".java"))
+        if (line.startsWith("/") || line.contains("\\")) && line.contains(".java") then
           Failure("Path found", in)
-        else if (i == offset) Failure("Empty", in)
+        else if i == offset then Failure("Empty", in)
         else Success(line, in.drop(i - offset))
-      }
-    }
     nonPathLine0 ~ """[\r]?[\n]?""".r ^^ {
       case msg ~ endline => msg + endline
     }
-  }
-  val nonPathLines: Parser[String] = {
+  val nonPathLines: Parser[String] =
     rep(nonPathLine) ^^ {
       case lines => lines.mkString("")
     }
-  }
 
   // Parses ALL characters until an expected character is met.
   def allUntilChar(c: Char): Parser[String] = allUntilChars(Array(c))
-  def allUntilChars(chars: Array[Char]): Parser[String] = new Parser[String] {
-    def isStopChar(c: Char): Boolean = {
+  def allUntilChars(chars: Array[Char]): Parser[String] = new Parser[String]:
+    def isStopChar(c: Char): Boolean =
       var i = 0
-      while (i < chars.length) {
-        if (c == chars(i)) return true
+      while i < chars.length do
+        if c == chars(i) then return true
         i += 1
-      }
       false
-    }
 
-    def apply(in: Input) = {
+    def apply(in: Input) =
       val source = in.source
       val offset = in.offset
       val start = handleWhiteSpace(source, offset)
       var i = start
-      while (i < source.length && !isStopChar(source.charAt(i))) {
+      while i < source.length && !isStopChar(source.charAt(i)) do
         i += 1
-      }
       Success(source.subSequence(start, i).toString, in.drop(i - offset))
-    }
-  }
 
   // Helper to extract an integer from a string
-  private object ParsedInteger {
+  private object ParsedInteger:
     def unapply(s: String): Option[Int] =
       try Some(Integer.parseInt(s))
-      catch { case _: NumberFormatException => None }
-  }
+      catch
+        case _: NumberFormatException => None
   // Parses a line number
   val line: Parser[Int] = allUntilChar(':') ^? {
     case ParsedInteger(x) => x
   }
 
   // Parses the file + lineno output of javac.
-  val fileAndLineNo: Parser[(String, Int)] = {
+  val fileAndLineNo: Parser[(String, Int)] =
     val linuxFile = allUntilChar(':') ^^ { _.trim() }
     val windowsRootFile = linuxFile ~ SEMICOLON ~ linuxFile ^^ {
       case root ~ _ ~ path => s"$root:$path"
@@ -164,42 +151,40 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
     val linuxOption = linuxFile ~ SEMICOLON ~ line ^^ { case f ~ _ ~ l => (f, l) }
     val windowsOption = windowsRootFile ~ SEMICOLON ~ line ^^ { case f ~ _ ~ l => (f, l) }
     (linuxOption | windowsOption)
-  }
 
   val allUntilCaret: Parser[String] = allUntilChar('^')
 
   // Helper method to try to handle relative vs. absolute file pathing....
   // NOTE - this is probably wrong...
-  private def findFileSource(f: String): String = {
+  private def findFileSource(f: String): String =
     // If a file looks like an absolute path, leave it as is.
     def isAbsolute(f: String) =
       (f.startsWith("/")) || (f.matches("""[^\\]+:\\.*"""))
     // TODO - we used to use existence checks, that may be the right way to go
-    if (isAbsolute(f)) f
+    if isAbsolute(f) then f
     else (new File(relativeDir, f)).getAbsolutePath
-  }
 
   /** Parses an error message (not this WILL parse warning messages as error messages if used incorrectly. */
-  val errorMessage: Parser[Problem] = {
+  val errorMessage: Parser[Problem] =
     val fileLineMessage = fileAndLineNo ~ SEMICOLON ~ restOfLine ^^ {
       case (file, line) ~ _ ~ msg => (file, line, msg)
     }
     fileLineMessage ~ (allUntilCaret ~ '^' ~ restOfLine).? ~ (nonPathLines.?) ^^ {
       case (file, line, msg) ~ contentsOpt ~ ind =>
-        val (pointer, pointerSpace) = contentsOpt match {
+        val (pointer, pointerSpace) = contentsOpt match
           case Some(contents ~ _ ~ _) => getPointer(contents)
           case _                      => (0, "")
-        }
 
         new JavaProblem(
           new JavaPosition(
             findFileSource(file),
             line,
-            (contentsOpt match {
+            (contentsOpt match
               case Some(contents ~ _ ~ r) => contents + '^' + r
               case _                      => ""
-            }) + ind
-              .getOrElse(""), // TODO - Actually parse caret position out of here.
+            ) +
+              ind
+                .getOrElse(""), // TODO - Actually parse caret position out of here.
             pointer,
             pointerSpace
           ),
@@ -207,28 +192,27 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
           msg
         )
     }
-  }
+  end errorMessage
 
   /** Parses javac warning messages. */
-  val warningMessage: Parser[Problem] = {
+  val warningMessage: Parser[Problem] =
     val fileLineMessage = fileAndLineNo ~ SEMICOLON ~ WARNING ~ SEMICOLON ~ restOfLine ^^ {
       case (file, line) ~ _ ~ _ ~ _ ~ msg => (file, line, msg)
     }
     fileLineMessage ~ (allUntilCaret ~ '^' ~ restOfLine).? ~ (nonPathLines.?) ^^ {
       case (file, line, msg) ~ contentsOpt ~ ind =>
-        val (pointer, pointerSpace) = contentsOpt match {
+        val (pointer, pointerSpace) = contentsOpt match
           case Some(contents ~ _ ~ _) => getPointer(contents)
           case _                      => (0, "")
-        }
 
         new JavaProblem(
           new JavaPosition(
             findFileSource(file),
             line,
-            (contentsOpt match {
+            (contentsOpt match
               case Some(contents ~ _ ~ r) => contents + '^' + r
               case _                      => ""
-            }) + ind.getOrElse(""),
+            ) + ind.getOrElse(""),
             pointer,
             pointerSpace
           ),
@@ -236,7 +220,7 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
           msg
         )
     }
-  }
+  end warningMessage
   val noteMessage: Parser[Problem] =
     NOTE ^^ { msg =>
       new JavaProblem(
@@ -270,7 +254,7 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
         ()
     }
 
-  val nonProblem: Parser[Unit] = {
+  val nonProblem: Parser[Unit] =
     val skipLine =
       (
         "Loading source file" |
@@ -281,7 +265,6 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
           "Generating"
       ) ~ """[^\r\n]*(\r\n|\n)?""".r
     rep(skipLine) ^^ (_ => ())
-  }
 
   val potentialProblem: Parser[Problem] =
     warningMessage | errorMessage | noteMessage | javacError | javacWarning
@@ -303,11 +286,10 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
    * ^
    */
   final def parseProblems(in: String, logger: sbt.util.Logger): Seq[Problem] =
-    parse(javacOutput, in) match {
+    parse(javacOutput, in) match
       case Success(result, next) =>
-        if (!next.atEnd) {
+        if !next.atEnd then
           logger.warn(s"Unexpected javac output: ${next.source}.")
-        }
         result
       case Failure(msg, n) =>
         logger.warn(s"Unexpected javac output at ${n.pos.longString}: $msg.")
@@ -315,8 +297,7 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
       case Error(msg, n) =>
         logger.warn(s"Unexpected javac output at ${n.pos.longString}: $msg.")
         Seq.empty
-    }
 
   private def getPointer(contents: String): (Int, String) =
     contents.linesIterator.toList.lastOption.map(line => (line.length, line)).getOrElse((0, ""))
-}
+end JavaErrorParser

@@ -17,10 +17,10 @@ import java.net.URLClassLoader
 
 import sbt.internal.inc.javac.JavaTools
 import sbt.internal.inc.classpath.ClassLoaderCache
-import xsbti.compile.{ JavaTools => XJavaTools, _ }
+import xsbti.compile.{ JavaTools as XJavaTools, * }
 
 /** Define a private implementation of the static methods forwarded from `ZincCompilerUtil`. */
-object ZincUtil {
+object ZincUtil:
   import xsbti.compile.ScalaInstance
 
   /** Return a fully-fledged, default incremental compiler ready to use. */
@@ -43,11 +43,10 @@ object ZincUtil {
       scalaInstance: ScalaInstance,
       compilerBridgeJar: Path,
       classpathOptions: ClasspathOptions
-  ): AnalyzingCompiler = {
+  ): AnalyzingCompiler =
     val bridgeProvider = constantBridgeProvider(scalaInstance, compilerBridgeJar)
     val loader = Some(new ClassLoaderCache(new URLClassLoader(Array())))
     new AnalyzingCompiler(scalaInstance, bridgeProvider, classpathOptions, _ => (), loader)
-  }
 
   /**
    * Instantiate a Scala compiler that is instrumented to analyze dependencies.
@@ -81,13 +80,12 @@ object ZincUtil {
    *                          given scala instance.
    * @return A Scala compiler ready to be used.
    */
-  def scalaCompiler(scalaInstance: ScalaInstance, compilerBridgeJar: Path): AnalyzingCompiler = {
+  def scalaCompiler(scalaInstance: ScalaInstance, compilerBridgeJar: Path): AnalyzingCompiler =
     scalaCompiler(
       scalaInstance,
       compilerBridgeJar,
       ClasspathOptionsUtil.noboot(scalaInstance.version)
     )
-  }
 
   /**
    * Instantiate a Scala compiler that is instrumented to analyze dependencies.
@@ -101,13 +99,12 @@ object ZincUtil {
    *                          given scala instance.
    * @return A Scala compiler ready to be used.
    */
-  def scalaCompiler(scalaInstance: ScalaInstance, compilerBridgeJar: File): AnalyzingCompiler = {
+  def scalaCompiler(scalaInstance: ScalaInstance, compilerBridgeJar: File): AnalyzingCompiler =
     scalaCompiler(
       scalaInstance,
       compilerBridgeJar.toPath,
       ClasspathOptionsUtil.noboot(scalaInstance.version)
     )
-  }
 
   // def compilers(
   //     instance: ScalaInstance,
@@ -125,9 +122,8 @@ object ZincUtil {
   ): Compilers =
     compilers(JavaTools.directOrFork(instance, classpathOptions, javaHome), scalac)
 
-  def compilers(javaTools: XJavaTools, scalac: ScalaCompiler): Compilers = {
+  def compilers(javaTools: XJavaTools, scalac: ScalaCompiler): Compilers =
     Compilers.of(scalac, javaTools)
-  }
 
   def constantBridgeProvider(
       scalaInstance: ScalaInstance,
@@ -140,4 +136,4 @@ object ZincUtil {
       compilerBridgeJar: File,
   ): CompilerBridgeProvider =
     ZincCompilerUtil.constantBridgeProvider(scalaInstance, compilerBridgeJar)
-}
+end ZincUtil

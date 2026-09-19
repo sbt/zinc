@@ -262,7 +262,7 @@ class ExtractAPI[GlobalType <: Global](
     if (in == NoSymbol) ExtractAPI.emptyAnnotationArray
     else
       staticAnnotations(as) match {
-        case Nil => ExtractAPI.emptyAnnotationArray
+        case Nil      => ExtractAPI.emptyAnnotationArray
         case staticAs =>
           staticAs.map { a =>
             xsbti.api.Annotation.of(
@@ -589,9 +589,9 @@ class ExtractAPI[GlobalType <: Global](
     }
 
     dealiased match {
-      case NoPrefix             => Constants.emptyType
-      case ThisType(sym)        => xsbti.api.Singleton.of(thisPath(sym))
-      case SingleType(pre, sym) => projectionType(in, pre, sym)
+      case NoPrefix               => Constants.emptyType
+      case ThisType(sym)          => xsbti.api.Singleton.of(thisPath(sym))
+      case SingleType(pre, sym)   => projectionType(in, pre, sym)
       case ConstantType(constant) =>
         xsbti.api.Constant.of(processType(in, constant.tpe), constant.stringValue)
 
@@ -622,7 +622,9 @@ class ExtractAPI[GlobalType <: Global](
         if (unrolling ne withoutRecursiveRefs)
           reporter.warning(
             sym.pos,
-            "sbt-api: approximated refinement ref" + t + " (== " + unrolling + ") to " + withoutRecursiveRefs + "\nThis is currently untested, please report the code you were compiling."
+            "sbt-api: approximated refinement ref" + t + " (== " + unrolling + ") to " +
+              withoutRecursiveRefs +
+              "\nThis is currently untested, please report the code you were compiling."
           )
 
         structure(withoutRecursiveRefs, sym)
@@ -643,13 +645,13 @@ class ExtractAPI[GlobalType <: Global](
         Constants.emptyType
       case at: AnnotatedType =>
         at.annotations match {
-          case Nil => processType(in, at.underlying)
+          case Nil    => processType(in, at.underlying)
           case annots =>
             xsbti.api.Annotated.of(processType(in, at.underlying), mkAnnotations(in, annots))
         }
       case rt: CompoundType   => structure(rt, rt.typeSymbol)
       case t: ExistentialType => makeExistentialType(in, t)
-      case NoType =>
+      case NoType             =>
         Constants.emptyType // this can happen when there is an error that will be reported by a later phase
       case PolyType(typeParams, resultType) =>
         xsbti.api.Polymorphic.of(processType(in, resultType), typeParameters(in, typeParams))
@@ -826,11 +828,12 @@ class ExtractAPI[GlobalType <: Global](
   private[this] def hasJava25MainMethod(sym: Symbol): Boolean =
     !sym.isAbstract && sym.tpe.member(nme.main).alternatives.exists(isJava25MainMethod)
 
-  private[this] def isJava25MainMethod(sym: Symbol): Boolean =
-    (sym.name == nme.main) && (sym.info match {
-      case MethodType(Nil, restpe) => restpe.typeSymbol == definitions.UnitClass
+  private[this] def isJava25MainMethod(sym: Symbol): Boolean = (sym.name == nme.main) &&
+    (sym.info match {
+      case MethodType(Nil, restpe)      => restpe.typeSymbol == definitions.UnitClass
       case MethodType(p :: Nil, restpe) =>
-        definitions.isArrayOfSymbol(p.tpe, definitions.StringClass) && restpe
+        definitions.isArrayOfSymbol(p.tpe, definitions.StringClass) &&
+        restpe
           .typeSymbol == definitions.UnitClass
       case _ => false
     })

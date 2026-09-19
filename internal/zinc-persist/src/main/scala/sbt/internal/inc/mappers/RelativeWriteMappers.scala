@@ -18,7 +18,7 @@ import xsbti.compile.MiniSetup
 import xsbti.compile.analysis.{ RootPaths, Stamp, WriteMapper }
 
 // Please see docs about the implementation in the WriteMapper interface
-final class NaiveRelativeWriteMapper(rootProjectPath: Path) extends WriteMapper {
+final class NaiveRelativeWriteMapper(rootProjectPath: Path) extends WriteMapper:
   private def makeRelative(file: Path): Path = MapperUtils.makeRelative(file, rootProjectPath)
 
   override def mapSourceFile(sourceFile: VirtualFileRef): VirtualFileRef = sourceFile
@@ -37,9 +37,8 @@ final class NaiveRelativeWriteMapper(rootProjectPath: Path) extends WriteMapper 
   override def mapBinaryStamp(file: VirtualFileRef, binaryStamp: Stamp): Stamp = binaryStamp
 
   override def mapMiniSetup(miniSetup: MiniSetup): MiniSetup = miniSetup
-}
 
-final class RelativeWriteMapper(rootPaths: RootPaths) extends WriteMapper {
+final class RelativeWriteMapper(rootPaths: RootPaths) extends WriteMapper:
   import MapperUtils.makeRelative
   private final val sourcesRoot = rootPaths.getSourcesRootPath.toPath
   private final val librariesRoot = rootPaths.getLibrariesRootPath.toPath
@@ -70,4 +69,4 @@ final class RelativeWriteMapper(rootPaths: RootPaths) extends WriteMapper {
   override def mapBinaryStamp(file: VirtualFileRef, binaryStamp: Stamp): Stamp = binaryStamp
 
   override def mapMiniSetup(miniSetup: MiniSetup): MiniSetup = miniSetup
-}
+end RelativeWriteMapper

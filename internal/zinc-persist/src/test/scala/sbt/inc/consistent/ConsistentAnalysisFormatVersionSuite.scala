@@ -20,7 +20,7 @@ import scala.util.control.NonFatal
 
 import org.scalatest.funsuite.AnyFunSuite
 import sbt.internal.inc.{ Analysis, AnalysisFormatFixture }
-import sbt.internal.inc.consistent._
+import sbt.internal.inc.consistent.*
 import sbt.io.IO
 import xsbti.compile.analysis.ReadWriteMappers
 
@@ -33,8 +33,8 @@ import xsbti.compile.analysis.ReadWriteMappers
  * that is what actually ships, and it has encoding machinery (string interning, length prefixes)
  * that the text serializer does not share.
  */
-class ConsistentAnalysisFormatVersionSuite extends AnyFunSuite {
-  import ConsistentAnalysisFormatVersionSuite._
+class ConsistentAnalysisFormatVersionSuite extends AnyFunSuite:
+  import ConsistentAnalysisFormatVersionSuite.*
 
   test("serialized analysis matches the golden files for its format version") {
     assert(
@@ -55,14 +55,15 @@ class ConsistentAnalysisFormatVersionSuite extends AnyFunSuite {
       s"stale golden files for other format versions: ${stale.mkString(", ")}; delete them"
     )
     val golden = goldenFile(version)
-    val expected = if (golden.exists()) IO.read(golden, UTF_8).replace("\r\n", "\n") else ""
-    if (text != expected) fail(textMismatch(version, golden, text, expected))
+    val expected = if golden.exists() then IO.read(golden, UTF_8).replace("\r\n", "\n") else ""
+    if text != expected then fail(textMismatch(version, golden, text, expected))
     IO.delete(actualFile(version)) // drop the leftover of a previously failing run
 
     val digest = binaryDigest()
     val digestFile = goldenDigestFile(version)
-    val expectedDigest = if (digestFile.exists()) IO.read(digestFile, UTF_8).trim else ""
-    if (digest != expectedDigest) fail(digestMismatch(version, digestFile, digest, expectedDigest))
+    val expectedDigest = if digestFile.exists() then IO.read(digestFile, UTF_8).trim else ""
+    if digest != expectedDigest then
+      fail(digestMismatch(version, digestFile, digest, expectedDigest))
   }
 
   test("serializing twice produces the same bytes") {
@@ -83,9 +84,9 @@ class ConsistentAnalysisFormatVersionSuite extends AnyFunSuite {
     val windowsJar = "\\tmp\\dummy\\output.jar".getBytes(ISO_8859_1)
     assert(new String(canonicalizeBinary(windowsJar), ISO_8859_1) == "/tmp/dummy/output.jar")
   }
-}
+end ConsistentAnalysisFormatVersionSuite
 
-object ConsistentAnalysisFormatVersionSuite {
+object ConsistentAnalysisFormatVersionSuite:
   // Forked tests run in .sbt/matrix/<project>; reach the repo root the way
   // ConsistentAnalysisFormatIntegrationSuite does.
   private val testData = new File("../../../test-data")
@@ -103,22 +104,21 @@ object ConsistentAnalysisFormatVersionSuite {
    * is how the suite learns which golden files to compare against.
    */
   private def formatVersion(rendered: String): String =
-    rendered.linesIterator.nextOption() match {
+    rendered.linesIterator.nextOption() match
       case Some(v) if v.nonEmpty && v.forall(_.isDigit) => v
       case other => throw new AssertionError(s"expected a format version on line 1, got $other")
-    }
 
-  private def textMismatch(version: String, golden: File, actual: String, expected: String) = {
+  private def textMismatch(version: String, golden: File, actual: String, expected: String) =
     // Report where the new shape landed, but never let a write failure hide the real problem.
     val written =
-      try {
+      try
         IO.write(actualFile(version), actual, UTF_8)
         s"The new shape was written to test-data/${actualFile(version).getName}."
-      } catch { case NonFatal(e) => s"It could not be written to test-data: $e" }
+      catch case NonFatal(e) => s"It could not be written to test-data: $e"
     val where = firstDifference(expected, actual).fold("") { case (n, exp, act) =>
       s"\nFirst difference at line $n:\n  expected: $exp\n  actual:   $act"
     }
-    if (golden.exists())
+    if golden.exists() then
       s"""The serialized form of Analysis changed while VERSION is still $version.
          |Bump VERSION in ConsistentAnalysisFormat and add golden files for the new version.
          |${golden.getName} records what $version serializes as; if that version is released,
@@ -129,10 +129,10 @@ object ConsistentAnalysisFormatVersionSuite {
          |If you just bumped VERSION, add test-data/${golden.getName} plus its .sha256 companion,
          |and delete the ones for the previous version.
          |$written""".stripMargin
-  }
+  end textMismatch
 
   private def digestMismatch(version: String, file: File, actual: String, expected: String) =
-    if (expected.isEmpty)
+    if expected.isEmpty then
       s"""There is no recorded binary digest for format version $version.
          |Record it with:
          |  echo $actual > test-data/${file.getName}""".stripMargin
@@ -144,18 +144,17 @@ object ConsistentAnalysisFormatVersionSuite {
          |digest in test-data/${file.getName}.""".stripMargin
 
   /** Line number and content of the first differing line, 1-based. */
-  private def firstDifference(expected: String, actual: String): Option[(Int, String, String)] = {
+  private def firstDifference(expected: String, actual: String): Option[(Int, String, String)] =
     val e = expected.linesIterator.toVector
     val a = actual.linesIterator.toVector
     (0 until math.max(e.length, a.length))
       .find(i => e.lift(i) != a.lift(i))
       .map(i => (i + 1, e.lift(i).getOrElse("<no line>"), a.lift(i).getOrElse("<no line>")))
-  }
 
   private def format =
     new ConsistentAnalysisFormat(ReadWriteMappers.getEmptyMappers, reproducible = true)
 
-  private def renderText(): String = {
+  private def renderText(): String =
     val out = new ByteArrayOutputStream
     format.write(
       SerializerFactory.text.serializerFor(out),
@@ -163,9 +162,8 @@ object ConsistentAnalysisFormatVersionSuite {
       AnalysisFormatFixture.setup
     )
     canonicalizeText(new String(out.toByteArray, UTF_8))
-  }
 
-  private def binaryDigest(): String = {
+  private def binaryDigest(): String =
     val out = new ByteArrayOutputStream
     format.write(
       SerializerFactory.binary.serializerFor(out),
@@ -174,7 +172,6 @@ object ConsistentAnalysisFormatVersionSuite {
     )
     val digest = MessageDigest.getInstance("SHA-256").digest(canonicalizeBinary(out.toByteArray))
     HexFormat.of().formatHex(digest)
-  }
 
   /**
    * POSIX renderings of the dummy output paths, which is what the golden files record. Longest
@@ -197,10 +194,9 @@ object ConsistentAnalysisFormatVersionSuite {
    * onto chars, so this rewrite is byte preserving, and the replacement has the same length as the
    * original, so the prefixes stay valid.
    */
-  private def canonicalizeBinary(bytes: Array[Byte]): Array[Byte] = {
+  private def canonicalizeBinary(bytes: Array[Byte]): Array[Byte] =
     val latin1 = new String(bytes, ISO_8859_1)
     dummyPaths.foldLeft(latin1)((acc, p) => acc.replace(p.replace('/', '\\'), p)).getBytes(
       ISO_8859_1
     )
-  }
-}
+end ConsistentAnalysisFormatVersionSuite

@@ -23,7 +23,7 @@ import sbt.io.IO
 
 import scala.util.control.NonFatal
 
-trait AbstractClassLoaderCache extends AutoCloseable {
+trait AbstractClassLoaderCache extends AutoCloseable:
   def commonParent: ClassLoader
   def apply(files: List[File]): ClassLoader
 
@@ -37,9 +37,8 @@ trait AbstractClassLoaderCache extends AutoCloseable {
       files: List[File],
       mkLoader: () => ClassLoader
   ): ClassLoader
-}
 final class ClassLoaderCache(private val abstractClassLoaderCache: AbstractClassLoaderCache)
-    extends AutoCloseable {
+    extends AutoCloseable:
   def this(commonParent: ClassLoader) = this(new ClassLoaderCacheImpl(commonParent))
   def commonParent: ClassLoader = abstractClassLoaderCache.commonParent
   override def close(): Unit = abstractClassLoaderCache.close()
@@ -55,10 +54,9 @@ final class ClassLoaderCache(private val abstractClassLoaderCache: AbstractClass
       files: List[File],
       mkLoader: () => ClassLoader
   ): ClassLoader = abstractClassLoaderCache.cachedCustomClassloader(files, mkLoader)
-}
 
 private final class ClassLoaderCacheImpl(val commonParent: ClassLoader)
-    extends AbstractClassLoaderCache {
+    extends AbstractClassLoaderCache:
   private val delegate =
     new HashMap[List[File], Reference[CachedClassLoader]]
 
@@ -89,10 +87,9 @@ private final class ClassLoaderCacheImpl(val commonParent: ClassLoader)
       getFromReference(files, tstamps, delegate.get(files), mkLoader)
     }
 
-  override def close(): Unit = {
+  override def close(): Unit =
     delegate.values.forEach(v => Option(v.get).foreach(_.close()))
     delegate.clear()
-  }
 
   private def getFromReference(
       files: List[File],
@@ -100,7 +97,7 @@ private final class ClassLoaderCacheImpl(val commonParent: ClassLoader)
       existingRef: Reference[CachedClassLoader],
       mkLoader: () => ClassLoader
   ) =
-    if (existingRef eq null)
+    if existingRef eq null then
       newEntry(files, stamps, mkLoader)
     else
       get(files, stamps, existingRef.get, mkLoader)
@@ -111,33 +108,30 @@ private final class ClassLoaderCacheImpl(val commonParent: ClassLoader)
       existing: CachedClassLoader,
       mkLoader: () => ClassLoader
   ): ClassLoader =
-    if (existing == null || stamps != existing.timestamps) {
+    if existing == null || stamps != existing.timestamps then
       newEntry(files, stamps, mkLoader)
-    } else
+    else
       existing.loader
 
   private def newEntry(
       files: List[File],
       stamps: List[Long],
       mkLoader: () => ClassLoader
-  ): ClassLoader = {
+  ): ClassLoader =
     val loader = mkLoader()
     delegate.put(
       files,
       new SoftReference(new CachedClassLoader(loader, files, stamps))
     )
     loader
-  }
-}
+end ClassLoaderCacheImpl
 private[sbt] final class CachedClassLoader(
     val loader: ClassLoader,
     val files: List[File],
     val timestamps: List[Long]
-) extends AutoCloseable {
-  override def close(): Unit = loader match {
+) extends AutoCloseable:
+  override def close(): Unit = loader match
     case a: AutoCloseable =>
       try a.close()
-      catch { case NonFatal(e) => e.printStackTrace() }
+      catch case NonFatal(e) => e.printStackTrace()
     case _ =>
-  }
-}

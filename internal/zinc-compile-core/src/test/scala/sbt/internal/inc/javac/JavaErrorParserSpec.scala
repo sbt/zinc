@@ -18,7 +18,7 @@ import sbt.internal.util.ConsoleLogger
 import org.scalatest.diagrams.Diagrams
 import xsbti.Severity
 
-class JavaErrorParserSpec extends UnitSpec with Diagrams {
+class JavaErrorParserSpec extends UnitSpec with Diagrams:
 
   "The JavaErrorParser" should "be able to parse Linux errors" in parseSampleLinux()
   it should "be able to parse windows file names" in parseWindowsFile()
@@ -28,63 +28,57 @@ class JavaErrorParserSpec extends UnitSpec with Diagrams {
   it should "be able to parse javac errors" in parseSampleJavac()
   it should "register the position of errors" in parseErrorPosition()
   it should "be able to parse multiple errors" in parseMultipleErrors()
-  it should "be able to parse multiple errors without carrets or indentation" in parseMultipleErrors2()
+  it should "be able to parse multiple errors without carrets or indentation" in
+    parseMultipleErrors2()
 
-  def parseSampleLinux() = {
+  def parseSampleLinux() =
     val parser = new JavaErrorParser()
     val logger = ConsoleLogger()
     val problems = parser.parseProblems(sampleLinuxMessage, logger)
 
     assert(problems.size == 1)
     assert(problems(0).position.sourcePath.get == ("/home/me/projects/sample/src/main/Test.java"))
-  }
 
-  def parseSampleWindows() = {
+  def parseSampleWindows() =
     val parser = new JavaErrorParser()
     val logger = ConsoleLogger()
     val problems = parser.parseProblems(sampleWindowsMessage, logger)
 
     assert(problems.size == 1)
     problems(0).position.sourcePath.get shouldBe (windowsFile)
-  }
 
-  def parseSampleNonProblem() = {
+  def parseSampleNonProblem() =
     val parser = new JavaErrorParser()
     val logger = ConsoleLogger()
     val problems = parser.parseProblems(sampleNonProblemMessage, logger)
 
     assert(problems.size == 2)
-  }
 
-  def parseWindowsFile() = {
+  def parseWindowsFile() =
     val parser = new JavaErrorParser()
-    parser.parse(parser.fileAndLineNo, sampleWindowsMessage) match {
+    parser.parse(parser.fileAndLineNo, sampleWindowsMessage) match
       case parser.Success((file, _), _) => file shouldBe (windowsFile)
-      case parser.Error(msg, next) =>
+      case parser.Error(msg, next)      =>
         assert(false, "Error to parse: " + msg + ", " + next.pos.longString)
       case parser.Failure(msg, next) =>
         assert(false, "Failed to parse: " + msg + ", " + next.pos.longString)
-    }
-  }
 
-  def parseJavacWarning() = {
+  def parseJavacWarning() =
     val parser = new JavaErrorParser()
     val logger = ConsoleLogger()
     val problems = parser.parseProblems(sampleJavacWarning, logger)
     assert(problems.size == 1)
     problems(0).severity shouldBe Severity.Warn
     problems(0).position.offset.isPresent shouldBe false
-  }
 
-  def parseSampleJavac() = {
+  def parseSampleJavac() =
     val parser = new JavaErrorParser()
     val logger = ConsoleLogger()
     val problems = parser.parseProblems(sampleJavacMessage, logger)
     assert(problems.size == 1)
     problems(0).message shouldBe (sampleJavacMessage)
-  }
 
-  def parseErrorPosition() = {
+  def parseErrorPosition() =
     val parser = new JavaErrorParser()
     val logger = ConsoleLogger()
     val problems = parser.parseProblems(sampleErrorPosition, logger)
@@ -100,9 +94,8 @@ class JavaErrorParserSpec extends UnitSpec with Diagrams {
     position.pointer.get shouldBe 23
     position.pointerSpace.isPresent shouldBe true
     position.pointerSpace.get shouldBe (" " * 23)
-  }
 
-  def parseMultipleErrors() = {
+  def parseMultipleErrors() =
     val parser = new JavaErrorParser()
     val logger = ConsoleLogger()
     val problems = parser.parseProblems(sampleMultipleErrors, logger)
@@ -162,16 +155,15 @@ class JavaErrorParserSpec extends UnitSpec with Diagrams {
     position5.pointer.get shouldBe 14
     position5.pointerSpace.isPresent shouldBe true
     position5.pointerSpace.get shouldBe (" " * 14)
-  }
+  end parseMultipleErrors
 
-  def parseMultipleErrors2() = {
+  def parseMultipleErrors2() =
     val parser = new JavaErrorParser()
     val logger = ConsoleLogger()
     val problems = parser.parseProblems(sampleLinuxMessage2, logger)
 
     assert(problems.size == 3)
     assert(problems(0).position.sourcePath.get == ("/home/me/projects/sample/src/main/Test.java"))
-  }
 
   def sampleLinuxMessage =
     """
@@ -259,4 +251,4 @@ class JavaErrorParserSpec extends UnitSpec with Diagrams {
        |              ^
        |5 errors.
        |""".stripMargin
-}
+end JavaErrorParserSpec

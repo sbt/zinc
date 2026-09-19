@@ -464,7 +464,7 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
        *    this looks fishy, see this thread:
        *    https://groups.google.com/d/topic/scala-internals/Ms9WUAtokLo/discussion
        */
-      case id: Ident => addTreeDependency(id)
+      case id: Ident             => addTreeDependency(id)
       case sel @ Select(qual, _) =>
         traverse(qual); addTreeDependency(sel)
       case sel @ SelectFromTypeTree(qual, _) =>
@@ -491,9 +491,11 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
         val inheritanceSymbols = inheritanceTypes.flatMap(flattenTypeToSymbols)
 
         debuglog(
-          "Parent types for " + tree.symbol + " (self: " + self.tpt
-            .tpe + "): " + inheritanceTypes + " with symbols " + inheritanceSymbols
-            .map(_.fullName)
+          "Parent types for " + tree.symbol + " (self: " +
+            self.tpt
+              .tpe + "): " + inheritanceTypes + " with symbols " +
+            inheritanceSymbols
+              .map(_.fullName)
         )
 
         inheritanceSymbols.foreach { symbol =>

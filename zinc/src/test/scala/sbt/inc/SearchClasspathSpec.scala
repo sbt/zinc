@@ -17,20 +17,20 @@ import java.util.Optional
 
 import sbt.internal.inc.{ MixedAnalyzingCompiler, PlainVirtualFileConverter, UnitSpec }
 import xsbti.VirtualFile
-import xsbti.compile._
+import xsbti.compile.*
 
 /**
  * The search classpath drives dependency lookup, so it has to describe the same class
  * universe the compiler sees. See sbt/zinc#348.
  */
-class SearchClasspathSpec extends UnitSpec {
+class SearchClasspathSpec extends UnitSpec:
   // Absolute so that assertions match the absolutized entries on Windows too,
   // where "/tmp/..." is only drive-relative.
   private val scalaLibraryJar = new File("/tmp/zinc-test/scala-library.jar").getAbsoluteFile
   private val userBootJar = "/tmp/zinc-test/custom-library.jar"
   private val converter = PlainVirtualFileConverter.converter
 
-  private object FakeScalaInstance extends ScalaInstance {
+  private object FakeScalaInstance extends ScalaInstance:
     val version = "2.12.20"
     val actualVersion = version
     val loader = getClass.getClassLoader
@@ -40,9 +40,8 @@ class SearchClasspathSpec extends UnitSpec {
     val compilerJars = Array.empty[File]
     val otherJars = Array.empty[File]
     val allJars = Array(scalaLibraryJar)
-  }
 
-  private object FakeCompiler extends ScalaCompiler {
+  private object FakeCompiler extends ScalaCompiler:
     def scalaInstance: ScalaInstance = FakeScalaInstance
     def classpathOptions: ClasspathOptions = ClasspathOptionsUtil.boot()
     def compile(
@@ -57,20 +56,17 @@ class SearchClasspathSpec extends UnitSpec {
         progress: Optional[CompileProgress],
         log: xsbti.Logger
     ): Unit = ()
-  }
 
-  private object NoLookup extends PerClasspathEntryLookup {
+  private object NoLookup extends PerClasspathEntryLookup:
     def analysis(classpathEntry: VirtualFile): Optional[CompileAnalysis] = Optional.empty()
     def definesClass(classpathEntry: VirtualFile): DefinesClass = _ => false
-  }
 
-  private def searchClasspath(scalacOptions: Array[String]): Seq[String] = {
+  private def searchClasspath(scalacOptions: Array[String]): Seq[String] =
     val classpath = Seq(converter.toVirtualFile(scalaLibraryJar.toPath))
     MixedAnalyzingCompiler
       .searchClasspathAndLookup(converter, classpath, scalacOptions, NoLookup, FakeCompiler)
       ._1
       .map(converter.toPath(_).toString)
-  }
 
   "the search classpath" should "include Zinc's boot classpath when the client sets none" in {
     val entries = searchClasspath(Array("-deprecation"))
@@ -94,4 +90,4 @@ class SearchClasspathSpec extends UnitSpec {
       assert(!searchClasspath(options).contains(scalaLibraryJar.toString), options.mkString(" "))
     }
   }
-}
+end SearchClasspathSpec

@@ -18,8 +18,8 @@ import xsbti.{ FileConverter, VirtualFile, VirtualFileRef }
 import xsbt.api.APIUtil
 import xsbti.api.AnalyzedClass
 import xsbti.compile.{ Changes, DependencyChanges, IncOptions, Output }
-import xsbti.compile.{ ClassFileManager => XClassFileManager }
-import xsbti.compile.analysis.{ ReadStamps, Stamp => XStamp }
+import xsbti.compile.ClassFileManager as XClassFileManager
+import xsbti.compile.analysis.{ ReadStamps, Stamp as XStamp }
 import scala.collection.Iterator
 import scala.collection.parallel.immutable.ParVector
 import Incremental.{ CompileCycle, CompileCycleResult, IncrementalCallback, PrefixingLogger }
@@ -40,7 +40,7 @@ private[inc] abstract class IncrementalCommon(
     val log: Logger,
     options: IncOptions,
     profiler: RunProfiler
-) extends InvalidationProfilerUtils {
+) extends InvalidationProfilerUtils:
   // Work around bugs in classpath handling such as the "currently" problematic -javabootclasspath
   private def enableShallowLookup: Boolean =
     java.lang.Boolean.getBoolean("xsbt.skip.cp.lookup")
@@ -49,15 +49,13 @@ private[inc] abstract class IncrementalCommon(
   def debug(s: => String): Unit = invalidationLog.detail(s)
 
   final def iterations(state0: CycleState): Iterator[CycleState] =
-    new Iterator[CycleState] {
+    new Iterator[CycleState]:
       var state: CycleState = state0
       override def hasNext: Boolean = state.hasNext
-      override def next(): CycleState = {
+      override def next(): CycleState =
         val n = state.next
         state = n
         n
-      }
-    }
   case class CycleState(
       invalidatedClasses: Set[String],
       initialChangedSources: Set[VirtualFileRef],
@@ -70,14 +68,14 @@ private[inc] abstract class IncrementalCommon(
       classfileManager: XClassFileManager,
       output: Output,
       cycleNum: Int,
-  ) {
+  ):
     def toVf(ref: VirtualFileRef): VirtualFile = converter.toVirtualFile(ref)
     def sourceRefs: Set[VirtualFileRef] = allSources.asInstanceOf[Set[VirtualFileRef]]
     lazy val javaSources: Set[VirtualFileRef] = sourceRefs.filter(_.id.endsWith(".java"))
 
     def hasNext: Boolean = invalidatedClasses.nonEmpty || initialChangedSources.nonEmpty
 
-    def next: CycleState = {
+    def next: CycleState =
       // Compute all the invalidated classes by aggregating invalidated package objects
       val invalidatedByPackageObjects =
         invalidatedPackageObjects(invalidatedClasses, previous.relations, previous.apis)
@@ -136,18 +134,18 @@ private[inc] abstract class IncrementalCommon(
       // get to see the symbols coming from Java.
       // See also sbt/zinc#918
       val nextChangedSources: Set[VirtualFileRef] =
-        if (continue && !handler.isFullCompilation && options.pipelining) javaSources
+        if continue && !handler.isFullCompilation && options.pipelining then javaSources
         else Set.empty
 
       // Return immediate analysis as all sources have been recompiled
       copy(
-        if (continue && !handler.isFullCompilation) nextInvalidations else Set.empty,
+        if continue && !handler.isFullCompilation then nextInvalidations else Set.empty,
         nextChangedSources,
         binaryChanges = IncrementalCommon.emptyChanges,
         previous = current,
         cycleNum = cycleNum + 1,
       )
-    }
+    end next
 
     /**
      * IncrementalCallbackImpl is a callback hanlder that the custom
@@ -161,7 +159,7 @@ private[inc] abstract class IncrementalCommon(
         pruned: Analysis,
         classesToRecompile: Set[String],
         registerCycle: (Set[String], APIChanges, Set[String], Boolean) => Unit
-    ) extends IncrementalCallback(classFileManager) {
+    ) extends IncrementalCallback(classFileManager):
       override val isFullCompilation: Boolean = allSources.subsetOf(invalidatedSources)
       override val previousAnalysis: Analysis = previous
       override val previousAnalysisPruned: Analysis = pruned
@@ -169,9 +167,9 @@ private[inc] abstract class IncrementalCommon(
       override def mergeAndInvalidate(
           partialAnalysis: Analysis,
           shouldRegisterCycle: Boolean,
-      ): CompileCycleResult = {
+      ): CompileCycleResult =
         val analysis =
-          if (isFullCompilation)
+          if isFullCompilation then
             partialAnalysis.copy(compilations = pruned.compilations ++ partialAnalysis.compilations)
           else pruned ++ partialAnalysis
 
@@ -184,7 +182,7 @@ private[inc] abstract class IncrementalCommon(
 
         val newApiChanges =
           detectAPIChanges(recompiledClasses, previous.apis.internalAPI, analysis.apis.internalAPI)
-        if (!isFullCompilation && newApiChanges.apiChanges.nonEmpty)
+        if !isFullCompilation && newApiChanges.apiChanges.nonEmpty then
           invalidationLog.debug(
             InvalidationLog.section(
               s"Cycle $cycleNum API changes",
@@ -193,7 +191,7 @@ private[inc] abstract class IncrementalCommon(
           )
 
         val nextInvalidations =
-          if (isFullCompilation) Set.empty[String]
+          if isFullCompilation then Set.empty[String]
           else
             invalidateAfterInternalCompilation(
               analysis,
@@ -212,25 +210,22 @@ private[inc] abstract class IncrementalCommon(
           InvalidationLog.cycleOutcome(cycleNum, nextInvalidations, continue, isFullCompilation)
         )
 
-        if (shouldRegisterCycle) {
+        if shouldRegisterCycle then
           registerCycle(recompiledClasses, newApiChanges, nextInvalidations, continue)
-        }
         CompileCycleResult(continue, nextInvalidations, analysis)
-      }
+      end mergeAndInvalidate
 
       override def completeCycle(
           prev: Option[CompileCycleResult],
           partialAnalysis: Analysis,
           shouldRegisterCycle: Boolean
-      ): CompileCycleResult = {
+      ): CompileCycleResult =
         classFileManager.generated(partialAnalysis.relations.allProducts.map(toVf).toArray)
-        prev match {
+        prev match
           case Some(prev) => prev.copy(analysis = pruned ++ partialAnalysis)
           case _          => mergeAndInvalidate(partialAnalysis, shouldRegisterCycle)
-        }
-      }
-    }
-  }
+    end IncrementalCallbackImpl
+  end CycleState
 
   /**
    * Compile a project as many times as it is required incrementally. This logic is the start
@@ -266,7 +261,7 @@ private[inc] abstract class IncrementalCommon(
       classfileManager: XClassFileManager,
       output: Output,
       cycleNum: Int,
-  ): Analysis = {
+  ): Analysis =
     var s = CycleState(
       invalidatedClasses,
       initialChangedSources,
@@ -281,37 +276,34 @@ private[inc] abstract class IncrementalCommon(
       cycleNum,
     )
     val it = iterations(s)
-    while (it.hasNext) {
+    while it.hasNext do
       s = it.next()
-    }
     s.previous
-  }
+  end cycle
 
   def mapInvalidationsToSources(
       invalidatedClasses: Set[String],
       aggregateSources: Set[VirtualFileRef],
       allSources: Set[VirtualFileRef],
       previous: Analysis
-  ): Set[VirtualFileRef] = {
-    def expand(invalidated: Set[VirtualFileRef]): Set[VirtualFileRef] = {
+  ): Set[VirtualFileRef] =
+    def expand(invalidated: Set[VirtualFileRef]): Set[VirtualFileRef] =
       val recompileAllFraction = options.recompileAllFraction
       // when pipelining we currently always invalidate all java sources, so it doesn't make sense to include them
       // when checking recompileAllFraction
       def countRelevant(ss: Set[VirtualFileRef]): Int =
-        if (options.pipelining) ss.count(_.name.endsWith(".scala")) else ss.size
+        if options.pipelining then ss.count(_.name.endsWith(".scala")) else ss.size
 
-      if (countRelevant(invalidated) <= countRelevant(allSources) * recompileAllFraction)
+      if countRelevant(invalidated) <= countRelevant(allSources) * recompileAllFraction then
         invalidated
-      else {
+      else
         invalidationLog.debug(
           s"Recompiling all sources: number of invalidated sources > ${recompileAllFraction * 100.00} percent of all sources"
         )
         allSources ++ invalidated // Union because `all` doesn't contain removed sources
-      }
-    }
 
     expand(invalidatedClasses.flatMap(previous.relations.definesClass) ++ aggregateSources)
-  }
+  end mapInvalidationsToSources
 
   /**
    * Detects the API changes of `recompiledClasses`.
@@ -325,37 +317,32 @@ private[inc] abstract class IncrementalCommon(
       recompiledClasses: collection.Set[String],
       oldAPI: String => AnalyzedClass,
       newAPI: String => AnalyzedClass
-  ): APIChanges = {
-    def hashesMatch(a: AnalyzedClass, b: AnalyzedClass, hasMacro: Boolean): Boolean = {
+  ): APIChanges =
+    def hashesMatch(a: AnalyzedClass, b: AnalyzedClass, hasMacro: Boolean): Boolean =
       (a.bytecodeHash() == b.bytecodeHash()) &&
-      (a.apiHash == b.apiHash) &&
-      (a.extraHash == b.extraHash) &&
-      (!hasMacro || a.transitiveBytecodeHash() == b.transitiveBytecodeHash())
-    }
+        (a.apiHash == b.apiHash) &&
+        (a.extraHash == b.extraHash) &&
+        (!hasMacro || a.transitiveBytecodeHash() == b.transitiveBytecodeHash())
     // log.debug(s"[zinc] detectAPIChanges(recompiledClasses = $recompiledClasses)")
-    def classDiff(className: String, a: AnalyzedClass, b: AnalyzedClass): Option[APIChange] = {
+    def classDiff(className: String, a: AnalyzedClass, b: AnalyzedClass): Option[APIChange] =
       // log.debug(s"[zinc] classDiff($className, ${a.name}, ${b.name})")
       val hasMacro = a.hasMacro || b.hasMacro
-      if (hashesMatch(a, b, hasMacro)) None
-      else {
-        if (hasMacro && IncOptions.getRecompileOnMacroDef(options)) {
+      if hashesMatch(a, b, hasMacro) then None
+      else
+        if hasMacro && IncOptions.getRecompileOnMacroDef(options) then
           Some(APIChangeDueToMacroDefinition(className))
-        } else if (
+        else if
           APIUtil.isAnnotationDefinition(a.api().classApi()) ||
           APIUtil.isAnnotationDefinition(b.api().classApi())
-        ) {
+        then
           Some(APIChangeDueToAnnotationDefinition(className))
-        } else {
+        else
           findAPIChange(className, a, b)
-        }
-      }
-    }
     val apiChanges = recompiledClasses.flatMap(name => classDiff(name, oldAPI(name), newAPI(name)))
-    if (Incremental.apiDebug(options) && apiChanges.nonEmpty) {
+    if Incremental.apiDebug(options) && apiChanges.nonEmpty then
       logApiChanges(apiChanges, oldAPI, newAPI)
-    }
     new APIChanges(apiChanges)
-  }
+  end detectAPIChanges
 
   /**
    * Detects the initial changes after the first compiler iteration is over.
@@ -385,7 +372,7 @@ private[inc] abstract class IncrementalCommon(
       lookup: Lookup,
       converter: FileConverter,
       output: Output
-  )(implicit equivS: Equiv[XStamp]): InitialChanges = {
+  )(implicit equivS: Equiv[XStamp]): InitialChanges =
     import IncrementalCommon.isLibraryModified
     import lookup.lookupAnalyzedClass
     val previous = previousAnalysis.stamps
@@ -399,7 +386,7 @@ private[inc] abstract class IncrementalCommon(
         InvalidationLog.section("Current sources", Seq("sources" -> sources.map(_.id)))
       )
 
-      new UnderlyingChanges[VirtualFileRef] {
+      new UnderlyingChanges[VirtualFileRef]:
         val sourceIds = sources.map(_.id)
         val previousSourceIds = previousSources.map(_.id)
 
@@ -409,27 +396,27 @@ private[inc] abstract class IncrementalCommon(
         val unmodified0 = java.util.concurrent.ConcurrentHashMap.newKeySet[VirtualFileRef]
 
         new ParVector(sources.toVector).foreach { f =>
-          if (previousSourceIds.contains(f.id)) {
-            if (equivS.equiv(previous.source(f), stamps.source(f))) unmodified0.add(f)
+          if previousSourceIds.contains(f.id) then
+            if equivS.equiv(previous.source(f), stamps.source(f)) then unmodified0.add(f)
             else changed0.add(f)
-          } else added0.add(f)
+          else added0.add(f)
         }
-        previousSources.foreach(f => if (!sourceIds.contains(f.id)) removed0.add(f))
+        previousSources.foreach(f => if !sourceIds.contains(f.id) then removed0.add(f))
 
         val added = new WrappedSet(added0)
         val changed = new WrappedSet(changed0)
         val removed = new WrappedSet(removed0)
         val unmodified = new WrappedSet(unmodified0)
-      }
+      end new
     }
 
     val removedProducts: Set[VirtualFileRef] =
       lookup.removedProducts(previousAnalysis).getOrElse {
         new ParVector(previous.allProducts.toVector)
-          .filter(p => {
+          .filter(p =>
             // println(s"removedProducts? $p")
             !equivS.equiv(previous.product(p), stamps.product(p))
-          })
+          )
           .toVector
           .toSet
       }
@@ -448,25 +435,23 @@ private[inc] abstract class IncrementalCommon(
       new ParVector(previous.allLibraries.toVector).filter(detectChange).toVector.toSet
     }
 
-    val subprojectApiChanges: APIChanges = {
-      val incrementalExternalChanges = {
+    val subprojectApiChanges: APIChanges =
+      val incrementalExternalChanges =
         val previousAPIs = previousAnalysis.apis
         val externalFinder = lookupAnalyzedClass(_: String, None).getOrElse(APIs.emptyAnalyzedClass)
         detectAPIChanges(previousAPIs.allExternals, previousAPIs.externalAPI, externalFinder)
-      }
 
       val changedExternalClassNames = incrementalExternalChanges.allModified.toSet
-      if (!lookup.shouldDoIncrementalCompilation(changedExternalClassNames, previousAnalysis))
+      if !lookup.shouldDoIncrementalCompilation(changedExternalClassNames, previousAnalysis) then
         new APIChanges(Nil)
       else incrementalExternalChanges
-    }
 
     val init =
       InitialChanges(sourceChanges, removedProducts, changedLibraries, subprojectApiChanges)
     profiler.registerInitial(init)
     // log.debug(s"initial changes: $init")
     init
-  }
+  end detectInitialChanges
 
   /**
    * Invalidates classes internally to a project after an incremental compiler run.
@@ -486,16 +471,15 @@ private[inc] abstract class IncrementalCommon(
       recompiledClasses: Set[String],
       invalidateTransitively: Boolean,
       isScalaClass: String => Boolean
-  ): Set[String] = {
+  ): Set[String] =
     val relations = analysis.relations
     val initial = changes.allModified.toSet
     val dependsOnClass = findClassDependencies(_, relations)
-    val firstClassInvalidation: Set[String] = {
+    val firstClassInvalidation: Set[String] =
       val invalidated =
         changes.apiChanges.flatMap(invalidateClassesInternally(relations, _, isScalaClass)).toSet
       includeTransitiveInitialInvalidations(initial, invalidated, dependsOnClass)
-    }
-    if (firstClassInvalidation.nonEmpty)
+    if firstClassInvalidation.nonEmpty then
       invalidationLog.detail(
         InvalidationLog.section(
           "Transitive invalidation result",
@@ -505,7 +489,7 @@ private[inc] abstract class IncrementalCommon(
 
     // Invalidate classes linked with a class file that is produced by more than one source file
     val secondClassInvalidation = IncrementalCommon.invalidateNamesProducingSameClassFile(relations)
-    if (secondClassInvalidation.nonEmpty)
+    if secondClassInvalidation.nonEmpty then
       invalidationLog.debug(
         InvalidationLog.section(
           "Generated class-file collision",
@@ -527,14 +511,13 @@ private[inc] abstract class IncrementalCommon(
     // macro classes to recompile - because downstream projects only have visibility of the upstream
     // API, and if it changed, which is insufficient, and upstream projects have no other way than
     // their API to signal to downstream.
-    val thirdClassInvalidation = {
+    val thirdClassInvalidation =
       val transitive =
         IncrementalCommon.transitiveDeps(recompiledClasses, invalidationLog.detailLogger)(
           dependsOnClass
         )
       (transitive -- recompiledClasses).filter(analysis.apis.internalAPI(_).hasMacro)
-    }
-    if (thirdClassInvalidation.nonEmpty)
+    if thirdClassInvalidation.nonEmpty then
       invalidationLog.debug(
         InvalidationLog.section(
           "Upstream changes affecting macros",
@@ -542,11 +525,11 @@ private[inc] abstract class IncrementalCommon(
         )
       )
 
-    val newInvalidations =
-      (firstClassInvalidation -- recompiledClasses) ++ secondClassInvalidation ++ thirdClassInvalidation
+    val newInvalidations = (firstClassInvalidation -- recompiledClasses) ++
+      secondClassInvalidation ++ thirdClassInvalidation
     val nextInvalidations =
-      if (newInvalidations.isEmpty) Set.empty[String]
-      else if (invalidateTransitively) {
+      if newInvalidations.isEmpty then Set.empty[String]
+      else if invalidateTransitively then
         // NOTE: As member reference relations do not include local relations, this invalidation will fully propagate
         // thus we can't rely solely on `firstClassTransitiveInvalidation`. Better bet is to try to find transitive
         // dependencies from result of `firstClassInvalidation`
@@ -561,22 +544,22 @@ private[inc] abstract class IncrementalCommon(
             Some("no classes")
           )
         )
-        firstClassTransitiveInvalidation ++ secondClassInvalidation ++ thirdClassInvalidation ++ recompiledClasses
-      } else firstClassInvalidation ++ secondClassInvalidation ++ thirdClassInvalidation
+        firstClassTransitiveInvalidation ++ secondClassInvalidation ++ thirdClassInvalidation ++
+          recompiledClasses
+      else firstClassInvalidation ++ secondClassInvalidation ++ thirdClassInvalidation
 
     nextInvalidations
-  }
+  end invalidateAfterInternalCompilation
 
   /** Invalidates classes and sources based on initially detected 'changes' to the sources, products, and dependencies.*/
   def invalidateInitial(
       previous: Relations,
       changes: InitialChanges
-  ): (Set[String], Set[VirtualFileRef]) = {
+  ): (Set[String], Set[VirtualFileRef]) =
     def classNames(srcs: Set[VirtualFileRef]): Set[String] = srcs.flatMap(previous.classNames)
-    def toImmutableSet(srcs: java.util.Set[VirtualFileRef]): Set[VirtualFileRef] = {
-      import scala.jdk.CollectionConverters._
+    def toImmutableSet(srcs: java.util.Set[VirtualFileRef]): Set[VirtualFileRef] =
+      import scala.jdk.CollectionConverters.*
       srcs.iterator().asScala.toSet
-    }
 
     val srcChanges = changes.internalSrc
     val removedSrcs = toImmutableSet(srcChanges.getRemoved)
@@ -591,22 +574,21 @@ private[inc] abstract class IncrementalCommon(
 
     val byProduct = changes.removedProducts.flatMap(previous.produced)
     val byLibraryDep = changes.libraryDeps.flatMap(previous.usesLibrary)
-    val byExtSrcDep = {
+    val byExtSrcDep =
       // Invalidate changes
       val isScalaSource = IncrementalCommon.comesFromScalaSource(previous)
       changes.external.apiChanges.iterator.flatMap { externalAPIChange =>
         invalidateClassesExternally(previous, externalAPIChange, isScalaSource)
       }.toSet
-    }
 
     val allInvalidatedClasses = invalidatedClasses ++ byExtSrcDep
     val allInvalidatedSourcefiles = addedSrcs ++ modifiedSrcs ++ byProduct ++ byLibraryDep
 
-    if (previous.allSources.isEmpty)
+    if previous.allSources.isEmpty then
       invalidationLog.debug(
         InvalidationLog.section("Initial changes", Nil, Some("full compilation"))
       )
-    else if (allInvalidatedClasses.isEmpty && allInvalidatedSourcefiles.isEmpty)
+    else if allInvalidatedClasses.isEmpty && allInvalidatedSourcefiles.isEmpty then
       invalidationLog.debug(InvalidationLog.section("Initial changes", Nil, Some("no changes")))
     else
       invalidationLog.debug(
@@ -628,9 +610,10 @@ private[inc] abstract class IncrementalCommon(
           )
         )
       )
+    end if
 
     (allInvalidatedClasses, allInvalidatedSourcefiles)
-  }
+  end invalidateInitial
 
   /**
    * Returns the invalidations that are the result of the `currentInvalidations` + the
@@ -649,9 +632,9 @@ private[inc] abstract class IncrementalCommon(
       previousInvalidations: Set[String],
       currentInvalidations: Set[String],
       findClassDependencies: String => Set[String]
-  ): Set[String] = {
+  ): Set[String] =
     val newInvalidations = currentInvalidations -- previousInvalidations
-    if (newInvalidations.nonEmpty)
+    if newInvalidations.nonEmpty then
       invalidationLog.detail(
         InvalidationLog.section(
           "New invalidations",
@@ -666,7 +649,7 @@ private[inc] abstract class IncrementalCommon(
     // Include the initial invalidations that are present in the transitive new invalidations
     val reInvalidated = previousInvalidations.intersect(newTransitiveInvalidations)
 
-    if (reInvalidated.nonEmpty)
+    if reInvalidated.nonEmpty then
       invalidationLog.detail(
         InvalidationLog.section(
           "Previously invalidated classes depending on new invalidations",
@@ -674,7 +657,7 @@ private[inc] abstract class IncrementalCommon(
         )
       )
     newInvalidations ++ reInvalidated
-  }
+  end includeTransitiveInitialInvalidations
 
   /**
    * Logs API changes using debug-level logging. The API are obtained using the APIDiff class.
@@ -685,9 +668,9 @@ private[inc] abstract class IncrementalCommon(
       apiChanges: Iterable[APIChange],
       oldAPIMapping: String => AnalyzedClass,
       newAPIMapping: String => AnalyzedClass
-  ): Unit = {
+  ): Unit =
     val contextSize = options.apiDiffContextSize
-    try {
+    try
       val wrappedLog = new PrefixingLogger("[diff] ")(log)
       val apiDiff = new APIDiff
       apiChanges foreach {
@@ -705,12 +688,12 @@ private[inc] abstract class IncrementalCommon(
             apiDiff.generateApiDiff(src, oldApi.api, newApi.api, contextSize)
           wrappedLog.debug(s"Detected a change in a public API ($src):\n$apiUnifiedPatch")
       }
-    } catch {
+    catch
       case e: Exception =>
         log.error("An exception has been thrown while trying to dump an api diff.")
         log.trace(e)
-    }
-  }
+    end try
+  end logApiChanges
 
   /**
    * Add package objects that inherit from the set of invalidated classes to avoid
@@ -786,32 +769,29 @@ private[inc] abstract class IncrementalCommon(
       externalAPIChange: APIChange,
       isScalaClass: String => Boolean
   ): Set[String]
-}
+end IncrementalCommon
 
-object IncrementalCommon {
+object IncrementalCommon:
 
   /** Tell if given class names comes from a Scala source file or not by inspecting relations. */
   def comesFromScalaSource(
       previous: Relations,
       current: Option[Relations] = None
-  )(className: String): Boolean = {
+  )(className: String): Boolean =
     val previousSourcesWithClassName = previous.classes.reverse(className)
     val newSourcesWithClassName = current.map(_.classes.reverse(className)).getOrElse(Set.empty)
-    if (previousSourcesWithClassName.isEmpty && newSourcesWithClassName.isEmpty)
+    if previousSourcesWithClassName.isEmpty && newSourcesWithClassName.isEmpty then
       sys.error(s"Fatal Zinc error: no entry for class $className in classes relation.")
-    else {
+    else
       // Makes sure that the dependency doesn't possibly come from Java
       previousSourcesWithClassName.forall(src => APIUtil.isScalaSourceName(src.id)) &&
       newSourcesWithClassName.forall(src => APIUtil.isScalaSourceName(src.id))
-    }
-  }
 
   /** Invalidate all classes that claim to produce the same class file as another class. */
-  def invalidateNamesProducingSameClassFile(merged: Relations): Set[String] = {
+  def invalidateNamesProducingSameClassFile(merged: Relations): Set[String] =
     merged.srcProd.reverseMap.flatMap {
-      case (_, sources) => if (sources.size > 1) sources.flatMap(merged.classNames(_)) else Nil
+      case (_, sources) => if sources.size > 1 then sources.flatMap(merged.classNames(_)) else Nil
     }.toSet
-  }
 
   /**
    * - If the classpath hash has NOT changed, check if there's been name shadowing
@@ -836,71 +816,61 @@ object IncrementalCommon {
       previousRelations: Relations,
       converter: FileConverter,
       log: Logger
-  )(implicit equivS: Equiv[XStamp]): VirtualFileRef => Boolean = {
+  )(implicit equivS: Equiv[XStamp]): VirtualFileRef => Boolean =
     val invalidationLog = new InvalidationLog(log, relationsDebug = false)
-    (binaryFile: VirtualFileRef) => {
-      def invalidateBinary(reason: String): Boolean = {
+    (binaryFile: VirtualFileRef) =>
+      def invalidateBinary(reason: String): Boolean =
         invalidationLog.debug(s"Invalidating '$binaryFile' because $reason")
         true
-      }
 
-      def compareStamps(previousFile: VirtualFileRef, currentFile: VirtualFileRef): Boolean = {
+      def compareStamps(previousFile: VirtualFileRef, currentFile: VirtualFileRef): Boolean =
         val previousStamp = previousStamps.library(previousFile)
         val currentStamp = currentStamps.library(currentFile)
-        if (equivS.equiv(previousStamp, currentStamp)) false
+        if equivS.equiv(previousStamp, currentStamp) then false
         else invalidateBinary(s"$previousFile ($previousStamp) != $currentFile ($currentStamp)")
-      }
 
-      def isLibraryChanged(file: VirtualFileRef): Boolean = {
-        def compareOriginClassFile(className: String, classpathEntry: VirtualFileRef): Boolean = {
-          if (classpathEntry.id.endsWith(".jar")) compareStamps(file, classpathEntry)
-          else {
+      def isLibraryChanged(file: VirtualFileRef): Boolean =
+        def compareOriginClassFile(className: String, classpathEntry: VirtualFileRef): Boolean =
+          if classpathEntry.id.endsWith(".jar") then compareStamps(file, classpathEntry)
+          else
             val resolved = Locate.classFile(converter.toPath(classpathEntry), className)
             compareStamps(file, converter.toVirtualFile(resolved))
-          }
-        }
 
         val classNames = previousRelations.libraryClassNames(file)
         classNames.exists { binaryClassName =>
-          if (lookup.changedClasspathHash.isEmpty) {
+          if lookup.changedClasspathHash.isEmpty then
             // If classpath is not changed, the only possible change needs to come from same project
-            lookup.lookupAnalysis(binaryClassName) match {
+            lookup.lookupAnalysis(binaryClassName) match
               case None => false
               // Most of the cases this is a build tool misconfiguration when using Zinc
               case Some(a) => invalidateBinary(s"${binaryClassName} came from analysis $a")
-            }
-          } else {
+          else
             // Find
-            lookup.lookupOnClasspath(binaryClassName) match {
+            lookup.lookupOnClasspath(binaryClassName) match
               case None =>
                 invalidateBinary(s"could not find class $binaryClassName on the classpath.")
               case Some(classpathEntry) => compareOriginClassFile(binaryClassName, classpathEntry)
-            }
-          }
         }
-      }
+      end isLibraryChanged
 
-      if (skipClasspathLookup) compareStamps(binaryFile, binaryFile)
+      if skipClasspathLookup then compareStamps(binaryFile, binaryFile)
       else isLibraryChanged(binaryFile)
-    }
-  }
+  end isLibraryModified
 
   def transitiveDeps[T](
       nodes: Iterable[T],
       log: Logger,
       logging: Boolean = true
-  )(dependencies: T => Iterable[T]): Set[T] = {
+  )(dependencies: T => Iterable[T]): Set[T] =
     val visited = new collection.mutable.HashSet[T]
     def all(from: T, tos: Iterable[T]): Unit = tos.foreach(to => visit(from, to))
-    def visit(from: T, to: T): Unit = {
-      if (!visited.contains(to)) {
-        if (logging) log.debug(s"Transitive dependency traversal: including $to from $from")
+    def visit(from: T, to: T): Unit =
+      if !visited.contains(to) then
+        if logging then log.debug(s"Transitive dependency traversal: including $to from $from")
         visited += to
         all(to, dependencies(to))
-      }
-    }
 
-    if (logging && nodes.nonEmpty)
+    if logging && nodes.nonEmpty then
       log.debug(
         InvalidationLog.section(
           "Transitive dependency traversal",
@@ -912,7 +882,7 @@ object IncrementalCommon {
       all(start, dependencies(start))
     }
     visited.toSet
-  }
+  end transitiveDeps
 
   /**
    * Check that a collection of files are absolute and not relative.
@@ -923,8 +893,8 @@ object IncrementalCommon {
    *
    * @param addedSources
    */
-  def checkAbsolute(addedSources: Iterable[VirtualFileRef]): Unit = {
-    if (addedSources.isEmpty) ()
+  def checkAbsolute(addedSources: Iterable[VirtualFileRef]): Unit =
+    if addedSources.isEmpty then ()
     else {
       // addedSources.filterNot(_.isAbsolute).toList match {
       //   case first :: more =>
@@ -937,14 +907,12 @@ object IncrementalCommon {
       //   case Nil => ()
       // }
     }
-  }
 
-  lazy val emptyChanges: DependencyChanges = new DependencyChanges {
+  lazy val emptyChanges: DependencyChanges = new DependencyChanges:
     override val modifiedBinaries = new Array[java.io.File](0)
     override val modifiedLibraries = new Array[VirtualFileRef](0)
     override val modifiedClasses = new Array[String](0)
     override def isEmpty = true
-  }
 
   /**
    * Prunes from the analysis and deletes the class files of `invalidatedSources`.
@@ -959,9 +927,8 @@ object IncrementalCommon {
       previous: Analysis,
       classfileManager: XClassFileManager,
       converter: FileConverter
-  ): Analysis = {
+  ): Analysis =
     val products = invalidatedSources.flatMap(previous.relations.products).toList
     classfileManager.delete(products.map(converter.toVirtualFile(_)).toArray)
     previous -- invalidatedSources
-  }
-}
+end IncrementalCommon

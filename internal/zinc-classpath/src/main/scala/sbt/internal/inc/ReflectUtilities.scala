@@ -14,27 +14,25 @@ package internal
 package inc
 
 import java.lang.reflect.Field
-import scala.collection._
+import scala.collection.*
 import scala.reflect.ClassTag
 
-object ReflectUtilities {
+object ReflectUtilities:
 
   /** Converts the camelCase String `name` to lowercase separated by `separator`. */
-  def transformCamelCase(name: String, separator: Char): String = {
+  def transformCamelCase(name: String, separator: Char): String =
     val buffer = new StringBuilder
-    for (char <- name) {
-      import java.lang.Character._
-      if (isUpperCase(char)) {
+    for char <- name do
+      import java.lang.Character.*
+      if isUpperCase(char) then
         buffer += separator
         buffer += toLowerCase(char)
-      } else
+      else
         buffer += char
-    }
     buffer.toString
-  }
 
   def ancestry(clazz: Class[?]): List[Class[?]] =
-    if (clazz == classOf[AnyRef] || !classOf[AnyRef].isAssignableFrom(clazz)) List(clazz)
+    if clazz == classOf[AnyRef] || !classOf[AnyRef].isAssignableFrom(clazz) then List(clazz)
     else clazz :: ancestry(clazz.getSuperclass)
 
   def fields(clazz: Class[?]): mutable.Map[String, Field] =
@@ -45,24 +43,20 @@ object ReflectUtilities {
    * The returned Map maps the name of each `val` to its value.
    * This depends on scalac implementation details to determine what is a `val` using only Java reflection.
    */
-  def allValsC[T](self: AnyRef, clazz: Class[T]): immutable.SortedMap[String, T] = {
+  def allValsC[T](self: AnyRef, clazz: Class[T]): immutable.SortedMap[String, T] =
     var mappings = new immutable.TreeMap[String, T]
     val correspondingFields = fields(self.getClass)
-    for (method <- self.getClass.getMethods) {
-      if (method.getParameterTypes.isEmpty && clazz.isAssignableFrom(method.getReturnType)) {
-        for (
+    for method <- self.getClass.getMethods do
+      if method.getParameterTypes.isEmpty && clazz.isAssignableFrom(method.getReturnType) then
+        for
           field <- correspondingFields.get(method.getName)
           if field.getType == method.getReturnType
-        ) {
+        do
           val value = method.invoke(self).asInstanceOf[T]
-          if (value == null)
+          if value == null then
             throw new UninitializedVal(method.getName, method.getDeclaringClass.getName)
           mappings += ((method.getName, value))
-        }
-      }
-    }
     mappings
-  }
 
   /**
    * Collects all `val`s of type `A` defined on value `self`.
@@ -74,10 +68,11 @@ object ReflectUtilities {
       self: AnyRef
   ): immutable.SortedMap[String, A1] =
     allValsC(self, summon[ClassTag[A1]].runtimeClass).asInstanceOf[immutable.SortedMap[String, A1]]
-}
+end ReflectUtilities
 
 /** An exception to indicate that while traversing the `val`s for an instance of `className`, the `val` named `valName` was `null`. */
 final class UninitializedVal(val valName: String, val className: String)
     extends RuntimeException(
-      "val " + valName + " in class " + className + " was null.\nThis is probably an initialization problem and a 'lazy val' should be used."
+      "val " + valName + " in class " + className +
+        " was null.\nThis is probably an initialization problem and a 'lazy val' should be used."
     )

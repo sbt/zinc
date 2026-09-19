@@ -19,12 +19,12 @@ import java.util.function.Supplier
 import org.scalatest.flatspec.AnyFlatSpec
 import xsbti.compile.{ ClasspathOptions, ClasspathOptionsUtil }
 
-class CompilerArgumentsSpec extends AnyFlatSpec {
+class CompilerArgumentsSpec extends AnyFlatSpec:
   import CompilerArguments.{ BootClasspathLongOption, BootClasspathOption }
 
   private val scalaLibraryJar = new File("scala-library.jar")
 
-  private object FakeScalaInstance extends xsbti.compile.ScalaInstance {
+  private object FakeScalaInstance extends xsbti.compile.ScalaInstance:
     val version = "2.12.20"
     val actualVersion = version
     val loader = getClass.getClassLoader
@@ -34,16 +34,14 @@ class CompilerArgumentsSpec extends AnyFlatSpec {
     val compilerJars = Array.empty[File]
     val otherJars = Array.empty[File]
     val allJars = Array(scalaLibraryJar)
-  }
 
-  private class RecordingLogger extends xsbti.Logger {
+  private class RecordingLogger extends xsbti.Logger:
     val warnings = collection.mutable.Buffer.empty[String]
     def warn(msg: Supplier[String]): Unit = warnings += msg.get()
     def error(msg: Supplier[String]): Unit = ()
     def info(msg: Supplier[String]): Unit = ()
     def debug(msg: Supplier[String]): Unit = ()
     def trace(exception: Supplier[Throwable]): Unit = ()
-  }
 
   private val autoBootOptions = ClasspathOptionsUtil.boot()
   private val noAutoBootOptions = ClasspathOptions.of(false, false, false, false, false)
@@ -138,4 +136,4 @@ class CompilerArgumentsSpec extends AnyFlatSpec {
   it should "not confuse another option that merely starts with the same text" in {
     assert(CompilerArguments.explicitBootClasspath(Seq("-bootclasspathological")).isEmpty)
   }
-}
+end CompilerArgumentsSpec

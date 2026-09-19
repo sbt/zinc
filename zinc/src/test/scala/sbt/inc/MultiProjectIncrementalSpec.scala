@@ -13,12 +13,12 @@ package sbt.inc
 
 import java.nio.file.{ Files, Path, StandardCopyOption }
 
-import sbt.internal.inc._
+import sbt.internal.inc.*
 import sbt.io.IO
-import TestResource._
+import TestResource.*
 import xsbti.compile.CompileResult
 
-class MultiProjectIncrementalSpec extends BaseCompilerSpec {
+class MultiProjectIncrementalSpec extends BaseCompilerSpec:
   // override def logLevel = sbt.util.Level.Debug
 
   "incremental compiler" should "detect shadowing" in {
@@ -51,7 +51,7 @@ class MultiProjectIncrementalSpec extends BaseCompilerSpec {
       val c2 = p2.setup.createCompiler()
 
       def assertExists(p: Path) = assert(Files.exists(p), s"$p does not exist")
-      try {
+      try
         // This registers `test.pkg.Ext1` as the class name on the binary stamp
         c1.compile(c1.toVf(dependerFile))
         assertExists(c1.output / "test/pkg/Depender$.class")
@@ -96,100 +96,101 @@ class MultiProjectIncrementalSpec extends BaseCompilerSpec {
         // Depender.scala should be invalidated since it depends on test.pkg.Ext1 from the JAR file,
         // but the class is now shadowed by sub2/target.
         assert(lastClasses(a3).contains("test.pkg.Depender"))
-      } finally {
+      finally
         c1.close()
         c2.close()
-      }
+      end try
     }
   }
 
-  "it" should "not compile Java for no-op" in (IO.withTemporaryDirectory { tmp =>
-    val p1 = VirtualSubproject(tmp.toPath / "sub1")
-    val p2 = VirtualSubproject(tmp.toPath / "sub2").dependsOn(p1)
-    val c1 = p1.setup.createCompiler()
-    val c2 = p2.setup.createCompiler()
-    try {
-      val s1 = "package pkg; class A"
-      val s2 = "package pkg; class B { def a = new A }"
-      val s3 = "package pkg; public class Z { public static A x = new B().a(); }"
-      val s4 = "package pkg; public class Z { public static A y = new B().a(); }"
+  "it" should "not compile Java for no-op" in
+    (IO.withTemporaryDirectory { tmp =>
+      val p1 = VirtualSubproject(tmp.toPath / "sub1")
+      val p2 = VirtualSubproject(tmp.toPath / "sub2").dependsOn(p1)
+      val c1 = p1.setup.createCompiler()
+      val c2 = p2.setup.createCompiler()
+      try
+        val s1 = "package pkg; class A"
+        val s2 = "package pkg; class B { def a = new A }"
+        val s3 = "package pkg; public class Z { public static A x = new B().a(); }"
+        val s4 = "package pkg; public class Z { public static A y = new B().a(); }"
 
-      val f1 = StringVirtualFile("A.scala", s1)
-      val f2 = StringVirtualFile("B.scala", s2)
-      val f3 = StringVirtualFile("Z.java", s3)
-      val f4 = StringVirtualFile("Z.java", s4)
+        val f1 = StringVirtualFile("A.scala", s1)
+        val f2 = StringVirtualFile("B.scala", s2)
+        val f3 = StringVirtualFile("Z.java", s3)
+        val f4 = StringVirtualFile("Z.java", s4)
 
-      c1.compile(f1)
-      val result = c2.compileBoth(f2, f3)
-      val noopResult = c2.compileBoth(f2, f3)
-      // comparing startTime is no longer a good test
-      assert(!noopResult.hasModified())
+        c1.compile(f1)
+        val result = c2.compileBoth(f2, f3)
+        val noopResult = c2.compileBoth(f2, f3)
+        // comparing startTime is no longer a good test
+        assert(!noopResult.hasModified())
 
-      // comparing startTime is no longer a good test
-      val changedResult = c2.compileBoth(f2, f4)
-      assert(changedResult.hasModified())
-    } finally {
-      c1.close()
-      c2.close()
-    }
-  })
+        // comparing startTime is no longer a good test
+        val changedResult = c2.compileBoth(f2, f4)
+        assert(changedResult.hasModified())
+      finally
+        c1.close()
+        c2.close()
+      end try
+    })
 
-  "it" should "recompile Java on upstream changes" in (IO.withTemporaryDirectory { tmp =>
-    val p1 = VirtualSubproject(tmp.toPath / "sub1")
-    val p2 = VirtualSubproject(tmp.toPath / "sub2").dependsOn(p1)
-    val c1 = p1.setup.createCompiler()
-    val c2 = p2.setup.createCompiler()
-    try {
-      val s1 = "package pkg; class A { def a = 1 }"
-      val s1b = "package pkg; class A { def a1 = 1 }"
-      val s2 = "package pkg; class B extends A { def b = 2 }"
-      val s3 = "package pkg; class C"
-      val s4 = "package pkg; public class Z { public static int x = 3; }"
+  "it" should "recompile Java on upstream changes" in
+    (IO.withTemporaryDirectory { tmp =>
+      val p1 = VirtualSubproject(tmp.toPath / "sub1")
+      val p2 = VirtualSubproject(tmp.toPath / "sub2").dependsOn(p1)
+      val c1 = p1.setup.createCompiler()
+      val c2 = p2.setup.createCompiler()
+      try
+        val s1 = "package pkg; class A { def a = 1 }"
+        val s1b = "package pkg; class A { def a1 = 1 }"
+        val s2 = "package pkg; class B extends A { def b = 2 }"
+        val s3 = "package pkg; class C"
+        val s4 = "package pkg; public class Z { public static int x = 3; }"
 
-      val f1 = StringVirtualFile("A.scala", s1)
-      val f1b = StringVirtualFile("A.scala", s1b)
-      val f2 = StringVirtualFile("B.scala", s2)
-      val f3 = StringVirtualFile("C.scala", s3)
-      val f4 = StringVirtualFile("Z.java", s4)
+        val f1 = StringVirtualFile("A.scala", s1)
+        val f1b = StringVirtualFile("A.scala", s1b)
+        val f2 = StringVirtualFile("B.scala", s2)
+        val f3 = StringVirtualFile("C.scala", s3)
+        val f4 = StringVirtualFile("Z.java", s4)
 
-      c1.compile(f1)
-      c2.compile(f2, f3, f4)
-      c1.compile(f1b)
-      val result = c2.compile(f2, f3, f4)
-      assert(lastClasses(result.analysis.asInstanceOf[Analysis]) == Set("pkg.B", "pkg.Z"))
-    } finally {
-      c1.close()
-      c2.close()
-    }
-  })
+        c1.compile(f1)
+        c2.compile(f2, f3, f4)
+        c1.compile(f1b)
+        val result = c2.compile(f2, f3, f4)
+        assert(lastClasses(result.analysis.asInstanceOf[Analysis]) == Set("pkg.B", "pkg.Z"))
+      finally
+        c1.close()
+        c2.close()
+      end try
+    })
 
-  "it" should "allow shadowing of dependency classes" in (IO.withTemporaryDirectory { tmp =>
-    val p1 = VirtualSubproject(tmp.toPath / "sub1")
-    val p2 = VirtualSubproject(tmp.toPath / "sub2").dependsOn(p1)
-    val c1 = p1.setup.createCompiler()
-    val c2 = p2.setup.copy(outputToJar = true).createCompiler()
-    try {
-      val s1 = "package pkg; public class A { public static int a = 1; }"
-      val s1Shadow =
-        "package pkg; public class A { public static int a = 1; public class InnerA { public int i = 2; } }"
+  "it" should "allow shadowing of dependency classes" in
+    (IO.withTemporaryDirectory { tmp =>
+      val p1 = VirtualSubproject(tmp.toPath / "sub1")
+      val p2 = VirtualSubproject(tmp.toPath / "sub2").dependsOn(p1)
+      val c1 = p1.setup.createCompiler()
+      val c2 = p2.setup.copy(outputToJar = true).createCompiler()
+      try
+        val s1 = "package pkg; public class A { public static int a = 1; }"
+        val s1Shadow =
+          "package pkg; public class A { public static int a = 1; public class InnerA { public int i = 2; } }"
 
-      val f1 = StringVirtualFile("A.java", s1)
-      val f1Shadow = StringVirtualFile("A.java", s1Shadow)
+        val f1 = StringVirtualFile("A.java", s1)
+        val f1Shadow = StringVirtualFile("A.java", s1Shadow)
 
-      c1.compileAllJava(f1)
-      // this will fail with "pkg.A and pkg.A$InnerA disagree on InnerClasses attribute" if f1Shadow ends up
-      // later on the AnalyzingJavaCompiler.searchClasspath than f1
-      c2.compileAllJava(f1Shadow)
-    } finally {
-      c1.close()
-      c2.close()
-    }
-  })
+        c1.compileAllJava(f1)
+        // this will fail with "pkg.A and pkg.A$InnerA disagree on InnerClasses attribute" if f1Shadow ends up
+        // later on the AnalyzingJavaCompiler.searchClasspath than f1
+        c2.compileAllJava(f1Shadow)
+      finally
+        c1.close()
+        c2.close()
+    })
 
-  def startTimes(res: CompileResult) = {
+  def startTimes(res: CompileResult) =
     res.analysis.readCompilations.getAllCompilations.map(_.getStartTime).toList
-  }
-}
+end MultiProjectIncrementalSpec
 
 /* Make a jar with the following:
 
