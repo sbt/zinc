@@ -15,10 +15,9 @@ import java.nio.file.{ Path, Paths }
 
 import xsbti.compile.analysis.Stamp
 
-object MapperUtils {
-  private[inc] def rebase(target: Path, from: Path, to: Path): Path = {
+object MapperUtils:
+  private[inc] def rebase(target: Path, from: Path, to: Path): Path =
     to.resolve(from.relativize(target))
-  }
 
   /** Defines a marker that tells the utils that the relativized path is empty. */
   private final val RELATIVE_MARKER = "\u2603\u2603\u2603"
@@ -45,10 +44,9 @@ object MapperUtils {
    *
    * @return A relativized file with a special prefix to denote the path is relative.
    */
-  private[inc] def makeRelative(file: Path, from: Path): Path = {
+  private[inc] def makeRelative(file: Path, from: Path): Path =
     val relativePath = from.relativize(file)
     Paths.get(s"$RELATIVE_MARKER${relativePath}")
-  }
 
   /**
    * Reconstructs a file from a given path, making the file absolute.
@@ -59,17 +57,15 @@ object MapperUtils {
    *
    * @return An absolute path from a relativized file by [[makeRelative()]].
    */
-  private[inc] def reconstructRelative(file: Path, from: Path): Path = {
+  private[inc] def reconstructRelative(file: Path, from: Path): Path =
     val filePath = file.toString
-    if (filePath.startsWith(RELATIVE_MARKER)) {
+    if filePath.startsWith(RELATIVE_MARKER) then
       val cleanPath = filePath.drop(MARKER_LENGTH)
       from.resolve(cleanPath)
-    } else throw new RelativePathAssumptionBroken(relativeReadError(filePath, from))
-  }
+    else throw new RelativePathAssumptionBroken(relativeReadError(filePath, from))
 
   private final class RelativePathAssumptionBroken(msg: String) extends Exception(msg)
 
-  private[inc] def recomputeModificationDate(previouslyStampedFile: Path): Stamp = {
+  private[inc] def recomputeModificationDate(previouslyStampedFile: Path): Stamp =
     sbt.internal.inc.Stamper.forLastModifiedP(previouslyStampedFile)
-  }
-}
+end MapperUtils

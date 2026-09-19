@@ -18,12 +18,12 @@ import xsbti.{ PathBasedFile, VirtualFile }
 import CompilerArguments.{ absString, abs }
 
 // Intended to be used with sbt.internal.inc.javac.JavaTools.
-private[sbt] object JavaCompilerArguments {
+private[sbt] object JavaCompilerArguments:
   def apply(
       sources: List[VirtualFile],
       classpath: List[VirtualFile],
       options: List[String]
-  ): List[String] = {
+  ): List[String] =
     val cp = classpath map {
       case x: PathBasedFile => x.toPath
     }
@@ -32,5 +32,3 @@ private[sbt] object JavaCompilerArguments {
     }
     val classpathOption = List("-classpath", absString(cp))
     options ::: classpathOption ::: abs(sources1)
-  }
-}

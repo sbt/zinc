@@ -16,9 +16,7 @@ final case class Discovered(
     annotations: Set[String],
     hasMain: Boolean,
     isModule: Boolean
-) {
+):
   def isEmpty = baseClasses.isEmpty && annotations.isEmpty
-}
-object Discovered {
+object Discovered:
   def empty = new Discovered(Set.empty, Set.empty, false, false)
-}

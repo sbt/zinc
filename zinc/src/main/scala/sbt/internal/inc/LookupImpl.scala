@@ -17,29 +17,26 @@ import xsbti.compile.{ Changes, CompileAnalysis, FileHash, MiniSetup }
 import xsbti.{ VirtualFile, VirtualFileRef }
 
 class LookupImpl(compileConfiguration: CompileConfiguration, previousSetup: Option[MiniSetup])
-    extends Lookup {
+    extends Lookup:
   private val classpath: Vector[VirtualFile] = compileConfiguration.classpath.toVector
   private val classpathHash: Vector[FileHash] =
     compileConfiguration.currentSetup.options.classpathHash.toVector
 
-  import scala.jdk.OptionConverters._
-  lazy val analyses: Vector[Analysis] = {
+  import scala.jdk.OptionConverters.*
+  lazy val analyses: Vector[Analysis] =
     classpath flatMap { entry =>
       compileConfiguration.perClasspathEntryLookup.analysis(entry).toScala.map {
         case a: Analysis => a
       }
     }
-  }
 
-  lazy val previousClasspathHash: Vector[FileHash] = {
-    previousSetup match {
+  lazy val previousClasspathHash: Vector[FileHash] =
+    previousSetup match
       case Some(x) => x.options.classpathHash.toVector
       case _       => Vector()
-    }
-  }
 
   def changedClasspathHash: Option[Vector[FileHash]] =
-    if (classpathHash == previousClasspathHash) None
+    if classpathHash == previousClasspathHash then None
     else Some(classpathHash)
 
   private val entry = MixedAnalyzingCompiler.classPathLookup(compileConfiguration)
@@ -55,17 +52,14 @@ class LookupImpl(compileConfiguration: CompileConfiguration, previousSetup: Opti
     .flatMap(ext => ext.getExternalLookup().toScala)
     .collect { case externalLookup: ExternalLookup => externalLookup }
 
-  override def lookupAnalyzedClass(binaryClassName: String, file: Option[VirtualFileRef]) = {
-    externalLookup match { // not flatMap so that external lookup can fast-track returning None
+  override def lookupAnalyzedClass(binaryClassName: String, file: Option[VirtualFileRef]) =
+    externalLookup match // not flatMap so that external lookup can fast-track returning None
       case Some(externalLookup) =>
-        externalLookup.lookupAnalyzedClass(binaryClassName, file) match {
+        externalLookup.lookupAnalyzedClass(binaryClassName, file) match
           case Some(api) if api.provenance.isEmpty => // found but w/o provenance, so go slow route
             super.lookupAnalyzedClass(binaryClassName, file)
           case x => x // fast-track success: either found w/ provenance or not found at all
-        }
       case _ => super.lookupAnalyzedClass(binaryClassName, file)
-    }
-  }
 
   override def changedSources(previousAnalysis: CompileAnalysis): Option[Changes[VirtualFileRef]] =
     externalLookup.flatMap(_.changedSources(previousAnalysis))
@@ -84,13 +78,11 @@ class LookupImpl(compileConfiguration: CompileConfiguration, previousSetup: Opti
   ): Boolean =
     externalLookup.forall(_.shouldDoIncrementalCompilation(changedClasses, analysis))
 
-  override def shouldDoEarlyOutput(analysis: CompileAnalysis): Boolean = {
-    externalLookup match {
+  override def shouldDoEarlyOutput(analysis: CompileAnalysis): Boolean =
+    externalLookup match
       case Some(externalLookup) => externalLookup.shouldDoEarlyOutput(analysis)
       case None                 => super.shouldDoEarlyOutput(analysis)
-    }
-  }
 
   override def hashClasspath(classpath: Array[VirtualFile]): Optional[Array[FileHash]] =
     externalLookup.map(_.hashClasspath(classpath)).getOrElse(Optional.empty())
-}
+end LookupImpl

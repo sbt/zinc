@@ -120,7 +120,7 @@ trait CompilingSpecification extends AbstractBridgeProviderTestkit {
    * Only the names used in the last src file are returned.
    */
   def extractUsedNamesFromSrc(sources: String*): Map[String, Set[String]] = {
-    val (srcFiles, analysisCallback) = compileSrcs(sources*)
+    val (srcFiles, analysisCallback) = compileSrcs(sources *)
     srcFiles
       .map { srcFile =>
         val classesInSrc = analysisCallback.classNames(srcFile).map(_._1)
@@ -134,7 +134,7 @@ trait CompilingSpecification extends AbstractBridgeProviderTestkit {
    * dependencies between snippets.
    */
   def extractDependenciesFromSrcs(srcs: String*): ExtractedClassDependencies = {
-    val (_, testCallback) = compileSrcs(srcs*)
+    val (_, testCallback) = compileSrcs(srcs *)
 
     val memberRefDeps = testCallback.classDependencies.toList collect {
       case (target, src, DependencyByMemberRef) => (src, target)
@@ -155,10 +155,11 @@ trait CompilingSpecification extends AbstractBridgeProviderTestkit {
       "C_CACHE1" -> Paths.get(sys.props("user.home")).resolve(".coursier").resolve("cache"),
       "C_CACHE2" -> Paths.get(sys.props("user.home")).resolve(".cache").resolve("coursier"),
       "C_CACHE3" -> Paths.get(sys.props("user.home"), "Library/Caches/Coursier/v1")
-    ) ++ sys.env
-      .get("LOCALAPPDATA")
-      .map(s => "C_CACHE4" -> Paths.get(s.replace('\\', '/'), "Coursier/cache/v1"))
-      .toList*
+    ) ++
+      sys.env
+        .get("LOCALAPPDATA")
+        .map(s => "C_CACHE4" -> Paths.get(s.replace('\\', '/'), "Coursier/cache/v1"))
+        .toList *
   )
 
   lazy val emptyChanges: DependencyChanges = new DependencyChanges {

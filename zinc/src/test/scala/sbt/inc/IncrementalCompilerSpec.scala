@@ -11,84 +11,83 @@
 
 package sbt.inc
 
-import sbt.internal.inc._
-import sbt.io.IO.{ withTemporaryDirectory => withTmpDir }
-import sbt.io.syntax._
+import sbt.internal.inc.*
+import sbt.io.IO.withTemporaryDirectory as withTmpDir
+import sbt.io.syntax.*
 import xsbti.compile.{ AnalysisStore, CompileAnalysis, DefaultExternalHooks, Inputs, Output }
 import java.util.Optional
 
 import xsbti.VirtualFile
 
-class IncrementalCompilerSpec extends BaseCompilerSpec {
+class IncrementalCompilerSpec extends BaseCompilerSpec:
   // override val logLevel = sbt.util.Level.Debug
   behavior.of("incremental compiler")
 
   it should "compile" in withTmpDir { tmp =>
     val comp = ProjectSetup.simple(tmp.toPath, Seq(SourceFiles.Good)).createCompiler()
-    try {
+    try
       val result = comp.doCompile()
       assertExists(comp.output / "pkg" / "Good$.class")
       assert(!result.analysis.readStamps.getAllSourceStamps.isEmpty)
-    } finally comp.close()
+    finally comp.close()
   }
 
   it should "not compile anything if source has not changed" in withTmpDir { tmp =>
     val classes = Seq(SourceFiles.Good, SourceFiles.Foo)
     val comp = ProjectSetup.simple(tmp.toPath, classes).createCompiler()
-    try {
+    try
       val result = comp.doCompile()
       val result2 = comp.doCompile(_.withPreviousResult(comp.zinc.previousResult(result)))
       assert(!result2.hasModified)
-    } finally comp.close()
+    finally comp.close()
   }
 
   it should "honour Lookup#shouldDoEarlyOutput" in withTmpDir { tmp =>
-    val ext = new NoopExternalLookup { override def shouldDoEarlyOutput(a: CompileAnalysis) = true }
+    val ext = new NoopExternalLookup:
+      override def shouldDoEarlyOutput(a: CompileAnalysis) = true
     val extHooks = new DefaultExternalHooks(Optional.of(ext), Optional.empty())
-    def compilerSetupHelper(ps: ProjectSetup) = {
+    def compilerSetupHelper(ps: ProjectSetup) =
       val setup1 = ps.copy(scalacOptions = ps.scalacOptions :+ "-language:experimental.macros")
       val c1 = setup1.createCompiler()
       c1.copy(incOptions = c1.incOptions.withExternalHooks(extHooks))
-    }
     val p1 = VirtualSubproject(tmp.toPath / "p1")
     val p2 = VirtualSubproject(tmp.toPath / "p2").dependsOn(p1)
     val c1 = compilerSetupHelper(p1.setup)
     val c2 = compilerSetupHelper(p2.setup)
-    try {
+    try
       val s1 = s"object A { def f(c: scala.reflect.macros.blackbox.Context) = c.literalUnit }"
       val s2 = s"object B { def f: Unit = macro A.f }"
       c1.compile(StringVirtualFile("A.scala", s1))
       c2.compile(StringVirtualFile("B.scala", s2))
       assertExists(c1.earlyOutput)
       assertExists(c2.earlyOutput)
-    } finally {
+    finally
       c1.close()
       c2.close()
-    }
   }
 
   it should "compile Java code" in withTmpDir { tmp =>
     val comp = ProjectSetup.simple(tmp.toPath, Seq(SourceFiles.NestedJavaClasses)).createCompiler()
-    try {
+    try
       comp.doCompileWithStore()
       val result1 = comp.doCompileAllJavaWithStore()
       assertExists(comp.output / "NestedJavaClasses.class")
       assert(!result1.analysis.readStamps.getAllSourceStamps.isEmpty)
-    } finally comp.close()
+    finally comp.close()
   }
 
   it should "compile all Java code" in withTmpDir { tempDir =>
     val c1 = VirtualSubproject(tempDir.toPath / "sub1").setup.createCompiler()
-    try {
+    try
       val result = c1.compileAllJava(StringVirtualFile("A.java", "public class A {}"))
       assert(!result.analysis.readStamps.getAllSourceStamps.isEmpty)
       assertExists(c1.output / "A.class")
-    } finally c1.close()
+    finally c1.close()
   }
 
   it should "compile all Java code in a mixed project" in withTmpDir { tempDir =>
     val c1 = VirtualSubproject(tempDir.toPath / "sub1").setup.createCompiler()
-    try {
+    try
       val jf = StringVirtualFile("A.java", "public class A {}")
       val sf = StringVirtualFile("B.scala", "class B { val a = new A }")
 
@@ -98,13 +97,13 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
       val result2 = c1.compileAllJava(jf, sf)
       assert(!result2.analysis.readStamps.getAllSourceStamps.isEmpty)
       assertExists(c1.output / "A.class")
-    } finally c1.close()
+    finally c1.close()
   }
 
   it should "trigger full compilation if extra changes" in withTmpDir { tempDir =>
     val classes = Seq(SourceFiles.Good, SourceFiles.Foo)
     val comp = ProjectSetup.simple(tempDir.toPath, classes).createCompiler()
-    try {
+    try
       val cacheFile = tempDir / "target" / "inc_compile.zip"
       val fileStore = AnalysisStore.getCachedStore(FileAnalysisStore.binary(cacheFile))
 
@@ -117,7 +116,7 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
       val setup = comp.setup.withExtra(Array())
       val result3 = comp.doCompileWithStore(fileStore, _.withSetup(setup))
       assert(result3.hasModified)
-    } finally comp.close()
+    finally comp.close()
   }
 
   it should "delete all products if extra changes" in withTmpDir { tempDir =>
@@ -125,47 +124,47 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
       ProjectSetup.simple(tempDir.toPath, Seq(SourceFiles.Good, SourceFiles.Foo)).createCompiler()
     val comp2 =
       ProjectSetup.simple(tempDir.toPath, Seq(SourceFiles.Foo)).createCompiler()
-    try {
+    try
       val cacheFile = tempDir / "target" / "inc_compile.zip"
       val fileStore = AnalysisStore.getCachedStore(FileAnalysisStore.binary(cacheFile))
       comp.doCompileWithStore(fileStore)
       val newSetup = comp2.setup.withExtra(Array())
       comp2.doCompileWithStore(fileStore, _.withSetup(newSetup))
       assertNotExists(comp.output / "pkg" / "Good$.class")
-    } finally comp.close()
+    finally comp.close()
   }
 
-  it should "not trigger full compilation for small Scala changes in a mixed project" in withTmpDir {
-    tmp =>
-      val project = VirtualSubproject(tmp.toPath / "p1")
-      val comp = project.setup.createCompiler()
-      try {
-        val s1 = "class A { def a = 1 }"
-        val s1b = "class A { def a = 2 }"
-        val s2 = "class B { def b = 1 }"
-        val s3 = "class C { def c = 1 }"
-        val s4 = "public class D { public int d = 1; }"
-        val s5 = "public class E { public int e = 1; }"
+  it should "not trigger full compilation for small Scala changes in a mixed project" in
+    withTmpDir {
+      tmp =>
+        val project = VirtualSubproject(tmp.toPath / "p1")
+        val comp = project.setup.createCompiler()
+        try
+          val s1 = "class A { def a = 1 }"
+          val s1b = "class A { def a = 2 }"
+          val s2 = "class B { def b = 1 }"
+          val s3 = "class C { def c = 1 }"
+          val s4 = "public class D { public int d = 1; }"
+          val s5 = "public class E { public int e = 1; }"
 
-        val f1 = StringVirtualFile("A.scala", s1)
-        val f1b = StringVirtualFile("A.scala", s1b)
-        val f2 = StringVirtualFile("B.scala", s2)
-        val f3 = StringVirtualFile("C.scala", s3)
-        val f4 = StringVirtualFile("D.java", s4)
-        val f5 = StringVirtualFile("E.java", s5)
+          val f1 = StringVirtualFile("A.scala", s1)
+          val f1b = StringVirtualFile("A.scala", s1b)
+          val f2 = StringVirtualFile("B.scala", s2)
+          val f3 = StringVirtualFile("C.scala", s3)
+          val f4 = StringVirtualFile("D.java", s4)
+          val f5 = StringVirtualFile("E.java", s5)
 
-        comp.compile(f1, f2, f3, f4, f5)
-        val result = comp.compile(f1b, f2, f3, f4, f5)
-        assert(lastClasses(result.analysis.asInstanceOf[Analysis]) == Set("A", "D", "E"))
-      } finally {
-        comp.close()
-      }
-  }
+          comp.compile(f1, f2, f3, f4, f5)
+          val result = comp.compile(f1b, f2, f3, f4, f5)
+          assert(lastClasses(result.analysis.asInstanceOf[Analysis]) == Set("A", "D", "E"))
+        finally
+          comp.close()
+    }
 
   it should "track dependencies from nested inner Java classes" in withTmpDir { tmp =>
     val project = VirtualSubproject(tmp.toPath / "p1")
     val comp = project.setup.createCompiler()
-    try {
+    try
       val s1 =
         "public class A { public Object i = new Object() { public Object ii = new Object() { public int i = B.b; }; }; }"
       val s2 = "public class B { public static int b = 1; }"
@@ -177,8 +176,8 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
       val f2b = StringVirtualFile("B.java", s2b)
       val f3 = StringVirtualFile("C.java", s3)
 
-      def compileJava(sources: VirtualFile*) = {
-        def incrementalJavaInputs(sources: VirtualFile*)(in: Inputs): Inputs = {
+      def compileJava(sources: VirtualFile*) =
+        def incrementalJavaInputs(sources: VirtualFile*)(in: Inputs): Inputs =
           comp.withSrcs(sources.toArray)(
             in.withOptions(
               in.options
@@ -193,22 +192,20 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
                 )
               )
           )
-        }
         comp.doCompileWithStore(newInputs = incrementalJavaInputs(sources*))
-      }
 
       val res1 = compileJava(f1, f2, f3)
       val res2 = compileJava(f1, f2b, f3)
       assert(recompiled(res1, res2) == Set("A", "B"))
-    } finally {
+    finally
       comp.close()
-    }
+    end try
   }
 
   it should "track dependencies on constants" in withTmpDir { tmp =>
     val project = VirtualSubproject(tmp.toPath / "p1")
     val comp = project.setup.createCompiler()
-    try {
+    try
       val s1 = "object A { final val i = 1 }"
       val s1b = "object A { final val i = 2 }"
       val s2 = "class B { def i = A.i }"
@@ -222,9 +219,8 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
       val res1 = comp.compile(f1, f2, f3)
       val res2 = comp.compile(f1b, f2, f3)
       assert(recompiled(res1, res2) == Set("A", "B"))
-    } finally {
+    finally
       comp.close()
-    }
   }
 
   it should "not throw NullPointerException when passing -Xshow-phases to scalac" in withTmpDir {
@@ -234,11 +230,11 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
         Seq(SourceFiles.Good),
         Seq("-Xshow-phases")
       ).createCompiler()
-      try {
+      try
         assertThrows[CompileFailed] {
           comp.doCompile()
         }
-      } finally comp.close()
+      finally comp.close()
   }
 
   it should "emit SourceInfos when incremental compilation fails" in withTmpDir {
@@ -247,18 +243,17 @@ class IncrementalCompilerSpec extends BaseCompilerSpec {
       val comp = project.setup.createCompiler()
       val s1 = "object A { final val i = 1"
       val f1 = StringVirtualFile("A.scala", s1)
-      try {
+      try
         val exception = intercept[CompileFailed] {
           comp.compile(f1)
         }
-        exception.sourceInfosOption match {
+        exception.sourceInfosOption match
           case Some(sourceInfos) =>
             assert(
               !sourceInfos.getAllSourceInfos.isEmpty,
               "Expected non-empty source infos"
             )
           case None => fail("Expected sourceInfos")
-        }
-      } finally comp.close()
+      finally comp.close()
   }
-}
+end IncrementalCompilerSpec

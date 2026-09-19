@@ -11,11 +11,11 @@
 
 package xsbt.api
 
-import xsbti.api._
+import xsbti.api.*
 import sbt.internal.inc.UnitSpec
-import xsbt.api.ClassLikeHelpers._
+import xsbt.api.ClassLikeHelpers.*
 
-class HashAPISpecification extends UnitSpec {
+class HashAPISpecification extends UnitSpec:
   behavior of "The HashAPI specification"
 
   it should "detect hash changes in private trait vars" in {
@@ -98,19 +98,17 @@ class HashAPISpecification extends UnitSpec {
 
   def assertDifferentPrivateAPI(a: ClassLike, b: ClassLike): Unit = assertPrivateApi(true, a, b)
   def assertSamePrivateAPI(a: ClassLike, b: ClassLike): Unit = assertPrivateApi(false, a, b)
-  def assertPrivateApi(isDifferent: Boolean, a: ClassLike, b: ClassLike): Unit = {
+  def assertPrivateApi(isDifferent: Boolean, a: ClassLike, b: ClassLike): Unit =
     def PrivateAPI(c: ClassLike): Int = HashAPI(_.hashAPI(c), includePrivateDefsInTrait = true)
-    def checkOrder(a: ClassLike, b: ClassLike): Unit = {
+    def checkOrder(a: ClassLike, b: ClassLike): Unit =
       // Check the default Hash API doesn't take private methods into account
       assert(HashAPI(a) == HashAPI(b), s"HashAPI(${a}) != HashAPI(${b})")
-      if (isDifferent)
+      if isDifferent then
         assert(PrivateAPI(a) != PrivateAPI(b), s"PrivateAPI(${a}) == PrivateAPI(${b})")
       else
         assert(PrivateAPI(a) == PrivateAPI(b), s"PrivateAPI(${a}) != PrivateAPI(${b})")
       ()
-    }
 
     checkOrder(a, b)
     checkOrder(b, a)
-  }
-}
+end HashAPISpecification

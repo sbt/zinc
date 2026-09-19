@@ -23,21 +23,20 @@ import annotation.tailrec
  * loading a class that has not yet been loaded.
  */
 abstract class LoaderBase(urls: Seq[URL], parent: ClassLoader)
-    extends URLClassLoader(urls.toArray, parent) {
+    extends URLClassLoader(urls.toArray, parent):
   require(parent != null) // included because a null parent is legitimate in Java
   @throws(classOf[ClassNotFoundException])
-  override final def loadClass(className: String, resolve: Boolean): Class[?] = {
+  override final def loadClass(className: String, resolve: Boolean): Class[?] =
     val loaded = findLoadedClass(className)
     val found =
-      if (loaded == null)
+      if loaded == null then
         doLoadClass(className)
       else
         loaded
 
-    if (resolve)
+    if resolve then
       resolveClass(found)
     found
-  }
 
   /** Provides the implementation of finding a class that has not yet been loaded.*/
   protected def doLoadClass(className: String): Class[?]
@@ -45,31 +44,26 @@ abstract class LoaderBase(urls: Seq[URL], parent: ClassLoader)
   /** Provides access to the default implementation of 'loadClass'.*/
   protected final def defaultLoadClass(className: String): Class[?] =
     super.loadClass(className, false)
-}
+end LoaderBase
 
 /** Searches self first before delegating to the parent.*/
 final class SelfFirstLoader(classpath: Seq[URL], parent: ClassLoader)
-    extends LoaderBase(classpath, parent) {
+    extends LoaderBase(classpath, parent):
   @throws(classOf[ClassNotFoundException])
-  override final def doLoadClass(className: String): Class[?] = {
-    try {
+  override final def doLoadClass(className: String): Class[?] =
+    try
       findClass(className)
-    } catch {
+    catch
       case _: ClassNotFoundException => defaultLoadClass(className)
-    }
-  }
-}
 
 /** Doesn't load any classes itself, but instead verifies that all classes loaded through `parent` either come from `root` or `classpath`.*/
 final class ClasspathFilter(parent: ClassLoader, root: ClassLoader, classpath: Set[Path])
-    extends ClassLoader(parent) {
+    extends ClassLoader(parent):
 
-  def close(): Unit = {
-    parent match {
+  def close(): Unit =
+    parent match
       case ucl: URLClassLoader => ucl.close()
       case _                   => ()
-    }
-  }
 
   override def toString =
     s"""|ClasspathFilter(
@@ -81,88 +75,76 @@ final class ClasspathFilter(parent: ClassLoader, root: ClassLoader, classpath: S
   private val directories: Seq[Path] = classpath.toSeq.filter { p =>
     !p.toString.endsWith(".jar") && Files.isDirectory(p)
   }
-  override def loadClass(className: String, resolve: Boolean): Class[?] = {
+  override def loadClass(className: String, resolve: Boolean): Class[?] =
     val c = super.loadClass(className, resolve)
-    if (includeLoader(c.getClassLoader, root) || fromClasspath(c))
+    if includeLoader(c.getClassLoader, root) || fromClasspath(c) then
       c
     else
       throw new ClassNotFoundException(className)
-  }
-  private def fromClasspath(c: Class[?]): Boolean = {
+  private def fromClasspath(c: Class[?]): Boolean =
     val codeSource = c.getProtectionDomain.getCodeSource
     (codeSource eq null) ||
     onClasspath(codeSource.getLocation)
-  }
   private def onClasspath(src: URL): Boolean =
     // `jrt:` URLs identify JDK platform-module classes/resources (java.sql, etc.),
     // which are always implicitly available to user code.
     (src eq null) || src.getProtocol == "jrt" || (
-      ClasspathUtil.asFile(src).headOption match {
+      ClasspathUtil.asFile(src).headOption match
         case Some(f) =>
           classpath(f) || directories.exists(dir => ClasspathUtil.relativize(dir, f).isDefined)
         case None => false
-      }
     )
 
-  override def getResource(name: String): URL = {
+  override def getResource(name: String): URL =
     val u = super.getResource(name)
-    if (onClasspath(u)) u else null
-  }
+    if onClasspath(u) then u else null
 
-  override def getResources(name: String): java.util.Enumeration[URL] = {
-    import scala.jdk.CollectionConverters._
+  override def getResources(name: String): java.util.Enumeration[URL] =
+    import scala.jdk.CollectionConverters.*
     val us = super.getResources(name)
-    if (us ne null) us.asScala.filter(onClasspath).asJavaEnumeration else null
-  }
+    if us ne null then us.asScala.filter(onClasspath).asJavaEnumeration else null
 
-  @tailrec private def includeLoader(c: ClassLoader, base: ClassLoader): Boolean =
-    (base ne null) &&
-      (c ne null) &&
-      ((c eq base) || includeLoader(c.getParent, base))
-}
+  @tailrec private def includeLoader(c: ClassLoader, base: ClassLoader): Boolean = (base ne null) &&
+    (c ne null) &&
+    ((c eq base) || includeLoader(c.getParent, base))
+end ClasspathFilter
 
 /**
  * Delegates class loading to `parent` for all classes included by `filter`.  An attempt to load classes excluded by `filter`
  * results in a `ClassNotFoundException`.
  */
-final class FilteredLoader(parent: ClassLoader, filter: ClassFilter) extends ClassLoader(parent) {
+final class FilteredLoader(parent: ClassLoader, filter: ClassFilter) extends ClassLoader(parent):
   require(parent != null) // included because a null parent is legitimate in Java
   def this(parent: ClassLoader, excludePackages: Iterable[String]) =
     this(parent, new ExcludePackagesFilter(excludePackages))
 
   @throws(classOf[ClassNotFoundException])
-  override final def loadClass(className: String, resolve: Boolean): Class[?] = {
-    if (filter.include(className))
+  override final def loadClass(className: String, resolve: Boolean): Class[?] =
+    if filter.include(className) then
       super.loadClass(className, resolve)
     else
       throw new ClassNotFoundException(className)
-  }
-}
 
 /** Defines a filter on class names. */
-trait ClassFilter {
+trait ClassFilter:
   def include(className: String): Boolean
-}
-abstract class PackageFilter(packages: Iterable[String]) extends ClassFilter {
+abstract class PackageFilter(packages: Iterable[String]) extends ClassFilter:
   require(packages.forall(_.endsWith(".")))
   protected final def matches(className: String): Boolean = packages.exists(className.startsWith)
-}
 
 /**
  * Excludes class names that begin with one of the packages in `exclude`.
  * Each package name in `packages` must end with a `.`
  */
-final class ExcludePackagesFilter(exclude: Iterable[String]) extends PackageFilter(exclude) {
+final class ExcludePackagesFilter(exclude: Iterable[String]) extends PackageFilter(exclude):
   def include(className: String): Boolean = !matches(className)
-}
 
 /**
  * Includes class names that begin with one of the packages in `include`.
  * Each package name in `include` must end with a `.`
  */
-final class IncludePackagesFilter(include: Iterable[String]) extends PackageFilter(include) {
+final class IncludePackagesFilter(include: Iterable[String]) extends PackageFilter(include):
   def include(className: String): Boolean = matches(className)
-}
 
 /**
  * Configures a [[NativeCopyLoader]].
@@ -180,32 +162,29 @@ final class NativeCopyConfig(
  * Loads native libraries from a temporary location in order to work around the jvm native library uniqueness restriction.
  * See [[NativeCopyConfig]] for configuration details.
  */
-trait NativeCopyLoader extends ClassLoader {
+trait NativeCopyLoader extends ClassLoader:
 
   /** Configures this loader.  See [[NativeCopyConfig]] for details. */
   protected val config: NativeCopyConfig
-  import config._
+  import config.*
 
   private val mapped = new collection.mutable.HashMap[String, String]
 
   override protected def findLibrary(name: String): String =
     synchronized { mapped.getOrElseUpdate(name, findLibrary0(name)) }
 
-  private def findLibrary0(name: String): String = {
+  private def findLibrary0(name: String): String =
     val mappedName = System.mapLibraryName(name)
     val explicit = explicitLibraries.iterator.filter(_.getFileName.toString == mappedName)
     val search = searchPaths.iterator flatMap relativeLibrary(mappedName)
     val combined = explicit ++ search
-    if (combined.hasNext) copy(combined.next()) else null
-  }
-  private def relativeLibrary(mappedName: String)(base: Path): Seq[Path] = {
+    if combined.hasNext then copy(combined.next()) else null
+  private def relativeLibrary(mappedName: String)(base: Path): Seq[Path] =
     val f = base.resolve(mappedName)
-    if (Files.isRegularFile(f)) f :: Nil
+    if Files.isRegularFile(f) then f :: Nil
     else Nil
-  }
-  private def copy(f: Path): String = {
+  private def copy(f: Path): String =
     val target = tempDirectory.resolve(f.getFileName.toString)
     Files.copy(f, target, StandardCopyOption.REPLACE_EXISTING)
     target.toAbsolutePath.toString
-  }
-}
+end NativeCopyLoader

@@ -18,13 +18,12 @@ import org.scalatest.funsuite.AnyFunSuite
 import sbt.internal.inc.{ Compilation, CompileOutput }
 import sbt.internal.inc.text.CompilationFormat
 
-class CompilationFormatSpec extends AnyFunSuite {
+class CompilationFormatSpec extends AnyFunSuite:
 
-  private def roundtrip(c: Compilation): Compilation = {
+  private def roundtrip(c: Compilation): Compilation =
     val baos = new ByteArrayOutputStream
     CompilationFormat.writes(new sbinary.JavaOutput(baos), c)
     CompilationFormat.reads(new sbinary.JavaInput(new ByteArrayInputStream(baos.toByteArray)))
-  }
 
   test("single output round-trip") {
     val r = roundtrip(Compilation(123L, CompileOutput(Paths.get("/tmp/classes"))))
@@ -53,4 +52,4 @@ class CompilationFormatSpec extends AnyFunSuite {
     assert(!r.getOutput.getMultipleOutput.isPresent)
     assert(!r.getOutput.getSingleOutputAsPath.isPresent)
   }
-}
+end CompilationFormatSpec

@@ -12,23 +12,20 @@
 package xsbt
 
 import java.util.concurrent.TimeUnit
-import org.openjdk.jmh.annotations._
+import org.openjdk.jmh.annotations.*
 
-class ShapelessBenchmark extends BenchmarkBase {
+class ShapelessBenchmark extends BenchmarkBase:
   _project = BenchmarkProjects.Shapeless
-}
 
 @State(Scope.Benchmark)
 @BenchmarkMode(Array(Mode.SingleShotTime))
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 @Fork(value = 5, jvmArgs = Array("-XX:CICompilerCount=2"))
-class ColdShapelessBenchmark extends ShapelessBenchmark {
+class ColdShapelessBenchmark extends ShapelessBenchmark:
   _subprojectToRun = _project.subprojects.head // CoreJVM
   @Benchmark
-  override def action(): Unit = {
+  override def action(): Unit =
     super.action()
-  }
-}
 
 /*
 @State(Scope.Benchmark)
@@ -52,10 +49,8 @@ class WarmShapelessBenchmark extends ShapelessBenchmark {
 @Warmup(iterations = 10, time = 10, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 5, time = 10, timeUnit = TimeUnit.SECONDS)
 @Fork(value = 1)
-class HotShapelessBenchmark extends ShapelessBenchmark {
+class HotShapelessBenchmark extends ShapelessBenchmark:
   _subprojectToRun = _project.subprojects.head // CoreJVM
   @Benchmark
-  override def action(): Unit = {
+  override def action(): Unit =
     super.action()
-  }
-}

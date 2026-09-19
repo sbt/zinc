@@ -14,13 +14,13 @@ package sbt.internal.inc.consistent
 
 import sbt.io.{ IO, Using }
 import xsbti.compile.analysis.ReadWriteMappers
-import xsbti.compile.{ AnalysisContents, AnalysisStore => XAnalysisStore }
+import xsbti.compile.{ AnalysisContents, AnalysisStore as XAnalysisStore }
 
 import java.io.{ File, FileInputStream, FileOutputStream }
 import java.util.Optional
 import scala.util.control.Exception.allCatch
 
-object ConsistentFileAnalysisStore {
+object ConsistentFileAnalysisStore:
   def text(
       file: File,
       mappers: ReadWriteMappers,
@@ -69,27 +69,25 @@ object ConsistentFileAnalysisStore {
       format: ConsistentAnalysisFormat,
       sf: SerializerFactory[S, D],
       parallelism: Int = Runtime.getRuntime.availableProcessors()
-  ) extends XAnalysisStore {
+  ) extends XAnalysisStore:
 
-    def set(analysisContents: AnalysisContents): Unit = {
+    def set(analysisContents: AnalysisContents): Unit =
       val analysis = analysisContents.getAnalysis
       val setup = analysisContents.getMiniSetup
       val tmpAnalysisFile = File.createTempFile(file.getName, ".tmp")
-      if (!file.getParentFile.exists()) file.getParentFile.mkdirs()
+      if !file.getParentFile.exists() then file.getParentFile.mkdirs()
       val fout = new FileOutputStream(tmpAnalysisFile)
-      try {
+      try
         val gout = new ParallelGzipOutputStream(fout, parallelism)
         val ser = sf.serializerFor(gout)
         format.write(ser, analysis, setup)
         gout.close()
-      } finally fout.close
+      finally fout.close
       IO.move(tmpAnalysisFile, file)
-    }
 
-    def get(): Optional[AnalysisContents] = {
-      import scala.jdk.OptionConverters._
+    def get(): Optional[AnalysisContents] =
+      import scala.jdk.OptionConverters.*
       allCatch.opt(unsafeGet()).toJava
-    }
 
     def unsafeGet(): AnalysisContents =
       Using.gzipInputStream(new FileInputStream(file)) { in =>
@@ -97,5 +95,5 @@ object ConsistentFileAnalysisStore {
         val (analysis, setup) = format.read(deser)
         AnalysisContents.create(analysis, setup)
       }
-  }
-}
+  end AStore
+end ConsistentFileAnalysisStore

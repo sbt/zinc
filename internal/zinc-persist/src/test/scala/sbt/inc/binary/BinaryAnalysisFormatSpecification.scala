@@ -11,15 +11,14 @@
 
 package sbt.inc.binary
 
-import org.scalacheck._
-import sbt.inc.AnalysisFormatHelpers._
-import sbt.internal.inc._
+import org.scalacheck.*
+import sbt.inc.AnalysisFormatHelpers.*
+import sbt.internal.inc.*
 
-object BinaryAnalysisFormatSpecification extends Properties("BinaryAnalysisFormat") {
+object BinaryAnalysisFormatSpecification extends Properties("BinaryAnalysisFormat"):
   property("round-trip empty") = forEmpty(check)
   property("round-trip simple") = forSimple(check)
   property("round-trip complex") = forComplex(check)
 
   private def check(analysis: Analysis) =
     checkStoreRoundtrip(analysis, FileAnalysisStore.binary(_))
-}

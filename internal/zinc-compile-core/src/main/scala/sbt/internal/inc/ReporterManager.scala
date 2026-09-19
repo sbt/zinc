@@ -15,13 +15,13 @@ import java.io.{ OutputStreamWriter, PrintStream, PrintWriter }
 import java.nio.charset.StandardCharsets
 import java.util.logging.Level
 
-import sbt.internal.util.{ MainAppender, ManagedLogger, Terminal => UTerminal }
+import sbt.internal.util.{ MainAppender, ManagedLogger, Terminal as UTerminal }
 import sbt.util.LoggerContext
-import sbt.util.{ Level => SbtLevel }
+import sbt.util.Level as SbtLevel
 import xsbti.{ Position, Reporter, ReporterConfig }
 import scala.jdk.FunctionConverters.*
 
-object ReporterManager {
+object ReporterManager:
   import java.util.concurrent.atomic.AtomicInteger
   private val idGenerator: AtomicInteger = new AtomicInteger
   private val DefaultName = "zinc-out"
@@ -47,15 +47,13 @@ object ReporterManager {
    *
    * TODO(someone): Don't define `sbt.util.Level` as a Scala enumeration.
    */
-  private def fromJavaLogLevel(level: Level): SbtLevel.Value = {
-    level match {
+  private def fromJavaLogLevel(level: Level): SbtLevel.Value =
+    level match
       case Level.INFO    => SbtLevel.Info
       case Level.WARNING => SbtLevel.Warn
       case Level.SEVERE  => SbtLevel.Error
       case Level.OFF     => sys.error("Level.OFF is not supported. Change the logging level.")
       case _             => SbtLevel.Debug
-    }
-  }
 
   private val UseColor = UTerminal.isColorEnabled
   private val NoPositionMapper = java.util.function.Function.identity[Position]()
@@ -64,26 +62,22 @@ object ReporterManager {
   def getDefaultReporterConfig: ReporterConfig =
     ReporterConfig.of(DefaultName, 100, UseColor, Array(), Array(), Level.INFO, NoPositionMapper)
 
-  def getReporter(logger: xsbti.Logger, config: ReporterConfig): Reporter = {
+  def getReporter(logger: xsbti.Logger, config: ReporterConfig): Reporter =
     val maxErrors = config.maximumErrors()
     val posMapper = config.positionMapper().asScala
-    if (config.fileFilters().isEmpty && config.msgFilters.isEmpty) {
-      logger match {
+    if config.fileFilters().isEmpty && config.msgFilters.isEmpty then
+      logger match
         case managed: ManagedLogger => new ManagedLoggedReporter(maxErrors, managed, posMapper)
         case _                      => new LoggedReporter(maxErrors, logger, posMapper)
-      }
-    } else {
+    else
       val fileFilters = config.fileFilters().map(_.asScala)
       val msgFilters = config.msgFilters().map(_.asScala)
-      logger match {
+      logger match
         case managed: ManagedLogger =>
           new ManagedFilteredReporter(fileFilters, msgFilters, maxErrors, managed, posMapper)
         case _ => new FilteredReporter(fileFilters, msgFilters, maxErrors, logger, posMapper)
-      }
-    }
-  }
 
-  def getReporter(toOutput: PrintWriter, config: ReporterConfig): Reporter = {
+  def getReporter(toOutput: PrintWriter, config: ReporterConfig): Reporter =
     val printWriterToAppender = MainAppender.defaultBacked(config.useColor())
     val appender = printWriterToAppender(toOutput)
     val freshName = generateZincReporterId(config.loggerName())
@@ -93,11 +87,9 @@ object ReporterManager {
     val sbtLogLevel = fromJavaLogLevel(config.logLevel())
     LoggerContext.globalContext.addAppender(loggerName, appender -> sbtLogLevel)
     getReporter(logger, config)
-  }
 
-  def getReporter(toOutput: PrintStream, config: ReporterConfig): Reporter = {
+  def getReporter(toOutput: PrintStream, config: ReporterConfig): Reporter =
     val utf8Writer = new OutputStreamWriter(toOutput, StandardCharsets.UTF_8)
     val printWriter = new PrintWriter(utf8Writer)
     getReporter(printWriter, config)
-  }
-}
+end ReporterManager

@@ -23,53 +23,47 @@ import xsbti.api.Projection
 import xsbti.api.Singleton
 import xsbti.api.TypeParameter
 
-private[consistent] final class NodeCache {
+private[consistent] final class NodeCache:
   private var hashes = new Array[Long](16)
   private var values = new Array[AnyRef](16)
   private var entries = 0
 
-  def intern[A <: AnyRef](value: A): A = {
+  def intern[A <: AnyRef](value: A): A =
     val hash = NodeCache.fingerprint(value)
     var index = NodeCache.index(hash, values.length)
     var existing = values(index)
-    while (existing != null && (hashes(index) != hash || !value.equals(existing))) {
+    while existing != null && (hashes(index) != hash || !value.equals(existing)) do
       index = (index + 1) & (values.length - 1)
       existing = values(index)
-    }
-    if (existing == null) {
-      if (entries * 2 >= values.length) {
+    if existing == null then
+      if entries * 2 >= values.length then
         grow()
         index = NodeCache.index(hash, values.length)
-        while (values(index) != null) index = (index + 1) & (values.length - 1)
-      }
+        while values(index) != null do index = (index + 1) & (values.length - 1)
       hashes(index) = hash
       values(index) = value
       entries += 1
       value
-    } else existing.asInstanceOf[A]
-  }
+    else existing.asInstanceOf[A]
 
-  private def grow(): Unit = {
+  private def grow(): Unit =
     val oldHashes = hashes
     val oldValues = values
     hashes = new Array[Long](oldHashes.length * 2)
     values = new Array[AnyRef](oldValues.length * 2)
     var oldIndex = 0
-    while (oldIndex < oldValues.length) {
+    while oldIndex < oldValues.length do
       val value = oldValues(oldIndex)
-      if (value != null) {
+      if value != null then
         val hash = oldHashes(oldIndex)
         var index = NodeCache.index(hash, values.length)
-        while (values(index) != null) index = (index + 1) & (values.length - 1)
+        while values(index) != null do index = (index + 1) & (values.length - 1)
         hashes(index) = hash
         values(index) = value
-      }
       oldIndex += 1
-    }
-  }
-}
+end NodeCache
 
-private[consistent] object NodeCache {
+private[consistent] object NodeCache:
   private final val ParameterRefTag = 1L
   private final val ParameterizedTag = 2L
   private final val PolymorphicTag = 3L
@@ -92,38 +86,32 @@ private[consistent] object NodeCache {
   private def mix(hash: Long, value: Long): Long = (hash ^ value) * Fnv1a64Prime
 
   private def mixReference(hash: Long, value: AnyRef): Long =
-    mix(hash, if (value == null) 0L else Integer.toUnsignedLong(System.identityHashCode(value)))
+    mix(hash, if value == null then 0L else Integer.toUnsignedLong(System.identityHashCode(value)))
 
-  private def mixReferences(hash: Long, entries: Array[? <: AnyRef]): Long = {
-    if (entries == null) mix(hash, -1L)
-    else {
+  private def mixReferences(hash: Long, entries: Array[? <: AnyRef]): Long =
+    if entries == null then mix(hash, -1L)
+    else
       var result = mix(hash, entries.length.toLong)
       var index = 0
-      while (index < entries.length) {
+      while index < entries.length do
         result = mixReference(result, entries(index))
         index += 1
-      }
       result
-    }
-  }
 
-  private def mixArguments(hash: Long, entries: Array[AnnotationArgument]): Long = {
-    if (entries == null) mix(hash, -1L)
-    else {
+  private def mixArguments(hash: Long, entries: Array[AnnotationArgument]): Long =
+    if entries == null then mix(hash, -1L)
+    else
       var result = mix(hash, entries.length.toLong)
       var index = 0
-      while (index < entries.length) {
+      while index < entries.length do
         val argument = entries(index)
         result = mixReference(result, argument.name())
         result = mixReference(result, argument.value())
         index += 1
-      }
       result
-    }
-  }
 
-  private[consistent] def fingerprint(value: AnyRef): Long = value match {
-    case node: ParameterRef => mixReference(mix(Fnv1a64OffsetBasis, ParameterRefTag), node.id())
+  private[consistent] def fingerprint(value: AnyRef): Long = value match
+    case node: ParameterRef  => mixReference(mix(Fnv1a64OffsetBasis, ParameterRefTag), node.id())
     case node: Parameterized =>
       mixReferences(
         mixReference(mix(Fnv1a64OffsetBasis, ParameterizedTag), node.baseType()),
@@ -144,7 +132,7 @@ private[consistent] object NodeCache {
         mixReference(mix(Fnv1a64OffsetBasis, ExistentialTag), node.baseType()),
         node.clause()
       )
-    case node: Singleton => mixReference(mix(Fnv1a64OffsetBasis, SingletonTag), node.path())
+    case node: Singleton  => mixReference(mix(Fnv1a64OffsetBasis, SingletonTag), node.path())
     case node: Projection =>
       mixReference(
         mixReference(mix(Fnv1a64OffsetBasis, ProjectionTag), node.prefix()),
@@ -167,12 +155,10 @@ private[consistent] object NodeCache {
         node.arguments()
       )
     case node => mix(Fnv1a64OffsetBasis, Integer.toUnsignedLong(node.hashCode()))
-  }
 
-  private def index(hash: Long, length: Int): Int = {
+  private def index(hash: Long, length: Int): Int =
     var mixed = hash
     mixed = (mixed ^ (mixed >>> 33)) * MurmurHash3Fmix64Multiplier1
     mixed = (mixed ^ (mixed >>> 33)) * MurmurHash3Fmix64Multiplier2
     ((mixed ^ (mixed >>> 33)).toInt & Int.MaxValue) & (length - 1)
-  }
-}
+end NodeCache

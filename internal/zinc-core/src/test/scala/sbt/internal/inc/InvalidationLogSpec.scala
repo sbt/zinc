@@ -19,7 +19,7 @@ import xsbti.{ UseScope, VirtualFileRef }
 import xsbti.api.{ DependencyContext, ExternalDependency, InternalDependency }
 import xsbti.compile.{ Changes, IncOptions }
 
-class InvalidationLogSpec extends UnitSpec {
+class InvalidationLogSpec extends UnitSpec:
   behavior of "InvalidationLog"
 
   it should "render non-empty groups as sorted indented lists" in {
@@ -349,34 +349,30 @@ class InvalidationLogSpec extends UnitSpec {
         logger,
         IncOptions.of().withRelationsDebug(relationsDebug),
         RunProfiler.empty
-      ) {
+      ):
     def invalidateInternal(relations: Relations, change: APIChange): Set[String] =
       invalidateClassesInternally(relations, change, _ => true)
 
     def invalidateExternal(relations: Relations, change: APIChange): Set[String] =
       invalidateClassesExternally(relations, change, _ => true)
-  }
 
-  private val emptyChanges = new Changes[VirtualFileRef] {
+  private val emptyChanges = new Changes[VirtualFileRef]:
     override def getAdded = Collections.emptySet[VirtualFileRef]
     override def getRemoved = Collections.emptySet[VirtualFileRef]
     override def getChanged = Collections.emptySet[VirtualFileRef]
     override def getUnmodified = Collections.emptySet[VirtualFileRef]
     override def isEmpty: java.lang.Boolean = java.lang.Boolean.TRUE
-  }
 
-  private final class RecordingLogger extends Logger {
+  private final class RecordingLogger extends Logger:
     val messages: ArrayBuffer[String] = ArrayBuffer.empty
 
     override def trace(t: => Throwable): Unit = ()
     override def success(message: => String): Unit = ()
     override def log(level: Level.Value, message: => String): Unit =
-      if (level == Level.Debug || level == Level.Info) messages += message
-  }
+      if level == Level.Debug || level == Level.Info then messages += message
 
-  private final class DiscardingLogger extends Logger {
+  private final class DiscardingLogger extends Logger:
     override def trace(t: => Throwable): Unit = ()
     override def success(message: => String): Unit = ()
     override def log(level: Level.Value, message: => String): Unit = ()
-  }
-}
+end InvalidationLogSpec

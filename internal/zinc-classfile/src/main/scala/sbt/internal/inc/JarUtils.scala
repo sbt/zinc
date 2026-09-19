@@ -29,7 +29,7 @@ import java.nio.file.{ Files, Path, Paths }
  * xsbt.JarUtils is a class that has similar purpose and
  *  duplicates some of the code, as it is difficult to share it.
  */
-object JarUtils {
+object JarUtils:
 
   /** Represents a path to a class file located inside a jar, relative to this jar */
   type ClassFilePath = String
@@ -47,25 +47,21 @@ object JarUtils {
    * The resulting identifier would be:
    * "C:\develop\zinc\target\output.jar!sbt\internal\inc\Compile.class"
    */
-  class ClassInJar(override val toString: String) extends AnyVal {
+  class ClassInJar(override val toString: String) extends AnyVal:
     def toClassFilePath: Option[ClassFilePath] = Option(toClassFilePathOrNull)
-    def toClassFilePathOrNull: ClassFilePath = {
+    def toClassFilePathOrNull: ClassFilePath =
       val idx = toString.indexOf('!')
-      if (idx < 0) null
+      if idx < 0 then null
       else toClassFilePath(idx)
-    }
-    def splitJarReference: (File, Option[ClassFilePath]) = {
+    def splitJarReference: (File, Option[ClassFilePath]) =
       val idx = toString.indexOf('!')
-      if (idx < 0) {
+      if idx < 0 then
         (new File(toString), None)
-      } else {
+      else
         (new File(toString.substring(0, idx)), Some(toClassFilePath(idx)))
-      }
-    }
-    private def toClassFilePath(idx: Int): String = {
+    private def toClassFilePath(idx: Int): String =
       // ClassInJar stores RelClass part with File.separatorChar, however actual paths in zips always use '/'
       toString.substring(idx + 1).replace('\\', '/')
-    }
 
     /**
      * Wraps the string value inside a java.io.File object.
@@ -74,9 +70,9 @@ object JarUtils {
     def toFile: File = new File(toString)
 
     def toPath: Path = Paths.get(toString)
-  }
+  end ClassInJar
 
-  object ClassInJar {
+  object ClassInJar:
 
     private val forwardSlash = File.separatorChar == '/'
 
@@ -87,13 +83,12 @@ object JarUtils {
      * @param cls the relative path to class within the jar
      * @return a proper ClassInJar identified by given jar and path to class
      */
-    def apply(jar: Path, cls: ClassFilePath): ClassInJar = {
+    def apply(jar: Path, cls: ClassFilePath): ClassInJar =
       // This identifier will be stored as a java.io.File. Its constructor will normalize slashes
       // which means that the identifier to be consistent should at all points have consistent
       // slashes for safe comparisons, especially in sets or maps.
-      val classFilePath = if (forwardSlash) cls else cls.replace('/', File.separatorChar)
+      val classFilePath = if forwardSlash then cls else cls.replace('/', File.separatorChar)
       new ClassInJar(s"$jar!$classFilePath")
-    }
 
     /**
      * Converts an URL to a class in a jar to `ClassInJar`. The method is rather trivial
@@ -111,20 +106,18 @@ object JarUtils {
      * @param jar a jar file where the class is located in
      * @return the class inside a jar represented as `ClassInJar`
      */
-    def fromURL(url: URL, jar: Path): ClassInJar = {
+    def fromURL(url: URL, jar: Path): ClassInJar =
       val path = url.getPath
-      if (!path.contains("!/")) sys.error(s"unexpected URL $url that does not include '!/'")
-      else {
+      if !path.contains("!/") then sys.error(s"unexpected URL $url that does not include '!/'")
+      else
         val Array(_, cls) = url.getPath.split("!/")
         apply(jar, cls)
-      }
-    }
 
     /** Initialized `ClassInJar` based on its serialized value stored inside a file */
     def fromFile(f: File): ClassInJar = new ClassInJar(f.toString)
 
     def fromPath(p: Path): ClassInJar = new ClassInJar(p.toString)
-  }
+  end ClassInJar
 
   /**
    * Options that have to be specified when running scalac in order
@@ -146,33 +139,28 @@ object JarUtils {
   val javacOptions: Set[ClassFilePath] = Set("-XDuseOptimizedZip=false")
 
   /** Reads current index of a jar file to allow restoring it later with `unstashIndex` */
-  def stashIndex(jar: Path): IndexBasedZipFsOps.CentralDir = {
+  def stashIndex(jar: Path): IndexBasedZipFsOps.CentralDir =
     IndexBasedZipFsOps.readCentralDir(jar.toFile)
-  }
 
   /** Replaces index in given jar file with specified one */
-  def unstashIndex(jar: Path, index: IndexBasedZipFsOps.CentralDir): Unit = {
+  def unstashIndex(jar: Path, index: IndexBasedZipFsOps.CentralDir): Unit =
     IndexBasedZipFsOps.writeCentralDir(jar.toFile, index)
-  }
 
   /**
    * Adds plain files to specified jar file. See [[sbt.internal.inc.IndexBasedZipOps#includeInArchive]] for details.
    */
-  def includeInJar(jar: File, files: Seq[(File, ClassFilePath)]): Unit = {
+  def includeInJar(jar: File, files: Seq[(File, ClassFilePath)]): Unit =
     IndexBasedZipFsOps.includeInArchive(jar, files.toVector)
-  }
 
   /**
    * Merges contents of two jars. See sbt.internal.inc.IndexBasedZipOps#mergeArchives for details.
    */
-  def mergeJars(into: File, from: File): Unit = {
+  def mergeJars(into: File, from: File): Unit =
     IndexBasedZipFsOps.mergeArchives(into, from)
-  }
 
   /** Lists class file entries in jar e.g. sbt/internal/inc/JarUtils.class */
-  def listClassFiles(jar: File): Seq[String] = {
+  def listClassFiles(jar: File): Seq[String] =
     IndexBasedZipFsOps.listEntries(jar).filter(_.endsWith(".class"))
-  }
 
   /** Lists file entries in jar e.g. sbt/internal/inc/JarUtils.class */
   def listFiles(jar: Path): Seq[String] = IndexBasedZipFsOps.listEntries(jar.toFile)
@@ -180,22 +168,19 @@ object JarUtils {
   /**
    * Removes specified entries from a jar file.
    */
-  def removeFromJar(jarFile: Path, classes: Iterable[ClassFilePath]): Unit = {
-    if (Files.exists(jarFile)) {
+  def removeFromJar(jarFile: Path, classes: Iterable[ClassFilePath]): Unit =
+    if Files.exists(jarFile) then
       IndexBasedZipFsOps.removeEntries(jarFile.toFile, classes)
-    }
-  }
 
   /**
    * Reads all timestamps from given jar file. Returns a function that
    * allows to access them by `ClassInJar` wrapped in `File`.
    */
-  def readStamps(jar: Path): Path => Long = {
+  def readStamps(jar: Path): Path => Long =
     val stamps = new IndexBasedZipFsOps.CachedStamps(jar)
     file =>
       val u = file.toUri.toURL
       stamps.getStamp(ClassInJar.fromURL(u, jar).toClassFilePath.get)
-  }
 
   /**
    * Runs the compilation with previous jar if required.
@@ -225,22 +210,19 @@ object JarUtils {
    * @param output output for scalac compilation
    * @param compile function that given extra classpath for compiler runs the compilation
    */
-  def withPreviousJar(output: Output)(compile: /*extra classpath: */ Seq[Path] => Unit): Unit = {
-    preparePreviousJar(output) match {
+  def withPreviousJar(output: Output)(compile: /*extra classpath: */ Seq[Path] => Unit): Unit =
+    preparePreviousJar(output) match
       case Some((prevJar, outputJar)) =>
-        try {
+        try
           compile(Seq(prevJar.toPath))
-        } catch {
+        catch
           case e: Exception =>
             IO.move(prevJar, outputJar)
             throw e
-        }
         cleanupPreviousJar(prevJar, outputJar)
       case None =>
         compile(Nil)
         createOutputJarIfMissing(output)
-    }
-  }
 
   /**
    * If compilation to jar is enabled and previous jar existed
@@ -250,7 +232,7 @@ object JarUtils {
    * The returned prev jar file should be added to the classpath
    * of the compiler.
    */
-  def preparePreviousJar(output: Output): Option[(File, File)] = {
+  def preparePreviousJar(output: Output): Option[(File, File)] =
     getOutputJar(output)
       .filter(Files.exists(_))
       .map { outputJar =>
@@ -259,19 +241,16 @@ object JarUtils {
         IO.move(out, prevJar)
         (prevJar, out)
       }
-  }
 
   /**
    * Performs cleanup after successful compilation that involved
    * previous jar. It merges the previous jar with the new output
    * and puts the merged file back into output jar path.
    * */
-  def cleanupPreviousJar(prevJar: File, outputJar: File): Unit = {
-    if (outputJar.exists()) {
+  def cleanupPreviousJar(prevJar: File, outputJar: File): Unit =
+    if outputJar.exists() then
       JarUtils.mergeJars(into = prevJar, from = outputJar)
-    }
     IO.move(prevJar, outputJar)
-  }
 
   private var tempDir: Path = compiletime.uninitialized
 
@@ -281,57 +260,47 @@ object JarUtils {
    * @param temporaryClassesDirectory path to temporary directory for classes.
    *                                  If not specified, a default will be used.
    */
-  def setupTempClassesDir(temporaryClassesDirectory: Option[Path]): Unit = {
-    temporaryClassesDirectory match {
+  def setupTempClassesDir(temporaryClassesDirectory: Option[Path]): Unit =
+    temporaryClassesDirectory match
       case Some(dir) =>
         Files.createDirectories(dir)
         tempDir = dir
       case None =>
         tempDir = (new File(IO.temporaryDirectory, "zinc_temp_classes_dir")).toPath
-    }
-  }
 
-  private def createPrevJarPath(): File = {
+  private def createPrevJarPath(): File =
     val prevJarName = s"$prevJarPrefix-${UUID.randomUUID()}.jar"
     tempDir.resolve(prevJarName).toFile
-  }
 
   val prevJarPrefix: String = "prev-jar"
 
   /** Checks if given file stores a ClassInJar */
-  def isClassInJar(file: File): Boolean = {
-    file.toString.split("!") match {
+  def isClassInJar(file: File): Boolean =
+    file.toString.split("!") match
       case Array(jar, _) => jar.endsWith(".jar")
       case _             => false
-    }
-  }
 
   /**
    * Return JAR component of class-in-jar notation.
    */
-  def getJarInClassInJar(path: Path): Option[Path] = {
-    path.toString.split("!") match {
+  def getJarInClassInJar(path: Path): Option[Path] =
+    path.toString.split("!") match
       case Array(jar, _) if jar.endsWith(".jar") => Some(Paths.get(jar))
       case _                                     => None
-    }
-  }
 
   /**
    * Determines if Straight to Jar compilations is enabled
    * by inspecting if compilation output is a jar file
    */
-  def isCompilingToJar(output: Output): Boolean = {
+  def isCompilingToJar(output: Output): Boolean =
     getOutputJar(output).isDefined
-  }
 
   /** Extracts a jar file from the output if it is set to be a single jar. */
-  def getOutputJar(output: Output): Option[Path] = {
-    output match {
+  def getOutputJar(output: Output): Option[Path] =
+    output match
       case s: SingleOutput =>
         Some(s.getOutputDirectoryAsPath).filter(_.toString.endsWith(".jar"))
       case _ => None
-    }
-  }
 
   def createOutputJarIfMissing(output: Output): Unit =
     getOutputJar(output).filter(!Files.exists(_)).foreach { jar =>
@@ -348,11 +317,10 @@ object JarUtils {
    * of this method has to be deterministic as it is called from different places
    * independently.
    */
-  def javacTempOutput(outputJar: Path): Path = {
+  def javacTempOutput(outputJar: Path): Path =
     val outJarName = outputJar.getFileName.toString
     val outDirName = outJarName + "-javac-output"
     outputJar.resolveSibling(outDirName)
-  }
 
   /**
    * The returned `OutputJarContent` object provides access
@@ -386,88 +354,73 @@ object JarUtils {
    * while pruning between iterations, which is done through
    * `removeClasses` method.
    */
-  def createOutputJarContent(output: Output): OutputJarContent = {
-    getOutputJar(output) match {
+  def createOutputJarContent(output: Output): OutputJarContent =
+    getOutputJar(output) match
       case Some(jar) => new ValidOutputJarContent(jar)
       case None      => NoOutputJar
-    }
-  }
 
-  sealed abstract class OutputJarContent {
+  sealed abstract class OutputJarContent:
     def dependencyPhaseCompleted(): Unit
     def scalacRunCompleted(): Unit
     def addClasses(classes: Set[ClassFilePath]): Unit
     def removeClasses(classes: Set[ClassFilePath]): Unit
     def get(): Set[ClassFilePath]
-  }
 
-  private object NoOutputJar extends OutputJarContent {
+  private object NoOutputJar extends OutputJarContent:
     def dependencyPhaseCompleted(): Unit = ()
     def scalacRunCompleted(): Unit = ()
     def addClasses(classes: Set[ClassFilePath]): Unit = ()
     def removeClasses(classes: Set[ClassFilePath]): Unit = ()
     def get(): Set[ClassFilePath] = Set.empty
-  }
 
-  private class ValidOutputJarContent(outputJar: Path) extends OutputJarContent {
+  private class ValidOutputJarContent(outputJar: Path) extends OutputJarContent:
     private var content: Set[ClassFilePath] = Set.empty
     private var shouldReadJar: Boolean = false
 
     update()
 
-    def dependencyPhaseCompleted(): Unit = {
+    def dependencyPhaseCompleted(): Unit =
       shouldReadJar = true
-    }
 
-    def scalacRunCompleted(): Unit = {
+    def scalacRunCompleted(): Unit =
       shouldReadJar = false
-    }
 
-    def addClasses(classes: Set[ClassFilePath]): Unit = {
+    def addClasses(classes: Set[ClassFilePath]): Unit =
       content ++= classes
-    }
 
-    def removeClasses(classes: Set[ClassFilePath]): Unit = {
+    def removeClasses(classes: Set[ClassFilePath]): Unit =
       content --= classes
-    }
 
-    def get(): Set[ClassFilePath] = {
-      if (shouldReadJar) update()
+    def get(): Set[ClassFilePath] =
+      if shouldReadJar then update()
       shouldReadJar = false
       content
-    }
 
-    private def update(): Unit = {
-      if (Files.exists(outputJar)) {
+    private def update(): Unit =
+      if Files.exists(outputJar) then
         content ++= JarUtils.listClassFiles(outputJar.toFile).toSet
-      }
-    }
-  }
+  end ValidOutputJarContent
 
   /* Methods below are only used for test code. They are not optimized for performance. */
   /** Reads timestamp of given jared class */
-  def readModifiedTime(jc: ClassInJar): Long = {
+  def readModifiedTime(jc: ClassInJar): Long =
     val (jar, cls) = jc.splitJarReference
-    if (jar.exists()) {
+    if jar.exists() then
       withZipFile(jar) { zip =>
         Option(zip.getEntry(cls.get)).map(_.getLastModifiedTime.toMillis).getOrElse(0)
       }
-    } else 0
-  }
+    else 0
 
   /** Checks if given jared class exists */
-  def exists(jc: ClassInJar): Boolean = {
+  def exists(jc: ClassInJar): Boolean =
     val (jar, clsOpt) = jc.splitJarReference
     jar.exists() &&
-    (clsOpt match {
+    (clsOpt match
       case Some(cls) => withZipFile(jar)(zip => zip.getEntry(cls) != null)
-      case _         => true
-    })
-  }
+      case _         => true)
 
-  private def withZipFile[A](zip: File)(f: ZipFile => A): A = {
+  private def withZipFile[A](zip: File)(f: ZipFile => A): A =
     val file = new ZipFile(zip)
     try f(file)
     finally file.close()
-  }
-}
+end JarUtils

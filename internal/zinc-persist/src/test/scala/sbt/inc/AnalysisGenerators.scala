@@ -16,14 +16,14 @@ package inc
 import java.io.File
 import java.nio.file.{ Path, Paths }
 
-import org.scalacheck._, Arbitrary._, Gen._, Prop._
+import org.scalacheck.*, Arbitrary.*, Gen.*, Prop.*
 import sbt.internal.inc.APIs.emptyModifiers
 import sbt.internal.util.Relation
-import xsbti.api._
+import xsbti.api.*
 import xsbti.{ UseScope, VirtualFileRef }
 import xsbti.api.DefinitionType.{ ClassDef, Module }
-import xsbti.api.DependencyContext._
-import xsbti.compile.analysis.{ Stamp => AStamp }
+import xsbti.api.DependencyContext.*
+import xsbti.compile.analysis.Stamp as AStamp
 
 import scala.collection.immutable.TreeMap
 import scala.reflect.ClassTag
@@ -34,7 +34,7 @@ import scala.util.Try
  * Fairly complex, as Analysis has interconnected state that can't be
  * independently generated.
  */
-object AnalysisGenerators {
+object AnalysisGenerators:
   val RootFilePath: Path = Paths.get("/tmp/localProject")
 
   // We restrict sizes, otherwise the generated Analysis objects get huge and the tests take a long time.
@@ -58,35 +58,33 @@ object AnalysisGenerators {
   def identifier: Gen[String] = sized(size => resize(Math.max(size, 3), Gen.identifier))
 
   def genFilePathSegment: Gen[String] =
-    for {
+    for
       n <- choose(3, maxPathSegmentLen) // Segments have at least 3 characters.
       c <- alphaChar
       cs <- listOfN(n - 1, alphaNumChar)
-    } yield (c :: cs).mkString
+    yield (c :: cs).mkString
 
-  def genFile: Gen[File] = {
-    for {
+  def genFile: Gen[File] =
+    for
       n <- choose(2, maxPathLen) // Paths have at least 2 segments.
       path <- listOfN(n, genFilePathSegment)
-    } yield new File(s"$RootFilePath/" + path.mkString("/"))
-  }
+    yield new File(s"$RootFilePath/" + path.mkString("/"))
 
   def genStamp: Gen[AStamp] = const(EmptyStamp)
 
   def zipMap[A, B](a: Seq[A], b: Seq[B]): Map[A, B] = a.zip(b).toMap
 
-  def genStamps(rel: Relations): Gen[Stamps] = {
-    import VirtualFileUtil._
+  def genStamps(rel: Relations): Gen[Stamps] =
+    import VirtualFileUtil.*
 
     def stamp(xs: Iterable[VirtualFileRef]) =
-      for (stamps <- listOfN(xs.size, genStamp)) yield TreeMap(xs.toList.zip(stamps)*)
+      for stamps <- listOfN(xs.size, genStamp) yield TreeMap(xs.toList.zip(stamps)*)
 
-    for {
+    for
       prods <- stamp(rel.allProducts)
       srcs <- stamp(rel.allSources)
       libs <- stamp(rel.allLibraryDeps)
-    } yield Stamps(prods, srcs, libs)
-  }
+    yield Stamps(prods, srcs, libs)
 
   private def arr[A <: AnyRef: ClassTag] = new Array[A](0)
   private val noTpe = lzy[Type](EmptyType.of())
@@ -104,48 +102,45 @@ object AnalysisGenerators {
   private def lzy[T <: AnyRef](x: T) = SafeLazyProxy.strict(x)
 
   def genNameHash(name: String): Gen[NameHash] =
-    for (scope <- oneOf(UseScope.values().toIndexedSeq))
-      yield NameHash.of(name, scope, (name, scope).hashCode())
+    for scope <- oneOf(UseScope.values().toIndexedSeq)
+    yield NameHash.of(name, scope, (name, scope).hashCode())
 
   def genClass(name: String): Gen[AnalyzedClass] =
-    for {
+    for
       startTime <- arbitrary[Long]
       apiHash <- arbitrary[Int]
       hasMacro <- arbitrary[Boolean]
       nameHash <- genNameHash(name)
       provenance <- arbitrary[String]
-    } yield {
-      AnalyzedClass.of(
-        startTime,
-        name,
-        SafeLazyProxy(makeCompanions(name)),
-        apiHash,
-        Array(nameHash),
-        hasMacro,
-        apiHash, // The default is to use the public API hash
-        provenance
-      )
-    }
+    yield AnalyzedClass.of(
+      startTime,
+      name,
+      SafeLazyProxy(makeCompanions(name)),
+      apiHash,
+      Array(nameHash),
+      hasMacro,
+      apiHash, // The default is to use the public API hash
+      provenance
+    )
 
   def genClasses(defns: Seq[String]): Gen[Seq[AnalyzedClass]] =
     Gen.sequence[List[AnalyzedClass], AnalyzedClass](defns.map(genClass))
 
-  def genAPIs(rel: Relations): Gen[APIs] = {
+  def genAPIs(rel: Relations): Gen[APIs] =
     val internal = rel.internalClassDep._1s.toList.sorted ++ rel.internalClassDep._2s.toList.sorted
     val external = rel.allExternalDeps.toList.sorted
-    for {
+    for
       internalSources <- genClasses(internal)
       externalSources <- genClasses(external)
-    } yield APIs(zipMap(internal, internalSources), zipMap(external, externalSources))
-  }
+    yield APIs(zipMap(internal, internalSources), zipMap(external, externalSources))
 
   def genVirtualFileRefRelation[T](
       g: Gen[T]
   )(srcs: List[VirtualFileRef]): Gen[Relation[VirtualFileRef, T]] =
-    for {
+    for
       n <- choose(1, maxRelatives)
       entries <- listOfN(srcs.length, containerOfN[Set, T](n, g))
-    } yield Relation.reconstruct(zipMap(srcs, entries))
+    yield Relation.reconstruct(zipMap(srcs, entries))
 
   val genStringRelation = genVirtualFileRefRelation(unique(identifier))
   val genFileVORefRelation = genVirtualFileRefRelation(unique(genFileVRef))
@@ -154,48 +149,47 @@ object AnalysisGenerators {
     Relation.reconstruct(zipMap(a, b).view.mapValues(Set(_)).toMap)
 
   def genStringStringRelation(num: Int): Gen[Relation[String, String]] =
-    for {
-      n <- choose(1, if (num == 0) 1 else num)
+    for
+      n <- choose(1, if num == 0 then 1 else num)
       fwd <- listOfN(n, unique(identifier))
       prv <- listOfN(n, unique(identifier))
-    } yield rel(fwd, prv)
+    yield rel(fwd, prv)
 
   def genRClassDependencies(classNames: List[String]): Gen[Relations.ClassDependencies] =
-    for {
+    for
       internal <- listOfN(classNames.length, someOf(classNames))
       external <- listOfN(classNames.length, someOf(classNames))
-    } yield {
+    yield
       def toForwardMap(targets: Seq[scala.collection.Seq[String]]): Map[String, Set[String]] =
         classNames.zip(targets.map(_.toSet)).map { case (a, b) => (a, b - a) }.toMap
       Relations.makeClassDependencies(
         Relation.reconstruct(toForwardMap(internal)),
         Relation.reconstruct(toForwardMap(external))
       )
-    }
 
   private[inc] def genSubRClassDependencies(
       src: Relations.ClassDependencies
   ): Gen[Relations.ClassDependencies] =
-    for {
+    for
       internal <- someOf(src.internal.all.toList)
       external <- someOf(src.external.all.toList)
-    } yield Relations.makeClassDependencies(Relation.empty ++ internal, Relation.empty ++ external)
+    yield Relations.makeClassDependencies(Relation.empty ++ internal, Relation.empty ++ external)
 
   def genScalaName: Gen[String] =
     Gen.listOf(Gen.oneOf(Gen.choose('!', 'Z'), Gen.const('\n'))).map(_.toString())
 
   def genUsedName(namesGen: Gen[String] = genScalaName): Gen[UsedName] =
-    for (name <- namesGen; scopes <- Gen.someOf(UseScope.values()))
-      yield UsedName(name, UseScope.Default +: scopes)
+    for name <- namesGen; scopes <- Gen.someOf(UseScope.values())
+    yield UsedName(name, UseScope.Default +: scopes)
 
   def genUsedNames(classNames: Seq[String]): Gen[Relations.UsedNames] =
-    for (allNames <- listOfN(classNames.length, containerOf[Set, UsedName](genUsedName())))
-      yield UsedNames.fromMultiMap(zipMap(classNames, allNames))
+    for allNames <- listOfN(classNames.length, containerOf[Set, UsedName](genUsedName()))
+    yield UsedNames.fromMultiMap(zipMap(classNames, allNames))
 
   def genFileVRef: Gen[VirtualFileRef] = genFile.map(x => VirtualFileRef.of(x.toPath.toString))
 
   def genRelationsNameHashing: Gen[Relations] =
-    for {
+    for
       numSrcs <- choose(0, maxSources)
       srcs <- listOfN(numSrcs, genFileVRef)
       srcProd <- genFileVORefRelation(srcs)
@@ -225,7 +219,7 @@ object AnalysisGenerators {
       )
       classes = rel(srcs, classNames)
       names <- genUsedNames(classNames)
-    } yield Relations.make(
+    yield Relations.make(
       srcProd,
       libraryDep,
       libraryClassName,
@@ -237,9 +231,9 @@ object AnalysisGenerators {
     )
 
   def genAnalysis: Gen[Analysis] =
-    for {
+    for
       rels <- genRelationsNameHashing
       stamps <- genStamps(rels)
       apis <- genAPIs(rels)
-    } yield new MAnalysis(stamps, apis, rels, SourceInfos.empty, Compilations.empty)
-}
+    yield new MAnalysis(stamps, apis, rels, SourceInfos.empty, Compilations.empty)
+end AnalysisGenerators

@@ -25,26 +25,24 @@ import java.io.*
  * process-wide interner, and value-equality api tree nodes are shared within one
  * read via the per-read node cache.
  */
-class ConsistentAnalysisFormatInternerSuite extends AnyFunSuite {
+class ConsistentAnalysisFormatInternerSuite extends AnyFunSuite:
 
   /** Serialize a single string, then read it back through a fresh deserializer. */
-  private def roundTripString(s: String): String = {
+  private def roundTripString(s: String): String =
     val out = new ByteArrayOutputStream()
     val ser = SerializerFactory.binary.serializerFor(out)
     ser.string(s)
     ser.end()
     val deser = SerializerFactory.binary.deserializerFor(new ByteArrayInputStream(out.toByteArray))
     deser.string()
-  }
 
-  private def roundTripTextString(s: String): String = {
+  private def roundTripTextString(s: String): String =
     val out = new ByteArrayOutputStream()
     val ser = SerializerFactory.text.serializerFor(out)
     ser.string(s)
     ser.end()
     val deser = SerializerFactory.text.deserializerFor(new ByteArrayInputStream(out.toByteArray))
     deser.string()
-  }
 
   test("strings are canonicalized across independent reads (cross-analysis)") {
     val a = roundTripString(new String("com.example.CrossAnalysis"))
@@ -79,10 +77,9 @@ class ConsistentAnalysisFormatInternerSuite extends AnyFunSuite {
     val names = Array.tabulate(1 << bits) { value =>
       val name = new StringBuilder(bits * 2)
       var bit = 0
-      while (bit < bits) {
-        name.append(if (((value >>> bit) & 1) == 0) "Aa" else "BB")
+      while bit < bits do
+        name.append(if ((value >>> bit) & 1) == 0 then "Aa" else "BB")
         bit += 1
-      }
       name.result()
     }
     val nodes = names.map(Projection.of(prefix, _))
@@ -98,13 +95,12 @@ class ConsistentAnalysisFormatInternerSuite extends AnyFunSuite {
 
   private val mappers = ReadWriteMappers.getEmptyMappers()
 
-  private def writeConsistentBinary(contents: AnalysisContents): File = {
+  private def writeConsistentBinary(contents: AnalysisContents): File =
     val out = File.createTempFile("interner-node", ".zip")
     out.deleteOnExit()
-    if (out.exists()) IO.delete(out)
+    if out.exists() then IO.delete(out)
     ConsistentFileAnalysisStore.binary(out, mappers).set(contents)
     out
-  }
 
   private def readAnalysis(file: File): Analysis =
     ConsistentFileAnalysisStore.binary(file, mappers).unsafeGet().getAnalysis.asInstanceOf[Analysis]
@@ -141,4 +137,4 @@ class ConsistentAnalysisFormatInternerSuite extends AnyFunSuite {
     assert(originalHashes.nonEmpty)
     assert(originalHashes == internedHashes) // interning changes nothing change-detection observes
   }
-}
+end ConsistentAnalysisFormatInternerSuite

@@ -27,14 +27,14 @@ import xsbti.compile.{
   ClassFileManager,
   IncToolOptions,
   IncToolOptionsUtil,
-  JavaTools => XJavaTools
+  JavaTools as XJavaTools
 }
 import sbt.io.IO
 import sbt.util.LoggerContext
-import org.scalatest.matchers._
+import org.scalatest.matchers.*
 import org.scalatest.diagrams.Diagrams
 
-class JavaCompilerSpec extends UnitSpec with Diagrams {
+class JavaCompilerSpec extends UnitSpec with Diagrams:
 
   "Compiling a java file with local javac" should "compile a java file" in works(local)
   it should "issue errors and warnings" in findsErrors(local)
@@ -89,7 +89,7 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
       dealiasSymlinks(classfileManager.generatedClasses map {
         case vf: PathBasedFile => vf.toPath.toFile
       }) ==
-        (if (forked) HashSet() else dealiasSymlinks(HashSet(classfile)))
+        (if forked then HashSet() else dealiasSymlinks(HashSet(classfile)))
     )
 
     Using.resource(new URLClassLoader(Array(out.toURI.toURL))) { cl =>
@@ -101,11 +101,10 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
 
   def findsErrors(compiler: XJavaTools) = IO.withTemporaryDirectory { out =>
     val options = Seq("-deprecation") ++ {
-      if (scala.util.Properties.isJavaAtLeast("21")) {
+      if scala.util.Properties.isJavaAtLeast("21") then
         Seq("-proc:none")
-      } else {
+      else
         Nil
-      }
     }
     val (result, problems) =
       compile(compiler, Seq(knownSampleErrorFile), options, out.toPath)
@@ -152,7 +151,7 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
       left: String,
       rightType: String,
       right: String
-  ): Unit = {
+  ): Unit =
     def compileWithPrimitive(templateType: String, templateValue: String) =
       IO.withTemporaryDirectory { out =>
         // copy the input file to a temporary location and change the templateValue
@@ -180,25 +179,23 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
     assert(leftAPI.size == rightAPI.size)
     assert(leftAPI.lazyZip(rightAPI).forall(SameAPI.apply) == (left == right))
     ()
-  }
+  end analyzeStaticDifference
 
-  def messageMatches(p: Problem, lineno: Int, message: Option[String] = None): Boolean = {
+  def messageMatches(p: Problem, lineno: Int, message: Option[String] = None): Boolean =
     def messageCheck = message forall (message => p.message.contains(message))
     def lineNumberCheck = p.position.line.isPresent && (p.position.line.get == lineno)
     lineNumberCheck && messageCheck
-  }
 
   def lineMatches(
       p: Problem,
       lineno: Int,
       colno: Int,
       lineContent: Option[String] = None
-  ): Boolean = {
+  ): Boolean =
     def lineContentCheck = lineContent forall (content => p.position.lineContent.contains(content))
     def lineNumberCheck = p.position.line.isPresent && (p.position.line.get == lineno)
     def columnCheck = p.position.pointer.isPresent && (p.position.pointer.get == colno)
     lineNumberCheck && columnCheck && lineContentCheck
-  }
 
   def errorOnLine(
       lineno: Int,
@@ -222,7 +219,7 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
       severity: Severity,
       message: Option[String],
       lineContent: Option[String]
-  ) = {
+  ) =
     val problemType = severityToProblemType(severity)
     val msg = message.fold("")(s => s""" with message = "$s"""")
     val content = lineContent.fold("")(s => s""" with content = "$s"""")
@@ -238,21 +235,19 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
         "Problem matched: " + p
       )
     }
-  }
+  end problemOnLine
 
-  private def severityToProblemType(s: Severity) = s match {
+  private def severityToProblemType(s: Severity) = s match
     case Severity.Error => "error"
     case Severity.Warn  => "warning"
     case Severity.Info  => "info"
-  }
 
   def forkSameAsLocal() = IO.withTemporaryDirectory { out =>
     val options = Seq("-deprecation") ++ {
-      if (scala.util.Properties.isJavaAtLeast("21")) {
+      if scala.util.Properties.isJavaAtLeast("21") then
         Seq("-proc:none")
-      } else {
+      else
         Nil
-      }
     }
 
     val (fresult, fproblems) =
@@ -268,7 +263,7 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
         //   assert(f.position.sourcePath.get == l.position.sourcePath.get)
         // else assert(!l.position.sourcePath.isPresent)
 
-        if (f.position.line.isPresent) assert(f.position.line.get == l.position.line.get)
+        if f.position.line.isPresent then assert(f.position.line.get == l.position.line.get)
         else assert(!l.position.line.isPresent)
 
         assert(f.severity == l.severity)
@@ -281,7 +276,7 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
       args: Seq[String],
       output: Path,
       incToolOptions: IncToolOptions = IncToolOptionsUtil.defaultIncToolOptions()
-  ): (Boolean, Array[Problem]) = {
+  ): (Boolean, Array[Problem]) =
     val log = LoggerContext.globalContext.logger("JavaCompilerSpec", None, None)
     val reporter = new ManagedLoggedReporter(10, log)
     val result = c.javac.run(
@@ -293,7 +288,6 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
       log
     )
     (result, reporter.problems)
-  }
 
   def doc(
       c: XJavaTools,
@@ -301,7 +295,7 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
       args: Seq[String],
       output: Path,
       incToolOptions: IncToolOptions = IncToolOptionsUtil.defaultIncToolOptions()
-  ): (Boolean, Array[Problem]) = {
+  ): (Boolean, Array[Problem]) =
     val log = LoggerContext.globalContext.logger("JavaCompilerSpec", None, None)
     val reporter = new ManagedLoggedReporter(10, log)
     val result = c.javadoc.run(
@@ -313,7 +307,6 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
       log
     )
     (result, reporter.problems)
-  }
 
   // TODO - Create one with known JAVA HOME.
   def forked = JavaTools(JavaCompiler.fork(), Javadoc.fork())
@@ -332,5 +325,4 @@ class JavaCompilerSpec extends UnitSpec with Diagrams {
   def hasStaticFinalFile = loadTestResource("hasstaticfinal.java")
 
   def loadTestResource(name: String): Path = Paths.get(getClass.getResource(name).toURI)
-
-}
+end JavaCompilerSpec

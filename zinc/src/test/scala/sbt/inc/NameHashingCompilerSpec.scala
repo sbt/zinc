@@ -16,12 +16,12 @@ import java.nio.file.{ Files, Paths }
 
 import sbt.io.IO
 
-class NameHashingCompilerSpec extends BaseCompilerSpec {
+class NameHashingCompilerSpec extends BaseCompilerSpec:
   def testIncrementalCompilation(
       changes: Seq[(String, String => String)],
       transitiveChanges: Set[String],
       optimizedSealed: Boolean = true
-  ) = {
+  ) =
     val nahaPath = Paths.get("naha")
     IO.withTemporaryDirectory { tempDir =>
       val projectSetup = ProjectSetup(
@@ -30,12 +30,11 @@ class NameHashingCompilerSpec extends BaseCompilerSpec {
         Nil
       )
 
-      val compilerSetup = {
+      val compilerSetup =
         val default = projectSetup.createCompiler()
-        if (optimizedSealed)
+        if optimizedSealed then
           default.copy(incOptions = default.incOptions.withUseOptimizedSealed(true))
         else default
-      }
 
       val result = compilerSetup.doCompile()
 
@@ -49,17 +48,16 @@ class NameHashingCompilerSpec extends BaseCompilerSpec {
 
       val result2 =
         compilerSetup.doCompile(_.withPreviousResult(compilerSetup.zinc.previousResult(result)))
-      if (changes.isEmpty) {
+      if changes.isEmpty then
         assert(!result2.hasModified)
-      } else {
+      else
         val recompiledUnitsNames =
           compilerSetup.lastCompiledUnits.map(n => Paths.get(n).getFileName.toString)
 
         recompiledUnitsNames should equal((transitiveChanges ++ changes.map(_._1)))
         assert(result2.hasModified)
-      }
     }
-  }
+  end testIncrementalCompilation
 
   def changeImplicitMemberType(in: String) = in.replace("\"implicitMemberValue\"", "42")
   def changeStandardMemberType(in: String) = in.replace("\"standardMemberValue\"", "42")
@@ -71,7 +69,7 @@ class NameHashingCompilerSpec extends BaseCompilerSpec {
       |object OtherSealedNew extends OtherSealed
     """.stripMargin
 
-  import SourceFiles.Naha._
+  import SourceFiles.Naha.*
 
   "incremental compiler" should "not compile anything if sources has not changed" in {
     testIncrementalCompilation(changes = Seq(), transitiveChanges = Set())
@@ -127,5 +125,4 @@ class NameHashingCompilerSpec extends BaseCompilerSpec {
       optimizedSealed = true
     )
   }
-
-}
+end NameHashingCompilerSpec

@@ -16,7 +16,7 @@ package inc
 import java.nio.file.Path
 import sbt.internal.util.FeedbackProvidedException
 import xsbti.compile.analysis.ReadSourceInfos
-import xsbti.compile.{ ClasspathOptions, ScalaInstance => XScalaInstance }
+import xsbti.compile.{ ClasspathOptions, ScalaInstance as XScalaInstance }
 
 /**
  * Provide a basic interface to the Scala Compiler that does not analyze
@@ -30,7 +30,7 @@ import xsbti.compile.{ ClasspathOptions, ScalaInstance => XScalaInstance }
  * @param cp The classpath options that dictate which classpath entries to use.
  * @param log The logger where the Scalac compiler creation is reported.
  */
-class RawCompiler(val scalaInstance: XScalaInstance, cp: ClasspathOptions, log: sbt.util.Logger) {
+class RawCompiler(val scalaInstance: XScalaInstance, cp: ClasspathOptions, log: sbt.util.Logger):
 
   /**
    * Run the compiler with the usual compiler inputs.
@@ -48,16 +48,15 @@ class RawCompiler(val scalaInstance: XScalaInstance, cp: ClasspathOptions, log: 
       classpath: Seq[Path],
       outputDirectory: Path,
       options: Seq[String]
-  ): Unit = {
+  ): Unit =
 
     // Run the compiler and get the reporter attached to it.
-    def getReporter(fqn: String, args: Array[String], isDotty: Boolean): AnyRef = {
+    def getReporter(fqn: String, args: Array[String], isDotty: Boolean): AnyRef =
       val mainClass = Class.forName(fqn, true, scalaInstance.loader)
       val process = mainClass.getMethod("process", classOf[Array[String]])
       val potentialReporter = process.invoke(null, args)
-      if (isDotty) potentialReporter
+      if isDotty then potentialReporter
       else mainClass.getMethod("reporter").invoke(null)
-    }
 
     // Make sure that methods exist so that reflection is safe (trick)
     // import scala.tools.nsc.Main.{ process => _, reporter => _ }
@@ -72,20 +71,18 @@ class RawCompiler(val scalaInstance: XScalaInstance, cp: ClasspathOptions, log: 
       """.stripMargin
     )
 
-    val reporter = {
-      if (ScalaInstance.isDotty(scalaInstance.version))
+    val reporter =
+      if ScalaInstance.isDotty(scalaInstance.version) then
         getReporter("dotty.tools.dotc.Main", args, isDotty = true)
       else getReporter("scala.tools.nsc.Main", args, isDotty = false)
-    }
 
     checkForFailure(reporter, arguments.toArray)
-  }
+  end apply
 
-  protected def checkForFailure(reporter: AnyRef, args: Array[String]): Unit = {
+  protected def checkForFailure(reporter: AnyRef, args: Array[String]): Unit =
     val hasErrorsMethod = reporter.getClass.getMethod("hasErrors")
     val failed = hasErrorsMethod.invoke(reporter).asInstanceOf[Boolean]
-    if (failed) throw new CompileFailed(args, "Plain compile failed", Array())
-  }
+    if failed then throw new CompileFailed(args, "Plain compile failed", Array())
 
   /**
    * Return the correct compiler arguments for the given `ScalaInstance`
@@ -93,7 +90,7 @@ class RawCompiler(val scalaInstance: XScalaInstance, cp: ClasspathOptions, log: 
    * specific to a concrete Scala version.
    */
   def compilerArguments = new CompilerArguments(scalaInstance, cp)
-}
+end RawCompiler
 
 class CompileFailed(
     val arguments: Array[String],
@@ -102,9 +99,7 @@ class CompileFailed(
     val sourceInfosOption: Option[ReadSourceInfos],
     cause: Throwable
 ) extends xsbti.CompileFailed(cause)
-    with FeedbackProvidedException {
+    with FeedbackProvidedException:
 
-  def this(arguments: Array[String], toString: String, problems: Array[xsbti.Problem]) = {
+  def this(arguments: Array[String], toString: String, problems: Array[xsbti.Problem]) =
     this(arguments, toString, problems, None, null)
-  }
-}

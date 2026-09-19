@@ -10,7 +10,8 @@ class ExtractAPISpecification
     with CompilingSpecification
     with BridgeProviderTestkit {
 
-  "ExtractAPI" should "give stable names to members of existential types in method signatures" in stableExistentialNames()
+  "ExtractAPI" should "give stable names to members of existential types in method signatures" in
+    stableExistentialNames()
 
   it should "extract children of a sealed class" in {
     def compileAndGetFooClassApi(src: String): ClassLike = {

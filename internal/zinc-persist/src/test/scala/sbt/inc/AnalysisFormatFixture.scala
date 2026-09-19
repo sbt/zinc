@@ -22,9 +22,9 @@ import sbt.internal.inc.{ UsedName, UsedNames }
 import sbt.util.InterfaceUtil
 import sbt.util.InterfaceUtil.t2
 import xsbti.{ Severity, UseScope, VirtualFileRef }
-import xsbti.api._
-import xsbti.api.DependencyContext._
-import xsbti.compile._
+import xsbti.api.*
+import xsbti.api.DependencyContext.*
+import xsbti.compile.*
 import xsbti.compile.analysis.SourceInfo
 
 /**
@@ -38,7 +38,7 @@ import xsbti.compile.analysis.SourceInfo
  *     the rendering (identical neighbours would make the swap invisible);
  *   - collections that drive a writer body are non-empty, so that body is actually rendered.
  */
-object AnalysisFormatFixture {
+object AnalysisFormatFixture:
   private def lzy[A <: AnyRef](a: A) = SafeLazyProxy.strict(a)
   private def arr[A <: AnyRef: ClassTag] = new Array[A](0)
   private def vf(id: String) = VirtualFileRef.of(id)
@@ -155,14 +155,14 @@ object AnalysisFormatFixture {
       name,
       Public.of(),
       emptyModifiers,
-      if (rich) Array(annotation) else arr[Annotation],
+      if rich then Array(annotation) else arr[Annotation],
       defnType,
       lzy[Type](EmptyType.of()),
       lzy(structure),
-      if (rich) Array("savedAnnotation") else arr[String],
-      if (rich) Array[Type](Singleton.of(thisPath), Singleton.of(simplePath)) else arr[Type],
+      if rich then Array("savedAnnotation") else arr[String],
+      if rich then Array[Type](Singleton.of(thisPath), Singleton.of(simplePath)) else arr[Type],
       true,
-      if (rich) Array(tparam("ClassT")) else arr[TypeParameter]
+      if rich then Array(tparam("ClassT")) else arr[TypeParameter]
     )
 
   // Only one ClassLike carries the exhaustive type and definition coverage; repeating it in every
@@ -246,7 +246,7 @@ object AnalysisFormatFixture {
   )
 
   /** Each `writeStamp2` branch and each internal `DependencyContext` appears exactly once. */
-  lazy val analysis: Analysis = {
+  lazy val analysis: Analysis =
     val base = Analysis.empty.addSource(
       src = vf("A.scala"),
       apis = Seq(analyzedClass("A", richStructure)),
@@ -289,7 +289,7 @@ object AnalysisFormatFixture {
       libraryDeps = (vf("x.jar"), "x", EmptyStamp) :: Nil
     )
     base.copy(relations = base.relations.addUsedNames(usedNames))
-  }
+  end analysis
 
   lazy val setup: MiniSetup = MiniSetup.of(
     // A single path segment: a deeper path would serialize with the platform separator.
@@ -304,4 +304,4 @@ object AnalysisFormatFixture {
     true,
     Array(t2("extraKey" -> "extraValue"))
   )
-}
+end AnalysisFormatFixture

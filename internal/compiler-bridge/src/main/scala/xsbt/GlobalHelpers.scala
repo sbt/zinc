@@ -135,7 +135,7 @@ trait GlobalHelpers { self: Compat =>
     // Hotspot
     var seen = false
     in.attachments.all.foreach {
-      case _ if seen =>
+      case _ if seen                                 =>
       case macroAttachment: MacroExpansionAttachment =>
         func(macroAttachment.expandee)
         seen = true

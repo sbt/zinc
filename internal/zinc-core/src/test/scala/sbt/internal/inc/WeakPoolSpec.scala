@@ -14,15 +14,14 @@ package sbt.internal.inc
 import java.lang.ref.WeakReference
 import java.util.concurrent.{ Callable, CountDownLatch, Executors, TimeUnit }
 
-class WeakPoolSpec extends UnitSpec {
+class WeakPoolSpec extends UnitSpec:
 
   /** GC is not obliged to collect on the first attempt, so retry for a while. */
-  private def gcUntil(cond: => Boolean): Boolean =
-    (1 to 100).exists { _ =>
-      System.gc()
-      Thread.sleep(10)
-      cond
-    }
+  private def gcUntil(cond: => Boolean): Boolean = (1 to 100).exists { _ =>
+    System.gc()
+    Thread.sleep(10)
+    cond
+  }
 
   behavior of "WeakInterner"
 
@@ -52,19 +51,17 @@ class WeakPoolSpec extends UnitSpec {
     val threads = 16
     val start = new CountDownLatch(1)
     val executor = Executors.newFixedThreadPool(threads)
-    try {
+    try
       val futures = (1 to threads).map { _ =>
-        executor.submit(new Callable[String] {
-          def call(): String = {
+        executor.submit(new Callable[String]:
+          def call(): String =
             start.await() // release all threads together to maximize contention
-            interner.intern(new String("contended"))
-          }
-        })
+            interner.intern(new String("contended")))
       }
       start.countDown()
       val results = futures.map(_.get(30, TimeUnit.SECONDS)).toList // deadlock => timeout
       assert(results.forall(_ `eq` results.head))
-    } finally executor.shutdownNow()
+    finally executor.shutdownNow()
   }
 
   behavior of "WeakValuePool"
@@ -95,4 +92,4 @@ class WeakPoolSpec extends UnitSpec {
     // key with it -- otherwise the pool leaks one key per dead value.
     assert(gcUntil { pool.get("other"); keyRef.get() == null && valueRef.get() == null })
   }
-}
+end WeakPoolSpec

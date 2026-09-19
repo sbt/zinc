@@ -1,6 +1,6 @@
-import sbt._, Keys._
+import sbt.*, Keys.*
 
-object Dependencies {
+object Dependencies:
   def nightlyVersion: Option[String] =
     sys.env.get("BUILD_VERSION") orElse sys.props.get("sbt.build.version")
 
@@ -28,13 +28,12 @@ object Dependencies {
 
   val launcherInterface = "org.scala-sbt" % "launcher-interface" % "1.6.2"
 
-  def getSbtModulePath(key: String, name: String) = {
+  def getSbtModulePath(key: String, name: String) =
     val localProps = new java.util.Properties()
     IO.load(localProps, file("project/local.properties"))
     val path = Option(localProps.getProperty(key)) orElse (sys.props get key)
     path foreach (f => println(s"Using $name from $f"))
     path
-  }
 
   def addSbtModule(
       p: Project,
@@ -43,12 +42,11 @@ object Dependencies {
       m: ModuleID,
       c: Option[Configuration] = None
   ) =
-    path match {
+    path match
       case Some(f) =>
         p.dependsOn(ClasspathDependency(ProjectRef(file(f), projectName), c.map(_.name)))
       case None =>
         p.settings(libraryDependencies += m.withConfigurations(c.map(_.name)))
-    }
 
   lazy val sbtIoPath = getSbtModulePath("sbtio.path", "sbt/io")
   lazy val sbtUtilPath = getSbtModulePath("sbtutil.path", "sbt/util")
@@ -93,4 +91,4 @@ object Dependencies {
         verify % Test,
       )
     )
-}
+end Dependencies

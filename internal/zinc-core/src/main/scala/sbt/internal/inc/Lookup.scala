@@ -22,7 +22,7 @@ import xsbti.compile.{ Changes, CompileAnalysis, ExternalHooks, FileHash }
  * A trait that encapsulates looking up elements on a classpath and looking up
  * an external (for another subproject) Analysis instance.
  */
-trait Lookup extends ExternalLookup {
+trait Lookup extends ExternalLookup:
 
   /**
    * Returns the current classpath if the classpath has changed from the last compilation.
@@ -48,25 +48,25 @@ trait Lookup extends ExternalLookup {
    */
   def lookupAnalysis(binaryClassName: String): Option[CompileAnalysis]
 
-  override def lookupAnalyzedClass(binaryClassName: String, file: Option[VirtualFileRef]) = {
+  override def lookupAnalyzedClass(binaryClassName: String, file: Option[VirtualFileRef]) =
     // This is the default, slow, route, via Analysis; overridden in LookupImpl for the fast-track.
-    for {
+    for
       analysis0 <- lookupAnalysis(binaryClassName)
-      analysis = analysis0 match { case a: Analysis => a }
+      analysis = analysis0 match
+        case a: Analysis => a
       className <- analysis.relations.productClassName.reverse(binaryClassName).headOption
       analyzedClass <- analysis.apis.internal.get(className)
-    } yield analyzedClass
-  }
-}
+    yield analyzedClass
+end Lookup
 
 /**
  * Defines a hook interface that IDEs or build tools can mock to modify the way
  * Zinc invalidates the incremental compiler. These hooks operate at a high-level
  * of abstraction and only allow to modify the inputs of the initial change detection.
  */
-trait ExternalLookup extends ExternalHooks.Lookup {
-  import scala.jdk.OptionConverters._
-  import scala.jdk.CollectionConverters._
+trait ExternalLookup extends ExternalHooks.Lookup:
+  import scala.jdk.OptionConverters.*
+  import scala.jdk.CollectionConverters.*
 
   /**
    * Find the external `AnalyzedClass` (from another analysis) given a class name and, if available,
@@ -129,10 +129,9 @@ trait ExternalLookup extends ExternalHooks.Lookup {
   override def shouldDoIncrementalCompilation(
       changedClasses: util.Set[String],
       previousAnalysis: CompileAnalysis
-  ): Boolean = {
-    import scala.jdk.CollectionConverters._
+  ): Boolean =
+    import scala.jdk.CollectionConverters.*
     shouldDoIncrementalCompilation(changedClasses.iterator().asScala.toSet, previousAnalysis)
-  }
 
   /**
    * Used to override whether we should proceed with making an early output.
@@ -145,12 +144,11 @@ trait ExternalLookup extends ExternalHooks.Lookup {
    * (e.g. `def impl(c: Context) = ...`) from macro definitions
    * (e.g. `def foo: Unit = macro Foo.impl`) you can safely override this.
    */
-  def shouldDoEarlyOutput(analysis: CompileAnalysis): Boolean = {
+  def shouldDoEarlyOutput(analysis: CompileAnalysis): Boolean =
     analysis.asInstanceOf[Analysis].apis.internal.values.forall(!_.hasMacro)
-  }
-}
+end ExternalLookup
 
-trait NoopExternalLookup extends ExternalLookup {
+trait NoopExternalLookup extends ExternalLookup:
   override def lookupAnalyzedClass(binaryClassName: String, file: Option[VirtualFileRef]) = None
   override def changedSources(previous: CompileAnalysis): Option[Changes[VirtualFileRef]] = None
   override def changedBinaries(previous: CompileAnalysis): Option[Set[VirtualFileRef]] = None
@@ -161,4 +159,3 @@ trait NoopExternalLookup extends ExternalLookup {
   ): Boolean = true
   override def hashClasspath(classpath: Array[VirtualFile]): Optional[Array[FileHash]] =
     Optional.empty()
-}

@@ -19,7 +19,7 @@ import java.net.URLClassLoader
 import java.util.{ Optional, ServiceLoader }
 
 import sbt.util.{ InterfaceUtil, Logger }
-import sbt.io.syntax._
+import sbt.io.syntax.*
 import sbt.internal.inc.classpath.ClassLoaderCache
 import sbt.internal.util.ManagedLogger
 import xsbti.{
@@ -27,10 +27,10 @@ import xsbti.{
   FileConverter,
   InteractiveConsoleFactory,
   Reporter,
-  Logger => xLogger,
+  Logger as xLogger,
   VirtualFile
 }
-import xsbti.compile._
+import xsbti.compile.*
 import scala.language.existentials
 
 /**
@@ -50,7 +50,7 @@ final class AnalyzingCompiler(
     override val classpathOptions: ClasspathOptions,
     onArgsHandler: Seq[String] => Unit,
     val classLoaderCache: Option[ClassLoaderCache]
-) extends ScalaCompiler {
+) extends ScalaCompiler:
 
   /** Mechanism to work with compiler arguments. */
   private val compArgs = new CompilerArguments(scalaInstance, classpathOptions)
@@ -78,15 +78,15 @@ final class AnalyzingCompiler(
       reporter: Reporter,
       progressOpt: Optional[CompileProgress],
       log: xLogger
-  ): Unit = {
-    val progress = if (progressOpt.isPresent) progressOpt.get else IgnoreProgress
+  ): Unit =
+    val progress = if progressOpt.isPresent then progressOpt.get else IgnoreProgress
     val cp = classpath.map(converter.toPath).toIndexedSeq
     val arguments = compArgs.makeArguments(Nil, cp, options.toIndexedSeq, log).toArray
     // hold reference to compiler bridge class loader to prevent its being evicted
     // from the compiler cache (sbt/zinc#914)
     val loader = getCompilerLoader(log)
 
-    loadService(classOf[CompilerInterface2], loader) match {
+    loadService(classOf[CompilerInterface2], loader) match
       case Some(intf) =>
         intf.run(sources, changes, arguments, output, callback, reporter, progress, log)
       case _ =>
@@ -100,7 +100,7 @@ final class AnalyzingCompiler(
           classOf[Reporter]
         )(arguments, output, log, reporter).asInstanceOf[CachedCompiler]
         val fileSources: Array[File] = sources.map(converter.toPath(_).toFile)
-        try {
+        try
           invoke(bridge, bridgeClass, "run", log)(
             classOf[Array[File]],
             classOf[DependencyChanges],
@@ -111,14 +111,12 @@ final class AnalyzingCompiler(
             classOf[CachedCompiler]
           )(fileSources, changes, callback, log, reporter, progress, compiler)
           ()
-        } finally {
-          compiler match {
+        finally
+          compiler match
             case c: java.io.Closeable => c.close()
             case _                    =>
-          }
-        }
-    }
-  }
+    end match
+  end compile
 
   def doc(
       sources: Seq[VirtualFile],
@@ -128,10 +126,9 @@ final class AnalyzingCompiler(
       options: Seq[String],
       maximumErrors: Int,
       log: ManagedLogger
-  ): Unit = {
+  ): Unit =
     val reporter = new ManagedLoggedReporter(maximumErrors, log)
     doc(sources, classpath, converter, outputDirectory, options, log, reporter)
-  }
 
   def doc(
       sources: Seq[VirtualFile],
@@ -141,19 +138,19 @@ final class AnalyzingCompiler(
       options: Seq[String],
       log: Logger,
       reporter: Reporter
-  ): Unit = {
+  ): Unit =
     val cp = classpath.map(converter.toPath)
     // hold reference to compiler bridge class loader to prevent its being evicted
     // from the compiler cache (sbt/zinc#914)
     val loader = getAllJarLoader(log)
-    loadService(classOf[ScaladocInterface2], loader) match {
+    loadService(classOf[ScaladocInterface2], loader) match
       case Some(intf) =>
         val arguments =
           compArgs.makeArguments(Nil, cp, Some(outputDirectory), options, log)
         onArgsHandler(arguments)
         intf.run(sources.toArray, arguments.toArray[String], log, reporter)
       case _ =>
-        loadService(classOf[ScaladocInterface1], loader) match {
+        loadService(classOf[ScaladocInterface1], loader) match
           case Some(intf) =>
             val fileSources: Seq[Path] = sources.map(converter.toPath(_))
             val arguments =
@@ -173,10 +170,9 @@ final class AnalyzingCompiler(
               classOf[xLogger],
               classOf[Reporter]
             )(arguments.toArray[String], log, reporter)
-        }
-    }
+    end match
     ()
-  }
+  end doc
 
   def console(
       classpath: Seq[VirtualFile],
@@ -185,7 +181,7 @@ final class AnalyzingCompiler(
       initialCommands: String,
       cleanupCommands: String,
       log: Logger
-  )(loader: Option[ClassLoader] = None, bindings: Seq[(String, Any)] = Nil): Unit = {
+  )(loader: Option[ClassLoader] = None, bindings: Seq[(String, Any)] = Nil): Unit =
     val (classpathString, bootClasspath) = consoleClasspaths(classpath, converter, options, log)
     onArgsHandler(consoleCommandArguments(options, bootClasspath, classpathString, log))
     val (names, values0) = bindings.unzip
@@ -194,7 +190,7 @@ final class AnalyzingCompiler(
     // from the compiler cache (sbt/zinc#914)
     val classLoader = getAllJarLoader(log)
 
-    loadService(classOf[ConsoleInterface1], classLoader) match {
+    loadService(classOf[ConsoleInterface1], classLoader) match
       case Some(intf) =>
         intf.run(
           options.toArray[String]: Array[String],
@@ -232,9 +228,9 @@ final class AnalyzingCompiler(
           values.toArray[Any],
           log
         )
-    }
+    end match
     ()
-  }
+  end console
 
   /**
    * The console bridge applies `bootClasspath` on top of the parsed options, so an empty
@@ -245,38 +241,36 @@ final class AnalyzingCompiler(
       converter: FileConverter,
       options: Seq[String],
       log: Logger
-  ): (String, String) = {
+  ): (String, String) =
     val cp = classpath map { converter.toPath }
     val classpathString = CompilerArguments.absString(compArgs.finishClasspath(cp))
     val bootClasspath =
-      if (!classpathOptions.autoBoot) ""
-      else if (CompilerArguments.explicitBootClasspath(options).isDefined) {
+      if !classpathOptions.autoBoot then ""
+      else if CompilerArguments.explicitBootClasspath(options).isDefined then
         log.warn(CompilerArguments.ExplicitBootClasspathWarning)
         ""
-      } else compArgs.createBootClasspathFor(cp)
+      else compArgs.createBootClasspathFor(cp)
     (classpathString, bootClasspath)
-  }
 
   def consoleCommandArguments(
       classpath: Seq[VirtualFile],
       converter: FileConverter,
       options: Seq[String],
       log: Logger
-  ): Seq[String] = {
+  ): Seq[String] =
     val (classpathString, bootClasspath) = consoleClasspaths(classpath, converter, options, log)
     consoleCommandArguments(options, bootClasspath, classpathString, log)
-  }
 
   private def consoleCommandArguments(
       options: Seq[String],
       bootClasspath: String,
       classpathString: String,
       log: Logger
-  ): Seq[String] = {
+  ): Seq[String] =
     // hold reference to compiler bridge class loader to prevent its being evicted
     // from the compiler cache (sbt/zinc#914)
     val loader = getCompilerLoader(log)
-    val argsObj = loadService(classOf[ConsoleInterface1], loader) match {
+    val argsObj = loadService(classOf[ConsoleInterface1], loader) match
       case Some(intf) =>
         intf.commandArguments(options.toArray[String], bootClasspath, classpathString, log)
       case _ =>
@@ -288,9 +282,8 @@ final class AnalyzingCompiler(
           classOf[String],
           classOf[xLogger]
         )(options.toArray[String], bootClasspath, classpathString, log)
-    }
     argsObj.asInstanceOf[Array[String]].toSeq
-  }
+  end consoleCommandArguments
 
   def interactiveConsole(
       classpath: Seq[VirtualFile],
@@ -302,7 +295,7 @@ final class AnalyzingCompiler(
   )(
       loader: Option[ClassLoader] = None,
       bindings: Seq[(String, AnyRef)] = Nil
-  ): xsbti.InteractiveConsoleInterface = {
+  ): xsbti.InteractiveConsoleInterface =
     val (classpathString, bootClasspath) = consoleClasspaths(classpath, converter, options, log)
     onArgsHandler(consoleCommandArguments(options, bootClasspath, classpathString, log))
     val (names, values0) = bindings.unzip
@@ -310,7 +303,7 @@ final class AnalyzingCompiler(
     // hold reference to compiler bridge class loader to prevent its being evicted
     // from the compiler cache (sbt/zinc#914)
     val classLoader = getCompilerLoader(log)
-    loadService(classOf[InteractiveConsoleFactory], classLoader) match {
+    loadService(classOf[InteractiveConsoleFactory], classLoader) match
       case Some(intf) =>
         intf.createConsole(
           options.toArray[String]: Array[String],
@@ -325,42 +318,35 @@ final class AnalyzingCompiler(
         )
       case _ =>
         sys.error(s"xsbti.InteractiveConsoleFactory service was not found")
-    }
-  }
+  end interactiveConsole
 
   // see https://docs.oracle.com/javase/8/docs/api/java/util/ServiceLoader.html
-  private def loadService[A](cls: Class[A], loader: ClassLoader): Option[A] = {
-    import scala.jdk.CollectionConverters._
+  private def loadService[A](cls: Class[A], loader: ClassLoader): Option[A] =
+    import scala.jdk.CollectionConverters.*
     val sl = ServiceLoader.load(cls, loader)
     val list = sl.iterator.asScala.toList
     list.lastOption
-  }
 
-  private def bridgeInstance(bridgeClassName: String, loader: ClassLoader): (AnyRef, Class[?]) = {
+  private def bridgeInstance(bridgeClassName: String, loader: ClassLoader): (AnyRef, Class[?]) =
     val bridgeClass = getBridgeClass(bridgeClassName, loader)
     (bridgeClass.getDeclaredConstructor().newInstance().asInstanceOf[AnyRef], bridgeClass)
-  }
 
   private def invoke(bridge: AnyRef, bridgeClass: Class[?], methodName: String, log: Logger)(
       argTypes: Class[?]*
-  )(args: AnyRef*): AnyRef = {
+  )(args: AnyRef*): AnyRef =
     val method = bridgeClass.getMethod(methodName, argTypes*)
     try method.invoke(bridge, args*)
-    catch {
+    catch
       case e: InvocationTargetException =>
-        e.getCause match {
+        e.getCause match
           case c: xsbti.CompileFailed =>
             throw new CompileFailed(c.arguments, c.toString, c.problems)
           case t => throw t
-        }
-    }
-  }
 
-  private def getCompilerLoader(log: Logger): ClassLoader = {
+  private def getCompilerLoader(log: Logger): ClassLoader =
     // could crash if the `CompilerBridge` tries to load classes
     // that are not in `scalaInstance.compilerJars`
     getDualLoader(scalaInstance.compilerJars.toList, scalaInstance.loaderCompilerOnly, log)
-  }
 
   private def getAllJarLoader(log: Logger): ClassLoader =
     getDualLoader(scalaInstance.allJars.toList, scalaInstance.loader, log)
@@ -369,7 +355,7 @@ final class AnalyzingCompiler(
       scalaJars: List[File],
       scalaLoader: ClassLoader,
       log: Logger
-  ): ClassLoader = {
+  ): ClassLoader =
     val compilerBridgeJar = provider.fetchCompiledBridge(scalaInstance, log)
     def createCompilerBridgeLoader =
       new URLClassLoader(
@@ -377,15 +363,13 @@ final class AnalyzingCompiler(
         createDualLoader(scalaLoader, getClass.getClassLoader)
       )
 
-    classLoaderCache match {
+    classLoaderCache match
       case Some(cache) =>
         cache.cachedCustomClassloader(
           compilerBridgeJar :: scalaJars,
           () => createCompilerBridgeLoader
         )
       case None => createCompilerBridgeLoader
-    }
-  }
 
   private def getBridgeClass(name: String, loader: ClassLoader) =
     Class.forName(name, true, loader)
@@ -393,7 +377,7 @@ final class AnalyzingCompiler(
   protected def createDualLoader(
       scalaLoader: ClassLoader,
       sbtLoader: ClassLoader
-  ): ClassLoader = {
+  ): ClassLoader =
     val xsbtiFilter = (name: String) => name.startsWith("xsbti.")
     val notXsbtiFilter = (name: String) => !xsbtiFilter(name)
     new classpath.DualLoader(
@@ -404,12 +388,11 @@ final class AnalyzingCompiler(
       xsbtiFilter,
       _ => false
     )
-  }
 
   override def toString = s"Analyzing compiler (Scala ${scalaInstance.actualVersion})"
-}
+end AnalyzingCompiler
 
-object AnalyzingCompiler {
+object AnalyzingCompiler:
   import sbt.io.IO.{ copy, zip, unzip, withTemporaryDirectory }
 
   /**
@@ -433,28 +416,25 @@ object AnalyzingCompiler {
       id: String,
       compiler: RawCompiler,
       log: Logger
-  ): Unit = {
+  ): Unit =
     val isSource = (f: Path) => isSourceName(f.getFileName.toString)
     def keepIfSource(files: Set[Path]): Set[Path] =
-      if (files.exists(isSource)) files else Set.empty
+      if files.exists(isSource) then files else Set.empty
 
     // Generate jar from compilation dirs, the resources and a target name.
-    def generateJar(outputDir: File, dir: File, resources: Seq[File], targetJar: File) = {
-      import sbt.io.Path._
+    def generateJar(outputDir: File, dir: File, resources: Seq[File], targetJar: File) =
+      import sbt.io.Path.*
       copy(resources.pair(rebase(dir, outputDir)))
       val toBeZipped = outputDir.allPaths.pair(relativeTo(outputDir), errorIfNone = false)
       zip(toBeZipped, targetJar, Some(0L))
-    }
 
     // Handle the compilation failure of the Scala compiler.
-    def handleCompilationError(compilation: => Unit) = {
+    def handleCompilationError(compilation: => Unit) =
       try compilation
-      catch {
+      catch
         case e: xsbti.CompileFailed =>
           val msg = s"Error compiling the sbt component '$id'"
           throw new CompileFailed(e.arguments, msg, e.problems)
-      }
-    }
 
     withTemporaryDirectory { dir =>
       // Extract the sources to be compiled
@@ -483,10 +463,10 @@ object AnalyzingCompiler {
         generateJar(outputDirectory, dir, resources.map(_.toFile), targetJar.toFile)
       }
     }
-  }
+  end compileSources
 
   private def isSourceName(name: String): Boolean =
     name.endsWith(".scala") || name.endsWith(".java")
-}
+end AnalyzingCompiler
 
 private object IgnoreProgress extends CompileProgress

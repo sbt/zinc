@@ -24,15 +24,14 @@ private class ProcessLoggerWriter(
     delegate: ProcessLogger,
     level: Level.Value,
     nl: String = System.getProperty("line.separator")
-) extends java.io.Writer {
+) extends java.io.Writer:
   private val buffer = new StringBuilder
   override def close() = flush()
   override def flush(): Unit =
     synchronized {
-      if (buffer.nonEmpty) {
+      if buffer.nonEmpty then
         log(buffer.toString)
         buffer.clear()
-      }
     }
   override def write(content: Array[Char], offset: Int, length: Int): Unit =
     synchronized {
@@ -41,16 +40,13 @@ private class ProcessLoggerWriter(
     }
 
   @tailrec
-  private def process(): Unit = {
+  private def process(): Unit =
     val i = buffer.indexOf(nl)
-    if (i >= 0) {
+    if i >= 0 then
       log(buffer.substring(0, i))
       buffer.delete(0, i + nl.length)
       process()
-    }
-  }
-  private def log(s: String): Unit = level match {
+  private def log(s: String): Unit = level match
     case Level.Warn | Level.Error => delegate.err(s)
     case Level.Info               => delegate.out(s)
-  }
-}
+end ProcessLoggerWriter

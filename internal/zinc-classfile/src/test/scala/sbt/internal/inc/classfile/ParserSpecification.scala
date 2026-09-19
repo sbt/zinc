@@ -16,7 +16,7 @@ package classfile
 
 import sbt.internal.util.ConsoleLogger
 
-class ParserSpecification extends UnitSpec {
+class ParserSpecification extends UnitSpec:
 
   val sampleClasses = List[Class[?]](
     this.getClass,
@@ -33,7 +33,7 @@ class ParserSpecification extends UnitSpec {
     // over in AnalyzeSpecification
   )
 
-  for (c <- sampleClasses)
+  for c <- sampleClasses do
     "classfile.Parser" should s"not crash when parsing $c" in {
       val logger = ConsoleLogger()
       // logger.setLevel(sbt.util.Level.Debug)
@@ -63,5 +63,4 @@ class ParserSpecification extends UnitSpec {
     assert(entry.get.outerClassName == "java.util.AbstractMap")
     assert(entry.get.isPublic)
   }
-
-}
+end ParserSpecification

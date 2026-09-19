@@ -35,7 +35,7 @@ class ManagedFilteredReporter(
     maximumErrors: Int,
     logger: ManagedLogger,
     positionMapper: Position => Position
-) extends FilteredReporter(fileFilters, msgFilters, maximumErrors, logger, positionMapper) {
+) extends FilteredReporter(fileFilters, msgFilters, maximumErrors, logger, positionMapper):
   import LoggedReporter.problemFormats.given
   import LoggedReporter.problemStringFormats.given
   logger.registerStringCodec[Problem]
@@ -43,7 +43,6 @@ class ManagedFilteredReporter(
   override def logError(problem: Problem): Unit = logger.errorEvent(problem)
   override def logWarning(problem: Problem): Unit = logger.warnEvent(problem)
   override def logInfo(problem: Problem): Unit = logger.infoEvent(problem)
-}
 
 /**
  * Defines a filtered reporter to control which messages are reported or not.
@@ -61,8 +60,8 @@ class FilteredReporter(
     maximumErrors: Int,
     logger: Logger,
     positionMapper: Position => Position
-) extends LoggedReporter(maximumErrors, logger, positionMapper) {
-  private final def isFiltered(pos: Position, msg: String, severity: Severity): Boolean = {
+) extends LoggedReporter(maximumErrors, logger, positionMapper):
+  private final def isFiltered(pos: Position, msg: String, severity: Severity): Boolean =
     def isFiltered[T](filters: Seq[T => java.lang.Boolean], value: T): Boolean =
       filters.exists(f => f(value).booleanValue())
 
@@ -73,7 +72,6 @@ class FilteredReporter(
       )) ||
         (isFiltered(msgFilters.toIndexedSeq, msg))
     )
-  }
 
   /**
    * Redefines display so that non-error messages are filtered.
@@ -84,12 +82,12 @@ class FilteredReporter(
    * Problems that are filtered are not logged with the underlying logger but they are still
    * registered as problems so that users of `problems()` receive them.
    */
-  override def log(problem: Problem): Unit = {
+  override def log(problem: Problem): Unit =
     val (category, position, message, severity, rendered) =
       (problem.category, problem.position, problem.message, problem.severity, problem.rendered)
     val dontShow = isFiltered(position, message, severity)
-    if (!dontShow) super.log(problem)
-    else {
+    if !dontShow then super.log(problem)
+    else
       // Even if we don't display, we do want to register the problem
       import sbt.util.InterfaceUtil
       val transformedPos: Position = positionMapper(position)
@@ -105,6 +103,5 @@ class FilteredReporter(
       )
       allProblems += prob
       ()
-    }
-  }
-}
+  end log
+end FilteredReporter

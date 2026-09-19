@@ -19,7 +19,7 @@ import scala.util
 import java.nio.file.Path
 import CompilerArguments.{ absString, BootClasspathOption }
 import sbt.io.IO
-import sbt.io.syntax._
+import sbt.io.syntax.*
 
 /**
  * Construct the list of compiler arguments that are passed to the Scala
@@ -43,7 +43,7 @@ import sbt.io.syntax._
 final class CompilerArguments(
     scalaInstance: xsbti.compile.ScalaInstance,
     cpOptions: xsbti.compile.ClasspathOptions
-) {
+):
   def makeArguments(
       sources: Seq[Path],
       classpath: Seq[Path],
@@ -92,25 +92,25 @@ final class CompilerArguments(
       classpath: Seq[Path],
       options: Seq[String],
       log: xsbti.Logger
-  ): Seq[String] = {
+  ): Seq[String] =
     /* Add dummy to avoid Scalac misbehaviour for empty classpath (as of 2.9.1). */
     def dummy: String = "dummy_" + Integer.toHexString(util.Random.nextInt())
 
     checkScalaHomeUnset()
     val compilerClasspath = finishClasspath(classpath)
     val stringClasspath =
-      if (compilerClasspath.isEmpty) dummy
+      if compilerClasspath.isEmpty then dummy
       else absString(compilerClasspath)
     val classpathOption = Seq("-classpath", stringClasspath)
     /* Respect a user-provided -bootclasspath: scalac takes the last occurrence of the
      * flag, so appending Zinc's own would silently override the user's (sbt/zinc#348). */
     val bootClasspath =
-      if (CompilerArguments.explicitBootClasspath(options).isDefined) {
-        if (cpOptions.autoBoot) log.warn(() => CompilerArguments.ExplicitBootClasspathWarning)
+      if CompilerArguments.explicitBootClasspath(options).isDefined then
+        if cpOptions.autoBoot then log.warn(() => CompilerArguments.ExplicitBootClasspathWarning)
         Nil
-      } else bootClasspathOption(hasLibrary(classpath))
+      else bootClasspathOption(hasLibrary(classpath))
     options ++ bootClasspath ++ classpathOption ++ abs(sources)
-  }
+  end makeArguments
 
   /**
    * Finish the classpath by adding extra Scala classpath entries if required.
@@ -118,14 +118,13 @@ final class CompilerArguments(
    * @param classpath The classpath seed to be modified.
    * @return A classpath ready to be passed to the Scala compiler.
    */
-  def finishClasspath(classpath: Seq[Path]): Seq[Path] = {
+  def finishClasspath(classpath: Seq[Path]): Seq[Path] =
     val filteredClasspath = filterLibrary(classpath)
     val extraCompiler =
       include(cpOptions.compiler, scalaInstance.compilerJars.toIndexedSeq.map(_.toPath)*)
     val otherJars = scalaInstance.otherJars.toList.map(_.toPath)
     val extraClasspath = include(cpOptions.extra, otherJars*)
     filteredClasspath ++ extraCompiler ++ extraClasspath
-  }
 
   def createBootClasspathFor(classpath: Seq[Path]): String =
     createBootClasspath(hasLibrary(classpath) || cpOptions.compiler || cpOptions.extra)
@@ -134,36 +133,34 @@ final class CompilerArguments(
    * Return the Scala library to the boot classpath if `addLibrary` is true.
    * @param addLibrary Flag to return the Scala library.
    */
-  def createBootClasspath(addLibrary: Boolean): String = {
-    def findBoot: String = {
-      import scala.jdk.CollectionConverters._
+  def createBootClasspath(addLibrary: Boolean): String =
+    def findBoot: String =
+      import scala.jdk.CollectionConverters.*
       System.getProperties.asScala.iterator
         .collectFirst {
           case (k, v) if k.endsWith(".boot.class.path") => v
         }
         .getOrElse("")
-    }
     val originalBoot = Option(System.getProperty("sun.boot.class.path")).getOrElse(findBoot)
-    if (addLibrary) {
+    if addLibrary then
       val newBootPrefix =
-        if (originalBoot.isEmpty) ""
+        if originalBoot.isEmpty then ""
         else originalBoot + java.io.File.pathSeparator
       newBootPrefix + absString(scalaInstance.libraryJars.map(_.toPath))
-    } else originalBoot
-  }
+    else originalBoot
 
   def filterLibrary(classpath: Seq[Path]) =
-    if (!cpOptions.filterLibrary) classpath
+    if !cpOptions.filterLibrary then classpath
     else classpath.filterNot(isScalaLibrary)
 
   def hasLibrary(classpath: Seq[Path]) = classpath.exists(isScalaLibrary)
 
   def bootClasspathOption(addLibrary: Boolean): Seq[String] =
-    if (!cpOptions.autoBoot) Nil
+    if !cpOptions.autoBoot then Nil
     else Seq(BootClasspathOption, createBootClasspath(addLibrary))
 
   def bootClasspath(addLibrary: Boolean): Seq[Path] =
-    if (!cpOptions.autoBoot) Nil
+    if !cpOptions.autoBoot then Nil
     else IO.parseClasspath(createBootClasspath(addLibrary)).map(_.toPath)
 
   def bootClasspathFor(classpath: Seq[Path]) =
@@ -175,29 +172,27 @@ final class CompilerArguments(
     )
 
   private def include(flag: Boolean, jars: Path*) =
-    if (flag) jars
+    if flag then jars
     else Nil
 
   private def abs(files: Seq[Path]) =
     files.map(_.toAbsolutePath.toString).sortWith(_ < _)
 
-  private def checkScalaHomeUnset(): Unit = {
+  private def checkScalaHomeUnset(): Unit =
     val scalaHome = System.getProperty("scala.home")
     assert(
       (scalaHome eq null) || scalaHome.isEmpty,
       "'scala.home' should not be set (was " + scalaHome + ")"
     )
-  }
 
-  private val isScalaLibrary: Path => Boolean = file => {
+  private val isScalaLibrary: Path => Boolean = file =>
     val name = file.getFileName.toString
     name == s"${ArtifactInfo.ScalaLibraryID}.jar" ||
     name.startsWith(s"${ArtifactInfo.ScalaLibraryID}-") ||
     scalaInstance.libraryJars.exists(_.getName == name)
-  }
-}
+end CompilerArguments
 
-object CompilerArguments {
+object CompilerArguments:
   val BootClasspathOption = "-bootclasspath"
 
   /** The GNU-style spelling of `-bootclasspath`, accepted by Scala 2.13 and Scala 3. */
@@ -236,22 +231,19 @@ object CompilerArguments {
 
   def absString(files: Array[Path]): String = absString(files.toList)
 
-  def outputOption(output: Output): Seq[String] = {
+  def outputOption(output: Output): Seq[String] =
     /* Oracle Javac doesn't support multiple output directories
      * However, we use multiple output directories in case the
      * user provides their own Javac compiler that can indeed
      * make use of it (e.g. the Eclipse compiler does this via EJC).
      * See https://github.com/sbt/zinc/issues/163. */
-    val target = output match {
+    val target = output match
       case so: SingleOutput  => Some(so.getOutputDirectoryAsPath)
       case _: MultipleOutput => None
-    }
     outputOption(target)
-  }
 
-  def outputOption(outputDirectory: Option[Path]): Seq[String] = {
+  def outputOption(outputDirectory: Option[Path]): Seq[String] =
     outputDirectory
       .map(output => List("-d", output.toAbsolutePath.toString))
       .getOrElse(Nil)
-  }
-}
+end CompilerArguments

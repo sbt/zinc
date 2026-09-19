@@ -11,19 +11,17 @@
 
 package sbt.inc.text
 
-import org.scalacheck._
-import sbt.inc.AnalysisFormatHelpers._
-import sbt.inc.text.TextAnalysisFormatHelpers._
-import sbt.internal.inc._
+import org.scalacheck.*
+import sbt.inc.AnalysisFormatHelpers.*
+import sbt.inc.text.TextAnalysisFormatHelpers.*
+import sbt.internal.inc.*
 import sbt.internal.inc.text.TextAnalysisFormat
 
-object TextAnalysisFormatSpecification extends Properties("TextAnalysisFormat") {
+object TextAnalysisFormatSpecification extends Properties("TextAnalysisFormat"):
   property("round-trip empty") = forEmpty(check)
   property("round-trip simple") = forSimple(check)
   property("round-trip complex") = forComplex(check)
 
-  private def check(analysis: Analysis) = {
+  private def check(analysis: Analysis) =
     checkStoreRoundtrip(analysis, FileAnalysisStore.text(_)) &&
-    checkTextRoundtrip(analysis, TextAnalysisFormat, TextAnalysisFormat)
-  }
-}
+      checkTextRoundtrip(analysis, TextAnalysisFormat, TextAnalysisFormat)

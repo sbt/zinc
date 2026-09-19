@@ -12,7 +12,7 @@
 package xsbt
 
 import net.openhft.affinity.AffinityLock
-import org.openjdk.jmh.annotations._
+import org.openjdk.jmh.annotations.*
 
 import java.io.File
 import sbt.inc.{ CompilerSetup, ProjectSetup }
@@ -22,7 +22,7 @@ import xsbt.ZincBenchmark.CompilationInfo
 import xsbti.compile.IncOptions
 
 @State(Scope.Benchmark)
-class BenchmarkBase extends BridgeProviderSpecification {
+class BenchmarkBase extends BridgeProviderSpecification:
   /* Necessary data to run a benchmark. */
   @Param(Array("")) var _tempDir: String = compiletime.uninitialized
   var _project: BenchmarkProject = compiletime.uninitialized
@@ -40,7 +40,7 @@ class BenchmarkBase extends BridgeProviderSpecification {
   var _lock: AffinityLock = compiletime.uninitialized
 
   @Setup(Level.Trial)
-  def setUpCompilerRuns(): Unit = {
+  def setUpCompilerRuns(): Unit =
     _lock = AffinityLock.acquireLock()
 
     assert(_project != null, "_project is null, set it.")
@@ -65,37 +65,33 @@ class BenchmarkBase extends BridgeProviderSpecification {
     val options = IncOptions.of()
     _compilerSetup = _setup.createCompiler(scalaVersion, si, bridge, options, log)
     printCompilationDetails()
-  }
+  end setUpCompilerRuns
 
-  private def printCompilationDetails() = {
+  private def printCompilationDetails() =
     val argsFile = new File(_tempDir, "compiler.args")
-    val argsFileContents: String = {
+    val argsFileContents: String =
       val cpArgs =
-        if (_setup.classPath.isEmpty) Nil
+        if _setup.classPath.isEmpty then Nil
         else "-cp" :: _setup.classPath.mkString(File.pathSeparator) :: Nil
       val allArgs: List[String] = cpArgs
       // ::: info.scalacOptions.toList ::: info.sources
       allArgs.mkString("\n")
-    }
     sbt.io.IO.write(argsFile, argsFileContents)
     val shortSha = _project.hash.take(7)
     println(
       s"\nCompiling {${_project.repo}@${shortSha}}/${_subprojectToRun} using: @${argsFile.getAbsolutePath}"
     )
-  }
 
   @TearDown(Level.Trial)
-  def tearDown(): Unit = {
+  def tearDown(): Unit =
     _lock.release()
     // Remove the directory where all the class files have been compiled
     _setup.sources.keys.toList map { x =>
       sbt.io.IO.delete(x.toFile)
     }
     ()
-  }
 
-  protected def action(): Unit = {
+  protected def action(): Unit =
     _compilerSetup.doCompile()
     ()
-  }
-}
+end BenchmarkBase

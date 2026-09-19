@@ -19,13 +19,13 @@ import java.io.File
 import java.nio.file.Path
 import sbt.io.IO
 import sbt.util.Logger
-import xsbti.{ PathBasedFile, Reporter, Logger => XLogger, VirtualFile }
-import xsbti.compile.{ IncToolOptions, JavaCompiler => XJavaCompiler, Javadoc => XJavadoc, Output }
+import xsbti.{ PathBasedFile, Reporter, Logger as XLogger, VirtualFile }
+import xsbti.compile.{ IncToolOptions, JavaCompiler as XJavaCompiler, Javadoc as XJavadoc, Output }
 
 import scala.sys.process.Process
 
 /** Helper methods for running the java toolchain by forking. */
-object ForkedJava {
+object ForkedJava:
 
   /** Helper method to launch programs. */
   private[javac] def launch(
@@ -36,7 +36,7 @@ object ForkedJava {
       output: Output,
       log: Logger,
       reporter: Reporter
-  ): Boolean = {
+  ): Boolean =
     val (jArgs, nonJArgs) = options.partition(_.startsWith("-J"))
     val outputOption = CompilerArguments.outputOption(output)
     // val sources: Seq[String] = sources0.map(converter.toPath).map(_.toAbsolutePath.toString)
@@ -51,15 +51,14 @@ object ForkedJava {
       val cwd = new File(new File(".").getAbsolutePath).getCanonicalFile
       val javacLogger = new JavacLogger(log, reporter, cwd)
       var exitCode = -1
-      try {
+      try
         exitCode = Process(exe +: forkArgs, cwd) ! javacLogger
-      } finally {
+      finally
         javacLogger.flush(program, exitCode)
-      }
       // We return true or false, depending on success.
       exitCode == 0
     }
-  }
+  end launch
 
   /**
    * Helper method to create an argument file that we pass to Javac.  Gets over the windows
@@ -69,29 +68,27 @@ object ForkedJava {
    * @tparam T The return type.
    * @return  The result of using the argument file.
    */
-  def withArgumentFile[T](args: Seq[String])(f: File => T): T = {
+  def withArgumentFile[T](args: Seq[String])(f: File => T): T =
     import IO.{ Newline, withTemporaryDirectory, write }
     withTemporaryDirectory { tmp =>
       val argFile = new File(tmp, "argfile")
       write(argFile, args.map(escapeSpaces).mkString(Newline))
       f(argFile)
     }
-  }
   // javac's argument file seems to allow naive space escaping with quotes.  escaping a quote with a backslash does not work
   private def escapeSpaces(s: String): String = s"\"${normalizeSlash(s)}\""
   private def normalizeSlash(s: String) = s.replace(File.separatorChar, '/')
 
   /** create the executable name for java */
   private[javac] def getJavaExecutable(javaHome: Option[Path], name: String): String =
-    javaHome match {
-      case None => name
+    javaHome match
+      case None     => name
       case Some(jh) =>
         jh.resolve("bin").resolve(name).toAbsolutePath.toString
-    }
-}
+end ForkedJava
 
 /** An implementation of compiling java which forks a Javac instance. */
-final class ForkedJavaCompiler(javaHome: Option[Path]) extends XJavaCompiler {
+final class ForkedJavaCompiler(javaHome: Option[Path]) extends XJavaCompiler:
   def run(
       sources: Array[VirtualFile],
       options: Array[String],
@@ -109,8 +106,7 @@ final class ForkedJavaCompiler(javaHome: Option[Path]) extends XJavaCompiler {
       log,
       reporter,
     )
-}
-final class ForkedJavadoc(javaHome: Option[Path]) extends XJavadoc {
+final class ForkedJavadoc(javaHome: Option[Path]) extends XJavadoc:
   def run(
       sources: Array[VirtualFile],
       options: Array[String],
@@ -128,4 +124,3 @@ final class ForkedJavadoc(javaHome: Option[Path]) extends XJavadoc {
       log,
       reporter,
     )
-}

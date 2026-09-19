@@ -15,7 +15,7 @@ import java.lang.ref.WeakReference
 import java.util.concurrent.{ Callable, CountDownLatch, Executors, TimeUnit }
 import xsbti.UseScope
 
-class AnalysisInternerSpec extends UnitSpec {
+class AnalysisInternerSpec extends UnitSpec:
 
   behavior of "AnalysisInterner"
 
@@ -58,23 +58,21 @@ class AnalysisInternerSpec extends UnitSpec {
     val threads = 16
     val start = new CountDownLatch(1)
     val pool = Executors.newFixedThreadPool(threads)
-    try {
+    try
       val futures = (1 to threads).map { _ =>
-        pool.submit(new Callable[(String, UsedName)] {
-          def call(): (String, UsedName) = {
+        pool.submit(new Callable[(String, UsedName)]:
+          def call(): (String, UsedName) =
             start.await() // release all threads together to maximize contention
             (
               AnalysisInterner.internString(new String("concurrent.value")),
               AnalysisInterner.usedName(new String("concurrent.value"), 5)
-            )
-          }
-        })
+            ))
       }
       start.countDown()
       val results = futures.map(_.get(30, TimeUnit.SECONDS)).toList // deadlock => timeout
       assert(results.forall(_._1 `eq` results.head._1))
       assert(results.forall(_._2 `eq` results.head._2))
-    } finally pool.shutdownNow()
+    finally pool.shutdownNow()
   }
 
   it should "release canonical instances once no analysis references them" in {
@@ -98,4 +96,4 @@ class AnalysisInternerSpec extends UnitSpec {
     Thread.sleep(10)
     assert(AnalysisInterner.usedName("held", 1) `eq` held)
   }
-}
+end AnalysisInternerSpec

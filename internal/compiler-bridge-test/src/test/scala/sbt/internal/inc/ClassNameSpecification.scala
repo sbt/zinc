@@ -245,8 +245,9 @@ class ClassNameSpecification
     val generatedProducts = analysisCallback.productClassesToSources.keySet.toSet
 
     if (binaryClassNames === expectedNames) {
-      val paths = (expectedLocalNames.map(n => s"${n}.class") ++
-        expectedNames.map(n => s"${n._2.replace('.', File.separatorChar)}.class"))
+      val paths =
+        (expectedLocalNames.map(n => s"${n}.class") ++
+          expectedNames.map(n => s"${n._2.replace('.', File.separatorChar)}.class"))
       val generatedProductNames = generatedProducts.map(_.getFileName.toString)
       val missing = {
         val ms = generatedProducts

@@ -15,12 +15,12 @@ import java.nio.file.Path
 import sbt.inc.{ ScalaBridge, ConstantBridgeProvider }
 import sbt.util.Logger
 import xsbti.compile.CompilerBridgeProvider
-import sbt.internal.inc.ZincBuildInfo._
+import sbt.internal.inc.ZincBuildInfo.*
 
 class BridgeProviderSpecification extends UnitSpec with BridgeProviderTestkit {}
 
-trait BridgeProviderTestkit extends AbstractBridgeProviderTestkit {
-  lazy val bridges: List[ScalaBridge] = {
+trait BridgeProviderTestkit extends AbstractBridgeProviderTestkit:
+  lazy val bridges: List[ScalaBridge] =
     val compilerBridge210 =
       ScalaBridge(
         scalaVersion210,
@@ -61,13 +61,13 @@ trait BridgeProviderTestkit extends AbstractBridgeProviderTestkit {
       bridge213Bin,
       bridge3Bin,
     )
-  }
+  end bridges
 
   /**
    * Emulate sbt's switch command, and accept 3.x notation.
    */
   def switchScalaVersion(sv: Option[String]): String =
-    sv match {
+    sv match
       case Some("2.10.x") => scalaVersion210
       case Some("2.11.x") => scalaVersion211
       case Some("2.12.x") => scalaVersion212
@@ -76,9 +76,8 @@ trait BridgeProviderTestkit extends AbstractBridgeProviderTestkit {
       case Some("3.x")    => scalaVersion3Bin
       case Some(sv)       => sv
       case None           => scalaVersion212
-    }
 
   // Create a provider that uses the bridges from the classes directory of the projects
   def getZincProvider(targetDir: Path, log: Logger): CompilerBridgeProvider =
     new ConstantBridgeProvider(bridges, targetDir)
-}
+end BridgeProviderTestkit

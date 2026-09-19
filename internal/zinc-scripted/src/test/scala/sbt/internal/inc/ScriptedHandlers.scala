@@ -13,21 +13,19 @@ package sbt.internal.inc
 
 import java.nio.file.Path
 
-import sbt.internal.scripted._
+import sbt.internal.scripted.*
 import sbt.internal.util.ManagedLogger
 
-class SleepingHandler(val handler: StatementHandler, delay: Long) extends StatementHandler {
+class SleepingHandler(val handler: StatementHandler, delay: Long) extends StatementHandler:
   type State = handler.State
   override def initialState: State = handler.initialState
-  override def apply(command: String, arguments: List[String], state: State): State = {
+  override def apply(command: String, arguments: List[String], state: State): State =
     val result = handler.apply(command, arguments, state)
     Thread.sleep(delay)
     result
-  }
   override def finish(state: State) = handler.finish(state)
-}
 
-class IncScriptedHandlers(globalCacheDir: Path, compileToJar: Boolean) extends HandlersProvider {
+class IncScriptedHandlers(globalCacheDir: Path, compileToJar: Boolean) extends HandlersProvider:
   def getHandlers(config: ScriptConfig): Map[Char, StatementHandler] = Map(
     '$' -> new SleepingHandler(new ZincFileCommands(config.testDirectory, config.logger), 500),
     '#' -> CommentHandler,
@@ -36,4 +34,3 @@ class IncScriptedHandlers(globalCacheDir: Path, compileToJar: Boolean) extends H
       new IncHandler(config.testDirectory().toPath, globalCacheDir, logger, compileToJar)
     }
   )
-}

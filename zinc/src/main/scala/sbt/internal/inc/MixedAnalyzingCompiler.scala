@@ -17,17 +17,17 @@ import java.io.File
 import java.nio.file.{ Files, Path }
 import java.lang.ref.{ SoftReference, Reference }
 import java.util.Optional
-import scala.jdk.OptionConverters._
+import scala.jdk.OptionConverters.*
 
 import xsbti.{
   FileConverter,
   Reporter,
-  AnalysisCallback => XAnalysisCallback,
+  AnalysisCallback as XAnalysisCallback,
   VirtualFile,
   VirtualFileRef
 }
-import xsbti.compile.CompileOrder._
-import xsbti.compile.{ ClassFileManager => XClassFileManager, FileAnalysisStore => _, _ }
+import xsbti.compile.CompileOrder.*
+import xsbti.compile.{ ClassFileManager as XClassFileManager, FileAnalysisStore as _, * }
 import xsbti.compile.analysis.{ ReadStamps, ReadWriteMappers }
 import sbt.io.{ IO, DirectoryFilter }
 import sbt.util.{ InterfaceUtil, Logger }
@@ -44,7 +44,7 @@ final class MixedAnalyzingCompiler(
     val config: CompileConfiguration,
     val log: Logger,
     outputJarContent: JarUtils.OutputJarContent
-) {
+):
   private val absClasspath = config.classpath.map(toAbsolute(_))
 
   /**
@@ -54,9 +54,9 @@ final class MixedAnalyzingCompiler(
       javaSrcs: Seq[VirtualFile],
       callback: XAnalysisCallback,
       classfileManager: XClassFileManager,
-  ): Unit = {
+  ): Unit =
     ensureOutput
-    if (javaSrcs.nonEmpty)
+    if javaSrcs.nonEmpty then
       timed("Java compilation + analysis", log) {
         val output = config.currentSetup.output
         val incToolOptions =
@@ -69,7 +69,7 @@ final class MixedAnalyzingCompiler(
         def toVirtualFile(p: Path) = config.converter.toVirtualFile(p.toAbsolutePath)
 
         val outputJarOpt = JarUtils.getOutputJar(output)
-        outputJarOpt match {
+        outputJarOpt match
           case Some(outputJar) if !javac.supportsDirectToJar =>
             val outputDir = JarUtils.javacTempOutput(outputJar)
             Files.createDirectories(outputDir)
@@ -103,15 +103,16 @@ final class MixedAnalyzingCompiler(
                 config.progress
               )
             }
-        }
+        end match
       } // timed
     else ()
-  }
+    end if
+  end compileJava
 
   // We had this as lazy val, but that caused issues https://github.com/sbt/sbt/issues/5951
-  def ensureOutput = {
+  def ensureOutput =
     val output = config.currentSetup.output
-    JarUtils.getOutputJar(output) match {
+    JarUtils.getOutputJar(output) match
       case Some(jar) =>
         Files.createDirectories(jar.getParent)
         Seq(jar)
@@ -119,8 +120,6 @@ final class MixedAnalyzingCompiler(
         val dirs = outputDirectories(output)
         dirs.foreach(Files.createDirectories(_))
         dirs
-    }
-  }
 
   /**
    * Compiles the given Java/Scala files.
@@ -135,7 +134,7 @@ final class MixedAnalyzingCompiler(
       changes: DependencyChanges,
       callback: XAnalysisCallback,
       classfileManager: XClassFileManager,
-  ): Unit = {
+  ): Unit =
     val output = config.currentSetup.output
     val outputDirs = ensureOutput
 
@@ -146,25 +145,25 @@ final class MixedAnalyzingCompiler(
       Incremental.isPickleJava(config.currentSetup.options.scalacOptions.toIndexedSeq)
 
     def convertToPath(value: String): String =
-      config.converter match {
+      config.converter match
         case c: MappedFileConverter =>
           MappedVirtualFile.toPathMapped(value, c.rootPaths)(_.toString(), identity)
 
         case _ => value
-      }
 
     // Compile Scala sources.
     def compileScala(): Unit =
-      if (scalaSrcs.nonEmpty || pickleJava) {
+      if scalaSrcs.nonEmpty || pickleJava then
         val pickleJarPair = callback.getPickleJarPair.toScala.map(t2 => (t2.get1, t2.get2))
         val scalacOpts0 = config.currentSetup.options.scalacOptions.toVector
         val scalacOpts1: Vector[String] = scalacOpts0.map { x =>
-          if (!x.contains("$")) x
-          else (x.split(":").toVector.map { y =>
-            y.split(",").toVector.map(convertToPath).mkString(",")
-          }).mkString(":")
+          if !x.contains("$") then x
+          else
+            (x.split(":").toVector.map { y =>
+              y.split(",").toVector.map(convertToPath).mkString(",")
+            }).mkString(":")
         }
-        val scalacOpts: Vector[String] = pickleJarPair match {
+        val scalacOpts: Vector[String] = pickleJarPair match
           case Some((originalJar, updatesJar)) =>
             val path = originalJar.toString
             // ^ Path#toString uses '\' on Windows
@@ -175,10 +174,9 @@ final class MixedAnalyzingCompiler(
               case s                                   => s
             }
           case _ => scalacOpts1
-        }
         JarUtils.withPreviousJar(output) { (extraClasspath: Seq[Path]) =>
           val sources =
-            if (config.currentSetup.order == Mixed) incSrc
+            if config.currentSetup.order == Mixed then incSrc
             else scalaSrcs
 
           val cp0: Vector[VirtualFile] =
@@ -186,7 +184,7 @@ final class MixedAnalyzingCompiler(
               config.converter.toVirtualFile(x.toAbsolutePath)
             }) ++ absClasspath.toVector
           val cp =
-            if (scalaSrcs.isEmpty && pickleJava) {
+            if scalaSrcs.isEmpty && pickleJava then
               // we are invoking Scala compiler just for the sake of generating pickles for Java, which
               // means that the classpath would not contain scala-library jar from the build tool.
               // to work around this, we inject the scala-library into the classpath
@@ -194,7 +192,7 @@ final class MixedAnalyzingCompiler(
                 config.converter.toVirtualFile(x.toPath)
               }
               (cp0 ++ libraryJars).distinct
-            } else cp0
+            else cp0
           timed("Scala compilation", log) {
             config.compiler.compile(
               sources.toArray,
@@ -210,79 +208,65 @@ final class MixedAnalyzingCompiler(
             )
           }
         }
-      }
     def compileJava0(): Unit = compileJava(javaSrcs, callback, classfileManager)
 
-    if (config.incOptions.pipelining) {
+    if config.incOptions.pipelining then
       compileScala()
-      if (scalaSrcs.nonEmpty) {
+      if scalaSrcs.nonEmpty then
         log.debug("done compiling Scala sources")
-      }
-    } else {
+    else
       /* `Mixed` order defaults to `ScalaThenJava` behaviour.
        * See https://github.com/sbt/zinc/issues/234. */
-      if (config.currentSetup.order == JavaThenScala) {
+      if config.currentSetup.order == JavaThenScala then
         compileJava0(); compileScala()
-      } else {
+      else
         compileScala(); compileJava0()
-      }
-      if (javaSrcs.size + scalaSrcs.size > 0) {
-        if (ConsoleAppender.showProgress) log.debug("done compiling")
+      if javaSrcs.size + scalaSrcs.size > 0 then
+        if ConsoleAppender.showProgress then log.debug("done compiling")
         else log.info("done compiling")
-      }
-    }
+  end compile
 
-  }
-
-  private def putJavacOutputInJar(outputJar: File, outputDir: File): Unit = {
-    import sbt.io.syntax._
+  private def putJavacOutputInJar(outputJar: File, outputDir: File): Unit =
+    import sbt.io.syntax.*
     val compiledClasses = (outputDir ** -DirectoryFilter).get().flatMap { classFile =>
-      IO.relativize(outputDir, classFile) match {
+      IO.relativize(outputDir, classFile) match
         case Some(relPath) =>
           List((classFile, relPath))
         case _ => Nil
-      }
     }
 
-    if (compiledClasses.nonEmpty) {
+    if compiledClasses.nonEmpty then
       JarUtils.includeInJar(outputJar, compiledClasses)
       outputJarContent.addClasses(compiledClasses.map(_._2).toSet)
-    }
     IO.delete(outputDir)
-  }
 
-  private def outputDirectories(output: Output): Seq[Path] = {
-    output match {
+  private def outputDirectories(output: Output): Seq[Path] =
+    output match
       case single: SingleOutput => List(single.getOutputDirectoryAsPath)
       case mult: MultipleOutput =>
         mult.getOutputGroups.toIndexedSeq map (_.getOutputDirectoryAsPath)
-    }
-  }
 
   // Debugging method to time how long it takes to run various compilation tasks.
-  private def timed[T](label: String, log: Logger)(t: => T): T = {
+  private def timed[T](label: String, log: Logger)(t: => T): T =
     val start = System.nanoTime
     val result = t
     val elapsed = System.nanoTime - start
     log.debug(label + " took " + (elapsed / 1e9) + " s")
     result
-  }
 
   private def logInputs(
       log: Logger,
       javaCount: Int,
       scalaCount: Int,
       outputDirs: Seq[Path]
-  ): Unit = {
+  ): Unit =
     val scalaMsg = Analysis.counted("Scala source", "", "s", scalaCount)
     val javaMsg = Analysis.counted("Java source", "", "s", javaCount)
     val combined = scalaMsg ++ javaMsg
-    if (combined.nonEmpty) {
+    if combined.nonEmpty then
       val targets = outputDirs.map(_.toAbsolutePath).mkString(",")
       log.info(combined.mkString("compiling ", " and ", s" to $targets ..."))
-    }
-  }
-}
+end MixedAnalyzingCompiler
 
 /**
  * Define helpers to create a wrapper around a Scala incremental compiler
@@ -291,7 +275,7 @@ final class MixedAnalyzingCompiler(
  * implementation of both compilers and only instructs how to run a cycle
  * of cross Java-Scala compilation.
  */
-object MixedAnalyzingCompiler {
+object MixedAnalyzingCompiler:
 
   /** Returns true if the file is java. */
   private[sbt] def javaOnly(f: VirtualFileRef): Boolean = f.id.endsWith(".java")
@@ -319,17 +303,17 @@ object MixedAnalyzingCompiler {
       earlyAnalysisStore: Option[AnalysisStore],
       stamper: ReadStamps,
       extra: List[(String, String)]
-  ): CompileConfiguration = {
+  ): CompileConfiguration =
     val lookup = incrementalCompilerOptions.externalHooks().getExternalLookup
 
     def doHash: Array[FileHash] =
       ClasspathCache.hashClasspath(classpath.map(converter.toPath))
 
     val classpathHash =
-      if (lookup.isPresent) {
+      if lookup.isPresent then
         val computed = lookup.get().hashClasspath(classpath.toArray)
-        if (computed.isPresent) computed.get() else doHash
-      } else doHash
+        if computed.isPresent then computed.get() else doHash
+      else doHash
 
     val compileSetup = MiniSetup.of(
       output, // MiniSetup gets persisted into Analysis so don't use this
@@ -363,7 +347,7 @@ object MixedAnalyzingCompiler {
       earlyAnalysisStore,
       stamper
     )
-  }
+  end makeConfig
 
   def config(
       sources: Seq[VirtualFile],
@@ -384,7 +368,7 @@ object MixedAnalyzingCompiler {
       earlyOutput: Option[Output],
       earlyAnalysisStore: Option[AnalysisStore],
       stamper: ReadStamps,
-  ): CompileConfiguration = {
+  ): CompileConfiguration =
     new CompileConfiguration(
       sources,
       converter,
@@ -404,7 +388,6 @@ object MixedAnalyzingCompiler {
       earlyAnalysisStore,
       stamper
     )
-  }
 
   /** Returns the search classpath (for dependencies) and a function which can also do so. */
   def searchClasspathAndLookup(
@@ -425,7 +408,7 @@ object MixedAnalyzingCompiler {
       scalacOptions: Array[String],
       perClasspathEntryLookup: PerClasspathEntryLookup,
       compiler: xsbti.compile.ScalaCompiler
-  ): (Seq[VirtualFile], String => Option[VirtualFile]) = {
+  ): (Seq[VirtualFile], String => Option[VirtualFile]) =
     val absClasspath = classpath.map(toAbsolute(_))
     val cArgs =
       new CompilerArguments(compiler.scalaInstance, compiler.classpathOptions)
@@ -442,7 +425,7 @@ object MixedAnalyzingCompiler {
           addBootclasspath = !clientSetBootClasspath
         )
     (searchClasspath, Locate.entry(searchClasspath, perClasspathEntryLookup))
-  }
+  end searchClasspathAndLookup
 
   /** Returns a "lookup file for a given class name" function. */
   def classPathLookup(config: CompileConfiguration): String => Option[VirtualFile] =
@@ -450,8 +433,8 @@ object MixedAnalyzingCompiler {
 
   def apply(config: CompileConfiguration)(
       implicit log: Logger
-  ): MixedAnalyzingCompiler = {
-    import config._
+  ): MixedAnalyzingCompiler =
+    import config.*
     val (searchClasspath, entry) = searchClasspathAndLookup(config)
     // Construct a compiler which can handle both java and scala sources.
     new MixedAnalyzingCompiler(
@@ -469,7 +452,7 @@ object MixedAnalyzingCompiler {
       log,
       outputJarContent
     )
-  }
+  end apply
 
   def withBootclasspath(
       args: CompilerArguments,
@@ -484,20 +467,19 @@ object MixedAnalyzingCompiler {
       classpath: Seq[VirtualFile],
       converter: FileConverter,
       addBootclasspath: Boolean
-  ): Seq[VirtualFile] = {
+  ): Seq[VirtualFile] =
     val cp: Seq[Path] = classpath.map(converter.toPath)
     val bootClasspath =
-      if (addBootclasspath) args.bootClasspathFor(cp).map(converter.toVirtualFile(_))
+      if addBootclasspath then args.bootClasspathFor(cp).map(converter.toVirtualFile(_))
       else Nil
     bootClasspath ++
       args.extClasspath.map(PlainVirtualFile(_)) ++
       args.finishClasspath(cp).map(converter.toVirtualFile(_))
-  }
 
   private def explicitBootClasspathFiles(
       options: Seq[String],
       converter: FileConverter
-  ): Seq[VirtualFile] = {
+  ): Seq[VirtualFile] =
     CompilerArguments
       .explicitBootClasspath(options)
       .filter(_.nonEmpty)
@@ -505,7 +487,6 @@ object MixedAnalyzingCompiler {
       .flatMap(IO.parseClasspath)
       .map(_.toPath)
       .map(converter.toVirtualFile(_))
-  }
 
   private val cache =
     new collection.mutable.HashMap[Path, Reference[AnalysisStore]]
@@ -513,7 +494,7 @@ object MixedAnalyzingCompiler {
   private def staticCache(
       file: Path,
       backing: => AnalysisStore
-  ): AnalysisStore = {
+  ): AnalysisStore =
     synchronized {
       cache.get(file).flatMap { ref =>
         Option(ref.get)
@@ -523,7 +504,6 @@ object MixedAnalyzingCompiler {
         b
       }
     }
-  }
 
   /**
    * Create a an analysis store cache at the desired location.
@@ -583,8 +563,8 @@ object MixedAnalyzingCompiler {
       mappers: ReadWriteMappers,
       reproducible: Boolean,
       parallelism: Int,
-  ): AnalysisStore = {
-    val fileStore = (useTextAnalysis, useConsistent) match {
+  ): AnalysisStore =
+    val fileStore = (useTextAnalysis, useConsistent) match
       case (false, false) =>
         FileAnalysisStore.binary(analysisFile.toFile, mappers)
       case (false, true) =>
@@ -603,10 +583,9 @@ object MixedAnalyzingCompiler {
           reproducible = reproducible,
           parallelism = parallelism,
         )
-    }
     val store1 =
       if cacheLast then AnalysisStore.getCachedStore(fileStore)
       else fileStore
     staticCache(analysisFile, AnalysisStore.getThreadSafeStore(store1))
-  }
-}
+  end staticCachedStore
+end MixedAnalyzingCompiler

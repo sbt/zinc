@@ -1,26 +1,27 @@
-import sbt._
+import sbt.*
 import sbt.given
-import Keys._
+import Keys.*
 import xsbti.compile.CompileAnalysis
 import sbt.librarymanagement.LibraryManagementCodec.given
 
-object ZincBuildUtil {
+object ZincBuildUtil:
   @transient
   lazy val genTestResTask = TaskKey[Seq[File]]("gen-test-resources")
 
-  def lastCompilationTime(analysis0: CompileAnalysis): Long = {
-    val analysis = analysis0 match { case a: sbt.internal.inc.Analysis => a }
+  def lastCompilationTime(analysis0: CompileAnalysis): Long =
+    val analysis = analysis0 match
+      case a: sbt.internal.inc.Analysis => a
     val lastCompilation = analysis.compilations.allCompilations.lastOption
     lastCompilation.map(_.getStartTime) getOrElse 0L
-  }
   def generateVersionFile(
       version: String,
       dir: File,
       s: TaskStreams,
       analysis0: CompileAnalysis
-  ): Seq[File] = {
+  ): Seq[File] =
     import java.util.{ Date, TimeZone }
-    val analysis = analysis0 match { case a: sbt.internal.inc.Analysis => a }
+    val analysis = analysis0 match
+      case a: sbt.internal.inc.Analysis => a
     val formatter = new java.text.SimpleDateFormat("yyyyMMdd'T'HHmmss")
     formatter.setTimeZone(TimeZone.getTimeZone("GMT"))
     val timestamp = formatter.format(new Date)
@@ -28,14 +29,13 @@ object ZincBuildUtil {
     val f = dir / "incrementalcompiler.version.properties"
     // TODO: replace lastModified() with sbt.io.IO.getModifiedTimeOrZero(), once the build
     // has been upgraded to a version of sbt that includes that call.
-    if (
+    if
       !f.exists || f.lastModified < lastCompilationTime(analysis) || !containsVersion(f, version)
-    ) {
+    then
       s.log.info("Writing version information to " + f + " :\n" + content)
       IO.write(f, content)
-    }
     f :: Nil
-  }
+  end generateVersionFile
   def versionLine(version: String): String = "version=" + version
   def containsVersion(propFile: File, version: String): Boolean =
     IO.read(propFile).contains(versionLine(version))
@@ -55,22 +55,21 @@ object ZincBuildUtil {
     scalaVersion := Dependencies.scala212,
     scalacOptions := {
       val old = scalacOptions.value
-      scalaBinaryVersion.value match {
+      scalaBinaryVersion.value match
         case "2.12" => old
-        case _ =>
+        case _      =>
           old filterNot Set(
             "-Xfatal-warnings",
             "-deprecation",
             "-Ywarn-unused",
             "-Ywarn-unused-import"
           )
-      }
     }
   )
 
-  import com.typesafe.tools.mima.core._
-  import com.typesafe.tools.mima.core.ProblemFilters._
-  def excludeInternalProblems = {
+  import com.typesafe.tools.mima.core.*
+  import com.typesafe.tools.mima.core.ProblemFilters.*
+  def excludeInternalProblems =
     Seq(
       exclude[DirectMissingMethodProblem]("sbt.internal.*"),
       exclude[IncompatibleSignatureProblem]("sbt.internal.*"),
@@ -85,5 +84,4 @@ object ZincBuildUtil {
       exclude[FinalClassProblem]("sbt.internal.*"),
       exclude[DirectAbstractMethodProblem]("sbt.internal.*"),
     )
-  }
-}
+end ZincBuildUtil

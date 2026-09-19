@@ -13,14 +13,14 @@ package xsbti
 
 import java.io.File
 import java.nio.file.Path
-import java.{ util => ju }
+import java.util as ju
 import ju.Optional
 import xsbti.api.{ ClassLike, DependencyContext }
 import xsbti.compile.analysis.ReadSourceInfos
 
 import scala.collection.mutable.ArrayBuffer
 
-class TestCallback extends AnalysisCallback4 {
+class TestCallback extends AnalysisCallback4:
   case class TestUsedName(name: String, scopes: ju.EnumSet[UseScope])
 
   val classDependencies = new ArrayBuffer[(String, String, DependencyContext)]
@@ -43,33 +43,30 @@ class TestCallback extends AnalysisCallback4 {
   def usedNames = usedNamesAndScopes.view.mapValues(_.map(_.name))
 
   override def startSource(source: File): Unit = ???
-  override def startSource(source: VirtualFile): Unit = {
+  override def startSource(source: VirtualFile): Unit =
     assert(
       !apis.contains(source),
       s"The startSource can be called only once per source file: $source"
     )
     apis(source) = Set.empty
-  }
 
   def classDependency(
       onClassName: String,
       sourceClassName: String,
       context: DependencyContext
-  ): Unit = {
-    if (onClassName != sourceClassName)
+  ): Unit =
+    if onClassName != sourceClassName then
       classDependencies += ((onClassName, sourceClassName, context))
     ()
-  }
 
   override def classDependency(
       onClass: ClassRef,
       sourceClass: ClassRef,
       context: DependencyContext
-  ): Unit = {
-    if (onClass.name != sourceClass.name)
+  ): Unit =
+    if onClass.name != sourceClass.name then
       classRefDependencies += ((onClass, sourceClass, context))
     classDependency(onClass.name, sourceClass.name, context)
-  }
 
   override def binaryDependency(
       classFile: File,
@@ -85,10 +82,9 @@ class TestCallback extends AnalysisCallback4 {
       fromClassName: String,
       fromSourceFile: VirtualFileRef,
       context: DependencyContext
-  ): Unit = {
+  ): Unit =
     binaryDependencies += ((onBinary, onBinaryClassName, fromClassName, context))
     ()
-  }
 
   override def binaryDependency(
       onBinary: Path,
@@ -96,10 +92,9 @@ class TestCallback extends AnalysisCallback4 {
       fromClass: ClassRef,
       fromSourceFile: VirtualFileRef,
       context: DependencyContext
-  ): Unit = {
+  ): Unit =
     binaryRefDependencies += ((onBinary, onBinaryClassName, fromClass, context))
     binaryDependency(onBinary, onBinaryClassName, fromClass.name, fromSourceFile, context)
-  }
 
   override def generatedNonLocalClass(
       sourceFile: File,
@@ -113,11 +108,10 @@ class TestCallback extends AnalysisCallback4 {
       classFile: Path,
       binaryClassName: String,
       srcClassName: String
-  ): Unit = {
+  ): Unit =
     productClassesToSources += ((classFile, sourceFile))
     classNames(sourceFile) += ((srcClassName, binaryClassName))
     ()
-  }
 
   override def generatedLocalClass(
       sourceFile: File,
@@ -127,10 +121,9 @@ class TestCallback extends AnalysisCallback4 {
   override def generatedLocalClass(
       sourceFile: VirtualFileRef,
       classFile: Path
-  ): Unit = {
+  ): Unit =
     productClassesToSources += ((classFile, sourceFile))
     ()
-  }
 
   def usedName(className: String, name: String, scopes: ju.EnumSet[UseScope]): Unit =
     usedNamesAndScopes(className) += TestUsedName(name, scopes)
@@ -144,10 +137,9 @@ class TestCallback extends AnalysisCallback4 {
 
   override def api(source: File, api: ClassLike): Unit = ???
 
-  override def api(source: VirtualFileRef, api: ClassLike): Unit = {
+  override def api(source: VirtualFileRef, api: ClassLike): Unit =
     apis(source) += api
     ()
-  }
 
   override def mainClass(source: File, className: String): Unit = ()
 
@@ -185,48 +177,44 @@ class TestCallback extends AnalysisCallback4 {
 
   override def getPickleJarPair: Optional[T2[Path, Path]] = Optional.empty()
 
-  override def toVirtualFile(path: Path): VirtualFile = {
+  override def toVirtualFile(path: Path): VirtualFile =
     throw new UnsupportedOperationException("This method should not be called in tests")
-  }
 
   override def getSourceInfos: ReadSourceInfos = new TestSourceInfos
-}
+end TestCallback
 
-object TestCallback {
+object TestCallback:
   case class ExtractedClassDependencies(
       memberRef: Map[String, Set[String]],
       inheritance: Map[String, Set[String]],
       localInheritance: Map[String, Set[String]]
   )
-  object ExtractedClassDependencies {
+  object ExtractedClassDependencies:
     def fromPairs(
         memberRefPairs: Seq[(String, String)],
         inheritancePairs: Seq[(String, String)],
         localInheritancePairs: Seq[(String, String)]
-    ): ExtractedClassDependencies = {
+    ): ExtractedClassDependencies =
       ExtractedClassDependencies(
         pairsToMultiMap(memberRefPairs),
         pairsToMultiMap(inheritancePairs),
         pairsToMultiMap(localInheritancePairs)
       )
-    }
 
-    private def pairsToMultiMap[A, B](pairs: Seq[(A, B)]): Map[A, Set[B]] = {
+    private def pairsToMultiMap[A, B](pairs: Seq[(A, B)]): Map[A, Set[B]] =
       import scala.collection.mutable.HashMap
       val multiMap = HashMap.empty[A, scala.collection.mutable.Set[B]]
       pairs.foreach {
         case (key, value) =>
-          multiMap.get(key) match {
+          multiMap.get(key) match
             case None =>
               val set = collection.mutable.Set.empty[B]
               set += value
               multiMap(key) = set
             case Some(set) =>
               set += value
-          }
       }
       // convert all collections to immutable variants
       multiMap.toMap.view.mapValues(_.toSet).toMap.withDefaultValue(Set.empty)
-    }
-  }
-}
+  end ExtractedClassDependencies
+end TestCallback

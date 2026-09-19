@@ -18,39 +18,31 @@ import java.nio.file.attribute.BasicFileAttributes
 import sbt.util.Logger
 import sbt.internal.io.Retry
 
-object PickleJar {
+object PickleJar:
   // create an empty JAR file in case the subproject has no classes.
-  def touch(path: Path): Unit = {
-    if (!Files.exists(path)) {
+  def touch(path: Path): Unit =
+    if !Files.exists(path) then
       Files.createDirectories(path.getParent)
       RootPath(path, writable = true).close() // create an empty jar
-    }
-  }
 
-  def write(pickleOut: Path, knownProducts: java.util.Set[String], log: Logger): Unit = {
+  def write(pickleOut: Path, knownProducts: java.util.Set[String], log: Logger): Unit =
     touch(pickleOut)
-    if (!knownProducts.isEmpty) {
+    if !knownProducts.isEmpty then
       val pj = RootPath(pickleOut, writable = false) // so it doesn't delete the file
       try Files.walkFileTree(pj.root, deleteUnknowns(knownProducts, log))
       finally Retry(pj.close())
-    }
     ()
-  }
 
   def deleteUnknowns(knownProducts: java.util.Set[String], log: Logger) =
-    new SimpleFileVisitor[Path] {
-      override def visitFile(path: Path, attrs: BasicFileAttributes): FileVisitResult = {
+    new SimpleFileVisitor[Path]:
+      override def visitFile(path: Path, attrs: BasicFileAttributes): FileVisitResult =
         val ps = path.toString
-        if (ps.endsWith(".sig")) {
+        if ps.endsWith(".sig") then
           // "/foo/bar/wiz.sig" -> "foo/bar/wiz.class"
-          if (!knownProducts.contains(ps.stripPrefix("/").stripSuffix(".sig") + ".class")) {
+          if !knownProducts.contains(ps.stripPrefix("/").stripSuffix(".sig") + ".class") then
             log.debug(s"PickleJar.deleteUnknowns: visitFile deleting $ps")
             // retry to work around C:\Users\RUNNER~1\AppData\Local\Temp\sbt_f3e67bfa\dep\target\early\output.jar:
             // The process cannot access the file because it is being used by another process.
             Retry(Files.delete(path))
-          }
-        }
         FileVisitResult.CONTINUE
-      }
-    }
-}
+end PickleJar

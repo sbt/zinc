@@ -15,9 +15,9 @@ import org.scalatest.funsuite.AnyFunSuite
 import sbt.internal.inc.consistent.*
 import java.io.*
 
-class ConsistentAnalysisFormatSuite extends AnyFunSuite {
+class ConsistentAnalysisFormatSuite extends AnyFunSuite:
 
-  def writeTo(out: Serializer): Unit = {
+  def writeTo(out: Serializer): Unit =
     out.int(0)
     out.int(Int.MinValue)
     out.int(Int.MaxValue)
@@ -41,9 +41,9 @@ class ConsistentAnalysisFormatSuite extends AnyFunSuite {
     out.writeColl("c3", Seq(1, 2, 3))(out.int)
     out.writeColl("c4", Seq(1, 2, 3), 2) { i => out.int(i); out.int(i * 2) }
     out.end()
-  }
+  end writeTo
 
-  def readFrom(in: Deserializer): Unit = {
+  def readFrom(in: Deserializer): Unit =
     val i1, i2, i3 = in.int()
     assert(i1 == 0)
     assert(i2 == Int.MinValue)
@@ -73,7 +73,7 @@ class ConsistentAnalysisFormatSuite extends AnyFunSuite {
     assert(c3 == Seq(1, 2, 3))
     assert(c4 == Seq((1, 2), (2, 4), (3, 6)))
     ()
-  }
+  end readFrom
 
   test("TextSerializer") {
     val out = new StringWriter()
@@ -86,4 +86,4 @@ class ConsistentAnalysisFormatSuite extends AnyFunSuite {
     writeTo(SerializerFactory.binary.serializerFor(out))
     readFrom(SerializerFactory.binary.deserializerFor(new ByteArrayInputStream(out.toByteArray)))
   }
-}
+end ConsistentAnalysisFormatSuite

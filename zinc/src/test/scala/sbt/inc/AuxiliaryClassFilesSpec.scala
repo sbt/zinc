@@ -13,12 +13,12 @@ package sbt.inc
 
 import sbt.internal.inc.FileAnalysisStore
 import sbt.io.IO
-import sbt.io.syntax._
+import sbt.io.syntax.*
 import xsbti.compile.{ AnalysisStore, ScalaNativeFiles, TastyFiles, TransactionalManagerType }
 
 import java.nio.file.Files
 
-class AuxiliaryClassFilesSpec extends BaseCompilerSpec {
+class AuxiliaryClassFilesSpec extends BaseCompilerSpec:
   behavior.of("incremental compiler with auxiliary class files")
   it should "remove auxiliary tasty files" in IO.withTemporaryDirectory { tempDir =>
     val classes = Seq(SourceFiles.Good, SourceFiles.Foo)
@@ -28,7 +28,7 @@ class AuxiliaryClassFilesSpec extends BaseCompilerSpec {
       .withAuxiliaryClassFiles(Array(TastyFiles.instance()))
       .withClassfileManagerType(TransactionalManagerType.of(backup, sbt.util.Logger.Null))
     val compiler = setup.createCompiler().copy(incOptions = options)
-    try {
+    try
       val cacheFile = tempDir / "target" / "inc_compile.zip"
       val fileStore = AnalysisStore.getCachedStore(FileAnalysisStore.binary(cacheFile))
 
@@ -50,7 +50,8 @@ class AuxiliaryClassFilesSpec extends BaseCompilerSpec {
         i => i.withOptions(i.options().withSources(newSources))
       )
       assert(!Files.exists(fooTastyFile))
-    } finally compiler.close()
+    finally compiler.close()
+    end try
   }
 
   it should "ignore non-existent auxiliary files" in IO.withTemporaryDirectory { tempDir =>
@@ -61,7 +62,7 @@ class AuxiliaryClassFilesSpec extends BaseCompilerSpec {
       .withAuxiliaryClassFiles(Array(ScalaNativeFiles.instance()))
       .withClassfileManagerType(TransactionalManagerType.of(backup, sbt.util.Logger.Null))
     val compiler = setup.createCompiler().copy(incOptions = options)
-    try {
+    try
       val cacheFile = tempDir / "target" / "inc_compile.zip"
       val fileStore = AnalysisStore.getCachedStore(FileAnalysisStore.binary(cacheFile))
 
@@ -74,7 +75,7 @@ class AuxiliaryClassFilesSpec extends BaseCompilerSpec {
         i => i.withSetup(i.setup().withExtra(Array()))
       )
       assert(res1.hasModified)
-    } finally compiler.close()
+    finally compiler.close()
   }
 
   it should "handle auxiliary files reported twice" in IO.withTemporaryDirectory { tempDir =>
@@ -88,7 +89,7 @@ class AuxiliaryClassFilesSpec extends BaseCompilerSpec {
       )
       .withClassfileManagerType(TransactionalManagerType.of(backup, sbt.util.Logger.Null))
     val compiler = setup.createCompiler().copy(incOptions = options)
-    try {
+    try
       val cacheFile = tempDir / "target" / "inc_compile.zip"
       val fileStore = AnalysisStore.getCachedStore(FileAnalysisStore.binary(cacheFile))
 
@@ -110,6 +111,7 @@ class AuxiliaryClassFilesSpec extends BaseCompilerSpec {
         i => i.withOptions(i.options().withSources(newSources))
       )
       assert(!Files.exists(fooTastyFile))
-    } finally compiler.close()
+    finally compiler.close()
+    end try
   }
-}
+end AuxiliaryClassFilesSpec

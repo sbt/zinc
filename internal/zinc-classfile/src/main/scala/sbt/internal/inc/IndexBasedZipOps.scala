@@ -12,7 +12,7 @@
 package sbt.internal.inc
 
 import java.nio.channels.{ FileChannel, Channels, ReadableByteChannel }
-import java.io._
+import java.io.*
 import java.nio.file.{ Files, Path }
 import java.util.UUID
 import java.util.zip.{ Deflater, ZipOutputStream, ZipEntry }
@@ -34,7 +34,7 @@ import scala.collection.immutable.Seq
  * This class abstracts over the actual operations on index i.e. reading, manipulating
  * and storing it making it easy to replace.
  */
-abstract class IndexBasedZipOps extends CreateZip {
+abstract class IndexBasedZipOps extends CreateZip:
 
   /**
    * Reads timestamps of zip entries. On the first access to a given zip
@@ -44,23 +44,19 @@ abstract class IndexBasedZipOps extends CreateZip {
    * an argument is only used to initialize the cache and is later ignored.
    * This is enough as stamps are only read from the output jar.
    */
-  final class CachedStamps(zip: Path) {
+  final class CachedStamps(zip: Path):
     private val cachedNameToTimestamp: Map[String, Long] = initializeCache(zip)
 
-    def getStamp(entry: String): Long = {
+    def getStamp(entry: String): Long =
       cachedNameToTimestamp.getOrElse(entry, 0)
-    }
 
-    private def initializeCache(zipFile: Path): Map[String, Long] = {
-      if (Files.exists(zipFile)) {
+    private def initializeCache(zipFile: Path): Map[String, Long] =
+      if Files.exists(zipFile) then
         val centralDir = readCentralDir(zipFile)
         val headers = getHeaders(centralDir)
         headers.iterator.map(header => getFileName(header) -> getLastModifiedTime(header)).toMap
-      } else {
+      else
         Map.empty
-      }
-    }
-  }
 
   /**
    * Removes specified entries from given zip file by replacing current index
@@ -68,9 +64,8 @@ abstract class IndexBasedZipOps extends CreateZip {
    * @param zipFile the zip file to remove entries from
    * @param entries paths to files inside the jar e.g. sbt/internal/inc/IndexBasedZipOps.class
    */
-  def removeEntries(zipFile: File, entries: Iterable[String]): Unit = {
+  def removeEntries(zipFile: File, entries: Iterable[String]): Unit =
     removeEntries(zipFile.toPath, entries.toSet)
-  }
 
   /**
    * Merges two zip files. It works by appending contents of `from`
@@ -82,9 +77,8 @@ abstract class IndexBasedZipOps extends CreateZip {
    * @param into the target zip file to merge to
    * @param from the source zip file that is added/merged to `into`
    */
-  def mergeArchives(into: File, from: File): Unit = {
+  def mergeArchives(into: File, from: File): Unit =
     mergeArchives(into.toPath, from.toPath)
-  }
 
   /**
    * Adds `files` (plain files) to the specified zip file. Implemented by creating
@@ -96,15 +90,13 @@ abstract class IndexBasedZipOps extends CreateZip {
    * @param files a sequence of tuples with actual file to include and the path in
    *             the zip where it should be put.
    */
-  def includeInArchive(zipFile: File, files: Seq[(File, String)]): Unit = {
-    if (zipFile.exists()) {
+  def includeInArchive(zipFile: File, files: Seq[(File, String)]): Unit =
+    if zipFile.exists() then
       val tempZip = zipFile.toPath.resolveSibling(s"${UUID.randomUUID()}.jar").toFile
       createZip(tempZip, files)
       mergeArchives(zipFile, tempZip)
-    } else {
+    else
       createZip(zipFile, files)
-    }
-  }
 
   /**
    * Reads the current index from given zip file
@@ -112,9 +104,8 @@ abstract class IndexBasedZipOps extends CreateZip {
    * @param zipFile path to the zip file
    * @return current index
    */
-  def readCentralDir(zipFile: File): CentralDir = {
+  def readCentralDir(zipFile: File): CentralDir =
     readCentralDir(zipFile.toPath)
-  }
 
   /**
    * Replaces index inside the zip file.
@@ -122,15 +113,13 @@ abstract class IndexBasedZipOps extends CreateZip {
    * @param zipFile the zip file that should have the index updated
    * @param centralDir the index to be stored in the file
    */
-  def writeCentralDir(zipFile: File, centralDir: CentralDir): Unit = {
+  def writeCentralDir(zipFile: File, centralDir: CentralDir): Unit =
     writeCentralDir(zipFile.toPath, centralDir)
-  }
 
-  def listEntries(zipFile: File): Seq[String] = {
+  def listEntries(zipFile: File): Seq[String] =
     val centralDir = readCentralDir(zipFile)
     val headers = getHeaders(centralDir)
     headers.map(getFileName)
-  }
 
   /**
    * Represents the central directory (index) of a zip file. It must contain the start offset
@@ -144,28 +133,24 @@ abstract class IndexBasedZipOps extends CreateZip {
    */
   type Header
 
-  private def writeCentralDir(path: Path, newCentralDir: CentralDir): Unit = {
+  private def writeCentralDir(path: Path, newCentralDir: CentralDir): Unit =
     val currentCentralDir = readCentralDir(path)
     val currentCentralDirStart = truncateCentralDir(currentCentralDir, path)
     finalizeZip(newCentralDir, path, currentCentralDirStart)
-  }
 
-  private def removeEntries(path: Path, toRemove: Set[String]): Unit = {
-    if (toRemove.nonEmpty) {
+  private def removeEntries(path: Path, toRemove: Set[String]): Unit =
+    if toRemove.nonEmpty then
       val centralDir = readCentralDir(path)
       removeEntriesFromCentralDir(centralDir, toRemove)
       val writeOffset = truncateCentralDir(centralDir, path)
       finalizeZip(centralDir, path, writeOffset)
-    }
-  }
 
-  private def removeEntriesFromCentralDir(centralDir: CentralDir, toRemove: Set[String]): Unit = {
+  private def removeEntriesFromCentralDir(centralDir: CentralDir, toRemove: Set[String]): Unit =
     val headers = getHeaders(centralDir)
     val clearedHeaders = headers.filterNot(header => toRemove.contains(getFileName(header)))
     setHeaders(centralDir, clearedHeaders)
-  }
 
-  def mergeArchives(target: Path, source: Path): Unit = {
+  def mergeArchives(target: Path, source: Path): Unit =
     val targetCentralDir = readCentralDir(target)
     val sourceCentralDir = readCentralDir(source)
 
@@ -183,13 +168,12 @@ abstract class IndexBasedZipOps extends CreateZip {
     finalizeZip(targetCentralDir, target, centralDirStart)
 
     Files.delete(source)
-  }
 
   private def mergeHeaders(
       targetCentralDir: CentralDir,
       sourceCentralDir: CentralDir,
       sourceStart: Long
-  ): Seq[Header] = {
+  ): Seq[Header] =
     val sourceHeaders = getHeaders(sourceCentralDir)
     sourceHeaders.foreach { header =>
       // potentially offsets should be updated for each header
@@ -206,56 +190,50 @@ abstract class IndexBasedZipOps extends CreateZip {
       getHeaders(targetCentralDir).filterNot(h => sourceNames.contains(getFileName(h)))
 
     targetHeaders ++ sourceHeaders
-  }
+  end mergeHeaders
 
-  private def truncateCentralDir(centralDir: CentralDir, path: Path): Long = {
+  private def truncateCentralDir(centralDir: CentralDir, path: Path): Long =
     val sizeAfterTruncate = getCentralDirStart(centralDir)
     new FileOutputStream(path.toFile, true).getChannel
       .truncate(sizeAfterTruncate)
       .close()
     sizeAfterTruncate
-  }
 
   private def finalizeZip(
       centralDir: CentralDir,
       path: Path,
       centralDirStart: Long
-  ): Unit = {
+  ): Unit =
     setCentralDirStart(centralDir, centralDirStart)
     val fileOutputStream = new FileOutputStream(path.toFile, /*append =*/ true)
     fileOutputStream.getChannel.position(centralDirStart)
     val outputStream = new BufferedOutputStream(fileOutputStream)
     writeCentralDir(centralDir, outputStream)
     outputStream.close()
-  }
 
   private def transferAll(
       source: Path,
       target: Path,
       startPos: Long,
       bytesToTransfer: Long
-  ): Unit = {
+  ): Unit =
     val sourceFile = openFileForReading(source)
     val targetFile = openFileForWriting(target)
     var remaining = bytesToTransfer
     var offset = startPos
-    while (remaining > 0) {
+    while remaining > 0 do
       val transferred =
         targetFile.transferFrom(sourceFile, /*position =*/ offset, /*count = */ remaining)
       offset += transferred
       remaining -= transferred
-    }
     sourceFile.close()
     targetFile.close()
-  }
 
-  private def openFileForReading(path: Path): ReadableByteChannel = {
+  private def openFileForReading(path: Path): ReadableByteChannel =
     Channels.newChannel(new BufferedInputStream(Files.newInputStream(path)))
-  }
 
-  private def openFileForWriting(path: Path): FileChannel = {
+  private def openFileForWriting(path: Path): FileChannel =
     new FileOutputStream(path.toFile, /*append = */ true).getChannel
-  }
 
   protected def readCentralDir(path: Path): CentralDir
 
@@ -272,53 +250,44 @@ abstract class IndexBasedZipOps extends CreateZip {
   protected def getLastModifiedTime(header: Header): Long
 
   protected def writeCentralDir(centralDir: CentralDir, outputStream: OutputStream): Unit
-
-}
+end IndexBasedZipOps
 
 // Adapted from sbt.io.IO.zip - disabled compression and simplified
-sealed trait CreateZip {
+sealed trait CreateZip:
 
-  def createZip(target: File, files: Seq[(File, String)]): Unit = {
+  def createZip(target: File, files: Seq[(File, String)]): Unit =
     IO.createDirectory(target.getParentFile)
     withZipOutput(target) { output =>
       writeZip(files, output)
     }
-  }
 
-  private def withZipOutput(file: File)(f: ZipOutputStream => Unit): Unit = {
+  private def withZipOutput(file: File)(f: ZipOutputStream => Unit): Unit =
     Using.fileOutputStream()(file) { fileOut =>
       val zipOut = new ZipOutputStream(fileOut)
       zipOut.setMethod(ZipOutputStream.DEFLATED)
       zipOut.setLevel(Deflater.NO_COMPRESSION)
-      try {
+      try
         f(zipOut)
-      } finally {
+      finally
         zipOut.close()
-      }
     }
-  }
 
-  private def writeZip(files: Seq[(File, String)], output: ZipOutputStream): Unit = {
+  private def writeZip(files: Seq[(File, String)], output: ZipOutputStream): Unit =
     val now = System.currentTimeMillis()
 
-    def makeFileEntry(name: String): ZipEntry = {
+    def makeFileEntry(name: String): ZipEntry =
       val entry = new ZipEntry(name)
       entry.setTime(now)
       entry
-    }
 
-    def addFileEntry(file: File, name: String): Unit = {
+    def addFileEntry(file: File, name: String): Unit =
       output.putNextEntry(makeFileEntry(name))
       IO.transfer(file, output)
       output.closeEntry()
-    }
 
     files.foreach { case (file, name) => addFileEntry(file, normalizeName(name)) }
-  }
 
-  private def normalizeName(name: String): String = {
+  private def normalizeName(name: String): String =
     val sep = File.separatorChar
-    if (sep == '/') name else name.replace(sep, '/')
-  }
-
-}
+    if sep == '/' then name else name.replace(sep, '/')
+end CreateZip

@@ -19,8 +19,8 @@ import sbt.io.IO
 
 import xsbti.Logger
 
-class ZincFileCommands(baseDirectory: File, logger: Logger) extends FileCommands(baseDirectory) {
-  override def commandMap: Map[String, List[String] => Unit] = {
+class ZincFileCommands(baseDirectory: File, logger: Logger) extends FileCommands(baseDirectory):
+  override def commandMap: Map[String, List[String] => Unit] =
     (super.commandMap + {
       "pause" noArg {
         // Redefine pause not to use `System.console`, which is too restrictive
@@ -30,40 +30,33 @@ class ZincFileCommands(baseDirectory: File, logger: Logger) extends FileCommands
       }
     }).map {
       case (cmd, fn) =>
-        cmd -> ((args: List[String]) => {
-          logger.debug(() => s"Running: $$ $cmd ${args.mkString(" ")}")
-          fn(args)
-        })
+        cmd ->
+          ((args: List[String]) =>
+            logger.debug(() => s"Running: $$ $cmd ${args.mkString(" ")}")
+            fn(args)
+          )
     }
-  }
 
-  override def absent(paths: List[String]): Unit = {
+  override def absent(paths: List[String]): Unit =
     val present = paths.filter(exists)
-    if (present.nonEmpty)
+    if present.nonEmpty then
       scriptError("File(s) existed: " + present.mkString("[ ", " , ", " ]"))
-  }
 
-  override def newer(a: String, b: String): Unit = {
+  override def newer(a: String, b: String): Unit =
     val isNewer = exists(a) && (!exists(b) || getModifiedTimeOrZero(a) > getModifiedTimeOrZero(b))
-    if (!isNewer) {
+    if !isNewer then
       scriptError(s"$a is not newer than $b")
-    }
-  }
 
-  override def exists(paths: List[String]): Unit = {
+  override def exists(paths: List[String]): Unit =
     val notPresent = paths.filterNot(exists)
-    if (notPresent.nonEmpty) {
+    if notPresent.nonEmpty then
       scriptError("File(s) did not exist: " + notPresent.mkString("[ ", " , ", " ]"))
-    }
-  }
 
-  private def exists(path: String): Boolean = {
+  private def exists(path: String): Boolean =
     pathFold(path)(_.exists(), JarUtils.exists)(_ || _)
-  }
 
-  private def getModifiedTimeOrZero(path: String): Long = {
+  private def getModifiedTimeOrZero(path: String): Long =
     pathFold(path)(IO.getModifiedTimeOrZero, JarUtils.readModifiedTime)(_ max _)
-  }
 
   /**
    * Folds over representations of path (analogously to Either#fold).
@@ -84,16 +77,13 @@ class ZincFileCommands(baseDirectory: File, logger: Logger) extends FileCommands
   private def pathFold[A](path: String)(
       transformPlain: File => A,
       transformJared: JarUtils.ClassInJar => A
-  )(combine: (A, A) => A): A = {
-    val jaredRes = {
+  )(combine: (A, A) => A): A =
+    val jaredRes =
       val relBasePath = "target/classes"
       IO.relativize(new File(relBasePath), new File(path)).map { relClass =>
         val jar = Paths.get(baseDirectory.toString, relBasePath, "output.jar").toFile
         transformJared(JarUtils.ClassInJar(jar.toPath, relClass))
       }
-    }
     val regularRes = transformPlain(fromString(path))
     jaredRes.map(combine(_, regularRes)).getOrElse(regularRes)
-  }
-
-}
+end ZincFileCommands

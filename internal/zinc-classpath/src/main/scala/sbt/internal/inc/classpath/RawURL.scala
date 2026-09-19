@@ -19,7 +19,7 @@ import java.net.{ Proxy, URL, URLConnection, URLStreamHandler }
 import java.util.Enumeration
 import scala.annotation.nowarn
 
-object RawURL {
+object RawURL:
 
   /**
    * Constructs a URL with scheme `raw` and path `file` that will return the bytes for `value` in the platform default encoding
@@ -40,28 +40,26 @@ object RawURL {
   def apply(file: String)(value: => InputStream): URL =
     new URL("raw", null, -1, file, new RawStreamHandler(value))
 
-  private final class RawStreamHandler(value: => InputStream) extends URLStreamHandler {
+  private final class RawStreamHandler(value: => InputStream) extends URLStreamHandler:
     override protected def openConnection(url: URL, p: Proxy): URLConnection =
       openConnection(url)
     override protected def openConnection(url: URL): URLConnection =
-      new URLConnection(url) {
+      new URLConnection(url):
         private lazy val in = value
-        def connect(): Unit = { in; () }
+        def connect(): Unit =
+          in; ()
         override def getInputStream = in
-      }
-  }
-}
+end RawURL
 
 /** A ClassLoader that looks up resource requests in a `Map` prior to the base ClassLoader's resource lookups. */
-trait RawResources extends FixedResources {
+trait RawResources extends FixedResources:
 
   /** The map from resource paths to the raw String content to provide via the URL returned by [[sbt.internal.inc.classpath.FixedResources!.findResource(s:String)*]] or [[findResources]]. */
   protected def resources: Map[String, String]
   override protected final val resourceURL = resources.transform(RawURL.apply)
-}
 
 /** A ClassLoader that looks up resource requests in a `Map` prior to the base ClassLoader's resource lookups. */
-trait FixedResources extends ClassLoader {
+trait FixedResources extends ClassLoader:
 
   /** The map from resource paths to URL to provide in [[sbt.internal.inc.classpath.FixedResources!.findResource(s:String)*]] and [[findResources]]. */
   protected def resourceURL: Map[String, URL]
@@ -69,11 +67,8 @@ trait FixedResources extends ClassLoader {
   override def findResource(s: String): URL = resourceURL.getOrElse(s, super.findResource(s))
 
   import java.util.Collections.{ enumeration, singletonList }
-  override def findResources(s: String): Enumeration[URL] = {
+  override def findResources(s: String): Enumeration[URL] =
     val sup = super.findResources(s)
-    resourceURL.get(s) match {
+    resourceURL.get(s) match
       case Some(url) => new DualEnumeration(enumeration(singletonList(url)), sup)
       case None      => sup
-    }
-  }
-}

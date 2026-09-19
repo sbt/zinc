@@ -17,16 +17,16 @@ import java.net.URLClassLoader
 import java.nio.file.{ Files, Path, Paths }
 import java.util.Optional
 
-import sbt.internal.inc._
+import sbt.internal.inc.*
 import sbt.internal.inc.classpath.ClassLoaderCache
 import sbt.internal.util.ManagedLogger
 import sbt.io.IO
-import sbt.io.syntax._
+import sbt.io.syntax.*
 import sbt.util.InterfaceUtil
-import scala.jdk.OptionConverters._
+import scala.jdk.OptionConverters.*
 
 import xsbti.{ FileConverter, VirtualFile }
-import xsbti.compile.{ ScalaInstance => XScalaInstance, _ }
+import xsbti.compile.{ ScalaInstance as XScalaInstance, * }
 import xsbti.compile.FileAnalysisStore
 
 case class CompilerSetup(
@@ -45,18 +45,16 @@ case class CompilerSetup(
     earlyAnalysisStoreLocation: Path,
     converter: FileConverter,
     log: ManagedLogger
-) {
+):
   var lastCompiledUnits = Set.empty[String]
 
-  val progress = new CompileProgress {
+  val progress = new CompileProgress:
     override def startUnit(phase: String, unitPath: String): Unit = lastCompiledUnits += unitPath
-  }
 
-  val perClasspathEntryLookup = new PerClasspathEntryLookup {
+  val perClasspathEntryLookup = new PerClasspathEntryLookup:
     def read(p: Path) = FileAnalysisStore.getDefault(p.toFile).get().toScala.map(_.getAnalysis)
     def analysis(cpEntry: VirtualFile) = analysisForCp.get(cpEntry).flatMap(read).toJava
     def definesClass(cpEntry: VirtualFile) = Locate.definesClass(cpEntry)
-  }
 
   val maxErrors = 100
   val zinc = new IncrementalCompilerImpl
@@ -96,15 +94,13 @@ case class CompilerSetup(
     Stamps.timeWrapBinaryStamps(converter)
   )
 
-  def doCompile(newInputs: Inputs => Inputs = identity): CompileResult = {
+  def doCompile(newInputs: Inputs => Inputs = identity): CompileResult =
     lastCompiledUnits = Set.empty
     zinc.compile(newInputs(in), log)
-  }
 
-  def doCompileAllJava(newInputs: Inputs => Inputs = identity): CompileResult = {
+  def doCompileAllJava(newInputs: Inputs => Inputs = identity): CompileResult =
     lastCompiledUnits = Set.empty
     zinc.compileAllJava(newInputs(in), log)
-  }
 
   def doCompileWithStore(
       store: AnalysisStore = FileAnalysisStore.getDefault(analysisStoreLocation.toFile),
@@ -116,18 +112,15 @@ case class CompilerSetup(
       newInputs: Inputs => Inputs = identity
   ): CompileResult = doCompileWithStoreImpl(doCompileAllJava, store, newInputs)
 
-  def compile(sources: VirtualFile*) = {
+  def compile(sources: VirtualFile*) =
     doCompileWithStore(newInputs = withSrcs(sources.toArray))
-  }
 
-  def compileAllJava(sources: VirtualFile*) = {
+  def compileAllJava(sources: VirtualFile*) =
     doCompileAllJavaWithStore(newInputs = withSrcs(sources.toArray))
-  }
 
-  def compileBoth(sources: VirtualFile*) = {
+  def compileBoth(sources: VirtualFile*) =
     val res = compile(sources*)
-    if (res.hasModified) compileAllJava(sources*) else res
-  }
+    if res.hasModified then compileAllJava(sources*) else res
 
   def withSrcs(vs: Array[VirtualFile]) = (in: Inputs) => in.withOptions(in.options.withSources(vs))
 
@@ -135,35 +128,31 @@ case class CompilerSetup(
       doCompile: (Inputs => Inputs) => CompileResult,
       store: AnalysisStore,
       newInputs: Inputs => Inputs,
-  ): CompileResult = {
+  ): CompileResult =
     // only allow FileNotFoundException to silently use empty previous result
     val prevRes =
-      try {
+      try
         zinc.previousResult(store.unsafeGet())
-      } catch {
+      catch
         case _: FileNotFoundException  => zinc.emptyPreviousResult
         case _: NoSuchElementException => zinc.emptyPreviousResult
-      }
     val newResult = doCompile(inputs => newInputs(inputs.withPreviousResult(prevRes)))
     store.set(AnalysisContents.create(newResult.analysis, newResult.setup))
     newResult
-  }
 
   def close(): Unit = loaderCache.close()
-}
+end CompilerSetup
 
 case class ProjectPaths(baseDir: Path) {}
 
-object ProjectSetup {
+object ProjectSetup:
   def simple(
       baseDir: Path,
       classes: Seq[String],
       scalacOptions: Seq[String] = Nil
-  ): ProjectSetup = {
+  ): ProjectSetup =
     val sources = Map(Paths.get("src") -> classes.map(Paths.get(_)))
     ProjectSetup(VirtualSubproject(baseDir), sources, Nil, Map.empty, scalacOptions = scalacOptions)
-  }
-}
 
 case class ProjectSetup(
     proj: VirtualSubproject,
@@ -174,7 +163,7 @@ case class ProjectSetup(
     subproject: String = "unnamed",
     scalacOptions: Seq[String] = Nil,
     overrideCp: Option[Seq[Path]] = None // to avoid "fromResource"
-) {
+):
   def baseDir = proj.baseDir
   def converter = proj.converter
   def classesDir = proj.classesDir
@@ -183,17 +172,16 @@ case class ProjectSetup(
   def analysisPath = proj.analysisPath
   def earlyAnalysisPath = proj.earlyAnalysisPath
 
-  val output: Path = if (outputToJar) outputJar else classesDir
+  val output: Path = if outputToJar then outputJar else classesDir
 
-  val allSources: Iterable[Path] = for ((dstFile, srcFiles) <- sources; srcFile <- srcFiles) yield {
-    if (srcFile.toString == "") sys.error("unexpected blank sourceFile")
-    withPath(baseDir.resolve(dstFile).resolve(srcFile)) { f =>
-      baseDir.resolve(srcFile) match {
-        case p if Files.exists(p) => IO.copyFile(p.toFile, f)
-        case _                    => IO.copyFile(fromResource(Paths.get("sources"), srcFile), f)
+  val allSources: Iterable[Path] =
+    for (dstFile, srcFiles) <- sources; srcFile <- srcFiles yield
+      if srcFile.toString == "" then sys.error("unexpected blank sourceFile")
+      withPath(baseDir.resolve(dstFile).resolve(srcFile)) { f =>
+        baseDir.resolve(srcFile) match
+          case p if Files.exists(p) => IO.copyFile(p.toFile, f)
+          case _                    => IO.copyFile(fromResource(Paths.get("sources"), srcFile), f)
       }
-    }
-  }
 
   val allClasspath: Seq[Path] = overrideCp.getOrElse(classPath.map {
     case path if path.toString.endsWith(".zip") =>
@@ -206,15 +194,14 @@ case class ProjectSetup(
       withPath(newJar)(f => IO.copyFile(fromResource(Paths.get("bin"), path), f))
   })
 
-  private def withPath[U](p: Path)(f: File => U): Path = { f(p.toFile); p }
+  private def withPath[U](p: Path)(f: File => U): Path =
+    f(p.toFile); p
 
-  private def fromResource(prefix: Path, path: Path): File = {
+  private def fromResource(prefix: Path, path: Path): File =
     val fullPath = prefix.resolve(path).toString
-    getClass.getClassLoader.getResource(fullPath) match {
+    getClass.getClassLoader.getResource(fullPath) match
       case null => sys.error(s"path = '$path' ($fullPath) not found")
       case url  => new File(url.toURI)
-    }
-  }
 
   def createCompiler(
       sv: String,
@@ -222,7 +209,7 @@ case class ProjectSetup(
       compilerBridge: Path,
       options: IncOptions,
       log: ManagedLogger,
-  ): CompilerSetup = {
+  ): CompilerSetup =
     CompilerSetup(
       sv,
       si,
@@ -240,14 +227,13 @@ case class ProjectSetup(
       converter,
       log
     )
-  }
-}
+end ProjectSetup
 
 case class VirtualSubproject(
     baseDir: Path,
     projectDeps: List[VirtualSubproject] = Nil,
     externalDeps: List[Path] = Nil,
-) {
+):
   private val sbtBoot = Paths.get(sys.props("user.home")).resolve(".sbt/boot")
   private val javaHome = Paths.get(sys.props("java.home"))
   private val rootPaths = Map("BASE" -> baseDir, "SBT_BOOT" -> sbtBoot, "JAVA_HOME" -> javaHome)
@@ -268,4 +254,4 @@ case class VirtualSubproject(
   val analysisForCp = (this :: projectDeps).flatMap(_.analysisSelf).toMap
   val cp = earlyOutput :: projectDeps.map(_.classesDir) ::: externalDeps
   val setup = ProjectSetup(this, Map.empty, Nil, analysisForCp, overrideCp = Some(cp))
-}
+end VirtualSubproject

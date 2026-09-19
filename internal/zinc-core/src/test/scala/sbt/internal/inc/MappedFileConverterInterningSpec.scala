@@ -18,7 +18,7 @@ import java.nio.file.attribute.FileTime
 import sbt.io.IO
 import xsbti.VirtualFile
 
-class MappedFileConverterInterningSpec extends UnitSpec {
+class MappedFileConverterInterningSpec extends UnitSpec:
 
   behavior of "MappedFileConverter directory item interning"
 
@@ -77,15 +77,13 @@ class MappedFileConverterInterningSpec extends UnitSpec {
     assert(second ne first)
   }
 
-  private def withTempDir(f: Path => Unit): Unit = {
+  private def withTempDir(f: Path => Unit): Unit =
     val dir = Files.createTempDirectory("mapped-file-converter-interning")
     try f(dir)
     finally IO.delete(dir.toFile)
-  }
 
   private def directory(vf: VirtualFile): MappedDirectory =
-    vf match {
+    vf match
       case dir: MappedDirectory => dir
       case other                => fail(s"expected a MappedDirectory, got $other")
-    }
-}
+end MappedFileConverterInterningSpec
