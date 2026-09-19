@@ -9,6 +9,7 @@ sbt -Dfile.encoding=UTF-8 \
   scalafmtCheckAll \
   scalafmtSbtCheck \
   Test/compile \
+  mimaReportBinaryIssues \
   doc \
   crossTestBridges \
   test \
