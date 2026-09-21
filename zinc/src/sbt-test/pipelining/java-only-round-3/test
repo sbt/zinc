@@ -1,0 +1,6 @@
+# Changing only J.java makes dep pass Java sources alone to scalac. That run never reaches the
+# phase after Inlining, so zinc must still write the early output with J in it for use.
+
+> use/compile
+$ copy-file changes/J.java dep/J.java
+> use/compile

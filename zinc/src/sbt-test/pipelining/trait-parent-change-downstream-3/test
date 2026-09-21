@@ -1,0 +1,12 @@
+# After a change to B's parents, the early analysis must have B's hash with the new parents,
+# or the next change to B recompiles D. Nothing in dep inherits B, so dep compiles in one round.
+
+> use/compile
+
+$ copy-file changes/B1.scala dep/B.scala
+> use/compile
+> use/checkRecompilations 1 D
+
+$ copy-file changes/B2.scala dep/B.scala
+> use/compile
+> use/checkRecompilations 1 D
