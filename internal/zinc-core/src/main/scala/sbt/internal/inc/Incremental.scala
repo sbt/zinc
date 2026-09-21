@@ -1072,7 +1072,12 @@ private final class AnalysisCallback(
         case None                                    =>
           previousApis.get(className) match
             case Some(previous) => previous.extraHash()
-            case None => sys.error(s"Failed to find the extra API hash of parent $className")
+            // A parent with no analysis yet (e.g. a same-run Java class pipelining hasn't
+            // compiled, or a previous-run remnant already pruned) contributes no extraHash of
+            // its own rather than failing the whole compilation.
+            case None =>
+              log.debug(s"No extra API hash found for parent $className")
+              emptyApiHash
 
     /**
      * Inheritance is keyed by source class name, so without name kinds
