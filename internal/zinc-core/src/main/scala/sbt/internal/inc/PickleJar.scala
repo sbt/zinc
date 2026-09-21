@@ -19,6 +19,8 @@ import sbt.util.Logger
 import sbt.internal.io.Retry
 
 object PickleJar:
+  private val pickleExtensions = List(".sig", ".tasty")
+
   // create an empty JAR file in case the subproject has no classes.
   def touch(path: Path): Unit =
     if !Files.exists(path) then
@@ -37,12 +39,13 @@ object PickleJar:
     new SimpleFileVisitor[Path]:
       override def visitFile(path: Path, attrs: BasicFileAttributes): FileVisitResult =
         val ps = path.toString
-        if ps.endsWith(".sig") then
+        pickleExtensions.find(ps.endsWith).foreach { ext =>
           // "/foo/bar/wiz.sig" -> "foo/bar/wiz.class"
-          if !knownProducts.contains(ps.stripPrefix("/").stripSuffix(".sig") + ".class") then
+          if !knownProducts.contains(ps.stripPrefix("/").stripSuffix(ext) + ".class") then
             log.debug(s"PickleJar.deleteUnknowns: visitFile deleting $ps")
             // retry to work around C:\Users\RUNNER~1\AppData\Local\Temp\sbt_f3e67bfa\dep\target\early\output.jar:
             // The process cannot access the file because it is being used by another process.
             Retry(Files.delete(path))
+        }
         FileVisitResult.CONTINUE
 end PickleJar
