@@ -4,6 +4,11 @@
       "name": "use",
       "scalaVersion": "2.13.x",
       "compileOrder": "JavaThenScala"
+    },
+    {
+      "name": "scala-only",
+      "scalaVersion": "2.13.x",
+      "compileOrder": "JavaThenScala"
     }
   ]
 }

@@ -47,6 +47,15 @@ final class MixedAnalyzingCompiler(
 ):
   private val absClasspath = config.classpath.map(toAbsolute(_))
 
+  if config.incOptions.pipelining && config.currentSetup.order == JavaThenScala then
+    val (javaSources, scalaSources) = config.sources.partition(MixedAnalyzingCompiler.javaOnly)
+    if javaSources.nonEmpty && scalaSources.nonEmpty then
+      throw new InvalidCompileSetup(
+        "CompileOrder.JavaThenScala cannot be combined with build pipelining, " +
+          "which defers the Java compilation until after the Scala compilation. " +
+          "Use CompileOrder.Mixed, or turn off pipelining for this subproject."
+      )
+
   /**
    * Compile java and run analysis.
    */
@@ -175,11 +184,8 @@ final class MixedAnalyzingCompiler(
             }
           case _ => scalacOpts1
         JarUtils.withPreviousJar(output) { (extraClasspath: Seq[Path]) =>
-          // Under pipelining javac is deferred, so its output is not on the classpath
-          // yet. Java sources must reach scalac regardless of the configured order,
-          // otherwise Scala sources cannot resolve symbols defined in Java.
           val sources =
-            if config.currentSetup.order == Mixed || config.incOptions.pipelining then incSrc
+            if config.currentSetup.order == Mixed then incSrc
             else scalaSrcs
 
           val cp0: Vector[VirtualFile] =

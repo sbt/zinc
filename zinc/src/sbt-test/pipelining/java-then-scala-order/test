@@ -1,7 +1,10 @@
 # https://github.com/sbt/sbt/issues/9707
-# Under pipelining javac is deferred, so Java sources must still be handed to
-# scalac even when compileOrder is not Mixed. Otherwise Scala sources in the
-# same project cannot resolve symbols defined in Java.
-> use/compile
-$ exists use/target/classes/ByteArrayAccess.class
-$ exists use/target/classes/Main.class
+# Pipelining defers javac, so JavaThenScala cannot be honoured for a subproject
+# that mixes Java and Scala, and is rejected instead of silently compiling as
+# if Mixed had been configured.
+-> use/compile
+
+# compileOrder is often set on ThisBuild, so subprojects without Java sources
+# must keep compiling.
+> scala-only/compile
+$ exists scala-only/target/classes/OnlyScala.class
