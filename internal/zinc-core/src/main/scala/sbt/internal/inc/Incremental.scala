@@ -1072,9 +1072,10 @@ private final class AnalysisCallback(
         case None                                    =>
           previousApis.get(className) match
             case Some(previous) => previous.extraHash()
-            // A parent with no analysis yet (e.g. a same-run Java class pipelining hasn't
-            // compiled, or a previous-run remnant already pruned) contributes no extraHash of
-            // its own rather than failing the whole compilation.
+            // Scala 3 can report a Java parent that has no API here: a JDK class under `-release`
+            // (scala/scala3#27117), or a Java source when pipelining is on but the compiler
+            // predates it (before 3.5). extraHash carries a trait's private members; a Java class
+            // has none.
             case None =>
               log.debug(s"No extra API hash found for parent $className")
               emptyApiHash
