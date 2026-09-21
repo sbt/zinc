@@ -68,7 +68,7 @@ object Dependencies:
 
   val parserCombinator = "org.scala-lang.modules" %% "scala-parser-combinators" % "2.5.0"
   // sbinary 0.5.2 uses 2.13 build of scala-xml, so use 0.5.1
-  val sbinary = "org.scala-sbt" %% "sbinary" % "0.5.1"
+  val sbinary = "org.scala-sbt" %% "sbinary" % "0.6.0"
   val sjsonNewVersion = "0.15.1"
   val scalaXml = "org.scala-lang.modules" %% "scala-xml" % "2.5.0"
   val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.20.0"
