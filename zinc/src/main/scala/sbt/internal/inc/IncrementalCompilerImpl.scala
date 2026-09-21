@@ -348,6 +348,7 @@ class IncrementalCompilerImpl extends IncrementalCompiler:
           e
         ) // just ignore
       case e: CompileFailed        => throw e // just ignore
+      case e: InvalidCompileSetup  => throw e // just ignore
       case e: InterruptedException => throw e // just ignore
       case e: Throwable            =>
         val ex = e // For Intellij debugging purpose

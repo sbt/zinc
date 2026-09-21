@@ -47,6 +47,15 @@ final class MixedAnalyzingCompiler(
 ):
   private val absClasspath = config.classpath.map(toAbsolute(_))
 
+  if config.incOptions.pipelining && config.currentSetup.order == JavaThenScala then
+    val (javaSources, scalaSources) = config.sources.partition(MixedAnalyzingCompiler.javaOnly)
+    if javaSources.nonEmpty && scalaSources.nonEmpty then
+      throw new InvalidCompileSetup(
+        "CompileOrder.JavaThenScala cannot be combined with build pipelining, " +
+          "which defers the Java compilation until after the Scala compilation. " +
+          "Use CompileOrder.Mixed, or turn off pipelining for this subproject."
+      )
+
   /**
    * Compile java and run analysis.
    */
