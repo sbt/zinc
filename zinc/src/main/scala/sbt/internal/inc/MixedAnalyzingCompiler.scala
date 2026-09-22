@@ -202,6 +202,10 @@ final class MixedAnalyzingCompiler(
               }
               (cp0 ++ libraryJars).distinct
             else cp0
+          val progress = callback match
+            case callback: HasCompilerPhaseListener =>
+              Optional.of(callback.phaseListener.progress(config.progress))
+            case _ => config.progress.toJava
           timed("Scala compilation", log) {
             config.compiler.compile(
               sources.toArray,
@@ -212,7 +216,7 @@ final class MixedAnalyzingCompiler(
               output,
               callback,
               config.reporter,
-              config.progress.toJava,
+              progress,
               log
             )
           }

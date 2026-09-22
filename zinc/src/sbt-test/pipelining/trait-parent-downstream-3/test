@@ -1,0 +1,7 @@
+# The early analysis of a clean build must have B's hash with its parent A, or the next
+# change to B recompiles D.
+
+> use/compile
+$ copy-file changes/B.scala dep/B.scala
+> use/compile
+> use/checkRecompilations 0 D
