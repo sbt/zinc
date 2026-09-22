@@ -1,0 +1,9 @@
+# Changing only J.java makes dep pass Java sources alone to scalac. U changes too, so use
+# recompiles against dep's early output. When Scala 3 skips dependencyPhaseCompleted, which it
+# can under load, the early jar must not lose J.tasty.
+
+> use/compile
+
+$ copy-file changes/J.java dep/J.java
+$ copy-file changes/U.scala use/U.scala
+> use/compile

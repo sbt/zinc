@@ -430,7 +430,9 @@ object Incremental:
               )
             else previous
           if earlyOutput.isDefined then
-            writeEarlyOut(lookup, progress, earlyOutput, analysis, new java.util.HashSet, log)
+            val available =
+              lookup.shouldDoEarlyOutput(analysis) && callbackBuilder.lastCompileWroteEarlyOutput
+            writeEarlyOut(progress, earlyOutput, available, new java.util.HashSet, log)
           analysis
     }
     (hasModified || hasSubprojectChange, analysis)
@@ -506,10 +508,9 @@ object Incremental:
     result
 
   private[inc] def writeEarlyOut(
-      lookup: Lookup,
       progress: Option[CompileProgress],
       earlyOutput: Option[Output],
-      analysis: Analysis,
+      available: Boolean,
       knownProducts: java.util.Set[String],
       log: Logger,
   ) =
@@ -518,7 +519,7 @@ object Incremental:
       pickleJar <- jo2o(earlyO.getSingleOutputAsPath)
     do
       PickleJar.write(pickleJar, knownProducts, log)
-      progress.foreach(_.afterEarlyOutput(lookup.shouldDoEarlyOutput(analysis)))
+      progress.foreach(_.afterEarlyOutput(available))
 end Incremental
 
 /**
@@ -536,26 +537,32 @@ private[sbt] final class CompilerPhaseListener(
     onDependenciesSent: () => Unit
 ):
   @volatile private var dependenciesSent = !waitForInlining
+  @volatile private var compilerStarted = false
   private var inliningStarted = false
-  private var dependencyPhaseSignalled = false
+  private var dependencyPhaseCompletedCalled = false
   private var notified = false
 
   def phaseStarted(phase: String): Unit =
+    compilerStarted = true
     if !dependenciesSent then
       notifyIfReady {
         if phase == "inlining" then inliningStarted = true
         else if inliningStarted then dependenciesSent = true
       }
 
-  def dependencyPhaseCompleted(): Unit = notifyIfReady { dependencyPhaseSignalled = true }
+  def dependencyPhaseCompleted(): Unit = notifyIfReady { dependencyPhaseCompletedCalled = true }
 
   /** For a run that did not reach the phase after Inlining, such as one with only Java sources. */
   def runCompleted(): Unit = notifyIfReady { dependenciesSent = true }
 
+  /** The compiler ran but never called `dependencyPhaseCompleted`. */
+  def dependencyPhaseCompletedMissing: Boolean =
+    synchronized(compilerStarted && !dependencyPhaseCompletedCalled)
+
   private def notifyIfReady(update: => Unit): Unit =
     val ready = synchronized {
       update
-      val ready = !notified && dependenciesSent && dependencyPhaseSignalled
+      val ready = !notified && dependenciesSent && dependencyPhaseCompletedCalled
       if ready then notified = true
       ready
     }
@@ -600,6 +607,15 @@ private object AnalysisCallback:
 
     // Create an AnalysisCallback without IncHandler for Java compilation purpose.
     def build(): AnalysisCallback = buildImpl(None)
+
+    /**
+     * A compile that writes no early output leaves an empty early analysis, see
+     * `AnalysisCallback.getCycleResultOnce`. The early output on disk is then stale.
+     */
+    def lastCompileWroteEarlyOutput: Boolean =
+      earlyAnalysisStore.forall(_.get.toScala.exists(_.getAnalysis match
+        case a: Analysis => a.apis.internal.nonEmpty
+        case _           => false))
 
     private def buildImpl(incHandlerOpt: Option[Incremental.IncrementalCallback]) =
       val previousAnalysisOpt = incHandlerOpt.map(_.previousAnalysisPruned)
@@ -1016,17 +1032,16 @@ private final class AnalysisCallback(
   def getCycleResultOnce: CompileCycleResult =
     if gotten.compareAndSet(false, true) then
       val incHandler = incHandlerOpt.getOrElse(sys.error("incHandler was expected"))
-      // Not continuing & nothing was written, so notify it ain't gonna happen
-      def notifyNoEarlyOut() =
-        if !writtenEarlyArtifacts then progress.foreach(_.afterEarlyOutput(false))
       outputJarContent.scalacRunCompleted()
       phaseListener.runCompleted()
       if earlyOutput.isDefined then
         val early = incHandler.previousAnalysisPruned
-        invalidationResults match
-          case None if lookup.shouldDoEarlyOutput(early)    => writeEarlyArtifacts(early)
-          case None | Some(CompileCycleResult(false, _, _)) => notifyNoEarlyOut()
-          case _                                            =>
+        // Scala 3 skips `dependencyPhaseCompleted`, and may skip TASTy files, if its early TASTy is
+        // still being written when the run ends (scala/scala3#27139). The early output of this run
+        // is then incomplete.
+        if invalidationResults.isEmpty && !phaseListener.dependencyPhaseCompletedMissing &&
+          lookup.shouldDoEarlyOutput(early)
+        then writeEarlyArtifacts(early)
         if !writtenEarlyArtifacts then // writing implies the updates merge has happened
           mergeUpdates() // must merge updates each cycle or else scalac will clobber it
 
@@ -1035,7 +1050,14 @@ private final class AnalysisCallback(
       // If we had early output and scala sources, then the cycle has already been registered
       val shouldRegisterCycle = earlyOutput.isEmpty || !hasScala
 
-      incHandler.completeCycle(invalidationResults, partialAnalysis, shouldRegisterCycle)
+      val result =
+        incHandler.completeCycle(invalidationResults, partialAnalysis, shouldRegisterCycle)
+      // Only the last cycle announces that there is no early output. The empty early analysis
+      // marks the early output on disk as stale, see `Builder.lastCompileWroteEarlyOutput`.
+      if earlyOutput.isDefined && !result.continue && !writtenEarlyArtifacts then
+        earlyAnalysisStore.foreach(_.set(AnalysisContents.create(Analysis.empty, earlySetup)))
+        progress.foreach(_.afterEarlyOutput(false))
+      result
     else
       throw new IllegalStateException(
         "can't call AnalysisCallback#getCycleResultOnce more than once"
@@ -1307,6 +1329,12 @@ private final class AnalysisCallback(
 
   @volatile private var writtenEarlyArtifacts: Boolean = false
 
+  private def earlySetup: MiniSetup =
+    currentSetup
+      .withOutput(CompileOutput.empty)
+      .withOptions(MiniOptions.of(Array.empty, Array.empty, Array.empty))
+      .withExtra(Array.empty)
+
   private def writeEarlyArtifacts(merged: Analysis): Unit =
     writtenEarlyArtifacts = true
 
@@ -1319,14 +1347,11 @@ private final class AnalysisCallback(
       SourceInfos.empty,
       Compilations.empty,
     )
-    val trimmedSetup = currentSetup
-      .withOutput(CompileOutput.empty)
-      .withOptions(MiniOptions.of(Array.empty, Array.empty, Array.empty))
-      .withExtra(Array.empty)
-    earlyAnalysisStore.foreach(_.set(AnalysisContents.create(trimmedAnalysis, trimmedSetup)))
+    earlyAnalysisStore.foreach(_.set(AnalysisContents.create(trimmedAnalysis, earlySetup)))
 
     mergeUpdates() // must merge updates each cycle or else scalac will clobber it
-    Incremental.writeEarlyOut(lookup, progress, earlyOutput, merged, knownProducts(merged), log)
+    val available = lookup.shouldDoEarlyOutput(merged)
+    Incremental.writeEarlyOut(progress, earlyOutput, available, knownProducts(merged), log)
 
   private def mergeUpdates() =
     pickleJarPair.foreach {
