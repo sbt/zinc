@@ -4,12 +4,10 @@
       "name": "app",
       "dependsOn": [
         "macros"
-      ],
-      "scalaVersion": "2.13.x"
+      ]
     },
     {
-      "name": "macros",
-      "scalaVersion": "2.13.x"
+      "name": "macros"
     }
   ]
 }

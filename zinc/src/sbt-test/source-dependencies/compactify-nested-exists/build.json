@@ -1,5 +1,0 @@
-{
-  "projects": [
-    { "name": "root", "in": ".", "scalaVersion": "3.x" }
-  ]
-}

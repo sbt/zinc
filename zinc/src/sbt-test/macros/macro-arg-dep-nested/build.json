@@ -4,12 +4,10 @@
       "name": "macro-client",
       "dependsOn": [
         "macro-provider"
-      ],
-      "scalaVersion": "2.13.x"
+      ]
     },
     {
-      "name": "macro-provider",
-      "scalaVersion": "2.13.x"
+      "name": "macro-provider"
     }
   ]
 }
