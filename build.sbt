@@ -148,10 +148,16 @@ lazy val zincRoot: Project = (project in file("."))
     }, // clean is required b/c the version is generated in properties file
     crossScalaVersions := Nil,
     publishBridges := Def.task(()).dependsOn(bridges*).value,
-    crossTestBridges := Def.uncached {
-      (compilerBridgeTest.jvm(scala3) / Test / testFull).dependsOn(publishBridges).value
-      ()
-    }
+    commands += Command.command("crossTestBridges") { state =>
+      def setVersion(v: String) =
+        s"""set LocalProject("compilerBridgeTest") / bridgeTestScalaVersion := "$v""""
+      "publishBridges" ::
+        Seq(scala212, scala213).toList.flatMap(v =>
+          List(setVersion(v), "compilerBridgeTest/Test/testFull")
+        ) :::
+        setVersion(scala213) ::
+        state
+    },
   )
 
 def mapBuildInfoKey[A1, A2: sbtbuildinfo.PluginCompat.Manifest](
@@ -549,7 +555,9 @@ lazy val compilerBridgeTest = (projectMatrix in internalPath / "compiler-bridge-
     // needed because we fork tests and tests are ran in parallel so we have multiple Scala
     // compiler instances that are memory hungry
     Test / javaOptions += "-Xmx1G",
-    Test / javaOptions += s"-Dzinc.build.compilerbridge.scalaVersion=${scala213}",
+    bridgeTestScalaVersion := scala213,
+    Test / javaOptions +=
+      s"-Dzinc.build.compilerbridge.scalaVersion=${bridgeTestScalaVersion.value}",
     publish / skip := true,
   )
   .jvmPlatform(scalaVersions = scala3_only)
@@ -703,7 +711,8 @@ def bridgeTestDigests = Def.settings(
 )
 
 val publishBridges = taskKey[Unit]("")
-val crossTestBridges = taskKey[Unit]("")
+val bridgeTestScalaVersion =
+  settingKey[String]("Scala version of the bridge compilerBridgeTest tests")
 
 addCommandAlias(
   "runBenchmarks", {
