@@ -515,7 +515,7 @@ lazy val compilerBridgeScala213Bin = (project in internalPath / "compilerBridgeS
     name := "compilerBridgeScala213Bin",
     publish / skip := true,
     autoScalaLibrary := false,
-    scalaVersion := scala213,
+    scalaVersion := scala213ForBridge,
     libraryDependencies += scala2BinaryBridge,
   )
 lazy val compilerBridgeScala3Bin = (project in internalPath / "compilerBridgeScala3Bin")

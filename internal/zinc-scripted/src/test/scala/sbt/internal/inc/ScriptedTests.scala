@@ -238,7 +238,7 @@ object ScriptedTests:
    * of its marker files, such as `pending-3`.
    */
   val ScalaVersions: Map[String, String] =
-    scala.collection.immutable.ListMap("2.12" -> "2.12.x", "3" -> "3.x")
+    scala.collection.immutable.ListMap("2.12" -> "2.12.x", "2.13" -> "2.13.y", "3" -> "3.x")
 
   final case class TestRun(group: String, name: String, scalaVersion: Option[String]):
     def label: String = s"$group/$name${scalaVersion.fold("")(v => s" ($v)")}"

@@ -34,7 +34,8 @@ after the project
 Scala versions
 --------------
 
-Each test runs once per Scala version: 2.12 and 3. A test for one version pins every project with
+Each test runs once per Scala version: 2.12, 2.13 and 3. For 2.13 that's `scala2-sbt-bridge`, the
+bridge from the Scala distribution that sbt uses for 2.13.12 and later. A test for one version pins every project with
 `scalaVersion` in `build.json` (`2.13.x`, `3.x`, ...) and runs once; by convention its name ends in
 `-3`, `-2.13`, and so on. A single-project test pins its version with
 `{ "projects": [{ "name": "root", "in": ".", "scalaVersion": "3.x" }] }`.
