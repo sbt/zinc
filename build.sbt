@@ -146,9 +146,10 @@ lazy val zincRoot: Project = (project in file("."))
     }, // clean is required b/c the version is generated in properties file
     crossScalaVersions := Nil,
     publishBridges := Def.task(()).dependsOn(bridges*).value,
-    crossTestBridges := Def.uncached(
-      (compilerBridgeTest.jvm(scala3) / Test / test).dependsOn(publishBridges).value
-    )
+    crossTestBridges := Def.uncached {
+      (compilerBridgeTest.jvm(scala3) / Test / testFull).dependsOn(publishBridges).value
+      ()
+    }
   )
 
 def mapBuildInfoKey[A1, A2: sbtbuildinfo.PluginCompat.Manifest](
