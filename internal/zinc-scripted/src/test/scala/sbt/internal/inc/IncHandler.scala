@@ -21,7 +21,6 @@ import java.util.concurrent.ConcurrentLinkedQueue
 
 import sbt.util.Logger
 import sbt.util.InterfaceUtil.*
-import xsbt.api.Discovery
 import xsbti.{ FileConverter, Problem, Severity, VirtualFileRef, VirtualFile }
 import xsbti.compile.{
   AnalysisContents,
@@ -572,7 +571,7 @@ case class ProjectStructure(
 
   def run(i: IncState, params: Seq[String]): Future[Unit] =
     compile(i).map { analysis =>
-      discoverMainClasses(Some(analysis.apis)) match
+      discoverMainClasses(analysis) match
         case Seq(mainClassName) =>
           val jars = i.si.allJars.map(_.toPath)
           val cp = (jars ++ (unmanagedJars :+ output) ++ internalClasspath).map(_.toAbsolutePath)
@@ -784,15 +783,8 @@ case class ProjectStructure(
 
   def scriptError(message: String): Future[Unit] = Future(sys.error(s"Test script error: $message"))
 
-  def discoverMainClasses(apisOpt: Option[APIs]): Seq[String] = apisOpt match
-    case Some(apis) =>
-      def companionsApis(c: xsbti.api.Companions) = Seq(c.classApi, c.objectApi)
-      val allDefs = apis.internal.values.flatMap(x => companionsApis(x.api)).toSeq
-      val apps = Discovery.applications(allDefs).collect {
-        case (definition, discovered) if discovered.hasMain => definition.name
-      }
-      apps.sorted
-    case None => Nil
+  def discoverMainClasses(analysis: Analysis): Seq[String] =
+    analysis.infos.allInfos.values.flatMap(_.getMainClasses).toSeq.distinct.sorted
 
   // Taken from Run.scala in sbt/sbt
   def getMainMethod(mainClassName: String, loader: ClassLoader) =
