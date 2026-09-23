@@ -1,0 +1,7 @@
+{
+  "projects": [
+    { "name": "root" },
+    { "name": "dep" },
+    { "name": "use", "dependsOn": ["dep"] }
+  ]
+}

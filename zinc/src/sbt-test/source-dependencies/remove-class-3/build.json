@@ -1,7 +1,0 @@
-{
-  "projects": [
-    { "name": "root", "scalaVersion": "3.x" },
-    { "name": "dep", "scalaVersion": "3.x" },
-    { "name": "use", "dependsOn": ["dep"], "scalaVersion": "3.x" }
-  ]
-}
