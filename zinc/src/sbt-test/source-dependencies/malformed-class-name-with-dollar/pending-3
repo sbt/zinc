@@ -1,0 +1,2 @@
+With pipelining, zinc fails with "Can't find source file for <empty>.B.C$": Scala 3 reports
+APIs for the Java class C$ that no product defines.

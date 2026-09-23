@@ -1,0 +1,2 @@
+The Scala 3 bridge doesn't tell dependencies of an object from those of its companion class, so
+object B extends A counts as class B inheriting A.

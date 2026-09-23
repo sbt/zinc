@@ -1,0 +1,11 @@
+# Unlike Scala 2, an imported name that shadows B.x doesn't disqualify the implicit B.x.
+
+$ copy-file changes/A1.scala A.scala
+$ copy-file changes/B.scala B.scala
+$ copy-file changes/C.scala C.scala
+> compile
+-> run
+
+$ copy-file changes/A2.scala A.scala
+> compile
+-> run

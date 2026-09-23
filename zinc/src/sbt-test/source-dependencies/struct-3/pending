@@ -1,0 +1,8 @@
+# The Scala 3 bridge doesn't record that C uses the name x when A conforms to B's structural type.
+
+> compile
+
+# modify A.scala so that it does not conform to the structural type in B.scala
+$ copy-file changes/A.scala A.scala
+
+-> compile

@@ -1,0 +1,1 @@
+In Scala 3 a private user-defined copy doesn't hide the synthetic copy.

@@ -1,0 +1,4 @@
+> compile
+$ copy-file changes/J.java J.java
+> compile
+> checkRecompilations 0 U
