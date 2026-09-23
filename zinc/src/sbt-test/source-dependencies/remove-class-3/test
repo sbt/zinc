@@ -1,0 +1,10 @@
+# A removed class's .tasty must be deleted with its .class files, or scalac still finds the class.
+> root/compile
+$ delete root/A.scala
+-> root/compile
+
+# dep and use don't pipeline, so use sees dep's classes directory.
+> use/compile
+$ delete dep/A.scala
+> dep/compile
+-> use/compile

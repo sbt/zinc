@@ -40,7 +40,8 @@ import xsbti.compile.{
   PreviousResult,
   CompilerCache as XCompilerCache,
   Compilers as XCompilers,
-  ScalaInstance as XScalaInstance
+  ScalaInstance as XScalaInstance,
+  TastyFiles
 }
 import sbt.io.IO
 import sbt.io.syntax.*
@@ -839,6 +840,9 @@ case class ProjectStructure(
       .withPipelining(defaultPipelining)
       .withApiDebug(true)
       .withExternalHooks(externalHooks)
+      .withAuxiliaryClassFiles(
+        if scalaVersion.startsWith("3.") then Array(TastyFiles.instance) else Array.empty
+      )
     // .withRelationsDebug(true)
     val incOptions =
       val opts = IncOptionsUtil.fromStringMap(base, map, scriptedLog)
