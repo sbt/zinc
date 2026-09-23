@@ -19,14 +19,16 @@ import sbt.io.{ AllPassFilter, IO, NameFilter }
 object ScriptedMain:
   private val DisableBuffering = "--no-buffer"
   private val CompileToJar = "--to-jar"
+  private val ScalaVersion = "--scala-version="
   private val Flags = Set(DisableBuffering, CompileToJar)
 
   def main(args: Array[String]): Unit =
     val compileToJar = args.contains(CompileToJar)
     val disableBuffering = args.contains(DisableBuffering)
-    val tests = args.filterNot(Flags.contains)
+    val scalaVersion = args.find(_.startsWith(ScalaVersion)).fold("")(_.stripPrefix(ScalaVersion))
+    val tests = args.filterNot(a => Flags.contains(a) || a.startsWith(ScalaVersion))
     val baseDir = BuildInfo.sourceDirectory / "sbt-test"
-    run(baseDir, buffer = !disableBuffering, compileToJar, tests)
+    run(baseDir, buffer = !disableBuffering, compileToJar, scalaVersion, tests)
 
   def detectScriptedTests(scriptedBase: File): Map[String, Set[String]] =
     val scriptedFiles: NameFilter = ("test": NameFilter) | "pending"
@@ -60,8 +62,17 @@ object ScriptedMain:
       baseDir: File,
       buffer: Boolean,
       compileToJar: Boolean,
+      scalaVersion: String,
       testSpecs: Array[String],
   ): Unit =
+    val scalaVersions =
+      if scalaVersion.isEmpty then ScriptedTests.ScalaVersions.keys.toSeq
+      else if ScriptedTests.ScalaVersions.contains(scalaVersion) then Seq(scalaVersion)
+      else
+        sys.error(
+          s"Unknown Scala version $scalaVersion, expected one of " +
+            ScriptedTests.ScalaVersions.keys.mkString(", ")
+        )
     val foundTests = detectScriptedTests(baseDir)
     val tests = testSpecs.toList.flatMap(arg => parseScripted(foundTests, baseDir, arg))
 
@@ -73,8 +84,9 @@ object ScriptedMain:
     IO.withTemporaryDirectory { tempDir =>
       // Create a global temporary directory to store the bridge et al
       val handlers = new IncScriptedHandlers(tempDir.toPath, compileToJar)
-      ScriptedRunnerImpl.run(baseDir.toPath, buffer, tests, handlers, 4)
+      ScriptedRunnerImpl.run(baseDir.toPath, buffer, tests, handlers, 4, scalaVersions)
     }
+  end run
 
   private def fail(msg: String): Nothing =
     println(msg)

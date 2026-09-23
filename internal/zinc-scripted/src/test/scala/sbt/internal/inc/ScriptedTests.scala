@@ -27,8 +27,9 @@ final class ScriptedTests(
     resourceBaseDirectory: Path,
     bufferLog: Boolean,
     outLevel: Level.Value,
-    handlersProvider: HandlersProvider,
-    logsDir: Path
+    handlersProvider: IncScriptedHandlers,
+    logsDir: Path,
+    scalaVersions: Seq[String]
 ):
   import ScriptedTests.*
 
@@ -42,10 +43,11 @@ final class ScriptedTests(
   private def createScriptedHandlers(
       label: String,
       testDir: Path,
-      logger: ManagedLogger
+      logger: ManagedLogger,
+      scalaVersion: Option[String]
   ): Map[Char, StatementHandler] =
     val scriptConfig = new ScriptConfig(label, testDir.toFile, logger)
-    handlersProvider.getHandlers(scriptConfig)
+    handlersProvider.getHandlers(scriptConfig, scalaVersion.map(ScalaVersions))
 
   /** Returns a sequence of test runners that have to be applied in the call site. */
   def batchScriptedRunner(tests: Seq[ScriptedTest], instances: Int): Seq[TestRunner] =
@@ -65,11 +67,21 @@ final class ScriptedTests(
         (groupName, testName) -> testDirectory
     }
 
-    if labelsAndDirs.isEmpty then List()
+    val runs = labelsAndDirs.flatMap {
+      case ((group, name), dir) =>
+        pinnedVersions(dir.toPath) match
+          case None         => scalaVersions.map(v => TestRun(group, name, Some(v)) -> dir)
+          case Some(pinned) =>
+            val selected = scalaVersions == ScalaVersions.keys.toSeq ||
+              pinned.exists(scalaVersions.contains)
+            if selected then Seq(TestRun(group, name, None) -> dir) else Nil
+    }
+
+    if runs.isEmpty then List()
     else
-      val batchSeed = labelsAndDirs.size / instances
-      val batchSize = if batchSeed == 0 then labelsAndDirs.size else batchSeed
-      labelsAndDirs
+      val batchSeed = runs.size / instances
+      val batchSize = if batchSeed == 0 then runs.size else batchSeed
+      runs
         .grouped(batchSize)
         .map { batch => () =>
           IO.withTemporaryDirectory(tempDir => runBatchedTests(batch, tempDir.toPath))
@@ -116,7 +128,7 @@ final class ScriptedTests(
    * @param batchTmpDir The directory holding one subdirectory per test.
    */
   private def runBatchedTests(
-      groupedTests: Seq[((String, String), File)],
+      groupedTests: Seq[(TestRun, File)],
       batchTmpDir: Path
   ): Seq[Option[String]] =
     val runner = new BatchScriptRunner
@@ -125,9 +137,9 @@ final class ScriptedTests(
     if bufferLog then batchLogger.buffer.record()
 
     groupedTests.zipWithIndex.map {
-      case (((group, name), originalDir), index) =>
-        val label = s"$group/$name"
-        val loggerName = s"scripted-$group-$name.log"
+      case ((run @ TestRun(group, name, scalaVersion), originalDir), index) =>
+        val label = run.label
+        val loggerName = s"scripted-$group-$name${scalaVersion.fold("")("-" + _)}.log"
         val logFile = createScriptedLogFile(loggerName)
         val logger = rebindLogger(batchLogger, logFile)
         if bufferLog then batchLogger.buffer.record()
@@ -136,13 +148,14 @@ final class ScriptedTests(
         val testDir = Files.createDirectory(batchTmpDir.resolve(index.toString))
         IO.copyDirectory(originalDir, testDir.toFile)
 
-        val handlers = createScriptedHandlers(batchId, testDir, batchLogger.log)
+        val handlers = createScriptedHandlers(batchId, testDir, batchLogger.log, scalaVersion)
         val states = new BatchScriptRunner.States
         val seqHandlers = handlers.values.toList
         runner.initStates(states, seqHandlers)
         try
-          val runTest = () => commonRunTest(label, testDir, handlers, runner, states, logger)
-          runOrHandleDisabled(label, testDir, runTest, logger)
+          val runTest =
+            () => commonRunTest(label, testDir, scalaVersion, handlers, runner, states, logger)
+          runOrHandleDisabled(label, testDir, scalaVersion, runTest, logger)
         finally
           runner.cleanUpHandlers(seqHandlers, states)
           IO.delete(testDir.toFile)
@@ -152,10 +165,11 @@ final class ScriptedTests(
   private def runOrHandleDisabled(
       label: String,
       testDirectory: Path,
+      scalaVersion: Option[String],
       runTest: () => Option[String],
       logger: ScriptedLogger
   ): Option[String] =
-    val existsDisabled = Files.isRegularFile(testDirectory.resolve("disabled"))
+    val existsDisabled = hasMarker(testDirectory, "disabled", scalaVersion)
     if existsDisabled then
       logger.log.warn(s"${Console.YELLOW}${Console.BOLD}D${Console.RESET} $label [DISABLED]")
       None
@@ -164,6 +178,7 @@ final class ScriptedTests(
   private def commonRunTest(
       label: String,
       testDirectory: Path,
+      scalaVersion: Option[String],
       handlers: Map[Char, StatementHandler],
       runner: BatchScriptRunner,
       states: BatchScriptRunner.States,
@@ -175,7 +190,7 @@ final class ScriptedTests(
       val normal = testDirectory.resolve(ScriptFilename)
       val pending = testDirectory.resolve(PendingScriptFilename)
       if Files.isRegularFile(pending) then (pending, true)
-      else (normal, false)
+      else (normal, hasMarker(testDirectory, PendingScriptFilename, scalaVersion))
 
     def testFailed(t: Throwable): Option[String] =
       if pending then
@@ -217,3 +232,29 @@ end ScriptedTests
 object ScriptedTests:
   type TestRunner = () => Seq[Option[String]]
   val emptyCallback: Path => Unit = _ => ()
+
+  /**
+   * The Scala versions a test runs on unless its build pins every project, keyed by the suffix
+   * of its marker files, such as `pending-3`.
+   */
+  val ScalaVersions: Map[String, String] =
+    scala.collection.immutable.ListMap("2.12" -> "2.12.x", "3" -> "3.x")
+
+  final case class TestRun(group: String, name: String, scalaVersion: Option[String]):
+    def label: String = s"$group/$name${scalaVersion.fold("")(v => s" ($v)")}"
+
+  /** The marker suffixes of the versions a test is pinned to, if every project pins one. */
+  def pinnedVersions(testDirectory: Path): Option[Seq[String]] =
+    val versions = IncHandler.readBuild(testDirectory).projects.map(_.scalaVersion)
+    if versions.forall(_.isDefined) && Files.exists(testDirectory.resolve("build.json")) then
+      Some(versions.flatten.map(versionKey).distinct)
+    else None
+
+  private def versionKey(scalaVersion: String): String =
+    if scalaVersion.startsWith("3") then "3" else scalaVersion.split('.').take(2).mkString(".")
+
+  /** Whether `testDirectory` has the marker `name` for all versions, or `name-version`. */
+  def hasMarker(testDirectory: Path, name: String, scalaVersion: Option[String]): Boolean =
+    (Some(name) ++ scalaVersion.map(v => s"$name-$v"))
+      .exists(n => Files.isRegularFile(testDirectory.resolve(n)))
+end ScriptedTests

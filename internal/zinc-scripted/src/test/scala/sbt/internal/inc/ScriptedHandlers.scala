@@ -25,12 +25,21 @@ class SleepingHandler(val handler: StatementHandler, delay: Long) extends Statem
     result
   override def finish(state: State) = handler.finish(state)
 
-class IncScriptedHandlers(globalCacheDir: Path, compileToJar: Boolean) extends HandlersProvider:
-  def getHandlers(config: ScriptConfig): Map[Char, StatementHandler] = Map(
+class IncScriptedHandlers(globalCacheDir: Path, compileToJar: Boolean):
+  def getHandlers(
+      config: ScriptConfig,
+      scalaVersion: Option[String]
+  ): Map[Char, StatementHandler] = Map(
     '$' -> new SleepingHandler(new ZincFileCommands(config.testDirectory, config.logger), 500),
     '#' -> CommentHandler,
     '>' -> {
       val logger = config.logger().asInstanceOf[ManagedLogger]
-      new IncHandler(config.testDirectory().toPath, globalCacheDir, logger, compileToJar)
+      new IncHandler(
+        config.testDirectory().toPath,
+        globalCacheDir,
+        logger,
+        compileToJar,
+        scalaVersion
+      )
     }
   )

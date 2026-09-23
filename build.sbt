@@ -141,6 +141,7 @@ lazy val zincRoot: Project = (project in file("."))
     scripted / watchTriggers += baseDirectory.value.toGlob / "zinc" / "src" / "sbt-test" / **,
     Scripted.scriptedSource := (zinc3 / sourceDirectory).value / "sbt-test",
     Scripted.scriptedCompileToJar := false,
+    Scripted.scriptedScalaVersion := sys.props.get("scripted.scalaVersion"),
     publish / skip := true,
     commands += Command.command("release") { state =>
       "clean" :: "+compile" :: "+publishSigned" :: "reload" :: state
@@ -728,5 +729,6 @@ def scriptedTask: Def.Initialize[InputTask[Unit]] = Def.inputTask {
     result,
     scriptedBufferLog.value,
     scriptedCompileToJar.value,
+    scriptedScalaVersion.value,
   )
 }.dependsOn(publishBridges)

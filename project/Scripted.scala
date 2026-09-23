@@ -8,6 +8,8 @@ object Scripted:
   def scriptedPath = file("scripted")
   val scriptedSource = settingKey[File]("")
   val scriptedCompileToJar = settingKey[Boolean]("Compile directly to jar in scripted tests")
+  val scriptedScalaVersion =
+    settingKey[Option[String]]("Run scripted tests only on this Scala version, e.g. 3 or 2.12")
 
   import sbt.complete.*
   import DefaultParsers.*
@@ -61,6 +63,7 @@ object Scripted:
       args: Seq[String],
       bufferLog: Boolean,
       compileToJar: Boolean,
+      scalaVersion: Option[String],
   ): Unit =
     val noJLine =
       new classpath.FilteredLoader(scriptedSbtInstance.loader, "xsbti." :: "jline." :: Nil)
@@ -72,6 +75,7 @@ object Scripted:
       classOf[File],
       classOf[Boolean],
       classOf[Boolean],
+      classOf[String],
       classOf[Array[String]]
     )
     try
@@ -80,6 +84,7 @@ object Scripted:
         sourcePath,
         java.lang.Boolean.valueOf(bufferLog),
         java.lang.Boolean.valueOf(compileToJar),
+        scalaVersion.getOrElse(""),
         args.toArray
       )
     catch case ite: java.lang.reflect.InvocationTargetException => throw ite.getCause

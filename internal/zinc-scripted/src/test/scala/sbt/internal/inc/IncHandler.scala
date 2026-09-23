@@ -83,8 +83,13 @@ final case class IncState(
   def inc: IncState =
     copy(number = number + 1, compilations = scala.collection.concurrent.TrieMap.empty)
 
-class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, compileToJar: Boolean)
-    extends BridgeProviderSpecification
+class IncHandler(
+    directory: Path,
+    cacheDir: Path,
+    scriptedLog: ManagedLogger,
+    compileToJar: Boolean,
+    defaultScalaVersion: Option[String]
+) extends BridgeProviderSpecification
     with StatementHandler:
   import scala.concurrent.ExecutionContext.Implicits.*
   type State = Option[IncState]
@@ -122,8 +127,8 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
   def initBuildStructure(): Unit =
     val build = initBuild
     build.projects.foreach { p =>
-      val in: Path = p.in.getOrElse(directory / p.name)
-      val version = switchScalaVersion(p.scalaVersion)
+      val in: Path = p.in.fold(directory / p.name)(directory.resolve)
+      val version = switchScalaVersion(p.scalaVersion.orElse(defaultScalaVersion))
       val deps = p.dependsOn.toVector.flatten
       val order = p.compileOrder.fold(CompileOrder.Mixed)(CompileOrder.valueOf)
       val project = ProjectStructure(
@@ -142,34 +147,9 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
     }
   end initBuildStructure
 
-  final val RootIdentifier = "root"
+  final val RootIdentifier = IncHandler.RootIdentifier
 
-  def initBuild: Build =
-    if Files.exists(directory / "build.json") then
-      import sjsonnew.{ IsoString, JsonFormat }
-      import sjsonnew.BasicJsonProtocol.*
-      given pathISOString: IsoString[Path] = IsoString.iso[Path](_.toString, Paths.get(_))
-      given pathFormat: JsonFormat[Path] = isoStringFormat[Path](using pathISOString)
-      given projectFormat: JsonFormat[Project] =
-        caseClass5(
-          Project.apply,
-          p => Some(p.name, p.dependsOn, p.in, p.scalaVersion, p.compileOrder)
-        )(
-          "name",
-          "dependsOn",
-          "in",
-          "scalaVersion",
-          "compileOrder",
-        )
-      given buildFormat: JsonFormat[Build] =
-        caseClass1(Build.apply, b => Some(b.projects))("projects")
-      // Do not parseFromFile as it leaves file open, causing problems on Windows.
-      val json =
-        val channel = Files.newByteChannel(directory / "build.json")
-        try JsonParser.parseFromChannel(channel).get
-        finally channel.close()
-      Converter.fromJsonUnsafe[Build](json)
-    else Build(projects = Vector(Project(name = RootIdentifier).copy(in = Some(directory))))
+  def initBuild: Build = IncHandler.readBuild(directory)
 
   def lookupProject(name: String): ProjectStructure = buildStructure(name)
 
@@ -900,6 +880,34 @@ end ProjectStructure
 
 object IncHandler:
   type Cached = (Path, XScalaInstance)
+  final val RootIdentifier = "root"
+
+  def readBuild(directory: Path): Build =
+    if Files.exists(directory.resolve("build.json")) then
+      import sjsonnew.{ IsoString, JsonFormat }
+      import sjsonnew.BasicJsonProtocol.*
+      given pathISOString: IsoString[Path] = IsoString.iso[Path](_.toString, Paths.get(_))
+      given pathFormat: JsonFormat[Path] = isoStringFormat[Path](using pathISOString)
+      given projectFormat: JsonFormat[Project] =
+        caseClass5(
+          Project.apply,
+          p => Some(p.name, p.dependsOn, p.in, p.scalaVersion, p.compileOrder)
+        )(
+          "name",
+          "dependsOn",
+          "in",
+          "scalaVersion",
+          "compileOrder",
+        )
+      given buildFormat: JsonFormat[Build] =
+        caseClass1(Build.apply, b => Some(b.projects))("projects")
+      // Do not parseFromFile as it leaves file open, causing problems on Windows.
+      val json =
+        val channel = Files.newByteChannel(directory.resolve("build.json"))
+        try JsonParser.parseFromChannel(channel).get
+        finally channel.close()
+      Converter.fromJsonUnsafe[Build](json)
+    else Build(projects = Vector(Project(name = RootIdentifier).copy(in = Some(directory))))
   private final val scriptedCompilerCache = new mutable.WeakHashMap[String, Cached]()
 
   def getCompilerCacheFor(scalaVersion: String): Option[Cached] =
@@ -910,3 +918,4 @@ object IncHandler:
 
   private[internal] final val classLoaderCache =
     Some(new ClassLoaderCache(new URLClassLoader(Array())))
+end IncHandler

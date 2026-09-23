@@ -13,7 +13,7 @@ package sbt.internal.inc
 
 import java.nio.file.Path
 
-import sbt.internal.scripted.{ HandlersProvider, ListTests, ScriptedTest }
+import sbt.internal.scripted.{ ListTests, ScriptedTest }
 import sbt.io.syntax.*
 import sbt.io.IO
 import sbt.util.{ Level, Logger }
@@ -30,14 +30,22 @@ object ScriptedRunnerImpl:
       baseDir: Path,
       bufferLog: Boolean,
       tests: Seq[ScriptedTest],
-      handlersProvider: HandlersProvider,
-      instances: Int
+      handlersProvider: IncScriptedHandlers,
+      instances: Int,
+      scalaVersions: Seq[String]
   ): Unit =
     val globalLogger = sbt.internal.util.ConsoleLogger()
     val logsDir = IO.temporaryDirectory / s"scripted-logs-${Integer.toHexString(random.nextInt())}"
     IO.createDirectory(logsDir)
     val outLevel = Level.Debug // if (bufferLog) Level.Info else Level.Debug
-    val runner = new ScriptedTests(baseDir, bufferLog, outLevel, handlersProvider, logsDir.toPath)
+    val runner = new ScriptedTests(
+      baseDir,
+      bufferLog,
+      outLevel,
+      handlersProvider,
+      logsDir.toPath,
+      scalaVersions
+    )
     val scriptedTests = if tests.isEmpty then listTests(baseDir, globalLogger) else tests
     val scriptedRunners = runner.batchScriptedRunner(scriptedTests, instances)
     val parallelRunners = scriptedRunners.toParArray
@@ -45,6 +53,7 @@ object ScriptedRunnerImpl:
     parallelRunners.tasksupport = new scala.collection.parallel.ForkJoinTaskSupport(pool)
     try runAllInParallel(parallelRunners, scriptedTests.size)
     finally globalLogger.info(s"Log files of all scripted tests run: ${logsDir.absolutePath}")
+  end run
 
   def runAllInParallel(tests: ParSeq[TestRunner], size: Int): Unit =
     def reportErrors(tests: Seq[String]): Unit =
