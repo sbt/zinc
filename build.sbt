@@ -2,6 +2,7 @@ import ZincBuildUtil.*
 import Dependencies.*
 import localzinc.Scripted, Scripted.*
 import com.typesafe.tools.mima.core.*, ProblemFilters.*
+import sbt.util.Digest
 
 def zincRootPath: File = file(sys.props.getOrElse("sbtzinc.path", ".")).getCanonicalFile
 def internalPath = zincRootPath / "internal"
@@ -176,6 +177,7 @@ lazy val zinc = (projectMatrix in (zincRootPath / "zinc"))
   .settings(
     name := "zinc",
     exportJars := false,
+    bridgeTestDigests,
     Test / resourceGenerators ++= Seq(
       (jar1 / genTestResTask).taskValue,
       (jar2 / genTestResTask).taskValue,
@@ -537,6 +539,7 @@ lazy val compilerBridgeTest = (projectMatrix in internalPath / "compiler-bridge-
   .settings(
     name := "Compiler Bridge Test",
     baseSettings,
+    bridgeTestDigests,
     scalaVersion := scala3,
     // we need to fork because in unit tests we set usejavacp = true which means
     // we are expecting all of our dependencies to be on classpath so Scala compiler
@@ -683,6 +686,20 @@ def bridges =
       compilerBridge212 / publishLocal,
       compilerBridge213 / publishLocal,
     )
+
+/**
+ * These tests load the compiler bridges and pass options to the forked JVM, neither of which
+ * sbt's incremental `test` sees as an input.
+ */
+def bridgeTestDigests = Def.settings(
+  Test / extraTestDigests ++= Seq(
+    Digest((compilerBridge210 / Compile / packageBin).value),
+    Digest((compilerBridge211 / Compile / packageBin).value),
+    Digest((compilerBridge212 / Compile / packageBin).value),
+    Digest((compilerBridge213 / Compile / packageBin).value),
+    Digest.sha256Hash((Test / javaOptions).value.mkString(" ").getBytes("UTF-8")),
+  ),
+)
 
 val publishBridges = taskKey[Unit]("")
 val crossTestBridges = taskKey[Unit]("")
