@@ -15,18 +15,37 @@ zinc/src/sbt-test/<group>/<name>/
   changes/                 # edited versions, copied over the originals mid-test
   incOptions.properties    # optional; see below
   test                     # the script of steps
+  pending-3, disabled-2.12 # optional; exclude one Scala version, see below
 ```
 
 Naming the script `pending` instead of `test` marks the scenario as known-failing: it still runs, but
 a failure is tolerated, and *passing* is what fails the build (a reminder to rename it back). A
-`pending` file takes precedence over a `test` file in the same directory.
+`pending` file takes precedence over a `test` file in the same directory. Naming it `disabled` skips
+the test.
 
 Groups: `source-dependencies`, `apiinfo`, `macros`, `pipelining`, `profiler`, `reporter`, `general`.
 
 Without a `build.json` the test is a single project named `root` rooted at the test directory. With
 one, each entry declares a `name` and optional `dependsOn`, `in`, and `scalaVersion`. A project's
-base directory is `in` when given, otherwise the subdirectory named after the project
+base directory is `in` when given, relative to the test directory, otherwise the subdirectory named
+after the project
 ([IncHandler.scala:124](../internal/zinc-scripted/src/test/scala/sbt/internal/inc/IncHandler.scala#L124)).
+
+Scala versions
+--------------
+
+Each test runs once per Scala version: 2.12, 2.13 and 3. For 2.13 that's `scala2-sbt-bridge`, the
+bridge from the Scala distribution that sbt uses for 2.13.12 and later. A test for one version pins every project with
+`scalaVersion` in `build.json` (`2.13.x`, `3.x`, ...) and runs once; by convention its name ends in
+`-3`, `-2.13`, and so on. A single-project test pins its version with
+`{ "projects": [{ "name": "root", "in": ".", "scalaVersion": "3.x" }] }`.
+
+A marker file next to the script excludes one version: `pending-3` treats the test as `pending` on
+Scala 3, `disabled-2.12` skips it on Scala 2.12. The file says why, e.g. with a link to the compiler
+bug.
+
+Script
+------
 
 The `test` script is one step per line:
 
@@ -48,7 +67,10 @@ Running
 sbt scripted                                                # all tests
 sbt "scripted source-dependencies/abstract-class-to-trait"   # one test
 sbt "scripted source-dependencies/*"                         # one group
+sbt -Dscripted.scalaVersion=3 scripted                       # only on Scala 3
 ```
+
+In an sbt shell, `set localzinc.Scripted.scriptedScalaVersion := Some("3")` does the same.
 
 `incOptions.properties`
 -----------------------

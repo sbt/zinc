@@ -1,0 +1,2 @@
+The Scala 3 bridge names constructor default getters $lessinit$greater$default$N without the
+class, so a change to B's constructor defaults invalidates A, which uses C's.

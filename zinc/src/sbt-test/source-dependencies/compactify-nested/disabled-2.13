@@ -1,0 +1,2 @@
+Scala 2.13 and 3 shorten long class names differently from 2.12. compactify-nested-exists runs on
+all versions.

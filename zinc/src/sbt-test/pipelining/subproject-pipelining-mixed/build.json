@@ -4,12 +4,10 @@
       "name": "use",
       "dependsOn": [
         "dep"
-      ],
-      "scalaVersion": "2.13.x"
+      ]
     },
     {
-      "name": "dep",
-      "scalaVersion": "2.13.x"
+      "name": "dep"
     }
   ]
 }

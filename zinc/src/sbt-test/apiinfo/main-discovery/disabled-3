@@ -1,0 +1,1 @@
+Main classes discovered by the Scala 3 bridge are tested in scala3's sbt-test/sbt-bridge/main-discovery.

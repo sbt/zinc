@@ -1,0 +1,2 @@
+With Scala 2, the API of J comes from scalac during the compile and from J.class afterwards. The
+two never compare equal, so a changed Java source always counts as an API change.

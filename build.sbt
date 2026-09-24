@@ -141,16 +141,23 @@ lazy val zincRoot: Project = (project in file("."))
     scripted / watchTriggers += baseDirectory.value.toGlob / "zinc" / "src" / "sbt-test" / **,
     Scripted.scriptedSource := (zinc3 / sourceDirectory).value / "sbt-test",
     Scripted.scriptedCompileToJar := false,
+    Scripted.scriptedScalaVersion := sys.props.get("scripted.scalaVersion"),
     publish / skip := true,
     commands += Command.command("release") { state =>
       "clean" :: "+compile" :: "+publishSigned" :: "reload" :: state
     }, // clean is required b/c the version is generated in properties file
     crossScalaVersions := Nil,
     publishBridges := Def.task(()).dependsOn(bridges*).value,
-    crossTestBridges := Def.uncached {
-      (compilerBridgeTest.jvm(scala3) / Test / testFull).dependsOn(publishBridges).value
-      ()
-    }
+    commands += Command.command("crossTestBridges") { state =>
+      def setVersion(v: String) =
+        s"""set LocalProject("compilerBridgeTest") / bridgeTestScalaVersion := "$v""""
+      "publishBridges" ::
+        Seq(scala212, scala213).toList.flatMap(v =>
+          List(setVersion(v), "compilerBridgeTest/Test/testFull")
+        ) :::
+        setVersion(scala213) ::
+        state
+    },
   )
 
 def mapBuildInfoKey[A1, A2: sbtbuildinfo.PluginCompat.Manifest](
@@ -514,7 +521,7 @@ lazy val compilerBridgeScala213Bin = (project in internalPath / "compilerBridgeS
     name := "compilerBridgeScala213Bin",
     publish / skip := true,
     autoScalaLibrary := false,
-    scalaVersion := scala213,
+    scalaVersion := scala213ForBridge,
     libraryDependencies += scala2BinaryBridge,
   )
 lazy val compilerBridgeScala3Bin = (project in internalPath / "compilerBridgeScala3Bin")
@@ -548,7 +555,9 @@ lazy val compilerBridgeTest = (projectMatrix in internalPath / "compiler-bridge-
     // needed because we fork tests and tests are ran in parallel so we have multiple Scala
     // compiler instances that are memory hungry
     Test / javaOptions += "-Xmx1G",
-    Test / javaOptions += s"-Dzinc.build.compilerbridge.scalaVersion=${scala213}",
+    bridgeTestScalaVersion := scala213,
+    Test / javaOptions +=
+      s"-Dzinc.build.compilerbridge.scalaVersion=${bridgeTestScalaVersion.value}",
     publish / skip := true,
   )
   .jvmPlatform(scalaVersions = scala3_only)
@@ -702,7 +711,8 @@ def bridgeTestDigests = Def.settings(
 )
 
 val publishBridges = taskKey[Unit]("")
-val crossTestBridges = taskKey[Unit]("")
+val bridgeTestScalaVersion =
+  settingKey[String]("Scala version of the bridge compilerBridgeTest tests")
 
 addCommandAlias(
   "runBenchmarks", {
@@ -728,5 +738,6 @@ def scriptedTask: Def.Initialize[InputTask[Unit]] = Def.inputTask {
     result,
     scriptedBufferLog.value,
     scriptedCompileToJar.value,
+    scriptedScalaVersion.value,
   )
 }.dependsOn(publishBridges)

@@ -15,15 +15,17 @@ object ActionTest
     with CompilingSpecification {
 
   test("foo") {
-    withTemporaryDirectory { tempDir =>
-      val reporter = mkReporter
-      compileSrcs(tempDir.toPath, reporter)(List(List("""
+    if (scalaVersion.startsWith("2.12")) ()
+    else
+      withTemporaryDirectory { tempDir =>
+        val reporter = mkReporter
+        compileSrcs(tempDir.toPath, reporter)(List(List("""
 object Foo {
   def foo {}
 }""")))
-      val problems = reporter.problems.toList
-      val problem = problems.head
-      assert(problem.actions.asScala.nonEmpty)
-    }
+        val problems = reporter.problems.toList
+        val problem = problems.head
+        assert(problem.actions.asScala.nonEmpty)
+      }
   }
 }

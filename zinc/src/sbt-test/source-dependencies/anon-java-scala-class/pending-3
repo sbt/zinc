@@ -1,0 +1,2 @@
+Java classes in the empty package are reported as <empty>.B, scala/scala3#27134, fixed in
+scala/scala3#27136.

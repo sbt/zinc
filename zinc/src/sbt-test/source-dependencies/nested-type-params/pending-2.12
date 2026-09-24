@@ -1,0 +1,1 @@
+The second compile fails with Scala 2, a clean compile succeeds.

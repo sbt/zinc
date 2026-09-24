@@ -1,0 +1,7 @@
+# The Scala 3 bridge leaves term members of refinement types out of the API.
+
+> compile
+
+$ copy-file changes/A.scala A.scala
+
+-> compile

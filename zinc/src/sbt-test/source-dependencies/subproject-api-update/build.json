@@ -4,12 +4,10 @@
       "name": "root",
       "dependsOn": [
         "core"
-      ],
-      "scalaVersion": "2.13.x"
+      ]
     },
     {
-      "name": "core",
-      "scalaVersion": "2.13.x"
+      "name": "core"
     }
   ]
 }

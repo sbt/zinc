@@ -5,19 +5,16 @@
       "dependsOn": [
         "std",
         "lib"
-      ],
-      "scalaVersion": "2.13.x"
+      ]
     },
     {
       "name": "lib",
       "dependsOn": [
         "std"
-      ],
-      "scalaVersion": "2.13.x"
+      ]
     },
     {
-      "name": "std",
-      "scalaVersion": "2.13.x"
+      "name": "std"
     }
   ]
 }

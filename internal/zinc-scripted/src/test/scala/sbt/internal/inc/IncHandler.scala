@@ -21,7 +21,6 @@ import java.util.concurrent.ConcurrentLinkedQueue
 
 import sbt.util.Logger
 import sbt.util.InterfaceUtil.*
-import xsbt.api.Discovery
 import xsbti.{ FileConverter, Problem, Severity, VirtualFileRef, VirtualFile }
 import xsbti.compile.{
   AnalysisContents,
@@ -40,7 +39,8 @@ import xsbti.compile.{
   PreviousResult,
   CompilerCache as XCompilerCache,
   Compilers as XCompilers,
-  ScalaInstance as XScalaInstance
+  ScalaInstance as XScalaInstance,
+  TastyFiles
 }
 import sbt.io.IO
 import sbt.io.syntax.*
@@ -83,8 +83,13 @@ final case class IncState(
   def inc: IncState =
     copy(number = number + 1, compilations = scala.collection.concurrent.TrieMap.empty)
 
-class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, compileToJar: Boolean)
-    extends BridgeProviderSpecification
+class IncHandler(
+    directory: Path,
+    cacheDir: Path,
+    scriptedLog: ManagedLogger,
+    compileToJar: Boolean,
+    defaultScalaVersion: Option[String]
+) extends BridgeProviderSpecification
     with StatementHandler:
   import scala.concurrent.ExecutionContext.Implicits.*
   type State = Option[IncState]
@@ -122,8 +127,8 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
   def initBuildStructure(): Unit =
     val build = initBuild
     build.projects.foreach { p =>
-      val in: Path = p.in.getOrElse(directory / p.name)
-      val version = switchScalaVersion(p.scalaVersion)
+      val in: Path = p.in.fold(directory / p.name)(directory.resolve)
+      val version = switchScalaVersion(p.scalaVersion.orElse(defaultScalaVersion))
       val deps = p.dependsOn.toVector.flatten
       val order = p.compileOrder.fold(CompileOrder.Mixed)(CompileOrder.valueOf)
       val project = ProjectStructure(
@@ -142,34 +147,9 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
     }
   end initBuildStructure
 
-  final val RootIdentifier = "root"
+  final val RootIdentifier = IncHandler.RootIdentifier
 
-  def initBuild: Build =
-    if Files.exists(directory / "build.json") then
-      import sjsonnew.{ IsoString, JsonFormat }
-      import sjsonnew.BasicJsonProtocol.*
-      given pathISOString: IsoString[Path] = IsoString.iso[Path](_.toString, Paths.get(_))
-      given pathFormat: JsonFormat[Path] = isoStringFormat[Path](using pathISOString)
-      given projectFormat: JsonFormat[Project] =
-        caseClass5(
-          Project.apply,
-          p => Some(p.name, p.dependsOn, p.in, p.scalaVersion, p.compileOrder)
-        )(
-          "name",
-          "dependsOn",
-          "in",
-          "scalaVersion",
-          "compileOrder",
-        )
-      given buildFormat: JsonFormat[Build] =
-        caseClass1(Build.apply, b => Some(b.projects))("projects")
-      // Do not parseFromFile as it leaves file open, causing problems on Windows.
-      val json =
-        val channel = Files.newByteChannel(directory / "build.json")
-        try JsonParser.parseFromChannel(channel).get
-        finally channel.close()
-      Converter.fromJsonUnsafe[Build](json)
-    else Build(projects = Vector(Project(name = RootIdentifier).copy(in = Some(directory))))
+  def initBuild: Build = IncHandler.readBuild(directory)
 
   def lookupProject(name: String): ProjectStructure = buildStructure(name)
 
@@ -571,7 +551,7 @@ case class ProjectStructure(
 
   def run(i: IncState, params: Seq[String]): Future[Unit] =
     compile(i).map { analysis =>
-      discoverMainClasses(Some(analysis.apis)) match
+      discoverMainClasses(analysis) match
         case Seq(mainClassName) =>
           val jars = i.si.allJars.map(_.toPath)
           val cp = (jars ++ (unmanagedJars :+ output) ++ internalClasspath).map(_.toAbsolutePath)
@@ -783,15 +763,8 @@ case class ProjectStructure(
 
   def scriptError(message: String): Future[Unit] = Future(sys.error(s"Test script error: $message"))
 
-  def discoverMainClasses(apisOpt: Option[APIs]): Seq[String] = apisOpt match
-    case Some(apis) =>
-      def companionsApis(c: xsbti.api.Companions) = Seq(c.classApi, c.objectApi)
-      val allDefs = apis.internal.values.flatMap(x => companionsApis(x.api)).toSeq
-      val apps = Discovery.applications(allDefs).collect {
-        case (definition, discovered) if discovered.hasMain => definition.name
-      }
-      apps.sorted
-    case None => Nil
+  def discoverMainClasses(analysis: Analysis): Seq[String] =
+    analysis.infos.allInfos.values.flatMap(_.getMainClasses).toSeq.distinct.sorted
 
   // Taken from Run.scala in sbt/sbt
   def getMainMethod(mainClassName: String, loader: ClassLoader) =
@@ -839,6 +812,9 @@ case class ProjectStructure(
       .withPipelining(defaultPipelining)
       .withApiDebug(true)
       .withExternalHooks(externalHooks)
+      .withAuxiliaryClassFiles(
+        if scalaVersion.startsWith("3.") then Array(TastyFiles.instance) else Array.empty
+      )
     // .withRelationsDebug(true)
     val incOptions =
       val opts = IncOptionsUtil.fromStringMap(base, map, scriptedLog)
@@ -904,6 +880,34 @@ end ProjectStructure
 
 object IncHandler:
   type Cached = (Path, XScalaInstance)
+  final val RootIdentifier = "root"
+
+  def readBuild(directory: Path): Build =
+    if Files.exists(directory.resolve("build.json")) then
+      import sjsonnew.{ IsoString, JsonFormat }
+      import sjsonnew.BasicJsonProtocol.*
+      given pathISOString: IsoString[Path] = IsoString.iso[Path](_.toString, Paths.get(_))
+      given pathFormat: JsonFormat[Path] = isoStringFormat[Path](using pathISOString)
+      given projectFormat: JsonFormat[Project] =
+        caseClass5(
+          Project.apply,
+          p => Some(p.name, p.dependsOn, p.in, p.scalaVersion, p.compileOrder)
+        )(
+          "name",
+          "dependsOn",
+          "in",
+          "scalaVersion",
+          "compileOrder",
+        )
+      given buildFormat: JsonFormat[Build] =
+        caseClass1(Build.apply, b => Some(b.projects))("projects")
+      // Do not parseFromFile as it leaves file open, causing problems on Windows.
+      val json =
+        val channel = Files.newByteChannel(directory.resolve("build.json"))
+        try JsonParser.parseFromChannel(channel).get
+        finally channel.close()
+      Converter.fromJsonUnsafe[Build](json)
+    else Build(projects = Vector(Project(name = RootIdentifier).copy(in = Some(directory))))
   private final val scriptedCompilerCache = new mutable.WeakHashMap[String, Cached]()
 
   def getCompilerCacheFor(scalaVersion: String): Option[Cached] =
@@ -914,3 +918,4 @@ object IncHandler:
 
   private[internal] final val classLoaderCache =
     Some(new ClassLoaderCache(new URLClassLoader(Array())))
+end IncHandler

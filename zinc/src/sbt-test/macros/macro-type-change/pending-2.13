@@ -1,0 +1,1 @@
+Fixed in zinc's own bridge by sbt/zinc#1316, which scala2-sbt-bridge doesn't have yet.
