@@ -5,30 +5,31 @@ on:
 
 jobs:
   test:
+    name: ${{ matrix.name }}
     timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          - name: Test (Linux, JDK 17)
+            os: ubuntu-latest
             java: 17
-            distribution: zulu
             jobtype: 1
-          - os: ubuntu-latest
+          - name: Test (Linux, JDK 25)
+            os: ubuntu-latest
             java: 25
-            distribution: zulu
             jobtype: 1
-          - os: windows-latest
+          - name: Test (Windows, JDK 17)
+            os: windows-latest
             java: 17
-            distribution: zulu
             jobtype: 2
-          - os: ubuntu-latest
+          - name: Formatting, headers, generated code
+            os: ubuntu-latest
             java: 21
-            distribution: temurin
             jobtype: 3
-          - os: ubuntu-latest
+          - name: Benchmark smoke test
+            os: ubuntu-latest
             java: 21
-            distribution: temurin
             jobtype: 4
           - os: ubuntu-latest
             java: 21
