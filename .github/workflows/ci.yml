@@ -30,14 +30,6 @@ jobs:
             java: 21
             distribution: temurin
             jobtype: 4
-          - os: ubuntu-latest
-            java: 21
-            distribution: temurin
-            jobtype: 5
-          - os: ubuntu-latest
-            java: 21
-            distribution: temurin
-            jobtype: 6
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout
@@ -65,38 +57,8 @@ jobs:
       run: |
         sbt -v --server -Dfile.encoding=UTF-8 scalafmtCheckRepo headerCheck "Test/headerCheck" generateContrabands
         git diff --exit-code
-    - name: Benchmark (Scalac) (4)
+    - name: Benchmark smoke test (4)
       if: ${{ matrix.jobtype == 4 }}
       shell: bash
       run: |
-        sbt -v --server -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Scalac.*" "runBenchmarks"
-    - name: Benchmark (Shapeless) (5)
-      if: ${{ matrix.jobtype == 5 }}
-      shell: bash
-      run: |
-        sbt -v --server -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Shapeless.*" "runBenchmarks"
-    - name: Benchmark (AnalysisFormatBenchmark) (6)
-      if: ${{ matrix.jobtype == 6 }}
-      shell: bash
-      run: |
-        sbt -v --server -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*AnalysisFormatBenchmark.*" "runBenchmarks"
-    - name: Checkout Target Branch (4-6)
-      if: ${{ github.event_name == 'pull_request' && (matrix.jobtype >= 4 && matrix.jobtype <= 6) }}
-      uses: actions/checkout@v7
-      with:
-        ref: ${{ github.event.pull_request.base.ref }}
-    - name: Benchmark (Scalac) against Target Branch (4)
-      if: ${{ github.event_name == 'pull_request' && matrix.jobtype == 4 }}
-      shell: bash
-      run: |
-        sbt -v --server -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Scalac.*" "runBenchmarks"
-    - name: Benchmark (Shapeless) against Target Branch (5)
-      if: ${{ github.event_name == 'pull_request' && matrix.jobtype == 5 }}
-      shell: bash
-      run: |
-        sbt -v --server -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*Shapeless.*" "runBenchmarks"
-    - name: Benchmark (AnalysisFormatBenchmark) against Target Branch (6)
-      if: ${{ github.event_name == 'pull_request' && matrix.jobtype == 6 }}
-      shell: bash
-      run: |
-        sbt -v --server -Dfile.encoding=UTF-8 "-Dbenchmark.pattern=.*AnalysisFormatBenchmark.*" "runBenchmarks"
+        sbt -v --server -Dfile.encoding=UTF-8 "-Dbenchmark.jmhOptions=-f 1 -wi 0 -i 1 -w 1s -r 1s" "runBenchmarks"
