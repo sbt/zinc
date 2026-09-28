@@ -482,12 +482,14 @@ object MixedAnalyzingCompiler:
       addBootclasspath: Boolean
   ): Seq[VirtualFile] =
     val cp: Seq[Path] = classpath.map(converter.toPath)
+    val entryByPath: Map[Path, VirtualFile] = cp.zip(classpath).toMap
+    def toVirtualFile(p: Path): VirtualFile = entryByPath.getOrElse(p, converter.toVirtualFile(p))
     val bootClasspath =
-      if addBootclasspath then args.bootClasspathFor(cp).map(converter.toVirtualFile(_))
+      if addBootclasspath then args.bootClasspathFor(cp).map(toVirtualFile)
       else Nil
     bootClasspath ++
       args.extClasspath.map(PlainVirtualFile(_)) ++
-      args.finishClasspath(cp).map(converter.toVirtualFile(_))
+      args.finishClasspath(cp).map(toVirtualFile)
 
   private def explicitBootClasspathFiles(
       options: Seq[String],
