@@ -4,5 +4,4 @@
 $ copy-file lib/changes/A1.scala lib/A.scala
 > app/compile
 
-# currently: `app/checkRecompilations 1 D`
 > app/checkRecompilations 0 D

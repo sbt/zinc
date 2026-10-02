@@ -20,12 +20,15 @@ import xsbti.compile.analysis.ReadSourceInfos
 
 import scala.collection.mutable.ArrayBuffer
 
-class TestCallback extends AnalysisCallback3 {
+class TestCallback extends AnalysisCallback4 {
   case class TestUsedName(name: String, scopes: ju.EnumSet[UseScope])
 
   val classDependencies = new ArrayBuffer[(String, String, DependencyContext)]
   val binaryDependencies =
     new ArrayBuffer[(Path, String, String, DependencyContext)]
+  // the same edges as above, with the namespace of each endpoint
+  val classRefDependencies = new ArrayBuffer[(ClassRef, ClassRef, DependencyContext)]
+  val binaryRefDependencies = new ArrayBuffer[(Path, String, ClassRef, DependencyContext)]
   val productClassesToSources =
     scala.collection.mutable.Map.empty[Path, VirtualFileRef]
   val usedNamesAndScopes =
@@ -58,6 +61,16 @@ class TestCallback extends AnalysisCallback3 {
     ()
   }
 
+  override def classDependency(
+      onClass: ClassRef,
+      sourceClass: ClassRef,
+      context: DependencyContext
+  ): Unit = {
+    if (onClass.name != sourceClass.name)
+      classRefDependencies += ((onClass, sourceClass, context))
+    classDependency(onClass.name, sourceClass.name, context)
+  }
+
   override def binaryDependency(
       classFile: File,
       onBinaryClassName: String,
@@ -75,6 +88,17 @@ class TestCallback extends AnalysisCallback3 {
   ): Unit = {
     binaryDependencies += ((onBinary, onBinaryClassName, fromClassName, context))
     ()
+  }
+
+  override def binaryDependency(
+      onBinary: Path,
+      onBinaryClassName: String,
+      fromClass: ClassRef,
+      fromSourceFile: VirtualFileRef,
+      context: DependencyContext
+  ): Unit = {
+    binaryRefDependencies += ((onBinary, onBinaryClassName, fromClass, context))
+    binaryDependency(onBinary, onBinaryClassName, fromClass.name, fromSourceFile, context)
   }
 
   override def generatedNonLocalClass(
@@ -110,6 +134,13 @@ class TestCallback extends AnalysisCallback3 {
 
   def usedName(className: String, name: String, scopes: ju.EnumSet[UseScope]): Unit =
     usedNamesAndScopes(className) += TestUsedName(name, scopes)
+
+  override def usedName(
+      className: String,
+      name: String,
+      ownerKinds: ju.EnumSet[NameKind],
+      scopes: ju.EnumSet[UseScope]
+  ): Unit = usedName(className, name, scopes)
 
   override def api(source: File, api: ClassLike): Unit = ???
 

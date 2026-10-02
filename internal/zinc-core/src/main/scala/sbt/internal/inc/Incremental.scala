@@ -26,7 +26,17 @@ import sbt.util.InterfaceUtil.{ jl2l, jo2o, l2jl, t2 }
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.util.control.NonFatal
-import xsbti.{ FileConverter, Position, Problem, Severity, UseScope, VirtualFile, VirtualFileRef }
+import xsbti.{
+  ClassRef,
+  FileConverter,
+  NameKind,
+  Position,
+  Problem,
+  Severity,
+  UseScope,
+  VirtualFile,
+  VirtualFileRef
+}
 import xsbt.api.{ APIUtil, HashAPI, NameHashing }
 import xsbti.api._
 import xsbti.compile.{
@@ -595,7 +605,7 @@ private final class AnalysisCallback(
     progress: Option[CompileProgress],
     incHandlerOpt: Option[Incremental.IncrementalCallback],
     log: Logger
-) extends xsbti.AnalysisCallback3 {
+) extends xsbti.AnalysisCallback4 {
   import Incremental.CompileCycleResult
 
   // This must have a unique value per AnalysisCallback
@@ -648,6 +658,11 @@ private final class AnalysisCallback(
   private[this] val intSrcDeps = new TrieMap[String, ConcurrentSet[InternalDependency]]
   // external source dependencies
   private[this] val extSrcDeps = new TrieMap[String, ConcurrentSet[ExternalDependency]]
+  // Parents of the class side only. `trait B extends A` and `object B extends A` are one
+  // edge in the relations above, but only the trait's members reach B's inheritors.
+  private[this] val typeParents = new TrieMap[String, ConcurrentSet[String]]
+  // the same for parents in other projects, whose hash is all this compile has of them
+  private[this] val externalTypeParentHashes = new TrieMap[String, ConcurrentSet[HashAPI.Hash]]
   private[this] val binaryClassName = new TrieMap[VirtualFile, String]
   // source files containing a macro def.
   private[this] val macroClasses = ConcurrentHashMap.newKeySet[String]()
@@ -732,10 +747,29 @@ private final class AnalysisCallback(
       actions = l2jl(Nil),
     )
 
-  def classDependency(onClassName: String, sourceClassName: String, context: DependencyContext) = {
-    if (onClassName != sourceClassName)
+  private[this] def internalClassDependency(
+      onClassName: String,
+      sourceClass: ClassRef,
+      context: DependencyContext
+  ): Unit = {
+    val sourceClassName = sourceClass.name
+    if (onClassName != sourceClassName) {
       add(intSrcDeps, sourceClassName, InternalDependency.of(sourceClassName, onClassName, context))
+      if (context == DependencyContext.DependencyByInheritance && sourceClass.kind == NameKind.Type)
+        add(typeParents, sourceClassName, onClassName)
+    }
   }
+
+  override def classDependency(
+      onClass: ClassRef,
+      sourceClass: ClassRef,
+      context: DependencyContext
+  ): Unit = internalClassDependency(onClass.name, sourceClass, context)
+
+  // For older bridges that do not report name kinds
+  def classDependency(onClassName: String, sourceClassName: String, context: DependencyContext) =
+    // Passing `NameKind.Type` is safe, it over-approximates in case it's a term (see internalClassDependency)
+    internalClassDependency(onClassName, ClassRef.of(sourceClassName, NameKind.Type), context)
 
   private[this] def externalLibraryDependency(
       binary: VirtualFile,
@@ -753,14 +787,17 @@ private final class AnalysisCallback(
   }
 
   private[this] def externalSourceDependency(
-      sourceClassName: String,
+      sourceClass: ClassRef,
       targetBinaryClassName: String,
       targetClass: AnalyzedClass,
       context: DependencyContext
   ): Unit = {
+    val sourceClassName = sourceClass.name
     val dependency =
       ExternalDependency.of(sourceClassName, targetBinaryClassName, targetClass, context)
     add(extSrcDeps, sourceClassName, dependency)
+    if (context == DependencyContext.DependencyByInheritance && sourceClass.kind == NameKind.Type)
+      add(externalTypeParentHashes, sourceClassName, targetClass.extraHash())
   }
 
   // Called by sbt-dotty
@@ -779,8 +816,7 @@ private final class AnalysisCallback(
       context
     )
 
-  // since the binary at this point could either *.class files or
-  // library JARs, we need to accept Path here.
+  // See the note on the String overload of `classDependency`.
   override def binaryDependency(
       classFile: Path,
       onBinaryClassName: String,
@@ -788,25 +824,42 @@ private final class AnalysisCallback(
       fromSourceFile: VirtualFileRef,
       context: DependencyContext
   ): Unit =
+    binaryDependency(
+      classFile,
+      onBinaryClassName,
+      ClassRef.of(fromClassName, NameKind.Type),
+      fromSourceFile,
+      context
+    )
+
+  // since the binary at this point could either *.class files or
+  // library JARs, we need to accept Path here.
+  override def binaryDependency(
+      classFile: Path,
+      onBinaryClassName: String,
+      fromClass: ClassRef,
+      fromSourceFile: VirtualFileRef,
+      context: DependencyContext
+  ): Unit =
     internalBinaryToSourceClassName(onBinaryClassName) match {
       case Some(dependsOn) => // dependsOn is a source class name
         // dependency is a product of a source not included in this compilation
-        classDependency(dependsOn, fromClassName, context)
+        internalClassDependency(dependsOn, fromClass, context)
       case None =>
         binaryNameToSourceName.get(onBinaryClassName) match {
           case Some(dependsOn) =>
             // dependency is a product of a source in this compilation step,
             //  but not in the same compiler run (as in javac v. scalac)
-            classDependency(dependsOn, fromClassName, context)
+            internalClassDependency(dependsOn, fromClass, context)
           case None =>
-            externalDependency(classFile, onBinaryClassName, fromClassName, fromSourceFile, context)
+            externalDependency(classFile, onBinaryClassName, fromClass, fromSourceFile, context)
         }
     }
 
   private[this] def externalDependency(
       classFile: Path,
       onBinaryName: String,
-      sourceClassName: String,
+      sourceClass: ClassRef,
       sourceFile: VirtualFileRef,
       context: DependencyContext
   ): Unit = {
@@ -816,7 +869,7 @@ private final class AnalysisCallback(
       case Some(api) =>
         // dependency is a product of a source in another project
         val targetBinaryClassName = onBinaryName
-        externalSourceDependency(sourceClassName, targetBinaryClassName, api, context)
+        externalSourceDependency(sourceClass, targetBinaryClassName, api, context)
       case None =>
         // dependency is some other binary on the classpath.
         // exclude dependency tracking with rt.jar, for example java.lang.String -> rt.jar.
@@ -910,6 +963,14 @@ private final class AnalysisCallback(
     ()
   }
 
+  // `ownerKinds` is not used yet, it was added in preparation for fixing sbt/zinc#1796
+  override def usedName(
+      className: String,
+      name: String,
+      ownerKinds: EnumSet[NameKind],
+      useScopes: EnumSet[UseScope]
+  ): Unit = usedName(className, name, useScopes)
+
   def usedName(className: String, name: String, useScopes: EnumSet[UseScope]) = {
     usedNames
       .getOrElseUpdate(className, ConcurrentHashMap.newKeySet[UsedName].asScala)
@@ -986,20 +1047,15 @@ private final class AnalysisCallback(
     private val moduleNames = objectApis.readOnlySnapshot().keySet
 
     private val internalParents: Map[String, Set[String]] =
-      intSrcDeps.readOnlySnapshot().iterator.map {
-        case (from, deps) =>
-          from -> deps.asScala.iterator.collect {
-            case d if d.context == DependencyContext.DependencyByInheritance => d.targetClassName
-          }.toSet
+      typeParents.readOnlySnapshot().iterator.map {
+        case (from, ps) =>
+          from -> ps.asScala.toSet
       }.toMap
 
     private val externalParentHashes: Map[String, Set[HashAPI.Hash]] =
-      extSrcDeps.readOnlySnapshot().iterator.map {
-        case (from, deps) =>
-          from -> deps.asScala.iterator.collect {
-            case d if d.context == DependencyContext.DependencyByInheritance =>
-              d.targetClass.extraHash()
-          }.toSet
+      externalTypeParentHashes.readOnlySnapshot().iterator.map {
+        case (from, hs) =>
+          from -> hs.asScala.toSet
       }.toMap
 
     private val previousApis: Map[String, AnalyzedClass] =
@@ -1045,8 +1101,9 @@ private final class AnalysisCallback(
       }
 
     /**
-     * Inheritance is keyed by source class name, so `trait B extends A; object A extends B`
-     * looks like a cycle. Fall back to the published hash, as folding a stored hash did.
+     * Inheritance is keyed by source class name, so without name kinds
+     * `trait B extends A; object A extends B` looks like a cycle. Fall back to the published
+     * hash, as folding a stored hash did.
      */
     private def breakCycle(className: String): HashAPI.Hash = {
       log.debug(s"Cyclic inheritance relation while hashing $className")
