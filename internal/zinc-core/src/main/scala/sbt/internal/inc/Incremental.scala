@@ -536,6 +536,67 @@ object Incremental {
   }
 }
 
+/**
+ * With pipelining, this runs `onDependenciesSent` once the compiler has sent its dependencies and called
+ * `dependencyPhaseCompleted`.
+ *
+ * Scala 3.8.3 and 3.9 call `dependencyPhaseCompleted` before they actually send the dependencies, which
+ * only happens in the Inlining phase (scala/scala3#27125). As a workaround, zinc waits for the inlining
+ * phase to complete.
+ *
+ * Concurrency: phases are reported once per unit, `dependencyPhaseCompleted` is called on another thread.
+ */
+private[sbt] final class CompilerPhaseListener(
+    waitForInlining: Boolean,
+    onDependenciesSent: () => Unit
+) {
+  @volatile private[this] var dependenciesSent = !waitForInlining
+  private[this] var inliningStarted = false
+  private[this] var dependencyPhaseSignalled = false
+  private[this] var notified = false
+
+  def phaseStarted(phase: String): Unit =
+    if (!dependenciesSent) {
+      notifyIfReady {
+        if (phase == "inlining") inliningStarted = true
+        else if (inliningStarted) dependenciesSent = true
+      }
+    }
+
+  def dependencyPhaseCompleted(): Unit = notifyIfReady { dependencyPhaseSignalled = true }
+
+  /** For a run that did not reach the phase after Inlining, such as one with only Java sources. */
+  def runCompleted(): Unit = notifyIfReady { dependenciesSent = true }
+
+  private def notifyIfReady(update: => Unit): Unit = {
+    val ready = synchronized {
+      update
+      val ready = !notified && dependenciesSent && dependencyPhaseSignalled
+      if (ready) notified = true
+      ready
+    }
+    if (ready) onDependenciesSent()
+  }
+
+  /** Tells this listener about phases and forwards everything to `progress`. */
+  def progress(progress: Option[CompileProgress]): CompileProgress =
+    new CompileProgress {
+      override def startUnit(phase: String, unitPath: String): Unit = {
+        phaseStarted(phase)
+        progress.foreach(_.startUnit(phase, unitPath))
+      }
+      override def advance(current: Int, total: Int, prevPhase: String, nextPhase: String) =
+        progress.forall(_.advance(current, total, prevPhase, nextPhase))
+      override def afterEarlyOutput(success: Boolean): Unit =
+        progress.foreach(_.afterEarlyOutput(success))
+    }
+}
+
+/** A callback whose compiler progress goes through `phaseListener`. */
+private[sbt] trait HasCompilerPhaseListener {
+  def phaseListener: CompilerPhaseListener
+}
+
 private object AnalysisCallback {
 
   /** Allow creating new callback instance to be used in each compile iteration */
@@ -605,7 +666,8 @@ private final class AnalysisCallback(
     progress: Option[CompileProgress],
     incHandlerOpt: Option[Incremental.IncrementalCallback],
     log: Logger
-) extends xsbti.AnalysisCallback4 {
+) extends xsbti.AnalysisCallback4
+    with HasCompilerPhaseListener {
   import Incremental.CompileCycleResult
 
   // This must have a unique value per AnalysisCallback
@@ -988,6 +1050,7 @@ private final class AnalysisCallback(
       def notifyNoEarlyOut() =
         if (!writtenEarlyArtifacts) progress.foreach(_.afterEarlyOutput(false))
       outputJarContent.scalacRunCompleted()
+      phaseListener.runCompleted()
       if (earlyOutput.isDefined) {
         val early = incHandler.previousAnalysisPruned
         invalidationResults match {
@@ -1241,7 +1304,18 @@ private final class AnalysisCallback(
 
   override def apiPhaseCompleted(): Unit = ()
 
+  val phaseListener = new CompilerPhaseListener(
+    waitForInlining = currentSetup.compilerVersion.startsWith("3."),
+    onDependenciesSent = () => invalidateAndWriteEarlyOutput()
+  )
+
+  // Sent too early on Scala 3.8.3 (scala/scala3#27125), see `CompilerPhaseListener`
   override def dependencyPhaseCompleted(): Unit = {
+    phaseListener.dependencyPhaseCompleted()
+    outputJarContent.dependencyPhaseCompleted()
+  }
+
+  private def invalidateAndWriteEarlyOutput(): Unit = {
     val incHandler = incHandlerOpt.getOrElse(sys.error("incHandler was expected"))
     if (earlyOutput.isDefined && invalidationResults.isEmpty) {
       val a = getAnalysis
@@ -1254,7 +1328,6 @@ private final class AnalysisCallback(
         writeEarlyArtifacts(merged)
       }
     }
-    outputJarContent.dependencyPhaseCompleted()
   }
 
   override def classesInOutputJar(): java.util.Set[String] = {
