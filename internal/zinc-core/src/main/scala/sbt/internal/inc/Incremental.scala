@@ -411,6 +411,7 @@ object Incremental {
             classfileManager,
             output,
             1,
+            initialInvSources -- initialInvSources0,
           )
         else {
           val analysis =
