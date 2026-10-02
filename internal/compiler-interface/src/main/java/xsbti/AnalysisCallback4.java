@@ -77,22 +77,17 @@ public interface AnalysisCallback4 extends AnalysisCallback3 {
 
     /**
      * Register the use of a <code>name</code> from a given source class name, together
-     * with where the referenced member is defined: in a class (Type), in an object (Term),
-     * or either.
-     *
-     * A class and its companion object share a source class name, so a member defined in
-     * both is otherwise one name. Pass both kinds whenever the use does not say which one
-     * it refers to, as for an import selector, an inherited member that either side can
-     * override, or a structural member.
+     * with the namespace it is selected from: a class (Type), an object (Term), or either
+     * when the use does not say (as for an import selector).
      *
      * @param className The source class name that uses <code>name</code>.
      * @param name The source name used in <code>className</code>.
-     * @param ownerKinds Which side of a companion pair declares the member referred to.
+     * @param qualifierKinds The namespaces <code>name</code> may be selected from.
      * @param useScopes Scopes (e.g. patmat, implicit) where name is used in
      *                  <code>className</code>.
      */
     void usedName(String className,
                   String name,
-                  EnumSet<NameKind> ownerKinds,
+                  EnumSet<NameKind> qualifierKinds,
                   EnumSet<UseScope> useScopes);
 }
