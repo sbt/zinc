@@ -20,6 +20,8 @@ import scala.reflect.io.RootPath
 import sbt.internal.io.Retry
 
 object PickleJar {
+  private val pickleExtensions = List(".sig", ".tasty")
+
   // create an empty JAR file in case the subproject has no classes.
   def touch(path: Path): Unit = {
     if (!Files.exists(path)) {
@@ -31,25 +33,30 @@ object PickleJar {
   def write(pickleOut: Path, knownProducts: java.util.Set[String], log: Logger): Unit = {
     touch(pickleOut)
     if (!knownProducts.isEmpty) {
-      val pj = RootPath(pickleOut, writable = false) // so it doesn't delete the file
-      try Files.walkFileTree(pj.root, deleteUnknowns(knownProducts, log))
-      finally Retry(pj.close())
+      val jar = pickleOut.toFile
+      val unknown = IndexBasedZipFsOps.listEntries(jar).filter(isUnknown(_, knownProducts))
+      if (unknown.nonEmpty) {
+        log.debug(s"PickleJar.write: removing ${unknown.mkString(", ")}")
+        // In place: on Windows the jar cannot be replaced while a compiler has it open.
+        IndexBasedZipFsOps.removeEntries(jar, unknown)
+      }
     }
-    ()
   }
 
+  // "foo/bar/wiz.sig" -> "foo/bar/wiz.class"
+  private def isUnknown(entry: String, knownProducts: java.util.Set[String]): Boolean =
+    pickleExtensions.find(entry.endsWith).exists { ext =>
+      !knownProducts.contains(entry.stripSuffix(ext) + ".class")
+    }
+
+  @deprecated("Fails silently on Windows while the jar is open elsewhere. Use write.", "1.13.1")
   def deleteUnknowns(knownProducts: java.util.Set[String], log: Logger) =
     new SimpleFileVisitor[Path] {
       override def visitFile(path: Path, attrs: BasicFileAttributes): FileVisitResult = {
         val ps = path.toString
-        if (ps.endsWith(".sig")) {
-          // "/foo/bar/wiz.sig" -> "foo/bar/wiz.class"
-          if (!knownProducts.contains(ps.stripPrefix("/").stripSuffix(".sig") + ".class")) {
-            log.debug(s"PickleJar.deleteUnknowns: visitFile deleting $ps")
-            // retry to work around C:\Users\RUNNER~1\AppData\Local\Temp\sbt_f3e67bfa\dep\target\early\output.jar:
-            // The process cannot access the file because it is being used by another process.
-            Retry(Files.delete(path))
-          }
+        if (isUnknown(ps.stripPrefix("/"), knownProducts)) {
+          log.debug(s"PickleJar.deleteUnknowns: visitFile deleting $ps")
+          Retry(Files.delete(path))
         }
         FileVisitResult.CONTINUE
       }
