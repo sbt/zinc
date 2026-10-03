@@ -35,7 +35,7 @@ public interface AnalysisCallback4 extends AnalysisCallback3 {
      * The namespace of <code>sourceClass</code> is what tells <code>object B extends A</code>
      * from <code>trait B extends A</code>, which a source class name alone does not.
      * Zinc reads the namespace of <code>onClass</code> but does not act on it: a class and
-     * its companion object currently share one <code>AnalyzedClass</code>>, so there is nothing
+     * its companion object currently share one <code>AnalyzedClass</code>, so there is nothing
      * finer to depend on.
      *
      * @param onClass Source class name being depended on, with its namespace.
