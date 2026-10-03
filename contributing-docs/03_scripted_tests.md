@@ -28,6 +28,12 @@ one, each entry declares a `name` and optional `dependsOn`, `in`, and `scalaVers
 base directory is `in` when given, otherwise the subdirectory named after the project
 ([IncHandler.scala:124](../internal/zinc-scripted/src/test/scala/sbt/internal/inc/IncHandler.scala#L124)).
 
+`scalaVersion` picks the compiler and its bridge: `2.10.x`, `2.11.x`, `2.12.x` and `2.13.x` compile
+with the compiler-bridge sources in this repository, `2.13.y` with `scala2-sbt-bridge`, and `3.x`
+with `scala3-sbt-bridge`. The default is `2.12.x`. The first project a test runs a task on sets
+the compiler for the whole test. `> checkBridge scala2-sbt-bridge` (or `zinc`,
+`scala3-sbt-bridge`) asserts which bridge that is, from the classes in the bridge jar.
+
 The `test` script is one step per line:
 
 - `> compile` runs a task on the root project, `> use/compile` on the `use` project.

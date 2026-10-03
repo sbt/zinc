@@ -20,69 +20,66 @@ import sbt.internal.inc.ZincBuildInfo.*
 class BridgeProviderSpecification extends UnitSpec with BridgeProviderTestkit {}
 
 trait BridgeProviderTestkit extends AbstractBridgeProviderTestkit:
-  lazy val bridges: List[ScalaBridge] =
-    val compilerBridge210 =
-      ScalaBridge(
-        scalaVersion210,
-        scalaJars210.toList,
-        Left(classDirectory210 +: resourceDirectories210)
-      )
-    val compilerBridge211 =
-      ScalaBridge(
-        scalaVersion211,
-        scalaJars211.toList,
-        Left(classDirectory211 +: resourceDirectories211)
-      )
-    val compilerBridge212 =
-      ScalaBridge(
-        scalaVersion212,
-        scalaJars212.toList,
-        Left(classDirectory212 +: resourceDirectories212)
-      )
-    val compilerBridge213 =
-      ScalaBridge(
-        scalaVersion213,
-        scalaJars213.toList,
-        Left(classDirectory213 +: resourceDirectories213)
-      )
-    require(
-      scalaVersion213 != scalaVersion213Bin,
-      s"2.13.x and 2.13.y both resolve to Scala $scalaVersion213, so 2.13.y would silently use " +
-        "the compiler-bridge sources instead of scala2-sbt-bridge. Use different versions."
-    )
-    val bridge213Bin =
-      ScalaBridge(scalaVersion213Bin, scalaJars213Bin.toList, Right(compilerBridge213Bin))
-    val bridge3Bin =
-      ScalaBridge(
-        scalaVersion3Bin,
-        scalaJars3Bin.toList.filterNot(_.getName.startsWith("compiler-interface")),
-        Right(compilerBridge3Bin)
-      )
-    List(
-      compilerBridge210,
-      compilerBridge211,
-      compilerBridge212,
-      compilerBridge213,
-      bridge213Bin,
-      bridge3Bin,
-    )
-  end bridges
+  /**
+   * The bridges scripted tests can select, by the label a `build.json` gives as `scalaVersion`.
+   * Selecting by label rather than by Scala version keeps "2.13.x" and "2.13.y" apart even when
+   * the compiler-bridge sources and scala2-sbt-bridge are built for the same Scala version.
+   */
+  lazy val bridgesByLabel: Map[String, ScalaBridge] = Map(
+    "2.10.x" -> ScalaBridge(
+      scalaVersion210,
+      scalaJars210.toList,
+      Left(classDirectory210 +: resourceDirectories210)
+    ),
+    "2.11.x" -> ScalaBridge(
+      scalaVersion211,
+      scalaJars211.toList,
+      Left(classDirectory211 +: resourceDirectories211)
+    ),
+    "2.12.x" -> ScalaBridge(
+      scalaVersion212,
+      scalaJars212.toList,
+      Left(classDirectory212 +: resourceDirectories212)
+    ),
+    "2.13.x" -> ScalaBridge(
+      scalaVersion213,
+      scalaJars213.toList,
+      Left(classDirectory213 +: resourceDirectories213)
+    ),
+    "2.13.y" -> ScalaBridge(
+      scalaVersion213Bin,
+      scalaJars213Bin.toList,
+      Right(compilerBridge213Bin)
+    ),
+    "3.x" -> ScalaBridge(
+      scalaVersion3Bin,
+      scalaJars3Bin.toList.filterNot(_.getName.startsWith("compiler-interface")),
+      Right(compilerBridge3Bin)
+    ),
+  )
+
+  private val bridgeLabels = List("2.10.x", "2.11.x", "2.12.x", "2.13.x", "2.13.y", "3.x")
+
+  lazy val bridges: List[ScalaBridge] = bridgeLabels.map(bridgesByLabel)
 
   /**
-   * Emulate sbt's switch command, and accept 3.x notation.
+   * Emulate sbt's switch command, and accept 3.x notation. Returns the label that identifies the
+   * bridge, which is the Scala version itself when `sv` names one.
    */
-  def switchScalaVersion(sv: Option[String]): String =
+  def bridgeLabel(sv: Option[String]): String =
     sv match
-      case Some("2.10.x") => scalaVersion210
-      case Some("2.11.x") => scalaVersion211
-      case Some("2.12.x") => scalaVersion212
-      case Some("2.13.x") => scalaVersion213
-      case Some("2.13.y") => scalaVersion213Bin
-      case Some("3.x")    => scalaVersion3Bin
-      case Some(sv)       => sv
-      case None           => scalaVersion212
+      case Some(label) if bridgesByLabel.contains(label) => label
+      case Some(version)                                 =>
+        bridgeLabels
+          .find(bridgesByLabel(_).version == version)
+          .getOrElse(sys.error(s"No bridge for Scala $version in ${bridges.map(_.version)}"))
+      case None => "2.12.x"
 
   // Create a provider that uses the bridges from the classes directory of the projects
   def getZincProvider(targetDir: Path, log: Logger): CompilerBridgeProvider =
     new ConstantBridgeProvider(bridges, targetDir)
+
+  /** A provider that can only return the bridge `label` selects. */
+  def getZincProvider(targetDir: Path, label: String): CompilerBridgeProvider =
+    new ConstantBridgeProvider(List(bridgesByLabel(label)), targetDir)
 end BridgeProviderTestkit

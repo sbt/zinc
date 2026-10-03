@@ -1,6 +1,7 @@
 # module-inheritance-extra-hash on scala2-sbt-bridge, which does not yet report
 # that `object B` is a term (sbt/zinc#1807's bridge side). Zinc then takes A
-# as a parent of trait B, and D recompiles.
+# as a parent of trait B, and D recompiles. general/bridge-2.13.y checks that
+# 2.13.y really is scala2-sbt-bridge.
 > app/compile
 > app/checkRecompilations 0 D
 
