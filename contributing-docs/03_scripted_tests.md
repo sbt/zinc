@@ -28,11 +28,25 @@ one, each entry declares a `name` and optional `dependsOn`, `in`, and `scalaVers
 base directory is `in` when given, otherwise the subdirectory named after the project
 ([IncHandler.scala:124](../internal/zinc-scripted/src/test/scala/sbt/internal/inc/IncHandler.scala#L124)).
 
-`scalaVersion` picks the compiler and its bridge: `2.10.x`, `2.11.x`, `2.12.x` and `2.13.x` compile
-with the compiler-bridge sources in this repository, `2.13.y` with `scala2-sbt-bridge`, and `3.x`
-with `scala3-sbt-bridge`. The default is `2.12.x`. The first project a test runs a task on sets
-the compiler for the whole test. `> checkBridge scala2-sbt-bridge` (or `zinc`,
-`scala3-sbt-bridge`) asserts which bridge that is, from the classes in the bridge jar.
+`scalaVersion` takes a label rather than a patch version, so tests need no edits when the build
+moves to a new Scala patch release. The label picks both the compiler (versions from
+`project/Dependencies.scala`) and its bridge:
+
+| Label | Compiler | Bridge |
+|---|---|---|
+| `2.10.x`, `2.11.x`, `2.12.x`, `2.13.x` | `scala210` ... `scala213` | the compiler-bridge sources in this repository |
+| `2.13.y` | `scala213ForBridge` | `scala2-sbt-bridge`, which ships with Scala 2.13 |
+| `3.x` | `scala3ForBridge` | `scala3-sbt-bridge`, which ships with Scala 3 |
+
+The default is `2.12.x`. `y` only marks a second 2.13 variant: since Scala 2.13.12 and 3 ship their
+own bridges, sbt uses those for real builds, so `2.13.y` and `3.x` are how a test checks Zinc
+against them. A test can also give a full version, which selects the first label built for it.
+
+The bridge is chosen by label, never by version, so `2.13.x` and `2.13.y` stay apart when both use
+the same Scala version. The first project a test runs a task on sets the compiler for the whole
+test. `> checkBridge scala2-sbt-bridge` (or `zinc`, `scala3-sbt-bridge`) asserts which bridge that
+is, from the package of `CompilerBridge` in the bridge jar; the `general/bridge-*` tests do this
+for each label.
 
 The `test` script is one step per line:
 
