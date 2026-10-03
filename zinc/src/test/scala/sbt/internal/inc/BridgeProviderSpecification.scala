@@ -45,6 +45,11 @@ trait BridgeProviderTestkit extends AbstractBridgeProviderTestkit:
         scalaJars213.toList,
         Left(classDirectory213 +: resourceDirectories213)
       )
+    require(
+      scalaVersion213 != scalaVersion213Bin,
+      s"2.13.x and 2.13.y both resolve to Scala $scalaVersion213, so 2.13.y would silently use " +
+        "the compiler-bridge sources instead of scala2-sbt-bridge. Use different versions."
+    )
     val bridge213Bin =
       ScalaBridge(scalaVersion213Bin, scalaJars213Bin.toList, Right(compilerBridge213Bin))
     val bridge3Bin =
