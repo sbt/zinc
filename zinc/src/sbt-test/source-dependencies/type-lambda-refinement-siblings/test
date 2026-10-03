@@ -1,0 +1,18 @@
+# Since sbt/zinc#1782, the type parameters of sibling type lambdas share a name.
+# Swapping their bodies, or which parameter a nested lambda refers to, must
+# still invalidate the classes that use them.
+
+> compile
+
+$ copy-file changes/Foo1.scala Foo.scala
+-> compile
+
+$ copy-file changes/Use1.scala Use.scala
+> compile
+
+$ copy-file changes/Foo2.scala Foo.scala
+$ copy-file changes/Use2.scala Use.scala
+> compile
+
+$ copy-file changes/Foo3.scala Foo.scala
+-> compile
