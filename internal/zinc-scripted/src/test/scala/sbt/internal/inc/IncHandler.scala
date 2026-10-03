@@ -200,6 +200,14 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
   private final val noLogger = Logger.Null
 
   private def onNewIncState(p: ProjectStructure): IncState =
+    val labels = buildStructure.values.map(_.bridgeLabel).toSet
+    if labels.size > 1 then
+      sys.error(
+        "Projects in one scripted test share a compiler, so they must use one scalaVersion: " +
+          buildStructure.values.map(q => s"${q.name}: ${q.bridgeLabel}").toList.sorted.mkString(
+            ", "
+          )
+      )
     val label = p.bridgeLabel
     val (compilerBridge, si) = IncHandler.synchronized {
       IncHandler.getCompilerCacheFor(label).getOrElse {

@@ -43,10 +43,10 @@ own bridges, sbt uses those for real builds, so `2.13.y` and `3.x` are how a tes
 against them. A test can also give a full version, which selects the first label built for it.
 
 The bridge is chosen by label, never by version, so `2.13.x` and `2.13.y` stay apart when both use
-the same Scala version. The first project a test runs a task on sets the compiler for the whole
-test. `> checkBridge scala2-sbt-bridge` (or `zinc`, `scala3-sbt-bridge`) asserts which bridge that
-is, from the package of `CompilerBridge` in the bridge jar; the `general/bridge-*` tests do this
-for each label.
+the same Scala version. All projects in a test share one compiler, so a `build.json` whose
+projects use different labels fails. `> checkBridge scala2-sbt-bridge` (or `zinc`,
+`scala3-sbt-bridge`) asserts which bridge that is, from the package of `CompilerBridge` in the
+bridge jar; the `general/bridge-*` tests do this for each label.
 
 The `test` script is one step per line:
 
