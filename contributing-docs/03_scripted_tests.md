@@ -28,6 +28,27 @@ one, each entry declares a `name` and optional `dependsOn`, `in`, and `scalaVers
 base directory is `in` when given, otherwise the subdirectory named after the project
 ([IncHandler.scala:124](../internal/zinc-scripted/src/test/scala/sbt/internal/inc/IncHandler.scala#L124)).
 
+`scalaVersion` takes a label rather than a patch version, so tests need no edits when the build
+moves to a new Scala patch release. The label picks both the compiler (versions from
+`project/Dependencies.scala`) and its bridge:
+
+| Label | Compiler | Bridge |
+|---|---|---|
+| `2.10.x`, `2.11.x`, `2.12.x`, `2.13.x` | `scala210` ... `scala213` | the compiler-bridge sources in this repository |
+| `2.13.y` | `scala213ForBridge` | `scala2-sbt-bridge`, which ships with Scala 2.13 |
+| `3.x` | `scala3ForBridge` | `scala3-sbt-bridge`, which ships with Scala 3 |
+
+The default is `2.12.x`. `y` only marks a second 2.13 variant: since Scala 2.13.12 and 3 ship their
+own bridges, sbt uses those for real builds, so `2.13.y` and `3.x` are how a test checks Zinc
+against them. A test can also give a full version, which selects the first label built for it.
+
+The bridge is looked up by label rather than by Scala version, so `2.13.x` and `2.13.y` stay apart
+when both use the same Scala version; a full version is first mapped to a label. All projects in a
+test share one compiler, so a `build.json` whose projects use different labels fails, counting a
+project without `scalaVersion` as `2.12.x`. `> checkBridge scala2-sbt-bridge` (or `zinc`,
+`scala3-sbt-bridge`) asserts which bridge that is, from the package of `CompilerBridge` in the
+bridge jar; the `general/bridge-*` tests do this for each label.
+
 The `test` script is one step per line:
 
 - `> compile` runs a task on the root project, `> use/compile` on the `use` project.

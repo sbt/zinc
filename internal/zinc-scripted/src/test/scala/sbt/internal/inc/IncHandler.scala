@@ -14,10 +14,11 @@ package internal
 package inc
 
 import java.io.{ ByteArrayOutputStream, PrintStream }
-import java.nio.file.{ Files, Path, Paths }
+import java.nio.file.{ Files, Path, Paths, StandardCopyOption }
 import java.net.URLClassLoader
 import java.util.jar.Manifest
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.zip.ZipFile
 
 import sbt.util.Logger
 import sbt.util.InterfaceUtil.*
@@ -74,6 +75,7 @@ final case class Build(projects: Seq[Project])
 final case class IncState(
     si: XScalaInstance,
     cs: XCompilers,
+    compilerBridge: Path,
     number: Int,
     compilations: scala.collection.concurrent.Map[
       ProjectStructure,
@@ -123,7 +125,7 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
     val build = initBuild
     build.projects.foreach { p =>
       val in: Path = p.in.getOrElse(directory / p.name)
-      val version = switchScalaVersion(p.scalaVersion)
+      val label = bridgeLabel(p.scalaVersion)
       val deps = p.dependsOn.toVector.flatten
       val order = p.compileOrder.fold(CompileOrder.Mixed)(CompileOrder.valueOf)
       val project = ProjectStructure(
@@ -133,7 +135,8 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
         converter,
         scriptedLog,
         lookupProject,
-        version,
+        bridgesByLabel(label).version,
+        label,
         compileToJar,
         incrementalCompiler,
         order
@@ -198,13 +201,30 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
   private final val noLogger = Logger.Null
 
   private def onNewIncState(p: ProjectStructure): IncState =
-    val scalaVersion = p.scalaVersion
-    val (compilerBridge, si) = IncHandler.getCompilerCacheFor(scalaVersion).getOrElse {
-      val compilerBridge = getCompilerBridge(cacheDir, noLogger, scalaVersion)
-      val si = scalaInstance(scalaVersion, cacheDir, noLogger)
-      val toCache = (compilerBridge, si)
-      IncHandler.putCompilerCache(scalaVersion, toCache)
-      toCache
+    val labels = buildStructure.values.map(_.bridgeLabel).toSet
+    if labels.size > 1 then
+      sys.error(
+        "Projects in one scripted test share a compiler, so they must use one scalaVersion: " +
+          buildStructure.values.map(q => s"${q.name}: ${q.bridgeLabel}").toList.sorted.mkString(
+            ", "
+          )
+      )
+    val label = p.bridgeLabel
+    val (compilerBridge, si) = IncHandler.synchronized {
+      IncHandler.getCompilerCacheFor(label).getOrElse {
+        val provider = getZincProvider(cacheDir, label)
+        val si = provider.fetchScalaInstance(p.scalaVersion, noLogger)
+        val compilerBridge = cacheDir / s"target-bridge-$label.jar"
+        if !Files.exists(compilerBridge) then
+          Files.copy(
+            provider.fetchCompiledBridge(si, noLogger).toPath,
+            compilerBridge,
+            StandardCopyOption.REPLACE_EXISTING
+          )
+        val toCache = (compilerBridge, si)
+        IncHandler.putCompilerCache(label, toCache)
+        toCache
+      }
     }
     val analyzingCompiler = scalaCompiler(si, compilerBridge)
     val cs = incrementalCompiler.compilers(
@@ -213,7 +233,8 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
       None,
       analyzingCompiler
     )
-    IncState(si, cs, 0)
+    IncState(si, cs, compilerBridge, 0)
+  end onNewIncState
 
   private final val unit = (_: Seq[String]) => ()
 
@@ -233,6 +254,9 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
     },
     onArgs("checkInvalidationLog") {
       case (p, expectedLog :: Nil, _) => p.checkInvalidationLog(expectedLog)
+    },
+    onArgs("checkBridge") {
+      case (p, expected :: Nil, i) => p.checkBridge(i, expected)
     },
     onArgs("checkNumberOfLibraries") {
       case (p, x :: Nil, i) => p.checkNumberOfLibraries(i, x.toInt)
@@ -308,6 +332,7 @@ case class ProjectStructure(
     scriptedLog: ManagedLogger,
     lookupProject: String => ProjectStructure,
     scalaVersion: String,
+    bridgeLabel: String,
     compileToJar: Boolean,
     incrementalCompiler: IncrementalCompilerImpl,
     compileOrder: CompileOrder = CompileOrder.Mixed
@@ -559,6 +584,32 @@ case class ProjectStructure(
     compile(i).map[Unit] { analysis =>
       assert(analysis.apis.externalAPI(className).nameHashes.exists(_.name == name))
       ()
+    }
+
+  /**
+   * Checks which compiler bridge compiles this test: `zinc` for the compiler-bridge sources in
+   * this repository, or `scala2-sbt-bridge` / `scala3-sbt-bridge` for the ones the compilers ship.
+   * Tells them apart by package, which a Scala version cannot do.
+   */
+  def checkBridge(i: IncState, expected: String): Future[Unit] =
+    Future {
+      val markers = Map(
+        "zinc" -> "xsbt/CompilerBridge.class",
+        "scala2-sbt-bridge" -> "scala/tools/xsbt/CompilerBridge.class",
+        "scala3-sbt-bridge" -> "dotty/tools/xsbt/CompilerBridge.class",
+      )
+      val marker = markers.getOrElse(
+        expected,
+        sys.error(s"Unknown bridge '$expected', expected one of ${markers.keys.mkString(", ")}")
+      )
+      val zip = new ZipFile(i.compilerBridge.toFile)
+      val found =
+        try markers.collect { case (name, entry) if zip.getEntry(entry) != null => name }.toSet
+        finally zip.close()
+      assertShort(
+        found == Set(expected),
+        s"Expected bridge $expected (${marker}), found ${found.mkString(", ")} in ${i.compilerBridge}"
+      )
     }
 
   def checkNumberOfLibraries(i: IncState, expected: Int): Future[Unit] =
