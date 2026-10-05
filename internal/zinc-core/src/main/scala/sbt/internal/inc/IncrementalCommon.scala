@@ -70,6 +70,7 @@ private[inc] abstract class IncrementalCommon(
       classfileManager: XClassFileManager,
       output: Output,
       cycleNum: Int,
+      pipelinedJavaSources: Set[VirtualFileRef],
   ) {
     def toVf(ref: VirtualFileRef): VirtualFile = converter.toVirtualFile(ref)
     def sourceRefs: Set[VirtualFileRef] = allSources.asInstanceOf[Set[VirtualFileRef]]
@@ -135,6 +136,7 @@ private[inc] abstract class IncrementalCommon(
         binaryChanges = IncrementalCommon.emptyChanges,
         previous = current,
         cycleNum = cycleNum + 1,
+        pipelinedJavaSources = nextChangedSources,
       )
     }
 
@@ -171,8 +173,16 @@ private[inc] abstract class IncrementalCommon(
           getClasses(previous) ++ getClasses(analysis) ++
           invalidatedSources.flatMap(previous.relations.classNames)
 
+        // Java sources that are only here because pipelining passes all of them to scalac. Their
+        // stored API was read from the compiled classes and never equals the one from scalac.
+        val unchangedJavaClasses =
+          pipelinedJavaSources.flatMap(previous.relations.classNames) -- classesToRecompile
         val newApiChanges =
-          detectAPIChanges(recompiledClasses, previous.apis.internalAPI, analysis.apis.internalAPI)
+          detectAPIChanges(
+            recompiledClasses -- unchangedJavaClasses,
+            previous.apis.internalAPI,
+            analysis.apis.internalAPI
+          )
         debug(s"\nChanges:\n$newApiChanges")
 
         val nextInvalidations =
@@ -231,6 +241,8 @@ private[inc] abstract class IncrementalCommon(
    * @param doCompile A function that compiles a project and returns an analysis file.
    * @param classfileManager The manager that takes care of class files in compilation.
    * @param cycleNum The counter of incremental compiler cycles.
+   * @param pipelinedJavaSources The Java sources in `initialChangedSources` that did not change
+   *                             and are only there because pipelining compiles all of them.
    * @return A fresh analysis file after all the incremental compiles have been run.
    */
   final def cycle(
@@ -245,6 +257,7 @@ private[inc] abstract class IncrementalCommon(
       classfileManager: XClassFileManager,
       output: Output,
       cycleNum: Int,
+      pipelinedJavaSources: Set[VirtualFileRef],
   ): Analysis = {
     var s = CycleState(
       invalidatedClasses,
@@ -258,6 +271,7 @@ private[inc] abstract class IncrementalCommon(
       classfileManager,
       output,
       cycleNum,
+      pipelinedJavaSources,
     )
     val it = iterations(s)
     while (it.hasNext) {

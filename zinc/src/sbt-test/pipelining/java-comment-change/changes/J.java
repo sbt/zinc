@@ -1,0 +1,2 @@
+// a comment
+public class J { public int x() { return 1; } }

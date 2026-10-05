@@ -411,6 +411,7 @@ object Incremental {
             classfileManager,
             output,
             1,
+            initialInvSources -- initialInvSources0,
           )
         else {
           val analysis =
@@ -610,6 +611,8 @@ private final class AnalysisCallback(
       List(classApis, objectApis, libraryDeps, nonLocalClasses, intSrcDeps))
       .map { case (label, map) => label + "\n\t" + map.mkString("\n\t") }
       .mkString("\n")
+
+  private val emptyApiHash = -1
 
   case class ApiInfo(
       publicHash: HashAPI.Hash,
@@ -885,23 +888,10 @@ private final class AnalysisCallback(
     val nameHashes = (new xsbt.api.NameHashing(options.useOptimizedSealed())).nameHashes(classApi)
     classApi.definitionType match {
       case d @ (DefinitionType.ClassDef | DefinitionType.Trait) =>
-        val extraApiHash = {
+        // Only the trait's own members; ExtraHashes folds in the parents' later.
+        val extraApiHash =
           if (d != DefinitionType.Trait) apiHash
-          else {
-            val currentExtraHash = HashAPI(_.hashAPI(classApi), includePrivateDefsInTrait = true)
-            incHandlerOpt match {
-              case Some(handler) =>
-                val analysis = handler.previousAnalysis
-                val externalParents = analysis.relations.inheritance.external.forward(className)
-                val internalParents = analysis.relations.inheritance.internal.forward(className)
-                val externalParentsAPI = externalParents.map(analysis.apis.externalAPI)
-                val internalParentsAPI = internalParents.map(analysis.apis.internalAPI)
-                val parentsHashes = (externalParentsAPI ++ internalParentsAPI).map(_.extraHash())
-                (parentsHashes + currentExtraHash).hashCode()
-              case None => currentExtraHash
-            }
-          }
-        }
+          else HashAPI(_.hashAPI(classApi), includePrivateDefsInTrait = true)
 
         classApis(className) = ApiInfo(apiHash, extraApiHash, savedClassApi)
         classPublicNameHashes(className) = nameHashes.toArray
@@ -962,7 +952,7 @@ private final class AnalysisCallback(
   }
 
   private def getAnalysis: Analysis = {
-    val analysis0 = addProductsAndDeps(Analysis.empty)
+    val analysis0 = addProductsAndDeps(Analysis.empty, new ExtraHashes)
     addUsedNames(addCompilation(analysis0))
   }
 
@@ -982,19 +972,107 @@ private final class AnalysisCallback(
     )
   }
 
-  private def companionsWithHash(className: String): (Companions, HashAPI.Hash, HashAPI.Hash) = {
-    val emptyHash = -1
+  /**
+   * A trait's extraHash includes its parents', so a private change in a parent reaches every
+   * class that inherits it (sbt/zinc#662). Taking the parents from the cycle being compiled, not
+   * from the previous analysis, makes a trait hash the same on a cold and a warm build.
+   *
+   * An instance is a snapshot. Zinc builds an analysis several times while a compile runs, to
+   * decide what still needs recompiling, and each one has more classes than the last - javac's
+   * arrive last of all - so make a new instance per analysis.
+   */
+  private final class ExtraHashes {
+    private val apis = classApis.readOnlySnapshot()
+    private val moduleNames = objectApis.readOnlySnapshot().keySet
+
+    private val internalParents: Map[String, Set[String]] =
+      intSrcDeps.readOnlySnapshot().iterator.map {
+        case (from, deps) =>
+          from -> deps.asScala.iterator.collect {
+            case d if d.context == DependencyContext.DependencyByInheritance => d.targetClassName
+          }.toSet
+      }.toMap
+
+    private val externalParentHashes: Map[String, Set[HashAPI.Hash]] =
+      extSrcDeps.readOnlySnapshot().iterator.map {
+        case (from, deps) =>
+          from -> deps.asScala.iterator.collect {
+            case d if d.context == DependencyContext.DependencyByInheritance =>
+              d.targetClass.extraHash()
+          }.toSet
+      }.toMap
+
+    private val previousApis: Map[String, AnalyzedClass] =
+      incHandlerOpt.fold(Map.empty[String, AnalyzedClass])(_.previousAnalysisPruned.apis.internal)
+
+    private val memo = new mutable.HashMap[String, HashAPI.Hash]
+    private val visiting = new mutable.HashSet[String]
+
+    /** The extraHash published for `className`, as `analyzeClass` will store it. */
+    def apply(className: String): HashAPI.Hash =
+      if (visiting.contains(className)) breakCycle(className)
+      else
+        memo.get(className) match {
+          case Some(hash) => hash
+          case None =>
+            val hash = compute(className)
+            memo.put(className, hash)
+            hash
+        }
+
+    private def compute(className: String): HashAPI.Hash =
+      apis.get(className) match {
+        case Some(info) if info.classLike.definitionType == DefinitionType.Trait =>
+          visiting += className
+          try {
+            val parents = internalParents.getOrElse(className, Set.empty).map(apply) ++
+              externalParentHashes.getOrElse(className, Set.empty)
+            (parents + info.extraHash).hashCode()
+          } finally visiting -= className
+        case Some(info) => info.extraHash
+        // A module-only name has no class side; match what companionsWithHash publishes.
+        case None if moduleNames.contains(className) => emptyApiHash
+        case None =>
+          previousApis.get(className) match {
+            case Some(previous) => previous.extraHash()
+            // A parent with no analysis yet (e.g. a same-run Java class pipelining hasn't
+            // compiled, or a previous-run remnant already pruned) contributes no extraHash of
+            // its own rather than failing the whole compilation.
+            case None =>
+              log.debug(s"No extra API hash found for parent $className")
+              emptyApiHash
+          }
+      }
+
+    /**
+     * Inheritance is keyed by source class name, so `trait B extends A; object A extends B`
+     * looks like a cycle. Fall back to the published hash, as folding a stored hash did.
+     */
+    private def breakCycle(className: String): HashAPI.Hash = {
+      log.debug(s"Cyclic inheritance relation while hashing $className")
+      previousApis.get(className).map(_.extraHash()).getOrElse(apis(className).extraHash)
+    }
+  }
+
+  private def companionsWithHash(
+      className: String,
+      extraHashes: ExtraHashes
+  ): (Companions, HashAPI.Hash, HashAPI.Hash) = {
     val emptyClass =
-      ApiInfo(emptyHash, emptyHash, APIUtil.emptyClassLike(className, DefinitionType.ClassDef))
+      ApiInfo(
+        emptyApiHash,
+        emptyApiHash,
+        APIUtil.emptyClassLike(className, DefinitionType.ClassDef)
+      )
     val emptyObject =
-      ApiInfo(emptyHash, emptyHash, APIUtil.emptyClassLike(className, DefinitionType.Module))
-    val ApiInfo(classApiHash, classHashExtra, classApi) = classApis.getOrElse(className, emptyClass)
-    val ApiInfo(objectApiHash, objectHashExtra, objectApi) =
-      objectApis.getOrElse(className, emptyObject)
+      ApiInfo(emptyApiHash, emptyApiHash, APIUtil.emptyClassLike(className, DefinitionType.Module))
+    val ApiInfo(classApiHash, _, classApi) = classApis.getOrElse(className, emptyClass)
+    val ApiInfo(objectApiHash, _, objectApi) = objectApis.getOrElse(className, emptyObject)
     val companions = Companions.of(classApi, objectApi)
     val apiHash = (classApiHash, objectApiHash).hashCode
-    val extraHash = (classHashExtra, objectHashExtra).hashCode
-    (companions, apiHash, extraHash)
+    // extraHash covers a trait's private members. An object's is a copy of its apiHash,
+    // already merged above, so only the class side contributes.
+    (companions, apiHash, extraHashes(className))
   }
 
   private def nameHashesForCompanions(className: String): Array[NameHash] = {
@@ -1009,9 +1087,9 @@ private final class AnalysisCallback(
     }
   }
 
-  private def analyzeClass(name: String): AnalyzedClass = {
+  private def analyzeClass(name: String, extraHashes: ExtraHashes): AnalyzedClass = {
     val hasMacro: Boolean = macroClasses.contains(name)
-    val (companions, apiHash, extraHash) = companionsWithHash(name)
+    val (companions, apiHash, extraHash) = companionsWithHash(name, extraHashes)
     val nameHashes = nameHashesForCompanions(name)
     val safeCompanions = SafeLazyProxy(companions)
     AnalyzedClass.of(
@@ -1026,7 +1104,7 @@ private final class AnalysisCallback(
     )
   }
 
-  def addProductsAndDeps(base: Analysis): Analysis = {
+  private def addProductsAndDeps(base: Analysis, extraHashes: ExtraHashes): Analysis = {
     import scala.collection.JavaConverters._
     srcs.asScala.foldLeft(base) {
       case (a, src) =>
@@ -1035,7 +1113,7 @@ private final class AnalysisCallback(
           .getOrElse(src, ConcurrentHashMap.newKeySet[(String, String)]())
           .asScala
           .map(_._1)
-        val analyzedApis = classesInSrc.map(analyzeClass)
+        val analyzedApis = classesInSrc.map(analyzeClass(_, extraHashes))
         val info = SourceInfos.makeInfo(
           getOrNil(reporteds.iterator.map { case (k, v) => k -> v.asScala.toSeq }.toMap, src),
           getOrNil(unreporteds.iterator.map { case (k, v) => k -> v.asScala.toSeq }.toMap, src),
@@ -1103,25 +1181,7 @@ private final class AnalysisCallback(
     }
   }
 
-  override def apiPhaseCompleted(): Unit = {
-    // If we know we're done with cycles (presumably because all sources were invalidated) we can store early analysis
-    // and pickle data now.  Otherwise, we need to wait for dependency information to decide if there are more cycles.
-    incHandlerOpt foreach { incHandler =>
-      if (earlyOutput.isDefined && incHandler.isFullCompilation) {
-        val a = getAnalysis
-        val CompileCycleResult(continue, invalidations, merged) =
-          incHandler.mergeAndInvalidate(a, shouldRegisterCycle = true)
-        if (lookup.shouldDoEarlyOutput(merged)) {
-          assert(
-            !continue && invalidations.isEmpty,
-            "everything was supposed to be invalidated already"
-          )
-          invalidationResults = Some(CompileCycleResult.empty)
-          writeEarlyArtifacts(merged)
-        }
-      }
-    }
-  }
+  override def apiPhaseCompleted(): Unit = ()
 
   override def dependencyPhaseCompleted(): Unit = {
     val incHandler = incHandlerOpt.getOrElse(sys.error("incHandler was expected"))

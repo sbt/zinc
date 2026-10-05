@@ -1,0 +1,7 @@
+> compile
+> checkRecompilations 0 A B
+
+$ copy-file changes/B1.scala B.scala
+> compile
+
+> checkRecompilations 0 A

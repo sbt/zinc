@@ -87,6 +87,26 @@ class DependencySpecification
     assert(inheritance("Bar") === Set.empty)
   }
 
+  it should "not record compound types in members as inheritance" in {
+    val srcA =
+      """trait A[T <: B with C] { self: B with C =>
+        |  def result: B with C = ???
+        |  def parameter(value: B with C): Unit = ()
+        |  def generic[U <: B with C]: Unit = ()
+        |  def cast(value: AnyRef) = value.asInstanceOf[B with C]
+        |  type Alias = B with C
+        |  type Bound <: B with C
+        |  type EmptyRefined = B {}
+        |  type Refined = B { type X = C }
+        |  type Nested = Box[B with C]
+        |  type Existential = (Box[T] forSome { type T <: B }) with C
+        |  type Annotated = (B @unchecked) with C
+        |}""".stripMargin
+    val deps = extractDependenciesFromSrcs(srcA, "trait B", "trait C", "trait Box[T]")
+    assert(deps.memberRef("A") === Set("B", "C", "Box"))
+    assert(deps.inheritance("A") === Set.empty)
+  }
+
   it should "extract class dependency on a object correctly" in {
     val srcA =
       """object A {
