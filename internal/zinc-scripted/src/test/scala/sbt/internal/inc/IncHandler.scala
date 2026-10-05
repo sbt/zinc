@@ -18,6 +18,7 @@ import java.nio.file.{ Files, Path, Paths, StandardCopyOption }
 import java.net.URLClassLoader
 import java.util.jar.Manifest
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.zip.ZipFile
 
 import sbt.util.Logger
 import sbt.util.InterfaceUtil.*
@@ -601,7 +602,7 @@ case class ProjectStructure(
         expected,
         sys.error(s"Unknown bridge '$expected', expected one of ${markers.keys.mkString(", ")}")
       )
-      val zip = new java.util.zip.ZipFile(i.compilerBridge.toFile)
+      val zip = new ZipFile(i.compilerBridge.toFile)
       val found =
         try markers.collect { case (name, entry) if zip.getEntry(entry) != null => name }.toSet
         finally zip.close()
