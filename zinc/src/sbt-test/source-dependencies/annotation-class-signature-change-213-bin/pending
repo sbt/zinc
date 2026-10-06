@@ -1,0 +1,9 @@
+# annotation-class-signature-change on scala2-sbt-bridge, which does not yet record dependencies from
+# the annotations of definitions. general/bridge-2.13.y checks that 2.13.y really is
+# scala2-sbt-bridge.
+
+> p/compile
+
+# @MyAnn(1) in Main no longer type checks
+$ copy-file changes/MyAnn.scala p/MyAnn.scala
+-> p/compile

@@ -1,0 +1,9 @@
+# annotation-constant-arg on scala2-sbt-bridge, which does not yet record dependencies from
+# the annotations of definitions. general/bridge-2.13.y checks that 2.13.y really is
+# scala2-sbt-bridge.
+
+> p/run 1
+
+# Foo refers to Consts.Uid only in an annotation argument
+$ copy-file changes/Consts.scala p/Consts.scala
+> p/run 2

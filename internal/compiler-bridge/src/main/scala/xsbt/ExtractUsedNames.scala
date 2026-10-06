@@ -167,9 +167,23 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
     val namesUsedAtTopLevel = new NamesUsedInClass
 
     override def traverse(tree: Tree): Unit = {
+      handleAnnotations(tree)
       handleClassicTreeNode(tree)
       processMacroExpansion(tree)(handleMacroExpansion)
       super.traverse(tree)
+    }
+
+    /** After typer, the annotations of a definition only live in its symbol. */
+    private def handleAnnotations(tree: Tree): Unit = tree match {
+      case md: MemberDef if md.symbol != null && md.symbol != NoSymbol =>
+        val annotations = md.symbol.annotations
+        if (annotations.nonEmpty) atOwner(md.symbol) {
+          annotations.foreach { annot =>
+            if (annot.original != EmptyTree) traverse(annot.original)
+            else annot.args.foreach(traverse)
+          }
+        }
+      case _ =>
     }
 
     val addSymbol: (JavaSet[Name], Symbol) => Unit = { (names: JavaSet[Name], symbol: Symbol) =>
