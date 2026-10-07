@@ -1,0 +1,6 @@
+{
+  "projects": [
+    { "name": "dep", "scalaVersion": "2.13.x" },
+    { "name": "use", "dependsOn": [ "dep" ], "scalaVersion": "2.13.x" }
+  ]
+}
