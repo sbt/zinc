@@ -1,0 +1,12 @@
+# With pipelining, lib's compile writes its early output (pickles) before refchecks fails. That
+# output must be rolled back with the failure: the revert leaves lib with no changes, so app would
+# otherwise compile against the failed A.
+> app/compile
+
+# A.m no longer conforms to M.m: lib fails
+$ copy-file lib/changes/A1.scala lib/A.scala
+-> app/compile
+
+# Back to the original sources: this must compile as before
+$ copy-file lib/changes/A0.scala lib/A.scala
+> app/compile

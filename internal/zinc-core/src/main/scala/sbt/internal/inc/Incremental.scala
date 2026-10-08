@@ -173,6 +173,7 @@ object Incremental:
       ) // scalac should create -Ypickle-write jars but it throws FileNotFoundException :-/
       p -> updatesJar
     }
+    val earlyRollback = EarlyOutputRollback(earlyJar, earlyAnalysisStore, currentSetup)
 
     val profiler = options.externalHooks.getInvalidationProfiler
     val runProfiler = new AdaptedRunProfiler(profiler.profileRun)
@@ -199,7 +200,7 @@ object Incremental:
           output,
           outputJarContent,
           earlyOutput,
-          earlyAnalysisStore,
+          earlyRollback.store,
           pickleJarPair,
           progress,
           log
@@ -214,11 +215,15 @@ object Incremental:
         log
       )(using Equiv.universal)
     catch
-      case _: xsbti.CompileCancelled =>
-        log.info("Compilation has been cancelled")
-        // in case compilation got cancelled potential partial compilation results (e.g. produced class files) got rolled back
-        // and we can report back as there was no change (false) and return a previous Analysis which is still up-to-date
-        (false, previous)
+      case e: Throwable =>
+        earlyRollback.rollback(log)
+        e match
+          case _: xsbti.CompileCancelled =>
+            log.info("Compilation has been cancelled")
+            // in case compilation got cancelled potential partial compilation results (e.g. produced class files) got rolled back
+            // and we can report back as there was no change (false) and return a previous Analysis which is still up-to-date
+            (false, previous)
+          case _ => throw e
     finally runProfiler.registerRun()
     end try
   end apply
@@ -521,6 +526,55 @@ object Incremental:
       PickleJar.write(pickleJar, knownProducts, log)
       progress.foreach(_.afterEarlyOutput(available))
 end Incremental
+
+/**
+ * Restores the early output and early analysis of the last successful compile when a compile
+ * fails. With pipelining, a compile writes its early output before it is known to succeed (for
+ * Scala 2, before refchecks). If that output survived a failure, a later compile with no changes
+ * would hand it to downstream subprojects again.
+ *
+ * The early jar is only appended to and its index rewritten, so restoring its earlier index
+ * restores its contents, in place.
+ */
+private final class EarlyOutputRollback(
+    earlyJar: Option[Path],
+    earlyAnalysisStore: Option[XAnalysisStore],
+    currentSetup: MiniSetup
+):
+  private val earlyJarIndex: Option[IndexBasedZipFsOps.CentralDir] =
+    earlyJar.filter(Files.exists(_)).map(p => IndexBasedZipFsOps.readCentralDir(p.toFile))
+  @volatile private var previousEarlyAnalysis: Option[Optional[AnalysisContents]] = None
+
+  val store: Option[XAnalysisStore] = earlyAnalysisStore.map { underlying =>
+    new XAnalysisStore:
+      override def get(): Optional[AnalysisContents] = underlying.get()
+      override def unsafeGet(): AnalysisContents = underlying.unsafeGet()
+      override def set(contents: AnalysisContents): Unit =
+        EarlyOutputRollback.this.synchronized {
+          if previousEarlyAnalysis.isEmpty then previousEarlyAnalysis = Some(underlying.get())
+        }
+        underlying.set(contents)
+  }
+
+  def rollback(log: Logger): Unit =
+    try
+      earlyJar.filter(Files.exists(_)).foreach { p =>
+        earlyJarIndex match
+          case Some(index) => IndexBasedZipFsOps.writeCentralDir(p.toFile, index)
+          case None        =>
+            IndexBasedZipFsOps.removeEntries(p.toFile, IndexBasedZipFsOps.listEntries(p.toFile))
+      }
+      for
+        underlying <- earlyAnalysisStore
+        previous <- previousEarlyAnalysis
+      do
+        underlying.set(
+          previous.orElse(AnalysisContents.create(Analysis.empty, currentSetup))
+        )
+    catch
+      case NonFatal(e) =>
+        log.warn(s"Failed to restore the early output of the last successful compile: $e")
+end EarlyOutputRollback
 
 /**
  * With pipelining, this runs `onDependenciesSent` once the compiler has sent its dependencies and called
