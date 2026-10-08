@@ -1,0 +1,5 @@
+> compile
+
+# @Ann(1) on class S no longer type checks
+$ copy-file changes/Ann.scala Ann.scala
+-> compile
