@@ -1,0 +1,6 @@
+> run p.X
+
+# Y now extends X, so X with Y erases to Y and the static forwarder for m in O's mirror class
+# must return p.Y, but A's API renders m: X with Y by name and O is not recompiled
+$ copy-file changes/Y.scala Y.scala
+> run p.Y

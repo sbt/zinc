@@ -1,0 +1,8 @@
+> compile
+
+# Adding m must not change the API of n, so U, which uses only n, is not recompiled. Expanding
+# V for m caches List[V] with an unexpanded V, which n then reuses, so n appears modified.
+$ copy-file changes/A.scala A.scala
+> compile
+> checkRecompilations 1 p.A
+> checkIterations 2
