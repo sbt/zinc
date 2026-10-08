@@ -167,6 +167,9 @@ final class HashAPI private (
 
   def hashAPI(c: ClassLike): Unit =
     hash = 1
+    hashAnnotations(c.annotations)
+    hashModifiers(c.modifiers)
+    hashAccess(c.access)
     hashClass(c)
 
   def hashPackage(p: Package) = hashString(p.name)

@@ -96,6 +96,24 @@ class HashAPISpecification extends UnitSpec:
     assertSamePrivateAPI(x, y) // was "-188164889 did not equal 992093599"
   }
 
+  it should "detect hash changes in the modifiers, access and annotations of a top-level class" in {
+    val c = simpleClass("Foo")
+    val finalMods = new Modifiers(false, false, true, false, false, false, false, false)
+    val sealedMods = new Modifiers(false, false, false, true, false, false, false, false)
+    val abstractMods = new Modifiers(true, false, false, false, false, false, false, false)
+    val qualifiedPrivate = Private.of(IdQualifier.of("pkg"))
+    val deprecated = Annotation.of(Projection.of(emptyType, "deprecated"), Array.empty)
+    val variants = List(
+      c,
+      c.withModifiers(finalMods),
+      c.withModifiers(sealedMods),
+      c.withModifiers(abstractMods),
+      c.withAccess(qualifiedPrivate),
+      c.withAnnotations(Array(deprecated))
+    )
+    assert(variants.map(HashAPI(_)).distinct.size == variants.size)
+  }
+
   def assertDifferentPrivateAPI(a: ClassLike, b: ClassLike): Unit = assertPrivateApi(true, a, b)
   def assertSamePrivateAPI(a: ClassLike, b: ClassLike): Unit = assertPrivateApi(false, a, b)
   def assertPrivateApi(isDifferent: Boolean, a: ClassLike, b: ClassLike): Unit =
