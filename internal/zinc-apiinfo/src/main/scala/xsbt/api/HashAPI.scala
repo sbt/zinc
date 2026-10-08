@@ -230,10 +230,12 @@ final class HashAPI private (
       case t: TypeAlias       => hashTypeAlias(t)
   final def hashClassDef(c: ClassLikeDef): Unit =
     extend(ClassDefHash)
+    extend(c.definitionType.ordinal)
     hashParameterizedDefinition(c)
   final def hashClass(c: ClassLike): Unit = visit(visitedClassLike, c)(hashClass0)
   def hashClass0(c: ClassLike): Unit =
     extend(ClassHash)
+    extend(c.definitionType.ordinal)
     hashTypeParameters(c.typeParameters)
     hashType(c.selfType)
     if includeSealedChildren then
