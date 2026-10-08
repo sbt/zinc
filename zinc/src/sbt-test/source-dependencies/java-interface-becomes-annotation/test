@@ -1,0 +1,4 @@
+> compile
+
+$ copy-file changes/A.java A.java
+-> compile
