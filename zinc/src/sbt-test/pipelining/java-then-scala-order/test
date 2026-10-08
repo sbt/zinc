@@ -1,0 +1,7 @@
+# https://github.com/sbt/sbt/issues/9707
+# Under pipelining javac is deferred, so Java sources must still be handed to
+# scalac even when compileOrder is not Mixed. Otherwise Scala sources in the
+# same project cannot resolve symbols defined in Java.
+> use/compile
+$ exists use/target/classes/ByteArrayAccess.class
+$ exists use/target/classes/Main.class

@@ -164,8 +164,11 @@ final class MixedAnalyzingCompiler(
         }
 
         JarUtils.withPreviousJar(output) { extraClasspath: Seq[Path] =>
+          // Under pipelining javac is deferred, so its output is not on the classpath
+          // yet. Java sources must reach scalac regardless of the configured order,
+          // otherwise Scala sources cannot resolve symbols defined in Java.
           val sources =
-            if (config.currentSetup.order == Mixed) incSrc
+            if (config.currentSetup.order == Mixed || config.incOptions.pipelining) incSrc
             else scalaSrcs
 
           val cp0: Vector[VirtualFile] =
