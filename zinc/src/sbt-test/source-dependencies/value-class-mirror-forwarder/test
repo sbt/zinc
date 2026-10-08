@@ -1,0 +1,5 @@
+> run long
+
+# V now erases to Int: the static forwarder for m in O's mirror class must now return int
+$ copy-file changes/V.scala V.scala
+> run int

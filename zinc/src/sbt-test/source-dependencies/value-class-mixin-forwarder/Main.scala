@@ -1,0 +1,7 @@
+package p
+object Main {
+  def main(args: Array[String]): Unit = {
+    val r = classOf[B].getMethod("n").getReturnType.getName
+    assert(r == args(0), r)
+  }
+}

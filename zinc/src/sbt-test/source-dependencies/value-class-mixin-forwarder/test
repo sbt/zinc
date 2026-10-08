@@ -1,0 +1,5 @@
+> run java.lang.String
+
+# V now erases to long: B's mixin forwarder for N.n must return long
+$ copy-file changes/V.scala V.scala
+> run long

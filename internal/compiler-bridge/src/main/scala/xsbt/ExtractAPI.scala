@@ -579,6 +579,28 @@ class ExtractAPI[GlobalType <: Global](
       else mapOver(tp)
   }
 
+  private[this] val expandingValueClasses = scala.collection.mutable.Set.empty[Symbol]
+
+  /**
+   * A reference to a value class erases to its underlying type, so a signature that mentions
+   * the value class changes its erasure, and the bridges and forwarders other classes generate
+   * for it, when that underlying type changes, though the signature reads the same. The
+   * underlying type, as seen from the reference, is attached as an annotation so that the API
+   * determines the erasure. A value class whose underlying type mentions itself is expanded once.
+   */
+  private def withErasure(in: Symbol, tr: Type, applied: xsbti.api.Type): xsbti.api.Type = {
+    val sym = tr.typeSymbol
+    if (!sym.isDerivedValueClass || expandingValueClasses(sym)) applied
+    else {
+      expandingValueClasses += sym
+      try {
+        val underlying = tr.memberType(sym.derivedValueClassUnbox).finalResultType
+        val erasure = xsbti.api.Annotation.of(processType(in, underlying), Array.empty)
+        xsbti.api.Annotated.of(applied, Array(erasure))
+      } finally expandingValueClasses -= sym
+    }
+  }
+
   private def processType(in: Symbol, t: Type): xsbti.api.Type =
     typeCache.getOrElseUpdate((in, t), makeType(in, t))
   private def makeType(in: Symbol, t: Type): xsbti.api.Type = {
@@ -630,13 +652,15 @@ class ExtractAPI[GlobalType <: Global](
         structure(withoutRecursiveRefs, sym)
       case tr @ TypeRef(pre, sym, args) =>
         val base = projectionType(in, pre, sym)
-        if (args.isEmpty)
-          if (isRawType(tr))
-            processType(in, rawToExistential(tr))
+        val applied =
+          if (args.isEmpty)
+            if (isRawType(tr))
+              processType(in, rawToExistential(tr))
+            else
+              base
           else
-            base
-        else
-          xsbti.api.Parameterized.of(base, types(in, args))
+            xsbti.api.Parameterized.of(base, types(in, args))
+        withErasure(in, tr, applied)
       case SuperType(thistpe: Type, supertpe: Type) =>
         reporter.warning(
           NoPosition,

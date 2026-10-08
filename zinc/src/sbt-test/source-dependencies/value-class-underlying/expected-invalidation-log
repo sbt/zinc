@@ -1,6 +1,6 @@
 [inv] Cycle 1 API changes
 [inv]   detected:
-[inv]     A: modified names A, A;init;, x
+[inv]     A: modified names A, A;init;, equals$extension, hashCode$extension, x
 [inv] Member-reference invalidation of B
 [inv]   modified names used by the class:
 [inv]     A
@@ -8,7 +8,7 @@
 [inv] Member-reference invalidation of C
 [inv]   modified names used by the class:
 [inv]     A
-[inv] API change: A: modified names A, A;init;, x
+[inv] API change: A: modified names A, A;init;, equals$extension, hashCode$extension, x
 [inv]   transitive inheritance:
 [inv]     A
 [inv]   member reference:
