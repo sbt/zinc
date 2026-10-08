@@ -1,0 +1,5 @@
+> compile
+
+# @Ann(1) on the parameter of S.f no longer type checks
+$ copy-file changes/Ann.scala Ann.scala
+-> compile

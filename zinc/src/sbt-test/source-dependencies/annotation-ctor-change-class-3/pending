@@ -1,0 +1,8 @@
+# annotation-ctor-change-class on Scala 3, whose bridge (ExtractDependencies in scala/scala3)
+# does not record a dependency of an annotated definition on its annotation class.
+
+> p/compile
+
+# @Ann(1) on class S no longer type checks
+$ copy-file changes/Ann.scala p/Ann.scala
+-> p/compile

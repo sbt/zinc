@@ -1,0 +1,9 @@
+# annotation-ctor-change-class on scala2-sbt-bridge, which does not yet record dependencies from
+# the annotations of definitions. general/bridge-2.13.y checks that 2.13.y really is
+# scala2-sbt-bridge.
+
+> p/compile
+
+# @Ann(1) on class S no longer type checks
+$ copy-file changes/Ann.scala p/Ann.scala
+-> p/compile
