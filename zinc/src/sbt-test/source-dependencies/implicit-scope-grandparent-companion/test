@@ -1,0 +1,20 @@
+> app/run A
+
+# B gains a companion with an implicit Show for its subclasses. B is a base class of C, so its
+# companion is in the implicit scope of Show of C, and B's implicit wins over A's (B derives from
+# A): X must now pick it, though it names neither B nor its companion. Z only uses D, which does
+# not inherit from B.
+$ copy-file lib/changes/B1.scala lib/B.scala
+> app/run B
+> app/checkRecompilations 0 p.Z
+
+# a member that is not implicit reaches neither
+$ copy-file lib/changes/B2.scala lib/B.scala
+> app/run B
+> app/checkRecompilations 0 p.Z
+> app/checkRecompilations 1 p.X
+
+# without B's implicit, X falls back to A's
+$ copy-file lib/changes/B0.scala lib/B.scala
+> app/run A
+> app/checkRecompilations 0 p.Z

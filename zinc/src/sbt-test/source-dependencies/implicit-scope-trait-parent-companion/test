@@ -1,0 +1,5 @@
+> app/run A
+
+# B is a trait parent of C; its new companion implicit is in the implicit scope of Show of C.
+$ copy-file lib/changes/B1.scala lib/B.scala
+> app/run B
