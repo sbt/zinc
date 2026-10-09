@@ -728,8 +728,11 @@ private final class AnalysisCallback(
   private val typeParents = new TrieMap[String, ConcurrentSet[String]]
   // the same for parents in other projects, whose hash is all this compile has of them
   private val externalTypeParentHashes = new TrieMap[String, ConcurrentSet[HashAPI.Hash]]
-  // and their implicit scope, see InheritedImplicitScopes
-  private val externalTypeParentImplicitScopes = new TrieMap[String, ConcurrentSet[Int]]
+  // Parents of the object side, which, unlike for extraHash, do reach the implicit scope of its
+  // singleton type: `object O extends B` puts B's companion in the implicit scope of `O.type`
+  private val termParents = new TrieMap[String, ConcurrentSet[String]]
+  // the implicit scope of parents in other projects, of either side, see InheritedImplicitScopes
+  private val externalParentImplicitScopes = new TrieMap[String, ConcurrentSet[Int]]
   private val binaryClassName = new TrieMap[VirtualFile, String]
   // source files containing a macro def.
   private val macroClasses = ConcurrentHashMap.newKeySet[String]()
@@ -817,9 +820,9 @@ private final class AnalysisCallback(
     val sourceClassName = sourceClass.name
     if onClassName != sourceClassName then
       add(intSrcDeps, sourceClassName, InternalDependency.of(sourceClassName, onClassName, context))
-      if context == DependencyContext.DependencyByInheritance && sourceClass.kind == NameKind.Type
-      then
-        add(typeParents, sourceClassName, onClassName)
+      if context == DependencyContext.DependencyByInheritance then
+        if sourceClass.kind == NameKind.Type then add(typeParents, sourceClassName, onClassName)
+        else add(termParents, sourceClassName, onClassName)
 
   override def classDependency(
       onClass: ClassRef,
@@ -856,12 +859,12 @@ private final class AnalysisCallback(
     val dependency =
       ExternalDependency.of(sourceClassName, targetBinaryClassName, targetClass, context)
     add(extSrcDeps, sourceClassName, dependency)
-    if context == DependencyContext.DependencyByInheritance && sourceClass.kind == NameKind.Type
-    then
-      add(externalTypeParentHashes, sourceClassName, targetClass.extraHash())
+    if context == DependencyContext.DependencyByInheritance then
+      if sourceClass.kind == NameKind.Type then
+        add(externalTypeParentHashes, sourceClassName, targetClass.extraHash())
       Incremental
         .implicitScopeHash(targetClass.nameHashes())
-        .foreach(add(externalTypeParentImplicitScopes, sourceClassName, _))
+        .foreach(add(externalParentImplicitScopes, sourceClassName, _))
 
   // Called by sbt-dotty
   override def binaryDependency(
@@ -1192,18 +1195,19 @@ private final class AnalysisCallback(
    * `C`. Within a project an implicit change invalidates the clients of the owner's inheritors,
    * but a downstream project only checks the classes it depends on. So a class also publishes its
    * parents' implicit name hashes, folded into one more implicit name hash and into its apiHash.
-   * A parent's own implicit name hashes include that entry, so it covers every ancestor.
+   * A parent's own implicit name hashes include that entry, so it covers every ancestor. The
+   * parents of an object count as well, for the clients of its singleton type.
    *
    * Like [[ExtraHashes]], an instance is a snapshot: make one per analysis.
    */
   private final class InheritedImplicitScopes:
     private val internalParents: Map[String, Set[String]] =
-      typeParents.readOnlySnapshot().iterator.map { case (from, ps) =>
-        from -> ps.asScala.toSet
-      }.toMap
+      (typeParents.readOnlySnapshot().iterator ++ termParents.readOnlySnapshot().iterator)
+        .toSeq
+        .groupMapReduce(_._1)(_._2.asScala.toSet)(_ ++ _)
 
     private val externalParentScopes: Map[String, Set[Int]] =
-      externalTypeParentImplicitScopes.readOnlySnapshot().iterator.map { case (from, hs) =>
+      externalParentImplicitScopes.readOnlySnapshot().iterator.map { case (from, hs) =>
         from -> hs.asScala.toSet
       }.toMap
 
