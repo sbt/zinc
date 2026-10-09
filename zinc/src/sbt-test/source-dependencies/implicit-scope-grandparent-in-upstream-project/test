@@ -1,0 +1,7 @@
+> app/run default
+
+# A gains an implicit, more specific than Show's default. B recompiles in lib with its own API
+# unchanged, so only what B publishes for its ancestors' implicit scope can reach C in mid, and
+# from there X in app.
+$ copy-file lib/changes/A1.scala lib/A.scala
+> app/run A
