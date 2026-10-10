@@ -51,6 +51,17 @@ class DependencySpecification
     assert(localInheritance("E") === Set("B"))
   }
 
+  it should "extract class dependencies from annotations of definitions" in {
+    val srcConsts = "object Consts { final val Uid = 1L; final val I = 1 }"
+    val srcAnn = "class MyAnn(x: Int) extends scala.annotation.StaticAnnotation"
+    val srcFoo = "@SerialVersionUID(Consts.Uid) class Foo extends Serializable"
+    val srcBar = "class Bar { @MyAnn(Consts.I) def f: Int = 1 }"
+    val memberRef =
+      extractDependenciesFromSrcs(srcConsts, srcAnn, srcFoo, srcBar).memberRef
+    assert(memberRef("Foo").contains("Consts"))
+    assert(Set("MyAnn", "Consts").subsetOf(memberRef("Bar")))
+  }
+
   it should "extract class dependencies with trait as first parent" in {
     val classDependencies = extractClassDependenciesTraitAsFirstPatent
     val memberRef = classDependencies.memberRef

@@ -1,0 +1,5 @@
+> p/compile
+
+# @MyAnn(1) in Main no longer type checks
+$ copy-file changes/MyAnn.scala p/MyAnn.scala
+-> p/compile
