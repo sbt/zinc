@@ -1,0 +1,6 @@
+{
+  "projects": [
+    { "name": "lib", "scalaVersion": "3.x" },
+    { "name": "app", "dependsOn": ["lib"], "scalaVersion": "3.x" }
+  ]
+}
