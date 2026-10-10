@@ -167,6 +167,9 @@ final class HashAPI private (
 
   def hashAPI(c: ClassLike): Unit =
     hash = 1
+    hashAnnotations(c.annotations)
+    hashModifiers(c.modifiers)
+    hashAccess(c.access)
     hashClass(c)
 
   def hashPackage(p: Package) = hashString(p.name)
@@ -227,10 +230,17 @@ final class HashAPI private (
       case t: TypeAlias       => hashTypeAlias(t)
   final def hashClassDef(c: ClassLikeDef): Unit =
     extend(ClassDefHash)
+    extend(c.definitionType.ordinal)
     hashParameterizedDefinition(c)
   final def hashClass(c: ClassLike): Unit = visit(visitedClassLike, c)(hashClass0)
   def hashClass0(c: ClassLike): Unit =
     extend(ClassHash)
+    // A trait/class change can also add or remove `<init>`, but only constructor callers use
+    // that name. A call `x.m` on an `A` must still switch to or from invokeinterface, and a
+    // Scala 3 `trait T(x: Int)` becoming `abstract class T(x: Int)` keeps its `<init>`.
+    // See tests `source-dependencies/abstract-class-becomes-trait-call` and
+    // `source-dependencies/trait-becomes-abstract-class-3`
+    extend(c.definitionType.ordinal)
     hashTypeParameters(c.typeParameters)
     hashType(c.selfType)
     if includeSealedChildren then
