@@ -4,7 +4,7 @@ package inc
 
 import xsbti.NameKind
 import xsbti.TestCallback.ExtractedClassDependencies
-import xsbti.api.DependencyContext.DependencyByInheritance
+import xsbti.api.DependencyContext.{ DependencyByInheritance, DependencyByMacroExpansion }
 
 class DependencySpecification
     extends UnitSpec
@@ -73,6 +73,12 @@ class DependencySpecification
     val binaryDependencies = extractBinaryDependenciesFromMacroArgument
     val memberRef = binaryDependencies.memberRef
     memberRef("A") should contain allOf ("B$", "C$")
+  }
+
+  it should "extract class dependencies from macro type arguments" in {
+    val deps = extractMacroExpansionDependenciesFromTypeArguments
+    assert(deps.contains(("A", "App")), deps)
+    assert(deps.contains(("A", "App2")), deps)
   }
 
   it should "extract class dependencies from a refinement" in {
@@ -231,6 +237,24 @@ class DependencySpecification
     val classDependencies =
       extractDependenciesFromSrcs(srcA, srcB, srcC, srcD)
     classDependencies
+  }
+
+  private def extractMacroExpansionDependenciesFromTypeArguments: Set[(String, String)] = {
+    val srcMacros =
+      """import scala.language.experimental.macros
+        |import scala.reflect.macros.blackbox
+        |object Macros {
+        |  def foo[T]: Unit = macro impl[T]
+        |  def impl[T: c.WeakTypeTag](c: blackbox.Context): c.Tree = { import c.universe._; q"()" }
+        |}
+        |class A""".stripMargin
+    val srcApp =
+      """class App { def x = Macros.foo[A] }
+        |class App2 { def x = Macros.foo[A] }""".stripMargin
+    val (_, testCallback) = compileSrcs(List(List(srcMacros), List(srcApp)))
+    testCallback.binaryDependencies.toList.collect {
+      case (_, on, from, DependencyByMacroExpansion) => (on, from)
+    }.toSet
   }
 
   private def extractBinaryDependenciesFromMacroArgument: ExtractedClassDependencies = {

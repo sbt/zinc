@@ -400,7 +400,10 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
 
     object TypeDependencyTraverserForMacro extends TypeDependencyTraverser {
       private var owner: Symbol = _
-      def setOwner(symbol: Symbol) = owner = symbol
+      def setOwner(symbol: Symbol) = if (owner != symbol) {
+        owner = symbol
+        reinitializeVisited()
+      }
       override def addDependency(symbol: global.Symbol): Unit = {
         addClassDependency(
           _dependencyByMacroExpansionCache,
