@@ -79,6 +79,7 @@ class DependencySpecification
     val deps = extractMacroExpansionDependenciesFromTypeArguments
     assert(deps.contains(("A", "App")), deps)
     assert(deps.contains(("A", "App2")), deps)
+    assert(deps.contains(("B", "App3")), deps)
   }
 
   it should "extract class dependencies from a refinement" in {
@@ -245,12 +246,16 @@ class DependencySpecification
         |import scala.reflect.macros.blackbox
         |object Macros {
         |  def foo[T]: Unit = macro impl[T]
+        |  def bar[T](x: Int)(implicit d: DummyImplicit): Unit = macro implBar[T]
         |  def impl[T: c.WeakTypeTag](c: blackbox.Context): c.Tree = { import c.universe._; q"()" }
+        |  def implBar[T: c.WeakTypeTag](c: blackbox.Context)(x: c.Tree)(d: c.Tree): c.Tree = impl[T](c)
         |}
-        |class A""".stripMargin
+        |class A
+        |class B""".stripMargin
     val srcApp =
       """class App { def x = Macros.foo[A] }
-        |class App2 { def x = Macros.foo[A] }""".stripMargin
+        |class App2 { def x = Macros.foo[A] }
+        |class App3 { def x = Macros.bar[B](1) }""".stripMargin
     val (_, testCallback) = compileSrcs(List(List(srcMacros), List(srcApp)))
     testCallback.binaryDependencies.toList.collect {
       case (_, on, from, DependencyByMacroExpansion) => (on, from)
