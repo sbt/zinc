@@ -14,17 +14,20 @@ package internal
 package inc
 
 import java.io.File
-import java.nio.file.{ Files, Path, Paths }
+import java.nio.channels.FileChannel
+import java.nio.file.{ Files, Path, Paths, StandardOpenOption }
 import java.util as ju
 import ju.{ EnumSet, Optional, UUID }
 import ju.concurrent.atomic.AtomicBoolean
 import sbt.internal.inc.Analysis.{ LocalProduct, NonLocalProduct, computeBytecodeHash }
+import sbt.io.IO
 import sbt.util.{ InterfaceUtil, Level, Logger }
 import sbt.util.InterfaceUtil.{ jl2l, jo2o, l2jl, t2 }
 
 import scala.jdk.CollectionConverters.*
 import scala.jdk.OptionConverters.*
 import scala.collection.mutable
+import scala.util.Using
 import scala.util.control.NonFatal
 import xsbti.{
   ClassRef,
@@ -202,6 +205,7 @@ object Incremental:
           earlyOutput,
           earlyRollback.store,
           pickleJarPair,
+          earlyRollback.keep,
           progress,
           log
         ),
@@ -224,7 +228,10 @@ object Incremental:
             // and we can report back as there was no change (false) and return a previous Analysis which is still up-to-date
             (false, previous)
           case _ => throw e
-    finally runProfiler.registerRun()
+    finally
+      earlyRollback.discard()
+      pickleJarPair.foreach((_, updatesJar) => IO.delete(updatesJar.toFile))
+      runProfiler.registerRun()
     end try
   end apply
 
@@ -274,6 +281,7 @@ object Incremental:
       earlyOutput,
       earlyAnalysisStore,
       None,
+      (_, _) => false,
       progress,
       log
     )
@@ -437,7 +445,15 @@ object Incremental:
           if earlyOutput.isDefined then
             val available =
               lookup.shouldDoEarlyOutput(analysis) && callbackBuilder.lastCompileWroteEarlyOutput
-            writeEarlyOut(progress, earlyOutput, available, new java.util.HashSet, log)
+            writeEarlyOut(
+              progress,
+              earlyOutput,
+              None,
+              available,
+              None,
+              (_, _) => false,
+              log
+            )
           analysis
     }
     (hasModified || hasSubprojectChange, analysis)
@@ -525,15 +541,17 @@ object Incremental:
   private[inc] def writeEarlyOut(
       progress: Option[CompileProgress],
       earlyOutput: Option[Output],
+      updates: Option[Path],
       available: Boolean,
-      knownProducts: java.util.Set[String],
+      knownProducts: Option[java.util.Set[String]],
+      keep: (Path, Long) => Boolean,
       log: Logger,
   ) =
     for
       earlyO <- earlyOutput
       pickleJar <- jo2o(earlyO.getSingleOutputAsPath)
     do
-      PickleJar.write(pickleJar, knownProducts, log)
+      PickleJar.write(pickleJar, updates, knownProducts, keep, log)
       progress.foreach(_.afterEarlyOutput(available))
 end Incremental
 
@@ -543,16 +561,17 @@ end Incremental
  * Scala 2, before refchecks). If that output survived a failure, a later compile with no changes
  * would hand it to downstream subprojects again.
  *
- * The early jar is only appended to and its index rewritten, so restoring its earlier index
- * restores its contents, in place.
+ * [[SortedJar.write]] overwrites the early jar in place from its first changed entry on, after
+ * copying those bytes aside; the copies of bytes from before this compile are kept until it ends.
  */
 private final class EarlyOutputRollback(
     earlyJar: Option[Path],
     earlyAnalysisStore: Option[XAnalysisStore],
     currentSetup: MiniSetup
 ):
-  private val earlyJarIndex: Option[IndexBasedZipFsOps.CentralDir] =
-    earlyJar.filter(Files.exists(_)).map(p => IndexBasedZipFsOps.readCentralDir(p.toFile))
+  private val earlyJarSize: Option[Long] = earlyJar.filter(Files.exists(_)).map(Files.size)
+  private var copies: List[(Path, Long, Long)] = Nil
+  private var copiedFrom: Long = earlyJarSize.getOrElse(0L)
   @volatile private var previousEarlyAnalysis: Option[Optional[AnalysisContents]] = None
 
   val store: Option[XAnalysisStore] = earlyAnalysisStore.map { underlying =>
@@ -566,13 +585,31 @@ private final class EarlyOutputRollback(
         underlying.set(contents)
   }
 
+  /** Keeps `copy`, the jar's bytes from `from` on, if this compile had not overwritten them. */
+  def keep(copy: Path, from: Long): Boolean = synchronized {
+    val keeps = from < copiedFrom
+    if keeps then
+      copies ::= ((copy, from, copiedFrom - from))
+      copiedFrom = from
+    keeps
+  }
+
+  def discard(): Unit = synchronized {
+    copies.foreach((copy, _, _) => IO.delete(copy.toFile))
+    copies = Nil
+  }
+
+  /**
+   * Clears the thread's interrupt meanwhile: a cancelled compile's file channels fail at once. It
+   * never reads the jar's index, which a failed write can leave broken.
+   */
   def rollback(log: Logger): Unit =
+    val interrupted = Thread.interrupted()
     try
       earlyJar.filter(Files.exists(_)).foreach { p =>
-        earlyJarIndex match
-          case Some(index) => IndexBasedZipFsOps.writeCentralDir(p.toFile, index)
-          case None        =>
-            IndexBasedZipFsOps.removeEntries(p.toFile, IndexBasedZipFsOps.listEntries(p.toFile))
+        earlyJarSize match
+          case Some(size) => restore(p, size)
+          case None       => SortedJar.write(p, Vector.empty, Vector.empty, (_, _) => false)
       }
       for
         underlying <- earlyAnalysisStore
@@ -584,6 +621,20 @@ private final class EarlyOutputRollback(
     catch
       case NonFatal(e) =>
         log.warn(s"Failed to restore the early output of the last successful compile: $e")
+    finally if interrupted then Thread.currentThread.interrupt()
+
+  private def restore(jar: Path, size: Long): Unit = synchronized {
+    if copies.nonEmpty then
+      val modified = Files.getLastModifiedTime(jar)
+      Using.resource(FileChannel.open(jar, StandardOpenOption.WRITE)) { out =>
+        copies.foreach { (copy, from, length) =>
+          out.position(from)
+          Using.resource(FileChannel.open(copy))(SortedJar.transfer(_, 0, length, out))
+        }
+        out.truncate(size)
+      }
+      SortedJar.advance(jar, modified)
+  }
 end EarlyOutputRollback
 
 /**
@@ -663,6 +714,7 @@ private object AnalysisCallback:
       earlyOutput: Option[Output],
       earlyAnalysisStore: Option[XAnalysisStore],
       pickleJarPair: Option[(Path, Path)],
+      keepEarlyJar: (Path, Long) => Boolean,
       progress: Option[CompileProgress],
       log: Logger
   ):
@@ -700,6 +752,7 @@ private object AnalysisCallback:
         earlyOutput,
         earlyAnalysisStore,
         pickleJarPair,
+        keepEarlyJar,
         progress,
         incHandlerOpt,
         log
@@ -721,6 +774,7 @@ private final class AnalysisCallback(
     earlyOutput: Option[Output],
     earlyAnalysisStore: Option[XAnalysisStore],
     pickleJarPair: Option[(Path, Path)],
+    keepEarlyJar: (Path, Long) => Boolean,
     progress: Option[CompileProgress],
     incHandlerOpt: Option[Incremental.IncrementalCallback],
     log: Logger
@@ -1497,19 +1551,22 @@ private final class AnalysisCallback(
     )
     earlyAnalysisStore.foreach(_.set(AnalysisContents.create(trimmedAnalysis, earlySetup)))
 
-    mergeUpdates() // must merge updates each cycle or else scalac will clobber it
     val available = lookup.shouldDoEarlyOutput(merged)
-    Incremental.writeEarlyOut(progress, earlyOutput, available, knownProducts(merged), log)
+    Incremental.writeEarlyOut(
+      progress,
+      earlyOutput,
+      pickleJarPair.map(_._2),
+      available,
+      Some(knownProducts(merged)),
+      keepEarlyJar,
+      log
+    )
+  end writeEarlyArtifacts
 
   private def mergeUpdates() =
-    pickleJarPair.foreach {
-      case (originalJar, updatesJar) =>
-        if Files.exists(updatesJar) then
-          log.debug(s"merging $updatesJar into $originalJar")
-          if Files.exists(originalJar) then
-            IndexBasedZipFsOps.mergeArchives(originalJar, updatesJar)
-          else
-            Files.move(updatesJar, originalJar)
+    pickleJarPair.foreach { case (originalJar, updatesJar) =>
+      if Files.exists(updatesJar) then
+        PickleJar.write(originalJar, Some(updatesJar), None, keepEarlyJar, log)
     }
 
   private def knownProducts(merged: Analysis) =

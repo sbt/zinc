@@ -47,9 +47,12 @@ case class CompilerSetup(
     log: ManagedLogger
 ):
   var lastCompiledUnits = Set.empty[String]
+  var earlyOutputsWritten = 0
 
   val progress = new CompileProgress:
     override def startUnit(phase: String, unitPath: String): Unit = lastCompiledUnits += unitPath
+    override def afterEarlyOutput(success: Boolean): Unit =
+      if success then earlyOutputsWritten += 1
 
   val perClasspathEntryLookup = new PerClasspathEntryLookup:
     def read(p: Path) = FileAnalysisStore.getDefault(p.toFile).get().toScala.map(_.getAnalysis)
