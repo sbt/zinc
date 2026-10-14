@@ -13,8 +13,11 @@ package sbt.inc
 
 import java.io.File
 import java.nio.file.Files
+import java.util.Optional
 import sbt.io.IO.{ withTemporaryDirectory => withTmpDir }
 import sbt.internal.inc.{ StringVirtualFile, JarUtils }
+import xsbti.CompileFailed
+import xsbti.compile.{ AnalysisContents, AnalysisStore }
 
 class OutputSpec extends BaseCompilerSpec {
   // override val logLevel = sbt.util.Level.Debug
@@ -44,6 +47,34 @@ class OutputSpec extends BaseCompilerSpec {
     assert(JarUtils.listFiles(c1.earlyOutput).contains("example/A.sig"))
   }
 
+  it should "write early analysis to a store that cannot be read" in withTmpDir { baseDir =>
+    val c1 = VirtualSubproject(baseDir.toPath).setup.createCompiler()
+    val store = new WriteOnlyAnalysisStore
+    def compile(src: String) =
+      c1.doCompile(in =>
+        c1.withSrcs(Array(StringVirtualFile("src/example/A.scala", src)))(
+          in.withSetup(in.setup.withEarlyAnalysisStore(store))
+        )
+      )
+    compile("package example; class A")
+    assert(store.sets == 1)
+    assert(JarUtils.listFiles(c1.earlyOutput).contains("example/A.sig"))
+
+    // fails in refchecks, after the early output is written
+    assertThrows[CompileFailed] {
+      compile("package example; class A; class B { def f = 1 }; class C extends B { def f = 2 }")
+    }
+    assert(JarUtils.listFiles(c1.earlyOutput).contains("example/A.sig"))
+    assert(!JarUtils.listFiles(c1.earlyOutput).contains("example/C.sig"))
+  }
+
   def mkCompiler(baseDir: File, classes: Seq[String]) =
     ProjectSetup.simple(baseDir.toPath, classes).copy(outputToJar = true).createCompiler()
+
+  final class WriteOnlyAnalysisStore extends AnalysisStore {
+    var sets = 0
+    override def get(): Optional[AnalysisContents] = throw new UnsupportedOperationException
+    override def unsafeGet(): AnalysisContents = throw new UnsupportedOperationException
+    override def set(contents: AnalysisContents): Unit = sets += 1
+  }
 }
