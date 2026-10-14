@@ -1,0 +1,4 @@
+> p/compile
+
+$ copy-file p/changes/T.scala p/T.scala
+-> p/compile

@@ -1,0 +1,5 @@
+> app/run
+
+# A becomes a trait: Z's call must become invokeinterface, though no member of A changed
+$ copy-file lib/changes/A.scala lib/A.scala
+> app/run
