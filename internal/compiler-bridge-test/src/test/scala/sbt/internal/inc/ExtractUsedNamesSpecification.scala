@@ -200,6 +200,20 @@ class ExtractUsedNamesSpecification
     assert(usedNames("A") === expectedNames)
   }
 
+  it should "extract names from annotations of definitions" in {
+    val srcConsts = "object Consts { final val I = 1 }"
+    val srcAnn = "class MyAnn(x: Int) extends scala.annotation.StaticAnnotation"
+    val srcOnClass = "@MyAnn(Consts.I) class OnClass"
+    val srcOnMethod = "class OnMethod { @MyAnn(Consts.I) def f: Int = 1 }"
+    val srcOnParam = "class OnParam { def f(@MyAnn(Consts.I) x: Int): Int = x }"
+    val usedNames =
+      extractUsedNamesFromSrc(srcConsts, srcAnn, srcOnClass, srcOnMethod, srcOnParam)
+    val annotationNames = Set("MyAnn", "Consts", "I")
+    assert(annotationNames.subsetOf(usedNames("OnClass")))
+    assert(annotationNames.subsetOf(usedNames("OnMethod")))
+    assert(annotationNames.subsetOf(usedNames("OnParam")))
+  }
+
   // pending test for https://github.com/scala/bug/issues/7173
   it should "extract names of constants" in pendingUntilFixed {
     val src = "class A { final val foo = 12; def bar: Int = foo }"
