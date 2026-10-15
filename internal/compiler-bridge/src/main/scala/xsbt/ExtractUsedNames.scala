@@ -180,7 +180,10 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
         if (annotations.nonEmpty) atOwner(md.symbol) {
           annotations.foreach { annot =>
             if (annot.original != EmptyTree) traverse(annot.original)
-            else annot.args.foreach(traverse)
+            else {
+              addTypeNames(annot.atp)
+              annot.args.foreach(traverse)
+            }
           }
         }
       case _ =>
@@ -300,17 +303,19 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
           addSymbol(getNamesOfEnclosingScope, t.symbol)
         }
 
-        val tpe = t.tpe
-        if (!ignoredType(tpe)) {
-          // Initialize _currentOwner if it's not
-          val cache = getNamesOfEnclosingScope
-          TypeDependencyTraverser.setCacheAndOwner(cache, _currentOwner)
-          TypeDependencyTraverser.traverse(tpe)
-        }
+        addTypeNames(t.tpe)
       case l: Literal =>
         processOriginalTreeAttachment(l)(traverse)
       case _ =>
     }
+
+    private def addTypeNames(tpe: Type): Unit =
+      if (!ignoredType(tpe)) {
+        // Initialize _currentOwner if it's not
+        val cache = getNamesOfEnclosingScope
+        TypeDependencyTraverser.setCacheAndOwner(cache, _currentOwner)
+        TypeDependencyTraverser.traverse(tpe)
+      }
 
     private var _currentOwner: Symbol = _
     private var _currentNonLocalClass: Symbol = _

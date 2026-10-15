@@ -1,5 +1,0 @@
-{
-  "projects": [
-    { "name": "p", "scalaVersion": "2.13.y" }
-  ]
-}
