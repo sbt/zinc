@@ -27,6 +27,7 @@ object ExtractUsedNamesSpecification
     example("extract used names from the same compilation unit", sameUnit),
     property("extract the names of any members used in the same compilation unit", propSameUnit)
       .withTests(10),
+    example("extract names from annotations of definitions", annotations),
     // pending test for https://github.com/scala/bug/issues/7173
     example("extract names of constants", constants),
     // test for https://github.com/gkossakowski/sbt/issues/4
@@ -224,6 +225,22 @@ object ExtractUsedNamesSpecification
       val usedNames = extractUsedNamesFromSrc(src)
       (usedNames("A") ==== standardNames ++ Set("A", "Int") ++ used ++ plus).log(src)
     }
+
+  private def annotations: Result = {
+    val srcConsts = "object Consts { final val I = 1 }"
+    val srcAnn = "class MyAnn(x: Int) extends scala.annotation.StaticAnnotation"
+    val srcOnClass = "@MyAnn(Consts.I) class OnClass"
+    val srcOnMethod = "class OnMethod { @MyAnn(Consts.I) def f: Int = 1 }"
+    val srcOnParam = "class OnParam { def f(@MyAnn(Consts.I) x: Int): Int = x }"
+    val usedNames =
+      extractUsedNamesFromSrc(srcConsts, srcAnn, srcOnClass, srcOnMethod, srcOnParam)
+    val annotationNames = Set("MyAnn", "Consts", "I")
+    Result.all(
+      List("OnClass", "OnMethod", "OnParam").map { name =>
+        Result.diff(usedNames(name), annotationNames)((a, b) => b.subsetOf(a)).log(name)
+      }
+    )
+  }
 
   private def constants: Result = {
     val usedNames = extractUsedNamesFromSrc("class A { final val foo = 12; def bar: Int = foo }")

@@ -77,13 +77,26 @@ object DependencySpecification
     val srcConsts = "object Consts { final val Uid = 1L; final val I = 1 }"
     val srcAnn = "class MyAnn(x: Int) extends scala.annotation.StaticAnnotation"
     val srcFoo = "@SerialVersionUID(Consts.Uid) class Foo extends Serializable"
-    val srcBar = "class Bar { @MyAnn(Consts.I) def f: Int = 1 }"
+    val srcOnClass = "@MyAnn(Consts.I) class OnClass"
+    val srcOnMethod = "class OnMethod { @MyAnn(Consts.I) def f: Int = 1 }"
+    val srcOnParam = "class OnParam { def f(@MyAnn(Consts.I) x: Int): Int = x }"
     val memberRef =
-      extractDependenciesFromSrcs(srcConsts, srcAnn, srcFoo, srcBar).memberRef
+      extractDependenciesFromSrcs(
+        srcConsts,
+        srcAnn,
+        srcFoo,
+        srcOnClass,
+        srcOnMethod,
+        srcOnParam
+      ).memberRef
+    def includes(name: String, expected: Set[String]): Result =
+      Result.diff(memberRef(name), expected)((a, b) => b.subsetOf(a)).log(s"memberRef($name)")
     Result.all(
       List(
-        Result.diff(memberRef("Foo"), Set("Consts"))((a, b) => b.subsetOf(a)),
-        Result.diff(memberRef("Bar"), Set("MyAnn", "Consts"))((a, b) => b.subsetOf(a)),
+        includes("Foo", Set("Consts")),
+        includes("OnClass", Set("MyAnn", "Consts")),
+        includes("OnMethod", Set("MyAnn", "Consts")),
+        includes("OnParam", Set("MyAnn", "Consts")),
       )
     )
   }
