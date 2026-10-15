@@ -357,7 +357,7 @@ lazy val zincCore = (projectMatrix in internalPath / "zinc-core")
   .configure(addBaseSettingsAndTestDeps, addSbtIO, addSbtUtilLogging, addSbtUtilRelation)
 
 lazy val zincBenchmarks = (projectMatrix in internalPath / "zinc-benchmarks")
-  .dependsOn(zinc % "test->test")
+  .dependsOn(zinc % "test->test", zincApiInfo % "test->test")
   .enablePlugins(JmhPlugin)
   .settings(
     publish / skip := true,
@@ -368,6 +368,7 @@ lazy val zincBenchmarks = (projectMatrix in internalPath / "zinc-benchmarks")
       "net.openhft" % "affinity" % "2026.2",
     ),
     Test / javaOptions ++= List("-Xmx600M", "-Xms600M"),
+    Test / run / mainClass := Some("xsbt.GlobalBenchmarkSetup"),
     inConfig(Jmh)(
       List(
         // Rewire as described at the bottom of https://github.com/ktoso/sbt-jmh#adding-to-your-project
