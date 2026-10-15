@@ -284,4 +284,22 @@ class ExtractAPISpecification
     assert(withSelfType.map(_.name).toSet === Set("C3", "C4", "C5", "C6"))
     assert(withoutSelfType.map(_.name).toSet === Set("X", "Y", "C1", "C2", "C7", "C8"))
   }
+
+  // Annotation arguments are printed through one reused printer, whose buffer must be reset
+  // between annotations.
+  it should "print the arguments of static annotations" in {
+    val src =
+      """|class ann(x: Int, s: String) extends scala.annotation.StaticAnnotation
+         |class noArgs extends scala.annotation.StaticAnnotation
+         |class C {
+         |  @ann(1, "s") @noArgs @ann(-2, "t") def f = 1
+         |}
+         |""".stripMargin
+    val apis = extractApisFromSrc(src)
+    val c = apis.find(_.name == "C").get
+    val f = c.structure.declared.find(_.name == "f").get
+    val printed =
+      f.annotations.toList.map(a => a.arguments.toList.map(arg => (arg.name, arg.value)))
+    assert(printed === List(List(("", "(1,\"s\")")), List(("", "()")), List(("", "(-2,\"t\")"))))
+  }
 }
