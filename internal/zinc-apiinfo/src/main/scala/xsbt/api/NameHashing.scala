@@ -26,6 +26,10 @@ class NameHashing(optimizedSealed: Boolean) {
 
   import NameHashing._
 
+  // Reused across name groups and classes, which makes an instance unsafe to share between threads.
+  private[this] val hasher = HashAPI.forNameHashing(includeSealedChildren = !optimizedSealed)
+  private[this] lazy val patMatHasher = HashAPI.forNameHashing(includeSealedChildren = true)
+
   /**
    * This method takes an API representation and extracts a flat collection of all
    * definitions contained in that API representation. Then it groups definition
@@ -36,46 +40,50 @@ class NameHashing(optimizedSealed: Boolean) {
    * to order of definitions.
    */
   def nameHashes(classApi: ClassLike): Array[NameHash] = {
-    val apiPublicDefs = publicDefs(classApi)
-    val (regularDefs, implicitDefs) = apiPublicDefs.partition(deff => !deff.modifiers.isImplicit)
-    val location = Location(classApi.name, NameType(classApi.definitionType))
-
-    val forPatMat =
-      if (optimizedSealed) {
-        val classDefs = apiPublicDefs.collect {
-          case classLike: ClassLike if classLike.modifiers().isSealed =>
-            classLike
-        }
-        nameHashesForDefinitions(classDefs, location, UseScope.PatMatTarget)
-      } else Array.empty[NameHash]
-
-    nameHashesForDefinitions(regularDefs, location, UseScope.Default) ++
-      nameHashesForDefinitions(implicitDefs, location, UseScope.Implicit) ++ forPatMat
+    val defs = publicDefs(classApi)
+    val locationHash = Location(classApi.name, NameType(classApi.definitionType)).hashCode
+    val out = Array.newBuilder[NameHash]
+    val (regularDefs, implicitDefs) = defs.partition(d => !d.modifiers.isImplicit)
+    addNameHashes(regularDefs, locationHash, hasher, UseScope.Default, out)
+    addNameHashes(implicitDefs, locationHash, hasher, UseScope.Implicit, out)
+    if (optimizedSealed) {
+      val sealedClasses = defs.filter {
+        case classLike: ClassLike => classLike.modifiers().isSealed
+        case _                    => false
+      }
+      if (sealedClasses.nonEmpty) {
+        addNameHashes(sealedClasses, locationHash, patMatHasher, UseScope.PatMatTarget, out)
+      }
+    }
+    out.result()
   }
 
-  private def nameHashesForDefinitions(
-      defs: Iterable[Definition],
-      location: Location,
-      useScope: UseScope
-  ): Array[NameHash] = {
-    val includeSealedChildren = !optimizedSealed || useScope == UseScope.PatMatTarget
-    val groupedBySimpleName = defs.groupBy(locatedDef => localName(locatedDef.name))
-    groupedBySimpleName.iterator.map {
-      case (name, value) =>
-        NameHash.of(name, useScope, hashLocatedDefinitions(value, location, includeSealedChildren))
-    }.toArray
-  }
-
-  private def hashLocatedDefinitions(
-      defs: Iterable[Definition],
-      location: Location,
-      includeSealedChildren: Boolean
-  ): Int = {
-    HashAPI.apply(
-      _.hashDefinitionsWithExtraHash(defs, location.hashCode),
-      includeDefinitions = false,
-      includeSealedChildren = includeSealedChildren
-    )
+  /**
+   * Adds a name hash for each group of definitions in `defs` with the same local name.
+   *
+   * Each group is hashed in the order its definitions appear in `defs`, which matters as hashing
+   * one definition can record a visited class or structure that the next one reuses.
+   */
+  private def addNameHashes(
+      defs: Array[Definition],
+      locationHash: Int,
+      hasher: HashAPI,
+      scope: UseScope,
+      out: scala.collection.mutable.ArrayBuilder[NameHash]
+  ): Unit = {
+    val groups = StableGroups(defs, (d: Definition) => localName(d.name))
+    var g = 0
+    while (g < groups.size) {
+      hasher.reset()
+      hasher.hashDefinitionsWithExtraHash(
+        groups.elements,
+        groups.from(g),
+        groups.until(g),
+        locationHash
+      )
+      out += NameHash.of(groups.key(g), scope, hasher.finalizeHash)
+      g += 1
+    }
   }
 
   /**
@@ -103,10 +111,10 @@ class NameHashing(optimizedSealed: Boolean) {
       }
   }
 
-  private def publicDefs(c: ClassLike): Iterable[Definition] = {
+  private def publicDefs(c: ClassLike): Array[Definition] = {
     val visitor = new ExtractPublicDefinitions
     visitor.visitAPI(c)
-    visitor.defs
+    visitor.defs.toArray
   }
 
   private def localName(name: String): String = {
