@@ -26,6 +26,10 @@ class NameHashing(optimizedSealed: Boolean):
 
   import NameHashing.*
 
+  // Reused across name groups and classes, which makes an instance unsafe to share between threads.
+  private var hasher: HashAPI = null
+  private var patMatHasher: HashAPI = null
+
   /**
    * This method takes an API representation and extracts a flat collection of all
    * definitions contained in that API representation. Then it groups definition
@@ -36,44 +40,51 @@ class NameHashing(optimizedSealed: Boolean):
    * to order of definitions.
    */
   def nameHashes(classApi: ClassLike): Array[NameHash] =
-    val apiPublicDefs = publicDefs(classApi)
-    val (regularDefs, implicitDefs) = apiPublicDefs.partition(deff => !deff.modifiers.isImplicit)
-    val location = Location(classApi.name, NameType(classApi.definitionType))
-
-    val forPatMat =
+    val defs = publicDefs(classApi)
+    val locationHash = Location(classApi.name, NameType(classApi.definitionType)).hashCode
+    val sealedClasses =
       if optimizedSealed then
-        val classDefs = apiPublicDefs.collect {
-          case classLike: ClassLike if classLike.modifiers().isSealed =>
-            classLike
+        defs.collect {
+          case classLike: ClassLike if classLike.modifiers().isSealed => classLike: Definition
         }
-        nameHashesForDefinitions(classDefs, location, UseScope.PatMatTarget)
-      else Array.empty[NameHash]
+      else null
+    val out = Array.newBuilder[NameHash]
+    // A stable sort keeps each group in the order the definitions were found, which matters as
+    // hashing one definition can record a visited class or structure that the next one reuses.
+    java.util.Arrays.sort(defs, ByImplicitThenLocalName)
+    if hasher == null then hasher = HashAPI.forNameHashing(includeSealedChildren = !optimizedSealed)
+    addNameHashes(defs, locationHash, hasher, None, out)
+    if sealedClasses != null && sealedClasses.nonEmpty then
+      java.util.Arrays.sort(sealedClasses, ByLocalName)
+      if patMatHasher == null then
+        patMatHasher = HashAPI.forNameHashing(includeSealedChildren = true)
+      addNameHashes(sealedClasses, locationHash, patMatHasher, Some(UseScope.PatMatTarget), out)
+    out.result()
+  end nameHashes
 
-    nameHashesForDefinitions(regularDefs, location, UseScope.Default) ++
-      nameHashesForDefinitions(implicitDefs, location, UseScope.Implicit) ++ forPatMat
-
-  private def nameHashesForDefinitions(
-      defs: Iterable[Definition],
-      location: Location,
-      useScope: UseScope
-  ): Array[NameHash] =
-    val includeSealedChildren = !optimizedSealed || useScope == UseScope.PatMatTarget
-    val groupedBySimpleName = defs.groupBy(locatedDef => localName(locatedDef.name))
-    groupedBySimpleName.iterator.map {
-      case (name, value) =>
-        NameHash.of(name, useScope, hashLocatedDefinitions(value, location, includeSealedChildren))
-    }.toArray
-
-  private def hashLocatedDefinitions(
-      defs: Iterable[Definition],
-      location: Location,
-      includeSealedChildren: Boolean
-  ): Int =
-    HashAPI.apply(
-      _.hashDefinitionsWithExtraHash(defs, location.hashCode),
-      includeDefinitions = false,
-      includeSealedChildren = includeSealedChildren
-    )
+  /**
+   * Adds a name hash for each run of definitions in `defs` with the same local name and, unless
+   * `scope` is given, the same implicitness, which picks the scope.
+   */
+  private def addNameHashes(
+      defs: Array[Definition],
+      locationHash: Int,
+      hasher: HashAPI,
+      scope: Option[UseScope],
+      out: scala.collection.mutable.ArrayBuilder[NameHash]
+  ): Unit =
+    val comparator = if scope.isEmpty then ByImplicitThenLocalName else ByLocalName
+    var from = 0
+    while from < defs.length do
+      var until = from + 1
+      while until < defs.length && comparator.compare(defs(from), defs(until)) == 0 do until += 1
+      hasher.reset()
+      hasher.hashDefinitionsWithExtraHash(defs, from, until, locationHash)
+      val useScope = scope.getOrElse(
+        if defs(from).modifiers.isImplicit then UseScope.Implicit else UseScope.Default
+      )
+      out += NameHash.of(localName(defs(from).name), useScope, hasher.finalizeHash)
+      from = until
 
   /**
    * A visitor that visits given API object and extracts all nested public
@@ -98,10 +109,10 @@ class NameHashing(optimizedSealed: Boolean):
         defs += d
         super.visitDefinition(d)
 
-  private def publicDefs(c: ClassLike): Iterable[Definition] =
+  private def publicDefs(c: ClassLike): Array[Definition] =
     val visitor = new ExtractPublicDefinitions
     visitor.visitAPI(c)
-    visitor.defs
+    visitor.defs.toArray
 
   private def localName(name: String): String =
     // when there's no dot in name `lastIndexOf` returns -1 so we handle
@@ -125,6 +136,30 @@ object NameHashing:
     m.map { case ((name, scope), hash) => NameHash.of(name, scope, hash) }.toArray
 
   private case class LocatedDefinition(location: Location, definition: Definition)
+
+  /** Orders definitions by the name after the last dot, without allocating that name. */
+  private object ByLocalName extends java.util.Comparator[Definition]:
+    def compare(x: Definition, y: Definition): Int =
+      val a = x.name
+      val b = y.name
+      val aFrom = a.lastIndexOf('.') + 1
+      val bFrom = b.lastIndexOf('.') + 1
+      val aLen = a.length - aFrom
+      val bLen = b.length - bFrom
+      val len = math.min(aLen, bLen)
+      var i = 0
+      while i < len do
+        val diff = a.charAt(aFrom + i) - b.charAt(bFrom + i)
+        if diff != 0 then return diff
+        i += 1
+      aLen - bLen
+
+  /** Orders the non-implicit definitions before the implicit ones, then by local name. */
+  private object ByImplicitThenLocalName extends java.util.Comparator[Definition]:
+    def compare(x: Definition, y: Definition): Int =
+      java.lang.Boolean.compare(x.modifiers.isImplicit, y.modifiers.isImplicit) match
+        case 0    => ByLocalName.compare(x, y)
+        case diff => diff
 
   /**
    * Location is the fully qualified name of a class together with `nameType`
