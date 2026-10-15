@@ -71,15 +71,6 @@ object HashAPI:
     // super calls introduce accessors that are not part of the public API
     case d: Def => d.modifiers.isSuperAccessor
     case _      => false
-
-  // What `MurmurHash3.unorderedHash` makes of `n` element hashes, given their sum, xor and product.
-  private def symmetricHash(a: Int, b: Int, c: Int, n: Int): Hash =
-    import MurmurHash3.{ mix, mixLast }
-    var h = MurmurHash3.traversableSeed
-    h = mix(h, a)
-    h = mix(h, b)
-    h = mixLast(h, c)
-    MurmurHash3.finalizeHash(h, n)
 end HashAPI
 
 /**
@@ -116,6 +107,22 @@ final class HashAPI private (
 
   private var visitedStructures: mutable.HashMap[Structure, List[Hash]] = null
   private var visitedClassLike: mutable.HashMap[ClassLike, List[Hash]] = null
+  private val unordered = new UnorderedHashers
+
+  /**
+   * A symmetric hash hashes each element on its own, from a fresh `hash`, and combines their
+   * hashes without regard to order: `beginUnordered`, then `beginElement` and `endElement` around
+   * each element, then `endUnordered` to resume the enclosing hash and extend it with the result.
+   */
+  private def beginUnordered(): UnorderedHasher =
+    val elements = unordered.begin()
+    elements.outer = hash
+    elements
+  private def beginElement(): Unit = hash = 1
+  private def endElement(elements: UnorderedHasher): Unit = elements.add(finalizeHash)
+  private def endUnordered(elements: UnorderedHasher): Unit =
+    hash = elements.outer
+    extend(unordered.end(elements))
   private def visitedMap[T] = new mutable.HashMap[T, List[Hash]]
 
   /** Readies this hasher for another `doHashing`, as if it were new, keeping its allocations. */
@@ -188,27 +195,22 @@ final class HashAPI private (
    * a visited class or structure that the next one reuses.
    */
   final def hashSymmetric[T](ts: IterableOnce[T], hashF: T => Unit): Unit =
-    val current = hash
-    var a, b, n = 0
-    var c = 1
+    val elements = beginUnordered()
     ts match
       case xs: collection.IndexedSeq[T] @unchecked =>
-        val len = xs.length
-        while n < len do
-          val h = hashElement(xs(n), hashF)
-          a += h; b ^= h; c *= h | 1; n += 1
+        var i = 0
+        while i < xs.length do
+          beginElement()
+          hashF(xs(i))
+          endElement(elements)
+          i += 1
       case _ =>
         val it = ts.iterator
         while it.hasNext do
-          val h = hashElement(it.next(), hashF)
-          a += h; b ^= h; c *= h | 1; n += 1
-    hash = current
-    extend(HashAPI.symmetricHash(a, b, c, n))
-
-  private def hashElement[T](t: T, hashF: T => Unit): Hash =
-    hash = 1
-    hashF(t)
-    finalizeHash
+          beginElement()
+          hashF(it.next())
+          endElement(elements)
+    endUnordered(elements)
 
   @inline final def extend(a: Hash): Unit =
     hash = mix(hash, a)
@@ -261,18 +263,15 @@ final class HashAPI private (
       until: Int,
       extraHash: Hash
   ): Unit =
-    val current = hash
-    var a, b = 0
-    var c = 1
+    val elements = beginUnordered()
     var i = from
     while i < until do
-      hash = 1
+      beginElement()
       hashDefinition(ds(i))
       extend(extraHash)
-      val h = finalizeHash
-      a += h; b ^= h; c *= h | 1; i += 1
-    hash = current
-    extend(HashAPI.symmetricHash(a, b, c, until - from))
+      endElement(elements)
+      i += 1
+    endUnordered(elements)
   def hashDefinition(d: Definition): Unit =
     hashString(d.name)
     hashAnnotations(d.annotations)
@@ -381,16 +380,14 @@ final class HashAPI private (
   def hashTypes(ts: Array[Type], includeDefinitions: Boolean = true) =
     hashArray(ts, (t: Type) => hashType(t, includeDefinitions))
   def hashTypesSymmetric(ts: Array[Type], includeDefinitions: Boolean = true) =
-    val current = hash
-    var a, b, n = 0
-    var c = 1
-    while n < ts.length do
-      hash = 1
-      hashType(ts(n), includeDefinitions)
-      val h = finalizeHash
-      a += h; b ^= h; c *= h | 1; n += 1
-    hash = current
-    extend(HashAPI.symmetricHash(a, b, c, n))
+    val elements = beginUnordered()
+    var i = 0
+    while i < ts.length do
+      beginElement()
+      hashType(ts(i), includeDefinitions)
+      endElement(elements)
+      i += 1
+    endUnordered(elements)
   def hashType(t: Type, includeDefinitions: Boolean = true): Unit =
     t match
       case s: Structure     => hashStructure(s, includeDefinitions, false)
@@ -475,30 +472,25 @@ final class HashAPI private (
    * non-private definitions, then the private ones that break traits.
    */
   private def hashMemberDefinitions(ds: Array[ClassDefinition], isTrait: Boolean): Unit =
-    val current = hash
-    var a, b, n = 0
-    var c = 1
+    val elements = beginUnordered()
     var i = 0
     while i < ds.length do
       val d = ds(i)
       if includePrivate || APIUtil.isNonPrivate(d) then
-        hash = 1
+        beginElement()
         hashDefinition(d)
-        val h = finalizeHash
-        a += h; b ^= h; c *= h | 1; n += 1
+        endElement(elements)
       i += 1
     if isTrait && includeTraitBreakers then
       i = 0
       while i < ds.length do
         val d = ds(i)
         if HashAPI.isTraitBreaker(d) && HashAPI.isPrivate(d) then
-          hash = 1
+          beginElement()
           hashDefinition(d)
-          val h = finalizeHash
-          a += h; b ^= h; c *= h | 1; n += 1
+          endElement(elements)
         i += 1
-    hash = current
-    extend(HashAPI.symmetricHash(a, b, c, n))
+    endUnordered(elements)
   end hashMemberDefinitions
   def hashParameters(parameters: Array[TypeParameter], base: Type): Unit =
     hashTypeParameters(parameters)
