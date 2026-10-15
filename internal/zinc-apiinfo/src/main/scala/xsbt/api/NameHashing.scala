@@ -27,8 +27,8 @@ class NameHashing(optimizedSealed: Boolean):
   import NameHashing.*
 
   // Reused across name groups and classes, which makes an instance unsafe to share between threads.
-  private var hasher: HashAPI = null
-  private var patMatHasher: HashAPI = null
+  private val hasher = HashAPI.forNameHashing(includeSealedChildren = !optimizedSealed)
+  private lazy val patMatHasher = HashAPI.forNameHashing(includeSealedChildren = true)
 
   /**
    * This method takes an API representation and extracts a flat collection of all
@@ -43,7 +43,6 @@ class NameHashing(optimizedSealed: Boolean):
     val defs = publicDefs(classApi)
     val locationHash = Location(classApi.name, NameType(classApi.definitionType)).hashCode
     val out = Array.newBuilder[NameHash]
-    if hasher == null then hasher = HashAPI.forNameHashing(includeSealedChildren = !optimizedSealed)
     val (regularDefs, implicitDefs) = defs.partition(d => !d.modifiers.isImplicit)
     addNameHashes(regularDefs, locationHash, hasher, UseScope.Default, out)
     addNameHashes(implicitDefs, locationHash, hasher, UseScope.Implicit, out)
@@ -53,8 +52,6 @@ class NameHashing(optimizedSealed: Boolean):
         case _                    => false
       }
       if sealedClasses.nonEmpty then
-        if patMatHasher == null then
-          patMatHasher = HashAPI.forNameHashing(includeSealedChildren = true)
         addNameHashes(sealedClasses, locationHash, patMatHasher, UseScope.PatMatTarget, out)
     out.result()
 
