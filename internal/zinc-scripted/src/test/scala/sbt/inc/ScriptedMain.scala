@@ -19,14 +19,26 @@ import sbt.io.{ AllPassFilter, IO, NameFilter }
 object ScriptedMain:
   private val DisableBuffering = "--no-buffer"
   private val CompileToJar = "--to-jar"
+  private val Parallelism = "--parallelism="
   private val Flags = Set(DisableBuffering, CompileToJar)
+
+  def defaultParallelism: Int = Runtime.getRuntime.availableProcessors()
 
   def main(args: Array[String]): Unit =
     val compileToJar = args.contains(CompileToJar)
     val disableBuffering = args.contains(DisableBuffering)
-    val tests = args.filterNot(Flags.contains)
+    val parallelism = args.collectFirst {
+      case arg if arg.startsWith(Parallelism) => arg.stripPrefix(Parallelism).toInt
+    }
+    val tests = args.filterNot(arg => Flags.contains(arg) || arg.startsWith(Parallelism))
     val baseDir = BuildInfo.sourceDirectory / "sbt-test"
-    run(baseDir, buffer = !disableBuffering, compileToJar, tests)
+    run(
+      baseDir,
+      buffer = !disableBuffering,
+      compileToJar,
+      parallelism.getOrElse(defaultParallelism),
+      tests
+    )
 
   def detectScriptedTests(scriptedBase: File): Map[String, Set[String]] =
     val scriptedFiles: NameFilter = ("test": NameFilter) | "pending"
@@ -60,6 +72,7 @@ object ScriptedMain:
       baseDir: File,
       buffer: Boolean,
       compileToJar: Boolean,
+      parallelism: Int,
       testSpecs: Array[String],
   ): Unit =
     val foundTests = detectScriptedTests(baseDir)
@@ -73,10 +86,10 @@ object ScriptedMain:
     IO.withTemporaryDirectory { tempDir =>
       // Create a global temporary directory to store the bridge et al
       val handlers = new IncScriptedHandlers(tempDir.toPath, compileToJar)
-      ScriptedRunnerImpl.run(baseDir.toPath, buffer, tests, handlers, 4)
+      ScriptedRunnerImpl.run(baseDir.toPath, buffer, tests, handlers, parallelism)
     }
 
-  private def fail(msg: String): Nothing =
-    println(msg)
-    sys.exit(1)
+  private final class InvalidTestSpec(msg: String) extends RuntimeException(msg, null, false, false)
+
+  private def fail(msg: String): Nothing = throw new InvalidTestSpec(msg)
 end ScriptedMain

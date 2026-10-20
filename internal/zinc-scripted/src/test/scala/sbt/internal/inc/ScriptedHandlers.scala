@@ -16,18 +16,9 @@ import java.nio.file.Path
 import sbt.internal.scripted.*
 import sbt.internal.util.ManagedLogger
 
-class SleepingHandler(val handler: StatementHandler, delay: Long) extends StatementHandler:
-  type State = handler.State
-  override def initialState: State = handler.initialState
-  override def apply(command: String, arguments: List[String], state: State): State =
-    val result = handler.apply(command, arguments, state)
-    Thread.sleep(delay)
-    result
-  override def finish(state: State) = handler.finish(state)
-
 class IncScriptedHandlers(globalCacheDir: Path, compileToJar: Boolean) extends HandlersProvider:
   def getHandlers(config: ScriptConfig): Map[Char, StatementHandler] = Map(
-    '$' -> new SleepingHandler(new ZincFileCommands(config.testDirectory, config.logger), 500),
+    '$' -> new ZincFileCommands(config.testDirectory, config.logger),
     '#' -> CommentHandler,
     '>' -> {
       val logger = config.logger().asInstanceOf[ManagedLogger]
