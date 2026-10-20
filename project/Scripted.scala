@@ -8,6 +8,7 @@ object Scripted:
   def scriptedPath = file("scripted")
   val scriptedSource = settingKey[File]("")
   val scriptedCompileToJar = settingKey[Boolean]("Compile directly to jar in scripted tests")
+  val scriptedParallelism = settingKey[Int]("Number of scripted tests to run at once")
 
   import sbt.complete.*
   import DefaultParsers.*
@@ -61,6 +62,7 @@ object Scripted:
       args: Seq[String],
       bufferLog: Boolean,
       compileToJar: Boolean,
+      parallelism: Int,
   ): Unit =
     val noJLine =
       new classpath.FilteredLoader(scriptedSbtInstance.loader, "xsbti." :: "jline." :: Nil)
@@ -72,6 +74,7 @@ object Scripted:
       classOf[File],
       classOf[Boolean],
       classOf[Boolean],
+      classOf[Int],
       classOf[Array[String]]
     )
     try
@@ -80,6 +83,7 @@ object Scripted:
         sourcePath,
         java.lang.Boolean.valueOf(bufferLog),
         java.lang.Boolean.valueOf(compileToJar),
+        Integer.valueOf(parallelism),
         args.toArray
       )
     catch case ite: java.lang.reflect.InvocationTargetException => throw ite.getCause
