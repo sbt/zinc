@@ -13,7 +13,7 @@ package sbt
 package internal
 package inc
 
-import java.io.{ ByteArrayOutputStream, PrintStream }
+import java.io.{ ByteArrayOutputStream, OutputStream, PrintStream }
 import java.nio.file.{ Files, Path, Paths, StandardCopyOption }
 import java.net.URLClassLoader
 import java.util.jar.Manifest
@@ -628,16 +628,15 @@ case class ProjectStructure(
           val cp = (jars ++ (unmanagedJars :+ output) ++ internalClasspath).map(_.toAbsolutePath)
           val loader = ClasspathUtil.makeLoader(cp.toIndexedSeq, i.si, baseDirectory)
           val buffer = new ByteArrayOutputStream(8192)
-          val oldOut = System.out
           try
-            System.setOut(new PrintStream(buffer))
-            invokeMain(loader, getMainMethod(mainClassName, loader), params)
+            ThreadLocalOut.capture(new PrintStream(buffer)) {
+              invokeMain(loader, getMainMethod(mainClassName, loader), params)
+            }
           catch
             case t: Throwable =>
-              buffer.writeTo(oldOut)
+              buffer.writeTo(System.out)
               throw t
           finally
-            System.setOut(oldOut)
             loader match
               case f: ClasspathFilter => f.close()
         case Seq() => throw new TestFailed(s"Did not find any main class")
@@ -965,3 +964,39 @@ object IncHandler:
 
   private[internal] final val classLoaderCache =
     Some(new ClassLoaderCache(new URLClassLoader(Array())))
+
+/**
+ * Lets each thread send `System.out` to a stream of its own, so that tests running at once can
+ * each capture the output of the program they run.
+ *
+ * Setting `System.out` from each test instead is a race: a test can restore the stream of another
+ * test that has finished, after which all output goes to that test's buffer. Programs that print
+ * with `scala.Console` also keep the `System.out` of the time `Console` was initialized, in a
+ * Scala library loader that outlives the tests, so the stream they keep must route by thread too.
+ */
+private[inc] object ThreadLocalOut:
+  private val target = new ThreadLocal[PrintStream]
+  @volatile private var fallback: PrintStream = System.out
+
+  private val routed: PrintStream =
+    val out = new OutputStream:
+      private def current: PrintStream = Option(target.get).getOrElse(fallback)
+      override def write(b: Int): Unit = current.write(b)
+      override def write(b: Array[Byte], off: Int, len: Int): Unit = current.write(b, off, len)
+      override def flush(): Unit = current.flush()
+    new PrintStream(out, true)
+
+  /** Routes `System.out` by thread while `body` runs. */
+  def install[A](body: => A): A =
+    val original = System.out
+    fallback = original
+    System.setOut(routed)
+    try body
+    finally System.setOut(original)
+
+  /** Sends the `System.out` output of this thread to `out` while `body` runs. */
+  def capture[A](out: PrintStream)(body: => A): A =
+    target.set(out)
+    try body
+    finally target.remove()
+end ThreadLocalOut

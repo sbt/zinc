@@ -45,8 +45,10 @@ object ScriptedRunnerImpl:
     val scriptedRunners = runner.scriptedRunners(scriptedTests)
     val pool = Executors.newFixedThreadPool(parallelism.max(1), threadFactory)
     try
-      val results = scriptedRunners.map(r => pool.submit(() => r()))
-      reportErrors(results.flatMap(_.get()), scriptedRunners.size)
+      ThreadLocalOut.install {
+        val results = scriptedRunners.map(r => pool.submit(() => r()))
+        reportErrors(results.flatMap(_.get()), scriptedRunners.size)
+      }
     finally
       pool.shutdownNow()
       globalLogger.info(s"Log files of all scripted tests run: ${logsDir.absolutePath}")
