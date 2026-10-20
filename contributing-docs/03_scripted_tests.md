@@ -71,6 +71,8 @@ sbt "scripted source-dependencies/abstract-class-to-trait"   # one test
 sbt "scripted source-dependencies/*"                         # one group
 ```
 
+Tests run at once, one per core; `set localzinc.Scripted.scriptedParallelism := 1` runs them one at a time. Each test runs in its own temporary copy of its directory and writes a debug log of its own, in the directory named at the end of the run. Nothing waits between steps, so a test whose assertions compare modification times needs its own `$ sleep`.
+
 `incOptions.properties`
 -----------------------
 
