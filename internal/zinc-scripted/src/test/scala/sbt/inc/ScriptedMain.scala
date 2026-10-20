@@ -89,7 +89,7 @@ object ScriptedMain:
       ScriptedRunnerImpl.run(baseDir.toPath, buffer, tests, handlers, parallelism)
     }
 
-  private def fail(msg: String): Nothing =
-    println(msg)
-    sys.exit(1)
+  private final class InvalidTestSpec(msg: String) extends RuntimeException(msg, null, false, false)
+
+  private def fail(msg: String): Nothing = throw new InvalidTestSpec(msg)
 end ScriptedMain
