@@ -689,6 +689,17 @@ def bridges =
     )
 
 /**
+ * Scripted tests load the compiler bridges built from this repository from their class directories,
+ * so they need them compiled but not published.
+ */
+def scriptedBridges = List(
+  compilerBridge210 / Compile / compile,
+  compilerBridge211 / Compile / compile,
+  compilerBridge212 / Compile / compile,
+  compilerBridge213 / Compile / compile,
+)
+
+/**
  * These tests load the compiler bridges and pass options to the forked JVM, neither of which
  * sbt's incremental `test` sees as an input.
  */
@@ -731,4 +742,4 @@ def scriptedTask: Def.Initialize[InputTask[Unit]] = Def.inputTask {
     scriptedCompileToJar.value,
     scriptedParallelism.value,
   )
-}.dependsOn(publishBridges)
+}.dependsOn(scriptedBridges*)
