@@ -711,9 +711,13 @@ case class ProjectStructure(
         // wait for the full compilation from the dependencies
         // during pipelining, downstream compilation may complete before the upstream
         // to avoid deletion of directories etc, we need to wait for the upstream to finish
+        val settledDeps =
+          wholeDeps.transformWith(deps =>
+            futureScalaAnalysis.transformWith(_ => Future.fromTry(deps))
+          )
         val f =
           for
-            pj <- wholeDeps
+            pj <- settledDeps
             a0 <- futureScalaAnalysis
             a <- futureJavaAnalysis(pj, a0)
           yield a
