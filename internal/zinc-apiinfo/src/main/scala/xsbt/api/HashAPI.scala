@@ -41,6 +41,36 @@ object HashAPI:
 
     doHashing(hasher)
     hasher.finalizeHash
+
+  /**
+   * A hasher for the definitions of one name group, as `NameHashing` uses it. It is meant to be
+   * reused across groups, calling `reset` before each.
+   */
+  private[api] def forNameHashing(includeSealedChildren: Boolean): HashAPI =
+    new HashAPI(
+      includePrivate = false,
+      includeParamNames = true,
+      includeDefinitions = false,
+      includeSealedChildren = includeSealedChildren,
+      includeTraitBreakers = false
+    )
+
+  // Any private definition in a trait is required to be concrete
+  private def isPrivate(d: Definition): Boolean =
+    d.access match
+      case _: xsbti.api.Private => true;
+      case _                    => false
+
+  private def isTraitBreaker(d: Definition): Boolean = d match
+    // Vars and vals in traits introduce getters, setters and fields in the implementing classes.
+    // See test `source-dependencies/trait-private-var
+    case _: FieldLike => true
+    // Objects in traits introduce fields in the implementing classes.
+    // See test `source-dependencies/trait-private-object`
+    case cl: ClassLikeDef => cl.definitionType == DefinitionType.Module
+    // super calls introduce accessors that are not part of the public API
+    case d: Def => d.modifiers.isSuperAccessor
+    case _      => false
 end HashAPI
 
 /**
@@ -73,11 +103,33 @@ final class HashAPI private (
     )
 
   import scala.collection.mutable
-  import MurmurHash3.{ mix, stringHash, unorderedHash }
+  import MurmurHash3.{ mix, stringHash }
 
-  private val visitedStructures = visitedMap[Structure]
-  private val visitedClassLike = visitedMap[ClassLike]
+  private var visitedStructures: mutable.HashMap[Structure, List[Hash]] = null
+  private var visitedClassLike: mutable.HashMap[ClassLike, List[Hash]] = null
+  private val unordered = new UnorderedHashers
+
+  /**
+   * A symmetric hash hashes each element on its own, from a fresh `hash`, and combines their
+   * hashes without regard to order: `beginUnordered`, then `beginElement` and `endElement` around
+   * each element, then `endUnordered` to resume the enclosing hash and extend it with the result.
+   */
+  private def beginUnordered(): UnorderedHasher =
+    val elements = unordered.begin()
+    elements.outer = hash
+    elements
+  private def beginElement(): Unit = hash = 1
+  private def endElement(elements: UnorderedHasher): Unit = elements.add(finalizeHash)
+  private def endUnordered(elements: UnorderedHasher): Unit =
+    hash = elements.outer
+    extend(unordered.end(elements))
   private def visitedMap[T] = new mutable.HashMap[T, List[Hash]]
+
+  /** Readies this hasher for another `doHashing`, as if it were new, keeping its allocations. */
+  private[api] def reset(): Unit =
+    hash = 0
+    if visitedStructures != null && visitedStructures.nonEmpty then visitedStructures.clear()
+    if visitedClassLike != null && visitedClassLike.nonEmpty then visitedClassLike.clear()
   private def visit[T](map: mutable.Map[T, List[Hash]], t: T)(hashF: T => Unit): Unit =
     map.put(t, hash :: map.getOrElse(t, Nil)) match
       case Some(x :: _) => extend(x)
@@ -136,26 +188,29 @@ final class HashAPI private (
     while i < s.length do
       hashF(s(i))
       i += 1
+
+  /**
+   * Extends the hash with `MurmurHash3.unorderedHash` of the hashes of `ts`, each hashed by
+   * `hashF` from a fresh state. The elements are still hashed in order, as hashing one can record
+   * a visited class or structure that the next one reuses.
+   */
   final def hashSymmetric[T](ts: IterableOnce[T], hashF: T => Unit): Unit =
-    val current = hash
-    val tsHash: Hash = ts match
-      case ts: collection.Iterable[T] @unchecked =>
-        // Avoid creation of a temporary collection and avoid boxing of hashCodes by passing
-        // this iterator to `unorderedHash`. It returns itself each time with a different hashCode.
-        class HashIterator(delegate: Iterator[T]) extends Iterator[AnyRef]:
-          override def hasNext: Boolean = delegate.hasNext
-          def next(): AnyRef =
-            hash = 1; hashF(delegate.next()); this
-          override def hashCode: Int = finalizeHash
-        unorderedHash(new HashIterator(ts.iterator))
+    val elements = beginUnordered()
+    ts match
+      case xs: collection.IndexedSeq[T] @unchecked =>
+        var i = 0
+        while i < xs.length do
+          beginElement()
+          hashF(xs(i))
+          endElement(elements)
+          i += 1
       case _ =>
-        unorderedHash(ts.iterator.to(List).map { t =>
-          hash = 1
-          hashF(t)
-          finalizeHash
-        })
-    hash = current
-    extend(tsHash)
+        val it = ts.iterator
+        while it.hasNext do
+          beginElement()
+          hashF(it.next())
+          endElement(elements)
+    endUnordered(elements)
 
   @inline final def extend(a: Hash): Unit =
     hash = mix(hash, a)
@@ -175,23 +230,7 @@ final class HashAPI private (
   def hashPackage(p: Package) = hashString(p.name)
 
   def hashDefinitions(ds: Seq[Definition], topLevel: Boolean, isTrait: Boolean): Unit =
-    // Any private definition in a trait is required to be concrete
-    def isPrivate(d: Definition): Boolean =
-      d.access match
-        case _: xsbti.api.Private => true;
-        case _                    => false
-
-    def isTraitBreaker(d: Definition): Boolean = d match
-      // Vars and vals in traits introduce getters, setters and fields in the implementing classes.
-      // See test `source-dependencies/trait-private-var
-      case _: FieldLike => true
-      // Objects in traits introduce fields in the implementing classes.
-      // See test `source-dependencies/trait-private-object`
-      case cl: ClassLikeDef => cl.definitionType == DefinitionType.Module
-      // super calls introduce accessors that are not part of the public API
-      case d: Def => d.modifiers.isSuperAccessor
-      case _      => false
-
+    import HashAPI.{ isPrivate, isTraitBreaker }
     val requiresPrivateDefinitions = isTrait && includeTraitBreakers && !topLevel
     // Get private definitions that break trait properties in incremental compilation
     val extraPrivateDefinitions =
@@ -216,6 +255,23 @@ final class HashAPI private (
       hashDefinition(d)
       extend(extraHash)
     hashSymmetric(ds, hashDefinitionCombined)
+
+  /** `hashDefinitionsWithExtraHash` of `ds(from until until)`. */
+  private[api] def hashDefinitionsWithExtraHash(
+      ds: Array[? <: Definition],
+      from: Int,
+      until: Int,
+      extraHash: Hash
+  ): Unit =
+    val elements = beginUnordered()
+    var i = from
+    while i < until do
+      beginElement()
+      hashDefinition(ds(i))
+      extend(extraHash)
+      endElement(elements)
+      i += 1
+    endUnordered(elements)
   def hashDefinition(d: Definition): Unit =
     hashString(d.name)
     hashAnnotations(d.annotations)
@@ -232,7 +288,10 @@ final class HashAPI private (
     extend(ClassDefHash)
     extend(c.definitionType.ordinal)
     hashParameterizedDefinition(c)
-  final def hashClass(c: ClassLike): Unit = visit(visitedClassLike, c)(hashClass0)
+  final def hashClass(c: ClassLike): Unit =
+    if visitedClassLike == null then visitedClassLike = visitedMap
+    visit(visitedClassLike, c)(hashClass0Fn)
+  private val hashClass0Fn = (c: ClassLike) => hashClass0(c)
   def hashClass0(c: ClassLike): Unit =
     extend(ClassHash)
     // A trait/class change can also add or remove `<init>`, but only constructor callers use
@@ -321,7 +380,14 @@ final class HashAPI private (
   def hashTypes(ts: Array[Type], includeDefinitions: Boolean = true) =
     hashArray(ts, (t: Type) => hashType(t, includeDefinitions))
   def hashTypesSymmetric(ts: Array[Type], includeDefinitions: Boolean = true) =
-    hashSymmetric(ts, hashType(_, includeDefinitions))
+    val elements = beginUnordered()
+    var i = 0
+    while i < ts.length do
+      beginElement()
+      hashType(ts(i), includeDefinitions)
+      endElement(elements)
+      i += 1
+    endUnordered(elements)
   def hashType(t: Type, includeDefinitions: Boolean = true): Unit =
     t match
       case s: Structure     => hashStructure(s, includeDefinitions, false)
@@ -378,6 +444,7 @@ final class HashAPI private (
     hashAnnotations(a.annotations)
 
   def hashStructure(structure: Structure, includeDefinitions: Boolean, isTrait: Boolean) =
+    if visitedStructures == null then visitedStructures = visitedMap
     visit(visitedStructures, structure)(hashStructure0(includeDefinitions, isTrait))
 
   // Hoisted functions to reduce allocation.
@@ -397,8 +464,34 @@ final class HashAPI private (
     extend(StructureHash)
     hashTypes(structure.parents, includeDefinitions)
     if includeDefinitions then
-      hashDefinitions(structure.declared.toIndexedSeq, false, isTrait)
-      hashDefinitions(structure.inherited.toIndexedSeq, false, isTrait)
+      hashMemberDefinitions(structure.declared, isTrait)
+      hashMemberDefinitions(structure.inherited, isTrait)
+
+  /**
+   * `hashDefinitions(ds, topLevel = false, isTrait)` without the intermediate collections: the
+   * non-private definitions, then the private ones that break traits.
+   */
+  private def hashMemberDefinitions(ds: Array[ClassDefinition], isTrait: Boolean): Unit =
+    val elements = beginUnordered()
+    var i = 0
+    while i < ds.length do
+      val d = ds(i)
+      if includePrivate || APIUtil.isNonPrivate(d) then
+        beginElement()
+        hashDefinition(d)
+        endElement(elements)
+      i += 1
+    if isTrait && includeTraitBreakers then
+      i = 0
+      while i < ds.length do
+        val d = ds(i)
+        if HashAPI.isTraitBreaker(d) && HashAPI.isPrivate(d) then
+          beginElement()
+          hashDefinition(d)
+          endElement(elements)
+        i += 1
+    endUnordered(elements)
+  end hashMemberDefinitions
   def hashParameters(parameters: Array[TypeParameter], base: Type): Unit =
     hashTypeParameters(parameters)
     hashType(base)
