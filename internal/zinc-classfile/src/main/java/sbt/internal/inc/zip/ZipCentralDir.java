@@ -280,6 +280,10 @@ public final class ZipCentralDir {
             return this.nameAsString;
         }
 
+        public final byte[] getNameBytes() {
+            return name;
+        }
+
         final IndexNode as(byte[] name) {           // reuse the node, mostly
             setName(name);                             // as a lookup "key"
             return this;
@@ -469,6 +473,26 @@ public final class ZipCentralDir {
 
         public final  void setEntryOffset(long value) {
             this.locoff = value;
+        }
+
+        public final int getFlag() {
+            return flag;
+        }
+
+        public final int getMethod() {
+            return method;
+        }
+
+        public final long getCrc() {
+            return crc;
+        }
+
+        public final long getCompressedSize() {
+            return csize;
+        }
+
+        public final long getSize() {
+            return size;
         }
 
         int version() throws ZipException {
