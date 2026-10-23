@@ -1,0 +1,5 @@
+> run 1
+
+# Foo refers to Consts.Uid only in an annotation argument
+$ copy-file changes/Consts.scala Consts.scala
+> run 2
