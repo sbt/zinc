@@ -15,7 +15,7 @@ package inc
 
 import java.io.File
 import java.nio.channels.FileChannel
-import java.nio.file.{ Files, Path, Paths, StandardOpenOption }
+import java.nio.file.{ Files, Path, StandardOpenOption }
 import java.util as ju
 import ju.{ EnumSet, Optional, UUID }
 import ju.concurrent.atomic.AtomicBoolean
@@ -379,7 +379,7 @@ object Incremental:
       val idx = scalacOptions.indexOf("-Ypickle-write")
       val p =
         if !isPickleWrite || scalacOptions.size <= idx + 1 then None
-        else Some(Paths.get(scalacOptions(idx + 1)))
+        else Some(converter.toPath(VirtualFileRef.of(scalacOptions(idx + 1))))
       (p, earlyJar) match
         case (None, _) =>
           if isPickleWrite then log.warn(s"expected -Ypickle-write <path> but <path> is missing")

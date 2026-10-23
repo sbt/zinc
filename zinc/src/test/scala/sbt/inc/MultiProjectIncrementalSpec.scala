@@ -103,6 +103,23 @@ class MultiProjectIncrementalSpec extends BaseCompilerSpec:
     }
   }
 
+  "it" should "accept a -Ypickle-write path given as a virtual file id" in
+    (IO.withTemporaryDirectory { tmp =>
+      val p1 = VirtualSubproject(tmp.toPath / "sub1")
+      val c1 = p1.setup.createCompiler()
+      try
+        val earlyId = c1.toVf(c1.earlyOutput).id
+        assert(earlyId.startsWith("${BASE}/"), earlyId)
+        val machinePath = c1.earlyOutput.toString
+        val f1 = StringVirtualFile("A.scala", "package pkg; class A")
+        c1.doCompileWithStore(newInputs = in =>
+          val opts = in.options
+          val scalacOpts = opts.scalacOptions.map(o => if o == machinePath then earlyId else o)
+          in.withOptions(opts.withScalacOptions(scalacOpts).withSources(Array(f1))))
+        assert(Files.exists(c1.earlyOutput), s"${c1.earlyOutput} does not exist")
+      finally c1.close()
+    })
+
   "it" should "not compile Java for no-op" in
     (IO.withTemporaryDirectory { tmp =>
       val p1 = VirtualSubproject(tmp.toPath / "sub1")
