@@ -7,46 +7,57 @@ project.
 - To run all of them, run `test` in the sbt shell.
 - You can run a single test suite with `testOnly **.FooTest`.
 - You can run an incremental test as `testQuick`.
-- You can run an incremental test scoped to a subproject as `commandProj/testQuick`
+- You can run an incremental test scoped to a subproject as `zincCore/testQuick`
+
+Zinc contains several testing frameworks: HedgeHog, Verify, ScalaCheck, and ScalaTest.
+Our preferred unit testing framework for new tests is HedgeHog.
 
 Property-based testing with HedgeHog
 ------------------------------------
 
-sbt contains various testing frameworks, but our preferred unit testing framework is HedgeHog.
+HedgeHog is a test dependency of every Scala 3 subproject, added by `addTestDependencies`
+in `project/Dependencies.scala`. sbt detects the HedgeHog test framework automatically.
+
+Zinc's test sources live in the `sbt` package, and `import hedgehog.*` brings in
+a `hedgehog.sbt` package that shadows it, breaking imports such as `sbt.io.IO`.
+Mask it in the import with `import hedgehog.{ sbt as _, * }`.
+
+See [internal/zinc-core/src/test/scala/sbt/internal/inc/MappedFileConverterRefSpec.scala](../internal/zinc-core/src/test/scala/sbt/internal/inc/MappedFileConverterRefSpec.scala) for an example.
 
 ```scala
 package sbt
 package internal
+package inc
 
-import hedgehog.*
+import hedgehog.{ sbt as _, * }
 import hedgehog.runner.*
-import hedgehog.core.{ ShrinkLimit, SuccessCount }
-import hedgehog.core.Result
-import scala.sys.process.Process
+import java.nio.file.{ Files, Path }
+import sbt.io.IO
 
-object WorkerExchangeTest extends Properties:
-  given Gen[WorkerConnection] =
-    Gen.choice1(Gen.constant(WorkerConnection.Stdio), Gen.constant(WorkerConnection.Tcp))
-
-  def gen[A1: Gen]: Gen[A1] = summon[Gen[A1]]
-
-  override lazy val tests: List[Test] = List(
-    propertyN("non-jsonrpc should return exit code 1", propBadInput, 10),
+object MappedFileConverterRefSpec extends Properties:
+  override def tests: List[Test] = List(
+    property("the id agrees with toVirtualFile", propAgreesWithToVirtualFile),
   )
 
-  def propertyN(name: String, result: => Property, n: Int): Test =
-    Test(name, result)
-      .config(_.copy(testLimit = SuccessCount(n), shrinkLimit = ShrinkLimit(n * 10)))
+  private def genSegments: Gen[List[String]] =
+    Gen.list(Gen.string(Gen.alphaNum, Range.linear(1, 8)), Range.linear(1, 4))
 
-  def propBadInput: Property =
+  def propAgreesWithToVirtualFile: Property =
     for
-      ct <- gen[WorkerConnection].forAll
-      w = WorkerExchange.startWorker(ForkOptions(), Nil, ct)
-    yield
-      w.println("{}")
-      val exitCode = w.blockForExitCode()
-      Result.assert(exitCode == 1)
-end WorkerExchangeTest
+      underRoot <- Gen.boolean.forAll
+      segments <- genSegments.forAll
+    yield withTempDir { dir =>
+      val out = Files.createDirectories(dir.resolve("out"))
+      val base = if underRoot then out else dir.resolve("elsewhere")
+      val path = segments.foldLeft(base)(_.resolve(_)).resolve("x.jar")
+      val converter = MappedFileConverter(Map("OUT" -> out), allowMachinePath = true)
+      (converter.toVirtualFileRef(path).id ==== converter.toVirtualFile(path).id)
+        .log(s"path: $path")
+    }
+
+  private def withTempDir(f: Path => Result): Result =
+    IO.withTemporaryDirectory(d => f(d.toPath))
+end MappedFileConverterRefSpec
 ```
 
 Unit testing with HedgeHog
@@ -55,44 +66,50 @@ Unit testing with HedgeHog
 HedgeHog can be used for simple unit testing as well using `example(...)`:
 
 ```scala
-package sbt.internal.util
-
-import hedgehog.*
-import hedgehog.runner.*
-
-object SourcePositionTest extends Properties:
+object MappedFileConverterRefSpec extends Properties:
   override def tests: List[Test] = List(
-    example(
-      "SourcePosition() should return a SourcePosition", {
-        val filename = "SourcePositionTest.scala"
-        val lineNumber = 19
-        SourcePosition.fromEnclosing() match
-          case pos @ LinePosition(path, startLine) =>
-            Result.assert(path == filename && startLine == lineNumber)
-              .log(pos.toString())
-      }
-    )
+    example("a directory under a root is encoded without listing it", directoryNotListed),
   )
-end SourcePositionTest
+
+  private def directoryNotListed: Result = withTempDir { dir =>
+    val out = Files.createDirectories(dir.resolve("out"))
+    val classes = Files.createDirectories(out.resolve("a/classes"))
+    val converter = MappedFileConverter(Map("OUT" -> out), allowMachinePath = false)
+    val ref = converter.toVirtualFileRef(classes)
+    Result.all(
+      List(
+        ref.id ==== "${OUT}/a/classes",
+        Result.assert(!ref.isInstanceOf[VirtualFile]).log(s"ref: ${ref.getClass}"),
+      )
+    )
+  }
+end MappedFileConverterRefSpec
 ```
 
 Unit testing with Verify
 ------------------------
 
-Verify can also be used for unit tests:
+Verify is available in every subproject, and can be used for unit tests:
 
 ```scala
-package sbt.util
+package sbt
+package internal
+package inc
 
-import sjsonnew.BasicJsonProtocol
-import sjsonnew.support.murmurhash.Hasher
-import verify.BasicTestSuite
+import verify.*
 
-object HasherTest extends BasicTestSuite:
-  test("The IntJsonFormat should convert an Int to an int hash") {
-    import BasicJsonProtocol.given
-    val actual = Hasher.hashUnsafe[Int](1)
-    assert(actual == 1527037976)
+object VirtualDirectoryTest extends BasicTestSuite:
+  test("subdirectory") {
+    val root = BasicVirtualDirectory.newRoot
+    val sub1 = root.subdirectoryNamed("sub1")
+    assert(sub1.id == "/sub1/")
+    assert(sub1.names.toList == List("sub1"))
   }
-end HasherTest
+end VirtualDirectoryTest
 ```
+
+ScalaTest
+---------
+
+Many existing tests extend `UnitSpec`, a ScalaTest `AnyFlatSpec` base class in `zinc-testing`.
+Keep using it when extending those suites, but prefer HedgeHog for new test suites.
