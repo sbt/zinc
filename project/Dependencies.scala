@@ -73,6 +73,7 @@ object Dependencies:
   val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.20.0"
   val scalatest = "org.scalatest" %% "scalatest" % "3.2.20"
   val verify = "com.eed3si9n.verify" %% "verify" % "1.0.0"
+  val hedgehog = "qa.hedgehog" %% "hedgehog-sbt" % "0.13.0"
   val sjsonnew = Def.setting {
     "com.eed3si9n" %% "sjson-new-core" % sjsonNewVersion
   }
@@ -88,6 +89,7 @@ object Dependencies:
         scalaCheck % Test,
         scalatest % Test,
         verify % Test,
+        hedgehog % Test,
       )
     )
 end Dependencies

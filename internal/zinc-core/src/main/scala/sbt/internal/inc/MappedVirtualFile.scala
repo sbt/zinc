@@ -103,19 +103,12 @@ class MappedFileConverter(val rootPaths: Map[String, Path], allowMachinePath: Bo
         (!Files.exists(path) && path.getFileName.toString().endsWith(
           "classes"
         ))
-    rootPaths2.find { case (_, rootPath) => path.startsWith(rootPath) } match
-      case Some((key, rootPath)) =>
-        val encodedPath = s"$${$key}/${rootPath.relativize(path)}".replace('\\', '/')
+    encode(path) match
+      case Some(encodedPath) =>
         if isDirectory then toDirectory(path, encodedPath)
         else MappedVirtualFile(encodedPath, rootPaths)
       case _ =>
-        def isCtSym =
-          path.getFileSystem
-            .provider()
-            .getScheme == "jar" && path.getFileSystem.toString.endsWith("ct.sym")
-        def isJrt = path.getFileSystem.provider().getScheme == "jrt"
-        if isJrt || path.getFileName.toString == "rt.jar" || isCtSym then
-          DummyVirtualFile("rt.jar", path)
+        if isRtJar(path) then DummyVirtualFile("rt.jar", path)
         else if allowMachinePath then
           val encodedPath = s"$path".replace('\\', '/')
           if isDirectory then toDirectory(path, encodedPath)
@@ -123,13 +116,32 @@ class MappedFileConverter(val rootPaths: Map[String, Path], allowMachinePath: Bo
         else sys.error(s"$path cannot be mapped using the root paths $rootPaths")
   end toVirtualFile
 
+  override def toVirtualFileRef(path: Path): VirtualFileRef =
+    encode(path) match
+      case Some(encodedPath)                          => VirtualFileRef.of(encodedPath)
+      case None if allowMachinePath && !isRtJar(path) =>
+        VirtualFileRef.of(s"$path".replace('\\', '/'))
+      case None => toVirtualFile(path)
+
+  private def encode(path: Path): Option[String] =
+    rootPaths2.collectFirst {
+      case (key, rootPath) if path.startsWith(rootPath) =>
+        s"$${$key}/${rootPath.relativize(path)}".replace('\\', '/')
+    }
+
+  private def isRtJar(path: Path): Boolean =
+    def isCtSym =
+      path.getFileSystem
+        .provider()
+        .getScheme == "jar" && path.getFileSystem.toString.endsWith("ct.sym")
+    def isJrt = path.getFileSystem.provider().getScheme == "jrt"
+    isJrt || path.getFileName.toString == "rt.jar" || isCtSym
+
   // Optimized version that skips isDirectory check - use when path is known to be a regular file
   private def toVirtualFileForRegularFile(path: Path): VirtualFile =
-    rootPaths2.find { case (_, rootPath) => path.startsWith(rootPath) } match
-      case Some((key, rootPath)) =>
-        val encodedPath = s"$${$key}/${rootPath.relativize(path)}".replace('\\', '/')
-        MappedVirtualFile(encodedPath, rootPaths)
-      case _ =>
+    encode(path) match
+      case Some(encodedPath) => MappedVirtualFile(encodedPath, rootPaths)
+      case _                 =>
         if allowMachinePath then
           val encodedPath = s"$path".replace('\\', '/')
           MappedVirtualFile(encodedPath, rootPaths)
