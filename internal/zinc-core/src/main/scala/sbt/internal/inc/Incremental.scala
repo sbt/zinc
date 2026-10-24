@@ -1035,23 +1035,22 @@ private final class AnalysisCallback(
       sourceFile: VirtualFileRef,
       context: DependencyContext
   ): Unit =
-    // TODO: handle library JARs and rt.jar.
-    val vf = converter.toVirtualFile(classFile)
-    externalAPI(onBinaryName, Some(vf)) match
-      case Some(api) =>
-        // dependency is a product of a source in another project
-        val targetBinaryClassName = onBinaryName
-        externalSourceDependency(sourceClass, targetBinaryClassName, api, context)
-      case None =>
-        // dependency is some other binary on the classpath.
-        // exclude dependency tracking with rt.jar, for example java.lang.String -> rt.jar.
-        if !vf.id.endsWith("rt.jar") then
-          externalLibraryDependency(
-            vf,
-            onBinaryName,
-            sourceFile,
-            context
-          )
+    if !JdkClassFiles.isJdkPath(classFile) then
+      val vf = converter.toVirtualFile(classFile)
+      externalAPI(onBinaryName, Some(vf)) match
+        case Some(api) =>
+          // dependency is a product of a source in another project
+          val targetBinaryClassName = onBinaryName
+          externalSourceDependency(sourceClass, targetBinaryClassName, api, context)
+        case None =>
+          // dependency is some other binary on the classpath.
+          if !vf.id.endsWith("rt.jar") then
+            externalLibraryDependency(
+              vf,
+              onBinaryName,
+              sourceFile,
+              context
+            )
   end externalDependency
 
   // Called by sbt-dotty

@@ -108,7 +108,7 @@ class MappedFileConverter(val rootPaths: Map[String, Path], allowMachinePath: Bo
         if isDirectory then toDirectory(path, encodedPath)
         else MappedVirtualFile(encodedPath, rootPaths)
       case _ =>
-        if isRtJar(path) then DummyVirtualFile("rt.jar", path)
+        if JdkClassFiles.isJdkPath(path) then DummyVirtualFile("rt.jar", path)
         else if allowMachinePath then
           val encodedPath = s"$path".replace('\\', '/')
           if isDirectory then toDirectory(path, encodedPath)
@@ -118,8 +118,8 @@ class MappedFileConverter(val rootPaths: Map[String, Path], allowMachinePath: Bo
 
   override def toVirtualFileRef(path: Path): VirtualFileRef =
     encode(path) match
-      case Some(encodedPath)                          => VirtualFileRef.of(encodedPath)
-      case None if allowMachinePath && !isRtJar(path) =>
+      case Some(encodedPath) => VirtualFileRef.of(encodedPath)
+      case None if allowMachinePath && !JdkClassFiles.isJdkPath(path) =>
         VirtualFileRef.of(s"$path".replace('\\', '/'))
       case None => toVirtualFile(path)
 
@@ -128,14 +128,6 @@ class MappedFileConverter(val rootPaths: Map[String, Path], allowMachinePath: Bo
       case (key, rootPath) if path.startsWith(rootPath) =>
         s"$${$key}/${rootPath.relativize(path)}".replace('\\', '/')
     }
-
-  private def isRtJar(path: Path): Boolean =
-    def isCtSym =
-      path.getFileSystem
-        .provider()
-        .getScheme == "jar" && path.getFileSystem.toString.endsWith("ct.sym")
-    def isJrt = path.getFileSystem.provider().getScheme == "jrt"
-    isJrt || path.getFileName.toString == "rt.jar" || isCtSym
 
   // Optimized version that skips isDirectory check - use when path is known to be a regular file
   private def toVirtualFileForRegularFile(path: Path): VirtualFile =
@@ -185,3 +177,17 @@ object MappedFileConverter:
   def empty: MappedFileConverter = new MappedFileConverter(Map(), true)
   def apply(rootPaths: Map[String, Path], allowMachinePath: Boolean): MappedFileConverter =
     new MappedFileConverter(rootPaths, allowMachinePath)
+
+/**
+ * Class files the JDK itself serves: rt.jar on JDK 8, the jrt:/ runtime image on JDK 9+, and the
+ * ct.sym signatures read under `-release`. Zinc never tracks them as library dependencies
+ * (sbt/zinc#609), so every FileConverter must treat them alike.
+ */
+private[sbt] object JdkClassFiles:
+  def isJdkPath(path: Path): Boolean =
+    val fs = path.getFileSystem
+    val scheme = fs.provider().getScheme
+    scheme == "jrt" ||
+    (scheme == "jar" && fs.toString.endsWith("ct.sym")) ||
+    (path.getFileName != null && path.getFileName.toString == "rt.jar")
+end JdkClassFiles
