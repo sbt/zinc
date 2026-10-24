@@ -29,6 +29,7 @@ object JavaErrorParserSpec extends Properties:
     example("be able to parse javac warnings", parseJavacWarning),
     example("be able to parse javac errors", parseSampleJavac),
     example("register the position of errors", parseErrorPosition),
+    example("register the position of errors at the first column", parseFirstColumnPosition),
     example("be able to parse multiple errors", parseMultipleErrors),
     example(
       "be able to parse multiple errors without carrets or indentation",
@@ -134,6 +135,21 @@ object JavaErrorParserSpec extends Properties:
       }
     )
 
+  private def parseFirstColumnPosition: Result =
+    val problems = parse(sampleFirstColumnPosition)
+    Result.all(
+      List(
+        problems.size ==== 1,
+        checkPosition(
+          problems.head.position,
+          "/home/me/projects/sample/src/main/java/A.java",
+          8,
+          "throw new java.rmi.RMISecurityException(\"O NOES\");",
+          0
+        ),
+      )
+    )
+
   private def parseMultipleErrors2: Result =
     val problems = parse(sampleLinuxMessage2)
     Result.all(
@@ -168,7 +184,7 @@ object JavaErrorParserSpec extends Properties:
       message <- genWords
       indent <- Gen.int(Range.linear(0, 8))
       code <- genWords
-      pointer <- Gen.int(Range.linear(1, indent + code.length))
+      pointer <- Gen.int(Range.linear(0, indent + code.length))
       details <- Gen.list(genWords, Range.linear(0, 2))
     yield Sample(
       segments.mkString("/", "/", ".java"),
@@ -254,6 +270,13 @@ object JavaErrorParserSpec extends Properties:
   def windowsFile = """C:\Projects\sample\src\main\java\Test.java"""
 
   def sampleJavacMessage = "javac: invalid flag: -foobar"
+
+  def sampleFirstColumnPosition =
+    """
+      |/home/me/projects/sample/src/main/java/A.java:8: warning: [deprecation] RMISecurityException(java.lang.String) in java.rmi.RMISecurityException has been deprecated
+      |throw new java.rmi.RMISecurityException("O NOES");
+      |^
+    """.stripMargin
 
   def sampleErrorPosition =
     """
