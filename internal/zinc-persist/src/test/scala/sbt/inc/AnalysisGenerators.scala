@@ -196,7 +196,7 @@ object AnalysisGenerators:
   def genScalaName: Gen[String] =
     Gen
       .list(Gen.choice1(Gen.char('!', 'Z'), Gen.constant('\n')), Range.linear(0, 100))
-      .map(_.toString())
+      .map(_.mkString)
 
   def genUsedName(namesGen: Gen[String] = genScalaName): Gen[UsedName] =
     for name <- namesGen; scopes <- someOf(UseScope.values().toSeq)
