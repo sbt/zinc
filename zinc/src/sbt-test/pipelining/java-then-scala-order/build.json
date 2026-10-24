@@ -1,0 +1,9 @@
+{
+  "projects": [
+    {
+      "name": "use",
+      "scalaVersion": "2.13.x",
+      "compileOrder": "JavaThenScala"
+    }
+  ]
+}
