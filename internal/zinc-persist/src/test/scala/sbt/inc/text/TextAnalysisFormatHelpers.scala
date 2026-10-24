@@ -20,7 +20,7 @@ import sbt.internal.inc.text.TextAnalysisFormat
 object TextAnalysisFormatHelpers:
   def checkTextRoundtrip(analysis: Analysis, wfmt: TextAnalysisFormat, rfmt: TextAnalysisFormat) =
     val (readAnalysis, readSetup) = deserialize(serialize(analysis, wfmt), rfmt)
-    compare(analysis, readAnalysis) && compare(commonSetup, readSetup)
+    compare(analysis, readAnalysis).and(compare(commonSetup, readSetup))
 
   private val companionStore = new CompanionsStore:
     def getUncaught() = (Map(), Map())

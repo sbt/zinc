@@ -13,21 +13,27 @@ package xsbt.api
 
 import scala.util.hashing.MurmurHash3
 
-import org.scalacheck.{ Gen, Prop, Properties }
-import org.scalacheck.Prop.forAll
+import hedgehog.{ sbt as _, * }
+import hedgehog.runner.*
 
-object UnorderedHasherSpecification extends Properties("UnorderedHasher"):
+object UnorderedHasherSpecification extends Properties:
+  override def tests: List[Test] = List(
+    property("matches MurmurHash3.unorderedHash", propMatches),
+    property("keeps nested hashes apart", propNested),
+    property("reuses its hashers", propReuse),
+  )
 
   /** Element hashes, some of them unordered hashes of their own children. */
   final case class Tree(hash: Int, children: List[Tree])
 
-  private val genHash: Gen[Int] = Gen.oneOf(Gen.choose(Int.MinValue, Int.MaxValue), Gen.const(0))
+  private val genHash: Gen[Int] =
+    Gen.choice1(Gen.int(Range.linearFrom(0, Int.MinValue, Int.MaxValue)), Gen.constant(0))
 
   private def genTree(depth: Int): Gen[Tree] =
     for
       h <- genHash
-      n <- if depth <= 0 then Gen.const(0) else Gen.choose(0, 4)
-      children <- Gen.listOfN(n, genTree(depth - 1))
+      n <- if depth <= 0 then Gen.constant(0) else Gen.int(Range.linear(0, 4))
+      children <- Gen.list(genTree(depth - 1), Range.singleton(n))
     yield Tree(h, children)
 
   /** What `HashAPI` would compute: each element mixes in the unordered hash of its children. */
@@ -42,18 +48,20 @@ object UnorderedHasherSpecification extends Properties("UnorderedHasher"):
       t.children.foreach(c => hasher.add(actual(hashers, c)))
       MurmurHash3.mix(t.hash, hashers.end(hasher))
 
-  property("matches MurmurHash3.unorderedHash") = forAll(Gen.listOf(genHash)) { hs =>
-    val hasher = new UnorderedHasher
-    hs.foreach(hasher.add)
-    hasher.result == MurmurHash3.unorderedHash(hs)
-  }
+  def propMatches: Property =
+    for hs <- Gen.list(genHash, Range.linear(0, 100)).forAll
+    yield
+      val hasher = new UnorderedHasher
+      hs.foreach(hasher.add)
+      hasher.result ==== MurmurHash3.unorderedHash(hs)
 
-  property("keeps nested hashes apart") = forAll(genTree(4)) { t =>
-    actual(new UnorderedHashers, t) == expected(t)
-  }
+  def propNested: Property =
+    for t <- genTree(4).forAll
+    yield actual(new UnorderedHashers, t) ==== expected(t)
 
-  property("reuses its hashers") = forAll(Gen.listOfN(3, genTree(4))) { ts =>
-    val hashers = new UnorderedHashers
-    Prop.all(ts.map(t => Prop(actual(hashers, t) == expected(t)))*)
-  }
+  def propReuse: Property =
+    for ts <- Gen.list(genTree(4), Range.singleton(3)).forAll
+    yield
+      val hashers = new UnorderedHashers
+      Result.all(ts.map(t => actual(hashers, t) ==== expected(t)))
 end UnorderedHasherSpecification

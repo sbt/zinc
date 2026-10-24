@@ -11,17 +11,17 @@
 
 package sbt.inc.text
 
-import org.scalacheck.*
+import hedgehog.{ sbt as _, * }
+import hedgehog.runner.*
 import sbt.inc.AnalysisFormatHelpers.*
 import sbt.inc.text.TextAnalysisFormatHelpers.*
 import sbt.internal.inc.*
 import sbt.internal.inc.text.TextAnalysisFormat
 
-object TextAnalysisFormatSpecification extends Properties("TextAnalysisFormat"):
-  property("round-trip empty") = forEmpty(check)
-  property("round-trip simple") = forSimple(check)
-  property("round-trip complex") = forComplex(check)
+object TextAnalysisFormatSpecification extends Properties:
+  override def tests: List[Test] = roundTrips(check)
 
   private def check(analysis: Analysis) =
-    checkStoreRoundtrip(analysis, FileAnalysisStore.text(_)) &&
+    checkStoreRoundtrip(analysis, FileAnalysisStore.text(_)).and(
       checkTextRoundtrip(analysis, TextAnalysisFormat, TextAnalysisFormat)
+    )

@@ -9,7 +9,7 @@ project.
 - You can run an incremental test as `testQuick`.
 - You can run an incremental test scoped to a subproject as `zincCore/testQuick`
 
-Zinc contains several testing frameworks: HedgeHog, Verify, and ScalaCheck.
+Zinc contains two testing frameworks: HedgeHog and Verify.
 Our preferred unit testing framework for new tests is HedgeHog.
 
 Property-based testing with HedgeHog

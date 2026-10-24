@@ -70,7 +70,6 @@ object Dependencies:
   val sbinary = "org.scala-sbt" %% "sbinary" % "0.6.0"
   val sjsonNewVersion = "0.15.1"
   val scalaXml = "org.scala-lang.modules" %% "scala-xml" % "2.5.0"
-  val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.20.0"
   val verify = "com.eed3si9n.verify" %% "verify" % "1.0.0"
   val hedgehog = "qa.hedgehog" %% "hedgehog-sbt" % "0.15.1"
   val sjsonnew = Def.setting {
@@ -85,7 +84,6 @@ object Dependencies:
   def addTestDependencies(p: Project): Project =
     p.settings(
       libraryDependencies ++= Seq(
-        scalaCheck % Test,
         verify % Test,
         hedgehog % Test,
       )

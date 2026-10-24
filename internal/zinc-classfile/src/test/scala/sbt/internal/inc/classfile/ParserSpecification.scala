@@ -38,7 +38,7 @@ object ParserSpecification extends Properties:
     classOf[java.util.AbstractMap.SimpleEntry[String, String]],
     classOf[String],
     classOf[Thread],
-    classOf[org.scalacheck.Properties],
+    classOf[verify.BasicTestSuite],
     classOf[hedgehog.runner.Properties],
     // exercises meta-annotation parsing
     classOf[java.lang.annotation.Retention]

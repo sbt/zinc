@@ -16,6 +16,7 @@ import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations.*
 import org.openjdk.jmh.infra.Blackhole
+import sbt.internal.inc.HedgehogSupport
 import xsbt.api.*
 import xsbti.api.{ ClassLike, DefinitionType }
 
@@ -44,8 +45,7 @@ class ApiHashingBenchmark:
       else
         // Without a corpus, as in the CI smoke run, hash generated classes instead.
         Array.tabulate(1000) { i =>
-          HashingEquivalenceGenerators.genClass
-            .pureApply(org.scalacheck.Gen.Parameters.default, org.scalacheck.rng.Seed(i.toLong))
+          HedgehogSupport.sample(HashingEquivalenceGenerators.genClass, i.toLong)
         }
 
   @Benchmark
