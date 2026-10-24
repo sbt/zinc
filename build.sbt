@@ -86,7 +86,6 @@ Global / concurrentRestrictions += Tags.limit(Tags.Test, 4)
 ThisBuild / Test / fork := true
 
 def baseSettings: Seq[Setting[?]] = Seq(
-  testFrameworks += new TestFramework("verify.runner.Framework"),
   compile / javacOptions ++= Seq("-Xlint", "-Xlint:-serial"),
   Test / publishArtifact := false,
   Compile / compile / scalacOptions ++= {
@@ -290,7 +289,7 @@ lazy val zincTesting = (projectMatrix in internalPath / "zinc-testing")
     name := "zinc Testing",
     baseSettings,
     publish / skip := true,
-    libraryDependencies ++= Seq(verify, hedgehog, sjsonnewScalaJson.value),
+    libraryDependencies ++= Seq(hedgehog, sjsonnewScalaJson.value),
     dependencyOverrides += scalaXml,
   )
   .jvmPlatform(scalaVersions = scala3_only)

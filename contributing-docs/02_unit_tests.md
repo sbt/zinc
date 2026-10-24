@@ -9,8 +9,7 @@ project.
 - You can run an incremental test as `testQuick`.
 - You can run an incremental test scoped to a subproject as `zincCore/testQuick`
 
-Zinc contains two testing frameworks: HedgeHog and Verify.
-Our preferred unit testing framework for new tests is HedgeHog.
+Zinc uses HedgeHog for its unit tests.
 
 Property-based testing with HedgeHog
 ------------------------------------
@@ -118,25 +117,3 @@ object ExtractAPISpecification
 ```
 
 `.scalafmt.conf` formats `compiler-bridge-test` with the Scala 2.13 dialect, so write those sources in Scala 2 syntax, for example `import hedgehog.{ sbt => _, _ }`.
-
-Unit testing with Verify
-------------------------
-
-Verify is available in every subproject, and can be used for unit tests:
-
-```scala
-package sbt
-package internal
-package inc
-
-import verify.*
-
-object VirtualDirectoryTest extends BasicTestSuite:
-  test("subdirectory") {
-    val root = BasicVirtualDirectory.newRoot
-    val sub1 = root.subdirectoryNamed("sub1")
-    assert(sub1.id == "/sub1/")
-    assert(sub1.names.toList == List("sub1"))
-  }
-end VirtualDirectoryTest
-```

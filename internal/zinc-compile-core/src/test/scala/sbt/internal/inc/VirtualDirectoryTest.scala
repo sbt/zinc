@@ -13,27 +13,30 @@ package sbt
 package internal
 package inc
 
+import hedgehog.{ sbt as _, * }
+import hedgehog.runner.*
 import java.io.{ InputStreamReader, OutputStreamWriter }
-import verify.*
 
-object VirtualDirectoryTest extends BasicTestSuite:
-  test("root name is /") {
+object VirtualDirectoryTest extends Properties:
+  override def tests: List[Test] = List(
+    example("root name is /", rootName),
+    example("subdirectory", subdirectory),
+    example("in-memory file", inMemoryFile),
+  )
+
+  private def rootName: Result =
     val root = BasicVirtualDirectory.newRoot
-    assert(root.id == "/")
-  }
+    root.id ==== "/"
 
-  test("subdirectory") {
+  private def subdirectory: Result =
     val root = BasicVirtualDirectory.newRoot
     val sub1 = root.subdirectoryNamed("sub1")
-    assert(sub1.id == "/sub1/")
-    assert(sub1.names.toList == List("sub1"))
-  }
+    Result.all(List(sub1.id ==== "/sub1/", sub1.names.toList ==== List("sub1")))
 
-  test("in-memory file") {
+  private def inMemoryFile: Result =
     val root = BasicVirtualDirectory.newRoot
     val item = root.fileNamed("item")
-    assert(item.id == "/item")
-    assert(item.names.toList == List("item"))
+    val names = Result.all(List(item.id ==== "/item", item.names.toList ==== List("item")))
 
     val out = item.output
     val w = new OutputStreamWriter(out, "UTF-8")
@@ -42,8 +45,11 @@ object VirtualDirectoryTest extends BasicTestSuite:
     val r = new InputStreamReader(item.input, "UTF-8")
     val buf = new Array[Char](1024)
     r.read(buf, 0, 1024)
-    assertEquals("hello", new String(buf).trim)
-
-    assert(item.contentHash != 0L)
-  }
+    Result.all(
+      List(
+        names,
+        new String(buf).trim ==== "hello",
+        Result.diff(item.contentHash, 0L)(_ != _),
+      )
+    )
 end VirtualDirectoryTest
