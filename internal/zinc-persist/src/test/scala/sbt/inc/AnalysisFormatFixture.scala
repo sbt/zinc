@@ -30,7 +30,7 @@ import xsbti.compile.analysis.SourceInfo
 /**
  * A fixed, exhaustive Analysis used to pin the serialized shape of the analysis formats. Every
  * value is spelled out rather than generated, so the rendering is stable across runs and cannot
- * drift when the ScalaCheck generators change. Lives in `sbt.internal.inc` to reach `addUsedNames`,
+ * drift when the HedgeHog generators change. Lives in `sbt.internal.inc` to reach `addUsedNames`,
  * following the same convention as [[AnalysisGenerators]].
  *
  * Two properties matter and are easy to break when editing this file:

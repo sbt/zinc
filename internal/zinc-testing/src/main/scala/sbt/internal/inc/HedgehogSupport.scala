@@ -12,7 +12,7 @@
 package sbt.internal.inc
 
 import hedgehog.{ sbt as _, * }
-import hedgehog.core.SourcePos
+import hedgehog.core.{ Seed, SourcePos }
 import java.nio.file.Path
 import sbt.io.IO
 import scala.reflect.ClassTag
@@ -53,6 +53,14 @@ object HedgehogSupport:
     Gen
       .list(Gen.int(Range.constant(0, Int.MaxValue)), Range.singleton(xs.size))
       .map(keys => xs.zip(keys).sortBy(_._2).map(_._1))
+
+  /** One value of `gen`, the same for the same `seed`, like ScalaCheck's `pureApply`. */
+  def sample[A](gen: Gen[A], seed: Long, size: Int = Size.max): A =
+    gen
+      .run(Size(size), Seed.fromLong(seed))
+      .value
+      ._2
+      .getOrElse(sys.error(s"the generator discarded every value for seed $seed"))
 
   def withTempDir(f: Path => Result): Result =
     IO.withTemporaryDirectory(dir => f(dir.toPath))
