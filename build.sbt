@@ -291,7 +291,7 @@ lazy val zincTesting = (projectMatrix in internalPath / "zinc-testing")
     name := "zinc Testing",
     baseSettings,
     publish / skip := true,
-    libraryDependencies ++= Seq(scalaCheck, scalatest, verify, sjsonnewScalaJson.value),
+    libraryDependencies ++= Seq(scalaCheck, verify, hedgehog, sjsonnewScalaJson.value),
     dependencyOverrides += scalaXml,
   )
   .jvmPlatform(scalaVersions = scala3_only)
@@ -422,7 +422,6 @@ lazy val compilerInterface = (projectMatrix in internalPath / "compiler-interfac
     baseSettings,
     name := "Compiler Interface",
     scalaVersion := scala3,
-    libraryDependencies ++= Seq(scalatest % Test),
     exportJars := true,
     Compile / resourceGenerators += Def.task {
       val a = (Compile / compile).value

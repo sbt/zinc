@@ -11,25 +11,38 @@
 
 package sbt.inc.consistent
 
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-
+import hedgehog.{ sbt as _, * }
+import hedgehog.runner.*
 import java.io.{ ByteArrayInputStream, ByteArrayOutputStream }
 import java.nio.file.{ Files, Paths, StandardOpenOption }
+import java.util.Arrays
 import sbt.internal.inc.consistent.ParallelGzipOutputStream
 import sbt.io.IO
 import sbt.io.Using
-
-import java.util.Arrays
-import collection.parallel.CollectionConverters.*
 import scala.util.Random
 import scala.concurrent.{ Await, Future }
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.*
 
-class ParallelGzipOutputStreamSpecification extends AnyFlatSpec with Matchers:
-  val defaultSize: Int = 64 * 1024
-  val sizes: Seq[Int] = Seq(
+object ParallelGzipOutputStreamSpecification extends Properties:
+  override def tests: List[Test] = List(
+    property("compress and decompress data correctly", propRoundTrip).withTests(300),
+    example("handle large data sizes", largeData),
+    example("handle very large parallelism", veryLargeParallelism),
+    property(
+      "handle multiple ParallelGzipOutputStream concurrently",
+      propConcurrentStreams
+    ).withTests(50),
+    example(
+      "handle multiple ParallelGzipOutputStream with varying config concurrently",
+      varyingConfigs
+    ),
+  )
+
+  private val defaultSize: Int = 64 * 1024
+
+  /** The sizes around the block boundaries of the stream, where off-by-one errors would hide. */
+  private val boundarySizes: List[Int] = List(
     0,
     1,
     3,
@@ -43,137 +56,111 @@ class ParallelGzipOutputStreamSpecification extends AnyFlatSpec with Matchers:
     defaultSize * 8,
     defaultSize * 8 + 1
   )
-  val numberOfGzipStreams: Seq[Int] = Seq(1, 2, 4, 8, 15)
-  val parallelisms: Seq[Int] = 1 to 17
 
-  def decompress(data: Array[Byte]): Array[Byte] =
+  private def decompress(data: Array[Byte]): Array[Byte] =
     Using.gzipInputStream(new ByteArrayInputStream(data))(IO.readBytes)
 
-  def compress(data: Array[Byte], parallelism: Int, testSetup: String): Array[Byte] =
+  private def compress(data: Array[Byte], parallelism: Int): Array[Byte] =
     val bout = new ByteArrayOutputStream()
     val gout = new ParallelGzipOutputStream(bout, parallelism)
-    try
-      gout.write(data)
-    catch
-      case e: Exception =>
-        handleFailure(Array[Byte](), data, testSetup, "Compression Failed", Some(e))
-    finally
-      gout.close()
+    try gout.write(data)
+    finally gout.close()
     bout.toByteArray
 
-  def writeToFile(data: Array[Byte], fileName: String): Unit =
+  private def writeToFile(data: Array[Byte], fileName: String): Unit =
     val outputDir = Paths.get("../../../test-gzip-output")
-    if !Files.exists(outputDir) then
-      Files.createDirectories(outputDir)
+    if !Files.exists(outputDir) then Files.createDirectories(outputDir)
     val path = outputDir.resolve(fileName)
     Files.write(path, data, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
 
   // Need this in windows to produce valid windows filename
-  def sanitizedFilename(fileName: String): String =
+  private def sanitizedFilename(fileName: String): String =
     fileName.replaceAll("[^a-zA-Z0-9-_.]", "_")
 
-  def handleFailure(
+  private def handleFailure(
       compressed: Array[Byte],
       data: Array[Byte],
       testSetup: String,
       errorCause: String,
       errorOpt: Option[Exception] = None,
-  ): Unit =
+  ): Result =
     val compressedFileName = sanitizedFilename(s"compressed_$testSetup.gz")
     val dataFileName = sanitizedFilename(s"data_$testSetup.bin")
     writeToFile(compressed, compressedFileName)
     writeToFile(data, dataFileName)
+    val failure = Result.failure.log(s"$errorCause. See $compressedFileName and $dataFileName")
+    errorOpt.fold(failure)(e => failure.log(hedgehog.core.Error(e)))
 
-    errorOpt match
-      case Some(error) =>
-        fail(s"$errorCause. See $compressedFileName and $dataFileName", error)
-      case _ => fail(s"$errorCause. See $compressedFileName and $dataFileName")
-
-  def verifyRoundTrip(data: Array[Byte], parallelism: Int, testSetup: String): Unit =
-    val compressed = compress(data, parallelism, testSetup)
+  private def roundTrip(data: Array[Byte], parallelism: Int): Result =
+    val testSetup = s"parallelism = $parallelism, size = ${data.length}"
     try
-      val decompressed = decompress(compressed)
-      if !Arrays.equals(data, decompressed) then
-        handleFailure(compressed, data, testSetup, "Compression and decompression mismatch.")
+      val compressed = compress(data, parallelism)
+      try
+        if Arrays.equals(data, decompress(compressed)) then Result.success
+        else handleFailure(compressed, data, testSetup, "Compression and decompression mismatch.")
+      catch
+        case e: Exception =>
+          handleFailure(compressed, data, testSetup, "Decompression failed", Some(e))
     catch
       case e: Exception =>
-        handleFailure(
-          compressed,
-          data,
-          testSetup,
-          "Decompression failed",
-          Some(e),
-        )
+        handleFailure(Array[Byte](), data, testSetup, "Compression Failed", Some(e))
 
-  def randomArray(size: Int): Array[Byte] =
-    val rnd = new Random(0L)
+  private def randomArray(size: Int, seed: Long = 0L): Array[Byte] =
     val data = new Array[Byte](size)
-    rnd.nextBytes(data)
+    new Random(seed).nextBytes(data)
     data
 
-  it should "compress and decompress data correctly" in {
+  private val genSize: Gen[Int] =
+    Gen.frequency1(
+      1 -> Gen.elementUnsafe(boundarySizes),
+      1 -> Gen.int(Range.linear(0, defaultSize * 9)),
+    )
+
+  /** Generates how to build the data rather than the data, so that the logs stay small. */
+  private case class DataSpec(size: Int, redundant: Boolean, seed: Long):
+    def build: Array[Byte] = if redundant then new Array[Byte](size) else randomArray(size, seed)
+
+  private val genData: Gen[DataSpec] =
     for
-      parallelism <- parallelisms
-      size <- sizes
-    do
+      size <- genSize
+      redundant <- Gen.boolean
+      seed <- Gen.long(Range.constant(Long.MinValue, Long.MaxValue))
+    yield DataSpec(size, redundant, seed)
+
+  private val genParallelism: Gen[Int] = Gen.int(Range.linear(1, 17))
+
+  def propRoundTrip: Property =
+    for
+      data <- genData.forAll
+      parallelism <- genParallelism.forAll
+    yield roundTrip(data.build, parallelism)
+
+  private def largeData: Result =
+    val data = randomArray(64 * 1024 * 1024) // 64 MB
+    Result.all((1 to 17).toList.map(roundTrip(data, _)))
+
+  private def veryLargeParallelism: Result =
+    roundTrip(randomArray(defaultSize * 16), 200)
+
+  def propConcurrentStreams: Property =
+    for
+      streams <- Gen.element1(1, 2, 4, 8, 15).forAll
+      parallelism <- genParallelism.forAll
+      size <- genSize.forAll
+    yield
       val data = randomArray(size)
-      verifyRoundTrip(data, parallelism, s"parallelism = $parallelism, size = $size")
-  }
+      val verifications =
+        Future.traverse((1 to streams).toList)(_ => Future(roundTrip(data, parallelism)))
+      Result.all(Await.result(verifications, 60.seconds))
 
-  it should "handle highly redundant data correctly" in {
-    for
-      parallelism <- parallelisms
-      size <- sizes
-    do
-      val data = Array.fill(size)(0.toByte)
-      verifyRoundTrip(data, parallelism, s"parallelism = $parallelism, size = $size, redundant")
-  }
-
-  it should "handle large data sizes" in {
-    val largeData = randomArray(64 * 1024 * 1024) // 64 MB
-    for parallelism <- parallelisms do
-      verifyRoundTrip(largeData, parallelism, s"parallelism = $parallelism, large data size")
-  }
-
-  it should "handle very large parallelism" in {
-    val data = randomArray(defaultSize * 16)
-    val maxNumberOfThreads = 200
-    verifyRoundTrip(data, maxNumberOfThreads, s"parallelism = $maxNumberOfThreads, large data")
-  }
-
-  it should "handle multiple ParallelGzipOutputStream concurrently" in {
-    for
-      numberOfGzipStream <- numberOfGzipStreams
-      parallelism <- parallelisms
-      size <- sizes
-    do
-      val verifications = Future.traverse(1 to numberOfGzipStream)(numberOfGzipStream =>
-        Future {
-          val data = randomArray(size)
-          verifyRoundTrip(
-            data,
-            parallelism,
-            s"numberOfStreams: $numberOfGzipStream, parallelism = $parallelism, size = $size, multiple"
-          )
-        }
-      )
-      Await.result(verifications, 60.seconds)
-  }
-
-  it should "handle multiple ParallelGzipOutputStream with varying config concurrently" in {
-    val verifications = Future.traverse(for
-      parallelism <- parallelisms.take(10)
-      size <- sizes
-    yield (parallelism, size)) { case (parallelism, size) =>
-      Future {
-        val data = randomArray(size)
-        verifyRoundTrip(
-          data,
-          parallelism,
-          s"parallelism = $parallelism, size = $size, varying"
-        )
-      }
+  private def varyingConfigs: Result =
+    val configs =
+      for
+        parallelism <- (1 to 10).toList
+        size <- boundarySizes
+      yield (parallelism, size)
+    val verifications = Future.traverse(configs) { (parallelism, size) =>
+      Future(roundTrip(randomArray(size), parallelism))
     }
-    Await.result(verifications, 60.seconds)
-  }
+    Result.all(Await.result(verifications, 60.seconds))
 end ParallelGzipOutputStreamSpecification

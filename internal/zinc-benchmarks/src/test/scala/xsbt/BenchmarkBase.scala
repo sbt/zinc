@@ -16,13 +16,13 @@ import org.openjdk.jmh.annotations.*
 
 import java.io.File
 import sbt.inc.{ CompilerSetup, ProjectSetup }
-import sbt.internal.inc.BridgeProviderSpecification
+import sbt.internal.inc.BridgeProviderTestkit
 import sbt.util.Logger
 import xsbt.ZincBenchmark.CompilationInfo
 import xsbti.compile.IncOptions
 
 @State(Scope.Benchmark)
-class BenchmarkBase extends BridgeProviderSpecification:
+class BenchmarkBase extends BridgeProviderTestkit:
   /* Necessary data to run a benchmark. */
   @Param(Array("")) var _tempDir: String = compiletime.uninitialized
   var _project: BenchmarkProject = compiletime.uninitialized

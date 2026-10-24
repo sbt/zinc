@@ -18,7 +18,8 @@ import java.util.HexFormat
 
 import scala.util.control.NonFatal
 
-import org.scalatest.funsuite.AnyFunSuite
+import hedgehog.{ sbt as _, * }
+import hedgehog.runner.*
 import sbt.internal.inc.{ Analysis, AnalysisFormatFixture }
 import sbt.internal.inc.consistent.*
 import sbt.io.IO
@@ -33,60 +34,94 @@ import xsbti.compile.analysis.ReadWriteMappers
  * that is what actually ships, and it has encoding machinery (string interning, length prefixes)
  * that the text serializer does not share.
  */
-class ConsistentAnalysisFormatVersionSuite extends AnyFunSuite:
-  import ConsistentAnalysisFormatVersionSuite.*
+object ConsistentAnalysisFormatVersionSuite extends Properties:
+  override def tests: List[Test] = List(
+    example("serialized analysis matches the golden files for its format version", matchesGolden),
+    example("serializing twice produces the same bytes", twice),
+    example(
+      "a Windows rendering of the dummy output path canonicalizes to the golden form",
+      windowsRendering
+    ),
+    property(
+      "canonicalizing any Windows rendering of the dummy paths preserves the byte length",
+      propCanonicalizeBinaryLength
+    ),
+  )
 
-  test("serialized analysis matches the golden files for its format version") {
-    assert(
-      testData.isDirectory,
-      s"test-data not found at ${testData.getCanonicalPath}; did the forked working directory move?"
-    )
-    val text = renderText()
-    val version = formatVersion(text)
-    // A golden for a superseded version could mask a VERSION regression, so only the current
-    // version's files may exist.
-    val stale = testData
-      .listFiles()
-      .map(_.getName)
-      .filter(_.matches("analysis-format-\\d+\\.(txt|sha256)"))
-      .filterNot(n => n == goldenFile(version).getName || n == goldenDigestFile(version).getName)
-    assert(
-      stale.isEmpty,
-      s"stale golden files for other format versions: ${stale.mkString(", ")}; delete them"
-    )
-    val golden = goldenFile(version)
-    val expected = if golden.exists() then IO.read(golden, UTF_8).replace("\r\n", "\n") else ""
-    if text != expected then fail(textMismatch(version, golden, text, expected))
-    IO.delete(actualFile(version)) // drop the leftover of a previously failing run
+  private def matchesGolden: Result =
+    if !testData.isDirectory then
+      Result.failure.log(
+        s"test-data not found at ${testData.getCanonicalPath}; did the forked working directory move?"
+      )
+    else
+      val text = renderText()
+      val version = formatVersion(text)
+      // A golden for a superseded version could mask a VERSION regression, so only the current
+      // version's files may exist.
+      val stale = testData
+        .listFiles()
+        .map(_.getName)
+        .filter(_.matches("analysis-format-\\d+\\.(txt|sha256)"))
+        .filterNot(n => n == goldenFile(version).getName || n == goldenDigestFile(version).getName)
+      val golden = goldenFile(version)
+      val expected = if golden.exists() then IO.read(golden, UTF_8).replace("\r\n", "\n") else ""
+      if stale.nonEmpty then
+        Result.failure.log(
+          s"stale golden files for other format versions: ${stale.mkString(", ")}; delete them"
+        )
+      else if text != expected then
+        Result.failure.log(textMismatch(version, golden, text, expected))
+      else
+        IO.delete(actualFile(version)) // drop the leftover of a previously failing run
 
-    val digest = binaryDigest()
-    val digestFile = goldenDigestFile(version)
-    val expectedDigest = if digestFile.exists() then IO.read(digestFile, UTF_8).trim else ""
-    if digest != expectedDigest then
-      fail(digestMismatch(version, digestFile, digest, expectedDigest))
-  }
+        val digest = binaryDigest()
+        val digestFile = goldenDigestFile(version)
+        val expectedDigest = if digestFile.exists() then IO.read(digestFile, UTF_8).trim else ""
+        if digest != expectedDigest then
+          Result.failure.log(digestMismatch(version, digestFile, digest, expectedDigest))
+        else Result.success
+  end matchesGolden
 
-  test("serializing twice produces the same bytes") {
-    assert(renderText() == renderText())
-    assert(binaryDigest() == binaryDigest())
-  }
+  private def twice: Result =
+    Result.all(List(renderText() ==== renderText(), binaryDigest() ==== binaryDigest()))
 
-  test("a Windows rendering of the dummy output path canonicalizes to the golden form") {
+  private def windowsRendering: Result =
     // TextSerializer escapes the separator, so on Windows the text arrives with doubled
     // backslashes, while the binary serializer writes the raw bytes.
-    assert(canonicalizeText("  \\\\tmp\\\\dummy") == "  /tmp/dummy")
     val windowsBytes = "\\tmp\\dummy".getBytes(ISO_8859_1)
-    assert(new String(canonicalizeBinary(windowsBytes), ISO_8859_1) == "/tmp/dummy")
-    // Byte length must be preserved or the binary format's length prefixes stop matching.
-    assert(canonicalizeBinary(windowsBytes).length == windowsBytes.length)
-    // The jar path must survive too, and must not be truncated by the shorter path's rewrite.
-    assert(canonicalizeText("  \\\\tmp\\\\dummy\\\\output.jar") == "  /tmp/dummy/output.jar")
     val windowsJar = "\\tmp\\dummy\\output.jar".getBytes(ISO_8859_1)
-    assert(new String(canonicalizeBinary(windowsJar), ISO_8859_1) == "/tmp/dummy/output.jar")
-  }
-end ConsistentAnalysisFormatVersionSuite
+    Result.all(
+      List(
+        canonicalizeText("  \\\\tmp\\\\dummy") ==== "  /tmp/dummy",
+        new String(canonicalizeBinary(windowsBytes), ISO_8859_1) ==== "/tmp/dummy",
+        // Byte length must be preserved or the binary format's length prefixes stop matching.
+        canonicalizeBinary(windowsBytes).length ==== windowsBytes.length,
+        // The jar path must survive too, and must not be truncated by the shorter path's rewrite.
+        canonicalizeText("  \\\\tmp\\\\dummy\\\\output.jar") ==== "  /tmp/dummy/output.jar",
+        new String(canonicalizeBinary(windowsJar), ISO_8859_1) ==== "/tmp/dummy/output.jar",
+      )
+    )
 
-object ConsistentAnalysisFormatVersionSuite:
+  def propCanonicalizeBinaryLength: Property =
+    for
+      parts <- Gen
+        .list(
+          Gen.choice1(
+            Gen.element1("\\tmp\\dummy", "\\tmp\\dummy\\output.jar", "/tmp/dummy"),
+            Gen.string(Gen.latin1, Range.linear(0, 8)),
+          ),
+          Range.linear(0, 6)
+        )
+        .forAll
+    yield
+      val bytes = parts.mkString.getBytes(ISO_8859_1)
+      val canonical = new String(canonicalizeBinary(bytes), ISO_8859_1)
+      Result.all(
+        List(
+          canonical.length ==== bytes.length,
+          Result.assert(!canonical.contains("\\tmp\\dummy")).log(canonical),
+        )
+      )
   // Forked tests run in .sbt/matrix/<project>; reach the repo root the way
   // ConsistentAnalysisFormatIntegrationSuite does.
   private val testData = new File("../../../test-data")
@@ -106,7 +141,8 @@ object ConsistentAnalysisFormatVersionSuite:
   private def formatVersion(rendered: String): String =
     rendered.linesIterator.nextOption() match
       case Some(v) if v.nonEmpty && v.forall(_.isDigit) => v
-      case other => throw new AssertionError(s"expected a format version on line 1, got $other")
+      case other                                        =>
+        throw new IllegalStateException(s"expected a format version on line 1, got $other")
 
   private def textMismatch(version: String, golden: File, actual: String, expected: String) =
     // Report where the new shape landed, but never let a write failure hide the real problem.

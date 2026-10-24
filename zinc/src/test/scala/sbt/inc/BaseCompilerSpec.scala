@@ -11,20 +11,21 @@
 
 package sbt.inc
 
+import hedgehog.{ sbt as _, * }
 import java.nio.file.{ Files, Path }
 
-import sbt.internal.inc.{ Analysis, BridgeProviderSpecification }
+import sbt.internal.inc.{ Analysis, BridgeProviderTestkit }
 import sbt.util.Logger
 import xsbti.compile.{ CompileResult, IncOptions }
 
-class BaseCompilerSpec extends BridgeProviderSpecification:
+trait BaseCompilerSpec extends BridgeProviderTestkit:
   val scalaVersion: String = "2.13.16"
 
   val incOptions: IncOptions = IncOptions.of().withPipelining(true)
 
-  def assertExists(p: Path) = assert(Files.exists(p), s"$p does not exist")
+  def assertExists(p: Path): Result = Result.assert(Files.exists(p)).log(s"$p does not exist")
 
-  def assertNotExists(p: Path) = assert(Files.notExists(p), s"$p exist")
+  def assertNotExists(p: Path): Result = Result.assert(Files.notExists(p)).log(s"$p exists")
 
   def lastClasses(a: Analysis) =
     a.compilations.allCompilations.map { c =>
@@ -54,4 +55,9 @@ class BaseCompilerSpec extends BridgeProviderSpecification:
       val si = scalaInstance(sv, setup.baseDir, Logger.Null)
       val bridge = getCompilerBridge(setup.baseDir, Logger.Null, sv)
       setup.createCompiler(sv, si, bridge, incOptions, log)
+
+  /** Runs `f` on a fresh compiler, closing it afterwards. */
+  def withCompiler(compiler: CompilerSetup)(f: CompilerSetup => Result): Result =
+    try f(compiler)
+    finally compiler.close()
 end BaseCompilerSpec

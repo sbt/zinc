@@ -2,29 +2,64 @@ package sbt
 package internal
 package inc
 
-import org.scalatest.diagrams.Diagrams
+import hedgehog.{ sbt => _, _ }
+import hedgehog.runner._
 import xsbti.UseScope
+import HedgehogSupport.pendingUntilFixed
 
-class ExtractUsedNamesSpecification
-    extends UnitSpec
+object ExtractUsedNamesSpecification
+    extends Properties
     with CompilingSpecification
-    with BridgeProviderTestkit
-    with Diagrams {
+    with BridgeProviderTestkit {
+  override def tests: List[Test] = List(
+    example("Used names extraction should extract imported name", importedName),
+    // test covers https://github.com/gkossakowski/sbt/issues/6
+    example("extract names in type tree", typeTree),
+    // test for https://github.com/gkossakowski/sbt/issues/5
+    example("extract symbolic names", symbolicNames),
+    example("extract type names for objects depending on abstract types", abstractTypes),
+    // See source-dependencies/types-in-used-names-a for an example where
+    // this is required.
+    example("extract names in the types of trees", typesOfTrees),
+    example("extract used names from an existential", existential),
+    example("extract used names from a refinement", refinement),
+    // test for https://github.com/gkossakowski/sbt/issues/3
+    example("extract used names from the same compilation unit", sameUnit),
+    property("extract the names of any members used in the same compilation unit", propSameUnit)
+      .withTests(10),
+    // pending test for https://github.com/scala/bug/issues/7173
+    example("extract names of constants", constants),
+    // test for https://github.com/gkossakowski/sbt/issues/4
+    // TODO: we should fix it by having special treatment of `selectDynamic` and `applyDynamic` calls
+    example("extract names from method calls on Dynamic", pendingUntilFixed(dynamic)),
+    // This doesn't work in 2.13.0-RC1
+    example("extract sealed classes scope", sealedClassesScope),
+  )
 
-  "Used names extraction" should "extract imported name" in {
+  /**
+   * Standard names that appear in every compilation unit that has any class
+   * definition.
+   */
+  private val standardNames = Set(
+    "scala",
+    // The default parent of a class is "AnyRef" which is an alias for "Object"
+    "AnyRef",
+    "Object",
+    "java;lang;Object;init;"
+  )
+
+  private def importedName: Result = {
     val src = """package a { class A }
                 |package b {
                 | import a.{A => A2}
                 |}""".stripMargin
     val usedNames = extractUsedNamesFromSrc(src)
-    val expectedNames = standardNames ++ Set("a", "A", "A2", "b")
     // names used at top level are attributed to the first class defined in a compilation unit
 
-    assert(usedNames("a.A") === expectedNames)
+    usedNames("a.A") ==== standardNames ++ Set("a", "A", "A2", "b")
   }
 
-  // test covers https://github.com/gkossakowski/sbt/issues/6
-  it should "extract names in type tree" in {
+  private def typeTree: Result = {
     val srcA = """|package a {
                   |  class A {
                   |    class C { class D }
@@ -43,12 +78,10 @@ class ExtractUsedNamesSpecification
                   |   }
                   |}""".stripMargin
     val usedNames = extractUsedNamesFromSrc(srcA, srcB)
-    val expectedNames = standardNames ++ Set("a", "c", "A", "B", "C", "D", "b", "X", "BB")
-    assert(usedNames("b.X") === expectedNames)
+    usedNames("b.X") ==== standardNames ++ Set("a", "c", "A", "B", "C", "D", "b", "X", "BB")
   }
 
-  // test for https://github.com/gkossakowski/sbt/issues/5
-  it should "extract symbolic names" in {
+  private def symbolicNames: Result = {
     val srcA = """|class A {
                   |  def `=`: Int = 3
                   |}""".stripMargin
@@ -56,11 +89,10 @@ class ExtractUsedNamesSpecification
                   |  def foo(a: A) = a.`=`
                   |}""".stripMargin
     val usedNames = extractUsedNamesFromSrc(srcA, srcB)
-    val expectedNames = standardNames ++ Set("A", "a", "B", "=", "Int")
-    assert(usedNames("B") === expectedNames)
+    usedNames("B") ==== standardNames ++ Set("A", "a", "B", "=", "Int")
   }
 
-  it should "extract type names for objects depending on abstract types" in {
+  private def abstractTypes: Result = {
     val srcA =
       """abstract class A {
         | type T
@@ -77,21 +109,18 @@ class ExtractUsedNamesSpecification
     // They don't come from type dependency traverser, but from `addSymbol`
     val versionDependentNames =
       if (scalaVersion.startsWith("2.10")) Set("Nothing", "Any") else Set()
-    val namesA = standardNames ++ Set("A") ++ versionDependentNames
-    val namesAX = standardNames ++ Set("X", "x", "T", "A")
-    val namesB = Set("B", "A", "Int", "A;init;", "scala")
-    val namesC = Set("B;init;", "C", "B")
-    val namesD = standardNames ++ Set("D", "C", "X", "foo", "Int", "T")
-    assert(usedNames("A") === namesA)
-    assert(usedNames("A.X") === namesAX)
-    assert(usedNames("B") === namesB)
-    assert(usedNames("C") === namesC)
-    assert(usedNames("D") === namesD)
+    Result.all(
+      List(
+        usedNames("A") ==== standardNames ++ Set("A") ++ versionDependentNames,
+        usedNames("A.X") ==== standardNames ++ Set("X", "x", "T", "A"),
+        usedNames("B") ==== Set("B", "A", "Int", "A;init;", "scala"),
+        usedNames("C") ==== Set("B;init;", "C", "B"),
+        usedNames("D") ==== standardNames ++ Set("D", "C", "X", "foo", "Int", "T"),
+      )
+    )
   }
 
-  // See source-dependencies/types-in-used-names-a for an example where
-  // this is required.
-  it should "extract names in the types of trees" in {
+  private def typesOfTrees: Result = {
     val src1 = """|class X0
                   |class X1 extends X0
                   |class Y
@@ -127,40 +156,23 @@ class ExtractUsedNamesSpecification
                   |}
                   |""".stripMargin
     val usedNames = extractUsedNamesFromSrc(src1, src2)
-    val expectedNames_lista = standardNames ++ Set("Test_lista", "x", "B", "lista", "List", "A")
-    val expectedNames_at = standardNames ++ Set("Test_at", "x", "B", "at", "A", "T", "X0", "X1")
-    val expectedNames_as = standardNames ++ Set("Test_as", "x", "B", "as", "S", "Y")
-    val expectedNames_foo = standardNames ++ Set(
-      "Test_foo",
-      "x",
-      "B",
-      "foo",
-      "M",
-      "N",
-      "Predef",
-      "???",
-      "Nothing"
+    val nothing = Set("Predef", "???", "Nothing")
+    Result.all(
+      List(
+        usedNames("Test_lista") ====
+          standardNames ++ Set("Test_lista", "x", "B", "lista", "List", "A"),
+        usedNames("Test_at") ====
+          standardNames ++ Set("Test_at", "x", "B", "at", "A", "T", "X0", "X1"),
+        usedNames("Test_as") ==== standardNames ++ Set("Test_as", "x", "B", "as", "S", "Y"),
+        usedNames("Test_foo") ====
+          standardNames ++ Set("Test_foo", "x", "B", "foo", "M", "N") ++ nothing,
+        usedNames("Test_bar") ====
+          standardNames ++ Set("Test_bar", "x", "B", "bar", "Param", "P1", "P0") ++ nothing,
+      )
     )
-    val expectedNames_bar = standardNames ++ Set(
-      "Test_bar",
-      "x",
-      "B",
-      "bar",
-      "Param",
-      "P1",
-      "P0",
-      "Predef",
-      "???",
-      "Nothing"
-    )
-    assert(usedNames("Test_lista") === expectedNames_lista)
-    assert(usedNames("Test_at") === expectedNames_at)
-    assert(usedNames("Test_as") === expectedNames_as)
-    assert(usedNames("Test_foo") === expectedNames_foo)
-    assert(usedNames("Test_bar") === expectedNames_bar)
   }
 
-  it should "extract used names from an existential" in {
+  private def existential: Result = {
     val srcFoo =
       """import scala.language.existentials
       |class Foo {
@@ -168,7 +180,7 @@ class ExtractUsedNamesSpecification
       |}
       """.stripMargin
     val usedNames = extractUsedNamesFromSrc(srcFoo)
-    val expectedNames = standardNames ++ Seq(
+    usedNames("Foo") ==== standardNames ++ Set(
       "Double",
       "Foo",
       "T",
@@ -180,51 +192,55 @@ class ExtractUsedNamesSpecification
       "???",
       "Predef"
     )
-    assert(usedNames("Foo") === expectedNames)
   }
 
-  it should "extract used names from a refinement" in {
+  private def refinement: Result = {
     val srcFoo =
       "object Outer {\n  class Inner { type Xyz }\n\n  type TypeInner = Inner { type Xyz = Int }\n}"
     val srcBar = "object Bar {\n  def bar: Outer.TypeInner = null\n}"
     val usedNames = extractUsedNamesFromSrc(srcFoo, srcBar)
-    val expectedNames = standardNames ++ Set("Bar", "Outer", "TypeInner", "Inner", "Xyz", "Int")
-    assert(usedNames("Bar") === expectedNames)
+    usedNames("Bar") ==== standardNames ++ Set("Bar", "Outer", "TypeInner", "Inner", "Xyz", "Int")
   }
 
-  // test for https://github.com/gkossakowski/sbt/issues/3
-  it should "extract used names from the same compilation unit" in {
-    val src = "class A { def foo: Int = 0; def bar: Int = foo }"
-    val usedNames = extractUsedNamesFromSrc(src)
-    val expectedNames = standardNames ++ Set("A", "foo", "Int")
-    assert(usedNames("A") === expectedNames)
+  private def sameUnit: Result = {
+    val usedNames = extractUsedNamesFromSrc("class A { def foo: Int = 0; def bar: Int = foo }")
+    usedNames("A") ==== standardNames ++ Set("A", "foo", "Int")
   }
 
-  // pending test for https://github.com/scala/bug/issues/7173
-  it should "extract names of constants" in pendingUntilFixed {
-    val src = "class A { final val foo = 12; def bar: Int = foo }"
-    val usedNames = extractUsedNamesFromSrc(src)
-    val expectedNames = standardNames ++ Set("A", "foo", "Int")
-    assert(usedNames === expectedNames)
-    ()
+  /** Each member returns 0 or the sum of earlier members, which are the only names it uses. */
+  def propSameUnit: Property =
+    for {
+      flags <- Gen.list(Gen.list(Gen.boolean, Range.linear(0, 4)), Range.linear(1, 5)).forAll
+    } yield {
+      val members = flags.zipWithIndex.map {
+        case (fs, i) =>
+          val used = fs.take(i).zipWithIndex.collect { case (true, j) => s"m$j" }
+          val body = if (used.isEmpty) "0" else used.mkString(" + ")
+          (s"def m$i: Int = $body", used)
+      }
+      val src = members.map(_._1).mkString("class A { ", "; ", " }")
+      val used = members.flatMap(_._2).toSet
+      val plus = if (members.exists(_._2.size > 1)) Set("+") else Set.empty[String]
+      val usedNames = extractUsedNamesFromSrc(src)
+      (usedNames("A") ==== standardNames ++ Set("A", "Int") ++ used ++ plus).log(src)
+    }
+
+  private def constants: Result = {
+    val usedNames = extractUsedNamesFromSrc("class A { final val foo = 12; def bar: Int = foo }")
+    usedNames("A") ==== standardNames ++ Set("A", "foo", "Int")
   }
 
-  // test for https://github.com/gkossakowski/sbt/issues/4
-  // TODO: we should fix it by having special treatment of `selectDynamic` and `applyDynamic` calls
-  it should "extract names from method calls on Dynamic" in pendingUntilFixed {
+  private def dynamic: Result = {
     val srcA = """|import scala.language.dynamics
                   |class A extends Dynamic {
                   | def selectDynamic(name: String): Int = name.length
                   |}""".stripMargin
     val srcB = "class B { def foo(a: A): Int = a.bla }"
     val usedNames = extractUsedNamesFromSrc(srcA, srcB)
-    val expectedNames = standardNames ++ Set("B", "A", "a", "Int", "selectDynamic", "bla")
-    assert(usedNames === expectedNames)
-    ()
+    usedNames("B") ==== standardNames ++ Set("B", "A", "a", "Int", "selectDynamic", "bla")
   }
 
-  // This doesn't work in 2.13.0-RC1
-  it should "extract sealed classes scope" in {
+  private def sealedClassesScope: Result = {
     val sealedClassName = "Sealed"
     val sealedClass =
       s"""package base
@@ -237,13 +253,9 @@ class ExtractUsedNamesSpecification
     def findPatMatUsages(in: String): Set[String] = {
       val (_, callback) = compileSrcs(List(List(sealedClass, in)))
       val clientNames = callback.usedNamesAndScopes.view.filterKeys(!_.startsWith("base.")).toMap
-
-      val names = clientNames.flatMap {
-        case (_, usages) =>
-          usages.filter(_.scopes.contains(UseScope.PatMatTarget)).map(_.name)
-      }
-
-      names.toSet
+      clientNames.flatMap {
+        case (_, usages) => usages.filter(_.scopes.contains(UseScope.PatMatTarget)).map(_.name)
+      }.toSet
     }
 
     def classWithPatMatOfType(tpe: String) =
@@ -257,18 +269,6 @@ class ExtractUsedNamesSpecification
         |}
       """.stripMargin
 
-    // findPatMatUsages(classWithPatMatOfType()) shouldEqual Set(sealedClassName)
-
-    // Option is sealed
-    findPatMatUsages(classWithPatMatOfType(s"Option[$sealedClassName]")) shouldEqual Set(
-      sealedClassName,
-      "Option"
-    )
-    // Seq and Set is not
-    findPatMatUsages(classWithPatMatOfType(s"Seq[Set[$sealedClassName]]")) shouldEqual Set(
-      sealedClassName
-    )
-
     def inNestedCase(tpe: String) =
       s"""package client
           |import base._
@@ -278,8 +278,6 @@ class ExtractUsedNamesSpecification
           |   case _: $tpe => 1
           |  }
           |}""".stripMargin
-
-    findPatMatUsages(inNestedCase(sealedClassName)) shouldEqual Set()
 
     val notUsedInPatternMatch =
       s"""package client
@@ -292,20 +290,19 @@ class ExtractUsedNamesSpecification
           |  val aa: $sealedClassName = ???
           |}""".stripMargin
 
-    findPatMatUsages(notUsedInPatternMatch) shouldEqual Set()
-    ()
+    // findPatMatUsages(classWithPatMatOfType()) shouldEqual Set(sealedClassName)
+
+    Result.all(
+      List(
+        // Option is sealed
+        findPatMatUsages(classWithPatMatOfType(s"Option[$sealedClassName]")) ====
+          Set(sealedClassName, "Option"),
+        // Seq and Set is not
+        findPatMatUsages(classWithPatMatOfType(s"Seq[Set[$sealedClassName]]")) ====
+          Set(sealedClassName),
+        findPatMatUsages(inNestedCase(sealedClassName)) ==== Set.empty[String],
+        findPatMatUsages(notUsedInPatternMatch) ==== Set.empty[String],
+      )
+    )
   }
-
-  /**
-   * Standard names that appear in every compilation unit that has any class
-   * definition.
-   */
-  private val standardNames = Set(
-    "scala",
-    // The default parent of a class is "AnyRef" which is an alias for "Object"
-    "AnyRef",
-    "Object",
-    "java;lang;Object;init;"
-  )
-
 }

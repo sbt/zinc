@@ -14,156 +14,190 @@ package internal
 package inc
 package javac
 
+import hedgehog.{ sbt as _, * }
+import hedgehog.runner.*
 import sbt.internal.util.ConsoleLogger
-import org.scalatest.diagrams.Diagrams
-import xsbti.Severity
+import xsbti.{ Position, Problem, Severity }
+import HedgehogSupport.contains
 
-class JavaErrorParserSpec extends UnitSpec with Diagrams:
+object JavaErrorParserSpec extends Properties:
+  override def tests: List[Test] = List(
+    example("The JavaErrorParser should be able to parse Linux errors", parseSampleLinux),
+    example("be able to parse windows file names", parseWindowsFile),
+    example("be able to parse windows errors", parseSampleWindows),
+    example("be able to parse javac non-problems", parseSampleNonProblem),
+    example("be able to parse javac warnings", parseJavacWarning),
+    example("be able to parse javac errors", parseSampleJavac),
+    example("register the position of errors", parseErrorPosition),
+    example("be able to parse multiple errors", parseMultipleErrors),
+    example(
+      "be able to parse multiple errors without carrets or indentation",
+      parseMultipleErrors2
+    ),
+    property("parse the path, line, severity and pointer of any problem list", propProblems),
+  )
 
-  "The JavaErrorParser" should "be able to parse Linux errors" in parseSampleLinux()
-  it should "be able to parse windows file names" in parseWindowsFile()
-  it should "be able to parse windows errors" in parseSampleWindows()
-  it should "be able to parse javac non-problems" in parseSampleNonProblem()
-  it should "be able to parse javac warnings" in parseJavacWarning()
-  it should "be able to parse javac errors" in parseSampleJavac()
-  it should "register the position of errors" in parseErrorPosition()
-  it should "be able to parse multiple errors" in parseMultipleErrors()
-  it should "be able to parse multiple errors without carrets or indentation" in
-    parseMultipleErrors2()
+  private def parse(in: String): List[Problem] =
+    new JavaErrorParser().parseProblems(in, ConsoleLogger()).toList
 
-  def parseSampleLinux() =
-    val parser = new JavaErrorParser()
-    val logger = ConsoleLogger()
-    val problems = parser.parseProblems(sampleLinuxMessage, logger)
+  private def parseSampleLinux: Result =
+    val problems = parse(sampleLinuxMessage)
+    Result.all(
+      List(
+        problems.size ==== 1,
+        sourcePath(problems.head) ==== Some("/home/me/projects/sample/src/main/Test.java"),
+      )
+    )
 
-    assert(problems.size == 1)
-    assert(problems(0).position.sourcePath.get == ("/home/me/projects/sample/src/main/Test.java"))
+  private def parseSampleWindows: Result =
+    val problems = parse(sampleWindowsMessage)
+    Result.all(List(problems.size ==== 1, sourcePath(problems.head) ==== Some(windowsFile)))
 
-  def parseSampleWindows() =
-    val parser = new JavaErrorParser()
-    val logger = ConsoleLogger()
-    val problems = parser.parseProblems(sampleWindowsMessage, logger)
+  private def parseSampleNonProblem: Result =
+    parse(sampleNonProblemMessage).size ==== 2
 
-    assert(problems.size == 1)
-    problems(0).position.sourcePath.get shouldBe (windowsFile)
-
-  def parseSampleNonProblem() =
-    val parser = new JavaErrorParser()
-    val logger = ConsoleLogger()
-    val problems = parser.parseProblems(sampleNonProblemMessage, logger)
-
-    assert(problems.size == 2)
-
-  def parseWindowsFile() =
+  private def parseWindowsFile: Result =
     val parser = new JavaErrorParser()
     parser.parse(parser.fileAndLineNo, sampleWindowsMessage) match
-      case parser.Success((file, _), _) => file shouldBe (windowsFile)
+      case parser.Success((file, _), _) => file ==== windowsFile
       case parser.Error(msg, next)      =>
-        assert(false, "Error to parse: " + msg + ", " + next.pos.longString)
+        Result.failure.log("Error to parse: " + msg + ", " + next.pos.longString)
       case parser.Failure(msg, next) =>
-        assert(false, "Failed to parse: " + msg + ", " + next.pos.longString)
+        Result.failure.log("Failed to parse: " + msg + ", " + next.pos.longString)
 
-  def parseJavacWarning() =
-    val parser = new JavaErrorParser()
-    val logger = ConsoleLogger()
-    val problems = parser.parseProblems(sampleJavacWarning, logger)
-    assert(problems.size == 1)
-    problems(0).severity shouldBe Severity.Warn
-    problems(0).position.offset.isPresent shouldBe false
+  private def parseJavacWarning: Result =
+    val problems = parse(sampleJavacWarning)
+    Result.all(
+      List(
+        problems.size ==== 1,
+        problems.head.severity ==== Severity.Warn,
+        problems.head.position.offset.isPresent ==== false,
+      )
+    )
 
-  def parseSampleJavac() =
-    val parser = new JavaErrorParser()
-    val logger = ConsoleLogger()
-    val problems = parser.parseProblems(sampleJavacMessage, logger)
-    assert(problems.size == 1)
-    problems(0).message shouldBe (sampleJavacMessage)
+  private def parseSampleJavac: Result =
+    val problems = parse(sampleJavacMessage)
+    Result.all(List(problems.size ==== 1, problems.head.message ==== sampleJavacMessage))
 
-  def parseErrorPosition() =
-    val parser = new JavaErrorParser()
-    val logger = ConsoleLogger()
-    val problems = parser.parseProblems(sampleErrorPosition, logger)
-    assert(problems.size == 1)
-    val position = problems.head.position
+  private def sourcePath(p: Problem): Option[String] =
+    if p.position.sourcePath.isPresent then Some(p.position.sourcePath.get) else None
 
-    position.sourcePath.isPresent shouldBe true
-    position.sourcePath.get shouldBe "/home/me/projects/sample/src/main/java/A.java"
-    position.line.isPresent shouldBe true
-    position.line.get shouldBe 6
-    position.lineContent should include("System.out.println(foobar);")
-    position.pointer.isPresent shouldBe true
-    position.pointer.get shouldBe 23
-    position.pointerSpace.isPresent shouldBe true
-    position.pointerSpace.get shouldBe (" " * 23)
+  private def checkPosition(
+      position: Position,
+      path: String,
+      line: Int,
+      content: String,
+      pointer: Int
+  ): Result =
+    Result.all(
+      List(
+        (if position.sourcePath.isPresent then Some(position.sourcePath.get) else None) ====
+          Some(path),
+        (if position.line.isPresent then Some(position.line.get.toInt) else None) ==== Some(line),
+        contains(position.lineContent, content),
+        (if position.pointer.isPresent then Some(position.pointer.get.toInt) else None) ====
+          Some(pointer),
+        (if position.pointerSpace.isPresent then Some(position.pointerSpace.get) else None) ====
+          Some(" " * pointer),
+      )
+    )
 
-  def parseMultipleErrors() =
-    val parser = new JavaErrorParser()
-    val logger = ConsoleLogger()
-    val problems = parser.parseProblems(sampleMultipleErrors, logger)
-    assert(problems.size == 5)
+  private def parseErrorPosition: Result =
+    val problems = parse(sampleErrorPosition)
+    Result.all(
+      List(
+        problems.size ==== 1,
+        checkPosition(
+          problems.head.position,
+          "/home/me/projects/sample/src/main/java/A.java",
+          6,
+          "System.out.println(foobar);",
+          23
+        ),
+      )
+    )
 
-    val position1 = problems(0).position
-    position1.sourcePath.isPresent shouldBe true
-    position1.sourcePath.get shouldBe "/home/foo/sbt/internal/inc/javac/test1.java"
-    position1.line.isPresent shouldBe true
-    position1.line.get shouldBe 3
-    position1.lineContent should include("public class Test {")
-    position1.pointer.isPresent shouldBe true
-    position1.pointer.get shouldBe 7
-    position1.pointerSpace.isPresent shouldBe true
-    position1.pointerSpace.get shouldBe (" " * 7)
+  private def parseMultipleErrors: Result =
+    val problems = parse(sampleMultipleErrors)
+    val file = "/home/foo/sbt/internal/inc/javac/test1.java"
+    val expected = List(
+      (3, "public class Test {", 7),
+      (1, "import java.rmi.RMISecurityException;", 15),
+      (4, "public NotFound foo() { return 5; }", 11),
+      (7, """throw new RMISecurityException("O NOES");""", 18),
+      (7, """throw new RMISecurityException("O NOES");""", 14),
+    )
+    Result.all(
+      (problems.size ==== 5) :: problems.zip(expected).map {
+        case (p, (line, content, pointer)) =>
+          checkPosition(p.position, file, line, content, pointer)
+      }
+    )
 
-    val position2 = problems(1).position
-    position2.sourcePath.isPresent shouldBe true
-    position2.sourcePath.get shouldBe "/home/foo/sbt/internal/inc/javac/test1.java"
-    position2.line.isPresent shouldBe true
-    position2.line.get shouldBe 1
-    position2.lineContent should include("import java.rmi.RMISecurityException;")
-    position2.pointer.isPresent shouldBe true
-    position2.pointer.get shouldBe 15
-    position2.pointerSpace.isPresent shouldBe true
-    position2.pointerSpace.get shouldBe (" " * 15)
+  private def parseMultipleErrors2: Result =
+    val problems = parse(sampleLinuxMessage2)
+    Result.all(
+      List(
+        problems.size ==== 3,
+        sourcePath(problems.head) ==== Some("/home/me/projects/sample/src/main/Test.java"),
+      )
+    )
 
-    val position3 = problems(2).position
-    position3.sourcePath.isPresent shouldBe true
-    position3.sourcePath.get shouldBe "/home/foo/sbt/internal/inc/javac/test1.java"
-    position3.line.isPresent shouldBe true
-    position3.line.get shouldBe 4
-    position3.lineContent should include("public NotFound foo() { return 5; }")
-    position3.pointer.isPresent shouldBe true
-    position3.pointer.get shouldBe 11
-    position3.pointerSpace.isPresent shouldBe true
-    position3.pointerSpace.get shouldBe (" " * 11)
+  private case class Sample(
+      path: String,
+      line: Int,
+      severity: Severity,
+      message: String,
+      code: String,
+      pointer: Int,
+      details: List[String]
+  ):
+    def render: String =
+      val kind = if severity == Severity.Warn then "warning: " else "error: "
+      (s"$path:$line: $kind$message" :: code :: s"${" " * pointer}^" :: details.map("  " + _))
+        .mkString("", "\n", "\n")
 
-    val position4 = problems(3).position
-    position4.sourcePath.isPresent shouldBe true
-    position4.sourcePath.get shouldBe "/home/foo/sbt/internal/inc/javac/test1.java"
-    position4.line.isPresent shouldBe true
-    position4.line.get shouldBe 7
-    position4.lineContent should include("""throw new RMISecurityException("O NOES");""")
-    position4.pointer.isPresent shouldBe true
-    position4.pointer.get shouldBe 18
-    position4.pointerSpace.isPresent shouldBe true
-    position4.pointerSpace.get shouldBe (" " * 18)
+  private val genWords: Gen[String] =
+    Gen.list(Gen.string(Gen.lower, Range.linear(1, 8)), Range.linear(1, 5)).map(_.mkString(" "))
 
-    val position5 = problems(4).position
-    position5.sourcePath.isPresent shouldBe true
-    position5.sourcePath.get shouldBe "/home/foo/sbt/internal/inc/javac/test1.java"
-    position5.line.isPresent shouldBe true
-    position5.line.get shouldBe 7
-    position5.lineContent should include("""throw new RMISecurityException("O NOES");""")
-    position5.pointer.isPresent shouldBe true
-    position5.pointer.get shouldBe 14
-    position5.pointerSpace.isPresent shouldBe true
-    position5.pointerSpace.get shouldBe (" " * 14)
-  end parseMultipleErrors
+  private val genSample: Gen[Sample] =
+    for
+      segments <- Gen.list(Gen.string(Gen.alphaNum, Range.linear(1, 8)), Range.linear(1, 4))
+      line <- Gen.int(Range.linear(1, 10000))
+      severity <- Gen.element1(Severity.Error, Severity.Warn)
+      message <- genWords
+      indent <- Gen.int(Range.linear(0, 8))
+      code <- genWords
+      pointer <- Gen.int(Range.linear(1, indent + code.length))
+      details <- Gen.list(genWords, Range.linear(0, 2))
+    yield Sample(
+      segments.mkString("/", "/", ".java"),
+      line,
+      severity,
+      message,
+      " " * indent + code,
+      pointer,
+      details
+    )
 
-  def parseMultipleErrors2() =
-    val parser = new JavaErrorParser()
-    val logger = ConsoleLogger()
-    val problems = parser.parseProblems(sampleLinuxMessage2, logger)
-
-    assert(problems.size == 3)
-    assert(problems(0).position.sourcePath.get == ("/home/me/projects/sample/src/main/Test.java"))
+  def propProblems: Property =
+    for samples <- Gen.list(genSample, Range.linear(1, 5)).forAll
+    yield
+      val input = samples.map(_.render).mkString
+      val problems = parse(input)
+      Result
+        .all(
+          (problems.size ==== samples.size) :: problems.zip(samples).map { (p, s) =>
+            Result.all(
+              List(
+                p.severity ==== s.severity,
+                contains(p.message, s.message),
+                checkPosition(p.position, s.path, s.line, s.code, s.pointer),
+              )
+            )
+          }
+        )
+        .log(input)
 
   def sampleLinuxMessage =
     """
@@ -218,7 +252,6 @@ class JavaErrorParserSpec extends UnitSpec with Diagrams:
     "warning: [options] system modules path not set in conjunction with -source 17"
 
   def windowsFile = """C:\Projects\sample\src\main\java\Test.java"""
-  def windowsFileAndLine = s"""$windowsFile:4"""
 
   def sampleJavacMessage = "javac: invalid flag: -foobar"
 

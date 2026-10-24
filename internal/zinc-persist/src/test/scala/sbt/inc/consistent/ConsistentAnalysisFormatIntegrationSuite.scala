@@ -11,9 +11,10 @@
 
 package sbt.inc.consistent
 
+import hedgehog.{ sbt as _, * }
+import hedgehog.runner.*
 import java.io.{ File, FileInputStream }
 import java.util.Arrays
-import org.scalatest.funsuite.AnyFunSuite
 import sbt.internal.inc.consistent.ConsistentFileAnalysisStore
 import sbt.internal.inc.{ Analysis, FileAnalysisStore }
 import sbt.io.{ IO, Using }
@@ -23,62 +24,76 @@ import xsbti.compile.analysis.ReadWriteMappers
 // $ cp $HOME/work/scala-modules/scala/target/library/zinc/inc_compile.zip test-data/library.zip
 // $ cp $HOME/work/scala-modules/scala/target/reflect/zinc/inc_compile.zip test-data/reflect.zip
 // $ cp $HOME/work/scala-modules/scala/target/compiler/zinc/inc_compile.zip test-data/compiler.zip
-class ConsistentAnalysisFormatIntegrationSuite extends AnyFunSuite:
+object ConsistentAnalysisFormatIntegrationSuite extends Properties:
+  override def tests: List[Test] = List(
+    example("Consistent output", consistentOutput),
+    example("Roundtrip", roundtrip),
+    example("Unsorted roundtrip", unsortedRoundtrip),
+    example("compression ratio", compressionRatio),
+  )
+
   val data =
     Seq("compiler.zip", "library.zip", "reflect.zip").map(f => new File("../../../test-data", f))
 
-  test("Consistent output") {
-    for d <- data do
-      assert(d.exists())
-      val api = read(FileAnalysisStore.text(d))
-      val f1 = write("cbin1.zip", api)
-      val f2 = write("cbin2.zip", api)
-      assert(Arrays.equals(IO.readBytes(f1), IO.readBytes(f2)), s"same output for $d")
+  /** Runs `f` on every data file that exists, and on the analysis read from it. */
+  private def forEachData(f: (File, AnalysisContents) => Result): Result =
+    Result.all(data.toList.map { d =>
+      if !d.exists() then Result.failure.log(s"$d does not exist")
+      else
+        val (api, loaded) = read(FileAnalysisStore.text(d))
+        loaded.and(f(d, api))
+    })
+
+  private def sameBytes(f1: File, f2: File, d: File): Result =
+    Result.assert(Arrays.equals(IO.readBytes(f1), IO.readBytes(f2))).log(s"same output for $d")
+
+  private def consistentOutput: Result = forEachData { (d, api) =>
+    val f1 = write("cbin1.zip", api)
+    val f2 = write("cbin2.zip", api)
+    sameBytes(f1, f2, d)
   }
 
-  test("Roundtrip") {
-    for d <- data do
-      assert(d.exists())
-      val api = read(FileAnalysisStore.text(d))
-      val f1 = write("cbin1.zip", api)
-      val api2 = read(ConsistentFileAnalysisStore.binary(f1, ReadWriteMappers.getEmptyMappers))
-      val f2 = write("cbin2.zip", api2)
-      assert(Arrays.equals(IO.readBytes(f1), IO.readBytes(f2)), s"same output for $d")
+  private def roundtrip: Result = forEachData { (d, api) =>
+    val f1 = write("cbin1.zip", api)
+    val (api2, loaded) =
+      read(ConsistentFileAnalysisStore.binary(f1, ReadWriteMappers.getEmptyMappers))
+    val f2 = write("cbin2.zip", api2)
+    loaded.and(sameBytes(f1, f2, d))
   }
 
-  test("Unsorted roundtrip") {
-    for d <- data do
-      assert(d.exists())
-      val api = read(FileAnalysisStore.text(d))
-      val f1 = write("cbin1.zip", api)
-      val api2 = read(ConsistentFileAnalysisStore.binary(f1, ReadWriteMappers.getEmptyMappers))
-      val f2 = write("cbin2.zip", api2, sort = false)
-      val api3 = read(ConsistentFileAnalysisStore.binary(f2, ReadWriteMappers.getEmptyMappers))
-      val f3 = write("cbin3.zip", api3)
-      assert(Arrays.equals(IO.readBytes(f1), IO.readBytes(f3)), s"same output for $d")
+  private def unsortedRoundtrip: Result = forEachData { (d, api) =>
+    val f1 = write("cbin1.zip", api)
+    val (api2, loaded2) =
+      read(ConsistentFileAnalysisStore.binary(f1, ReadWriteMappers.getEmptyMappers))
+    val f2 = write("cbin2.zip", api2, sort = false)
+    val (api3, loaded3) =
+      read(ConsistentFileAnalysisStore.binary(f2, ReadWriteMappers.getEmptyMappers))
+    val f3 = write("cbin3.zip", api3)
+    Result.all(List(loaded2, loaded3, sameBytes(f1, f3, d)))
   }
 
-  test("compression ratio") {
-    for d <- data do
-      assert(d.exists())
-      val api = read(FileAnalysisStore.text(d))
-      val file = write("cbin1.zip", api)
-      val uncompressedSize = Using.gzipInputStream(new FileInputStream(file)) { in =>
-        val content = IO.readBytes(in)
-        content.length
-      }
-      val compressedSize = d.length()
-      val compressionRatio = compressedSize.toDouble / uncompressedSize.toDouble
-      assert(compressionRatio < 0.85)
-      // compression rate for each data: 0.8185090254676337, 0.7247774786370688, 0.8346021341469837
+  private def compressionRatio: Result = forEachData { (d, api) =>
+    val file = write("cbin1.zip", api)
+    val uncompressedSize = Using.gzipInputStream(new FileInputStream(file)) { in =>
+      val content = IO.readBytes(in)
+      content.length
+    }
+    val compressedSize = d.length()
+    val compressionRatio = compressedSize.toDouble / uncompressedSize.toDouble
+    Result.diff(compressionRatio, 0.85)(_ < _).log(s"compression ratio for $d")
+    // compression rate for each data: 0.8185090254676337, 0.7247774786370688, 0.8346021341469837
   }
 
-  def read(store: AnalysisStore): AnalysisContents =
+  def read(store: AnalysisStore): (AnalysisContents, Result) =
     val api = store.unsafeGet()
     // Force loading of companion file and check that the companion data is present:
-    assert(api.getAnalysis.asInstanceOf[Analysis].apis.internal.head._2.api() != null)
-    assert(api.getMiniSetup.storeApis())
-    api
+    val loaded = Result.all(
+      List(
+        Result.assert(api.getAnalysis.asInstanceOf[Analysis].apis.internal.head._2.api() != null),
+        Result.assert(api.getMiniSetup.storeApis()),
+      )
+    )
+    (api, loaded)
 
   def write(name: String, api: AnalysisContents, sort: Boolean = true): File =
     val out = new File(IO.temporaryDirectory, name)

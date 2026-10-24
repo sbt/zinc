@@ -11,11 +11,13 @@
 
 package sbt.inc
 
+import hedgehog.{ sbt as _, * }
+import hedgehog.runner.*
 import java.io.File
 import java.nio.file.Paths
 import java.util.Optional
 
-import sbt.internal.inc.{ MixedAnalyzingCompiler, PlainVirtualFileConverter, UnitSpec }
+import sbt.internal.inc.{ MixedAnalyzingCompiler, PlainVirtualFileConverter }
 import xsbti.VirtualFile
 import xsbti.compile.*
 
@@ -23,7 +25,20 @@ import xsbti.compile.*
  * The search classpath drives dependency lookup, so it has to describe the same class
  * universe the compiler sees. See sbt/zinc#348.
  */
-class SearchClasspathSpec extends UnitSpec:
+object SearchClasspathSpec extends Properties:
+  override def tests: List[Test] = List(
+    example(
+      "the search classpath should include Zinc's boot classpath when the client sets none",
+      zincBootClasspath
+    ),
+    example(
+      "use the client's boot classpath instead of Zinc's when one is set",
+      clientBootClasspath
+    ),
+    example("recognize every spelling the compiler accepts", everySpelling),
+    property("use any boot classpath the client sets among other options", propClientBoot),
+  )
+
   // Absolute so that assertions match the absolutized entries on Windows too,
   // where "/tmp/..." is only drive-relative.
   private val scalaLibraryJar = new File("/tmp/zinc-test/scala-library.jar").getAbsoluteFile
@@ -68,26 +83,51 @@ class SearchClasspathSpec extends UnitSpec:
       ._1
       .map(converter.toPath(_).toString)
 
-  "the search classpath" should "include Zinc's boot classpath when the client sets none" in {
+  private def zincBootClasspath: Result =
     val entries = searchClasspath(Array("-deprecation"))
-    assert(entries.contains(scalaLibraryJar.toString))
-  }
+    Result.assert(entries.contains(scalaLibraryJar.toString)).log(s"entries: $entries")
 
-  it should "use the client's boot classpath instead of Zinc's when one is set" in {
+  private def clientBootClasspath: Result =
     val entries = searchClasspath(Array("-bootclasspath", userBootJar))
-    assert(entries.contains(Paths.get(userBootJar).toString))
-    assert(!entries.contains(scalaLibraryJar.toString))
-  }
+    Result.all(
+      List(
+        Result.assert(entries.contains(Paths.get(userBootJar).toString)),
+        Result.assert(!entries.contains(scalaLibraryJar.toString)),
+      )
+    ).log(s"entries: $entries")
 
-  it should "recognize every spelling the compiler accepts" in {
-    val spellings = Seq(
-      Array("-bootclasspath", userBootJar),
-      Array(s"-bootclasspath:$userBootJar"),
-      Array("--boot-class-path", userBootJar),
-      Array(s"--boot-class-path:$userBootJar"),
-    )
-    spellings.foreach { options =>
-      assert(!searchClasspath(options).contains(scalaLibraryJar.toString), options.mkString(" "))
-    }
-  }
+  private val spellings: List[String => Array[String]] = List(
+    path => Array("-bootclasspath", path),
+    path => Array(s"-bootclasspath:$path"),
+    path => Array("--boot-class-path", path),
+    path => Array(s"--boot-class-path:$path"),
+  )
+
+  private def everySpelling: Result =
+    Result.all(spellings.map { spell =>
+      val options = spell(userBootJar)
+      Result
+        .assert(!searchClasspath(options).contains(scalaLibraryJar.toString))
+        .log(options.mkString(" "))
+    })
+
+  def propClientBoot: Property =
+    for
+      spell <- Gen.elementUnsafe(spellings).forAll
+      name <- Gen.string(Gen.alphaNum, Range.linear(1, 8)).forAll
+      others <- Gen
+        .list(Gen.element1("-deprecation", "-feature", "-unchecked"), Range.linear(0, 3))
+        .forAll
+    yield
+      val bootJar = new File(s"/tmp/zinc-test/$name.jar").getAbsoluteFile.toString
+      val options = (others ++ spell(bootJar)).toArray
+      val entries = searchClasspath(options)
+      Result
+        .all(
+          List(
+            Result.assert(entries.contains(Paths.get(bootJar).toString)),
+            Result.assert(!entries.contains(scalaLibraryJar.toString)),
+          )
+        )
+        .log(s"options: ${options.mkString(" ")}, entries: $entries")
 end SearchClasspathSpec

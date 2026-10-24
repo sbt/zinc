@@ -86,7 +86,7 @@ final case class IncState(
     copy(number = number + 1, compilations = scala.collection.concurrent.TrieMap.empty)
 
 class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, compileToJar: Boolean)
-    extends BridgeProviderSpecification
+    extends BridgeProviderTestkit
     with StatementHandler:
   import scala.concurrent.ExecutionContext.Implicits.*
   type State = Option[IncState]
@@ -336,7 +336,7 @@ case class ProjectStructure(
     compileToJar: Boolean,
     incrementalCompiler: IncrementalCompilerImpl,
     compileOrder: CompileOrder = CompileOrder.Mixed
-) extends BridgeProviderSpecification:
+) extends BridgeProviderTestkit:
   import scala.concurrent.ExecutionContext.Implicits.*
   // This will test pipelining unless incOptions.properties overrides it
   val defaultPipelining = true

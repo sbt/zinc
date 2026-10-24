@@ -14,17 +14,32 @@ package internal
 package inc
 package classfile
 
+import hedgehog.{ sbt as _, * }
+import hedgehog.runner.*
 import sbt.internal.util.ConsoleLogger
 
-class ParserSpecification extends UnitSpec:
+object ParserSpecification extends Properties:
+  override def tests: List[Test] =
+    sampleClasses.map(c =>
+      example(s"classfile.Parser should not crash when parsing $c", parses(c))
+    ) ++
+      List(
+        property("not crash when parsing any sample class", propParses),
+        example(
+          "parse InnerClasses attribute for AbstractMap.SimpleEntry",
+          simpleEntryInnerClasses
+        ),
+        example("parse InnerClasses attribute for AbstractMap", abstractMapInnerClasses),
+      )
 
-  val sampleClasses = List[Class[?]](
+  private val sampleClasses = List[Class[?]](
     this.getClass,
     classOf[java.lang.Integer],
     classOf[java.util.AbstractMap.SimpleEntry[String, String]],
     classOf[String],
     classOf[Thread],
     classOf[org.scalacheck.Properties],
+    classOf[hedgehog.runner.Properties],
     // exercises meta-annotation parsing
     classOf[java.lang.annotation.Retention]
     // I thought it would be nice to throw in a nested annotation example here,
@@ -33,34 +48,51 @@ class ParserSpecification extends UnitSpec:
     // over in AnalyzeSpecification
   )
 
-  for c <- sampleClasses do
-    "classfile.Parser" should s"not crash when parsing $c" in {
-      val logger = ConsoleLogger()
-      // logger.setLevel(sbt.util.Level.Debug)
-      val classfile = Parser(sbt.io.IO.classfileLocation(c), logger)
-      assert(classfile ne null)
-      assert(classfile.types.nonEmpty)
-    }
-
-  it should "parse InnerClasses attribute for AbstractMap.SimpleEntry" in {
+  private def parse(c: Class[?]): ClassFile =
     val logger = ConsoleLogger()
-    val c = classOf[java.util.AbstractMap.SimpleEntry[String, String]]
-    val cf = Parser(sbt.io.IO.classfileLocation(c), logger)
-    val innerClasses = cf.innerClasses
-    assert(innerClasses.nonEmpty)
-    val self = innerClasses.find(_.innerClassName == "java.util.AbstractMap$SimpleEntry")
-    assert(self.isDefined)
-    assert(self.get.outerClassName == "java.util.AbstractMap")
-  }
+    // logger.setLevel(sbt.util.Level.Debug)
+    Parser(sbt.io.IO.classfileLocation(c), logger)
 
-  it should "parse InnerClasses attribute for AbstractMap" in {
-    val logger = ConsoleLogger()
-    val c = classOf[java.util.AbstractMap[?, ?]]
-    val cf = Parser(sbt.io.IO.classfileLocation(c), logger)
-    val innerClasses = cf.innerClasses
-    val entry = innerClasses.find(_.innerClassName == "java.util.AbstractMap$SimpleEntry")
-    assert(entry.isDefined)
-    assert(entry.get.outerClassName == "java.util.AbstractMap")
-    assert(entry.get.isPublic)
-  }
+  private def parses(c: Class[?]): Result =
+    val classfile = parse(c)
+    Result.all(List(Result.assert(classfile ne null), Result.assert(classfile.types.nonEmpty)))
+
+  private val genClass: Gen[Class[?]] =
+    Gen.element1[Class[?]](
+      classOf[java.util.HashMap[?, ?]],
+      classOf[java.util.concurrent.ConcurrentHashMap[?, ?]],
+      classOf[java.util.Optional[?]],
+      classOf[java.lang.Enum[?]],
+      classOf[java.io.BufferedReader],
+      classOf[java.nio.file.Files],
+      classOf[scala.collection.immutable.List[?]],
+      classOf[scala.Option[?]],
+      classOf[scala.util.Try[?]],
+      classOf[hedgehog.core.GenT[?]],
+      classOf[Parser.type],
+    )
+
+  def propParses: Property =
+    for c <- genClass.forAll
+    yield parses(c).log(s"class: $c")
+
+  private def simpleEntryInnerClasses: Result =
+    val cf = parse(classOf[java.util.AbstractMap.SimpleEntry[String, String]])
+    val self = cf.innerClasses.find(_.innerClassName == "java.util.AbstractMap$SimpleEntry")
+    Result.all(
+      List(
+        Result.assert(cf.innerClasses.nonEmpty),
+        self.map(_.outerClassName) ==== Some("java.util.AbstractMap"),
+      )
+    )
+
+  private def abstractMapInnerClasses: Result =
+    val cf = parse(classOf[java.util.AbstractMap[?, ?]])
+    val entry = cf.innerClasses.find(_.innerClassName == "java.util.AbstractMap$SimpleEntry")
+    Result.all(
+      List(
+        entry.map(_.outerClassName) ==== Some("java.util.AbstractMap"),
+        entry.map(_.isPublic) ==== Some(true),
+      )
+    )
 end ParserSpecification
