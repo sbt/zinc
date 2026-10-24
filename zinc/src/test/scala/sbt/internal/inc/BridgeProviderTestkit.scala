@@ -17,8 +17,6 @@ import sbt.util.Logger
 import xsbti.compile.CompilerBridgeProvider
 import sbt.internal.inc.ZincBuildInfo.*
 
-class BridgeProviderSpecification extends UnitSpec with BridgeProviderTestkit {}
-
 trait BridgeProviderTestkit extends AbstractBridgeProviderTestkit:
   final val Label210 = "2.10.x"
   final val Label211 = "2.11.x"

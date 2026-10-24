@@ -2,101 +2,110 @@ package sbt
 package internal
 package inc
 
+import hedgehog.{ sbt => _, _ }
+import hedgehog.runner._
 import xsbti.NameKind
 import xsbti.TestCallback.ExtractedClassDependencies
 import xsbti.api.DependencyContext.{ DependencyByInheritance, DependencyByMacroExpansion }
 
-class DependencySpecification
-    extends UnitSpec
+object DependencySpecification
+    extends Properties
     with CompilingSpecification
     with BridgeProviderTestkit {
+  override def tests: List[Test] = List(
+    example(
+      "Dependency phase should extract class dependencies from public members",
+      publicMembers
+    ),
+    example("extract class dependencies from local members", localMembers),
+    example("extract class dependencies with trait as first parent", traitAsFirstParent),
+    example("extract class dependencies from macro arguments", macroArguments),
+    example("extract class dependencies from macro type arguments", macroTypeArguments),
+    example("extract class dependencies from a refinement", refinement),
+    example("not record compound types in members as inheritance", compoundTypes),
+    example("extract class dependency on a object correctly", objectDependency),
+    example("extract class dependency from 'classOf' literal", classOfLiteral),
+    example("handle top level import dependencies", topLevelImports),
+    example("qualify each endpoint of a class dependency with its namespace", namespaces),
+    property("extract the parent of every class in any inheritance chain", propInheritanceChain)
+      .withTests(10),
+  )
 
-  "Dependency phase" should "extract class dependencies from public members" in {
-    val classDependencies = extractClassDependenciesPublic
-    val memberRef = classDependencies.memberRef
-    val inheritance = classDependencies.inheritance
-    assert(memberRef("A") === Set.empty)
-    assert(inheritance("A") === Set.empty)
-    assert(memberRef("B") === Set("A", "D"))
-    assert(inheritance("B") === Set("D"))
-    assert(memberRef("C") === Set("A"))
-    assert(inheritance("C") === Set.empty)
-    assert(memberRef("D") === Set.empty)
-    assert(inheritance("D") === Set.empty)
-    assert(memberRef("E") === Set.empty)
-    assert(inheritance("E") === Set.empty)
-    assert(memberRef("F") === Set("A", "B", "D", "E", "G", "C")) // C is the underlying type of MyC
-    assert(inheritance("F") === Set("A", "E"))
-    assert(memberRef("H") === Set("B", "E", "G"))
-    // aliases and applied type constructors are expanded so we have inheritance dependency on B
-    assert(inheritance("H") === Set("B", "E"))
-  }
+  private def checkDeps(deps: ExtractedClassDependencies)(
+      expected: (String, Set[String], Set[String])*
+  ): Result =
+    Result.all(expected.toList.flatMap {
+      case (name, refs, parents) =>
+        List(
+          (deps.memberRef(name) ==== refs).log(s"memberRef($name)"),
+          (deps.inheritance(name) ==== parents).log(s"inheritance($name)"),
+        )
+    })
 
-  it should "extract class dependencies from local members" in {
+  private def publicMembers: Result =
+    checkDeps(extractClassDependenciesPublic)(
+      ("A", Set.empty, Set.empty),
+      ("B", Set("A", "D"), Set("D")),
+      ("C", Set("A"), Set.empty),
+      ("D", Set.empty, Set.empty),
+      ("E", Set.empty, Set.empty),
+      ("F", Set("A", "B", "D", "E", "G", "C"), Set("A", "E")), // C is the underlying type of MyC
+      // aliases and applied type constructors are expanded so we have inheritance dependency on B
+      ("H", Set("B", "E", "G"), Set("B", "E")),
+    )
+
+  private def localMembers: Result = {
     val classDependencies = extractClassDependenciesLocal
-    val memberRef = classDependencies.memberRef
-    val inheritance = classDependencies.inheritance
     val localInheritance = classDependencies.localInheritance
-    assert(memberRef("A") === Set.empty)
-    assert(inheritance("A") === Set.empty)
-    assert(memberRef("B") === Set.empty)
-    assert(inheritance("B") === Set.empty)
-    assert(memberRef("C.Inner1") === Set("A"))
-    assert(inheritance("C.Inner1") === Set("A"))
-    assert(memberRef("D") === Set("B"))
-    assert(inheritance("D") === Set.empty)
-    assert(localInheritance("D") === Set("B"))
-    assert(memberRef("E") === Set("B"))
-    assert(inheritance("E") === Set.empty)
-    assert(localInheritance("E") === Set("B"))
+    Result.all(
+      List(
+        checkDeps(classDependencies)(
+          ("A", Set.empty, Set.empty),
+          ("B", Set.empty, Set.empty),
+          ("C.Inner1", Set("A"), Set("A")),
+          ("D", Set("B"), Set.empty),
+          ("E", Set("B"), Set.empty),
+        ),
+        localInheritance("D") ==== Set("B"),
+        localInheritance("E") ==== Set("B"),
+      )
+    )
   }
 
-  it should "extract class dependencies with trait as first parent" in {
-    val classDependencies = extractClassDependenciesTraitAsFirstPatent
-    val memberRef = classDependencies.memberRef
-    val inheritance = classDependencies.inheritance
-    assert(memberRef("A") === Set.empty)
-    assert(inheritance("A") === Set.empty)
-    assert(memberRef("B") === Set("A"))
-    assert(inheritance("B") === Set("A"))
-    // verify that memberRef captures the oddity described in documentation of `Relations.inheritance`
-    // we are mainly interested whether dependency on A is captured in `memberRef` relation so
-    // the invariant that says that memberRef is superset of inheritance relation is preserved
-    assert(memberRef("C") === Set("A", "B"))
-    assert(inheritance("C") === Set("A", "B"))
-    // same as above but indirect (C -> B -> A), note that only A is visible here
-    assert(memberRef("D") === Set("A", "C"))
-    assert(inheritance("D") === Set("A", "C"))
+  private def traitAsFirstParent: Result =
+    checkDeps(extractClassDependenciesTraitAsFirstPatent)(
+      ("A", Set.empty, Set.empty),
+      ("B", Set("A"), Set("A")),
+      // verify that memberRef captures the oddity described in documentation of `Relations.inheritance`
+      // we are mainly interested whether dependency on A is captured in `memberRef` relation so
+      // the invariant that says that memberRef is superset of inheritance relation is preserved
+      ("C", Set("A", "B"), Set("A", "B")),
+      // same as above but indirect (C -> B -> A), note that only A is visible here
+      ("D", Set("A", "C"), Set("A", "C")),
+    )
+
+  private def macroArguments: Result = {
+    val memberRef = extractBinaryDependenciesFromMacroArgument.memberRef
+    Result.diff(memberRef("A"), Set("B$", "C$"))((a, b) => b.subsetOf(a))
   }
 
-  it should "extract class dependencies from macro arguments" in {
-    val binaryDependencies = extractBinaryDependenciesFromMacroArgument
-    val memberRef = binaryDependencies.memberRef
-    memberRef("A") should contain allOf ("B$", "C$")
-  }
+  private def macroTypeArguments: Result =
+    Result.diff(
+      extractMacroExpansionDependenciesFromTypeArguments,
+      Set(("A", "App"), ("A", "App2"), ("B", "App3"))
+    )((a, b) => b.subsetOf(a))
 
-  it should "extract class dependencies from macro type arguments" in {
-    val deps = extractMacroExpansionDependenciesFromTypeArguments
-    assert(deps.contains(("A", "App")), deps)
-    assert(deps.contains(("A", "App2")), deps)
-    assert(deps.contains(("B", "App3")), deps)
-  }
-
-  it should "extract class dependencies from a refinement" in {
+  private def refinement: Result = {
     val srcFoo =
       "object Outer {\n  class Inner { type Xyz }\n\n  type TypeInner = Inner { type Xyz = Int }\n}"
     val srcBar = "object Bar {\n  def bar: Outer.TypeInner = null\n}"
-    val classDependencies = extractDependenciesFromSrcs(srcFoo, srcBar)
-
-    val memberRef = classDependencies.memberRef
-    val inheritance = classDependencies.inheritance
-    assert(memberRef("Outer") === Set.empty)
-    assert(inheritance("Outer") === Set.empty)
-    assert(memberRef("Bar") === Set("Outer", "Outer.Inner"))
-    assert(inheritance("Bar") === Set.empty)
+    checkDeps(extractDependenciesFromSrcs(srcFoo, srcBar))(
+      ("Outer", Set.empty, Set.empty),
+      ("Bar", Set("Outer", "Outer.Inner"), Set.empty),
+    )
   }
 
-  it should "not record compound types in members as inheritance" in {
+  private def compoundTypes: Result = {
     val srcA =
       """trait A[T <: B with C] { self: B with C =>
         |  def result: B with C = ???
@@ -111,46 +120,34 @@ class DependencySpecification
         |  type Existential = (Box[T] forSome { type T <: B }) with C
         |  type Annotated = (B @unchecked) with C
         |}""".stripMargin
-    val deps = extractDependenciesFromSrcs(srcA, "trait B", "trait C", "trait Box[T]")
-    assert(deps.memberRef("A") === Set("B", "C", "Box"))
-    assert(deps.inheritance("A") === Set.empty)
+    checkDeps(extractDependenciesFromSrcs(srcA, "trait B", "trait C", "trait Box[T]"))(
+      ("A", Set("B", "C", "Box"), Set.empty)
+    )
   }
 
-  it should "extract class dependency on a object correctly" in {
+  private def objectDependency: Result = {
     val srcA =
       """object A {
         |   def foo = { B; () }
         |}""".stripMargin
-    val srcB = "object B"
-
-    val classDependencies = extractDependenciesFromSrcs(srcA, srcB)
-
-    val memberRef = classDependencies.memberRef
-    val inheritance = classDependencies.inheritance
-    assert(memberRef("A") === Set("B"))
-    assert(inheritance("A") === Set.empty)
-    assert(memberRef("B") === Set.empty)
-    assert(inheritance("B") === Set.empty)
+    checkDeps(extractDependenciesFromSrcs(srcA, "object B"))(
+      ("A", Set("B"), Set.empty),
+      ("B", Set.empty, Set.empty),
+    )
   }
 
-  it should "extract class dependency from 'classOf' literal" in {
+  private def classOfLiteral: Result = {
     val srcA =
       """object A {
         |   print(classOf[B])
         |}""".stripMargin
-    val srcB = "class B"
-
-    val classDependencies = extractDependenciesFromSrcs(srcA, srcB)
-
-    val memberRef = classDependencies.memberRef
-    val inheritance = classDependencies.inheritance
-    assert(memberRef("A") === Set("B"))
-    assert(inheritance("A") === Set.empty)
-    assert(memberRef("B") === Set.empty)
-    assert(inheritance("B") === Set.empty)
+    checkDeps(extractDependenciesFromSrcs(srcA, "class B"))(
+      ("A", Set("B"), Set.empty),
+      ("B", Set.empty, Set.empty),
+    )
   }
 
-  it should "handle top level import dependencies" in {
+  private def topLevelImports: Result = {
     val srcA =
       """
         |package abc
@@ -172,30 +169,48 @@ class DependencySpecification
          |}
       """.stripMargin
     val srcH = "class H { import abc.A }"
-
-    val deps = extractDependenciesFromSrcs(srcA, srcB, srcC, srcD, srcE, srcF, srcG, srcH).memberRef
-
-    assert(deps("A") === Set.empty)
-    assert(deps("B") === Set("abc.A", "abc.A.Inner"))
-    assert(deps("C") === Set("abc.A", "abc.A2"))
-    assert(deps("D") === Set("abc.A2"))
-    assert(deps("E") === Set("abc.A"))
-    assert(deps("F") === Set.empty)
-    assert(deps("foo.bar.G") === Set("abc.A"))
-    assert(deps("H") === Set("abc.A"))
+    val d = extractDependenciesFromSrcs(srcA, srcB, srcC, srcD, srcE, srcF, srcG, srcH).memberRef
+    Result.all(
+      List(
+        d("A") ==== Set.empty,
+        d("B") ==== Set("abc.A", "abc.A.Inner"),
+        d("C") ==== Set("abc.A", "abc.A2"),
+        d("D") ==== Set("abc.A2"),
+        d("E") ==== Set("abc.A"),
+        d("F") ==== Set.empty,
+        d("foo.bar.G") ==== Set("abc.A"),
+        d("H") ==== Set("abc.A"),
+      )
+    )
   }
 
-  it should "qualify each endpoint of a class dependency with its namespace" in {
-    val srcA = "trait A"
-    val srcB = "trait B\nobject B extends A"
-    val srcC = "class C extends B"
-    val (_, callback) = compileSrcs(srcA, srcB, srcC)
+  private def namespaces: Result = {
+    val (_, callback) = compileSrcs("trait A", "trait B\nobject B extends A", "class C extends B")
     val inheritance = callback.classRefDependencies.collect {
       case (on, from, DependencyByInheritance) => (on.name, from.name, from.kind)
     }.toSet
     // `object B extends A` and `trait B extends A` are the same edge in the relations
-    assert(inheritance === Set(("A", "B", NameKind.Term), ("B", "C", NameKind.Type)))
+    inheritance ==== Set(("A", "B", NameKind.Term), ("B", "C", NameKind.Type))
   }
+
+  def propInheritanceChain: Property =
+    for {
+      kinds <- Gen.list(Gen.element1("class", "abstract class"), Range.linear(1, 5)).forAll
+    } yield {
+      val names = kinds.indices.map(i => s"C$i").toList
+      val srcs = kinds.zip(names).zipWithIndex.map {
+        case ((kind, name), 0) => s"$kind $name"
+        case ((kind, name), i) => s"$kind $name extends ${names(i - 1)}"
+      }
+      val d = extractDependenciesFromSrcs(srcs: _*)
+      Result
+        .all(names.zipWithIndex.map {
+          case (name, i) =>
+            val parent = if (i == 0) Set.empty[String] else Set(names(i - 1))
+            (d.inheritance(name) ==== parent).log(s"inheritance($name)")
+        })
+        .log(srcs.mkString("\n"))
+    }
 
   private def extractClassDependenciesPublic: ExtractedClassDependencies = {
     val srcA = "class A"
@@ -281,5 +296,4 @@ class DependencySpecification
       extractBinaryDependenciesFromSrcs(List(List(srcB, srcC), List(srcA)))
     binaryDependencies
   }
-
 }

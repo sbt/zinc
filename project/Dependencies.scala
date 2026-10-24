@@ -71,9 +71,8 @@ object Dependencies:
   val sjsonNewVersion = "0.15.1"
   val scalaXml = "org.scala-lang.modules" %% "scala-xml" % "2.5.0"
   val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.20.0"
-  val scalatest = "org.scalatest" %% "scalatest" % "3.2.20"
   val verify = "com.eed3si9n.verify" %% "verify" % "1.0.0"
-  val hedgehog = "qa.hedgehog" %% "hedgehog-sbt" % "0.13.0"
+  val hedgehog = "qa.hedgehog" %% "hedgehog-sbt" % "0.15.1"
   val sjsonnew = Def.setting {
     "com.eed3si9n" %% "sjson-new-core" % sjsonNewVersion
   }
@@ -87,7 +86,6 @@ object Dependencies:
     p.settings(
       libraryDependencies ++= Seq(
         scalaCheck % Test,
-        scalatest % Test,
         verify % Test,
         hedgehog % Test,
       )

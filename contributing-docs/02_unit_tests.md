@@ -9,7 +9,7 @@ project.
 - You can run an incremental test as `testQuick`.
 - You can run an incremental test scoped to a subproject as `zincCore/testQuick`
 
-Zinc contains several testing frameworks: HedgeHog, Verify, ScalaCheck, and ScalaTest.
+Zinc contains several testing frameworks: HedgeHog, Verify, and ScalaCheck.
 Our preferred unit testing framework for new tests is HedgeHog.
 
 Property-based testing with HedgeHog
@@ -86,6 +86,39 @@ object MappedFileConverterRefSpec extends Properties:
 end MappedFileConverterRefSpec
 ```
 
+Helpers for HedgeHog
+--------------------
+
+`HedgehogSupport` in `zinc-testing` fills a few gaps in HedgeHog:
+
+- `assertThrows[E](body)` and `intercept[E](body)` check that `body` throws `E`.
+- `contains(actual, expected)` and `notContains(actual, unexpected)` check substrings, and log both strings on failure.
+- `pendingUntilFixed(result)` succeeds while `result` fails, so a fix shows up as a failure that asks to make it a regular test.
+- `shuffle(xs)` generates a permutation of `xs`.
+- `withTempDir(f)` runs `f` in a temporary directory.
+
+HedgeHog reports a thrown `Exception` as a failure, but an `Error` escapes the test runner.
+Return a `Result` instead of calling `Predef.assert`, which throws `AssertionError`.
+
+Tests that compile Scala or Java code are slow, so lower their sample count with `withTests`:
+
+```scala
+property("extract every class of any nesting", propNesting).withTests(10)
+```
+
+Suites that need a compiler bridge mix `BridgeProviderTestkit` (and `CompilingSpecification` in `compiler-bridge-test`, or `BaseCompilerSpec` in `zinc`) into the `Properties` object:
+
+```scala
+object ExtractAPISpecification
+    extends Properties
+    with CompilingSpecification
+    with BridgeProviderTestkit {
+  ...
+}
+```
+
+`.scalafmt.conf` formats `compiler-bridge-test` with the Scala 2.13 dialect, so write those sources in Scala 2 syntax, for example `import hedgehog.{ sbt => _, _ }`.
+
 Unit testing with Verify
 ------------------------
 
@@ -107,9 +140,3 @@ object VirtualDirectoryTest extends BasicTestSuite:
   }
 end VirtualDirectoryTest
 ```
-
-ScalaTest
----------
-
-Many existing tests extend `UnitSpec`, a ScalaTest `AnyFlatSpec` base class in `zinc-testing`.
-Keep using it when extending those suites, but prefer HedgeHog for new test suites.

@@ -2,34 +2,45 @@ package sbt
 package internal
 package inc
 
+import hedgehog.{ sbt => _, _ }
+import hedgehog.runner._
 import java.net.URI
 import java.nio.file.FileSystem
 import java.nio.file.FileSystemNotFoundException
 import java.nio.file.FileSystems
 import java.nio.file.Files
 import java.nio.file.Paths
-import org.scalatest.diagrams.Diagrams
-import org.scalatest.concurrent.TimeLimits
+import scala.concurrent.duration._
+import HedgehogSupport.pendingUntilFixed
 
-class ExtractUsedNamesPerformanceSpecification
-    extends UnitSpec
+object ExtractUsedNamesPerformanceSpecification
+    extends Properties
     with CompilingSpecification
-    with BridgeProviderTestkit
-    with Diagrams
-    with TimeLimits {
-  private def initFileSystem(uri: URI): Option[FileSystem] = {
+    with BridgeProviderTestkit {
+  override def tests: List[Test] = List(
+    example("be executed in reasonable time", reasonableTime),
+    example(
+      "correctly find Out0 (not stored in inspected trees) both in TuplerInstances and TuplerInstances.<refinement>",
+      out0
+    ),
+    example(
+      "correctly collect used names from macro extension (pending)",
+      pendingUntilFixed(macroExtension)
+    ),
+  )
+
+  private def initFileSystem(uri: URI): Option[FileSystem] =
     try Option(FileSystems.getFileSystem(uri))
     catch {
       case _: FileSystemNotFoundException =>
-        val env = Map("create" -> "true")
         import scala.jdk.CollectionConverters._
-        Option(FileSystems.newFileSystem(uri, env.asJava))
+        Option(FileSystems.newFileSystem(uri, Map("create" -> "true").asJava))
       case _: IllegalArgumentException =>
         Option(FileSystems.getDefault)
     }
-  }
 
   val TestResource = "/ExtractUsedNamesPerformance.scala.source"
+
   // Some difference between 2.10, 2.11, 2.12, and 2.13
   val scalaDiff = Set(
     "Any",
@@ -47,7 +58,7 @@ class ExtractUsedNamesPerformanceSpecification
   )
   def diffAndSort(xs: Set[String]): List[String] = (xs -- scalaDiff).toList.sorted
 
-  it should "be executed in reasonable time" in {
+  private def reasonableTime: Result = {
     var zipfs: Option[FileSystem] = None
     val src =
       try {
@@ -60,10 +71,9 @@ class ExtractUsedNamesPerformanceSpecification
             case _: Throwable => /*ignore*/
           }
         }
-    import org.scalatest.time.SpanSugar._
-    val usedNames = failAfter(30.seconds) {
-      extractUsedNamesFromSrc(src)
-    }
+    val start = System.nanoTime()
+    val usedNames = extractUsedNamesFromSrc(src)
+    val elapsed = (System.nanoTime() - start).nanos
     // format: off
     val expectedNamesForTuplerScala2 = Set("_$3", "Tupler", "hnilTupler", "L", "Object", "Out0", "HList", "ModuleSerializationProxy",
       "java;lang;Object;init;", "tupler", "TuplerInstances", "DepFn1", "package", "HNil", "$anon", "Out", "T", "Aux", "scala", "Class",
@@ -79,14 +89,16 @@ class ExtractUsedNamesPerformanceSpecification
     val expectedNamesForHList = Set("Tupler", "acme", "scala", "Serializable", "Product")
 
     // format: on
-    assert(diffAndSort(usedNames("acme.Tupler")) === diffAndSort(expectedNamesForTuplerScala3))
-    assert(
-      diffAndSort(usedNames("acme.TuplerInstances.<refinement>")) === diffAndSort(
-        expectedNamesForRefinement
+    Result.all(
+      List(
+        Result.diff(elapsed, 30.seconds)(_ < _).log("extracting used names took too long"),
+        diffAndSort(usedNames("acme.Tupler")) ==== diffAndSort(expectedNamesForTuplerScala3),
+        diffAndSort(usedNames("acme.TuplerInstances.<refinement>")) ====
+          diffAndSort(expectedNamesForRefinement),
+        diffAndSort(usedNames("acme.DepFn1")) ==== diffAndSort(expectedNamesForDepFn1),
+        diffAndSort(usedNames("acme.HList")) ==== diffAndSort(expectedNamesForHList),
       )
     )
-    assert(diffAndSort(usedNames("acme.DepFn1")) === diffAndSort(expectedNamesForDepFn1))
-    assert(diffAndSort(usedNames("acme.HList")) === diffAndSort(expectedNamesForHList))
     // Todo
     // assert(
     //  diffAndSort(usedNames("acme.TuplerInstances")) === diffAndSort(
@@ -95,9 +107,8 @@ class ExtractUsedNamesPerformanceSpecification
     // assert(diffAndSort(usedNames("acme.HNil")) === diffAndSort(expectedNamesForHNil))
   }
 
-  it should
-    "correctly find Out0 (not stored in inspected trees) both in TuplerInstances and TuplerInstances.<refinement>" in {
-      val src = """|sealed trait HList extends Product with Serializable
+  private def out0: Result = {
+    val src = """|sealed trait HList extends Product with Serializable
                  |trait DepFn1[T] {
                  |  type Out
                  |  def apply(t: T): Out
@@ -106,46 +117,47 @@ class ExtractUsedNamesPerformanceSpecification
                  |trait TuplerInstances {
                  |  type Aux[L <: HList, Out0] = Tupler[L] { type Out = Out0 }
                  |}""".stripMargin
-      val usedNames = extractUsedNamesFromSrc(src)
-      val expectedNamesForTuplerInstances =
-        Set("Tupler", "AnyRef", "L", "Out0", "scala", "HList", "Object")
-      val expectedNamesForTuplerInstancesRefinement = Set("Out0")
-      assert(
-        usedNames("TuplerInstances") -- scalaDiff === expectedNamesForTuplerInstances -- scalaDiff
+    val usedNames = extractUsedNamesFromSrc(src)
+    val expectedNamesForTuplerInstances =
+      Set("Tupler", "AnyRef", "L", "Out0", "scala", "HList", "Object")
+    val expectedNamesForTuplerInstancesRefinement = Set("Out0")
+    Result.all(
+      List(
+        usedNames("TuplerInstances") -- scalaDiff ==== expectedNamesForTuplerInstances -- scalaDiff,
+        usedNames("TuplerInstances.<refinement>") -- scalaDiff ====
+          expectedNamesForTuplerInstancesRefinement -- scalaDiff,
       )
-      assert(
-        usedNames(
-          "TuplerInstances.<refinement>"
-        ) -- scalaDiff === expectedNamesForTuplerInstancesRefinement -- scalaDiff
-      )
-    }
+    )
+  }
 
-  it should "correctly collect used names from macro extension" in {
-    pending
+  private def macroExtension: Result = {
     val ext =
       """|package acme
-                 |import scala.reflect.macros.blackbox.Context
-                 |
-                 |object Foo {
-                 |  def foo_impl[A](c: Context)(implicit atag: c.WeakTypeTag[A]): c.Expr[List[A]] = {
-                 |    import c.universe._
-                 |    reify { List.empty[A] }
-                 |  }
-                 |}""".stripMargin
+         |import scala.reflect.macros.blackbox.Context
+         |
+         |object Foo {
+         |  def foo_impl[A](c: Context)(implicit atag: c.WeakTypeTag[A]): c.Expr[List[A]] = {
+         |    import c.universe._
+         |    reify { List.empty[A] }
+         |  }
+         |}""".stripMargin
     val cod = """|package acme
                  |import scala.language.experimental.macros
                  |
                  |class Bar {
-                 |  def bar[Out] = macro Foo.foo_impl[Out]
+                 |  def bar[Out]: List[Out] = macro Foo.foo_impl[Out]
                  |}""".stripMargin
     val (_, analysis) = compileSrcs(List(List(ext), List(cod)))
     val usedNames = analysis.usedNames.toMap
-
     // format: off
     val expectedNamesForFoo = Set("TypeApplyExtractor", "mkIdent", "package", "<repeated>", "tpe", "in", "$u", "internal", "reify", "WeakTypeTag", "Name", "empty", "collection", "ThisType", "staticModule", "staticPackage", "Singleton", "T", "asInstanceOf", "ReificationSupportApi", "U", "Expr", "Universe", "TypeApply", "A", "Tree", "Nothing", "acme", "ClassSymbol", "blackbox", "AnyRef", "Context", "mkTypeTree", "immutable", "SelectExtractor", "java.lang.Object.init;", "$treecreator1", "apply", "Object", "macros", "moduleClass", "Foo", "T0", "Symbol", "Predef", "scala", "asModule", "Internal", "$m", "TypeCreator", "TermNameExtractor", "ModuleSymbol", "staticClass", "universe", "c", "<refinement>", "TypeTree", "List", "Select", "TermName", "Mirror", "atag", "reificationSupport", "rootMirror", "reflect", "TypeRef", "Ident", "Any", "TreeCreator", "$typecreator2", "$m$untyped", "String", "Type")
     val expectedNamesForBar = Set("experimental", "package", "WeakTypeTag", "Out", "foo_impl", "Expr", "A", "Nothing", "acme", "AnyRef", "Context", "java;lang;Object;init;", "language", "Object", "macros", "Bar", "Foo", "scala", "List", "Any")
     // format: on
-    assert(diffAndSort(usedNames("acme.Foo")) === diffAndSort(expectedNamesForFoo))
-    assert(diffAndSort(usedNames("acme.Bar")) === diffAndSort(expectedNamesForBar))
+    Result.all(
+      List(
+        diffAndSort(usedNames("acme.Foo")) ==== diffAndSort(expectedNamesForFoo),
+        diffAndSort(usedNames("acme.Bar")) ==== diffAndSort(expectedNamesForBar),
+      )
+    )
   }
 }

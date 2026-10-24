@@ -11,7 +11,8 @@
 
 package sbt.internal.inc.consistent
 
-import org.scalatest.funsuite.AnyFunSuite
+import hedgehog.{ sbt as _, * }
+import hedgehog.runner.*
 import sbt.internal.inc.{ Analysis, FileAnalysisStore, UsedName }
 import sbt.io.IO
 import xsbti.api.{ ParameterRef, Projection }
@@ -25,7 +26,22 @@ import java.io.*
  * process-wide interner, and value-equality api tree nodes are shared within one
  * read via the per-read node cache.
  */
-class ConsistentAnalysisFormatInternerSuite extends AnyFunSuite:
+object ConsistentAnalysisFormatInternerSuite extends Properties:
+  override def tests: List[Test] = List(
+    example("strings are canonicalized across independent reads (cross-analysis)", strings),
+    example(
+      "text strings are canonicalized across independent reads (cross-analysis)",
+      textStrings
+    ),
+    property("any string is canonicalized across independent reads", propStrings),
+    example("api tree nodes are deduped within one read (per-read node cache)", treeNodes),
+    example(
+      "api tree nodes with colliding value hashes are deduped without cache hash collisions",
+      collidingHashes
+    ),
+    example("UsedNames are canonicalized across independent reads (cross-analysis)", usedNames),
+    example("interning preserves apiHash (transparent to change detection)", apiHash),
+  )
 
   /** Serialize a single string, then read it back through a fresh deserializer. */
   private def roundTripString(s: String): String =
@@ -44,32 +60,41 @@ class ConsistentAnalysisFormatInternerSuite extends AnyFunSuite:
     val deser = SerializerFactory.text.deserializerFor(new ByteArrayInputStream(out.toByteArray))
     deser.string()
 
-  test("strings are canonicalized across independent reads (cross-analysis)") {
+  private def strings: Result =
     val a = roundTripString(new String("com.example.CrossAnalysis"))
     val b = roundTripString(new String("com.example.CrossAnalysis"))
-    assert(a == b)
-    assert(a `eq` b) // two separate reads share one canonical instance
-  }
+    Result.all(
+      List(
+        a ==== b,
+        Result.assert(a `eq` b) // two separate reads share one canonical instance
+      )
+    )
 
-  test("text strings are canonicalized across independent reads (cross-analysis)") {
+  private def textStrings: Result =
     val a = roundTripTextString(new String("com.example.CrossAnalysis"))
     val b = roundTripTextString(new String("com.example.CrossAnalysis"))
-    assert(a == b)
-    assert(a `eq` b)
-  }
+    Result.all(List(a ==== b, Result.assert(a `eq` b)))
 
-  test("api tree nodes are deduped within one read (per-read node cache)") {
+  def propStrings: Property =
+    for
+      s <- Gen.string(Gen.unicode, Range.linear(1, 32)).forAll
+      text <- Gen.boolean.forAll
+    yield
+      val roundTrip = if text then roundTripTextString else roundTripString
+      val a = roundTrip(new String(s))
+      val b = roundTrip(new String(s))
+      Result.all(List(a ==== s, b ==== s, Result.assert(a `eq` b)))
+
+  private def treeNodes: Result =
     val deser =
       SerializerFactory.binary.deserializerFor(new ByteArrayInputStream(Array.empty[Byte]))
     val p1 = ConsistentAnalysisFormat.internNode(deser, ParameterRef.of("P"))
     val p2 = ConsistentAnalysisFormat.internNode(deser, ParameterRef.of("P"))
     val t1 = ConsistentAnalysisFormat.internNode(deser, Projection.of(p1, "x"))
     val t2 = ConsistentAnalysisFormat.internNode(deser, Projection.of(p2, "x"))
-    assert(p1 `eq` p2)
-    assert(t1 `eq` t2)
-  }
+    Result.all(List(Result.assert(p1 `eq` p2), Result.assert(t1 `eq` t2)))
 
-  test("api tree nodes with colliding value hashes are deduped without cache hash collisions") {
+  private def collidingHashes: Result =
     val deser =
       SerializerFactory.binary.deserializerFor(new ByteArrayInputStream(Array.empty[Byte]))
     val prefix = ConsistentAnalysisFormat.internNode(deser, ParameterRef.of("P"))
@@ -83,15 +108,18 @@ class ConsistentAnalysisFormatInternerSuite extends AnyFunSuite:
       name.result()
     }
     val nodes = names.map(Projection.of(prefix, _))
-    assert(nodes.iterator.map(_.hashCode).toSet.size == 1)
-    assert(nodes.iterator.map(NodeCache.fingerprint).toSet.size > nodes.length * 0.95)
+    val hashes = nodes.iterator.map(_.hashCode).toSet.size ==== 1
+    val fingerprints = Result.diff(
+      nodes.iterator.map(NodeCache.fingerprint).toSet.size,
+      nodes.length * 0.95
+    )(_ > _)
     val canonical = nodes.map(ConsistentAnalysisFormat.internNode(deser, _))
-    names.indices.foreach { index =>
+    Result.all(hashes :: fingerprints :: names.indices.toList.map { index =>
       val duplicate =
         ConsistentAnalysisFormat.internNode(deser, Projection.of(prefix, names(index)))
-      assert(duplicate `eq` canonical(index))
-    }
-  }
+      Result.assert(duplicate `eq` canonical(index)).log(s"name: ${names(index)}")
+    })
+  end collidingHashes
 
   private val mappers = ReadWriteMappers.getEmptyMappers()
 
@@ -113,28 +141,36 @@ class ConsistentAnalysisFormatInternerSuite extends AnyFunSuite:
       .flatMap(_._2.toSeq.sortBy(_.name))
       .next()
 
-  test("UsedNames are canonicalized across independent reads (cross-analysis)") {
+  private def usedNames: Result =
     val d = new File("../../../test-data", "library.zip")
-    assert(d.exists())
-    val bin = writeConsistentBinary(FileAnalysisStore.text(d).unsafeGet())
+    if !d.exists() then Result.failure.log(s"$d does not exist")
+    else
+      val bin = writeConsistentBinary(FileAnalysisStore.text(d).unsafeGet())
 
-    val a = readAnalysis(bin) // two independent deserializations of the same analysis
-    val b = readAnalysis(bin)
-    val ua = firstUsedName(a)
-    val ub = firstUsedName(b)
-    assert(ua == ub) // same value (same analysis read twice)
-    assert(ua `eq` ub) // shared canonical instance across the two reads
-  }
+      val a = readAnalysis(bin) // two independent deserializations of the same analysis
+      val b = readAnalysis(bin)
+      val ua = firstUsedName(a)
+      val ub = firstUsedName(b)
+      Result.all(
+        List(
+          ua ==== ub, // same value (same analysis read twice)
+          Result.assert(ua `eq` ub) // shared canonical instance across the two reads
+        )
+      )
 
-  test("interning preserves apiHash (transparent to change detection)") {
+  private def apiHash: Result =
     val d = new File("../../../test-data", "library.zip")
-    assert(d.exists())
-    val original = FileAnalysisStore.text(d).unsafeGet().getAnalysis.asInstanceOf[Analysis]
-    val interned = readAnalysis(writeConsistentBinary(FileAnalysisStore.text(d).unsafeGet()))
+    if !d.exists() then Result.failure.log(s"$d does not exist")
+    else
+      val original = FileAnalysisStore.text(d).unsafeGet().getAnalysis.asInstanceOf[Analysis]
+      val interned = readAnalysis(writeConsistentBinary(FileAnalysisStore.text(d).unsafeGet()))
 
-    val originalHashes = original.apis.internal.view.mapValues(_.apiHash()).toMap
-    val internedHashes = interned.apis.internal.view.mapValues(_.apiHash()).toMap
-    assert(originalHashes.nonEmpty)
-    assert(originalHashes == internedHashes) // interning changes nothing change-detection observes
-  }
+      val originalHashes = original.apis.internal.view.mapValues(_.apiHash()).toMap
+      val internedHashes = interned.apis.internal.view.mapValues(_.apiHash()).toMap
+      Result.all(
+        List(
+          Result.assert(originalHashes.nonEmpty),
+          originalHashes ==== internedHashes // interning changes nothing change-detection observes
+        )
+      )
 end ConsistentAnalysisFormatInternerSuite

@@ -12,6 +12,8 @@
 package sbt.inc
 package cached
 
+import hedgehog.{ sbt as _, * }
+import hedgehog.runner.*
 import java.nio.file.Paths
 import sbt.internal.inc.{
   Analysis,
@@ -25,7 +27,11 @@ import sbt.io.IO
 import scala.jdk.CollectionConverters.*
 import scala.jdk.OptionConverters.*
 
-class CachedHashingSpec extends BaseCompilerSpec:
+object CachedHashingSpec extends Properties with BaseCompilerSpec:
+  override def tests: List[Test] = List(
+    example("zinc should cache jar generation", cacheJarGeneration),
+  )
+
   lazy val isWindows: Boolean =
     sys.props("os.name").toLowerCase(java.util.Locale.ENGLISH).contains("windows")
 
@@ -35,13 +41,12 @@ class CachedHashingSpec extends BaseCompilerSpec:
     val t1 = System.nanoTime()
     (t1 - t0) / 1000000
 
-  "zinc" should "cache jar generation" in {
+  private def cacheJarGeneration: Result =
     IO.withTemporaryDirectory { tempDir =>
       val classes = Seq(SourceFiles.Good)
       val sources0 = Map(Paths.get("src") -> classes.map(path => Paths.get(path)))
       val projectSetup = ProjectSetup(VirtualSubproject(tempDir.toPath()), sources0, Nil)
-      val compiler = projectSetup.createCompiler()
-      try
+      withCompiler(projectSetup.createCompiler()) { compiler =>
         import compiler.in.{ setup, options, compilers, previousResult }
         import sbt.internal.inc.JavaInterfaceUtil.*
 
@@ -98,20 +103,14 @@ class CachedHashingSpec extends BaseCompilerSpec:
         val hashingTime = timeMs(genConfig)
         // we've had problems with this failing intermittently in CI (issue #1064), so let's
         // run it three times and accept any passing result; hopefully that will help?
-        val cachedHashingTime =
-          Iterator.continually(timeMs(genConfig))
-            .take(3).min
-        if isWindows then assert(true)
+        val cachedHashingTime = Iterator.continually(timeMs(genConfig)).take(3).min
+        if isWindows then Result.success
         else
-          assert(
-            cachedHashingTime < (hashingTime * 0.50),
-            s"Cache jar didn't work: $cachedHashingTime is >= than 50% of $hashingTime."
-          )
-      finally
-        compiler.close()
-      end try
+          Result
+            .assert(cachedHashingTime < (hashingTime * 0.50))
+            .log(s"Cache jar didn't work: $cachedHashingTime is >= than 50% of $hashingTime.")
+      }
     }
-  }
 
   // it should "fall back when the JAR metadata is changed" in {
   //   IO.withTemporaryDirectory { tempDir =>

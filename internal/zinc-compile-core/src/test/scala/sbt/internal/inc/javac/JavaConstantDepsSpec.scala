@@ -14,8 +14,9 @@ package internal
 package inc
 package javac
 
+import hedgehog.{ sbt as _, * }
+import hedgehog.runner.*
 import java.nio.file.Path
-
 import xsbti.compile.IncToolOptionsUtil
 import sbt.io.IO
 import sbt.util.LoggerContext
@@ -25,74 +26,93 @@ import sbt.util.LoggerContext
  * constants (sbt/zinc#145). javac inlines these constants and erases the reference to the declaring
  * class from the using class's bytecode, so they can only be recovered from the attributed AST.
  */
-class JavaConstantDepsSpec extends UnitSpec:
-
-  "Local javac constant analysis" should "record a member-select constant dependency" in deps {
-    d => assert(d.getOrElse("p.A", Set.empty).contains("p.B"))
-  }
-
-  it should "record a statically-imported constant dependency (owner from the element)" in deps {
-    d => assert(d.getOrElse("p.C", Set.empty).contains("p.B"))
-  }
-
-  it should "use the declaring class's binary name for a nested-class constant" in deps { d =>
-    assert(d.getOrElse("p.E", Set.empty).contains("p.Outer$Inner"))
-  }
-
-  it should "not record dependencies on non-constant fields" in deps { d =>
-    assert(!d.getOrElse("p.D", Set.empty).contains("p.B"))
-  }
-
-  // The cases that matter for sbt/zinc#145: javac erases the owner class entirely from the
-  // bytecode (verified with javap), so these can ONLY be recovered from the AST.
-  it should "record a constant used as an annotation value (owner erased from bytecode)" in deps {
-    d => assert(d.getOrElse("p.AnnoUse", Set.empty).contains("p.B"))
-  }
-
-  it should "record a constant used as a switch-case label (owner erased from bytecode)" in deps {
-    d => assert(d.getOrElse("p.SwitchUse", Set.empty).contains("p.B"))
-  }
-
-  // When an inherited constant is selected through a subtype (`Sub.K`), javac erases BOTH the
-  // declaring class and the named subtype. Record both so a later change to either recompiles.
-  it should "record the declaring owner of a constant inherited through a subtype" in deps { d =>
-    assert(d.getOrElse("p.SubUse", Set.empty).contains("p.Base"))
-  }
-
-  it should "record the qualifier subtype of an inherited-constant reference" in deps { d =>
-    assert(d.getOrElse("p.SubUse", Set.empty).contains("p.Sub"))
-  }
-
-  // Same as above but the subtype is named by a `import static` rather than at the use site.
-  it should "record the declaring owner of a statically-imported inherited constant" in deps { d =>
-    assert(d.getOrElse("p.StaticImportSub", Set.empty).contains("p.Base"))
-  }
-
-  it should "record the static-import subtype of an inherited constant" in deps { d =>
-    assert(d.getOrElse("p.StaticImportSub", Set.empty).contains("p.Sub"))
-  }
-
-  // On-demand (wildcard) static import: the type is recovered via getAllMembers, not a name match.
-  it should "record the owner of a wildcard-static-imported inherited constant" in deps { d =>
-    assert(d.getOrElse("p.WildcardImportSub", Set.empty).contains("p.Base"))
-  }
-
-  it should "record the subtype of a wildcard-static-imported inherited constant" in deps { d =>
-    assert(d.getOrElse("p.WildcardImportSub", Set.empty).contains("p.Sub"))
-  }
-
-  it should "not create a dependency from an unrelated explicit static import" in deps { d =>
-    assert(d.getOrElse("p.NegImport", Set.empty).contains("p.Base")) // K's declaring owner
-    assert(
-      !d.getOrElse("p.NegImport", Set.empty).contains("p.Sub")
-    ) // unrelated `import static Sub.M`
-  }
+object JavaConstantDepsSpec extends Properties:
+  override def tests: List[Test] = List(
+    depends("record a member-select constant dependency", "p.A", "p.B"),
+    depends(
+      "record a statically-imported constant dependency (owner from the element)",
+      "p.C",
+      "p.B"
+    ),
+    depends(
+      "use the declaring class's binary name for a nested-class constant",
+      "p.E",
+      "p.Outer$Inner"
+    ),
+    doesNotDepend("not record dependencies on non-constant fields", "p.D", "p.B"),
+    // The cases that matter for sbt/zinc#145: javac erases the owner class entirely from the
+    // bytecode (verified with javap), so these can ONLY be recovered from the AST.
+    depends(
+      "record a constant used as an annotation value (owner erased from bytecode)",
+      "p.AnnoUse",
+      "p.B"
+    ),
+    depends(
+      "record a constant used as a switch-case label (owner erased from bytecode)",
+      "p.SwitchUse",
+      "p.B"
+    ),
+    // When an inherited constant is selected through a subtype (`Sub.K`), javac erases BOTH the
+    // declaring class and the named subtype. Record both so a later change to either recompiles.
+    depends(
+      "record the declaring owner of a constant inherited through a subtype",
+      "p.SubUse",
+      "p.Base"
+    ),
+    depends("record the qualifier subtype of an inherited-constant reference", "p.SubUse", "p.Sub"),
+    // Same as above but the subtype is named by a `import static` rather than at the use site.
+    depends(
+      "record the declaring owner of a statically-imported inherited constant",
+      "p.StaticImportSub",
+      "p.Base"
+    ),
+    depends(
+      "record the static-import subtype of an inherited constant",
+      "p.StaticImportSub",
+      "p.Sub"
+    ),
+    // On-demand (wildcard) static import: the type is recovered via getAllMembers, not a name match.
+    depends(
+      "record the owner of a wildcard-static-imported inherited constant",
+      "p.WildcardImportSub",
+      "p.Base"
+    ),
+    depends(
+      "record the subtype of a wildcard-static-imported inherited constant",
+      "p.WildcardImportSub",
+      "p.Sub"
+    ),
+    depends(
+      "record the declaring owner of an inherited constant beside an unrelated static import",
+      "p.NegImport",
+      "p.Base" // K's declaring owner
+    ),
+    doesNotDepend(
+      "not create a dependency from an unrelated explicit static import",
+      "p.NegImport",
+      "p.Sub" // unrelated `import static Sub.M`
+    ),
+    property("record the owner of any constant at any use site", propUseSites).withTests(10),
+  )
 
   /** Compile the fixture set once and run the given assertion on the collected dependencies. */
-  private def deps(check: Map[String, Set[String]] => Unit): Unit =
-    IO.withTemporaryDirectory { tmp =>
-      check(compileAndCollect(tmp.toPath))
-    }
+  private lazy val fixtureDeps: Map[String, Set[String]] =
+    IO.withTemporaryDirectory(tmp => compileAndCollect(tmp.toPath, fixtures))
+
+  private def depends(name: String, from: String, on: String): Test =
+    example(s"Local javac constant analysis should $name", hasDependency(fixtureDeps, from, on))
+
+  private def doesNotDepend(name: String, from: String, on: String): Test =
+    example(
+      s"Local javac constant analysis should $name",
+      Result.diff(fixtureDeps.getOrElse(from, Set.empty), on)(!_.contains(_))
+    )
+
+  private def hasDependency(deps: Map[String, Set[String]], from: String, on: String): Result =
+    Result.diff(
+      deps.getOrElse(from, Set.empty),
+      on
+    )(_.contains(_)).log(s"$from should depend on $on")
 
   private val fixtures: Seq[(String, String)] = Seq(
     "B.java" ->
@@ -189,21 +209,47 @@ class JavaConstantDepsSpec extends UnitSpec:
         |""".stripMargin
   )
 
-  private def compileAndCollect(tmp: Path): Map[String, Set[String]] =
+  private val useSites: List[(String, String) => String] = List(
+    (owner, k) => s"public class Use { int f() { return $owner.$k; } }",
+    (owner, k) => s"import static p.$owner.$k;\npublic class Use { int f() { return $k; } }",
+    (owner, k) => s"import static p.$owner.*;\npublic class Use { int f() { return $k; } }",
+    (owner, k) =>
+      s"public class Use { int f(int x) { switch (x) { case $owner.$k: return 1; default: return 0; } } }",
+    (owner, k) => s"@Anno($owner.$k)\npublic class Use {}",
+  )
+
+  def propUseSites: Property =
+    for
+      owner <- Gen.string(Gen.alphaNum, Range.linear(0, 8)).map("Owner" + _).forAll
+      k <- Gen.string(Gen.alphaNum, Range.linear(0, 8)).map("K" + _).forAll
+      value <- Gen.int(Range.linear(0, 1000)).forAll
+      site <- Gen.elementUnsafe(useSites).forAll
+    yield IO.withTemporaryDirectory { tmp =>
+      val sources = Seq(
+        s"$owner.java" ->
+          s"package p;\npublic class $owner { public static final int $k = $value; }\n",
+        "Anno.java" -> "package p;\npublic @interface Anno { int value(); }\n",
+        "Use.java" -> s"package p;\n${site(owner, k)}\n",
+      )
+      hasDependency(compileAndCollect(tmp.toPath, sources), "p.Use", s"p.$owner")
+    }
+
+  private def compileAndCollect(
+      tmp: Path,
+      sourceFiles: Seq[(String, String)]
+  ): Map[String, Set[String]] =
     val compiler = new LocalJavaCompiler(
       Option(javax.tools.ToolProvider.getSystemJavaCompiler)
         .getOrElse(sys.error("This test requires a JDK, not a JRE."))
     )
     val srcDir = tmp.resolve("src")
-    val sources: Seq[Path] = fixtures.map {
-      case (name, content) =>
-        val f = srcDir.resolve(name)
-        IO.write(f.toFile, content)
-        f
+    val sources: Seq[Path] = sourceFiles.map { (name, content) =>
+      val f = srcDir.resolve(name)
+      IO.write(f.toFile, content)
+      f
     }
     val outDir = tmp.resolve("classes")
     IO.createDirectory(outDir.toFile)
-
     val log = LoggerContext.globalContext.logger("JavaConstantDepsSpec", None, None)
     val reporter = new ManagedLoggedReporter(10, log)
     val options =
@@ -216,7 +262,8 @@ class JavaConstantDepsSpec extends UnitSpec:
       reporter,
       log
     )
-    assert(success, "javac compilation of the fixtures failed")
+    if !success then
+      sys.error(s"javac compilation of the fixtures failed: ${sourceFiles.map(_._2)}")
     deps
   end compileAndCollect
 end JavaConstantDepsSpec
