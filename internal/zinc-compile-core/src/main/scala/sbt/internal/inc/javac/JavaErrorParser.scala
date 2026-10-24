@@ -298,6 +298,8 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
         logger.warn(s"Unexpected javac output at ${n.pos.longString}: $msg.")
         Seq.empty
 
+  /** The text before the caret on its line, which is empty when the caret is in column 0. */
   private def getPointer(contents: String): (Int, String) =
-    contents.linesIterator.toList.lastOption.map(line => (line.length, line)).getOrElse((0, ""))
+    val line = contents.substring(contents.lastIndexOf('\n') + 1)
+    (line.length, line)
 end JavaErrorParser
