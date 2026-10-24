@@ -42,7 +42,7 @@ object UsedName:
     new UsedName(escapedName, useScopes)
 
   private[inc] def escapeControlChars(name: String): String =
-    if name.indexOf('\n') > 0 then // optimize for common case to regex overhead
+    if name.indexOf('\n') >= 0 then // optimize for common case to regex overhead
       name.replace("\n", "\u26680A")
     else
       name
