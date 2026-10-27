@@ -288,13 +288,19 @@ object Incremental:
     // val profiler = options.externalHooks.getInvalidationProfiler
     // val runProfiler = new AdaptedRunProfiler(profiler.profileRun)
     // val incremental: IncrementalCommon = new IncrementalNameHashing(log, options, runProfiler)
-    val callback = builder.build()
     try
       val analysis = withClassfileManager(options, converter, output, outputJarContent) {
         classFileManager =>
+          val pruned = IncrementalCommon.pruneClassFilesOfInvalidations(
+            sources.toSet,
+            previous,
+            classFileManager,
+            converter
+          )
+          val callback = builder.build(pruned)
           // See IncrementalCommon.scala's completeCycle
           def completeCycle(partialAnalysis: Analysis): Analysis =
-            val a1 = previous ++ partialAnalysis
+            val a1 = pruned ++ partialAnalysis
             val products = partialAnalysis.relations.allProducts
               .map(converter.toVirtualFile(_))
             classFileManager.generated(products.toArray)
@@ -724,6 +730,9 @@ private object AnalysisCallback:
     // Create an AnalysisCallback without IncHandler for Java compilation purpose.
     def build(): AnalysisCallback = buildImpl(None)
 
+    def build(previousAnalysis: Analysis): AnalysisCallback =
+      buildImpl(None, Some(previousAnalysis))
+
     /**
      * A compile that writes no early output leaves an empty early analysis, see
      * `AnalysisCallback.getCycleResultOnce`. The early output on disk is then stale.
@@ -733,8 +742,11 @@ private object AnalysisCallback:
         case a: Analysis => a.apis.internal.nonEmpty
         case _           => false))
 
-    private def buildImpl(incHandlerOpt: Option[Incremental.IncrementalCallback]) =
-      val previousAnalysisOpt = incHandlerOpt.map(_.previousAnalysisPruned)
+    private def buildImpl(
+        incHandlerOpt: Option[Incremental.IncrementalCallback],
+        previousAnalysis: Option[Analysis] = None
+    ) =
+      val previousAnalysisOpt = previousAnalysis.orElse(incHandlerOpt.map(_.previousAnalysisPruned))
       val binaryToSourceLookup: String => Option[String] = previousAnalysisOpt match
         case Some(analysis) => (binaryClassName: String) =>
             analysis.relations.productClassName.reverse(binaryClassName).headOption
