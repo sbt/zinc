@@ -2,7 +2,8 @@ package sbt
 package internal
 package inc
 
-import verify._
+import hedgehog.{ sbt => _, _ }
+import hedgehog.runner._
 import sbt.io.IO.withTemporaryDirectory
 import sbt.io.syntax._
 import sbt.internal.util.Util
@@ -11,32 +12,36 @@ import sbt.internal.util.Util
  * AnalyzingCompiler.
  */
 object BasicBridgeSpec
-    extends BasicTestSuite
+    extends Properties
     with BridgeProviderTestkit
     with CompilingSpecification {
+  override def tests: List[Test] = List(
+    example("A compiler bridge should compile", compiles),
+    example("A compiler bridge should run doc", runsDoc),
+    // ignored: The bridge compiles the initial command :q as code, so the REPL waits for input.
+    // example("A compiler bridge should run console", runsConsole),
+  )
 
-  test("A compiler bridge should compile") {
+  private def compiles: Result =
     withTemporaryDirectory { tempDir =>
       compileSrcs(tempDir.toPath, "object Foo")
       val t = tempDir / "target" / "Foo$.class"
-      assert(t.exists)
+      Result.assert(t.exists).log(s"$t does not exist")
     }
-  }
 
-  test("A compiler bridge should run doc") {
+  private def runsDoc: Result =
     withTemporaryDirectory { tempDir =>
       doc(tempDir.toPath)(List())
       val t = tempDir / "target" / "index.html"
       /// println((tempDir / "target").listFiles.toList)
-      assert(t.exists)
+      Result.assert(t.exists).log(s"$t does not exist")
     }
-  }
 
-  test("A compiler bridge should run console") {
-    if (Util.isWindows) ()
+  private def runsConsole: Result =
+    if (Util.isWindows) Result.success
     else
       withTemporaryDirectory { tempDir =>
         console(tempDir.toPath)(":q")
+        Result.success
       }
-  }
 }

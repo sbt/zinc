@@ -13,10 +13,10 @@ package sbt
 package internal
 package inc
 
-import xsbti.{ Reporter, Logger => xLogger }
-import xsbti.compile._
+import xsbti.{ Reporter, Logger as xLogger }
+import xsbti.compile.*
 
-final class FreshCompilerCache extends GlobalsCache {
+final class FreshCompilerCache extends GlobalsCache:
   def clear(): Unit = ()
   override def apply(
       args: Array[String],
@@ -26,4 +26,3 @@ final class FreshCompilerCache extends GlobalsCache {
       log: xLogger,
       reporter: Reporter
   ): CachedCompiler = c.newCachedCompiler(args, output, log, reporter)
-}

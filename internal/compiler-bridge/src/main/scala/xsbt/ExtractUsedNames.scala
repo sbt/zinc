@@ -256,7 +256,7 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
       case ValDef(mods, _, tpt, _) if mods.isCase && mods.isSynthetic =>
         updateCurrentOwner()
         PatMatDependencyTraverser.traverse(tpt.tpe)
-      case _: DefTree | _: Template => ()
+      case _: DefTree | _: Template                   => ()
       case Import(_, selectors: List[ImportSelector]) =>
         val names = getNamesOfEnclosingScope
         def usedNameInImportSelector(name: Name): Unit = {

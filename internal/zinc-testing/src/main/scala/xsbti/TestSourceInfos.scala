@@ -15,10 +15,9 @@ import xsbti.compile.analysis.{ ReadSourceInfos, SourceInfo }
 
 import java.util
 
-class TestSourceInfos extends ReadSourceInfos {
+class TestSourceInfos extends ReadSourceInfos:
 
   override def get(sourceFile: VirtualFileRef): SourceInfo = new TestSourceInfo
 
   override def getAllSourceInfos: util.Map[VirtualFileRef, SourceInfo] =
     new util.HashMap[VirtualFileRef, SourceInfo]()
-}

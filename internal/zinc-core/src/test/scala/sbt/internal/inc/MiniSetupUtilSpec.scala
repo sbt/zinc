@@ -11,62 +11,83 @@
 
 package sbt.internal.inc
 
-import MiniSetupUtil._
+import hedgehog.{ sbt as _, * }
+import hedgehog.runner.*
+import HedgehogSupport.shuffle
+import MiniSetupUtil.*
 
-class MiniSetupUtilSpec extends UnitSpec {
+object MiniSetupUtilSpec extends Properties:
+  override def tests: List[Test] = List(
+    example("detect options change", detectChange),
+    example("ignore options list different by specfied options (exact)", ignoreExact),
+    example("use regex to ignore options", ignoreRegex),
+    example("combine options with their parameters with space for analysis", combineParams),
+    example("detect change for options with parameters", detectParamChange),
+    example("ignore reordering of options", ignoreReordering),
+    property("ignore any reordering of options with their parameters", propReordering),
+    property("ignore options that match an ignored regex", propIgnoredOptions),
+    property("detect a dropped option", propDroppedOption),
+  )
 
-  it should "detect options change" in {
-    val equiv = equivScalacOptions(ignoredRegexes = Array())
+  private def equiv(ignored: Array[String], before: Array[String], after: Array[String]) =
+    equivScalacOptions(ignoredRegexes = ignored).equiv(before, after)
 
-    val before = Array("-deprecation")
-    val after = Array[String]()
+  private def detectChange: Result =
+    equiv(Array(), Array("-deprecation"), Array()) ==== false
 
-    equiv.equiv(before, after) shouldBe false
-  }
+  private def ignoreExact: Result =
+    equiv(
+      Array("-Xprint:typer", "-Xfatal-warnings"),
+      Array("-Xprint:typer", "-deprecation"),
+      Array("-Xfatal-warnings", "-deprecation"),
+    ) ==== true
 
-  it should "ignore options list different by specfied options (exact)" in {
-    val equiv = equivScalacOptions(ignoredRegexes = Array("-Xprint:typer", "-Xfatal-warnings"))
+  private def ignoreRegex: Result =
+    equiv(
+      Array("-Xprint:.*"),
+      Array("-Xprint:typer"),
+      Array("-Xprint:typer", "-Xprint:refcheck", "-Xprint:parse"),
+    ) ==== true
 
-    val before = Array("-Xprint:typer", "-deprecation")
-    val after = Array("-Xfatal-warnings", "-deprecation")
+  private def combineParams: Result =
+    equiv(Array("-opt .*"), Array("-opt", "abc"), Array("-opt", "def")) ==== true
 
-    equiv.equiv(before, after) shouldBe true
-  }
+  private def detectParamChange: Result =
+    equiv(Array("-opt a.*"), Array("-opt", "abc"), Array("-opt", "def")) ==== false
 
-  it should "use regex to ignore options" in {
-    val equiv = equivScalacOptions(ignoredRegexes = Array("-Xprint:.*"))
+  private def ignoreReordering: Result =
+    equiv(Array(), Array("-a", "1", "-b", "2", "-c"), Array("-b", "2", "-c", "-a", "1")) ==== true
 
-    val before = Array("-Xprint:typer")
-    val after = Array("-Xprint:typer", "-Xprint:refcheck", "-Xprint:parse")
+  private val genName: Gen[String] = Gen.string(Gen.lower, Range.linear(1, 8))
 
-    equiv.equiv(before, after) shouldBe true
-  }
+  /** An option with an optional parameter, kept together so that shuffling cannot split them. */
+  private val genGroup: Gen[List[String]] =
+    for
+      name <- genName
+      param <- Gen.string(Gen.alphaNum, Range.linear(1, 8)).option
+    yield s"-$name" :: param.toList
 
-  it should "combine options with their parameters with space for analysis" in {
-    val equiv = equivScalacOptions(ignoredRegexes = Array("-opt .*"))
+  private val genGroups: Gen[List[List[String]]] =
+    Gen.list(genGroup, Range.linear(0, 10)).map(_.distinctBy(_.head))
 
-    val before = Array("-opt", "abc")
-    val after = Array("-opt", "def")
+  def propReordering: Property =
+    for
+      groups <- genGroups.forAll
+      shuffled <- shuffle(groups).forAll
+    yield equiv(Array(), groups.flatten.toArray, shuffled.flatten.toArray) ==== true
 
-    equiv.equiv(before, after) shouldBe true
-  }
+  def propIgnoredOptions: Property =
+    for
+      groups <- genGroups.forAll
+      phases <- Gen.list(genName, Range.linear(1, 4)).forAll
+      shuffled <- shuffle(groups ++ phases.map(p => List(s"-Xprint:$p"))).forAll
+    yield equiv(Array("-Xprint:.*"), groups.flatten.toArray, shuffled.flatten.toArray) ==== true
 
-  it should "detect change for options with parameters" in {
-    val equiv = equivScalacOptions(ignoredRegexes = Array("-opt a.*"))
-
-    val before = Array("-opt", "abc")
-    val after = Array("-opt", "def")
-
-    equiv.equiv(before, after) shouldBe false
-  }
-
-  it should "ignore reordering of options" in {
-    val equiv = equivScalacOptions(ignoredRegexes = Array())
-
-    val before = Array("-a", "1", "-b", "2", "-c")
-    val after = Array("-b", "2", "-c", "-a", "1")
-
-    equiv.equiv(before, after) shouldBe true
-  }
-
-}
+  def propDroppedOption: Property =
+    for
+      groups <- genGroups.filter(_.nonEmpty).forAll
+      i <- Gen.int(Range.linear(0, groups.size - 1)).forAll
+    yield
+      val dropped = groups.patch(i, Nil, 1)
+      equiv(Array(), groups.flatten.toArray, dropped.flatten.toArray) ==== false
+end MiniSetupUtilSpec

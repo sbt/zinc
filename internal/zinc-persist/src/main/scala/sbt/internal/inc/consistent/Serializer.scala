@@ -33,7 +33,7 @@ import scala.collection.Factory
 import sbt.internal.inc.AnalysisInterner
 
 /** Structural serialization for text and binary formats. */
-abstract class Serializer {
+abstract class Serializer:
   private final val dedupMap: mutable.Map[AnyRef, Int] = mutable.Map.empty
 
   def startBlock(name: String): Unit
@@ -47,29 +47,25 @@ abstract class Serializer {
   def long(l: Long): Unit
   def end(): Unit
 
-  @inline final def dedup[T >: Null <: AnyRef](o: T)(id: T => Int)(writeBody: => Unit): Unit = {
-    if (o == null) int(-1)
-    else {
+  @inline final def dedup[T >: Null <: AnyRef](o: T)(id: T => Int)(writeBody: => Unit): Unit =
+    if o == null then int(-1)
+    else
       val nextId = -2 - dedupMap.size
       val idx = dedupMap.getOrElseUpdate(o, nextId)
-      if (idx == nextId) {
+      if idx == nextId then
         int(id(o))
         writeBody
-      } else int(idx)
-    }
-  }
+      else int(idx)
   @inline final def writeArray[T](
       name: String,
       a: Array[T],
       perEntry: Int = 1
-  )(f: T => Unit): Unit = {
-    if (a == null) startArray(name, -1)
-    else {
+  )(f: T => Unit): Unit =
+    if a == null then startArray(name, -1)
+    else
       startArray(name, a.length * perEntry)
       a.foreach(f)
-    }
     endArray()
-  }
   @inline final def writeStringArray(name: String, a: Array[String]): Unit =
     writeArray(name, a)(string)
 
@@ -77,45 +73,40 @@ abstract class Serializer {
       name: String,
       a: Iterable[T],
       perEntry: Int = 1
-  )(f: T => Unit): Unit = {
-    if (a == null) startArray(name, -1)
-    else {
+  )(f: T => Unit): Unit =
+    if a == null then startArray(name, -1)
+    else
       startArray(name, a.size * perEntry)
       a.iterator.foreach(f)
-    }
     endArray()
-  }
 
   @inline final def writeStringColl(name: String, a: Iterable[String]): Unit =
     writeColl(name, a)(string)
 
-  @inline final def writeBlock(name: String)(f: => Unit): Unit = {
+  @inline final def writeBlock(name: String)(f: => Unit): Unit =
     startBlock(name)
     f
     endBlock()
-  }
   @inline final def writeSortedStringMap[V](
       name: String,
       map: scala.collection.Iterable[(String, V)],
       perEntry: Int = 1
-  )(f: V => Unit): Unit = {
-    if (map == null) {
+  )(f: V => Unit): Unit =
+    if map == null then
       startArray(name, -1)
       endArray()
-    } else {
+    else
       val a = map.toArray
       a.sortInPlaceBy(_._1)
       writeArray(name, a, perEntry + 1) { kv =>
         string(kv._1)
         f(kv._2)
       }
-    }
-  }
   @inline final def writeOptionalString(o: Optional[String]): Unit = string(o.orElse(null))
-}
+end Serializer
 
 /** Derialization for text and binary formats produced by Serializer. */
-abstract class Deserializer {
+abstract class Deserializer:
   private final val dedupBuffer: ArrayBuffer[AnyRef] = ArrayBuffer.empty
 
   // Per-read dedup state for value-equality `xsbti.api` tree nodes (used by
@@ -134,18 +125,17 @@ abstract class Deserializer {
   def long(): Long
   def end(): Unit
 
-  @inline final def dedup[T >: Null <: AnyRef](readBody: Int => T): T = int() match {
-    case -1 => null
+  @inline final def dedup[T >: Null <: AnyRef](readBody: Int => T): T = int() match
+    case -1            => null
     case id if id >= 0 =>
       val o = readBody(id)
       dedupBuffer += o
       o
     case idx =>
       dedupBuffer(-2 - idx).asInstanceOf[T]
-  }
 
-  @inline final def readArray[T: ClassTag](perEntry: Int = 1)(f: => T): Array[T] = {
-    startArray() match {
+  @inline final def readArray[T: ClassTag](perEntry: Int = 1)(f: => T): Array[T] =
+    startArray() match
       case -1 =>
         endArray()
         null
@@ -153,17 +143,16 @@ abstract class Deserializer {
         val len = rawLen / perEntry
         val a = new Array[T](len)
         var i = 0
-        while (i < a.length) { a(i) = f; i += 1 }
+        while i < a.length do
+          a(i) = f; i += 1
         endArray()
         a
-    }
-  }
   @inline final def readStringArray(): Array[String] = readArray[String]()(string())
   @inline final def readColl[T, C >: Null](
       factory: Factory[T, C],
       perEntry: Int = 1
-  )(f: => T): C = {
-    startArray() match {
+  )(f: => T): C =
+    startArray() match
       case -1 =>
         endArray()
         null
@@ -172,44 +161,39 @@ abstract class Deserializer {
         val len = rawLen / perEntry
         b.sizeHint(len)
         var i = 0
-        while (i < len) { b += f; i += 1 }
+        while i < len do
+          b += f; i += 1
         endArray()
         b.result()
-    }
-  }
-  @inline final def readBlock[T](f: => T): T = {
+  @inline final def readBlock[T](f: => T): T =
     startBlock()
     val r = f
     endBlock()
     r
-  }
   @inline final def readStringSeq(): Seq[String] =
     readColl[String, Vector[String]](Vector)(string())
-  @inline final def readOptionalString(): Optional[String] = string() match {
+  @inline final def readOptionalString(): Optional[String] = string() match
     case null => Optional.empty[String]
     case s    => Optional.of(s)
-  }
-}
+end Deserializer
 
-class TextSerializer(out: Writer) extends Serializer {
+class TextSerializer(out: Writer) extends Serializer:
   private final class Block(val array: Boolean, val expected: Int, var actual: Int)
   private var indent = 0
   private var stack: List[Block] = Nil
   private def printIndent(): Unit = (0 until indent * 2).foreach(_ => out.write(' '))
   private def count(): Unit =
-    if (stack.nonEmpty) stack.head.actual += 1
-  private def println(s: String): Unit = {
+    if stack.nonEmpty then stack.head.actual += 1
+  private def println(s: String): Unit =
     out.write(s)
     out.write('\n')
-  }
-  def startBlock(name: String): Unit = {
+  def startBlock(name: String): Unit =
     count()
     printIndent()
     println(name + " {")
     stack = new Block(false, 0, 0) :: stack
     indent += 1
-  }
-  def startArray(name: String, length: Int): Unit = {
+  def startArray(name: String, length: Int): Unit =
     count()
     printIndent()
     println(name + " [")
@@ -217,8 +201,7 @@ class TextSerializer(out: Writer) extends Serializer {
     indent += 1
     printIndent()
     println(length.toString)
-  }
-  def endBlock(): Unit = {
+  def endBlock(): Unit =
     assert(stack.nonEmpty)
     val b = stack.head
     stack = stack.tail
@@ -226,8 +209,7 @@ class TextSerializer(out: Writer) extends Serializer {
     indent -= 1
     printIndent()
     println("}")
-  }
-  def endArray(): Unit = {
+  def endArray(): Unit =
     assert(stack.nonEmpty)
     val b = stack.head
     stack = stack.tail
@@ -236,12 +218,11 @@ class TextSerializer(out: Writer) extends Serializer {
     indent -= 1
     printIndent()
     println("]")
-  }
-  def string(s: String): Unit = {
+  def string(s: String): Unit =
     count()
     printIndent()
-    if (s == null) out.write("\\0\n")
-    else {
+    if s == null then out.write("\\0\n")
+    else
       s.foreach {
         case '\n' => out.write("\\n")
         case '\r' => out.write("\\r")
@@ -249,37 +230,32 @@ class TextSerializer(out: Writer) extends Serializer {
         case c    => out.write(c.toInt)
       }
       out.write('\n')
-    }
-  }
-  def bool(b: Boolean): Unit = long(if (b) 1 else 0)
+  def bool(b: Boolean): Unit = long(if b then 1 else 0)
   def int(i: Int): Unit = long(i.toLong)
   def byte(b: Byte): Unit = long(b.toLong)
-  def long(l: Long): Unit = {
+  def long(l: Long): Unit =
     count()
     printIndent()
     println(l.toString)
-  }
-  def end(): Unit = {
+  def end(): Unit =
     out.flush()
     assert(stack.isEmpty && indent == 0)
-  }
-}
+end TextSerializer
 
-class TextDeserializer(in: BufferedReader) extends Deserializer {
+class TextDeserializer(in: BufferedReader) extends Deserializer:
   private final class Block(val array: Boolean, val expected: Int, var actual: Int)
   private var indent = 0
   private var stack: List[Block] = Nil
   private def raw(): String = in.readLine().drop(indent * 2)
   private def count(): Unit =
-    if (stack.nonEmpty) stack.head.actual += 1
-  def startBlock(): Unit = {
+    if stack.nonEmpty then stack.head.actual += 1
+  def startBlock(): Unit =
     count()
     val r = raw()
-    if (!r.endsWith(" {")) new IllegalStateException("Expected block header")
+    if !r.endsWith(" {") then new IllegalStateException("Expected block header")
     indent += 1
     stack = new Block(false, 0, 0) :: stack
-  }
-  def startArray(): Int = {
+  def startArray(): Int =
     count()
     val r = raw()
     assert(r.endsWith(" ["), "Expected array header")
@@ -287,8 +263,7 @@ class TextDeserializer(in: BufferedReader) extends Deserializer {
     val length = raw().toInt
     stack = new Block(true, length max 0, 0) :: stack
     length
-  }
-  def endBlock(): Unit = {
+  def endBlock(): Unit =
     assert(stack.nonEmpty)
     val b = stack.head
     stack = stack.tail
@@ -296,8 +271,7 @@ class TextDeserializer(in: BufferedReader) extends Deserializer {
     indent -= 1
     val r = raw()
     assert(r == "}")
-  }
-  def endArray(): Unit = {
+  def endArray(): Unit =
     assert(stack.nonEmpty)
     val b = stack.head
     stack = stack.tail
@@ -306,89 +280,78 @@ class TextDeserializer(in: BufferedReader) extends Deserializer {
     indent -= 1
     val r = raw()
     assert(r == "]")
-  }
-  def string(): String = {
+  def string(): String =
     count()
     val s = raw()
     var i = 0
     val b = new StringBuilder
-    while (i < s.length) {
-      s.charAt(i) match {
+    while i < s.length do
+      s.charAt(i) match
         case '\\' =>
           i += 1
-          s.charAt(i) match {
+          s.charAt(i) match
             case '0'  => return null
             case 'n'  => b.append('\n')
             case 'r'  => b.append('\r')
             case '\\' => b.append('\\')
-          }
         case c => b.append(c)
-      }
       i += 1
-    }
     AnalysisInterner.internString(b.result())
-  }
   def bool(): Boolean = long() == 1L
   def int(): Int = long().toInt
   def byte(): Byte = long().toByte
-  def long(): Long = {
+  def long(): Long =
     count()
     raw().toLong
-  }
   def end(): Unit = assert(stack.isEmpty && indent == 0)
-}
+end TextDeserializer
 
-class BinarySerializer(_out: OutputStream) extends Serializer {
+class BinarySerializer(_out: OutputStream) extends Serializer:
   private val stringsMap: mutable.Map[String, Int] = mutable.Map.empty
   private val buffer: Array[Byte] = new Array(65536)
   private var pos: Int = 0
   // Ensure that at least `count` bytes can be written to the buffer starting at `pos`
   @inline private def ensure(count: Int): Unit =
-    if (pos + count > buffer.length) flush()
+    if pos + count > buffer.length then flush()
   // Flush unconditionally, ensuring `pos` = 0
-  @inline private def flush(): Unit = {
-    if (pos > 0) _out.write(buffer, 0, pos)
+  @inline private def flush(): Unit =
+    if pos > 0 then _out.write(buffer, 0, pos)
     pos = 0
-  }
-  @inline private def unsafeWriteByte(b: Byte): Unit = {
+  @inline private def unsafeWriteByte(b: Byte): Unit =
     buffer(pos) = b
     pos += 1
-  }
   def startBlock(name: String): Unit = ()
   def endBlock(): Unit = ()
   def startArray(name: String, length: Int): Unit = int(length)
   def endArray(): Unit = ()
-  def string(s: String): Unit = {
-    if (s == null) int(-1)
-    else if (s.isEmpty) int(0)
-    else {
+  def string(s: String): Unit =
+    if s == null then int(-1)
+    else if s.isEmpty then int(0)
+    else
       val nextString = -2 - stringsMap.size
       val idx = stringsMap.getOrElseUpdate(s, nextString)
-      if (idx == nextString) {
+      if idx == nextString then
         val bytes = s.getBytes(StandardCharsets.UTF_8)
         val len = bytes.length
         int(len)
-        if (len <= buffer.length) {
+        if len <= buffer.length then
           ensure(len)
           System.arraycopy(bytes, 0, buffer, pos, len)
           pos += len
-        } else {
+        else
           flush()
           _out.write(bytes)
-        }
-      } else int(idx)
-    }
-  }
-  def bool(b: Boolean): Unit = byte(if (b) 1 else 0)
-  def int(i: Int): Unit = {
+      else int(idx)
+  def bool(b: Boolean): Unit = byte(if b then 1 else 0)
+  def int(i: Int): Unit =
     ensure(4)
     unsafeWriteByte(((i >>> 24) & 0xff).toByte)
     unsafeWriteByte(((i >>> 16) & 0xff).toByte)
     unsafeWriteByte(((i >>> 8) & 0xff).toByte)
     unsafeWriteByte((i & 0xff).toByte)
-  }
-  def byte(b: Byte): Unit = { ensure(1); unsafeWriteByte(b) }
-  def long(l: Long): Unit = {
+  def byte(b: Byte): Unit =
+    ensure(1); unsafeWriteByte(b)
+  def long(l: Long): Unit =
     ensure(8)
     unsafeWriteByte(((l >>> 56).toInt & 0xff).toByte)
     unsafeWriteByte(((l >>> 48).toInt & 0xff).toByte)
@@ -398,11 +361,11 @@ class BinarySerializer(_out: OutputStream) extends Serializer {
     unsafeWriteByte(((l >>> 16).toInt & 0xff).toByte)
     unsafeWriteByte(((l >>> 8).toInt & 0xff).toByte)
     unsafeWriteByte((l.toInt & 0xff).toByte)
-  }
-  def end(): Unit = { flush(); _out.flush() }
-}
+  def end(): Unit =
+    flush(); _out.flush()
+end BinarySerializer
 
-class BinaryDeserializer(_in: InputStream) extends Deserializer {
+class BinaryDeserializer(_in: InputStream) extends Deserializer:
   private val strings: ArrayBuffer[String] = ArrayBuffer.empty
   private val buffer: Array[Byte] = new Array(8192)
   private var pos: Int = buffer.length
@@ -412,79 +375,69 @@ class BinaryDeserializer(_in: InputStream) extends Deserializer {
       off: Int,
       len: Int,
       accum: Int = 0
-  ): Int = {
+  ): Int =
     val read = _in.read(a, off, len)
-    if (read == -1 && accum == 0) -1
-    else if (read == -1) accum
-    else if (read == len) accum + read
+    if read == -1 && accum == 0 then -1
+    else if read == -1 then accum
+    else if read == len then accum + read
     else readAllUnderlying(a, off + read, len - read, accum + read)
-  }
   // Ensure that there are at least `count` bytes to read in the buffer starting at `pos`
-  @inline private def ensure(count: Int): Unit = {
-    if (pos + count > bufLen) {
-      if (pos + count > buffer.length || pos >= buffer.length / 2) moveToLeft()
-      while ({
+  @inline private def ensure(count: Int): Unit =
+    if pos + count > bufLen then
+      if pos + count > buffer.length || pos >= buffer.length / 2 then moveToLeft()
+      while {
         val read = _in.read(buffer, bufLen, buffer.length - bufLen)
-        if (read <= 0) throw new EOFException()
+        if read <= 0 then throw new EOFException()
         bufLen += read
         bufLen - pos < count
-      }) {}
-    }
-  }
+      } do {}
   // Move the data in the buffer so that `pos` = 0
-  @inline private def moveToLeft(): Unit = {
+  @inline private def moveToLeft(): Unit =
     val rem = bufLen - pos
-    if (rem > 0 && pos > 0) System.arraycopy(buffer, pos, buffer, 0, rem)
+    if rem > 0 && pos > 0 then System.arraycopy(buffer, pos, buffer, 0, rem)
     pos = 0
     bufLen = rem
-  }
-  @inline private def unsafeReadByte(): Byte = {
+  @inline private def unsafeReadByte(): Byte =
     val b = buffer(pos)
     pos += 1
     b
-  }
-  @inline private def readInto(a: Array[Byte]): Int = {
+  @inline private def readInto(a: Array[Byte]): Int =
     var off = 0
     var len = a.length
-    if (pos < bufLen) {
+    if pos < bufLen then
       val toCopy = len min (bufLen - pos)
       System.arraycopy(buffer, pos, a, 0, toCopy)
       len -= toCopy
       off += toCopy
       pos += toCopy
-    }
-    if (len > 0) {
-      if (len >= buffer.length) off += readAllUnderlying(a, off, len)
-      else {
+    if len > 0 then
+      if len >= buffer.length then off += readAllUnderlying(a, off, len)
+      else
         bufLen = readAllUnderlying(buffer, 0, buffer.length)
         val toRead = len min bufLen
         System.arraycopy(buffer, 0, a, off, toRead)
         pos = toRead
         off += toRead
-      }
-    }
     off
-  }
 
   def startBlock(): Unit = ()
   def endBlock(): Unit = ()
   def startArray(): Int = int()
   def endArray(): Unit = ()
-  def string(): String = int() match {
-    case -1 => null
-    case 0  => ""
+  def string(): String = int() match
+    case -1             => null
+    case 0              => ""
     case len if len > 0 =>
-      val raw = if (len <= buffer.length) {
+      val raw = if len <= buffer.length then
         ensure(len)
         val s = new String(buffer, pos, len, StandardCharsets.UTF_8)
         pos += len
         s
-      } else {
+      else
         val a = new Array[Byte](len)
         val read = readInto(a)
         assert(read == len)
         new String(a, StandardCharsets.UTF_8)
-      }
       // Canonicalize the freshly decoded string so the per-read table and all its
       // back-references hold the cross-analysis-shared instance.
       val s = AnalysisInterner.internString(raw)
@@ -492,46 +445,44 @@ class BinaryDeserializer(_in: InputStream) extends Deserializer {
       s
     case idx =>
       strings(-2 - idx)
-  }
   def bool(): Boolean = byte() != 0
-  def int(): Int = {
+  def int(): Int =
     ensure(4)
     val i1, i2, i3, i4 = unsafeReadByte() & 0xff
     (i1 << 24) | (i2 << 16) | (i3 << 8) | i4
-  }
-  def byte(): Byte = {
+  def byte(): Byte =
     ensure(1)
     unsafeReadByte()
-  }
-  def long(): Long = {
+  def long(): Long =
     ensure(8)
     val i1, i2, i3, i4, i5, i6, i7, i8 = unsafeReadByte() & 0xffL
-    (i1 << 56) | (i2 << 48) | (i3 << 40) | (i4 << 32) | (i5 << 24) | (i6 << 16) | (i7 << 8) | i8
-  }
+    (i1 << 56) |
+      (i2 << 48) |
+      (i3 << 40) |
+      (i4 << 32) |
+      (i5 << 24) |
+      (i6 << 16) |
+      (i7 << 8) | i8
   def end(): Unit = ()
-}
+end BinaryDeserializer
 
-trait SerializerFactory[S <: Serializer, D <: Deserializer] {
+trait SerializerFactory[S <: Serializer, D <: Deserializer]:
   def serializerFor(out: OutputStream): S
   def deserializerFor(in: InputStream): D
-}
 
-object SerializerFactory {
+object SerializerFactory:
 
   /** Simple human-readable text format, not self-describing, not optimized for performance. Has
    * checks for structural correctness in serializer and deserializer. */
   val text: SerializerFactory[TextSerializer, TextDeserializer] =
-    new SerializerFactory[TextSerializer, TextDeserializer] {
+    new SerializerFactory[TextSerializer, TextDeserializer]:
       def serializerFor(out: OutputStream): TextSerializer =
         new TextSerializer(new BufferedWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8)))
       def deserializerFor(in: InputStream): TextDeserializer =
         new TextDeserializer(new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8)))
-    }
 
   /** Optimized binary format with string deduplication across multiple outputs. */
   val binary: SerializerFactory[BinarySerializer, BinaryDeserializer] =
-    new SerializerFactory[BinarySerializer, BinaryDeserializer] {
+    new SerializerFactory[BinarySerializer, BinaryDeserializer]:
       def serializerFor(out: OutputStream): BinarySerializer = new BinarySerializer(out)
       def deserializerFor(in: InputStream): BinaryDeserializer = new BinaryDeserializer(in)
-    }
-}

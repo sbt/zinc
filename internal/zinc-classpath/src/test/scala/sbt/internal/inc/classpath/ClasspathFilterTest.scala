@@ -11,14 +11,17 @@
 
 package sbt.internal.inc.classpath
 
+import hedgehog.{ sbt as _, * }
+import hedgehog.runner.*
 import java.net.URLClassLoader
-import verify.BasicTestSuite
 
-object ClasspathFilterTest extends BasicTestSuite {
-  test("loadClass surfaces JDK platform-module classes") {
+object ClasspathFilterTest extends Properties:
+  override def tests: List[Test] = List(
+    example("loadClass surfaces JDK platform-module classes", platformModuleClasses),
+  )
+
+  private def platformModuleClasses: Result =
     val parent = new URLClassLoader(Array.empty, ClassLoader.getSystemClassLoader)
     val filter = new ClasspathFilter(parent, parent, Set.empty)
     val c = filter.loadClass("java.sql.Timestamp")
-    assert(c.getName == "java.sql.Timestamp")
-  }
-}
+    c.getName ==== "java.sql.Timestamp"

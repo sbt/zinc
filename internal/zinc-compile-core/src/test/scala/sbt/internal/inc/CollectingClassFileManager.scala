@@ -20,7 +20,7 @@ import scala.collection.mutable
 /**
  * Collection of `ClassFileManager`s used for testing purposes.
  */
-class CollectingClassFileManager extends ClassFileManager {
+class CollectingClassFileManager extends ClassFileManager:
 
   /** Collect generated classes, with public access to allow inspection. */
   val generatedClasses = new mutable.HashSet[VirtualFile]
@@ -28,14 +28,12 @@ class CollectingClassFileManager extends ClassFileManager {
   @deprecated("Use variant that takes Array[VirtualFile]", "1.4.0")
   override def delete(classes: Array[File]): Unit = ()
 
-  override def generated(classes: Array[VirtualFile]): Unit = {
+  override def generated(classes: Array[VirtualFile]): Unit =
     generatedClasses ++= classes
     ()
-  }
 
   @deprecated("Use variant that takes Array[VirtualFile]", "1.4.0")
   override def generated(classes: Array[File]): Unit =
     generated(classes.map(c => PlainVirtualFile(c.toPath): VirtualFile))
 
   override def complete(success: Boolean): Unit = ()
-}

@@ -18,12 +18,12 @@ import java.util
 import java.util.Optional
 import java.nio.file.Path
 
-import sbt.io.{ Hash => IOHash, IO }
+import sbt.io.{ Hash as IOHash, IO }
 import xsbti.{ FileConverter, VirtualFile, VirtualFileRef }
-import xsbti.compile.analysis.{ ReadStamps, Stamp => XStamp }
+import xsbti.compile.analysis.{ ReadStamps, Stamp as XStamp }
 
 import scala.collection.immutable.TreeMap
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 import scala.util.matching.Regex
 
 /**
@@ -32,7 +32,7 @@ import scala.util.matching.Regex
  * This interface is meant for internal use and is Scala idiomatic. It implements the
  * Java interface `ReadStamps` that is exposed in the `xsbti.compile.CompileAnalysis`.
  */
-trait Stamps extends ReadStamps {
+trait Stamps extends ReadStamps:
   def allSources: collection.Set[VirtualFileRef]
   def allLibraries: collection.Set[VirtualFileRef]
   def allProducts: collection.Set[VirtualFileRef]
@@ -56,30 +56,28 @@ trait Stamps extends ReadStamps {
       sourcesGrouping: VirtualFileRef => K,
       lib: Map[K, VirtualFileRef => Boolean]
   ): Map[K, Stamps]
-}
+end Stamps
 
-private[sbt] sealed abstract class StampBase extends XStamp {
+private[sbt] sealed abstract class StampBase extends XStamp:
   override def toString: String = this.writeStamp()
   override def hashCode(): Int = this.getValueId()
-  override def equals(other: Any): Boolean = other match {
+  override def equals(other: Any): Boolean = other match
     case o: XStamp => Stamp.equivStamp.equiv(this, o)
     case _         => false
-  }
-}
 
-trait WithPattern { protected def Pattern: Regex }
+trait WithPattern:
+  protected def Pattern: Regex
 
-import java.lang.{ Long => BoxedLong }
+import java.lang.Long as BoxedLong
 
 /** Define the hash of the file contents. It's a typical stamp for compilation sources. */
-final class FarmHash private (val hashValue: Long) extends StampBase {
+final class FarmHash private (val hashValue: Long) extends StampBase:
   override def writeStamp: String = s"farm(${BoxedLong.toHexString(hashValue)})"
   override def getValueId: Int = hashValue.##
   override def getHash: Optional[String] = Optional.of(BoxedLong.toHexString(hashValue))
   override def getLastModified: Optional[BoxedLong] = Optional.empty[BoxedLong]
-}
 
-object FarmHash {
+object FarmHash:
   private val Pattern = """farm\(((?:[0-9a-fA-F])+)\)""".r
   def fromLong(hashValue: Long): FarmHash = new FarmHash(hashValue)
 
@@ -89,71 +87,61 @@ object FarmHash {
   def ofPath(path: Path): FarmHash =
     fromLong(HashUtil.farmHash(path))
 
-  def fromString(s: String): Option[FarmHash] = {
+  def fromString(s: String): Option[FarmHash] =
     val m = Pattern.pattern.matcher(s)
-    if (m.matches()) Some(FarmHash.fromLong(BoxedLong.parseUnsignedLong(m.group(1), 16)))
+    if m.matches() then Some(FarmHash.fromLong(BoxedLong.parseUnsignedLong(m.group(1), 16)))
     else None
-  }
 
-  object FromString {
+  object FromString:
     def unapply(s: String): Option[FarmHash] = fromString(s)
-  }
-}
 
 /** Define the hash of the file contents. It's a typical stamp for compilation sources. */
-final class Hash private (val hexHash: String) extends StampBase {
+final class Hash private (val hexHash: String) extends StampBase:
   // Assumes `hexHash` is a hexadecimal value.
   override def writeStamp: String = s"hash($hexHash)"
   override def getValueId: Int = hexHash.hashCode()
   override def getHash: Optional[String] = Optional.of(hexHash)
   override def getLastModified: Optional[BoxedLong] = Optional.empty[BoxedLong]
-}
 
-private[sbt] object Hash {
+private[sbt] object Hash:
   private val Pattern = """hash\(((?:[0-9a-fA-F][0-9a-fA-F])+)\)""".r
 
   def ofFile(f: File): Hash =
     new Hash(IOHash toHex IOHash(f)) // assume toHex returns a hex string
 
-  def fromString(s: String): Option[Hash] = {
+  def fromString(s: String): Option[Hash] =
     val m = Pattern.pattern.matcher(s)
-    if (m.matches()) Some(new Hash(m.group(1)))
+    if m.matches() then Some(new Hash(m.group(1)))
     else None
-  }
 
-  object FromString {
+  object FromString:
     def unapply(s: String): Option[Hash] = fromString(s)
-  }
 
   def unsafeFromString(s: String): Hash = new Hash(s)
-}
 
 /** Define the last modified time of the file. It's a typical stamp for class files and products. */
-final class LastModified(val value: Long) extends StampBase {
+final class LastModified(val value: Long) extends StampBase:
   override def writeStamp: String = s"lastModified(${value})"
   override def getValueId: Int = (value ^ (value >>> 32)).toInt
   override def getHash: Optional[String] = Optional.empty[String]
   override def getLastModified: Optional[BoxedLong] = Optional.of(value)
-}
 
 /** Defines an empty stamp. */
-private[sbt] object EmptyStamp extends StampBase {
+private[sbt] object EmptyStamp extends StampBase:
   // Use `absent` because of historic reasons -- replacement of old `Exists` representation
   final val Value = "absent"
   override def writeStamp: String = Value
   override def getValueId: Int = System.identityHashCode(this)
   override def getHash: Optional[String] = Optional.empty[String]
   override def getLastModified: Optional[BoxedLong] = Optional.empty[BoxedLong]
-}
 
-private[inc] object LastModified extends WithPattern {
+private[inc] object LastModified extends WithPattern:
   final val Pattern = """lastModified\((\d+)\)""".r
-}
 
-object Stamp {
+object Stamp:
   private final val maxModificationDifferenceInMillis = 100L
-  implicit val equivStamp: Equiv[XStamp] = new Equiv[XStamp] {
-    def equiv(a: XStamp, b: XStamp) = (a, b) match {
+  implicit val equivStamp: Equiv[XStamp] = new Equiv[XStamp]:
+    def equiv(a: XStamp, b: XStamp) = (a, b) match
       case (h1: FarmHash, h2: FarmHash) => h1.hashValue == h2.hashValue
       case (h1: Hash, h2: Hash)         => h1.hexHash == h2.hexHash
       // Windows is handling this differently sometimes...
@@ -164,32 +152,28 @@ object Stamp {
         // This part of code should not depend on `equals`
         // Checking for (EmptyStamp, EmptyStamp) produces SOE
         stampA.eq(EmptyStamp) && stampB.eq(EmptyStamp)
-    }
-  }
 
-  def fromString(s: String): XStamp = s match {
+  def fromString(s: String): XStamp = s match
     case EmptyStamp.Value            => EmptyStamp
     case FarmHash.FromString(hash)   => hash
     case Hash.FromString(hash)       => hash
     case LastModified.Pattern(value) => new LastModified(java.lang.Long.parseLong(value))
-    case _ =>
+    case _                           =>
       throw new IllegalArgumentException("Unrecognized Stamp string representation: " + s)
-  }
 
   def getStamp(map: Map[File, XStamp], src: File): XStamp = map.getOrElse(src, EmptyStamp)
   def getVStamp(map: Map[VirtualFileRef, XStamp], src: VirtualFile): XStamp =
     map.getOrElse(src, EmptyStamp)
   def getVOStamp(map: Map[VirtualFileRef, XStamp], src: VirtualFileRef): XStamp =
     map.getOrElse(src, EmptyStamp)
-}
+end Stamp
 
-object Stamper {
-  private def tryStamp(g: => XStamp): XStamp = {
-    try {
+object Stamper:
+  private def tryStamp(g: => XStamp): XStamp =
+    try
       g
-    } // TODO: Double check correctness. Why should we not report an exception here?
-    catch { case _: IOException => EmptyStamp }
-  }
+      // TODO: Double check correctness. Why should we not report an exception here?
+    catch case _: IOException => EmptyStamp
 
   val forContentHash: VirtualFile => XStamp = (toStamp: VirtualFile) =>
     tryStamp(FarmHash.ofFile(toStamp))
@@ -199,32 +183,28 @@ object Stamper {
   val forLastModifiedP: Path => XStamp = (toStamp: Path) =>
     tryStamp(new LastModified(IO.getModifiedTimeOrZero(toStamp.toFile)))
 
-  def forLastModifiedInRootPaths(converter: FileConverter): VirtualFileRef => XStamp = {
+  def forLastModifiedInRootPaths(converter: FileConverter): VirtualFileRef => XStamp =
     (toStamp: VirtualFileRef) =>
-      {
-        val p = converter.toPath(toStamp)
-        JarUtils.getJarInClassInJar(p) match {
-          case Some(outputJar) =>
-            tryStamp {
-              val stamps = JarUtils.readStamps(outputJar)
-              val result = new LastModified(stamps(p))
-              result
-            }
-          case _ =>
-            tryStamp {
-              val result = new LastModified(IO.getModifiedTimeOrZero(p.toFile))
-              result
-            }
-        }
-      }
-  }
+      val p = converter.toPath(toStamp)
+      JarUtils.getJarInClassInJar(p) match
+        case Some(outputJar) =>
+          tryStamp {
+            val stamps = JarUtils.readStamps(outputJar)
+            val result = new LastModified(stamps(p))
+            result
+          }
+        case _ =>
+          tryStamp {
+            val result = new LastModified(IO.getModifiedTimeOrZero(p.toFile))
+            result
+          }
 
-  def forHashInRootPaths(converter: FileConverter): VirtualFileRef => XStamp = {
+  def forHashInRootPaths(converter: FileConverter): VirtualFileRef => XStamp =
     (toStamp: VirtualFileRef) =>
-      if (toStamp.id.endsWith("rt.jar")) EmptyStamp
-      else {
+      if toStamp.id.endsWith("rt.jar") then EmptyStamp
+      else
         val p = converter.toPath(toStamp)
-        JarUtils.getJarInClassInJar(p) match {
+        JarUtils.getJarInClassInJar(p) match
           case Some(outputJar) =>
             tryStamp {
               FarmHash.ofPath(outputJar)
@@ -233,35 +213,29 @@ object Stamper {
             tryStamp {
               FarmHash.ofPath(p)
             }
-        }
-      }
-  }
 
   private[sbt] def timeWrap(
       cache: collection.concurrent.Map[VirtualFileRef, (Long, XStamp)],
       converter: FileConverter,
       getStamp: VirtualFileRef => XStamp
-  ): VirtualFileRef => XStamp = { (key: VirtualFileRef) =>
+  ): VirtualFileRef => XStamp = (key: VirtualFileRef) =>
     val p = converter.toPath(key)
     val ts =
       try IO.getModifiedTimeOrZero(p.toFile)
-      catch { case _: Throwable => 0L }
+      catch case _: Throwable => 0L
     val (_, stamp) = cache.asJava.compute(
       key,
-      (_: VirtualFileRef, current: (Long, XStamp)) => {
-        current match {
+      (_: VirtualFileRef, current: (Long, XStamp)) =>
+        current match
           case (ts1, value) if ts == ts1 && ts > 0 => (ts1, value)
-          case _ =>
+          case _                                   =>
             val value = getStamp(key)
             (ts, value)
-        }
-      }
     )
     stamp
-  }
-}
+end Stamper
 
-object Stamps {
+object Stamps:
 
   /**
    * Creates a ReadStamps instance that will calculate and cache the stamp for sources and binaries
@@ -298,12 +272,11 @@ object Stamps {
   ): ReadStamps =
     new UncachedStamps(prodStamp, srcStamp, libStamp)
 
-  def empty: Stamps = {
+  def empty: Stamps =
     // Use a TreeMap to avoid sorting when serializing
-    import VirtualFileUtil._
+    import VirtualFileUtil.*
     val eSt = TreeMap.empty[VirtualFileRef, XStamp]
     apply(eSt, eSt, eSt)
-  }
   def apply(
       products: Map[VirtualFileRef, XStamp],
       sources: Map[VirtualFileRef, XStamp],
@@ -312,13 +285,13 @@ object Stamps {
     new MStamps(products, sources, libraries)
 
   def merge(stamps: Iterable[Stamps]): Stamps = stamps.foldLeft(Stamps.empty)(_ ++ _)
-}
+end Stamps
 
 private class MStamps(
     val products: Map[VirtualFileRef, XStamp],
     val sources: Map[VirtualFileRef, XStamp],
     val libraries: Map[VirtualFileRef, XStamp]
-) extends Stamps {
+) extends Stamps:
 
   override def getAllLibraryStamps: util.Map[VirtualFileRef, XStamp] =
     libraries.asJava
@@ -334,10 +307,9 @@ private class MStamps(
   def ++(o: Stamps): Stamps =
     new MStamps(products ++ o.products, sources ++ o.sources, libraries ++ o.libraries)
 
-  def markSource(src: VirtualFileRef, s: XStamp): Stamps = {
+  def markSource(src: VirtualFileRef, s: XStamp): Stamps =
     // sys.error(s"markSource($src, $s)")
     new MStamps(products, sources.updated(src, s), libraries)
-  }
 
   def markLibrary(lib: VirtualFileRef, className: String, s: XStamp): Stamps =
     new MStamps(products, sources, libraries.updated(lib, s))
@@ -364,7 +336,7 @@ private class MStamps(
       prod: Map[K, VirtualFileRef => Boolean],
       f: VirtualFileRef => K,
       lib: Map[K, VirtualFileRef => Boolean]
-  ): Map[K, Stamps] = {
+  ): Map[K, Stamps] =
     val sourcesMap: Map[K, Map[VirtualFileRef, XStamp]] = sources.groupBy(x => f(x._1))
 
     val constFalse = (f: VirtualFileRef) => false
@@ -374,17 +346,15 @@ private class MStamps(
       libraries.view.filterKeys(lib.getOrElse(k, constFalse)).toMap
     )
 
-    (for (k <- prod.keySet ++ sourcesMap.keySet ++ lib.keySet) yield (k, kStamps(k))).toMap
-  }
+    (for k <- prod.keySet ++ sourcesMap.keySet ++ lib.keySet yield (k, kStamps(k))).toMap
 
   override def product(prod: VirtualFileRef) = Stamp.getVOStamp(products, prod)
   override def source(src: VirtualFile) = Stamp.getVStamp(sources, src)
   override def library(lib: VirtualFileRef) = Stamp.getVOStamp(libraries, lib)
 
-  override def equals(other: Any): Boolean = other match {
+  override def equals(other: Any): Boolean = other match
     case o: MStamps => products == o.products && sources == o.sources && libraries == o.libraries
     case _          => false
-  }
 
   override lazy val hashCode: Int = (products :: sources :: libraries :: Nil).hashCode
 
@@ -394,7 +364,7 @@ private class MStamps(
       sources.size,
       libraries.size
     )
-}
+end MStamps
 
 /**
  * Stamp cache used for a single compilation.
@@ -403,7 +373,7 @@ private class MStamps(
  */
 private class InitialStamps(
     underlying: ReadStamps
-) extends ReadStamps {
+) extends ReadStamps:
   import collection.concurrent.Map
   import java.util.concurrent.ConcurrentHashMap
 
@@ -421,12 +391,11 @@ private class InitialStamps(
   override def source(src: VirtualFile): XStamp = underlying.source(src)
   override def library(lib: VirtualFileRef): XStamp =
     libraries.getOrElseUpdate(lib, underlying.library(lib))
-}
 
 private class TimeWrapBinaryStamps(
     underlying: ReadStamps,
     converter: FileConverter
-) extends ReadStamps {
+) extends ReadStamps:
   import collection.concurrent.Map
   import java.util.concurrent.ConcurrentHashMap
 
@@ -446,7 +415,7 @@ private class TimeWrapBinaryStamps(
   override def source(src: VirtualFile): XStamp = underlying.source(src)
   val library0 = Stamper.timeWrap(libraries, converter, underlying.library(_))
   override def library(lib: VirtualFileRef): XStamp = library0(lib)
-}
+end TimeWrapBinaryStamps
 
 /**
  * Creates a raw stamper without caching.
@@ -455,8 +424,8 @@ private class UncachedStamps(
     prodStamp: VirtualFileRef => XStamp,
     srcStamp: VirtualFile => XStamp,
     libStamp: VirtualFileRef => XStamp
-) extends ReadStamps {
-  import VirtualFileUtil._
+) extends ReadStamps:
+  import VirtualFileUtil.*
   val eSt = TreeMap.empty[VirtualFileRef, XStamp].asJava
 
   override def getAllLibraryStamps: util.Map[VirtualFileRef, XStamp] = eSt
@@ -466,4 +435,3 @@ private class UncachedStamps(
   override def product(prod: VirtualFileRef): XStamp = prodStamp(prod)
   override def source(src: VirtualFile): XStamp = srcStamp(src)
   override def library(lib: VirtualFileRef): XStamp = libStamp(lib)
-}

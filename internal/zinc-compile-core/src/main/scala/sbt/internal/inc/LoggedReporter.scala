@@ -22,42 +22,41 @@ import xsbti.{ Logger, Position, Problem, Reporter, Severity }
 import java.util.EnumMap
 
 import scala.collection.mutable
-import LoggedReporter._
+import LoggedReporter.*
 import sbt.internal.util.ManagedLogger
-import sbt.internal.util.codec._
-import Severity.{ Error, Warn, Info => SInfo }
+import sbt.internal.util.codec.*
+import Severity.{ Error, Warn, Info as SInfo }
 
-object LoggedReporter {
-  final class PositionKey(pos: Position) {
+object LoggedReporter:
+  final class PositionKey(pos: Position):
     import sbt.util.InterfaceUtil.jo2o
     def offset = pos.offset
     def sourceFile = pos.sourceFile
 
     override def equals(o: Any) =
-      o match { case pk: PositionKey => equalsKey(pk); case _ => false }
+      o match
+        case pk: PositionKey => equalsKey(pk);
+        case _               => false
 
     def equalsKey(o: PositionKey) =
       jo2o(pos.offset) == jo2o(o.offset) &&
         jo2o(pos.sourceFile) == jo2o(o.sourceFile)
     override def hashCode =
       jo2o(pos.offset).hashCode * 31 + jo2o(pos.sourceFile).hashCode
-  }
 
-  def countElementsAsString(n: Int, elements: String): String = {
-    n match {
+  def countElementsAsString(n: Int, elements: String): String =
+    n match
       case 0 => "no " + elements + "s"
       case 1 => "one " + elements
       case 2 => "two " + elements + "s"
       case 3 => "three " + elements + "s"
       case 4 => "four " + elements + "s"
       case _ => "" + n + " " + elements + "s"
-    }
-  }
 
   lazy val problemFormats: ProblemFormats = new ProblemFormats with SeverityFormats
     with PositionFormats with sjsonnew.BasicJsonProtocol {}
   lazy val problemStringFormats: ProblemStringFormats = new ProblemStringFormats {}
-}
+end LoggedReporter
 
 /**
  * Defines a logger that uses event logging provided by a ManagedLogger.
@@ -78,7 +77,7 @@ class ManagedLoggedReporter(
     maximumErrors: Int,
     logger: ManagedLogger,
     sourcePositionMapper: Position => Position = identity[Position]
-) extends LoggedReporter(maximumErrors, logger, sourcePositionMapper) {
+) extends LoggedReporter(maximumErrors, logger, sourcePositionMapper):
   import problemFormats.given
   import problemStringFormats.given
   logger.registerStringCodec[Problem]
@@ -86,7 +85,6 @@ class ManagedLoggedReporter(
   override def logError(problem: Problem): Unit = logger.errorEvent(problem)
   override def logWarning(problem: Problem): Unit = logger.warnEvent(problem)
   override def logInfo(problem: Problem): Unit = logger.infoEvent(problem)
-}
 
 /**
  * Defines a reporter that forwards every reported problem to a wrapped logger.
@@ -103,27 +101,26 @@ class LoggedReporter(
     maximumErrors: Int,
     logger: Logger,
     sourcePositionMapper: Position => Position = identity[Position]
-) extends Reporter {
-  import sbt.util.InterfaceUtil.{ toSupplier => f0 }
+) extends Reporter:
+  import sbt.util.InterfaceUtil.toSupplier as f0
   lazy val positions = new mutable.HashMap[PositionKey, Severity]
   lazy val count = new EnumMap[Severity, Int](classOf[Severity])
   protected lazy val allProblems = new mutable.ListBuffer[Problem]
   reset()
 
-  def reset(): Unit = {
+  def reset(): Unit =
     count.put(Warn, 0)
     count.put(SInfo, 0)
     count.put(Error, 0)
     positions.clear()
     allProblems.clear()
-  }
 
   def hasWarnings = count.get(Warn) > 0
   def hasErrors = count.get(Error) > 0
   def problems: Array[Problem] = allProblems.toArray
   def comment(pos: Position, msg: String): Unit = ()
 
-  override def log(problem0: Problem): Unit = {
+  override def log(problem0: Problem): Unit =
     import sbt.util.InterfaceUtil
     val (category, position, message, severity, rendered) =
       (problem0.category, problem0.position, problem0.message, problem0.severity, problem0.rendered)
@@ -138,56 +135,48 @@ class LoggedReporter(
       // When the source mapping is performed,
       // the information based on the `transformedPos` should be displayed
       // even if the `rendered` is defined.
-      rendered = if (transformed) None else InterfaceUtil.jo2o(rendered),
+      rendered = if transformed then None else InterfaceUtil.jo2o(rendered),
       diagnosticCode = InterfaceUtil.jo2o(problem0.diagnosticCode()),
       diagnosticRelatedInformation = InterfaceUtil.jl2l(problem0.diagnosticRelatedInformation()),
       actions = InterfaceUtil.jl2l(problem0.actions()),
     )
     allProblems += problem0
-    severity match {
+    severity match
       case Warn | Error =>
-        if (!testAndLog(transformedPos, severity)) display(problem)
+        if !testAndLog(transformedPos, severity) then display(problem)
         else ()
       case _ => display(problem)
-    }
-  }
+  end log
 
-  override def printSummary(): Unit = {
+  override def printSummary(): Unit =
     val warnings = count.get(Severity.Warn)
-    if (warnings > 0)
+    if warnings > 0 then
       logger.warn(f0(countElementsAsString(warnings, "warning") + " found"))
     val errors = count.get(Severity.Error)
-    if (errors > 0)
+    if errors > 0 then
       logger.error(f0(countElementsAsString(errors, "error") + " found"))
-  }
 
   private def inc(sev: Severity) = count.put(sev, count.get(sev) + 1)
   protected def logError(problem: Problem): Unit = logger.error(f0(problem.toString))
   protected def logWarning(problem: Problem): Unit = logger.warn(f0(problem.toString))
   protected def logInfo(problem: Problem): Unit = logger.info(f0(problem.toString))
 
-  private def display(p: Problem): Unit = {
+  private def display(p: Problem): Unit =
     val severity = p.severity()
     inc(severity)
-    if (severity != Error || maximumErrors <= 0 || count.get(severity) <= maximumErrors) {
-      severity match {
+    if severity != Error || maximumErrors <= 0 || count.get(severity) <= maximumErrors then
+      severity match
         case Error => logError(p)
         case Warn  => logWarning(p)
         case SInfo => logInfo(p)
-      }
-    }
-  }
 
-  private def testAndLog(pos: Position, severity: Severity): Boolean = {
-    if (!pos.offset.isPresent || !pos.sourceFile.isPresent) false
-    else {
+  private def testAndLog(pos: Position, severity: Severity): Boolean =
+    if !pos.offset.isPresent || !pos.sourceFile.isPresent then false
+    else
       val key = new PositionKey(pos)
-      if (positions.get(key).exists(_.ordinal >= severity.ordinal))
+      if positions.get(key).exists(_.ordinal >= severity.ordinal) then
         true
-      else {
+      else
         positions(key) = severity
         false
-      }
-    }
-  }
-}
+end LoggedReporter
