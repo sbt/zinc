@@ -123,12 +123,13 @@ object JavaCompilerForUnitTesting:
         (_, _, _) => (),
       log: Logger = ConsoleLogger(),
       readAPI: (AnalysisCallback, VirtualFileRef, Seq[Class[?]]) => Set[(String, String)] =
-        (_, _, classes) => extractParents(classes)
+        (_, _, classes) => extractParents(classes),
+      parent: Option[ClassLoader] = None
   ): TestCallback =
     val srcs: List[VirtualFile] = srcFiles.toList.map(f => new TestVirtualFile(f.toPath))
     val analysisCallback = new TestCallback
     val classFiles = (sbt.io.PathFinder(classesDir) ** "*.class").get().map(_.toPath)
-    val classloader = new URLClassLoader(Array(classesDir.toURI.toURL), null)
+    val classloader = new URLClassLoader(Array(classesDir.toURI.toURL), parent.orNull)
     val output = new SingleOutput:
       override def getOutputDirectoryAsPath: Path = classesDir.toPath
       override def getOutputDirectory: File = classesDir

@@ -87,10 +87,7 @@ private[sbt] object JavaAnalyze:
     val binaryClassNameToSourceName = new mutable.HashMap[String, String]
 
     val classfilesCache = mutable.Map.empty[String, Path]
-    // sbt/zinc#149: referenced classes whose classfile could not be located, keyed to the classes
-    // that reached them; reported once per missing class after the analysis. Java analysis is
-    // deliberately best-effort: a compile that javac accepted never fails here — whatever cannot
-    // be recovered is reported and the corresponding dependency edges are simply absent.
+    // sbt/zinc#149: the classes that reached each class missing from the analysis classpath.
     val missingClassReferrers = mutable.Map.empty[String, mutable.Set[String]]
 
     // parse class files and assign classes to sources.  This must be done before dependencies, since the information comes
@@ -106,13 +103,7 @@ private[sbt] object JavaAnalyze:
       if !binaryClassName.endsWith("module-info")
     do
       val finalClassFile: Path = remapClassFile(newClass)
-      load(
-        binaryClassName,
-        Some(
-          "While analyzing " + binaryClassName +
-            ": the class could not be loaded; falling back to classfile-based analysis"
-        )
-      ) match
+      load(binaryClassName, Some("Error reading API from class file: " + binaryClassName)) match
         case Some(loadedClass) =>
           binaryClassNameToLoadedClass.update(binaryClassName, loadedClass)
           loadEnclosingClass(loadedClass) match
@@ -129,7 +120,6 @@ private[sbt] object JavaAnalyze:
               analysis.generatedNonLocalClass(source, finalClassFile, binaryClassName, className)
               binaryClassNameToSourceName.update(binaryClassName, className)
             case None => analysis.generatedLocalClass(source, finalClassFile)
-      end match
 
       sourceToClassFiles(source) += classFile
     end for
@@ -160,14 +150,6 @@ private[sbt] object JavaAnalyze:
       binaryName.startsWith("java.") ||
         (!classFileByBinaryName.contains(binaryName) &&
           resourceUrl(binaryName).exists(_.getProtocol == "jrt"))
-
-    // sbt/zinc#149: when a reflection failure names a class that is genuinely absent from the
-    // analysis classpath, report it like any other unlocatable referenced class.
-    def recordMissingClass(e: Throwable, referrer: String): Unit =
-      for
-        missing <- missingClassName(e)
-        if !isPlatformClass(missing) && resourceUrl(missing).isEmpty
-      do missingClassReferrers.getOrElseUpdate(missing, mutable.Set.empty) += referrer
 
     def resolveClassFile(binaryName: String): Option[ClassFile] =
       classFileByBinaryName
@@ -253,35 +235,29 @@ private[sbt] object JavaAnalyze:
           case (Some(fromClassName), None) =>
             trapAndLog(log) {
               val cachedOrigin = classfilesCache.get(onBinaryName)
-              cachedOrigin.orElse(loadFromClassloader()) match
-                case Some(file) =>
-                  val binaryFile: Path = remapClassFile(file)
-                  analysis4 match
-                    case Some(cb) =>
-                      cb.binaryDependency(
-                        binaryFile,
-                        onBinaryName,
-                        typeRef(fromClassName),
-                        source,
-                        context
-                      )
-                    case None =>
-                      analysis.binaryDependency(
-                        binaryFile,
-                        onBinaryName,
-                        fromClassName,
-                        source,
-                        context
-                      )
-                case None =>
-                  // sbt/zinc#149: the classfile is absent from the analysis classpath, so this
-                  // dependency cannot be tracked. Guard platform classes first (every classfile
-                  // references java.lang.*, and jrt-served classes are never tracked); a URL that
-                  // existed but couldn't be converted was already warned about in urlAsFile.
-                  if !isPlatformClass(onBinaryName) && resourceUrl(onBinaryName).isEmpty then
-                    missingClassReferrers.getOrElseUpdate(onBinaryName, mutable.Set.empty) +=
-                      s"$fromClassName (${source.name})"
-              end match
+              for file <- cachedOrigin.orElse(loadFromClassloader()) do
+                val binaryFile: Path = remapClassFile(file)
+                analysis4 match
+                  case Some(cb) =>
+                    cb.binaryDependency(
+                      binaryFile,
+                      onBinaryName,
+                      typeRef(fromClassName),
+                      source,
+                      context
+                    )
+                  case None =>
+                    analysis.binaryDependency(
+                      binaryFile,
+                      onBinaryName,
+                      fromClassName,
+                      source,
+                      context
+                    )
+              // sbt/zinc#149: no classfile on the analysis classpath, so no edge was recorded above.
+              if resourceUrl(onBinaryName).isEmpty then
+                missingClassReferrers.getOrElseUpdate(onBinaryName, mutable.Set.empty) +=
+                  s"$fromClassName (${source.name})"
             }
           case (None, _) => // It could be a stale class file, ignore
         end match
@@ -323,54 +299,29 @@ private[sbt] object JavaAnalyze:
         onBinaryName <- constantDeps.getOrElse(binaryClassName, Set.empty)
       do processDependency(onBinaryName, DependencyByMemberRef, binaryClassName)
 
-      // sbt/zinc#149: reflecting over a class's signatures throws when a referenced class is
-      // missing from the classpath (javac itself succeeded). Never fail the compile for that:
-      // retry class-by-class to isolate failures; failing non-local classes are demoted to the
-      // classfile-based fallback (sbt/zinc#837 loops below), failing local classes are skipped.
-      // Structural errors (VerifyError, ClassFormatError) still propagate, matching
-      // ClassToAPI.loadInnerClass.
-      def readInheritanceDependencies(classes: Seq[Class[?]]): Map[String, Set[String]] =
-        def group(pairs: collection.Set[(String, String)]): Map[String, Set[String]] =
-          // avoid .mapValues(...) because of its viewness (scala/bug#10919)
-          pairs.groupBy(_._1).map { case (k, v) => k -> v.iterator.map(_._2).toSet }
-        try group(readAPI(source, classes))
-        catch
-          case e: (ClassNotFoundException | NoClassDefFoundError | TypeNotPresentException |
-                IllegalAccessError) =>
-            log.debug(
-              s"[zinc] sbt/zinc#149: API extraction failed for ${source.name} ($e); " +
-                "retrying per class"
-            )
-            val pairs = mutable.Set.empty[(String, String)]
-            for cls <- classes do
-              try pairs ++= readAPI(source, Seq(cls))
-              catch
-                case e: (ClassNotFoundException | NoClassDefFoundError | TypeNotPresentException |
-                      IllegalAccessError) =>
-                  Option(cls.getCanonicalName) match
-                    case Some(canonical) =>
-                      log.warn(
-                        s"While analyzing $canonical (${source.name}), failed to extract its API " +
-                          s"by reflection: $e. Falling back to classfile-based analysis for this " +
-                          "class."
-                      )
-                      binaryClassNameToSourceName.update(cls.getName, canonical)
-                      recordMissingClass(e, s"$canonical (${source.name})")
-                    case None =>
-                      log.warn(
-                        s"While analyzing ${cls.getName} (${source.name}), failed to extract its " +
-                          s"API by reflection: $e. Inheritance dependencies of this local class " +
-                          "will not be tracked."
-                      )
-                      recordMissingClass(e, s"${cls.getName} (${source.name})")
-            end for
-            group(pairs)
-        end try
-      end readInheritanceDependencies
+      // sbt/zinc#149: reflection throws when a signature names a class missing from the analysis
+      // classpath. Named classes then take the classfile fallback below instead of failing.
+      def readInheritanceDependencies(classes: Seq[Class[?]]) =
+        val api =
+          try readAPI(source, classes)
+          catch
+            case e: (NoClassDefFoundError | TypeNotPresentException | IllegalAccessError) =>
+              log.warn(
+                s"While analyzing ${classes.map(_.getName).mkString(", ")} (${source.name}), " +
+                  s"failed to extract the API by reflection: $e. Their API and inheritance " +
+                  "dependencies may be incomplete."
+              )
+              for
+                cls <- classes
+                name <- binaryToSourceName(cls)
+              do binaryClassNameToSourceName.update(cls.getName, name)
+              Set.empty
+        // avoid .mapValues(...) because of its viewness (scala/bug#10919)
+        api.groupBy(_._1).iterator.map { case (k, v) => k -> v.map(_._2) }
 
       // Read API of non-local classes and process dependencies by inheritance
       val nonLocalInherited: Map[String, Set[String]] =
-        readInheritanceDependencies(nonLocalClasses.toSeq)
+        readInheritanceDependencies(nonLocalClasses.toSeq).toMap
       nonLocalInherited foreach {
         case (className, inheritanceDeps) =>
           processDependencies(inheritanceDeps, DependencyByInheritance, className)
@@ -380,7 +331,7 @@ private[sbt] object JavaAnalyze:
       val localClasses =
         localClassesOrStale.filter(cls => localClassesToSources.contains(cls.getName))
       val localInherited: Map[String, Set[String]] =
-        readInheritanceDependencies(localClasses.toSeq)
+        readInheritanceDependencies(localClasses.toSeq).toMap
       localInherited foreach {
         case (className, inheritanceDeps) =>
           processDependencies(inheritanceDeps, LocalDependencyByInheritance, className)
@@ -406,16 +357,19 @@ private[sbt] object JavaAnalyze:
       if unloadableNamed.nonEmpty then trapAndLog(log)(readClassfileAPI(source, unloadableNamed))
     end for
 
-    // sbt/zinc#149: one deterministic warning per missing class, naming the classes that reached
-    // it (capped), in the spirit of scalac's "symbol is missing from the classpath" stub errors.
-    for (missing, referrers) <- missingClassReferrers.toSeq.sortBy(_._1) do
+    // sbt/zinc#149: one warning per missing class. A class that loads without a classfile URL is in
+    // a JDK module of another loader, and Zinc never tracks JDK classes.
+    for
+      (missing, referrers) <- missingClassReferrers.toSeq.sortBy(_._1)
+      if !isPlatformClass(missing) && load(missing, None).isEmpty
+    do
       val sorted = referrers.toSeq.sorted
       val shown =
         if sorted.sizeIs <= 5 then sorted.mkString(", ")
         else sorted.take(5).mkString(", ") + s", and ${sorted.size - 5} more"
       log.warn(
-        s"While analyzing $shown, failed to locate $missing. This class must be present on " +
-          "the classpath in order to track dependencies on it."
+        s"While analyzing $shown, failed to locate $missing. Dependencies on this class are " +
+          "not tracked."
       )
   end apply
 
@@ -477,17 +431,6 @@ private[sbt] object JavaAnalyze:
   private def classNameToClassFile(name: String) = name.replace('.', '/') + ClassExt
   private def binaryToSourceName(loadedClass: Class[?]): Option[String] =
     Option(loadedClass.getCanonicalName)
-
-  /**
-   * Best-effort name of the class that a reflection failure reports as missing (sbt/zinc#149).
-   * The JVM names it in internal (com/b/B) or source form depending on the exception; sentence
-   * messages (e.g. IllegalAccessError's) yield None.
-   */
-  private def missingClassName(e: Throwable): Option[String] = e match
-    case t: TypeNotPresentException                          => Some(t.typeName)
-    case _: ClassNotFoundException | _: NoClassDefFoundError =>
-      Option(e.getMessage).filter(m => m.nonEmpty && !m.contains(' ')).map(_.replace('/', '.'))
-    case _ => None
 
   @tailrec
   private def loadEnclosingClass(clazz: Class[?]): Option[String] =
