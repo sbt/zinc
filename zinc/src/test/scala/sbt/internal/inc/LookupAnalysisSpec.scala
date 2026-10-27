@@ -32,11 +32,9 @@ object LookupAnalysisSpec extends Properties:
       defines <- Gen.list(Gen.boolean, Range.singleton(names.size))
     yield Option.when(hasAnalysis)(analysis(names.zip(defines).collect { case (n, true) => n }))
 
-  private def sameInstance(actual: Option[AnyRef], expected: Option[AnyRef]): Boolean =
-    (actual, expected) match
-      case (Some(a), Some(e)) => a eq e
-      case (None, None)       => true
-      case _                  => false
+  /** The position of a found analysis in `analyses`, so that a failure shows which one it is. */
+  private def position(lookup: LookupImpl, found: Option[AnyRef]): Option[Int] =
+    found.map(a => lookup.analyses.indexWhere(_ eq a))
 
   def propFirstMatch: Property =
     for entries <- Gen.list(genEntry, Range.linear(0, 6)).forAll
@@ -45,7 +43,8 @@ object LookupAnalysisSpec extends Properties:
       val queries = names ++ List("p.Missing", "source.p.A")
       Result.all(queries.map { name =>
         val expected = lookup.analyses.find(_.relations.productClassName._2s.contains(name))
-        Result.diff(lookup.lookupAnalysis(name), expected)(sameInstance).log(s"name: $name")
+        (position(lookup, lookup.lookupAnalysis(name)) ==== position(lookup, expected))
+          .log(s"name: $name")
       })
 
   private def firstWins: Result =
@@ -53,7 +52,7 @@ object LookupAnalysisSpec extends Properties:
     val second = analysis(List("p.Dup"))
     Result.all(List(Vector(first, second), Vector(second, first)).map { order =>
       val lookup = Fixture(order.map(Some(_))).newLookup()
-      Result.diff(lookup.lookupAnalysis("p.Dup"), order.headOption)(sameInstance)
+      position(lookup, lookup.lookupAnalysis("p.Dup")) ==== Some(0)
     })
 
   private def warmLookups: Result =
