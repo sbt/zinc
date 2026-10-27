@@ -19,9 +19,9 @@ import java.util.Optional
 
 import xsbti.{ FileConverter, PathBasedFile, Position, VirtualFile, VirtualFileRef }
 import xsbti.compile.Output
-import sbt.util.InterfaceUtil._
+import sbt.util.InterfaceUtil.*
 
-object VirtualFileUtil {
+object VirtualFileUtil:
   implicit val sbtInternalIncVirtualFileOrdering: Ordering[VirtualFile] = Ordering.by(_.id)
   implicit val sbtInternalIncVirtualFileRefOrdering: Ordering[VirtualFileRef] = Ordering.by(_.id)
 
@@ -33,20 +33,19 @@ object VirtualFileUtil {
   def sourcePositionMapper(converter: FileConverter): Position => Position =
     new DelegatingPosition(_, converter)
 
-  class DelegatingPosition(original: Position, converter: FileConverter) extends Position {
+  class DelegatingPosition(original: Position, converter: FileConverter) extends Position:
     override def line = original.line
     override def lineContent = original.lineContent
     override def offset = original.offset
 
     private var sourcePath0 = original.sourcePath
     private val sourceFile0 = sourcePath0.map[File] { p =>
-      if (p.contains("${")) {
+      if p.contains("${") then
         val path = converter.toPath(VirtualFileRef.of(p))
         sourcePath0 = Optional.of(path.toString)
         path.toFile
-      } else {
+      else
         new File(p)
-      }
     }
 
     override val sourcePath = sourcePath0
@@ -60,15 +59,13 @@ object VirtualFileUtil {
     override def endLine = original.endLine
     override def endColumn = original.endColumn
 
-    override def toString = (jo2o(sourcePath0), jo2o(line)) match {
+    override def toString = (jo2o(sourcePath0), jo2o(line)) match
       case (Some(s), Some(l)) => s"$s:$l"
       case (Some(s), _)       => s"$s:"
       case _                  => ""
-    }
-  }
+  end DelegatingPosition
 
-  def toAbsolute(vf: VirtualFile): VirtualFile = vf match {
+  def toAbsolute(vf: VirtualFile): VirtualFile = vf match
     case x: PathBasedFile if !x.toPath.isAbsolute => PlainVirtualFile(x.toPath.toAbsolutePath)
     case _                                        => vf
-  }
-}
+end VirtualFileUtil

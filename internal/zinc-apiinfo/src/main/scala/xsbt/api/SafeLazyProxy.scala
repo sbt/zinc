@@ -21,20 +21,18 @@ import java.util.function.Supplier
  * other because they create intermediate anonymous functions and
  * the price of a new object in this hot path is not worth it.
  */
-object SafeLazyProxy {
+object SafeLazyProxy:
 
   /**
    * Return a lazy implementation of a Scala by-name parameter.
    */
-  def apply[T](s: => T): Lazy[T] = {
-    val sbtThunk = new Supplier[T] { override def get() = s }
+  def apply[T](s: => T): Lazy[T] =
+    val sbtThunk = new Supplier[T]:
+      override def get() = s
     SafeLazy.apply(sbtThunk)
-  }
 
   /**
    * Return a lazy implementation of a strict value.
    */
-  def strict[T](s: T): Lazy[T] = {
+  def strict[T](s: T): Lazy[T] =
     SafeLazy.strict(s)
-  }
-}

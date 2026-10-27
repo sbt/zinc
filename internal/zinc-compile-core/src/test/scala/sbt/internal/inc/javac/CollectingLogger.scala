@@ -13,7 +13,7 @@ package sbt.internal.inc.javac
 
 import sbt.util.{ Level, Logger }
 
-class CollectingLogger extends Logger {
+class CollectingLogger extends Logger:
   var messages: Map[Level.Value, Seq[String]] = Map.empty.withDefaultValue(Seq.empty)
 
   override def trace(t: => Throwable): Unit = ???
@@ -22,4 +22,3 @@ class CollectingLogger extends Logger {
     synchronized {
       messages = messages.updated(level, messages(level) :+ message)
     }
-}

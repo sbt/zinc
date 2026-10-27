@@ -15,12 +15,12 @@ import java.io.File
 
 import xsbt.BenchmarkProjects.{ Scalac, Shapeless }
 
-object GlobalBenchmarkSetup {
+object GlobalBenchmarkSetup:
 
   /** Update this list every time you add a new benchmark. */
   val projects = Map("Scalac" -> Scalac, "Shapeless" -> Shapeless)
 
-  def runSetup(setupDir: File, pattern: String): (Int, String) = {
+  def runSetup(setupDir: File, pattern: String): (Int, String) =
     val projectsPreparation = projects
       .view.filterKeys { _.matches(pattern) }
       .map { case (_, project) =>
@@ -29,31 +29,26 @@ object GlobalBenchmarkSetup {
       }
 
     val failedToPrepare = projectsPreparation.filter(_._2.isLeft)
-    if (failedToPrepare.isEmpty)
+    if failedToPrepare.isEmpty then
       0 -> "Projects have been cloned and prepared. You can now run benchmarks."
-    else {
+    else
       val failed = failedToPrepare.mkString("\n")
       1 -> s"Unexpected error when running benchmarks:\n$failed"
-    }
-  }
 
-  def main(args: Array[String]): Unit = {
-    def fail(message: String) = {
+  def main(args: Array[String]): Unit =
+    def fail(message: String) =
       println(message)
       System.exit(1)
-    }
 
-    if (args.isEmpty)
+    if args.isEmpty then
       fail("Missing directory to host project setups.")
-    else if (args.length > 2)
+    else if args.length > 2 then
       fail("Too many arguments. Pass the directory to host project setups.")
-    else {
+    else
       val setupDir = new File(args(0))
-      val pattern = if (args.length == 1) ".*" else args(1)
+      val pattern = if args.length == 1 then ".*" else args(1)
       val (exitCode, status) = runSetup(setupDir, pattern)
       println(status)
       println("The benchmark setup has finished.")
       System.exit(exitCode)
-    }
-  }
-}
+end GlobalBenchmarkSetup

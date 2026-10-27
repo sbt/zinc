@@ -1,0 +1,12 @@
+# Same scenario as default-arguments-separate-compilation, pinned to Scala 2.10.
+# On 2.10 `Symbol.associatedFile` is null rather than NoAbstractFile, so the bridge used to
+# drop the dependency on Foo.Bar and leave test.scala uncompiled against the new constructor.
+
+$ copy-file changes/a1.scala root/a.scala
+> run
+
+$ copy-file changes/a2.scala root/a.scala
+> run
+
+$ copy-file changes/a1.scala root/a.scala
+> run

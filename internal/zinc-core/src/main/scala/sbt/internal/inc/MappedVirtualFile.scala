@@ -13,24 +13,26 @@ package sbt
 package internal
 package inc
 
-import java.io.{ ByteArrayInputStream, InputStream }
+import java.io.{ ByteArrayInputStream, IOException, InputStream }
+import java.lang.ref.SoftReference
 import java.nio.ByteBuffer
 import java.nio.file.{ Files, Path, Paths }
+import java.nio.file.attribute.{ BasicFileAttributes, FileTime }
+import java.util.concurrent.ConcurrentHashMap
 import xsbti.{ BasicVirtualFileRef, FileConverter, PathBasedFile, VirtualFile, VirtualFileRef }
 import sbt.nio.file.{ FileTreeView, Glob, IsNotHidden, IsRegularFile, RecursiveGlob }
 
 class MappedVirtualFile(encodedPath: String, rootPathsMap: Map[String, Path])
     extends BasicVirtualFileRef(encodedPath)
-    with PathBasedFile {
+    with PathBasedFile:
   private def path: Path = MappedVirtualFile.toPath(encodedPath, rootPathsMap)
   override lazy val contentHash: Long = HashUtil.farmHash(path)
   override def sizeBytes: Long = Files.size(path)
   override lazy val contentHashStr: String = HashUtil.sha256HashStr(input)
   override def input(): InputStream = Files.newInputStream(path)
   override def toPath: Path = path
-}
 
-object MappedVirtualFile {
+object MappedVirtualFile:
   def apply(encodedPath: String, rootPaths: Map[String, Path]): MappedVirtualFile =
     new MappedVirtualFile(encodedPath, rootPaths)
 
@@ -38,122 +40,154 @@ object MappedVirtualFile {
       modifyResolvedPath: Path => A,
       modifyOrigPath: String => A
   ): A =
-    rootPaths.toSeq.find { case (key, _) => encodedPath.startsWith(s"$${$key}/") } match {
+    rootPaths.toSeq.find { case (key, _) => encodedPath.startsWith(s"$${$key}/") } match
       case Some((key, p)) => modifyResolvedPath(p.resolve(encodedPath.stripPrefix(s"$${$key}/")))
       case None           => modifyOrigPath(encodedPath)
-    }
 
   def toPath(encodedPath: String, rootPaths: Map[String, Path]): Path =
     toPathMapped(encodedPath, rootPaths)(identity, Paths.get(_))
-}
 
 class MappedDirectory(
     encodedPath: String,
     rootPathsMap: Map[String, Path],
-    items: List[VirtualFile]
+    val items: List[VirtualFile]
 ) extends BasicVirtualFileRef(encodedPath)
-    with PathBasedFile {
+    with PathBasedFile:
   private def path: Path = MappedVirtualFile.toPath(encodedPath, rootPathsMap)
-  override lazy val contentHash: Long = {
+  override lazy val contentHash: Long =
     val buffer = ByteBuffer.allocate(java.lang.Long.BYTES * items.size)
-    val hashes = items.foreach { item =>
+    items.foreach { item =>
       buffer.putLong(item.contentHash)
     }
     HashUtil.farmHash(buffer.array())
-  }
   override lazy val sizeBytes: Long = items.map(_.sizeBytes).sum
-  override lazy val contentHashStr: String = {
+  override lazy val contentHashStr: String =
     val sb = new StringBuilder
-    val hashes = items.foreach { item =>
+    items.foreach { item =>
       sb.append(item.contentHashStr)
     }
-    val stream = new ByteArrayInputStream(hashes.toString.getBytes("UTF-8"))
+    val stream = new ByteArrayInputStream(sb.toString.getBytes("UTF-8"))
     HashUtil.sha256HashStr(stream)
-  }
   override def input(): InputStream = ???
   override def toPath: Path = path
-}
+end MappedDirectory
 
-object MappedDirectory {
+object MappedDirectory:
   def apply(
       encodedPath: String,
       rootPaths: Map[String, Path],
       items: List[VirtualFile]
   ): MappedDirectory =
     new MappedDirectory(encodedPath, rootPaths, items)
-}
 
 class MappedFileConverter(val rootPaths: Map[String, Path], allowMachinePath: Boolean)
-    extends FileConverter {
+    extends FileConverter:
 
   import MappedFileConverter.view
 
   val rootPaths2: Seq[(String, Path)] = rootPaths.toSeq.flatMap {
     case (key, rootPath) =>
-      if (rootPath.startsWith("/var/") || rootPath.startsWith("/tmp/")) {
+      if rootPath.startsWith("/var/") || rootPath.startsWith("/tmp/") then
         val rootPath2 = Paths.get("/private").resolve(Paths.get("/").relativize(rootPath))
         Seq(key -> rootPath, key -> rootPath2)
-      } else Seq(key -> rootPath)
+      else Seq(key -> rootPath)
   }
 
-  def toPath(ref: VirtualFileRef): Path = ref match {
+  def toPath(ref: VirtualFileRef): Path = ref match
     case x: PathBasedFile => x.toPath
     case _                => MappedVirtualFile.toPath(ref.id, rootPaths)
-  }
 
-  def toVirtualFile(path: Path): VirtualFile = {
+  def toVirtualFile(path: Path): VirtualFile =
     def isDirectory: Boolean =
-      Files.isDirectory(path) || (!Files.exists(path) && path.getFileName.toString().endsWith(
-        "classes"
-      ))
-    rootPaths2.find { case (_, rootPath) => path.startsWith(rootPath) } match {
-      case Some((key, rootPath)) =>
-        val encodedPath = s"$${$key}/${rootPath.relativize(path)}".replace('\\', '/')
-        if (isDirectory) toDirectory(path, encodedPath)
+      Files.isDirectory(path) ||
+        (!Files.exists(path) && path.getFileName.toString().endsWith(
+          "classes"
+        ))
+    encode(path) match
+      case Some(encodedPath) =>
+        if isDirectory then toDirectory(path, encodedPath)
         else MappedVirtualFile(encodedPath, rootPaths)
       case _ =>
-        def isCtSym =
-          path.getFileSystem
-            .provider()
-            .getScheme == "jar" && path.getFileSystem.toString.endsWith("ct.sym")
-        def isJrt = path.getFileSystem.provider().getScheme == "jrt"
-        if (isJrt || path.getFileName.toString == "rt.jar" || isCtSym)
-          DummyVirtualFile("rt.jar", path)
-        else if (allowMachinePath) {
+        if JdkClassFiles.isJdkPath(path) then DummyVirtualFile("rt.jar", path)
+        else if allowMachinePath then
           val encodedPath = s"$path".replace('\\', '/')
-          if (isDirectory) toDirectory(path, encodedPath)
+          if isDirectory then toDirectory(path, encodedPath)
           else MappedVirtualFile(encodedPath, rootPaths)
-        } else sys.error(s"$path cannot be mapped using the root paths $rootPaths")
+        else sys.error(s"$path cannot be mapped using the root paths $rootPaths")
+  end toVirtualFile
+
+  override def toVirtualFileRef(path: Path): VirtualFileRef =
+    encode(path) match
+      case Some(encodedPath) => VirtualFileRef.of(encodedPath)
+      case None if allowMachinePath && !JdkClassFiles.isJdkPath(path) =>
+        VirtualFileRef.of(s"$path".replace('\\', '/'))
+      case None => toVirtualFile(path)
+
+  private def encode(path: Path): Option[String] =
+    rootPaths2.collectFirst {
+      case (key, rootPath) if path.startsWith(rootPath) =>
+        s"$${$key}/${rootPath.relativize(path)}".replace('\\', '/')
     }
-  }
 
   // Optimized version that skips isDirectory check - use when path is known to be a regular file
-  private def toVirtualFileForRegularFile(path: Path): VirtualFile = {
-    rootPaths2.find { case (_, rootPath) => path.startsWith(rootPath) } match {
-      case Some((key, rootPath)) =>
-        val encodedPath = s"$${$key}/${rootPath.relativize(path)}".replace('\\', '/')
-        MappedVirtualFile(encodedPath, rootPaths)
-      case _ =>
-        if (allowMachinePath) {
+  private def toVirtualFileForRegularFile(path: Path): VirtualFile =
+    encode(path) match
+      case Some(encodedPath) => MappedVirtualFile(encodedPath, rootPaths)
+      case _                 =>
+        if allowMachinePath then
           val encodedPath = s"$path".replace('\\', '/')
           MappedVirtualFile(encodedPath, rootPaths)
-        } else sys.error(s"$path cannot be mapped using the root paths $rootPaths")
-    }
-  }
+        else sys.error(s"$path cannot be mapped using the root paths $rootPaths")
 
-  def toDirectory(path: Path, encodedPath: String) = {
+  // Consumers of a shared classpath each convert its entries independently, and a directory entry
+  // wraps every contained file, so without interning a shared classes directory is re-materialized
+  // once per consumer - value-identical MappedVirtualFiles then accumulate on the heap on large
+  // multi-project builds (#1750). Keying by (lastModified, size) keeps a memoized content hash from
+  // being served across a content change, and the SoftReference bounds retention of this long-lived
+  // shared converter. Top-level conversions are deliberately excluded so they stay per-consumer:
+  // their lazy hashes must read content at first access, which incremental source change detection
+  // relies on.
+  private val itemCache =
+    new ConcurrentHashMap[Path, ((FileTime, Long), SoftReference[VirtualFile])]
+
+  private def toItem(path: Path): VirtualFile =
+    try
+      val attrs = Files.readAttributes(path, classOf[BasicFileAttributes])
+      val metadata = (attrs.lastModifiedTime(), attrs.size())
+      val cached = itemCache.get(path)
+      val hit = if cached != null && cached._1 == metadata then cached._2.get() else null
+      if hit != null then hit
+      else
+        val vf = toVirtualFileForRegularFile(path)
+        itemCache.put(path, (metadata, new SoftReference(vf)))
+        vf
+    catch case _: IOException => toVirtualFileForRegularFile(path)
+
+  def toDirectory(path: Path, encodedPath: String) =
     val list = view.list(Glob(path, RecursiveGlob), IsRegularFile && IsNotHidden)
       .map(_._1)
       .sorted
-    val items = list.map(toVirtualFileForRegularFile)
+    val items = list.map(toItem)
     MappedDirectory(encodedPath, rootPaths, items.toList)
-  }
-}
+end MappedFileConverter
 
-object MappedFileConverter {
+object MappedFileConverter:
   private[sbt] lazy val view = FileTreeView.Ops(FileTreeView.default)
 
   def empty: MappedFileConverter = new MappedFileConverter(Map(), true)
   def apply(rootPaths: Map[String, Path], allowMachinePath: Boolean): MappedFileConverter =
     new MappedFileConverter(rootPaths, allowMachinePath)
-}
+
+/**
+ * Class files the JDK itself serves: rt.jar on JDK 8, the jrt:/ runtime image on JDK 9+, and the
+ * ct.sym signatures read under `-release`. Zinc never tracks them as library dependencies
+ * (sbt/zinc#609), so every FileConverter must treat them alike.
+ */
+private[sbt] object JdkClassFiles:
+  def isJdkPath(path: Path): Boolean =
+    val fs = path.getFileSystem
+    val scheme = fs.provider().getScheme
+    scheme == "jrt" ||
+    (scheme == "jar" && fs.toString.endsWith("ct.sym")) ||
+    (path.getFileName != null && path.getFileName.toString == "rt.jar")
+end JdkClassFiles

@@ -11,12 +11,12 @@
 
 package xsbt.api
 
-import xsbti.api._
+import xsbti.api.*
 
 import scala.util.hashing.MurmurHash3
 import HashAPI.Hash
 
-object HashAPI {
+object HashAPI:
   type Hash = Int
 
   def apply(api: ClassLike): Hash = apply(_.hashAPI(api))
@@ -30,7 +30,7 @@ object HashAPI {
       includeDefinitions: Boolean = true,
       includeSealedChildren: Boolean = true,
       includePrivateDefsInTrait: Boolean = false
-  ): Hash = {
+  ): Hash =
     val hasher = new HashAPI(
       includePrivate,
       includeParamNames,
@@ -41,9 +41,37 @@ object HashAPI {
 
     doHashing(hasher)
     hasher.finalizeHash
-  }
 
-}
+  /**
+   * A hasher for the definitions of one name group, as `NameHashing` uses it. It is meant to be
+   * reused across groups, calling `reset` before each.
+   */
+  private[api] def forNameHashing(includeSealedChildren: Boolean): HashAPI =
+    new HashAPI(
+      includePrivate = false,
+      includeParamNames = true,
+      includeDefinitions = false,
+      includeSealedChildren = includeSealedChildren,
+      includeTraitBreakers = false
+    )
+
+  // Any private definition in a trait is required to be concrete
+  private def isPrivate(d: Definition): Boolean =
+    d.access match
+      case _: xsbti.api.Private => true;
+      case _                    => false
+
+  private def isTraitBreaker(d: Definition): Boolean = d match
+    // Vars and vals in traits introduce getters, setters and fields in the implementing classes.
+    // See test `source-dependencies/trait-private-var
+    case _: FieldLike => true
+    // Objects in traits introduce fields in the implementing classes.
+    // See test `source-dependencies/trait-private-object`
+    case cl: ClassLikeDef => cl.definitionType == DefinitionType.Module
+    // super calls introduce accessors that are not part of the public API
+    case d: Def => d.modifiers.isSuperAccessor
+    case _      => false
+end HashAPI
 
 /**
  * Implements hashing of public API.
@@ -61,9 +89,9 @@ final class HashAPI private (
     includeDefinitions: Boolean,
     includeSealedChildren: Boolean,
     includeTraitBreakers: Boolean
-) {
+):
   // this constructor variant is for source and binary backwards compatibility with sbt 0.13.0
-  def this(includePrivate: Boolean, includeParamNames: Boolean) = {
+  def this(includePrivate: Boolean, includeParamNames: Boolean) =
     // in the old logic we used to always include definitions hence
     // includeDefinitions=true
     this(
@@ -73,25 +101,44 @@ final class HashAPI private (
       includeSealedChildren = true,
       includeTraitBreakers = false
     )
-  }
 
   import scala.collection.mutable
-  import MurmurHash3.{ mix, stringHash, unorderedHash }
+  import MurmurHash3.{ mix, stringHash }
 
-  private val visitedStructures = visitedMap[Structure]
-  private val visitedClassLike = visitedMap[ClassLike]
+  private var visitedStructures: mutable.HashMap[Structure, List[Hash]] = null
+  private var visitedClassLike: mutable.HashMap[ClassLike, List[Hash]] = null
+  private val unordered = new UnorderedHashers
+
+  /**
+   * A symmetric hash hashes each element on its own, from a fresh `hash`, and combines their
+   * hashes without regard to order: `beginUnordered`, then `beginElement` and `endElement` around
+   * each element, then `endUnordered` to resume the enclosing hash and extend it with the result.
+   */
+  private def beginUnordered(): UnorderedHasher =
+    val elements = unordered.begin()
+    elements.outer = hash
+    elements
+  private def beginElement(): Unit = hash = 1
+  private def endElement(elements: UnorderedHasher): Unit = elements.add(finalizeHash)
+  private def endUnordered(elements: UnorderedHasher): Unit =
+    hash = elements.outer
+    extend(unordered.end(elements))
   private def visitedMap[T] = new mutable.HashMap[T, List[Hash]]
-  private def visit[T](map: mutable.Map[T, List[Hash]], t: T)(hashF: T => Unit): Unit = {
-    map.put(t, hash :: map.getOrElse(t, Nil)) match {
+
+  /** Readies this hasher for another `doHashing`, as if it were new, keeping its allocations. */
+  private[api] def reset(): Unit =
+    hash = 0
+    if visitedStructures != null && visitedStructures.nonEmpty then visitedStructures.clear()
+    if visitedClassLike != null && visitedClassLike.nonEmpty then visitedClassLike.clear()
+  private def visit[T](map: mutable.Map[T, List[Hash]], t: T)(hashF: T => Unit): Unit =
+    map.put(t, hash :: map.getOrElse(t, Nil)) match
       case Some(x :: _) => extend(x)
-      case _ =>
+      case _            =>
         hashF(t)
-        for (hs <- map(t))
+        for hs <- map(t) do
           extend(hs)
         map.put(t, hash :: Nil)
         ()
-    }
-  }
 
   private final val ValHash = 1
   private final val VarHash = 2
@@ -134,80 +181,65 @@ final class HashAPI private (
   private var hash: Hash = 0
 
   final def hashString(s: String): Unit = extend(stringHash(s))
-  final def hashBoolean(b: Boolean): Unit = extend(if (b) TrueHash else FalseHash)
-  @inline final def hashArray[T <: AnyRef](s: Array[T], hashF: T => Unit): Unit = {
+  final def hashBoolean(b: Boolean): Unit = extend(if b then TrueHash else FalseHash)
+  @inline final def hashArray[T <: AnyRef](s: Array[T], hashF: T => Unit): Unit =
     extend(s.length)
     var i = 0
-    while (i < s.length) {
+    while i < s.length do
       hashF(s(i))
       i += 1
-    }
-  }
-  final def hashSymmetric[T](ts: IterableOnce[T], hashF: T => Unit): Unit = {
-    val current = hash
-    val tsHash: Hash = ts match {
-      case ts: collection.Iterable[T] @unchecked =>
-        // Avoid creation of a temporary collection and avoid boxing of hashCodes by passing
-        // this iterator to `unorderedHash`. It returns itself each time with a different hashCode.
-        class HashIterator(delegate: Iterator[T]) extends Iterator[AnyRef] {
-          override def hasNext: Boolean = delegate.hasNext
-          def next(): AnyRef = { hash = 1; hashF(delegate.next()); this }
-          override def hashCode: Int = finalizeHash
-        }
-        unorderedHash(new HashIterator(ts.iterator))
-      case _ =>
-        unorderedHash(ts.iterator.to(List).map { t =>
-          hash = 1
-          hashF(t)
-          finalizeHash
-        })
-    }
-    hash = current
-    extend(tsHash)
-  }
 
-  @inline final def extend(a: Hash): Unit = {
+  /**
+   * Extends the hash with `MurmurHash3.unorderedHash` of the hashes of `ts`, each hashed by
+   * `hashF` from a fresh state. The elements are still hashed in order, as hashing one can record
+   * a visited class or structure that the next one reuses.
+   */
+  final def hashSymmetric[T](ts: IterableOnce[T], hashF: T => Unit): Unit =
+    val elements = beginUnordered()
+    ts match
+      case xs: collection.IndexedSeq[T] @unchecked =>
+        var i = 0
+        while i < xs.length do
+          beginElement()
+          hashF(xs(i))
+          endElement(elements)
+          i += 1
+      case _ =>
+        val it = ts.iterator
+        while it.hasNext do
+          beginElement()
+          hashF(it.next())
+          endElement(elements)
+    endUnordered(elements)
+
+  @inline final def extend(a: Hash): Unit =
     hash = mix(hash, a)
-  }
 
   // TODO: Figure out what should be the length
   def finalizeHash: Hash = MurmurHash3.finalizeHash(hash, 1)
 
   def hashModifiers(m: Modifiers) = extend(m.raw.toInt)
 
-  def hashAPI(c: ClassLike): Unit = {
+  def hashAPI(c: ClassLike): Unit =
     hash = 1
+    hashAnnotations(c.annotations)
+    hashModifiers(c.modifiers)
+    hashAccess(c.access)
     hashClass(c)
-  }
 
   def hashPackage(p: Package) = hashString(p.name)
 
-  def hashDefinitions(ds: Seq[Definition], topLevel: Boolean, isTrait: Boolean): Unit = {
-    // Any private definition in a trait is required to be concrete
-    def isPrivate(d: Definition): Boolean =
-      d.access match { case _: xsbti.api.Private => true; case _ => false }
-
-    def isTraitBreaker(d: Definition): Boolean = d match {
-      // Vars and vals in traits introduce getters, setters and fields in the implementing classes.
-      // See test `source-dependencies/trait-private-var
-      case _: FieldLike => true
-      // Objects in traits introduce fields in the implementing classes.
-      // See test `source-dependencies/trait-private-object`
-      case cl: ClassLikeDef => cl.definitionType == DefinitionType.Module
-      // super calls introduce accessors that are not part of the public API
-      case d: Def => d.modifiers.isSuperAccessor
-      case _      => false
-    }
-
+  def hashDefinitions(ds: Seq[Definition], topLevel: Boolean, isTrait: Boolean): Unit =
+    import HashAPI.{ isPrivate, isTraitBreaker }
     val requiresPrivateDefinitions = isTrait && includeTraitBreakers && !topLevel
     // Get private definitions that break trait properties in incremental compilation
     val extraPrivateDefinitions =
-      if (!requiresPrivateDefinitions) Nil
+      if !requiresPrivateDefinitions then Nil
       else ds.filter(x => isTraitBreaker(x) && isPrivate(x))
 
     val defs = SameAPI.filterDefinitions(ds, topLevel, includePrivate)
     hashSymmetric(defs ++ extraPrivateDefinitions, hashDefinition)
-  }
+  end hashDefinitions
 
   /**
    * Hashes a sequence of definitions by combining each definition's own
@@ -218,133 +250,146 @@ final class HashAPI private (
    *
    * NOTE: This method doesn't perform any filtering of passed definitions.
    */
-  def hashDefinitionsWithExtraHash(ds: IterableOnce[Definition], extraHash: Hash): Unit = {
-    def hashDefinitionCombined(d: Definition): Unit = {
+  def hashDefinitionsWithExtraHash(ds: IterableOnce[Definition], extraHash: Hash): Unit =
+    def hashDefinitionCombined(d: Definition): Unit =
       hashDefinition(d)
       extend(extraHash)
-    }
     hashSymmetric(ds, hashDefinitionCombined)
-  }
-  def hashDefinition(d: Definition): Unit = {
+
+  /** `hashDefinitionsWithExtraHash` of `ds(from until until)`. */
+  private[api] def hashDefinitionsWithExtraHash(
+      ds: Array[? <: Definition],
+      from: Int,
+      until: Int,
+      extraHash: Hash
+  ): Unit =
+    val elements = beginUnordered()
+    var i = from
+    while i < until do
+      beginElement()
+      hashDefinition(ds(i))
+      extend(extraHash)
+      endElement(elements)
+      i += 1
+    endUnordered(elements)
+  def hashDefinition(d: Definition): Unit =
     hashString(d.name)
     hashAnnotations(d.annotations)
     hashModifiers(d.modifiers)
     hashAccess(d.access)
-    d match {
+    d match
       case c: ClassLikeDef    => hashClassDef(c)
       case c: ClassLike       => hashClass(c)
       case f: FieldLike       => hashField(f)
       case d: Def             => hashDef(d)
       case t: TypeDeclaration => hashTypeDeclaration(t)
       case t: TypeAlias       => hashTypeAlias(t)
-    }
-  }
-  final def hashClassDef(c: ClassLikeDef): Unit = {
+  final def hashClassDef(c: ClassLikeDef): Unit =
     extend(ClassDefHash)
+    extend(c.definitionType.ordinal)
     hashParameterizedDefinition(c)
-  }
-  final def hashClass(c: ClassLike): Unit = visit(visitedClassLike, c)(hashClass0)
-  def hashClass0(c: ClassLike): Unit = {
+  final def hashClass(c: ClassLike): Unit =
+    if visitedClassLike == null then visitedClassLike = visitedMap
+    visit(visitedClassLike, c)(hashClass0Fn)
+  private val hashClass0Fn = (c: ClassLike) => hashClass0(c)
+  def hashClass0(c: ClassLike): Unit =
     extend(ClassHash)
+    // A trait/class change can also add or remove `<init>`, but only constructor callers use
+    // that name. A call `x.m` on an `A` must still switch to or from invokeinterface, and a
+    // Scala 3 `trait T(x: Int)` becoming `abstract class T(x: Int)` keeps its `<init>`.
+    // See tests `source-dependencies/abstract-class-becomes-trait-call` and
+    // `source-dependencies/trait-becomes-abstract-class-3`
+    extend(c.definitionType.ordinal)
     hashTypeParameters(c.typeParameters)
     hashType(c.selfType)
-    if (includeSealedChildren)
+    if includeSealedChildren then
       hashTypesSymmetric(c.childrenOfSealedClass, includeDefinitions)
 
     val isTrait = c.definitionType() == DefinitionType.Trait
     hashStructure(c.structure, includeDefinitions, isTrait)
-  }
-  def hashField(f: FieldLike): Unit = {
-    f match {
+  def hashField(f: FieldLike): Unit =
+    f match
       case _: Var => extend(VarHash)
       case _: Val => extend(ValHash)
-    }
     hashType(f.tpe)
-  }
-  def hashDef(d: Def): Unit = {
+  def hashDef(d: Def): Unit =
     extend(DefHash)
     hashParameterizedDefinition(d)
     hashValueParameters(d.valueParameters)
     hashType(d.returnType)
-  }
   def hashAccess(a: Access): Unit =
-    a match {
+    a match
       case _: Public       => extend(PublicHash)
       case qual: Qualified => hashQualified(qual)
-    }
-  def hashQualified(qual: Qualified): Unit = {
-    qual match {
+  def hashQualified(qual: Qualified): Unit =
+    qual match
       case _: Protected => extend(ProtectedHash)
       case _: Private   => extend(PrivateHash)
-    }
     hashQualifier(qual.qualifier)
-  }
   def hashQualifier(qual: Qualifier): Unit =
-    qual match {
+    qual match
       case _: Unqualified   => extend(UnqualifiedHash)
       case _: ThisQualifier => extend(ThisQualifierHash)
-      case id: IdQualifier =>
+      case id: IdQualifier  =>
         extend(IdQualifierHash)
         hashString(id.value)
-    }
 
   def hashValueParameters(valueParameters: Array[ParameterList]) =
     hashArray(valueParameters, hashValueParameterList)
-  def hashValueParameterList(list: ParameterList) = {
+  def hashValueParameterList(list: ParameterList) =
     extend(ValueParamsHash)
     hashBoolean(list.isImplicit)
     hashArray(list.parameters, hashValueParameter)
-  }
-  def hashValueParameter(parameter: MethodParameter) = {
+  def hashValueParameter(parameter: MethodParameter) =
     hashString(parameter.name)
     hashType(parameter.tpe)
     extend(parameter.modifier.ordinal)
     hashBoolean(parameter.hasDefault)
-  }
 
-  def hashParameterizedDefinition[T <: ParameterizedDefinition](d: T): Unit = {
+  def hashParameterizedDefinition[T <: ParameterizedDefinition](d: T): Unit =
     hashTypeParameters(d.typeParameters)
-  }
-  def hashTypeDeclaration(d: TypeDeclaration): Unit = {
+  def hashTypeDeclaration(d: TypeDeclaration): Unit =
     extend(TypeDeclHash)
     hashParameterizedDefinition(d)
     hashType(d.lowerBound)
     hashType(d.upperBound)
-  }
-  def hashTypeAlias(d: TypeAlias): Unit = {
+  def hashTypeAlias(d: TypeAlias): Unit =
     extend(TypeAliasHash)
     hashParameterizedDefinition(d)
     hashType(d.tpe)
-  }
 
   def hashTypeParameters(parameters: Array[TypeParameter]) =
     hashArray(parameters, hashTypeParameter)
-  def hashTypeParameter(parameter: TypeParameter): Unit = {
+  def hashTypeParameter(parameter: TypeParameter): Unit =
     hashString(parameter.id)
     extend(parameter.variance.ordinal)
     hashTypeParameters(parameter.typeParameters)
     hashType(parameter.lowerBound)
     hashType(parameter.upperBound)
     hashAnnotations(parameter.annotations)
-  }
   def hashAnnotations(annotations: Array[Annotation]) = hashArray(annotations, hashAnnotation)
-  def hashAnnotation(annotation: Annotation) = {
+  def hashAnnotation(annotation: Annotation) =
     hashType(annotation.base)
     hashAnnotationArguments(annotation.arguments)
-  }
   def hashAnnotationArguments(args: Array[AnnotationArgument]) =
     hashArray(args, hashAnnotationArgument)
-  def hashAnnotationArgument(arg: AnnotationArgument): Unit = {
+  def hashAnnotationArgument(arg: AnnotationArgument): Unit =
     hashString(arg.name)
     hashString(arg.value)
-  }
 
   def hashTypes(ts: Array[Type], includeDefinitions: Boolean = true) =
     hashArray(ts, (t: Type) => hashType(t, includeDefinitions))
   def hashTypesSymmetric(ts: Array[Type], includeDefinitions: Boolean = true) =
-    hashSymmetric(ts, hashType(_, includeDefinitions))
+    val elements = beginUnordered()
+    var i = 0
+    while i < ts.length do
+      beginElement()
+      hashType(ts(i), includeDefinitions)
+      endElement(elements)
+      i += 1
+    endUnordered(elements)
   def hashType(t: Type, includeDefinitions: Boolean = true): Unit =
-    t match {
+    t match
       case s: Structure     => hashStructure(s, includeDefinitions, false)
       case e: Existential   => hashExistential(e)
       case c: Constant      => hashConstant(c)
@@ -355,71 +400,58 @@ final class HashAPI private (
       case _: EmptyType     => extend(EmptyTypeHash)
       case s: Singleton     => hashSingleton(s)
       case pr: ParameterRef => hashParameterRef(pr)
-    }
 
-  def hashParameterRef(p: ParameterRef): Unit = {
+  def hashParameterRef(p: ParameterRef): Unit =
     extend(ParameterRefHash)
     hashString(p.id)
-  }
-  def hashSingleton(s: Singleton): Unit = {
+  def hashSingleton(s: Singleton): Unit =
     extend(SingletonHash)
     hashPath(s.path)
-  }
-  def hashPath(path: Path) = {
+  def hashPath(path: Path) =
     hashArray(path.components, hashPathComponent)
-  }
-  def hashPathComponent(pc: PathComponent) = pc match {
+  def hashPathComponent(pc: PathComponent) = pc match
     case _: This  => extend(ThisPathHash)
     case s: Super => hashSuperPath(s)
     case id: Id   => hashIdPath(id)
-  }
-  def hashSuperPath(s: Super): Unit = {
+  def hashSuperPath(s: Super): Unit =
     extend(SuperHash)
     hashPath(s.qualifier)
-  }
-  def hashIdPath(id: Id): Unit = {
+  def hashIdPath(id: Id): Unit =
     extend(IdPathHash)
     hashString(id.id)
-  }
 
-  def hashConstant(c: Constant) = {
+  def hashConstant(c: Constant) =
     extend(ConstantHash)
     hashString(c.value)
     hashType(c.baseType)
-  }
-  def hashExistential(e: Existential) = {
+  def hashExistential(e: Existential) =
     extend(ExistentialHash)
     hashParameters(e.clause, e.baseType)
-  }
-  def hashPolymorphic(p: Polymorphic) = {
+  def hashPolymorphic(p: Polymorphic) =
     extend(PolymorphicHash)
     hashParameters(p.parameters, p.baseType)
-  }
-  def hashProjection(p: Projection) = {
+  def hashProjection(p: Projection) =
     extend(ProjectionHash)
     hashString(p.id)
     hashType(p.prefix)
-  }
-  def hashParameterized(p: Parameterized): Unit = {
+  def hashParameterized(p: Parameterized): Unit =
     extend(ParameterizedHash)
     hashType(p.baseType)
     hashTypes(p.typeArguments)
-  }
-  def hashAnnotated(a: Annotated): Unit = {
+  def hashAnnotated(a: Annotated): Unit =
     extend(AnnotatedHash)
     hashType(a.baseType)
     hashAnnotations(a.annotations)
-  }
 
   def hashStructure(structure: Structure, includeDefinitions: Boolean, isTrait: Boolean) =
+    if visitedStructures == null then visitedStructures = visitedMap
     visit(visitedStructures, structure)(hashStructure0(includeDefinitions, isTrait))
 
   // Hoisted functions to reduce allocation.
-  private def hashStructure0(includeDefinitions: Boolean, isTrait: Boolean): (Structure => Unit) = {
-    if (isTrait && includeTraitBreakers) hashStructure0WithDefsTrait
-    else if (includeDefinitions) hashStructure0WithDefs
+  private def hashStructure0(includeDefinitions: Boolean, isTrait: Boolean): (Structure => Unit) =
+    if isTrait && includeTraitBreakers then hashStructure0WithDefsTrait
+    else if includeDefinitions then hashStructure0WithDefs
     else hashStructure0NoDefs
-  }
 
   private final val hashStructure0WithDefsTrait = (s: Structure) =>
     hashStructure0(s, includeDefinitions = true, isTrait = true)
@@ -428,16 +460,39 @@ final class HashAPI private (
   private final val hashStructure0NoDefs = (s: Structure) =>
     hashStructure0(s, includeDefinitions = false, isTrait = false)
 
-  def hashStructure0(structure: Structure, includeDefinitions: Boolean, isTrait: Boolean): Unit = {
+  def hashStructure0(structure: Structure, includeDefinitions: Boolean, isTrait: Boolean): Unit =
     extend(StructureHash)
     hashTypes(structure.parents, includeDefinitions)
-    if (includeDefinitions) {
-      hashDefinitions(structure.declared.toIndexedSeq, false, isTrait)
-      hashDefinitions(structure.inherited.toIndexedSeq, false, isTrait)
-    }
-  }
-  def hashParameters(parameters: Array[TypeParameter], base: Type): Unit = {
+    if includeDefinitions then
+      hashMemberDefinitions(structure.declared, isTrait)
+      hashMemberDefinitions(structure.inherited, isTrait)
+
+  /**
+   * `hashDefinitions(ds, topLevel = false, isTrait)` without the intermediate collections: the
+   * non-private definitions, then the private ones that break traits.
+   */
+  private def hashMemberDefinitions(ds: Array[ClassDefinition], isTrait: Boolean): Unit =
+    val elements = beginUnordered()
+    var i = 0
+    while i < ds.length do
+      val d = ds(i)
+      if includePrivate || APIUtil.isNonPrivate(d) then
+        beginElement()
+        hashDefinition(d)
+        endElement(elements)
+      i += 1
+    if isTrait && includeTraitBreakers then
+      i = 0
+      while i < ds.length do
+        val d = ds(i)
+        if HashAPI.isTraitBreaker(d) && HashAPI.isPrivate(d) then
+          beginElement()
+          hashDefinition(d)
+          endElement(elements)
+        i += 1
+    endUnordered(elements)
+  end hashMemberDefinitions
+  def hashParameters(parameters: Array[TypeParameter], base: Type): Unit =
     hashTypeParameters(parameters)
     hashType(base)
-  }
-}
+end HashAPI

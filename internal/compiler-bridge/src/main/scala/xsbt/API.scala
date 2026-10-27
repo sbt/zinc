@@ -199,7 +199,7 @@ final class API(val global: CallbackGlobal) extends Compat with GlobalHelpers wi
     override def traverse(tree: Tree): Unit = {
       tree match {
         case (_: ClassDef | _: ModuleDef) if isTopLevel(tree.symbol) => `class`(tree.symbol)
-        case _: PackageDef =>
+        case _: PackageDef                                           =>
           super.traverse(tree)
         case _ =>
       }

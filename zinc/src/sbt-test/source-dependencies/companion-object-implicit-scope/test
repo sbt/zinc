@@ -1,0 +1,12 @@
+> app/compile
+> app/checkRecompilations 0 D User
+
+# an ordinary member added to object A reaches neither
+$ copy-file lib/changes/A1.scala lib/A.scala
+> app/compile
+> app/checkRecompilations 0 D User
+
+# object A is searched when resolving the implicit, so removing it must break
+# User - which would keep compiling if zinc skipped it
+$ copy-file lib/changes/A2.scala lib/A.scala
+-> app/compile

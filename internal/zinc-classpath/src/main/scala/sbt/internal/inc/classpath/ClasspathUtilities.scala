@@ -22,7 +22,7 @@ import java.io.InputStream
 import scala.annotation.tailrec
 import scala.util.control.Exception.catching
 
-object ClasspathUtil {
+object ClasspathUtil:
   def toLoader(finder: PathFinder): ClassLoader = toLoader(finder, rootLoader)
   def toLoader(finder: PathFinder, parent: ClassLoader): ClassLoader =
     new URLClassLoader(finder.getURLs(), parent)
@@ -36,9 +36,8 @@ object ClasspathUtil {
       parent: ClassLoader,
       resourceMap: Map[String, String]
   ): ClassLoader =
-    new URLClassLoader(toURLs(paths).toArray, parent) with RawResources {
+    new URLClassLoader(toURLs(paths).toArray, parent) with RawResources:
       override def resources = resourceMap
-    }
 
   def toLoader(
       paths: Seq[Path],
@@ -46,7 +45,7 @@ object ClasspathUtil {
       resourceMap: Map[String, String],
       nativeTemp: Path
   ): ClassLoader =
-    new URLClassLoader(toURLs(paths).toArray, parent) with RawResources with NativeCopyLoader {
+    new URLClassLoader(toURLs(paths).toArray, parent) with RawResources with NativeCopyLoader:
       override def resources = resourceMap
       override val config = new NativeCopyConfig(nativeTemp, paths, javaLibraryPaths)
       override def toString =
@@ -56,22 +55,19 @@ object ClasspathUtil {
             |  resourceMap = ${resourceMap.keySet},
             |  nativeTemp = $nativeTemp
             |)""".stripMargin
-    }
 
   def javaLibraryPaths: Seq[Path] =
     IO.parseClasspath(System.getProperty("java.library.path"))
       .map(_.toPath)
 
-  lazy val rootLoader = {
+  lazy val rootLoader =
     @tailrec
-    def parent(loader: ClassLoader): ClassLoader = {
+    def parent(loader: ClassLoader): ClassLoader =
       val p = loader.getParent
-      if (p eq null) loader else parent(p)
-    }
+      if p eq null then loader else parent(p)
     val systemLoader = ClassLoader.getSystemClassLoader
-    if (systemLoader ne null) parent(systemLoader)
+    if systemLoader ne null then parent(systemLoader)
     else parent(getClass.getClassLoader)
-  }
   lazy val xsbtiLoader = classOf[xsbti.Launcher].getClassLoader
 
   final val AppClassPath = "app.class.path"
@@ -80,14 +76,12 @@ object ClasspathUtil {
   def createClasspathResources(
       classpath: Seq[Path],
       instance: ScalaInstance
-  ): Map[String, String] = {
+  ): Map[String, String] =
     createClasspathResources(classpath, instance.libraryJars.toIndexedSeq.map(_.toPath))
-  }
 
-  def createClasspathResources(appPaths: Seq[Path], bootPaths: Seq[Path]): Map[String, String] = {
+  def createClasspathResources(appPaths: Seq[Path], bootPaths: Seq[Path]): Map[String, String] =
     def make(name: String, paths: Seq[Path]) = name -> makeString(paths)
     Map(make(AppClassPath, appPaths), make(BootClassPath, bootPaths))
-  }
 
   private[sbt] def filterByClasspath(classpath: Seq[Path], loader: ClassLoader): ClassLoader =
     new ClasspathFilter(loader, xsbtiLoader, classpath.toSet)
@@ -122,69 +116,65 @@ object ClasspathUtil {
   def isArchive(file: Path): Boolean = isArchive(file, contentFallback = false)
 
   def isArchive(file: Path, contentFallback: Boolean): Boolean =
-    Files.isRegularFile(file) && (isArchiveName(
-      file.getFileName.toString
-    ) || (contentFallback && hasZipContent(
-      file
-    )))
+    Files.isRegularFile(file) &&
+      (isArchiveName(
+        file.getFileName.toString
+      ) ||
+        (contentFallback && hasZipContent(
+          file
+        )))
 
   def isArchiveName(fileName: String) = fileName.endsWith(".jar") || fileName.endsWith(".zip")
 
   def hasZipContent(file: Path): Boolean =
-    try {
+    try
       usingFileInputStream(file) { in =>
         (in.read() == 0x50) &&
         (in.read() == 0x4b) &&
         (in.read() == 0x03) &&
         (in.read() == 0x04)
       }
-    } catch { case _: Exception => false }
+    catch case _: Exception => false
 
-  private[sbt] def usingFileInputStream[A](file: Path)(f: InputStream => A): A = {
+  private[sbt] def usingFileInputStream[A](file: Path)(f: InputStream => A): A =
     val st = Files.newInputStream(file)
-    try {
+    try
       f(st)
-    } finally {
+    finally
       st.close()
-    }
-  }
 
   /** Returns all entries in 'classpath' that correspond to a compiler plugin.*/
-  private[sbt] def compilerPlugins(classpath: Seq[Path], isDotty: Boolean): Iterable[Path] = {
-    import scala.jdk.CollectionConverters._
+  private[sbt] def compilerPlugins(classpath: Seq[Path], isDotty: Boolean): Iterable[Path] =
+    import scala.jdk.CollectionConverters.*
     val loader = new URLClassLoader(toURLs(classpath).toArray)
-    val metaFile = if (isDotty) "plugin.properties" else "scalac-plugin.xml"
+    val metaFile = if isDotty then "plugin.properties" else "scalac-plugin.xml"
     loader.getResources(metaFile).asScala.toList.flatMap(asFile(true))
-  }
 
   /** Converts the given URL to a File.  If the URL is for an entry in a jar, the File for the jar is returned. */
   private[sbt] def asFile(url: URL): List[Path] = asFile(false)(url)
-  private[sbt] def asFile(jarOnly: Boolean)(url: URL): List[Path] = {
-    try {
-      url.getProtocol match {
+  private[sbt] def asFile(jarOnly: Boolean)(url: URL): List[Path] =
+    try
+      url.getProtocol match
         case "file" if !jarOnly =>
           Paths.get(url.toURI) :: Nil
         case "jar" =>
           val path = url.getPath
           val end = path.indexOf('!')
-          Paths.get(new URI(if (end == -1) path else path.substring(0, end))) :: Nil
+          Paths.get(new URI(if end == -1 then path else path.substring(0, end))) :: Nil
         case _ => Nil
-      }
-    } catch { case _: Exception => Nil }
-  }
+    catch case _: Exception => Nil
 
   private[sbt] def toURLs(files: Seq[Path]): Seq[URL] =
     files.map(_.toUri.toURL)
 
   private[sbt] def makeString(paths: Seq[Path]): String =
     makeString(paths, java.io.File.pathSeparator)
-  private[sbt] def makeString(paths: Seq[Path], sep: String): String = {
+  private[sbt] def makeString(paths: Seq[Path], sep: String): String =
     val separated = paths.map(_.toAbsolutePath.toString)
     separated.find(_.contains(sep)).foreach(p => sys.error(s"Path '$p' contains separator '$sep'"))
     separated.mkString(sep)
-  }
 
-  private[sbt] def relativize(base: Path, file: Path): Option[String] = {
+  private[sbt] def relativize(base: Path, file: Path): Option[String] =
     // "On UNIX systems, a pathname is absolute if its prefix is "/"."
     // https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/io/File.html#isAbsolute
     // "This typically involves removing redundant names such as "." and ".." from the pathname, resolving symbolic links (on UNIX platforms)"
@@ -194,23 +184,21 @@ object ClasspathUtil {
     // Path#normailize is able to expand ".." without expanding the symlink.
     // https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/nio/file/Path.html#normalize()
     // "Returns a path that is this path with redundant name elements eliminated."
-    def toAbsolutePath(x: Path): Path = {
-      if (!x.isAbsolute) x.toAbsolutePath
+    def toAbsolutePath(x: Path): Path =
+      if !x.isAbsolute then x.toAbsolutePath
       else x
-    }
     val basePath = toAbsolutePath(base).normalize
     val filePath = toAbsolutePath(file).normalize
-    if (filePath.startsWith(basePath)) {
+    if filePath.startsWith(basePath) then
       val relativePath =
         catching(classOf[IllegalArgumentException]) opt (basePath.relativize(filePath))
       relativePath map (_.toString)
-    } else None
-  }
-}
+    else None
+end ClasspathUtil
 
 // old File-based implementation kept for compatibility
 @deprecated("internal", "1.4.0")
-object ClasspathUtilities {
+object ClasspathUtilities:
   import java.io.File
 
   @deprecated("internal", "1.4.0")
@@ -302,5 +290,4 @@ object ClasspathUtilities {
   @deprecated("internal", "1.4.0")
   def createClasspathResources(appPaths: Seq[File], bootPaths: Seq[File]): Map[String, String] =
     ClasspathUtil.createClasspathResources(appPaths.map(_.toPath), bootPaths.map(_.toPath))
-
-}
+end ClasspathUtilities

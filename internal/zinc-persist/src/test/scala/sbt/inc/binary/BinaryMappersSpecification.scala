@@ -11,15 +11,13 @@
 
 package sbt.inc.binary
 
-import org.scalacheck._
-import sbt.inc.AnalysisFormatHelpers._
-import sbt.internal.inc.{ mappers => _, _ }
+import hedgehog.{ sbt as _, * }
+import hedgehog.runner.*
+import sbt.inc.AnalysisFormatHelpers.*
+import sbt.internal.inc.{ mappers as _, * }
 
-object BinaryMappersSpecification extends Properties("BinaryMappers") {
-  property("round-trip empty") = forEmpty(check)
-  property("round-trip simple") = forSimple(check)
-  property("round-trip complex") = forComplex(check)
+object BinaryMappersSpecification extends Properties:
+  override def tests: List[Test] = roundTrips(check)
 
   private def check(analysis: Analysis) =
     checkStoreRoundtrip(analysis, FileAnalysisStore.binary(_, mappers))
-}

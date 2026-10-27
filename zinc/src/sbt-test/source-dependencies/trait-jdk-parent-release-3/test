@@ -1,0 +1,4 @@
+# Under -release, Scala 3 reports JDK classes as classes of this project (scala/scala3#27117),
+# so T's parent java.lang.Object has no API. Compiling used to fail looking up its extraHash
+# (sbt/zinc#1815).
+> root/compile

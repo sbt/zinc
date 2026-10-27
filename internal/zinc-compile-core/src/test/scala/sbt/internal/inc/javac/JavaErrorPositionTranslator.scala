@@ -14,104 +14,127 @@ package internal
 package inc
 package javac
 
-class JavaErrorPositionTranslator extends UnitSpec {
+import hedgehog.{ sbt as _, * }
+import hedgehog.runner.*
 
-  "The JavaErrorPositionTranslator" should "be able to translate file positions to line+column positions 1" in translate1()
-  it should "be able to translate file positions to line+column positions 2" in translate2()
-  it should "be able to translate file positions to line+column positions 3" in translate3()
-  it should "be able to translate file positions to line+column positions 4" in translate4()
-  it should "be able to translate file positions to line+column positions 5" in translate5()
-  it should "be able to translate file positions to line+column positions 6" in translate6()
-  it should "be able to translate file positions to line+column positions 7" in translate7()
-  it should "be able to translate file positions to line+column positions 8" in translate8()
-  it should "be able to translate file positions to line+column positions 9" in translate9()
-  it should "be able to translate file positions to line+column positions 10" in translate10()
-  it should "be able to translate file positions to line+column positions 11" in translate11()
-  it should "be able to translate file positions to line+column positions 12" in translate12()
-  it should "be able to translate file positions to line+column positions 13" in translate13()
-  it should "be able to translate file positions to line+column positions 14" in translate14()
+object JavaErrorPositionTranslator extends Properties:
+  private val helloSource =
+    "\npublic class Hello {\n    UnknownClass someVar;\n    public static void main(String[] args) {\n        System.out.println(\"Hello World\");\n    }\n}"
+  private val finalizeSource =
+    "\n\n\tprotected void finalize() throws Throwable\n\t{\n\t\ttry\n\t\t{\n\t\t\tdispose();\n\t\t}\n\t\tfinally\n\t\t{\n\t\t\tsuper.finalize();\n\t\t}\n\t}\n\t"
 
-  private def testSingleHighlight(
-      code: String,
-      startPos: Long,
-      endPos: Long
-  )(startLine: Int, startCol: Int, endLine: Int, endCol: Int, text: String): Unit = {
-    val position = DiagnosticsReporter.contentAndRanges(code, startPos, endPos)
-    position._5 shouldBe text
-    position._1 shouldBe startLine
-    position._2 shouldBe startCol
-    position._3 shouldBe endLine
-    position._4 shouldBe endCol
-    ()
-  }
+  override def tests: List[Test] = List(
+    translate("1", testHighlight("hello", 0, 5)(1, 0, 1, 5, "hello")),
+    translate(
+      "2",
+      // on Java an "; expected" error message has no text to return
+      // should the first char of the next line be specified?
+      testHighlight("foo", 3, 3)(1, 3, 1, 3, "")
+    ),
+    translate("3", testHighlight("\nhello", 1, 1)(2, 0, 2, 0, "")),
+    translate("4", testHighlight("\nhello", 0, 0)(1, 0, 1, 0, "")),
+    translate("5", testHighlight("\nhello", 1, 5)(2, 0, 2, 4, "hell")),
+    translate("6", testHighlight("hello", 0, 1)(1, 0, 1, 1, "h")),
+    translate("7", testHighlight("h\n", 0, 1)(1, 0, 1, 1, "h")),
+    translate("8", testHighlight(helloSource, 26, 38)(3, 4, 3, 16, "UnknownClass")),
+    translate(
+      "9",
+      testHighlight(helloSource, 0, 38)(1, 0, 3, 16, "\npublic class Hello {\n    UnknownClass")
+    ),
+    translate("10", testHighlight("\n\n\n", 0, 0)(1, 0, 1, 0, "")),
+    translate("11", testHighlight("\n\n\n", 1, 1)(2, 0, 2, 0, "")),
+    translate("12", testHighlight("", 0, 0)(1, 0, 1, 0, "")),
+    translate("13", testHighlight("foo", 0, 0)(1, 0, 1, 0, "")),
+    translate(
+      "14",
+      testHighlight(finalizeSource, 3, 118)(
+        3,
+        1,
+        13,
+        2,
+        "protected void finalize() throws Throwable\n\t{\n\t\ttry\n\t\t{\n\t\t\tdispose();\n\t\t}\n\t\tfinally\n\t\t{\n\t\t\tsuper.finalize();\n\t\t}\n\t}"
+      )
+    ),
+    property(
+      "The JavaErrorPositionTranslator should translate any range to the lines and columns of its ends",
+      propRange
+    ),
+  )
 
-  private def testHighlight(
-      code: String,
-      startPos: Long,
-      endPos: Long
-  )(startLine: Int, endLine: Int, startCol: Int, endCol: Int, text: String): Unit = {
+  private def translate(n: String, result: => Result): Test =
+    example(s"The JavaErrorPositionTranslator should translate file positions $n", result)
+
+  private def testSingleHighlight(code: String, startPos: Long, endPos: Long)(
+      startLine: Int,
+      startCol: Int,
+      endLine: Int,
+      endCol: Int,
+      text: String
+  ): Result =
+    val (line1, col1, line2, col2, content) =
+      DiagnosticsReporter.contentAndRanges(code, startPos, endPos)
+    Result
+      .all(
+        List(
+          content ==== text,
+          line1.toInt ==== startLine,
+          col1.toInt ==== startCol,
+          line2.toInt ==== endLine,
+          col2.toInt ==== endCol,
+        )
+      )
+      .log(s"code: ${code.replace("\r", "\\r").replace("\n", "\\n")} [$startPos, $endPos)")
+
+  private def testHighlight(code: String, startPos: Long, endPos: Long)(
+      startLine: Int,
+      startCol: Int,
+      endLine: Int,
+      endCol: Int,
+      text: String
+  ): Result =
     // test with /n /r and /r/n variations
     val codeN = code.replace('\r', '\n')
     val textN = text.replace('\r', '\n')
-    testSingleHighlight(codeN, startPos, endPos)(startLine, endLine, startCol, endCol, textN)
-    testSingleHighlight(codeN.replace('\n', '\r'), startPos, endPos)(
-      startLine,
-      endLine,
-      startCol,
-      endCol,
-      textN.replace('\n', '\r')
+    def newlinesBefore(pos: Long) = codeN.substring(0, pos.toInt).count(_ == '\n')
+    Result.all(
+      List(
+        testSingleHighlight(codeN, startPos, endPos)(startLine, startCol, endLine, endCol, textN),
+        testSingleHighlight(codeN.replace('\n', '\r'), startPos, endPos)(
+          startLine,
+          startCol,
+          endLine,
+          endCol,
+          textN.replace('\n', '\r')
+        ),
+        testSingleHighlight(
+          codeN.replace("\n", "\r\n"),
+          startPos + newlinesBefore(startPos),
+          endPos + newlinesBefore(endPos)
+        )(startLine, startCol, endLine, endCol, textN.replace("\n", "\r\n")),
+      )
     )
-    val rnStartPos = startPos + codeN
-      .substring(0, startPos.toInt)
-      .map(f => if (f == '\n') 1 else 0)
-      .sum
-    val rnEndPos = endPos + codeN.substring(0, endPos.toInt).map(f => if (f == '\n') 1 else 0).sum
-    testSingleHighlight(codeN.replace("\n", "\r\n"), rnStartPos, rnEndPos)(
-      startLine,
-      endLine,
-      startCol,
-      endCol,
-      textN.replace("\n", "\r\n")
-    )
-  }
+  end testHighlight
 
-  private def translate1(): Unit = testHighlight("hello", 0, 5)(1, 0, 1, 5, "hello")
-  private def translate2(): Unit = {
-    // on Java an "; expected" error message has no text to return
-    // should the first char of the next line be specified?
-    testHighlight("foo", 3, 3)(1, 3, 1, 3, "")
-  }
-  private def translate3(): Unit = testHighlight("\nhello", 1, 1)(2, 0, 2, 0, "")
-  private def translate4(): Unit = testHighlight("\nhello", 0, 0)(1, 0, 1, 0, "")
-  private def translate5(): Unit = testHighlight("\nhello", 1, 5)(2, 0, 2, 4, "hell")
-  private def translate6(): Unit = testHighlight("hello", 0, 1)(1, 0, 1, 1, "h")
-  private def translate7(): Unit = testHighlight("h\n", 0, 1)(1, 0, 1, 1, "h")
-  private def translate8(): Unit =
-    testHighlight(
-      "\npublic class Hello {\n    UnknownClass someVar;\n    public static void main(String[] args) {\n        System.out.println(\"Hello World\");\n    }\n}",
-      26,
-      38
-    )(3, 4, 3, 16, "UnknownClass")
-  private def translate9(): Unit =
-    testHighlight(
-      "\npublic class Hello {\n    UnknownClass someVar;\n    public static void main(String[] args) {\n        System.out.println(\"Hello World\");\n    }\n}",
-      0,
-      38
-    )(1, 0, 3, 16, "\npublic class Hello {\n    UnknownClass")
-  private def translate10(): Unit = testHighlight("\n\n\n", 0, 0)(1, 0, 1, 0, "")
-  private def translate11(): Unit = testHighlight("\n\n\n", 1, 1)(2, 0, 2, 0, "")
-  private def translate12(): Unit = testHighlight("", 0, 0)(1, 0, 1, 0, "")
-  private def translate13(): Unit = testHighlight("foo", 0, 0)(1, 0, 1, 0, "")
-  private def translate14(): Unit =
-    testHighlight(
-      "\n\n	protected void finalize() throws Throwable\n	{\n		try\n		{\n			dispose();\n		}\n		finally\n		{\n			super.finalize();\n		}\n	}\n	",
-      3,
-      118
-    )(
-      3,
-      1,
-      13,
-      2,
-      "protected void finalize() throws Throwable\n	{\n		try\n		{\n			dispose();\n		}\n		finally\n		{\n			super.finalize();\n		}\n	}"
-    )
-}
+  private def lineAndColumn(code: String, pos: Int): (Int, Int) =
+    val before = code.substring(0, pos)
+    (before.count(_ == '\n') + 1, pos - (before.lastIndexOf('\n') + 1))
+
+  def propRange: Property =
+    for
+      code <- Gen
+        .string(
+          Gen.frequency1(4 -> Gen.alphaNum, 1 -> Gen.element1(' ', '\t', '\n')),
+          Range.linear(0, 80)
+        )
+        .forAll
+      start <- Gen.int(Range.linear(0, code.length)).forAll
+      end <- Gen.int(Range.linear(start, code.length)).forAll
+    yield
+      val (startLine, startCol) = lineAndColumn(code, start)
+      val (endLine, endCol) = lineAndColumn(code, end)
+      testHighlight(
+        code,
+        start,
+        end
+      )(startLine, startCol, endLine, endCol, code.substring(start, end))
+end JavaErrorPositionTranslator

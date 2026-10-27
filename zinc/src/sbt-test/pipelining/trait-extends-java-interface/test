@@ -1,0 +1,8 @@
+# A trait's extraHash folds in its parents'; a Java parent has no analysis of its
+# own until javac has run, which pipelining defers.
+> use/compile
+> use/checkRecompilations 0 D
+
+$ copy-file changes/T1.scala dep/T.scala
+> use/compile
+> use/checkRecompilations 1 D

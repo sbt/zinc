@@ -11,21 +11,24 @@
 
 package sbt.inc
 
+import hedgehog.{ sbt as _, * }
+import hedgehog.runner.*
 import sbt.internal.inc.Analysis
 import sbt.io.IO
 
-class NestedJavaClassSpec extends BaseCompilerSpec {
-  it should "handle nested Java classes" in {
-    IO.withTemporaryDirectory { tempDir =>
-      val projectSetup =
-        ProjectSetup.simple(tempDir.toPath, Seq("NestedJavaClasses.java"))
+object NestedJavaClassSpec extends Properties with BaseCompilerSpec:
+  override def tests: List[Test] = List(
+    example("handle nested Java classes", nestedJavaClasses),
+  )
 
-      val result = projectSetup.createCompiler().doCompile()
-      result.analysis() match {
+  private def nestedJavaClasses: Result = IO.withTemporaryDirectory { tempDir =>
+    val projectSetup = ProjectSetup.simple(tempDir.toPath, Seq("NestedJavaClasses.java"))
+    withCompiler(projectSetup.createCompiler()) { compiler =>
+      compiler.doCompile().analysis() match
         case analysis: Analysis =>
-          analysis.relations.libraryDep._2s
-            .filter(_.id.startsWith(tempDir.toPath.toString)) shouldBe Symbol("empty")
-      }
+          analysis.relations.libraryDep._2s.filter(_.id.startsWith(tempDir.toPath.toString)) ====
+            Set.empty
+        case other => Result.failure.log(s"unexpected analysis: $other")
     }
   }
-}
+end NestedJavaClassSpec

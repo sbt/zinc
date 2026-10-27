@@ -17,7 +17,7 @@ import java.util.Optional
 import sbt.util.InterfaceUtil
 import xsbti.{ DiagnosticCode, DiagnosticRelatedInformation, Position }
 
-object DiagnosticsUtil {
+object DiagnosticsUtil:
   def diagnosticCode(code: String, explanation: Option[String]): DiagnosticCode =
     new ConcreteDiagnosticCode(code, explanation)
 
@@ -28,14 +28,11 @@ object DiagnosticsUtil {
     new ConcreteDiagnosticRelatedInformation(position, message)
 
   private class ConcreteDiagnosticCode(code0: String, explanation0: Option[String])
-      extends DiagnosticCode {
+      extends DiagnosticCode:
     override val code: String = code0
     override val explanation: Optional[String] = InterfaceUtil.o2jo(explanation0)
-  }
 
   private class ConcreteDiagnosticRelatedInformation(position0: Position, message0: String)
-      extends DiagnosticRelatedInformation {
+      extends DiagnosticRelatedInformation:
     override val position: Position = position0
     override val message: String = message0
-  }
-}

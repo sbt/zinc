@@ -1,0 +1,1282 @@
+1100029
+MiniSetup {
+  classpathHash [
+    2
+    lib.jar
+    41
+  ]
+  scalacOptions [
+    2
+    -Xfatal-warnings
+    -deprecation
+  ]
+  javacOptions [
+    2
+    -source
+    8
+  ]
+  3.9.0
+  0
+  1
+  extra [
+    2
+    extraKey
+    extraValue
+  ]
+  /tmp/dummy
+}
+usedNames [
+  2
+  A
+  UsedName {
+    groups [
+      4
+      1
+      names [
+        2
+        alsoUsedByDefault
+        usedByDefault
+      ]
+      6
+      names [
+        1
+        usedImplicitly
+      ]
+    ]
+  }
+]
+srcProd [
+  2
+  A.scala
+  item [
+    2
+    A$1.class
+    A.class
+  ]
+]
+libraryDep [
+  2
+  A.scala
+  item [
+    1
+    x.jar
+  ]
+]
+libraryClassName [
+  2
+  x.jar
+  item [
+    1
+    x
+  ]
+]
+classes [
+  2
+  A.scala
+  item [
+    1
+    A
+  ]
+]
+memberRef.internal [
+  2
+  A
+  item [
+    1
+    MemberRefTarget
+  ]
+]
+memberRef.external [
+  2
+  A
+  item [
+    1
+    C
+  ]
+]
+inheritance.internal [
+  2
+  A
+  item [
+    1
+    InheritanceTarget
+  ]
+]
+inheritance.external [
+  2
+  A
+  item [
+    1
+    ExtInherit
+  ]
+]
+localInheritance.internal [
+  2
+  A
+  item [
+    1
+    LocalInheritanceTarget
+  ]
+]
+localInheritance.external [
+  2
+  A
+  item [
+    1
+    ExtLocalInherit
+  ]
+]
+macroExpansion.internal [
+  2
+  A
+  item [
+    1
+    MacroTarget
+  ]
+]
+macroExpansion.external [
+  2
+  A
+  item [
+    1
+    ExtMacro
+  ]
+]
+productClassNames [
+  2
+  A
+  item [
+    1
+    ABinary
+  ]
+]
+stamps.products [
+  6
+  A$1.class
+  2
+  32
+  A.class
+  0
+  31
+]
+stamps.sources [
+  3
+  A.scala
+  1
+  cafebabe
+]
+stamps.libraries [
+  3
+  x.jar
+  3
+  absent
+]
+internal [
+  2
+  A
+  analyzedClass {
+    A
+    1262304042000
+    12
+    1
+    provenance
+    14
+    15
+    16
+    nameHashes.name [
+      1
+      nameHash
+    ]
+    nameHashes.scope [
+      1
+      0
+    ]
+    nameHashes.hash [
+      1
+      13
+    ]
+    ClassLike {
+      A
+      Access {
+        0
+      }
+      0
+      annotations [
+        1
+        Annotation {
+          Type {
+            0
+            Ann
+          }
+          arguments [
+            4
+            argName
+            argValue
+            emptyArg
+            
+          ]
+        }
+      ]
+      1
+      Type {
+        9
+      }
+      Structure {
+        parents [
+          10
+          Type {
+            0
+            paramRef
+          }
+          Type {
+            1
+            Type {
+              0
+              List
+            }
+            typeArguments [
+              1
+              Type {
+                0
+                Elem
+              }
+            ]
+          }
+          Type {
+            2
+            Structure {
+              parents [
+                1
+                Type {
+                  9
+                }
+              ]
+              declared [
+                6
+                ClassDefinition {
+                  classLikeDef
+                  Access {
+                    0
+                  }
+                  0
+                  annotations [
+                    0
+                  ]
+                  0
+                  typeParameters [
+                    1
+                    TypeParameter {
+                      CT
+                      annotations [
+                        0
+                      ]
+                      typeParameters [
+                        0
+                      ]
+                      2
+                      Type {
+                        9
+                      }
+                      Type {
+                        9
+                      }
+                    }
+                  ]
+                  1
+                }
+                ClassDefinition {
+                  valDef
+                  Access {
+                    1
+                    0
+                    protectedQualifier
+                  }
+                  0
+                  annotations [
+                    0
+                  ]
+                  1
+                  Type {
+                    0
+                    VT
+                  }
+                }
+                ClassDefinition {
+                  varDef
+                  Access {
+                    2
+                    1
+                  }
+                  0
+                  annotations [
+                    0
+                  ]
+                  2
+                  Type {
+                    0
+                    WT
+                  }
+                }
+                ClassDefinition {
+                  defDef
+                  Access {
+                    2
+                    2
+                  }
+                  0
+                  annotations [
+                    1
+                    Annotation {
+                      Type {
+                        0
+                        Ann
+                      }
+                      arguments [
+                        4
+                        argName
+                        argValue
+                        emptyArg
+                        
+                      ]
+                    }
+                  ]
+                  3
+                  typeParameters [
+                    1
+                    TypeParameter {
+                      DT
+                      annotations [
+                        0
+                      ]
+                      typeParameters [
+                        0
+                      ]
+                      2
+                      Type {
+                        9
+                      }
+                      Type {
+                        9
+                      }
+                    }
+                  ]
+                  valueParameters [
+                    1
+                    ParameterList {
+                      parameters [
+                        4
+                        param
+                        Type {
+                          0
+                          PT
+                        }
+                        1
+                        1
+                      ]
+                      0
+                    }
+                  ]
+                  Type {
+                    9
+                  }
+                }
+                ClassDefinition {
+                  typeAlias
+                  Access {
+                    0
+                  }
+                  0
+                  annotations [
+                    0
+                  ]
+                  4
+                  typeParameters [
+                    1
+                    TypeParameter {
+                      AT
+                      annotations [
+                        0
+                      ]
+                      typeParameters [
+                        0
+                      ]
+                      2
+                      Type {
+                        9
+                      }
+                      Type {
+                        9
+                      }
+                    }
+                  ]
+                  Type {
+                    9
+                  }
+                }
+                ClassDefinition {
+                  typeDeclaration
+                  Access {
+                    0
+                  }
+                  0
+                  annotations [
+                    0
+                  ]
+                  5
+                  typeParameters [
+                    1
+                    TypeParameter {
+                      ZT
+                      annotations [
+                        0
+                      ]
+                      typeParameters [
+                        0
+                      ]
+                      2
+                      Type {
+                        9
+                      }
+                      Type {
+                        9
+                      }
+                    }
+                  ]
+                  Type {
+                    9
+                  }
+                  Type {
+                    0
+                    UT
+                  }
+                }
+              ]
+              inherited [
+                0
+              ]
+            }
+          }
+          Type {
+            3
+            Type {
+              9
+            }
+            parameters [
+              1
+              TypeParameter {
+                PolyT
+                annotations [
+                  0
+                ]
+                typeParameters [
+                  0
+                ]
+                2
+                Type {
+                  9
+                }
+                Type {
+                  9
+                }
+              }
+            ]
+          }
+          Type {
+            4
+            Type {
+              0
+              Int
+            }
+            constantValue
+          }
+          Type {
+            5
+            Type {
+              9
+            }
+            clause [
+              1
+              TypeParameter {
+                ExT
+                annotations [
+                  0
+                ]
+                typeParameters [
+                  0
+                ]
+                2
+                Type {
+                  9
+                }
+                Type {
+                  9
+                }
+              }
+            ]
+          }
+          Type {
+            6
+            Path {
+              2
+              0
+              pkg
+            }
+          }
+          Type {
+            7
+            Type {
+              6
+              Path {
+                2
+                2
+                Path {
+                  1
+                  0
+                }
+                1
+                outer
+              }
+            }
+            projected
+          }
+          Type {
+            8
+            Type {
+              0
+              annotatedBase
+            }
+            annotations [
+              1
+              Annotation {
+                Type {
+                  0
+                  Ann
+                }
+                arguments [
+                  4
+                  argName
+                  argValue
+                  emptyArg
+                  
+                ]
+              }
+            ]
+          }
+          Type {
+            9
+          }
+        ]
+        declared [
+          6
+          ClassDefinition {
+            classLikeDef
+            Access {
+              0
+            }
+            0
+            annotations [
+              0
+            ]
+            0
+            typeParameters [
+              1
+              TypeParameter {
+                CT
+                annotations [
+                  0
+                ]
+                typeParameters [
+                  0
+                ]
+                2
+                Type {
+                  9
+                }
+                Type {
+                  9
+                }
+              }
+            ]
+            1
+          }
+          ClassDefinition {
+            valDef
+            Access {
+              1
+              0
+              protectedQualifier
+            }
+            0
+            annotations [
+              0
+            ]
+            1
+            Type {
+              0
+              VT
+            }
+          }
+          ClassDefinition {
+            varDef
+            Access {
+              2
+              1
+            }
+            0
+            annotations [
+              0
+            ]
+            2
+            Type {
+              0
+              WT
+            }
+          }
+          ClassDefinition {
+            defDef
+            Access {
+              2
+              2
+            }
+            0
+            annotations [
+              1
+              Annotation {
+                Type {
+                  0
+                  Ann
+                }
+                arguments [
+                  4
+                  argName
+                  argValue
+                  emptyArg
+                  
+                ]
+              }
+            ]
+            3
+            typeParameters [
+              1
+              TypeParameter {
+                DT
+                annotations [
+                  0
+                ]
+                typeParameters [
+                  0
+                ]
+                2
+                Type {
+                  9
+                }
+                Type {
+                  9
+                }
+              }
+            ]
+            valueParameters [
+              1
+              ParameterList {
+                parameters [
+                  4
+                  param
+                  Type {
+                    0
+                    PT
+                  }
+                  1
+                  1
+                ]
+                0
+              }
+            ]
+            Type {
+              9
+            }
+          }
+          ClassDefinition {
+            typeAlias
+            Access {
+              0
+            }
+            0
+            annotations [
+              0
+            ]
+            4
+            typeParameters [
+              1
+              TypeParameter {
+                AT
+                annotations [
+                  0
+                ]
+                typeParameters [
+                  0
+                ]
+                2
+                Type {
+                  9
+                }
+                Type {
+                  9
+                }
+              }
+            ]
+            Type {
+              9
+            }
+          }
+          ClassDefinition {
+            typeDeclaration
+            Access {
+              0
+            }
+            0
+            annotations [
+              0
+            ]
+            5
+            typeParameters [
+              1
+              TypeParameter {
+                ZT
+                annotations [
+                  0
+                ]
+                typeParameters [
+                  0
+                ]
+                2
+                Type {
+                  9
+                }
+                Type {
+                  9
+                }
+              }
+            ]
+            Type {
+              9
+            }
+            Type {
+              0
+              UT
+            }
+          }
+        ]
+        inherited [
+          0
+        ]
+      }
+      savedAnnotations [
+        1
+        savedAnnotation
+      ]
+      childrenOfSealedClass [
+        2
+        Type {
+          6
+          Path {
+            2
+            3
+            This {
+            }
+            1
+            member
+          }
+        }
+        Type {
+          6
+          Path {
+            -2
+          }
+        }
+      ]
+      1
+      typeParameters [
+        1
+        TypeParameter {
+          ClassT
+          annotations [
+            0
+          ]
+          typeParameters [
+            0
+          ]
+          2
+          Type {
+            9
+          }
+          Type {
+            9
+          }
+        }
+      ]
+    }
+    ClassLike {
+      A
+      Access {
+        0
+      }
+      0
+      annotations [
+        0
+      ]
+      2
+      Type {
+        9
+      }
+      Structure {
+        parents [
+          0
+        ]
+        declared [
+          0
+        ]
+        inherited [
+          0
+        ]
+      }
+      savedAnnotations [
+        0
+      ]
+      childrenOfSealedClass [
+        0
+      ]
+      1
+      typeParameters [
+        0
+      ]
+    }
+  }
+]
+external [
+  8
+  C
+  analyzedClass {
+    C
+    1262304042000
+    12
+    1
+    provenance
+    14
+    15
+    16
+    nameHashes.name [
+      1
+      nameHash
+    ]
+    nameHashes.scope [
+      1
+      0
+    ]
+    nameHashes.hash [
+      1
+      13
+    ]
+    ClassLike {
+      C
+      Access {
+        0
+      }
+      0
+      annotations [
+        0
+      ]
+      1
+      Type {
+        9
+      }
+      Structure {
+        parents [
+          0
+        ]
+        declared [
+          0
+        ]
+        inherited [
+          0
+        ]
+      }
+      savedAnnotations [
+        0
+      ]
+      childrenOfSealedClass [
+        0
+      ]
+      1
+      typeParameters [
+        0
+      ]
+    }
+    ClassLike {
+      C
+      Access {
+        0
+      }
+      0
+      annotations [
+        0
+      ]
+      2
+      Type {
+        9
+      }
+      Structure {
+        parents [
+          0
+        ]
+        declared [
+          0
+        ]
+        inherited [
+          0
+        ]
+      }
+      savedAnnotations [
+        0
+      ]
+      childrenOfSealedClass [
+        0
+      ]
+      1
+      typeParameters [
+        0
+      ]
+    }
+  }
+  ExtInherit
+  analyzedClass {
+    ExtInherit
+    1262304042000
+    12
+    1
+    provenance
+    14
+    15
+    16
+    nameHashes.name [
+      1
+      nameHash
+    ]
+    nameHashes.scope [
+      1
+      0
+    ]
+    nameHashes.hash [
+      1
+      13
+    ]
+    ClassLike {
+      ExtInherit
+      Access {
+        0
+      }
+      0
+      annotations [
+        0
+      ]
+      1
+      Type {
+        9
+      }
+      Structure {
+        parents [
+          0
+        ]
+        declared [
+          0
+        ]
+        inherited [
+          0
+        ]
+      }
+      savedAnnotations [
+        0
+      ]
+      childrenOfSealedClass [
+        0
+      ]
+      1
+      typeParameters [
+        0
+      ]
+    }
+    ClassLike {
+      ExtInherit
+      Access {
+        0
+      }
+      0
+      annotations [
+        0
+      ]
+      2
+      Type {
+        9
+      }
+      Structure {
+        parents [
+          0
+        ]
+        declared [
+          0
+        ]
+        inherited [
+          0
+        ]
+      }
+      savedAnnotations [
+        0
+      ]
+      childrenOfSealedClass [
+        0
+      ]
+      1
+      typeParameters [
+        0
+      ]
+    }
+  }
+  ExtLocalInherit
+  analyzedClass {
+    ExtLocalInherit
+    1262304042000
+    12
+    1
+    provenance
+    14
+    15
+    16
+    nameHashes.name [
+      1
+      nameHash
+    ]
+    nameHashes.scope [
+      1
+      0
+    ]
+    nameHashes.hash [
+      1
+      13
+    ]
+    ClassLike {
+      ExtLocalInherit
+      Access {
+        0
+      }
+      0
+      annotations [
+        0
+      ]
+      1
+      Type {
+        9
+      }
+      Structure {
+        parents [
+          0
+        ]
+        declared [
+          0
+        ]
+        inherited [
+          0
+        ]
+      }
+      savedAnnotations [
+        0
+      ]
+      childrenOfSealedClass [
+        0
+      ]
+      1
+      typeParameters [
+        0
+      ]
+    }
+    ClassLike {
+      ExtLocalInherit
+      Access {
+        0
+      }
+      0
+      annotations [
+        0
+      ]
+      2
+      Type {
+        9
+      }
+      Structure {
+        parents [
+          0
+        ]
+        declared [
+          0
+        ]
+        inherited [
+          0
+        ]
+      }
+      savedAnnotations [
+        0
+      ]
+      childrenOfSealedClass [
+        0
+      ]
+      1
+      typeParameters [
+        0
+      ]
+    }
+  }
+  ExtMacro
+  analyzedClass {
+    ExtMacro
+    1262304042000
+    12
+    1
+    provenance
+    14
+    15
+    16
+    nameHashes.name [
+      1
+      nameHash
+    ]
+    nameHashes.scope [
+      1
+      0
+    ]
+    nameHashes.hash [
+      1
+      13
+    ]
+    ClassLike {
+      ExtMacro
+      Access {
+        0
+      }
+      0
+      annotations [
+        0
+      ]
+      1
+      Type {
+        9
+      }
+      Structure {
+        parents [
+          0
+        ]
+        declared [
+          0
+        ]
+        inherited [
+          0
+        ]
+      }
+      savedAnnotations [
+        0
+      ]
+      childrenOfSealedClass [
+        0
+      ]
+      1
+      typeParameters [
+        0
+      ]
+    }
+    ClassLike {
+      ExtMacro
+      Access {
+        0
+      }
+      0
+      annotations [
+        0
+      ]
+      2
+      Type {
+        9
+      }
+      Structure {
+        parents [
+          0
+        ]
+        declared [
+          0
+        ]
+        inherited [
+          0
+        ]
+      }
+      savedAnnotations [
+        0
+      ]
+      childrenOfSealedClass [
+        0
+      ]
+      1
+      typeParameters [
+        0
+      ]
+    }
+  }
+]
+sourceInfos [
+  4
+  A.scala
+  mainClasses [
+    1
+    MainClass
+  ]
+  reportedProblems [
+    1
+    problem {
+      reportedCategory
+      1
+      reported message
+      rendered reported
+      21
+      22
+      23
+      final class A
+        
+      A.scala
+      A-reported.scala
+      24
+      25
+      26
+      27
+      28
+      29
+    }
+  ]
+  unreportedProblems [
+    1
+    problem {
+      unreportedCategory
+      2
+      unreported message
+      \0
+      21
+      22
+      23
+      final class A
+        
+      A.scala
+      A-unreported.scala
+      24
+      25
+      26
+      27
+      28
+      29
+    }
+  ]
+]
+1100029
