@@ -26,6 +26,7 @@ object OutputSpec extends Properties with BaseCompilerSpec:
     List(
       example("incremental compiler should compile directly to JAR", compileToJar),
       example("not compile anything if source has not changed", noChange),
+      example("replace Java jar entries while retaining Scala outputs", replaceJavaJarEntries),
       example("generate early artifact with pickle (.sig) files", earlyArtifact),
     ) ++ List(scalaVersion, "3.9.0").flatMap(earlyOutputTests)
 
@@ -63,6 +64,33 @@ object OutputSpec extends Properties with BaseCompilerSpec:
       )
     }
   }
+
+  private def replaceJavaJarEntries: Result = withTmpDir: baseDir =>
+    val setup = VirtualSubproject(baseDir.toPath / "p").setup.copy(outputToJar = true)
+    withCompiler(setup.createCompiler()): comp =>
+      val sf = StringVirtualFile("B.scala", "class B")
+      val oldJava = StringVirtualFile("A.java", "public class A extends B { static class Old {} }")
+      comp.compileBoth(oldJava, sf)
+      def scalaBytes =
+        scala.util.Using.resource(new java.util.jar.JarFile(comp.output.toFile)): jar =>
+          scala.util.Using.resource(jar.getInputStream(jar.getJarEntry("B.class")))(
+            _.readAllBytes().toSeq
+          )
+      val savedScala = scalaBytes
+      val before = JarUtils.listFiles(comp.output).toSet
+      val changed =
+        StringVirtualFile("A.java", "public class A extends B { static class Fresh {} }")
+      val next = comp.compileAllJava(changed, sf).analysis.asInstanceOf[sbt.internal.inc.Analysis]
+      val after = JarUtils.listFiles(comp.output).toSet
+      Result.all(List(
+        Result.assert(before.contains("A$Old.class")),
+        Result.assert(!after.contains("A$Old.class")),
+        Result.assert(after.contains("A$Fresh.class")),
+        Result.assert(after.contains("B.class")),
+        scalaBytes ==== savedScala,
+        Result.assert(next.relations.internalClassDeps("A").contains("B")),
+        Result.assert(!next.relations.internalClassDeps("A").contains("A.Old"))
+      ))
 
   private def noChange: Result = withTmpDir { baseDir =>
     withCompiler(mkCompiler(baseDir, Seq(SourceFiles.Good, SourceFiles.Foo))) { compiler =>
