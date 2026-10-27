@@ -12,67 +12,67 @@
 package sbt.internal.inc
 
 import java.util.concurrent.TimeUnit
+
 import org.openjdk.jmh.annotations.*
 import org.openjdk.jmh.infra.Blackhole
 
+/**
+ * A fresh `LookupImpl` and then `queryCount` lookups, half hits and half misses. Run with
+ * `zincBenchmarks/Jmh/run -p queryCount=1 sbt.internal.inc.LookupAnalysisBenchmark` to measure
+ * the first lookup alone.
+ */
 @BenchmarkMode(Array(Mode.AverageTime))
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Thread)
 @Fork(3)
 @Warmup(iterations = 5, time = 1)
 @Measurement(iterations = 8, time = 1)
-class LookupAnalysisBenchmark {
-  @Param(Array("empty", "small", "library-heavy", "upstream-heavy", "class-heavy"))
-  var scenario: String = ""
+class LookupAnalysisBenchmark:
+  import LookupAnalysisBenchmark.*
 
-  @Param(Array("mixed"))
-  var queryMix: String = ""
-
-  @Param(Array("10000"))
-  var queryCount: Int = 0
-
+  @Param(Array("small", "upstream-heavy")) var scenario: String = compiletime.uninitialized
+  @Param(Array("10000")) var queryCount: Int = compiletime.uninitialized
   private var fixture: LookupAnalysisFixture.Fixture = compiletime.uninitialized
   private var queries: Array[String] = compiletime.uninitialized
-  private var warmLookup: LookupImpl = compiletime.uninitialized
 
   @Setup(Level.Trial)
-  def setup(): Unit = {
-    val dimensions = LookupAnalysisFixture.scenarios(scenario)
+  def setup(): Unit =
+    val dimensions = scenarios(scenario)
     fixture = dimensions.fixture()
-    require(fixture.classpath.size == dimensions.classpathSize)
-    require(fixture.analyses.size == dimensions.analysisCount)
-    require(fixture.analyses.forall(
-      _.relations.productClassName._2s.size == dimensions.classesPerAnalysis
-    ))
-    queries = dimensions.queries(queryMix, queryCount)
-    val names = fixture.analyses.iterator.flatMap(_.relations.productClassName._2s).toSet
-    val expectedHits =
-      if (dimensions.analysisCount == 0 || queryMix == "miss") 0
-      else if (queryMix == "mixed") (queryCount + 1) / 2
-      else queryCount
-    require(queries.count(names.contains) == expectedHits)
-    warmLookup = fixture.newLookup()
-    warmLookup.lookupAnalysis(queries(0))
-  }
+    queries = dimensions.queries(queryCount)
 
-  // One operation is a queryCount-sized batch; divide time/allocation by queryCount for per-query data.
   @Benchmark
-  def warmBatch(bh: Blackhole): Unit = runQueries(warmLookup, bh)
-
-  // One operation includes construction and the first query, including all lazy initialization.
-  @Benchmark
-  def firstLookup(bh: Blackhole): Unit =
-    bh.consume(fixture.newLookup().lookupAnalysis(queries(0)))
-
-  // One operation includes a fresh lookup and queryCount queries; fixture construction is excluded.
-  @Benchmark
-  def lifecycle(bh: Blackhole): Unit = runQueries(fixture.newLookup(), bh)
-
-  private def runQueries(lookup: LookupImpl, bh: Blackhole): Unit = {
+  def lifecycle(bh: Blackhole): Unit =
+    val lookup = fixture.newLookup()
     var i = 0
-    while (i < queries.length) {
+    while i < queries.length do
       bh.consume(lookup.lookupAnalysis(queries(i)))
       i += 1
-    }
-  }
-}
+end LookupAnalysisBenchmark
+
+object LookupAnalysisBenchmark:
+  /** `classpathSize` entries; the first `analysisCount` have `classesPerAnalysis` classes each. */
+  final case class Scenario(classpathSize: Int, analysisCount: Int, classesPerAnalysis: Int):
+    def binaryName(analysisIndex: Int, classIndex: Int): String =
+      s"upstream$analysisIndex.pkg.Class$classIndex"
+
+    def fixture(): LookupAnalysisFixture.Fixture =
+      LookupAnalysisFixture.Fixture(Vector.tabulate(classpathSize) { i =>
+        Option.when(i < analysisCount)(
+          LookupAnalysisFixture.analysis(Vector.tabulate(classesPerAnalysis)(binaryName(i, _)))
+        )
+      })
+
+    /** Even positions hit a random class, and odd positions miss. */
+    def queries(count: Int): Array[String] =
+      val random = new scala.util.Random(593L)
+      Array.tabulate(count) { i =>
+        if analysisCount == 0 || i % 2 == 1 then s"absent.Class$i"
+        else binaryName(random.nextInt(analysisCount), random.nextInt(classesPerAnalysis))
+      }
+
+  val scenarios: Map[String, Scenario] = Map(
+    "small" -> Scenario(32, 2, 100),
+    "upstream-heavy" -> Scenario(2000, 1000, 100),
+  )
+end LookupAnalysisBenchmark
