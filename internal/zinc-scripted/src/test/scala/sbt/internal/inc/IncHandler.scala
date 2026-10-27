@@ -24,7 +24,6 @@ import sbt.util.Logger
 import sbt.util.InterfaceUtil.*
 import xsbt.api.Discovery
 import xsbti.{ FileConverter, Problem, Severity, VirtualFileRef, VirtualFile }
-import xsbti.compile.analysis.ReadSourceInfos
 import xsbti.compile.{
   AnalysisContents,
   AnalysisStore,
@@ -675,6 +674,7 @@ case class ProjectStructure(
       f1.orElse { case _ => None }
 
     i.compilations.get(this).getOrElse {
+      lastCompileProblems = None
       val notifyEarlyOutput: Promise[Boolean] = Promise[Boolean]()
       if exportPipelining then
         // Initiate compilation
@@ -801,14 +801,13 @@ case class ProjectStructure(
       converter,
       stamper
     )
-    lastCompileProblems = None
     val result =
       try
         if javaOnly then incrementalCompiler.compileAllJava(in, compilerLog)
         else incrementalCompiler.compile(in, compilerLog)
       catch
         case e: CompileFailed =>
-          lastCompileProblems = Some(failedCompileProblems(e))
+          lastCompileProblems = Some(e.problems.toSeq)
           throw e
     val analysis = result.analysis match
       case a: Analysis => a
@@ -917,23 +916,16 @@ case class ProjectStructure(
     (incOptions, scalacOptions.toArray)
   end loadIncOptions
 
-  // Problems of the latest compile attempt when it failed. A failed compile stores no
-  // analysis, so this is the only place its errors survive for the check commands.
+  // A failed compile stores no analysis; its problems stay here until the next compile starts.
   @volatile private var lastCompileProblems: Option[Seq[Problem]] = None
-
-  private def failedCompileProblems(e: CompileFailed): Seq[Problem] =
-    e.sourceInfosOption.map(problemsOf).getOrElse(e.problems.toSeq)
-
-  private def problemsOf(infos: ReadSourceInfos): Seq[Problem] =
-    import scala.jdk.CollectionConverters.*
-    infos.getAllSourceInfos.asScala.values.toSeq
-      .flatMap(i => i.getReportedProblems ++ i.getUnreportedProblems)
 
   def getProblems(): Seq[Problem] =
     lastCompileProblems.getOrElse {
       cachedStore.get.toScala match
         case Some(analysisContents) =>
-          problemsOf(analysisContents.getAnalysis.asInstanceOf[Analysis].infos)
+          val analysis = analysisContents.getAnalysis.asInstanceOf[Analysis]
+          val allInfos = analysis.infos.allInfos.values.toSeq
+          allInfos.flatMap(i => i.getReportedProblems ++ i.getUnreportedProblems)
         case _ => Nil
     }
 
