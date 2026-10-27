@@ -140,17 +140,13 @@ final class AnalyzingJavaCompiler private[sbt] (
         log.error(InterfaceUtil.toSupplier(s"No output directory mapped for: $culpritPaths"))
       }
 
-      // Snapshot the class files and their stamps in each Javac output location. This has to
-      // happen before javac runs: the stamps are what tells its products apart afterwards.
-      val snapshots =
+      // Memoize the known class files in the Javac output location
+      val memo =
         for case (Some(outputPath), srcs) <- chunks yield
           val classFinder =
-            if outputPath.toString.endsWith(".jar") then
-              // MixedAnalyzingCompiler compiles through JarUtils.withPreviousJar, which moves an
-              // existing output jar aside, so this snapshot is always empty.
-              new JarClassFinder(outputPath)
+            if outputPath.toString.endsWith(".jar") then new JarClassFinder(outputPath)
             else new DirectoryClassFinder(outputPath)
-          new OutputSnapshot(classFinder, outputPath, classFinder.classes.stampsAndClose(), srcs)
+          (classFinder, classFinder.classes.stampsAndClose(), srcs)
 
       // Record progress for java compilation
       val somePhase = "<some phase>"
@@ -228,19 +224,19 @@ final class AnalyzingJavaCompiler private[sbt] (
       )
 
       timed(javaAnalysisPhase, log) {
-        for snapshot <- snapshots do
-          val classes = snapshot.finder.classes
+        for
+          (classFinder, oldClasses, srcs) <- memo
+        do
+          val classes = classFinder.classes
           try
-            // Class files javac rewrote over pre-existing untracked ones are products of this run
-            // too; a path-only diff would skip them and leave their API unread (sbt/zinc#586).
-            val newClasses = classes.changedSince(snapshot.stampsBefore)
-            val rewritten = newClasses.count(p => snapshot.stampsBefore.contains(p.toString))
+            val newClasses = classes.changedSince(oldClasses)
+            val rewritten = newClasses.count(oldClasses.contains)
             if rewritten > 0 then
               log.debug(InterfaceUtil.toSupplier(
-                s"Java analysis: $rewritten of ${newClasses.size} class files in " +
-                  s"${snapshot.path} were rewritten over pre-existing ones"
+                s"Java analysis: $rewritten of ${newClasses.size} class files " +
+                  "existed before javac rewrote them"
               ))
-            JavaAnalyze(newClasses, snapshot.sources, log, output, finalJarOutput)(
+            JavaAnalyze(newClasses, srcs, log, output, finalJarOutput)(
               callback,
               loader,
               readAPI,
@@ -286,14 +282,6 @@ final class AnalyzingJavaCompiler private[sbt] (
       reporter: XReporter,
       log: XLogger
   ): Boolean = javac.run(sources, options, output, incToolOptions, reporter, log)
-
-  /** A javac output location, with the class files and stamps it held before javac ran. */
-  private final class OutputSnapshot(
-      val finder: ClassFinder,
-      val path: Path,
-      val stampsBefore: Map[String, ClassStamp],
-      val sources: Seq[VirtualFile]
-  )
 
   /** Time how long it takes to run various compilation tasks. */
   private def timed[T](label: String, log: Logger)(t: => T): T =
