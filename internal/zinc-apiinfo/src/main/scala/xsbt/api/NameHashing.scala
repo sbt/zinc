@@ -22,9 +22,13 @@ import xsbti.api.NameHash
  *
  * See `nameHashes` method for details.
  */
-class NameHashing(optimizedSealed: Boolean) {
+class NameHashing(optimizedSealed: Boolean):
 
-  import NameHashing._
+  import NameHashing.*
+
+  // Reused across name groups and classes, which makes an instance unsafe to share between threads.
+  private val hasher = HashAPI.forNameHashing(includeSealedChildren = !optimizedSealed)
+  private lazy val patMatHasher = HashAPI.forNameHashing(includeSealedChildren = true)
 
   /**
    * This method takes an API representation and extracts a flat collection of all
@@ -35,48 +39,47 @@ class NameHashing(optimizedSealed: Boolean) {
    * NOTE: The hashing sum used for hashing a group of definition is insensitive
    * to order of definitions.
    */
-  def nameHashes(classApi: ClassLike): Array[NameHash] = {
-    val apiPublicDefs = publicDefs(classApi)
-    val (regularDefs, implicitDefs) = apiPublicDefs.partition(deff => !deff.modifiers.isImplicit)
-    val location = Location(classApi.name, NameType(classApi.definitionType))
+  def nameHashes(classApi: ClassLike): Array[NameHash] =
+    val defs = publicDefs(classApi)
+    val locationHash = Location(classApi.name, NameType(classApi.definitionType)).hashCode
+    val out = Array.newBuilder[NameHash]
+    val (regularDefs, implicitDefs) = defs.partition(d => !d.modifiers.isImplicit)
+    addNameHashes(regularDefs, locationHash, hasher, UseScope.Default, out)
+    addNameHashes(implicitDefs, locationHash, hasher, UseScope.Implicit, out)
+    if optimizedSealed then
+      val sealedClasses = defs.filter {
+        case classLike: ClassLike => classLike.modifiers().isSealed
+        case _                    => false
+      }
+      if sealedClasses.nonEmpty then
+        addNameHashes(sealedClasses, locationHash, patMatHasher, UseScope.PatMatTarget, out)
+    out.result()
 
-    val forPatMat =
-      if (optimizedSealed) {
-        val classDefs = apiPublicDefs.collect {
-          case classLike: ClassLike if classLike.modifiers().isSealed =>
-            classLike
-        }
-        nameHashesForDefinitions(classDefs, location, UseScope.PatMatTarget)
-      } else Array.empty[NameHash]
-
-    nameHashesForDefinitions(regularDefs, location, UseScope.Default) ++
-      nameHashesForDefinitions(implicitDefs, location, UseScope.Implicit) ++ forPatMat
-  }
-
-  private def nameHashesForDefinitions(
-      defs: Iterable[Definition],
-      location: Location,
-      useScope: UseScope
-  ): Array[NameHash] = {
-    val includeSealedChildren = !optimizedSealed || useScope == UseScope.PatMatTarget
-    val groupedBySimpleName = defs.groupBy(locatedDef => localName(locatedDef.name))
-    groupedBySimpleName.iterator.map {
-      case (name, value) =>
-        NameHash.of(name, useScope, hashLocatedDefinitions(value, location, includeSealedChildren))
-    }.toArray
-  }
-
-  private def hashLocatedDefinitions(
-      defs: Iterable[Definition],
-      location: Location,
-      includeSealedChildren: Boolean
-  ): Int = {
-    HashAPI.apply(
-      _.hashDefinitionsWithExtraHash(defs, location.hashCode),
-      includeDefinitions = false,
-      includeSealedChildren = includeSealedChildren
-    )
-  }
+  /**
+   * Adds a name hash for each group of definitions in `defs` with the same local name.
+   *
+   * Each group is hashed in the order its definitions appear in `defs`, which matters as hashing
+   * one definition can record a visited class or structure that the next one reuses.
+   */
+  private def addNameHashes(
+      defs: Array[Definition],
+      locationHash: Int,
+      hasher: HashAPI,
+      scope: UseScope,
+      out: scala.collection.mutable.ArrayBuilder[NameHash]
+  ): Unit =
+    val groups = StableGroups(defs, (d: Definition) => localName(d.name))
+    var g = 0
+    while g < groups.size do
+      hasher.reset()
+      hasher.hashDefinitionsWithExtraHash(
+        groups.elements,
+        groups.from(g),
+        groups.until(g),
+        locationHash
+      )
+      out += NameHash.of(groups.key(g), scope, hasher.finalizeHash)
+      g += 1
 
   /**
    * A visitor that visits given API object and extracts all nested public
@@ -92,48 +95,40 @@ class NameHashing(optimizedSealed: Boolean) {
    *
    * then location of `abc` is Seq((TermName, Foo), (TypeName, Bar))
    */
-  private class ExtractPublicDefinitions extends Visit {
+  private class ExtractPublicDefinitions extends Visit:
     val defs = scala.collection.mutable.Buffer[Definition]()
     // if the definition is private, we do not visit because we do
     // not want to include any private members or its children
     override def visitDefinition(d: Definition): Unit =
-      if (d.isInstanceOf[ClassLike] || APIUtil.isNonPrivate(d)) {
+      if d.isInstanceOf[ClassLike] || APIUtil.isNonPrivate(d) then
         defs += d
         super.visitDefinition(d)
-      }
-  }
 
-  private def publicDefs(c: ClassLike): Iterable[Definition] = {
+  private def publicDefs(c: ClassLike): Array[Definition] =
     val visitor = new ExtractPublicDefinitions
     visitor.visitAPI(c)
-    visitor.defs
-  }
+    visitor.defs.toArray
 
-  private def localName(name: String): String = {
+  private def localName(name: String): String =
     // when there's no dot in name `lastIndexOf` returns -1 so we handle
     // that case properly
     val index = name.lastIndexOf('.') + 1
     name.substring(index)
-  }
+end NameHashing
 
-}
-
-object NameHashing {
-  def merge(nm1: Array[NameHash], nm2: Array[NameHash]): Array[NameHash] = {
+object NameHashing:
+  def merge(nm1: Array[NameHash], nm2: Array[NameHash]): Array[NameHash] =
     import scala.collection.mutable.Map
     val m: Map[(String, UseScope), Int] = Map.empty
     nm1.foreach(nh => m += (nh.name, nh.scope) -> nh.hash)
-    for (nh <- nm2) {
+    for nh <- nm2 do
       val key = (nh.name, nh.scope())
-      m.get(key) match {
+      m.get(key) match
         case None               => m(key) = nh.hash
         case Some(existingHash) =>
           // combine hashes without taking an order into account
           m(key) = Set(existingHash, nh.hash).hashCode()
-      }
-    }
     m.map { case ((name, scope), hash) => NameHash.of(name, scope, hash) }.toArray
-  }
 
   private case class LocatedDefinition(location: Location, definition: Definition)
 
@@ -152,13 +147,11 @@ object NameHashing {
   private case class Location(className: String, nameType: NameType)
   private case class Selector(name: String, nameType: NameType)
   private sealed trait NameType
-  private object NameType {
-    import DefinitionType._
-    def apply(dt: DefinitionType): NameType = dt match {
+  private object NameType:
+    import DefinitionType.*
+    def apply(dt: DefinitionType): NameType = dt match
       case Trait | ClassDef       => TypeName
       case Module | PackageModule => TermName
-    }
-  }
   private case object TermName extends NameType
   private case object TypeName extends NameType
-}
+end NameHashing

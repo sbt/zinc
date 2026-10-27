@@ -17,19 +17,19 @@ import java.nio.file.Path
 import sbt.internal.inc.ScalaInstance
 import sbt.internal.inc.classpath.{ ClasspathUtil, DualLoader }
 import sbt.io.IO
-import sbt.io.Path._
+import sbt.io.Path.*
 
 import xsbti.Logger
 import xsbti.compile.CompilerBridgeProvider
-import xsbti.compile.{ ScalaInstance => XScalaInstance }
+import xsbti.compile.ScalaInstance as XScalaInstance
 
 case class ScalaBridge(version: String, jars: Seq[File], bridgeJarOrDir: Either[Seq[File], File])
 
 final class ConstantBridgeProvider(bridges: List[ScalaBridge], tempDir: Path)
-    extends CompilerBridgeProvider {
+    extends CompilerBridgeProvider:
 
   override def fetchCompiledBridge(instance: XScalaInstance, logger: Logger): File =
-    bridgeOrBoom(instance.version).bridgeJarOrDir match {
+    bridgeOrBoom(instance.version).bridgeJarOrDir match
       case Left(classesDirs) =>
         val javaClassVersion = sys.props("java.class.version")
         val jarName = s"scriptedCompilerBridge-bin_${instance.version}__$javaClassVersion.jar"
@@ -38,15 +38,14 @@ final class ConstantBridgeProvider(bridges: List[ScalaBridge], tempDir: Path)
         IO.zip(classesDirs.flatMap(contentOf), bridgeJar, Some(0L))
         bridgeJar
       case Right(bridgeJar) => bridgeJar
-    }
 
-  override def fetchScalaInstance(scalaVersion: String, logger: Logger): XScalaInstance = {
+  override def fetchScalaInstance(scalaVersion: String, logger: Logger): XScalaInstance =
     val jars = bridgeOrBoom(scalaVersion).jars.toArray
     assert(jars.forall(_.exists), "One or more jar(s) in the Scala instance do not exist.")
     val libraryJars = jars.filter(_.getName.contains("scala-library"))
     val loaderLibraryOnly0 = ClasspathUtil.toLoader(libraryJars.toSeq.map(_.toPath))
     val loaderLibraryOnly =
-      if (scalaVersion.startsWith("2.")) loaderLibraryOnly0
+      if scalaVersion.startsWith("2.") then loaderLibraryOnly0
       else
         createDualLoader(
           loaderLibraryOnly0,
@@ -67,12 +66,12 @@ final class ConstantBridgeProvider(bridges: List[ScalaBridge], tempDir: Path)
       jars,
       Some(scalaVersion),
     )
-  }
+  end fetchScalaInstance
 
   private def createDualLoader(
       loader: ClassLoader,
       sbtLoader: ClassLoader
-  ): ClassLoader = {
+  ): ClassLoader =
     val xsbtiFilter = (name: String) => name.startsWith("xsbti.")
     val notXsbtiFilter = (name: String) => !xsbtiFilter(name)
     new DualLoader(
@@ -83,12 +82,10 @@ final class ConstantBridgeProvider(bridges: List[ScalaBridge], tempDir: Path)
       xsbtiFilter,
       _ => false
     )
-  }
 
-  private def bridgeOrBoom(scalaVersion: String): ScalaBridge = {
+  private def bridgeOrBoom(scalaVersion: String): ScalaBridge =
     bridges.find(_.version == scalaVersion).getOrElse {
       val versions = bridges.map(_.version).mkString(",")
       sys.error(s"Missing $scalaVersion in supported versions $versions")
     }
-  }
-}
+end ConstantBridgeProvider

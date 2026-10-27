@@ -12,6 +12,8 @@
 package sbt.inc
 package cached
 
+import hedgehog.{ sbt as _, * }
+import hedgehog.runner.*
 import java.nio.file.Paths
 import sbt.internal.inc.{
   Analysis,
@@ -22,38 +24,51 @@ import sbt.internal.inc.{
 }
 import sbt.io.IO
 
-import scala.jdk.CollectionConverters._
-import scala.jdk.OptionConverters._
+import scala.jdk.CollectionConverters.*
+import scala.jdk.OptionConverters.*
 
-class CachedHashingSpec extends BaseCompilerSpec {
+object CachedHashingSpec extends Properties with BaseCompilerSpec:
+  override def tests: List[Test] = List(
+    example("zinc should cache jar generation", cacheJarGeneration),
+  )
+
   lazy val isWindows: Boolean =
     sys.props("os.name").toLowerCase(java.util.Locale.ENGLISH).contains("windows")
 
-  def timeMs[R](block: => R): Long = {
+  def timeMs[R](block: => R): Long =
     val t0 = System.nanoTime()
     block // call-by-name
     val t1 = System.nanoTime()
     (t1 - t0) / 1000000
-  }
 
-  "zinc" should "cache jar generation" in {
+  private def cacheJarGeneration: Result =
     IO.withTemporaryDirectory { tempDir =>
       val classes = Seq(SourceFiles.Good)
       val sources0 = Map(Paths.get("src") -> classes.map(path => Paths.get(path)))
       val projectSetup = ProjectSetup(VirtualSubproject(tempDir.toPath()), sources0, Nil)
-      val compiler = projectSetup.createCompiler()
-      try {
+      withCompiler(projectSetup.createCompiler()) { compiler =>
         import compiler.in.{ setup, options, compilers, previousResult }
-        import sbt.internal.inc.JavaInterfaceUtil._
+        import sbt.internal.inc.JavaInterfaceUtil.*
 
         val javac = compilers.javaTools.javac
         val scalac = compilers.scalac
 
-        import java.nio.file._
-        val giganticClasspath = Files
-          .walk(Paths.get(sys.props("user.home"), ".ivy2"))
-          .iterator()
-          .asScala
+        import java.nio.file.*
+        val home = Paths.get(sys.props("user.home"))
+        val cacheDirs = List(
+          home.resolve(".ivy2"),
+          home.resolve(".coursier").resolve("cache"),
+          home.resolve(".cache").resolve("coursier"),
+          home.resolve("Library").resolve("Caches").resolve("Coursier")
+        ) ++
+          sys.env
+            .get("LOCALAPPDATA")
+            .map(s => Paths.get(s.replace('\\', '/'), "Coursier", "cache"))
+            .toList
+        val giganticClasspath = cacheDirs
+          .filter(Files.isDirectory(_))
+          .iterator
+          .flatMap(dir => Files.walk(dir).iterator().asScala)
           .filter(_.getFileName.toString.endsWith(".jar"))
           .take(500)
           .map(x => PlainVirtualFile(x))
@@ -88,20 +103,14 @@ class CachedHashingSpec extends BaseCompilerSpec {
         val hashingTime = timeMs(genConfig)
         // we've had problems with this failing intermittently in CI (issue #1064), so let's
         // run it three times and accept any passing result; hopefully that will help?
-        val cachedHashingTime =
-          Iterator.continually(timeMs(genConfig))
-            .take(3).min
-        if (isWindows) assert(true)
+        val cachedHashingTime = Iterator.continually(timeMs(genConfig)).take(3).min
+        if isWindows then Result.success
         else
-          assert(
-            cachedHashingTime < (hashingTime * 0.50),
-            s"Cache jar didn't work: $cachedHashingTime is >= than 50% of $hashingTime."
-          )
-      } finally {
-        compiler.close()
+          Result
+            .assert(cachedHashingTime < (hashingTime * 0.50))
+            .log(s"Cache jar didn't work: $cachedHashingTime is >= than 50% of $hashingTime.")
       }
     }
-  }
 
   // it should "fall back when the JAR metadata is changed" in {
   //   IO.withTemporaryDirectory { tempDir =>
@@ -164,4 +173,4 @@ class CachedHashingSpec extends BaseCompilerSpec {
   //     .map(url => Paths.get(url.toURI))
   //     .getOrElse(throw new NoSuchElementException(s"Missing resource $fullPath"))
   // }
-}
+end CachedHashingSpec

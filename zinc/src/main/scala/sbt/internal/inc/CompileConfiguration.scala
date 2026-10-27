@@ -15,7 +15,7 @@ package inc
 
 import xsbti.{ FileConverter, Reporter, VirtualFile }
 import xsbti.compile.{
-  AnalysisStore => XAnalysisStore,
+  AnalysisStore as XAnalysisStore,
   CompileAnalysis,
   CompileProgress,
   GlobalsCache,

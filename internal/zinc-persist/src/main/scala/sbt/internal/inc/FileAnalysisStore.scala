@@ -13,7 +13,7 @@ package sbt
 package internal
 package inc
 
-import java.io._
+import java.io.*
 import java.nio.file.Files
 import java.util.Optional
 import java.util.zip.{ ZipEntry, ZipInputStream }
@@ -21,12 +21,12 @@ import sbt.internal.inc.text.TextAnalysisFormat
 import sbt.io.{ IO, Using }
 import xsbti.api.Companions
 import xsbti.compile.analysis.ReadWriteMappers
-import xsbti.compile.{ AnalysisContents, AnalysisStore => XAnalysisStore }
+import xsbti.compile.{ AnalysisContents, AnalysisStore as XAnalysisStore }
 
 import scala.annotation.tailrec
 import scala.util.control.Exception.allCatch
 
-object FileAnalysisStore {
+object FileAnalysisStore:
   private final val BinExtension = "bin"
   private final val analysisFileName = s"inc_compile.$BinExtension"
   private final val companionsFileName = s"api_companions.$BinExtension"
@@ -47,32 +47,33 @@ object FileAnalysisStore {
     consistent.ConsistentFileAnalysisStore.binary(file, mappers)
 
   private final class FileBasedStoreImpl(file: File, format: TextAnalysisFormat, tmpDir: File)
-      extends XAnalysisStore {
+      extends XAnalysisStore:
     val companionsStore = new FileBasedCompanionsMapStore(file, format)
 
-    def set(analysisContents: AnalysisContents): Unit = {
+    def set(analysisContents: AnalysisContents): Unit =
       val analysis = analysisContents.getAnalysis
       val setup = analysisContents.getMiniSetup
       val tmpAnalysisFile = Files.createTempFile(tmpDir.toPath, file.getName, ".tmp").toFile
-      if (!file.getParentFile.exists()) file.getParentFile.mkdirs()
+      if !file.getParentFile.exists() then file.getParentFile.mkdirs()
       Using.zipOutputStream(new FileOutputStream(tmpAnalysisFile)) { outputStream =>
         val writer = new BufferedWriter(new OutputStreamWriter(outputStream, IO.utf8))
         outputStream.putNextEntry(new ZipEntry(analysisFileName))
         format.write(writer, analysis, setup)
         outputStream.closeEntry()
-        if (setup.storeApis()) {
+        if setup.storeApis() then
           outputStream.putNextEntry(new ZipEntry(companionsFileName))
-          format.writeCompanionMap(writer, analysis match { case a: Analysis => a.apis })
+          format.writeCompanionMap(
+            writer,
+            analysis match
+              case a: Analysis => a.apis
+          )
           outputStream.closeEntry()
-        }
       }
       IO.move(tmpAnalysisFile, file)
-    }
 
-    def get(): Optional[AnalysisContents] = {
-      import scala.jdk.OptionConverters._
+    def get(): Optional[AnalysisContents] =
+      import scala.jdk.OptionConverters.*
       allCatch.opt(unsafeGet()).toJava
-    }
 
     def unsafeGet(): AnalysisContents =
       Using.zipInputStream(new FileInputStream(file)) { inputStream =>
@@ -81,18 +82,17 @@ object FileAnalysisStore {
         val (analysis, setup) = format.read(writer, companionsStore)
         AnalysisContents.create(analysis, setup)
       }
-  }
+  end FileBasedStoreImpl
 
   @tailrec
   private def lookupEntry(in: ZipInputStream, name: String): Unit =
-    Option(in.getNextEntry) match {
+    Option(in.getNextEntry) match
       case Some(entry) if entry.getName == name => ()
       case Some(_)                              => lookupEntry(in, name)
       case None                                 => sys.error(s"$name not found in the zip file")
-    }
 
   private final class FileBasedCompanionsMapStore(file: File, format: TextAnalysisFormat)
-      extends CompanionsStore {
+      extends CompanionsStore:
     def get(): Option[(Map[String, Companions], Map[String, Companions])] =
       allCatch.opt(getUncaught())
     def getUncaught(): (Map[String, Companions], Map[String, Companions]) =
@@ -101,5 +101,4 @@ object FileAnalysisStore {
         val reader = new BufferedReader(new InputStreamReader(inputStream, IO.utf8))
         format.readCompanionMap(reader)
       }
-  }
-}
+end FileAnalysisStore

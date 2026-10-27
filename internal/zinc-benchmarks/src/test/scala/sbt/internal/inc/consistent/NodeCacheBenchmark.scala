@@ -35,7 +35,7 @@ import xsbti.api.Projection
 @Measurement(iterations = 5)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 @State(Scope.Benchmark)
-class NodeCacheBenchmark {
+class NodeCacheBenchmark:
   @Param(Array("1024"))
   var size: Int = 0
 
@@ -43,17 +43,16 @@ class NodeCacheBenchmark {
   var second: Array[Projection] = compiletime.uninitialized
 
   @Setup
-  def setup(): Unit = {
+  def setup(): Unit =
     require(size > 0 && (size & (size - 1)) == 0)
     val bits = Integer.numberOfTrailingZeros(size)
     val prefix = ParameterRef.of("P")
     val names = Array.tabulate(size) { value =>
       val name = new StringBuilder(bits * 2)
       var bit = 0
-      while (bit < bits) {
-        name.append(if (((value >>> bit) & 1) == 0) "Aa" else "BB")
+      while bit < bits do
+        name.append(if ((value >>> bit) & 1) == 0 then "Aa" else "BB")
         bit += 1
-      }
       name.result()
     }
     require(names.distinct.length == size)
@@ -61,35 +60,28 @@ class NodeCacheBenchmark {
     first = names.map(Projection.of(prefix, _))
     second = names.map(Projection.of(prefix, _))
     require(first.iterator.map(_.hashCode).toSet.size == 1)
-  }
 
   @Benchmark
-  def legacyHashMap(bh: Blackhole): Unit = {
+  def legacyHashMap(bh: Blackhole): Unit =
     val cache = new HashMap[AnyRef, AnyRef]()
     var i = 0
-    while (i < size) {
+    while i < size do
       bh.consume(cache.putIfAbsent(first(i), first(i)))
       i += 1
-    }
     i = 0
-    while (i < size) {
+    while i < size do
       bh.consume(cache.putIfAbsent(second(i), second(i)))
       i += 1
-    }
-  }
 
   @Benchmark
-  def zincNodeCache(bh: Blackhole): Unit = {
+  def zincNodeCache(bh: Blackhole): Unit =
     val cache = new NodeCache
     var i = 0
-    while (i < size) {
+    while i < size do
       bh.consume(cache.intern(first(i)))
       i += 1
-    }
     i = 0
-    while (i < size) {
+    while i < size do
       bh.consume(cache.intern(second(i)))
       i += 1
-    }
-  }
-}
+end NodeCacheBenchmark

@@ -15,9 +15,9 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 import scala.collection.mutable
 
-import org.openjdk.jmh.annotations._
+import org.openjdk.jmh.annotations.*
 import org.openjdk.jmh.infra.Blackhole
-import sbt.internal.inc.consistent._
+import sbt.internal.inc.consistent.*
 import sbt.internal.inc.{ Analysis, FileAnalysisStore }
 import sbt.io.IO
 import xsbti.compile.analysis.ReadWriteMappers
@@ -30,14 +30,14 @@ import xsbti.compile.{ AnalysisContents, AnalysisStore }
 @Measurement(iterations = 5)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 @State(Scope.Benchmark)
-class AnalysisFormatBenchmark {
+class AnalysisFormatBenchmark:
 
   var temp: File = compiletime.uninitialized
   val sets = IndexedSeq("compiler", "reflect", "library")
   var cached: Map[String, AnalysisContents] = compiletime.uninitialized
 
   @Setup
-  def setup(): Unit = {
+  def setup(): Unit =
     this.temp = IO.createTemporaryDirectory
     sets.foreach { s =>
       val f = new File("test-data", s"${s}.zip")
@@ -66,12 +66,11 @@ class AnalysisFormatBenchmark {
     val cbinNoSortTotal =
       temp.listFiles().filter(_.getName.endsWith("-cbin-nosort.zip")).map(_.length()).sum
     println(s"cbin-nosort total = $cbinNoSortTotal, ${cbinNoSortTotal / 1024}k")
-  }
+  end setup
 
   @TearDown
-  def tearDown(): Unit = {
-    if (temp != null) IO.delete(temp)
-  }
+  def tearDown(): Unit =
+    if temp != null then IO.delete(temp)
 
   @Benchmark
   def readConsistentBinary(bh: Blackhole): Unit =
@@ -104,7 +103,7 @@ class AnalysisFormatBenchmark {
     )
 
   @Benchmark
-  def writeNull(bh: Blackhole): Unit = {
+  def writeNull(bh: Blackhole): Unit =
     cached.foreach {
       case (s, a) =>
         val ser = new NullSerializer
@@ -112,10 +111,9 @@ class AnalysisFormatBenchmark {
         af.write(ser, a.getAnalysis, a.getMiniSetup)
         bh.consume(ser.count)
     }
-  }
 
   @Benchmark
-  def writeNullNoSort(bh: Blackhole): Unit = {
+  def writeNullNoSort(bh: Blackhole): Unit =
     cached.foreach {
       case (s, a) =>
         val ser = new NullSerializer
@@ -124,7 +122,6 @@ class AnalysisFormatBenchmark {
         af.write(ser, a.getAnalysis, a.getMiniSetup)
         bh.consume(ser.count)
     }
-  }
 
   def readAll(suffix: String, store: File => AnalysisStore): Map[String, AnalysisContents] =
     sets.iterator.map(s => (s, read(s, suffix, store))).toMap
@@ -136,27 +133,25 @@ class AnalysisFormatBenchmark {
   ): Unit =
     map.foreach { case (s, a) => write(s, suffix, store, a) }
 
-  def read(set: String, suffix: String, store: File => AnalysisStore): AnalysisContents = {
+  def read(set: String, suffix: String, store: File => AnalysisStore): AnalysisContents =
     val api = store((new File(temp, s"${set}${suffix}.zip"))).unsafeGet()
     assert(api.getAnalysis.asInstanceOf[Analysis].apis.internal.head._2.api() != null)
     api
-  }
 
   def write(
       set: String,
       suffix: String,
       store: File => AnalysisStore,
       analysis: AnalysisContents
-  ): Unit = {
+  ): Unit =
     assert(analysis.getMiniSetup.storeApis())
     val f = new File(temp, s"${set}${suffix}.zip")
     IO.delete(f)
     store(f).set(analysis)
     assert(f.exists())
-  }
-}
+end AnalysisFormatBenchmark
 
-class NullSerializer extends Serializer {
+class NullSerializer extends Serializer:
   private val strings = mutable.HashMap.empty[String, String]
   private var _count = 0
   def count: Int = _count
@@ -164,15 +159,12 @@ class NullSerializer extends Serializer {
   def startArray(name: String, length: Int): Unit = _count += 1
   def endBlock(): Unit = _count += 1
   def endArray(): Unit = _count += 1
-  def string(s: String): Unit = {
-    if (!strings.contains(s)) {
+  def string(s: String): Unit =
+    if !strings.contains(s) then
       strings.put(s, s)
       _count += 1
-    }
-  }
   def bool(b: Boolean): Unit = _count += 1
   def int(i: Int): Unit = _count += 1
   def byte(b: Byte): Unit = _count += 1
   def long(l: Long): Unit = _count += 1
   def end(): Unit = _count += 1
-}

@@ -13,7 +13,7 @@ package sbt.inc
 
 import java.nio.file.Paths
 
-object TestResource {
+object TestResource:
   def knownSampleGoodFile0 =
     Paths.get(getClass.getClassLoader.getResource("sources/Good.scala").toURI)
   def fooSampleFile0 =
@@ -26,5 +26,4 @@ object TestResource {
     Paths.get(classOf[TestResource].getResource("Ext1.scala").toURI)
   def ext2File0 =
     Paths.get(classOf[TestResource].getResource("Ext2.scala").toURI)
-}
 class TestResource

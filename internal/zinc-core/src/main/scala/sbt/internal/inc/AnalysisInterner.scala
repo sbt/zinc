@@ -11,7 +11,7 @@
 
 package sbt.internal.inc
 
-import java.util.{ EnumSet => JEnumSet }
+import java.util.EnumSet as JEnumSet
 
 import xsbti.UseScope
 
@@ -35,7 +35,7 @@ import xsbti.UseScope
  * build server. Benchmarks that need an uninterned baseline compare against a
  * stock zinc checkout; production code always interns.
  */
-object AnalysisInterner {
+object AnalysisInterner:
 
   private[inc] final val DEFAULT_SCOPE = 1
   private[inc] final val IMPLICIT_SCOPE = 2
@@ -56,19 +56,17 @@ object AnalysisInterner {
    * `PAT_MAT_TARGET_SCOPE`. Constructs a `UsedName` only when the value is not
    * pooled yet.
    */
-  def usedName(name: String, scopeBits: Int): UsedName = {
+  def usedName(name: String, scopeBits: Int): UsedName =
     // UsedName stores the escaped name, so the pool must be probed with it too;
     // escaping is a no-op unless the name contains control characters.
     val escaped = UsedName.escapeControlChars(name)
     val pool = usedNamePools(scopeBits)
     val existing = pool.get(escaped)
-    if (existing != null) existing
-    else {
+    if existing != null then existing
+    else
       val fresh = UsedName.make(escaped, scopeSets(scopeBits))
       val prev = pool.putIfAbsent(fresh.name, fresh)
-      if (prev == null) fresh else prev
-    }
-  }
+      if prev == null then fresh else prev
 
   /**
    * The eight possible scope sets, indexed by scope bits. Shared by every
@@ -77,15 +75,15 @@ object AnalysisInterner {
   private[inc] val scopeSets: Array[JEnumSet[UseScope]] =
     Array.tabulate(SCOPE_COMBINATIONS) { bits =>
       val scopes = JEnumSet.noneOf(classOf[UseScope])
-      if ((bits & DEFAULT_SCOPE) != 0) scopes.add(UseScope.Default)
-      if ((bits & IMPLICIT_SCOPE) != 0) scopes.add(UseScope.Implicit)
-      if ((bits & PAT_MAT_TARGET_SCOPE) != 0) scopes.add(UseScope.PatMatTarget)
+      if (bits & DEFAULT_SCOPE) != 0 then scopes.add(UseScope.Default)
+      if (bits & IMPLICIT_SCOPE) != 0 then scopes.add(UseScope.Implicit)
+      if (bits & PAT_MAT_TARGET_SCOPE) != 0 then scopes.add(UseScope.PatMatTarget)
       scopes
     }
 
   /** The inverse of `scopeSets`: also the encoding used by the persisted format. */
   private[inc] def scopeBits(scopes: JEnumSet[UseScope]): Int =
-    (if (scopes.contains(UseScope.Default)) DEFAULT_SCOPE else 0) |
-      (if (scopes.contains(UseScope.Implicit)) IMPLICIT_SCOPE else 0) |
-      (if (scopes.contains(UseScope.PatMatTarget)) PAT_MAT_TARGET_SCOPE else 0)
-}
+    (if scopes.contains(UseScope.Default) then DEFAULT_SCOPE else 0) |
+      (if scopes.contains(UseScope.Implicit) then IMPLICIT_SCOPE else 0) |
+      (if scopes.contains(UseScope.PatMatTarget) then PAT_MAT_TARGET_SCOPE else 0)
+end AnalysisInterner

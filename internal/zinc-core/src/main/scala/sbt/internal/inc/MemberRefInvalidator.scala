@@ -54,15 +54,19 @@ import xsbti.UseScope
  * dependencies unconditionally. On the other hand, if api change is due to modified name hashes
  * of regular members then we'll invalidate sources that use those names.
  */
-private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolean) {
+private[inc] class MemberRefInvalidator(
+    log: Logger,
+    invalidationLog: InvalidationLog,
+    logRecompileOnMacro: Boolean
+):
   private final val NoInvalidation = (_: String) => Set.empty[String]
   def get(
       memberRef: Relation[String, String],
       usedNames: Relations.UsedNames,
       apiChange: APIChange,
       isScalaClass: String => Boolean
-  ): String => Set[String] = apiChange match {
-    case _: TraitPrivateMembersModified => NoInvalidation
+  ): String => Set[String] = apiChange match
+    case _: TraitPrivateMembersModified   => NoInvalidation
     case _: APIChangeDueToMacroDefinition =>
       new InvalidateUnconditionally(memberRef)
     case _: APIChangeDueToAnnotationDefinition =>
@@ -71,9 +75,8 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
       new InvalidateUnconditionally(memberRef)
     case NamesChange(_, modifiedNames) =>
       new NameHashFilteredInvalidator(usedNames, memberRef, modifiedNames, isScalaClass)
-  }
 
-  def invalidationReason(apiChange: APIChange): String = apiChange match {
+  def invalidationReason(apiChange: APIChange): String = apiChange match
     case TraitPrivateMembersModified(modifiedClass) =>
       s"The private signature of trait ${modifiedClass} changed."
     case APIChangeDueToMacroDefinition(modifiedSrcFile) =>
@@ -81,78 +84,77 @@ private[inc] class MemberRefInvalidator(log: Logger, logRecompileOnMacro: Boolea
     case APIChangeDueToAnnotationDefinition(modifiedSrcFile) =>
       s"The $modifiedSrcFile source file declares an annotation."
     case NamesChange(modifiedClass, modifiedNames) =>
-      modifiedNames.in(UseScope.Implicit) match {
+      modifiedNames.in(UseScope.Implicit) match
         case changedImplicits if changedImplicits.isEmpty =>
-          s"""|The $modifiedClass has the following regular definitions changed:
-              |\t${modifiedNames.names.mkString(", ")}.""".stripMargin
+          s"The $modifiedClass has changed definitions: ${InvalidationLog.formatUsedNames(modifiedNames.names).mkString(", ")}."
         case changedImplicits =>
-          s"""|The $modifiedClass has the following implicit definitions changed:
-              |\t${changedImplicits.mkString(", ")}.""".stripMargin
-      }
-  }
+          s"The $modifiedClass has changed implicit definitions: ${InvalidationLog.formatUsedNames(changedImplicits).mkString(", ")}."
 
   // Left for compatibility
   private[inc] class InvalidateDueToMacroDefinition(memberRef: Relation[String, String])
-      extends (String => Set[String]) {
-    def apply(from: String): Set[String] = {
+      extends (String => Set[String]):
+    def apply(from: String): Set[String] =
       val invalidated = memberRef.reverse(from)
-      if (invalidated.nonEmpty && logRecompileOnMacro) {
+      if invalidated.nonEmpty && logRecompileOnMacro then
         log.info(
           s"Because $from contains a macro definition, the following dependencies are invalidated unconditionally:\n" +
             formatInvalidated(invalidated)
         )
-      }
       invalidated
-    }
-  }
 
   private class InvalidateUnconditionally(memberRef: Relation[String, String])
-      extends (String => Set[String]) {
-    def apply(from: String): Set[String] = {
+      extends (String => Set[String]):
+    def apply(from: String): Set[String] =
       val invalidated = memberRef.reverse(from)
-      if (invalidated.nonEmpty)
-        log.debug(
-          s"The following member ref dependencies of $from are invalidated:\n" +
-            formatInvalidated(invalidated)
+      if invalidated.nonEmpty then
+        invalidationLog.detail(
+          InvalidationLog.section(
+            s"Unconditional member-reference invalidation from $from",
+            Seq("invalidated classes" -> invalidated)
+          )
         )
       invalidated
-    }
-  }
 
-  private def formatInvalidated(invalidated: Set[String]): String = {
+  private def formatInvalidated(invalidated: Set[String]): String =
     // val sortedFiles = invalidated.toSeq.sortBy(_.getAbsolutePath)
     invalidated.toSeq.sorted.map(cls => "\t" + cls).mkString("\n")
-  }
 
   private class NameHashFilteredInvalidator(
       usedNames: Relations.UsedNames,
       memberRef: Relation[String, String],
       modifiedNames: ModifiedNames,
       isScalaClass: String => Boolean
-  ) extends (String => Set[String]) {
+  ) extends (String => Set[String]):
 
-    def apply(to: String): Set[String] = {
+    def apply(to: String): Set[String] =
       val dependent = memberRef.reverse(to)
       filteredDependencies(dependent)
-    }
 
-    private def filteredDependencies(dependent: Set[String]): Set[String] = {
+    private def filteredDependencies(dependent: Set[String]): Set[String] =
       dependent.filter {
         case from if isScalaClass(from) =>
-          if (!usedNames.hasAffectedNames(modifiedNames, from)) {
-            log.debug(
+          if !usedNames.hasAffectedNames(modifiedNames, from) then
+            invalidationLog.detail(
               s"None of the modified names appears in source file of $from. This dependency is not being considered for invalidation."
             )
             false
-          } else {
-            val affectedNames = usedNames.affectedNames(modifiedNames, from)
-            log.debug(s"The following modified names cause invalidation of $from: [$affectedNames]")
+          else
+            invalidationLog.debug(
+              InvalidationLog.section(
+                s"Member-reference invalidation of $from",
+                Seq(
+                  "modified names used by the class" -> Seq(
+                    usedNames.affectedNames(modifiedNames, from)
+                  )
+                )
+              )
+            )
             true
-          }
         case from =>
-          log.debug(s"Name hashing optimization doesn't apply to non-Scala dependency: $from")
+          invalidationLog.detail(
+            s"Name hashing optimization doesn't apply to non-Scala dependency: $from"
+          )
           true
       }
-    }
-  }
-}
+  end NameHashFilteredInvalidator
+end MemberRefInvalidator

@@ -1,9 +1,9 @@
-import sbt._
+import sbt.*
 
 import sbtheader.HeaderPlugin
-import sbtheader.HeaderPlugin.{ autoImport => SbtHeaderKeys }
+import sbtheader.HeaderPlugin.autoImport as SbtHeaderKeys
 
-object CustomHeaderPlugin extends AutoPlugin {
+object CustomHeaderPlugin extends AutoPlugin:
   override def requires = plugins.JvmPlugin && HeaderPlugin
   override def trigger = allRequirements
   import SbtHeaderKeys.{ HeaderFileType, HeaderCommentStyle, HeaderLicense }
@@ -27,4 +27,4 @@ object CustomHeaderPlugin extends AutoPlugin {
       )
     )
   )
-}
+end CustomHeaderPlugin
