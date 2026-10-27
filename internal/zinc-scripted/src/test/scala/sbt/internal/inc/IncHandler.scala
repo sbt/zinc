@@ -13,20 +13,22 @@ package sbt
 package internal
 package inc
 
-import java.io.{ ByteArrayOutputStream, PrintStream }
-import java.nio.file.{ Files, Path, Paths }
+import java.io.{ ByteArrayOutputStream, OutputStream, PrintStream }
+import java.nio.file.{ Files, Path, Paths, StandardCopyOption }
 import java.net.URLClassLoader
 import java.util.jar.Manifest
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.zip.ZipFile
 
 import sbt.util.Logger
-import sbt.util.InterfaceUtil._
+import sbt.util.InterfaceUtil.*
 import xsbt.api.Discovery
 import xsbti.{ FileConverter, Problem, Severity, VirtualFileRef, VirtualFile }
 import xsbti.compile.analysis.ReadSourceInfos
 import xsbti.compile.{
   AnalysisContents,
   AnalysisStore,
-  ClassFileManager => XClassFileManager,
+  ClassFileManager as XClassFileManager,
   ClasspathOptionsUtil,
   CompileAnalysis,
   CompileOrder,
@@ -38,12 +40,12 @@ import xsbti.compile.{
   IncOptionsUtil,
   PerClasspathEntryLookup,
   PreviousResult,
-  CompilerCache => XCompilerCache,
-  Compilers => XCompilers,
-  ScalaInstance => XScalaInstance
+  CompilerCache as XCompilerCache,
+  Compilers as XCompilers,
+  ScalaInstance as XScalaInstance
 }
 import sbt.io.IO
-import sbt.io.syntax._
+import sbt.io.syntax.*
 import sbt.io.DirectoryFilter
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier.{ isPublic, isStatic }
@@ -52,12 +54,12 @@ import java.util.{ Optional, Properties }
 import sbt.internal.inc.classpath.{ ClassLoaderCache, ClasspathUtil, ClasspathFilter }
 import sbt.internal.scripted.{ StatementHandler, TestFailed }
 import sbt.internal.util.ManagedLogger
-import sjsonnew.support.scalajson.unsafe.{ Converter, Parser => JsonParser }
+import sjsonnew.support.scalajson.unsafe.{ Converter, Parser as JsonParser }
 
 import scala.collection.mutable
 import scala.concurrent.{ blocking, Await, Future, Promise }
-import scala.concurrent.duration._
-import scala.jdk.OptionConverters._
+import scala.concurrent.duration.*
+import scala.jdk.OptionConverters.*
 import scala.util.control.NonFatal
 import scala.util.Success
 
@@ -65,7 +67,8 @@ final case class Project(
     name: String,
     dependsOn: Option[Vector[String]] = None,
     in: Option[Path] = None,
-    scalaVersion: Option[String] = None
+    scalaVersion: Option[String] = None,
+    compileOrder: Option[String] = None
 )
 
 final case class Build(projects: Seq[Project])
@@ -73,29 +76,28 @@ final case class Build(projects: Seq[Project])
 final case class IncState(
     si: XScalaInstance,
     cs: XCompilers,
+    compilerBridge: Path,
     number: Int,
     compilations: scala.collection.concurrent.Map[
       ProjectStructure,
       (Future[Analysis], Future[Boolean])
     ] = scala.collection.concurrent.TrieMap.empty
-) {
+):
   def inc: IncState =
     copy(number = number + 1, compilations = scala.collection.concurrent.TrieMap.empty)
-}
 
 class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, compileToJar: Boolean)
-    extends BridgeProviderSpecification
-    with StatementHandler {
-  import scala.concurrent.ExecutionContext.Implicits._
+    extends BridgeProviderTestkit
+    with StatementHandler:
+  import scala.concurrent.ExecutionContext.Implicits.*
   type State = Option[IncState]
   type IncCommand = (ProjectStructure, List[String], IncState) => Future[Unit]
 
   val incrementalCompiler = new IncrementalCompilerImpl
 
-  def initialState: State = {
+  def initialState: State =
     initBuildStructure()
     None
-  }
 
   // Required so that next projects re-read the project structure
   def finish(state: State): Unit = buildStructure.clear()
@@ -108,10 +110,11 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
       "C_CACHE1" -> Paths.get(sys.props("user.home")).resolve(".coursier").resolve("cache"),
       "C_CACHE2" -> Paths.get(sys.props("user.home")).resolve(".cache").resolve("coursier"),
       "C_CACHE3" -> Paths.get(sys.props("user.home"), "Library/Caches/Coursier/v1")
-    ) ++ sys.env
-      .get("LOCALAPPDATA")
-      .map(s => "C_CACHE4" -> Paths.get(s.replace('\\', '/'), "Coursier/cache/v1"))
-      .toList)*
+    ) ++
+      sys.env
+        .get("LOCALAPPDATA")
+        .map(s => "C_CACHE4" -> Paths.get(s.replace('\\', '/'), "Coursier/cache/v1"))
+        .toList)*
   )
   def rootPaths: Map[String, Path] =
     Map("BASE" -> directory, "SBT_BOOT" -> localBoot, "JAVA_HOME" -> javaHome) ++ localCoursierCache
@@ -119,12 +122,13 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
 
   val buildStructure: mutable.Map[String, ProjectStructure] = mutable.Map.empty
 
-  def initBuildStructure(): Unit = {
+  def initBuildStructure(): Unit =
     val build = initBuild
     build.projects.foreach { p =>
       val in: Path = p.in.getOrElse(directory / p.name)
-      val version = switchScalaVersion(p.scalaVersion)
+      val label = bridgeLabel(p.scalaVersion)
       val deps = p.dependsOn.toVector.flatten
+      val order = p.compileOrder.fold(CompileOrder.Mixed)(CompileOrder.valueOf)
       val project = ProjectStructure(
         p.name,
         deps,
@@ -132,79 +136,96 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
         converter,
         scriptedLog,
         lookupProject,
-        version,
+        bridgesByLabel(label).version,
+        label,
         compileToJar,
-        incrementalCompiler
+        incrementalCompiler,
+        order
       )
       buildStructure(p.name) = project
     }
-  }
+  end initBuildStructure
 
   final val RootIdentifier = "root"
 
-  def initBuild: Build = {
-    if (Files.exists(directory / "build.json")) {
+  def initBuild: Build =
+    if Files.exists(directory / "build.json") then
       import sjsonnew.{ IsoString, JsonFormat }
-      import sjsonnew.BasicJsonProtocol._
+      import sjsonnew.BasicJsonProtocol.*
       given pathISOString: IsoString[Path] = IsoString.iso[Path](_.toString, Paths.get(_))
       given pathFormat: JsonFormat[Path] = isoStringFormat[Path](using pathISOString)
       given projectFormat: JsonFormat[Project] =
-        caseClass4(Project.apply, p => Some(p.name, p.dependsOn, p.in, p.scalaVersion))(
+        caseClass5(
+          Project.apply,
+          p => Some(p.name, p.dependsOn, p.in, p.scalaVersion, p.compileOrder)
+        )(
           "name",
           "dependsOn",
           "in",
           "scalaVersion",
+          "compileOrder",
         )
       given buildFormat: JsonFormat[Build] =
         caseClass1(Build.apply, b => Some(b.projects))("projects")
       // Do not parseFromFile as it leaves file open, causing problems on Windows.
-      val json = {
+      val json =
         val channel = Files.newByteChannel(directory / "build.json")
         try JsonParser.parseFromChannel(channel).get
         finally channel.close()
-      }
       Converter.fromJsonUnsafe[Build](json)
-    } else Build(projects = Vector(Project(name = RootIdentifier).copy(in = Some(directory))))
-  }
+    else Build(projects = Vector(Project(name = RootIdentifier).copy(in = Some(directory))))
 
   def lookupProject(name: String): ProjectStructure = buildStructure(name)
 
-  override def apply(command: String, arguments: List[String], state: State): State = {
+  override def apply(command: String, arguments: List[String], state: State): State =
     scriptedLog.debug(() => s"Running: > $command ${arguments.mkString(" ")}")
     val splitCommands = command.split("/").toList
     // Note that root does not do aggregation as sbt does.
-    val (project, commandToRun) = splitCommands match {
+    val (project, commandToRun) = splitCommands match
       case sub :: cmd :: Nil => buildStructure(sub) -> cmd
       case cmd :: Nil        => buildStructure(RootIdentifier) -> cmd
       case _ => sys.error(s"The command is either empty or has more than one `/`: $command")
-    }
     val runner = (ii: IncState) => commands(commandToRun)(project, arguments, ii)
     Some(onIncState(state, project)(runner))
-  }
 
   def onIncState(i: Option[IncState], p: ProjectStructure)(
       run: IncState => Future[Unit]
-  ): IncState = {
+  ): IncState =
     val instance = i.getOrElse(onNewIncState(p))
     try Await.result(run(instance), 600.seconds)
-    catch {
+    catch
       case NonFatal(e) =>
         instance.compilations.clear()
         throw e
-    }
     instance.inc
-  }
 
   private final val noLogger = Logger.Null
 
-  private def onNewIncState(p: ProjectStructure): IncState = {
-    val scalaVersion = p.scalaVersion
-    val (compilerBridge, si) = IncHandler.getCompilerCacheFor(scalaVersion).getOrElse {
-      val compilerBridge = getCompilerBridge(cacheDir, noLogger, scalaVersion)
-      val si = scalaInstance(scalaVersion, cacheDir, noLogger)
-      val toCache = (compilerBridge, si)
-      IncHandler.putCompilerCache(scalaVersion, toCache)
-      toCache
+  private def onNewIncState(p: ProjectStructure): IncState =
+    val labels = buildStructure.values.map(_.bridgeLabel).toSet
+    if labels.size > 1 then
+      sys.error(
+        "Projects in one scripted test share a compiler, so they must use one scalaVersion: " +
+          buildStructure.values.map(q => s"${q.name}: ${q.bridgeLabel}").toList.sorted.mkString(
+            ", "
+          )
+      )
+    val label = p.bridgeLabel
+    val (compilerBridge, si) = IncHandler.synchronized {
+      IncHandler.getCompilerCacheFor(label).getOrElse {
+        val provider = getZincProvider(cacheDir, label)
+        val si = provider.fetchScalaInstance(p.scalaVersion, noLogger)
+        val compilerBridge = cacheDir / s"target-bridge-$label.jar"
+        if !Files.exists(compilerBridge) then
+          Files.copy(
+            provider.fetchCompiledBridge(si, noLogger).toPath,
+            compilerBridge,
+            StandardCopyOption.REPLACE_EXISTING
+          )
+        val toCache = (compilerBridge, si)
+        IncHandler.putCompilerCache(label, toCache)
+        toCache
+      }
     }
     val analyzingCompiler = scalaCompiler(si, compilerBridge)
     val cs = incrementalCompiler.compilers(
@@ -213,16 +234,15 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
       None,
       analyzingCompiler
     )
-    IncState(si, cs, 0)
-  }
+    IncState(si, cs, compilerBridge, 0)
+  end onNewIncState
 
   private final val unit = (_: Seq[String]) => ()
 
-  def scalaCompiler(instance: XScalaInstance, bridgeJar: Path): AnalyzingCompiler = {
+  def scalaCompiler(instance: XScalaInstance, bridgeJar: Path): AnalyzingCompiler =
     val bridgeProvider = ZincUtil.constantBridgeProvider(instance, bridgeJar)
     val classpath = ClasspathOptionsUtil.noboot(instance.version)
     new AnalyzingCompiler(instance, bridgeProvider, classpath, unit, IncHandler.classLoaderCache)
-  }
 
   // hopefully the meaning of the commands can be understood by looking at examples.
   // the `check-recompilations` test is a good one for seeing how `checkDependencies`
@@ -232,6 +252,12 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
     noArgs("clean") { case (p, _) => p.clean() },
     onArgs("checkIterations") {
       case (p, x :: Nil, i) => p.checkNumberOfCompilerIterations(i, x.toInt)
+    },
+    onArgs("checkInvalidationLog") {
+      case (p, expectedLog :: Nil, _) => p.checkInvalidationLog(expectedLog)
+    },
+    onArgs("checkBridge") {
+      case (p, expected :: Nil, i) => p.checkBridge(i, expected)
     },
     onArgs("checkNumberOfLibraries") {
       case (p, x :: Nil, i) => p.checkNumberOfLibraries(i, x.toInt)
@@ -279,7 +305,7 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
     noArgs("checkNoClassFiles") { case (p, _) => p.checkNoGeneratedClassFiles() }
   )
 
-  private def dropRightColon(s: String) = if (s endsWith ":") s.dropRight(1) else s
+  private def dropRightColon(s: String) = if s endsWith ":" then s.dropRight(1) else s
 
   private def onArgs(commandName: String)(
       pf: PartialFunction[(ProjectStructure, List[String], IncState), Future[Unit]]
@@ -291,13 +317,13 @@ class IncHandler(directory: Path, cacheDir: Path, scriptedLog: ManagedLogger, co
       pf: PartialFunction[(ProjectStructure, IncState), Future[Unit]]
   ): (String, IncCommand) =
     commandName ->
-      ((p, xs, i) => {
+      ((p, xs, i) =>
         applyOrElse(pf, (p, i), p.acceptsNoArguments(commandName, xs))
-      })
+      )
 
   private def applyOrElse[A, B](pf: PartialFunction[A, B], x: A, fb: => B): B =
     pf.applyOrElse(x, (_: A) => fb)
-}
+end IncHandler
 
 case class ProjectStructure(
     name: String,
@@ -307,22 +333,23 @@ case class ProjectStructure(
     scriptedLog: ManagedLogger,
     lookupProject: String => ProjectStructure,
     scalaVersion: String,
+    bridgeLabel: String,
     compileToJar: Boolean,
-    incrementalCompiler: IncrementalCompilerImpl
-) extends BridgeProviderSpecification {
-  import scala.concurrent.ExecutionContext.Implicits._
+    incrementalCompiler: IncrementalCompilerImpl,
+    compileOrder: CompileOrder = CompileOrder.Mixed
+) extends BridgeProviderTestkit:
+  import scala.concurrent.ExecutionContext.Implicits.*
   // This will test pipelining unless incOptions.properties overrides it
   val defaultPipelining = true
   val maxErrors = 100
   val targetDir = baseDirectory / "target"
   // val targetDir = Paths.get("/tmp/pipelining") / name / "target"
   val classesDir = targetDir / "classes"
-  val outputJar = if (compileToJar) Some(classesDir / "output.jar") else None
+  val outputJar = if compileToJar then Some(classesDir / "output.jar") else None
   val output = outputJar.getOrElse(classesDir)
   val earlyOutput = targetDir / "early" / "output.jar"
-  if (!earlyOutput.toFile.getParentFile.exists()) {
+  if !earlyOutput.toFile.getParentFile.exists() then
     earlyOutput.toFile.getParentFile.mkdirs()
-  }
   val generatedClassFiles = classesDir.toFile ** "*.class"
   val scalaSourceDirectory = baseDirectory / "src" / "main" / "scala"
   val javaSourceDirectory = baseDirectory / "src" / "main" / "java"
@@ -343,12 +370,20 @@ case class ProjectStructure(
   val cachedStore = AnalysisStore.cached(fileStore)
   val earlyCacheFile = baseDirectory / "target" / "early" / "inc_compile.zip"
   val earlyAnalysisStore = FileAnalysisStore.binary(earlyCacheFile.toFile)
+  private val invalidationLines = new ConcurrentLinkedQueue[String]()
+  private val compilerLog = new Logger:
+    override def trace(t: => Throwable): Unit = scriptedLog.trace(t)
+    override def success(message: => String): Unit = scriptedLog.success(message)
+    override def log(level: sbt.util.Level.Value, message: => String): Unit =
+      val rendered = message
+      rendered.linesIterator.filter(_.startsWith("[inv] ")).foreach(invalidationLines.add)
+      scriptedLog.log(level, rendered)
   // val earlyCachedStore = AnalysisStore.cached(fileStore)
   // val profiler = new ZincInvalidationProfiler
 
   // We specify the class file manager explicitly even though it's noew possible
   // to specify it in the incremental option property file (this is the default for sbt)
-  val (incOptions, scalacOptions) = {
+  val (incOptions, scalacOptions) =
     val properties = loadIncProperties(baseDirectory)
     val (incOptions0, sco) = loadIncOptions(properties)
     val storeApis = Option(properties.getProperty("incOptions.storeApis"))
@@ -364,29 +399,24 @@ case class ProjectStructure(
         .withClassfileManagerType(transactional)
         .withStoreApis(storeApis)
     (incO, sco)
-  }
   val exportPipelining = incOptions.pipelining
 
-  def prev(useCachedAnalysis: Boolean = true) = {
-    val store = if (useCachedAnalysis) cachedStore else fileStore
-    store.get.toScala match {
+  def prev(useCachedAnalysis: Boolean = true) =
+    val store = if useCachedAnalysis then cachedStore else fileStore
+    store.get.toScala match
       case Some(contents) =>
         PreviousResult.of(Optional.of(contents.getAnalysis), Optional.of(contents.getMiniSetup))
       case _ => incrementalCompiler.emptyPreviousResult
-    }
-  }
 
-  def earlyPreviousResult: PreviousResult = {
+  def earlyPreviousResult: PreviousResult =
     val store = earlyAnalysisStore
-    store.get.toScala match {
+    store.get.toScala match
       case Some(contents) =>
         PreviousResult.of(Optional.of(contents.getAnalysis), Optional.of(contents.getMiniSetup))
       case _ => incrementalCompiler.emptyPreviousResult
-    }
-  }
 
-  def unmanagedJars: List[Path] =
-    ((baseDirectory / "lib").toFile ** "*.jar").get().toList.map(_.toPath)
+  def unmanagedJars
+      : List[Path] = ((baseDirectory / "lib").toFile ** "*.jar").get().toList.map(_.toPath)
 
   def dependsOnRef: Vector[ProjectStructure] = dependsOn.map(lookupProject(_))
 
@@ -419,6 +449,26 @@ case class ProjectStructure(
       ()
     }
 
+  def checkInvalidationLog(expectedLog: String): Future[Unit] = Future {
+    import scala.jdk.CollectionConverters.*
+    val expected = Files
+      .readAllLines(baseDirectory.resolve(expectedLog))
+      .asScala
+      .iterator
+      .filter(_.nonEmpty)
+      .toVector
+    val actual = invalidationLines.iterator.asScala.toVector
+    expected.foldLeft(actual) { (remaining, expectedLine) =>
+      remaining.dropWhile(_ != expectedLine) match
+        case _ +: tail => tail
+        case _         =>
+          throw new AssertionError(
+            s"Expected invalidation-log line '$expectedLine' in order.\nActual log:\n${actual.mkString("\n")}"
+          )
+    }
+    ()
+  }
+
   def checkRecompilations(i: IncState, step: Int, expected: List[String]): Future[Unit] =
     compile(i).map { analysis =>
       val allCompilations = analysis.compilations.allCompilations
@@ -428,13 +478,12 @@ case class ProjectStructure(
         }
         recompiledClasses.toSet
       }
-      def recompiledClassesInIteration(iteration: Int, classNames: Set[String]) = {
+      def recompiledClassesInIteration(iteration: Int, classNames: Set[String]) =
         assert(
           recompiledClasses(iteration) == classNames,
           s"""${recompiledClasses(iteration)} != $classNames
            |allCompilations = ${allCompilations.mkString("\n  ")}""".stripMargin
         )
-      }
 
       assert(step < allCompilations.size)
       recompiledClassesInIteration(step, expected.toSet)
@@ -454,10 +503,9 @@ case class ProjectStructure(
     compile(i).map { analysis =>
       def classes(src: String): Set[String] =
         analysis.relations.classNames(converter.toVirtualFile(baseDirectory / src))
-      def assertClasses(expected: Set[String], actual: Set[String]) = {
+      def assertClasses(expected: Set[String], actual: Set[String]) =
         val msg = s"Expected $expected classes, got $actual \n\n" + analysis.relations
         assert(expected == actual, msg)
-      }
       assertClasses(expected.toSet, classes(src))
       ()
     }
@@ -472,10 +520,9 @@ case class ProjectStructure(
       val is25Plus = scala.util.Properties.isJavaAtLeast("25")
       def mainClasses(src: String): Set[String] =
         analysis.infos.get(converter.toVirtualFile(baseDirectory / src)).getMainClasses.toSet
-      def assertClasses(expected: Set[String], actual: Set[String]) = {
+      def assertClasses(expected: Set[String], actual: Set[String]) =
         val msg = s"Expected $expected classes, got $actual\n\n" + analysis.infos.allInfos
         assert(expected == actual, msg)
-      }
 
       if is25Plus == (javaV == "25") then assertClasses(expected.toSet, mainClasses(src))
       ()
@@ -501,7 +548,7 @@ case class ProjectStructure(
   def checkProductsExist(i: IncState, src: String): Future[Unit] =
     compile(i).map { analysis =>
       val missing =
-        for (p <- getProducts(analysis)(src).toList if !Files.exists(converter.toPath(p))) yield p
+        for p <- getProducts(analysis)(src).toList if !Files.exists(converter.toPath(p)) yield p
       assert(
         missing.isEmpty,
         s"""Missing ${missing.size} products:${missing.map("\n  " + _).mkString}
@@ -515,14 +562,13 @@ case class ProjectStructure(
       val allPlainClassFiles = generatedClassFiles.get().toList.map(_.toString)
       val allClassesInJar: List[String] =
         outputJar.toList.filter(Files.exists(_)).flatMap(p => JarUtils.listClassFiles(p.toFile))
-      if (allPlainClassFiles.nonEmpty || allClassesInJar.nonEmpty) {
+      if allPlainClassFiles.nonEmpty || allClassesInJar.nonEmpty then
         val classfiles = allPlainClassFiles.mkString("\n * ", "\n * ", "")
         sys.error(
           s"""classes exists: allPlainClassFiles = $classfiles
              |
              |allClassesInJar = $allClassesInJar""".stripMargin
         )
-      }
     }
 
   def checkDependencies(i: IncState, className: String, expected: List[String]): Future[Unit] =
@@ -541,6 +587,32 @@ case class ProjectStructure(
       ()
     }
 
+  /**
+   * Checks which compiler bridge compiles this test: `zinc` for the compiler-bridge sources in
+   * this repository, or `scala2-sbt-bridge` / `scala3-sbt-bridge` for the ones the compilers ship.
+   * Tells them apart by package, which a Scala version cannot do.
+   */
+  def checkBridge(i: IncState, expected: String): Future[Unit] =
+    Future {
+      val markers = Map(
+        "zinc" -> "xsbt/CompilerBridge.class",
+        "scala2-sbt-bridge" -> "scala/tools/xsbt/CompilerBridge.class",
+        "scala3-sbt-bridge" -> "dotty/tools/xsbt/CompilerBridge.class",
+      )
+      val marker = markers.getOrElse(
+        expected,
+        sys.error(s"Unknown bridge '$expected', expected one of ${markers.keys.mkString(", ")}")
+      )
+      val zip = new ZipFile(i.compilerBridge.toFile)
+      val found =
+        try markers.collect { case (name, entry) if zip.getEntry(entry) != null => name }.toSet
+        finally zip.close()
+      assertShort(
+        found == Set(expected),
+        s"Expected bridge $expected (${marker}), found ${found.mkString(", ")} in ${i.compilerBridge}"
+      )
+    }
+
   def checkNumberOfLibraries(i: IncState, expected: Int): Future[Unit] =
     compile(i).map { analysis =>
       val count = analysis.stamps.libraries.size
@@ -551,33 +623,31 @@ case class ProjectStructure(
 
   def run(i: IncState, params: Seq[String]): Future[Unit] =
     compile(i).map { analysis =>
-      discoverMainClasses(Some(analysis.apis)) match {
+      discoverMainClasses(Some(analysis.apis)) match
         case Seq(mainClassName) =>
           val jars = i.si.allJars.map(_.toPath)
           val cp = (jars ++ (unmanagedJars :+ output) ++ internalClasspath).map(_.toAbsolutePath)
           val loader = ClasspathUtil.makeLoader(cp.toIndexedSeq, i.si, baseDirectory)
           val buffer = new ByteArrayOutputStream(8192)
-          val oldOut = System.out
-          try {
-            System.setOut(new PrintStream(buffer))
-            invokeMain(loader, getMainMethod(mainClassName, loader), params)
-          } catch {
+          try
+            ThreadLocalOut.capture(new PrintStream(buffer)) {
+              invokeMain(loader, getMainMethod(mainClassName, loader), params)
+            }
+          catch
             case t: Throwable =>
-              buffer.writeTo(oldOut)
+              buffer.writeTo(System.out)
               throw t
-          } finally {
-            System.setOut(oldOut)
-            loader match { case f: ClasspathFilter => f.close() }
-          }
+          finally
+            loader match
+              case f: ClasspathFilter => f.close()
         case Seq() => throw new TestFailed(s"Did not find any main class")
         case s     => throw new TestFailed(s"Found more than one main class: $s")
-      }
     }
 
   def compile(i: IncState): Future[Analysis] = startCompilation(i)._1
 
   def startCompilation(i: IncState): (Future[Analysis], Future[Boolean]) = synchronized {
-    def traditionalLookupAnalysis: VirtualFile => Option[CompileAnalysis] = {
+    def traditionalLookupAnalysis: VirtualFile => Option[CompileAnalysis] =
       val f0: PartialFunction[VirtualFile, Option[CompileAnalysis]] = {
         case x if converter.toPath(x).toAbsolutePath == classesDir.toAbsolutePath =>
           prev().analysis.toScala
@@ -589,8 +659,7 @@ case class ProjectStructure(
         }
       }
       f1 orElse { case _ => None }
-    }
-    def pipelinedLookupAnalysis: VirtualFile => Option[CompileAnalysis] = {
+    def pipelinedLookupAnalysis: VirtualFile => Option[CompileAnalysis] =
       val f0: PartialFunction[VirtualFile, Option[CompileAnalysis]] = {
         case x if converter.toPath(x).toAbsolutePath == classesDir.toAbsolutePath =>
           prev().analysis.toScala
@@ -604,11 +673,10 @@ case class ProjectStructure(
         }
       }
       f1.orElse { case _ => None }
-    }
 
     i.compilations.get(this).getOrElse {
       val notifyEarlyOutput: Promise[Boolean] = Promise[Boolean]()
-      if (exportPipelining) {
+      if exportPipelining then
         // Initiate compilation
         val triggerDeps: Map[ProjectStructure, (Future[Analysis], Future[Boolean])] =
           Map(dependsOnRef.map { dep =>
@@ -619,13 +687,12 @@ case class ProjectStructure(
         }
         // future of early outputs
         val earlyDeps: Future[Seq[Path]] = Future.traverse(dependsOnRef) { dep =>
-          if (dep.exportPipelining)
+          if dep.exportPipelining then
             triggerDeps(dep)._2 flatMap { success =>
-              if (success) {
+              if success then
                 Future.successful { dep.earlyOutput }
-              } else {
+              else
                 triggerDeps(dep)._1.map(_ => dep.output)
-              }
             }
           else triggerDeps(dep)._1.map(_ => dep.output)
         }
@@ -645,31 +712,35 @@ case class ProjectStructure(
         // wait for the full compilation from the dependencies
         // during pipelining, downstream compilation may complete before the upstream
         // to avoid deletion of directories etc, we need to wait for the upstream to finish
-        val f = for {
-          pj <- wholeDeps
-          a0 <- futureScalaAnalysis
-          a <- futureJavaAnalysis(pj, a0)
-        } yield a
+        val settledDeps =
+          wholeDeps.transformWith(deps =>
+            futureScalaAnalysis.transformWith(_ => Future.fromTry(deps))
+          )
+        val f =
+          for
+            pj <- settledDeps
+            a0 <- futureScalaAnalysis
+            a <- futureJavaAnalysis(pj, a0)
+          yield a
         i.compilations(this) = (f, notifyEarlyOutput.future)
         (f, notifyEarlyOutput.future)
-      } else {
+      else
         val wholeDeps = Future.traverse(dependsOnRef)(dep => dep.compile(i))
         val f = wholeDeps.map { _ =>
           doCompile(i, notifyEarlyOutput, internalClasspath, traditionalLookupAnalysis, false)
         }
         i.compilations(this) = (f, notifyEarlyOutput.future)
         (f, notifyEarlyOutput.future)
-      }
+      end if
     }
   }
 
   class PerClasspathEntryLookupImpl(
       am: VirtualFile => Option[CompileAnalysis],
       definesClassLookup: VirtualFile => DefinesClass
-  ) extends PerClasspathEntryLookup {
+  ) extends PerClasspathEntryLookup:
     override def analysis(classpathEntry: VirtualFile) = am(classpathEntry).toJava
     override def definesClass(classpathEntry: VirtualFile) = definesClassLookup(classpathEntry)
-  }
 
   // For traditional compilation, internalCp would be the target directory or output JAR,
   // whereas for pipelining, you'd get an early JAR.
@@ -679,28 +750,25 @@ case class ProjectStructure(
       internalCp: Seq[Path],
       lookupAnalysis: VirtualFile => Option[CompileAnalysis],
       javaOnly: Boolean,
-  ): Analysis = {
-    import i._
+  ): Analysis =
+    import i.*
     val sources = scalaSources ++ javaSources
     val vs = sources.map(converter.toVirtualFile)
     val entryLookup = new PerClasspathEntryLookupImpl(lookupAnalysis, Locate.definesClass)
     val reporter = new ManagedLoggedReporter(maxErrors, scriptedLog)
     val extra = Array(t2(("key", "value")))
     val previousResult = prev()
-    val progress = new CompileProgress {
+    val progress = new CompileProgress:
       override def startUnit(phase: String, unitPath: String): Unit = {
         // scriptedLog.debug(s"[zinc] start $phase $unitPath")
       }
-      override def afterEarlyOutput(success: Boolean) = {
-        if (success) {
+      override def afterEarlyOutput(success: Boolean) =
+        if success then
           assert(Files.exists(earlyOutput))
           scriptedLog.info(s"[$name][progress] early output is done!")
-        } else {
+        else
           scriptedLog.info(s"[$name][progress] early output can't be made because macros!")
-        }
         notifyEarlyOutput.complete(Success(success))
-      }
-    }
     val setup = incrementalCompiler.setup(
       entryLookup,
       skip = false,
@@ -719,13 +787,13 @@ case class ProjectStructure(
       cp.toArray,
       vs.toArray,
       output,
-      if (exportPipelining) Some(earlyOutput)
+      if exportPipelining then Some(earlyOutput)
       else None,
       scalacOptions,
       javacOptions = Array(),
       maxErrors,
       sourcePositionMappers = Array(),
-      CompileOrder.Mixed,
+      compileOrder,
       cs,
       setup,
       previousResult,
@@ -736,36 +804,34 @@ case class ProjectStructure(
     lastCompileProblems = None
     val result =
       try
-        if (javaOnly) incrementalCompiler.compileAllJava(in, scriptedLog)
-        else incrementalCompiler.compile(in, scriptedLog)
-      catch {
+        if javaOnly then incrementalCompiler.compileAllJava(in, compilerLog)
+        else incrementalCompiler.compile(in, compilerLog)
+      catch
         case e: CompileFailed =>
           lastCompileProblems = Some(failedCompileProblems(e))
           throw e
-      }
-    val analysis = result.analysis match { case a: Analysis => a }
+    val analysis = result.analysis match
+      case a: Analysis => a
     cachedStore.set(AnalysisContents.create(analysis, result.setup))
-    val javaOnlyStr = if (javaOnly) "(java-only) " else ""
+    val javaOnlyStr = if javaOnly then "(java-only) " else ""
     scriptedLog.info(s"""[$name] ${javaOnlyStr}compilation done: ${sources.mkString(", ")}""")
     analysis
-  }
+  end doCompile
 
   def packageBin(i: IncState): Future[Unit] =
     compile(i).map { _ =>
       val targetJar = targetDir / s"$name.jar"
-      outputJar match {
+      outputJar match
         case Some(currentJar) =>
           IO.copy(Seq(currentJar.toFile -> targetJar.toFile))
           ()
         case None =>
           val sources = (classesDir.toFile ** -DirectoryFilter).get().flatMap { f =>
-            IO.relativize(classesDir.toFile, f) match {
+            IO.relativize(classesDir.toFile, f) match
               case Some(path) => List((f, path))
               case _          => Nil
-            }
           }
           IO.jar(sources, targetJar.toFile, new Manifest, Some(0L))
-      }
     }
 
   def unrecognizedArguments(commandName: String, args: List[String]): Future[Unit] =
@@ -778,7 +844,7 @@ case class ProjectStructure(
 
   def scriptError(message: String): Future[Unit] = Future(sys.error(s"Test script error: $message"))
 
-  def discoverMainClasses(apisOpt: Option[APIs]): Seq[String] = apisOpt match {
+  def discoverMainClasses(apisOpt: Option[APIs]): Seq[String] = apisOpt match
     case Some(apis) =>
       def companionsApis(c: xsbti.api.Companions) = Seq(c.classApi, c.objectApi)
       val allDefs = apis.internal.values.flatMap(x => companionsApis(x.api)).toSeq
@@ -787,47 +853,42 @@ case class ProjectStructure(
       }
       apps.sorted
     case None => Nil
-  }
 
   // Taken from Run.scala in sbt/sbt
-  def getMainMethod(mainClassName: String, loader: ClassLoader) = {
+  def getMainMethod(mainClassName: String, loader: ClassLoader) =
     val mainClass = Class.forName(mainClassName, true, loader)
     val method = mainClass.getMethod("main", classOf[Array[String]])
     // jvm allows the actual main class to be non-public and to run a method in the non-public class,
     //  we need to make it accessible
     method.setAccessible(true)
     val modifiers = method.getModifiers
-    if (!isPublic(modifiers))
+    if !isPublic(modifiers) then
       throw new NoSuchMethodException(s"$mainClassName.main is not public")
-    if (!isStatic(modifiers))
+    if !isStatic(modifiers) then
       throw new NoSuchMethodException(s"$mainClassName.main is not static")
     method
-  }
 
-  def invokeMain(loader: ClassLoader, main: Method, options: Seq[String]): Unit = {
+  def invokeMain(loader: ClassLoader, main: Method, options: Seq[String]): Unit =
     val currentThread = Thread.currentThread
     val oldLoader = Thread.currentThread.getContextClassLoader
     currentThread.setContextClassLoader(loader)
-    try {
+    try
       main.invoke(null, options.toArray[String]); ()
-    } finally currentThread.setContextClassLoader(oldLoader)
+    finally currentThread.setContextClassLoader(oldLoader)
     ()
-  }
 
-  def loadIncProperties(base: Path): Properties = {
+  def loadIncProperties(base: Path): Properties =
     val prop0 = base / "incoptions.properties"
-    val prop1 = if (Files.exists(prop0)) prop0 else base / "incOptions.properties"
+    val prop1 = if Files.exists(prop0) then prop0 else base / "incOptions.properties"
     val properties = new Properties()
-    if (Files.exists(prop1)) {
+    if Files.exists(prop1) then
       val stream = Files.newInputStream(prop1)
       try properties.load(stream)
       finally stream.close()
-    }
     properties
-  }
 
-  def loadIncOptions(properties: Properties): (IncOptions, Array[String]) = {
-    import scala.jdk.CollectionConverters._
+  def loadIncOptions(properties: Properties): (IncOptions, Array[String]) =
+    import scala.jdk.CollectionConverters.*
     val map = new java.util.HashMap[String, String]
     properties.asScala foreach { case (k: String, v: String) => map.put(k, v) }
     val externalHooks = new DefaultExternalHooks(
@@ -840,11 +901,10 @@ case class ProjectStructure(
       .withApiDebug(true)
       .withExternalHooks(externalHooks)
     // .withRelationsDebug(true)
-    val incOptions = {
+    val incOptions =
       val opts = IncOptionsUtil.fromStringMap(base, map, scriptedLog)
-      if (opts.recompileAllFraction() != IncOptions.defaultRecompileAllFraction()) opts
+      if opts.recompileAllFraction() != IncOptions.defaultRecompileAllFraction() then opts
       else opts.withRecompileAllFraction(1.0)
-    }
     val scalacOptions: List[String] =
       Option(map.get("scalac.options")).toList
         .flatMap(_.toString.split(" +").toList.map(_.replace(
@@ -852,10 +912,10 @@ case class ProjectStructure(
           baseDirectory.toAbsolutePath.toString
         ))) ++
         // for now assume export pipelining for all pipelining subprojects
-        (if (incOptions.pipelining) List("-Ypickle-java", "-Ypickle-write", earlyOutput.toString)
+        (if incOptions.pipelining then List("-Ypickle-java", "-Ypickle-write", earlyOutput.toString)
          else Nil)
     (incOptions, scalacOptions.toArray)
-  }
+  end loadIncOptions
 
   // Problems of the latest compile attempt when it failed. A failed compile stores no
   // analysis, so this is the only place its errors survive for the check commands.
@@ -864,19 +924,17 @@ case class ProjectStructure(
   private def failedCompileProblems(e: CompileFailed): Seq[Problem] =
     e.sourceInfosOption.map(problemsOf).getOrElse(e.problems.toSeq)
 
-  private def problemsOf(infos: ReadSourceInfos): Seq[Problem] = {
-    import scala.jdk.CollectionConverters._
+  private def problemsOf(infos: ReadSourceInfos): Seq[Problem] =
+    import scala.jdk.CollectionConverters.*
     infos.getAllSourceInfos.asScala.values.toSeq
       .flatMap(i => i.getReportedProblems ++ i.getUnreportedProblems)
-  }
 
   def getProblems(): Seq[Problem] =
     lastCompileProblems.getOrElse {
-      cachedStore.get.toScala match {
+      cachedStore.get.toScala match
         case Some(analysisContents) =>
           problemsOf(analysisContents.getAnalysis.asInstanceOf[Analysis].infos)
         case _ => Nil
-      }
     }
 
   def checkMessages(expected: Int, severity: Severity): Future[Unit] =
@@ -891,13 +949,13 @@ case class ProjectStructure(
   def checkMessage(index: Int, expected: String, severity: Severity): Future[Unit] =
     Future {
       val problems = getProblems().filter(_.severity == severity)
-      problems.lift(index) match {
+      problems.lift(index) match
         case Some(problem) =>
           val problemMessage: String = problem.message
           // See ScriptedTests.scala.
           // val handlersAndStatements = parser.parse(file.toFile, true) doesn't correctly parse
           val dropQuotes =
-            if (expected.startsWith("\"")) expected.drop(1).dropRight(1)
+            if expected.startsWith("\"") then expected.drop(1).dropRight(1)
             else expected
           assert(
             problemMessage.contains(dropQuotes),
@@ -907,20 +965,17 @@ case class ProjectStructure(
           throw new TestFailed(
             s"Problem not found: $index (there are ${problems.length} problem with severity $severity)."
           )
-      }
       ()
     }
 
-  def assertShort(assertion: Boolean, message: => Any) = {
-    if (!assertion) {
+  def assertShort(assertion: Boolean, message: => Any) =
+    if !assertion then
       val err = new AssertionError("assertion failed: " + message)
       err.setStackTrace(Array())
       throw err
-    }
-  }
-}
+end ProjectStructure
 
-object IncHandler {
+object IncHandler:
   type Cached = (Path, XScalaInstance)
   private final val scriptedCompilerCache = new mutable.WeakHashMap[String, Cached]()
 
@@ -932,4 +987,39 @@ object IncHandler {
 
   private[internal] final val classLoaderCache =
     Some(new ClassLoaderCache(new URLClassLoader(Array())))
-}
+
+/**
+ * Lets each thread send `System.out` to a stream of its own, so that tests running at once can
+ * each capture the output of the program they run.
+ *
+ * Setting `System.out` from each test instead is a race: a test can restore the stream of another
+ * test that has finished, after which all output goes to that test's buffer. Programs that print
+ * with `scala.Console` also keep the `System.out` of the time `Console` was initialized, in a
+ * Scala library loader that outlives the tests, so the stream they keep must route by thread too.
+ */
+private[inc] object ThreadLocalOut:
+  private val target = new ThreadLocal[PrintStream]
+  @volatile private var fallback: PrintStream = System.out
+
+  private val routed: PrintStream =
+    val out = new OutputStream:
+      private def current: PrintStream = Option(target.get).getOrElse(fallback)
+      override def write(b: Int): Unit = current.write(b)
+      override def write(b: Array[Byte], off: Int, len: Int): Unit = current.write(b, off, len)
+      override def flush(): Unit = current.flush()
+    new PrintStream(out, true)
+
+  /** Routes `System.out` by thread while `body` runs. */
+  def install[A](body: => A): A =
+    val original = System.out
+    fallback = original
+    System.setOut(routed)
+    try body
+    finally System.setOut(original)
+
+  /** Sends the `System.out` output of this thread to `out` while `body` runs. */
+  def capture[A](out: PrintStream)(body: => A): A =
+    target.set(out)
+    try body
+    finally target.remove()
+end ThreadLocalOut

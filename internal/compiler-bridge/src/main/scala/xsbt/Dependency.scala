@@ -12,7 +12,7 @@
 package xsbt
 
 import java.nio.file.Path
-import xsbti.VirtualFile
+import xsbti.{ AnalysisCallback4, ClassRef, VirtualFile }
 import xsbti.api.DependencyContext
 import DependencyContext._
 
@@ -82,6 +82,11 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
       }
     }
 
+    private val callback4: AnalysisCallback4 = callback match {
+      case cb: AnalysisCallback4 => cb
+      case _                     => null
+    }
+
     private val sourceFile: VirtualFile = unit.source.file match { case AbstractZincFile(vf) => vf }
     private val responsibleOfImports = firstClassOrModuleClass(unit.body)
     private var orphanImportsReported = false
@@ -125,9 +130,12 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
         dep: ClassDependency
     ): Unit = {
       val fromClassName = classNameAsString(dep.from)
+      val fromClassRef = ClassRef.of(fromClassName, classNameKind(dep.from))
 
       def binaryDependency(file: Path, binaryClassName: String) = {
-        callback.binaryDependency(file, binaryClassName, fromClassName, sourceFile, context)
+        if (callback4 ne null)
+          callback4.binaryDependency(file, binaryClassName, fromClassRef, sourceFile, context)
+        else callback.binaryDependency(file, binaryClassName, fromClassName, sourceFile, context)
       }
       import scala.tools.nsc.io.AbstractFile
       def processExternalDependency(binaryClassName: String, at: AbstractFile): Unit = {
@@ -165,8 +173,9 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
           if (onSourceFile != sourceFile || allowLocal) {
             // We cannot ignore dependencies coming from the same source file because
             // the dependency info needs to propagate. See source-dependencies/trait-trait-211.
-            val onClassName = classNameAsString(dep.to)
-            callback.classDependency(onClassName, fromClassName, context)
+            if (callback4 ne null)
+              callback4.classDependency(classRef(dep.to), fromClassRef, context)
+            else callback.classDependency(classNameAsString(dep.to), fromClassName, context)
           } else ()
         // This could match null or scala.reflect.io.FileZipArchive$LeakyEntry
         case _ =>
@@ -391,7 +400,10 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
 
     object TypeDependencyTraverserForMacro extends TypeDependencyTraverser {
       private var owner: Symbol = _
-      def setOwner(symbol: Symbol) = owner = symbol
+      def setOwner(symbol: Symbol) = if (owner != symbol) {
+        owner = symbol
+        reinitializeVisited()
+      }
       override def addDependency(symbol: global.Symbol): Unit = {
         addClassDependency(
           _dependencyByMacroExpansionCache,
@@ -455,11 +467,17 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
        *    this looks fishy, see this thread:
        *    https://groups.google.com/d/topic/scala-internals/Ms9WUAtokLo/discussion
        */
-      case id: Ident => addTreeDependency(id)
+      case id: Ident             => addTreeDependency(id)
       case sel @ Select(qual, _) =>
         traverse(qual); addTreeDependency(sel)
       case sel @ SelectFromTypeTree(qual, _) =>
         traverse(qual); addTreeDependency(sel)
+
+      // A compound type's parents (`B with C`) are not inherited by the enclosing class.
+      case CompoundTypeTree(templ) =>
+        traverseTrees(templ.parents)
+        traverse(templ.self)
+        traverseTrees(templ.body)
 
       case Template(parents, self, body) =>
         // use typeSymbol to dealias type aliases -- we want to track the dependency on the real class in the alias's RHS
@@ -476,9 +494,11 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
         val inheritanceSymbols = inheritanceTypes.flatMap(flattenTypeToSymbols)
 
         debuglog(
-          "Parent types for " + tree.symbol + " (self: " + self.tpt
-            .tpe + "): " + inheritanceTypes + " with symbols " + inheritanceSymbols
-            .map(_.fullName)
+          "Parent types for " + tree.symbol + " (self: " +
+            self.tpt
+              .tpe + "): " + inheritanceTypes + " with symbols " +
+            inheritanceSymbols
+              .map(_.fullName)
         )
 
         inheritanceSymbols.foreach { symbol =>
@@ -509,11 +529,7 @@ final class Dependency(val global: CallbackGlobal) extends LocateClassFile with 
       case m @ MacroExpansionOf(original) if inspectedOriginalTrees.add(original) =>
         // TODO: typesTouchedDuringMacroExpansion can be provided by compiler
         // in the form of tree attachment
-        val typesTouchedDuringMacroExpansion = original match {
-          case Apply(TypeApply(_, args), _) => args.map(_.tpe)
-          case TypeApply(_, args)           => args.map(_.tpe)
-          case _                            => List.empty[Type]
-        }
+        val typesTouchedDuringMacroExpansion = treeInfo.dissectApplied(original).targs.map(_.tpe)
         typesTouchedDuringMacroExpansion.foreach(addTypeDependencies(_, true))
         traverse(original)
         super.traverse(m)

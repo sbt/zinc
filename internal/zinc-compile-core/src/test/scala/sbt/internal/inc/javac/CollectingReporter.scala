@@ -17,7 +17,7 @@ package javac
 import xsbti.Reporter
 import xsbti.Problem
 
-class CollectingReporter extends Reporter {
+class CollectingReporter extends Reporter:
   var problems: Array[Problem] = Array[Problem]()
 
   def reset() = problems = Array[Problem]()
@@ -26,5 +26,3 @@ class CollectingReporter extends Reporter {
   def printSummary(): Unit = ???
   def log(problem: xsbti.Problem): Unit = problems :+= problem
   def comment(pos: xsbti.Position, msg: String): Unit = ???
-
-}

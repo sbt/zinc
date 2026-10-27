@@ -21,12 +21,9 @@ package sbt.internal.inc.binary.converters
  * This proxy is not public, Do not depend on it, it has no binary compatibility
  * guarantee and can be broken in any minor release.
  */
-object InternalApiProxy {
-  object Modifiers {
-    def apply(flags: Int): xsbti.api.Modifiers = {
+object InternalApiProxy:
+  object Modifiers:
+    def apply(flags: Int): xsbti.api.Modifiers =
       val constructor = classOf[xsbti.api.Modifiers].getDeclaredConstructor(java.lang.Byte.TYPE)
       constructor.setAccessible(true)
       constructor.newInstance(flags.toByte: java.lang.Byte)
-    }
-  }
-}

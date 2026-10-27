@@ -16,25 +16,26 @@ package inc
 import java.io.File
 import java.nio.file.{ Path, Paths }
 
-import org.scalacheck._, Arbitrary._, Gen._, Prop._
+import hedgehog.{ sbt as _, * }
+import hedgehog.predef.traverse
 import sbt.internal.inc.APIs.emptyModifiers
 import sbt.internal.util.Relation
-import xsbti.api._
+import xsbti.api.*
 import xsbti.{ UseScope, VirtualFileRef }
 import xsbti.api.DefinitionType.{ ClassDef, Module }
-import xsbti.api.DependencyContext._
-import xsbti.compile.analysis.{ Stamp => AStamp }
+import xsbti.api.DependencyContext.*
+import xsbti.compile.analysis.Stamp as AStamp
 
 import scala.collection.immutable.TreeMap
 import scala.reflect.ClassTag
 import scala.util.Try
 
 /**
- * ScalaCheck generators for Analysis objects and their substructures.
+ * HedgeHog generators for Analysis objects and their substructures.
  * Fairly complex, as Analysis has interconnected state that can't be
  * independently generated.
  */
-object AnalysisGenerators {
+object AnalysisGenerators:
   val RootFilePath: Path = Paths.get("/tmp/localProject")
 
   // We restrict sizes, otherwise the generated Analysis objects get huge and the tests take a long time.
@@ -45,48 +46,49 @@ object AnalysisGenerators {
 
   // Ensure that we generate unique class names and file paths every time.
   // Using repeated strings may lead to all sorts of undesirable interactions.
-  val used1 = scala.collection.mutable.Set.empty[String]
-  val used2 = scala.collection.mutable.Set.empty[String]
+  // A suffix that tells where a value was generated keeps it apart from every other one.
+  private def uniqueString(s: String, where: String): String = s"${s}_$where"
 
-  def throws(p: => Prop): Prop = Try(p).fold(_ => proved, _ => falsified)
+  private def uniqueFileVRef(f: VirtualFileRef, where: String): VirtualFileRef =
+    VirtualFileRef.of(uniqueString(f.id, where))
 
-  // When using `retryUntil`, the condition is actually tested twice (see implementation in ScalaCheck),
-  // which is why we need to insert twice the element.
-  // If the element is present in both sets, then it has already been used.
-  def unique[T](g: Gen[T]) = g.retryUntil(o => used1.add(o.toString) || used2.add(o.toString))
+  def throws(p: => Result): Result = Try(p).fold(_ => Result.success, _ => Result.failure)
 
-  def identifier: Gen[String] = sized(size => resize(Math.max(size, 3), Gen.identifier))
+  def identifier: Gen[String] =
+    for
+      c <- Gen.lower
+      cs <- Gen.string(Gen.alphaNum, Range.linear(2, 10))
+    yield s"$c$cs"
 
   def genFilePathSegment: Gen[String] =
-    for {
-      n <- choose(3, maxPathSegmentLen) // Segments have at least 3 characters.
-      c <- alphaChar
-      cs <- listOfN(n - 1, alphaNumChar)
-    } yield (c :: cs).mkString
+    for
+      n <- Gen.int(Range.constant(3, maxPathSegmentLen)) // Segments have at least 3 characters.
+      c <- Gen.alpha
+      cs <- Gen.list(Gen.alphaNum, Range.singleton(n - 1))
+    yield (c :: cs).mkString
 
-  def genFile: Gen[File] = {
-    for {
-      n <- choose(2, maxPathLen) // Paths have at least 2 segments.
-      path <- listOfN(n, genFilePathSegment)
-    } yield new File(s"$RootFilePath/" + path.mkString("/"))
-  }
+  def genFile: Gen[File] =
+    for
+      n <- Gen.int(Range.constant(2, maxPathLen)) // Paths have at least 2 segments.
+      path <- Gen.list(genFilePathSegment, Range.singleton(n))
+    yield new File(s"$RootFilePath/" + path.mkString("/"))
 
-  def genStamp: Gen[AStamp] = const(EmptyStamp)
+  def genStamp: Gen[AStamp] = Gen.constant(EmptyStamp)
 
   def zipMap[A, B](a: Seq[A], b: Seq[B]): Map[A, B] = a.zip(b).toMap
 
-  def genStamps(rel: Relations): Gen[Stamps] = {
-    import VirtualFileUtil._
+  def genStamps(rel: Relations): Gen[Stamps] =
+    import VirtualFileUtil.*
 
     def stamp(xs: Iterable[VirtualFileRef]) =
-      for (stamps <- listOfN(xs.size, genStamp)) yield TreeMap(xs.toList.zip(stamps)*)
+      for stamps <- Gen.list(genStamp, Range.singleton(xs.size))
+      yield TreeMap(xs.toList.zip(stamps)*)
 
-    for {
+    for
       prods <- stamp(rel.allProducts)
       srcs <- stamp(rel.allSources)
       libs <- stamp(rel.allLibraryDeps)
-    } yield Stamps(prods, srcs, libs)
-  }
+    yield Stamps(prods, srcs, libs)
 
   private def arr[A <: AnyRef: ClassTag] = new Array[A](0)
   private val noTpe = lzy[Type](EmptyType.of())
@@ -104,110 +106,126 @@ object AnalysisGenerators {
   private def lzy[T <: AnyRef](x: T) = SafeLazyProxy.strict(x)
 
   def genNameHash(name: String): Gen[NameHash] =
-    for (scope <- oneOf(UseScope.values().toIndexedSeq))
-      yield NameHash.of(name, scope, (name, scope).hashCode())
+    for scope <- Gen.elementUnsafe(UseScope.values().toList)
+    yield NameHash.of(name, scope, (name, scope).hashCode())
 
   def genClass(name: String): Gen[AnalyzedClass] =
-    for {
-      startTime <- arbitrary[Long]
-      apiHash <- arbitrary[Int]
-      hasMacro <- arbitrary[Boolean]
+    for
+      startTime <- Gen.long(Range.linearFrom(0L, Long.MinValue, Long.MaxValue))
+      apiHash <- Gen.int(Range.linearFrom(0, Int.MinValue, Int.MaxValue))
+      hasMacro <- Gen.boolean
       nameHash <- genNameHash(name)
-      provenance <- arbitrary[String]
-    } yield {
-      AnalyzedClass.of(
-        startTime,
-        name,
-        SafeLazyProxy(makeCompanions(name)),
-        apiHash,
-        Array(nameHash),
-        hasMacro,
-        apiHash, // The default is to use the public API hash
-        provenance
-      )
-    }
+      provenance <- Gen.string(Gen.unicode, Range.linear(0, 100))
+    yield AnalyzedClass.of(
+      startTime,
+      name,
+      SafeLazyProxy(makeCompanions(name)),
+      apiHash,
+      Array(nameHash),
+      hasMacro,
+      apiHash, // The default is to use the public API hash
+      provenance
+    )
 
   def genClasses(defns: Seq[String]): Gen[Seq[AnalyzedClass]] =
-    Gen.sequence[List[AnalyzedClass], AnalyzedClass](defns.map(genClass))
+    traverse(defns.toList)(genClass).map(_.toSeq)
 
-  def genAPIs(rel: Relations): Gen[APIs] = {
+  def genAPIs(rel: Relations): Gen[APIs] =
     val internal = rel.internalClassDep._1s.toList.sorted ++ rel.internalClassDep._2s.toList.sorted
     val external = rel.allExternalDeps.toList.sorted
-    for {
+    for
       internalSources <- genClasses(internal)
       externalSources <- genClasses(external)
-    } yield APIs(zipMap(internal, internalSources), zipMap(external, externalSources))
-  }
+    yield APIs(zipMap(internal, internalSources), zipMap(external, externalSources))
 
-  def genVirtualFileRefRelation[T](
-      g: Gen[T]
-  )(srcs: List[VirtualFileRef]): Gen[Relation[VirtualFileRef, T]] =
-    for {
-      n <- choose(1, maxRelatives)
-      entries <- listOfN(srcs.length, containerOfN[Set, T](n, g))
-    } yield Relation.reconstruct(zipMap(srcs, entries))
+  def genVirtualFileRefRelation[T](g: Gen[T], unique: (T, String) => T, tag: String)(
+      srcs: List[VirtualFileRef]
+  ): Gen[Relation[VirtualFileRef, T]] =
+    for
+      n <- Gen.int(Range.constant(1, maxRelatives))
+      entries <- Gen.list(Gen.list(g, Range.singleton(n)), Range.singleton(srcs.length))
+    yield
+      val sets = entries.zipWithIndex.map { (es, i) =>
+        es.zipWithIndex.map((e, j) => unique(e, s"$tag${i}_$j")).toSet
+      }
+      Relation.reconstruct(zipMap(srcs, sets))
 
-  val genStringRelation = genVirtualFileRefRelation(unique(identifier))
-  val genFileVORefRelation = genVirtualFileRefRelation(unique(genFileVRef))
+  def genStringRelation(tag: String) = genVirtualFileRefRelation(identifier, uniqueString, tag)
+  def genFileVORefRelation(tag: String) =
+    genVirtualFileRefRelation(genFileVRef, uniqueFileVRef, tag)
 
   def rel[A, B](a: Seq[A], b: Seq[B]): Relation[A, B] =
     Relation.reconstruct(zipMap(a, b).view.mapValues(Set(_)).toMap)
 
   def genStringStringRelation(num: Int): Gen[Relation[String, String]] =
-    for {
-      n <- choose(1, if (num == 0) 1 else num)
-      fwd <- listOfN(n, unique(identifier))
-      prv <- listOfN(n, unique(identifier))
-    } yield rel(fwd, prv)
+    for
+      n <- Gen.int(Range.constant(1, if num == 0 then 1 else num))
+      fwd <- Gen.list(identifier, Range.singleton(n))
+      prv <- Gen.list(identifier, Range.singleton(n))
+    yield rel(
+      fwd.zipWithIndex.map((s, i) => uniqueString(s, s"f$i")),
+      prv.zipWithIndex.map((s, i) => uniqueString(s, s"p$i"))
+    )
+
+  /** A subset of `xs`, like ScalaCheck's `someOf`. */
+  private def someOf[A](xs: Seq[A]): Gen[Seq[A]] =
+    Gen
+      .list(Gen.boolean, Range.singleton(xs.size))
+      .map(keep => xs.zip(keep).collect { case (x, true) => x })
 
   def genRClassDependencies(classNames: List[String]): Gen[Relations.ClassDependencies] =
-    for {
-      internal <- listOfN(classNames.length, someOf(classNames))
-      external <- listOfN(classNames.length, someOf(classNames))
-    } yield {
+    for
+      internal <- Gen.list(someOf(classNames), Range.singleton(classNames.length))
+      external <- Gen.list(someOf(classNames), Range.singleton(classNames.length))
+    yield
       def toForwardMap(targets: Seq[scala.collection.Seq[String]]): Map[String, Set[String]] =
         classNames.zip(targets.map(_.toSet)).map { case (a, b) => (a, b - a) }.toMap
       Relations.makeClassDependencies(
         Relation.reconstruct(toForwardMap(internal)),
         Relation.reconstruct(toForwardMap(external))
       )
-    }
 
   private[inc] def genSubRClassDependencies(
       src: Relations.ClassDependencies
   ): Gen[Relations.ClassDependencies] =
-    for {
+    for
       internal <- someOf(src.internal.all.toList)
       external <- someOf(src.external.all.toList)
-    } yield Relations.makeClassDependencies(Relation.empty ++ internal, Relation.empty ++ external)
+    yield Relations.makeClassDependencies(Relation.empty ++ internal, Relation.empty ++ external)
 
   def genScalaName: Gen[String] =
-    Gen.listOf(Gen.oneOf(Gen.choose('!', 'Z'), Gen.const('\n'))).map(_.toString())
+    Gen
+      .list(Gen.choice1(Gen.char('!', 'Z'), Gen.constant('\n')), Range.linear(0, 100))
+      .map(_.mkString)
 
   def genUsedName(namesGen: Gen[String] = genScalaName): Gen[UsedName] =
-    for (name <- namesGen; scopes <- Gen.someOf(UseScope.values()))
-      yield UsedName(name, UseScope.Default +: scopes)
+    for name <- namesGen; scopes <- someOf(UseScope.values().toSeq)
+    yield UsedName(name, UseScope.Default +: scopes)
 
   def genUsedNames(classNames: Seq[String]): Gen[Relations.UsedNames] =
-    for (allNames <- listOfN(classNames.length, containerOf[Set, UsedName](genUsedName())))
-      yield UsedNames.fromMultiMap(zipMap(classNames, allNames))
+    for
+      allNames <- Gen.list(
+        Gen.list(genUsedName(), Range.linear(0, 100)).map(_.toSet),
+        Range.singleton(classNames.length)
+      )
+    yield UsedNames.fromMultiMap(zipMap(classNames, allNames))
 
   def genFileVRef: Gen[VirtualFileRef] = genFile.map(x => VirtualFileRef.of(x.toPath.toString))
 
   def genRelationsNameHashing: Gen[Relations] =
-    for {
-      numSrcs <- choose(0, maxSources)
-      srcs <- listOfN(numSrcs, genFileVRef)
-      srcProd <- genFileVORefRelation(srcs)
-      libraryDep <- genFileVORefRelation(srcs)
-      libraryClassName <- genStringRelation(libraryDep._2s.toList)
+    for
+      numSrcs <- Gen.int(Range.constant(0, maxSources))
+      srcs <- Gen.list(genFileVRef, Range.singleton(numSrcs))
+      srcProd <- genFileVORefRelation("prod")(srcs)
+      libraryDep <- genFileVORefRelation("lib")(srcs)
+      libraryClassName <- genStringRelation("libClass")(libraryDep._2s.toList)
       productClassName <- genStringStringRelation(numSrcs)
       classNames = productClassName._1s.toList
       memberRef <- genRClassDependencies(classNames)
       inheritance <- genSubRClassDependencies(memberRef)
       localInheritance <- genSubRClassDependencies(memberRef)
       macroExpansion <- genSubRClassDependencies(memberRef)
-      internal <- InternalDependencies(
+      internal = InternalDependencies(
         Map(
           DependencyByMemberRef -> memberRef.internal,
           DependencyByInheritance -> inheritance.internal,
@@ -215,7 +233,7 @@ object AnalysisGenerators {
           DependencyByMacroExpansion -> macroExpansion.internal,
         )
       )
-      external <- ExternalDependencies(
+      external = ExternalDependencies(
         Map(
           DependencyByMemberRef -> memberRef.external,
           DependencyByInheritance -> inheritance.external,
@@ -225,7 +243,7 @@ object AnalysisGenerators {
       )
       classes = rel(srcs, classNames)
       names <- genUsedNames(classNames)
-    } yield Relations.make(
+    yield Relations.make(
       srcProd,
       libraryDep,
       libraryClassName,
@@ -237,9 +255,9 @@ object AnalysisGenerators {
     )
 
   def genAnalysis: Gen[Analysis] =
-    for {
+    for
       rels <- genRelationsNameHashing
       stamps <- genStamps(rels)
       apis <- genAPIs(rels)
-    } yield new MAnalysis(stamps, apis, rels, SourceInfos.empty, Compilations.empty)
-}
+    yield new MAnalysis(stamps, apis, rels, SourceInfos.empty, Compilations.empty)
+end AnalysisGenerators

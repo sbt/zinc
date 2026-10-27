@@ -1,6 +1,6 @@
-import sbt._, Keys._
+import sbt.*, Keys.*
 
-object Dependencies {
+object Dependencies:
   def nightlyVersion: Option[String] =
     sys.env.get("BUILD_VERSION") orElse sys.props.get("sbt.build.version")
 
@@ -9,14 +9,14 @@ object Dependencies {
   val scala212 = "2.12.21"
   val scala213 = "2.13.16"
   val scala3 = "3.9.0"
-  val scala3ForBridge = "3.3.4"
-  val scala213ForBridge = "2.13.16"
+  val scala3ForBridge = "3.9.0"
+  val scala213ForBridge = "2.13.18"
   val defaultScalaVersion = scala3
   val compilerBridgeVersions = Seq(scala212, scala210, scala211, scala213)
   val scala3_only = Seq(scala3)
 
-  private val ioVersion = nightlyVersion.getOrElse("1.12.2")
-  private val utilVersion = nightlyVersion.getOrElse("2.0.6")
+  private val ioVersion = nightlyVersion.getOrElse("1.13.5")
+  private val utilVersion = nightlyVersion.getOrElse("2.0.9")
 
   private val sbtIO = "org.scala-sbt" %% "io" % ioVersion
 
@@ -26,15 +26,14 @@ object Dependencies {
   private val utilInterface = "org.scala-sbt" % "util-interface" % utilVersion
   private val utilScripted = "org.scala-sbt" %% "util-scripted" % utilVersion
 
-  val launcherInterface = "org.scala-sbt" % "launcher-interface" % "1.6.2"
+  val launcherInterface = "org.scala-sbt" % "launcher-interface" % "1.7.0"
 
-  def getSbtModulePath(key: String, name: String) = {
+  def getSbtModulePath(key: String, name: String) =
     val localProps = new java.util.Properties()
     IO.load(localProps, file("project/local.properties"))
     val path = Option(localProps.getProperty(key)) orElse (sys.props get key)
     path foreach (f => println(s"Using $name from $f"))
     path
-  }
 
   def addSbtModule(
       p: Project,
@@ -43,12 +42,11 @@ object Dependencies {
       m: ModuleID,
       c: Option[Configuration] = None
   ) =
-    path match {
+    path match
       case Some(f) =>
         p.dependsOn(ClasspathDependency(ProjectRef(file(f), projectName), c.map(_.name)))
       case None =>
         p.settings(libraryDependencies += m.withConfigurations(c.map(_.name)))
-    }
 
   lazy val sbtIoPath = getSbtModulePath("sbtio.path", "sbt/io")
   lazy val sbtUtilPath = getSbtModulePath("sbtutil.path", "sbt/util")
@@ -68,14 +66,11 @@ object Dependencies {
 
   val scalaCompiler = Def.setting { "org.scala-lang" % "scala-compiler" % scalaVersion.value }
 
-  val parserCombinator = "org.scala-lang.modules" %% "scala-parser-combinators" % "2.1.0"
-  // sbinary 0.5.2 uses 2.13 build of scala-xml, so use 0.5.1
-  val sbinary = "org.scala-sbt" %% "sbinary" % "0.5.1"
+  val parserCombinator = "org.scala-lang.modules" %% "scala-parser-combinators" % "2.5.0"
+  val sbinary = "org.scala-sbt" %% "sbinary" % "0.6.0"
   val sjsonNewVersion = "0.15.1"
-  val scalaXml = "org.scala-lang.modules" %% "scala-xml" % "2.4.0"
-  val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.20.0"
-  val scalatest = "org.scalatest" %% "scalatest" % "3.2.20"
-  val verify = "com.eed3si9n.verify" %% "verify" % "1.0.0"
+  val scalaXml = "org.scala-lang.modules" %% "scala-xml" % "2.5.0"
+  val hedgehog = "qa.hedgehog" %% "hedgehog-sbt" % "0.15.1"
   val sjsonnew = Def.setting {
     "com.eed3si9n" %% "sjson-new-core" % sjsonNewVersion
   }
@@ -88,9 +83,7 @@ object Dependencies {
   def addTestDependencies(p: Project): Project =
     p.settings(
       libraryDependencies ++= Seq(
-        scalaCheck % Test,
-        scalatest % Test,
-        verify % Test,
+        hedgehog % Test,
       )
     )
-}
+end Dependencies

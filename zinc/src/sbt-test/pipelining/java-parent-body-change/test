@@ -1,0 +1,10 @@
+# Pipelining passes J.java to scalac whenever anything is recompiled. J itself did not change,
+# so the classes that depend on it are left alone.
+> compile
+$ copy-file changes/T.scala T.scala
+> compile
+> checkRecompilations 0 p.C p.U
+
+# A real change to J is still seen.
+$ copy-file changes/J.java J.java
+-> compile

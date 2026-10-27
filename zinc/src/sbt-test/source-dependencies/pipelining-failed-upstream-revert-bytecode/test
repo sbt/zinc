@@ -1,0 +1,12 @@
+# Like pipelining-failed-upstream-revert, but app compiles against lib's failed early output, so
+# the revert must recompile app rather than leave bytecode that calls A.m(): String.
+> app/compile
+
+# A.m no longer conforms to M.m: lib fails, app compiles against lib's early output
+$ copy-file lib/changes/A1.scala lib/A.scala
+-> app/compile
+
+# Back to the original sources: app must be recompiled against the original A
+$ copy-file lib/changes/A0.scala lib/A.scala
+> app/compile
+> app/run

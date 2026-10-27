@@ -13,11 +13,10 @@ package xsbti
 
 import xsbti.compile.analysis.SourceInfo
 
-class TestSourceInfo extends SourceInfo {
+class TestSourceInfo extends SourceInfo:
 
   override def getReportedProblems: Array[Problem] = Array.empty[Problem]
 
   override def getUnreportedProblems: Array[Problem] = Array.empty[Problem]
 
   override def getMainClasses: Array[String] = Array.empty[String]
-}

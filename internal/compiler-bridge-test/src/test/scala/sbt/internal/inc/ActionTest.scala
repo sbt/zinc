@@ -2,7 +2,8 @@ package sbt
 package internal
 package inc
 
-import verify._
+import hedgehog.{ sbt => _, _ }
+import hedgehog.runner._
 import sbt.io.IO.withTemporaryDirectory
 import scala.jdk.CollectionConverters._
 
@@ -10,11 +11,14 @@ import scala.jdk.CollectionConverters._
  * AnalyzingCompiler.
  */
 object ActionTest
-    extends BasicTestSuite
+    extends Properties
     with BridgeProviderTestkit
     with CompilingSpecification {
+  override def tests: List[Test] = List(
+    example("foo", foo),
+  )
 
-  test("foo") {
+  private def foo: Result =
     withTemporaryDirectory { tempDir =>
       val reporter = mkReporter
       compileSrcs(tempDir.toPath, reporter)(List(List("""
@@ -22,8 +26,9 @@ object Foo {
   def foo {}
 }""")))
       val problems = reporter.problems.toList
-      val problem = problems.head
-      assert(problem.actions.asScala.nonEmpty)
+      problems.headOption match {
+        case Some(problem) => Result.assert(problem.actions.asScala.nonEmpty)
+        case None          => Result.failure.log("no problems were reported")
+      }
     }
-  }
 }
