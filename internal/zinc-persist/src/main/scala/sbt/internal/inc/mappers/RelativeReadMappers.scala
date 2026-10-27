@@ -18,7 +18,7 @@ import xsbti.compile.analysis.{ ReadMapper, RootPaths, Stamp }
 import xsbti.VirtualFileRef
 
 // Please see docs about the implementation in the ReadMapper interface
-final class NaiveRelativeReadMapper(rootProjectPath: Path) extends ReadMapper {
+final class NaiveRelativeReadMapper(rootProjectPath: Path) extends ReadMapper:
   private def reconstructRelative(file: Path): Path =
     MapperUtils.reconstructRelative(file, rootProjectPath)
 
@@ -38,9 +38,8 @@ final class NaiveRelativeReadMapper(rootProjectPath: Path) extends ReadMapper {
   override def mapBinaryStamp(file: VirtualFileRef, binaryStamp: Stamp): Stamp = binaryStamp
 
   override def mapMiniSetup(miniSetup: MiniSetup): MiniSetup = miniSetup
-}
 
-final class RelativeReadMapper(rootPaths: RootPaths) extends ReadMapper {
+final class RelativeReadMapper(rootPaths: RootPaths) extends ReadMapper:
   import MapperUtils.reconstructRelative
   private final val sourcesRoot = rootPaths.getSourcesRootPath.toPath
   private final val librariesRoot = rootPaths.getLibrariesRootPath.toPath
@@ -70,4 +69,4 @@ final class RelativeReadMapper(rootPaths: RootPaths) extends ReadMapper {
   override def mapBinaryStamp(file: VirtualFileRef, binaryStamp: Stamp): Stamp = binaryStamp
 
   override def mapMiniSetup(miniSetup: MiniSetup): MiniSetup = miniSetup
-}
+end RelativeReadMapper

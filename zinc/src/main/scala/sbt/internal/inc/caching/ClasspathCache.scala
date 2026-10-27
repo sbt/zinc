@@ -20,53 +20,45 @@ import sbt.internal.inc.Stamper
 import sbt.io.IO
 import scala.util.control.NonFatal
 
-object ClasspathCache {
+object ClasspathCache:
   // copied from io
-  private val jdkTimestamps = {
-    System.getProperty("sbt.io.jdktimestamps") match {
+  private val jdkTimestamps =
+    System.getProperty("sbt.io.jdktimestamps") match
       case null =>
-        System.getProperty("java.specification.version") match {
+        System.getProperty("java.specification.version") match
           case null => false
-          case sv =>
-            try {
+          case sv   =>
+            try
               sv.split("\\.").last.toInt >= 10
-            } catch { case NonFatal(_) => false }
-        }
+            catch case NonFatal(_) => false
       case p => p.toLowerCase != "false"
-    }
-  }
   // For more safety, store both the time and size
   private type JarMetadata = (FileTime, Long)
   private val cacheMetadataJar = new ConcurrentHashMap[Path, (JarMetadata, FileHash)]()
   private def emptyFileHash(file: Path) = FileHash.of(file, 42)
-  private def genFileHash(file: Path, metadata: JarMetadata): FileHash = {
+  private def genFileHash(file: Path, metadata: JarMetadata): FileHash =
     val newHash = FileHash.of(file, Stamper.forFarmHashP(file).getValueId())
     cacheMetadataJar.put(file, (metadata, newHash))
     newHash
-  }
 
-  def hashClasspath(classpath: Seq[Path]): Array[FileHash] = {
+  def hashClasspath(classpath: Seq[Path]): Array[FileHash] =
     // #433: Cache jars with their metadata to avoid recomputing hashes transitively in other projects
-    def fromCacheOrHash(file: Path): FileHash = {
-      try {
+    def fromCacheOrHash(file: Path): FileHash =
+      try
         // `readAttributes` needs to be guarded by `file.exists()`, otherwise it fails
         val attrs = Files.readAttributes(file, classOf[BasicFileAttributes])
-        if (attrs.isDirectory) emptyFileHash(file)
-        else {
+        if attrs.isDirectory then emptyFileHash(file)
+        else
           val lastModified =
-            if (jdkTimestamps) attrs.lastModifiedTime()
+            if jdkTimestamps then attrs.lastModifiedTime()
             else FileTime.fromMillis(IO.getModifiedTimeOrZero(file.toFile))
           val currentMetadata =
             (lastModified, attrs.size())
-          Option(cacheMetadataJar.get(file)) match {
+          Option(cacheMetadataJar.get(file)) match
             case Some((metadata, hashHit)) if metadata == currentMetadata => hashHit
             case _ => genFileHash(file, currentMetadata)
-          }
-        }
-      } catch { case _: NoSuchFileException => emptyFileHash(file) }
-    }
+      catch case _: NoSuchFileException => emptyFileHash(file)
 
-    import scala.collection.parallel._
+    import scala.collection.parallel.*
     classpath.toParArray.map(fromCacheOrHash).toArray
-  }
-}
+end ClasspathCache

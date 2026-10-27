@@ -16,48 +16,42 @@ package inc
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
 
-import xsbti.compile.analysis.{ Stamp => XStamp }
+import xsbti.compile.analysis.Stamp as XStamp
 
 /**
  * Cache based on path and its stamp.
  */
-sealed trait FileValueCache[T] {
+sealed trait FileValueCache[T]:
   def clear(): Unit
   def get: Path => T
-}
 
-object FileValueCache {
+object FileValueCache:
   def apply[T](f: Path => T): FileValueCache[T] = make(Stamper.forLastModifiedP)(f)
   def make[T](stamp: Path => XStamp)(f: Path => T): FileValueCache[T] =
     new FileValueCache0[T](stamp, f)(using Equiv.universal)
-}
 
 private final class FileValueCache0[T](getStamp: Path => XStamp, make: Path => T)(
     implicit equiv: Equiv[XStamp]
-) extends FileValueCache[T] {
+) extends FileValueCache[T]:
   private val backing = new ConcurrentHashMap[Path, FileCache]
 
   def clear(): Unit = backing.clear()
-  def get = file => {
+  def get = file =>
     val ifAbsent = new FileCache(file)
     val cache = backing.putIfAbsent(file, ifAbsent)
-    (if (cache eq null) ifAbsent else cache).get()
-  }
+    (if cache eq null then ifAbsent else cache).get()
 
-  private final class FileCache(file: Path) {
+  private final class FileCache(file: Path):
     private var stampedValue: Option[(XStamp, T)] = None
     def get(): T = synchronized {
       val latest = getStamp(file)
-      stampedValue match {
+      stampedValue match
         case Some((stamp, value)) if (equiv.equiv(latest, stamp)) => value
         case _                                                    => update(latest)
-      }
     }
 
-    private def update(stamp: XStamp): T = {
+    private def update(stamp: XStamp): T =
       val value = make(file)
       stampedValue = Some((stamp, value))
       value
-    }
-  }
-}
+end FileValueCache0

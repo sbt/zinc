@@ -1,0 +1,5 @@
+> app/run A
+
+# C is in mid, its parent B in lib: B's new implicit must reach X through mid.
+$ copy-file lib/changes/B1.scala lib/B.scala
+> app/run B

@@ -15,7 +15,7 @@ import java.util
 
 import scala.reflect.ClassTag
 
-case class EnumSetSerializer[E <: Enum[E]: ClassTag](allValues: Array[E]) {
+case class EnumSetSerializer[E <: Enum[E]: ClassTag](allValues: Array[E]):
   assert(
     allValues.size <= 6,
     s"EnumSetSerializer can only support up to 6 values (but got $allValues)."
@@ -30,16 +30,14 @@ case class EnumSetSerializer[E <: Enum[E]: ClassTag](allValues: Array[E]) {
 
   private val OffsetInASCII = 33 // byte value of '!'
 
-  def serialize(set: util.EnumSet[E]): Char = {
+  def serialize(set: util.EnumSet[E]): Char =
     var flags = 0
-    for ((v, mask) <- masks if set.contains(v)) flags |= mask
+    for (v, mask) <- masks if set.contains(v) do flags |= mask
     (flags + OffsetInASCII).toChar
-  }
 
-  def deserialize(c: Char): util.EnumSet[E] = {
+  def deserialize(c: Char): util.EnumSet[E] =
     val set = util.EnumSet.noneOf(enumClass)
     val bits = c.toInt - OffsetInASCII
-    for ((v, mask) <- masks if (bits & mask) != 0) set.add(v)
+    for (v, mask) <- masks if (bits & mask) != 0 do set.add(v)
     set
-  }
-}
+end EnumSetSerializer

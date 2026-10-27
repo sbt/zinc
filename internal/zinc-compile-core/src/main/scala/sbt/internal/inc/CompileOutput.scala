@@ -22,7 +22,7 @@ import java.util.Optional
  * Define helpers to create [[CompileOutput]] to pass to the incremental
  * compiler. Both `SingleOutput` and `MultipleOutput` are supported.
  */
-object CompileOutput {
+object CompileOutput:
 
   /**
    * Create a `SingleOutput`.
@@ -39,12 +39,11 @@ object CompileOutput {
    * @param groups A collection of tuples mapping from a source dir to an output dir.
    * @return An instance of `MultipleOutput`.
    */
-  def apply(groups: (Path, Path)*): Output = {
+  def apply(groups: (Path, Path)*): Output =
     val gs = groups.toArray map {
       case (src, out) => outputGroup(src, out)
     }
     apply(gs)
-  }
 
   def apply(groups: Array[OutputGroup]): Output = new ConcreteMultipleOutput(groups)
 
@@ -53,30 +52,26 @@ object CompileOutput {
   def outputGroup(source: Path, output: Path): OutputGroup =
     new ConcreteOutputGroup(source, output)
 
-  private final class EmptyOutput extends xsbti.compile.Output {
+  private final class EmptyOutput extends xsbti.compile.Output:
     override def getSingleOutput(): Optional[File] = Optional.empty()
     override def getSingleOutputAsPath(): Optional[Path] = Optional.empty()
     override def getMultipleOutput(): Optional[Array[OutputGroup]] = Optional.empty()
     override def toString: String = "EmptyOutput()"
-  }
 
   private final class ConcreteSingleOutput(override val getOutputDirectoryAsPath: Path)
-      extends xsbti.compile.SingleOutput {
+      extends xsbti.compile.SingleOutput:
     override def getOutputDirectory: File = getOutputDirectoryAsPath.toFile
     override def toString: String = s"SingleOutput($getOutputDirectory)"
-  }
 
   private final class ConcreteMultipleOutput(val getOutputGroups: Array[OutputGroup])
-      extends xsbti.compile.MultipleOutput {
+      extends xsbti.compile.MultipleOutput:
     override def toString = s"MultipleOutput($getOutputGroups)"
-  }
 
   private final class ConcreteOutputGroup(
       override val getSourceDirectoryAsPath: Path,
       override val getOutputDirectoryAsPath: Path
-  ) extends xsbti.compile.OutputGroup {
+  ) extends xsbti.compile.OutputGroup:
     override def getSourceDirectory: File = getSourceDirectoryAsPath.toFile
     override def getOutputDirectory: File = getOutputDirectoryAsPath.toFile
     override def toString = s"OutputGroup($getSourceDirectoryAsPath -> $getOutputDirectoryAsPath)"
-  }
-}
+end CompileOutput

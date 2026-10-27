@@ -16,56 +16,46 @@ import java.nio.file.Path
 
 import sbt.internal.inc.zip.ZipCentralDir
 
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 import scala.collection.immutable.Seq
 
 /**
  * The concrete implementation of [[sbt.internal.inc.IndexBasedZipOps]]
  * based on [[sbt.internal.inc.zip.ZipCentralDir]].
  */
-object IndexBasedZipFsOps extends IndexBasedZipOps {
+object IndexBasedZipFsOps extends IndexBasedZipOps:
   override type CentralDir = ZipCentralDir
   override type Header = ZipCentralDir.Entry
 
-  override protected def readCentralDir(path: Path): CentralDir = {
+  override protected def readCentralDir(path: Path): CentralDir =
     new ZipCentralDir(path)
-  }
 
-  override protected def getCentralDirStart(centralDir: CentralDir): Long = {
+  override protected def getCentralDirStart(centralDir: CentralDir): Long =
     centralDir.getCentralDirStart
-  }
 
-  override protected def setCentralDirStart(centralDir: CentralDir, centralDirStart: Long): Unit = {
+  override protected def setCentralDirStart(centralDir: CentralDir, centralDirStart: Long): Unit =
     centralDir.setCentralDirStart(centralDirStart)
-  }
 
-  override protected def getHeaders(centralDir: CentralDir): Seq[Header] = {
+  override protected def getHeaders(centralDir: CentralDir): Seq[Header] =
     centralDir.getHeaders.asScala.toVector
-  }
-  override protected def setHeaders(centralDir: CentralDir, headers: Seq[Header]): Unit = {
+  override protected def setHeaders(centralDir: CentralDir, headers: Seq[Header]): Unit =
     centralDir.setHeaders(new java.util.ArrayList[Header](headers.asJava))
-  }
 
-  override protected def getFileName(header: Header): String = {
+  override protected def getFileName(header: Header): String =
     header.getName
-  }
 
-  override protected def getFileOffset(header: Header): Long = {
+  override protected def getFileOffset(header: Header): Long =
     header.getEntryOffset
-  }
 
-  override protected def setFileOffset(header: Header, offset: Long): Unit = {
+  override protected def setFileOffset(header: Header, offset: Long): Unit =
     header.setEntryOffset(offset)
-  }
 
-  override protected def getLastModifiedTime(header: Header): Long = {
+  override protected def getLastModifiedTime(header: Header): Long =
     header.getLastModifiedTime
-  }
 
   override protected def writeCentralDir(
       centralDir: CentralDir,
       outputStream: OutputStream
-  ): Unit = {
+  ): Unit =
     centralDir.dump(outputStream)
-  }
-}
+end IndexBasedZipFsOps

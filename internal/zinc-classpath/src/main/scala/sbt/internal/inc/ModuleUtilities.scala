@@ -13,18 +13,17 @@ package sbt
 package internal
 package inc
 
-object ModuleUtilities {
+object ModuleUtilities:
 
   /**
    * Reflectively loads and returns the companion object for top-level class `className` from `loader`.
    * The class name should not include the `$` that scalac appends to the underlying jvm class for
    * a companion object.
    */
-  def getObject(className: String, loader: ClassLoader): AnyRef = {
+  def getObject(className: String, loader: ClassLoader): AnyRef =
     val obj = Class.forName(className + "$", true, loader)
     val singletonField = obj.getField("MODULE$")
     singletonField.get(null)
-  }
 
   def getCheckedObject[T](className: String, loader: ClassLoader)(
       implicit mf: reflect.ClassTag[T]
@@ -35,4 +34,4 @@ object ModuleUtilities {
       implicit mf: reflect.ClassTag[T]
   ): Seq[(String, T)] =
     classNames.map(name => (name, getCheckedObject(name, loader)))
-}
+end ModuleUtilities

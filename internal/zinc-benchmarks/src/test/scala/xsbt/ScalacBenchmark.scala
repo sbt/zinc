@@ -12,23 +12,20 @@
 package xsbt
 
 import java.util.concurrent.TimeUnit
-import org.openjdk.jmh.annotations._
+import org.openjdk.jmh.annotations.*
 
-class ScalacBenchmark extends BenchmarkBase {
+class ScalacBenchmark extends BenchmarkBase:
   _project = BenchmarkProjects.Scalac
-}
 
 @State(Scope.Benchmark)
 @BenchmarkMode(Array(Mode.SingleShotTime))
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 @Fork(value = 5, jvmArgs = Array("-XX:CICompilerCount=2"))
-class ColdScalacBenchmark extends ScalacBenchmark {
+class ColdScalacBenchmark extends ScalacBenchmark:
   _subprojectToRun = _project.subprojects.head
   @Benchmark
-  override def action(): Unit = {
+  override def action(): Unit =
     super.action()
-  }
-}
 
 /*
 @State(Scope.Benchmark)
@@ -52,10 +49,8 @@ class WarmScalacBenchmark extends ScalacBenchmark {
 @Warmup(iterations = 10, time = 10, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 5, time = 10, timeUnit = TimeUnit.SECONDS)
 @Fork(value = 1)
-class HotScalacBenchmark extends ScalacBenchmark {
+class HotScalacBenchmark extends ScalacBenchmark:
   _subprojectToRun = _project.subprojects.head
   @Benchmark
-  override def action(): Unit = {
+  override def action(): Unit =
     super.action()
-  }
-}

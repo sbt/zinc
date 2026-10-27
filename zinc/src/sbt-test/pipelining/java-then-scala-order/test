@@ -1,0 +1,10 @@
+# https://github.com/sbt/sbt/issues/9707
+# Pipelining defers javac, so JavaThenScala cannot be honoured for a subproject
+# that mixes Java and Scala, and is rejected instead of silently compiling as
+# if Mixed had been configured.
+-> use/compile
+
+# compileOrder is often set on ThisBuild, so subprojects without Java sources
+# must keep compiling.
+> scala-only/compile
+$ exists scala-only/target/classes/OnlyScala.class

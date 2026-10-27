@@ -37,7 +37,7 @@ import sbt.util.Logger
  * output need not match the reflection-derived API byte-for-byte; it only needs to be deterministic
  * and to change when the class's public shape changes.
  */
-object ClassfileToAPI {
+object ClassfileToAPI:
   import api.DefinitionType.{ ClassDef, Module, Trait }
 
   private val noAnnotations = new Array[api.Annotation](0)
@@ -55,40 +55,38 @@ object ClassfileToAPI {
   // modelling is Phase 3.
   private val SyntheticRef = ClassToAPI.reference("xsbti.api.ClassfileApi")
 
-  private def syntheticAnnotations(parts: (String, Iterable[String])*): Array[api.Annotation] = {
+  private def syntheticAnnotations(parts: (String, Iterable[String])*): Array[api.Annotation] =
     val args = parts.flatMap {
       case (label, values) =>
-        if (values.isEmpty) None
+        if values.isEmpty then None
         else Some(api.AnnotationArgument.of(label, values.mkString(",")))
     }
-    if (args.isEmpty) noAnnotations
+    if args.isEmpty then noAnnotations
     else Array(api.Annotation.of(SyntheticRef, args.toArray))
-  }
 
   /** Resolved checked-exception type names from a method's `Exceptions` attribute (JVMS 4.7.5). */
   private def exceptionNames(cf: ClassFile, attrs: Seq[AttributeInfo]): Seq[String] =
-    attrs.find(_.isNamed("Exceptions")) match {
-      case None => Nil
+    attrs.find(_.isNamed("Exceptions")) match
+      case None    => Nil
       case Some(a) =>
-        try {
+        try
           val in = new DataInputStream(new ByteArrayInputStream(a.value))
           val count = in.readUnsignedShort()
           List.fill(count) {
             val classConstant = cf.constantPool(in.readUnsignedShort())
             cf.constantPool(classConstant.nameIndex).value.fold("")(_.toString).replace('/', '.')
           }
-        } catch { case _: Throwable => Nil }
-    }
+        catch case _: Throwable => Nil
 
   /** Declared annotation type names from RuntimeVisible/Invisible annotations (JVMS 4.7.16). */
-  private def annotationTypeNames(cf: ClassFile, attrs: Seq[AttributeInfo]): Seq[String] = {
+  private def annotationTypeNames(cf: ClassFile, attrs: Seq[AttributeInfo]): Seq[String] =
     val names = ArrayBuffer.empty[String]
-    for (a <- attrs if a.isRuntimeVisibleAnnotations || a.isRuntimeInvisibleAnnotations) {
-      try {
+    for a <- attrs if a.isRuntimeVisibleAnnotations || a.isRuntimeInvisibleAnnotations do
+      try
         val in = new DataInputStream(new ByteArrayInputStream(a.value))
         def utf8(i: Int): String = cf.constantPool(i).value.fold("")(_.toString)
         def skipElementValue(): Unit =
-          in.readUnsignedByte().toChar match {
+          in.readUnsignedByte().toChar match
             case 'e' => in.readUnsignedShort(); in.readUnsignedShort()
             case 'c' => in.readUnsignedShort()
             case '@' => readAnnotation()
@@ -96,18 +94,15 @@ object ClassfileToAPI {
               val n = in.readUnsignedShort()
               (0 until n).foreach(_ => skipElementValue())
             case _ => in.readUnsignedShort()
-          }
-        def readAnnotation(): Unit = {
+        def readAnnotation(): Unit =
           names += utf8(in.readUnsignedShort()).stripPrefix("L").stripSuffix(";").replace('/', '.')
           val pairs = in.readUnsignedShort()
           (0 until pairs).foreach { _ => in.readUnsignedShort(); skipElementValue() }
-        }
         val num = in.readUnsignedShort()
         (0 until num).foreach(_ => readAnnotation())
-      } catch { case _: Throwable => () }
-    }
+      catch case _: Throwable => ()
     names.toSeq
-  }
+  end annotationTypeNames
 
   /**
    * Produces the API (class + module `ClassLike` for each input) and the names of any classes that
@@ -117,24 +112,22 @@ object ClassfileToAPI {
   def process(
       named: Seq[(String, ClassFile)],
       log: Logger = Logger.Null
-  ): (Seq[api.ClassLike], Seq[String]) = {
+  ): (Seq[api.ClassLike], Seq[String]) =
     val classApis = ArrayBuffer.empty[api.ClassLike]
     val mainClasses = ArrayBuffer.empty[String]
-    for ((name, cf) <- named) {
+    for (name, cf) <- named do
       classApis ++= classLikes(name, cf)
-      if (cf.methods.exists(_.isMain)) mainClasses += name
-    }
+      if cf.methods.exists(_.isMain) then mainClasses += name
     (classApis.toSeq, mainClasses.toSeq)
-  }
 
-  private def classLikes(name: String, cf: ClassFile): Seq[api.ClassLike] = {
+  private def classLikes(name: String, cf: ClassFile): Seq[api.ClassLike] =
     // Use the binary name's package (last '.' before the simple/binary name); the canonical name's
     // dots would mis-split nested classes (e.g. "pkg.Outer.Inner").
     val enclPkg = ClassToAPI.packageAndName(cf.className)._1
     val mods = ClassToAPI.modifiers(cf.accessFlags)
     val acc = ClassToAPI.access(cf.accessFlags, enclPkg)
     val isInterface = Modifier.isInterface(cf.accessFlags)
-    val tpe = if (isInterface) Trait else ClassDef
+    val tpe = if isInterface then Trait else ClassDef
     // Top-level unless the classfile's InnerClasses attribute lists itself as a member of another.
     val topLevel =
       !cf.innerClasses.exists(i => i.innerClassName == cf.className && i.outerClassName.nonEmpty)
@@ -150,11 +143,10 @@ object ClassfileToAPI {
     val staticDeclared: Array[api.ClassDefinition] =
       (staticFields.map(_._2) ++ staticMethods.map(_._2)).toArray
 
-    val parents: Array[api.Type] =
-      (cf.superClassName +: cf.interfaceNames.toIndexedSeq)
-        .filter(_.nonEmpty)
-        .map(ClassToAPI.reference)
-        .toArray
+    val parents: Array[api.Type] = (cf.superClassName +: cf.interfaceNames.toIndexedSeq)
+      .filter(_.nonEmpty)
+      .map(ClassToAPI.reference)
+      .toArray
 
     val classAnnots = syntheticAnnotations(
       "signature" -> cf.attributes.find(_.isSignature).map(cf.stringValue).toList,
@@ -193,39 +185,38 @@ object ClassfileToAPI {
       noTypeParameters
     )
     cls :: stat :: Nil
-  }
+  end classLikes
 
   /** (isStatic, FieldLike) for a classfile field. */
   private def fieldDef(
       cf: ClassFile,
       f: FieldOrMethodInfo,
       enclPkg: Option[String]
-  ): (Boolean, api.ClassDefinition) = {
+  ): (Boolean, api.ClassDefinition) =
     val name = f.name.getOrElse("")
     val mods = ClassToAPI.modifiers(f.accessFlags)
     // Compilers inline static-final constants, so fold the constant value into the type (mirroring
     // ClassToAPI.singletonForConstantField) so a value change (X = 1 -> 2) changes the hash.
     val constant: Option[AnyRef] =
-      if (mods.isFinal)
+      if mods.isFinal then
         (try cf.constantValue(name)
-        catch { case _: Throwable => None })
+        catch case _: Throwable => None)
       else None
-    val tpe = constant match {
+    val tpe = constant match
       case Some(value) =>
         val tag = name + "$" + f.descriptor.getOrElse("") + "$" + value
         api.Singleton.of(ClassToAPI.pathFromStrings(cf.className.split("\\.").toIndexedSeq :+ tag))
       case None => parseFieldType(f.descriptor.getOrElse("V"))
-    }
     val acc = ClassToAPI.access(f.accessFlags, enclPkg)
     val annots = syntheticAnnotations(
       "signature" -> f.attributes.find(_.isSignature).map(cf.stringValue).toList,
       "annotations" -> annotationTypeNames(cf, f.attributes)
     )
     val fieldLike =
-      if (mods.isFinal) api.Val.of(name, acc, mods, annots, tpe)
+      if mods.isFinal then api.Val.of(name, acc, mods, annots, tpe)
       else api.Var.of(name, acc, mods, annots, tpe)
     (f.isStatic, fieldLike)
-  }
+  end fieldDef
 
   /** (isStatic, Def) for a classfile method; `<init>` is named like [[ClassToAPI]]'s constructors. */
   private def methodDef(
@@ -233,7 +224,7 @@ object ClassfileToAPI {
       m: FieldOrMethodInfo,
       binaryName: String,
       enclPkg: Option[String]
-  ): (Boolean, api.ClassDefinition) = {
+  ): (Boolean, api.ClassDefinition) =
     val (paramTypes, returnType) = parseMethodType(m.descriptor.getOrElse("()V"))
     val params = paramTypes.map(t =>
       api.MethodParameter.of("", t, false, api.ParameterModifier.Plain)
@@ -241,7 +232,7 @@ object ClassfileToAPI {
     val paramList = api.ParameterList.of(params, false)
     // Match ClassToAPI.uniqueConstructorName, which uses the binary (not canonical) class name.
     val name =
-      if (m.name.contains("<init>")) s"${binaryName.replace('.', ';')};init;"
+      if m.name.contains("<init>") then s"${binaryName.replace('.', ';')};init;"
       else m.name.getOrElse("")
     val acc = ClassToAPI.access(m.accessFlags, enclPkg)
     val mods = ClassToAPI.modifiers(m.accessFlags)
@@ -252,7 +243,7 @@ object ClassfileToAPI {
     )
     val d = api.Def.of(name, acc, mods, annots, noTypeParameters, Array(paramList), returnType)
     (m.isStatic, d)
-  }
+  end methodDef
 
   private val ObjectRef = ClassToAPI.reference("java.lang.Object")
 
@@ -260,21 +251,19 @@ object ClassfileToAPI {
   private[inc] def parseFieldType(descriptor: String): api.Type = parseType(descriptor, 0)._1
 
   /** Parses a JVM method descriptor (JVMS 4.3.3) into (parameter types, return type), erased. */
-  private[inc] def parseMethodType(descriptor: String): (Array[api.Type], api.Type) = {
+  private[inc] def parseMethodType(descriptor: String): (Array[api.Type], api.Type) =
     val params = ArrayBuffer.empty[api.Type]
     var i = 1 // skip '('
-    while (i < descriptor.length && descriptor.charAt(i) != ')') {
+    while i < descriptor.length && descriptor.charAt(i) != ')' do
       val (tpe, next) = parseType(descriptor, i)
       params += tpe
       i = next
-    }
     // `i` should sit on ')'; on a malformed/truncated descriptor fall back to a void return rather
     // than indexing past the end.
     val returnType =
-      if (i + 1 < descriptor.length) parseType(descriptor, i + 1)._1
+      if i + 1 < descriptor.length then parseType(descriptor, i + 1)._1
       else ClassToAPI.primitive("void")
     (params.toArray, returnType)
-  }
 
   /**
    * Parses one field type starting at `i`, returning the type and the index just past it. Unknown
@@ -283,9 +272,9 @@ object ClassfileToAPI {
    * compile that would otherwise succeed.
    */
   private def parseType(descriptor: String, i: Int): (api.Type, Int) =
-    if (i >= descriptor.length) (ObjectRef, i + 1)
+    if i >= descriptor.length then (ObjectRef, i + 1)
     else
-      descriptor.charAt(i) match {
+      descriptor.charAt(i) match
         case 'B' => (ClassToAPI.primitive("byte"), i + 1)
         case 'C' => (ClassToAPI.primitive("char"), i + 1)
         case 'D' => (ClassToAPI.primitive("double"), i + 1)
@@ -300,8 +289,7 @@ object ClassfileToAPI {
           (ClassToAPI.array(elem), next)
         case 'L' =>
           val semi = descriptor.indexOf(';', i)
-          val end = if (semi < 0) descriptor.length else semi
+          val end = if semi < 0 then descriptor.length else semi
           (ClassToAPI.reference(descriptor.substring(i + 1, end).replace('/', '.')), end + 1)
         case _ => (ObjectRef, i + 1)
-      }
-}
+end ClassfileToAPI

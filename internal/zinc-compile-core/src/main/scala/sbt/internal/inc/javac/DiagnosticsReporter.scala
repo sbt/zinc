@@ -27,8 +27,8 @@ import javax.tools.Diagnostic.NOPOS
  * A diagnostics listener that feeds all messages into the given reporter.
  * @param reporter
  */
-final class DiagnosticsReporter(reporter: Reporter) extends DiagnosticListener[JavaFileObject] {
-  import DiagnosticsReporter._
+final class DiagnosticsReporter(reporter: Reporter) extends DiagnosticListener[JavaFileObject]:
+  import DiagnosticsReporter.*
 
   val END_OF_LINE_MATCHER = "(\r\n)|[\r]|[\n]"
   val EOL = System.getProperty("line.separator")
@@ -36,19 +36,17 @@ final class DiagnosticsReporter(reporter: Reporter) extends DiagnosticListener[J
   private var errorEncountered = false
   def hasErrors: Boolean = errorEncountered
 
-  override def report(d: Diagnostic[? <: JavaFileObject]): Unit = {
-    val severity: Severity = {
-      d.getKind match {
+  override def report(d: Diagnostic[? <: JavaFileObject]): Unit =
+    val severity: Severity =
+      d.getKind match
         case Diagnostic.Kind.ERROR                                       => Severity.Error
         case Diagnostic.Kind.WARNING | Diagnostic.Kind.MANDATORY_WARNING => Severity.Warn
         case _                                                           => Severity.Info
-      }
-    }
 
     import sbt.util.InterfaceUtil.problem
     val msg = d.getMessage(null)
     val pos: xsbti.Position = PositionImpl(d)
-    if (severity == Severity.Error) errorEncountered = true
+    if severity == Severity.Error then errorEncountered = true
     reporter.log(problem(
       cat = "",
       pos = pos,
@@ -59,10 +57,10 @@ final class DiagnosticsReporter(reporter: Reporter) extends DiagnosticListener[J
       diagnosticRelatedInformation = Nil,
       actions = Nil,
     ))
-  }
-}
+  end report
+end DiagnosticsReporter
 
-object DiagnosticsReporter {
+object DiagnosticsReporter:
 
   /**
    * Strict and immutable implementation of Position.
@@ -80,14 +78,13 @@ object DiagnosticsReporter {
       override val startColumn: Optional[Integer],
       override val endLine: Optional[Integer],
       override val endColumn: Optional[Integer]
-  ) extends xsbti.Position {
+  ) extends xsbti.Position:
     override val sourcePath: Optional[String] = o2jo(sourceUri)
     override val sourceFile: Optional[File] = o2jo(sourceUri.map(new File(_)))
 
     override def toString: String =
-      if (sourceUri.isDefined) s"${sourceUri.get}:${if (line.isPresent) line.get else -1}"
+      if sourceUri.isDefined then s"${sourceUri.get}:${if line.isPresent then line.get else -1}"
       else ""
-  }
 
   /**
    * VSCode documentation...
@@ -101,7 +98,7 @@ object DiagnosticsReporter {
       cc: CharSequence,
       start: Long,
       end: Long
-  ): (Integer, Integer, Integer, Integer, String) = {
+  ): (Integer, Integer, Integer, Integer, String) =
 
     var startPos = start.toInt
     var endPos = end.toInt
@@ -114,48 +111,45 @@ object DiagnosticsReporter {
     var startLine = 1
     var startColumn = 0
     startPos = startPos - 1
-    while (startPos >= 0) {
+    while startPos >= 0 do
       val ch = cc.charAt(startPos)
-      if (checkForR && ch == '\r') {
+      if checkForR && ch == '\r' then
         startLine = startLine + 1
         checkForN = false
-      } else if (checkForN && ch == '\n') {
+      else if checkForN && ch == '\n' then
         startLine = startLine + 1
         checkForR = false
-      } else if (startLine == 1)
+      else if startLine == 1 then
         startColumn = startColumn + 1
 
       startPos = startPos - 1
-    }
     // find endLine and endColumn
     var endLine = startLine
     var endColumn = 0
     endPos = endPos - 1
-    while (endPos >= start) {
+    while endPos >= start do
       // mimic linefeed if at the end of the file
-      if (endPos == cc.length)
+      if endPos == cc.length then
         endLine = endLine + 1
-      else {
+      else
         val ch = cc.charAt(endPos)
-        if (checkForR && ch == '\r') {
+        if checkForR && ch == '\r' then
           endLine = endLine + 1
           checkForN = false
-        } else if (checkForN && ch == '\n') {
+        else if checkForN && ch == '\n' then
           endLine = endLine + 1
           checkForR = false
-        } else if (endLine == startLine)
+        else if endLine == startLine then
           endColumn = endColumn + 1
-      }
 
       endPos = endPos - 1
-    }
-    if (startLine == endLine)
+    if startLine == endLine then
       endColumn = endColumn + startColumn
 
     (startLine, startColumn, endLine, endColumn, lineContent)
-  }
+  end contentAndRanges
 
-  private[sbt] object PositionImpl {
+  private[sbt] object PositionImpl:
 
     /**
      * Extracts PositionImpl from a Java Diagnostic.
@@ -164,37 +158,35 @@ object DiagnosticsReporter {
      * This caused a race condition on the Diagnostic object, resulting in a NullPointerException.
      * See https://github.com/sbt/sbt/issues/3623
      */
-    def apply(d: Diagnostic[? <: JavaFileObject]): PositionImpl = {
+    def apply(d: Diagnostic[? <: JavaFileObject]): PositionImpl =
       // https://docs.oracle.com/javase/7/docs/api/javax/tools/Diagnostic.html
       // Negative values (except NOPOS) and 0 are not valid line or column numbers,
       // except that you can cause this number to occur by putting "abc {}" in A.java.
       // This will cause Invalid position: 0 masking the actual error message
       //     a/A.java:1: class, interface, or enum expected
       def checkNoPos(n: Long): Option[Long] =
-        n match {
+        n match
           case NOPOS       => None
           case x if x <= 0 => None
           case x           => Option(x)
-        }
 
       val source: Option[JavaFileObject] = Option(d.getSource)
 
       // see also LocalJava.scala
       val sourcePath: Option[String] =
-        source match {
+        source match
           case Some(obj) =>
             val uri = obj.toUri
-            if (uri.getScheme == "file")
+            if uri.getScheme == "file" then
               Some(
                 IO.urlAsFile(uri.toURL)
                   .map(_.getAbsolutePath)
                   .getOrElse(uri.toString)
               )
-            else if (uri.getScheme == "vf")
+            else if uri.getScheme == "vf" then
               Some(LocalJava.fromUri(uri).id)
             else Some(uri.toString)
           case _ => None
-        }
 
       def startPosition: Option[Long] = checkNoPos(d.getStartPosition)
       def endPosition: Option[Long] = checkNoPos(d.getEndPosition)
@@ -208,7 +200,7 @@ object DiagnosticsReporter {
 
       def noPositionInfo
           : (Optional[Integer], Optional[Integer], Optional[Integer], Optional[Integer], String) =
-        if (line.isPresent)
+        if line.isPresent then
           (line, o2jo(Some(0)), Optional.of(line.get() + 1), o2jo(Some(0)), "")
         else
           (
@@ -223,9 +215,9 @@ object DiagnosticsReporter {
       // Would be ok to just return null if this version of the JDK doesn't support grabbing
       // source lines?
       val (startLine, startColumn, endLine, endColumn, lineContent) =
-        source match {
+        source match
           case Some(source: JavaFileObject) =>
-            (Option(source.getCharContent(true)), startPosition, endPosition) match {
+            (Option(source.getCharContent(true)), startPosition, endPosition) match
               case (Some(cc), Some(start), Some(end))
                   // Guard against Javac bug in parsing `public class ChrisTest { void m() { else null; }}`
                   if end >= start =>
@@ -239,9 +231,7 @@ object DiagnosticsReporter {
                   range._5
                 )
               case _ => noPositionInfo
-            }
           case _ => noPositionInfo
-        }
 
       val pointerSpace = pointer.map[String] { p =>
         lineContent.take(p.intValue()).map {
@@ -264,6 +254,6 @@ object DiagnosticsReporter {
         endLine,
         endColumn
       )
-    }
-  }
-}
+    end apply
+  end PositionImpl
+end DiagnosticsReporter

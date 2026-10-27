@@ -24,10 +24,10 @@ import xsbti.compile.analysis.{
   ReadSourceInfos,
   ReadStamps,
   SourceInfo,
-  Stamp => XStamp
+  Stamp as XStamp
 }
 
-trait Analysis extends CompileAnalysis {
+trait Analysis extends CompileAnalysis:
   val stamps: Stamps
   val apis: APIs
 
@@ -80,9 +80,9 @@ trait Analysis extends CompileAnalysis {
   ): Analysis
 
   override lazy val toString = Analysis.summary(this)
-}
+end Analysis
 
-object Analysis {
+object Analysis:
   case class NonLocalProduct(
       className: String,
       binaryClassName: String,
@@ -102,13 +102,12 @@ object Analysis {
   def computeBytecodeHash(
       localProducts: scala.collection.Set[LocalProduct],
       nonLocalProduct: scala.collection.Set[NonLocalProduct]
-  ): Int = {
+  ): Int =
     val hashes =
       localProducts.map(_.classFileStamp.getHash) ++ nonLocalProduct.map(_.classFileStamp.getHash)
     hashes.hashCode()
-  }
 
-  def sources(a: Analysis): Sources = {
+  def sources(a: Analysis): Sources =
     def sourceFileForClass(className: String): VirtualFileRef =
       a.relations.definesClass(className).headOption.getOrElse {
         sys.error(s"Can't find source file for $className")
@@ -116,9 +115,8 @@ object Analysis {
     def isJavaClass(className: String) = sourceFileForClass(className).id.endsWith(".java")
     val (j, s) = a.apis.allInternalClasses.partition(isJavaClass)
     Sources(j.toSet, s.toSet)
-  }
 
-  def summary(a: Analysis): String = {
+  def summary(a: Analysis): String =
     val Sources(j, s) = sources(a)
     val c = a.stamps.allProducts
     val ext = a.apis.allExternals
@@ -132,18 +130,16 @@ object Analysis {
         counted("binary dependenc", "y", "ies", jars.size) ++
         counted("unreported warning", "", "s", unreportedCount)
     sections.mkString("Analysis: ", ", ", "")
-  }
 
   def counted(prefix: String, single: String, plural: String, count: Int): Option[String] =
-    count match {
+    count match
       case 0 => None
       case 1 => Some(s"1 $prefix$single")
       case x => Some(s"$x $prefix$plural")
-    }
 
   lazy val dummyOutputPath: Path = Paths.get("/tmp/dummy")
   lazy val dummyOutputJarPath: Path = Paths.get("/tmp/dummy/output.jar")
-}
+end Analysis
 
 private class MAnalysis(
     val stamps: Stamps,
@@ -151,7 +147,7 @@ private class MAnalysis(
     val relations: Relations,
     val infos: SourceInfos,
     val compilations: Compilations
-) extends Analysis {
+) extends Analysis:
   def ++(o: Analysis): Analysis =
     new MAnalysis(
       stamps ++ o.stamps,
@@ -161,7 +157,7 @@ private class MAnalysis(
       compilations ++ o.compilations
     )
 
-  def --(sources: Iterable[VirtualFileRef]): Analysis = {
+  def --(sources: Iterable[VirtualFileRef]): Analysis =
     val newRelations = relations -- sources
     def keep[T](f: (Relations, T) => Set[?]): T => Boolean = f(newRelations, _).nonEmpty
 
@@ -170,7 +166,6 @@ private class MAnalysis(
     val newStamps = stamps.filter(keep(_.produced(_)), sources, keep(_.usesLibrary(_)))
     val newInfos = infos -- sources
     new MAnalysis(newStamps, newAPIs, newRelations, newInfos, compilations)
-  }
 
   def copy(
       stamps: Stamps,
@@ -191,8 +186,8 @@ private class MAnalysis(
       internalDeps: Iterable[InternalDependency],
       externalDeps: Iterable[ExternalDependency],
       libraryDeps: Iterable[(VirtualFileRef, String, XStamp)]
-  ): Analysis = {
-    val newStamps = {
+  ): Analysis =
+    val newStamps =
       val stamps0 = stamps.markSource(src, stamp)
 
       val stamps1 = nonLocalProducts.foldLeft(stamps0) { (acc, nonLocalProduct) =>
@@ -207,9 +202,8 @@ private class MAnalysis(
         case (acc, (toBinary, className, binStamp)) =>
           acc.markLibrary(toBinary, className, binStamp)
       }
-    }
 
-    val newAPIs = {
+    val newAPIs =
       val apis1 = apis.foldLeft(this.apis) { (acc, analyzedClass) =>
         acc.markInternalAPI(analyzedClass.name, analyzedClass)
       }
@@ -217,7 +211,6 @@ private class MAnalysis(
       externalDeps.foldLeft(apis1) { (acc, extDep) =>
         acc.markExternalAPI(extDep.targetProductClassName, extDep.targetClass)
       }
-    }
 
     val products = nonLocalProducts.map(_.classFile) ++ localProducts.map(_.classFile)
     val classes = nonLocalProducts.map(p => p.className -> p.binaryClassName)
@@ -226,13 +219,12 @@ private class MAnalysis(
       relations.addSource(src, products, classes, internalDeps, externalDeps, libraryDeps)
 
     copy(newStamps, newAPIs, newRelations, infos.add(src, info))
-  }
+  end addSource
 
-  override def equals(other: Any) = other match {
+  override def equals(other: Any) = other match
     // Note: Equality doesn't consider source infos or compilations.
     case o: MAnalysis => stamps == o.stamps && apis == o.apis && relations == o.relations
     case _            => false
-  }
 
   override lazy val hashCode = (stamps :: apis :: relations :: Nil).hashCode
-}
+end MAnalysis

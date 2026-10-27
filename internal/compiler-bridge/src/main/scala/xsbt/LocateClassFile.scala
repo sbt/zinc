@@ -31,7 +31,8 @@ abstract class LocateClassFile extends Compat with ClassName {
     else {
       val file = sym.associatedFile
 
-      if (file == NoAbstractFile) {
+      // Scala 2.10 returns null instead of NoAbstractFile when the file is not set
+      if (file == null || file == NoAbstractFile) {
         if (isTopLevelModule(sym)) {
           val linked = sym.companionClass
           if (linked == NoSymbol)

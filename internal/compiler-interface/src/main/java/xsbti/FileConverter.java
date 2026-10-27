@@ -21,4 +21,12 @@ public interface FileConverter {
     }
 
     VirtualFile toVirtualFile(Path path);
+
+    /**
+     * Returns a reference to the path without reading the file system,
+     * unlike {@link #toVirtualFile(Path)}, which may list a directory to hash its content.
+     */
+    default VirtualFileRef toVirtualFileRef(Path path) {
+        return toVirtualFile(path);
+    }
 }

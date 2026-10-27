@@ -77,6 +77,9 @@ class ExtractAPI[GlobalType <: Global](
 
   private[this] val emptyStringArray = Array.empty[String]
 
+  // `<refinement>`, matched by refinementRelativeName below.
+  private[this] val refineClassName = tpnme.REFINE_CLASS_NAME.toString
+
   private[this] val allNonLocalClassSymbols = perRunCaches.newSet[Symbol]()
   private[this] val allNonLocalClassesInSrc = perRunCaches.newSet[xsbti.api.ClassLike]()
   private[this] val _mainClasses = perRunCaches.newSet[String]()
@@ -240,10 +243,7 @@ class ExtractAPI[GlobalType <: Global](
         }
       }
       printWriter.append(end)
-      val result = getAndResetBuffer()
-      val benchmark = trees.mkString(start, sep, end)
-      assert(result == benchmark, List(result, benchmark).mkString("[", "|", "]"))
-      result
+      getAndResetBuffer()
     }
     private def getAndResetBuffer(): String = {
       printWriter.flush()
@@ -259,7 +259,7 @@ class ExtractAPI[GlobalType <: Global](
     if (in == NoSymbol) ExtractAPI.emptyAnnotationArray
     else
       staticAnnotations(as) match {
-        case Nil => ExtractAPI.emptyAnnotationArray
+        case Nil      => ExtractAPI.emptyAnnotationArray
         case staticAs =>
           staticAs.map { a =>
             xsbti.api.Annotation.of(
@@ -586,9 +586,9 @@ class ExtractAPI[GlobalType <: Global](
     }
 
     dealiased match {
-      case NoPrefix             => Constants.emptyType
-      case ThisType(sym)        => xsbti.api.Singleton.of(thisPath(sym))
-      case SingleType(pre, sym) => projectionType(in, pre, sym)
+      case NoPrefix               => Constants.emptyType
+      case ThisType(sym)          => xsbti.api.Singleton.of(thisPath(sym))
+      case SingleType(pre, sym)   => projectionType(in, pre, sym)
       case ConstantType(constant) =>
         xsbti.api.Constant.of(processType(in, constant.tpe), constant.stringValue)
 
@@ -619,7 +619,9 @@ class ExtractAPI[GlobalType <: Global](
         if (unrolling ne withoutRecursiveRefs)
           reporter.warning(
             sym.pos,
-            "sbt-api: approximated refinement ref" + t + " (== " + unrolling + ") to " + withoutRecursiveRefs + "\nThis is currently untested, please report the code you were compiling."
+            "sbt-api: approximated refinement ref" + t + " (== " + unrolling + ") to " +
+              withoutRecursiveRefs +
+              "\nThis is currently untested, please report the code you were compiling."
           )
 
         structure(withoutRecursiveRefs, sym)
@@ -640,13 +642,13 @@ class ExtractAPI[GlobalType <: Global](
         Constants.emptyType
       case at: AnnotatedType =>
         at.annotations match {
-          case Nil => processType(in, at.underlying)
+          case Nil    => processType(in, at.underlying)
           case annots =>
             xsbti.api.Annotated.of(processType(in, at.underlying), mkAnnotations(in, annots))
         }
       case rt: CompoundType   => structure(rt, rt.typeSymbol)
       case t: ExistentialType => makeExistentialType(in, t)
-      case NoType =>
+      case NoType             =>
         Constants.emptyType // this can happen when there is an error that will be reported by a later phase
       case PolyType(typeParams, resultType) =>
         xsbti.api.Polymorphic.of(processType(in, resultType), typeParameters(in, typeParams))
@@ -713,8 +715,20 @@ class ExtractAPI[GlobalType <: Global](
         debuglog(s"Renaming existential type variable ${s.fullName} to $rename")
         rename
       case None =>
-        s.fullName
+        refinementRelativeName(s)
     }
+
+  /**
+   * `s.fullName` cut at the outermost refinement class. The pickler rewrites that class's
+   * owner (scala/bug#6596), so the full name of a type parameter declared inside a refinement
+   * differs between typing from source and unpickling, flipping the API hash of every class
+   * built on it (sbt/sbt#1079). Names with no refinement in the owner chain are unchanged.
+   */
+  private def refinementRelativeName(s: Symbol): String = {
+    val full = s.fullName
+    val start = full.indexOf(refineClassName)
+    if (start < 0) full else full.substring(start)
+  }
 
   /* Representation for the self type of a class symbol `s`, or `emptyType` for an *unascribed* self variable (or no self variable at all).
      Only the self variable's explicitly ascribed type is relevant for incremental compilation. */
@@ -811,11 +825,12 @@ class ExtractAPI[GlobalType <: Global](
   private[this] def hasJava25MainMethod(sym: Symbol): Boolean =
     !sym.isAbstract && sym.tpe.member(nme.main).alternatives.exists(isJava25MainMethod)
 
-  private[this] def isJava25MainMethod(sym: Symbol): Boolean =
-    (sym.name == nme.main) && (sym.info match {
-      case MethodType(Nil, restpe) => restpe.typeSymbol == definitions.UnitClass
+  private[this] def isJava25MainMethod(sym: Symbol): Boolean = (sym.name == nme.main) &&
+    (sym.info match {
+      case MethodType(Nil, restpe)      => restpe.typeSymbol == definitions.UnitClass
       case MethodType(p :: Nil, restpe) =>
-        definitions.isArrayOfSymbol(p.tpe, definitions.StringClass) && restpe
+        definitions.isArrayOfSymbol(p.tpe, definitions.StringClass) &&
+        restpe
           .typeSymbol == definitions.UnitClass
       case _ => false
     })

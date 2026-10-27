@@ -1,0 +1,21 @@
+# Regression guard for https://github.com/sbt/sbt/issues/1079.
+# `Impl` inherits from a trait applied to a type lambda, so its API mentions the
+# type parameter `a` of the alias declared inside the anonymous refinement class.
+# That parameter used to be named by its full owner chain, which the pickler
+# rewrites (scala/bug#6596), so both the name and the API hash differed between
+# compiling `KleisliMonadReader` from source and unpickling it. `Consumer` was
+# then invalidated on every comment-only edit of `Impl.scala`.
+
+> compile
+> checkRecompilations 0 test.MonadReader test.Kleisli test.KleisliMonadReader test.Impl test.Consumer
+
+# a comment-only change to Impl.scala
+
+$ copy-file changes/Impl.scala Impl.scala
+
+> compile
+
+# Impl alone is recompiled: its API is unchanged, so Consumer is not invalidated.
+
+> checkIterations 2
+> checkRecompilations 1 test.Impl

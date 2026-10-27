@@ -16,9 +16,9 @@ import java.io.{ BufferedReader, Writer }
 import sbt.internal.inc.{ ExternalDependencies, InternalDependencies, Relations, UsedNames }
 import sbt.internal.util.Relation
 import xsbti.VirtualFileRef
-import xsbti.api.DependencyContext._
+import xsbti.api.DependencyContext.*
 
-trait RelationsTextFormat extends FormatCommons {
+trait RelationsTextFormat extends FormatCommons:
 
   def sourcesMapper: Mapper[VirtualFileRef]
   def binariesMapper: Mapper[VirtualFileRef]
@@ -42,7 +42,7 @@ trait RelationsTextFormat extends FormatCommons {
   private def stringsDescriptor(header: String, rels: Relations => Relation[String, String]) =
     descriptor(header, rels, Mapper.forString, Mapper.forString)
 
-  private val allRelations: List[Descriptor[?, ?]] = {
+  private val allRelations: List[Descriptor[?, ?]] =
     List(
       descriptor("products", _.srcProd, sourcesMapper, productsMapper),
       descriptor("library dependencies", _.libraryDep, sourcesMapper, binariesMapper),
@@ -59,12 +59,11 @@ trait RelationsTextFormat extends FormatCommons {
       Descriptor("used names", _.names.toMultiMap, Mapper.forString, Mapper.forUsedName),
       stringsDescriptor("product class names", _.productClassName)
     )
-  }
 
-  protected object RelationsF {
-    def write(out: Writer, relations: Relations): Unit = {
-      def writeRelation[A, B](relDesc: Descriptor[A, B]): Unit = {
-        import relDesc._
+  protected object RelationsF:
+    def write(out: Writer, relations: Relations): Unit =
+      def writeRelation[A, B](relDesc: Descriptor[A, B]): Unit =
+        import relDesc.*
         val map = selectCorresponding(relations)
         writeHeader(out, header)
         writeSize(out, map.valuesIterator.flatten.size)
@@ -72,45 +71,40 @@ trait RelationsTextFormat extends FormatCommons {
         // Note that we don't share code with writeMap. Each is implemented more efficiently
         // than the shared code would be, and the difference is measurable on large analyses.
         val kvs = map.iterator.map { case (k, vs) => keyMapper.write(k) -> vs }.toSeq.sortBy(_._1)
-        for ((k, vs) <- kvs; v <- vs.iterator.map(valueMapper.write).toSeq.sorted) {
+        for (k, vs) <- kvs; v <- vs.iterator.map(valueMapper.write).toSeq.sorted do
           out.write(k); out.write(" -> "); out.write(v); out.write("\n")
-        }
-      }
       allRelations.foreach(writeRelation(_))
-    }
 
-    def read(in: BufferedReader): Relations = {
-      def readRelation[A, B](relDesc: Descriptor[A, B]): Map[A, Set[B]] = {
-        import relDesc._
+    def read(in: BufferedReader): Relations =
+      def readRelation[A, B](relDesc: Descriptor[A, B]): Map[A, Set[B]] =
+        import relDesc.*
         val items = readPairs(in)(header, keyMapper.read, valueMapper.read).iterator
         // Reconstruct the multi-map efficiently, using the writing strategy above
         val builder = Map.newBuilder[A, Set[B]]
         var currentKey = null.asInstanceOf[A]
         var currentVals = Set.newBuilder[B]
-        def closeEntry() = if (currentKey != null) builder += ((currentKey, currentVals.result()))
-        while (items.hasNext) {
+        def closeEntry() =
+          if currentKey != null then builder += ((currentKey, currentVals.result()))
+        while items.hasNext do
           val (key, value) = items.next()
-          if (key == currentKey) currentVals += value
-          else {
+          if key == currentKey then currentVals += value
+          else
             closeEntry()
             currentKey = key
             currentVals = Set.newBuilder[B] += value
-          }
-        }
         closeEntry()
         builder.result()
-      }
       construct(allRelations.map(readRelation(_)))
-    }
-  }
+  end RelationsF
 
   /**
    * Reconstructs a Relations from a list of Relation
    * The order in which the relations are read matters and is defined by `existingRelations`.
    */
   private def construct(relations: List[Map[?, Set[?]]]) =
-    relations match {
-      case p :: bin :: lcn :: mri :: mre :: ii :: ie :: lii :: lie :: mei :: mee :: cn :: un :: bcn :: Nil =>
+    relations match
+      case p :: bin :: lcn :: mri :: mre :: ii :: ie :: lii :: lie :: mei :: mee :: cn :: un ::
+          bcn :: Nil =>
         def toMultiMap[K, V](m: Map[?, ?]): Map[K, Set[V]] = m.asInstanceOf[Map[K, Set[V]]]
         def toRelation[K, V](m: Map[?, ?]): Relation[K, V] = Relation.reconstruct(toMultiMap(m))
 
@@ -144,5 +138,4 @@ trait RelationsTextFormat extends FormatCommons {
         throw new java.io.IOException(
           s"Expected to read ${allRelations.length} relations but read ${relations.length}."
         )
-    }
-}
+end RelationsTextFormat

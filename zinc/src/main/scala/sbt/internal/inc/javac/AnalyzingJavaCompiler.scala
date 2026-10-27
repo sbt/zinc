@@ -19,19 +19,19 @@ import java.net.URLClassLoader
 
 import sbt.internal.inc.classfile.{ ClassFile, JavaAnalyze }
 import sbt.internal.inc.classpath.ClasspathUtil
-import xsbti.compile._
+import xsbti.compile.*
 import xsbti.{
   AnalysisCallback,
   FileConverter,
-  Reporter => XReporter,
-  Logger => XLogger,
+  Reporter as XReporter,
+  Logger as XLogger,
   VirtualFile,
   VirtualFileRef
 }
 
 import sbt.util.InterfaceUtil
 import sbt.util.Logger
-import scala.jdk.OptionConverters._
+import scala.jdk.OptionConverters.*
 
 /**
  * Define a Java compiler that reports on any discovered source dependencies or
@@ -56,7 +56,7 @@ final class AnalyzingJavaCompiler private[sbt] (
     val classpathOptions: ClasspathOptions,
     val classLookup: (String => Option[VirtualFile]),
     val searchClasspath: Seq[VirtualFile]
-) extends JavaCompiler {
+) extends JavaCompiler:
 
   override def supportsDirectToJar: Boolean = javac.supportsDirectToJar
 
@@ -110,15 +110,15 @@ final class AnalyzingJavaCompiler private[sbt] (
       reporter: XReporter,
       log: XLogger,
       progressOpt: Option[CompileProgress]
-  ): Unit = {
+  ): Unit =
     val sourceDirs = collection.mutable.Map.empty[Path, VirtualFileRef]
 
-    if (sources.nonEmpty) {
+    if sources.nonEmpty then
       // Make the classpath absolute for Java compilation
       val absClasspath = (extraClasspath ++ classpath).map(VirtualFileUtil.toAbsolute)
 
       // Outline chunks of compiles so that .class files end up in right location
-      val chunks: Map[Option[Path], Seq[VirtualFile]] = output match {
+      val chunks: Map[Option[Path], Seq[VirtualFile]] = output match
         case single: SingleOutput =>
           Map(Option(single.getOutputDirectoryAsPath) -> sources)
         case multi: MultipleOutput =>
@@ -133,7 +133,6 @@ final class AnalyzingJavaCompiler private[sbt] (
               }
               .map(_.getOutputDirectoryAsPath)
           }
-      }
 
       // Report warnings about source files that have no output directory
       chunks.get(None) foreach { srcs =>
@@ -142,12 +141,12 @@ final class AnalyzingJavaCompiler private[sbt] (
       }
 
       // Memoize the known class files in the Javac output location
-      val memo = for { case (Some(outputPath), srcs) <- chunks } yield {
-        val classFinder =
-          if (outputPath.toString.endsWith(".jar")) new JarClassFinder(outputPath)
-          else new DirectoryClassFinder(outputPath)
-        (classFinder, classFinder.classes.pathsAndClose(), srcs)
-      }
+      val memo =
+        for case (Some(outputPath), srcs) <- chunks yield
+          val classFinder =
+            if outputPath.toString.endsWith(".jar") then new JarClassFinder(outputPath)
+            else new DirectoryClassFinder(outputPath)
+          (classFinder, classFinder.classes.pathsAndClose(), srcs)
 
       // Record progress for java compilation
       val somePhase = "<some phase>"
@@ -179,7 +178,7 @@ final class AnalyzingJavaCompiler private[sbt] (
         // covers in-process javac; a forked compiler can't be hooked, so those rare cross-module
         // constant-only dependencies (annotation values / switch-case labels referencing a constant
         // from a separately-compiled class) are not tracked under forked javac.
-        val success = javac match {
+        val success = javac match
           case ljc: LocalJavaCompiler =>
             val (ok, deps) =
               ljc.runWithConstantDeps(javaSources, args, output, incToolOptions, reporter, log)
@@ -187,34 +186,30 @@ final class AnalyzingJavaCompiler private[sbt] (
             ok
           case _ =>
             javac.run(javaSources, args, output, incToolOptions, reporter, log)
-        }
-        if (!success) {
+        if !success then
           /* Assume that no Scalac problems are reported for a Javac-related
            * reporter. This relies on the incremental compiler will not run
            * Javac compilation if Scala compilation fails, which means that
            * the same reporter won't be used for `AnalyzingJavaCompiler`. */
           val msg = "javac returned non-zero exit code"
           throw new CompileFailed(args, msg, reporter.problems())
-        }
       }
 
       // Read the API information from [[Class]] to analyze dependencies.
-      def readAPI(source: VirtualFileRef, classes: Seq[Class[?]]): Set[(String, String)] = {
+      def readAPI(source: VirtualFileRef, classes: Seq[Class[?]]): Set[(String, String)] =
         val (apis, mainClasses, inherits) = ClassToAPI.process(classes, log)
         apis.foreach(callback.api(source, _))
         mainClasses.foreach(callback.mainClass(source, _))
         inherits.map {
           case (from, to) => (from.getName, to.getName)
         }
-      }
 
       // Read the API of classes that couldn't be reflectively loaded, from their classfiles
       // (sbt/zinc#837), so name-hashing still tracks changes to their own public shape.
-      def readClassfileAPI(source: VirtualFileRef, classFiles: Seq[(String, ClassFile)]): Unit = {
+      def readClassfileAPI(source: VirtualFileRef, classFiles: Seq[(String, ClassFile)]): Unit =
         val (apis, mainClasses) = ClassfileToAPI.process(classFiles, log)
         apis.foreach(callback.api(source, _))
         mainClasses.foreach(callback.mainClass(source, _))
-      }
 
       // Record progress for java analysis
       val javaAnalysisPhase = "Java analysis"
@@ -229,11 +224,11 @@ final class AnalyzingJavaCompiler private[sbt] (
       )
 
       timed(javaAnalysisPhase, log) {
-        for {
+        for
           (classFinder, oldClasses, srcs) <- memo
-        } {
+        do
           val classes = classFinder.classes
-          try {
+          try
             val newClasses = Set(classes.paths*) -- oldClasses
             JavaAnalyze(newClasses.toSeq, srcs, log, output, finalJarOutput)(
               callback,
@@ -242,25 +237,23 @@ final class AnalyzingJavaCompiler private[sbt] (
               readClassfileAPI,
               constantDeps
             )
-          } finally classes.close()
-        }
+          finally classes.close()
       }
 
       // After using the classloader it should be closed. Otherwise it will keep the accessed
       // jars open. Especially, when zinc is compiling directly to jar, that jar will be locked
       // not allowing to change it in further compilation cycles (on Windows).
       // This also affects jars in the classpath that come from dependency resolution.
-      loader match {
+      loader match
         case u: URLClassLoader => u.close()
         case _                 => ()
-      }
 
       // Report that we reached the end
       progressOpt.foreach { progress =>
         progress.advance(2, 2, javaAnalysisPhase, noPhase)
       }
-    }
-  }
+    end if
+  end compile
 
   /**
    * Compile some java code using the current configured compiler. This
@@ -285,14 +278,13 @@ final class AnalyzingJavaCompiler private[sbt] (
   ): Boolean = javac.run(sources, options, output, incToolOptions, reporter, log)
 
   /** Time how long it takes to run various compilation tasks. */
-  private def timed[T](label: String, log: Logger)(t: => T): T = {
+  private def timed[T](label: String, log: Logger)(t: => T): T =
     val start = System.nanoTime
     val result = t
     val elapsed = System.nanoTime - start
     log.debug(label + " took " + (elapsed / 1e9) + " s")
     result
-  }
 
   private def prettyPrintCompilationArguments(args: Array[String]) =
     args.mkString("[zinc] The Java compiler is invoked with:\n\t", "\n\t", "")
-}
+end AnalyzingJavaCompiler

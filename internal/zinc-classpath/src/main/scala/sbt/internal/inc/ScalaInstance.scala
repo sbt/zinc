@@ -40,7 +40,7 @@ final class ScalaInstance(
     val compilerJars: Array[File],
     val allJars: Array[File],
     val explicitActual: Option[String]
-) extends xsbti.compile.ScalaInstance {
+) extends xsbti.compile.ScalaInstance:
 
   @deprecated("Use constructor with loaderCompilerOnly", "1.5.0")
   def this(
@@ -51,7 +51,7 @@ final class ScalaInstance(
       compilerJar: File,
       allJars: Array[File],
       explicitActual: Option[String]
-  ) = {
+  ) =
     this(
       version,
       loader,
@@ -62,7 +62,6 @@ final class ScalaInstance(
       allJars = allJars,
       explicitActual
     )
-  }
 
   @deprecated("Use constructor with loaderCompilerOnly", "1.5.0")
   def this(
@@ -73,7 +72,7 @@ final class ScalaInstance(
       compilerJar: File,
       allJars: Array[File],
       explicitActual: Option[String]
-  ) = {
+  ) =
     this(
       version,
       loader,
@@ -84,7 +83,6 @@ final class ScalaInstance(
       allJars = allJars,
       explicitActual
     )
-  }
 
   @deprecated("Use constructor with loaderLibraryOnly and compilerLibraryOnly", "1.1.2")
   def this(
@@ -94,7 +92,7 @@ final class ScalaInstance(
       compilerJar: File,
       allJars: Array[File],
       explicitActual: Option[String]
-  ) = {
+  ) =
     this(
       version,
       loader,
@@ -105,7 +103,6 @@ final class ScalaInstance(
       allJars,
       explicitActual
     )
-  }
 
   /**
    * Check whether `scalaInstance` comes from a managed (i.e. ivy-resolved)
@@ -126,26 +123,24 @@ final class ScalaInstance(
    * Get version of Scala in the `compiler.properties` file from the loader.
    * This version may be different than the one passed in by `version`.
    */
-  lazy val actualVersion: String = {
+  lazy val actualVersion: String =
     explicitActual.getOrElse {
       val label = "\n    version " + version + ", " + jarStrings
       ScalaInstance.actualVersion(loader)(label)
     }
-  }
 
   /** Get the string representation of all the available jars. */
-  private def jarStrings: String = {
+  private def jarStrings: String =
     val libs = libraryJars.mkString(", ")
     val compiler = compilerJars.mkString(", ")
     val other = otherJars.mkString(", ")
     s"""library jars: $libs, compiler jars: $compiler, other jars: $other"""
-  }
 
   override def toString: String =
     s"Scala instance { version label $version, actual version $actualVersion, $jarStrings }"
-}
+end ScalaInstance
 
-object ScalaInstance {
+object ScalaInstance:
   /*
    * Structural extension for the ScalaProvider post 1.0.3 launcher.
    * See https://github.com/sbt/zinc/pull/505.
@@ -164,23 +159,20 @@ object ScalaInstance {
   def isDotty(version: String): Boolean = version.startsWith("0.") || version.startsWith("3.")
 
   /** Create a [[ScalaInstance]] from a given org, version and launcher. */
-  def apply(org: String, version: String, launcher: xsbti.Launcher): ScalaInstance = {
+  def apply(org: String, version: String, launcher: xsbti.Launcher): ScalaInstance =
     /* For launcher compatibility, use overload for `ScalaOrg`. */
-    if (org == ScalaOrg)
+    if org == ScalaOrg then
       apply(version, launcher)
-    else {
-      try {
+    else
+      try
         apply(version, launcher.getScala(version, "", org))
-      } catch {
+      catch
         case _: NoSuchMethodError =>
           val message =
             """Incompatible version of the `xsbti.Launcher` interface.
               |Use an sbt 0.12+ launcher instead.
             """.stripMargin
           sys.error(message)
-      }
-    }
-  }
 
   /** Creates a ScalaInstance using the given provider to obtain the jars and loader. */
   def apply(version: String, launcher: xsbti.Launcher): ScalaInstance =
@@ -190,30 +182,26 @@ object ScalaInstance {
    * Create a ScalaInstance from a version and a given provider that
    * defines the location of the jars and the loader to be used.
    */
-  def apply(version: String, provider: xsbti.ScalaProvider): ScalaInstance = {
-    def findOrCrash(jars: Array[File], jarName: String) = {
+  def apply(version: String, provider: xsbti.ScalaProvider): ScalaInstance =
+    def findOrCrash(jars: Array[File], jarName: String) =
       jars.find(_.getName == jarName).getOrElse {
         throw new InvalidScalaProvider(s"Couldn't find '$jarName'")
       }
-    }
     val jars = provider.jars
     val libraryJar = findOrCrash(jars, "scala-library.jar")
-    def fallbackClassLoaders = {
+    def fallbackClassLoaders =
       val l = ClasspathUtil.toLoader(Vector(libraryJar.toPath))
       val c = scalaLoader(l)(jars.toVector filterNot { _ == libraryJar })
       (c, l)
-    }
     // sbt launcher 1.0.3 will construct layered classloader. Use them if we find them.
     // otherwise, construct layered loaders manually.
-    val (loader, loaderLibraryOnly) = {
-      (try {
-        provider match {
+    val (loader, loaderLibraryOnly) =
+      (try
+        provider match
           case p: ScalaProvider2 @unchecked => Option((provider.loader, p.loaderLibraryOnly))
-        }
-      } catch {
+      catch
         case _: NoSuchMethodException => None
-      }) getOrElse fallbackClassLoaders
-    }
+      ) getOrElse fallbackClassLoaders
     new ScalaInstance(
       version,
       loader,
@@ -224,12 +212,12 @@ object ScalaInstance {
       jars,
       None
     )
-  }
+  end apply
 
   def apply(scalaHome: File, launcher: xsbti.Launcher): ScalaInstance =
     apply(scalaHome)(scalaLibraryLoader(launcher))
 
-  def apply(scalaHome: File)(classLoader: List[File] => ClassLoader): ScalaInstance = {
+  def apply(scalaHome: File)(classLoader: List[File] => ClassLoader): ScalaInstance =
     val all = allJars(scalaHome).toArray
     val library = libraryJar(scalaHome)
     val loaderLibraryOnly = classLoader(List(library))
@@ -245,9 +233,8 @@ object ScalaInstance {
       all,
       None
     )
-  }
 
-  def apply(version: String, scalaHome: File, launcher: xsbti.Launcher): ScalaInstance = {
+  def apply(version: String, scalaHome: File, launcher: xsbti.Launcher): ScalaInstance =
     val all = allJars(scalaHome).toArray
     val library = libraryJar(scalaHome)
     val loaderLibraryOnly = scalaLibraryLoader(launcher)(List(library))
@@ -262,13 +249,12 @@ object ScalaInstance {
       all,
       None
     )
-  }
 
   /** Return all the required Scala jars from a path `scalaHome`. */
   def allJars(scalaHome: File): Seq[File] =
     IO.listFiles(scalaLib(scalaHome)).toIndexedSeq.filter(f => !excludeList(f.getName))
 
-  private def scalaLib(scalaHome: File): File = {
+  private def scalaLib(scalaHome: File): File =
     val candidates = Seq(
       new File(scalaHome, "lib"),
       new File(scalaHome, "build/pack/lib"),
@@ -276,15 +262,13 @@ object ScalaInstance {
     )
     candidates.find(d => d.isDirectory && hasScalaLibrary(d))
       .getOrElse(new File(scalaHome, "lib"))
-  }
 
-  private def hasScalaLibrary(dir: File): Boolean = {
+  private def hasScalaLibrary(dir: File): Boolean =
     val files = Option(dir.listFiles()).getOrElse(Array.empty[File])
     files.exists { f =>
       val name = f.getName
       name == "scala-library.jar" || name.startsWith("scala3-library_3")
     }
-  }
 
   private val excludeList: Set[String] = Set(
     "scala-actors.jar",
@@ -299,61 +283,52 @@ object ScalaInstance {
   def scalaJar(scalaHome: File, name: String) =
     new File(scalaLib(scalaHome), name)
 
-  private def libraryJar(scalaHome: File): File = {
+  private def libraryJar(scalaHome: File): File =
     val libDir = scalaLib(scalaHome)
     val scala2Lib = new File(libDir, "scala-library.jar")
-    if (scala2Lib.exists()) scala2Lib
-    else {
+    if scala2Lib.exists() then scala2Lib
+    else
       val files = Option(libDir.listFiles()).getOrElse(Array.empty[File])
       files.find(_.getName.startsWith("scala3-library_3"))
         .getOrElse(scala2Lib)
-    }
-  }
 
   /** Gets the version of Scala in the compiler.properties file from the loader.*/
-  private def actualVersion(scalaLoader: ClassLoader)(label: String) = {
+  private def actualVersion(scalaLoader: ClassLoader)(label: String) =
     try fastActualVersion(scalaLoader)
-    catch { case _: Exception => slowActualVersion(scalaLoader)(label) }
-  }
+    catch case _: Exception => slowActualVersion(scalaLoader)(label)
 
-  private def slowActualVersion(scalaLoader: ClassLoader)(label: String) = {
-    val scalaVersion = {
-      try {
+  private def slowActualVersion(scalaLoader: ClassLoader)(label: String) =
+    val scalaVersion =
+      try
         // Get scala version from the `Properties` file in Scalac
         Class
           .forName("scala.tools.nsc.Properties", true, scalaLoader)
           .getMethod("versionString")
           .invoke(null)
           .toString
-      } catch {
+      catch
         case cause: Exception =>
           val msg = s"Scala instance doesn't exist or is invalid: $label"
           throw new InvalidScalaInstance(msg, cause)
-      }
-    }
 
-    if (scalaVersion.startsWith(VersionPrefix))
+    if scalaVersion.startsWith(VersionPrefix) then
       scalaVersion.substring(VersionPrefix.length)
     else scalaVersion
-  }
 
-  private def fastActualVersion(scalaLoader: ClassLoader): String = {
+  private def fastActualVersion(scalaLoader: ClassLoader): String =
     val stream = scalaLoader.getResourceAsStream("compiler.properties")
-    try {
+    try
       val props = new java.util.Properties
       props.load(stream)
       props.getProperty("version.number")
-    } finally stream.close()
-  }
+    finally stream.close()
 
-  private def scalaLibraryLoader(launcher: xsbti.Launcher): Seq[File] => ClassLoader = { jars =>
+  private def scalaLibraryLoader(launcher: xsbti.Launcher): Seq[File] => ClassLoader = jars =>
     ClasspathUtil.toLoader(jars.map(_.toPath), launcher.topLoader)
-  }
 
-  private def scalaLoader(parent: ClassLoader): Seq[File] => ClassLoader = { jars =>
+  private def scalaLoader(parent: ClassLoader): Seq[File] => ClassLoader = jars =>
     ClasspathUtil.toLoader(jars.map(_.toPath), parent)
-  }
-}
+end ScalaInstance
 
 /** Runtime exception representing a failure when finding a `ScalaInstance`. */
 class InvalidScalaInstance(message: String, cause: Throwable)
