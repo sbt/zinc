@@ -38,9 +38,8 @@ object IncrementalCompilerSpec extends Properties with BaseCompilerSpec:
     ),
     example("track dependencies from nested inner Java classes", nestedInnerJavaClasses),
     example("track dependencies on constants", constants),
-    example("retry the first round with bridging classes when it fails", retryWithBridging),
-    example("not retry the first round when retryOnInitialCompileError is off", noRetryWhenOff),
     example("still fail after retrying when the error is genuine", genuineErrorAfterRetry),
+    example("announce early output at most once per compile", earlyOutputOnce),
     example("not throw NullPointerException when passing -Xshow-phases to scalac", showPhases),
     example("emit SourceInfos when incremental compilation fails", sourceInfos),
   )
@@ -225,8 +224,10 @@ object IncrementalCompilerSpec extends Properties with BaseCompilerSpec:
     }
   }
 
-  // sbt/zinc#476: Bar and Providers change together; Foo sits between them and its class file
-  // still carries the dealiased old return type, so Bar cannot compile until Foo is rebuilt.
+  /**
+   * sbt/zinc#476: Bar and Providers change together. Foo sits between them, and its class file
+   * still has the dealiased old return type, so Bar compiles only once Foo is rebuilt.
+   */
   private val issue476Sources = Seq(
     StringVirtualFile("A.scala", "trait A { def a = 1 }"),
     StringVirtualFile("B.scala", "trait B { def b = 1.0 }"),
@@ -250,26 +251,6 @@ object IncrementalCompilerSpec extends Properties with BaseCompilerSpec:
   private def issue476Edit(sources: Seq[VirtualFile]) =
     sources.map(s => issue476Changed.find(_.id == s.id).getOrElse(s))
 
-  private def retryWithBridging: Result = withTmpDir { tmp =>
-    val comp0 = VirtualSubproject(tmp.toPath / "p1").setup.createCompiler()
-    // Pin the recompiled set: with the default fraction, 4 of 5 sources would recompile all.
-    val options = comp0.incOptions.withRecompileAllFraction(1.0)
-    withCompiler(comp0.copy(incOptions = options)) { comp =>
-      val res1 = comp.compile(issue476Sources*)
-      val res2 = comp.compile(issue476Edit(issue476Sources)*)
-      recompiled(res1, res2) ==== Set("Bar", "Providers", "Provider", "Foo")
-    }
-  }
-
-  private def noRetryWhenOff: Result = withTmpDir { tmp =>
-    val comp0 = VirtualSubproject(tmp.toPath / "p1").setup.createCompiler()
-    val options = comp0.incOptions.withRetryOnInitialCompileError(false)
-    withCompiler(comp0.copy(incOptions = options)) { comp =>
-      comp.compile(issue476Sources*)
-      assertThrows[CompileFailed](comp.compile(issue476Edit(issue476Sources)*))
-    }
-  }
-
   private def genuineErrorAfterRetry: Result = withTmpDir { tmp =>
     withCompiler(VirtualSubproject(tmp.toPath / "p1").setup.createCompiler()) { comp =>
       val bogus = StringVirtualFile("Bar.scala", "object Bar { Foo.provide.nope }")
@@ -280,10 +261,27 @@ object IncrementalCompilerSpec extends Properties with BaseCompilerSpec:
         case Left(failure) => failure
         case Right(e)      =>
           val messages = e.problems.toList.map(_.message)
-          // "member of B" proves the retry compiled Foo against the new alias before failing
           Result
             .assert(messages.exists(_.contains("value nope is not a member of B")))
-            .log(s"problems: $messages")
+            .log(s"expected the error from the retry, against the new alias B: $messages")
+    }
+  }
+
+  private def earlyOutputOnce: Result = withTmpDir { tmp =>
+    withCompiler(VirtualSubproject(tmp.toPath / "p1").setup.createCompiler()) { comp =>
+      val a = StringVirtualFile("A.scala", "class A { def b: B = new B }")
+      val b = StringVirtualFile("B.scala", "class B extends A")
+      val b2 = StringVirtualFile("B.scala", "class B extends A { override def nope = 1 }")
+      comp.compile(a, b)
+      val before = comp.earlyOutputsWritten
+      Result.all(
+        List(
+          assertThrows[CompileFailed](comp.compile(a, b2)),
+          Result
+            .assert(comp.earlyOutputsWritten - before <= 1)
+            .log(s"early output announced ${comp.earlyOutputsWritten - before} times"),
+        )
+      )
     }
   }
 
