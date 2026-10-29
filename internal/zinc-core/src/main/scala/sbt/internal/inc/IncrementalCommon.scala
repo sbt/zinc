@@ -904,17 +904,13 @@ object IncrementalCommon:
    * way the invalidated sources cannot compile against, see sbt/zinc#476.
    */
   def bridgingClasses(relations: Relations, invalidated: Set[String]): Set[String] =
-    if invalidated.isEmpty then Set.empty
-    else
-      val memberRef = relations.memberRef.internal
-      val inheritance = relations.inheritance.internal
-      def dependsOn(cls: String): Set[String] = memberRef.forward(cls) ++ inheritance.forward(cls)
-      def dependedOnBy(cls: String): Set[String] =
-        memberRef.reverse(cls) ++ inheritance.reverse(cls)
-      val noLog = sbt.util.Logger.Null
-      val forward = transitiveDeps(invalidated, noLog, logging = false)(dependsOn)
-      val backward = transitiveDeps(invalidated, noLog, logging = false)(dependedOnBy)
-      forward.intersect(backward) -- invalidated
+    val memberRef = relations.memberRef.internal
+    val inheritance = relations.inheritance.internal
+    def dependsOn(cls: String): Set[String] = memberRef.forward(cls) ++ inheritance.forward(cls)
+    def dependedOnBy(cls: String): Set[String] = memberRef.reverse(cls) ++ inheritance.reverse(cls)
+    val forward = transitiveDeps(invalidated, Logger.Null, logging = false)(dependsOn)
+    val backward = transitiveDeps(invalidated, Logger.Null, logging = false)(dependedOnBy)
+    forward.intersect(backward) -- invalidated
 
   /**
    * Check that a collection of files are absolute and not relative.
