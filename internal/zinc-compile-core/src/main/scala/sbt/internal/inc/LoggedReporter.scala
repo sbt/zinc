@@ -135,7 +135,9 @@ class LoggedReporter(
       // When the source mapping is performed,
       // the information based on the `transformedPos` should be displayed
       // even if the `rendered` is defined.
-      rendered = if transformed then None else InterfaceUtil.jo2o(rendered),
+      rendered =
+        if transformed then rebaseRendered(position, transformedPos, InterfaceUtil.jo2o(rendered))
+        else InterfaceUtil.jo2o(rendered),
       diagnosticCode = InterfaceUtil.jo2o(problem0.diagnosticCode()),
       diagnosticRelatedInformation = InterfaceUtil.jl2l(problem0.diagnosticRelatedInformation()),
       actions = InterfaceUtil.jl2l(problem0.actions()),
@@ -147,6 +149,21 @@ class LoggedReporter(
         else ()
       case _ => display(problem)
   end log
+
+  /** Keeps `rendered` when the mapping only moved the position to another path for the same file. */
+  private def rebaseRendered(
+      original: Position,
+      mapped: Position,
+      rendered: Option[String],
+  ): Option[String] =
+    import sbt.util.InterfaceUtil.jo2o
+    for
+      r <- rendered
+      id <- jo2o(original.sourcePath)
+      file <- jo2o(mapped.sourceFile)
+      if r.contains(id) && original.line == mapped.line && original.offset == mapped.offset &&
+        original.lineContent == mapped.lineContent
+    yield r.replace(id, file.getPath)
 
   override def printSummary(): Unit =
     val warnings = count.get(Severity.Warn)

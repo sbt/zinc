@@ -227,18 +227,23 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
 
   private def writeSourceInfos(out: Serializer, infos: SourceInfos): Unit =
     def writeProblem(p: Problem): Unit = out.writeBlock("problem") {
+      val pos = p.position()
+      val file = pos.sourceFile.orElse(null)
+      val id = pos.sourcePath.orElse(null)
+      val virtualize = file != null && id != null && file.isAbsolute
       out.string(p.category())
       out.byte(p.severity().ordinal().toByte)
       out.string(p.message())
-      out.writeOptionalString(p.rendered())
-      val pos = p.position()
+      out.writeOptionalString(
+        if virtualize then p.rendered().map(_.replace(file.getPath, id)) else p.rendered()
+      )
       out.int(pos.line.orElse(-1))
       out.int(pos.offset.orElse(-1))
       out.int(pos.pointer.orElse(-1))
       out.string(pos.lineContent)
       out.string(pos.pointerSpace.orElse(null))
-      out.string(pos.sourcePath.orElse(null))
-      out.writeOptionalString(pos.sourceFile.map[String](_.toPath.toString))
+      out.string(id)
+      out.string(if virtualize then id else if file == null then null else slashed(file.toPath))
       out.int(pos.startOffset.orElse(-1))
       out.int(pos.endOffset.orElse(-1))
       out.int(pos.startLine.orElse(-1))
@@ -304,7 +309,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
     val setup = writeMapper.mapMiniSetup(setup0)
     out.writeBlock("MiniSetup") {
       out.writeArray("classpathHash", setup.options.classpathHash, 2) { fh =>
-        out.string(writeMapper.mapClasspathEntry(fh.file).toString)
+        out.string(slashed(writeMapper.mapClasspathEntry(fh.file)))
         out.int(fh.hash())
       }
       out.writeArray("scalacOptions", setup.options.scalacOptions) { s =>
@@ -322,7 +327,7 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
         case o if o.isPresent() && o.get().getFileName().toString().endsWith(".jar") =>
           Analysis.dummyOutputJarPath
         case _ => Analysis.dummyOutputPath
-      out.string(outputPath.toString())
+      out.string(slashed(outputPath))
     }
   end writeMiniSetup
 
@@ -792,6 +797,13 @@ class ConsistentAnalysisFormat(val mappers: ReadWriteMappers, reproducible: Bool
 end ConsistentAnalysisFormat
 
 object ConsistentAnalysisFormat:
+
+  /** Writes a path with `/` separators, so the analysis is the same on Windows and Unix. */
+  private[sbt] def slashed(path: String, separator: Char): String =
+    if separator == '\\' then path.replace('\\', '/') else path
+
+  private def slashed(path: java.nio.file.Path): String =
+    slashed(path.toString, java.io.File.separatorChar)
 
   /**
    * Dedups a value-equality `xsbti.api` tree node against the current read only.
