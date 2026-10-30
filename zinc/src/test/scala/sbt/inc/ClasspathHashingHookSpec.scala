@@ -13,6 +13,7 @@ package sbt.inc
 
 import hedgehog.{ sbt as _, * }
 import hedgehog.runner.*
+import java.nio.file.Paths
 import java.util.Optional
 
 import sbt.internal.inc.NoopExternalLookup
@@ -21,10 +22,12 @@ import xsbti.compile.DefaultExternalHooks
 import xsbti.compile.FileHash
 import xsbti.compile.IncOptions
 import xsbti.VirtualFile
+import xsbti.VirtualFileRef
 
 object ClasspathHashingHookSpec extends Properties with BaseCompilerSpec:
   override def tests: List[Test] = List(
     example("allow client to override classpath hashing", overrideHashing),
+    example("record classpath hash entries by their virtual id", virtualIds),
   )
 
   private def overrideHashing: Result = IO.withTemporaryDirectory { tempDir =>
@@ -46,8 +49,23 @@ object ClasspathHashingHookSpec extends Properties with BaseCompilerSpec:
       compiler =>
         val result = compiler.doCompile()
         Result.all(result.setup().options().classpathHash().toList.map { original =>
-          original ==== hashFile(setup.converter.toVirtualFile(original.file()))
+          val vf = setup.converter.toVirtualFile(
+            setup.converter.toPath(VirtualFileRef.of(original.file().toString))
+          )
+          original.hash() ==== hashFile(vf).hash()
         })
+    }
+  }
+
+  private def virtualIds: Result = IO.withTemporaryDirectory { tempDir =>
+    val setup = ProjectSetup.simple(tempDir.toPath, SourceFiles.Foo :: Nil)
+    withCompiler(setup.createCompiler()) { compiler =>
+      val files = compiler.doCompile().setup().options().classpathHash().toList.map(_.file())
+      val base = setup.baseDir.toString
+      Result.all(
+        Result.assert(files.exists(_.startsWith(Paths.get("${BASE}")))) ::
+          files.map(f => Result.assert(!f.toString.startsWith(base)).log(f.toString))
+      )
     }
   }
 end ClasspathHashingHookSpec
