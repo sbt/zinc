@@ -1,0 +1,2 @@
+# dep fails before it writes its early output, so use must fail at once, not time out
+-> use/compile

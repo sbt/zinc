@@ -11,6 +11,8 @@
 
 package sbt.internal.inc
 
+import java.util.concurrent.TimeoutException
+
 import scala.collection.mutable
 import scala.util.{ Failure, Success, Try }
 import scala.util.control.Exception
@@ -46,7 +48,8 @@ private[sbt] class BatchScriptRunner extends ScriptRunner:
         throw new PreciseScriptedError(st, s"${t.getMessage} produced by", null)
       case Failure(err) if st.successExpected =>
         throw new PreciseScriptedError(st, "Command failed", err)
-      case Failure(_) =>
+      case Failure(t: TimeoutException) => throw new PreciseScriptedError(st, "Timed out", t)
+      case Failure(_)                   =>
 end BatchScriptRunner
 
 private[sbt] object BatchScriptRunner:

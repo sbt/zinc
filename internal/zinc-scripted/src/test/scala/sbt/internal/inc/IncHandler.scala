@@ -721,6 +721,8 @@ case class ProjectStructure(
             a0 <- futureScalaAnalysis
             a <- futureJavaAnalysis(pj, a0)
           yield a
+        // A compile that fails before its early output never reports one; unblock dependents.
+        f.onComplete(_ => notifyEarlyOutput.trySuccess(false))
         i.compilations(this) = (f, notifyEarlyOutput.future)
         (f, notifyEarlyOutput.future)
       else

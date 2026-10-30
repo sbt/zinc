@@ -1,0 +1,6 @@
+{
+  "projects": [
+    { "name": "use", "dependsOn": ["dep"] },
+    { "name": "dep" }
+  ]
+}
