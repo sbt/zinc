@@ -19,7 +19,7 @@ import xsbti.api.DependencyContext.{ DependencyByInheritance, DependencyByMember
 
 object BridgingClassesSpec extends Properties:
   override def tests: List[Test] = List(
-    example("find every unchanged class on a longer path", longerPath),
+    example("ignore paths through two unchanged classes", twoUnchanged),
     example("return nothing when no path leads back to a changed class", noPath),
     example("follow inheritance edges", inheritance),
   )
@@ -35,14 +35,13 @@ object BridgingClassesSpec extends Properties:
   private def bridging(rel: Relations, invalidated: String*): Set[String] =
     IncrementalCommon.bridgingClasses(rel, invalidated.toSet)
 
-  private def longerPath: Result =
+  private def twoUnchanged: Result =
     val rel = relations(
       ("Z", "Y2", DependencyByMemberRef),
       ("Y2", "Y1", DependencyByMemberRef),
       ("Y1", "X", DependencyByMemberRef),
-      ("Unrelated", "X", DependencyByMemberRef),
     )
-    bridging(rel, "Z", "X") ==== Set("Y1", "Y2")
+    bridging(rel, "Z", "X") ==== Set.empty
 
   private def noPath: Result =
     val rel = relations(

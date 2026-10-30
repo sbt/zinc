@@ -899,18 +899,17 @@ object IncrementalCommon:
   end transitiveDeps
 
   /**
-   * Unchanged classes on a dependency path from an invalidated class to an invalidated class,
-   * over internal member-reference and inheritance edges. Their class files may be stale in a
-   * way the invalidated sources cannot compile against, see sbt/zinc#476.
+   * Unchanged classes one hop between invalidated classes, over internal member-reference and
+   * inheritance edges: each one depends on an invalidated class, and an invalidated class depends
+   * on it. Their class files may be stale in a way the invalidated sources cannot compile against,
+   * see sbt/zinc#476.
    */
   def bridgingClasses(relations: Relations, invalidated: Set[String]): Set[String] =
     val memberRef = relations.memberRef.internal
     val inheritance = relations.inheritance.internal
-    def dependsOn(cls: String): Set[String] = memberRef.forward(cls) ++ inheritance.forward(cls)
-    def dependedOnBy(cls: String): Set[String] = memberRef.reverse(cls) ++ inheritance.reverse(cls)
-    val forward = transitiveDeps(invalidated, Logger.Null, logging = false)(dependsOn)
-    val backward = transitiveDeps(invalidated, Logger.Null, logging = false)(dependedOnBy)
-    forward.intersect(backward) -- invalidated
+    val dependencies = invalidated.flatMap(c => memberRef.forward(c) ++ inheritance.forward(c))
+    val dependents = invalidated.flatMap(c => memberRef.reverse(c) ++ inheritance.reverse(c))
+    dependencies.intersect(dependents) -- invalidated
 
   /**
    * Check that a collection of files are absolute and not relative.
