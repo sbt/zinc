@@ -14,7 +14,7 @@ package internal
 package inc
 
 import java.io.File
-import java.nio.file.{ Files, Path }
+import java.nio.file.{ Files, Path, Paths }
 import java.lang.ref.{ SoftReference, Reference }
 import java.util.Optional
 import scala.jdk.OptionConverters.*
@@ -323,10 +323,12 @@ object MixedAnalyzingCompiler:
       ClasspathCache.hashClasspath(classpath.map(converter.toPath))
 
     val classpathHash =
-      if lookup.isPresent then
-        val computed = lookup.get().hashClasspath(classpath.toArray)
-        if computed.isPresent then computed.get() else doHash
-      else doHash
+      val hashes =
+        if lookup.isPresent then
+          val computed = lookup.get().hashClasspath(classpath.toArray)
+          if computed.isPresent then computed.get() else doHash
+        else doHash
+      virtualizeClasspathHash(hashes, classpath, converter)
 
     val compileSetup = MiniSetup.of(
       output, // MiniSetup gets persisted into Analysis so don't use this
@@ -361,6 +363,18 @@ object MixedAnalyzingCompiler:
       stamper
     )
   end makeConfig
+
+  /** Records each hashed entry by the id of its classpath file, so the setup is machine-independent. */
+  private[inc] def virtualizeClasspathHash(
+      hashes: Array[FileHash],
+      classpath: Seq[VirtualFile],
+      converter: FileConverter,
+  ): Array[FileHash] =
+    val ids = classpath.map(vf => converter.toPath(vf) -> vf.id).toMap
+    hashes.map: fh =>
+      ids.get(fh.file) match
+        case Some(id) => fh.withFile(Paths.get(id))
+        case None     => fh
 
   def config(
       sources: Seq[VirtualFile],
