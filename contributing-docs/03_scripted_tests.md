@@ -62,6 +62,23 @@ The full task list is the `commands` map in
 [`IncHandler.scala`](../internal/zinc-scripted/src/test/scala/sbt/internal/inc/IncHandler.scala#L229);
 file commands come from `ZincFileCommands` and sbt's `FileCommands`.
 
+Negative tests (expected compilation errors)
+--------------------------------------------
+
+`-> compile` passes on *any* failure, including an environment failure. To check that the failure is
+the expected one, follow it with the check commands. A failed compile stores no analysis, so they
+read the problems from its `CompileFailed` until the next compile starts.
+
+```
+-> compile
+> checkErrors 1
+> checkError 0 "type mismatch"
+```
+
+`checkError <index> <substring>` checks that the message contains the substring. Messages differ
+across Scala versions (Scala 3 writes `Required:`), and problems keep their order only within one
+source file. Examples: `reporter/errors-reported`, `reporter/errors-reported-multi`.
+
 Running
 -------
 

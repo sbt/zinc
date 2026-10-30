@@ -674,6 +674,7 @@ case class ProjectStructure(
       f1.orElse { case _ => None }
 
     i.compilations.get(this).getOrElse {
+      lastCompileProblems = None
       val notifyEarlyOutput: Promise[Boolean] = Promise[Boolean]()
       if exportPipelining then
         // Initiate compilation
@@ -803,8 +804,13 @@ case class ProjectStructure(
       stamper
     )
     val result =
-      if javaOnly then incrementalCompiler.compileAllJava(in, compilerLog)
-      else incrementalCompiler.compile(in, compilerLog)
+      try
+        if javaOnly then incrementalCompiler.compileAllJava(in, compilerLog)
+        else incrementalCompiler.compile(in, compilerLog)
+      catch
+        case e: CompileFailed =>
+          lastCompileProblems = Some(e.problems.toSeq)
+          throw e
     val analysis = result.analysis match
       case a: Analysis => a
     cachedStore.set(AnalysisContents.create(analysis, result.setup))
@@ -912,13 +918,18 @@ case class ProjectStructure(
     (incOptions, scalacOptions.toArray)
   end loadIncOptions
 
+  // A failed compile stores no analysis; its problems stay here until the next compile starts.
+  @volatile private var lastCompileProblems: Option[Seq[Problem]] = None
+
   def getProblems(): Seq[Problem] =
-    cachedStore.get.toScala match
-      case Some(analysisContents) =>
-        val analysis = analysisContents.getAnalysis.asInstanceOf[Analysis]
-        val allInfos = analysis.infos.allInfos.values.toSeq
-        allInfos.flatMap(i => i.getReportedProblems ++ i.getUnreportedProblems)
-      case _ => Nil
+    lastCompileProblems.getOrElse {
+      cachedStore.get.toScala match
+        case Some(analysisContents) =>
+          val analysis = analysisContents.getAnalysis.asInstanceOf[Analysis]
+          val allInfos = analysis.infos.allInfos.values.toSeq
+          allInfos.flatMap(i => i.getReportedProblems ++ i.getUnreportedProblems)
+        case _ => Nil
+    }
 
   def checkMessages(expected: Int, severity: Severity): Future[Unit] =
     Future {

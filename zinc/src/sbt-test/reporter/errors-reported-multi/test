@@ -1,0 +1,9 @@
+> compile
+$ copy-file changes/B.scala B.scala
+-> compile
+> checkErrors 2
+> checkError 0 "required: String"
+> checkError 1 "required: Int"
+$ delete B.scala
+> compile
+> checkErrors 0

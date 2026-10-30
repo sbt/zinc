@@ -1,0 +1,5 @@
+-> compile
+> checkErrors 1
+> checkError 0 "type mismatch"
+-> checkError 0 "nonexistent-message"
+-> checkErrors 5
