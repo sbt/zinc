@@ -47,6 +47,17 @@ final class MixedAnalyzingCompiler(
 ):
   private val absClasspath = config.classpath.map(toAbsolute(_))
 
+  /** Resolves virtual paths such as `${OUT}/x` in `key:a,b` style compiler options. */
+  private def resolveOptions(options: Seq[String]): Vector[String] =
+    config.converter match
+      case c: MappedFileConverter =>
+        def convert(value: String): String =
+          MappedVirtualFile.toPathMapped(value, c.rootPaths)(_.toString(), identity)
+        options.toVector.map: x =>
+          if !x.contains("$") then x
+          else x.split(":").map(_.split(",").map(convert).mkString(",")).mkString(":")
+      case _ => options.toVector
+
   if config.incOptions.pipelining && config.currentSetup.order == JavaThenScala then
     val (javaSources, scalaSources) = config.sources.partition(MixedAnalyzingCompiler.javaOnly)
     if javaSources.nonEmpty && scalaSources.nonEmpty then
@@ -73,7 +84,7 @@ final class MixedAnalyzingCompiler(
             Optional.of(classfileManager),
             config.incOptions.useCustomizedFileManager()
           )
-        val joptions = config.currentSetup.options.javacOptions
+        val joptions = resolveOptions(config.currentSetup.options.javacOptions.toIndexedSeq)
 
         def toVirtualFile(p: Path) = config.converter.toVirtualFile(p.toAbsolutePath)
 
@@ -86,7 +97,7 @@ final class MixedAnalyzingCompiler(
               javaSrcs,
               Seq(toVirtualFile(outputJar)),
               config.converter,
-              joptions.toIndexedSeq,
+              joptions,
               CompileOutput(outputDir),
               outputJarOpt,
               callback,
@@ -102,7 +113,7 @@ final class MixedAnalyzingCompiler(
                 javaSrcs,
                 extraClasspath map toVirtualFile,
                 config.converter,
-                joptions.toIndexedSeq,
+                joptions,
                 output,
                 outputJarOpt,
                 callback,
@@ -153,25 +164,11 @@ final class MixedAnalyzingCompiler(
     val pickleJava =
       Incremental.isPickleJava(config.currentSetup.options.scalacOptions.toIndexedSeq)
 
-    def convertToPath(value: String): String =
-      config.converter match
-        case c: MappedFileConverter =>
-          MappedVirtualFile.toPathMapped(value, c.rootPaths)(_.toString(), identity)
-
-        case _ => value
-
     // Compile Scala sources.
     def compileScala(): Unit =
       if scalaSrcs.nonEmpty || pickleJava then
         val pickleJarPair = callback.getPickleJarPair.toScala.map(t2 => (t2.get1, t2.get2))
-        val scalacOpts0 = config.currentSetup.options.scalacOptions.toVector
-        val scalacOpts1: Vector[String] = scalacOpts0.map { x =>
-          if !x.contains("$") then x
-          else
-            (x.split(":").toVector.map { y =>
-              y.split(",").toVector.map(convertToPath).mkString(",")
-            }).mkString(":")
-        }
+        val scalacOpts1 = resolveOptions(config.currentSetup.options.scalacOptions.toIndexedSeq)
         val scalacOpts: Vector[String] = pickleJarPair match
           case Some((originalJar, updatesJar)) =>
             val path = originalJar.toString
