@@ -1,10 +1,8 @@
-sbt coding style and best practices
-===================================
+# sbt coding style and best practices
 
 Some of our coding style rules are enforced programmatically by Scalafmt, which are run automatically with static checks and on every Pull Request (PR), but there are some rules that are not yet automated and are more sbt specific.
 
-General style
--------------
+## General style
 
 ### Naming
 
@@ -14,7 +12,36 @@ General style
 ### Functional programming
 
 - Prefer succinct and pure functions.
-- Prefer the use of `Option` and `Either`, rather than `null` and `Exception`.
+- Use `Option` instead of `null` check.
+- Prefer the use `Either` rather than `Exception`.
+- Prefer scala.util.Using over try-finally.
+
+```scala
+import scala.util.Using
+
+private def withLog[A1](f: Capture => A1): A1 =
+  Using.resource(new Capture): log =>
+    f(log)
+```
+
+- Prefer functional constructs such as `.map` and `.foldLeft`, instead of a while loop.
+
+### Functions
+
+- Avoid default parameters, and change the use site or define overload instead.
+- When calling a function with Boolean or Int literal, add the parameter label.
+
+```scala
+// BAD
+new Discovered(Set.empty, Set.empty, false, false)
+
+// GOOD
+new Discovered(Set.empty, Set.empty, hasMain = false, isModule = false)
+```
+
+### Scala data types
+
+- Prefer Scala collection library over Java data structures. For example prefer `scala.collection.concurrent.TrieMap` over `java.util.concurrent.ConcurrentHashMap`.
 
 ### Import
 
@@ -64,8 +91,7 @@ end O1
 
 - Avoid `return` statements.
 
-Modular design
---------------
+## Modular design
 
 Because Zinc has downstream build tools, we have to be careful not to break them when we make changes.
 
@@ -74,8 +100,7 @@ Because Zinc has downstream build tools, we have to be careful not to break them
 - Hide implementation details in `sbt.internal.x` packages.
 - Avoid exposing types from external libraries. We often change the library uses over the course of years.
 
-Hermeticity / stability
------------------------
+## Hermeticity / stability
 
 - Avoid capturing machine-specific details in the task, including the absolute path.
 - Avoid capturing time details in the task, including timestamps.
