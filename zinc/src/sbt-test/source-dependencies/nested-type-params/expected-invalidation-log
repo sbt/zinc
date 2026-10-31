@@ -1,0 +1,7 @@
+[inv] Cycle 1 retry
+[inv]   bridging classes:
+[inv]     Foo
+[inv] Cycle 1
+[inv]   invalidated classes:
+[inv]     Bar
+[inv]     Foo

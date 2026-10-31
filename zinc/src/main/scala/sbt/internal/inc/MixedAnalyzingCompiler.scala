@@ -142,7 +142,9 @@ final class MixedAnalyzingCompiler(
         dirs
 
   /**
-   * Compiles the given Java/Scala files.
+   * Compiles the given Java/Scala files. It first resets a reporter that still holds errors, as
+   * after a failed first round that `Incremental` retries: the compiler bridge does not compile
+   * while its reporter has errors.
    *
    * @param include          The files to compile right now
    * @param changes          A list of dependency changes.
@@ -155,6 +157,7 @@ final class MixedAnalyzingCompiler(
       callback: XAnalysisCallback,
       classfileManager: XClassFileManager,
   ): Unit =
+    if config.reporter.hasErrors then config.reporter.reset()
     val output = config.currentSetup.output
     val outputDirs = ensureOutput
 

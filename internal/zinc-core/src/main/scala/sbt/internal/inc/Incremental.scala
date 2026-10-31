@@ -216,7 +216,8 @@ object Incremental:
         outputJarContent,
         earlyOutput,
         progress,
-        log
+        log,
+        () => earlyRollback.wroteEarlyOutput,
       )(using Equiv.universal)
     catch
       case e: Throwable =>
@@ -334,6 +335,7 @@ object Incremental:
    * @param log  The log where we write debugging information
    * @param options  Incremental compilation options
    * @param outputJarContent Object that holds cached content of output jar
+   * @param earlyOutputWritten Whether this compile already wrote early output.
    * @param equivS  The means of testing whether two "Stamps" are the same.
    * @return
    *         A flag of whether or not compilation completed successfully, and the resulting dependency analysis object.
@@ -358,7 +360,8 @@ object Incremental:
       outputJarContent: JarUtils.OutputJarContent,
       earlyOutput: Option[Output],
       progress: Option[CompileProgress],
-      log: sbt.util.Logger
+      log: sbt.util.Logger,
+      earlyOutputWritten: () => Boolean = () => false,
   )(implicit equivS: Equiv[XStamp]): (Boolean, Analysis) =
     log.debug("IncrementalCompile.incrementalCompile")
     val previous = previous0 match
@@ -422,20 +425,45 @@ object Incremental:
     val analysis = withClassfileManager(options, converter, output, outputJarContent) {
       classfileManager =>
         if hasModified then
-          incremental.cycle(
-            initialInvClasses,
-            initialInvSources,
-            sources,
-            converter,
-            binaryChanges,
-            lookup,
-            previous,
-            doCompile(compile, callbackBuilder, classfileManager),
-            classfileManager,
-            output,
-            1,
-            initialInvSources -- initialInvSources0,
-          )
+          var rounds = Vector.empty[Set[VirtualFile]]
+          def runCycle(invalidatedClasses: Set[String]): Analysis =
+            incremental.cycle(
+              invalidatedClasses,
+              initialInvSources,
+              sources,
+              converter,
+              binaryChanges,
+              lookup,
+              previous,
+              doCompile(
+                (srcs, changes, callback, cfm) =>
+                  rounds :+= srcs
+                  compile(srcs, changes, callback, cfm)
+                ,
+                callbackBuilder,
+                classfileManager
+              ),
+              classfileManager,
+              output,
+              1,
+              initialInvSources -- initialInvSources0,
+            )
+          try runCycle(initialInvClasses)
+          catch
+            case e: xsbti.CompileFailed
+                if rounds.size == 1 && !earlyOutputWritten() &&
+                  !java.lang.Boolean.getBoolean(skipFirstRoundRetryProp) =>
+              val bridging =
+                firstRoundRetry(previous, initialInvClasses, rounds.head, sources, options)
+              if bridging.isEmpty then throw e
+              incremental.invalidationLog.debug(
+                InvalidationLog.section("Cycle 1 retry", Seq("bridging classes" -> bridging))
+              )
+              log.info(
+                s"Retrying the first round with unchanged classes added (${bridging.size}): " +
+                  "the errors above may come from their stale class files."
+              )
+              runCycle(initialInvClasses ++ bridging)
         else
           val analysis =
             if hasSubprojectChange then
@@ -489,6 +517,27 @@ object Incremental:
       val callback = callbackBuilder.build(incHandler)
       compile(srcs, changes, callback, classFileManager)
       callback.getCycleResultOnce
+
+  /**
+   * The unchanged classes to add when the first round fails, or none to fail as before. Round one
+   * compiles only the changed sources, so an unchanged class between them may still have a class
+   * file from before the change (sbt/zinc#476). There is no retry when it would add no source, or
+   * more sources than `recompileAllFraction` of all sources.
+   */
+  private def firstRoundRetry(
+      previous: Analysis,
+      invalidated: Set[String],
+      firstRound: Set[VirtualFile],
+      allSources: Set[VirtualFile],
+      options: IncOptions,
+  ): Set[String] =
+    val bridging = IncrementalCommon.bridgingClasses(previous.relations, invalidated)
+    val added = bridging.flatMap(previous.relations.definesClass).map(_.id) -- firstRound.map(_.id)
+    if added.isEmpty || added.size > allSources.size * options.recompileAllFraction then Set.empty
+    else bridging
+
+  /** Set to `true` to fail a first round at once, without the retry of `firstRoundRetry`. */
+  private[inc] val skipFirstRoundRetryProp = "xsbt.skip.first.round.retry"
 
   // the name of system property that was meant to enable debugging mode of incremental compiler but
   // it ended up being used just to enable debugging of relations. That's why if you migrate to new
@@ -604,6 +653,9 @@ private final class EarlyOutputRollback(
     copies.foreach((copy, _, _) => IO.delete(copy.toFile))
     copies = Nil
   }
+
+  /** Whether this compile has written its early analysis, and so announced its early output. */
+  def wroteEarlyOutput: Boolean = previousEarlyAnalysis.isDefined
 
   /**
    * Clears the thread's interrupt meanwhile: a cancelled compile's file channels fail at once. It

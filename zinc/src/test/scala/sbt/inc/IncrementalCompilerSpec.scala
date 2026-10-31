@@ -46,6 +46,8 @@ object IncrementalCompilerSpec extends Properties with BaseCompilerSpec:
     ),
     example("track dependencies from nested inner Java classes", nestedInnerJavaClasses),
     example("track dependencies on constants", constants),
+    example("still fail after retrying when the error is genuine", genuineErrorAfterRetry),
+    example("announce early output at most once per compile", earlyOutputOnce),
     example("not throw NullPointerException when passing -Xshow-phases to scalac", showPhases),
     example("emit SourceInfos when incremental compilation fails", sourceInfos),
   )
@@ -360,6 +362,67 @@ object IncrementalCompilerSpec extends Properties with BaseCompilerSpec:
       val res1 = comp.compile(f1, f2, f3)
       val res2 = comp.compile(f1b, f2, f3)
       recompiled(res1, res2) ==== Set("A", "B")
+    }
+  }
+
+  /**
+   * sbt/zinc#476: Bar and Providers change together. Foo sits between them, and its class file
+   * still has the dealiased old return type, so Bar compiles only once Foo is rebuilt.
+   */
+  private val issue476Sources = Seq(
+    StringVirtualFile("A.scala", "trait A { def a = 1 }"),
+    StringVirtualFile("B.scala", "trait B { def b = 1.0 }"),
+    StringVirtualFile(
+      "Providers.scala",
+      "trait Provider { type Operations = A }; object Providers { type SomeProvider = Provider }"
+    ),
+    StringVirtualFile(
+      "Foo.scala",
+      "object Foo { def provide: Providers.type#SomeProvider#Operations = ??? }"
+    ),
+    StringVirtualFile("Bar.scala", "object Bar { Foo.provide.a }"),
+  )
+  private val issue476Changed = Seq(
+    StringVirtualFile(
+      "Providers.scala",
+      "trait Provider { type Operations = B }; object Providers { type SomeProvider = Provider }"
+    ),
+    StringVirtualFile("Bar.scala", "object Bar { Foo.provide.b }"),
+  )
+  private def issue476Edit(sources: Seq[VirtualFile]) =
+    sources.map(s => issue476Changed.find(_.id == s.id).getOrElse(s))
+
+  private def genuineErrorAfterRetry: Result = withTmpDir { tmp =>
+    withCompiler(VirtualSubproject(tmp.toPath / "p1").setup.createCompiler()) { comp =>
+      val bogus = StringVirtualFile("Bar.scala", "object Bar { Foo.provide.nope }")
+      comp.compile(issue476Sources*)
+      intercept[CompileFailed] {
+        comp.compile(issue476Edit(issue476Sources).map(s => if s.id == bogus.id then bogus else s)*)
+      } match
+        case Left(failure) => failure
+        case Right(e)      =>
+          val messages = e.problems.toList.map(_.message)
+          Result
+            .assert(messages.exists(_.contains("value nope is not a member of B")))
+            .log(s"expected the error from the retry, against the new alias B: $messages")
+    }
+  }
+
+  private def earlyOutputOnce: Result = withTmpDir { tmp =>
+    withCompiler(VirtualSubproject(tmp.toPath / "p1").setup.createCompiler()) { comp =>
+      val a = StringVirtualFile("A.scala", "class A { def b: B = new B }")
+      val b = StringVirtualFile("B.scala", "class B extends A")
+      val b2 = StringVirtualFile("B.scala", "class B extends A { override def nope = 1 }")
+      comp.compile(a, b)
+      val before = comp.earlyOutputsWritten
+      Result.all(
+        List(
+          assertThrows[CompileFailed](comp.compile(a, b2)),
+          Result
+            .assert(comp.earlyOutputsWritten - before <= 1)
+            .log(s"early output announced ${comp.earlyOutputsWritten - before} times"),
+        )
+      )
     }
   }
 
