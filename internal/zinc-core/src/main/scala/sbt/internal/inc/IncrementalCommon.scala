@@ -899,10 +899,8 @@ object IncrementalCommon:
   end transitiveDeps
 
   /**
-   * Unchanged classes one hop between invalidated classes, over internal member-reference and
-   * inheritance edges: each one depends on an invalidated class, and an invalidated class depends
-   * on it. Their class files may be stale in a way the invalidated sources cannot compile against,
-   * see sbt/zinc#476.
+   * Unchanged classes that depend on an invalidated class and that an invalidated class depends
+   * on. Their class files may be stale in a way the invalidated sources cannot compile against.
    */
   def bridgingClasses(relations: Relations, invalidated: Set[String]): Set[String] =
     val memberRef = relations.memberRef.internal

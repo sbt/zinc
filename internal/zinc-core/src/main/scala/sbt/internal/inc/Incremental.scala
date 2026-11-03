@@ -439,7 +439,7 @@ object Incremental:
               ),
               classfileManager,
               output,
-              1,
+              cycleNum = 1,
               initialInvSources -- initialInvSources0,
             )
           try runCycle(initialInvClasses)
@@ -513,10 +513,8 @@ object Incremental:
       callback.getCycleResultOnce
 
   /**
-   * The unchanged classes to add when the first round fails, or none to fail as before. Round one
-   * compiles only the changed sources, so an unchanged class between them may still have a class
-   * file from before the change (sbt/zinc#476). There is no retry when it would add no source, or
-   * more sources than `recompileAllFraction` of all sources.
+   * The classes to add when round one fails, since their class files may be stale (sbt/zinc#476).
+   * None if that adds no source, or more than `recompileAllFraction` of all sources.
    */
   private def firstRoundRetry(
       previous: Analysis,

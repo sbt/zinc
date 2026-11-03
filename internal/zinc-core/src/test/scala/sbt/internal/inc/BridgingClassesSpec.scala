@@ -29,7 +29,7 @@ object BridgingClassesSpec extends Properties:
   private def relations(deps: (String, String, DependencyContext)*): Relations =
     Relations.empty.addInternalSrcDeps(
       src,
-      deps.map { case (from, to, ctx) => InternalDependency.of(from, to, ctx) }
+      deps.map((from, to, ctx) => InternalDependency.of(from, to, ctx))
     )
 
   private def bridging(rel: Relations, invalidated: String*): Set[String] =
