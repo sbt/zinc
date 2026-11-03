@@ -38,6 +38,7 @@ object IncrementalCompilerSpec extends Properties with BaseCompilerSpec:
     ),
     example("track dependencies from nested inner Java classes", nestedInnerJavaClasses),
     example("track dependencies on constants", constants),
+    example("not retry the first round when retryOnInitialCompileError is off", noRetryWhenOff),
     example("still fail after retrying when the error is genuine", genuineErrorAfterRetry),
     example("announce early output at most once per compile", earlyOutputOnce),
     example("not throw NullPointerException when passing -Xshow-phases to scalac", showPhases),
@@ -250,6 +251,15 @@ object IncrementalCompilerSpec extends Properties with BaseCompilerSpec:
   )
   private def issue476Edit(sources: Seq[VirtualFile]) =
     sources.map(s => issue476Changed.find(_.id == s.id).getOrElse(s))
+
+  private def noRetryWhenOff: Result = withTmpDir { tmp =>
+    val comp0 = VirtualSubproject(tmp.toPath / "p1").setup.createCompiler()
+    val options = comp0.incOptions.withRetryOnInitialCompileError(false)
+    withCompiler(comp0.copy(incOptions = options)) { comp =>
+      comp.compile(issue476Sources*)
+      assertThrows[CompileFailed](comp.compile(issue476Edit(issue476Sources)*))
+    }
+  }
 
   private def genuineErrorAfterRetry: Result = withTmpDir { tmp =>
     withCompiler(VirtualSubproject(tmp.toPath / "p1").setup.createCompiler()) { comp =>

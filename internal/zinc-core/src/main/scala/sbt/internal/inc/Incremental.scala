@@ -355,7 +355,7 @@ object Incremental:
       earlyOutput: Option[Output],
       progress: Option[CompileProgress],
       log: sbt.util.Logger,
-      earlyOutputWritten: () => Boolean = () => false,
+      earlyOutputWritten: () => Boolean,
   )(implicit equivS: Equiv[XStamp]): (Boolean, Analysis) =
     log.debug("IncrementalCompile.incrementalCompile")
     val previous = previous0 match
@@ -445,8 +445,8 @@ object Incremental:
           try runCycle(initialInvClasses)
           catch
             case e: xsbti.CompileFailed
-                if rounds.size == 1 && !earlyOutputWritten() &&
-                  !java.lang.Boolean.getBoolean(skipFirstRoundRetryProp) =>
+                if options.retryOnInitialCompileError && rounds.size == 1 &&
+                  !earlyOutputWritten() =>
               val bridging =
                 firstRoundRetry(previous, initialInvClasses, rounds.head, sources, options)
               if bridging.isEmpty then throw e
@@ -529,9 +529,6 @@ object Incremental:
     val added = bridging.flatMap(previous.relations.definesClass).map(_.id) -- firstRound.map(_.id)
     if added.isEmpty || added.size > allSources.size * options.recompileAllFraction then Set.empty
     else bridging
-
-  /** Set to `true` to fail a first round at once, without the retry of `firstRoundRetry`. */
-  private[inc] val skipFirstRoundRetryProp = "xsbt.skip.first.round.retry"
 
   // the name of system property that was meant to enable debugging mode of incremental compiler but
   // it ended up being used just to enable debugging of relations. That's why if you migrate to new
