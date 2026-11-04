@@ -107,7 +107,7 @@ type IncOptions {
 
   ## When the first round of an incremental compile fails, retry it once with the unchanged classes
   ## one hop between the changed classes added, because their class files may be stale.
-  retryOnInitialCompileError: Boolean! = raw"xsbti.compile.IncOptions.defaultRetryOnInitialCompileError()"
+  oneHopInvalidation: Boolean! = raw"xsbti.compile.IncOptions.defaultOneHopInvalidation()"
   @since("2.1.0")
 
   #x public static int defaultTransitiveStep() {
@@ -180,7 +180,7 @@ type IncOptions {
   #x public static boolean defaultPipelining() {
   #x     return false;
   #x }
-  #x public static boolean defaultRetryOnInitialCompileError() {
+  #x public static boolean defaultOneHopInvalidation() {
   #x     return true;
   #x }
 }
