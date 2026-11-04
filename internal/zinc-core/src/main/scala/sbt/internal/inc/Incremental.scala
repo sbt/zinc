@@ -451,7 +451,7 @@ object Incremental:
           try runCycle(initialInvClasses)
           catch
             case e: xsbti.CompileFailed
-                if options.retryOnInitialCompileError && rounds.size == 1 &&
+                if options.oneHopInvalidation && rounds.size == 1 &&
                   !earlyOutputWritten() =>
               val bridging =
                 firstRoundRetry(previous, initialInvClasses, rounds.head, sources, options)
