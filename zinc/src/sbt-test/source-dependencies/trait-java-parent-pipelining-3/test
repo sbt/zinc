@@ -1,0 +1,4 @@
+# Scala 3 before 3.5 ignores the pipelining flags, so J has no API until javac runs.
+# T's extraHash is computed from its parents before that.
+> use/compile
+> use/checkRecompilations 0 D

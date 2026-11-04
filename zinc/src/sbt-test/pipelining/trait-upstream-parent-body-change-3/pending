@@ -1,0 +1,8 @@
+# Like trait-parent-body-change-3, with E's parent B in another project. With pipelining, Scala 3
+# calls `dependencyPhaseCompleted` before it reports B. A change to a method body of E must not
+# recompile F.
+
+> use/compile
+$ copy-file changes/E.scala use/E.scala
+> use/compile
+> use/checkRecompilations 0 F
