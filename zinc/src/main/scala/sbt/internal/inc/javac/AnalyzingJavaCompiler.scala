@@ -146,7 +146,7 @@ final class AnalyzingJavaCompiler private[sbt] (
           val classFinder =
             if outputPath.toString.endsWith(".jar") then new JarClassFinder(outputPath)
             else new DirectoryClassFinder(outputPath)
-          (classFinder, classFinder.classes.pathsAndClose(), srcs)
+          (classFinder, classFinder.classes.stampsAndClose(), srcs)
 
       // Record progress for java compilation
       val somePhase = "<some phase>"
@@ -229,8 +229,14 @@ final class AnalyzingJavaCompiler private[sbt] (
         do
           val classes = classFinder.classes
           try
-            val newClasses = Set(classes.paths*) -- oldClasses
-            JavaAnalyze(newClasses.toSeq, srcs, log, output, finalJarOutput)(
+            val newClasses = classes.changedSince(oldClasses)
+            val rewritten = newClasses.count(oldClasses.contains)
+            if rewritten > 0 then
+              log.debug(InterfaceUtil.toSupplier(
+                s"Java analysis: $rewritten of ${newClasses.size} class files " +
+                  "existed before javac rewrote them"
+              ))
+            JavaAnalyze(newClasses, srcs, log, output, finalJarOutput)(
               callback,
               loader,
               readAPI,
