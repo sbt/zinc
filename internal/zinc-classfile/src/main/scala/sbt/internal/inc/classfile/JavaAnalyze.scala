@@ -87,6 +87,8 @@ private[sbt] object JavaAnalyze:
     val binaryClassNameToSourceName = new mutable.HashMap[String, String]
 
     val classfilesCache = mutable.Map.empty[String, Path]
+    // sbt/zinc#149: the classes that reached each class missing from the analysis classpath.
+    val missingClassReferrers = mutable.Map.empty[String, mutable.Set[String]]
 
     // parse class files and assign classes to sources.  This must be done before dependencies, since the information comes
     // as class->class dependencies that must be mapped back to source->class dependencies using the source+class assignment
@@ -252,6 +254,10 @@ private[sbt] object JavaAnalyze:
                       source,
                       context
                     )
+              // sbt/zinc#149: no classfile on the analysis classpath, so no edge was recorded above.
+              if resourceUrl(onBinaryName).isEmpty then
+                missingClassReferrers.getOrElseUpdate(onBinaryName, mutable.Set.empty) +=
+                  s"$fromClassName (${source.name})"
             }
           case (None, _) => // It could be a stale class file, ignore
         end match
@@ -293,8 +299,23 @@ private[sbt] object JavaAnalyze:
         onBinaryName <- constantDeps.getOrElse(binaryClassName, Set.empty)
       do processDependency(onBinaryName, DependencyByMemberRef, binaryClassName)
 
+      // sbt/zinc#149: reflection throws when a signature names a class missing from the analysis
+      // classpath. Named classes then take the classfile fallback below instead of failing.
       def readInheritanceDependencies(classes: Seq[Class[?]]) =
-        val api = readAPI(source, classes)
+        val api =
+          try readAPI(source, classes)
+          catch
+            case e: (NoClassDefFoundError | TypeNotPresentException | IllegalAccessError) =>
+              log.warn(
+                s"While analyzing ${classes.map(_.getName).mkString(", ")} (${source.name}), " +
+                  s"failed to extract the API by reflection: $e. Their API and inheritance " +
+                  "dependencies may be incomplete."
+              )
+              for
+                cls <- classes
+                name <- binaryToSourceName(cls)
+              do binaryClassNameToSourceName.update(cls.getName, name)
+              Set.empty
         // avoid .mapValues(...) because of its viewness (scala/bug#10919)
         api.groupBy(_._1).iterator.map { case (k, v) => k -> v.map(_._2) }
 
@@ -335,6 +356,21 @@ private[sbt] object JavaAnalyze:
       // succeed (these classes already couldn't be loaded), matching load()/loadInnerClass.
       if unloadableNamed.nonEmpty then trapAndLog(log)(readClassfileAPI(source, unloadableNamed))
     end for
+
+    // sbt/zinc#149: one warning per missing class. A class that loads without a classfile URL is in
+    // a JDK module of another loader, and Zinc never tracks JDK classes.
+    for
+      (missing, referrers) <- missingClassReferrers.toSeq.sortBy(_._1)
+      if !isPlatformClass(missing) && load(missing, None).isEmpty
+    do
+      val sorted = referrers.toSeq.sorted
+      val shown =
+        if sorted.sizeIs <= 5 then sorted.mkString(", ")
+        else sorted.take(5).mkString(", ") + s", and ${sorted.size - 5} more"
+      log.warn(
+        s"While analyzing $shown, failed to locate $missing. Dependencies on this class are " +
+          "not tracked."
+      )
   end apply
 
   /**

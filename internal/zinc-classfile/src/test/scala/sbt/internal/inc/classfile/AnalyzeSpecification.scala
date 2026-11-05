@@ -18,6 +18,8 @@ import hedgehog.{ sbt as _, * }
 import hedgehog.runner.*
 import java.io.File
 import sbt.io.IO
+import sbt.util.{ Level, Logger }
+import scala.collection.mutable
 import xsbti.TestCallback
 import xsbti.TestCallback.ExtractedClassDependencies
 import xsbti.api.DependencyContext
@@ -61,6 +63,14 @@ object AnalyzeSpecification extends Properties:
     example(
       "detect a type in an array class-literal annotation argument",
       arrayClassLiteral
+    ),
+    example(
+      "warn once per class missing from the classpath, naming its referrers (sbt/zinc#149)",
+      missingClassWarning
+    ),
+    example(
+      "fall back to the classfile when reflection meets a missing class (sbt/zinc#149)",
+      reflectionFallback
     ),
     property("detect any annotation at any site that keeps it in the classfile", propAnnotations)
       .withTests(10),
@@ -432,4 +442,123 @@ object AnalyzeSpecification extends Properties:
             |""".stripMargin
       refersTo(deps(s"$name.java" -> srcAnnotation, "Foo.java" -> site(name)), "Foo", name)
         .log(site(name))
+
+  // sbt/zinc#149: an edge to a class missing from the analysis classpath is reported, not dropped
+  // without a word. JDK classes are not reported, also those without a classfile URL.
+  private def missingClassWarning: Result = IO.withTemporaryDirectory { temp =>
+    val classesDir = new File(temp, "classes")
+    val libDir = new File(temp, "lib")
+    classesDir.mkdir()
+    libDir.mkdir()
+    val bFile = new File(temp, "B.java")
+    IO.write(bFile, "package pkg; public class B { public static void hello() {} }")
+    JavaCompilerForUnitTesting.compileJava(Seq(bFile), libDir, Seq.empty)
+    // The platform loader loads com.sun.source from jdk.compiler, but serves no classfile URL.
+    val referrers = (1 to 6).map { i =>
+      val file = new File(temp, s"A$i.java")
+      IO.write(
+        file,
+        s"public class A$i { void m(Object o) { pkg.B.hello(); " +
+          "((com.sun.source.tree.Tree) o).getKind(); } }"
+      )
+      file
+    }
+    JavaCompilerForUnitTesting.compileJava(referrers, classesDir, Seq(libDir))
+    val log = new WarningLogger
+    val callback = JavaCompilerForUnitTesting.analyze(
+      classesDir,
+      referrers,
+      log = log,
+      parent = Some(ClassLoader.getPlatformClassLoader)
+    )
+    Result.all(
+      List(
+        log.warnings.toList ==== List(
+          "While analyzing A1 (A1.java), A2 (A2.java), A3 (A3.java), A4 (A4.java), " +
+            "A5 (A5.java), and 1 more, failed to locate pkg.B. Dependencies on this class are " +
+            "not tracked."
+        ),
+        Result.assert(!callback.binaryDependencies.exists(_._2 == "pkg.B")),
+      )
+    )
+  }
+
+  // sbt/zinc#149: when reflection meets a missing class, the named classes of that source take
+  // the classfile fallback (sbt/zinc#837) and the compile goes on. Local classes are skipped.
+  private def reflectionFallback: Result = IO.withTemporaryDirectory { temp =>
+    val classesDir = new File(temp, "classes")
+    val optDir = new File(temp, "opt")
+    classesDir.mkdir()
+    optDir.mkdir()
+    val tFile = new File(temp, "T.java")
+    IO.write(tFile, "package opt; public class T {}")
+    JavaCompilerForUnitTesting.compileJava(Seq(tFile), optDir, Seq.empty)
+    val baseFile = new File(temp, "Base.java")
+    IO.write(baseFile, "public class Base {}")
+    val fooFile = new File(temp, "Foo.java")
+    IO.write(
+      fooFile,
+      """|public class Foo extends Base {
+         |  public opt.T get() { return null; }
+         |  Object local = new Object() { public opt.T get() { return null; } };
+         |}
+         |""".stripMargin
+    )
+    val barFile = new File(temp, "Bar.java")
+    IO.write(barFile, "public class Bar extends Base {}")
+    val srcs = Seq(baseFile, fooFile, barFile)
+    JavaCompilerForUnitTesting.compileJava(srcs, classesDir, Seq(optDir))
+    val log = new WarningLogger
+    val demoted = mutable.Set.empty[String]
+    val analyzed =
+      try
+        Right(
+          JavaCompilerForUnitTesting.analyze(
+            classesDir,
+            srcs,
+            readClassfileAPI = (_, _, named) => demoted ++= named.map(_._1),
+            log = log,
+            readAPI = (_, _, classes) => reflectMembers(classes)
+          )
+        )
+      catch case e: LinkageError => Left(e)
+    analyzed match
+      case Left(e)         => Result.failure.log(s"the analysis threw $e")
+      case Right(callback) =>
+        def warning(names: String) =
+          s"While analyzing $names (Foo.java), failed to extract the API by reflection: " +
+            "java.lang.NoClassDefFoundError: opt/T. Their API and inheritance dependencies " +
+            "may be incomplete."
+        Result.all(
+          List(
+            log.warnings.toList ==== List(
+              warning("Foo"),
+              warning("Foo$1"),
+              "While analyzing Foo (Foo.java), failed to locate opt.T. Dependencies on this " +
+                "class are not tracked."
+            ),
+            demoted.toSet ==== Set("Foo"),
+            Result.assert(
+              callback.classDependencies.contains(("Base", "Foo", DependencyByInheritance))
+            ),
+            Result.assert(
+              callback.classDependencies.contains(("Base", "Bar", DependencyByInheritance))
+            ),
+          )
+        )
+    end match
+  }
+
+  /** Resolves the types of all public members, as `ClassToAPI` does, then reads the parents. */
+  private def reflectMembers(classes: Seq[Class[?]]): Set[(String, String)] =
+    classes.foreach(_.getMethods)
+    JavaCompilerForUnitTesting.extractParents(classes)
+
+  private final class WarningLogger extends Logger:
+    val warnings: mutable.ArrayBuffer[String] = mutable.ArrayBuffer.empty
+
+    override def trace(t: => Throwable): Unit = ()
+    override def success(message: => String): Unit = ()
+    override def log(level: Level.Value, message: => String): Unit =
+      if level == Level.Warn then warnings += message
 end AnalyzeSpecification
