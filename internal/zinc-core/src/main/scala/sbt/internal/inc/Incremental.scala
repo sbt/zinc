@@ -623,6 +623,7 @@ private final class EarlyOutputRollback(
   private var copies: List[(Path, Long, Long)] = Nil
   private var copiedFrom: Long = earlyJarSize.getOrElse(0L)
   @volatile private var previousEarlyAnalysis: Option[Optional[AnalysisContents]] = None
+  @volatile private var earlyAnalysisSet = false
 
   val store: Option[XAnalysisStore] = earlyAnalysisStore.map { underlying =>
     new XAnalysisStore:
@@ -630,10 +631,20 @@ private final class EarlyOutputRollback(
       override def unsafeGet(): AnalysisContents = underlying.unsafeGet()
       override def set(contents: AnalysisContents): Unit =
         EarlyOutputRollback.this.synchronized {
-          if previousEarlyAnalysis.isEmpty then previousEarlyAnalysis = Some(underlying.get())
+          if !earlyAnalysisSet then
+            earlyAnalysisSet = true
+            previousEarlyAnalysis = readPrevious(underlying)
         }
         underlying.set(contents)
   }
+
+  /**
+   * A build tool may pass a store that it only writes to, whose `get` throws. Then the early
+   * analysis is not restored, and the build tool must not reuse it after a failed compile.
+   */
+  private def readPrevious(underlying: XAnalysisStore): Option[Optional[AnalysisContents]] =
+    try Some(underlying.get())
+    catch case NonFatal(_) => None
 
   /** Keeps `copy`, the jar's bytes from `from` on, if this compile had not overwritten them. */
   def keep(copy: Path, from: Long): Boolean = synchronized {
@@ -650,7 +661,7 @@ private final class EarlyOutputRollback(
   }
 
   /** Whether this compile has written its early analysis, and so announced its early output. */
-  def wroteEarlyOutput: Boolean = previousEarlyAnalysis.isDefined
+  def wroteEarlyOutput: Boolean = earlyAnalysisSet
 
   /**
    * Clears the thread's interrupt meanwhile: a cancelled compile's file channels fail at once. It
