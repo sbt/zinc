@@ -6,7 +6,11 @@ import hedgehog.{ sbt => _, _ }
 import hedgehog.runner._
 import xsbti.NameKind
 import xsbti.TestCallback.ExtractedClassDependencies
-import xsbti.api.DependencyContext.{ DependencyByInheritance, DependencyByMacroExpansion }
+import xsbti.api.DependencyContext.{
+  DependencyByInheritance,
+  DependencyByMacroExpansion,
+  DependencyByMemberRef
+}
 
 object DependencySpecification
     extends Properties
@@ -19,6 +23,10 @@ object DependencySpecification
     ),
     example("extract class dependencies from local members", localMembers),
     example("extract class dependencies from annotations of definitions", annotations),
+    example(
+      "extract class dependencies from annotations without an original tree",
+      annotationsNoOriginal
+    ),
     example("extract class dependencies with trait as first parent", traitAsFirstParent),
     example("extract class dependencies from macro arguments", macroArguments),
     example("extract class dependencies from macro type arguments", macroTypeArguments),
@@ -99,6 +107,14 @@ object DependencySpecification
         includes("OnParam", Set("MyAnn", "Consts")),
       )
     )
+  }
+
+  private def annotationsNoOriginal: Result = {
+    val (_, callback) = compileSrcs(AnnotationWithoutOriginal.groupedSrcs)
+    val memberRef = callback.classDependencies.toList.collect {
+      case (target, "C", DependencyByMemberRef) => target
+    }.toSet
+    Result.diff(memberRef, Set("MyAnn", "Consts"))((a, b) => b.subsetOf(a))
   }
 
   private def traitAsFirstParent: Result =

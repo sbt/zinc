@@ -28,6 +28,7 @@ object ExtractUsedNamesSpecification
     property("extract the names of any members used in the same compilation unit", propSameUnit)
       .withTests(10),
     example("extract names from annotations of definitions", annotations),
+    example("extract names from annotations without an original tree", annotationsNoOriginal),
     // pending test for https://github.com/scala/bug/issues/7173
     example("extract names of constants", constants),
     // test for https://github.com/gkossakowski/sbt/issues/4
@@ -240,6 +241,11 @@ object ExtractUsedNamesSpecification
         Result.diff(usedNames(name), annotationNames)((a, b) => b.subsetOf(a)).log(name)
       }
     )
+  }
+
+  private def annotationsNoOriginal: Result = {
+    val (_, callback) = compileSrcs(AnnotationWithoutOriginal.groupedSrcs)
+    Result.diff(callback.usedNames("C"), Set("MyAnn", "Consts", "I"))((a, b) => b.subsetOf(a))
   }
 
   private def constants: Result = {
