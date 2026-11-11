@@ -6,7 +6,11 @@ import hedgehog.{ sbt => _, _ }
 import hedgehog.runner._
 import xsbti.NameKind
 import xsbti.TestCallback.ExtractedClassDependencies
-import xsbti.api.DependencyContext.{ DependencyByInheritance, DependencyByMacroExpansion }
+import xsbti.api.DependencyContext.{
+  DependencyByInheritance,
+  DependencyByMacroExpansion,
+  DependencyByMemberRef
+}
 
 object DependencySpecification
     extends Properties
@@ -18,6 +22,11 @@ object DependencySpecification
       publicMembers
     ),
     example("extract class dependencies from local members", localMembers),
+    example("extract class dependencies from annotations of definitions", annotations),
+    example(
+      "extract class dependencies from annotations without an original tree",
+      annotationsNoOriginal
+    ),
     example("extract class dependencies with trait as first parent", traitAsFirstParent),
     example("extract class dependencies from macro arguments", macroArguments),
     example("extract class dependencies from macro type arguments", macroTypeArguments),
@@ -70,6 +79,42 @@ object DependencySpecification
         localInheritance("E") ==== Set("B"),
       )
     )
+  }
+
+  private def annotations: Result = {
+    val srcConsts = "object Consts { final val Uid = 1L; final val I = 1 }"
+    val srcAnn = "class MyAnn(x: Int) extends scala.annotation.StaticAnnotation"
+    val srcFoo = "@SerialVersionUID(Consts.Uid) class Foo extends Serializable"
+    val srcOnClass = "@MyAnn(Consts.I) class OnClass"
+    val srcOnMethod = "class OnMethod { @MyAnn(Consts.I) def f: Int = 1 }"
+    val srcOnParam = "class OnParam { def f(@MyAnn(Consts.I) x: Int): Int = x }"
+    val memberRef =
+      extractDependenciesFromSrcs(
+        srcConsts,
+        srcAnn,
+        srcFoo,
+        srcOnClass,
+        srcOnMethod,
+        srcOnParam
+      ).memberRef
+    def includes(name: String, expected: Set[String]): Result =
+      Result.diff(memberRef(name), expected)((a, b) => b.subsetOf(a)).log(s"memberRef($name)")
+    Result.all(
+      List(
+        includes("Foo", Set("Consts")),
+        includes("OnClass", Set("MyAnn", "Consts")),
+        includes("OnMethod", Set("MyAnn", "Consts")),
+        includes("OnParam", Set("MyAnn", "Consts")),
+      )
+    )
+  }
+
+  private def annotationsNoOriginal: Result = {
+    val (_, callback) = compileSrcs(AnnotationWithoutOriginal.groupedSrcs)
+    val memberRef = callback.classDependencies.toList.collect {
+      case (target, "C", DependencyByMemberRef) => target
+    }.toSet
+    Result.diff(memberRef, Set("MyAnn", "Consts"))((a, b) => b.subsetOf(a))
   }
 
   private def traitAsFirstParent: Result =
