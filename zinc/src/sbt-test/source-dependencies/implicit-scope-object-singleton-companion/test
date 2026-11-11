@@ -1,0 +1,6 @@
+> app/run A
+
+# B's companion is in the implicit scope of O.type, as O extends B, so X must now pick B's
+# implicit, though it names neither B nor its companion.
+$ copy-file lib/changes/B1.scala lib/B.scala
+> app/run B

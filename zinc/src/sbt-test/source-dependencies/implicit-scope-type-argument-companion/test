@@ -1,0 +1,6 @@
+> app/run A
+
+# The implicit scope of Show of List of C includes the companions of C's base classes, so
+# B's new implicit is a candidate, and wins over A's.
+$ copy-file lib/changes/B1.scala lib/B.scala
+> app/run B

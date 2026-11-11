@@ -176,6 +176,7 @@ object Incremental {
       ) // scalac should create -Ypickle-write jars but it throws FileNotFoundException :-/
       p -> updatesJar
     }
+    val earlyRollback = new EarlyOutputRollback(earlyJar, earlyAnalysisStore, currentSetup)
 
     val profiler = options.externalHooks.getInvalidationProfiler
     val runProfiler = new AdaptedRunProfiler(profiler.profileRun)
@@ -202,7 +203,7 @@ object Incremental {
           output,
           outputJarContent,
           earlyOutput,
-          earlyAnalysisStore,
+          earlyRollback.store,
           pickleJarPair,
           progress,
           log
@@ -217,11 +218,16 @@ object Incremental {
         log
       )(Equiv.universal)
     } catch {
-      case _: xsbti.CompileCancelled =>
-        log.info("Compilation has been cancelled")
-        // in case compilation got cancelled potential partial compilation results (e.g. produced class files) got rolled back
-        // and we can report back as there was no change (false) and return a previous Analysis which is still up-to-date
-        (false, previous)
+      case e: Throwable =>
+        earlyRollback.rollback(log)
+        e match {
+          case _: xsbti.CompileCancelled =>
+            log.info("Compilation has been cancelled")
+            // in case compilation got cancelled potential partial compilation results (e.g. produced class files) got rolled back
+            // and we can report back as there was no change (false) and return a previous Analysis which is still up-to-date
+            (false, previous)
+          case _ => throw e
+        }
     } finally runProfiler.registerRun()
   }
 
@@ -482,6 +488,17 @@ object Incremental {
   private[inc] def apiDebug(options: IncOptions): Boolean =
     options.apiDebug || java.lang.Boolean.getBoolean(apiDebugProp)
 
+  /** The implicit name hash a class publishes for the implicit scope it inherits. */
+  private[inc] val InheritedImplicitScope = "<inherited implicit scope>"
+
+  /** The hash of the implicit name hashes among `nameHashes`, if there are any. */
+  private[inc] def implicitScopeHash(nameHashes: Array[NameHash]): Option[Int] = {
+    val implicits = nameHashes.iterator.collect {
+      case nh if nh.scope == UseScope.Implicit => (nh.name, nh.hash)
+    }.toSet
+    if (implicits.isEmpty) None else Some(implicits.hashCode)
+  }
+
   private[sbt] def prune(
       invalidatedSrcs: Set[VirtualFile],
       previous0: CompileAnalysis,
@@ -534,6 +551,72 @@ object Incremental {
       progress.foreach(_.afterEarlyOutput(lookup.shouldDoEarlyOutput(analysis)))
     }
   }
+}
+
+/**
+ * Restores the early output and early analysis of the last successful compile when a compile
+ * fails. With pipelining, a compile writes its early output before it is known to succeed (for
+ * Scala 2, before refchecks). If that output survived a failure, a later compile with no changes
+ * would hand it to downstream subprojects again.
+ *
+ * The early jar is only appended to and its index rewritten, so restoring its earlier index
+ * restores its contents, in place.
+ */
+private final class EarlyOutputRollback(
+    earlyJar: Option[Path],
+    earlyAnalysisStore: Option[XAnalysisStore],
+    currentSetup: MiniSetup
+) {
+  private val earlyJarIndex: Option[IndexBasedZipFsOps.CentralDir] =
+    earlyJar.filter(Files.exists(_)).map(p => IndexBasedZipFsOps.readCentralDir(p.toFile))
+  @volatile private var previousEarlyAnalysis: Option[Optional[AnalysisContents]] = None
+  @volatile private var earlyAnalysisSet = false
+
+  val store: Option[XAnalysisStore] = earlyAnalysisStore.map { underlying =>
+    new XAnalysisStore {
+      override def get(): Optional[AnalysisContents] = underlying.get()
+      override def unsafeGet(): AnalysisContents = underlying.unsafeGet()
+      override def set(contents: AnalysisContents): Unit = {
+        EarlyOutputRollback.this.synchronized {
+          if (!earlyAnalysisSet) {
+            earlyAnalysisSet = true
+            previousEarlyAnalysis = readPrevious(underlying)
+          }
+        }
+        underlying.set(contents)
+      }
+    }
+  }
+
+  /**
+   * A build tool may pass a store that it only writes to, whose `get` throws. Then the early
+   * analysis is not restored, and the build tool must not reuse it after a failed compile.
+   */
+  private def readPrevious(underlying: XAnalysisStore): Option[Optional[AnalysisContents]] =
+    try Some(underlying.get())
+    catch { case NonFatal(_) => None }
+
+  def rollback(log: Logger): Unit =
+    try {
+      earlyJar.filter(Files.exists(_)).foreach { p =>
+        earlyJarIndex match {
+          case Some(index) => IndexBasedZipFsOps.writeCentralDir(p.toFile, index)
+          case None =>
+            IndexBasedZipFsOps.removeEntries(p.toFile, IndexBasedZipFsOps.listEntries(p.toFile))
+        }
+      }
+      for {
+        underlying <- earlyAnalysisStore
+        previous <- previousEarlyAnalysis
+      } {
+        underlying.set(
+          previous.orElse(AnalysisContents.create(Analysis.empty, currentSetup))
+        )
+      }
+    } catch {
+      case NonFatal(e) =>
+        log.warn(s"Failed to restore the early output of the last successful compile: $e")
+    }
 }
 
 /**
@@ -725,6 +808,11 @@ private final class AnalysisCallback(
   private[this] val typeParents = new TrieMap[String, ConcurrentSet[String]]
   // the same for parents in other projects, whose hash is all this compile has of them
   private[this] val externalTypeParentHashes = new TrieMap[String, ConcurrentSet[HashAPI.Hash]]
+  // Parents of the object side, which, unlike for extraHash, do reach the implicit scope of its
+  // singleton type: `object O extends B` puts B's companion in the implicit scope of `O.type`
+  private[this] val termParents = new TrieMap[String, ConcurrentSet[String]]
+  // the implicit scope of parents in other projects, of either side, see InheritedImplicitScopes
+  private[this] val externalParentImplicitScopes = new TrieMap[String, ConcurrentSet[Int]]
   private[this] val binaryClassName = new TrieMap[VirtualFile, String]
   // source files containing a macro def.
   private[this] val macroClasses = ConcurrentHashMap.newKeySet[String]()
@@ -817,8 +905,10 @@ private final class AnalysisCallback(
     val sourceClassName = sourceClass.name
     if (onClassName != sourceClassName) {
       add(intSrcDeps, sourceClassName, InternalDependency.of(sourceClassName, onClassName, context))
-      if (context == DependencyContext.DependencyByInheritance && sourceClass.kind == NameKind.Type)
-        add(typeParents, sourceClassName, onClassName)
+      if (context == DependencyContext.DependencyByInheritance) {
+        if (sourceClass.kind == NameKind.Type) add(typeParents, sourceClassName, onClassName)
+        else add(termParents, sourceClassName, onClassName)
+      }
     }
   }
 
@@ -858,8 +948,13 @@ private final class AnalysisCallback(
     val dependency =
       ExternalDependency.of(sourceClassName, targetBinaryClassName, targetClass, context)
     add(extSrcDeps, sourceClassName, dependency)
-    if (context == DependencyContext.DependencyByInheritance && sourceClass.kind == NameKind.Type)
-      add(externalTypeParentHashes, sourceClassName, targetClass.extraHash())
+    if (context == DependencyContext.DependencyByInheritance) {
+      if (sourceClass.kind == NameKind.Type)
+        add(externalTypeParentHashes, sourceClassName, targetClass.extraHash())
+      Incremental
+        .implicitScopeHash(targetClass.nameHashes())
+        .foreach(add(externalParentImplicitScopes, sourceClassName, _))
+    }
   }
 
   // Called by sbt-dotty
@@ -1076,7 +1171,8 @@ private final class AnalysisCallback(
   }
 
   private def getAnalysis: Analysis = {
-    val analysis0 = addProductsAndDeps(Analysis.empty, new ExtraHashes)
+    val analysis0 =
+      addProductsAndDeps(Analysis.empty, new ExtraHashes, new InheritedImplicitScopes)
     addUsedNames(addCompilation(analysis0))
   }
 
@@ -1175,6 +1271,83 @@ private final class AnalysisCallback(
     }
   }
 
+  /**
+   * The implicit scope of a type includes the companions of its base classes, so a client that
+   * resolves `Show[C]` depends on the companion of every ancestor of `C`, though it names only
+   * `C`. Within a project an implicit change invalidates the clients of the owner's inheritors,
+   * but a downstream project only checks the classes it depends on. So a class also publishes its
+   * parents' implicit name hashes, folded into one more implicit name hash and into its apiHash.
+   * A parent's own implicit name hashes include that entry, so it covers every ancestor. The
+   * parents of an object count as well, for the clients of its singleton type.
+   *
+   * Like [[ExtraHashes]], an instance is a snapshot: make one per analysis.
+   */
+  private final class InheritedImplicitScopes {
+    private val internalParents: Map[String, Set[String]] =
+      (typeParents.readOnlySnapshot().iterator ++ termParents.readOnlySnapshot().iterator).toSeq
+        .groupBy(_._1)
+        .map { case (from, pss) => from -> pss.iterator.flatMap(_._2.asScala).toSet }
+
+    private val externalParentScopes: Map[String, Set[Int]] =
+      externalParentImplicitScopes.readOnlySnapshot().iterator.map { case (from, hs) =>
+        from -> hs.asScala.toSet
+      }.toMap
+
+    private val previousApis: Map[String, AnalyzedClass] =
+      incHandlerOpt.fold(Map.empty[String, AnalyzedClass])(_.previousAnalysisPruned.apis.internal)
+
+    private val memo = new mutable.HashMap[String, Option[Int]]
+    private val visiting = new mutable.HashSet[String]
+
+    /** The hash of the implicit scope `className` inherits, if any parent contributes to it. */
+    def apply(className: String): Option[Int] =
+      if (visiting.contains(className)) breakCycle(className)
+      else
+        memo.get(className) match {
+          case Some(hash) => hash
+          case None =>
+            visiting += className
+            val hash =
+              try compute(className)
+              finally visiting -= className
+            memo.put(className, hash)
+            hash
+        }
+
+    /** The name hashes published for `className`, as `analyzeClass` will store them. */
+    def nameHashes(className: String): Array[NameHash] = {
+      val own = nameHashesForCompanions(className)
+      apply(className) match {
+        case None => own
+        case Some(hash) =>
+          NameHashing.merge(
+            own,
+            Array(NameHash.of(Incremental.InheritedImplicitScope, UseScope.Implicit, hash))
+          )
+      }
+    }
+
+    private def compute(className: String): Option[Int] = {
+      val parents = internalParents.getOrElse(className, Set.empty).flatMap(parentScope) ++
+        externalParentScopes.getOrElse(className, Set.empty)
+      if (parents.isEmpty) None else Some(parents.hashCode)
+    }
+
+    private def parentScope(parent: String): Option[Int] =
+      if (classPublicNameHashes.contains(parent) || objectPublicNameHashes.contains(parent))
+        Incremental.implicitScopeHash(nameHashes(parent))
+      else previousApis.get(parent).flatMap(p => Incremental.implicitScopeHash(p.nameHashes()))
+
+    private def breakCycle(className: String): Option[Int] = {
+      log.debug(s"Cyclic inheritance relation while hashing the implicit scope of $className")
+      previousApis.get(className).flatMap { previous =>
+        previous.nameHashes().collectFirst {
+          case nh if nh.name == Incremental.InheritedImplicitScope => nh.hash
+        }
+      }
+    }
+  }
+
   private def companionsWithHash(
       className: String,
       extraHashes: ExtraHashes
@@ -1208,10 +1381,15 @@ private final class AnalysisCallback(
     }
   }
 
-  private def analyzeClass(name: String, extraHashes: ExtraHashes): AnalyzedClass = {
+  private def analyzeClass(
+      name: String,
+      extraHashes: ExtraHashes,
+      inheritedImplicitScopes: InheritedImplicitScopes
+  ): AnalyzedClass = {
     val hasMacro: Boolean = macroClasses.contains(name)
-    val (companions, apiHash, extraHash) = companionsWithHash(name, extraHashes)
-    val nameHashes = nameHashesForCompanions(name)
+    val (companions, ownApiHash, extraHash) = companionsWithHash(name, extraHashes)
+    val apiHash = inheritedImplicitScopes(name).fold(ownApiHash)((ownApiHash, _).hashCode)
+    val nameHashes = inheritedImplicitScopes.nameHashes(name)
     val safeCompanions = SafeLazyProxy(companions)
     AnalyzedClass.of(
       compileStartTime,
@@ -1225,7 +1403,11 @@ private final class AnalysisCallback(
     )
   }
 
-  private def addProductsAndDeps(base: Analysis, extraHashes: ExtraHashes): Analysis = {
+  private def addProductsAndDeps(
+      base: Analysis,
+      extraHashes: ExtraHashes,
+      inheritedImplicitScopes: InheritedImplicitScopes
+  ): Analysis = {
     import scala.collection.JavaConverters._
     srcs.asScala.foldLeft(base) {
       case (a, src) =>
@@ -1234,7 +1416,7 @@ private final class AnalysisCallback(
           .getOrElse(src, ConcurrentHashMap.newKeySet[(String, String)]())
           .asScala
           .map(_._1)
-        val analyzedApis = classesInSrc.map(analyzeClass(_, extraHashes))
+        val analyzedApis = classesInSrc.map(analyzeClass(_, extraHashes, inheritedImplicitScopes))
         val info = SourceInfos.makeInfo(
           getOrNil(reporteds.iterator.map { case (k, v) => k -> v.asScala.toSeq }.toMap, src),
           getOrNil(unreporteds.iterator.map { case (k, v) => k -> v.asScala.toSeq }.toMap, src),
