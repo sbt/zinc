@@ -1,0 +1,5 @@
+> compile
+
+# A is no longer an annotation, so @A on class S no longer type checks
+$ copy-file changes/A.java A.java
+-> compile

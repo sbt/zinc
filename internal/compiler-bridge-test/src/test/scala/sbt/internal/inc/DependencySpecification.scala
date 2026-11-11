@@ -4,7 +4,11 @@ package inc
 
 import xsbti.NameKind
 import xsbti.TestCallback.ExtractedClassDependencies
-import xsbti.api.DependencyContext.{ DependencyByInheritance, DependencyByMacroExpansion }
+import xsbti.api.DependencyContext.{
+  DependencyByInheritance,
+  DependencyByMacroExpansion,
+  DependencyByMemberRef
+}
 
 class DependencySpecification
     extends UnitSpec
@@ -49,6 +53,36 @@ class DependencySpecification
     assert(memberRef("E") === Set("B"))
     assert(inheritance("E") === Set.empty)
     assert(localInheritance("E") === Set("B"))
+  }
+
+  it should "extract class dependencies from annotations of definitions" in {
+    val srcConsts = "object Consts { final val Uid = 1L; final val I = 1 }"
+    val srcAnn = "class MyAnn(x: Int) extends scala.annotation.StaticAnnotation"
+    val srcFoo = "@SerialVersionUID(Consts.Uid) class Foo extends Serializable"
+    val srcOnClass = "@MyAnn(Consts.I) class OnClass"
+    val srcOnMethod = "class OnMethod { @MyAnn(Consts.I) def f: Int = 1 }"
+    val srcOnParam = "class OnParam { def f(@MyAnn(Consts.I) x: Int): Int = x }"
+    val memberRef =
+      extractDependenciesFromSrcs(
+        srcConsts,
+        srcAnn,
+        srcFoo,
+        srcOnClass,
+        srcOnMethod,
+        srcOnParam
+      ).memberRef
+    memberRef("Foo") should contain("Consts")
+    memberRef("OnClass") should contain allOf ("MyAnn", "Consts")
+    memberRef("OnMethod") should contain allOf ("MyAnn", "Consts")
+    memberRef("OnParam") should contain allOf ("MyAnn", "Consts")
+  }
+
+  it should "extract class dependencies from annotations without an original tree" in {
+    val (_, callback) = compileSrcs(AnnotationWithoutOriginal.groupedSrcs)
+    val memberRef = callback.classDependencies.toList.collect {
+      case (target, "C", DependencyByMemberRef) => target
+    }.toSet
+    memberRef should contain allOf ("MyAnn", "Consts")
   }
 
   it should "extract class dependencies with trait as first parent" in {
