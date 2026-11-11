@@ -15,9 +15,12 @@ import hedgehog.{ sbt as _, * }
 import hedgehog.runner.*
 import java.io.File
 import java.nio.file.{ Files, Path }
+import java.util.Optional
 import sbt.io.IO.withTemporaryDirectory as withTmpDir
 import sbt.internal.inc.{ CompileFailed, HedgehogSupport, StringVirtualFile, JarUtils }
 import sbt.io.syntax.*
+import xsbti.VirtualFile
+import xsbti.compile.{ AnalysisContents, AnalysisStore }
 import HedgehogSupport.assertThrows
 
 object OutputSpec extends Properties with BaseCompilerSpec:
@@ -28,6 +31,7 @@ object OutputSpec extends Properties with BaseCompilerSpec:
       example("not compile anything if source has not changed", noChange),
       example("replace Java jar entries while retaining Scala outputs", replaceJavaJarEntries),
       example("generate early artifact with pickle (.sig) files", earlyArtifact),
+      example("write early analysis to a store that cannot be read", writeOnlyStore),
     ) ++ List(scalaVersion, "3.9.0").flatMap(earlyOutputTests)
 
   private def earlyOutputTests(sv: String): List[Test] = List(
@@ -114,6 +118,24 @@ object OutputSpec extends Properties with BaseCompilerSpec:
           Result.assert(JarUtils.listFiles(c1.earlyOutput).contains("example/A.sig")),
         )
       )
+    }
+  }
+
+  private def writeOnlyStore: Result = withTmpDir { tmp =>
+    withCompiler(compiler(scalaVersion, tmp.toPath / "p")) { comp =>
+      val store = new WriteOnlyAnalysisStore
+      def compile(sources: VirtualFile*) =
+        comp.doCompileWithStore(newInputs =
+          comp.withSrcs(sources.toArray).andThen(in =>
+            in.withSetup(in.setup.withEarlyAnalysisStore(store))
+          )
+        )
+      compile(traitM, classA)
+      val before = earlyJar(comp, "A", "M")
+      val sets = store.sets ==== 1
+      val failed = assertThrows[CompileFailed](compile(traitM, classABroken))
+      comp.setup.reporter.reset()
+      Result.all(List(sets, failed, sameJar(earlyJar(comp, "A", "M"), before)))
     }
   }
 
@@ -219,4 +241,12 @@ object OutputSpec extends Properties with BaseCompilerSpec:
 
   def mkCompiler(baseDir: File, classes: Seq[String]) =
     ProjectSetup.simple(baseDir.toPath, classes).copy(outputToJar = true).createCompiler()
+
+  /** Like a build tool's store that it only writes to. */
+  final class WriteOnlyAnalysisStore extends AnalysisStore:
+    var sets = 0
+    override def get(): Optional[AnalysisContents] = throw new UnsupportedOperationException
+    override def unsafeGet(): AnalysisContents = throw new UnsupportedOperationException
+    override def set(contents: AnalysisContents): Unit = sets += 1
+  end WriteOnlyAnalysisStore
 end OutputSpec
