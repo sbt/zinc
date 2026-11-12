@@ -1,0 +1,5 @@
+> p/compile
+
+# A.x now has type 2, which does not conform to 1
+$ copy-file changes/A.scala p/A.scala
+-> p/compile
