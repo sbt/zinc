@@ -1,0 +1,9 @@
+# def-literal-return-type on scala2-sbt-bridge, which still widens the literal result types of
+# defs and vars in the API. general/bridge-2.13.y checks that 2.13.y really is
+# scala2-sbt-bridge.
+
+> p/compile
+
+# A.x now has type 2, which does not conform to 1
+$ copy-file changes/A.scala p/A.scala
+-> p/compile

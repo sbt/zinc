@@ -17,6 +17,7 @@ object ExtractAPISpecification
       stableExistentialNames
     ),
     example("extract children of a sealed class", sealedChildren),
+    example("keep the declared literal type of a def or var", literalTypes),
     example("extract correctly the definition type of a package object", packageObject),
     example("extract nested classes", nestedClasses),
     example("not extract local classes", localClasses),
@@ -42,6 +43,26 @@ object ExtractAPISpecification
 
   private def fooClassApi(src: String): ClassLike =
     extractApisFromSrc(src).find(_.name() == "Foo").get
+
+  private def literalTypes: Result =
+    if (!scalaVersion.startsWith("2.13")) Result.success
+    else {
+      def sameApi(before: String, after: String): Boolean =
+        SameAPI(fooClassApi(s"class Foo { $before }"), fooClassApi(s"class Foo { $after }"))
+      Result.all(
+        List(
+          Result.assert(!sameApi("def x: 1 = 1", "def x: 2 = 2")).log("def"),
+          Result.assert(!sameApi("var x: 1 = 1", "var x: 2 = 2")).log("var"),
+          Result
+            .assert(!sameApi("def g[A](a: A = 1) = a", "def g[A](a: A = 2) = a"))
+            .log("default getter"),
+          Result.assert(sameApi("def x = 1", "def x = 2")).log("inferred def"),
+          Result.assert(sameApi("final def x = 1", "final def x = 2")).log("inferred final def"),
+          Result.assert(sameApi("var x = 1", "var x = 2")).log("inferred var"),
+          Result.assert(sameApi("def g(a: Int = 1) = a", "def g(a: Int = 2) = a")).log("default"),
+        )
+      )
+    }
 
   private def stableExistentialNames: Result = {
     def compileAndGetFooMethodApi(src: String): Def =

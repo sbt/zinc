@@ -338,7 +338,7 @@ class ExtractAPI[GlobalType <: Global](
         case NullaryMethodType(resultType) =>
           build(resultType, typeParams, valueParameters)
         case returnType =>
-          val retType = processType(in, dropConst(returnType))
+          val retType = processType(in, returnType)
           xsbti.api.Def.of(
             simpleNameForMethod(s),
             getAccess(s),
@@ -378,7 +378,6 @@ class ExtractAPI[GlobalType <: Global](
   private def fieldDef[T](
       in: Symbol,
       s: Symbol,
-      keepConst: Boolean,
       create: (
           String,
           xsbti.api.Access,
@@ -388,12 +387,7 @@ class ExtractAPI[GlobalType <: Global](
       ) => T
   ): T = {
     val t = dropNullary(viewer(in).memberType(s))
-    val t2 = if (keepConst) t else dropConst(t)
-    create(simpleName(s), getAccess(s), getModifiers(s), annotations(in, s), processType(in, t2))
-  }
-  private def dropConst(t: Type): Type = t match {
-    case ConstantType(constant) => constant.tpe
-    case _                      => t
+    create(simpleName(s), getAccess(s), getModifiers(s), annotations(in, s), processType(in, t))
   }
   private def dropNullary(t: Type): Type = t match {
     case NullaryMethodType(un) => un
@@ -502,8 +496,8 @@ class ExtractAPI[GlobalType <: Global](
   }
 
   private def definition(in: Symbol, sym: Symbol): Option[xsbti.api.ClassDefinition] = {
-    def mkVar = Some(fieldDef(in, sym, keepConst = false, xsbti.api.Var.of(_, _, _, _, _)))
-    def mkVal = Some(fieldDef(in, sym, keepConst = true, xsbti.api.Val.of(_, _, _, _, _)))
+    def mkVar = Some(fieldDef(in, sym, xsbti.api.Var.of(_, _, _, _, _)))
+    def mkVal = Some(fieldDef(in, sym, xsbti.api.Val.of(_, _, _, _, _)))
     if (isClass(sym))
       if (ignoreClass(sym)) {
         allNonLocalClassSymbols.+=(sym); None
