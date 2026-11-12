@@ -227,17 +227,33 @@ class ExtractUsedNamesSpecification
   }
 
   // test for https://github.com/gkossakowski/sbt/issues/4
-  // TODO: we should fix it by having special treatment of `selectDynamic` and `applyDynamic` calls
-  it should "extract names from method calls on Dynamic" in pendingUntilFixed {
+  it should "extract names from method calls on Dynamic" in {
     val srcA = """|import scala.language.dynamics
                   |class A extends Dynamic {
-                  | def selectDynamic(name: String): Int = name.length
+                  |  def selectDynamic(name: String): Int = name.length
+                  |  def applyDynamic[T](name: String)(t: T): T = t
+                  |  def applyDynamicNamed(name: String)(args: (String, Int)*): Int = 0
+                  |  def updateDynamic(name: String)(i: Int): Unit = ()
+                  |}
+                  |class N(val s: String)
+                  |object N { implicit def fromString(s: String): N = new N(s) }
+                  |class E extends Dynamic { def selectDynamic(name: N): Int = 0 }""".stripMargin
+    val srcB = """|class B {
+                  |  type Al = A
+                  |  def s(a: Al): Int = a.bla
+                  |  def a[X <: A](x: X): Int = x.blu[Int](1)
+                  |  def n(a: A): Int = a.ble(x = 1)
+                  |  def u(a: A): Unit = a.blo = 1
+                  |  def sym(a: A): Int = a.+++
+                  |  def adapted(e: E): Int = e.qux
                   |}""".stripMargin
-    val srcB = "class B { def foo(a: A): Int = a.bla }"
     val usedNames = extractUsedNamesFromSrc(srcA, srcB)
-    val expectedNames = standardNames ++ Set("B", "A", "a", "Int", "selectDynamic", "bla")
-    assert(usedNames === expectedNames)
-    ()
+    val adaptedNames = if (scalaVersion.startsWith("2.13")) Set("qux") else Set.empty[String]
+    val dynamicNames = Set("bla", "blu", "ble", "blo", "+++") ++ adaptedNames
+    val otherNames = Set("B", "A", "E", "N", "a", "e", "x", "X", "Al", "Int", "Unit", "String") ++
+      Set("selectDynamic", "applyDynamic", "applyDynamicNamed", "updateDynamic", "fromString") ++
+      Set("Tuple2", "T", "T1", "T2", "apply", "<repeated>")
+    assert(usedNames("B") === standardNames ++ dynamicNames ++ otherNames)
   }
 
   // This doesn't work in 2.13.0-RC1
