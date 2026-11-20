@@ -44,7 +44,8 @@ object ZincBuildUtil:
     Seq(
       (Compile / scalaSource) := baseDirectory.value / "src",
       genTestResTask := {
-        def resurcesDir = (file("zinc") / "src" / "test" / "resources" / "bin").getAbsoluteFile
+        def resurcesDir =
+          ((LocalProject("zinc") / Test / resourceManaged).value / "bin").getAbsoluteFile
         val target = resurcesDir / s"${name.value}.$ext"
         IO.copyFile(fileConverter.value.toPath((Compile / packageBin).value).toFile, target)
         Seq(target)
