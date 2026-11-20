@@ -34,15 +34,19 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout
-      uses: actions/checkout@v7
+      uses: actions/checkout@v7.0.1
+    - run: gh extension install github/gh-actions-lock
+    - run: gh actions-lock --verify
+      env:
+        GH_TOKEN: ${{ github.token }}
     - name: Setup JDK
-      uses: actions/setup-java@v6
+      uses: actions/setup-java@v6.3.0
       with:
         distribution: temurin
         java-version: ${{ matrix.java }}
         cache: sbt
     - name: Setup SBT
-      uses: sbt/setup-sbt@6bec67c98f542b9e17369bfca0ec822ac1363194 # v1.1.19
+      uses: sbt/setup-sbt@v1.1.19
     - name: Build and test (1)
       if: ${{ matrix.jobtype == 1 }}
       shell: bash
