@@ -18,16 +18,39 @@ import java.nio.file.FileSystem
 import java.nio.file.FileSystems
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.attribute.{ BasicFileAttributes, FileTime }
 
 import sbt.io.PathFinder
 
 import scala.util.control.NonFatal
 
+/** Last-modified time and size of a class file. Unlike `Stamp`, it is compared exactly. */
+private[javac] final case class ClassStamp(lastModified: FileTime, size: Long)
+
+private[javac] object ClassStamp:
+  def of(path: Path): Option[ClassStamp] =
+    try
+      val attrs = Files.readAttributes(path, classOf[BasicFileAttributes])
+      Some(ClassStamp(attrs.lastModifiedTime, attrs.size))
+    catch
+      case NonFatal(_) => None
+
 trait Classes:
   def paths: Seq[Path]
-  final def pathsAndClose(): Seq[Path] =
-    try paths
+  private[javac] final def stampsAndClose(): Map[Path, ClassStamp] =
+    try paths.flatMap(p => ClassStamp.of(p).map(p -> _)).toMap
     finally close()
+
+  /**
+   * The class files that are new or rewritten since `old` was taken. Zinc deletes only tracked
+   * products before javac runs, so javac can rewrite untracked ones in place (sbt/zinc#586). A
+   * file whose stamp cannot be read counts as changed; a rewrite keeping time and size is missed.
+   */
+  private[javac] def changedSince(old: Map[Path, ClassStamp]): Seq[Path] =
+    paths.filter { p =>
+      val stamp = ClassStamp.of(p)
+      stamp.isEmpty || old.get(p) != stamp
+    }
   def close(): Unit = ()
 object Classes:
   object empty extends Classes:
