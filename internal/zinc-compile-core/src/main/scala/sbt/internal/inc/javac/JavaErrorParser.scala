@@ -62,6 +62,7 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
   // Here we track special handlers to catch "Note:" and "Warning:" lines.
   private val NOTE_LINE_PREFIXES = Array("Note: ", "\u6ce8: ", "\u6ce8\u610f\uff1a ")
   private val WARNING_PREFIXES = Array("warning", "\u8b66\u544a", "\u8b66\u544a\uff1a")
+  private val JVM_OPTIONS_BANNER_PREFIXES = Array("Picked up ", "NOTE: Picked up ")
 
   override val skipWhitespace = false
 
@@ -83,6 +84,9 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
   val NOTE: Parser[String] = restOfLine ^? {
     case x if NOTE_LINE_PREFIXES exists x.startsWith => x
   }
+  val JVM_OPTIONS_BANNER: Parser[String] = restOfLine ^? {
+    case x if JVM_OPTIONS_BANNER_PREFIXES exists x.startsWith => x
+  }
   val allIndented: Parser[String] =
     rep("""\s+""".r ~ restOfLine ^^ {
       case x ~ msg => x + msg
@@ -102,6 +106,8 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
         val line = source.subSequence(offset, i).toString
         if (line.startsWith("/") || line.contains("\\")) && line.contains(".java") then
           Failure("Path found", in)
+        else if JVM_OPTIONS_BANNER_PREFIXES.exists(line.startsWith) then
+          Failure("JVM options banner found", in)
         else if i == offset then Failure("Empty", in)
         else Success(line, in.drop(i - offset))
     nonPathLine0 ~ """[\r]?[\n]?""".r ^^ {
@@ -264,13 +270,13 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
           "Building tree for all the packages and classes" |
           "Generating"
       ) ~ """[^\r\n]*(\r\n|\n)?""".r
-    rep(skipLine) ^^ (_ => ())
+    rep(skipLine | JVM_OPTIONS_BANNER) ^^ (_ => ())
 
   val potentialProblem: Parser[Problem] =
     warningMessage | errorMessage | noteMessage | javacError | javacWarning
 
   val javacOutput: Parser[Seq[Problem]] =
-    opt(nonProblem) ~> rep(potentialProblem) <~ opt(outputSumamry)
+    opt(nonProblem) ~> rep(potentialProblem <~ rep(JVM_OPTIONS_BANNER)) <~ opt(outputSumamry)
 
   /**
    * Example:
