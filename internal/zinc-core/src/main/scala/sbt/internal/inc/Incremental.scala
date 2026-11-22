@@ -168,14 +168,7 @@ object Incremental:
     val currentStamper = Stamps.initial(stamper)
 
     val earlyJar = extractEarlyJar(earlyOutput)
-    val pickleJarPair = earlyJar.map { p =>
-      val newName = s"${p.getFileName.toString.stripSuffix(".jar")}-${UUID.randomUUID()}.jar"
-      val updatesJar = p.resolveSibling(newName)
-      PickleJar.touch(
-        updatesJar
-      ) // scalac should create -Ypickle-write jars but it throws FileNotFoundException :-/
-      p -> updatesJar
-    }
+    val pickleUpdates = PickleUpdates(earlyJar)
     val earlyRollback = EarlyOutputRollback(earlyJar, earlyAnalysisStore, currentSetup)
 
     val profiler = options.externalHooks.getInvalidationProfiler
@@ -204,7 +197,7 @@ object Incremental:
           outputJarContent,
           earlyOutput,
           earlyRollback.store,
-          pickleJarPair,
+          pickleUpdates,
           earlyRollback.keep,
           progress,
           log
@@ -231,7 +224,7 @@ object Incremental:
           case _ => throw e
     finally
       earlyRollback.discard()
-      pickleJarPair.foreach((_, updatesJar) => IO.delete(updatesJar.toFile))
+      pickleUpdates.delete()
       runProfiler.registerRun()
     end try
   end apply
@@ -281,7 +274,7 @@ object Incremental:
       outputJarContent,
       earlyOutput,
       earlyAnalysisStore,
-      None,
+      PickleUpdates(None),
       (_, _) => false,
       progress,
       log
@@ -702,6 +695,41 @@ private final class EarlyOutputRollback(
 end EarlyOutputRollback
 
 /**
+ * The jars that scalac writes the pickles of each cycle of one compile into, for zinc to merge into
+ * the early jar. Each starts as an empty jar, as scalac fails to create one.
+ *
+ * Scala 3 writes them on a background thread, which it does not wait for when it skips
+ * `dependencyPhaseCompleted` (scala/scala3#27139). The pickles of that cycle are then lost: zinc
+ * leaves their jar to that thread and gives the later cycles a new one, as on Windows a jar cannot
+ * be deleted or replaced while another thread has it open.
+ */
+private[inc] final class PickleUpdates(earlyJar: Option[Path]):
+  private var jars: List[Path] = earlyJar.map(created).toList
+  @volatile private var lost = false
+
+  /** The early jar, and the jar for the pickles of the cycle that starts now. */
+  def jarPair: Option[(Path, Path)] = synchronized(earlyJar.zip(jars.headOption))
+
+  /** Whether a cycle of this compile lost its pickles, which the early jar then lacks. */
+  def picklesLost: Boolean = lost
+
+  /** Loses the pickles of the cycle that started last. */
+  def lose(): Unit = synchronized {
+    lost = true
+    earlyJar.foreach(p => jars ::= created(p))
+  }
+
+  /** Deletes the jars, except one that another thread still has open on Windows. */
+  def delete(): Unit = synchronized(jars).foreach(jar => IO.delete(jar.toFile))
+
+  private def created(earlyJar: Path): Path =
+    val name = s"${earlyJar.getFileName.toString.stripSuffix(".jar")}-${UUID.randomUUID()}.jar"
+    val jar = earlyJar.resolveSibling(name)
+    PickleJar.touch(jar)
+    jar
+end PickleUpdates
+
+/**
  * With pipelining, this runs `onDependenciesSent` once the compiler has sent its dependencies and called
  * `dependencyPhaseCompleted`.
  *
@@ -777,7 +805,7 @@ private object AnalysisCallback:
       outputJarContent: JarUtils.OutputJarContent,
       earlyOutput: Option[Output],
       earlyAnalysisStore: Option[XAnalysisStore],
-      pickleJarPair: Option[(Path, Path)],
+      pickleUpdates: PickleUpdates,
       keepEarlyJar: (Path, Long) => Boolean,
       progress: Option[CompileProgress],
       log: Logger
@@ -821,7 +849,7 @@ private object AnalysisCallback:
         output,
         earlyOutput,
         earlyAnalysisStore,
-        pickleJarPair,
+        pickleUpdates,
         keepEarlyJar,
         progress,
         incHandlerOpt,
@@ -843,7 +871,7 @@ private final class AnalysisCallback(
     output: Output,
     earlyOutput: Option[Output],
     earlyAnalysisStore: Option[XAnalysisStore],
-    pickleJarPair: Option[(Path, Path)],
+    pickleUpdates: PickleUpdates,
     keepEarlyJar: (Path, Long) => Boolean,
     progress: Option[CompileProgress],
     incHandlerOpt: Option[Incremental.IncrementalCallback],
@@ -927,6 +955,8 @@ private final class AnalysisCallback(
 
   override def isPickleJava: Boolean =
     currentSetup.options.scalacOptions.contains("-Ypickle-java")
+
+  private val pickleJarPair: Option[(Path, Path)] = pickleUpdates.jarPair
 
   override def getPickleJarPair = pickleJarPair.map { case (p1, p2) => t2((p1, p2)) }.toJava
 
@@ -1230,15 +1260,12 @@ private final class AnalysisCallback(
       outputJarContent.scalacRunCompleted()
       phaseListener.runCompleted()
       if earlyOutput.isDefined then
-        val early = incHandler.previousAnalysisPruned
-        // Scala 3 skips `dependencyPhaseCompleted`, and may skip TASTy files, if its early TASTy is
-        // still being written when the run ends (scala/scala3#27139). The early output of this run
-        // is then incomplete.
-        if invalidationResults.isEmpty && !phaseListener.dependencyPhaseCompletedMissing &&
-          lookup.shouldDoEarlyOutput(early)
-        then writeEarlyArtifacts(early)
-        if !writtenEarlyArtifacts then // writing implies the updates merge has happened
-          mergeUpdates() // must merge updates each cycle or else scalac will clobber it
+        if phaseListener.dependencyPhaseCompletedMissing then losePickles()
+        else
+          val early = incHandler.previousAnalysisPruned
+          if invalidationResults.isEmpty && lookup.shouldDoEarlyOutput(early) then
+            writeEarlyArtifacts(early)
+          if !writtenEarlyArtifacts && !lostPickles then mergeUpdates(None)
 
       val partialAnalysis = getAnalysis
       val hasScala = Analysis.sources(partialAnalysis).scala.nonEmpty
@@ -1603,6 +1630,7 @@ private final class AnalysisCallback(
     outputJarContent.get().asJava
 
   @volatile private var writtenEarlyArtifacts: Boolean = false
+  @volatile private var lostPickles: Boolean = false
 
   private def earlySetup: MiniSetup =
     currentSetup
@@ -1610,37 +1638,55 @@ private final class AnalysisCallback(
       .withOptions(MiniOptions.of(Array.empty, Array.empty, Array.empty))
       .withExtra(Array.empty)
 
+  /**
+   * Merges the pickles of this cycle into the early jar, drops those of the classes missing from
+   * `merged`, writes the early analysis and announces the early output. Not once a cycle of this
+   * compile has lost its pickles, as the early jar lacks them: downstream then waits for the full
+   * output.
+   */
   private def writeEarlyArtifacts(merged: Analysis): Unit =
-    writtenEarlyArtifacts = true
+    if !pickleUpdates.picklesLost && mergeUpdates(Some(knownProducts(merged))) then
+      writtenEarlyArtifacts = true
 
-    // Only need internal apis & the productClassName relation from early analysis - drop the rest
-    // Because early analysis is only used by downstream to detect whether APIs have changed
-    val trimmedAnalysis = merged.copy(
-      Stamps.empty,
-      APIs(merged.apis.internal, Map.empty),
-      Relations.empty.copy(productClassName = merged.relations.productClassName),
-      SourceInfos.empty,
-      Compilations.empty,
-    )
-    earlyAnalysisStore.foreach(_.set(AnalysisContents.create(trimmedAnalysis, earlySetup)))
-
-    val available = lookup.shouldDoEarlyOutput(merged)
-    Incremental.writeEarlyOut(
-      progress,
-      earlyOutput,
-      pickleJarPair.map(_._2),
-      available,
-      Some(knownProducts(merged)),
-      keepEarlyJar,
-      log
-    )
+      // Only need internal apis & the productClassName relation from early analysis - drop the rest
+      // Because early analysis is only used by downstream to detect whether APIs have changed
+      val trimmedAnalysis = merged.copy(
+        Stamps.empty,
+        APIs(merged.apis.internal, Map.empty),
+        Relations.empty.copy(productClassName = merged.relations.productClassName),
+        SourceInfos.empty,
+        Compilations.empty,
+      )
+      earlyAnalysisStore.foreach(_.set(AnalysisContents.create(trimmedAnalysis, earlySetup)))
+      if pickleJarPair.isDefined then
+        progress.foreach(_.afterEarlyOutput(lookup.shouldDoEarlyOutput(merged)))
   end writeEarlyArtifacts
 
-  private def mergeUpdates() =
-    pickleJarPair.foreach { case (originalJar, updatesJar) =>
-      if Files.exists(updatesJar) then
-        PickleJar.write(originalJar, Some(updatesJar), None, keepEarlyJar, log)
+  /**
+   * Merges the pickles of this cycle into the early jar and, given `knownProducts`, drops those of
+   * the classes missing from it. Every cycle merges its pickles, announced or not, as the next run
+   * of scalac clobbers them. False if their jar has no index, as Scala 3 may still be writing it:
+   * the pickles are then lost.
+   */
+  private def mergeUpdates(knownProducts: Option[java.util.Set[String]]): Boolean =
+    pickleJarPair.forall { (earlyJar, updatesJar) =>
+      val updates = Some(updatesJar).filter(Files.exists(_))
+      val merged = (updates.isEmpty && knownProducts.isEmpty) ||
+        PickleJar.writeIfComplete(earlyJar, updates, knownProducts, keepEarlyJar, log)
+      if !merged then losePickles()
+      merged
     }
+
+  /**
+   * Scala 3 skips `dependencyPhaseCompleted`, and may skip TASTy files, if its early TASTy is still
+   * being written when the run ends (scala/scala3#27139). It may then still be writing the jar of
+   * this cycle's pickles, which zinc leaves alone, see [[PickleUpdates]].
+   */
+  private def losePickles(): Unit =
+    if !lostPickles then
+      lostPickles = true
+      log.debug("the early output of this compile lacks pickles that scalac may still be writing")
+      pickleUpdates.lose()
 
   private def knownProducts(merged: Analysis) =
     // List classes defined in the files that were compiled in this run.
