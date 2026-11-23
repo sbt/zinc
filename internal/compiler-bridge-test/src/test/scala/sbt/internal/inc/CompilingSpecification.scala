@@ -187,9 +187,22 @@ trait CompilingSpecification extends AbstractBridgeProviderTestkit {
   }
 
   def compileSrcs(groupedSrcs: List[List[String]]): (Seq[VirtualFile], TestCallback) =
+    compileSrcs(groupedSrcs, new TestCallback)
+
+  def compileSrcs(
+      groupedSrcs: List[List[String]],
+      analysisCallback: TestCallback
+  ): (Seq[VirtualFile], TestCallback) =
     IO.withTemporaryDirectory { tempDir =>
-      compileSrcs(tempDir.toPath, mkReporter)(groupedSrcs)
+      compileSrcs(tempDir.toPath, mkReporter, scalaVersion, analysisCallback)(groupedSrcs)
     }
+
+  def compileSrcs(
+      baseDir: Path,
+      reporter: Reporter = mkReporter,
+      scalaVersion0: String = scalaVersion
+  )(groupedSrcs: List[List[String]]): (Seq[VirtualFile], TestCallback) =
+    compileSrcs(baseDir, reporter, scalaVersion0, new TestCallback)(groupedSrcs)
 
   /**
    * Compiles given source code snippets written to temporary files. Each snippet is
@@ -204,8 +217,9 @@ trait CompilingSpecification extends AbstractBridgeProviderTestkit {
    */
   def compileSrcs(
       baseDir: Path,
-      reporter: Reporter = mkReporter,
-      scalaVersion0: String = scalaVersion
+      reporter: Reporter,
+      scalaVersion0: String,
+      analysisCallback: TestCallback
   )(groupedSrcs: List[List[String]]): (Seq[VirtualFile], TestCallback) = {
     val rootPaths: Map[String, Path] = Map(
       "BASE" -> baseDir,
@@ -214,7 +228,6 @@ trait CompilingSpecification extends AbstractBridgeProviderTestkit {
     ) ++ localCoursierCache
     val converter = new MappedFileConverter(rootPaths, false)
     val targetDir = baseDir / "target"
-    val analysisCallback = new TestCallback
     Files.createDirectory(targetDir)
     val files = for {
       (compilationUnit, unitId) <- groupedSrcs.zipWithIndex

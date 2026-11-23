@@ -11,6 +11,7 @@ import java.nio.file.FileSystems
 import java.nio.file.Files
 import java.nio.file.Paths
 import scala.concurrent.duration._
+import xsbti.{ TestCallback, VirtualFile }
 import HedgehogSupport.pendingUntilFixed
 
 object ExtractUsedNamesPerformanceSpecification
@@ -58,6 +59,24 @@ object ExtractUsedNamesPerformanceSpecification
   )
   def diffAndSort(xs: Set[String]): List[String] = (xs -- scalaDiff).toList.sorted
 
+  private final class ApiPhaseTimer extends TestCallback {
+    private var started: Option[Long] = None
+    private var completed: Option[Long] = None
+
+    override def startSource(source: VirtualFile): Unit = {
+      if (started.isEmpty) started = Some(System.nanoTime())
+      super.startSource(source)
+    }
+
+    override def apiPhaseCompleted(): Unit = {
+      completed = Some(System.nanoTime())
+      super.apiPhaseCompleted()
+    }
+
+    def elapsed: Duration =
+      (for { s <- started; c <- completed } yield (c - s).nanos).getOrElse(Duration.Inf)
+  }
+
   private def reasonableTime: Result = {
     var zipfs: Option[FileSystem] = None
     val src =
@@ -71,9 +90,9 @@ object ExtractUsedNamesPerformanceSpecification
             case _: Throwable => /*ignore*/
           }
         }
-    val start = System.nanoTime()
-    val usedNames = extractUsedNamesFromSrc(src)
-    val elapsed = (System.nanoTime() - start).nanos
+    val apiPhase = new ApiPhaseTimer
+    val (_, analysis) = compileSrcs(List(List(src)), apiPhase)
+    val usedNames = analysis.usedNames.toMap
     // format: off
     val expectedNamesForTuplerScala2 = Set("_$3", "Tupler", "hnilTupler", "L", "Object", "Out0", "HList", "ModuleSerializationProxy",
       "java;lang;Object;init;", "tupler", "TuplerInstances", "DepFn1", "package", "HNil", "$anon", "Out", "T", "Aux", "scala", "Class",
@@ -91,7 +110,7 @@ object ExtractUsedNamesPerformanceSpecification
     // format: on
     Result.all(
       List(
-        Result.diff(elapsed, 30.seconds)(_ < _).log("extracting used names took too long"),
+        Result.diff(apiPhase.elapsed, 5.seconds)(_ < _).log("extracting used names took too long"),
         diffAndSort(usedNames("acme.Tupler")) ==== diffAndSort(expectedNamesForTuplerScala3),
         diffAndSort(usedNames("acme.TuplerInstances.<refinement>")) ====
           diffAndSort(expectedNamesForRefinement),
