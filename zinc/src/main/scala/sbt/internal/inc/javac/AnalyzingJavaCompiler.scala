@@ -230,7 +230,7 @@ final class AnalyzingJavaCompiler private[sbt] (
           val classes = classFinder.classes
           try
             val newClasses = classes.changedSince(oldClasses)
-            val rewritten = newClasses.count(oldClasses.contains)
+            val rewritten = newClasses.count(p => oldClasses.contains(p.toString))
             if rewritten > 0 then
               log.debug(InterfaceUtil.toSupplier(
                 s"Java analysis: $rewritten of ${newClasses.size} class files " +
