@@ -42,49 +42,11 @@ object PickleJar:
       log: Logger
   ): Unit =
     val merged = updates.filter(Files.exists(_))
-    writeEntries(
-      pickleOut,
-      merged,
-      merged.toVector.flatMap(SortedJar.entries),
-      knownProducts,
-      keep,
-      log
-    )
-
-  /**
-   * [[write]], unless `updates` has no index, as a jar that scalac is still writing has none:
-   * then it leaves both jars as they are and returns false.
-   */
-  def writeIfComplete(
-      pickleOut: Path,
-      updates: Option[Path],
-      knownProducts: Option[java.util.Set[String]],
-      keep: (Path, Long) => Boolean,
-      log: Logger
-  ): Boolean =
-    val merged = updates.filter(Files.exists(_))
-    val entries =
-      try Some(merged.toVector.flatMap(SortedJar.entries))
-      catch
-        case e: ZipException =>
-          log.debug(s"not merging ${merged.mkString} into $pickleOut: $e")
-          None
-    entries.foreach(writeEntries(pickleOut, merged, _, knownProducts, keep, log))
-    entries.isDefined
-
-  private def writeEntries(
-      pickleOut: Path,
-      merged: Option[Path],
-      updated: Vector[SortedJar.Entry],
-      knownProducts: Option[java.util.Set[String]],
-      keep: (Path, Long) => Boolean,
-      log: Logger
-  ): Unit =
     if merged.isEmpty && knownProducts.isEmpty then touch(pickleOut)
     else
       merged.foreach(u => log.debug(s"merging $u into $pickleOut"))
       val before = SortedJar.entries(pickleOut)
-      val added = SortedJar.reuse(before, updated)
+      val added = SortedJar.reuse(before, merged.toVector.flatMap(SortedJar.entries))
       val addedNames = added.iterator.map(_.name).toSet
       val (dropped, after) = (before.filterNot(e => addedNames(e.name)) ++ added)
         .filterNot(_.name == JarFile.MANIFEST_NAME)
@@ -93,7 +55,30 @@ object PickleJar:
         log.debug(s"PickleJar.write: removing ${dropped.map(_.name).mkString(", ")}")
       SortedJar.write(pickleOut, before, after, keep)
       merged.foreach(Files.delete)
-  end writeEntries
+  end write
+
+  /**
+   * [[write]], unless `updates` has no index, as a jar that scalac is still writing has none:
+   * then it leaves both jars as they are and returns false. It warns, as zinc merges no jar of a
+   * run that it saw skip `dependencyPhaseCompleted`: this one is unexpected.
+   */
+  def writeIfComplete(
+      pickleOut: Path,
+      updates: Option[Path],
+      knownProducts: Option[java.util.Set[String]],
+      keep: (Path, Long) => Boolean,
+      log: Logger
+  ): Boolean =
+    val complete =
+      try
+        updates.foreach(SortedJar.entries)
+        true
+      catch
+        case e: ZipException =>
+          log.warn(s"not merging ${updates.mkString} into $pickleOut, as it has no index: $e")
+          false
+    if complete then write(pickleOut, updates, knownProducts, keep, log)
+    complete
 
   // "foo/bar/wiz.sig" -> "foo/bar/wiz.class"
   private def isUnknown(entry: String, knownProducts: java.util.Set[String]): Boolean =
