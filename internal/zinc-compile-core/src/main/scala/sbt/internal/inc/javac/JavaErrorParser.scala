@@ -84,8 +84,8 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
   val NOTE: Parser[String] = restOfLine ^? {
     case x if NOTE_LINE_PREFIXES exists x.startsWith => x
   }
-  val JVM_OPTIONS_BANNER: Parser[String] = restOfLine ^? {
-    case x if JVM_OPTIONS_BANNER_PREFIXES exists x.startsWith => x
+  private val JVM_OPTIONS_BANNER: Parser[String] = restOfLine ^? {
+    case x if isJvmOptionsBanner(x) => x
   }
   val allIndented: Parser[String] =
     rep("""\s+""".r ~ restOfLine ^^ {
@@ -106,7 +106,7 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
         val line = source.subSequence(offset, i).toString
         if (line.startsWith("/") || line.contains("\\")) && line.contains(".java") then
           Failure("Path found", in)
-        else if JVM_OPTIONS_BANNER_PREFIXES.exists(line.startsWith) then
+        else if isJvmOptionsBanner(line) then
           Failure("JVM options banner found", in)
         else if i == offset then Failure("Empty", in)
         else Success(line, in.drop(i - offset))
@@ -114,7 +114,7 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
       case msg ~ endline => msg + endline
     }
   val nonPathLines: Parser[String] =
-    rep(nonPathLine) ^^ {
+    rep(nonPathLine | JVM_OPTIONS_BANNER ^^^ "") ^^ {
       case lines => lines.mkString("")
     }
 
@@ -158,7 +158,12 @@ class JavaErrorParser(relativeDir: File = new File(new File(".").getAbsolutePath
     val windowsOption = windowsRootFile ~ SEMICOLON ~ line ^^ { case f ~ _ ~ l => (f, l) }
     (linuxOption | windowsOption)
 
-  val allUntilCaret: Parser[String] = allUntilChar('^')
+  val allUntilCaret: Parser[String] = allUntilChar('^') ^^ { contents =>
+    contents.linesWithSeparators.filterNot(isJvmOptionsBanner).mkString
+  }
+
+  private def isJvmOptionsBanner(line: String): Boolean =
+    JVM_OPTIONS_BANNER_PREFIXES.exists(line.startsWith)
 
   // Helper method to try to handle relative vs. absolute file pathing....
   // NOTE - this is probably wrong...

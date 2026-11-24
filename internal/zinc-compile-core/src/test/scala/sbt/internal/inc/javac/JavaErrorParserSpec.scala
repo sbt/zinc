@@ -36,8 +36,9 @@ object JavaErrorParserSpec extends Properties:
       parseMultipleErrors2
     ),
     property("parse the path, line, severity and pointer of any problem list", propProblems),
-    property("ignore JVM option banners before and between problems", propBanners),
+    property("ignore JVM option banners before, inside and between problems", propBanners),
     example("ignore JVM option banners printed by a child JVM", parseChildJvmBanners),
+    example("ignore a JVM option banner inside a problem", parseBannerInsideProblem),
   )
 
   private def parse(in: String): List[Problem] =
@@ -172,6 +173,22 @@ object JavaErrorParserSpec extends Properties:
         )
       case problems => Result.failure.log(s"Expected a warning and an error, but found $problems")
 
+  private def parseBannerInsideProblem: Result =
+    parse(sampleBannerInsideProblem) match
+      case List(first, second) =>
+        Result.all(
+          List(
+            first.message ==== " error: cannot find symbol",
+            checkPosition(first.position, "/home/me/projects/sample/A.java", 2, "foo();", 2),
+            contains(first.position.lineContent, "symbol: method foo()"),
+            notContains(first.position.lineContent, "Picked up"),
+            second.message ==== " error: missing return statement",
+            checkPosition(second.position, "/home/me/projects/sample/B.java", 3, "}", 2),
+            notContains(second.position.lineContent, "Picked up"),
+          )
+        )
+      case problems => Result.failure.log(s"Expected two errors, but found $problems")
+
   private def parseMultipleErrors2: Result =
     val problems = parse(sampleLinuxMessage2)
     Result.all(
@@ -190,10 +207,14 @@ object JavaErrorParserSpec extends Properties:
       pointer: Int,
       details: List[String]
   ):
-    def render: String =
+    def render: String = renderWith(afterHeader = Nil, afterCaret = Nil)
+
+    def renderWith(afterHeader: List[String], afterCaret: List[String]): String =
       val kind = if severity == Severity.Warn then "warning: " else "error: "
-      (s"$path:$line: $kind$message" :: code :: s"${" " * pointer}^" :: details.map("  " + _))
-        .mkString("", "\n", "\n")
+      val header = s"$path:$line: $kind$message\n"
+      val source = s"$code\n${" " * pointer}^\n"
+      header + afterHeader.mkString + source + afterCaret.mkString +
+        details.map(d => s"  $d\n").mkString
 
   private val genWords: Gen[String] =
     Gen.list(Gen.string(Gen.lower, Range.linear(1, 8)), Range.linear(1, 5)).map(_.mkString(" "))
@@ -253,11 +274,15 @@ object JavaErrorParserSpec extends Properties:
       options <- Gen.list(genOption, Range.linear(1, 3))
     yield s"$prefix: ${options.mkString(" ")}\n"
 
-  private val genSampleWithBanners: Gen[(Sample, List[String])] =
+  private val genBanners: Gen[List[String]] = Gen.list(genBanner, Range.linear(0, 2))
+
+  private val genSampleWithBanners: Gen[(Sample, String)] =
     for
       sample <- genSample
-      banners <- Gen.list(genBanner, Range.linear(0, 2))
-    yield (sample, banners)
+      afterHeader <- genBanners
+      afterCaret <- genBanners
+      trailing <- genBanners
+    yield (sample, sample.renderWith(afterHeader, afterCaret) + trailing.mkString)
 
   def propBanners: Property =
     for
@@ -265,9 +290,7 @@ object JavaErrorParserSpec extends Properties:
       chunks <- Gen.list(genSampleWithBanners, Range.linear(1, 5)).forAll
     yield
       val input = chunks.map(_._1.render).mkString
-      val withBanners =
-        leading.mkString +
-          chunks.map((sample, banners) => sample.render + banners.mkString).mkString
+      val withBanners = leading.mkString + chunks.map(_._2).mkString
       val problems = parse(withBanners).map(describe)
       Result
         .all(List(problems.size ==== chunks.size, problems ==== parse(input).map(describe)))
@@ -357,6 +380,18 @@ object JavaErrorParserSpec extends Properties:
       |/home/me/projects/sample/src/main/java/A.java:2: error: incompatible types: String cannot be converted to int
       |  int x = "not an int";
       |          ^
+      |""".stripMargin
+
+  def sampleBannerInsideProblem =
+    """/home/me/projects/sample/A.java:2: error: cannot find symbol
+      |  foo();
+      |  ^
+      |Picked up JAVA_TOOL_OPTIONS: -Dx=y
+      |  symbol: method foo()
+      |/home/me/projects/sample/B.java:3: error: missing return statement
+      |Picked up _JAVA_OPTIONS: -Xmx1g
+      |  }
+      |  ^
       |""".stripMargin
 
   def sampleMultipleErrors =
