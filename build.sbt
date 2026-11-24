@@ -547,6 +547,8 @@ lazy val compilerBridgeTest = (projectMatrix in internalPath / "compiler-bridge-
     // needed because we fork tests and tests are ran in parallel so we have multiple Scala
     // compiler instances that are memory hungry
     Test / javaOptions += "-Xmx1G",
+    Test / javaOptions += "-XX:ReservedCodeCacheSize=512M",
+    Test / javaOptions += "-Dscalac.filebasedcache.defer.close.ms=0",
     Test / javaOptions += s"-Dzinc.build.compilerbridge.scalaVersion=${scala213}",
     publish / skip := true,
   )
