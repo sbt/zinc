@@ -6,7 +6,7 @@ workflows:
     '.github/workflows/ci.yml':
         - 'actions/checkout@v7.0.1'
         - 'actions/setup-java@v6.3.0'
-        - 'sbt/setup-sbt@v1.1.19'
+        - 'sbt/setup-sbt@v1.5.15'
     '.github/workflows/dependency-graph.yml':
         - 'actions/checkout@v7.0.1'
         - 'sbt/setup-sbt@v1.5.15'
@@ -15,11 +15,6 @@ dependencies:
     'actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9':
         ref: 'v6.1.0'
         commit: 'sha1-55cc8345863c7cc4c66a329aec7e433d2d1c52a9'
-        owner_id: 44036562
-        repo_id: 215566462
-    'actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306':
-        ref: 'v5.0.3'
-        commit: 'sha1-cdf6c1fa76f9f475f3d7449005a359c84ca0f306'
         owner_id: 44036562
         repo_id: 215566462
     'actions/checkout@v7.0.1':
@@ -64,13 +59,6 @@ dependencies:
         repo_id: 941189561
         uses:
             - 'carabiner-dev/actions@2fec8bd8e1dcfdea26080648070b4827f1fa0584'
-    'sbt/setup-sbt@v1.1.19':
-        ref: 'v1.1.19'
-        commit: 'sha1-6bec67c98f542b9e17369bfca0ec822ac1363194'
-        owner_id: 1158012
-        repo_id: 818716839
-        uses:
-            - 'actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306'
     'sbt/setup-sbt@v1.5.15':
         ref: 'v1.5.15'
         commit: 'sha1-7e114eae4f32ec3f93c851c2793376a77f384409'
