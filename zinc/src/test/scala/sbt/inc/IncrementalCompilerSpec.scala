@@ -16,7 +16,14 @@ import hedgehog.runner.*
 import sbt.internal.inc.*
 import sbt.io.IO.withTemporaryDirectory as withTmpDir
 import sbt.io.syntax.*
-import xsbti.compile.{ AnalysisStore, CompileAnalysis, DefaultExternalHooks, Inputs, Output }
+import xsbti.compile.{
+  AnalysisStore,
+  CompileAnalysis,
+  DefaultExternalHooks,
+  IncOptions,
+  Inputs,
+  Output
+}
 import java.util.Optional
 import xsbti.VirtualFile
 import HedgehogSupport.{ assertThrows, intercept }
@@ -45,6 +52,10 @@ object IncrementalCompilerSpec extends Properties with BaseCompilerSpec:
       smallScalaChange
     ),
     example("track dependencies from nested inner Java classes", nestedInnerJavaClasses),
+    example(
+      "drive the same Java invalidation under classfileJavaApi as reflection",
+      classfileJavaApiInvalidation
+    ),
     example("track dependencies on constants", constants),
     example(
       "not exapand the invalidation the first round when oneHopInvalidation is off",
@@ -355,6 +366,51 @@ object IncrementalCompilerSpec extends Properties with BaseCompilerSpec:
       val res2 = compileJava(f1, f2b, f3)
       recompiled(res1, res2) ==== Set("A", "B")
     }
+  }
+
+  // Step D end-to-end: with IncOptions.classfileJavaApi on, a change to a Java method's public
+  // signature must invalidate its dependents — and produce the *same* recompiled set as the default
+  // reflection path — all without loading any class. The flag is a per-invocation option (no global
+  // state), so the two scenarios just use different IncOptions.
+  private def classfileJavaApiInvalidation: Result = withTmpDir { tmp =>
+    val a1 = "public class A { public int value() { return 1; } }"
+    val a2 = "public class A { public long value() { return 1L; } }"
+    val b = "public class B { public long use() { return new A().value(); } }"
+
+    def scenario(subdir: String, opts: IncOptions): Set[String] =
+      val comp = VirtualSubproject(tmp.toPath / subdir).setup.createCompiler(scalaVersion, opts)
+      try
+        def compileJava(sources: VirtualFile*) =
+          comp.doCompileWithStore(newInputs =
+            (in: Inputs) =>
+              comp.withSrcs(sources.toArray)(
+                in.withOptions(
+                  in.options
+                    .withEarlyOutput(Optional.empty[Output])
+                    .withScalacOptions(comp.scalacOptions.toArray)
+                ).withSetup(
+                  in.setup.withIncrementalCompilerOptions(
+                    in.setup.incrementalCompilerOptions.withPipelining(false)
+                  )
+                )
+              )
+          )
+        val res1 = compileJava(StringVirtualFile("A.java", a1), StringVirtualFile("B.java", b))
+        val res2 = compileJava(StringVirtualFile("A.java", a2), StringVirtualFile("B.java", b))
+        recompiled(res1, res2)
+      finally comp.close()
+    end scenario
+
+    val withReflection = scenario("reflect", incOptions)
+    val withClassfile = scenario("classfile", incOptions.withClassfileJavaApi(true))
+    Result.all(
+      List(
+        Result
+          .assert(withClassfile.contains("A") && withClassfile.contains("B"))
+          .log(s"classfile path under-invalidated: $withClassfile"),
+        (withClassfile ==== withReflection).log("recompiled classes (classfile, reflection)"),
+      )
+    )
   }
 
   private def constants: Result = withTmpDir { tmp =>

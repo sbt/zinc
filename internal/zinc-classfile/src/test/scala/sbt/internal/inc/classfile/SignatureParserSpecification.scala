@@ -14,126 +14,155 @@ package internal
 package inc
 package classfile
 
-class SignatureParserSpecification extends UnitSpec:
+import hedgehog.{ sbt as _, * }
+import hedgehog.runner.*
+
+object SignatureParserSpecification extends Properties:
   import SignatureModel.*
+
+  override def tests: List[Test] = List(
+    example("SignatureParser should parse a parameterized field type", parameterizedField),
+    example(
+      "parse type variables, arrays, and primitive-element arrays",
+      typeVariablesAndArrays
+    ),
+    example("parse wildcards (unbounded, extends, super)", wildcards),
+    example("parse an inner class with type arguments on the outer", innerClassOuterArgs),
+    example(
+      "parse a class signature with type params, superclass, and interface",
+      classSignature
+    ),
+    example(
+      "parse an interface-only bounded type parameter (the '::' case)",
+      interfaceOnlyBound
+    ),
+    example(
+      "parse a generic method signature with params, return, and throws",
+      genericMethod
+    ),
+    example("parse a void result", voidResult),
+    example("return None on malformed or truncated input", malformed),
+    example("reject trailing input after a complete signature", trailingInput),
+    example(
+      "reject empty identifiers and empty type-argument/parameter lists",
+      emptyIdentifiers
+    ),
+    example("parse multiple bounds on a type parameter", multipleBounds),
+    example("parse a type-variable throws and reject an array throws", throwsClauses),
+    example(
+      "parse type arguments on both the outer and inner of an inner class",
+      innerClassBothArgs
+    ),
+  )
 
   private def cls(name: String, args: SigArg*): SigClass = SigClass(name, args.toList, Nil)
   private def inv(t: SigType): SigArg = SigBounded('=', t)
   private val Str = cls("java.lang.String")
   private val Obj = cls("java.lang.Object")
 
-  "SignatureParser" should "parse a parameterized field type" in {
-    assert(
-      SignatureParser.fieldSignature("Ljava/util/List<Ljava/lang/String;>;")
-        == Some(cls("java.util.List", inv(Str)))
-    )
-  }
+  private def parameterizedField: Result =
+    SignatureParser.fieldSignature("Ljava/util/List<Ljava/lang/String;>;") ====
+      Some(cls("java.util.List", inv(Str)))
 
-  it should "parse type variables, arrays, and primitive-element arrays" in {
-    assert(SignatureParser.fieldSignature("TT;") == Some(SigVar("T")))
-    assert(SignatureParser.fieldSignature("[Ljava/lang/String;") == Some(SigArray(Str)))
-    assert(SignatureParser.fieldSignature("[[I") == Some(SigArray(SigArray(SigPrimitive('I')))))
-  }
+  private def typeVariablesAndArrays: Result =
+    Result.all(
+      List(
+        SignatureParser.fieldSignature("TT;") ==== Some(SigVar("T")),
+        SignatureParser.fieldSignature("[Ljava/lang/String;") ==== Some(SigArray(Str)),
+        SignatureParser.fieldSignature("[[I") ==== Some(SigArray(SigArray(SigPrimitive('I')))),
+      )
+    )
 
-  it should "parse wildcards (unbounded, extends, super)" in {
-    assert(
-      SignatureParser.fieldSignature("Ljava/util/List<*>;")
-        == Some(cls("java.util.List", SigWildcard))
+  private def wildcards: Result =
+    Result.all(
+      List(
+        SignatureParser.fieldSignature("Ljava/util/List<*>;") ====
+          Some(cls("java.util.List", SigWildcard)),
+        SignatureParser.fieldSignature("Ljava/util/List<+Ljava/lang/Number;>;") ====
+          Some(cls("java.util.List", SigBounded('+', cls("java.lang.Number")))),
+        SignatureParser.fieldSignature("Ljava/util/List<-Ljava/lang/Integer;>;") ====
+          Some(cls("java.util.List", SigBounded('-', cls("java.lang.Integer")))),
+      )
     )
-    assert(
-      SignatureParser.fieldSignature("Ljava/util/List<+Ljava/lang/Number;>;")
-        == Some(cls("java.util.List", SigBounded('+', cls("java.lang.Number"))))
-    )
-    assert(
-      SignatureParser.fieldSignature("Ljava/util/List<-Ljava/lang/Integer;>;")
-        == Some(cls("java.util.List", SigBounded('-', cls("java.lang.Integer"))))
-    )
-  }
 
-  it should "parse an inner class with type arguments on the outer" in {
-    assert(
-      SignatureParser.fieldSignature("Lpkg/Outer<Ljava/lang/String;>.Inner;")
-        == Some(SigClass("pkg.Outer", List(inv(Str)), List(SigInner("Inner", Nil))))
-    )
-  }
+  private def innerClassOuterArgs: Result =
+    SignatureParser.fieldSignature("Lpkg/Outer<Ljava/lang/String;>.Inner;") ====
+      Some(SigClass("pkg.Outer", List(inv(Str)), List(SigInner("Inner", Nil))))
 
-  it should "parse a class signature with type params, superclass, and interface" in {
+  private def classSignature: Result =
     val sig = "<T:Ljava/lang/Object;>Ljava/lang/Object;Ljava/lang/Comparable<TT;>;"
-    assert(
-      SignatureParser.classSignature(sig) == Some(
-        ClassSignature(
-          List(SigTypeParam("T", List(Obj))),
-          Obj,
-          List(cls("java.lang.Comparable", inv(SigVar("T"))))
-        )
+    SignatureParser.classSignature(sig) ==== Some(
+      ClassSignature(
+        List(SigTypeParam("T", List(Obj))),
+        Obj,
+        List(cls("java.lang.Comparable", inv(SigVar("T"))))
       )
     )
-  }
 
-  it should "parse an interface-only bounded type parameter (the '::' case)" in {
+  private def interfaceOnlyBound: Result =
     val sig = "<T::Ljava/lang/Comparable<TT;>;>Ljava/lang/Object;"
-    assert(
-      SignatureParser.classSignature(sig).map(_.typeParams)
-        == Some(List(SigTypeParam("T", List(cls("java.lang.Comparable", inv(SigVar("T")))))))
-    )
-  }
+    SignatureParser.classSignature(sig).map(_.typeParams) ====
+      Some(List(SigTypeParam("T", List(cls("java.lang.Comparable", inv(SigVar("T")))))))
 
-  it should "parse a generic method signature with params, return, and throws" in {
+  private def genericMethod: Result =
     val sig = "<T:Ljava/lang/Object;>(TT;I)Ljava/util/List<TT;>;^Ljava/io/IOException;"
-    assert(
-      SignatureParser.methodSignature(sig) == Some(
-        MethodSignature(
-          List(SigTypeParam("T", List(Obj))),
-          List(SigVar("T"), SigPrimitive('I')),
-          cls("java.util.List", inv(SigVar("T"))),
-          List(cls("java.io.IOException"))
-        )
+    SignatureParser.methodSignature(sig) ==== Some(
+      MethodSignature(
+        List(SigTypeParam("T", List(Obj))),
+        List(SigVar("T"), SigPrimitive('I')),
+        cls("java.util.List", inv(SigVar("T"))),
+        List(cls("java.io.IOException"))
       )
     )
-  }
 
-  it should "parse a void result" in {
-    assert(SignatureParser.methodSignature("()V").map(_.result) == Some(SigVoid))
-  }
+  private def voidResult: Result =
+    SignatureParser.methodSignature("()V").map(_.result) ==== Some(SigVoid)
 
-  it should "return None on malformed or truncated input" in {
-    assert(SignatureParser.fieldSignature("not-a-signature").isEmpty)
-    assert(SignatureParser.fieldSignature("Ljava/util/List<").isEmpty)
-    assert(SignatureParser.methodSignature("(I").isEmpty)
-  }
-
-  it should "reject trailing input after a complete signature" in {
-    assert(SignatureParser.fieldSignature("Ljava/lang/String;xxx").isEmpty)
-    assert(SignatureParser.methodSignature("()Vxxx").isEmpty)
-  }
-
-  it should "reject empty identifiers and empty type-argument/parameter lists" in {
-    assert(SignatureParser.fieldSignature("L;").isEmpty) // empty class name
-    assert(SignatureParser.fieldSignature("T;").isEmpty) // empty type-variable name
-    assert(SignatureParser.fieldSignature("Ljava/util/List<>;").isEmpty) // empty type args
-    assert(SignatureParser.classSignature("<>Ljava/lang/Object;").isEmpty) // empty type params
-  }
-
-  it should "parse multiple bounds on a type parameter" in {
-    val sig = "<T:Ljava/lang/Object;:Ljava/lang/Comparable<TT;>;>Ljava/lang/Object;"
-    assert(
-      SignatureParser.classSignature(sig).map(_.typeParams)
-        == Some(List(SigTypeParam("T", List(Obj, cls("java.lang.Comparable", inv(SigVar("T")))))))
+  private def malformed: Result =
+    Result.all(
+      List(
+        SignatureParser.fieldSignature("not-a-signature") ==== None,
+        SignatureParser.fieldSignature("Ljava/util/List<") ==== None,
+        SignatureParser.methodSignature("(I") ==== None,
+      )
     )
-  }
 
-  it should "parse a type-variable throws and reject an array throws" in {
+  private def trailingInput: Result =
+    Result.all(
+      List(
+        SignatureParser.fieldSignature("Ljava/lang/String;xxx") ==== None,
+        SignatureParser.methodSignature("()Vxxx") ==== None,
+      )
+    )
+
+  private def emptyIdentifiers: Result =
+    Result.all(
+      List(
+        (SignatureParser.fieldSignature("L;") ==== None).log("empty class name"),
+        (SignatureParser.fieldSignature("T;") ==== None).log("empty type-variable name"),
+        (SignatureParser.fieldSignature("Ljava/util/List<>;") ==== None).log("empty type args"),
+        (SignatureParser.classSignature("<>Ljava/lang/Object;") ==== None)
+          .log("empty type params"),
+      )
+    )
+
+  private def multipleBounds: Result =
+    val sig = "<T:Ljava/lang/Object;:Ljava/lang/Comparable<TT;>;>Ljava/lang/Object;"
+    SignatureParser.classSignature(sig).map(_.typeParams) ====
+      Some(List(SigTypeParam("T", List(Obj, cls("java.lang.Comparable", inv(SigVar("T")))))))
+
+  private def throwsClauses: Result =
     val tv = "<T:Ljava/lang/Throwable;>()V^TT;"
-    assert(SignatureParser.methodSignature(tv).map(_.throws) == Some(List(SigVar("T"))))
-    assert(SignatureParser.methodSignature("()V^[Ljava/lang/Exception;").isEmpty)
-  }
+    Result.all(
+      List(
+        SignatureParser.methodSignature(tv).map(_.throws) ==== Some(List(SigVar("T"))),
+        SignatureParser.methodSignature("()V^[Ljava/lang/Exception;") ==== None,
+      )
+    )
 
-  it should "parse type arguments on both the outer and inner of an inner class" in {
+  private def innerClassBothArgs: Result =
     val k = inv(SigVar("K"))
     val v = inv(SigVar("V"))
-    assert(
-      SignatureParser.fieldSignature("Ljava/util/Map<TK;TV;>.Entry<TK;TV;>;")
-        == Some(SigClass("java.util.Map", List(k, v), List(SigInner("Entry", List(k, v)))))
-    )
-  }
+    SignatureParser.fieldSignature("Ljava/util/Map<TK;TV;>.Entry<TK;TV;>;") ====
+      Some(SigClass("java.util.Map", List(k, v), List(SigInner("Entry", List(k, v)))))
 end SignatureParserSpecification

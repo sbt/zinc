@@ -13,6 +13,8 @@ package sbt
 package internal
 package inc
 
+import hedgehog.{ sbt as _, * }
+import hedgehog.runner.*
 import java.io.File
 import java.net.URLClassLoader
 import sbt.internal.inc.classfile.{ ClassFile, JavaCompilerForUnitTesting, Parser }
@@ -26,9 +28,35 @@ import xsbti.api.ClassLike
  * API ([[ClassToAPI]], the current production path) with the classfile-derived API
  * ([[ClassfileToAPI]]). Catalogs the differences so we can decide, before de-reflecting loadable
  * classes, whether the classfile path is close enough — in particular how much the inherited-members
- * gap matters. Prints a report and asserts the core invariant that *declared* members agree.
+ * gap matters. Asserts the core invariant that *declared* members agree, and logs every
+ * divergence it finds.
  */
-class DifferentialApiSpecification extends UnitSpec:
+object DifferentialApiSpecification extends Properties:
+  override def tests: List[Test] = List(
+    example(
+      "ClassfileToAPI vs ClassToAPI should agree on declared and inherited members across the corpus",
+      corpusAgrees
+    ),
+    example(
+      "list a nested class in the outer's declared members, matching reflection",
+      nestedClassDeclared
+    ),
+    example(
+      "agree on a non-static inner class constructor's parameter count",
+      innerConstructorArity
+    ),
+    example(
+      "model the transitive supertype closure in parents, matching reflection",
+      transitiveParents
+    ),
+    example("detect a parameter-annotation change, matching reflection", parameterAnnotation),
+    example("report an inherited main, matching reflection", inheritedMain),
+    example("mark an anonymous class as non-top-level, matching reflection", anonymousNotTopLevel),
+    example(
+      "keep every hidden ancestor field as inherited, matching reflection",
+      hiddenAncestorFields
+    ),
+  )
 
   // A corpus exercising the public-API surface ClassToAPI models (see ClassToAPI.scala): generics,
   // bounds, wildcards (extends/super/unbounded), nested generics, enums, interfaces (default/static
@@ -139,6 +167,16 @@ class DifferentialApiSpecification extends UnitSpec:
       case f: xsbti.api.FieldLike => (f.name, accessStr(f.access))
     }).toSet
 
+  // Resolves parents by reading their class files from `loader`'s path, never loading them.
+  private def byteResolver(loader: ClassLoader): String => Option[ClassFile] = bn =>
+    val res = bn.replace('.', '/') + ".class"
+    Option(loader.getResource(res))
+      .orElse(Option(ClassLoader.getSystemResource(res)))
+      .flatMap(u =>
+        try Some(Parser(u, Logger.Null))
+        catch case _: Throwable => None
+      )
+
   // Builds both the reflection-derived (ClassToAPI) and classfile-derived (ClassfileToAPI) APIs for
   // the public type `name`, after compiling `source` into a fresh dir. The classfile path resolves
   // parents by reading bytes (never loading), exactly as production does under classfileApiOnly.
@@ -150,113 +188,88 @@ class DifferentialApiSpecification extends UnitSpec:
     JavaCompilerForUnitTesting.compileJava(Seq(src), dir, Seq.empty)
 
     val loader = new URLClassLoader(Array(dir.toURI.toURL), null)
-    val resolve: String => Option[ClassFile] = bn =>
-      val res = bn.replace('.', '/') + ".class"
-      Option(loader.getResource(res))
-        .orElse(Option(ClassLoader.getSystemResource(res)))
-        .flatMap(u =>
-          try Some(Parser(u, Logger.Null))
-          catch case _: Throwable => None
-        )
+    val resolve = byteResolver(loader)
     val reflect = ClassToAPI.process(Seq(loader.loadClass(name)))._1.filter(_.name == name)
     val cf = Parser(new File(dir, s"$name.class").toPath, Logger.Null)
     val classfile = ClassfileToAPI.process(Seq(name -> cf), resolve)._1.filter(_.name == name)
     (reflect.toSeq, classfile.toSeq)
 
-  "ClassfileToAPI vs ClassToAPI" should
-    "agree on declared and inherited members across the corpus" in {
-      IO.withTemporaryDirectory { temp =>
-        println("\n=== Phase 3 differential audit: ClassfileToAPI vs ClassToAPI (reflection) ===")
-        val failures = scala.collection.mutable.ListBuffer.empty[String]
-        corpus.zipWithIndex.foreach {
-          case ((name, source), idx) =>
-            val (reflect, classfile) = buildApis(temp, idx, name, source)
-            val (dR, dC) = (declared(reflect), declared(classfile))
-            val (iR, iC) = (inherited(reflect), inherited(classfile))
-            val (kR, kC) = (declaredKinds(reflect), declaredKinds(classfile))
-            val (mR, mC) = (methodFacts(reflect), methodFacts(classfile))
-            val (fR, fC) = (fieldFacts(reflect), fieldFacts(classfile))
-            val hashEq = reflect.map(HashAPI(_)).sum == classfile.map(HashAPI(_)).sum
-            println(
-              f"$name%-13s declared==:${dR == dC}%-6s inherited==:${iR == iC}%-6s " +
-                f"kinds==:${kR == kC}%-6s methods==:${mR == mC}%-6s fields==:${fR == fC}%-6s hashEq:$hashEq"
-            )
-            if dR != dC then
-              failures += s"$name declared: onlyReflect=${dR -- dC} onlyClassfile=${dC -- dR}"
-            if iR != iC then
-              failures += s"$name inherited: onlyReflect=${iR -- iC} onlyClassfile=${iC -- iR}"
-            if kR != kC then
-              failures += s"$name kinds: onlyReflect=${kR -- kC} onlyClassfile=${kC -- kR}"
-            if mR != mC then
-              failures += s"$name methods: onlyReflect=${mR -- mC} onlyClassfile=${mC -- mR}"
-            if fR != fC then
-              failures += s"$name fields: onlyReflect=${fR -- fC} onlyClassfile=${fC -- fR}"
-        }
-        println("=== end audit ===\n")
-        assert(failures.isEmpty, "structural divergences:\n" + failures.mkString("\n"))
-      }
+  private def corpusAgrees: Result = IO.withTemporaryDirectory { temp =>
+    val divergences = corpus.zipWithIndex.flatMap {
+      case ((name, source), idx) =>
+        val (reflect, classfile) = buildApis(temp, idx, name, source)
+        val (dR, dC) = (declared(reflect), declared(classfile))
+        val (iR, iC) = (inherited(reflect), inherited(classfile))
+        val (kR, kC) = (declaredKinds(reflect), declaredKinds(classfile))
+        val (mR, mC) = (methodFacts(reflect), methodFacts(classfile))
+        val (fR, fC) = (fieldFacts(reflect), fieldFacts(classfile))
+        List(
+          Option.when(dR != dC)(
+            s"$name declared: onlyReflect=${dR -- dC} onlyClassfile=${dC -- dR}"
+          ),
+          Option.when(iR != iC)(
+            s"$name inherited: onlyReflect=${iR -- iC} onlyClassfile=${iC -- iR}"
+          ),
+          Option.when(kR != kC)(s"$name kinds: onlyReflect=${kR -- kC} onlyClassfile=${kC -- kR}"),
+          Option.when(mR != mC)(
+            s"$name methods: onlyReflect=${mR -- mC} onlyClassfile=${mC -- mR}"
+          ),
+          Option.when(fR != fC)(s"$name fields: onlyReflect=${fR -- fC} onlyClassfile=${fC -- fR}"),
+        ).flatten
     }
+    Result
+      .assert(divergences.isEmpty)
+      .log("structural divergences:\n" + divergences.mkString("\n"))
+  }
 
   // Previously a known divergence, now closed: ClassToAPI lists a public nested class among the
   // outer class's declared members (ClassToAPI.scala:256); ClassfileToAPI now mirrors this from the
   // InnerClasses attribute, so the outer's declared set matches.
-  it should "list a nested class in the outer's declared members, matching reflection" in {
-    IO.withTemporaryDirectory { temp =>
-      val src =
-        "public class Outer { public class Inner { public int v() { return 0; } } public int x; }"
-      val (reflect, classfile) = buildApis(temp, 0, "Outer", src)
-      assert(
-        declared(classfile).contains("Outer.Inner"),
-        s"classfile path should list the nested class: ${declared(classfile)}"
+  private def nestedClassDeclared: Result = IO.withTemporaryDirectory { temp =>
+    val src =
+      "public class Outer { public class Inner { public int v() { return 0; } } public int x; }"
+    val (reflect, classfile) = buildApis(temp, 0, "Outer", src)
+    Result.all(
+      List(
+        Result
+          .assert(declared(classfile).contains("Outer.Inner"))
+          .log(s"classfile path should list the nested class: ${declared(classfile)}"),
+        (declared(reflect) ==== declared(classfile)).log("declared members differ"),
       )
-      assert(
-        declared(reflect) == declared(classfile),
-        s"declared differ — reflect=${declared(reflect)} classfile=${declared(classfile)}"
-      )
-    }
+    )
   }
 
   // Adversarial-hunt candidate: a non-static inner class's constructor carries a synthetic
   // enclosing-instance parameter (this$0) in its descriptor. Verify the two paths agree on the
   // constructor's parameter count — if they don't, ClassfileToAPI must drop the synthetic leading
   // parameter to match ClassToAPI.
-  it should "agree on a non-static inner class constructor's parameter count" in {
-    IO.withTemporaryDirectory { temp =>
-      val dir = new File(temp, "d")
-      dir.mkdir()
-      val src = new File(dir, "Outer.java")
-      IO.write(src, "public class Outer { public class Inner { public Inner() {} } }")
-      JavaCompilerForUnitTesting.compileJava(Seq(src), dir, Seq.empty)
+  private def innerConstructorArity: Result = IO.withTemporaryDirectory { temp =>
+    val dir = new File(temp, "d")
+    dir.mkdir()
+    val src = new File(dir, "Outer.java")
+    IO.write(src, "public class Outer { public class Inner { public Inner() {} } }")
+    JavaCompilerForUnitTesting.compileJava(Seq(src), dir, Seq.empty)
 
-      val loader = new URLClassLoader(Array(dir.toURI.toURL), null)
-      val resolve: String => Option[ClassFile] = bn =>
-        val res = bn.replace('.', '/') + ".class"
-        Option(loader.getResource(res))
-          .orElse(Option(ClassLoader.getSystemResource(res)))
-          .flatMap(u =>
-            try Some(Parser(u, Logger.Null))
-            catch case _: Throwable => None
-          )
-      val innerName = "Outer.Inner"
-      val reflect =
-        ClassToAPI.process(Seq(loader.loadClass("Outer$Inner")))._1.filter(_.name ==
-          innerName).toSeq
-      val innerCf = Parser(new File(dir, "Outer$Inner.class").toPath, Logger.Null)
-      val classfile =
-        ClassfileToAPI.process(Seq(innerName -> innerCf), resolve)._1.filter(_.name ==
-          innerName).toSeq
+    val loader = new URLClassLoader(Array(dir.toURI.toURL), null)
+    val innerName = "Outer.Inner"
+    val reflect =
+      ClassToAPI.process(Seq(loader.loadClass("Outer$Inner")))._1.filter(_.name == innerName).toSeq
+    val innerCf = Parser(new File(dir, "Outer$Inner.class").toPath, Logger.Null)
+    val classfile =
+      ClassfileToAPI
+        .process(Seq(innerName -> innerCf), byteResolver(loader))
+        ._1
+        .filter(_.name == innerName)
+        .toSeq
 
-      def ctorParamCounts(apis: Seq[ClassLike]): Seq[Int] =
-        apis.flatMap(_.structure.declared.collect {
-          case d: xsbti.api.Def if d.name.contains("init") =>
-            d.valueParameters.flatMap(_.parameters.toSeq).length
-        })
+    def ctorParamCounts(apis: Seq[ClassLike]): Seq[Int] =
+      apis.flatMap(_.structure.declared.collect {
+        case d: xsbti.api.Def if d.name.contains("init") =>
+          d.valueParameters.flatMap(_.parameters.toSeq).length
+      })
 
-      val r = ctorParamCounts(reflect)
-      val c = ctorParamCounts(classfile)
-      println(s"[inner-ctor] reflect ctor params=$r  classfile ctor params=$c")
-      assert(r == c, s"inner-class ctor param count differs — reflect=$r classfile=$c")
-    }
+    (ctorParamCounts(reflect) ==== ctorParamCounts(classfile))
+      .log("inner-class constructor parameter counts (reflection, classfile)")
   }
 
   // The simple (Projection) name of a parent type reference, e.g. "Marker"/"Object". ClassToAPI and
@@ -274,55 +287,54 @@ class DifferentialApiSpecification extends UnitSpec:
   // member-less marker interface that `B` stops implementing) changes C's API on both paths, and the
   // classfile path no longer under-invalidates C's dependents. This was a green known-bug witness
   // before the fix; it now asserts agreement with reflection.
-  it should "model the transitive supertype closure in parents, matching reflection" in {
-    IO.withTemporaryDirectory { temp =>
-      // v1: C -> B -> Marker (C is transitively a Marker).  v2: B no longer implements Marker.
-      val v1 = "interface Marker {} class B implements Marker {} public class C extends B {}"
-      val v2 = "interface Marker {} class B {} public class C extends B {}"
-      val (reflect1, classfile1) = buildApis(temp, 100, "C", v1)
-      val (reflect2, classfile2) = buildApis(temp, 101, "C", v2)
+  private def transitiveParents: Result = IO.withTemporaryDirectory { temp =>
+    // v1: C -> B -> Marker (C is transitively a Marker).  v2: B no longer implements Marker.
+    val v1 = "interface Marker {} class B implements Marker {} public class C extends B {}"
+    val v2 = "interface Marker {} class B {} public class C extends B {}"
+    val (reflect1, classfile1) = buildApis(temp, 100, "C", v1)
+    val (reflect2, classfile2) = buildApis(temp, 101, "C", v2)
 
-      // Structural: both paths list the transitive Marker among C's parents, and agree.
-      val (pR, pC) = (parentNames(reflect1), parentNames(classfile1))
-      println(s"[parents] reflect C parents=$pR  classfile C parents=$pC")
-      assert(pC.contains("Marker"), s"classfile should now list transitive Marker: $pC")
-      assert(pR == pC, s"parents should match reflection — reflect=$pR classfile=$pC")
-
-      // Consequence: both paths invalidate (hash changes when B drops `implements Marker`).
-      val (hR1, hR2) = (reflect1.map(HashAPI(_)).sum, reflect2.map(HashAPI(_)).sum)
-      val (hC1, hC2) = (classfile1.map(HashAPI(_)).sum, classfile2.map(HashAPI(_)).sum)
-      println(s"[hash] reflect $hR1 -> $hR2 (changed=${hR1 != hR2}); " +
-        s"classfile $hC1 -> $hC2 (changed=${hC1 != hC2})")
-      assert(hR1 != hR2, "reflection hash must change when B drops `implements Marker`")
-      assert(
-        hC1 != hC2,
-        s"classfile hash must now change on the transitive-supertype change — got $hC1 vs $hC2"
+    val (pR, pC) = (parentNames(reflect1), parentNames(classfile1))
+    val (hR1, hR2) = (reflect1.map(HashAPI(_)).sum, reflect2.map(HashAPI(_)).sum)
+    val (hC1, hC2) = (classfile1.map(HashAPI(_)).sum, classfile2.map(HashAPI(_)).sum)
+    Result.all(
+      List(
+        Result.assert(pC.contains("Marker")).log(s"classfile should list transitive Marker: $pC"),
+        (pR ==== pC).log("parents should match reflection"),
+        Result
+          .diff(hR1, hR2)(_ != _)
+          .log("reflection hash must change when B drops `implements Marker`"),
+        Result
+          .diff(hC1, hC2)(_ != _)
+          .log("classfile hash must change on the transitive-supertype change"),
       )
-    }
+    )
   }
 
   // Deviation #2 (fixed): ClassfileToAPI now reads RuntimeVisible/InvisibleParameterAnnotations and
   // folds them into the method's synthetic annotation, so a parameter-annotation-only change changes
   // its hash — matching reflection (which carries them on the parameter type via api.Annotated). Was
   // a green known-bug witness before the fix; now asserts both paths invalidate.
-  it should "detect a parameter-annotation change, matching reflection" in {
-    IO.withTemporaryDirectory { temp =>
-      val pa =
-        "import java.lang.annotation.*;\n" +
-          "@Retention(RetentionPolicy.RUNTIME) @Target(ElementType.PARAMETER) @interface PA {}\n"
-      val v1 = pa + "public class C { public void m(@PA String x) {} }"
-      val v2 = pa + "public class C { public void m(String x) {} }"
-      val (reflect1, classfile1) = buildApis(temp, 110, "C", v1)
-      val (reflect2, classfile2) = buildApis(temp, 111, "C", v2)
-      val (hR1, hR2) = (reflect1.map(HashAPI(_)).sum, reflect2.map(HashAPI(_)).sum)
-      val (hC1, hC2) = (classfile1.map(HashAPI(_)).sum, classfile2.map(HashAPI(_)).sum)
-      println(s"[param-anno hash] reflect changed=${hR1 != hR2}; classfile changed=${hC1 != hC2}")
-      assert(hR1 != hR2, "reflection hash must change when the parameter annotation is removed")
-      assert(
-        hC1 != hC2,
-        s"classfile hash must now change on a param-annotation change — $hC1 vs $hC2"
+  private def parameterAnnotation: Result = IO.withTemporaryDirectory { temp =>
+    val pa =
+      "import java.lang.annotation.*;\n" +
+        "@Retention(RetentionPolicy.RUNTIME) @Target(ElementType.PARAMETER) @interface PA {}\n"
+    val v1 = pa + "public class C { public void m(@PA String x) {} }"
+    val v2 = pa + "public class C { public void m(String x) {} }"
+    val (reflect1, classfile1) = buildApis(temp, 110, "C", v1)
+    val (reflect2, classfile2) = buildApis(temp, 111, "C", v2)
+    val (hR1, hR2) = (reflect1.map(HashAPI(_)).sum, reflect2.map(HashAPI(_)).sum)
+    val (hC1, hC2) = (classfile1.map(HashAPI(_)).sum, classfile2.map(HashAPI(_)).sum)
+    Result.all(
+      List(
+        Result
+          .diff(hR1, hR2)(_ != _)
+          .log("reflection hash must change when the parameter annotation is removed"),
+        Result
+          .diff(hC1, hC2)(_ != _)
+          .log("classfile hash must change on a param-annotation change"),
       )
-    }
+    )
   }
 
   // The names of classes `process` reports as having a `main`, from each path.
@@ -331,21 +343,15 @@ class DifferentialApiSpecification extends UnitSpec:
     dir.mkdir()
     val srcs = names.map {
       case (n, src) =>
-        val f = new File(dir, s"$n.java"); IO.write(f, src); f
+        val f = new File(dir, s"$n.java")
+        IO.write(f, src)
+        f
     }
     JavaCompilerForUnitTesting.compileJava(srcs, dir, Seq.empty)
     val loader = new URLClassLoader(Array(dir.toURI.toURL), null)
-    val resolve: String => Option[ClassFile] = bn =>
-      val res = bn.replace('.', '/') + ".class"
-      Option(loader.getResource(res))
-        .orElse(Option(ClassLoader.getSystemResource(res)))
-        .flatMap(u =>
-          try Some(Parser(u, Logger.Null))
-          catch case _: Throwable => None
-        )
     val reflectMains = ClassToAPI.process(Seq(loader.loadClass(query)))._2
     val cf = Parser(new File(dir, s"$query.class").toPath, Logger.Null)
-    val classfileMains = ClassfileToAPI.process(Seq(query -> cf), resolve)._2
+    val classfileMains = ClassfileToAPI.process(Seq(query -> cf), byteResolver(loader))._2
     (reflectMains, classfileMains)
   end mainClasses
 
@@ -353,27 +359,26 @@ class DifferentialApiSpecification extends UnitSpec:
   // public static main, mirroring ClassToAPI's use of c.getMethods, so a subclass that inherits
   // `main` is reported as a main class. Was a green known-bug witness before the fix; now asserts
   // agreement with reflection.
-  it should "report an inherited main, matching reflection" in {
-    IO.withTemporaryDirectory { temp =>
-      val (reflectMains, classfileMains) = mainClasses(
-        temp,
-        0,
-        Seq(
-          "A" -> "public class A { public static void main(String[] a) {} }",
-          "B" -> "public class B extends A {}"
-        ),
-        query = "B"
+  private def inheritedMain: Result = IO.withTemporaryDirectory { temp =>
+    val (reflectMains, classfileMains) = mainClasses(
+      temp,
+      0,
+      Seq(
+        "A" -> "public class A { public static void main(String[] a) {} }",
+        "B" -> "public class B extends A {}"
+      ),
+      query = "B"
+    )
+    Result.all(
+      List(
+        Result
+          .assert(reflectMains.contains("B"))
+          .log(s"reflection should report inherited main on B: $reflectMains"),
+        Result
+          .assert(classfileMains.contains("B"))
+          .log(s"classfile should report inherited main on B: $classfileMains"),
       )
-      println(s"[main] reflect=$reflectMains classfile=$classfileMains")
-      assert(
-        reflectMains.contains("B"),
-        s"reflection should report inherited main on B: $reflectMains"
-      )
-      assert(
-        classfileMains.contains("B"),
-        s"classfile should now report inherited main on B: $classfileMains"
-      )
-    }
+    )
   }
 
   // Deviation #4 (fixed): reflection's topLevel is `getEnclosingClass == null`, false for member,
@@ -381,34 +386,25 @@ class DifferentialApiSpecification extends UnitSpec:
   // of an InnerClasses self entry (no longer requiring a non-empty outer), so anonymous/local classes
   // — whose self entry has outer index 0 — agree with reflection. Was a green known-bug witness
   // before the fix.
-  it should "mark an anonymous class as non-top-level, matching reflection" in {
-    IO.withTemporaryDirectory { temp =>
-      val dir = new File(temp, "d4")
-      dir.mkdir()
-      val src = new File(dir, "Outer.java")
-      IO.write(src, "public class Outer { Runnable r = new Runnable() { public void run() {} }; }")
-      JavaCompilerForUnitTesting.compileJava(Seq(src), dir, Seq.empty)
-      val loader = new URLClassLoader(Array(dir.toURI.toURL), null)
-      val resolve: String => Option[ClassFile] = bn =>
-        val res = bn.replace('.', '/') + ".class"
-        Option(loader.getResource(res))
-          .orElse(Option(ClassLoader.getSystemResource(res)))
-          .flatMap(u =>
-            try Some(Parser(u, Logger.Null))
-            catch case _: Throwable => None
-          )
-      val binary = "Outer$1" // the anonymous Runnable
-      val reflect = ClassToAPI.process(Seq(loader.loadClass(binary)))._1.filter(_.name == binary)
-      val cf = Parser(new File(dir, binary + ".class").toPath, Logger.Null)
-      val classfile = ClassfileToAPI.process(Seq(binary -> cf), resolve)._1.filter(_.name == binary)
-      val (rTop, cTop) = (reflect.map(_.topLevel).toSet, classfile.map(_.topLevel).toSet)
-      println(s"[topLevel] reflect=$rTop classfile=$cTop")
-      assert(rTop == Set(false), s"reflection: anon class is not top-level: $rTop")
-      assert(
-        cTop == rTop,
-        s"classfile topLevel must now match reflection — reflect=$rTop classfile=$cTop"
+  private def anonymousNotTopLevel: Result = IO.withTemporaryDirectory { temp =>
+    val dir = new File(temp, "d4")
+    dir.mkdir()
+    val src = new File(dir, "Outer.java")
+    IO.write(src, "public class Outer { Runnable r = new Runnable() { public void run() {} }; }")
+    JavaCompilerForUnitTesting.compileJava(Seq(src), dir, Seq.empty)
+    val loader = new URLClassLoader(Array(dir.toURI.toURL), null)
+    val binary = "Outer$1"
+    val reflect = ClassToAPI.process(Seq(loader.loadClass(binary)))._1.filter(_.name == binary)
+    val cf = Parser(new File(dir, binary + ".class").toPath, Logger.Null)
+    val classfile =
+      ClassfileToAPI.process(Seq(binary -> cf), byteResolver(loader))._1.filter(_.name == binary)
+    val (rTop, cTop) = (reflect.map(_.topLevel).toSet, classfile.map(_.topLevel).toSet)
+    Result.all(
+      List(
+        (rTop ==== Set(false)).log("reflection: the anonymous class is not top-level"),
+        (cTop ==== rTop).log("classfile topLevel must match reflection"),
       )
-    }
+    )
   }
 
   // Deviation #5 (fixed): field HIDING across two ancestor levels. Java fields hide rather than
@@ -416,43 +412,34 @@ class DifferentialApiSpecification extends UnitSpec:
   // both hidden along the chain, reflection lists BOTH as inherited. The classfile path used to
   // dedup inherited fields by bare name and kept only one; the name-SET corpus assertion cannot see
   // that (both sides collapse to {x}), so this test compares inherited-field COUNTS.
-  it should "keep every hidden ancestor field as inherited, matching reflection" in {
-    IO.withTemporaryDirectory { temp =>
-      val dir = new File(temp, "d5")
-      dir.mkdir()
-      val src = new File(dir, "DeepHidden.java")
-      IO.write(
-        src,
-        "class GrandBase { public int x; } class MidBase extends GrandBase { public int x; } " +
-          "public class DeepHidden extends MidBase {}"
+  private def hiddenAncestorFields: Result = IO.withTemporaryDirectory { temp =>
+    val dir = new File(temp, "d5")
+    dir.mkdir()
+    val src = new File(dir, "DeepHidden.java")
+    IO.write(
+      src,
+      "class GrandBase { public int x; } class MidBase extends GrandBase { public int x; } " +
+        "public class DeepHidden extends MidBase {}"
+    )
+    JavaCompilerForUnitTesting.compileJava(Seq(src), dir, Seq.empty)
+    val loader = new URLClassLoader(Array(dir.toURI.toURL), null)
+    val name = "DeepHidden"
+    val reflect = ClassToAPI.process(Seq(loader.loadClass(name)))._1.filter(_.name == name)
+    val cf = Parser(new File(dir, name + ".class").toPath, Logger.Null)
+    val classfile =
+      ClassfileToAPI.process(Seq(name -> cf), byteResolver(loader))._1.filter(_.name == name)
+    def inheritedFieldCount(apis: Seq[ClassLike]): Int =
+      apis.map(_.structure.inherited.count {
+        case f: xsbti.api.FieldLike => f.name == "x"
+        case _                      => false
+      }).sum
+    val (rCount, cCount) =
+      (inheritedFieldCount(reflect.toSeq), inheritedFieldCount(classfile.toSeq))
+    Result.all(
+      List(
+        (rCount ==== 2).log("reflection keeps both hidden ancestor fields"),
+        (cCount ==== rCount).log("inherited hidden-field count must match reflection"),
       )
-      JavaCompilerForUnitTesting.compileJava(Seq(src), dir, Seq.empty)
-      val loader = new URLClassLoader(Array(dir.toURI.toURL), null)
-      val resolve: String => Option[ClassFile] = bn =>
-        val res = bn.replace('.', '/') + ".class"
-        Option(loader.getResource(res))
-          .orElse(Option(ClassLoader.getSystemResource(res)))
-          .flatMap(u =>
-            try Some(Parser(u, Logger.Null))
-            catch case _: Throwable => None
-          )
-      val name = "DeepHidden"
-      val reflect = ClassToAPI.process(Seq(loader.loadClass(name)))._1.filter(_.name == name)
-      val cf = Parser(new File(dir, name + ".class").toPath, Logger.Null)
-      val classfile = ClassfileToAPI.process(Seq(name -> cf), resolve)._1.filter(_.name == name)
-      def inheritedFieldCount(apis: Seq[ClassLike]): Int =
-        apis.map(_.structure.inherited.count {
-          case f: xsbti.api.FieldLike => f.name == "x"
-          case _                      => false
-        }).sum
-      val (rCount, cCount) =
-        (inheritedFieldCount(reflect.toSeq), inheritedFieldCount(classfile.toSeq))
-      println(s"[hidden-fields] reflect inherited x count=$rCount classfile=$cCount")
-      assert(rCount == 2, s"reflection keeps both hidden ancestor fields: $rCount")
-      assert(
-        cCount == rCount,
-        s"inherited hidden-field count differs — reflect=$rCount classfile=$cCount"
-      )
-    }
+    )
   }
 end DifferentialApiSpecification

@@ -13,6 +13,8 @@ package sbt
 package internal
 package inc
 
+import hedgehog.{ sbt as _, * }
+import hedgehog.runner.*
 import java.io.File
 import java.net.URLClassLoader
 import scala.concurrent.{ Await, Future }
@@ -34,13 +36,23 @@ import xsbti.api.ClassLike
  * carries a visited-set), and this test pins that: extraction must terminate, hash deterministically,
  * and agree with reflection on declared/inherited member names.
  */
-class FBoundStressSpecification extends UnitSpec:
+object FBoundStressSpecification extends Properties:
+  override def tests: List[Test] = List(
+    example(
+      "ClassfileToAPI on the F-bound stress corpus should terminate and hash deterministically",
+      terminatesDeterministically
+    ),
+    example(
+      "agree with ClassToAPI (reflection) on declared and inherited member names",
+      agreesWithReflection
+    ),
+  )
 
   // The corpus lives in test resources so the guard runs hermetically. One multi-type .java file
   // (one public type, the rest package-private).
   private def corpusSource: String =
-    val url = getClass.getClassLoader.getResource("fbound/FBoundedStress.java")
-    assert(url != null, "fbound/FBoundedStress.java missing from test resources")
+    val url = Option(getClass.getClassLoader.getResource("fbound/FBoundedStress.java"))
+      .getOrElse(sys.error("fbound/FBoundedStress.java missing from test resources"))
     IO.readStream(url.openStream())
 
   // Compile the whole corpus once and return (output dir, every compiled class as name -> ClassFile).
@@ -54,8 +66,12 @@ class FBoundStressSpecification extends UnitSpec:
       val cf = Parser(f.toPath, Logger.Null)
       cf.className -> cf
     }
-    assert(classes.sizeIs > 20, s"expected the full corpus to compile, got ${classes.map(_._1)}")
     (dir, classes)
+
+  private def corpusCompiled(classes: Seq[(String, ClassFile)]): Result =
+    Result
+      .assert(classes.sizeIs > 20)
+      .log(s"expected the full corpus to compile, got ${classes.map(_._1)}")
 
   // Byte-only parent resolver (no class loading), exactly as production uses under classfileJavaApi.
   private def byteResolver(dir: File): String => Option[ClassFile] = binaryName =>
@@ -68,56 +84,64 @@ class FBoundStressSpecification extends UnitSpec:
         catch case _: Throwable => None
       )
 
-  "ClassfileToAPI on the F-bound stress corpus" should "terminate and hash deterministically" in {
-    IO.withTemporaryDirectory { temp =>
-      val (dir, classes) = compileCorpus(temp)
-      val resolve = byteResolver(dir)
+  private def terminatesDeterministically: Result = IO.withTemporaryDirectory { temp =>
+    val (dir, classes) = compileCorpus(temp)
+    val resolve = byteResolver(dir)
 
-      // A non-terminating walk would hang the suite; bound it so a cycle bug surfaces as a failure.
-      def hashAll(): Int =
-        Await.result(
-          Future(ClassfileToAPI.process(classes, resolve)._1.map(HashAPI(_)).sum),
-          30.seconds
-        )
+    // A non-terminating walk would hang the suite; bound it so a cycle bug surfaces as a failure.
+    def hashAll(): Int =
+      Await.result(
+        Future(ClassfileToAPI.process(classes, resolve)._1.map(HashAPI(_)).sum),
+        30.seconds
+      )
 
-      val h1 = hashAll()
-      val h2 = hashAll()
-      assert(h1 == h2, "hash must be deterministic across runs over cyclic F-bound signatures")
-    }
+    val h1 = hashAll()
+    val h2 = hashAll()
+    Result.all(
+      List(
+        corpusCompiled(classes),
+        (h1 ==== h2).log("hash must be deterministic across runs over cyclic F-bound signatures"),
+      )
+    )
   }
 
-  it should "agree with ClassToAPI (reflection) on declared and inherited member names" in {
-    IO.withTemporaryDirectory { temp =>
-      val (dir, classes) = compileCorpus(temp)
-      val resolve = byteResolver(dir)
-      val loader = new URLClassLoader(Array(dir.toURI.toURL), null)
+  private def agreesWithReflection: Result = IO.withTemporaryDirectory { temp =>
+    val (dir, classes) = compileCorpus(temp)
+    val resolve = byteResolver(dir)
+    val loader = new URLClassLoader(Array(dir.toURI.toURL), null)
 
-      val classfileApis = ClassfileToAPI.process(classes, resolve)._1
-      def declared(c: ClassLike): Set[String] = c.structure.declared.map(_.name).toSet
-      def inherited(c: ClassLike): Set[String] = c.structure.inherited.map(_.name).toSet
+    val classfileApis = ClassfileToAPI.process(classes, resolve)._1
+    def declared(c: ClassLike): Set[String] = c.structure.declared.map(_.name).toSet
+    def inherited(c: ClassLike): Set[String] = c.structure.inherited.map(_.name).toSet
 
-      val failures = scala.collection.mutable.ListBuffer.empty[String]
-      for (binaryName, _) <- classes do
-        // Reflection keys by canonical name; the classfile API does too. Skip anything reflection
-        // can't model cleanly (anonymous classes have no canonical name) to keep the comparison fair.
-        val loaded =
-          try Some(loader.loadClass(binaryName))
-          catch case _: Throwable => None
-        loaded.filter(_.getCanonicalName != null).foreach { cls =>
-          val name = cls.getCanonicalName
-          val reflect = ClassToAPI.process(Seq(cls))._1.filter(_.name == name)
-          val classfile = classfileApis.filter(_.name == name)
-          if reflect.nonEmpty && classfile.nonEmpty then
-            val dR = reflect.flatMap(declared).toSet
-            val dC = classfile.flatMap(declared).toSet
-            val iR = reflect.flatMap(inherited).toSet
-            val iC = classfile.flatMap(inherited).toSet
-            if dR != dC then
-              failures += s"$name declared: onlyReflect=${dR -- dC} onlyClassfile=${dC -- dR}"
-            if iR != iC then
-              failures += s"$name inherited: onlyReflect=${iR -- iC} onlyClassfile=${iC -- iR}"
-        }
-      assert(failures.isEmpty, "divergences from reflection:\n" + failures.mkString("\n"))
-    }
+    val failures = scala.collection.mutable.ListBuffer.empty[String]
+    for (binaryName, _) <- classes do
+      // Reflection keys by canonical name; the classfile API does too. Skip anything reflection
+      // can't model cleanly (anonymous classes have no canonical name) to keep the comparison fair.
+      val loaded =
+        try Some(loader.loadClass(binaryName))
+        catch case _: Throwable => None
+      loaded.filter(_.getCanonicalName != null).foreach { cls =>
+        val name = cls.getCanonicalName
+        val reflect = ClassToAPI.process(Seq(cls))._1.filter(_.name == name)
+        val classfile = classfileApis.filter(_.name == name)
+        if reflect.nonEmpty && classfile.nonEmpty then
+          val dR = reflect.flatMap(declared).toSet
+          val dC = classfile.flatMap(declared).toSet
+          val iR = reflect.flatMap(inherited).toSet
+          val iC = classfile.flatMap(inherited).toSet
+          if dR != dC then
+            failures += s"$name declared: onlyReflect=${dR -- dC} onlyClassfile=${dC -- dR}"
+          if iR != iC then
+            failures += s"$name inherited: onlyReflect=${iR -- iC} onlyClassfile=${iC -- iR}"
+      }
+    Result.all(
+      List(
+        corpusCompiled(classes),
+        Result
+          .assert(failures.isEmpty)
+          .log("divergences from reflection:\n" + failures.mkString("\n")),
+      )
+    )
   }
 end FBoundStressSpecification
