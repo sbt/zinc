@@ -1,0 +1,9 @@
+# Client uses the constant W.K only in an annotation value, so its classfile names neither W nor V; the javac-AST constant
+# edge (sbt/zinc#145) is its only link to W. Foo resolves to a.q.Foo.
+> compile
+
+# V.Foo, which W inherits from its parameterized supertype V<String>, now comes through
+# `import static a.W.*` too, so Foo is ambiguous. Client is recompiled only if W is recorded as
+# inheriting from V, so that a change to V reaches W's dependents.
+$ copy-file changes/V.java src/main/java/a/V.java
+-> compile
