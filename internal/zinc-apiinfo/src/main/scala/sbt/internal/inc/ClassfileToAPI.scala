@@ -321,13 +321,14 @@ object ClassfileToAPI:
   ): (Boolean, api.ClassDefinition) =
     val sigStr = m.attributes.find(_.isSignature).map(cf.stringValue)
     val sig = sigStr.flatMap(SignatureParser.methodSignature)
-    val (paramTypes, rawReturn, typeParams): (Array[api.Type], api.Type, Array[api.TypeParameter]) =
+    val signatureParts: (Array[api.Type], api.Type, Array[api.TypeParameter]) =
       sig match
         case Some(ms) =>
           (ms.params.map(toType).toArray, toType(ms.result), ms.typeParams.map(toTypeParam).toArray)
         case None =>
           val (ps, ret) = parseMethodType(m.descriptor.getOrElse("()V"))
           (ps, ret, noTypeParameters)
+    val (paramTypes, rawReturn, typeParams) = signatureParts
     val isCtor = m.name.contains("<init>")
     // ClassToAPI uses Empty (not Unit) for a constructor's "return type".
     val returnType = if isCtor then ClassToAPI.Empty else rawReturn
