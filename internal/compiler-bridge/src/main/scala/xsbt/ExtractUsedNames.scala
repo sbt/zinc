@@ -169,6 +169,7 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
     override def traverse(tree: Tree): Unit = {
       handleAnnotations(tree)
       handleClassicTreeNode(tree)
+      handleDynamicCall(tree)
       processMacroExpansion(tree)(handleMacroExpansion)
       super.traverse(tree)
     }
@@ -188,6 +189,21 @@ class ExtractUsedNames[GlobalType <: CallbackGlobal](val global: GlobalType)
         }
       case _ =>
     }
+
+    /**
+     * `d.foo` on a `Dynamic` without a member `foo` is typed as `d.selectDynamic("foo")` (or
+     * `applyDynamic`, `applyDynamicNamed`, `updateDynamic`), so `foo` is never looked up as a
+     * member. Adding one changes the meaning, so register the name.
+     */
+    private def handleDynamicCall(tree: Tree): Unit = tree match {
+      case treeInfo.DynamicApplication(qual, name: String) if isDynamic(qual.tpe) =>
+        getNamesOfEnclosingScope.add(newTermName(name).encode)
+        ()
+      case _ =>
+    }
+
+    private def isDynamic(tpe: Type): Boolean =
+      tpe != null && tpe.widen.typeSymbol.isNonBottomSubClass(definitions.DynamicClass)
 
     val addSymbol: (JavaSet[Name], Symbol) => Unit = { (names: JavaSet[Name], symbol: Symbol) =>
       // Synthetic names are no longer included. See https://github.com/sbt/sbt/issues/2537

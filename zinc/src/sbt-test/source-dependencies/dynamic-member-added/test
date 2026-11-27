@@ -1,0 +1,5 @@
+> p/run dynamic
+
+# d.foo was rewritten to d.selectDynamic("foo"), so Main may not record the name foo
+$ copy-file changes/D.scala p/D.scala
+> p/run static
