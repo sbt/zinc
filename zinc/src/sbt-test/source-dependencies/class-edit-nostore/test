@@ -1,0 +1,10 @@
+# https://github.com/sbt/zinc/issues/226
+> compile
+
+# change the signature of p.B (a class with no companion object)
+$ copy-file changes/PB.scala PB.scala
+
+# only p.B recompiles; Use.scala (which uses simple name B, bound to other.B) is untouched
+> compile
+> checkRecompilations 1 p.B
+> checkIterations 2

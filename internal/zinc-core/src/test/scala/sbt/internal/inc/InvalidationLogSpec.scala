@@ -382,8 +382,10 @@ object InvalidationLogSpec extends Properties:
       .addProducts(sourceB, Seq(product))
       .addClasses(sourceA, Seq("A" -> "Shared"))
       .addClasses(sourceB, Seq("B" -> "Shared"))
+    val collisionAnalysis = Analysis.empty.copy(relations = collisionRelations)
     val collided = incremental.invalidateAfterInternalCompilation(
-      Analysis.empty.copy(relations = collisionRelations),
+      collisionAnalysis,
+      collisionAnalysis,
       new APIChanges(Nil),
       Set.empty,
       invalidateTransitively = false,
@@ -393,8 +395,10 @@ object InvalidationLogSpec extends Properties:
       sourceA,
       Seq(InternalDependency.of("B", "A", DependencyContext.DependencyByInheritance))
     )
+    val inheritanceAnalysis = Analysis.empty.copy(relations = inheritanceRelations)
     val transitive = incremental.invalidateAfterInternalCompilation(
-      Analysis.empty.copy(relations = inheritanceRelations),
+      inheritanceAnalysis,
+      inheritanceAnalysis,
       new APIChanges(
         Seq(NamesChange("A", ModifiedNames(Set(UsedName("changed", Seq(UseScope.Default))))))
       ),

@@ -3,6 +3,6 @@
 # remove class a.A
 $ copy-file changes/A.scala A.scala
 
-# 'import a.A' should now fail in B.scala
-# succeeds because scalac doesn't track this dependency
+# 'import a.A' should now fail in B.scala: the explicit import records a
+# dependency on a.A, so B is recompiled and errors like in a clean compile
 -> compile
