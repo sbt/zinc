@@ -393,11 +393,18 @@ case class ProjectStructure(
         xsbti.compile.TransactionalManagerType
           .of((targetDir / "classes.bak").toFile, sbt.util.Logger.Null)
       )
+    // -Dzinc.scripted.classfileJavaApi=true|false forces the classfile-based Java API path for the
+    // whole scripted run (the CI matrix runs the suite both ways); absent, the per-test value stands.
+    val classfileJavaApi = Option(System.getProperty("zinc.scripted.classfileJavaApi"))
+      .map(_.toBoolean)
+      .getOrElse(incOptions0.classfileJavaApi())
     val incO =
       incOptions0
         .withClassfileManagerType(transactional)
         .withStoreApis(storeApis)
+        .withClassfileJavaApi(classfileJavaApi)
     (incO, sco)
+  end val
   val exportPipelining = incOptions.pipelining
 
   def prev(useCachedAnalysis: Boolean = true) =

@@ -45,6 +45,7 @@ public class IncOptionsUtil {
     public static final String STORE_APIS = "storeApis";
     public static final String ALLOW_MACHINE_PATH = "allowMachinePath";
     public static final String PIPELINING = "pipelining";
+    public static final String CLASSFILE_JAVA_API = "classfileJavaApi";
     private static final String XSBTI_NOTHING = "NOTHING";
 
     // Small utility function for logging
@@ -175,6 +176,11 @@ public class IncOptionsUtil {
         if (values.containsKey(PIPELINING)) {
             logger.debug(f0("PIPELINING value was read."));
             base = base.withPipelining(Boolean.parseBoolean(values.get(PIPELINING)));
+        }
+
+        if (values.containsKey(CLASSFILE_JAVA_API)) {
+            logger.debug(f0("CLASSFILE_JAVA_API value was read."));
+            base = base.withClassfileJavaApi(Boolean.parseBoolean(values.get(CLASSFILE_JAVA_API)));
         }
 
         return base;

@@ -64,6 +64,10 @@ object AnalyzeSpecification extends Properties:
     ),
     property("detect any annotation at any site that keeps it in the classfile", propAnnotations)
       .withTests(10),
+    example(
+      "map local-class member-ref dependencies to the enclosing source under classfileApiOnly",
+      localClassUnderClassfileApiOnly
+    ),
   )
 
   private def deps(srcs: (String, String)*): ExtractedClassDependencies =
@@ -432,4 +436,46 @@ object AnalyzeSpecification extends Properties:
             |""".stripMargin
       refersTo(deps(s"$name.java" -> srcAnnotation, "Foo.java" -> site(name)), "Foo", name)
         .log(site(name))
+
+  // Step D: under classfileApiOnly there are no loaded classes, so a local/anonymous class's
+  // enclosing source must be recovered from the EnclosingMethod attribute — otherwise a dependency
+  // referenced only inside the local class body (here `Dep`, used only in the anonymous Runnable)
+  // would be dropped, under-compiling. Before the EnclosingMethod mapping this assertion failed.
+  private def localClassUnderClassfileApiOnly: Result = IO.withTemporaryDirectory { temp =>
+    val classesDir = new File(temp, "classes")
+    classesDir.mkdir()
+
+    val depFile = new File(temp, "Dep.java")
+    IO.write(depFile, "public class Dep {}")
+    val holderFile = new File(temp, "Holder.java")
+    IO.write(
+      holderFile,
+      """|public class Holder {
+         |  public Runnable make() {
+         |    return new Runnable() { public void run() { Dep d = new Dep(); } };
+         |  }
+         |}
+         |""".stripMargin
+    )
+    JavaCompilerForUnitTesting.compileJava(Seq(depFile, holderFile), classesDir, Seq.empty)
+
+    val callback =
+      JavaCompilerForUnitTesting.analyze(
+        classesDir,
+        Seq(depFile, holderFile),
+        classfileApiOnly = true
+      )
+
+    val products = callback.productClassesToSources.keySet.map(_.getFileName.toString)
+    Result.all(
+      List(
+        Result
+          .assert(products.contains("Holder$1.class"))
+          .log(s"the anonymous class must be recorded as a local product: $products"),
+        Result
+          .assert(callback.classDependencies.contains(("Dep", "Holder", DependencyByMemberRef)))
+          .log("Dep, used only inside the anonymous class, must be attributed to Holder"),
+      )
+    )
+  }
 end AnalyzeSpecification

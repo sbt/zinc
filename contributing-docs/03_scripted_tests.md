@@ -90,6 +90,36 @@ sbt "scripted source-dependencies/*"                         # one group
 
 Tests run at once, one per core; `set localzinc.Scripted.scriptedParallelism := 1` runs them one at a time. Each test runs in its own temporary copy of its directory and writes a debug log of its own, in the directory named at the end of the run. Nothing waits between steps, so a test whose assertions compare modification times needs its own `$ sleep`.
 
+### Classfile Java API mode
+
+`IncOptions.classfileJavaApi` makes Zinc extract each Java class's API from its class file
+instead of by reflectively loading it (sbt/zinc#837). It is off by default. The scripted
+runner can force it on or off for the whole run via a system property, so the same scenarios
+can be checked under both paths:
+
+```bash
+sbt -Dzinc.scripted.classfileJavaApi=true -Dzinc.classfileJavaApi.strict=true scripted  # classfile path
+sbt -Dzinc.scripted.classfileJavaApi=false scripted                                      # reflection (default)
+```
+
+Two properties are involved:
+
+- `-Dzinc.scripted.classfileJavaApi=true|false` forces `IncOptions.classfileJavaApi` for the whole
+  scripted run. Without it, each test uses its own value (the default, unless its
+  `incOptions.properties` overrides it).
+- `-Dzinc.classfileJavaApi.strict=true` makes a failure *inside* the classfile-based extractor
+  propagate instead of being logged and swallowed. In production that path is deliberately
+  best-effort (it must never fail a compile that would otherwise succeed), but under
+  `classfileApiOnly` it is the primary path for every Java class, so for testing we want a crash
+  there to fail the build. Pair it with the property above when running the matrix.
+
+Note: the scripted suite is good at catching *crashes and structural breakage* in the classfile
+path, but it is largely insensitive to *fine-grained* Java API-hash regressions (e.g. a dropped
+method return type) because cross-unit invalidation there is dominated by source changes and
+inheritance edges. That fine-grained correctness is pinned by the unit tests in `zinc-apiinfo`
+(`ClassfileToAPISpecification`, `DifferentialApiSpecification`, `FBoundStressSpecification`) and by
+`IncrementalCompilerSpec`'s classfileJavaApi-vs-reflection invalidation check.
+
 `incOptions.properties`
 -----------------------
 
@@ -131,6 +161,7 @@ noted.
 | `useOptimizedSealed` | boolean: use the optimized sealed-children invalidation | false |
 | `storeApis` | boolean: persist extracted APIs in the analysis | true |
 | `pipelining` | boolean: pipelined compilation | **true** (`IncOptions` uses false) |
+| `classfileJavaApi` | boolean: extract the API of Java classes from their class files instead of by reflection | false |
 | `scalac.options` | **space-separated** options passed to the compiler; `[basedir]` expands to the project's absolute base directory. Handled by `IncHandler`, not `IncOptionsUtil` | none |
 | `incOptions.storeApis` | boolean; same as `storeApis`, applied after parsing. Handled by `IncHandler` | true |
 
