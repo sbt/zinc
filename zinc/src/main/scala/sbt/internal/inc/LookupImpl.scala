@@ -41,8 +41,11 @@ class LookupImpl(compileConfiguration: CompileConfiguration, previousSetup: Opti
 
   private val entry = MixedAnalyzingCompiler.classPathLookup(compileConfiguration)
 
+  private lazy val binaryClassNameToAnalysis: java.util.Map[String, Analysis] =
+    LookupImpl.indexByBinaryClassName(analyses)
+
   override def lookupAnalysis(binaryClassName: String): Option[CompileAnalysis] =
-    analyses.find(_.relations.productClassName._2s.contains(binaryClassName))
+    Option(binaryClassNameToAnalysis.get(binaryClassName))
 
   override def lookupOnClasspath(binaryClassName: String): Option[VirtualFileRef] =
     entry(binaryClassName)
@@ -85,4 +88,17 @@ class LookupImpl(compileConfiguration: CompileConfiguration, previousSetup: Opti
 
   override def hashClasspath(classpath: Array[VirtualFile]): Optional[Array[FileHash]] =
     externalLookup.map(_.hashClasspath(classpath)).getOrElse(Optional.empty())
+end LookupImpl
+
+object LookupImpl:
+  /** Maps each binary class name to the first of `analyses` that defines it. */
+  private[inc] def indexByBinaryClassName(
+      analyses: Iterable[Analysis]
+  ): java.util.Map[String, Analysis] =
+    val index = new java.util.HashMap[String, Analysis]()
+    for
+      analysis <- analyses
+      name <- analysis.relations.productClassName._2s
+    do index.putIfAbsent(name, analysis)
+    index
 end LookupImpl
