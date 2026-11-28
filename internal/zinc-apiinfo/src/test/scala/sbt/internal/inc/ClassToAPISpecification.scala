@@ -28,6 +28,7 @@ object ClassToAPISpecification extends Properties:
     example("extract a private inner class", privateInnerClass),
     property("extract every inner class, whatever its access", propInnerClasses).withTests(10),
     example("not throw NPE when a parent JDK class is bootstrap-loaded", bootstrapParent),
+    example("record inheritance from a parameterized supertype", parameterizedSuperInheritance),
     example(
       "not throw NoClassDefFoundError when inner class references missing type",
       missingType
@@ -108,6 +109,26 @@ object ClassToAPISpecification extends Properties:
       // Force the lazy structure so the inner-class walk runs.
       apis.foreach(_.structure.declared.toIndexedSeq)
       Result.assert(apis.map(_.name).toSet.contains("MyThread"))
+    }
+  }
+
+  // Reflection reports `extends Base<String>` as a ParameterizedType, whose raw class the class
+  // inherits from as much as from a raw supertype.
+  private def parameterizedSuperInheritance: Result = IO.withTemporaryDirectory { temp =>
+    val outDir = new File(temp, "out")
+    outDir.mkdir()
+    val src = new File(temp, "Sub.java")
+    IO.write(
+      src,
+      "interface Iface<T> {} class Base<T> {} public class Sub extends Base<String> implements Iface<Integer> {}"
+    )
+    compileJava(Seq(src), outDir, Seq.empty)
+    Using.resource(new java.net.URLClassLoader(Array(outDir.toURI.toURL))) { classloader =>
+      val (_, _, inherits) = ClassToAPI.process(Seq(classloader.loadClass("Sub")))
+      val parents = inherits.collect { case (from, to) if from.getName == "Sub" => to.getName }
+      Result
+        .assert(Set("Base", "Iface").subsetOf(parents))
+        .log(s"inheritance edges from Sub: $parents")
     }
   }
 

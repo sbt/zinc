@@ -207,7 +207,15 @@ object ClassToAPI:
     val all = methods ++ fields ++ constructors ++ classes
     val parentJavaTypes = allSuperTypes(c)
     if !Modifier.isPrivate(c.getModifiers) then
-      cmap.inherited ++= parentJavaTypes.collect { case parent: Class[?] => c -> parent }
+      // A parameterized supertype (`extends Base<String>`) is inherited from as much as a raw one.
+      cmap.inherited ++= parentJavaTypes.flatMap {
+        case parent: Class[?]     => Some(c -> parent)
+        case p: ParameterizedType =>
+          p.getRawType match
+            case raw: Class[?] => Some(c -> raw)
+            case _             => None
+        case _ => None
+      }
     val parentTypes = types(parentJavaTypes)
     val instanceStructure =
       api.Structure.of(lzyS(parentTypes), lzyS(all.declared.toArray), lzyS(all.inherited.toArray))
