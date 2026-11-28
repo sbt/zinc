@@ -16,6 +16,7 @@ package inc
 import java.nio.file.{ FileVisitResult, Files, Path, SimpleFileVisitor }
 import java.nio.file.attribute.BasicFileAttributes
 import java.util.jar.JarFile
+import java.util.zip.ZipException
 import sbt.util.Logger
 import sbt.internal.io.Retry
 
@@ -55,6 +56,29 @@ object PickleJar:
       SortedJar.write(pickleOut, before, after, keep)
       merged.foreach(Files.delete)
   end write
+
+  /**
+   * [[write]], unless `updates` has no index, as a jar that scalac is still writing has none:
+   * then it leaves both jars as they are and returns false. It warns, as zinc merges no jar of a
+   * run that it saw skip `dependencyPhaseCompleted`: this one is unexpected.
+   */
+  def writeIfComplete(
+      pickleOut: Path,
+      updates: Option[Path],
+      knownProducts: Option[java.util.Set[String]],
+      keep: (Path, Long) => Boolean,
+      log: Logger
+  ): Boolean =
+    val complete =
+      try
+        updates.foreach(SortedJar.entries)
+        true
+      catch
+        case e: ZipException =>
+          log.warn(s"not merging ${updates.mkString} into $pickleOut, as it has no index: $e")
+          false
+    if complete then write(pickleOut, updates, knownProducts, keep, log)
+    complete
 
   // "foo/bar/wiz.sig" -> "foo/bar/wiz.class"
   private def isUnknown(entry: String, knownProducts: java.util.Set[String]): Boolean =
