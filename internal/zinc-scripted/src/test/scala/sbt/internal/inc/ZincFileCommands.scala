@@ -28,7 +28,7 @@ class ZincFileCommands(baseDirectory: File, logger: Logger) extends FileCommands
         scala.io.StdIn.readLine()
         println("Restarting the execution.")
       }
-    }).map {
+    } + ("generate-java" -> generateJava)).map {
       case (cmd, fn) =>
         cmd ->
           ((args: List[String]) =>
@@ -36,6 +36,25 @@ class ZincFileCommands(baseDirectory: File, logger: Logger) extends FileCommands
             fn(args)
           )
     }
+
+  /**
+   * `generate-java <path> <classes> <methods>` writes a Java class named after the file, with
+   * `classes` nested classes of `methods` methods each: Scala 3's Java parser overflows its stack
+   * on a class with thousands of members.
+   */
+  private def generateJava(args: List[String]): Unit = args match
+    case List(path, classes, methods) =>
+      val file = fromString(path)
+      val out = StringBuilder(s"public class ${file.getName.stripSuffix(".java")} {\n")
+      for c <- 1 to classes.toInt do
+        out ++= s"  public static class Nested$c {\n"
+        for m <- 1 to methods.toInt do
+          out ++= s"    public int method${m}WithAVeryLongNameToInflateTheTasty"
+          out ++= s"(int argumentNumberOne, String argumentNumberTwo) { return $m; }\n"
+        out ++= "  }\n"
+      out ++= "}\n"
+      IO.write(file, out.result())
+    case _ => scriptError(s"Expected generate-java <path> <classes> <methods>, got: $args")
 
   override def absent(paths: List[String]): Unit =
     val present = paths.filter(exists)

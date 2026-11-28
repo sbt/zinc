@@ -1,0 +1,13 @@
+# With -Ypickle-java, changing S.scala recompiles J.java as well. Scala 3 writes J's large TASTy
+# into the updates jar on a background thread, and ends the run without waiting for it
+# (scala/scala3#27139). zinc must not read that jar while it is still being written. Each change
+# is another chance for that to happen.
+
+$ generate-java root/J.java 200 100
+> root/compile
+$ copy-file changes/S1.scala root/S.scala
+> root/compile
+$ copy-file changes/S2.scala root/S.scala
+> root/compile
+$ copy-file changes/S1.scala root/S.scala
+> root/compile
